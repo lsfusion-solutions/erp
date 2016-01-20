@@ -12,16 +12,16 @@ NAMESPACE PurchaseReturn;
 @deriveDocumentOperationProperty(UserOrder, showManufacturingPrice);
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(orderDetail, manufacturing, ' изготовителя');
-Order.manufacturingPriceOrderDetail(d) += manufacturingPriceOrderDetail(d);
+manufacturingPrice[Order.OrderDetail](OrderDetail d) += manufacturingPrice(d);
 @defineDocumentInterfaceDetailInclVATCustomPrefix (orderDetail);
-includeVATUserOrderDetail(detail) <-  fixedPriceSku(skuUserOrderDetail(detail)) WHEN CHANGED (skuUserOrderDetail(detail));
+includeVAT(UserOrderDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 @defineDocumentInterfaceDetailMPVATCustomPrefix (orderDetail, manufacturing, );
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra(userOrder, manufacturingPriceStockPriceListType, manufacturing, sku, customerStock);
 
-wholesaleMarkupOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = NUMERIC[17,5](round2([= ((X*100.0)/Y-100.0)](priceOrderDetail(detail),manufacturingMVATPriceOrderDetail(detail) IF manufacturingMVATPriceOrderDetail(detail) != 0.0)));
-wholesaleMarkupUserOrderDetail 'Оптовая надбавка (от цены изг.)' (detail) = round2([= ((X*100.0)/Y-100.0)](priceUserOrderDetail(detail),manufacturingMVATPriceUserOrderDetail(detail) IF manufacturingMVATPriceUserOrderDetail(detail) != 0.0 ));
-Order.wholesaleMarkupOrderDetail(d) += wholesaleMarkupOrderDetail(d);
+wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (OrderDetail detail) = NUMERIC[17,5](round2([= ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0)));
+wholesaleMarkup 'Оптовая надбавка (от цены изг.)' (UserOrderDetail detail) = round2([= ((X*100.0)/Y-100.0)](price(detail),manufacturingMVATPrice(detail) IF manufacturingMVATPrice(detail) != 0.0 ));
+wholesaleMarkup(OrderDetail d) += wholesaleMarkup(d);
 
 @defineDocumentInterfaceDetailDataSumPrefix (order, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
 @deriveDocumentDetailSumPrefix(userOrder, manufacturing, currency, quantity); // записываем сумму изготовителя
@@ -38,25 +38,25 @@ Order.wholesaleMarkupOrderDetail(d) += wholesaleMarkupOrderDetail(d);
 //}
 
 EXTEND FORM userOrder
-    PROPERTIES(o)  showManufacturingPriceUserOrder
-    PROPERTIES(d)  SHOWIF showManufacturingPriceUserOrder(o) AFTER invoiceSumUserOrderDetail(d)  
-                   manufacturingPriceUserOrderDetail, // ON CHANGE changeManufacturingPriceUserOrderDetail(d)
-                   wholesaleMarkupUserOrderDetail READONLY, 
-                   includeVATUserOrderDetail, manufacturingSumUserOrderDetail
+    PROPERTIES(o)  showManufacturingPrice
+    PROPERTIES(d)  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d)  
+                   manufacturingPrice, // ON CHANGE changeManufacturingPriceUserOrderDetail(d)
+                   wholesaleMarkup READONLY, 
+                   includeVAT, manufacturingSum
 
 ;
 DESIGN userOrder {
     headerExtraParams {
         NEW headerManufacturing {
             caption = 'Цена изготовителя';
-            MOVE PROPERTY(showManufacturingPriceUserOrder(o));
+            MOVE PROPERTY(showManufacturingPrice(o));
         }
     }
 }
 
 EXTEND FORM orders
-    PROPERTIES(d) READONLY  SHOWIF showManufacturingPriceOrder(o) AFTER invoiceSumOrderDetail(d) 
-                  manufacturingPriceOrderDetail, wholesaleMarkupOrderDetail, includeVATOrderDetail, manufacturingSumOrderDetail
+    PROPERTIES(d) READONLY  SHOWIF showManufacturingPrice(o) AFTER invoiceSum(d) 
+                  manufacturingPrice, wholesaleMarkup, includeVAT, manufacturingSum
 ;
 
 //----------------------------- Накладная -------------------------//
@@ -67,45 +67,45 @@ EXTEND FORM orders
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, manufacturing, ' изготовителя');
 @defineDocumentInterfaceDetailInclVATCustomPrefix (invoiceDetail);
-includeVATUserInvoiceDetail(detail) <-  fixedPriceSku(skuUserInvoiceDetail(detail)) WHEN CHANGED (skuUserInvoiceDetail(detail));
+includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
                                                          
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra(userInvoice, manufacturingPriceStockPriceListType, manufacturing, sku, customerStock);
 
-overRecalculatedPriceUserInvoiceDetail(detail) += ACTION (detail) {
-    PurchaseReturn.manufacturingPriceUserInvoiceDetail(detail) <- Purchase.manufacturingPriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+overRecalculatedPrice(UserInvoiceDetail detail) += ACTION (detail) {
+    manufacturingPrice(detail) <- manufacturingPrice(invoiceDetail(detail));
 }
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
 @deriveDocumentDetailSumPrefix(userInvoice, manufacturing, currency, quantity); // записываем сумму изготовителя
 
-calcDiscountSumUserInvoiceDetail (detail) = manufacturingSumUserInvoiceDetail(detail) - sumUserInvoiceDetail(detail);
-discountSumUserInvoiceDetail 'Скидка от цены изг. (сумма)' (detail) = calcDiscountSumUserInvoiceDetail(detail) IF calcDiscountSumUserInvoiceDetail(detail) > 0.0;
+calcDiscountSum (UserInvoiceDetail detail) = manufacturingSum(detail) - sum(detail);
+discountSum 'Скидка от цены изг. (сумма)' (UserInvoiceDetail detail) = calcDiscountSum(detail) IF calcDiscountSum(detail) > 0.0;
 
-calcDiscountSumInvoiceDetail (detail) = manufacturingSumInvoiceDetail(detail) - sumInvoiceDetail(detail);
-discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (detail) = calcDiscountSumInvoiceDetail(detail) IF calcDiscountSumInvoiceDetail(detail) > 0.0;
+calcDiscountSum (InvoiceDetail detail) = manufacturingSum(detail) - sum(detail);
+discountSum 'Скидка от цены изг. (сумма)' (InvoiceDetail detail) = calcDiscountSum(detail) IF calcDiscountSum(detail) > 0.0;
 
 @defineDocumentInterfaceHeaderItemSum (invoice, discount, discount);
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showManufacturingPriceUserInvoice
-    PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail(d) 
-                  manufacturingPriceUserInvoiceDetail, includeVATUserInvoiceDetail, manufacturingSumUserInvoiceDetail 
+    PROPERTIES(i) showManufacturingPrice
+    PROPERTIES(d) SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) 
+                  manufacturingPrice, includeVAT, manufacturingSum 
 ;
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerManufacturing {
             caption = 'Цена изготовителя';
-            MOVE PROPERTY(showManufacturingPriceUserInvoice(i));
+            MOVE PROPERTY(showManufacturingPrice(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showManufacturingPriceInvoice(i) AFTER invoiceSumInvoiceDetail(d) 
-                  manufacturingPriceInvoiceDetail, includeVATInvoiceDetail, manufacturingSumInvoiceDetail 
+    PROPERTIES(d) READONLY SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) 
+                  manufacturingPrice, includeVAT, manufacturingSum 
 ;
 
 // цены в подборе

@@ -6,14 +6,14 @@ NAMESPACE Production;
 
 // ----------------  Калькуляционная карта ------------------- //
 
-calcMultiplierSkuOrder(sku, order)= OVERRIDE (1.000 IF sku IS Sku AND order IS Order), multiplierSkuOrder(sku, order);
+calcMultiplier(Sku sku, Order order)= OVERRIDE (1.000 IF sku IS Sku AND order IS Order), multiplier(sku, order);
 
-quantityBOMSkuOrder (BOM, sku, order) = [= GROUP SUM recBruttoNodeQuantityBOMSkuDate (BOM, sku, dateOrder(order)) * calcMultiplierSkuOrder(sku, order)
-    BY BOM, sku, order](BOM, sku, order) IF bruttoQuantitySkuOrder(sku, order);
-quantityProductDetailSku 'Норма' (productDetail, sku) = quantityBOMSkuOrder(BOMProduct(productProductDetail(productDetail)), sku, orderProductDetail(productDetail));
+quantity (BOM BOM, Sku sku, Order order) = [= GROUP SUM recBruttoNodeQuantity (BOM BOM, Sku sku, date(Order order)) * calcMultiplier(sku, order)
+    BY BOM, sku, order](BOM, sku, order) IF bruttoQuantity(sku, order);
+quantity 'Норма' (ProductDetail productDetail, Sku sku) = quantity(BOM(product(productDetail)), sku, order(productDetail));
 
-quantityInBOMProductDetail 'Кол-во изделий в спец.'(productDetail)= quantityProduct(productProductDetail(productDetail));
-productsSumInBOMProductDetail 'Сумма изделий в спец.' = roundPriceCurrency((quantityInBOMProductDetail(productDetail) * priceProductDetail(productDetail)), currencyProductDetail(productDetail));
+quantityInBOM 'Кол-во изделий в спец.'(ProductDetail productDetail)= quantity(product(productDetail));
+productsSumInBOM 'Сумма изделий в спец.' = round((quantityInBOM(ProductDetail productDetail) * price(productDetail)), currency(productDetail));
 
 //--
 //quantityProductSkuOrder (product, sku, order) = [= GROUP SUM recPricePercentProductSkuDate (product, sku, dateOrder(order))* calcMultiplierSkuOrder(sku, order)/100 BY product, sku, order](product, sku, order) IF bruttoQuantitySkuOrder(sku, order);
@@ -22,243 +22,243 @@ productsSumInBOMProductDetail 'Сумма изделий в спец.' = roundPr
 //    productProductDetail(productDetail), sku, orderProductDetail(productDetail)); // св-во необходимо, т.к. в BOM-ах есть уд.вес цены => мы его включаем в норму. Пока так, в будущем возможно надо будет включать в надбавку.
 
 //--
-descriptionBOMProductDetail 'Спецификация'(productDetail) = descriptionBOM(BOMProduct(productProductDetail(productDetail)));
-shortNameUOMProductProductDetail 'Ед.изм. в спец.'(productDetail)= shortNameUOMProduct(productProductDetail(productDetail));
-recipesProductDetail 'Номер по сборнику рецептов' (productDetail)= recipesProduct(productProductDetail(productDetail));
+descriptionBOM 'Спецификация'(ProductDetail productDetail) = description(BOM(product(productDetail)));
+shortNameUOMProduct 'Ед.изм. в спец.'(ProductDetail productDetail)= shortNameUOM(product(productDetail));
+recipes 'Номер по сборнику рецептов' (ProductDetail productDetail)= recipes(product(productDetail));
 //--
-componentsSumInBOMProductDetail 'Сумма компонента для изделий в спец.' (productDetail)= componentsPriceProductDetail(productDetail)*quantityInBOMProductDetail(productDetail);
+componentsSumInBOM 'Сумма компонента для изделий в спец.' (ProductDetail productDetail)= componentsPrice(productDetail)*quantityInBOM(productDetail);
 //--
-VATMarkupSumInBOMProductDetail 'НДС и надбавка в спец' (productDetail) =  productsSumInBOMProductDetail(productDetail) (-) componentsSumInBOMProductDetail(productDetail);
-retailVATSumInBOMProductDetail 'Сумма НДС в спец' (productDetail) = [= X*Y/(100+Y)](VATMarkupSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail));
-retailMarkupSumInBOMProductDetail 'Сумма надбавки' (productDetail) =  VATMarkupSumInBOMProductDetail(productDetail) (-) retailVATSumInBOMProductDetail(productDetail);
+VATMarkupSumInBOM 'НДС и надбавка в спец' (ProductDetail productDetail) =  productsSumInBOM(productDetail) (-) componentsSumInBOM(productDetail);
+retailVATSumInBOM 'Сумма НДС в спец' (ProductDetail productDetail) = [= X*Y/(100+Y)](VATMarkupSumInBOM(productDetail), valueVAT(productDetail));
+retailMarkupSumInBOM 'Сумма надбавки' (ProductDetail productDetail) =  VATMarkupSumInBOM(productDetail) (-) retailVATSumInBOM(productDetail);
 
-VATMarkupSumInBOMIsVATProductDetail 'Сумма НДС' (productDetail) = (roundPriceCurrency([= X*Y/(100+Y)](productsSumInBOMProductDetail(productDetail), valueVATProductDetail(productDetail)), currencyProductDetail(productDetail)));
-retMarkupSumIsVATProductDetail 'Сумма надбавки' (productDetail) = (roundPriceCurrency(productsSumInBOMProductDetail(productDetail) (-) VATMarkupSumInBOMIsVATProductDetail(productDetail) (-) componentsSumInBOMProductDetail(productDetail), currencyProductDetail(productDetail)));
+VATMarkupSumInBOMIsVAT 'Сумма НДС' (ProductDetail productDetail) = (round([= X*Y/(100+Y)](productsSumInBOM(productDetail), valueVAT(productDetail)), currency(productDetail)));
+retMarkupSumIsVAT 'Сумма надбавки' (ProductDetail productDetail) = (round(productsSumInBOM(productDetail) (-) VATMarkupSumInBOMIsVAT(productDetail) (-) componentsSumInBOM(productDetail), currency(productDetail)));
 
-overRetailVATSumInBOMProductDetail 'Сумма НДС' (d) = IF VATProductProductDetail(d) THEN VATMarkupSumInBOMIsVATProductDetail(d) ELSE retailVATSumInBOMProductDetail(d);
-overRetailMarkupSumInBOMProductDetail 'Сумма надбавки' (d) = IF VATProductProductDetail(d) THEN retMarkupSumIsVATProductDetail(d) ELSE retailMarkupSumInBOMProductDetail(d);
+overRetailVATSumInBOM 'Сумма НДС' (ProductDetail d) = IF VATProduct(d) THEN VATMarkupSumInBOMIsVAT(d) ELSE retailVATSumInBOM(d);
+overRetailMarkupSumInBOM 'Сумма надбавки' (ProductDetail d) = IF VATProduct(d) THEN retMarkupSumIsVAT(d) ELSE retailMarkupSumInBOM(d);
 
 EXTEND FORM orders 
-    PROPERTIES (pd) VATProductProductDetail, productsSumInBOMProductDetail, VATMarkupSumInBOMIsVATProductDetail, retMarkupSumIsVATProductDetail, componentsSumInBOMProductDetail 
+    PROPERTIES (pd) VATProduct, productsSumInBOM, VATMarkupSumInBOMIsVAT, retMarkupSumIsVAT, componentsSumInBOM 
 ;
 
 
-retailMarkupPriceProductDetail 'Цена надбавки (ед.)' (productDetail)= overRetailMarkupSumInBOMProductDetail(productDetail)/
-    quantityInBOMProductDetail(productDetail);
-retailVATPriceProductDetail 'Цена НДС (ед.)' (productDetail)= overRetailVATSumInBOMProductDetail(productDetail)/
-    quantityInBOMProductDetail(productDetail);
+retailMarkupPrice 'Цена надбавки (ед.)' (ProductDetail productDetail)= overRetailMarkupSumInBOM(productDetail)/
+    quantityInBOM(productDetail);
+retailVATPrice 'Цена НДС (ед.)' (ProductDetail productDetail)= overRetailVATSumInBOM(productDetail)/
+    quantityInBOM(productDetail);
 
 //--
 @defineDocumentUNPLegalEntity(order, productsLegalEntityStock, );
 
 //--  Нетто
 
-nettoQuantityBOMSkuOrder (BOM, sku, order) = [= GROUP SUM recNettoNodeQuantityBOMSku (BOM, sku) * calcMultiplierSkuOrder(sku, order)
-    BY BOM, sku, order](BOM, sku, order) IF bruttoQuantitySkuOrder(sku, order);
+nettoQuantity (BOM BOM, Sku sku, Order order) = [= GROUP SUM recNettoNodeQuantity (BOM BOM, Sku sku) * calcMultiplier(sku, Order order)
+    BY BOM, sku, order](BOM, sku, order) IF bruttoQuantity(sku, order);
 
-nettoQuantityProductDetailSku 'Нетто' (productDetail, sku) = nettoQuantityBOMSkuOrder(BOMProduct(productProductDetail(productDetail)), sku, orderProductDetail(productDetail));
-fatsProductDetailSku 'Жиры'(productDetail, sku) = nettoQuantityProductDetailSku (productDetail, sku)*netWeightItem(sku)*10*fatsItem(sku);
-carbohydratesProductDetailSku 'Углеводы' (productDetail, sku) = nettoQuantityProductDetailSku (productDetail, sku)*netWeightItem(sku)*10*carbohydratesItem(sku);
-proteinsProductDetailSku 'Белки' (productDetail, sku) = nettoQuantityProductDetailSku (productDetail, sku)*netWeightItem(sku)*10*proteinsItem(sku);
-energyProductDetailSku 'Энерг.ценность'(productDetail, sku) = nettoQuantityProductDetailSku (productDetail, sku)*netWeightItem(sku)*10*energyItem(sku);
+nettoQuantity 'Нетто' (ProductDetail productDetail, Sku sku) = nettoQuantity(BOM(product(productDetail)), sku, order(productDetail));
+fats 'Жиры'(ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*fats(sku);
+carbohydrates 'Углеводы' (ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*carbohydrates(sku);
+proteins 'Белки' (ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*proteins(sku);
+energy 'Энерг.ценность'(ProductDetail productDetail, Item sku) = nettoQuantity (productDetail, sku)*netWeight(sku)*10*energy(sku);
 
-fatsInBOMProductDetail 'Жиры'(productDetail) = GROUP SUM fatsProductDetailSku(productDetail, sku) BY productDetail;
-carbohydratesInBOMProductDetail 'Углеводы'(productDetail) = GROUP SUM carbohydratesProductDetailSku(productDetail, sku) BY productDetail;
-proteinsInBOMProductDetail 'Белки'(productDetail) = GROUP SUM proteinsProductDetailSku(productDetail, sku) BY productDetail;
-energyInBOMProductDetail 'Энерг.ценность'(productDetail) = GROUP SUM energyProductDetailSku(productDetail, sku) BY productDetail;
+fatsInBOM 'Жиры'(productDetail) = GROUP SUM fats(ProductDetail productDetail, Item sku) BY productDetail;
+carbohydratesInBOM 'Углеводы'(productDetail) = GROUP SUM carbohydrates(ProductDetail productDetail, Item sku) BY productDetail;
+proteinsInBOM 'Белки'(productDetail) = GROUP SUM proteins(ProductDetail productDetail, Item sku) BY productDetail;
+energyInBOM 'Энерг.ценность'(productDetail) = GROUP SUM energy(ProductDetail productDetail, Item sku) BY productDetail;
 
-fatsProductDetail 'Жиры (ед.)'(productDetail) = fatsInBOMProductDetail(productDetail) / (quantityInBOMProductDetail(productDetail)*10*netWeightItem(skuProductDetail(productDetail)));
-carbohydratesProductDetail 'Углеводы (ед.)'(productDetail) = carbohydratesInBOMProductDetail(productDetail) / (quantityInBOMProductDetail(productDetail)*10*netWeightItem(skuProductDetail(productDetail)));
-proteinsProductDetail 'Белки (ед.)'(productDetail) = proteinsInBOMProductDetail(productDetail) / (quantityInBOMProductDetail(productDetail)*10*netWeightItem(skuProductDetail(productDetail)));
-energyProductDetail 'Энерг.ценность (ед.)'(productDetail) = energyInBOMProductDetail(productDetail) / (quantityInBOMProductDetail(productDetail)*10*netWeightItem(skuProductDetail(productDetail)));
+fats 'Жиры (ед.)'(ProductDetail productDetail) = fatsInBOM(productDetail) / (quantityInBOM(productDetail)*10*netWeight[Item](sku(productDetail)));
+carbohydrates 'Углеводы (ед.)'(ProductDetail productDetail) = carbohydratesInBOM(productDetail) / (quantityInBOM(productDetail)*10*netWeight[Item](sku(productDetail)));
+proteins 'Белки (ед.)'(ProductDetail productDetail) = proteinsInBOM(productDetail) / (quantityInBOM(productDetail)*10*netWeight[Item](sku(productDetail)));
+energy 'Энерг.ценность (ед.)'(ProductDetail productDetail) = energyInBOM(productDetail) / (quantityInBOM(productDetail)*10*netWeight[Item](sku(productDetail)));
 
-netWeightProduct 'Вес нетто, кг' (product)= netWeightItem(skuProduct(product));
-descriptionBOMProduct 'Спецификация'(product) = descriptionBOM(BOMProduct(product));
+netWeight 'Вес нетто, кг' (Product product)= netWeight[Item](sku(product));
+descriptionBOM 'Спецификация'(Product product) = description(BOM(product));
 ///////////////////////////////////////////////////////////////////////////////////////////////////////
-idBarcodeComponentDetail 'Штрихкод' = idBarcodeSku(skuComponentDetail(d));
+idBarcode 'Штрихкод' = idBarcode(sku(ComponentDetail d));
 //quantityProductDetailComponentDetail 'Кол-во с учетом процента цены' (pd, cd)= quantityComponentDetail(cd) * pricePercentProduct(productProductDetail(pd)) / 
 //    (100*quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd)) IF quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd))!=0) /
 //    quantityProduct(productProductDetail(pd) IF quantityProduct(productProductDetail(pd))!= 0);
 //quantityInBOMProductDetailComponentDetail 'Кол-во с учетом процента цены по всей спецификации' (pd, cd)= quantityComponentDetail(cd) * pricePercentProduct(productProductDetail(pd)) / 
 //    (100*quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd)) IF quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd))!=0);    
-quantityProductDetailComponentDetail 'Кол-во с учетом процента цены' (pd, cd)= (quantityComponentDetail(cd) * pricePercentProductDetail(pd) / 
-    (100*quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd)) IF quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd))!=0) /
-    quantityProduct(productProductDetail(pd) IF quantityProduct(productProductDetail(pd))!= 0) ) IF orderProductDetail(pd)==orderComponentDetail(cd) AND BOMComponentDetail(cd) == BOMProductDetail(pd);
-quantityInBOMProductDetailComponentDetail 'Кол-во с учетом процента цены по всей спецификации' (pd, cd)= (quantityComponentDetail(cd) * pricePercentProductDetail(pd) / 
-    (100*quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd)) ) IF quantityProductsBOMOrder(BOMComponentDetail(cd),orderComponentDetail(cd))!=0) IF orderProductDetail(pd)==orderComponentDetail(cd) AND BOMComponentDetail(cd) == BOMProductDetail(pd);   
+quantity 'Кол-во с учетом процента цены' (ProductDetail pd, ComponentDetail cd)= (quantity(cd) * pricePercent(pd) / 
+    (100*quantityProducts(BOM(cd),order(cd)) IF quantityProducts(BOM(cd),order(cd))!=0) /
+    quantity(product(pd) IF quantity(product(pd))!= 0) ) IF order(pd)==order(cd) AND BOM(cd) == BOM(pd);
+quantityInBOM 'Кол-во с учетом процента цены по всей спецификации' (ProductDetail pd, ComponentDetail cd)= (quantity(cd) * pricePercent(pd) / 
+    (100*quantityProducts(BOM(cd),order(cd)) ) IF quantityProducts(BOM(cd),order(cd))!=0) IF order(pd)==order(cd) AND BOM(cd) == BOM(pd);   
         
-componentsSumProductDetailComponentDetail 'Сумма компонента (с/с)' (pd,cd)=  quantityInBOMProductDetailComponentDetail(pd, cd) *priceComponentDetail(cd);
+componentsSum 'Сумма компонента (с/с)' (ProductDetail pd,ComponentDetail cd)=  quantityInBOM(pd, cd) *price(cd);
 
-VATSumProductDetailComponentDetail 'Сумма НДС' (pd,cd)= IF VATComponentDetail(cd) 
-    THEN componentsSumProductDetailComponentDetail(pd,cd) *valueVATComponentDetail(cd)/100
-    ELSE componentsSumProductDetailComponentDetail(pd,cd) *(valueVATComponentDetail(cd)/(100+valueVATComponentDetail(cd)));
+VATSum 'Сумма НДС' (ProductDetail pd,ComponentDetail cd)= IF VAT(cd) 
+    THEN componentsSum(pd,cd) *valueVAT(cd)/100
+    ELSE componentsSum(pd,cd) *(valueVAT(cd)/(100+valueVAT(cd)));
 
-totalVATSumProductDetail 'Сумма НДС компонентов' (productDetail) = GROUP SUM VATSumProductDetailComponentDetail (pd,cd) BY pd;
+totalVATSum 'Сумма НДС компонентов' (productDetail) = GROUP SUM VATSum (ProductDetail pd,ComponentDetail cd) BY pd;
 
 FORM costCardOrderBy 'Калькуляционная карта'
 
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) nameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
-                  nameComponentsStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
-                  dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder
+    PROPERTIES(o) nameProductsLegalEntityStock, UNPProductsLegalEntityStock, addressProductsLegalEntityStock,
+                  nameComponentsStock, nameProductsStock, nameNumerator, number, series, seriesNumber,
+                  date, time, fromDate, toDate, note, quantityProductDetail, quantityComponentDetail
 
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) indexProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
-                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail
-    PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
-                   retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
+    PROPERTIES(pd) index, idBarcodeSku, descriptionBOM, quantityInBOM, shortNameUOMProduct, nameSku,  nameProduct, shortNameUOM, quantity,
+                   componentsPrice, componentsSumInBOM, //premiumComponentsSumInBOMProductDetail, 
+                   totalVATSum, overRetailMarkupSumInBOM
+    PROPERTIES(pd) markup, price, productsSumInBOM, valueVAT,
+                   retailMarkupPrice, retailVATPrice, overRetailVATSumInBOM, recipes
 
-    FILTERS orderProductDetail(pd)==o
+    FILTERS order(pd)==o
 
     OBJECTS cd = ComponentDetail
-    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail
-    PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail
+    PROPERTIES(pd,cd)quantityInBOM, componentsSum, VATSum
+    PROPERTIES(cd) nameSku, idBarcode, shortNameUOMSku, price, valueVAT
     
-    FILTERS orderComponentDetail(cd)==o             
-    FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
+    FILTERS order(cd)==o             
+    FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printCostCardOrder 'Калькуляционная карта' (order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+printCostCard 'Калькуляционная карта' (Order order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
   
-seriesNumberBatchComponentDetail 'Серия/номер накладной' (b) = Purchase.seriesNumberInvoiceDetail(invoiceDetailBatch(batchComponentDetail(b)));
-dateBatchComponentDetail 'Дата накладной' (b) = Purchase.dateInvoiceDetail(invoiceDetailBatch(batchComponentDetail(b)));
-fullNameSupplierBatchComponentDetail 'Поставщик' (b) = fullNameSupplierBatch(batchComponentDetail(b));
+seriesNumberBatch 'Серия/номер накладной' (ComponentDetail b) = seriesNumber(invoiceDetail(batch(b)));
+dateBatch 'Дата накладной' (ComponentDetail b) = date(invoiceDetail(batch(b)));
+fullNameSupplierBatch 'Поставщик' (ComponentDetail b) = fullNameSupplier(batch(b));
 
-supplierPriceComponentDetail 'Цена поставщика' (cd) = priceInvoiceDetail(invoiceDetailBatch(batchComponentDetail(cd))); 
+supplierPrice 'Цена поставщика' (ComponentDetail cd) = price(invoiceDetail(batch(cd))); 
 
-quantityProductDetailsComponentDetail 'Кол-во' (cd) = GROUP SUM quantityProductDetail(pd) IF 
-    BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd)) AND orderComponentDetail(cd) == orderProductDetail(pd)
+quantityProductDetails 'Кол-во' (cd) = GROUP SUM quantity(ProductDetail pd) IF 
+    BOM(ComponentDetail cd)== BOM(product(pd)) AND order(cd) == order(pd)
         BY cd;      
-percOrderProductDetailComponentDetail 'Норма выхода, %' (pd,cd)=  quantityProductDetail(pd) *100 /  (quantityComponentDetail(cd) IF (quantityComponentDetail(cd)!=0));  
-percProductDetailComponentDetail'Норма выхода, %' (cd) = GROUP SUM percOrderProductDetailComponentDetail(pd,cd) IF 
-    BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd)) AND orderComponentDetail(cd) == orderProductDetail(pd)
+percOrder 'Норма выхода, %' (ProductDetail pd,ComponentDetail cd)=  quantity(pd) *100 /  (quantity(cd) IF (quantity(cd)!=0));  
+percProductDetail'Норма выхода, %' (cd) = GROUP SUM percOrder(ProductDetail pd,ComponentDetail cd) IF 
+    BOM(cd)== BOM(product(pd)) AND order(cd) == order(pd)
         BY cd;       
 //percOrderProductDetail 'Норма выхода, %' (d)= quantityProductDetail(d) *100 /  (quantityProductDetailOrder(orderProductDetail(d)) IF quantityProductDetailOrder(orderProductDetail(d))!=0);               
 
 
-sumProductDetailsComponentDetail 'Сумма' (cd) = GROUP SUM sumProductDetail(pd) IF 
-    BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd)) AND orderComponentDetail(cd) == orderProductDetail(pd)
+sumProductDetails 'Сумма' (cd) = GROUP SUM sum(ProductDetail pd) IF 
+    BOM(ComponentDetail cd)== BOM(product(pd)) AND order(cd) == order(pd)
         BY cd;    
 
-diffSumComponentDetail (cd) = sumComponentDetail(cd)- sumProductDetailsComponentDetail(cd);
+diffSum (ComponentDetail cd) = sum(cd)- sumProductDetails(cd);
 
-calcRetailMarkupComponentDetail 'Надбавка' (cd)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
-    priceComponentDetail(cd),
-    supplierPriceComponentDetail(cd) IF supplierPriceComponentDetail(cd) != 0.0,
-    valueVATComponentDetail(cd));
+calcRetailMarkup 'Надбавка' (ComponentDetail cd)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
+    price(cd),
+    supplierPrice(cd) IF supplierPrice(cd) != 0.0,
+    valueVAT(cd));
 
 
 FORM cuttingBy 'Разруб'
 
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) nameProductsLegalEntityStockOrder, fullNameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
-                  nameComponentsStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
-                  dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder,
-                  sumProductDetailOrder, addressProductsStockOrder, addressComponentsStockOrder
+    PROPERTIES(o) nameProductsLegalEntityStock, fullNameProductsLegalEntityStock, UNPProductsLegalEntityStock, addressProductsLegalEntityStock,
+                  nameComponentsStock, nameProductsStock, nameNumerator, number, series, seriesNumber,
+                  date, time, fromDate, toDate, note, quantityProductDetail, quantityComponentDetail,
+                  sumProductDetail, addressProductsStock, addressComponentsStock
 
     OBJECTS cd = ComponentDetail
     
-    PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail,
-                   supplierPriceComponentDetail, seriesNumberBatchComponentDetail, fullNameSupplierBatchComponentDetail, dateBatchComponentDetail,
-                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail, quantityComponentDetail,
-                   percProductDetailComponentDetail, quantityProductDetailsComponentDetail, sumProductDetailsComponentDetail
-    FILTERS orderComponentDetail(cd)==o    
+    PROPERTIES(cd) nameSku, idBarcode, shortNameUOMSku, price, valueVAT,
+                   supplierPrice, seriesNumberBatch, fullNameSupplierBatch, dateBatch,
+                   nameBatch, sum, diffSum, calcRetailMarkup, quantity,
+                   percProductDetail, quantityProductDetails, sumProductDetails
+    FILTERS order(cd)==o    
     
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) indexProductDetail, idProductProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, 
-                   shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
-                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail
+    PROPERTIES(pd) index, idProduct, idBarcodeSku, descriptionBOM, quantityInBOM, 
+                   shortNameUOMProduct, nameSku,  nameProduct, shortNameUOM, quantity,
+                   componentsPrice, componentsSumInBOM, //premiumComponentsSumInBOMProductDetail, 
+                   totalVATSum, overRetailMarkupSumInBOM, sum, calcPriceCoeff
                    
-    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail, 
-                   percOrderProductDetailComponentDetail
-    PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
-                   retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
+    PROPERTIES(pd,cd)quantityInBOM, componentsSum, VATSum, 
+                   percOrder
+    PROPERTIES(pd) markup, price, productsSumInBOM, valueVAT,
+                   retailMarkupPrice, retailVATPrice, overRetailVATSumInBOM, recipes
 
-    FILTERS orderProductDetail(pd)==o                   
+    FILTERS order(pd)==o                   
 
-    FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
+    FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printCuttingOrder 'Разруб' (order) = ACTION FORM cuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+printCutting 'Разруб' (Order order) = ACTION FORM cuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 
 
 FORM actOfCuttingBy 'Акт о разделке сырья'
 
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) nameProductsLegalEntityStockOrder, fullNameProductsLegalEntityStockOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder,
-                  nameComponentsStockOrder, addressComponentsLegalEntityStockOrder, nameProductsStockOrder, nameNumeratorOrder, numberOrder, seriesOrder, seriesNumberOrder,
-                  dateOrder, timeOrder, fromDateOrder, toDateOrder, noteOrder, quantityProductDetailOrder, quantityComponentDetailOrder,
-                  sumProductDetailOrder, addressProductsStockOrder, addressComponentsStockOrder
+    PROPERTIES(o) nameProductsLegalEntityStock, fullNameProductsLegalEntityStock, UNPProductsLegalEntityStock, addressProductsLegalEntityStock,
+                  nameComponentsStock, addressComponentsLegalEntityStock, nameProductsStock, nameNumerator, number, series, seriesNumber,
+                  date, time, fromDate, toDate, note, quantityProductDetail, quantityComponentDetail,
+                  sumProductDetail, addressProductsStock, addressComponentsStock
 
     OBJECTS cd = ComponentDetail
     
-    PROPERTIES(cd) nameSkuComponentDetail, idBarcodeComponentDetail, idComponentComponentDetail, shortNameUOMSkuComponentDetail, priceComponentDetail, valueVATComponentDetail,
-                   supplierPriceComponentDetail, seriesNumberBatchComponentDetail, fullNameSupplierBatchComponentDetail, dateBatchComponentDetail,
-                   nameBatchComponentDetail, sumComponentDetail, diffSumComponentDetail, calcRetailMarkupComponentDetail, quantityComponentDetail,
-                   percProductDetailComponentDetail, quantityProductDetailsComponentDetail, sumProductDetailsComponentDetail
-    FILTERS orderComponentDetail(cd)==o    
+    PROPERTIES(cd) nameSku, idBarcode, idComponent, shortNameUOMSku, price, valueVAT,
+                   supplierPrice, seriesNumberBatch, fullNameSupplierBatch, dateBatch,
+                   nameBatch, sum, diffSum, calcRetailMarkup, quantity,
+                   percProductDetail, quantityProductDetails, sumProductDetails
+    FILTERS order(cd)==o    
     
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) indexProductDetail, idProductProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, quantityInBOMProductDetail, 
-                   shortNameUOMProductProductDetail, nameSkuProductDetail,  nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   componentsPriceProductDetail, componentsSumInBOMProductDetail, //premiumComponentsSumInBOMProductDetail, 
-                   totalVATSumProductDetail, overRetailMarkupSumInBOMProductDetail, sumProductDetail, calcPriceCoeffProductDetail
+    PROPERTIES(pd) index, idProduct, idBarcodeSku, descriptionBOM, quantityInBOM, 
+                   shortNameUOMProduct, nameSku,  nameProduct, shortNameUOM, quantity,
+                   componentsPrice, componentsSumInBOM, //premiumComponentsSumInBOMProductDetail, 
+                   totalVATSum, overRetailMarkupSumInBOM, sum, calcPriceCoeff
                    
-    PROPERTIES(pd,cd)quantityInBOMProductDetailComponentDetail, componentsSumProductDetailComponentDetail, VATSumProductDetailComponentDetail,
-                   percOrderProductDetailComponentDetail
-    PROPERTIES(pd) markupProductDetail, priceProductDetail, productsSumInBOMProductDetail, valueVATProductDetail,
-                   retailMarkupPriceProductDetail, retailVATPriceProductDetail, overRetailVATSumInBOMProductDetail, recipesProductDetail
+    PROPERTIES(pd,cd)quantityInBOM, componentsSum, VATSum,
+                   percOrder
+    PROPERTIES(pd) markup, price, productsSumInBOM, valueVAT,
+                   retailMarkupPrice, retailVATPrice, overRetailVATSumInBOM, recipes
 
-    FILTERS orderProductDetail(pd)==o                   
+    FILTERS order(pd)==o                   
 
-    FILTERS BOMComponentDetail(cd)== BOMProduct(productProductDetail(pd))        
+    FILTERS BOM(cd)== BOM(product(pd))        
 ;
-printActOfCuttingBy 'Акт о разделке сырья' (order) = ACTION FORM actOfCuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+printActOfCuttingBy 'Акт о разделке сырья' (Order order) = ACTION FORM actOfCuttingBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 
 
 FORM intakeSheetOrderBy 'Заборный лист'
 
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) fullNameProductsLegalEntityStockOrder, nameProductsLegalEntityStockOrder, nameComponentsStockOrder, nameProductsStockOrder, 
-                  numberOrder, seriesOrder, seriesNumberOrder,
-                  dateOrder, timeOrder, fromDateOrder, toDateOrder, UNPProductsLegalEntityStockOrder, addressProductsLegalEntityStockOrder
+    PROPERTIES(o) fullNameProductsLegalEntityStock, nameProductsLegalEntityStock, nameComponentsStock, nameProductsStock, 
+                  number, series, seriesNumber,
+                  date, time, fromDate, toDate, UNPProductsLegalEntityStock, addressProductsLegalEntityStock
 
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) indexProductDetail, idBarcodeSkuProductDetail, descriptionBOMProductDetail, nameSkuProductDetail, shortNameUOMProductDetail,
-                   componentsPriceProductDetail, priceProductDetail
+    PROPERTIES(pd) index, idBarcodeSku, descriptionBOM, nameSku, shortNameUOM,
+                   componentsPrice, price
 
-    FILTERS orderProductDetail(pd)==o
+    FILTERS order(pd)==o
 
 ;
-printIntakeSheetOrder 'Заборный лист' (order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+printIntakeSheet 'Заборный лист' (Order order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 EXTEND FORM orders
-    PROPERTIES(o) FORCE PANEL printCostCardOrder, printIntakeSheetOrder, printCuttingOrder, printActOfCuttingBy 
+    PROPERTIES(o) FORCE PANEL printCostCard, printIntakeSheet, printCutting, printActOfCuttingBy 
 ;
 
-selectDateProduct = DATA LOCAL BOOLEAN (DATE, Product);
+select = DATA LOCAL BOOLEAN (DATE, Product);
 
 FORM technologicalCardsProductBy 'Технологическая карта'
     OBJECTS dt=DATE FIXED PANEL
     PROPERTIES (dt) date = OBJVALUE
 
     OBJECTS p = Product
-    PROPERTIES(p) indexProduct, nameSkuProduct, idBarcodeSkuProduct, shortNameUOMProduct, quantityProduct, fatsProduct,
-                  carbohydratesProduct, proteinsProduct, energyProduct, recipesProduct
-    FILTERS       selectDateProduct(dt,p)
+    PROPERTIES(p) index, nameSku, idBarcodeSku, shortNameUOM, quantity, fats,
+                  carbohydrates, proteins, energy, recipes
+    FILTERS       select(dt,p)
 
     OBJECTS c = Component
-    PROPERTIES(c) indexComponent, nameMaterialComponent, idBarcodeSkuComponent, shortNameUOMComponent, nettoQuantityComponent
-    PROPERTIES(c,dt) bruttoQuantityComponentDate
-    PROPERTIES(c) fatsComponent, carbohydratesComponent, proteinsComponent, energyComponent
-    FILTERS       BOMProduct(p) == BOMComponent(c)
+    PROPERTIES(c) index, nameMaterial, idBarcodeSku, shortNameUOM, nettoQuantity
+    PROPERTIES(c,dt) bruttoQuantity
+    PROPERTIES(c) fats, carbohydrates, proteins, energy
+    FILTERS       BOM(p) == BOM(c)
 
 ;
 
-printTechnologicalCardBOM 'Технологическая карта'  = ACTION (BOM) NEWSESSION {
+printTechnologicalCard 'Технологическая карта'  = ACTION (BOM BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
-            FOR BOMProduct(product) == BOM DO {
-                ASSIGN selectDateProduct(date,product) <- product IS Product WHERE date == chosenDate('d');
+            FOR BOM(Product product) == BOM DO {
+                ASSIGN select(DATE date,product) <- product IS Product WHERE date == chosenDate('d');
             }
             FORM technologicalCardsProductBy  OBJECTS dt = chosenDate('d') PRINT;
         }
@@ -266,7 +266,7 @@ printTechnologicalCardBOM 'Технологическая карта'  = ACTION 
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs
-    PROPERTIES(b) FORCE PANEL printTechnologicalCardBOM
+    PROPERTIES(b) FORCE PANEL printTechnologicalCard
 ;
 DESIGN BOMs {
     printTab {
@@ -274,18 +274,18 @@ DESIGN BOMs {
     }
 }
 
-printTechnologicalCardOrder 'Технологическая карта'  = ACTION (order) NEWSESSION {
+printTechnologicalCard 'Технологическая карта'  = ACTION (Order order) NEWSESSION {
 
-    FOR quantityProductOrder(product,order) DO {
-        ASSIGN selectDateProduct(date,product) <- product IS Product WHERE date == dateOrder(order);
+    FOR quantity(Product product,order) DO {
+        ASSIGN select(DATE date,product) <- product IS Product WHERE date == date(order);
     }
-    FORM technologicalCardsProductBy  OBJECTS dt = dateOrder(order) PRINT;
+    FORM technologicalCardsProductBy  OBJECTS dt = date(order) PRINT;
 
     apply();
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM orders
-    PROPERTIES(o) FORCE PANEL printTechnologicalCardOrder
+    PROPERTIES(o) FORCE PANEL printTechnologicalCard
 ;
 //DESIGN BOMs {
 //    printTab {
@@ -326,26 +326,26 @@ FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     PROPERTIES (dt) date = OBJVALUE
 
     OBJECTS b=BOM FIXED PANEL
-    PROPERTIES(b) nameBOM, descriptionBOM, noteBOM
-    PROPERTIES(b) READONLY quantityProductBOM, nettoQuantityComponentBOM, pricePercentBOM,
-                  nameActStudyOfCulinaryCommitteeBOM, nameCompanyBOM, nameEmployeeCommitteeBOM READONLY, actStudyOfCulinaryCommitteeBOM
+    PROPERTIES(b) name, description, note
+    PROPERTIES(b) READONLY quantityProduct, nettoQuantityComponent, pricePercent,
+                  nameActStudyOfCulinaryCommittee, nameCompany, nameEmployeeCommittee READONLY, actStudyOfCulinaryCommittee
     OBJECTS p = Product
-    PROPERTIES(p) indexProduct, idBarcodeSkuProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct, pricePercentProduct, netWeightProduct, descriptionBOMProduct
+    PROPERTIES(p) index, idBarcodeSku, nameSku, shortNameUOM, quantity, pricePercent, netWeight, descriptionBOM
 
-    FILTERS       BOMProduct(p) == b
+    FILTERS       BOM(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) indexComponent, idBarcodeSkuComponent, nameMaterialComponent, shortNameUOMComponent, technologiesInvoice, nettoQuantityComponent
-    PROPERTIES(c,dt) wastageComponentDate, bruttoQuantityComponentDate
+    PROPERTIES(c) index, idBarcodeSku, nameMaterial, shortNameUOM, technologiesInvoice, nettoQuantity
+    PROPERTIES(c,dt) wastage, bruttoQuantity
 
-    FILTERS       BOMComponent(c) == BOMProduct(p)
+    FILTERS       BOM(c) == BOM(p)
 
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY nameContact, namePositionEmployee
-    FILTERS       inCommitteeBOMEmployee(b,e)
+    PROPERTIES(e) READONLY name[Contact], namePosition
+    FILTERS       inCommittee(b,e)
 
 ;
-printActStudyOfCulinaryBOM 'Акт контрольной проработки'  = ACTION (BOM) NEWSESSION {
+printActStudyOfCulinary 'Акт контрольной проработки'  = ACTION (BOM BOM) NEWSESSION {
 
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
@@ -356,6 +356,6 @@ printActStudyOfCulinaryBOM 'Акт контрольной проработки' 
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs
-    PROPERTIES(b) FORCE PANEL printActStudyOfCulinaryBOM
+    PROPERTIES(b) FORCE PANEL printActStudyOfCulinary
 ;
 

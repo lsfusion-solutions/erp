@@ -121,14 +121,14 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private Declaration exportDeclaration(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        String numberDeclaration = (String) findProperty("numberDeclaration").read(context, declarationObject);  //GA, NOMER_GTD
-        BigDecimal sumDeclaration = (BigDecimal) findProperty("sumDeclarationDetailDeclaration").read(context, declarationObject);  //G222
-        Integer countDeclaration = (Integer) findProperty("countDeclarationDetailDeclaration").read(context, declarationObject);  //G05        
+        String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);  //GA, NOMER_GTD
+        BigDecimal sumDeclaration = (BigDecimal) findProperty("sumDeclarationDetail[Declaration]").read(context, declarationObject);  //G222
+        Integer countDeclaration = (Integer) findProperty("countDeclarationDetail[Declaration]").read(context, declarationObject);  //G05
         numberDeclaration = numberDeclaration == null ? null : numberDeclaration.trim();
-        String UNPLegalEntityDeclaration = (String) findProperty("UNPLegalEntityDeclaration").read(context, declarationObject);  //G141
-        String fullNameLegalEntityDeclaration = (String) findProperty("fullNameLegalEntityDeclaration").read(context, declarationObject); //G142  
-        String addressLegalEntityDeclaration = (String) findProperty("addressLegalEntityDeclaration").read(context, declarationObject); //G143  
-        Date dateDeclaration = (Date) findProperty("dateDeclaration").read(context, declarationObject);          //G542
+        String UNPLegalEntityDeclaration = (String) findProperty("UNPLegalEntity[Declaration]").read(context, declarationObject);  //G141
+        String fullNameLegalEntityDeclaration = (String) findProperty("fullNameLegalEntity[Declaration]").read(context, declarationObject); //G142
+        String addressLegalEntityDeclaration = (String) findProperty("addressLegalEntity[Declaration]").read(context, declarationObject); //G143
+        Date dateDeclaration = (Date) findProperty("date[Declaration]").read(context, declarationObject);          //G542
 
         String[] exportNames = new String[]{"extraNameDeclarationDetail", "markinDeclarationDetail",
                 "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
@@ -139,14 +139,14 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
                 "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail"};
 
-        LCP[] exportProperties = findProperties("extraNameDeclarationDetail", "markinDeclarationDetail",
-                "numberDeclarationDetail", "codeCustomsGroupDeclarationDetail", "sidOrigin2CountryDeclarationDetail",
-                "sumGrossWeightDeclarationDetail", "extraComponentsQuantityDeclarationDetail", "sumDeclarationDetail",
-                "nameCustomsDeclarationDetail", "quantityDeclarationDetail", "sumNetWeightDeclarationDetail",
-                "shortNameUOMDeclarationDetail", "customsCodeUOMDeclarationDetail", "isVATCustomsExceptionDeclarationDetail", "VATCustomsExceptionDeclarationDetail", "homeSumDeclarationDetail",
-                "baseVATSumDeclarationDetail", "isWeightDutyDeclarationDetail", "weightDutyDeclarationDetail",
-                "percentDutyDeclarationDetail", "percentVATDeclarationDetail", "dutySumDeclarationDetail",
-                "VATSumDeclarationDetail", "nameSupplierDeclarationDetail", "nameBrandDeclarationDetail", "nameManufacturerDeclarationDetail");
+        LCP[] exportProperties = findProperties("extraName[DeclarationDetail]", "markin[DeclarationDetail]",
+                "number[DeclarationDetail]", "codeCustomsGroup[DeclarationDetail]", "sidOrigin2Country[DeclarationDetail]",
+                "sumGrossWeight[DeclarationDetail]", "extraComponentsQuantity[DeclarationDetail]", "sum[DeclarationDetail]",
+                "nameCustoms[DeclarationDetail]", "quantity[DeclarationDetail]", "sumNetWeight[DeclarationDetail]",
+                "shortNameUOM[DeclarationDetail]", "customsCodeUOM[DeclarationDetail]", "isVATCustomsException[DeclarationDetail]", "VATCustomsException[DeclarationDetail]", "homeSum[DeclarationDetail]",
+                "baseVATSum[DeclarationDetail]", "isWeightDuty[DeclarationDetail]", "weightDuty[DeclarationDetail]",
+                "percentDuty[DeclarationDetail]", "percentVAT[DeclarationDetail]", "dutySum[DeclarationDetail]",
+                "VATSum[DeclarationDetail]", "nameSupplier[DeclarationDetail]", "nameBrand[DeclarationDetail]", "nameManufacturer[DeclarationDetail]");
 
         LCP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
@@ -156,7 +156,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             query.addProperty(exportNames[j], exportProperties[j].getExpr(context.getModifier(), key));
         }
         query.and(isDeclarationDetail.getExpr(key).getWhere());
-        query.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
+        query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
 
         if (result.size() == 0)
@@ -209,10 +209,10 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         List<G44Detail> customsDocumentDetailList = new ArrayList<G44Detail>();
         List<G44Detail> complianceDetailList = new ArrayList<G44Detail>();
 
-        String numberDeclaration = (String) findProperty("numberDeclaration").read(context, declarationObject);
+        String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);
 
         String[] customsDocumentNames = new String[]{"orderCustomsDocument", "idCustomsDocument", "nameCustomsDocument", "dateCustomsDocument", "isVATCustomsExceptionCustomsDocument", "typePaymentCustomsDocument", "refDocCustomsDocument", "descriptionCustomsDocument"};
-        LCP[] customsDocumentProperties = new LCP[]{findProperty("orderCustomsDocument"), findProperty("idCustomsDocument"), findProperty("nameCustomsDocument"), findProperty("dateCustomsDocument"), findProperty("isVATCustomsExceptionCustomsDocument"), findProperty("typePaymentCustomsDocument"), findProperty("refDocCustomsDocument"), findProperty("descriptionCustomsDocument")};
+        LCP[] customsDocumentProperties = new LCP[]{findProperty("order[CustomsDocument]"), findProperty("id[CustomsDocument]"), findProperty("name[CustomsDocument]"), findProperty("date[CustomsDocument]"), findProperty("isVATCustomsException[CustomsDocument]"), findProperty("typePayment[CustomsDocument]"), findProperty("refDoc[CustomsDocument]"), findProperty("description[CustomsDocument]")};
 
         KeyExpr declarationDetailExpr = new KeyExpr("declarationDetail");
         KeyExpr customsDocumentExpr = new KeyExpr("customsDocument");
@@ -220,13 +220,13 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         QueryBuilder<Object, Object> customsDocumentQuery = new QueryBuilder<Object, Object>(customsDocumentKeys);
 
-        customsDocumentQuery.addProperty("numberDeclarationDetail", findProperty("numberDeclarationDetail").getExpr(declarationDetailExpr));
-        customsDocumentQuery.addProperty("isVATCustomsExceptionDeclarationDetail", findProperty("isVATCustomsExceptionDeclarationDetail").getExpr(declarationDetailExpr));
+        customsDocumentQuery.addProperty("numberDeclarationDetail", findProperty("number[DeclarationDetail]").getExpr(declarationDetailExpr));
+        customsDocumentQuery.addProperty("isVATCustomsExceptionDeclarationDetail", findProperty("isVATCustomsException[DeclarationDetail]").getExpr(declarationDetailExpr));
         for (int j = 0; j < customsDocumentProperties.length; j++) {
             customsDocumentQuery.addProperty(customsDocumentNames[j], customsDocumentProperties[j].getExpr(customsDocumentExpr));
         }
-        customsDocumentQuery.and(findProperty("inDeclarationDetailCustomsDocument").getExpr(declarationDetailExpr, customsDocumentExpr).getWhere());
-        customsDocumentQuery.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
+        customsDocumentQuery.and(findProperty("in[DeclarationDetail,CustomsDocument]").getExpr(declarationDetailExpr, customsDocumentExpr).getWhere());
+        customsDocumentQuery.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
 
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customsDocumentResult = customsDocumentQuery.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
 
@@ -251,8 +251,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         String[] complianceNames = new String[]{"seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
                 "toDateCompliance"};
-        LCP[] complianceProperties = findProperties("seriesNumberCompliance", "dateCompliance", "fromDateCompliance",
-                "toDateCompliance");
+        LCP[] complianceProperties = findProperties("seriesNumber[Compliance]", "date[Compliance]", "fromDate[Compliance]",
+                "toDate[Compliance]");
 
         KeyExpr declarationDetail2Expr = new KeyExpr("declarationDetail");
         KeyExpr complianceExpr = new KeyExpr("compliance");
@@ -260,12 +260,12 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         QueryBuilder<Object, Object> complianceQuery = new QueryBuilder<Object, Object>(complianceKeys);
 
-        complianceQuery.addProperty("numberDeclarationDetail", findProperty("numberDeclarationDetail").getExpr(declarationDetail2Expr));
+        complianceQuery.addProperty("numberDeclarationDetail", findProperty("number[DeclarationDetail]").getExpr(declarationDetail2Expr));
         for (int j = 0; j < complianceProperties.length; j++) {
             complianceQuery.addProperty(complianceNames[j], complianceProperties[j].getExpr(complianceExpr));
         }
-        complianceQuery.and(findProperty("inDeclarationDetailCompliance").getExpr(declarationDetail2Expr, complianceExpr).getWhere());
-        complianceQuery.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetail2Expr).compare(declarationObject.getExpr(), Compare.EQUALS));
+        complianceQuery.and(findProperty("in[DeclarationDetail,Compliance]").getExpr(declarationDetail2Expr, complianceExpr).getWhere());
+        complianceQuery.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetail2Expr).compare(declarationObject.getExpr(), Compare.EQUALS));
 
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> complianceResult = complianceQuery.execute(context, MapFact.singletonOrder((Object) "numberDeclarationDetail", false));
 

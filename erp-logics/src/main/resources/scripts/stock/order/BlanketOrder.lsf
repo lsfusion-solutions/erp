@@ -21,9 +21,9 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     @defineDocumentHeaderStock(blanketOrder, stock, 'Склад поставщика', supplier);
     @defineDocumentDetailDataStock (blanketOrder, stock, supplierStock, 'Склад поставщика');
 
-    CONSTRAINT supplierBlanketOrder(blanketOrder) AND supplierStockBlanketOrder(blanketOrder) AND NOT
-    inLegalEntityStock(supplierBlanketOrder(blanketOrder), supplierStockBlanketOrder(blanketOrder))
-        CHECKED BY supplierBlanketOrder, supplierStockBlanketOrder
+    CONSTRAINT supplier(BlanketOrder blanketOrder) AND supplierStock(blanketOrder) AND NOT
+    in(supplier(blanketOrder), supplierStock(blanketOrder))
+        CHECKED BY supplier[BlanketOrder], supplierStock[BlanketOrder]
             MESSAGE 'Поставщик и склад поставщика для множественного заказа не имеют связи';
 
     @defineDocumentPosted(blanketOrder);
@@ -41,68 +41,68 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
     TABLE blanketOrderStock(BlanketOrder, Stock);
 
-    customerStockBlanketOrderDetail (blanketOrderDetail) = DATA Stock (BlanketOrderDetail);
-    nameCustomerStockBlanketOrderDetail 'Склад покупателя' (blanketOrderDetail) = nameStock(customerStockBlanketOrderDetail(blanketOrderDetail));
+    customerFilter##Stock (blanketOrderDetail) = DATA Stock (BlanketOrderDetail);
+    name###customerFilter##Stock 'Склад покупателя' (BlanketOrderDetail blanketOrderDetail) = name(customerFilter##Stock(blanketOrderDetail));
 
-    closeDateBlanketOrder 'Дата автоматического закрытия' = DATA DATE (BlanketOrder) IN documentPrm;
-    closeDateBlanketOrder(o) <- sumDate(shipmentDateBlanketOrder(o), quantityDaysCloseOrdersStock(supplierStockBlanketOrder(o)))
-        WHEN CHANGED(shipmentDateBlanketOrder(o)) OR CHANGED(supplierStockBlanketOrder(o));    
+    closeDate 'Дата автоматического закрытия' = DATA DATE (BlanketOrder) IN documentPrm;
+    closeDate(BlanketOrder o) <- sum(shipmentDate(o), quantityDaysCloseOrders(supplierStock(o)))
+        WHEN CHANGED(shipmentDate(o)) OR CHANGED(supplierStock(o));    
     
-    closeDataDateBlanketOrderDetail 'Дата автоматического закрытия' = DATA DATE (BlanketOrderDetail) IN documentPrm;
+    closeDataDate 'Дата автоматического закрытия' = DATA DATE (BlanketOrderDetail) IN documentPrm;
 
-    closeDateBlanketOrderDetail 'Дата автоматического закрытия' (detail) = OVERRIDE closeDateBlanketOrder(blanketOrderBlanketOrderDetail(detail)), closeDataDateBlanketOrderDetail(detail) PERSISTENT;
+    closeDate 'Дата автоматического закрытия' (BlanketOrderDetail detail) = OVERRIDE closeDate(blanketOrder(detail)), closeDataDate(detail) PERSISTENT;
 
-    closeDataDateBlanketOrderDetail(detail) <- sumDate(shipmentDateBlanketOrderDetail(detail), quantityDaysCloseOrdersStock(customerStockBlanketOrderDetail(detail)))
-        WHEN CHANGED(shipmentDateBlanketOrderDetail(detail)) OR CHANGED(customerStockBlanketOrderDetail(detail));    
+    closeDataDate(BlanketOrderDetail detail) <- sum(shipmentDate(detail), quantityDaysCloseOrders(customerFilter##Stock(detail)))
+        WHEN CHANGED(shipmentDate(detail)) OR CHANGED(customerFilter##Stock(detail));    
 
-    defaultClosedBlanketOrderDetail(detail) = closeDateBlanketOrderDetail(detail) < currentDate();
-    WHEN SET (closeDateBlanketOrder(order) <= currentDate()) DO closeBlanketOrder(order);    
+    defaultClosed(BlanketOrderDetail detail) = closeDate(detail) < currentDate();
+    WHEN SET (closeDate(BlanketOrder order) <= currentDate()) DO close(order);    
 
     @defineDocumentDetailSku(blanketOrder, sku);
     @defineDocumentDetailQuantity(blanketOrder);
-    CONSTRAINT negativeValueOrders() AND detail IS BlanketOrderDetail AND quantityBlanketOrderDetail(detail) < 0
+    CONSTRAINT negativeValueOrders() AND BlanketOrderDetail detail IS BlanketOrderDetail AND quantity(detail) < 0
         MESSAGE 'Количество в строке заказа должно быть не отрицательным';
 
-    quantityBlanketOrderDetailBlanketOrderCustomerStock 'Кол-во (всего)' (blanketOrder, customerStock) = 
-        GROUP SUM quantityBlanketOrderDetail(idetail) 
-              BY blanketOrderBlanketOrderDetail(idetail), customerStockBlanketOrderDetail(idetail) 
+    quantityBlanketOrderDetail###customerFilter 'Кол-во (всего)' (blanketOrder, customerStock) = 
+        GROUP SUM quantity(BlanketOrderDetail idetail) 
+              BY blanketOrder(idetail), customerFilter##Stock(idetail) 
               IN documentSum;
               
     @defineDocumentHeaderQuantity(blanketOrder);
 
-    quantityBlanketOrderDetailSkuBlanketOrderCustomerStock 'Кол-во товара в документе' (sku, blanketOrder, customerStock) = 
-        GROUP SUM quantityBlanketOrderDetail(idetail)
-              BY  skuBlanketOrderDetail(idetail),
-                  blanketOrderBlanketOrderDetail(idetail),
-                  customerStockBlanketOrderDetail(idetail);
+    quantityBlanketOrderDetail###customerFilter 'Кол-во товара в документе' (sku, blanketOrder, customerStock) = 
+        GROUP SUM quantity(BlanketOrderDetail idetail)
+              BY  sku(idetail),
+                  blanketOrder(idetail),
+                  customerFilter##Stock(idetail);
 
     @defineDocumentHeaderSkuQuantity(blanketOrder, sku);
 
-    countBlanketOrderDetailStockBlanketOrder 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStockBlanketOrderDetail(blanketOrderDetail), blanketOrderBlanketOrderDetail(blanketOrderDetail);
-    inBlanketOrderStock 'В заказе' (blanketOrder, stock) = DATA BOOLEAN (BlanketOrder, Stock); //customerStock
-    inCustomerBlanketOrderStock 'Отм.' (blanketOrder, stock) = inLegalEntityStock(customerBlanketOrder(blanketOrder), stock);
-    replaceStockStock(s, o) += ACTION (s, o){ASSIGN inBlanketOrderStock(blanketOrder, o) <- TRUE WHERE inBlanketOrderStock(blanketOrder, s) AND NOT inBlanketOrderStock(blanketOrder, o);}   
+    countBlanketOrderDetail 'Кол-во строк по складу '(stock, blanketOrder) = GROUP SUM 1 BY supplierStock(BlanketOrderDetail blanketOrderDetail), blanketOrder(blanketOrderDetail);
+    in 'В заказе' (blanketOrder, stock) = DATA BOOLEAN (BlanketOrder, Stock); //customerStock
+    in###customerFilter 'Отм.' (BlanketOrder blanketOrder, Stock stock) = in(customerFilter(blanketOrder), stock);
+    replace(Stock s, Stock o) += ACTION (s, o){ASSIGN in(BlanketOrder blanketOrder, o) <- TRUE WHERE in(blanketOrder, s) AND NOT in(blanketOrder, o);}   
 
     @defineDocumentHeaderAgreement (blanketOrder);
     @deriveDocumentHeaderAgreement (blanketOrder, supplier, customer, 'множественный заказ'###sign, NS);
 
     @defineDocumentInterfaceHeaderAgreement (BlanketOrder, Stock, supplier, customer);
 
-    priceListTypeBlanketOrderStock (blanketOrder, stock) = DATA PriceListType (BlanketOrder, Stock);
-    namePriceListTypeBlanketOrderStock 'Вид цены' (blanketOrder, stock) = namePriceListType(priceListTypeBlanketOrderStock (blanketOrder, stock)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
-    backgroundPriceListTypeBlanketOrderStock (blanketOrder, stock) = RGB(200,200,200) IF agreementBlanketOrderStock (blanketOrder, stock);
+    priceListType (blanketOrder, stock) = DATA PriceListType (BlanketOrder, Stock);
+    namePriceListType 'Вид цены' (BlanketOrder blanketOrder, Stock stock) = name(priceListType (blanketOrder, stock)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
+    backgroundPriceListType (BlanketOrder blanketOrder, Stock stock) = RGB(200,200,200) IF agreement (blanketOrder, stock);
 
     @defineDocumentDetailPrice(blanketOrder); // объявляем цену без НДС
 
     @defineDocumentDetailVAT(blanketOrder, countrySupplierStock); // объявляем шкалу
     // записываем значение ставки
-    overVATBlanketOrderDetail = ABSTRACT OVERRIDE FIRST Range (BlanketOrderDetail);
-    overVATBlanketOrderDetail(d) += VATSkuCountry (skuBlanketOrderDetail(d), countryStock(supplierStockBlanketOrderDetail(d)));
+    overVAT = ABSTRACT OVERRIDE FIRST Range (BlanketOrderDetail);
+    overVAT(BlanketOrderDetail d) += VAT (sku(d), country(supplierStock(d)));
     
     WHEN SESSION
-        (CHANGED(skuBlanketOrderDetail(detail)) OR CHANGED (supplierStockBlanketOrderDetail(detail)) OR 
-         CHANGED(overVATBlanketOrderDetail(detail))) AND NOT CHANGED(VATBlanketOrderDetail(detail)) DO {
-            VATBlanketOrderDetail(detail) <- overVATBlanketOrderDetail(detail);
+        (CHANGED(sku(BlanketOrderDetail detail)) OR CHANGED (supplierStock(detail)) OR 
+         CHANGED(overVAT(detail))) AND NOT CHANGED(VAT(detail)) DO {
+            VAT(detail) <- overVAT(detail);
         } 
     @deriveDocumentDetailValueVAT(blanketOrder);
     
@@ -117,17 +117,17 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     //  объявляем виды цен
     @defineDocumentDetailPriceListType(blanketOrder, blanketOrderDetail);
 
-    priceListTypeBlanketOrderStockSku (blanketOrder, stock, sku) =
-        IF agreementBlanketOrderStock(blanketOrder, stock) THEN
-            priceListTypeAgreementSku(agreementBlanketOrderStock(blanketOrder, stock), sku)
+    priceListType (BlanketOrder blanketOrder, Stock stock, Sku sku) =
+        IF agreement(blanketOrder, stock) THEN
+            priceListType(agreement(blanketOrder, stock), sku)
         ELSE
-            priceListTypeBlanketOrderStock(blanketOrder, stock) IF sku IS Sku;
+            priceListType(blanketOrder, stock) IF sku IS Sku;
     // записываем вид цены из соглашения
-     priceListTypeBlanketOrderDetail (detail) <- IF agreementBlanketOrderStock (blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail))
-        THEN priceListTypeAgreementSku(agreementBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail)), skuBlanketOrderDetail(detail))
-        ELSE priceListTypeBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail))
-     WHEN CHANGED(agreementBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail))) OR
-          CHANGED(priceListTypeBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail)));
+     priceListType (BlanketOrderDetail detail) <- IF agreement (blanketOrder(detail), customerFilter##Stock(detail))
+        THEN priceListType(agreement(blanketOrder(detail), customerFilter##Stock(detail)), sku(detail))
+        ELSE priceListType(blanketOrder(detail), customerFilter##Stock(detail))
+     WHEN CHANGED(agreement(blanketOrder(detail), customerFilter##Stock(detail))) OR
+          CHANGED(priceListType(blanketOrder(detail), customerFilter##Stock(detail)));
 //    @deriveDocumentDetailPricePriceListTypeVAT (blanketOrder, supplierStock); // записываем цены с НДС и без НДС на основе priceListType
 
     @defineDocumentDetailDataSum (blanketOrder); // объявляем сумму без НДС
@@ -139,23 +139,23 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
     @defineDocumentHeaderVATSum (blanketOrder, blanketOrderDetail, invoice);
 
-    sumBlanketOrderDetailBlanketOrderCustomerStock 'Сумма' (blanketOrder, customerStock) = 
-        GROUP SUM sumBlanketOrderDetail(idetail) 
-              BY blanketOrderBlanketOrderDetail(idetail), 
-                 customerStockBlanketOrderDetail(idetail)  
+    sumBlanketOrderDetail###customerFilter 'Сумма' (blanketOrder, customerStock) = 
+        GROUP SUM sum(BlanketOrderDetail idetail) 
+              BY blanketOrder(idetail), 
+                 customerFilter##Stock(idetail)  
               IN documentSum;
 
     @defineDocumentHeaderSum (blanketOrder);
 
-    countBlanketOrderDetailBlanketOrderCustomerStock 'Количество строк в документе' (order, stock) =
-        GROUP SUM 1 BY blanketOrderBlanketOrderDetail(d), customerStockBlanketOrderDetail(d) PERSISTENT IN documentSum;
+    countBlanketOrderDetail###customerFilter 'Количество строк в документе' (order, stock) =
+        GROUP SUM 1 BY blanketOrder(BlanketOrderDetail d), customerFilter##Stock(d) PERSISTENT IN documentSum;
 
-    CONSTRAINT customerStockBlanketOrderDetail(blanketOrderDetail) AND NOT inBlanketOrderStock(blanketOrderBlanketOrderDetail(blanketOrderDetail), customerStockBlanketOrderDetail(blanketOrderDetail))
-        CHECKED BY customerStockBlanketOrderDetail
+    CONSTRAINT customerFilter##Stock(BlanketOrderDetail blanketOrderDetail) AND NOT in(blanketOrder(blanketOrderDetail), customerFilter##Stock(blanketOrderDetail))
+        CHECKED BY customerFilter##Stock[BlanketOrderDetail]
             MESSAGE 'Для строки множественного заказа выбран склад не включенный в заказ';
 
-    customerStocksBlanketOrder 'Контрагенты' (blanketOrder) =
-        GROUP CONCAT nameStock(stock) IF inBlanketOrderStock(blanketOrder, stock), ', '
+    customerFilter##Stocks 'Контрагенты' (blanketOrder) =
+        GROUP CONCAT name(Stock stock) IF in(BlanketOrder blanketOrder, stock), ', '
         BY blanketOrder
         ORDER stock MINCHARWIDTH 20 MAXCHARWIDTH 60 PREFCHARWIDTH 40 PERSISTENT;
 
@@ -174,41 +174,41 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
     FORM blanketOrder 'Множественный заказ'###sign
         OBJECTS o = BlanketOrder FIXED PANEL
-        PROPERTIES (o) isPostedBlanketOrder, nameSupplierBlanketOrder ON CHANGE changeSupplier###supplierFilter###blanketOrder(o),
-                       nameSupplierStockBlanketOrder ON CHANGE changeSupplierStock###supplierFilter###blanketOrder(o),
-                       nameNumeratorBlanketOrder, numberBlanketOrder, seriesBlanketOrder, dateBlanketOrder, timeBlanketOrder,
-                       nameCurrencyBlanketOrder, noteBlanketOrder,
-                       nameCustomerBlanketOrder ON CHANGE changeCustomer###customerFilter###blanketOrder(o), nameAgreementBlanketOrder,
-                       countBlanketOrderDetailBlanketOrder, quantityBlanketOrderDetailBlanketOrder, sumBlanketOrderDetailBlanketOrder,
-                       VATSumBlanketOrderDetailBlanketOrder, invoiceSumBlanketOrderDetailBlanketOrder, shipmentDateBlanketOrder, 
-                       shipmentTimeBlanketOrder, closeDateBlanketOrder
+        PROPERTIES (o) isPosted, nameSupplier ON CHANGE changeSupplier###supplierFilter(o),
+                       nameSupplierStock ON CHANGE changeSupplierStock###supplierFilter(o),
+                       nameNumerator, number, series, date, time,
+                       nameCurrency, note,
+                       name###customerFilter ON CHANGE change###customerFilter###customerFilter(o), nameAgreement,
+                       countBlanketOrderDetail, quantityBlanketOrderDetail, sumBlanketOrderDetail,
+                       VATSumBlanketOrderDetail, invoiceSumBlanketOrderDetail, shipmentDate, 
+                       shipmentTime, closeDate
 
         OBJECTS d = BlanketOrderDetail
-        PROPERTIES (d) indexBlanketOrderDetail, idBarcodeSkuBlanketOrderDetail, nameSkuBlanketOrderDetail, shortNameUOMSkuBlanketOrderDetail,
-                       quantityBlanketOrderDetail, namePriceListTypeBlanketOrderDetail,
+        PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
+                       quantity, namePriceListType,
 
-                       priceBlanketOrderDetail ON CHANGE changePriceBlanketOrderDetail(d), sumBlanketOrderDetail,
-                       numberVATBlanketOrderDetail ON CHANGE changeNumberVATBlanketOrderDetail(d),
-                       valueVATBlanketOrderDetail ON CHANGE changeValueVATBlanketOrderDetail(d),
-                       invoicePriceBlanketOrderDetail ON CHANGE changeInvoicePriceBlanketOrderDetail(d),
-                       VATSumBlanketOrderDetail, invoiceSumBlanketOrderDetail,
-                       nameSupplierStockBlanketOrderDetail ON CHANGE changeDataSupplierStock###supplierFilter###blanketOrderDetail(d),
-                       nameCustomerStockBlanketOrderDetail ON CHANGE changeCustomerStock###customerFilter###blanketOrderDetail(d),
-                       shipmentDateBlanketOrderDetail, shipmentTimeBlanketOrderDetail, ADDOBJ, DELETESESSION
+                       price ON CHANGE changePrice(d), sum,
+                       numberVAT ON CHANGE changeNumberVAT(d),
+                       valueVAT ON CHANGE changeValueVAT(d),
+                       invoicePrice ON CHANGE changeInvoicePrice(d),
+                       VATSum, invoiceSum,
+                       nameSupplierStock ON CHANGE changeDataSupplierStock###supplierFilter(d),
+                       name###customerFilter##Stock ON CHANGE change###customerFilter##Stock###customerFilter(d),
+                       shipmentDate, shipmentTime, ADDOBJ, DELETESESSION
 
         OBJECTS c = Stock
-        PROPERTIES     nameStock(c) READONLY, inBlanketOrderStock(o,c)
-        PROPERTIES(o,c) nameNumeratorBlanketOrderStock, numberBlanketOrderStock, seriesBlanketOrderStock,
-                        nameAgreementBlanketOrderStock, namePriceListTypeBlanketOrderStock BACKGROUND backgroundPriceListTypeBlanketOrderStock(o, c)
-        PROPERTIES(o,c) READONLY countBlanketOrderDetailBlanketOrderCustomerStock, quantityBlanketOrderDetailBlanketOrderCustomerStock, sumBlanketOrderDetailBlanketOrderCustomerStock
+        PROPERTIES     name(c) READONLY, in(o,c)
+        PROPERTIES(o,c) nameNumerator, number, series,
+                        nameAgreement, namePriceListType BACKGROUND backgroundPriceListType(o, c)
+        PROPERTIES(o,c) READONLY countBlanketOrderDetail###customerFilter, quantityBlanketOrderDetail###customerFilter, sumBlanketOrderDetail###customerFilter
 
-        PROPERTIES(o) TODRAW d deleteBlanketOrderDetailBlanketOrder
+        PROPERTIES(o) TODRAW d deleteBlanketOrderDetail
 
-        FILTERS blanketOrderBlanketOrderDetail(d) == o,
-                inCustomerBlanketOrderStock(o,c)
-        FILTERGROUP inactiveStock FILTER 'Активный' activeStock(c) 'ctrl F10' DEFAULT
+        FILTERS blanketOrder(d) == o,
+                in###customerFilter(o,c)
+        FILTERGROUP inactiveStock FILTER 'Активный' active(c) 'ctrl F10' DEFAULT
         EVENTS
-            ON OK prePostBlanketOrder(o)
+            ON OK prePost(o)
 
         EDIT BlanketOrder OBJECT o
     ;
@@ -226,25 +226,25 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
                     MOVE o.documentHeader {
                         type = CONTAINERH;
-                        MOVE PROPERTY(isPostedBlanketOrder(o)) { preferredCharWidth = 10; }
-                        MOVE PROPERTY(nameNumeratorBlanketOrder(o));
-                        MOVE PROPERTY(numberBlanketOrder(o));
-                        MOVE PROPERTY(seriesBlanketOrder(o));
-                        MOVE PROPERTY(dateBlanketOrder(o));
-                        MOVE PROPERTY(timeBlanketOrder(o));
+                        MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 10; }
+                        MOVE PROPERTY(nameNumerator(o));
+                        MOVE PROPERTY(number(o));
+                        MOVE PROPERTY(series(o));
+                        MOVE PROPERTY(date(o));
+                        MOVE PROPERTY(time(o));
                     }
                     NEW headerRow11 {
                         type = CONTAINERH;
                         NEW headerRow111 {
                             type = CONTAINERH;
                             caption = 'Поставщик';
-                            MOVE PROPERTY(nameSupplierBlanketOrder(o));
-                            MOVE PROPERTY(nameSupplierStockBlanketOrder(o));
+                            MOVE PROPERTY(nameSupplier(o));
+                            MOVE PROPERTY(nameSupplierStock(o));
                         }
                         NEW headerRow112 {
                             caption = 'Покупатель';
                             type = CONTAINERH;
-                            MOVE PROPERTY(nameCustomerBlanketOrder(o));
+                            MOVE PROPERTY(name###customerFilter(o));
                         }
                     }
                     NEW headerRow12 {
@@ -256,8 +256,8 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                             caption = 'Исполнение';
                             type = COLUMNS;
                             columns = 1;
-                            MOVE PROPERTY(shipmentDateBlanketOrder(o));
-                            MOVE PROPERTY(shipmentTimeBlanketOrder(o));
+                            MOVE PROPERTY(shipmentDate(o));
+                            MOVE PROPERTY(shipmentTime(o));
                         }
                     }
                 }
@@ -278,16 +278,16 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
             PROPERTY(formOk()) {
                 caption = 'Провести';
             }
-            PROPERTY(sumBlanketOrderDetailBlanketOrder(o)) { preferredCharWidth = 13;}
-            PROPERTY(VATSumBlanketOrderDetailBlanketOrder(o)) { preferredCharWidth = 13;}  
-            PROPERTY(invoiceSumBlanketOrderDetailBlanketOrder(o)) { preferredCharWidth = 13;}            
+            PROPERTY(sumBlanketOrderDetail(o)) { preferredCharWidth = 13;}
+            PROPERTY(VATSumBlanketOrderDetail(o)) { preferredCharWidth = 13;}  
+            PROPERTY(invoiceSumBlanketOrderDetail(o)) { preferredCharWidth = 13;}            
         }
     }
 
-    editBlanketOrder 'Редактировать' = ACTION EDITFORM BlanketOrder;
+    edit 'Редактировать' = ACTION EDITFORM BlanketOrder;
 
-    editBlanketOrderDetail(d) = ACTION (d) NEWSESSION {
-        FORM blanketOrder OBJECTS o = blanketOrderBlanketOrderDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+    edit(BlanketOrderDetail d) = ACTION (d) NEWSESSION {
+        FORM blanketOrder OBJECTS o = blanketOrder(d), d = d MANAGESESSION DOCKEDMODAL;
     }
 
 //-- SKU
@@ -295,51 +295,51 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     @extendFormDocumentSkuStockExtraCustom(blanketOrder, blanketOrder, o, supplier, supplierStock, customerStock);
     
     currentBlanketOrderBlanketOrder() = DATA LOCAL Object ();
-    setCurrentBlanketOrderBlanketOrder(o) = ACTION currentBlanketOrderBlanketOrder() <- o;
+    setCurrentBlanketOrderBlanketOrder(Object o) = ACTION currentBlanketOrderBlanketOrder() <- o;
     
     EXTEND FORM blanketOrder
         EVENTS ON CHANGE o setCurrentBlanketOrderBlanketOrder(o)
     ;
 
-    WHEN SESSION FORMS blanketOrder ((CHANGED(inBlanketOrderStock(o, cs)) OR 
-                                CHANGED(priceListTypeBlanketOrderStock(o, cs)) OR 
-                                CHANGED(agreementBlanketOrderStock(o, cs))) AND [= VIEW blanketOrder.sts](stock, sku))
+    WHEN SESSION FORMS blanketOrder ((CHANGED(in(BlanketOrder o, Stock cs)) OR 
+                                CHANGED(priceListType(o, cs)) OR 
+                                CHANGED(agreement(o, cs))) AND [= VIEW blanketOrder.sts](Stock stock, Sku sku))
                             OR (
                             ((SET([= VIEW blanketOrder.sts](stock, sku)) AND currentBlanketOrderBlanketOrder() == o) OR 
-                            (CHANGED(dateTimeBlanketOrder(o)) AND [= VIEW blanketOrder.sts](stock, sku))) AND inBlanketOrderStock(o, cs)) DO 
-        updateViewPriceSkuStockBlanketOrderCustomerStock(sku, stock, o, cs);
+                            (CHANGED(dateTime(o)) AND [= VIEW blanketOrder.sts](stock, sku))) AND in(o, cs)) DO 
+        updateViewPrice###customerFilter(sku, stock, o, cs);
     ;      
         
     @defineDocumentSkuStockSupplier (blanketOrder, blanketOrder, o);
     
-    overCopyBlanketOrder = ABSTRACT ACTION LIST (BlanketOrder, BlanketOrder);
-    overCopyBlanketOrderDetail = ABSTRACT ACTION LIST (BlanketOrderDetail, BlanketOrderDetail);
-    copyBlanketOrder 'Копировать' = ACTION (order) NEWSESSION {
+    overCopy = ABSTRACT ACTION LIST (BlanketOrder, BlanketOrder);
+    overCopy = ABSTRACT ACTION LIST (BlanketOrderDetail, BlanketOrderDetail);
+    copy 'Копировать' = ACTION (BlanketOrder order) NEWSESSION {
         FOR ADDOBJ o = BlanketOrder DO {
-            supplierBlanketOrder(o) <- supplierBlanketOrder(order);
-            supplierStockBlanketOrder(o) <- supplierStockBlanketOrder(order);
-            customerBlanketOrder(o) <- customerBlanketOrder(order);
+            supplier(o) <- supplier(order);
+            supplierStock(o) <- supplierStock(order);
+            customerFilter(o) <- customerFilter(order);
             
-            inBlanketOrderStock(o,stock) <- inBlanketOrderStock(order,stock) WHERE stock IS Stock;
-            agreementBlanketOrderStock(o,stock) <- agreementBlanketOrderStock(order,stock) WHERE stock IS Stock;
-            priceListTypeBlanketOrderStock(o,stock) <- priceListTypeBlanketOrderStock(order,stock) WHERE stock IS Stock;
+            in(o,Stock stock) <- in(order,stock) WHERE stock IS Stock;
+            agreement(o,Stock stock) <- agreement(order,stock) WHERE stock IS Stock;
+            priceListType(o,Stock stock) <- priceListType(order,stock) WHERE stock IS Stock;
             
-            currencyBlanketOrder(o) <- currencyBlanketOrder(order);
-            agreementBlanketOrder(o) <- agreementBlanketOrder(order);
-            noteBlanketOrder(o) <- noteBlanketOrder(order);
+            currency(o) <- currency(order);
+            agreement(o) <- agreement(order);
+            note(o) <- note(order);
 
-            EXEC overCopyBlanketOrder(o, order);
+            EXEC overCopy(o, order);
 
-            FOR blanketOrderBlanketOrderDetail(detail) == order DO {
+            FOR blanketOrder(BlanketOrderDetail detail) == order DO {
                 FOR ADDOBJ d=BlanketOrderDetail DO {
-                    blanketOrderBlanketOrderDetail(d) <- o;
-                    skuBlanketOrderDetail(d) <- skuBlanketOrderDetail(detail);
-                    quantityBlanketOrderDetail(d) <- quantityBlanketOrderDetail(detail);
+                    blanketOrder(d) <- o;
+                    sku(d) <- sku(detail);
+                    quantity(d) <- quantity(detail);
                     
-                    dataSupplierStockBlanketOrderDetail(d) <- dataSupplierStockBlanketOrderDetail(detail);
-                    customerStockBlanketOrderDetail(d) <- customerStockBlanketOrderDetail(detail);
+                    dataSupplierStock(d) <- dataSupplierStock(detail);
+                    customerFilter##Stock(d) <- customerFilter##Stock(detail);
                     
-                    overCopyBlanketOrderDetail(d, detail);
+                    overCopy(d, detail);
                 }
             }
 
@@ -349,32 +349,32 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
     FORM blanketOrders 'Множественные заказы' 
         OBJECTS o = BlanketOrder
-        PROPERTIES (o) READONLYIF isReadonly() isClosedBlanketOrder, isPostedBlanketOrder, numberBlanketOrder, seriesBlanketOrder, dateBlanketOrder, timeBlanketOrder,
-                                nameSupplierBlanketOrder, nameSupplierStockBlanketOrder, nameCustomerBlanketOrder, nameCurrencyBlanketOrder
-        PROPERTIES (o) READONLY countBlanketOrderDetailBlanketOrder, quantityBlanketOrderDetailBlanketOrder, sumBlanketOrderDetailBlanketOrder,
-                                VATSumBlanketOrderDetailBlanketOrder, invoiceSumBlanketOrderDetailBlanketOrder
-        PROPERTIES (o) READONLYIF isReadonly() shipmentDateBlanketOrder, shipmentTimeBlanketOrder, customerStocksBlanketOrder,
-                                noteBlanketOrder
+        PROPERTIES (o) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
+                                nameSupplier, nameSupplierStock, name###customerFilter, nameCurrency
+        PROPERTIES (o) READONLY countBlanketOrderDetail, quantityBlanketOrderDetail, sumBlanketOrderDetail,
+                                VATSumBlanketOrderDetail, invoiceSumBlanketOrderDetail
+        PROPERTIES (o) READONLYIF isReadonly() shipmentDate, shipmentTime, customerFilter##Stocks,
+                                note
 
-        PROPERTIES (o) READONLY FORCE PANEL createdNameUserBlanketOrder, createdTimeBlanketOrder, createdHostnameComputerBlanketOrder, 
-                                            postedNameUserBlanketOrder, postedTimeBlanketOrder, postedHostnameComputerBlanketOrder
+        PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                            postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (o) ADDFORM, EDITFORM SHOWIF isOpenedBlanketOrder(o), copyBlanketOrder
-        PROPERTIES (o) closeBlanketOrder SHOWIF isOpenedBlanketOrder(o), openBlanketOrder SHOWIF isClosedBlanketOrder(o)
-        PROPERTIES (o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedBlanketOrder(o)
+        PROPERTIES (o) ADDFORM, EDITFORM SHOWIF isOpened(o), copy
+        PROPERTIES (o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)
+        PROPERTIES (o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(o)
         
 
 
         OBJECTS d=BlanketOrderDetail
-        PROPERTIES (d) READONLY indexBlanketOrderDetail, idBarcodeSkuBlanketOrderDetail, nameSkuBlanketOrderDetail, shortNameUOMSkuBlanketOrderDetail,
-                       quantityBlanketOrderDetail, namePriceListTypeBlanketOrderDetail,
-                       priceBlanketOrderDetail, sumBlanketOrderDetail,
-                       numberVATBlanketOrderDetail, valueVATBlanketOrderDetail, VATSumBlanketOrderDetail, invoiceSumBlanketOrderDetail,
-                       nameSupplierStockBlanketOrderDetail, nameCustomerStockBlanketOrderDetail,
-                       shipmentDateBlanketOrderDetail, shipmentTimeBlanketOrderDetail
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                       quantity, namePriceListType,
+                       price, sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       nameSupplierStock, name###customerFilter##Stock,
+                       shipmentDate, shipmentTime
 
 
-        FILTERS blanketOrderBlanketOrderDetail(d) == o
+        FILTERS blanketOrder(d) == o
         DIALOG BlanketOrder OBJECT o
     ;
 
@@ -418,93 +418,93 @@ META defineOrderBlanketOrder(sign)
 
     @defineDocumentTables(blanketOrderOrder);
 
-    needToOrderBlanketOrderDetailStock (blanketOrderDetail, stock) = quantityBlanketOrderDetail(blanketOrderDetail)
-        AND isPostedBlanketOrderDetail(blanketOrderDetail) AND customerStockBlanketOrderDetail(blanketOrderDetail) == stock;
+    needToOrder (BlanketOrderDetail blanketOrderDetail, Stock stock) = quantity(blanketOrderDetail)
+        AND isPosted(blanketOrderDetail) AND customerStock(blanketOrderDetail) == stock;
 
-    needToOrderBlanketOrderStock (blanketOrder, stock) = quantityBlanketOrderDetailBlanketOrderCustomerStock(blanketOrder, stock)
-        AND isPostedBlanketOrder(blanketOrder);
+    needToOrder (BlanketOrder blanketOrder, Stock stock) = quantityBlanketOrderDetailCustomer(blanketOrder, stock)
+        AND isPosted(blanketOrder);
 
 //-- object
     @defineAggregation(blanketOrder, stock, blanketOrderOrder, needToOrder);
 
-    supplierOrder(order) += supplierBlanketOrder(blanketOrderBlanketOrderOrder(order));
-    customerOrder(order) += customerBlanketOrder(blanketOrderBlanketOrderOrder(order));
+    supplier(BlanketOrderOrder order) += supplier(blanketOrder(order));
+    customer(BlanketOrderOrder order) += customer(blanketOrder(order));
 
     @defineDocumentAggregationHeaderStock (blanketOrder, blanketOrderOrder, stock, supplier, 'Склад поставщика');
-    supplierStockOrder(order) += supplierStockBlanketOrderOrder(order);
+    supplierStock(BlanketOrderOrder order) += supplierStock(order);
 
-    customerStockOrder(order) += stockBlanketOrderOrder(order);
+    customerStock(BlanketOrderOrder order) += stock(order);
 
-    shipmentDateOrder(order) += shipmentDateBlanketOrder(blanketOrderBlanketOrderOrder(order));
-    shipmentTimeOrder(order) += shipmentTimeBlanketOrder(blanketOrderBlanketOrderOrder(order));
+    shipmentDate(BlanketOrderOrder order) += shipmentDate(blanketOrder(order));
+    shipmentTime(BlanketOrderOrder order) += shipmentTime(blanketOrder(order));
 
-    currencyOrder(order) += currencyBlanketOrder(blanketOrderBlanketOrderOrder(order));
-    priceListTypeOrder(order) += priceListTypeBlanketOrderStock(blanketOrderBlanketOrderOrder(order), stockBlanketOrderOrder(order));
+    currency(BlanketOrderOrder order) += currency(blanketOrder(order));
+    priceListType(BlanketOrderOrder order) += priceListType(blanketOrder(order), stock(order));
 
     @defineDocumentAggregationHeaderNote (blanketOrder, blanketOrderOrder);
-    noteOrder(order) += noteBlanketOrderOrder(order);
+    note(BlanketOrderOrder order) += note(order);
 
-    seriesOrder(order) += seriesBlanketOrderStock(blanketOrderBlanketOrderOrder(order), stockBlanketOrderOrder(order));
-    numberOrder(order) += numberBlanketOrderStock(blanketOrderBlanketOrderOrder(order), stockBlanketOrderOrder(order));
-    seriesNumberBlanketOrderOrder 'Серия/Номер' (blanketOrderOrder) = CONCAT '',
-        seriesBlanketOrderStock(blanketOrderBlanketOrderOrder(blanketOrderOrder), stockBlanketOrderOrder(blanketOrderOrder)),
-        numberBlanketOrderStock(blanketOrderBlanketOrderOrder(blanketOrderOrder), stockBlanketOrderOrder(blanketOrderOrder));
+    series(BlanketOrderOrder order) += series(blanketOrder(order), stock(order));
+    number(BlanketOrderOrder order) += number(blanketOrder(order), stock(order));
+    seriesNumber 'Серия/Номер' (BlanketOrderOrder blanketOrderOrder) = CONCAT '',
+        series(blanketOrder(blanketOrderOrder), stock(blanketOrderOrder)),
+        number(blanketOrder(blanketOrderOrder), stock(blanketOrderOrder));
 
 //-- detail
     @defineAggregation(blanketOrderDetail, stock, blanketOrderOrderDetail, needToOrder);
 
-    blanketOrderOrderBlanketOrderOrderDetail (blanketOrderOrderDetail) =
-        blanketOrderOrderBlanketOrderStock(blanketOrderBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(blanketOrderOrderDetail)),
-                                           customerStockBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(blanketOrderOrderDetail)));
-    orderOrderDetail(detail) += blanketOrderOrderBlanketOrderOrderDetail(detail);
+    blanketOrderOrder (BlanketOrderOrderDetail blanketOrderOrderDetail) =
+        blanketOrderOrder(blanketOrder(blanketOrderDetail(blanketOrderOrderDetail)),
+                                           customerStock(blanketOrderDetail(blanketOrderOrderDetail)));
+    order(BlanketOrderOrderDetail detail) += blanketOrderOrder(detail);
 
-    dataSupplierStockOrderDetail(detail) += dataSupplierStockBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    dataSupplierStock(BlanketOrderOrderDetail detail) += dataSupplierStock(blanketOrderDetail(detail));
 
     @defineDocumentHeaderCount(blanketOrderOrder);
     @defineDocumentDetailIndex(blanketOrderOrder);
 
     @defineDocumentAggregationTime(blanketOrder, blanketOrderOrder);
-    dateOrder(order) += dateBlanketOrderOrder(order);
-    timeOrder(order) += timeBlanketOrderOrder(order);
+    date(BlanketOrderOrder order) += date(order);
+    time(BlanketOrderOrder order) += time(order);
 
     @defineDocumentAggregationPosted(blanketOrder, blanketOrderOrder);
-    isPostedOrder(order) += isPostedBlanketOrderOrder(order);
+    isPosted(BlanketOrderOrder order) += isPosted(order);
     
     @defineDocumentAggregationClosed(blanketOrder, blanketOrderOrder);
-    isClosedOrder(order) += isClosedBlanketOrderOrder(order);
+    isClosed(BlanketOrderOrder order) += isClosed(order);
     
     @defineDocumentAggregationDetailSku (blanketOrder, blanketOrderOrder, sku);
-    skuOrderDetail(detail) +=  skuBlanketOrderOrderDetail(detail);
+    sku(BlanketOrderOrderDetail detail) +=  sku(detail);
 
     @defineDocumentAggregationDetailQuantity (blanketOrder, blanketOrderOrder);
-    quantityOrderDetail(detail) +=  quantityBlanketOrderOrderDetail(detail);
+    quantity(BlanketOrderOrderDetail detail) +=  quantity(detail);
 
-    shipmentDataDateOrderDetail(detail) += shipmentDataDateBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
-    shipmentDataTimeOrderDetail(detail) += shipmentDataTimeBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    shipmentDataDate(BlanketOrderOrderDetail detail) += shipmentDataDate(blanketOrderDetail(detail));
+    shipmentDataTime(BlanketOrderOrderDetail detail) += shipmentDataTime(blanketOrderDetail(detail));
 
-    priceListTypeOrderDetail(detail) += priceListTypeBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    priceListType(BlanketOrderOrderDetail detail) += priceListType(blanketOrderDetail(detail));
 
-    priceOrderDetail(detail) += priceBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
-    sumOrderDetail(detail) += sumBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    price(BlanketOrderOrderDetail detail) += price(blanketOrderDetail(detail));
+    sum(BlanketOrderOrderDetail detail) += sum(blanketOrderDetail(detail));
 
-    VATOrderDetail(detail) += VATBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
-    valueVATOrderDetail(detail) += valueVATBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    VAT(BlanketOrderOrderDetail detail) += VAT(blanketOrderDetail(detail));
+    valueVAT(BlanketOrderOrderDetail detail) += valueVAT(blanketOrderDetail(detail));
 
-    invoicePriceOrderDetail(detail) += invoicePriceBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    invoicePrice(BlanketOrderOrderDetail detail) += invoicePrice(blanketOrderDetail(detail));
 
-    invoiceSumOrderDetail(detail) += invoiceSumBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
-    VATSumOrderDetail(detail) += VATSumBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+    invoiceSum(BlanketOrderOrderDetail detail) += invoiceSum(blanketOrderDetail(detail));
+    VATSum(BlanketOrderOrderDetail detail) += VATSum(blanketOrderDetail(detail));
 
-    editOrder(order) += ACTION EXEC editBlanketOrder(blanketOrderBlanketOrderOrder(order));
-    createdUserOrder(order) += createdUserBlanketOrder(blanketOrderBlanketOrderOrder(order));
+    edit(BlanketOrderOrder order) += ACTION EXEC edit(blanketOrder(order));
+    createdUser(BlanketOrderOrder order) += createdUser(blanketOrder(order));
 
 END
 
 // Партии приход
 META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
     @defineDocumentDetailBatch(blanketOrder, batch);
-    overCopyBlanketOrderDetail(d, detail) += ACTION (d, detail) {      
-        batchBlanketOrderDetail(d) <- batchBlanketOrderDetail(detail);
+    overCopy(BlanketOrderDetail d, BlanketOrderDetail detail) += ACTION (d, detail) {      
+        batch(d) <- batch(detail);
     } 
 
 //    overCopyUserOrderDetail(d, detail) += ACTION (d, detail) {      
@@ -542,22 +542,22 @@ META defineBlanketOrderBatchDialog(dumb)
 END
 
 META defineBlanketOrderBatchDialogStock(stockProp)
-    changeBatchBlanketOrderDetail = ACTION (blanketOrderDetail) {
-        FORM dialogBatchStockOut OBJECTS st = stockProp###blanketOrderDetail(blanketOrderDetail),
-                                      t = dateTimeBlanketOrderDetail(blanketOrderDetail),
-                                      sk = skuBlanketOrderDetail(blanketOrderDetail) DIALOG SHOWDROP;
+    changeBatch = ACTION (BlanketOrderDetail blanketOrderDetail) {
+        FORM dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
+                                      t = dateTime(blanketOrderDetail),
+                                      sk = sku(blanketOrderDetail) DIALOG SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
-            ASSIGN batchBlanketOrderDetail(blanketOrderDetail) <- chosenObject('bt');
+            ASSIGN batch(blanketOrderDetail) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchBlanketOrderDetail(blanketOrderDetail) <- NULL;
+            ASSIGN batch(blanketOrderDetail) <- NULL;
         }
 
     };
 
     EXTEND FORM blanketOrder
-        PROPERTIES (d) nameBatchBlanketOrderDetail ON CHANGE changeBatchBlanketOrderDetail(d) AFTER shortNameUOMSkuBlanketOrderDetail(d)
+        PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d)
     ;
-    EXTEND FORM blanketOrders PROPERTIES (d) READONLY nameBatchBlanketOrderDetail AFTER shortNameUOMSkuBlanketOrderDetail(d);
+    EXTEND FORM blanketOrders PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d);
 END
 

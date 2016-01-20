@@ -37,11 +37,11 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
             DataSession session = context.getSession();
 
-            ObjectValue importTypeObject = findProperty("importTypeOrders").readClasses(session);
+            ObjectValue importTypeObject = findProperty("importTypeOrders[]").readClasses(session);
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
@@ -60,7 +60,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
                             session.apply(context);
                             
-                            findAction("formRefresh").execute(context);
+                            findAction("formRefresh[]").execute(context);
                         }
                     }
                 }

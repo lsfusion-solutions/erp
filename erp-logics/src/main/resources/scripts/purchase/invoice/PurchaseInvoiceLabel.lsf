@@ -9,14 +9,14 @@ NAMESPACE Purchase;
 @Label.implementPriceTransactionDocument(Invoice);
 @defineDocumentLabelTransaction(invoice, sku, customerStock, shipment);
 
-showToPrintLabelTransactionInvoice 'Показывать' (invoice) = isPostedInvoice(invoice) AND NOT 
-                                                            Label.skipPriceTransactionDocument(invoice) AND // OR printedPriceTransactionDocument(invoice)
-                                                            customerStockInvoice(invoice) IS DepartmentStore;
+showToPrintLabelTransaction 'Показывать' (Invoice invoice) = isPosted(invoice) AND NOT 
+                                                            skip[PriceTransactionDocument](invoice) AND // OR printedPriceTransactionDocument(invoice)
+                                                            customerStock(invoice) IS DepartmentStore;
 
 EXTEND FORM invoices
-PROPERTIES(i) statusLabelPriceTransactionDocument  BACKGROUND backgroundPrintLabelTransactionInvoice(i) READONLY AFTER isCommissionInvoice(i),
-              createInvoiceLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransactionInvoice(i), 
-              createSnapshotInvoiceLabelTransaction SHOWIF isPostedInvoice(i)
+PROPERTIES(i) statusLabel  BACKGROUND backgroundPrintLabelTransaction(i) READONLY AFTER isCommission(i),
+              createLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransaction(i), 
+              createSnapshotLabelTransaction SHOWIF isPosted(i)
 ;
 DESIGN invoices {
     machineryContainer{
@@ -24,8 +24,8 @@ DESIGN invoices {
             caption = 'Ценники' ;
             type = CONTAINERV;    
             
-            MOVE PROPERTY (createInvoiceLabelTransaction(i));
-            MOVE PROPERTY (createSnapshotInvoiceLabelTransaction(i));
+            MOVE PROPERTY (createLabelTransaction(i));
+            MOVE PROPERTY (createSnapshotLabelTransaction(i));
         }
     }
 }

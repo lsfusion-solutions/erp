@@ -4,30 +4,30 @@ REQUIRE PurchaseStopList, PurchaseInvoiceMachinery;
 
 NAMESPACE StopList;
 
-statusStopListInvoiceDetail 'Запрет продаж' (d)= IF skipMachineryPriceTransactionSkuStockDateTime(skuInvoiceDetail(d), Purchase.customerStockInvoiceDetail(d), currentDateTime())
+statusStopList 'Запрет продаж' (Purchase.InvoiceDetail d)= IF skipMachineryPriceTransaction(sku(d), customerStock(d), currentDateTime())
     THEN 'В стоп-листе'
     ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
-backgroundStopListInvoiceDetail 'Цвет' (d) = RGB (255,0,0) IF skipMachineryPriceTransactionSkuStockDateTime(skuInvoiceDetail(d), Purchase.customerStockInvoiceDetail(d), currentDateTime());
+backgroundStopList 'Цвет' (Purchase.InvoiceDetail d) = RGB (255,0,0) IF skipMachineryPriceTransaction(sku(d), customerStock(d), currentDateTime());
 
-countInStopListInvoiceSku 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
-    IF skipMachineryPriceTransactionSkuStockDateTime(skuInvoiceDetail(d), Purchase.customerStockInvoiceDetail(d), currentDateTime()) 
-          BY Purchase.invoiceInvoiceDetail(d), skuInvoiceDetail(d);
+countInStopList 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
+    IF skipMachineryPriceTransaction(sku(Purchase.InvoiceDetail d), customerStock(d), currentDateTime()) 
+          BY invoice(d), sku(d);
 
-countSkuInStopListInvoice 'Количество товаров в стоп-листе ' = GROUP SUM 1 
-    IF countInStopListInvoiceSku(i,s) BY i;
+countSkuInStopList 'Количество товаров в стоп-листе ' = GROUP SUM 1 
+    IF countInStopList(Purchase.Invoice i,Sku s) BY i;
             
-createReversStopListInvoice 'Исключить из стоп-листа'  = ACTION (invoice) {
+createReversStopList 'Исключить из стоп-листа'  = ACTION (Purchase.Invoice invoice) {
 
     NESTEDSESSION {   
         FOR ADDOBJ sl = StopList DO {    
-            inStockStopList(st, sl) <- TRUE WHERE st == customerStockInvoice(invoice);  
-            excludeStopList(sl) <-TRUE;
-            isPostedStopList(sl) <-TRUE;
+            in(Stock st, sl) <- TRUE WHERE st == customerStock(invoice);  
+            exclude(sl) <-TRUE;
+            isPosted(sl) <-TRUE;
                    
-            FOR countInStopListInvoiceSku(invoice, sku) ADDOBJ d = StopListDetail DO {
+            FOR countInStopList(invoice, Sku sku) ADDOBJ d = StopListDetail DO {
                 
-                stopListStopListDetail(d) <- sl;
-                skuStopListDetail(d) <- sku;            
+                stopList(d) <- sl;
+                sku(d) <- sku;            
             }   
             FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
         }        
@@ -35,9 +35,9 @@ createReversStopListInvoice 'Исключить из стоп-листа'  = ACT
 };
 
 EXTEND FORM userInvoice
-    PROPERTIES (i) READONLY FORCE PANEL SHOWIF countSkuInStopListInvoice(i) TODRAW d countSkuInStopListInvoice,
-                   createReversStopListInvoice EDITABLE 
-    PROPERTIES (d) READONLY statusStopListInvoiceDetail BACKGROUND backgroundStopListInvoiceDetail(d)
+    PROPERTIES (i) READONLY FORCE PANEL SHOWIF countSkuInStopList(i) TODRAW d countSkuInStopList,
+                   createReversStopList EDITABLE 
+    PROPERTIES (d) READONLY statusStopList BACKGROUND backgroundStopList(d)
     
 ;
 DESIGN userInvoice {
@@ -45,11 +45,11 @@ DESIGN userInvoice {
         NEW stopList {
             type = CONTAINERH;
             caption = 'Стоп-лист';            
-            MOVE PROPERTY (countSkuInStopListInvoice(i)) {background = #FF0000;}
-            MOVE PROPERTY (createReversStopListInvoice(i));
+            MOVE PROPERTY (countSkuInStopList(i)) {background = #FF0000;}
+            MOVE PROPERTY (createReversStopList(i));
         }        
     }    
 }  
 EXTEND FORM invoices
-    PROPERTIES (d) READONLY statusStopListInvoiceDetail BACKGROUND backgroundStopListInvoiceDetail(d)
+    PROPERTIES (d) READONLY statusStopList BACKGROUND backgroundStopList(d)
 ;

@@ -42,21 +42,21 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
         ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
-                findAction("createCurrentReceipt").execute(context);
+                findAction("createCurrentReceipt[]").execute(context);
             } else {
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
-                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
                 int password = pass == null ? 30000 : pass * 1000;
 
-                String cashierName = (String) findProperty("nameEmployeeReceipt").read(context, receiptObject);
+                String cashierName = (String) findProperty("nameEmployee[Receipt]").read(context, receiptObject);
                 cashierName = cashierName == null ? "" : cashierName.trim();
-                String holderDiscountCard = (String) findProperty("nameLegalEntityDiscountCardReceipt").read(context, receiptObject);
+                String holderDiscountCard = (String) findProperty("nameLegalEntityDiscountCard[Receipt]").read(context, receiptObject);
                 holderDiscountCard = holderDiscountCard == null ? "" : holderDiscountCard.trim();
-                String numberDiscountCard = (String) findProperty("numberDiscountCardReceipt").read(context, receiptObject);
+                String numberDiscountCard = (String) findProperty("numberDiscountCard[Receipt]").read(context, receiptObject);
                 numberDiscountCard = numberDiscountCard == null ? "" : numberDiscountCard.trim();
 
                 BigDecimal sumCard = null;
@@ -68,11 +68,11 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
-                paymentQuery.addProperty("sumPayment", findProperty("sumPayment").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
                 if (giftCardLM != null)
-                    paymentQuery.addProperty("seriesNumberGiftCardPaymentGiftCard", giftCardLM.findProperty("seriesNumberGiftCardPaymentGiftCard").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.and(findProperty("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                    paymentQuery.addProperty("seriesNumberGiftCardPaymentGiftCard", giftCardLM.findProperty("seriesNumberGiftCard[PaymentGiftCard]").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.and(findProperty("receipt[Payment]").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
@@ -99,13 +99,13 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail"};
-                LCP[] rdProperties = findProperties("nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
-                        "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
-                        "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail", "valueVATReceiptDetail");
+                LCP[] rdProperties = findProperties("nameSku[ReceiptDetail]", "type[ReceiptDetail]", "quantity[ReceiptDetail]",
+                        "quantity[ReceiptSaleDetail]", "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]",
+                        "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]");
                 for (int i = 0; i < rdProperties.length; i++) {
                     receiptDetailQuery.addProperty(rdNames[i], rdProperties[i].getExpr(context.getModifier(), receiptDetailExpr));
                 }
-                receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
@@ -155,7 +155,7 @@ public class FiscalShtrihPrintReceiptActionProperty extends ScriptingActionPrope
                                                 isReturn ? receiptReturnItemList : receiptSaleItemList)));
                         if (result == null) {
                             context.apply();
-                            findAction("createCurrentReceipt").execute(context);
+                            findAction("createCurrentReceipt[]").execute(context);
                         } else
                             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                     }

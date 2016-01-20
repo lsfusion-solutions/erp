@@ -4,17 +4,17 @@ REQUIRE PromotionDashboard, ItemManager;
 
 NAMESPACE PromotionDashboard;
 
-inPriceListItemGroup = GROUP SUM 1 BY priceListPriceListDetail(detail), itemGroupItem(skuPriceListDetail(detail));
-accessEmployeePriceList = GROUP SUM 1 IF countAccessEmployeeItemGroup(employee, group) AND inPriceListItemGroup(priceList, group) BY employee, priceList;
+in = GROUP SUM 1 BY priceList(PriceListDetail detail), itemGroup(sku(detail));
+access = GROUP SUM 1 IF countAccessItem(Employee employee, ItemGroup group) AND in(PriceList priceList, group) BY employee, priceList;
 
 EXTEND FORM promotionDashboard
-    FILTERS countAccessEmployeeItemGroup(currentUser(), cskg) OR NOT cskg IS SkuGroup
-    FILTERS accessEmployeeItem(currentUser(), skuPriceListDetail(csk))
-    FILTERS accessEmployeePriceList(currentUser(), p)
+    FILTERS countAccessItem(currentUser(), cskg) OR NOT cskg IS SkuGroup
+    FILTERS access(currentUser(), sku(csk))
+    FILTERS access(currentUser(), p)
 ;
 
 EXTEND FORM userPriceList 
-    FILTERS countAccessEmployeeItemGroup(currentUser(), sk) OR NOT sk IS SkuGroup
-    FILTERS countAccessEmployeeItemGroup(currentUser(), sk2) OR NOT sk IS SkuGroup
-    FILTERS accessEmployeeItem(currentUser(), s2)
+    FILTERS countAccessItem(currentUser(), sk) OR NOT sk IS SkuGroup
+    FILTERS countAccessItem(currentUser(), sk2) OR NOT sk IS SkuGroup
+    FILTERS access(currentUser(), s2)
 ;

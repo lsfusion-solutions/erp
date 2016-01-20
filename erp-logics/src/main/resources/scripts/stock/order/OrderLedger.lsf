@@ -5,211 +5,211 @@ REQUIRE System, SkuLedger, StockSkuDocument;
 CLASS ABSTRACT OrderLedger 'Резерв товара';
 TABLE orderLedger(OrderLedger);
 
-dateTimeOrderLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (OrderLedger) PERSISTENT INDEXED;
-dateOrderLedger 'Дата' (ledger) = toDate(dateTimeOrderLedger(ledger)) PERSISTENT INDEXED;
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (OrderLedger) PERSISTENT INDEXED;
+date 'Дата' (OrderLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
 
-isPostedOrderLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
-isClosedOrderLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
+isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
 
-skuOrderLedger (ledger) = ABSTRACT Sku (OrderLedger) PERSISTENT INDEXED;
-nameSkuOrderLedger 'SKU' (ledger) = nameSku(skuOrderLedger(ledger));
+sku (ledger) = ABSTRACT Sku (OrderLedger) PERSISTENT INDEXED;
+nameSku 'SKU' (OrderLedger ledger) = name(sku(ledger));
 
-countOrderLedgerSku = GROUP SUM 1 BY skuOrderLedger(ledger);
+countOrderLedger = GROUP SUM 1 BY sku(OrderLedger ledger);
 
-batchOrderLedger (ledger) = ABSTRACT Batch (OrderLedger) PERSISTENT INDEXED;
+batch (ledger) = ABSTRACT Batch (OrderLedger) PERSISTENT INDEXED;
 
-stockOrderLedger (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
-nameStockOrderLedger 'Склад' (ledger) = nameStock(stockOrderLedger(ledger));
+stock (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
+nameStock 'Склад' (OrderLedger ledger) = name(stock(ledger));
 
-descriptionOrderLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (OrderLedger) PERSISTENT;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (OrderLedger) PERSISTENT;
 
-quantityOrderLedger 'Кол-во (заказано)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) PERSISTENT;
-toShipQuantityOrderLedger 'Кол-во (не выполнено)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) PERSISTENT;
+quantity 'Кол-во (заказано)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) PERSISTENT;
+toShipQuantity 'Кол-во (не выполнено)' (ledger) = ABSTRACT NUMERIC[16,5] (OrderLedger) PERSISTENT;
 
-isPurchaseOrderLedger 'Закупка' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
-statusReserveOrderLedger 'Статус резерва' (ledger) = IF isPurchaseOrderLedger(ledger) THEN 'Закупка' ELSE 'Продажа' MINCHARWIDTH 8 PREFCHARWIDTH 15;               
-backgroundReserveOrderLedger 'Статус резерва' (ledger) = IF isPurchaseOrderLedger(ledger) THEN RGB(204,255,204) ELSE RGB(189,227,255);               
+isPurchase 'Закупка' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT;
+statusReserve 'Статус резерва' (OrderLedger ledger) = IF isPurchase(ledger) THEN 'Закупка' ELSE 'Продажа' MINCHARWIDTH 8 PREFCHARWIDTH 15;               
+backgroundReserve 'Статус резерва' (OrderLedger ledger) = IF isPurchase(ledger) THEN RGB(204,255,204) ELSE RGB(189,227,255);               
 
 
-contactOrderLedger (ledger) = ABSTRACT LegalEntity (OrderLedger) PERSISTENT INDEXED;
-nameContactOrderLedger 'Контрагент' (ledger) = nameLegalEntity(contactOrderLedger(ledger));
+contact (ledger) = ABSTRACT LegalEntity (OrderLedger) PERSISTENT INDEXED;
+nameContact 'Контрагент' (OrderLedger ledger) = name(contact(ledger));
 
-contactStockOrderLedger (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
-nameContactStockOrderLedger 'Склад контрагента' (ledger) = nameStock(contactStockOrderLedger(ledger));
+contactStock (ledger) = ABSTRACT Stock (OrderLedger) PERSISTENT INDEXED;
+nameContactStock 'Склад контрагента' (OrderLedger ledger) = name(contactStock(ledger));
 
-backgroundOrderLedgerDateTime 'Цвет' (ledger,dateTime) = RGB(212,255,212) IF dateTimeOrderLedger(ledger) > dateTime;
+background 'Цвет' (OrderLedger ledger,DATETIME dateTime) = RGB(212,255,212) IF dateTime(ledger) > dateTime;
 
-editOrderLedger 'Редактировать' = ABSTRACT ACTION LIST (OrderLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (OrderLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 //-------------------------------Продажа----------------------------------//
 
 //по SKU
-currentReserveSaleSkuStock 'Резерв продажа (всего)' (sku, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
-    BY skuOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
-prevCurrentReserveSaleSkuStock 'Резерв продажа (всего)' (sku, stock) = PREV(currentReserveSaleSkuStock(sku, stock));
+currentReserveSale 'Резерв продажа (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger)
+    BY sku(ledger), stock(ledger) PERSISTENT;
+prevCurrentReserveSale 'Резерв продажа (всего)' (Sku sku, Stock stock) = PREV(currentReserveSale(sku, stock));
 
 // без учета текущей даты/времени
-reserveBSaleSkuStockDate 'Резерв продажи на начало дня' (sku, stock, date) = (currentReserveSaleSkuStock(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) >= date
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), date](sku, stock, date);
+reserveBSale 'Резерв продажи на начало дня' (Sku sku, Stock stock, DATE date) = (currentReserveSale(sku, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+        BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // с учетом текущей даты/времени
-reserveASaleSkuStockDate 'Резерв продажи на конец дня' (sku, stock, date) = (currentReserveSaleSkuStock(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) > date
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), date](sku, stock, date);
+reserveASale 'Резерв продажи на конец дня' (Sku sku, Stock stock, DATE date) = (currentReserveSale(sku, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+        BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // без учета текущей даты/времени
-reserveBSaleSkuStockDateTime 'Резерв продажи (до)' (sku, stock, dateTime) = (currentReserveSaleSkuStock(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) >= dateTime
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), dateTime](sku, stock, dateTime);
-prevReserveBSaleSkuStockDateTime 'Резерв продажи (до)' (sku, stock, dateTime) = PREV(reserveBSaleSkuStockDateTime(sku, stock, dateTime));
+reserveBSale 'Резерв продажи (до)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReserveSale(sku, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+        BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
+prevReserveBSale 'Резерв продажи (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(reserveBSale(sku, stock, dateTime));
 
 // с учетом текущей даты/времени
-reserveASaleSkuStockDateTime 'Резерв продажи (после)' (sku, stock, dateTime) = (currentReserveSaleSkuStock(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), dateTime](sku, stock, dateTime);
+reserveASale 'Резерв продажи (после)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReserveSale(sku, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+        BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
 
 //по партиям
-currentReserveSaleBatchStock 'Резерв продажа (всего)' (batch, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
-    BY batchOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
-prevCurrentReserveSaleBatchStock 'Резерв продажа (всего)' (batch, stock) = PREV(currentReserveSaleBatchStock(batch, stock));
+currentReserveSale 'Резерв продажа (всего)' (batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger)
+    BY batch(ledger), stock(ledger) PERSISTENT;
+prevCurrentReserveSale 'Резерв продажа (всего)' (Batch batch, Stock stock) = PREV(currentReserveSale(batch, stock));
 
 // без учета текущей даты/времени
-reserveBSaleBatchStockDate 'Резерв продажи на начало дня' (batch, stock, date) = (currentReserveSaleBatchStock(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) >= date
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+reserveBSale 'Резерв продажи на начало дня' (Batch batch, Stock stock, DATE date) = (currentReserveSale(batch, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+        BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // с учетом текущей даты/времени
-reserveASaleBatchStockDate 'Резерв продажи на конец дня' (batch, stock, date) = (currentReserveSaleBatchStock(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) > date
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+reserveASale 'Резерв продажи на конец дня' (Batch batch, Stock stock, DATE date) = (currentReserveSale(batch, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+        BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // без учета текущей даты/времени
-reserveBSaleBatchStockDateTime 'Резерв продажи (до)' (batch, stock, dateTime) = (currentReserveSaleBatchStock(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) >= dateTime
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
-prevReserveBSaleBatchStockDateTime 'Резерв продажи (до)' (batch, stock, dateTime) = PREV(reserveBSaleBatchStockDateTime(batch, stock, dateTime));
+reserveBSale 'Резерв продажи (до)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReserveSale(batch, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+        BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
+prevReserveBSale 'Резерв продажи (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(reserveBSale(batch, stock, dateTime));
 
 // с учетом текущей даты/времени
-reserveASaleBatchStockDateTime 'Резерв продажи (после)' (batch, stock, dateTime) = (currentReserveSaleBatchStock(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND NOT isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
+reserveASale 'Резерв продажи (после)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReserveSale(batch, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND NOT isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+        BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
 
 
 //-------------------------------Закупка----------------------------------//
 
 //по SKU
-currentReservePurchaseSkuStock 'Резерв закупка (всего)' (sku, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
-    BY skuOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
-prevCurrentReservePurchaseSkuStock 'Резерв закупка (всего)' (sku, stock) = PREV(currentReservePurchaseSkuStock(sku, stock));
+currentReservePurchase 'Резерв закупка (всего)' (sku, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger)
+    BY sku(ledger), stock(ledger) PERSISTENT;
+prevCurrentReservePurchase 'Резерв закупка (всего)' (Sku sku, Stock stock) = PREV(currentReservePurchase(sku, stock));
 
 // без учета текущей даты/времени
-reserveBPurchaseSkuStockDate 'Резерв закупки на начало дня' (sku, stock, date) = (currentReservePurchaseSkuStock(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) >= date
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), date](sku, stock, date);
+reserveBPurchase 'Резерв закупки на начало дня' (Sku sku, Stock stock, DATE date) = (currentReservePurchase(sku, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+        BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // с учетом текущей даты/времени
-reserveAPurchaseSkuStockDate 'Резерв закупки на конец дня' (sku, stock, date) = (currentReservePurchaseSkuStock(sku, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) > date
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), date](sku, stock, date);
+reserveAPurchase 'Резерв закупки на конец дня' (Sku sku, Stock stock, DATE date) = (currentReservePurchase(sku, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+        BY sku(ledger), stock(ledger), date](sku, stock, date);
 
 // без учета текущей даты/времени
-reserveBPurchaseSkuStockDateTime 'Резерв закупки (до)' (sku, stock, dateTime) = (currentReservePurchaseSkuStock(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) >= dateTime
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), dateTime](sku, stock, dateTime);
-prevReserveBPurchaseSkuStockDateTime 'Резерв закупки (до)' (sku, stock, dateTime) = PREV(reserveBPurchaseSkuStockDateTime(sku, stock, dateTime));
+reserveBPurchase 'Резерв закупки (до)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReservePurchase(sku, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+        BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
+prevReserveBPurchase 'Резерв закупки (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(reserveBPurchase(sku, stock, dateTime));
 
 // с учетом текущей даты/времени
-reserveAPurchaseSkuStockDateTime 'Резерв закупки (после)' (sku, stock, dateTime) = (currentReservePurchaseSkuStock(sku, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
-        BY skuOrderLedger(ledger), stockOrderLedger(ledger), dateTime](sku, stock, dateTime);
+reserveAPurchase 'Резерв закупки (после)' (Sku sku, Stock stock, DATETIME dateTime) = (currentReservePurchase(sku, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+        BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
 
 //по партиям
-currentReservePurchaseBatchStock 'Резерв закупка (всего)'(batch, stock) = GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger)
-    BY batchOrderLedger(ledger), stockOrderLedger(ledger) PERSISTENT;
-prevCurrentReservePurchaseBatchStock 'Резерв закупка (всего)'(batch, stock) = PREV(currentReservePurchaseBatchStock(batch, stock));
+currentReservePurchase 'Резерв закупка (всего)'(batch, stock) = GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger)
+    BY batch(ledger), stock(ledger) PERSISTENT;
+prevCurrentReservePurchase 'Резерв закупка (всего)'(Batch batch, Stock stock) = PREV(currentReservePurchase(batch, stock));
 
 // без учета текущей даты/времени
-reserveBPurchaseBatchStockDate 'Резерв закупки на начало дня' (batch, stock, date) = (currentReservePurchaseBatchStock(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) >= date
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+reserveBPurchase 'Резерв закупки на начало дня' (Batch batch, Stock stock, DATE date) = (currentReservePurchase(batch, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) >= DATE date
+        BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // с учетом текущей даты/времени
-reserveAPurchaseBatchStockDate 'Резерв закупки на конец дня' (batch, stock, date) = (currentReservePurchaseBatchStock(batch, stock) IF date IS DATE) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateOrderLedger(ledger) > date
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), date](batch, stock, date);
+reserveAPurchase 'Резерв закупки на конец дня' (Batch batch, Stock stock, DATE date) = (currentReservePurchase(batch, stock) IF date IS DATE) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND date(ledger) > DATE date
+        BY batch(ledger), stock(ledger), date](batch, stock, date);
 
 // без учета текущей даты/времени
-reserveBPurchaseBatchStockDateTime 'Резерв закупки (до)' (batch, stock, dateTime) = (currentReservePurchaseBatchStock(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) >= dateTime
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
-prevReserveBPurchaseBatchStockDateTime 'Резерв закупки (до)' (batch, stock, dateTime) = PREV(reserveBPurchaseBatchStockDateTime(batch, stock, dateTime));
+reserveBPurchase 'Резерв закупки (до)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReservePurchase(batch, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) >= DATETIME dateTime
+        BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
+prevReserveBPurchase 'Резерв закупки (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(reserveBPurchase(batch, stock, dateTime));
 
 // с учетом текущей даты/времени
-reserveAPurchaseBatchStockDateTime 'Резерв закупки (после)' (batch, stock, dateTime) = (currentReservePurchaseBatchStock(batch, stock) IF dateTime IS DATETIME) (-)
-    [= GROUP SUM toShipQuantityOrderLedger(ledger) IF isPostedOrderLedger(ledger) AND isPurchaseOrderLedger(ledger) AND NOT isClosedOrderLedger(ledger) AND dateTimeOrderLedger(ledger) > dateTime
-        BY batchOrderLedger(ledger), stockOrderLedger(ledger), dateTime](batch, stock, dateTime);
+reserveAPurchase 'Резерв закупки (после)' (Batch batch, Stock stock, DATETIME dateTime) = (currentReservePurchase(batch, stock) IF dateTime IS DATETIME) (-)
+    [= GROUP SUM toShipQuantity(OrderLedger ledger) IF isPosted(ledger) AND isPurchase(ledger) AND NOT isClosed(ledger) AND dateTime(ledger) > DATETIME dateTime
+        BY batch(ledger), stock(ledger), dateTime](batch, stock, dateTime);
 
 //-------------------------------Общий----------------------------------//
 
 //по Sku
-currentReserveSkuStock 'Текущий резерв' (sku, stock) = currentReservePurchaseSkuStock (sku, stock) (-) currentReserveSaleSkuStock (sku, stock);
-prevCurrentReserveSkuStock 'Текущий резерв' (sku, stock) = prevCurrentReservePurchaseSkuStock (sku, stock) (-) prevCurrentReserveSaleSkuStock (sku, stock);
+currentReserve 'Текущий резерв' (Sku sku, Stock stock) = currentReservePurchase (sku, stock) (-) currentReserveSale (sku, stock);
+prevCurrentReserve 'Текущий резерв' (Sku sku, Stock stock) = prevCurrentReservePurchase (sku, stock) (-) prevCurrentReserveSale (sku, stock);
 
-reserveBSkuStockDate 'Резерв на начало дня' (sku, stock, date) = reserveBPurchaseSkuStockDate (sku, stock, date) (-) reserveBSaleSkuStockDate (sku, stock, date);
-reserveASkuStockDate 'Резерв на конец дня' (sku, stock, date) = reserveAPurchaseSkuStockDate (sku, stock, date) (-) reserveASaleSkuStockDate (sku, stock, date);
+reserveB 'Резерв на начало дня' (Sku sku, Stock stock, DATE date) = reserveBPurchase (sku, stock, date) (-) reserveBSale (sku, stock, date);
+reserveA 'Резерв на конец дня' (Sku sku, Stock stock, DATE date) = reserveAPurchase (sku, stock, date) (-) reserveASale (sku, stock, date);
 
-reserveBSkuStockDateTime 'Резерв (до)' (sku, stock, dateTime) = reserveBPurchaseSkuStockDateTime (sku, stock, dateTime) (-) reserveBSaleSkuStockDateTime (sku, stock, dateTime);
-reserveASkuStockDateTime 'Резерв (после)' (sku, stock, dateTime) = reserveAPurchaseSkuStockDateTime (sku, stock, dateTime) (-) reserveASaleSkuStockDateTime (sku, stock, dateTime);
+reserveB 'Резерв (до)' (Sku sku, Stock stock, DATETIME dateTime) = reserveBPurchase (sku, stock, dateTime) (-) reserveBSale (sku, stock, dateTime);
+reserveA 'Резерв (после)' (Sku sku, Stock stock, DATETIME dateTime) = reserveAPurchase (sku, stock, dateTime) (-) reserveASale (sku, stock, dateTime);
 
-prevReserveBSkuStockDateTime 'Резерв (до)' (sku, stock, dateTime) = PREV(reserveBSkuStockDateTime(sku, stock, dateTime));
+prevReserveB 'Резерв (до)' (Sku sku, Stock stock, DATETIME dateTime) = PREV(reserveB(sku, stock, dateTime));
 //по партиям
-currentReserveBatchStock 'Текущий резерв' (batch, stock) = currentReservePurchaseBatchStock (batch, stock) (-) currentReserveSaleBatchStock (batch, stock);
-prevCurrentReserveBatchStock 'Текущий резерв' (batch, stock) = prevCurrentReservePurchaseBatchStock (batch, stock) (-) prevCurrentReserveSaleBatchStock (batch, stock);
+currentReserve 'Текущий резерв' (Batch batch, Stock stock) = currentReservePurchase (batch, stock) (-) currentReserveSale (batch, stock);
+prevCurrentReserve 'Текущий резерв' (Batch batch, Stock stock) = prevCurrentReservePurchase (batch, stock) (-) prevCurrentReserveSale (batch, stock);
 
-reserveBBatchStockDate 'Резерв на начало дня' (batch, stock, date) = reserveBPurchaseBatchStockDate (batch, stock, date) (-) reserveBSaleBatchStockDate (batch, stock, date);
-reserveABatchStockDate 'Резерв на конец дня' (batch, stock, date) = reserveAPurchaseBatchStockDate (batch, stock, date) (-) reserveASaleBatchStockDate (batch, stock, date);
+reserveB 'Резерв на начало дня' (Batch batch, Stock stock, DATE date) = reserveBPurchase (batch, stock, date) (-) reserveBSale (batch, stock, date);
+reserveA 'Резерв на конец дня' (Batch batch, Stock stock, DATE date) = reserveAPurchase (batch, stock, date) (-) reserveASale (batch, stock, date);
 
-reserveBBatchStockDateTime 'Резерв (до)' (batch, stock, dateTime) = reserveBPurchaseBatchStockDateTime (batch, stock, dateTime) (-) reserveBSaleBatchStockDateTime (batch, stock, dateTime);
-reserveABatchStockDateTime 'Резерв (после)' (batch, stock, dateTime) = reserveAPurchaseBatchStockDateTime (batch, stock, dateTime) (-) reserveASaleBatchStockDateTime (batch, stock, dateTime);
+reserveB 'Резерв (до)' (Batch batch, Stock stock, DATETIME dateTime) = reserveBPurchase (batch, stock, dateTime) (-) reserveBSale (batch, stock, dateTime);
+reserveA 'Резерв (после)' (Batch batch, Stock stock, DATETIME dateTime) = reserveAPurchase (batch, stock, dateTime) (-) reserveASale (batch, stock, dateTime);
 
-prevReserveBBatchStockDateTime 'Резерв (до)' (batch, stock, dateTime) = PREV(reserveBBatchStockDateTime(batch, stock, dateTime));
+prevReserveB 'Резерв (до)' (Batch batch, Stock stock, DATETIME dateTime) = PREV(reserveB(batch, stock, dateTime));
 
 // ----------------------- Доступное к-во -------------------------- //
-availableQuantitySkuStock 'Доступное к-во (всего)' (sku, stock) = currentBalanceSkuStock(sku, stock) (+) currentReserveSkuStock(sku, stock);
-availableQuantityBatchStock 'Доступное к-во (всего)' (batch, stock) = currentBalanceBatchStock(batch, stock) (+) currentReserveBatchStock(batch, stock);
+availableQuantity 'Доступное к-во (всего)' (Sku sku, Stock stock) = currentBalance(sku, stock) (+) currentReserve(sku, stock);
+availableQuantity 'Доступное к-во (всего)' (Batch batch, Stock stock) = currentBalance(batch, stock) (+) currentReserve(batch, stock);
 
-prevAvailableQuantitySkuStock 'Доступное к-во (всего)' (sku, stock) = prevCurrentBalanceSkuStock(sku, stock) (+) prevCurrentReserveSkuStock(sku, stock);
-prevAvailableQuantityBatchStock 'Доступное к-во (всего)' (batch, stock) = prevCurrentBalanceBatchStock(batch, stock) (+) prevCurrentReserveBatchStock(batch, stock);
+prevAvailableQuantity 'Доступное к-во (всего)' (Sku sku, Stock stock) = prevCurrentBalance(sku, stock) (+) prevCurrentReserve(sku, stock);
+prevAvailableQuantity 'Доступное к-во (всего)' (Batch batch, Stock stock) = prevCurrentBalance(batch, stock) (+) prevCurrentReserve(batch, stock);
 
-prevAvailableQuantitySkuStockDateTime 'Доступное к-во' (sku, stock, dateTime) = (prevCurrentBalanceSkuStock(sku, stock) IF dateTime IS DATETIME) (+) prevReserveBSkuStockDateTime(sku, stock, dateTime);
-prevAvailableQuantityBatchStockDateTime 'Доступное к-во' (batch, stock, dateTime) = (prevCurrentBalanceBatchStock(batch, stock) IF dateTime IS DATETIME) (+) prevReserveBBatchStockDateTime(batch, stock, dateTime);
+prevAvailableQuantity 'Доступное к-во' (Sku sku, Stock stock, DATETIME dateTime) = (prevCurrentBalance(sku, stock) IF dateTime IS DATETIME) (+) prevReserveB(sku, stock, dateTime);
+prevAvailableQuantity 'Доступное к-во' (Batch batch, Stock stock, DATETIME dateTime) = (prevCurrentBalance(batch, stock) IF dateTime IS DATETIME) (+) prevReserveB(batch, stock, dateTime);
 
 //---------------------------------------------- Формы продаж -------------------------------------//
 FORM orderSkuLedgerNotDate 'Резерв по позициям'
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES  SELECTOR nameStock(st)
+    PROPERTIES  SELECTOR name(st)
 
     OBJECTS sk = Sku FIXED PANEL
-    PROPERTIES  SELECTOR nameSku(sk)
+    PROPERTIES  SELECTOR name(sk)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger
-    PROPERTIES(s) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  toShipQuantityOrderLedger, quantityOrderLedger
-    PROPERTIES(s) editOrderLedger       
-    ORDER BY statusReserveOrderLedger(s), dateTimeOrderLedger(s)
-    FILTERS stockOrderLedger(s)==st,
-            skuOrderLedger(s)==sk
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve
+    PROPERTIES(s) READONLY date, dateTime, nameContact, nameContactStock, description,
+                  toShipQuantity, quantity
+    PROPERTIES(s) edit       
+    ORDER BY statusReserve(s), dateTime(s)
+    FILTERS stock(s)==st,
+            sku(s)==sk
 
-    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERS isPosted(s) AND NOT isClosed(s)
     FILTERGROUP toShipQuantityFilters
-        FILTER 'Не выполнено' toShipQuantityOrderLedger(s) > 0 'F7' DEFAULT
+        FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
 
     FILTERGROUP stockTimesFilters
-        FILTER 'Резерв (закупки) всего' isPurchaseOrderLedger(s) 'F11'
-        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchaseOrderLedger(s) 'F10'
+        FILTER 'Резерв (закупки) всего' isPurchase(s) 'F11'
+        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchase(s) 'F10'
 ;
 
 DESIGN orderSkuLedgerNotDate {
@@ -231,31 +231,31 @@ FORM orderSkuLedger 'Резерв по позициям'
     PROPERTIES  dVal=OBJVALUE(t)
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES  SELECTOR nameStock(st)
+    PROPERTIES  SELECTOR name(st)
 
     OBJECTS sk = Sku FIXED PANEL
-    PROPERTIES  SELECTOR nameSku(sk)
+    PROPERTIES  SELECTOR name(sk)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t) dateOrderLedger, 
-                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  toShipQuantityOrderLedger, quantityOrderLedger
-    PROPERTIES(s) editOrderLedger       
-    ORDER BY statusReserveOrderLedger(s)
-    FILTERS stockOrderLedger(s)==st,
-            skuOrderLedger(s)==sk
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve
+    PROPERTIES(s) READONLY BACKGROUND background(s,t) date, 
+                  dateTime, nameContact, nameContactStock, description,
+                  toShipQuantity, quantity
+    PROPERTIES(s) edit       
+    ORDER BY statusReserve(s)
+    FILTERS stock(s)==st,
+            sku(s)==sk
 
-    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERS isPosted(s) AND NOT isClosed(s)
     FILTERGROUP toShipQuantityFilters
-        FILTER 'Не выполнено' toShipQuantityOrderLedger(s) > 0 'F7' DEFAULT
+        FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
 
     FILTERGROUP stockTimesFilters
-        FILTER 'Резерв (закупки) всего' isPurchaseOrderLedger(s) 'F11'
-        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchaseOrderLedger(s) 'F10'
-        FILTER 'Резерв (закупки) на дату' dateTimeOrderLedger(s) < t AND isPurchaseOrderLedger(s) 'F9'
-        FILTER 'Резерв (продажи) на дату' dateTimeOrderLedger(s)< t AND NOT isPurchaseOrderLedger(s) 'F8'
-        FILTER 'На дату' dateTimeOrderLedger(s) < t 'F7'
+        FILTER 'Резерв (закупки) всего' isPurchase(s) 'F11'
+        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchase(s) 'F10'
+        FILTER 'Резерв (закупки) на дату' dateTime(s) < t AND isPurchase(s) 'F9'
+        FILTER 'Резерв (продажи) на дату' dateTime(s)< t AND NOT isPurchase(s) 'F8'
+        FILTER 'На дату' dateTime(s) < t 'F7'
 
 
 ;
@@ -277,28 +277,28 @@ DESIGN orderSkuLedger {
 FORM orderBatchLedgerNotDate 'Резерв по партиям'
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES  SELECTOR nameStock(st)
+    PROPERTIES  SELECTOR name(st)
 
     OBJECTS bt = Batch FIXED PANEL
-    PROPERTIES SELECTOR nameBatch(bt)
+    PROPERTIES SELECTOR name(bt)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
-    PROPERTIES(s) READONLY dateOrderLedger, 
-                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  toShipQuantityOrderLedger, quantityOrderLedger
-    PROPERTIES(s) editOrderLedger                     
-    ORDER BY statusReserveOrderLedger(s), dateTimeOrderLedger(s)
-    FILTERS stockOrderLedger(s)==st,
-            batchOrderLedger(s)==bt
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve     
+    PROPERTIES(s) READONLY date, 
+                  dateTime, nameContact, nameContactStock, description,
+                  toShipQuantity, quantity
+    PROPERTIES(s) edit                     
+    ORDER BY statusReserve(s), dateTime(s)
+    FILTERS stock(s)==st,
+            batch(s)==bt
 
-    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERS isPosted(s) AND NOT isClosed(s)
     FILTERGROUP toShipQuantityFilters
-        FILTER 'Не выполнено' toShipQuantityOrderLedger(s) > 0 'F7' DEFAULT
+        FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
         
     FILTERGROUP stockTimesFilters
-        FILTER 'Резерв (закупки) всего' isPurchaseOrderLedger(s) 'F11'
-        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchaseOrderLedger(s) 'F10'
+        FILTER 'Резерв (закупки) всего' isPurchase(s) 'F11'
+        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchase(s) 'F10'
 ;
 
 DESIGN orderBatchLedgerNotDate {
@@ -320,31 +320,31 @@ FORM orderBatchLedger 'Резерв по партиям'
     PROPERTIES  dVal=OBJVALUE(t)
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES  SELECTOR nameStock(st)
+    PROPERTIES  SELECTOR name(st)
 
     OBJECTS bt = Batch FIXED PANEL
-    PROPERTIES SELECTOR nameBatch(bt)
+    PROPERTIES SELECTOR name(bt)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
-    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t) dateOrderLedger, 
-                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  toShipQuantityOrderLedger, quantityOrderLedger
-    PROPERTIES(s) editOrderLedger                     
-    ORDER BY statusReserveOrderLedger(s)
-    FILTERS stockOrderLedger(s)==st,
-            batchOrderLedger(s)==bt
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve     
+    PROPERTIES(s) READONLY BACKGROUND background(s,t) date, 
+                  dateTime, nameContact, nameContactStock, description,
+                  toShipQuantity, quantity
+    PROPERTIES(s) edit                     
+    ORDER BY statusReserve(s)
+    FILTERS stock(s)==st,
+            batch(s)==bt
 
-    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERS isPosted(s) AND NOT isClosed(s)
     FILTERGROUP toShipQuantityFilters
-        FILTER 'Не выполнено' toShipQuantityOrderLedger(s) > 0 'F7' DEFAULT
+        FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT
         
     FILTERGROUP stockTimesFilters
-        FILTER 'Резерв (закупки) всего' isPurchaseOrderLedger(s) 'F11'
-        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchaseOrderLedger(s) 'F10'
-        FILTER 'Резерв (закупки) на дату' dateTimeOrderLedger(s) < t AND isPurchaseOrderLedger(s) 'F9'
-        FILTER 'Резерв (продажи) на дату' dateTimeOrderLedger(s)< t AND NOT isPurchaseOrderLedger(s) 'F8'
-        FILTER 'На дату' dateTimeOrderLedger(s) < t 'F7'
+        FILTER 'Резерв (закупки) всего' isPurchase(s) 'F11'
+        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchase(s) 'F10'
+        FILTER 'Резерв (закупки) на дату' dateTime(s) < t AND isPurchase(s) 'F9'
+        FILTER 'Резерв (продажи) на дату' dateTime(s)< t AND NOT isPurchase(s) 'F8'
+        FILTER 'На дату' dateTime(s) < t 'F7'
 
 
 ;
@@ -377,30 +377,30 @@ DESIGN options {
     }
 }
 
-allowedNegativeBatchStock 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
-allowedNegativeStock 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Stock);
+allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
+allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Stock);
 
 EXTEND FORM currentBalanceBatchStock 
-    PROPERTIES (bt,st) allowedNegativeBatchStock BEFORE nameSkuBatch(bt) SHOWIF banNegativeBatch()
+    PROPERTIES (bt,st) allowedNegative BEFORE nameSku(bt) SHOWIF banNegativeBatch()
 ;
 
-CONSTRAINT currentBalanceBatchStock(bt,st) (+) currentReserveBatchStock(bt,st) < 0.0 AND
-           banNegativeBatch() AND NOT allowedNegativeBatchStock(bt, st) AND NOT allowedNegativeStock(st)
+CONSTRAINT currentBalance(Batch bt,Stock st) (+) currentReserve(bt,st) < 0.0 AND
+           banNegativeBatch() AND NOT allowedNegative(bt, st) AND NOT allowedNegative(st)
     MESSAGE 'Текущий резерв по партиям превышает текущий остаток';
 
 //---------------------------------------------- Макросы для имплементаций Продажа-------------------------------------//
 
 META implementSaleOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockProp, contactProp)
-    dateTimeOrderLedger (ledger) += dateTimeProp###concrete##Detail(ledger);
-    isPostedOrderLedger (ledger) += isPosted###concrete##Detail(ledger);
-    isClosedOrderLedger (ledger) += isClosed###concrete##Detail(ledger);
-    skuOrderLedger (ledger) += skuProp###concrete##Detail(ledger);
-    batchOrderLedger (ledger) += batch###concrete##Detail(ledger);
-    stockOrderLedger (ledger) += stockProp###concrete##Detail(ledger);
-    descriptionOrderLedger (ledger) += description###concrete##Detail(ledger);
-    quantityOrderLedger (ledger) += quantity###concrete##Detail(ledger);
-    contactOrderLedger (ledger) += contactProp###concrete##Detail(ledger);
-    contactStockOrderLedger (ledger) += contactProp###stock###concrete##Detail(ledger);    
+    dateTime (concrete##Detail ledger) += dateTimeProp(ledger);
+    isPosted (concrete##Detail ledger) += isPosted(ledger);
+    isClosed (concrete##Detail ledger) += isClosed(ledger);
+    skuProp[concrete##Ledger] (concrete##Detail ledger) += skuProp(ledger);
+    batch[concrete##Ledger] (concrete##Detail ledger) += batch(ledger);
+    stock (concrete##Detail ledger) += stockProp(ledger);
+    description (concrete##Detail ledger) += description(ledger);
+    quantity[concrete##Ledger] (concrete##Detail ledger) += quantity(ledger);
+    contact (concrete##Detail ledger) += contactProp(ledger);
+    contactStock (concrete##Detail ledger) += contactProp##Stock(ledger);    
 END
 META implementSaleOrderLedger(concrete, skuProp, dateTimeProp, stockProp, contactProp)
     EXTEND CLASS concrete##Detail : OrderLedger;
@@ -410,17 +410,17 @@ END
 //---------------------------------------------- Макросы для имплементаций Покупка-------------------------------------//
 
 META implementPurchaseOrderLedgerCustom(concrete, skuProp, dateTimeProp, stockProp, contactProp)
-    dateTimeOrderLedger (ledger) += dateTimeProp###concrete##Detail(ledger);
-    isPostedOrderLedger (ledger) += isPosted###concrete##Detail(ledger);
-    isClosedOrderLedger (ledger) += isClosed###concrete##Detail(ledger);
-    skuOrderLedger (ledger) += skuProp###concrete##Detail(ledger);
-    batchOrderLedger (ledger) += batch###concrete##Detail(ledger);
-    stockOrderLedger (ledger) += stockProp###concrete##Detail(ledger);
-    descriptionOrderLedger (ledger) += description###concrete##Detail(ledger);
-    quantityOrderLedger (ledger) += quantity###concrete##Detail(ledger);
-    isPurchaseOrderLedger (ledger) += ledger IS concrete##Detail;
-    contactOrderLedger (ledger) += contactProp###concrete##Detail(ledger);
-    contactStockOrderLedger (ledger) += contactProp###stock###concrete##Detail(ledger);
+    dateTime (concrete##Detail ledger) += dateTimeProp(ledger);
+    isPosted (concrete##Detail ledger) += isPosted(ledger);
+    isClosed (concrete##Detail ledger) += isClosed(ledger);
+    skuProp[concrete##Ledger] (concrete##Detail ledger) += skuProp(ledger);
+    batch[concrete##Ledger] (concrete##Detail ledger) += batch(ledger);
+    stock (concrete##Detail ledger) += stockProp(ledger);
+    description (concrete##Detail ledger) += description(ledger);
+    quantity[concrete##Ledger] (concrete##Detail ledger) += quantity(ledger);
+    isPurchase (concrete##Detail ledger) += ledger IS concrete##Detail;
+    contact (concrete##Detail ledger) += contactProp(ledger);
+    contactStock (concrete##Detail ledger) += contactProp##Stock(ledger);
 END
 META implementPurchaseOrderLedger(concrete, skuProp, dateTimeProp, stockProp, contactProp)
     EXTEND CLASS concrete##Detail : OrderLedger;
@@ -431,11 +431,11 @@ END
 
 META defineDialogSkuReserve (form)
 
-    form###SaleReserve 'Резерв (продажи)' (sku) = currentReserveSaleSkuStock(sku, form###stock());
-    form###PurchaseReserve 'Резерв (закупки)' (sku) = currentReservePurchaseSkuStock(sku, form###stock());
+    dialogSaleReserve 'Резерв (продажи)' (Sku sku) = currentReserveSale(sku, form##Stock());
+    dialogPurchaseReserve 'Резерв (закупки)' (Sku sku) = currentReservePurchase(sku, form##Stock());
 
     EXTEND FORM form
-        PROPERTIES(s) READONLY  AFTER form###balance(s) SHOWIF form###stock() form###PurchaseReserve, form###SaleReserve
+        PROPERTIES(s) READONLY  AFTER dialogBalance(s) SHOWIF form##Stock() dialogPurchaseReserve, dialogSaleReserve
     ;
 END
 
@@ -445,25 +445,25 @@ END
 
 //--Sku
 EXTEND FORM currentBalanceSkuStock
-    PROPERTIES(s, st) READONLY AFTER currentBalanceSkuStock(s,st) currentReserveSkuStock, availableQuantitySkuStock
+    PROPERTIES(s, st) READONLY AFTER currentBalance(s,st) currentReserve, availableQuantity
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+                  quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(l)==st,
-            skuOrderLedger(l)==s
+    FILTERS stock(l)==st,
+            sku(l)==s
 
-    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                   quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+                   quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(ll)==st,
-            skuOrderLedger(ll)==s
+    FILTERS stock(ll)==st,
+            sku(ll)==s
 
-    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN currentBalanceSkuStock {
@@ -476,25 +476,25 @@ DESIGN currentBalanceSkuStock {
 
 //--Batch
 EXTEND FORM currentBalanceBatchStock
-    PROPERTIES(bt, st) AFTER currentBalanceBatchStock(bt,st) READONLY currentReserveBatchStock, availableQuantityBatchStock 
+    PROPERTIES(bt, st) AFTER currentBalance(bt,st) READONLY currentReserve, availableQuantity 
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+                  quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(l)==st,
-            batchOrderLedger(l)==bt
+    FILTERS stock(l)==st,
+            batch(l)==bt
 
-    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                   quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+                   quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(ll)==st,
-            batchOrderLedger(ll)==bt
+    FILTERS stock(ll)==st,
+            batch(ll)==bt
 
-    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN currentBalanceBatchStock {
@@ -512,27 +512,27 @@ DESIGN currentBalanceBatchStock {
 
 //-- Sku
 EXTEND FORM balanceSkuStock
-    PROPERTIES(s, st, t) reserveASkuStockDateTime READONLY AFTER balanceBSkuStockDateTime(s,st,t)
+    PROPERTIES(s, st, t) reserveA READONLY AFTER balanceB(s,st,t)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+                  quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(l)==st,
-            skuOrderLedger(l)==s,
-            dateTimeOrderLedger(l) <= t
+    FILTERS stock(l)==st,
+            sku(l)==s,
+            dateTime(l) <= t
 
-    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                   quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+                   quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(ll)==st,
-            skuOrderLedger(ll)==s,
-            dateTimeOrderLedger(l) <= t
+    FILTERS stock(ll)==st,
+            sku(ll)==s,
+            dateTime(l) <= t
 
-    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN balanceSkuStock {
@@ -545,27 +545,27 @@ DESIGN balanceSkuStock {
 
 //-- Batch
 EXTEND FORM balanceBatchStock
-    PROPERTIES(bt, st, t) reserveABatchStockDateTime READONLY AFTER balanceBBatchStockDateTime(bt,st,t)
+    PROPERTIES(bt, st, t) reserveA READONLY AFTER balanceB(bt,st,t)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+                  quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(l)==st,
-            batchOrderLedger(l)==bt,
-            dateTimeOrderLedger(l) <= t
+    FILTERS stock(l)==st,
+            batch(l)==bt,
+            dateTime(l) <= t
 
-    FILTERS isPostedOrderLedger(l) AND NOT isClosedOrderLedger(l) AND isPurchaseOrderLedger(l)
+    FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY dateOrderLedger, dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                   quantityOrderLedger, toShipQuantityOrderLedger
+    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+                   quantity, toShipQuantity
 
-    FILTERS stockOrderLedger(ll)==st,
-            batchOrderLedger(ll)==bt,
-            dateTimeOrderLedger(l) <= t
+    FILTERS stock(ll)==st,
+            batch(ll)==bt,
+            dateTime(l) <= t
 
-    FILTERS isPostedOrderLedger(ll) AND NOT isClosedOrderLedger(ll) AND NOT isPurchaseOrderLedger(ll)
+    FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
 
 ;
 DESIGN balanceBatchStock {
@@ -580,60 +580,60 @@ DESIGN balanceBatchStock {
 
 META extendFormDocumentSkuOrderLedger(object, form, concrete, stockProp)
 
-    prevAvailableQuantitySku###object 'Доступное к-во' (sku, object)= prevAvailableQuantitySkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
+    prevAvailableQuantity 'Доступное к-во' (Sku sku, ###form object)= prevAvailableQuantity(sku, stockProp(object), dateTime(object));
 
-    prevReserveBPurchaseSku###object 'Резерв закупка' (sku, object) = prevReserveBPurchaseSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
-    prevCurrentReservePurchaseSku###object 'Резерв закупка (всего)' (sku, object) = prevCurrentReservePurchaseSkuStock(sku, stockProp###object(object));
+    prevReserveBPurchase 'Резерв закупка' (Sku sku, ###form object) = prevReserveBPurchase(sku, stockProp(object), dateTime(object));
+    prevCurrentReservePurchase 'Резерв закупка (всего)' (Sku sku, ###form object) = prevCurrentReservePurchase(sku, stockProp(object));
 
-    prevReserveBSaleSku###object 'Резерв продажа' (sku, object) = prevReserveBSaleSkuStockDateTime(sku, stockProp###object(object), dateTime###object(object));
-    prevCurrentReserveSaleSku###object 'Резерв продажа (всего)' (sku, object) = prevCurrentReserveSaleSkuStock(sku, stockProp###object(object));
+    prevReserveBSale 'Резерв продажа' (Sku sku, ###form object) = prevReserveBSale(sku, stockProp(object), dateTime(object));
+    prevCurrentReserveSale 'Резерв продажа (всего)' (Sku sku, ###form object) = prevCurrentReserveSale(sku, stockProp(object));
 
-    reviewReserveSku###object 'Резерв' (sku, object) = ACTION {
-        IF dateTime###object(object) THEN {
-            FORM orderSkuLedger OBJECTS t=dateTime###object(object), st = stockProp###object(object), sk = sku MODAL;
+    reviewReserve 'Резерв' (Sku sku, ###form object) = ACTION {
+        IF dateTime(object) THEN {
+            FORM orderSkuLedger OBJECTS t=dateTime(object), st = stockProp(object), sk = sku MODAL;
         } ELSE {
-            FORM orderSkuLedgerNotDate OBJECTS st=stockProp###object(object), sk = sku MODAL;
+            FORM orderSkuLedgerNotDate OBJECTS st=stockProp(object), sk = sku MODAL;
         }
     }
     
     EXTEND FORM form
-        PROPERTIES BEFORE prevCurrentBalanceSku###object(ks, concrete) 
-                   prevAvailableQuantitySku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete)
+        PROPERTIES BEFORE prevCurrentBalance(ks, concrete) 
+                   prevAvailableQuantity(ks, concrete) ON CHANGE reviewReserve(ks,concrete)
 
-        PROPERTIES AFTER prevCurrentBalanceSku###object(ks, concrete)
-                   prevReserveBPurchaseSku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete),
-                   prevReserveBSaleSku###object(ks, concrete) ON CHANGE reviewReserveSku###object(ks,concrete),
-                   prevCurrentReservePurchaseSku###object(ks,concrete) ON CHANGE reviewReserveSku###object(ks,concrete),
-                   prevCurrentReserveSaleSku###object(ks,concrete) ON CHANGE reviewReserveSku###object(ks,concrete)
+        PROPERTIES AFTER prevCurrentBalance(ks, concrete)
+                   prevReserveBPurchase(ks, concrete) ON CHANGE reviewReserve(ks,concrete),
+                   prevReserveBSale(ks, concrete) ON CHANGE reviewReserve(ks,concrete),
+                   prevCurrentReservePurchase(ks,concrete) ON CHANGE reviewReserve(ks,concrete),
+                   prevCurrentReserveSale(ks,concrete) ON CHANGE reviewReserve(ks,concrete)
     ;
     DESIGN form {
-        PROPERTY(prevAvailableQuantitySku###object(ks, concrete)) { background = #F4FFBD; }
-        PROPERTY(prevCurrentReserveSaleSku###object(ks, concrete)) { background = #BDE3FF; }
-        PROPERTY(prevCurrentReservePurchaseSku###object(ks, concrete)) { background = #CCFFCC; }
-        PROPERTY(prevReserveBSaleSku###object(ks, concrete)) { background = #BDE3FF; }
-        PROPERTY(prevReserveBPurchaseSku###object(ks, concrete)) { background = #CCFFCC; }
+        PROPERTY(prevAvailableQuantity(ks, concrete)) { background = #F4FFBD; }
+        PROPERTY(prevCurrentReserveSale(ks, concrete)) { background = #BDE3FF; }
+        PROPERTY(prevCurrentReservePurchase(ks, concrete)) { background = #CCFFCC; }
+        PROPERTY(prevReserveBSale(ks, concrete)) { background = #BDE3FF; }
+        PROPERTY(prevReserveBPurchase(ks, concrete)) { background = #CCFFCC; }
     }
 END
 
 META extendFormDocumentSkuOrderLedgerAll(object, form, concrete)
 
-    allAvailableSku###object 'Доступное кол-во' = DATA LOCAL BOOLEAN (Sku, ###object);
-    changeAllAvailableSku###object = ACTION (sku, object) {
+    allAvailable 'Доступное кол-во' = DATA LOCAL BOOLEAN (Sku, ###object);
+    changeAllAvailable = ACTION (Sku sku, ###form object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
-            allAvailableSku###object (sku,object) <- TRUE;
-            requestedNumeric() <- prevAvailableQuantitySku###object(sku, object);
-            changeQuantityValueSku###object(sku, object);
+            allAvailable (sku,object) <- TRUE;
+            requestedNumeric() <- prevAvailableQuantity(sku, object);
+            changeQuantityValue(sku, object);
         } ELSE {
-            allAvailableSku###object (sku,object) <- NULL;
+            allAvailable (sku,object) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueSku###object(sku, object);
+            changeQuantityValue(sku, object);
         }
     }
 
     EXTEND FORM form
-        PROPERTIES AFTER prevAvailableQuantitySku###object(ks, concrete) allAvailableSku###object (ks,concrete) ON CHANGE changeAllAvailableSku###object(ks,concrete)
+        PROPERTIES AFTER prevAvailableQuantity(ks, concrete) allAvailable (ks,concrete) ON CHANGE changeAllAvailable(ks,concrete)
     ;
 END
 
@@ -641,60 +641,60 @@ END
 
 META extendFormDocumentBatchOrderLedger(object, form, concrete, stockProp)
 
-    prevAvailableQuantityBatch###object 'Доступное к-во' (batch, object) = prevAvailableQuantityBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
+    prevAvailableQuantity 'Доступное к-во' (Batch batch, ###form object) = prevAvailableQuantity(batch, stockProp(object), dateTime(object));
 
-    prevReserveBPurchaseBatch###object 'Резерв закупка' (batch, object) = prevReserveBPurchaseBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
-    prevCurrentReservePurchaseBatch###object 'Резерв закупка (всего)' (batch, object) = prevCurrentReservePurchaseBatchStock(batch, stockProp###object(object));
+    prevReserveBPurchase 'Резерв закупка' (Batch batch, ###form object) = prevReserveBPurchase(batch, stockProp(object), dateTime(object));
+    prevCurrentReservePurchase 'Резерв закупка (всего)' (Batch batch, ###form object) = prevCurrentReservePurchase(batch, stockProp(object));
 
-    prevReserveBSaleBatch###object 'Резерв продажа' (batch, object) = prevReserveBSaleBatchStockDateTime(batch, stockProp###object(object), dateTime###object(object));
-    prevCurrentReserveSaleBatch###object 'Резерв продажа (всего)' (batch, object) = prevCurrentReserveSaleBatchStock(batch, stockProp###object(object));
+    prevReserveBSale 'Резерв продажа' (Batch batch, ###form object) = prevReserveBSale(batch, stockProp(object), dateTime(object));
+    prevCurrentReserveSale 'Резерв продажа (всего)' (Batch batch, ###form object) = prevCurrentReserveSale(batch, stockProp(object));
 
-    reviewReserveBatch###object 'Резерв' (batch, object) = ACTION  {
-        IF dateTime###object(object) THEN {
-            FORM orderBatchLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), bt = batch MODAL;
+    reviewReserve 'Резерв' (Batch batch, ###form object) = ACTION  {
+        IF dateTime(object) THEN {
+            FORM orderBatchLedger OBJECTS t=dateTime(object), st=stockProp(object), bt = batch MODAL;
         } ELSE {
-            FORM orderBatchLedgerNotDate OBJECTS st=stockProp###object(object), bt = batch MODAL;
+            FORM orderBatchLedgerNotDate OBJECTS st=stockProp(object), bt = batch MODAL;
         }
     }         
 
     EXTEND FORM form
-        PROPERTIES SHOWIF showBatch###object(concrete) BEFORE prevCurrentBalanceBatch###object(b, concrete) 
-                   prevAvailableQuantityBatch###object(b, concrete) ON CHANGE reviewReserveBatch###object(b,concrete)
+        PROPERTIES SHOWIF showBatch(concrete) BEFORE prevCurrentBalance(b, concrete) 
+                   prevAvailableQuantity(b, concrete) ON CHANGE reviewReserve(b,concrete)
 
-        PROPERTIES SHOWIF showBatch###object(concrete) AFTER prevCurrentBalanceBatch###object(b, concrete)
-                   prevReserveBPurchaseBatch###object(b, concrete) ON CHANGE reviewReserveBatch###object(b,concrete),
-                   prevReserveBSaleBatch###object(b, concrete) ON CHANGE reviewReserveBatch###object(b,concrete),
-                   prevCurrentReservePurchaseBatch###object(b,concrete) ON CHANGE reviewReserveBatch###object(b,concrete),
-                   prevCurrentReserveSaleBatch###object(b,concrete) ON CHANGE reviewReserveBatch###object(b,concrete)
+        PROPERTIES SHOWIF showBatch(concrete) AFTER prevCurrentBalance(b, concrete)
+                   prevReserveBPurchase(b, concrete) ON CHANGE reviewReserve(b,concrete),
+                   prevReserveBSale(b, concrete) ON CHANGE reviewReserve(b,concrete),
+                   prevCurrentReservePurchase(b,concrete) ON CHANGE reviewReserve(b,concrete),
+                   prevCurrentReserveSale(b,concrete) ON CHANGE reviewReserve(b,concrete)
     ;
     DESIGN form {
-        PROPERTY(prevAvailableQuantityBatch###object(b, concrete)) { background = #F4FFBD; }
-        PROPERTY(prevCurrentReserveSaleBatch###object(b, concrete)) { background = #BDE3FF; }
-        PROPERTY(prevCurrentReservePurchaseBatch###object(b, concrete)) { background = #CCFFCC; }
-        PROPERTY(prevReserveBSaleBatch###object(b, concrete)) { background = #BDE3FF; }
-        PROPERTY(prevReserveBPurchaseBatch###object(b, concrete)) { background = #CCFFCC; }
+        PROPERTY(prevAvailableQuantity(b, concrete)) { background = #F4FFBD; }
+        PROPERTY(prevCurrentReserveSale(b, concrete)) { background = #BDE3FF; }
+        PROPERTY(prevCurrentReservePurchase(b, concrete)) { background = #CCFFCC; }
+        PROPERTY(prevReserveBSale(b, concrete)) { background = #BDE3FF; }
+        PROPERTY(prevReserveBPurchase(b, concrete)) { background = #CCFFCC; }
     }
 
 END
 META extendFormDocumentBatchOrderLedgerAll(object, form, concrete)
 
-    allAvailableBatch###object 'Доступное кол-во' = DATA LOCAL BOOLEAN (Batch, ###object);
-    changeAllAvailableBatch###object= ACTION (batch, object) {
+    allAvailable 'Доступное кол-во' = DATA LOCAL BOOLEAN (Batch, ###object);
+    changeAllAvailable= ACTION (Batch batch, ###form object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
-            allAvailableBatch###object (batch,object) <- TRUE;
-            requestedNumeric() <- prevAvailableQuantityBatch###object(batch, object);
-            changeQuantityValueBatch###object(batch, object);
+            allAvailable (batch,object) <- TRUE;
+            requestedNumeric() <- prevAvailableQuantity(batch, object);
+            changeQuantityValue(batch, object);
         } ELSE {
-            allAvailableBatch###object (batch,object) <- NULL;
+            allAvailable (batch,object) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueBatch###object(batch, object);
+            changeQuantityValue(batch, object);
         }
     }
 
     EXTEND FORM form
-        PROPERTIES SHOWIF showBatch###object(concrete) AFTER prevAvailableQuantityBatch###object(b, concrete) allAvailableBatch###object (b,concrete) ON CHANGE changeAllAvailableBatch###object(b,concrete)
+        PROPERTIES SHOWIF showBatch(concrete) AFTER prevAvailableQuantity(b, concrete) allAvailable (b,concrete) ON CHANGE changeAllAvailable(b,concrete)
     ;
 END
 
@@ -702,14 +702,14 @@ END
 
 META extendFormDocumentSkuStockOrderLedger(object, form, concrete)
 
-    prevAvailableQuantitySkuStock###object 'Доступное к-во' (sku, stock, object) = prevAvailableQuantitySkuStockDateTime(sku, stock, shipmentDateTime###object(object));
+    prevAvailableQuantity 'Доступное к-во' (Sku sku, St##concrete##ck stock, ###form object) = prevAvailableQuantity(sku, stock, shipmentDateTime(object));
 
-    prevReserveBPurchaseSkuStock###object 'Резерв закупка' (sku, stock, object) = prevReserveBPurchaseSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
-    prevReserveBSaleSkuStock###object 'Резерв продажа' (sku, stock, object) = prevReserveBSaleSkuStockDateTime(sku, stock, shipmentDateTime###object(object));
+    prevReserveBPurchase 'Резерв закупка' (Sku sku, St##concrete##ck stock, ###form object) = prevReserveBPurchase(sku, stock, shipmentDateTime(object));
+    prevReserveBSale 'Резерв продажа' (Sku sku, St##concrete##ck stock, ###form object) = prevReserveBSale(sku, stock, shipmentDateTime(object));
 
-    reviewReserveSkuStock###object 'Резерв' (sku,stock, object) = ACTION {
-        IF shipmentDateTime###object(object) THEN {
-            FORM orderSkuLedger OBJECTS t=shipmentDateTime###object(object), st=stock, sk = sku MODAL;
+    reviewReserve 'Резерв' (Sku sku,St##concrete##ck stock, ###form object) = ACTION {
+        IF shipmentDateTime(object) THEN {
+            FORM orderSkuLedger OBJECTS t=shipmentDateTime(object), st=stock, sk = sku MODAL;
         } ELSE {
             FORM orderSkuLedgerNotDate OBJECTS st=stock, sk = sku MODAL;
         }
@@ -717,44 +717,44 @@ META extendFormDocumentSkuStockOrderLedger(object, form, concrete)
     }
 
     EXTEND FORM form
-        PROPERTIES BEFORE prevCurrentBalanceSkuStock(ks, st) 
-                   prevAvailableQuantitySkuStock###object(ks, st, concrete) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete)
+        PROPERTIES BEFORE prevCurrentBalance(ks, st) 
+                   prevAvailableQuantity(ks, st, concrete) ON CHANGE reviewReserve(ks,st,concrete)
 
-        PROPERTIES AFTER prevCurrentBalanceSkuStock(ks, st)
-                   prevReserveBPurchaseSkuStock###object(ks, st, concrete) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete),
-                   prevReserveBSaleSkuStock###object(ks, st, concrete) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete),
-                   prevCurrentReservePurchaseSkuStock(ks,st) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete),
-                   prevCurrentReserveSaleSkuStock(ks,st) ON CHANGE reviewReserveSkuStock###object(ks,st,concrete)
+        PROPERTIES AFTER prevCurrentBalance(ks, st)
+                   prevReserveBPurchase(ks, st, concrete) ON CHANGE reviewReserve(ks,st,concrete),
+                   prevReserveBSale(ks, st, concrete) ON CHANGE reviewReserve(ks,st,concrete),
+                   prevCurrentReservePurchase(ks,st) ON CHANGE reviewReserve(ks,st,concrete),
+                   prevCurrentReserveSale(ks,st) ON CHANGE reviewReserve(ks,st,concrete)
     ;
     DESIGN form {
-        PROPERTY(prevAvailableQuantitySkuStock###object(ks, st, concrete)) { background = #F4FFBD; }
-        PROPERTY(prevCurrentReserveSaleSkuStock(ks, st)) { background = #BDE3FF; }
-        PROPERTY(prevCurrentReservePurchaseSkuStock(ks, st)) { background = #CCFFCC; }
-        PROPERTY(prevReserveBSaleSkuStock###object(ks, st, concrete)) { background = #BDE3FF; }
-        PROPERTY(prevReserveBPurchaseSkuStock###object(ks, st, concrete)) { background = #CCFFCC; }
+        PROPERTY(prevAvailableQuantity(ks, st, concrete)) { background = #F4FFBD; }
+        PROPERTY(prevCurrentReserveSale(ks, st)) { background = #BDE3FF; }
+        PROPERTY(prevCurrentReservePurchase(ks, st)) { background = #CCFFCC; }
+        PROPERTY(prevReserveBSale(ks, st, concrete)) { background = #BDE3FF; }
+        PROPERTY(prevReserveBPurchase(ks, st, concrete)) { background = #CCFFCC; }
     }
 
 END
 
 META extendFormDocumentSkuStockOrderLedgerAll(object, form, concrete)
 
-    allAvailableSku###object 'Доступное кол-во' = DATA LOCAL BOOLEAN (Sku, Stock);
-    changeAllAvailableSku###object= ACTION (sku, object, stock) {
+    allAvailable###form 'Доступное кол-во' = DATA LOCAL BOOLEAN (Sku, Stock);
+    changeAllAvailable= ACTION (Sku sku, ###form object, St##concrete##ck stock) {
         REQUEST BOOLEAN INPUT;
-        IF requestedLogical() THEN {
+        IF requestedL##concrete##gical() THEN {
             requestedNumeric() <- NULL;
-            allAvailableSku###object (sku,stock) <- TRUE;
-            requestedNumeric() <- prevAvailableQuantitySkuStock###object(sku, stock, object);
-            changeQuantityValueSku###object###Stock(sku, object, stock);
+            allAvailable###form (sku,stock) <- TRUE;
+            requestedNumeric() <- prevAvailableQuantity(sku, stock, object);
+            changeQuantityValue(sku, object, stock);
         } ELSE {
-            allAvailableSku###object (sku,stock) <- NULL;
+            allAvailable###form (sku,stock) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueSku###object###Stock(sku, object, stock);
+            changeQuantityValue(sku, object, stock);
         }
     }
 
     EXTEND FORM form
-        PROPERTIES AFTER prevAvailableQuantitySkuStock###object(ks, st, concrete) allAvailableSku###object (ks,st) ON CHANGE changeAllAvailableSku###object(ks,concrete,st)
+        PROPERTIES AFTER prevAvailableQuantity(ks, st, concrete) allAvailable###form (ks,st) ON CHANGE changeAllAvailable(ks,concrete,st)
     ;
 END
 
@@ -762,56 +762,56 @@ END
 
 META extendFormDocumentBatchStockOrderLedger(object, form, concrete)
 
-    prevAvailableQuantityBatchStock###object 'Доступное к-во' (batch, stock, object) = prevAvailableQuantityBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+    prevAvailableQuantity 'Доступное к-во' (Batch batch, St##concrete##ck stock, ###form object) = prevAvailableQuantity(batch, stock, shipmentDateTime(object));
 
-    prevReserveBPurchaseBatchStock###object 'Резерв закупка' (batch, stock, object) = prevReserveBPurchaseBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
-    prevReserveBSaleBatchStock###object 'Резерв продажа' (batch, stock, object) = prevReserveBSaleBatchStockDateTime(batch, stock, shipmentDateTime###object(object));
+    prevReserveBPurchase 'Резерв закупка' (Batch batch, St##concrete##ck stock, ###form object) = prevReserveBPurchase(batch, stock, shipmentDateTime(object));
+    prevReserveBSale 'Резерв продажа' (Batch batch, St##concrete##ck stock, ###form object) = prevReserveBSale(batch, stock, shipmentDateTime(object));
 
-    reviewReserveBatchStock###object 'Резерв' (batch, stock, object) = ACTION {
-        IF shipmentDateTime###object(object) THEN {
-            FORM orderBatchLedger OBJECTS t=shipmentDateTime###object(object), st=stock, bt = batch MODAL;
+    reviewReserve 'Резерв' (Batch batch, St##concrete##ck stock, ###form object) = ACTION {
+        IF shipmentDateTime(object) THEN {
+            FORM orderBatchLedger OBJECTS t=shipmentDateTime(object), st=stock, bt = batch MODAL;
         } ELSE {
             FORM orderBatchLedgerNotDate OBJECTS st=stock, bt = batch MODAL;                                                         
         }
     }    
 
     EXTEND FORM form
-        PROPERTIES SHOWIF showBatch###object(concrete) BEFORE prevCurrentBalanceBatchStock(b, sto) 
-                   prevAvailableQuantityBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete)
+        PROPERTIES SHOWIF sh##concrete##wBatch(concrete) BEFORE prevCurrentBalance(b, sto) 
+                   prevAvailableQuantity(b, sto, concrete) ON CHANGE reviewReserve(b, sto, concrete)
 
-        PROPERTIES SHOWIF showBatch###object(concrete) AFTER prevCurrentBalanceBatchStock(b, sto)
-                   prevReserveBPurchaseBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete),
-                   prevReserveBSaleBatchStock###object(b, sto, concrete) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete),
-                   prevCurrentReservePurchaseBatchStock(b, sto) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete),
-                   prevCurrentReserveSaleBatchStock(b, sto) ON CHANGE reviewReserveBatchStock###object(b, sto, concrete)
+        PROPERTIES SHOWIF sh##concrete##wBatch(concrete) AFTER prevCurrentBalance(b, sto)
+                   prevReserveBPurchase(b, sto, concrete) ON CHANGE reviewReserve(b, sto, concrete),
+                   prevReserveBSale(b, sto, concrete) ON CHANGE reviewReserve(b, sto, concrete),
+                   prevCurrentReservePurchase(b, sto) ON CHANGE reviewReserve(b, sto, concrete),
+                   prevCurrentReserveSale(b, sto) ON CHANGE reviewReserve(b, sto, concrete)
     ;
     DESIGN form {
-        PROPERTY(prevAvailableQuantityBatchStock###object(b, sto, concrete)) { background = #F4FFBD; }
-        PROPERTY(prevCurrentReserveSaleBatchStock(b, sto)) { background = #BDE3FF; }
-        PROPERTY(prevCurrentReservePurchaseBatchStock(b, sto)) { background = #CCFFCC; }
-        PROPERTY(prevReserveBSaleBatchStock###object(b, sto, concrete)) { background = #BDE3FF; }
-        PROPERTY(prevReserveBPurchaseBatchStock###object(b, sto, concrete)) { background = #CCFFCC; }
+        PROPERTY(prevAvailableQuantity(b, sto, concrete)) { background = #F4FFBD; }
+        PROPERTY(prevCurrentReserveSale(b, sto)) { background = #BDE3FF; }
+        PROPERTY(prevCurrentReservePurchase(b, sto)) { background = #CCFFCC; }
+        PROPERTY(prevReserveBSale(b, sto, concrete)) { background = #BDE3FF; }
+        PROPERTY(prevReserveBPurchase(b, sto, concrete)) { background = #CCFFCC; }
     }
 
 END
 META extendFormDocumentBatchStockOrderLedgerAll(object, form, concrete)
 
-    allAvailableBatch###object 'Доступное кол-во' = DATA LOCAL BOOLEAN (Batch, Stock);
-    changeAllAvailableBatch###object = ACTION (batch, object, stock) {
+    allAvailable###form 'Доступное кол-во' = DATA LOCAL BOOLEAN (Batch, Stock);
+    changeAllAvailable = ACTION (Batch batch, ###form object, St##concrete##ck stock) {
         REQUEST BOOLEAN INPUT;
-        IF requestedLogical() THEN {
+        IF requestedL##concrete##gical() THEN {
             requestedNumeric() <- NULL;
-            allAvailableBatch###object (batch,stock) <- TRUE;
-            requestedNumeric() <- prevAvailableQuantityBatchStock###object(batch, stock, object);
-            changeQuantityValueBatch###object###Stock(batch, object, stock);
+            allAvailable###form (batch,stock) <- TRUE;
+            requestedNumeric() <- prevAvailableQuantity(batch, stock, object);
+            changeQuantityValue(batch, object, stock);
         } ELSE {
-            allAvailableBatch###object (batch,stock) <- NULL;
+            allAvailable###form (batch,stock) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueBatch###object###Stock(batch, object, stock);
+            changeQuantityValue(batch, object, stock);
         }
     }
 
     EXTEND FORM form
-        PROPERTIES SHOWIF showBatch###object(concrete) AFTER prevAvailableQuantityBatchStock###object(b, sto, concrete) allAvailableBatch###object (b, sto) ON CHANGE changeAllAvailableBatch###object(b, concrete, sto)
+        PROPERTIES SHOWIF sh##concrete##wBatch(concrete) AFTER prevAvailableQuantity(b, sto, concrete) allAvailable###form (b, sto) ON CHANGE changeAllAvailable(b, concrete, sto)
     ;
 END

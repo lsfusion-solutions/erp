@@ -5,29 +5,29 @@ REQUIRE Item, EmployeeManager, PurchaseOrder, PurchaseDemandOrder;
 NAMESPACE Item;
 
 @defineItemGroupDefaultValue(itemManager, 'Категорийный менеджер', Employee, nameCustomUser);  
-nameItemManagerItemGroup 'Категорийный менеджер' (itemGroup) = nameContact(itemManagerItemGroup(itemGroup)); 
+nameItemManager 'Категорийный менеджер' (ItemGroup itemGroup) = name[Contact](itemManager(itemGroup)); 
 
-countItemGroupEmployee (employee) = GROUP SUM 1 IF dataItemManagerItemGroup(group) == employee BY employee PERSISTENT;
+countItemGroup (employee) = GROUP SUM 1 IF dataItemManager(ItemGroup group) == Employee employee BY employee PERSISTENT;
 
-accessManagerItemGroup 'Доступ разрешен' (employee, itemGroup) = OVERRIDE
-    employee IS Employee AND itemGroup IS ItemGroup AND NOT countItemGroupEmployee(employee) AND NOT countManagersEmployee(employee),  
-    nearestItemManagerItemGroup(itemGroup) == employee PERSISTENT;
+accessManager 'Доступ разрешен' (Employee employee, ItemGroup itemGroup) = OVERRIDE
+    employee IS Employee AND itemGroup IS ItemGroup AND NOT countItemGroup(employee) AND NOT countManagers(employee),  
+    nearestItemManager(itemGroup) == employee PERSISTENT;
 
-countAccessManagersEmployeeItemGroup (employee, itemGroup) = GROUP SUM 1 IF accessManagerItemGroup(manager, itemGroup) AND inManagerEmployee(manager, employee) BY employee, itemGroup;
+countAccessManagers (employee, itemGroup) = GROUP SUM 1 IF accessManager(Employee manager, ItemGroup itemGroup) AND inManager(manager, Employee employee) BY employee, itemGroup;
 
-accessEmployeeItemGroup = countAccessManagersEmployeeItemGroup(employee, itemGroup) OR accessManagerItemGroup(employee, itemGroup) PERSISTENT;
+access = countAccessManagers(Employee employee, ItemGroup itemGroup) OR accessManager(employee, itemGroup) PERSISTENT;
 
-countAccessEmployeeItemGroup 'Кол-во доступных групп' (employee, itemGroup) =
-    GROUP SUM 1 IF accessEmployeeItemGroup(employee, child)
-             AND isParentSkuGroupSkuGroup(child, itemGroup)
+countAccessItem 'Кол-во доступных групп' (employee, itemGroup) =
+    GROUP SUM 1 IF access(Employee employee, ItemGroup child)
+             AND isParent(child, SkuGroup itemGroup)
        BY employee, itemGroup PERSISTENT;
 
-accessEmployeeItem = accessEmployeeItemGroup(employee, itemGroupItem(item));                                     
+access = access(Employee employee, itemGroup(Item item));                                     
 
-limitRecommendedQuantitySkuUserOrder(s, o) += o IS UserOrder AND NOT accessEmployeeItem(currentUser(), s);
+limitRecommendedQuantity(Item s, UserOrder o) += o IS UserOrder AND NOT access(currentUser(), s);
  
 EXTEND FORM itemGroup
-    PROPERTIES(g) nameCustomUserItemGroup 
+    PROPERTIES(g) nameCustomUser 
 ;
 DESIGN itemGroup {
     itemGroupDetail {
@@ -36,14 +36,14 @@ DESIGN itemGroup {
 }
 
 EXTEND FORM itemGroups
-    PROPERTIES(g) READONLYIF  isReadonly() nameItemManagerItemGroup 
+    PROPERTIES(g) READONLYIF  isReadonly() nameItemManager 
 ;
 EXTEND FORM userOrder 
-    FILTERS countAccessEmployeeItemGroup(currentUser(), sk) OR NOT sk IS SkuGroup
-    FILTERS accessEmployeeItem(currentUser(), ks)
+    FILTERS countAccessItem(currentUser(), sk) OR NOT sk IS SkuGroup
+    FILTERS access(currentUser(), ks)
 ;
 
 EXTEND FORM demandOrder 
-    FILTERS countAccessEmployeeItemGroup(currentUser(), sk) OR NOT sk IS SkuGroup
-    FILTERS accessEmployeeItem(currentUser(), s)
+    FILTERS countAccessItem(currentUser(), sk) OR NOT sk IS SkuGroup
+    FILTERS access(currentUser(), s)
 ;

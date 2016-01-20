@@ -7,33 +7,33 @@ NAMESPACE Sku;
 TABLE skuGroupEmployee(SkuGroup, Employee);
 
 //--  Компания
-dataAccessSkuGroupEmployee 'Доступ разрешен' = DATA BOOLEAN (SkuGroup, Employee);
+dataAccess 'Доступ разрешен' = DATA BOOLEAN (SkuGroup, Employee);
 
-overCopyEmployee(e,employee) += ACTION {    
-    dataAccessSkuGroupEmployee(l,e) <- dataAccessSkuGroupEmployee(l,employee) WHERE dataAccessSkuGroupEmployee(l,employee);
+overCopy(Employee e,Employee employee) += ACTION {    
+    dataAccess(SkuGroup l,e) <- dataAccess(l,employee) WHERE dataAccess(l,employee);
 };
 
-levelParentEmployeeSkuGroup (employee, skuGroup) = GROUP MIN levelSkuGroupSkuGroup(skuGroup, parent) IF dataAccessSkuGroupEmployee(parent, employee)
+levelParent (employee, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataAccess(parent, Employee employee)
                                                                BY employee, skuGroup PERSISTENT;
-nearestParentEmployeeSkuGroup (employee, skuGroup) = skuGroupSkuGroupLevel(skuGroup, levelParentEmployeeSkuGroup(employee, skuGroup));
-nearestInEmployeeSkuGroup (employee, skuGroup) =
-    dataAccessSkuGroupEmployee(nearestParentEmployeeSkuGroup (employee, skuGroup), employee);
+nearestParent (Employee employee, SkuGroup skuGroup) = skuGroup(skuGroup, levelParent(employee, skuGroup));
+nearestIn (Employee employee, SkuGroup skuGroup) =
+    dataAccess(nearestParent (employee, skuGroup), employee);
 
-accessEmployeeSkuGroup 'Доступ разрешен' (employee, skuGroup) = OVERRIDE
-    employee IS Employee AND skuGroup IS SkuGroup AND NOT limitAccessEmployee(employee),
-    nearestInEmployeeSkuGroup(employee, skuGroup),
-    dataAccessSkuGroupEmployee(skuGroup, employee); // PERSISTENT;
+access 'Доступ разрешен' (Employee employee, SkuGroup skuGroup) = OVERRIDE
+    employee IS Employee AND skuGroup IS SkuGroup AND NOT limitAccess(employee),
+    nearestIn(employee, skuGroup),
+    dataAccess(skuGroup, employee); // PERSISTENT;
 
-countAccessEmployeeSkuGroup 'Кол-во доступных групп' (employee, skuGroup) =
-    GROUP SUM 1 IF accessEmployeeSkuGroup(employee, child)
-                AND isParentSkuGroupSkuGroup(child, parent)
+countAccess 'Кол-во доступных групп' (employee, skuGroup) =
+    GROUP SUM 1 IF access(Employee employee, SkuGroup child)
+                AND isParent(child, SkuGroup parent)
           BY employee, parent PERSISTENT;
 
 EXTEND FORM employee
-    TREE skuTree skg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY SHOWIF  limitAccessEmployee(e) orderSkuGroup(skg), sgTreeName = nameSkuGroup(skg)
-    ORDER BY orderSkuGroup(skg), sgTreeName
-    PROPERTIES(e,skg) SHOWIF limitAccessEmployee(e) accessEmployeeSkuGroup
+    TREE skuTree skg = SkuGroup PARENT parent
+    PROPERTIES READONLY SHOWIF  limitAccess(e) order(skg), sgTreeName = name(skg)
+    ORDER BY order(skg), sgTreeName
+    PROPERTIES(e,skg) SHOWIF limitAccess(e) access
 ;
 DESIGN employee {
     pane {
@@ -46,5 +46,5 @@ DESIGN employee {
 // ----------------------------------------- Метакод по добавлению фильтров на форму ----------------------- //
 
 META extendFormFilterSkuGroupAccess(form, concrete)
-    EXTEND FORM form FILTERS (concrete IS SkuGroup AND NOT limitAccessEmployee(currentUser())) OR countAccessEmployeeSkuGroup(currentUser(), concrete) OR NOT concrete IS SkuGroup;
+    EXTEND FORM form FILTERS (concrete IS SkuGroup AND NOT limitAccess(currentUser())) OR countAccess(currentUser(), concrete) OR NOT concrete IS SkuGroup;
 END

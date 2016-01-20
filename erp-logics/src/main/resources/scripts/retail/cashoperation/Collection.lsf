@@ -7,7 +7,7 @@ NAMESPACE CashOperation;
 CLASS Collection 'Инкассация' : OutcomeCashOrder;
 TABLE collection (Collection);
 
-isCollection (collection) = collection IS Collection;
+is (Collection collection) = collection IS Collection;
 
 @defineDocumentHeaderCreated(Collection);
 @defineDocumentHeaderNumber(Collection);
@@ -21,21 +21,21 @@ isCollection (collection) = collection IS Collection;
 
 @defineDocumentHeaderDescription (Collection, 'Инкассация');
 
-bankAccountCollection = DATA Bank.Account (Collection);
-bankAccountCollection(collection) <- bankAccountStore(storeDepartmentStore(departmentStoreCollection(collection)))
-    WHEN SET(departmentStoreCollection(collection));
+bankAccount = DATA Bank.Account (Collection);
+bankAccount(Collection collection) <- bankAccount(store(departmentStore(collection)))
+    WHEN SET(departmentStore(collection));
 
-sumCashCollection 'Сумма инкассации' = DATA NUMERIC[16,2] (Collection) IN documentSum;
-basisCollection 'Основание' (collection) =
-    'Инкассация №' + seriesNumberCollection(collection) + ' от ' + dateCollection(collection) IN documentPrm;
+sumCash 'Сумма инкассации' = DATA NUMERIC[16,2] (Collection) IN documentSum;
+basis 'Основание' (Collection collection) =
+    'Инкассация №' + seriesNumber(collection) + ' от ' + date(collection) IN documentPrm;
 
-dateCashDocument(collection) += dateCollection(collection);
-timeCashDocument(collection) += timeCollection(collection);
-numberCashDocument(collection) += seriesNumberCollection(collection) IF collection IS Collection;
-departmentStoreCashDocument(collection) += departmentStoreCollection(collection);
-sumCashOutcomeCashOrder(collection) += sumCashCollection(collection);
-basisCashDocument(collection) += basisCollection(collection);
-isPostedCashDocument(collection) += collection IS Collection;
+date(Collection collection) += date(collection);
+time(Collection collection) += time(collection);
+number(Collection collection) += seriesNumber(collection) IF collection IS Collection;
+departmentStore(Collection collection) += departmentStore(collection);
+sumCash(Collection collection) += sumCash(collection);
+basis(Collection collection) += basis(collection);
+isPosted(Collection collection) += collection IS Collection;
 
 sumCashForCollection 'Сумма инкассации' = DATA LOCAL NUMERIC[16,2] (DepartmentStore);
 
@@ -48,7 +48,7 @@ FORM addCollection 'Инкассация'
     PROPERTIES(t) time = OBJVALUE
 
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDepartmentStore SELECTOR, sumCashForCollection
+    PROPERTIES(d) name SELECTOR, sumCashForCollection
 ;
 
 DESIGN addCollection {
@@ -69,8 +69,8 @@ DESIGN addCollection {
 
 FORM collection 'Инкассация'
     OBJECTS c = Collection FIXED PANEL
-    PROPERTIES(c) numberCollection, seriesCollection, dateCollection, timeCollection, nameDepartmentStoreCollection ON CHANGE changeDepartmentStoreCompanyCollection(c),
-                  sumCashCollection, basisCollection
+    PROPERTIES(c) number, series, date, time, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(c),
+                  sumCash, basis
 
     EDIT Collection OBJECT c
 ;
@@ -81,19 +81,19 @@ DESIGN collection {
         NEW firstCase{
             type = CONTAINERH;
             caption = 'Шапка документа';
-            MOVE PROPERTY(numberCollection(c));
-            MOVE PROPERTY(seriesCollection(c));
-            MOVE PROPERTY(dateCollection(c));
-            MOVE PROPERTY(timeCollection(c));
+            MOVE PROPERTY(number(c));
+            MOVE PROPERTY(series(c));
+            MOVE PROPERTY(date(c));
+            MOVE PROPERTY(time(c));
         }
         NEW secondCase{
             caption = 'Параметры документа';
-            MOVE PROPERTY(nameDepartmentStoreCollection(c));
-            MOVE PROPERTY(basisCollection(c));
+            MOVE PROPERTY(nameDepartmentStore(c));
+            MOVE PROPERTY(basis(c));
         }
         NEW thirdCase{
             caption = 'Суммы';
-            MOVE PROPERTY(sumCashCollection(c));
+            MOVE PROPERTY(sumCash(c));
         }
     }
     MOVE functions.box;
@@ -102,20 +102,20 @@ DESIGN collection {
 addCollectionForm 'Инкассация' () = ACTION () {
     FORM addCollection MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR sumCashForCollection(departmentStore) DO {
+        FOR sumCashForCollection(DepartmentStore departmentStore) DO {
             FOR ADDOBJ c = Collection DO {
-                departmentStoreCollection(c) <- departmentStore;
-                dateCollection(c) <- chosenDate('dt');
-                timeCollection(c) <- chosenTime('t');
-                sumCashCollection(c) <- sumCashForCollection(departmentStore);
-                generateSeriesNumberCollection(c);
+                departmentStore(c) <- departmentStore;
+                date(c) <- chosenDate('dt');
+                time(c) <- chosenTime('t');
+                sumCash(c) <- sumCashForCollection(departmentStore);
+                generateSeriesNumber(c);
             }
         }
         EXEC apply();
     }
 } TOOLBAR;
 
-editCollection 'Редактировать' (collection) = ACTION EDITFORM Collection;
+edit 'Редактировать' (collection) = ACTION EDITFORM Collection;
 
 FORM centralCashRegister 'Центральная касса'
 
@@ -123,36 +123,36 @@ FORM centralCashRegister 'Центральная касса'
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
 
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDepartmentStore SELECTOR
-    PROPERTIES(d) READONLY curSumCashDepartmentStore
+    PROPERTIES(d) name SELECTOR
+    PROPERTIES(d) READONLY curSumCash
 
     OBJECTS i = IncomeCashOrder
-    PROPERTIES(i) READONLY objectClassName, numberCashDocument, dateCashDocument, timeCashDocument, nameDepartmentStoreCashDocument,
-                           numberCashRegisterCashDocument, sumCashIncomeCashOrder, basisCashDocument, isPrintedIncomeCashOrder
-    PROPERTIES(i) READONLY isCompleteCashOperation FORCE GRID
+    PROPERTIES(i) READONLY objectClassName, number, date, time, nameDepartmentStore,
+                           numberCashRegister, sumCash, basis, isPrinted
+    PROPERTIES(i) READONLY isComplete FORCE GRID
     PROPERTIES addOutcomeCashOperationForm() TODRAW i FORCE PANEL TOOLBAR
-    PROPERTIES eoc = editOutcomeCashOperation(i) SHOWIF isOutcomeCashOperation(i)
+    PROPERTIES eoc = edit(i) SHOWIF is(i)
     PROPERTIES(i) DELETE FORCE PANEL TOOLBAR
-    ORDER BY dateCashDocument(i), timeCashDocument(i)
+    ORDER BY date(i), time(i)
 
-    FILTERS departmentStoreCashDocument(i) == d,
-            dateCashDocument(i) >= dFrom,
-            dateCashDocument(i) <= dTo
+    FILTERS departmentStore(i) == d,
+            date(i) >= dFrom,
+            date(i) <= dTo
 
     OBJECTS o = OutcomeCashOrder
-    PROPERTIES(o) READONLY numberCashDocument, dateCashDocument, timeCashDocument, nameDepartmentStoreCashDocument,
-                           numberCashRegisterCashDocument, sumCashOutcomeCashOrder, basisCashDocument, isPrintedOutcomeCashOrder
+    PROPERTIES(o) READONLY number, date, time, nameDepartmentStore,
+                           numberCashRegister, sumCash, basis, isPrinted
     PROPERTIES addIncomeCashOperationForm() TODRAW o FORCE PANEL TOOLBAR
     PROPERTIES addCollectionForm() TODRAW o FORCE PANEL TOOLBAR
-    PROPERTIES eic = editIncomeCashOperation(o) SHOWIF isIncomeCashOperation(o)
-    PROPERTIES editCollection(o) SHOWIF isCollection(o)
+    PROPERTIES eic = edit[IncomeCashOperation](o) SHOWIF is[IncomeCashOperation](o)
+    PROPERTIES edit[Collection](o) SHOWIF is[Collection](o)
     PROPERTIES(o) DELETE FORCE PANEL TOOLBAR
-    ORDER BY dateCashDocument(o), timeCashDocument(o)
-    FILTERS departmentStoreCashDocument(o) == d,
-            dateCashDocument(o) >= dFrom,
-            dateCashDocument(o) <= dTo,
-            isPostedCashDocument(i),
-            isPostedCashDocument(o)
+    ORDER BY date(o), time(o)
+    FILTERS departmentStore(o) == d,
+            date(o) >= dFrom,
+            date(o) <= dTo,
+            isPosted(i),
+            isPosted(o)
 ;
 @extendFormFilterStockAccess(d, centralCashRegister);
 

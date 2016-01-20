@@ -24,25 +24,25 @@ public class ImportPurchaseInvoicePurchaseShipment extends ImportDefaultPurchase
         if (LM != null && userInvoiceDetailKey != null) {
 
             if (showField(userInvoiceDetailsList, "expiryDate")) {
-                addDataField(props, fields, defaultColumns, LM.findProperty("Purchase.expiryDateUserInvoiceDetail"), "expiryDate", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, LM.findProperty("expiryDate[UserInvoiceDetail]"), "expiryDate", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("expiryDate"));
             }
 
             if (showField(userInvoiceDetailsList, "manufactureDate")) {
-                addDataField(props, fields, defaultColumns, LM.findProperty("Purchase.manufactureDateUserInvoiceDetail"), "manufactureDate", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, LM.findProperty("manufactureDate[UserInvoiceDetail]"), "manufactureDate", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("manufactureDate"));
             }
 
             if (showField(userInvoiceDetailsList, "shipmentPrice")) {
-                addDataField(props, fields, defaultColumns, LM.findProperty("shipmentPriceUserInvoiceDetail"), "shipmentPrice", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, LM.findProperty("shipmentPrice[UserInvoiceDetail]"), "shipmentPrice", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("shipmentPrice"));
             }
 
             if (showField(userInvoiceDetailsList, "shipmentSum")) {
-                addDataField(props, fields, defaultColumns, LM.findProperty("shipmentSumUserInvoiceDetail"), "shipmentSum", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, LM.findProperty("shipmentSum[UserInvoiceDetail]"), "shipmentSum", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("shipmentSum"));
             }

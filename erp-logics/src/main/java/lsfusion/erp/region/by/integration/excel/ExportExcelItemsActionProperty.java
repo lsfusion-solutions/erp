@@ -57,8 +57,8 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
         DataSession session = context.getSession();
 
         try {
-            ObjectValue retailCPLT = findProperty("idCalcPriceListType").readClasses(session, new DataObject("retail", StringClass.get(100)));
-            ObjectValue wholesaleCPLT = findProperty("idCalcPriceListType").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
+            ObjectValue retailCPLT = findProperty("id[CalcPriceListType]").readClasses(session, new DataObject("retail", StringClass.get(100)));
+            ObjectValue wholesaleCPLT = findProperty("id[CalcPriceListType]").readClasses(session, new DataObject("wholesale", StringClass.get(100)));
 
             KeyExpr itemExpr = new KeyExpr("Item");
             ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "Item", itemExpr);
@@ -67,25 +67,25 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
             String[] itemNames = new String[]{"itemGroupItem", "nameAttributeItem", "UOMItem",
                     "brandItem", "countryItem", "idBarcodeSku", "splitItem", "netWeightItem", "grossWeightItem",
                     "compositionItem", "Purchase.amountPackSku"};
-            LCP[] itemProperties = findProperties("itemGroupItem", "nameAttributeItem", "UOMItem",
-                    "brandItem", "countryItem", "idBarcodeSku", "splitItem", "netWeightItem", "grossWeightItem",
-                    "compositionItem", "Purchase.amountPackSku");
+            LCP[] itemProperties = findProperties("itemGroup[Item]", "nameAttribute[Item]", "UOM[Item]",
+                    "brand[Item]", "country[Item]", "idBarcode[Sku]", "split[Item]", "netWeight[Item]", "grossWeight[Item]",
+                    "composition[Item]", "amountPack[Sku]");
             for (int i = 0; i < itemProperties.length; i++) {
                 itemQuery.addProperty(itemNames[i], itemProperties[i].getExpr(context.getModifier(), itemExpr));
             }
             if(salePackLM != null) {
-                itemQuery.addProperty("Sale.amountPackSku", salePackLM.findProperty("Sale.amountPackSku").getExpr(context.getModifier(), itemExpr)); 
+                itemQuery.addProperty("Sale.amountPackSku", salePackLM.findProperty("amountPack[Sku]").getExpr(context.getModifier(), itemExpr));
             }
 
             if (wareItemLM != null) {
                 String[] wareItemNames = new String[]{"wareItem"};
-                LCP[] wareItemProperties = findProperties("wareItem");
+                LCP[] wareItemProperties = findProperties("ware[Item]");
                 for (int i = 0; i < wareItemProperties.length; i++) {
                     itemQuery.addProperty(wareItemNames[i], wareItemProperties[i].getExpr(context.getModifier(), itemExpr));
                 }
             }
 
-            itemQuery.and(findProperty("nameAttributeItem").getExpr(context.getModifier(), itemQuery.getMapExprs().get("Item")).getWhere());
+            itemQuery.and(findProperty("nameAttribute[Item]").getExpr(context.getModifier(), itemQuery.getMapExprs().get("Item")).getWhere());
 
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemResult = itemQuery.executeClasses(session);
 
@@ -105,26 +105,26 @@ public class ExportExcelItemsActionProperty extends ExportExcelActionProperty {
                 Integer itemGroupID = (Integer) itemValue.get("itemGroupItem").getValue();
 
                 ObjectValue uomItemObject = itemValue.get("UOMItem");
-                String nameUOM = trim((String) findProperty("nameUOM").read(session, uomItemObject), "");
-                String shortNameUOM = trim((String) findProperty("shortNameUOM").read(session, uomItemObject), "");
+                String nameUOM = trim((String) findProperty("name[UOM]").read(session, uomItemObject), "");
+                String shortNameUOM = trim((String) findProperty("shortName[UOM]").read(session, uomItemObject), "");
 
                 ObjectValue brandItemObject = itemValue.get("brandItem");
-                String nameBrand = trim((String) findProperty("nameBrand").read(session, brandItemObject), "");
+                String nameBrand = trim((String) findProperty("name[Brand]").read(session, brandItemObject), "");
 
                 ObjectValue wareItemObject = itemValue.get("wareItem");
                 ObjectValue countryItemObject = itemValue.get("countryItem");
-                BigDecimal priceWare = wareItemObject == null ? null : (BigDecimal) findProperty("priceWare").read(session, wareItemObject);
-                BigDecimal vatWare = wareItemObject == null || countryItemObject == null ? null : (BigDecimal) findProperty("valueVATWareCountry").read(session, wareItemObject, countryItemObject);
+                BigDecimal priceWare = wareItemObject == null ? null : (BigDecimal) findProperty("price[Ware]").read(session, wareItemObject);
+                BigDecimal vatWare = wareItemObject == null || countryItemObject == null ? null : (BigDecimal) findProperty("valueVAT[Ware,Country]").read(session, wareItemObject, countryItemObject);
 
                 DataObject itemObject = itemResult.getKey(i).get("Item");
                 DataObject dateObject = new DataObject(new Date(System.currentTimeMillis()), DateClass.instance);
-                BigDecimal vatItem = (BigDecimal) findProperty("valueVATItemCountryDate").read(session, itemObject, countryItemObject, dateObject);
-                String nameCountry = trim((String) findProperty("nameCountry").read(session, countryItemObject), "");
+                BigDecimal vatItem = (BigDecimal) findProperty("valueVAT[Item,Country,DATE]").read(session, itemObject, countryItemObject, dateObject);
+                String nameCountry = trim((String) findProperty("name[Country]").read(session, countryItemObject), "");
 
-                Integer writeOffRateID = writeOffRateItemLM == null ? null : (Integer) writeOffRateItemLM.findProperty("writeOffRateCountryItem").read(session, countryItemObject, itemObject);
+                Integer writeOffRateID = writeOffRateItemLM == null ? null : (Integer) writeOffRateItemLM.findProperty("writeOffRate[Country,Item]").read(session, countryItemObject, itemObject);
 
-                BigDecimal retailMarkup = (BigDecimal) findProperty("markupCalcPriceListTypeSku").read(session, retailCPLT, itemObject);
-                BigDecimal wholesaleMarkup = (BigDecimal) findProperty("markupCalcPriceListTypeSku").read(session, wholesaleCPLT, itemObject);
+                BigDecimal retailMarkup = (BigDecimal) findProperty("markup[CalcPriceListType,Sku]").read(session, retailCPLT, itemObject);
+                BigDecimal wholesaleMarkup = (BigDecimal) findProperty("markup[CalcPriceListType,Sku]").read(session, wholesaleCPLT, itemObject);
 
                 data.add(Arrays.asList(formatValue(itemID), formatValue(itemGroupID), name, nameUOM, shortNameUOM, 
                         formatValue(uomItemObject.getValue()), nameBrand, formatValue(brandItemObject.getValue()), 

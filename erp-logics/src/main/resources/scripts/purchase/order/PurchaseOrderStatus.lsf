@@ -9,74 +9,74 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceDetailQuantityPrefix (order, original, ' (предзаказ)');
 //-- Отправлен
 
-isSentOrder 'Отправлен' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
-isSentUserOrder 'Отправлен' (o) = DATA BOOLEAN (UserOrder);
+isSent 'Отправлен' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
+isSent 'Отправлен' (o) = DATA BOOLEAN (UserOrder);
 
-sentDateTimeOrder 'Дата отправления' (o) = ABSTRACT DATETIME (Order) PERSISTENT;
-sentDateTimeUserOrder 'Дата отправления' (o) = DATA DATETIME (UserOrder);
+sentDateTime 'Дата отправления' (o) = ABSTRACT DATETIME (Order) PERSISTENT;
+sentDateTime 'Дата отправления' (o) = DATA DATETIME (UserOrder);
 
-notSentOrder 'Не отправлен' (o) = o IS Order AND NOT isSentOrder(o) PERSISTENT;
-notSentUserOrder 'Не отправлен' (o) = o IS UserOrder AND NOT isSentUserOrder(o) PERSISTENT;
+notSent 'Не отправлен' (Order o) = o IS Order AND NOT isSent(o) PERSISTENT;
+notSent 'Не отправлен' (UserOrder o) = o IS UserOrder AND NOT isSent(o) PERSISTENT;
 
-isSentOrder(o) += isSentUserOrder(o);  
+isSent(UserOrder o) += isSent(o);  
 
-isSentOrderDetail 'Отправлен' (d) = isSentOrder(orderOrderDetail(d)) PERSISTENT;
-notSentOrderDetail 'Не отправлен' (d) = d IS OrderDetail AND NOT isSentOrderDetail(d);
+isSent 'Отправлен' (OrderDetail d) = isSent(order(d)) PERSISTENT;
+notSent 'Не отправлен' (OrderDetail d) = d IS OrderDetail AND NOT isSent(d);
 
-isSentUserOrderDetail 'Отправлен' (d) = isSentUserOrder(userOrderUserOrderDetail(d)) PERSISTENT;
-notSentUserOrderDetail 'Не отправлен' (d) = d IS UserOrderDetail AND NOT isSentUserOrderDetail(d);  
+isSent 'Отправлен' (UserOrderDetail d) = isSent(userOrder(d)) PERSISTENT;
+notSent 'Не отправлен' (UserOrderDetail d) = d IS UserOrderDetail AND NOT isSent(d);  
 
 //-- Подтвержден
-isConfirmedOrder 'Подтвержден' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
-isConfirmedUserOrder 'Подтвержден' (o) = DATA BOOLEAN (UserOrder);
+isConfirmed 'Подтвержден' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
+isConfirmed 'Подтвержден' (o) = DATA BOOLEAN (UserOrder);
 
-notConfirmedOrder 'Не подтвержден' (o) = o IS Order AND NOT isConfirmedOrder(o) PERSISTENT;
-notConfirmedUserOrder 'Не подтвержден' (o) = o IS UserOrder AND NOT isConfirmedUserOrder(o) PERSISTENT;
+notConfirmed 'Не подтвержден' (Order o) = o IS Order AND NOT isConfirmed(o) PERSISTENT;
+notConfirmed 'Не подтвержден' (UserOrder o) = o IS UserOrder AND NOT isConfirmed(o) PERSISTENT;
 
-isConfirmedOrder(o) += isConfirmedUserOrder(o);  
+isConfirmed(UserOrder o) += isConfirmed(o);  
 
-isConfirmedOrderDetail 'Подтвержден' (d) = isConfirmedOrder(orderOrderDetail(d)) PERSISTENT;
-notConfirmedOrderDetail 'Не подтвержден' (d) = d IS OrderDetail AND NOT isConfirmedOrderDetail(d);
+isConfirmed 'Подтвержден' (OrderDetail d) = isConfirmed(order(d)) PERSISTENT;
+notConfirmed 'Не подтвержден' (OrderDetail d) = d IS OrderDetail AND NOT isConfirmed(d);
 
-isConfirmedUserOrderDetail 'Подтвержден' (d) = isConfirmedUserOrder(userOrderUserOrderDetail(d)) PERSISTENT;
-notConfirmedUserOrderDetail 'Не подтвержден' (d) = d IS UserOrderDetail AND NOT isConfirmedUserOrderDetail(d);  
+isConfirmed 'Подтвержден' (UserOrderDetail d) = isConfirmed(userOrder(d)) PERSISTENT;
+notConfirmed 'Не подтвержден' (UserOrderDetail d) = d IS UserOrderDetail AND NOT isConfirmed(d);  
 
 //statusOrder 'Статус заказа' = ABSTRACT OVERRIDE FIRST VARISTRING[20] (Order);
-statusOrder 'Статус заказа' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
-calcStatusOrder 'Статус заказа' = CASE
-    WHEN isClosedOrder(o) THEN 'Закрыт'
-    WHEN shippedOrderDetailOrder(o) THEN 'Принят'
-    WHEN invoicedOrderDetailOrder (o) THEN 'В приемке'
-    WHEN isPostedOrder(o) THEN 'В работе'
-    WHEN isConfirmedOrder(o) THEN 'Подтвержден'
-    WHEN isSentOrder(o) THEN 'Отправлен'
+status 'Статус заказа' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
+calcStatus 'Статус заказа' = CASE
+    WHEN isClosed(Order o) THEN 'Закрыт'
+    WHEN shippedOrderDetail(o) THEN 'Принят'
+    WHEN invoicedOrderDetail (o) THEN 'В приемке'
+    WHEN isPosted(o) THEN 'В работе'
+    WHEN isConfirmed(o) THEN 'Подтвержден'
+    WHEN isSent(o) THEN 'Отправлен'
     WHEN o IS Order THEN 'Создан' 
 ;
-statusOrder(o) += WHEN o IS Order THEN calcStatusOrder(o);
+status(Order o) += WHEN o IS Order THEN calcStatus(o);
 
-originalQuantityUserOrderDetail(d) <- quantityUserOrderDetail(d)
-    WHEN CHANGED (quantityUserOrderDetail(d)) IF NOT (isConfirmedUserOrderDetail(d) OR isSentUserOrderDetail(d));
+originalQuantity(UserOrderDetail d) <- quantity(d)
+    WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));
 
-backgroundOriginalQuantityOrderDetail 'Цвет' (d) = RGB(255,0,0) IF quantityOrderDetail(d) != originalQuantityOrderDetail(d);      
+backgroundOriginalQuantity 'Цвет' (OrderDetail d) = RGB(255,0,0) IF quantity(d) != originalQuantity(d);      
 
 EXTEND FORM userOrder
-    PROPERTIES (o) isSentUserOrder, isConfirmedUserOrder
-    PROPERTIES (d) BACKGROUND backgroundOriginalQuantityOrderDetail(d) originalQuantityUserOrderDetail BEFORE quantityUserOrderDetail(d) SHOWIF isConfirmedUserOrder(o)
+    PROPERTIES (o) isSent, isConfirmed
+    PROPERTIES (d) BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF isConfirmed(o)
 ;
 DESIGN userOrder {
     first {
-        MOVE PROPERTY (isConfirmedUserOrder(o)) BEFORE PROPERTY(isPostedUserOrder(o));
-        MOVE PROPERTY (isSentUserOrder(o)) BEFORE PROPERTY(isConfirmedUserOrder(o));    
+        MOVE PROPERTY (isConfirmed(o)) BEFORE PROPERTY(isPosted(o));
+        MOVE PROPERTY (isSent(o)) BEFORE PROPERTY(isConfirmed(o));    
     }
 }
 
 EXTEND FORM orders
-    PROPERTIES (o) READONLY  BEFORE isPostedOrder(o) isSentOrder, isConfirmedOrder
-    PROPERTIES (o) READONLY  AFTER isPostedOrder(o) statusOrder
-    PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantityOrderDetail(d) originalQuantityOrderDetail BEFORE quantityOrderDetail(d) SHOWIF isConfirmedOrder(o)
+    PROPERTIES (o) READONLY  BEFORE isPosted(o) isSent, isConfirmed
+    PROPERTIES (o) READONLY  AFTER isPosted(o) status
+    PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF isConfirmed(o)
 ;
 
-emailNameSkuOrderDetail = ABSTRACT VARISTRING[255] (OrderDetail) PERSISTENT;
+emailNameSku = ABSTRACT VARISTRING[255] (OrderDetail) PERSISTENT;
 
 fromEmailOrders 'E-mail, с которой идет отправка заказов поставщику' = DATA VARSTRING[300] () MINCHARWIDTH 30 PREFCHARWIDTH 50; 
 messageEmailOrders 'Предупреждающая надпись в сообщении' = DATA RICHTEXT ();
@@ -100,64 +100,64 @@ DESIGN options{
     }
 }
 
-nameOrder = CONCAT '', 'Заказ № ' + seriesNumberOrder(order) + ' от '  + dateOrder(order)+ ' '+ fullNameCustomerOrder(order);
+name = CONCAT '', 'Заказ № ' + seriesNumber(Order order) + ' от '  + date(order)+ ' '+ fullNameCustomer(order);
 
 FORM messageOrders 'Сообщение'
     OBJECTS o = Order FIXED PANEL
-    PROPERTIES(o) seriesNumberOrder, dateOrder, fullNameCustomerOrder
+    PROPERTIES(o) seriesNumber, date, fullNameCustomer
     PROPERTIES () messageEmailOrders TODRAW o
 ;
 
-calcEmailCustomerOrder 'Отправить заказ поставщику' (order) = ACTION EMAIL
-    FROM OVERRIDE fromEmailOrders(), emailContact(createdUserOrder(order))
-    SUBJECT 'Заказ №' + seriesNumberOrder(order) + ' на '  + shipmentDateOrder(order)+ ' от ' + nameCustomerOrder(order)
-    TO (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order)))
+calcEmailCustomer 'Отправить заказ поставщику' (Order.Order order) = ACTION EMAIL
+    FROM OVERRIDE fromEmailOrders(), email(createdUser(order))
+    SUBJECT 'Заказ №' + seriesNumber(order) + ' на '  + shipmentDate(order)+ ' от ' + nameCustomer(order)
+    TO (OVERRIDE email(supplier(order)), email(supplierStock(order)))
     INLINE messageOrders OBJECTS o=order
     ATTACH XLSX 
-           NAME numberOrder(order) + '/' + shipmentDateOrder(order) // без кирилицы должно быть
+           NAME number(order) + '/' + shipmentDate(order) // без кирилицы должно быть
            printOrderXLS OBJECTS o=order
 ;
 
 
-overEmailCustomerOrder = ABSTRACT ACTION LIST (Order.Order);
-skipCalcEmailCustomerOrder = ABSTRACT BOOLEAN (Order.Order);
+overEmailCustomer = ABSTRACT ACTION LIST (Order.Order);
+skipCalcEmailCustomer = ABSTRACT BOOLEAN (Order.Order);
 
-overEmailListOrder = ABSTRACT VARSTRING[400](Order.Order);
+overEmailList = ABSTRACT VARSTRING[400](Order.Order);
 
 EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
 }
 
-logSendDocumentOrder = ACTION (o) FOR ADDOBJ d = DocumentLog DO {
-    documentDocumentLog(d) <- o;
-    typeDocumentDocumentLog(d) <- objectClassName(o);
-    numberDocumentDocumentLog(d) <- numberDocument(o);  
-    seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-    dateDocumentDocumentLog(d) <- dateDocument(o);
-    typeChangeDocumentLog(d) <- TypeChange.email;
-    noteDocumentLog(d) <- VARSTRING[255](OVERRIDE emailLegalEntity(supplierOrder(o)), emailStock(supplierStockOrder(o)), overEmailListOrder(o));      
-    sessionDocumentLog(d) <- currentSession();  
-    hostnameComputerDocumentLog(d) <- hostnameCurrentComputer();
-    userLoginDocumentLog(d) <- loginCustomUser(currentUser()); 
-    nameContactDocumentLog(d) <- VARSTRING[100](nameContact(currentUser()));
-    dateTimeSessionDocumentLog(d) <- currentDateTime();  
-    supplierStockDocumentLog(d) <- supplierStockDocument(o);
-    customerStockDocumentLog(d) <- customerStockDocument(o);
+logSendDocumentOrder = ACTION (Object o) FOR ADDOBJ d = DocumentLog DO {
+    document(d) <- o;
+    typeDocument(d) <- objectClassName(o);
+    numberDocument(d) <- number[Document](o);  
+    seriesDocument(d) <- series[Document](o); 
+    dateDocument(d) <- date[Document](o);
+    typeChange(d) <- TypeChange.email;
+    note(d) <- VARSTRING[255](OVERRIDE email(supplier[Order](o)), email(supplierStock[Order](o)), overEmailList(o));      
+    session(d) <- currentSession();  
+    hostnameComputer(d) <- hostnameCurrentComputer();
+    userLogin(d) <- login(currentUser()); 
+    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+    dateTimeSession(d) <- currentDateTime();  
+    supplierStock(d) <- supplierStock[Document](o);
+    customerStock(d) <- customerStock[Document](o);
     
     FORM printOrderXLS OBJECTS o = o EXPORT XLSX;
-    fileDocumentLog(d) <- formExportFile();
+    file(d) <- formExportFile();
 }
-emailCustomerOrder 'Отправить заказ поставщику' (order)= ACTION (order) {
-    IF (OVERRIDE emailLegalEntity(supplierOrder(order)), emailStock(supplierStockOrder(order)), overEmailListOrder(order)) THEN {
+emailCustomer 'Отправить заказ поставщику' (Order.Order order)= ACTION (order) {
+    IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
         NEWSESSION {
-            IF isPostedOrder(order) THEN MESSAGE NO WAIT 'Заказ в статусе "В работе" или выше, статус изменен не будет ';
-            isSentOrder(order) <- TRUE;
+            IF isPosted(order) THEN MESSAGE NO WAIT 'Заказ в статусе "В работе" или выше, статус изменен не будет ';
+            isSent[Order](order) <- TRUE;
             IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
-            sentDateTimeOrder(order) <- currentDateTime();
+            sentDateTime[Order](order) <- currentDateTime();
             
-            overEmailCustomerOrder(order);            
+            overEmailCustomer(order);            
             
-            IF NOT skipCalcEmailCustomerOrder(order) THEN calcEmailCustomerOrder(order);
+            IF NOT skipCalcEmailCustomer(order) THEN calcEmailCustomer(order);
             apply();
         }
 
@@ -167,37 +167,37 @@ emailCustomerOrder 'Отправить заказ поставщику' (order)=
 } TOOLBAR;
 
 EXTEND FORM orders 
-    PROPERTIES(o) emailCustomerOrder  
+    PROPERTIES(o) emailCustomer  
 ; 
 DESIGN orders {
     actionContainer {
         NEW emailContainer {
             caption = 'Почта';
-                MOVE PROPERTY (emailCustomerOrder(o));
+                MOVE PROPERTY (emailCustomer(o));
         }
     }
 }
 
-orderConfirmationAgreement 'Подтверждение заказа поставщиком'  = DATA BOOLEAN (Agreement);
+orderConfirmation 'Подтверждение заказа поставщиком'  = DATA BOOLEAN (Agreement);
 
 EXTEND FORM agreement 
-    PROPERTIES(a) orderConfirmationAgreement 
+    PROPERTIES(a) orderConfirmation 
 ;
 DESIGN agreement {
     orderContainer1 {
-        MOVE PROPERTY (orderConfirmationAgreement(a));
+        MOVE PROPERTY (orderConfirmation(a));
     }    
 }
 
-orderConfirmationContractSku 'Подтверждение заказа поставщиком' = DATA BOOLEAN (ContractSku);
+orderConfirmation 'Подтверждение заказа поставщиком' = DATA BOOLEAN (ContractSku);
 EXTEND FORM userContractSku
-    PROPERTIES(c) orderConfirmationContractSku
+    PROPERTIES(c) orderConfirmation
 ;
 
 DESIGN userContractSku {
     params {
-        MOVE PROPERTY(orderConfirmationContractSku(c));
+        MOVE PROPERTY(orderConfirmation(c));
     }
 }
 
-disablePostedUserOrder (o) += (orderConfirmationAgreement(agreementUserOrder(o)) OR orderConfirmationContractSku(contractSkuUserOrder(o))) IF NOT isConfirmedUserOrder(o);
+disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirmation(contractSku(o))) IF NOT isConfirmed(o);

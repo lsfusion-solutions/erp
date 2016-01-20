@@ -3,36 +3,36 @@ MODULE PriceListCompare;
 REQUIRE PriceList, PriceListDashboard;
 
 //Подсветка строк сравнения прайсов
-isSkuPriceList (sku, priceList) = GROUP SUM 1 BY skuPriceListDetail(detail), priceListPriceListDetail(detail);
+is (sku, priceList) = GROUP SUM 1 BY sku(PriceListDetail detail), priceList(detail);
 
-priceSkuDataPriceListTypePriceList 'Цена' (sku, type, priceList) = GROUP MAX pricePriceListDetailDataPriceListType(detail, type)
-    BY skuPriceListDetail(detail), type, priceListPriceListDetail(detail);
+price 'Цена' (sku, type, priceList) = GROUP MAX price(PriceListDetail detail, DataPriceListType type)
+    BY sku(detail), type, priceList(detail);
 
-backgroundSkuPriceListPriceListPricelistType (sku, p1, p2, type) = 
-    CASE WHEN isSkuPriceList(sku, p1) AND NOT isSkuPriceList(sku, p2) THEN RGB(192,255,192)  
-         WHEN isSkuPriceList(sku, p2) AND NOT isSkuPriceList(sku, p1) THEN RGB(255,192,192)  
-         WHEN priceSkuDataPriceListTypePriceList(sku, type, p1) != priceSkuDataPriceListTypePriceList(sku, type, p2) THEN RGB(255,255,192);  
+backgroundPricelist (Sku sku, PriceList p1, PriceList p2, DataPriceListType type) = 
+    CASE WHEN is(sku, p1) AND NOT is(sku, p2) THEN RGB(192,255,192)  
+         WHEN is(sku, p2) AND NOT is(sku, p1) THEN RGB(255,192,192)  
+         WHEN price(sku, type, p1) != price(sku, type, p2) THEN RGB(255,255,192);  
 
-headerNamePriceListDataPriceListType (priceList, dataPriceListType) =
-    (namePriceListType(dataPriceListType) + ' (№' + numberPriceList(priceList) + ')') IF inPriceListDataPriceListType(priceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;    
+headerName (PriceList priceList, DataPriceListType dataPriceListType) =
+    (name[PriceListType](dataPriceListType) + ' (№' + number(priceList) + ')') IF in(priceList, dataPriceListType) MINCHARWIDTH 30 MAXCHARWIDTH 50;    
 
 EXTEND FORM userPriceList
     OBJECTS p2 = UserPriceList FIXED PANEL
-    PROPERTIES (p2) SELECTOR seriesNumberUserPriceList, dateUserPriceList, nameCurrencyUserPriceList, nameCompanyUserPriceList
+    PROPERTIES (p2) SELECTOR seriesNumber, date, nameCurrency, nameCompany
     FILTERS p != p2
     
     OBJECTS s3=Sku
-    PROPERTIES BACKGROUND backgroundSkuPriceListPriceListPricelistType(s3, p, p2, t) READONLY inputName3 = nameSku(s3), idBarcodeSku(s3), shortNameUOMSku(s3)
-    PROPERTIES(s3, t, p) READONLY priceSkuDataPriceListTypePriceList COLUMNS (t) HEADER headerNamePriceListDataPriceListType(p, t) SHOWIF headerNamePriceListDataPriceListType(p, t) BACKGROUND backgroundSkuPriceListPriceListPricelistType(s3, p, p2, t) TODRAW s3 FORCE GRID    
-    PROPERTIES(s3, t, p2) READONLY priceSkuDataPriceListTypePriceList COLUMNS (t) HEADER headerNamePriceListDataPriceListType(p2, t) SHOWIF headerNamePriceListDataPriceListType(p2, t) BACKGROUND backgroundSkuPriceListPriceListPricelistType(s3, p, p2, t) TODRAW s3 FORCE GRID    
+    PROPERTIES BACKGROUND backgroundPricelist(s3, p, p2, t) READONLY inputName3 = name(s3), idBarcode(s3), shortNameUOM(s3)
+    PROPERTIES(s3, t, p) READONLY price COLUMNS (t) HEADER headerName(p, t) SHOWIF headerName(p, t) BACKGROUND backgroundPricelist(s3, p, p2, t) TODRAW s3 FORCE GRID    
+    PROPERTIES(s3, t, p2) READONLY price COLUMNS (t) HEADER headerName(p2, t) SHOWIF headerName(p2, t) BACKGROUND backgroundPricelist(s3, p, p2, t) TODRAW s3 FORCE GRID    
     ORDER BY inputName3
-    FILTERS isSkuPriceList(s3, p) OR isSkuPriceList(s3, p2),
-            companyUserPriceList(p) == companyUserPriceList(p2)
+    FILTERS is(s3, p) OR is(s3, p2),
+            company(p) == company(p2)
     FILTERGROUP compareFilter
-        FILTER 'Удаленные' isSkuPriceList(s3, p2) AND NOT isSkuPriceList(s3, p) 'F9' 
-        FILTER 'Добавленные' isSkuPriceList(s3, p) AND NOT isSkuPriceList(s3, p2) 'F10' 
+        FILTER 'Удаленные' is(s3, p2) AND NOT is(s3, p) 'F9' 
+        FILTER 'Добавленные' is(s3, p) AND NOT is(s3, p2) 'F10' 
     FILTERGROUP differentPricesFilter
-        FILTER 'Различные цены' priceSkuDataPriceListTypePriceList(s3, t, p) != priceSkuDataPriceListTypePriceList(s3, t, p2) 'F11' 
+        FILTER 'Различные цены' price(s3, t, p) != price(s3, t, p2) 'F11' 
 ;
 
 DESIGN userPriceList{
@@ -42,10 +42,10 @@ DESIGN userPriceList{
             caption = 'Сравнение';
             MOVE p2.box{
                 type = CONTAINERH;
-                MOVE PROPERTY (seriesNumberUserPriceList(p2));
-                MOVE PROPERTY (dateUserPriceList(p2));
-                MOVE PROPERTY (nameCurrencyUserPriceList(p2));
-                MOVE PROPERTY (nameCompanyUserPriceList(p2));
+                MOVE PROPERTY (seriesNumber(p2));
+                MOVE PROPERTY (date(p2));
+                MOVE PROPERTY (nameCurrency(p2));
+                MOVE PROPERTY (nameCompany(p2));
             }
             MOVE s3.box;
         }
@@ -53,45 +53,45 @@ DESIGN userPriceList{
 }
 
 
-percentPrice 'Отклонение цены, %' (pa,pb,sk,sa,sb,da,db)  = (priceBPriceListTypeSkuStockDateTime(pb,sk,sb,db) - priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da))*100.00/
-                                                                           priceBPriceListTypeSkuStockDateTime(pa,sk,sb,db) IF priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da)!=0;
+percent 'Отклонение цены, %' (PriceListType pa,PriceListType pb,Sku sk,Stock sa,Stock sb,DATETIME da,DATETIME db)  = (priceB(pb,sk,sb,db) - priceB(pa,sk,sa,da))*100.00/
+                                                                           priceB(pa,sk,sb,db) IF priceB(pa,sk,sa,da)!=0;
 
-backgroundPercentPrice  = IF percentPrice(pa,pb,sk,sa,sb,da,db) < 0 THEN RGB(255,100,100) 
-                                   ELSE IF percentPrice(pa,pb,sk,sa,sb,da,db)> 0 THEN RGB(100,255,100);
+backgroundPercent  = IF percent(PriceListType pa,PriceListType pb,Sku sk,Stock sa,Stock sb,DATETIME da,DATETIME db) < 0 THEN RGB(255,100,100) 
+                                   ELSE IF percent(pa,pb,sk,sa,sb,da,db)> 0 THEN RGB(100,255,100);
 backgroundCompareA = RGB(250,225,225);
 backgroundCompareB = RGB(225,225,250);
 isDifferent(a,b) = IF a != b THEN TRUE;
 
 FORM comparePriceList 'Сравнение цен '
     OBJECTS pa = PriceListType FIXED PANEL, pb = PriceListType FIXED PANEL,sa=Stock FIXED PANEL, sb=Stock FIXED PANEL  
-    PROPERTIES SELECTOR BACKGROUND backgroundCompareA() namePriceListType(pa), nameStock(sa)
-    PROPERTIES SELECTOR BACKGROUND backgroundCompareB() namePriceListType(pb), nameStock(sb)
-    FILTERS activeStock(sa), isCompanyStock(sa), activeStock(sb), isCompanyStock(sb)    
+    PROPERTIES SELECTOR BACKGROUND backgroundCompareA() name(pa), name(sa)
+    PROPERTIES SELECTOR BACKGROUND backgroundCompareB() name(pb), name(sb)
+    FILTERS active(sa), isCompany(sa), active(sb), isCompany(sb)    
     
     OBJECTS da = DATETIME 'Дата' FIXED PANEL, db = DATETIME 'Дата' FIXED PANEL 
     PROPERTIES OBJVALUE (da) BACKGROUND backgroundCompareA(), OBJVALUE (db) BACKGROUND backgroundCompareB()     
     
     OBJECTS           t=GroupType FIXED PANEL 
-    PROPERTIES(t)     SELECTOR nameGroupType        
+    PROPERTIES(t)     SELECTOR name        
         
-    TREE skuTree g = Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), nameGroup(g)
-    ORDER BY orderGroup(g), nameGroup(g)
-    FILTERS groupTypeGroup(g) == t
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT 
+    TREE skuTree g = Group PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    ORDER BY order(g), name(g)
+    FILTERS groupType(g) == t
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT 
 
     OBJECTS sk = Sku FIXED GRID 
-    PROPERTIES READONLY idBarcodeSku(sk),nameSku(sk)
-    PROPERTIES READONLY BACKGROUND backgroundCompareA() currentBalanceSkuStock(sk,sa), dateTimeLastOrderBatchSkuStock(sk,sa), priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da)
-    PROPERTIES READONLY BACKGROUND backgroundCompareB() currentBalanceSkuStock(sk,sb) SHOWIF isDifferent(sa,sb),dateTimeLastOrderBatchSkuStock(sk,sb) SHOWIF isDifferent(sa,sb),
-                                                        priceBPriceListTypeSkuStockDateTime(pb,sk,sb,db)
-    PROPERTIES READONLY percentPrice(pa,pb,sk,sa,sb,da,db) BACKGROUND backgroundPercentPrice(pa,pb,sk,sa,sb,da,db)
-    FILTERS priceBPriceListTypeSkuStockDateTime(pa,sk,sa,da) OR priceBPriceListTypeSkuStockDateTime(pb,sk,sb,db), isParentGroupSku(g,sk)
+    PROPERTIES READONLY idBarcode(sk),name(sk)
+    PROPERTIES READONLY BACKGROUND backgroundCompareA() currentBalance(sk,sa), dateTimeLastOrderBatch(sk,sa), priceB(pa,sk,sa,da)
+    PROPERTIES READONLY BACKGROUND backgroundCompareB() currentBalance(sk,sb) SHOWIF isDifferent(sa,sb),dateTimeLastOrderBatch(sk,sb) SHOWIF isDifferent(sa,sb),
+                                                        priceB(pb,sk,sb,db)
+    PROPERTIES READONLY percent(pa,pb,sk,sa,sb,da,db) BACKGROUND backgroundPercent(pa,pb,sk,sa,sb,da,db)
+    FILTERS priceB(pa,sk,sa,da) OR priceB(pb,sk,sb,db), isParent(g,sk)
     FILTERGROUP ostFilter
-        FILTER 'Есть остаток' currentBalanceSkuStock(sk,sa) OR currentBalanceSkuStock(sk,sb) 'F8' 
+        FILTER 'Есть остаток' currentBalance(sk,sa) OR currentBalance(sk,sb) 'F8' 
     FILTERGROUP compareFilter
-        FILTER 'Первая цена выше' percentPrice(pa,pb,sk,sa,sb,da,db) < 0 'F9' 
-        FILTER 'Вторая цена выше' percentPrice(pa,pb,sk,sa,sb,da,db) > 0 'F10'
+        FILTER 'Первая цена выше' percent(pa,pb,sk,sa,sb,da,db) < 0 'F9' 
+        FILTER 'Вторая цена выше' percent(pa,pb,sk,sa,sb,da,db) > 0 'F10'
 ;
 
 DESIGN comparePriceList {

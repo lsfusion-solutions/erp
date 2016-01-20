@@ -4,49 +4,49 @@ REQUIRE SaleStatistics, Item;
 
 NAMESPACE Sale;
 
-statisticGroupTypeItem 'Статистическая группа' = DATA StatisticGroup (StatisticGroupType, Item);
-nameStatisticGroupTypeItem 'Статистическая группа' = nameStatisticGroup(statisticGroupTypeItem(type, item));
-sidStatisticGroupTypeItem 'Код группы' = sidStatisticGroup(statisticGroupTypeItem(type, item));
-canonicalNameStatisticGroupTypeItem 'Каноническое имя' = canonicalNameStatisticGroup(statisticGroupTypeItem(type, item));
+statistic 'Статистическая группа' = DATA StatisticGroup (StatisticGroupType, Item);
+name 'Статистическая группа' = name(statistic(StatisticGroupType type, Item item));
+sid 'Код группы' = sid(statistic(StatisticGroupType type, Item item));
+canonicalName 'Каноническое имя' = canonicalName(statistic(StatisticGroupType type, Item item));
 
-CONSTRAINT groupTypeStatisticGroup(parentStatisticGroup(group)) != groupTypeStatisticGroup(group)
-           CHECKED BY parentStatisticGroup MESSAGE 'Родительский объект статистической группы имеет неправильный тип классификатора';
+CONSTRAINT groupType(parent(StatisticGroup group)) != groupType(group)
+           CHECKED BY parent[StatisticGroup] MESSAGE 'Родительский объект статистической группы имеет неправильный тип классификатора';
 
-statisticGroupTypeSku (type, sku) += statisticGroupTypeItem (type, sku);
+statistic (StatisticGroupType type, Item sku) += statistic (type, sku);
 
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN statisticGroupTypeItem(type, d) <- statisticGroupTypeItem(type, s) WHERE statisticGroupTypeItem(type, s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    ASSIGN statistic(StatisticGroupType type, d) <- statistic(type, s) WHERE statistic(type, s);
 }
 
-CONSTRAINT groupTypeStatisticGroup(statisticGroupTypeItem(type, item))!=type
+CONSTRAINT groupType(statistic(StatisticGroupType type, Item item))!=type
     MESSAGE 'Данная группа не соответствует изменяемому типу группы';
     
 EXTEND FORM item
     OBJECTS sgt = StatisticGroupType
-    PROPERTIES(sgt) READONLY nameStatisticGroupType, idStatisticGroupType
-    FILTERS countryStatisticGroupType(sgt) == c
+    PROPERTIES(sgt) READONLY name, id
+    FILTERS country(sgt) == c
 
-    PROPERTIES(sgt,i) canonicalNameStatisticGroupTypeItem
+    PROPERTIES(sgt,i) canonicalName
 ;
 DESIGN item { regionalPrm { MOVE sgt.box;} }
 
 TABLE statisticGroupTypeItemGroup(StatisticGroupType, ItemGroup);
 @defineItemDefaultValue(statisticGroup, 'Статистическая группа (по-умолчанию)', StatisticGroup, nameStatisticGroup, statisticGroupType);
-dataSidStatisticGroupStatisticGroupStatisticGroupTypeItemGroup 'Код группы' (statisticGroupType, itemGroup) = sidStatisticGroup(dataStatisticGroupStatisticGroupTypeItemGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
+dataSidStatisticGroupStatisticGroup 'Код группы' (StatisticGroupType statisticGroupType, ItemGroup itemGroup) = sid(dataStatisticGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
 
-sidStatisticGroupStatisticGroupTypeItemGroup 'Код группы' (statisticGroupType, itemGroup) = sidStatisticGroup(statisticGroupStatisticGroupTypeItemGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
+sidStatisticGroup 'Код группы' (StatisticGroupType statisticGroupType, ItemGroup itemGroup) = sid(statisticGroup(statisticGroupType, itemGroup)) IN defaultItemGroup;
 
-assignStatisticGroupItemsItemGroup 'Назаначить всем товарам группы' (group) = ACTION NEWSESSION {
-    statisticGroupTypeItem(t, i) <- statisticGroupStatisticGroupTypeItemGroup(t, itemGroupItem(i)) WHERE isParentItemGroupItem(group, i);
+assignStatisticGroupItems 'Назаначить всем товарам группы' (ItemGroup group) = ACTION NEWSESSION {
+    statistic(StatisticGroupType t, Item i) <- statisticGroup(t, itemGroup(i)) WHERE isParent(group, i);
     apply();
 } TOOLBAR CONFIRM;
 
 EXTEND FORM itemGroup
     OBJECTS t=StatisticGroupType 
-    PROPERTIES(t)   READONLY nameStatisticGroupType, idStatisticGroupType
-    PROPERTIES(t, g)  sidStatisticGroupStatisticGroupTypeItemGroup, nameStatisticGroupStatisticGroupTypeItemGroup
-    PROPERTIES(g) assignStatisticGroupItemsItemGroup TODRAW t
-    FILTERS countryStatisticGroupType(t) == defaultCountry()
+    PROPERTIES(t)   READONLY name, id
+    PROPERTIES(t, g)  sidStatisticGroup, nameStatisticGroup
+    PROPERTIES(g) assignStatisticGroupItems TODRAW t
+    FILTERS country(t) == defaultCountry()
 ;    
 
 DESIGN itemGroup {
@@ -55,8 +55,8 @@ DESIGN itemGroup {
     }         
 }
 
-WHEN SESSION CHANGED(itemGroupItem(i)) AND t IS StatisticGroupType AND NOT statisticGroupTypeItem(t, i) DO
-    statisticGroupTypeItem(t, i) <- statisticGroupStatisticGroupTypeItemGroup(t, itemGroupItem(i));
+WHEN SESSION CHANGED(itemGroup(Item i)) AND StatisticGroupType t IS StatisticGroupType AND NOT statistic(t, i) DO
+    statistic(t, i) <- statisticGroup(t, itemGroup(i));
 
 changeStatisticGroupTypeItem 'Стат. группа товара и товарной группы должны быть равны' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -72,70 +72,70 @@ DESIGN options {
     }
 }
 
-WHEN SESSION CHANGED(statisticGroupStatisticGroupTypeItemGroup(type,itemGroupItem(item)))  AND changeStatisticGroupTypeItem()
-    AND NOT CHANGED(statisticGroupTypeItem(type, item)) DO {
+WHEN SESSION CHANGED(statisticGroup(StatisticGroupType type,itemGroup(Item item)))  AND changeStatisticGroupTypeItem()
+    AND NOT CHANGED(statistic(type, item)) DO {
     
-        statisticGroupTypeItem(type, item) <- statisticGroupStatisticGroupTypeItemGroup(type, itemGroupItem(item));
+        statistic(type, item) <- statisticGroup(type, itemGroup(item));
 }
     
 
 
-changeStatisticGroupTypeItem = ACTION (type, item) {
+change = ACTION (StatisticGroupType type, Item item) {
     REQUEST OBJECT s
-    IF statisticGroupTypeItem(type, item) THEN {
-        FORM statisticGroupDialog OBJECTS c = type, s = statisticGroupTypeItem(type, item) DIALOG SHOWDROP;
+    IF statistic(type, item) THEN {
+        FORM statisticGroupDialog OBJECTS c = type, s = statistic(type, item) DIALOG SHOWDROP;
     } ELSE {
         FORM statisticGroupDialog OBJECTS c = type DIALOG SHOWDROP;
     }
     
     IF formResult() == FormResult.ok THEN {
-        statisticGroupTypeItem(type, item) <- requestedObject();
+        statistic(type, item) <- requestedObject();
 
     } ELSE  {
         IF  formResult() == FormResult.drop THEN {
-            statisticGroupTypeItem(type, item) <- NULL;
+            statistic(type, item) <- NULL;
         }        
     }
 }
-changeDataStatisticGroupTypeItemGroup = ACTION (type, itemGroup) {
+changeData = ACTION (StatisticGroupType type, ItemGroup itemGroup) {
     REQUEST OBJECT s
-    IF dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) THEN {
-        FORM statisticGroupDialog OBJECTS c = type, s = dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) DIALOG SHOWDROP;
+    IF dataStatisticGroup(type, itemGroup) THEN {
+        FORM statisticGroupDialog OBJECTS c = type, s = dataStatisticGroup(type, itemGroup) DIALOG SHOWDROP;
     } ELSE {
         FORM statisticGroupDialog OBJECTS c = type DIALOG SHOWDROP;
     }
     IF formResult() == FormResult.ok THEN {
-        dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) <- requestedObject();
+        dataStatisticGroup(type, itemGroup) <- requestedObject();
 
     } ELSE  {
         IF  formResult() == FormResult.drop THEN {
-            dataStatisticGroupStatisticGroupTypeItemGroup(type, itemGroup) <- NULL;
+            dataStatisticGroup(type, itemGroup) <- NULL;
         }         
     }
 }
 
-fillStatisticGroupTypeItemGroup 'Заполнить стат. группу для всех товаров' = ACTION (type, itemGroup) {
-    statisticGroupTypeItem(type, item) <- statisticGroupStatisticGroupTypeItemGroup(type,itemGroup) WHERE isParentItemGroupItem(itemGroup,item);
+fill 'Заполнить стат. группу для всех товаров' = ACTION (StatisticGroupType type, ItemGroup itemGroup) {
+    statistic(type, Item item) <- statisticGroup(type,itemGroup) WHERE isParent(itemGroup,item);
 } TOOLBAR;
 
 changeBackground = RGB(224, 224, 255);
 
 EXTEND FORM statisticGroups
-    TREE skuTree sk = ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(sk), nameItemGroup(sk)     
-    PROPERTIES dataNameStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk) ON CHANGE changeDataStatisticGroupTypeItemGroup(c,sk) ON SHORTCUT fillStatisticGroupTypeItemGroup(c,sk) BACKGROUND changeBackground()
-    PROPERTIES dataSidStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk) ON CHANGE changeDataStatisticGroupTypeItemGroup(c,sk) ON SHORTCUT fillStatisticGroupTypeItemGroup(c,sk) BACKGROUND changeBackground()
+    TREE skuTree sk = ItemGroup PARENT parent
+    PROPERTIES READONLY order(sk), name(sk)     
+    PROPERTIES dataNameStatisticGroupStatisticGroup(c,sk) ON CHANGE changeData(c,sk) ON SHORTCUT fill(c,sk) BACKGROUND changeBackground()
+    PROPERTIES dataSidStatisticGroupStatisticGroup(c,sk) ON CHANGE changeData(c,sk) ON SHORTCUT fill(c,sk) BACKGROUND changeBackground()
            
-    PROPERTIES READONLY nameStatisticGroupStatisticGroupTypeItemGroup(c,sk),  sidStatisticGroupStatisticGroupTypeItemGroup(c,sk)
-    ORDER BY orderItemGroup(sk), nameItemGroup(sk)
-    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(sk) 'F5' DEFAULT
+    PROPERTIES READONLY nameStatisticGroup(c,sk),  sidStatisticGroup(c,sk)
+    ORDER BY order(sk), name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
     
     OBJECTS i = Item
-    PROPERTIES (i) READONLY nameSku, idBarcodeSku, idSku SHOWIF showIDs()
-    PROPERTIES nameStatisticGroupTypeItem(c,i) ON CHANGE changeStatisticGroupTypeItem(c,i)
-    PROPERTIES sidStatisticGroupTypeItem(c,i) ON CHANGE changeStatisticGroupTypeItem(c,i)
-    FILTERS isParentItemGroupItem(sk,i)
-    FILTERGROUP inactive1 FILTER 'Активные' activeItem(i) 'F5' DEFAULT
+    PROPERTIES (i) READONLY name, idBarcode, id[Sku] SHOWIF showIDs()
+    PROPERTIES name(c,i) ON CHANGE change(c,i)
+    PROPERTIES sid(c,i) ON CHANGE change(c,i)
+    FILTERS isParent(sk,i)
+    FILTERGROUP inactive1 FILTER 'Активные' active(i) 'F5' DEFAULT
 ;
 DESIGN statisticGroups {
     specification.box {
@@ -145,8 +145,8 @@ DESIGN statisticGroups {
             type = SPLITV;
             MOVE skuTree.tree.box {caption = 'Товарные группы';}
             MOVE i.box; 
-            PROPERTY (dataNameStatisticGroupStatisticGroupStatisticGroupTypeItemGroup(c,sk)) {caption = 'Статистическая группа';}
-            PROPERTY (nameStatisticGroupStatisticGroupTypeItemGroup(c,sk)) {caption = 'Статистическая группа (перегруженная)';}
+            PROPERTY (dataNameStatisticGroupStatisticGroup(c,sk)) {caption = 'Статистическая группа';}
+            PROPERTY (nameStatisticGroup(c,sk)) {caption = 'Статистическая группа (перегруженная)';}
         }
     }
 }

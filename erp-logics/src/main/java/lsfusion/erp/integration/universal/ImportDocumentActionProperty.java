@@ -59,13 +59,13 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importTypeDetail", importTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportTypeDetail", "nameKeyImportTypeDetail"};
-        LCP[] properties = findProperties("staticName", "staticCaption", "canonicalNamePropImportTypeDetail", "nameKeyImportTypeDetail");
+        LCP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNameProp[ImportTypeDetail]", "nameKey[ImportTypeDetail]");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importTypeDetailExpr));
         }
-        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", findProperty("replaceOnlyNullImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
-        query.addProperty("indexImportTypeImportTypeDetail", findProperty("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
-        query.and(findProperty("indexImportTypeImportTypeDetail").getExpr(importTypeObject.getExpr(), importTypeDetailExpr).getWhere());
+        query.addProperty("replaceOnlyNullImportTypeImportTypeDetail", findProperty("replaceOnlyNull[ImportType,ImportTypeDetail]").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
+        query.addProperty("indexImportTypeImportTypeDetail", findProperty("index[ImportType,ImportTypeDetail]").getExpr(importTypeObject.getExpr(), importTypeDetailExpr));
+        query.and(findProperty("index[ImportType,ImportTypeDetail]").getExpr(importTypeObject.getExpr(), importTypeDetailExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
@@ -101,10 +101,10 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "StockMappingEntry", key);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         
-        query.addProperty("idStockMappingEntry", findProperty("idStockMappingEntry").getExpr(session.getModifier(), key));
-        query.addProperty("idStockStockMappingEntry", findProperty("idStockStockMappingEntry").getExpr(session.getModifier(), key));
-        query.and(findProperty("idStockMappingEntry").getExpr(key).getWhere());
-        query.and(findProperty("importTypeStockMappingEntry").getExpr(key).compare(importTypeObject.getExpr(), Compare.EQUALS));
+        query.addProperty("idStockMappingEntry", findProperty("id[StockMappingEntry]").getExpr(session.getModifier(), key));
+        query.addProperty("idStockStockMappingEntry", findProperty("idStock[StockMappingEntry]").getExpr(session.getModifier(), key));
+        query.and(findProperty("id[StockMappingEntry]").getExpr(key).getWhere());
+        query.and(findProperty("importType[StockMappingEntry]").getExpr(key).compare(importTypeObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
@@ -118,17 +118,17 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
 
     public ImportDocumentSettings readImportDocumentSettings(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, String> stockMapping = readStockMapping(session, importTypeObject);
-        String fileExtension = trim((String) findProperty("captionFileExtensionImportType").read(session, importTypeObject));
-        String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyTypeImportType").read(session, importTypeObject));
-        boolean checkExistence = findProperty("checkExistencePrimaryKeyImportType").read(session, importTypeObject) != null;
-        String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyTypeImportType").read(session, importTypeObject));
-        boolean keyIsDigit = findProperty("keyIsDigitImportType").read(session, importTypeObject) != null;
-        Integer startRow = (Integer) findProperty("startRowImportType").read(session, importTypeObject);
+        String fileExtension = trim((String) findProperty("captionFileExtension[ImportType]").read(session, importTypeObject));
+        String primaryKeyType = parseKeyType((String) findProperty("namePrimaryKeyType[ImportType]").read(session, importTypeObject));
+        boolean checkExistence = findProperty("checkExistencePrimaryKey[ImportType]").read(session, importTypeObject) != null;
+        String secondaryKeyType = parseKeyType((String) findProperty("nameSecondaryKeyType[ImportType]").read(session, importTypeObject));
+        boolean keyIsDigit = findProperty("keyIsDigit[ImportType]").read(session, importTypeObject) != null;
+        Integer startRow = (Integer) findProperty("startRow[ImportType]").read(session, importTypeObject);
         startRow = startRow == null ? 1 : startRow;
-        Boolean isPosted = (Boolean) findProperty("isPostedImportType").read(session, importTypeObject);
-        String separator = formatSeparator((String) findProperty("separatorImportType").read(session, importTypeObject));
-        String propertyImportType = trim((String) findProperty("propertyImportTypeDetailImportType").read(session, importTypeObject));
-        boolean multipleDocuments = findProperty("multipleDocumentsImportType").read(session, importTypeObject) != null;
+        Boolean isPosted = (Boolean) findProperty("isPosted[ImportType]").read(session, importTypeObject);
+        String separator = formatSeparator((String) findProperty("separator[ImportType]").read(session, importTypeObject));
+        String propertyImportType = trim((String) findProperty("propertyImportTypeDetail[ImportType]").read(session, importTypeObject));
+        boolean multipleDocuments = findProperty("multipleDocuments[ImportType]").read(session, importTypeObject) != null;
         return new ImportDocumentSettings(stockMapping, fileExtension, primaryKeyType, checkExistence, secondaryKeyType,
                 keyIsDigit, startRow, isPosted, separator, propertyImportType, multipleDocuments);
     }
@@ -143,7 +143,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     }
     
     public LCP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
-        return findProperty((keyType == null || keyType.equals("item")) ? "itemId" : keyType.equals("barcode") ? "skuBarcodeId" : "skuBatchId");
+        return findProperty((keyType == null || keyType.equals("item")) ? "item[VARSTRING[100]]" : keyType.equals("barcode") ? "skuBarcode[STRING[15]]" : "skuBatch[VARSTRING[100]]");
     }
 
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {

@@ -7,43 +7,43 @@ NAMESPACE Purchase;
 // добавляем в инвойс декларацию
 @defineDocumentCertificate(declaration, invoice, i, 'Таможенная декларация');
 
-inInvoiceDeclaration (invoice, declaration)= GROUP SUM 1 BY invoiceInvoiceDetail(d), declarationInvoiceDetail(d);
+in (invoice, declaration)= GROUP SUM 1 BY invoice(InvoiceDetail d), declaration(d);
 
-invoicesDeclaration 'Накладные' (declaration) =
-    GROUP CONCAT shortDescriptionInvoice(invoice) IF inInvoiceDeclaration (invoice, declaration), ','
+invoices 'Накладные' (declaration) =
+    GROUP CONCAT shortDescription(Invoice invoice) IF in (invoice, Declaration declaration), ','
               BY declaration ORDER invoice MINCHARWIDTH 40 PREFCHARWIDTH 80 MAXCHARWIDTH 120;
 
-inInvoiceDeclarationInvoiceDetail = inInvoiceDeclaration(invoiceInvoiceDetail(detail), declarationInvoiceDetail(detail)); 
+inInvoiceDeclaration = in(invoice(InvoiceDetail detail), declaration(detail)); 
 
-sumInvoiceDetailDeclaration 'Сумма (по накладным)' = GROUP SUM sumInvoiceDetail(d)
-                                                          BY declarationInvoiceDetail(d) MINCHARWIDTH 15;
-sumUserInvoiceDetailDeclaration 'Сумма (по накладным)' = GROUP SUM sumUserInvoiceDetail(d)
-                                                              BY declarationUserInvoiceDetail(d) MINCHARWIDTH 15;
+sumInvoiceDetail 'Сумма (по накладным)' = GROUP SUM sum(InvoiceDetail d)
+                                                          BY declaration(d) MINCHARWIDTH 15;
+sumUserInvoiceDetail 'Сумма (по накладным)' = GROUP SUM sum(UserInvoiceDetail d)
+                                                              BY declaration(d) MINCHARWIDTH 15;
 
 // проставляем в строку инвойса декларацию из партии
 WHEN SESSION FORMS userInvoice
-    (CHANGED (batchUserInvoiceDetail(detail)) OR
-    CHANGED (skuUserInvoiceDetail(detail)) OR
-    CHANGED (customerStockUserInvoiceDetail(detail)))
-    AND NOT isHomeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail)) DO
-    dataDeclarationUserInvoiceDetail(detail)  <- IF batchUserInvoiceDetail(detail)
-                                                    THEN prevDeclarationBatch(batchUserInvoiceDetail(detail))
-                                                    ELSE prevDeclarationBatch(prevLastOrderBatchSkuStock(skuUserInvoiceDetail(detail), customerStockUserInvoiceDetail(detail)));
+    (CHANGED (batch(UserInvoiceDetail detail)) OR
+    CHANGED (sku(detail)) OR
+    CHANGED (customerStock(detail)))
+    AND NOT isHomeCurrency(userInvoice(detail)) DO
+    dataDeclaration(detail)  <- IF batch(detail)
+                                                    THEN prevDeclaration(batch(detail))
+                                                    ELSE prevDeclaration(prevLastOrderBatch(sku(detail), customerStock(detail)));
 
 // добавляем в поставку декларацию
 @defineDocumentCertificate(declaration, shipment, s, 'Таможенная декларация');
 @deriveDocumentPurchaseCertificate(declaration, shipment, customerStock, data);
 
 // Проставляем автоматически декларацию от строки инвойса
-WHEN CHANGED(declarationInvoiceDetail(invoiceDetailUserShipmentDetail(d))) AND 
-     NOT CHANGED(declarationUserShipmentDetail(d)) DO
-     dataDeclarationUserShipmentDetail(d) <- declarationInvoiceDetail(invoiceDetailUserShipmentDetail(d)); 
+WHEN CHANGED(declaration(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(declaration(d)) DO
+     dataDeclaration(d) <- declaration(invoiceDetail(d)); 
 
-declarationShipmentDetail(detail) += declarationInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+declaration(InvoiceShipmentDetail detail) += declaration(invoiceDetail(detail));
 
-overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
-    ASSIGN dataDeclarationUserShipmentDetail(s) <- declarationInvoiceDetail(i);
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+    ASSIGN dataDeclaration(s) <- declaration(i);
 }
 
-declarationBatch (batch) += declarationShipmentDetail(shipmentDetailShipmentBatch(batch));
-dateDeclarationBatch 'Дата декларации' (batch) = dateDeclaration(declarationBatch(batch));
+declaration (ShipmentBatch batch) += declaration(shipmentDetail(batch));
+dateDeclaration 'Дата декларации' (Batch batch) = date(declaration(batch));

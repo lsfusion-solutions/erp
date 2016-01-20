@@ -4,32 +4,32 @@ REQUIRE PurchaseShipment, PriceList;
 
 NAMESPACE PriceList;
 
-createPriceListPurchaseShipment 'Прайс-лист' = ACTION (shipment) NEWSESSION {
+createPriceListPurchase 'Прайс-лист' = ACTION (Purchase.Shipment shipment) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
-        fromDateUserPriceList(p) <- Purchase.dateShipment(shipment);
-        fromTimeUserPriceList(p) <- Purchase.timeShipment(shipment);
-        companyUserPriceList(p) <- Purchase.customerShipment(shipment);
-        allStocksUserPriceList(p) <- TRUE;
-        currencyUserPriceList(p) <- Purchase.currencyShipment(shipment);
+        fromDate(p) <- date(shipment);
+        fromTime(p) <- time(shipment);
+        company(p) <- customer(shipment);
+        allStocks(p) <- TRUE;
+        currency(p) <- currency(shipment);
 
-        FOR Purchase.shipmentShipmentDetail(id)==shipment ADDOBJ pd=UserPriceListDetail DO {
-            userPriceListUserPriceListDetail(pd) <- p;
-            skuPriceListDetail(pd) <- Purchase.skuShipmentDetail(id);
+        FOR shipment(Purchase.ShipmentDetail id)==shipment ADDOBJ pd=UserPriceListDetail DO {
+            userPriceList(pd) <- p;
+            sku[PriceListDetail](pd) <- sku(id);
         }
 
-        FORM userPriceList OBJECTS p = p, tt = Purchase.customerStockShipment(shipment) MANAGESESSION DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = p, tt = customerStock(shipment) MANAGESESSION DOCKEDMODAL;
     }
 
 } TOOLBAR;
 
 EXTEND FORM shipments
-    PROPERTIES(s) createPriceListPurchaseShipment BEFORE copyShipment(s)
+    PROPERTIES(s) createPriceListPurchase BEFORE copy(s)
 ;
 
 DESIGN shipments {
     main {
         createdContainer {
-            MOVE PROPERTY(createPriceListPurchaseShipment(s));
+            MOVE PROPERTY(createPriceListPurchase(s));
         }
     }
 }

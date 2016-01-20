@@ -4,30 +4,30 @@ REQUIRE Compliance;
 
 NAMESPACE Compliance;
 
-currentBalanceCompliance (compliance) = GROUP SUM  currentBalanceBatch(b) BY complianceBatch(b); 
+currentBalance (compliance) = GROUP SUM  currentBalance(Batch b) BY compliance(b); 
 
 FORM complianceBatch 'Текущие остатки по сертификатам'
     
     OBJECTS c = Compliance
-    PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
-                           nameLegalEntityCompliance
+    PROPERTIES(c) READONLY number, series, date, time, fromDate, toDate,
+                           nameLegalEntity
     FILTERGROUP filterBalanceCompliance
-        FILTER 'Сертификаты с остатком' currentBalanceCompliance(c) 'F11' DEFAULT    
+        FILTER 'Сертификаты с остатком' currentBalance(c) 'F11' DEFAULT    
                    
     FILTERGROUP filterCompliance
-        FILTER 'Сертификаты с истекшим сроком действия' toDateCompliance(c) < currentDate() 'F7'
-        FILTER 'Сертификаты со сроком действия, истекающим через 7 дней' toDateCompliance(c) < sumDate(currentDate(), 7) 'F6'
-        FILTER 'Сертификаты со сроком действия, истекающим через 30 дней' toDateCompliance(c) < sumDate(currentDate(), 30) 'F5'
-        FILTER 'Сертификаты со сроком действия, истекающим через 90 дней' toDateCompliance(c) < sumDate(currentDate(), 90) 'F4'                           
+        FILTER 'Сертификаты с истекшим сроком действия' toDate(c) < currentDate() 'F7'
+        FILTER 'Сертификаты со сроком действия, истекающим через 7 дней' toDate(c) < sum(currentDate(), 7) 'F6'
+        FILTER 'Сертификаты со сроком действия, истекающим через 30 дней' toDate(c) < sum(currentDate(), 30) 'F5'
+        FILTER 'Сертификаты со сроком действия, истекающим через 90 дней' toDate(c) < sum(currentDate(), 90) 'F4'                           
 
     OBJECTS b = Batch
-    PROPERTIES(b) READONLY nameSkuBatch, idBatch, nameBatch, numberBatch, seriesBatch, dateTimeBatch, shippedQuantityBatch,
-                  currentBalanceBatch, expiryDateBatch
+    PROPERTIES(b) READONLY nameSku, id, name, number, series, dateTime, shippedQuantity,
+                  currentBalance, expiryDate
     
-    FILTERS complianceBatch(b) == c
+    FILTERS compliance(b) == c
     
     FILTERGROUP filterBalance
-        FILTER 'Партии с остатком' currentBalanceBatch(b) 'F10' DEFAULT
+        FILTER 'Партии с остатком' currentBalance(b) 'F10' DEFAULT
 ;
 
 NAVIGATOR {
@@ -39,5 +39,5 @@ NAVIGATOR {
 }
 
 EXTEND FORM batches
-    PROPERTIES(bt) seriesNumberComplianceBatch, fromDateComplianceBatch, toDateComplianceBatch
+    PROPERTIES(bt) seriesNumberCompliance, fromDateCompliance, toDateCompliance
 ;

@@ -37,10 +37,10 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
 
             DataObject articleObject = context.getDataKeyValue(articleInterface);
 
-            String pathImageArticles = (String) findProperty("pathImageArticles").read(context);
+            String pathImageArticles = (String) findProperty("pathImageArticles[]").read(context);
             pathImageArticles = pathImageArticles == null ? "" : pathImageArticles.trim();
-            String idImageArticle = (String) findProperty("idImageArticle").read(context, articleObject);
-            String idArticle = (String) findProperty("idArticle").read(context, articleObject);
+            String idImageArticle = (String) findProperty("idImage[Article]").read(context, articleObject);
+            String idArticle = (String) findProperty("id[Article]").read(context, articleObject);
             String idImage = idImageArticle != null ? idImageArticle : idArticle; 
             String idLImage = (idImage == null || idImage.endsWith(".jpg")) ? idImage : (idImage + ".jpg");
             String idUImage = (idImage == null || idImage.endsWith(".JPG")) ? idImage : (idImage + ".JPG"); 
@@ -55,10 +55,10 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
                     if (!imageFile.exists())
                         imageFile = new File(pathImageArticles + "//" + idUImage);
                     if (imageFile.exists()) {
-                        Timestamp timeChangedImageArticle = (Timestamp) findProperty("timeChangedImageArticle").read(context, articleObject);
+                        Timestamp timeChangedImageArticle = (Timestamp) findProperty("timeChangedImage[Article]").read(context, articleObject);
                         if (timeChangedImageArticle == null || timeChangedImageArticle.getTime() != imageFile.lastModified()) {
-                            findProperty("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
-                            findProperty("timeChangedImageArticle").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
+                            findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
+                            findProperty("timeChangedImage[Article]").change(new DataObject(new Timestamp(imageFile.lastModified()), DateTimeClass.instance), context, articleObject);
                         }
                     }
                 }

@@ -6,35 +6,35 @@ PRIORITY Stock;
 
 // article
 TABLE promotionConditionArticle (PromotionCondition, Article);
-inDataPromotionConditionArticle 'В условии' = DATA BOOLEAN (PromotionCondition, Article);
+inData 'В условии' = DATA BOOLEAN (PromotionCondition, Article);
 
-inPromotionConditionArticle 'В условии' (condition, article) = OVERRIDE
-    TRUE IF inParentPromotionConditionSkuGroup(condition, itemGroupArticle(article)),                                                                            
-    inDataPromotionConditionArticle(condition, article); 
+in 'В условии' (PromotionCondition condition, Article article) = OVERRIDE
+    TRUE IF inParent(condition, itemGroup(article)),                                                                            
+    inData(condition, article); 
 
-promotionConditionsArticle 'В акциях' = GROUP CONCAT ',', namePromotionCondition(c) IF inPromotionConditionArticle(c, a)
+promotionConditions 'В акциях' = GROUP CONCAT ',', name(PromotionCondition c) IF in(c, Article a)
                                               BY a
                                               ORDER c;
-promotionConditionsPromotionConditionArticle 'В других акциях' =
-                                        GROUP CONCAT namePromotionCondition(c) IF 
-                                                     inDataPromotionConditionArticle(c, a) AND 
-                                                     dateToPromotionCondition(c) >= dateFromPromotionCondition(pc) AND
-                                                     dateToPromotionCondition(pc) >= dateFromPromotionCondition(c) AND 
+promotionConditions 'В других акциях' =
+                                        GROUP CONCAT name(PromotionCondition c) IF 
+                                                     inData(c, Article a) AND 
+                                                     dateTo(c) >= dateFrom(PromotionCondition pc) AND
+                                                     dateTo(pc) >= dateFrom(c) AND 
                                                      c != pc AS PromotionCondition, 
                                               ','
                                               BY pc, a
                                               ORDER c MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
-overInPromotionConditionSku (condition, sku) += inDataPromotionConditionArticle(condition, articleItem(sku));
+overIn (PromotionCondition condition, Item sku) += inData(condition, article(sku));
 
-nameBalancerStock (stock)= nameStock(stock) + '(остаток)' MINCHARWIDTH 15 PREFCHARWIDTH 20;    
+nameBalancer (Stock stock)= name(stock) + '(остаток)' MINCHARWIDTH 15 PREFCHARWIDTH 20;    
 
-backgroundBalancePromotion (p)= RGB(204,204,255) IF p IS Promotion;
+backgroundBalance (Promotion p)= RGB(204,204,255) IF p IS Promotion;
 
-prevCurrentBalanceArticlePromotion 'Итого (остаток)' (ar, sh) = GROUP SUM prevCurrentBalanceArticleStock(ar,ddd) IF inPromotionStore(sh, storeDepartmentStore(ddd)) BY ar, sh;
+prevCurrentBalance 'Итого (остаток)' (ar, sh) = GROUP SUM prevCurrentBalance(Article ar,DepartmentStore ddd) IF in(Promotion sh, store(ddd)) BY ar, sh;
 
-copyPropertiesPromotionCondition(promotionConditionTo, promotionConditionFrom) += ACTION (promotionConditionTo, promotionConditionFrom) {
-    inDataPromotionConditionArticle(promotionConditionTo, article) <- inDataPromotionConditionArticle(promotionConditionFrom, article);        
+copyProperties(PromotionCondition promotionConditionTo, PromotionCondition promotionConditionFrom) += ACTION (promotionConditionTo, promotionConditionFrom) {
+    inData(promotionConditionTo, Article article) <- inData(promotionConditionFrom, article);        
 }
 
 EXTEND FORM promotion
@@ -42,20 +42,20 @@ EXTEND FORM promotion
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
 
     OBJECTS ddd = Stock FIXED GRID
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ddd) 'ctrl F10' DEFAULT
-    FILTERS     inPromotionStore(sh, storeDepartmentStore(ddd))
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ddd) 'ctrl F10' DEFAULT
+    FILTERS     in(sh, store(ddd))
     
     OBJECTS ar = Article
-    PROPERTIES(ar)     READONLY idItemGroupArticle, idArticle, captionArticle, prevCurrentBalanceArticle, canonicalNameItemGroupArticle FORCE PANEL,
-                       imageArticle FORCE PANEL
-    PROPERTIES(sg, ar) READONLY promotionConditionsPromotionConditionArticle
-    PROPERTIES(sg, ar)          inPromotionConditionArticle
-    PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancerStock(ddd) BACKGROUND backgroundBalancePromotion(sh),
-                       prevCurrentBalanceArticlePromotion(ar,sh)
-    FILTERS                     isParentGroupArticle(skg, ar)
+    PROPERTIES(ar)     READONLY idItemGroup, id, caption, prevCurrentBalance, canonicalNameItemGroup FORCE PANEL,
+                       image FORCE PANEL
+    PROPERTIES(sg, ar) READONLY promotionConditions
+    PROPERTIES(sg, ar)          in
+    PROPERTIES READONLY prevCurrentBalance(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancer(ddd) BACKGROUND backgroundBalance(sh),
+                       prevCurrentBalance(ar,sh)
+    FILTERS                     isParent(skg, ar)
 
     FILTERGROUP filterArticle
-        FILTER 'В акции' inPromotionConditionArticle(sg, ar) 'F10'                        
+        FILTER 'В акции' in(sg, ar) 'F10'                        
 ;
 
 DESIGN promotion {
@@ -70,7 +70,7 @@ DESIGN promotion {
             NEW imageBox {
                 fill = 1;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(imageArticle(ar)) {
+                MOVE PROPERTY(image(ar)) {
                     caption = '';
                     fill = 1;
                 }
@@ -91,7 +91,7 @@ DESIGN promotion {
         }
         
     }         
-    PROPERTY(prevCurrentBalanceArticleStock(ar,ddd)) { minimumCharWidth = 2; preferredCharWidth = 2;} 
-    PROPERTY(prevCurrentBalanceArticlePromotion(ar,sh)) { minimumCharWidth = 4; preferredCharWidth = 4;}  
+    PROPERTY(prevCurrentBalance(ar,ddd)) { minimumCharWidth = 2; preferredCharWidth = 2;} 
+    PROPERTY(prevCurrentBalance(ar,sh)) { minimumCharWidth = 4; preferredCharWidth = 4;}  
 }
                 

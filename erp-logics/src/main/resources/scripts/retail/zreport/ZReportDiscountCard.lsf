@@ -4,42 +4,42 @@ REQUIRE ZReport, DiscountCard;
 
 NAMESPACE ZReport;
 
-discountCardReceipt (receipt) = DATA DiscountCard (Receipt) INDEXED;
-seriesNumberDiscountCardReceipt (receipt) = seriesNumberDiscountCard(discountCardReceipt(receipt));
-discountCardReceiptSaleDetail (d) = discountCardReceipt(receiptReceiptSaleDetail(d));
-discountCardReceiptReturnDetail (d) = discountCardReceipt(receiptReceiptReturnDetail(d));
-discountCardReceiptDetail (d) = discountCardReceipt(receiptReceiptDetail(d));
-idDiscountCardReceiptDetail 'Код дисконтной карты' (d) = idDiscountCard(discountCardReceiptDetail(d));
+discountCard (receipt) = DATA DiscountCard (Receipt) INDEXED;
+seriesNumberDiscountCard (Receipt receipt) = seriesNumber(discountCard(receipt));
+discountCard (ReceiptSaleDetail d) = discountCard(receipt(d));
+discountCard (ReceiptReturnDetail d) = discountCard(receipt(d));
+discountCard (ReceiptDetail d) = discountCard(receipt(d));
+idDiscountCard 'Код дисконтной карты' (ReceiptDetail d) = id(discountCard(d));
 
-CONSTRAINT dateToDiscountCard(discountCardReceipt(receipt)) < dateReceipt(receipt) CHECKED BY discountCardReceipt MESSAGE 'Закончился срок действия карты';
+CONSTRAINT dateTo(discountCard(Receipt receipt)) < date(receipt) CHECKED BY discountCard[Receipt] MESSAGE 'Закончился срок действия карты';
 
-numberDiscountCardReceipt 'Номер дисконтной карты' (receipt) = seriesNumberDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount;
-nameLegalEntityDiscountCardReceipt 'Держатель дисконтной карты' (receipt) = nameLegalEntityDiscountCard(discountCardReceipt(receipt)) IN receiptDiscount MINCHARWIDTH 30 PREFCHARWIDTH 40;
-numberDiscountCardReceiptDetail 'Номер дисконтной карты' (receiptDetail) = numberDiscountCardReceipt(receiptReceiptDetail(receiptDetail));
-nameLegalEntityDiscountCardReceiptDetail 'Держатель дисконтной карты' (receiptDetail) = nameLegalEntityDiscountCardReceipt(receiptReceiptDetail(receiptDetail)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+numberDiscountCard 'Номер дисконтной карты' (Receipt receipt) = seriesNumber(discountCard(receipt)) IN receiptDiscount;
+nameLegalEntityDiscountCard 'Держатель дисконтной карты' (Receipt receipt) = nameLegalEntity(discountCard(receipt)) IN receiptDiscount MINCHARWIDTH 30 PREFCHARWIDTH 40;
+numberDiscountCard 'Номер дисконтной карты' (ReceiptDetail receiptDetail) = numberDiscountCard(receipt(receiptDetail));
+nameLegalEntityDiscountCard 'Держатель дисконтной карты' (ReceiptDetail receiptDetail) = nameLegalEntityDiscountCard(receipt(receiptDetail)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
-countReceiptsDiscountCardZReport 'Кол-во чеков по дисконтным картам в Z-отчете' (zReport) = GROUP SUM 1 IF discountCardReceipt(receipt)  
-    BY zReportReceipt(receipt) PERSISTENT IN documentSum;
+countReceiptsDiscountCard 'Кол-во чеков по дисконтным картам в Z-отчете' (zReport) = GROUP SUM 1 IF discountCard(Receipt receipt)  
+    BY zReport(receipt) PERSISTENT IN documentSum;
     
 EXTEND FORM zReport
-    PROPERTIES(b) AFTER nameEmployeeReceipt(b) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt
+    PROPERTIES(b) AFTER nameEmployee(b) numberDiscountCard, nameLegalEntityDiscountCard
 ;
 EXTEND FORM zReports
-    PROPERTIES(b) READONLY AFTER nameEmployeeReceipt(b) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt 
+    PROPERTIES(b) READONLY AFTER nameEmployee(b) numberDiscountCard, nameLegalEntityDiscountCard 
 ;
 
 //--Накопленные суммы
 
-posSumDiscountCard 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetailReceipt (receipt) BY discountCardReceipt(receipt) PERSISTENT;
-posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
-cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
+posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) PERSISTENT;
+posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) PERSISTENT; 
+cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) PERSISTENT;
 
-externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
-totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
+externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
 
-dateFirstUseDiscountCard 'Дата первого использования'=  GROUP MIN dateReceipt(receipt) BY discountCardReceipt (receipt);
+dateFirstUse 'Дата первого использования'=  GROUP MIN date(Receipt receipt) BY discountCard (receipt);
 
 EXTEND FORM discountCards
-    PROPERTIES(d) READONLY AFTER initialSumDiscountCard(d) posSumDiscountCard, posReturnSumDiscountCard, cumulativeSumDiscountCard, externalSumDiscountCard, totalSumDiscountCard
-    PROPERTIES(d) READONLY AFTER dateDiscountCard(d) dateFirstUseDiscountCard
+    PROPERTIES(d) READONLY AFTER initialSum(d) posSum, posReturnSum, cumulativeSum, externalSum, totalSum
+    PROPERTIES(d) READONLY AFTER date(d) dateFirstUse
 ;

@@ -6,64 +6,64 @@ NAMESPACE Order;
 
 //--  Связь с заказом
 
-orderPickingOrder = ABSTRACT Order (PickingOrder) PERSISTENT;
-orderUserPickingOrder = DATA Order (UserPickingOrder);
-orderPickingOrder(pickingOrder) += orderUserPickingOrder(pickingOrder);
+order = ABSTRACT Order (PickingOrder) PERSISTENT;
+order = DATA Order (UserPickingOrder);
+order(UserPickingOrder pickingOrder) += order(pickingOrder);
 
-CONSTRAINT stockUserPickingOrder(pickingOrder) != fromOrder(orderUserPickingOrder(pickingOrder))
-    CHECKED BY orderUserPickingOrder
+CONSTRAINT stock(UserPickingOrder pickingOrder) != from(order(pickingOrder))
+    CHECKED BY order[UserPickingOrder]
         MESSAGE 'Склад в заказе на комплектацию и в заказе должны соответствовать друг другу';
 
-orderSeriesNumberPickingOrder 'Заказ' (o)= seriesNumberOrder(orderPickingOrder(o)); 
+orderSeriesNumber 'Заказ' (PickingOrder o)= seriesNumber(order(o)); 
 
 EXTEND FORM pickingOrders
-    PROPERTIES (o) READONLY orderSeriesNumberPickingOrder
+    PROPERTIES (o) READONLY orderSeriesNumber
 ;
 
-countPickingOrderOrder = GROUP SUM 1 BY orderPickingOrder(o) PERSISTENT;
+countPickingOrder = GROUP SUM 1 BY order(PickingOrder o) PERSISTENT;
 
-pickingNumberOrderDetail = ABSTRACT INTEGER (OrderDetail) PERSISTENT;
+pickingNumber = ABSTRACT INTEGER (OrderDetail) PERSISTENT;
 
 // ------------------- Свойства для заказа на комплектацию ------------------------------- //
  
-numberOrderPickingOrder 'Номер заказа' (pickingOrder) = numberOrder(orderPickingOrder(pickingOrder));
-seriesOrderPickingOrder 'Серия заказа' (pickingOrder) = seriesOrder(orderPickingOrder(pickingOrder));
+numberOrder 'Номер заказа' (PickingOrder pickingOrder) = number(order(pickingOrder));
+seriesOrder 'Серия заказа' (PickingOrder pickingOrder) = series(order(pickingOrder));
 
-toPickingOrder = toOrder(orderPickingOrder(pickingOrder));
-nameToPickingOrder 'Получатель' = nameLegalEntity(toPickingOrder(pickingOrder));
+to = to(order(PickingOrder pickingOrder));
+nameTo 'Получатель' = name(to(PickingOrder pickingOrder));
 
-toStockPickingOrder = toStockOrder(orderPickingOrder(pickingOrder));
-nameToStockPickingOrder 'Склад получателя' = nameStock(toStockPickingOrder(pickingOrder));
+toStock = toStock(order(PickingOrder pickingOrder));
+nameToStock 'Склад получателя' = name(toStock(PickingOrder pickingOrder));
 
-toStockPickingOrderDetail (d) = toStockPickingOrder(pickingOrderPickingOrderDetail(d));
-nameToStockPickingOrderDetail 'Склад получателя' (d) = nameStock(toStockPickingOrderDetail(d));
+toStock (PickingOrderDetail d) = toStock(pickingOrder(d));
+nameToStock 'Склад получателя' (PickingOrderDetail d) = name(toStock(d));
 
-addressToStockPickingOrder 'Пункт разгрузки' = addressStock(toStockPickingOrder(pickingOrder));
+addressToStock 'Пункт разгрузки' = address(toStock(PickingOrder pickingOrder));
 
 // ------------------------------ Свойства для комплектации ---------------------------- //
 
-toPicking = toPickingOrder(pickingOrderPicking(picking));
-nameToPicking 'Получатель' = nameLegalEntity(toPicking(picking));
+to = to(pickingOrder(Picking picking));
+nameTo 'Получатель' = name(to(Picking picking));
 
-toStockPicking = toStockPickingOrder(pickingOrderPicking(picking));
-nameToStockPicking 'Склад получателя' = nameStock(toStockPicking(picking));
+toStock = toStock(pickingOrder(Picking picking));
+nameToStock 'Склад получателя' = name(toStock(Picking picking));
 
-addressToStockPicking 'Пункт разгрузки' = addressStock(toStockPicking(picking));
+addressToStock 'Пункт разгрузки' = address(toStock(Picking picking));
 
 // ------------------------------------ Кол-во по заказам -------------------------------------- //
 
-pickingPickingDetailOrderSku 'Скомплектовано' (order, sku) = GROUP SUM quantityPickingDetail(pickingDetail)
-                                                           BY orderPickingOrder(pickingOrderPicking(pickingPickingDetail(pickingDetail))), skuPickingDetail(pickingDetail);
-pickingQuantityOrderDetail 'Кол-во (скомплектовано)' (orderDetail) = PARTITION UNGROUP pickingPickingDetailOrderSku
-                                                          LIMIT STRICT quantityOrderDetail (orderDetail)
-                                                          BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
+pickingPickingDetail 'Скомплектовано' (order, sku) = GROUP SUM quantity(PickingDetail pickingDetail)
+                                                           BY order(pickingOrder(picking(pickingDetail))), sku(pickingDetail);
+pickingQuantity 'Кол-во (скомплектовано)' (OrderDetail orderDetail) = PARTITION UNGROUP pickingPickingDetail
+                                                          LIMIT STRICT quantity (orderDetail)
+                                                          BY order(orderDetail), sku(orderDetail)
                                                           ORDER orderDetail PERSISTENT;
 
 //-- Количество излишне подобранных товаров, которых нет в заказе
-quantityPickingPickingDetailOrderSku (order, sku)= GROUP SUM pickingQuantityOrderDetail(detail) BY orderOrderDetail(detail), skuOrderDetail(detail);
+quantityPickingPickingDetail (order, sku)= GROUP SUM pickingQuantity(OrderDetail detail) BY order(detail), sku(detail);
 
-excessQuantityPickingPickingDetailOrderSku (order, sku) = pickingPickingDetailOrderSku(order, sku) (-) quantityPickingPickingDetailOrderSku (order, sku);
-excessQuantityPickingPickingDetailOrder( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetailOrderSku (order, sku) > 0 BY order;
+excessQuantityPickingPickingDetail (Order order, Sku sku) = pickingPickingDetail(order, sku) (-) quantityPickingPickingDetail (order, sku);
+excessQuantityPickingPickingDetail( order) = GROUP SUM 1 IF excessQuantityPickingPickingDetail (Order order, Sku sku) > 0 BY order;
 
 // ------------------------------------ Создание комплектации по заказу -------------------------------- //
 
@@ -74,8 +74,8 @@ CLASS OrderPickingOrderDetail 'Строка заказа на комплекта
 
 @defineDocumentTables(orderPickingOrder);
 
-quantityOrderPickingNumber = GROUP SUM quantityOrderDetail(d) BY orderOrderDetail(d), pickingNumberOrderDetail(d);
-overQuantityOrderINTEGER (order, pickingNumber) = quantityOrderPickingNumber (order, pickingNumber) AND createPickingOrderOrder(order);
+quantityPickingNumber = GROUP SUM quantity(OrderDetail d) BY order(d), pickingNumber(d);
+overQuantity (Order order, INTEGER pickingNumber) = quantityPickingNumber (order, pickingNumber) AND createPickingOrder(order);
 
 @defineAggregationClass(order, Order, pickingNumber, INTEGER, orderPickingOrder, OrderPickingOrder, overQuantity);
 @defineDocumentAggregationHeaderTime(order, orderPickingOrder);
@@ -83,104 +83,104 @@ overQuantityOrderINTEGER (order, pickingNumber) = quantityOrderPickingNumber (or
 
 @defineAggregation(orderDetail, orderPickingOrderDetail, createPickingOrder);
 
-orderPickingOrderOrderPickingOrderDetail (detail) = orderPickingOrderOrderPickingNumber(orderOrderDetail(orderDetailOrderPickingOrderDetail(detail)), pickingNumberOrderDetail(orderDetailOrderPickingOrderDetail(detail)));
+orderPickingOrder (OrderPickingOrderDetail detail) = orderPickingOrder(order(orderDetail(detail)), pickingNumber(orderDetail(detail)));
 
 @defineDocumentAggregationDetailTime(order, orderPickingOrder);
 
 @defineDocumentHeaderCount(orderPickingOrder);
 
-isPostedPickingOrder(order) += isPostedOrder(orderOrderPickingOrder(order));
-isClosedPickingOrder(order) += isClosedOrder(orderOrderPickingOrder(order)); 
+isPosted(OrderPickingOrder order) += isPosted(order(order));
+isClosed(OrderPickingOrder order) += isClosed(order(order)); 
 
-pickingOrderPickingOrderDetail(detail) += orderPickingOrderOrderPickingOrderDetail(detail);
+pickingOrder(OrderPickingOrderDetail detail) += orderPickingOrder(detail);
 
 @defineDocumentDetailIndex(orderPickingOrder);
 
-datePickingOrder(order) += dateOrderPickingOrder(order);
-timePickingOrder(order) += timeOrderPickingOrder(order);
+date(OrderPickingOrder order) += date(order);
+time(OrderPickingOrder order) += time(order);
 
-stockPickingOrder(order) += fromStockOrder(orderOrderPickingOrder(order));
+stock(OrderPickingOrder order) += fromStock(order(order));
 
-indexOrderPickingOrder 'Номер комплектации (в заказе)' (pickingOrder) = PARTITION SUM 1 BY orderOrderPickingOrder(pickingOrder) ORDER pickingOrder MINCHARWIDTH 4 PREFCHARWIDTH 4;
-numberIndexPickingOrder 'Комплектации заказа' (pickingOrder) = STRING[18] (CONCAT '/', numberOrder(orderOrderPickingOrder(pickingOrder)), 
-    indexOrderPickingOrder(pickingOrder) IF countPickingOrderOrder(orderOrderPickingOrder(pickingOrder))>1);
+index 'Номер комплектации (в заказе)' (OrderPickingOrder pickingOrder) = PARTITION SUM 1 BY order(pickingOrder) ORDER pickingOrder MINCHARWIDTH 4 PREFCHARWIDTH 4;
+numberIndex 'Комплектации заказа' (OrderPickingOrder pickingOrder) = STRING[18] (CONCAT '/', number(order(pickingOrder)), 
+    index(pickingOrder) IF countPickingOrder(order(pickingOrder))>1);
      
-numberPickingOrder(order) += numberIndexPickingOrder(order);
-seriesPickingOrder(order) += seriesOrder(orderOrderPickingOrder(order));
+number(OrderPickingOrder order) += numberIndex(order);
+series(OrderPickingOrder order) += series(order(order));
 
-seriesNumberOrderPickingOrder 'Серия/номер документа' (order) = seriesNumberOrder(orderOrderPickingOrder(order));
+seriesNumber 'Серия/номер документа' (OrderPickingOrder order) = seriesNumber(order(order));
 
-notePickingOrder(order) += noteOrder(orderOrderPickingOrder(order));
+note(OrderPickingOrder order) += note(order(order));
 
 @defineDocumentDescription(orderPickingOrder, OrderPickingOrderDetail, 'Заказ на комплектацию на основе заказа');
-descriptionPickingOrder (order) += descriptionOrderPickingOrder(order);
+description (OrderPickingOrder order) += description(order);
 
 @defineDocumentAggregationDetailSku(order, orderPickingOrder, sku);
-skuPickingOrderDetail(detail) += skuOrderPickingOrderDetail(detail);
+sku(OrderPickingOrderDetail detail) += sku(detail);
 
-quantityPickingOrderDetail(detail) += quantityOrderDetail(orderDetailOrderPickingOrderDetail(detail));
-batchPickingOrderDetail(detail) += batchOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+quantity(OrderPickingOrderDetail detail) += quantity(orderDetail(detail));
+batch(OrderPickingOrderDetail detail) += batch(orderDetail(detail));
 
 @defineDocumentAbstractDetailBin(order);
-binPickingOrderDetail(detail) += binOrderDetail(orderDetailOrderPickingOrderDetail(detail));
+bin(OrderPickingOrderDetail detail) += bin(orderDetail(detail));
 
-orderPickingOrder(pickingOrder) += orderOrderPickingOrder(pickingOrder);
-editPickingOrder(pickingOrder) += ACTION EXEC editOrder(orderOrderPickingOrder(pickingOrder));
+order(OrderPickingOrder pickingOrder) += order(pickingOrder);
+edit(OrderPickingOrder pickingOrder) += ACTION EXEC edit(order(pickingOrder));
 
-acceptedOrder 'Принят в работу' (order) = GROUP SUM 1 IF acceptedPickingOrder(o) BY orderPickingOrder(o);
-countPerformerOrder 'Комплектовщики' (order) = GROUP SUM 1 IF performerPickingOrder(order) BY orderPickingOrder(order) PERSISTENT;
-namePerformerOrder 'Комплектовщики' (order) = GROUP CONCAT namePerformerPickingOrder(o), ',' BY orderPickingOrder(o);
+accepted 'Принят в работу' (order) = GROUP SUM 1 IF accepted(PickingOrder o) BY order(o);
+countPerformer 'Комплектовщики' (order) = GROUP SUM 1 IF performer(PickingOrder order) BY order(order) PERSISTENT;
+namePerformer 'Комплектовщики' (order) = GROUP CONCAT namePerformer(PickingOrder o), ',' BY order(o);
 
-diffQuantityPickingDetailSkuPickingOrder 'Расхождение' = quantityPickingOrderDetailSkuPickingOrder(sku, order) (-) quantityPickingDetailSkuPickingOrder(sku, order);
-diffQuantityPickingDetailPickingOrder 'Расхождение' = GROUP SUM diffQuantityPickingDetailSkuPickingOrder(sku, order) BY order PERSISTENT;
-diffQuantityPickingDetailOrder 'Расхождение' = GROUP SUM diffQuantityPickingDetailPickingOrder(o) BY orderPickingOrder(o) PERSISTENT;
+diffQuantityPickingDetail 'Расхождение' = quantityPickingOrderDetail(Sku sku, PickingOrder order) (-) quantityPickingDetail(sku, order);
+diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(Sku sku, PickingOrder order) BY order PERSISTENT;
+diffQuantityPickingDetail 'Расхождение' = GROUP SUM diffQuantityPickingDetail(PickingOrder o) BY order(o) PERSISTENT;
 
-countPickingPickingOrder 'Кол-во комплектаций' = GROUP SUM 1 BY orderPickingOrder(pickingOrderPicking(picking)) PERSISTENT;
+countPickingPicking 'Кол-во комплектаций' = GROUP SUM 1 BY order(pickingOrder(Picking picking)) PERSISTENT;
 //calcPartOrder 'Частично собран' (order) = GROUP SUM 1 IF quantityPickingsPickingOrder(o) BY orderPickingOrder(o);
 //calcFullOrder 'Полностью собран' (order) = [= GROUP SUM 1 IF calcFullPickingOrder(o) BY orderPickingOrder(o)](order) == countPickingOrderOrder(order);
-calcPartOrder 'Частично собран' (order) = countPickingOrderOrder(order) == countPickingPickingOrder(order) AND diffQuantityPickingDetailOrder(order);
-calcFullOrder 'Полностью собран' (order) = countPickingOrderOrder(order) AND NOT diffQuantityPickingDetailOrder(order); 
-pickedOrder (order) = calcPartOrder(order) OR calcFullOrder(order);
+calcPart 'Частично собран' (Order order) = countPickingOrder(order) == countPickingPicking(order) AND diffQuantityPickingDetail(order);
+calcFull 'Полностью собран' (Order order) = countPickingOrder(order) AND NOT diffQuantityPickingDetail(order); 
+picked (Order order) = calcPart(order) OR calcFull(order);
 
-startDateTimeOrder 'Начало комплектации' (order) = GROUP MIN startDateTimePickingOrder(o) BY orderPickingOrder(o);
-finishDateTimeOrder 'Завершение комплектации' (order) = GROUP MAX finishDateTimePickingOrder(o) BY orderPickingOrder(o);
+startDateTime 'Начало комплектации' (order) = GROUP MIN startDateTime(PickingOrder o) BY order(o);
+finishDateTime 'Завершение комплектации' (order) = GROUP MAX finishDateTime(PickingOrder o) BY order(o);
 
-statusPickingOrder 'Статус комплектации' (order) = CASE
-    WHEN calcFullOrder(order) THEN 'Полностью собран'
-    WHEN calcPartOrder(order) THEN 'Частично собран'
-    WHEN acceptedOrder(order) THEN 'В комплектации'
-    WHEN countPickingOrderOrder(order) THEN 'Ожидает комплектацию' 
+statusPicking 'Статус комплектации' (Order order) = CASE
+    WHEN calcFull(order) THEN 'Полностью собран'
+    WHEN calcPart(order) THEN 'Частично собран'
+    WHEN accepted(order) THEN 'В комплектации'
+    WHEN countPickingOrder(order) THEN 'Ожидает комплектацию' 
     WHEN order IS Order THEN 'Без комплектации';
 
-backgroundStatusPickingOrder 'Цвет' (order) = CASE
-    WHEN calcFullOrder(order) THEN RGB(212,255,212)
-    WHEN calcPartOrder(order) THEN RGB(255,238,165)
-    WHEN acceptedOrder(order) THEN RGB(255,238,165)
-    WHEN countPickingOrderOrder(order) THEN RGB(212,212,255) 
+backgroundStatusPicking 'Цвет' (Order order) = CASE
+    WHEN calcFull(order) THEN RGB(212,255,212)
+    WHEN calcPart(order) THEN RGB(255,238,165)
+    WHEN accepted(order) THEN RGB(255,238,165)
+    WHEN countPickingOrder(order) THEN RGB(212,212,255) 
     WHEN order IS Order THEN RGB(255,200,216);
     
-statusPickingOrderOrderDetail = statusPickingOrder(orderOrderDetail(orderDetail));
-backgroundStatusPickingOrderOrderDetail = backgroundStatusPickingOrder(orderOrderDetail(orderDetail));
+statusPickingOrder = statusPicking(order(OrderDetail orderDetail));
+backgroundStatusPickingOrder = backgroundStatusPicking(order(OrderDetail orderDetail));
     
-packQuantityOrder 'Кол-во собранных мест' (order) = GROUP SUM packQuantityPickingOrder(o) BY orderPickingOrder(o);
-grossWeightOrderPickingOrder 'Вес заказа' (order) = GROUP SUM grossWeightPickingOrderDetailPickingOrder(o) BY orderPickingOrder(o); 
+packQuantity 'Кол-во собранных мест' (order) = GROUP SUM packQuantity(PickingOrder o) BY order(o);
+grossWeightOrderPicking 'Вес заказа' (order) = GROUP SUM grossWeightPickingOrderDetail(PickingOrder o) BY order(o); 
 
-notPickingOrder 'Без комплектаций' (order) = order IS Order AND NOT (calcFullOrder(order) OR calcPartOrder(order) OR acceptedOrder(order));
+notPicking 'Без комплектаций' (Order order) = order IS Order AND NOT (calcFull(order) OR calcPart(order) OR accepted(order));
 
 META defineOrderPickingOrder(sign, stockProp)
 
     @defineDocumentInterfaceProperty (order, createPickingOrder, 'Создать заказ на комплектацию');
-    Order.createPickingOrderOrder(o) += createPickingOrderOrder(o); 
+    createPickingOrder[Order.Order](Order o) += createPickingOrder(o); 
 
     EXTEND FORM userOrder
-        PROPERTIES(o)  createPickingOrderUserOrder
+        PROPERTIES(o)  createPickingOrder
     ;
     DESIGN userOrder {
         headerCreateDocuments {
             NEW headerPicking {
                 type = CONTAINERH;
                 caption = 'Заказ на комплектацию';          
-                MOVE PROPERTY(createPickingOrderUserOrder(o));
+                MOVE PROPERTY(createPickingOrder(o));
 
             }
         }
@@ -188,36 +188,36 @@ META defineOrderPickingOrder(sign, stockProp)
     //-------------------- Ячейки -----------------------//
 
     @defineDocumentInterfaceDetailBin(order);
-    Order.binOrderDetail(d) += binOrderDetail(d);
+    bin[Order.OrderDetail](OrderDetail d) += bin(d);
     
     @extendFormInterfaceDetailBin(order, o, , quantity);
 
     @deriveDocumentOperationProperty(UserOrder, showBin);
     
-    countUserOrderDetailUserOrderBin 'Кол-во строк' = GROUP SUM 1 BY userOrderUserOrderDetail(d), binUserOrderDetail(d);
-    quantityUserOrderBin 'Кол-во' = GROUP SUM quantityUserOrderDetail(d) BY userOrderUserOrderDetail(d), binUserOrderDetail(d);
+    countUserOrderDetail 'Кол-во строк' = GROUP SUM 1 BY userOrder(UserOrderDetail d), bin(d);
+    quantity 'Кол-во' = GROUP SUM quantity(UserOrderDetail d) BY userOrder(d), bin(d);
 
     // ---------------------- Разбиение заказа на несколько комплектаций ------------------- //
     
-    pickingNumberOrderDetail 'Номер комплектации' = ABSTRACT INTEGER (OrderDetail);
-    pickingNumberUserOrderDetail 'Номер комплектации' = DATA INTEGER (UserOrderDetail);
-    pickingNumberUserOrderDetail(d) <- 1 WHEN SET(d IS UserOrderDetail);
+    pickingNumber 'Номер комплектации' = ABSTRACT INTEGER (OrderDetail);
+    pickingNumber 'Номер комплектации' = DATA INTEGER (UserOrderDetail);
+    pickingNumber(UserOrderDetail d) <- 1 WHEN SET(d IS UserOrderDetail);
     
-    pickingNumberOrderDetail(d) += pickingNumberUserOrderDetail(d);
-    Order.pickingNumberOrderDetail (d) += pickingNumberOrderDetail(d);
+    pickingNumber(UserOrderDetail d) += pickingNumber(d);
+    pickingNumber[Order.OrderDetail] (OrderDetail d) += pickingNumber(d);
     
-    pickingNumberUserOrderBin 'Номер комплектации' = GROUP MAX pickingNumberUserOrderDetail(d) BY userOrderUserOrderDetail(d), binUserOrderDetail(d);
-    changePickingNumberUserOrderBin = ACTION (o, b) {
+    pickingNumber 'Номер комплектации' = GROUP MAX pickingNumber(UserOrderDetail d) BY userOrder(d), bin(d);
+    changePickingNumber = ACTION (UserOrder o, Bin b) {
         REQUEST INTEGER INPUT;
-        pickingNumberUserOrderDetail(d) <- requestedInteger() WHERE userOrderUserOrderDetail(d) == o AND binUserOrderDetail(d) == b;
+        pickingNumber(UserOrderDetail d) <- requestedInteger() WHERE userOrder(d) == o AND bin(d) == b;
     }
 
-    pickingOrderCountUserOrder 'Кол-во комплектаций' = DATA INTEGER (UserOrder);
-    pickingOrderCountUserOrder(o) <- 1 WHEN SET(o IS UserOrder);
+    pickingOrderCount 'Кол-во комплектаций' = DATA INTEGER (UserOrder);
+    pickingOrderCount(UserOrder o) <- 1 WHEN SET(o IS UserOrder);
 
-    calculatePickingNumberUserOrder = ACTION (o) {
+    calculatePickingNumber = ACTION (UserOrder o) {
         LOCAL countDetail = INTEGER();
-        countDetail() <- (countUserOrderDetailUserOrder(o) + pickingOrderCountUserOrder(o) - 1) / pickingOrderCountUserOrder(o);
+        countDetail() <- (countUserOrderDetail(o) + pickingOrderCount(o) - 1) / pickingOrderCount(o);
 
         LOCAL pickingNumber = INTEGER();
         pickingNumber() <- 1;
@@ -225,9 +225,9 @@ META defineOrderPickingOrder(sign, stockProp)
         LOCAL quantity = INTEGER();
         quantity() <- 0;
         
-        FOR countUserOrderDetailUserOrderBin(o, b) ORDER nameBin(b) DO {
-            pickingNumberUserOrderDetail(d) <- pickingNumber() WHERE userOrderUserOrderDetail(d) == o AND binUserOrderDetail(d) == b;
-            quantity() <- quantity() + countUserOrderDetailUserOrderBin(o, b);
+        FOR countUserOrderDetail(o, Bin b) ORDER name(b) DO {
+            pickingNumber(UserOrderDetail d) <- pickingNumber() WHERE userOrder(d) == o AND bin(d) == b;
+            quantity() <- quantity() + countUserOrderDetail(o, b);
             IF (quantity() >= countDetail()) THEN {
                 quantity() <- 0;
                 pickingNumber() <- pickingNumber() + 1;
@@ -235,28 +235,28 @@ META defineOrderPickingOrder(sign, stockProp)
         }   
     }
 
-    changePickingOrderCountUserOrder = ACTION (o) {
+    changePickingOrderCount = ACTION (UserOrder o) {
         REQUEST INTEGER INPUT;
-        pickingOrderCountUserOrder(o) <- MIN (MAX requestedInteger(), 1), 5;
-        calculatePickingNumberUserOrder(o);
+        pickingOrderCount(o) <- MIN (MAX requestedInteger(), 1), 5;
+        calculatePickingNumber(o);
     }
     
     EXTEND FORM userOrder
-        PROPERTIES(o) SHOWIF createPickingOrderUserOrder(o) pickingOrderCountUserOrder ON CHANGE changePickingOrderCountUserOrder(o) 
+        PROPERTIES(o) SHOWIF createPickingOrder(o) pickingOrderCount ON CHANGE changePickingOrderCount(o) 
         
-        PROPERTIES(d) SHOWIF createPickingOrderUserOrder(o) pickingNumberUserOrderDetail AFTER nameBinUserOrderDetail(d)
+        PROPERTIES(d) SHOWIF createPickingOrder(o) pickingNumber AFTER nameBin(d)
          
         OBJECTS bn = Bin FIXED GRID
-        PROPERTIES(bn) READONLY SHOWIF createPickingOrderUserOrder(o)    nameBin 
-        PROPERTIES(o, bn) SHOWIF createPickingOrderUserOrder(o)          countUserOrderDetailUserOrderBin READONLY, quantityUserOrderBin READONLY, 
-                                                                         pickingNumberUserOrderBin ON CHANGE changePickingNumberUserOrderBin(o, bn)
-        FILTERS quantityUserOrderBin(o, bn)
-        ORDER BY nameBin(bn)
+        PROPERTIES(bn) READONLY SHOWIF createPickingOrder(o)    name 
+        PROPERTIES(o, bn) SHOWIF createPickingOrder(o)          countUserOrderDetail READONLY, quantity READONLY, 
+                                                                         pickingNumber ON CHANGE changePickingNumber(o, bn)
+        FILTERS quantity(o, bn)
+        ORDER BY name(bn)
     ;
     
     DESIGN userOrder {
         headerPicking {
-            MOVE PROPERTY(pickingOrderCountUserOrder(o));
+            MOVE PROPERTY(pickingOrderCount(o));
         }
         specification.box {
             MOVE bn.box {
@@ -268,18 +268,18 @@ META defineOrderPickingOrder(sign, stockProp)
     //-------------------- Расширяем операции свойством по созданию заказа на комплектацию -----------------------//
 
     EXTEND FORM orders
-        PROPERTIES(o) READONLY FORCE PANEL namePerformerOrder, startDateTimeOrder, finishDateTimeOrder, packQuantityOrder                       
-        PROPERTIES(o) READONLY statusPickingOrder BACKGROUND backgroundStatusPickingOrder(o) BEFORE countOrderDetailOrder(o)             
+        PROPERTIES(o) READONLY FORCE PANEL namePerformer, startDateTime, finishDateTime, packQuantity                       
+        PROPERTIES(o) READONLY statusPicking BACKGROUND backgroundStatusPicking(o) BEFORE countOrderDetail(o)             
     ;
     DESIGN orders {
         documentHistory {
             NEW picking {
                 caption = 'Комплектация';
                 type = CONTAINERV;
-                MOVE PROPERTY(namePerformerOrder(o));
-                MOVE PROPERTY(startDateTimeOrder(o));
-                MOVE PROPERTY(finishDateTimeOrder(o));
-                MOVE PROPERTY(packQuantityOrder(o));
+                MOVE PROPERTY(namePerformer(o));
+                MOVE PROPERTY(startDateTime(o));
+                MOVE PROPERTY(finishDateTime(o));
+                MOVE PROPERTY(packQuantity(o));
             }
         }
     }

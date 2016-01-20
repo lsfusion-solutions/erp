@@ -4,52 +4,52 @@ REQUIRE PurchaseDeclarationDetail, LegalEntityBy, Item;
 
 NAMESPACE Purchase;
 
-UNPLegalEntityDeclaration 'Полное имя импортера' (declaration) = UNPLegalEntity(legalEntityDeclaration(declaration));
+UNPLegalEntity 'Полное имя импортера' (Declaration declaration) = UNP(legalEntity(declaration));
 
-customsCodeUOM 'Код в декларации' = DATA VARSTRING[3] (UOM);
+customsCode 'Код в декларации' = DATA VARSTRING[3] (UOM);
 EXTEND FORM UOM
-    PROPERTIES(u) customsCodeUOM
+    PROPERTIES(u) customsCode
 ;
 EXTEND FORM UOMs
-    PROPERTIES(u) READONLY customsCodeUOM
+    PROPERTIES(u) READONLY customsCode
 ;
-customsCodeUOMDeclarationDetail 'Код ед. изм. в декларации' (d) = customsCodeUOM(UOMDeclarationDetail(d));
+customsCodeUOM 'Код ед. изм. в декларации' (DeclarationDetail d) = customsCode(UOM(d));
 
-typePaymentCustomsDocument 'Вид платежа' = DATA VARSTRING[4] (CustomsDocument);
-refDocCustomsDocument 'Ссылка на документ' = DATA VARSTRING[6] (CustomsDocument);
-descriptionCustomsDocument 'Описание' = DATA VARSTRING[60] (CustomsDocument);
+typePayment 'Вид платежа' = DATA VARSTRING[4] (CustomsDocument);
+refDoc 'Ссылка на документ' = DATA VARSTRING[6] (CustomsDocument);
+description 'Описание' = DATA VARSTRING[60] (CustomsDocument);
 
-markinDeclarationDetail = ABSTRACT VARSTRING[1000] (DeclarationDetail);
-extraComponentsQuantityDeclarationDetail 'Кол-во с учетом комплектов' = ABSTRACT NUMERIC[14,3] (DeclarationDetail);
+markin = ABSTRACT VARSTRING[1000] (DeclarationDetail);
+extraComponentsQuantity 'Кол-во с учетом комплектов' = ABSTRACT NUMERIC[14,3] (DeclarationDetail);
 
-isVATCustomsExceptionCustomsDocument 'По льготам' = DATA BOOLEAN (CustomsDocument); 
+isVATCustomsException 'По льготам' = DATA BOOLEAN (CustomsDocument); 
 
-inDeclarationDetailBrand = GROUP SUM 1 IF inDeclarationDetailUserInvoiceDetail(d, i) BY d, brandItem(skuUserInvoiceDetail(i));
-nameBrandDeclarationDetail 'Бренды' =
-    GROUP CONCAT nameBrand(b) IF inDeclarationDetailBrand(d, b), ','
+in = GROUP SUM 1 IF in(DeclarationDetail d, UserInvoiceDetail i) BY d, brand(sku(i));
+nameBrand 'Бренды' =
+    GROUP CONCAT name(Brand b) IF in(DeclarationDetail d, b), ','
               BY d ORDER b MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
-inDeclarationDetailManufacturer = GROUP SUM 1 IF inDeclarationDetailUserInvoiceDetail(d, i) BY d, manufacturerItem(skuUserInvoiceDetail(i));
-nameManufacturerDeclarationDetail 'Производители' =
-    GROUP CONCAT nameManufacturer(m) IF inDeclarationDetailManufacturer(d, m), ','
+in = GROUP SUM 1 IF in(DeclarationDetail d, UserInvoiceDetail i) BY d, manufacturer(sku(i));
+nameManufacturer 'Производители' =
+    GROUP CONCAT name(Manufacturer m) IF in(DeclarationDetail d, m), ','
               BY d ORDER m MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
 EXTEND FORM declaration
-    PROPERTIES(cd) BEFORE deleted descriptionCustomsDocument, refDocCustomsDocument, typePaymentCustomsDocument, isVATCustomsExceptionCustomsDocument
+    PROPERTIES(cd) BEFORE deleted description, refDoc, typePayment, isVATCustomsException
 ;
 
-isVATCustomsExceptionCustomsGroup 'Льготный НДС' = DATA BOOLEAN (CustomsGroup);
+isVATCustomsException 'Льготный НДС' = DATA BOOLEAN (CustomsGroup);
 EXTEND FORM customsGroup
-    PROPERTIES(cg) isVATCustomsExceptionCustomsGroup  
+    PROPERTIES(cg) isVATCustomsException  
 ;
 DESIGN customsGroup {
     dateContainer {
-        MOVE PROPERTY(isVATCustomsExceptionCustomsGroup(cg));
+        MOVE PROPERTY(isVATCustomsException(cg));
     }
 }
 
 EXTEND FORM customsGroups
-    PROPERTIES(cg) READONLYIF isReadonly() BEFORE deleteg isVATCustomsExceptionCustomsGroup 
+    PROPERTIES(cg) READONLYIF isReadonly() BEFORE deleteg isVATCustomsException 
 ;
 
-isVATCustomsExceptionDeclarationDetail(d) = VATCustomsExceptionDeclarationDetail(d) OR isVATCustomsExceptionCustomsGroup(customsGroupDeclarationDetail(d)); 
+isVATCustomsException(DeclarationDetail d) = VATCustomsException(d) OR isVATCustomsException(customsGroup(d)); 

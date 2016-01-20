@@ -9,175 +9,175 @@ GROUP invoices 'Приемка по накладным' : base;
 @defineDocumentAbstractDetailPricePrefix(invoice, shipment, ' учетная');
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, shipment, ' учетная');
 @defineDocumentHeaderSumPrefix(invoice, shipment, ' учетная');
-shipmentDateInvoice 'Дата поставки' = ABSTRACT DATE (Invoice) IN documentHeader;
+shipmentDate 'Дата поставки' = ABSTRACT DATE (Invoice) IN documentHeader;
 
-createShipmentInvoice 'Создать поставку' (invoice) = ABSTRACT BOOLEAN(Invoice);
+createShipment 'Создать поставку' (invoice) = ABSTRACT BOOLEAN(Invoice);
 
-invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT INDEXED;
-descriptionIndexInvoiceDetailShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailShipmentDetail(detail));
+invoiceDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT INDEXED;
+descriptionIndexInvoiceDetail 'Строка накладной' (ShipmentDetail detail) = descriptionIndex(invoiceDetail(detail));
 
 @defineDocumentAbstractDetailQuantityCustomPrefix(invoiceDetail, shipment, ' (поставлено)');
 
-quantityShipmentDetailInvoiceShipment (invoice, shipment) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY invoiceInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetail)), shipmentShipmentDetail(shipmentDetail);
-relationInvoiceShipment 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetailInvoiceShipment (invoice, shipment) BY shipment;
+quantityShipmentDetail (invoice, shipment) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY invoice(invoiceDetail(shipmentDetail)), shipment(shipmentDetail);
+relationInvoice 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, Shipment shipment) BY shipment;
 
-invoicesShipment 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityShipmentDetailInvoiceShipment(invoice, shipment) , ', '
+invoices 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, Shipment shipment) , ', '
                                                 BY shipment
                                                 ORDER invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
-shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
-                                                                   BY invoiceDetailShipmentDetail(shipmentDetail) PERSISTENT;
+shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
+                                                                   BY invoiceDetail(shipmentDetail) PERSISTENT;
                                                                    
-shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail)
-                                                                   BY invoiceInvoiceDetail(detail) PERSISTENT;   
-shippedNotChargeInvoice 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isNotChargeSku(skuInvoiceDetail(detail))
-                                                                   BY invoiceInvoiceDetail(detail) PERSISTENT;   
+shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shipped(InvoiceDetail detail)
+                                                                   BY invoice(detail) PERSISTENT;   
+shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isNotCharge(sku(detail))
+                                                                   BY invoice(detail) PERSISTENT;   
                                                                    
-notShippedInvoice (invoice) = invoice IS Invoice AND NOT shippedInvoice(invoice);
+notShipped (Invoice invoice) = invoice IS Invoice AND NOT shipped(invoice);
                                                                                                                                        
-toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail);
+toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) shipped(invoiceDetail);
 
-toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
-    GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
-          BY invoiceInvoiceDetail(invoiceDetail); 
+toShipInvoiceDetail 'Не поставлено по накладной' (invoice) =
+    GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
+          BY invoice(invoiceDetail); 
                        
-toShipNotChargeInvoiceDetailInvoice 'Не поставлено по накладной (кроме услуг)' (invoice) =
-    GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0 AND isNotChargeSku(skuInvoiceDetail(invoiceDetail))
-          BY invoiceInvoiceDetail(invoiceDetail);                       
+toShipNotChargeInvoiceDetail 'Не поставлено по накладной (кроме услуг)' (invoice) =
+    GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
+          BY invoice(invoiceDetail);                       
           
-addUserShipmentInvoice  = ABSTRACT ACTION CASE OVERRIDE (Invoice);
+addUserShipment  = ABSTRACT ACTION CASE OVERRIDE (Invoice);
 
-receiveShipmentInvoice 'Принять полностью' = ABSTRACT ACTION LIST (Invoice);
+receiveShipment 'Принять полностью' = ABSTRACT ACTION LIST (Invoice);
 
-createMultiShipmentInvoice 'Принять полностью' = ACTION (invoice) NEWSESSION {
-    IF createShipmentInvoice(invoice) THEN {
+createMultiShipment 'Принять полностью' = ACTION (Invoice invoice) NEWSESSION {
+    IF createShipment(invoice) THEN {
         MESSAGE 'Для данного инвойса уже создана накладная'; 
     } ELSE {
-        receiveShipmentInvoice(invoice);
+        receiveShipment(invoice);
     }
     apply();
 }
 
-deleteCreateShipment  = ABSTRACT ACTION CASE OVERRIDE (Shipment);
-deleteMultiShipment 'Удалить полностью' = ACTION (shipment) NEWSESSION {
-    IF shipment IS Shipment AND NOT isUserShipment(shipment) THEN {
-        deleteCreateShipment(shipment); 
+deleteCreate  = ABSTRACT ACTION CASE OVERRIDE (Shipment);
+deleteMulti 'Удалить полностью' = ACTION (Shipment shipment) NEWSESSION {
+    IF shipment IS Shipment AND NOT isUser(shipment) THEN {
+        deleteCreate(shipment); 
     }
     apply();
 }
 
 
-isShippedInvoice = shippedInvoice(invoice) OR NOT quantityNotChargeInvoiceDetailInvoice(invoice) > 0.0;
+isShipped = shipped(Invoice invoice) OR NOT quantityNotChargeInvoiceDetail(invoice) > 0.0;
 
-statusShippedInvoice 'Статус приемки' (invoice)= IF isShippedInvoice (invoice) AND toShipNotChargeInvoiceDetailInvoice(invoice)  
+statusShipped 'Статус приемки' (Invoice invoice)= IF isShipped (invoice) AND toShipNotChargeInvoiceDetail(invoice)  
                                                     THEN 'Расхождение'
                                                     ELSE 
-                                                        IF isShippedInvoice (invoice) 
+                                                        IF isShipped (invoice) 
                                                             THEN 'Оприходована' 
                                                             ELSE 'Не оприходована' IF invoice IS Invoice;
 
-backgroundShipInvoice 'Цвет' (invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT isShippedInvoice(invoice);  
+backgroundShip 'Цвет' (Invoice invoice)= RGB(212,255,212) IF invoice IS Invoice AND NOT isShipped(invoice);  
 
 META defineInvoiceShipment(sign, stockProp, filter, NS)
 
-    invoiceDetailShipmentDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT INDEXED;
-    invoiceDetailUserShipmentDetail = DATA InvoiceDetail (UserShipmentDetail);
-    invoiceDetailShipmentDetail(shipmentDetail) += invoiceDetailUserShipmentDetail(shipmentDetail);
-    Shipment.invoiceDetailShipmentDetail(shipmentDetail) += invoiceDetailShipmentDetail(shipmentDetail);
+    invoiceDetail = ABSTRACT InvoiceDetail (ShipmentDetail) PERSISTENT INDEXED;
+    invoiceDetail = DATA InvoiceDetail (UserShipmentDetail);
+    invoiceDetail(UserShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
+    invoiceDetail[Shipment.ShipmentDetail](ShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
     
-    overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-        invoiceDetailUserShipmentDetail(d) <- invoiceDetailUserShipmentDetail(detail);             
+    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION (d, detail) {      
+        invoiceDetail(d) <- invoiceDetail(detail);             
     }   
 
-    CONSTRAINT supplierShipmentDetail(detail) != supplierInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
-        CHECKED BY invoiceDetailUserShipmentDetail
+    CONSTRAINT supplier[ShipmentDetail](UserShipmentDetail detail) != supplier(invoiceDetail(detail))
+        CHECKED BY invoiceDetail[UserShipmentDetail]
             MESSAGE 'Поставщик в накладной и поставке должны соответствовать друг другу';
-    CONSTRAINT customerShipmentDetail(detail) != customerInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
-        CHECKED BY invoiceDetailUserShipmentDetail
+    CONSTRAINT customer[ShipmentDetail](UserShipmentDetail detail) != customer(invoiceDetail(detail))
+        CHECKED BY invoiceDetail[UserShipmentDetail]
             MESSAGE 'Покупатель в накладной и поставке должны соответствовать друг другу';
-    CONSTRAINT skuShipmentDetail(detail) != skuInvoiceDetail(invoiceDetailUserShipmentDetail(detail))
-        CHECKED BY invoiceDetailUserShipmentDetail
+    CONSTRAINT sku[ShipmentDetail](UserShipmentDetail detail) != sku(invoiceDetail(detail))
+        CHECKED BY invoiceDetail[UserShipmentDetail]
             MESSAGE 'Товар в накладной и поставке должны соответствовать друг другу';
 
-    descriptionIndexInvoiceDetailShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailShipmentDetail(detail));
-    descriptionIndexInvoiceDetailUserShipmentDetail 'Строка накладной' (detail) = descriptionIndexInvoiceDetail(invoiceDetailUserShipmentDetail(detail));
+    descriptionIndexInvoiceDetail 'Строка накладной' (ShipmentDetail detail) = descriptionIndex(invoiceDetail(detail));
+    descriptionIndexInvoiceDetail 'Строка накладной' (UserShipmentDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-    quantityShipmentDetailInvoiceShipment (invoice, shipment) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY invoiceInvoiceDetail(invoiceDetailShipmentDetail(shipmentDetail)), shipmentShipmentDetail(shipmentDetail);
-    relationInvoiceShipment 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetailInvoiceShipment (invoice, shipment) BY shipment;
+    quantityShipmentDetail (invoice, shipment) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY invoice(invoiceDetail(shipmentDetail)), shipment(shipmentDetail);
+    relationInvoice 'Связь' (shipment) = GROUP SUM 1 IF quantityShipmentDetail (Invoice invoice, Shipment shipment) BY shipment;
 
-    invoicesShipment 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF quantityShipmentDetailInvoiceShipment(invoice, shipment) , ', '
+    invoices 'Накладные' (shipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityShipmentDetail(invoice, Shipment shipment) , ', '
                                                     BY shipment
                                                     ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-    shippedInvoiceDetail 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
-                                                                       BY invoiceDetailShipmentDetail(shipmentDetail) PERSISTENT;
+    shipped 'Кол-во (поставлено)' (invoiceDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
+                                                                       BY invoiceDetail(shipmentDetail) PERSISTENT;
                                                                        
-    shippedInvoice 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail)
-                                                                       BY invoiceInvoiceDetail(detail) PERSISTENT;  
-    shippedNotChargeInvoice 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shippedInvoiceDetail(detail) IF isPostedInvoiceDetail(detail) AND isNotChargeSku(skuInvoiceDetail(detail))
-                                                                       BY invoiceInvoiceDetail(detail) PERSISTENT;                                                                           
+    shipped 'Кол-во (поставлено) по накладной' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isPosted(detail)
+                                                                       BY invoice(detail) PERSISTENT;  
+    shippedNotCharge 'Кол-во (поставлено) по накладной (кроме услуг)' (invoice) = GROUP SUM shipped(InvoiceDetail detail) IF isPosted(detail) AND isNotCharge(sku(detail))
+                                                                       BY invoice(detail) PERSISTENT;                                                                           
                                                                          
                                                                                                                                           
-    shipmentQuantityInvoiceDetailSkuInvoice 'Кол-во товара в документе' (sku, invoice) = 
-        GROUP SUM shippedInvoiceDetail(idetail)
-              BY  skuInvoiceDetail(idetail),
-                  invoiceInvoiceDetail(idetail);
+    shipmentQuantityInvoiceDetail 'Кол-во товара в документе' (sku, invoice) = 
+        GROUP SUM shipped(InvoiceDetail idetail)
+              BY  sku(idetail),
+                  invoice(idetail);
                                                                                                                                                               
-    notShippedInvoice = NOT shippedInvoice(invoice);
+    notShipped = NOT shipped(Invoice invoice);
 
     TABLE shipmentDetailBatch (ShipmentDetail, Batch);
-    costShipmentDetailBatch = ABSTRACT NUMERIC[16,5] (ShipmentDetail, Batch) PERSISTENT;
+    cost = ABSTRACT NUMERIC[16,5] (ShipmentDetail, Batch) PERSISTENT;
 
     TABLE invoiceDetailBatch (InvoiceDetail, Batch);
-    costInvoiceDetailBatch (invoiceDetail, batch) = GROUP SUM costShipmentDetailBatch(shipmentDetail, batch) BY invoiceDetailShipmentDetail(shipmentDetail), batch PERSISTENT;
-    inInvoiceDetailBatch (invoiceDetail, batch) = [= GROUP SUM 1 IF costShipmentDetailBatch(shipmentDetail, batch) BY invoiceDetailShipmentDetail(shipmentDetail), batch](invoiceDetail, batch) OR 
-                                                     batchInvoiceDetail(invoiceDetail) == batch PERSISTENT; // приходится делать OR, так как если количество 0, то партии не расписываются
+    cost (invoiceDetail, batch) = GROUP SUM cost(ShipmentDetail shipmentDetail, Batch batch) BY invoiceDetail(shipmentDetail), batch PERSISTENT;
+    in (InvoiceDetail invoiceDetail, Batch batch) = [= GROUP SUM 1 IF cost(ShipmentDetail shipmentDetail, Batch batch) BY invoiceDetail(shipmentDetail), batch](invoiceDetail, batch) OR 
+                                                     batch(invoiceDetail) == batch PERSISTENT; // приходится делать OR, так как если количество 0, то партии не расписываются
 
-    countBatchInvoiceDetail 'Кол-во партий' (invoiceDetail) = GROUP SUM 1 IF inInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail PERSISTENT;
-    maxBatchInvoiceDetail (invoiceDetail) = GROUP MAX batch IF inInvoiceDetailBatch(invoiceDetail, batch) BY invoiceDetail;
+    countBatch 'Кол-во партий' (invoiceDetail) = GROUP SUM 1 IF in(InvoiceDetail invoiceDetail, Batch batch) BY invoiceDetail PERSISTENT;
+    maxBatch (invoiceDetail) = GROUP MAX Batch batch IF in(InvoiceDetail invoiceDetail, batch) BY invoiceDetail;
 
-    toShipInvoiceDetail 'Не поставлено' (invoiceDetail) = (quantityInvoiceDetail(invoiceDetail) (-) shippedInvoiceDetail(invoiceDetail)) IF NOT isChargeSku(skuInvoiceDetail(invoiceDetail));
-    prevToShipInvoiceDetail 'Не поставлено' (invoiceDetail) = PREV(toShipInvoiceDetail(invoiceDetail));
-    toShipInvoice 'Не поставлено' (invoice) = quantityInvoiceDetailInvoice(invoice) (-) shippedInvoice(invoice) (-) quantityChargeInvoiceDetailInvoice(invoice);
+    toShip 'Не поставлено' (InvoiceDetail invoiceDetail) = (quantity(invoiceDetail) (-) shipped(invoiceDetail)) IF NOT isCharge(sku(invoiceDetail));
+    prevToShip 'Не поставлено' (InvoiceDetail invoiceDetail) = PREV(toShip(invoiceDetail));
+    toShip 'Не поставлено' (Invoice invoice) = quantityInvoiceDetail(invoice) (-) shipped(invoice) (-) quantityChargeInvoiceDetail(invoice);
 
-    toShipInvoiceDetailStockInvoice 'Не поставлено по складу' (stock, invoice) =
-        GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
-              BY stockProp###InvoiceDetail(invoiceDetail), invoiceInvoiceDetail(invoiceDetail);
+    toShipInvoiceDetail 'Не поставлено по складу' (stock, invoice) =
+        GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
+              BY stockProp(invoiceDetail), invoice(invoiceDetail);
 
-    toShipInvoiceDetailInvoice 'Не поставлено по накладной' (invoice) =
-        GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0
-              BY invoiceInvoiceDetail(invoiceDetail);
-    toShipNotChargeInvoiceDetailInvoice 'Не поставлено по накладной (кроме услуг)' (invoice) =
-        GROUP SUM toShipInvoiceDetail(invoiceDetail) IF toShipInvoiceDetail(invoiceDetail) > 0 AND isNotChargeSku(skuInvoiceDetail(invoiceDetail))
-              BY invoiceInvoiceDetail(invoiceDetail);
+    toShipInvoiceDetail 'Не поставлено по накладной' (invoice) =
+        GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0
+              BY invoice(invoiceDetail);
+    toShipNotChargeInvoiceDetail 'Не поставлено по накладной (кроме услуг)' (invoice) =
+        GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
+              BY invoice(invoiceDetail);
     // Создание поставки на основе инвойса //
 
-    backgroundShippedInvoice 'Цвет' (invoice) = RGB(255, 224, 255) IF invoice IS Invoice;
-    backgroundShippedInvoiceDetail (detail) = backgroundShippedInvoice(invoiceInvoiceDetail(detail));
+    backgroundShipped 'Цвет' (Invoice invoice) = RGB(255, 224, 255) IF invoice IS Invoice;
+    backgroundShipped (InvoiceDetail detail) = backgroundShipped(invoice(detail));
 
     FORM shipmentInvoices 'Накладные'###sign
         OBJECTS s = LegalEntity FIXED PANEL
-        PROPERTIES (s) READONLY nameLegalEntity
+        PROPERTIES (s) READONLY name
         OBJECTS c = LegalEntity FIXED PANEL
-        PROPERTIES (c) READONLY nameLegalEntity
+        PROPERTIES (c) READONLY name
 
         OBJECTS i = Invoice
-        PROPERTIES (i) READONLY isPostedInvoice, numberInvoice, seriesInvoice, dateInvoice, timeInvoice,
-                                nameSupplierInvoice, nameSupplierStockInvoice, nameCustomerInvoice, nameCustomerStockInvoice,
-                                nameCurrencyInvoice, seriesNumberContractSkuInvoice, isCommissionInvoice,
-                                countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
-                                VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, ordersInvoice,
-                                noteInvoice
-        FILTERS supplierInvoice(i) == s,
-                customerInvoice(i) == c,
-                isPostedInvoice(i)
+        PROPERTIES (i) READONLY isPosted, number, series, date, time,
+                                nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+                                nameCurrency, seriesNumberContractSku, isCommission,
+                                countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                                VATSumInvoiceDetail, invoiceSumInvoiceDetail, orders,
+                                note
+        FILTERS supplier(i) == s,
+                customer(i) == c,
+                isPosted(i)
 
         OBJECTS d = InvoiceDetail
-        PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
-        PROPERTIES (d) READONLY quantityInvoiceDetail, shippedInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail,
-                       numberVATInvoiceDetail, valueVATInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail,
-                       name###stockProp###InvoiceDetail, descriptionOrderInvoiceDetail
-        FILTERS invoiceInvoiceDetail(d) == i
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity, shipped, price, sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       name###stockProp, descriptionOrder
+        FILTERS invoice(d) == i
 
 //        DIALOG Invoice OBJECT i
     ;
@@ -195,28 +195,28 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
             MOVE functions.box;
         }
     }
-    overFillInvoiceUserShipmentInvoice = ABSTRACT ACTION LIST (UserShipment, Invoice);                          // документ
-    overFillInvoiceUserShipmentDetailInvoiceDetail = ABSTRACT ACTION LIST (UserShipmentDetail, InvoiceDetail);  // детайл
+    overFillInvoice = ABSTRACT ACTION LIST (UserShipment, Invoice);                          // документ
+    overFillInvoice = ABSTRACT ACTION LIST (UserShipmentDetail, InvoiceDetail);  // детайл
 
-    fillInvoiceUserShipment 'Заполнить на основе накладной' =  ACTION (userShipment) {
-        FORM shipmentInvoices OBJECTS s = supplierUserShipment(userShipment), c = customerUserShipment(userShipment) MODAL;
+    fillInvoice 'Заполнить на основе накладной' =  ACTION (UserShipment userShipment) {
+        FORM shipmentInvoices OBJECTS s = supplier(userShipment), c = customer(userShipment) MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL saleInvoice = Invoice();
             ASSIGN saleInvoice() <- chosenObject('i');
-            EXEC overFillInvoiceUserShipmentInvoice(userShipment, saleInvoice());
+            EXEC overFillInvoice(userShipment, saleInvoice());
 
-            FOR invoiceInvoiceDetail(invoiceDetail) == saleInvoice() AND
-                toShipInvoiceDetail(invoiceDetail) > 0
+            FOR invoice(InvoiceDetail invoiceDetail) == saleInvoice() AND
+                toShip(invoiceDetail) > 0
                 ADDOBJ d = UserShipmentDetail DO {
-                    ASSIGN userShipmentUserShipmentDetail(d) <- userShipment;
-                    ASSIGN invoiceDetailUserShipmentDetail(d) <- invoiceDetail;
-                    ASSIGN orderUserShipmentDetail(d) <- orderInvoiceDetail(invoiceDetail);
+                    ASSIGN userShipment(d) <- userShipment;
+                    ASSIGN invoiceDetail(d) <- invoiceDetail;
+                    ASSIGN order(d) <- order(invoiceDetail);
 
-                    ASSIGN skuUserShipmentDetail(d) <- skuInvoiceDetail(invoiceDetail);
+                    ASSIGN sku(d) <- sku(invoiceDetail);
 
-                    ASSIGN quantityUserShipmentDetail (d) <- toShipInvoiceDetail(invoiceDetail);
+                    ASSIGN quantity (d) <- toShip(invoiceDetail);
 
-                    EXEC overFillInvoiceUserShipmentDetailInvoiceDetail(d, invoiceDetail);
+                    EXEC overFillInvoice(d, invoiceDetail);
             }
         }
     } IN invoice;
@@ -224,64 +224,64 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 // Создание поставки на основе нескольких инвойсов //
 
     TABLE invoiceUserShipment (Invoice, UserShipment);
-    includeInvoiceUserShipment 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    includeInvoicesUserShipment 'Накладные в приемке' (userShipment) = GROUP CONCAT VARSTRING[255](descriptionInvoice(invoice)) IF includeInvoiceUserShipment(invoice, userShipment) , ', '
+    include 'Вкл. в приемку' = DATA BOOLEAN (Invoice, UserShipment) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    includeInvoices 'Накладные в приемке' (userShipment) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF include(invoice, UserShipment userShipment) , ', '
                                                         BY userShipment
                                                         ORDER invoice IN invoices MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;
     FORM includeInvoicesUserShipment 'Накладные'
         OBJECTS s = UserShipment FIXED PANEL
 
         OBJECTS i = Invoice
-        PROPERTIES (i) READONLY isPostedInvoice, numberInvoice, seriesInvoice, dateInvoice, timeInvoice,
-                                nameSupplierInvoice, nameSupplierStockInvoice, nameCustomerInvoice, nameCustomerStockInvoice,
-                                nameCurrencyInvoice, seriesNumberContractSkuInvoice, isCommissionInvoice,
-                                countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
-                                VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, ordersInvoice,
-                                noteInvoice
+        PROPERTIES (i) READONLY isPosted, number, series, date, time,
+                                nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+                                nameCurrency, seriesNumberContractSku, isCommission,
+                                countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                                VATSumInvoiceDetail, invoiceSumInvoiceDetail, orders,
+                                note
 
-        FILTERS supplierInvoice(i) == supplierUserShipment(s),
-                customerInvoice(i) == customerUserShipment(s),
-                supplierStockInvoice(i) == supplierStockUserShipment(s),
-                customerStockInvoice(i) == customerStockUserShipment(s),
-                isPostedInvoice(i),
-                toShipInvoiceDetailInvoice(i)
-        PROPERTIES(i,s) BACKGROUND backgroundShippedInvoice(i) includeInvoiceUserShipment BEFORE isPostedInvoice(i)
+        FILTERS supplier(i) == supplier(s),
+                customer(i) == customer(s),
+                supplierStock(i) == supplierStock(s),
+                customerStock(i) == customerStock(s),
+                isPosted(i),
+                toShipInvoiceDetail(i)
+        PROPERTIES(i,s) BACKGROUND backgroundShipped(i) include BEFORE isPosted(i)
     ;
 
-    dialogIncludeInvoicesUserShipment 'Включить накладные в поставку' (userShipment) = ACTION FORM includeInvoicesUserShipment OBJECTS s = userShipment MODAL IN invoices;
+    dialogIncludeInvoices 'Включить накладные в поставку' (UserShipment userShipment) = ACTION FORM includeInvoicesUserShipment OBJECTS s = userShipment MODAL IN invoices;
 
-    shipmentDimensionInvoiceDetail = ABSTRACT ShipmentDimension (InvoiceDetail);
-    nameShipmentDimensionInvoiceDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionInvoiceDetail(detail));
-    shipmentDimensionUserInvoiceDetail = ABSTRACT ShipmentDimension (UserInvoiceDetail);
-    nameShipmentDimensionUserInvoiceDetail 'Регистр хранения' (detail) = nameShipmentDimension(shipmentDimensionUserInvoiceDetail(detail));
-    shipmentDimensionInvoiceDetail(detail) += shipmentDimensionUserInvoiceDetail(detail);
-    defaultInvoiceDetailSkuUserShipment (sku, userShipment) = GROUP MAX detail IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
-        BY skuInvoiceDetail(detail), userShipment;
-    defaultInvoiceDetailSkuDimensionUserShipment (sku, dimension, userShipment) = GROUP MAX detail IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
-        BY skuInvoiceDetail(detail), shipmentDimensionInvoiceDetail(detail), userShipment;
+    shipmentDimension = ABSTRACT ShipmentDimension (InvoiceDetail);
+    nameShipmentDimension 'Регистр хранения' (InvoiceDetail detail) = name(shipmentDimension(detail));
+    shipmentDimension = ABSTRACT ShipmentDimension (UserInvoiceDetail);
+    nameShipmentDimension 'Регистр хранения' (UserInvoiceDetail detail) = name(shipmentDimension(detail));
+    shipmentDimension(UserInvoiceDetail detail) += shipmentDimension(detail);
+    defaultInvoiceDetail (sku, userShipment) = GROUP MAX InvoiceDetail detail IF include(invoice(detail), UserShipment userShipment)
+        BY sku(detail), userShipment;
+    defaultInvoiceDetail (sku, dimension, userShipment) = GROUP MAX InvoiceDetail detail IF include(invoice(detail), UserShipment userShipment)
+        BY sku(detail), shipmentDimension(detail), userShipment;
 
-    fillInvoiceDetailUserShipmentDetailDimension 'Привязать поставку к накладным' = ACTION (detail, dimension) {
+    fillInvoiceDetail 'Привязать поставку к накладным' = ACTION (UserShipmentDetail detail, ShipmentDimension dimension) {
 
-        invoiceDetailUserShipmentDetail(detail) <- IF dimension IS ShipmentDimension
-                                    THEN defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), dimension, userShipmentUserShipmentDetail(detail))
-                                    ELSE defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
+        invoiceDetail(detail) <- IF dimension IS ShipmentDimension
+                                    THEN defaultInvoiceDetail(sku(detail), dimension, userShipment(detail))
+                                    ELSE defaultInvoiceDetail(sku(detail), userShipment(detail));
     };
 
-    fillInvoiceDetailUserShipmentDimension 'Привязать поставку к накладным' = ACTION (userShipment, dimension) {
-        FOR userShipmentUserShipmentDetail(detail) == userShipment DO {
-            EXEC fillInvoiceDetailUserShipmentDetailDimension(detail, dimension);
+    fillInvoiceDetail 'Привязать поставку к накладным' = ACTION (UserShipment userShipment, ShipmentDimension dimension) {
+        FOR userShipment(UserShipmentDetail detail) == userShipment DO {
+            EXEC fillInvoiceDetail(detail, dimension);
         }
     } IN invoices;
-    fillInvoiceDetailUserShipment 'Привязать поставку к накладным' (userShipment) = ACTION fillInvoiceDetailUserShipmentDimension(userShipment, shipmentDimensionUserShipment(userShipment)) IN invoices;
+    fillInvoiceDetail 'Привязать поставку к накладным' (UserShipment userShipment) = ACTION fillInvoiceDetail(userShipment, shipmentDimension(userShipment)) IN invoices;
 
     WHEN SESSION FORMS userShipment
-        (CHANGED(shipmentDimensionUserShipmentDetail(detail)) OR CHANGED(skuUserShipmentDetail(detail))) AND NOT invoiceDetailUserShipmentDetail(detail) AND s==shipmentDimensionUserShipmentDetail(detail)
-            DO EXEC fillInvoiceDetailUserShipmentDetailDimension(detail, s);
+        (CHANGED(shipmentDimension(UserShipmentDetail detail)) OR CHANGED(sku(detail))) AND NOT invoiceDetail(detail) AND ShipmentDimension s==shipmentDimension(detail)
+            DO EXEC fillInvoiceDetail(detail, s);
 
     EXTEND FORM userShipment
-        PROPERTIES(s) fillInvoiceUserShipment, invoicesShipment READONLY
-        PROPERTIES(s) dialogIncludeInvoicesUserShipment, includeInvoicesUserShipment READONLY, fillInvoiceDetailUserShipment
-        PROPERTIES(d) descriptionIndexInvoiceDetailUserShipmentDetail BEFORE deletesd
+        PROPERTIES(s) fillInvoice, invoices READONLY
+        PROPERTIES(s) dialogIncludeInvoices, includeInvoices READONLY, fillInvoiceDetail
+        PROPERTIES(d) descriptionIndexInvoiceDetail BEFORE deletesd
     ;
     DESIGN userShipment {
         headerCreateDetail {
@@ -296,55 +296,55 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
 
 
     EXTEND FORM shipments
-        PROPERTIES(s) READONLY invoicesShipment
-        PROPERTIES(d) READONLY descriptionIndexInvoiceDetailShipmentDetail
+        PROPERTIES(s) READONLY invoices
+        PROPERTIES(d) READONLY descriptionIndexInvoiceDetail
     ;
 
 //-- агр.объект
 
     @defineDocumentInterfaceDetailPricePrefix(invoice, shipment, ' (учетная)');
-    Shipment.shipmentPriceInvoiceDetail(detail) += shipmentPriceInvoiceDetail(detail);
+    shipmentPrice[Invoice.InvoiceDetail](InvoiceDetail detail) += shipmentPrice(detail);
     @defineDocumentInterfaceDetailQuantityPrefix (invoice, shipment, ' (поставлено)');
-    Shipment.shipmentQuantityInvoiceDetail(d)+=shipmentQuantityInvoiceDetail(d);
+    shipmentQuantity[Invoice.InvoiceDetail](InvoiceDetail d)+=shipmentQuantity(d);
     @defineDocumentInterfaceHeaderQuantityCustomPrefix (invoice, invoiceDetail, shipment, ' (поставлено)');
     
     @defineDocumentInterfaceDetailDataSumPrefix (invoice, shipment, ' (учетная)');
     @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, shipment, currency, shipmentQuantity, priceRound);
-    Shipment.shipmentSumInvoiceDetail(detail) += shipmentSumInvoiceDetail(detail);
+    shipmentSum[Invoice.InvoiceDetail](InvoiceDetail detail) += shipmentSum(detail);
     @defineDocumentInterfaceHeaderCreateShipment (invoice);
-    Shipment.createShipmentInvoice(invoice) += createShipmentInvoice(invoice);
+    createShipment[Invoice.Invoice](Invoice invoice) += createShipment(invoice);
     @defineDocumentInterfaceHeaderSumPrefix (invoice, shipment, ' (учетная)');
 
     @defineDocumentInterfaceHeaderItemSum (invoice, shipment, shipment);
     @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, shipment, shipment, , VAT);
     @defineDocumentInterfaceHeaderTimePrefix(Invoice, shipment, ' поставки');
-    shipmentDateUserInvoice(i) <- dateUserInvoice(i) WHEN CHANGED(dateUserInvoice(i));
-    shipmentTimeUserInvoice(i) <- timeUserInvoice(i) WHEN CHANGED(timeUserInvoice(i));
-    Shipment.shipmentDateInvoice(i) += shipmentDateInvoice(i);
+    shipmentDate(UserInvoice i) <- date(i) WHEN CHANGED(date(i));
+    shipmentTime(UserInvoice i) <- time(i) WHEN CHANGED(time(i));
+    shipmentDate[Invoice.Invoice](Invoice i) += shipmentDate(i);
     
     @defineDocumentInterfaceDetailTimePrefix(invoice, InvoiceDetail, shipment,' поставки');
     @defineDocumentInterfaceDetailExpiryDate(invoice);
     @defineDocumentInterfaceDetailManufactureDate(invoice);
     
-    overExpiryDateInvoiceDetail = ABSTRACT DATE (InvoiceDetail);
-    calcExpiryDateInvoiceDetail (d) = OVERRIDE 
-        (IF expiryMonthSku(skuUserInvoiceDetail(d)) 
-            THEN sumDateMonth(manufactureDateInvoiceDetail(d), expiryMonthSku(skuInvoiceDetail(d)))
-            ELSE sumDate(manufactureDateInvoiceDetail(d), expiryDaysSku(skuInvoiceDetail(d)))),
-        overExpiryDateInvoiceDetail(d);
+    overExpiryDate = ABSTRACT DATE (InvoiceDetail);
+    calcExpiryDate (InvoiceDetail d) = OVERRIDE 
+        (IF expiryMonth(sku[UserInvoiceDetail](d)) 
+            THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
+            ELSE sum(manufactureDate(d), expiryDays(sku(d)))),
+        overExpiryDate(d);
         
-    WHEN SESSION FORMS userInvoice (CHANGED(manufactureDateInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d))) AND NOT batchUserInvoiceDetail(d) AND manufactureDateInvoiceDetail(d) DO {
-        expiryDateUserInvoiceDetail(d) <- calcExpiryDateInvoiceDetail(d);            
+    WHEN SESSION FORMS userInvoice (CHANGED(manufactureDate(InvoiceDetail d)) OR CHANGED(sku[UserInvoiceDetail](d))) AND NOT batch[UserInvoiceDetail](d) AND manufactureDate(d) DO {
+        expiryDate[UserInvoiceDetail](d) <- calcExpiryDate(d);            
     } 
-    overManufactureDateInvoiceDetail = ABSTRACT DATE (InvoiceDetail);
-    calcManufactureDateInvoiceDetail (d) = OVERRIDE 
-        (IF expiryMonthSku(skuUserInvoiceDetail(d)) 
-            THEN sumDateMonth(expiryDateInvoiceDetail(d), -expiryMonthSku(skuInvoiceDetail(d)))
-            ELSE sumDate(expiryDateInvoiceDetail(d), -expiryDaysSku(skuInvoiceDetail(d)))),
-        overManufactureDateInvoiceDetail(d);     
+    overManufactureDate = ABSTRACT DATE (InvoiceDetail);
+    calcManufactureDate (InvoiceDetail d) = OVERRIDE 
+        (IF expiryMonth(sku[UserInvoiceDetail](d)) 
+            THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
+            ELSE sum(expiryDate(d), -expiryDays(sku(d)))),
+        overManufactureDate(d);     
            
-    WHEN SESSION FORMS userInvoice (CHANGED(expiryDateInvoiceDetail(d)) OR CHANGED(skuUserInvoiceDetail(d))) AND NOT batchUserInvoiceDetail(d) AND expiryDateInvoiceDetail(d) DO {
-        manufactureDateUserInvoiceDetail(d) <- calcManufactureDateInvoiceDetail(d);            
+    WHEN SESSION FORMS userInvoice (CHANGED(expiryDate(InvoiceDetail d)) OR CHANGED(sku[UserInvoiceDetail](d))) AND NOT batch[UserInvoiceDetail](d) AND expiryDate(d) DO {
+        manufactureDate[UserInvoiceDetail](d) <- calcManufactureDate(d);            
     }            
 
     conformityShipmentDateInvoices 'Соответствие даты поставки с датой накладной '##sign = DATA BOOLEAN ();
@@ -359,70 +359,70 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
         }
     }
 
-    CONSTRAINT isPostedUserInvoice(i) AND conformityShipmentDateInvoices() AND NOT (shipmentDateUserInvoice(i)==dateUserInvoice(i))
+    CONSTRAINT isPosted(UserInvoice i) AND conformityShipmentDateInvoices() AND NOT (shipmentDate(i)==date(i))
         MESSAGE 'Дата поставки должна быть равна дате накладной '##sign; 
     
-    overCopyInvoice(s, d) += ACTION (s, d) {
-        ASSIGN createShipmentUserInvoice(d) <- createShipmentUserInvoice(s);
+    overCopy(UserInvoice s, UserInvoice d) += ACTION (s, d) {
+        ASSIGN createShipment(d) <- createShipment(s);
     }
 
-    skipCreateShipmentInvoiceDetail = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
-    createShipmentInvoiceDetail 'Создать поставку' (invoiceDetail) = createShipmentInvoice(invoiceInvoiceDetail(invoiceDetail)) AND
-                                                                     isStockSkuInvoiceDetail(invoiceDetail) AND
-                                                                     NOT skipCreateShipmentInvoiceDetail(invoiceDetail) AND 
-                                                                     NOT isChargeSku(skuInvoiceDetail(invoiceDetail)) PERSISTENT;
+    skipCreateShipment = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
+    createShipment 'Создать поставку' (InvoiceDetail invoiceDetail) = createShipment(invoice(invoiceDetail)) AND
+                                                                     isStockSku(invoiceDetail) AND
+                                                                     NOT skipCreateShipment(invoiceDetail) AND 
+                                                                     NOT isCharge(sku(invoiceDetail)) PERSISTENT;
 
-    createShipmentUserInvoiceDetail 'Создать поставку' (invoiceDetail) = createShipmentUserInvoice(userInvoiceUserInvoiceDetail(invoiceDetail)) AND
-                                                                         isStockSkuUserInvoiceDetail(invoiceDetail);
+    createShipment 'Создать поставку' (UserInvoiceDetail invoiceDetail) = createShipment(userInvoice(invoiceDetail)) AND
+                                                                         isStockSku(invoiceDetail);
                                                                         
-    skipChangedShipmentQuantityUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
-    shipmentQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) IF createShipmentUserInvoiceDetail(detail)
-        WHEN (CHANGED(quantityUserInvoiceDetail(detail)) OR CHANGED(createShipmentUserInvoiceDetail(detail))) AND NOT skipChangedShipmentQuantityUserInvoiceDetail(detail);
+    skipChangedShipmentQuantity = ABSTRACT BOOLEAN (UserInvoiceDetail);
+    shipmentQuantity(UserInvoiceDetail detail) <- quantity(detail) IF createShipment(detail)
+        WHEN (CHANGED(quantity(detail)) OR CHANGED(createShipment(detail))) AND NOT skipChangedShipmentQuantity(detail);
             
-    showShipmentInvoice (invoice) =  invoice IS Invoice AND NOT createShipmentInvoice(invoice);
+    showShipment (Invoice invoice) =  invoice IS Invoice AND NOT createShipment(invoice);
     
-    skipShowShipmentQuantityInvoice = ABSTRACT BOOLEAN (Invoice);
-    showShipmentQuantityInvoice = createShipmentInvoice(invoice) AND NOT skipShowShipmentQuantityInvoice(invoice);
+    skipShowShipmentQuantity = ABSTRACT BOOLEAN (Invoice);
+    showShipmentQuantity = createShipment(Invoice invoice) AND NOT skipShowShipmentQuantity(invoice);
 
         EXTEND FORM userInvoice
-        PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) createShipmentUserInvoice
-        PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) shipmentSumUserInvoiceDetailUserInvoice,
-                      shipmentDateUserInvoice, shipmentTimeUserInvoice
-        PROPERTIES(d) BEFORE deleteid SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      manufactureDateUserInvoiceDetail, expiryDateUserInvoiceDetail, name###stockProp###userInvoiceDetail ON CHANGE changeData###stockProp###filter###userInvoiceDetail(d), shipmentSumUserInvoiceDetail
-        PROPERTIES(d) BEFORE deleteid BACKGROUND backgroundShippedInvoice(i) shipmentPriceUserInvoiceDetail
-        PROPERTIES(d) READONLY shippedInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF showShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-        PROPERTIES(d) shipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF showShipmentQuantityInvoice(i) BACKGROUND backgroundShippedInvoice(i)
+        PROPERTIES(i) BACKGROUND backgroundShipped(i) createShipment
+        PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) shipmentSumUserInvoiceDetail,
+                      shipmentDate, shipmentTime
+        PROPERTIES(d) BEFORE deleteid SHOWIF createShipment[Invoice](i) BACKGROUND backgroundShipped(i)
+                      manufactureDate, expiryDate, name###stockProp ON CHANGE changeData###stockProp###filter(d), shipmentSum
+        PROPERTIES(d) BEFORE deleteid BACKGROUND backgroundShipped(i) shipmentPrice
+        PROPERTIES(d) READONLY shipped AFTER quantity(d) SHOWIF showShipment(i) BACKGROUND backgroundShipped(i)
+        PROPERTIES(d) shipmentQuantity AFTER quantity(d) SHOWIF showShipmentQuantity(i) BACKGROUND backgroundShipped(i)
     ;
     DESIGN userInvoice {
         headerCreateDocuments {
             NEW headerCreateShipment {
                 caption = 'Поставка';
                 type = CONTAINERH;
-                MOVE PROPERTY(createShipmentUserInvoice(i));
-                MOVE PROPERTY(shipmentDateUserInvoice(i));
-                MOVE PROPERTY(shipmentTimeUserInvoice(i));
+                MOVE PROPERTY(createShipment(i));
+                MOVE PROPERTY(shipmentDate(i));
+                MOVE PROPERTY(shipmentTime(i));
             }
-            PROPERTY(shipmentSumUserInvoiceDetailUserInvoice(i)) { preferredCharWidth = 13;}                       
+            PROPERTY(shipmentSumUserInvoiceDetail(i)) { preferredCharWidth = 13;}                       
         }
     }
 
     EXTEND FORM invoices
-        PROPERTIES(i) READONLY BACKGROUND backgroundShippedInvoice(i) shipmentSumInvoiceDetailInvoice BEFORE ordersInvoice(i)
-        PROPERTIES(d) READONLY SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      manufactureDateInvoiceDetail, expiryDateInvoiceDetail, name###stockProp###invoiceDetail, shipmentPriceInvoiceDetail, shipmentSumInvoiceDetail
-        PROPERTIES(d) READONLY shippedInvoiceDetail AFTER quantityInvoiceDetail(d) SHOWIF showShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-        PROPERTIES(d) READONLY shipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail(d) SHOWIF createShipmentInvoice(i) BACKGROUND backgroundShippedInvoice(i)
+        PROPERTIES(i) READONLY BACKGROUND backgroundShipped(i) shipmentSumInvoiceDetail BEFORE orders(i)
+        PROPERTIES(d) READONLY SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
+                      manufactureDate, expiryDate, name###stockProp, shipmentPrice, shipmentSum
+        PROPERTIES(d) READONLY shipped AFTER quantity(d) SHOWIF showShipment(i) BACKGROUND backgroundShipped(i)
+        PROPERTIES(d) READONLY shipmentQuantity AFTER quantity(d) SHOWIF createShipment(i) BACKGROUND backgroundShipped(i)
         FILTERGROUP filter11
-                    FILTER  'Непоставленные товары' NOT shippedInvoiceDetail(d) == quantityInvoiceDetail (d) 'F10'  
+                    FILTER  'Непоставленные товары' NOT shipped(d) == quantity (d) 'F10'  
     ;
     EXTEND FORM shipmentInvoices
-        PROPERTIES (d) READONLY BACKGROUND backgroundShippedInvoice(i)  toShipInvoiceDetail, shipmentPriceInvoiceDetail
+        PROPERTIES (d) READONLY BACKGROUND backgroundShipped(i)  toShip, shipmentPrice
     ;
     
-    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {
-        manufactureDateUserInvoiceDetail(d) <- manufactureDateUserInvoiceDetail(detail);  
-        expiryDateUserInvoiceDetail(d) <- expiryDateUserInvoiceDetail(detail);
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {
+        manufactureDate(d) <- manufactureDate(detail);  
+        expiryDate(d) <- expiryDate(detail);
         //shipmentPriceUserInvoiceDetail(d) <- shipmentPriceUserInvoiceDetail(detail);           
     }        
     
@@ -433,71 +433,71 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     @defineDocumentTables(invoiceShipment);
 
     @defineDocumentAggregation(invoice, invoiceShipment, createShipment);
-    shipmentShipmentDetail(detail) += invoiceShipmentInvoiceShipmentDetail(detail);
+    shipment(InvoiceShipmentDetail detail) += invoiceShipment(detail);
 
-    indexShipmentDetail(detail) += indexInvoiceShipmentDetail(detail);
+    index(InvoiceShipmentDetail detail) += index(detail);
 
-    dateShipment(shipment) += shipmentDateInvoice(invoiceInvoiceShipment(shipment));
-    timeShipment(shipment) += shipmentTimeInvoice(invoiceInvoiceShipment(shipment));
+    date(InvoiceShipment shipment) += shipmentDate(invoice(shipment));
+    time(InvoiceShipment shipment) += shipmentTime(invoice(shipment));
 
     @defineDocumentAggregationStockPrefix(invoice, invoiceShipment, supplier, 'Склад поставщика', , );
-    supplierStockShipment(shipment) += supplierStockInvoiceShipment(shipment);
-    dataSupplierStockShipmentDetail(shipmentDetail) += dataSupplierStockInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
+    supplierStock(InvoiceShipment shipment) += supplierStock(shipment);
+    dataSupplierStock(InvoiceShipmentDetail shipmentDetail) += dataSupplierStock(invoiceDetail(shipmentDetail));
     @defineDocumentAggregationStockPrefix(invoice, invoiceShipment, customer, 'Склад покупателя', , );
-    customerStockShipment(shipment) += customerStockInvoiceShipment(shipment);
-    dataCustomerStockShipmentDetail(shipmentDetail) += dataCustomerStockInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
+    customerStock(InvoiceShipment shipment) += customerStock(shipment);
+    dataCustomerStock(InvoiceShipmentDetail shipmentDetail) += dataCustomerStock(invoiceDetail(shipmentDetail));
 
     @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceShipment, supplier, 'Поставщик', , );
-    supplierShipment(shipment) += supplierInvoiceShipment(shipment);
+    supplier(InvoiceShipment shipment) += supplier(shipment);
     @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceShipment, customer, 'Покупатель', , );
-    customerShipment(shipment) += customerInvoiceShipment(shipment);
+    customer(InvoiceShipment shipment) += customer(shipment);
 
     @defineDocumentAggregationPosted(invoice, invoiceShipment);
-    isPostedShipment(shipment) += isPostedInvoiceShipment(shipment);
+    isPosted(InvoiceShipment shipment) += isPosted(shipment);
 
     @defineDocumentAggregationClosed(invoice, invoiceShipment);
-    isClosedShipment(shipment) += isClosedInvoiceShipment(shipment);
+    isClosed(InvoiceShipment shipment) += isClosed(shipment);
 
-    numberInvoiceShipment 'Номер документа' (invoiceShipment) = numberInvoice(invoiceInvoiceShipment(invoiceShipment));
-    numberShipment(shipment) += numberInvoiceShipment(shipment);
+    number 'Номер документа' (InvoiceShipment invoiceShipment) = number(invoice(invoiceShipment));
+    number(InvoiceShipment shipment) += number(shipment);
 
-    seriesInvoiceShipment 'Серия документа' (invoiceShipment) = seriesInvoice(invoiceInvoiceShipment(invoiceShipment));
-    seriesShipment(shipment) += seriesInvoiceShipment(shipment);
+    series 'Серия документа' (InvoiceShipment invoiceShipment) = series(invoice(invoiceShipment));
+    series(InvoiceShipment shipment) += series(shipment);
 
-    seriesNumberInvoiceShipment 'Серия/номер документа' (invoiceShipment) = seriesNumberInvoice(invoiceInvoiceShipment(invoiceShipment));
+    seriesNumber 'Серия/номер документа' (InvoiceShipment invoiceShipment) = seriesNumber(invoice(invoiceShipment));
 
-    noteInvoiceInvoiceShipment 'Примечание' (invoiceShipment) = noteInvoice(invoiceInvoiceShipment(invoiceShipment));
-    noteShipment(shipment) += noteInvoiceInvoiceShipment(shipment);
+    noteInvoice 'Примечание' (InvoiceShipment invoiceShipment) = note(invoice(invoiceShipment));
+    note(InvoiceShipment shipment) += noteInvoice(shipment);
 
-    currencyInvoiceShipment  (invoiceShipment) = currencyInvoice(invoiceInvoiceShipment(invoiceShipment));
-    currencyShipment (shipment) += currencyInvoiceShipment(shipment);
+    currency  (InvoiceShipment invoiceShipment) = currency(invoice(invoiceShipment));
+    currency (InvoiceShipment shipment) += currency(shipment);
 
     @defineDocumentDescription(invoiceShipment, InvoiceShipmentDetail, 'Поставка на основе накладной'###sign);
-    descriptionShipment (shipment) += descriptionInvoiceShipment(shipment);
+    description (InvoiceShipment shipment) += description(shipment);
 
     @defineDocumentAggregationDetailProperty (invoice, invoiceShipment, order, 'Заказ');
-    orderShipmentDetail (shipmentDetail) += orderInvoiceShipmentDetail(shipmentDetail);
+    order (InvoiceShipmentDetail shipmentDetail) += order(shipmentDetail);
 
     @defineDocumentAggregationDetailSku(invoice, invoiceShipment, sku);
-    skuShipmentDetail(shipmentDetail) +=  skuInvoiceShipmentDetail(shipmentDetail);
+    sku(InvoiceShipmentDetail shipmentDetail) +=  sku(shipmentDetail);
 
-    quantityShipmentDetail(shipmentDetail) += shipmentQuantityInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
-    expiryDateShipmentDetail(shipmentDetail) += expiryDateInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
-    manufactureDateShipmentDetail(shipmentDetail) += manufactureDateInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
+    quantity(InvoiceShipmentDetail shipmentDetail) += shipmentQuantity(invoiceDetail(shipmentDetail));
+    expiryDate(InvoiceShipmentDetail shipmentDetail) += expiryDate(invoiceDetail(shipmentDetail));
+    manufactureDate(InvoiceShipmentDetail shipmentDetail) += manufactureDate(invoiceDetail(shipmentDetail));
 
-    priceInvoiceShipmentDetail(invoiceShipmentDetail) = shipmentPriceInvoiceDetail(invoiceDetailInvoiceShipmentDetail(invoiceShipmentDetail));
-    priceShipmentDetail(shipmentDetail) += priceInvoiceShipmentDetail(shipmentDetail);
+    price(InvoiceShipmentDetail invoiceShipmentDetail) = shipmentPrice(invoiceDetail(invoiceShipmentDetail));
+    price(InvoiceShipmentDetail shipmentDetail) += price(shipmentDetail);
 
-    sumInvoiceShipmentDetail(invoiceShipmentDetail) = shipmentSumInvoiceDetail(invoiceDetailInvoiceShipmentDetail(invoiceShipmentDetail));
-    sumShipmentDetail(shipmentDetail) += sumInvoiceShipmentDetail(shipmentDetail);
+    sum(InvoiceShipmentDetail invoiceShipmentDetail) = shipmentSum(invoiceDetail(invoiceShipmentDetail));
+    sum(InvoiceShipmentDetail shipmentDetail) += sum(shipmentDetail);
 
-    invoiceDetailShipmentDetail(shipmentDetail) += invoiceDetailInvoiceShipmentDetail(shipmentDetail);
+    invoiceDetail(InvoiceShipmentDetail shipmentDetail) += invoiceDetail(shipmentDetail);
 
-    editShipment(shipment) += ACTION editInvoice(invoiceInvoiceShipment(shipment));
-    closeShipment(shipment) += ACTION closeInvoice(invoiceInvoiceShipment(shipment));
-    editShipmentDetail(d) += ACTION editInvoiceDetail(invoiceDetailInvoiceShipmentDetail(d));
+    edit(InvoiceShipment shipment) += ACTION edit(invoice(shipment));
+    close(InvoiceShipment shipment) += ACTION close(invoice(shipment));
+    edit(InvoiceShipmentDetail d) += ACTION edit(invoiceDetail(d));
     
-    createdUserShipment(shipment) += createdUserInvoice(invoiceInvoiceShipment(shipment));
+    createdUser(InvoiceShipment shipment) += createdUser(invoice(shipment));
     
     // цены в подборе
     @extendFormDocumentPriceSku(userInvoice, accountPriceListType, stockProp, ' учетная', userInvoice, i, is);
@@ -506,79 +506,79 @@ END
 
 META defineInvoiceShipmentBatch(dumb)
     EXTEND FORM shipmentInvoices
-        PROPERTIES (d) READONLY nameBatchInvoiceDetail AFTER shortNameUOMSkuInvoiceDetail(d)
+        PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d)
     ;
 
-    overFillInvoiceUserShipmentDetailInvoiceDetail (sd, id) += ACTION ASSIGN batchUserShipmentDetail (sd) <- batchInvoiceDetail(id);
+    overFillInvoice (UserShipmentDetail sd, InvoiceDetail id) += ACTION ASSIGN batch (sd) <- batch(id);
 
     @defineDocumentAggregationDetailBatch (invoice, invoiceShipment);
-    batchShipmentDetail (shipmentDetail) += batchInvoiceShipmentDetail(shipmentDetail);
+    batch (InvoiceShipmentDetail shipmentDetail) += batch(shipmentDetail);
 
-    expiryDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
-    manufactureDateUserInvoiceDetail(detail) <- prevManufactureDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
+    expiryDate(UserInvoiceDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));
+    manufactureDate(UserInvoiceDetail detail) <- prevManufactureDate(batch(detail)) WHEN CHANGED (batch(detail));
 END
 
 META defineInvoiceShipmentPack(dumb)
     EXTEND FORM shipmentInvoices
-        PROPERTIES (d) READONLY SHOWIF showPack##Invoice(i) BEFORE quantityInvoiceDetail(d)
-                       idBarcodePackInvoiceDetail, shortNameUOMPackInvoiceDetail,
-                       amountPackInvoiceDetail, packQuantityInvoiceDetail
+        PROPERTIES (d) READONLY SHOWIF showPack(i) BEFORE quantity(d)
+                       idBarcodePack, shortNameUOMPack,
+                       amountPack, packQuantity
     ;
-    overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
-        ASSIGN barcodePackUserShipmentDetail(s) <- barcodePackInvoiceDetail(i);
-        ASSIGN amountPackUserShipmentDetail(s) <- amountPackInvoiceDetail(i);
-        ASSIGN packQuantityUserShipmentDetail(s) <- toShipInvoiceDetail(i)/amountPackInvoiceDetail(i);
+    overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+        ASSIGN barcodePack(s) <- barcodePack(i);
+        ASSIGN amountPack(s) <- amountPack(i);
+        ASSIGN packQuantity(s) <- toShip(i)/amountPack(i);
     }
 
-    showPackShipment(shipment) += showPackInvoice(invoiceInvoiceShipment(shipment));
-    barcodePackShipmentDetail(shipmentDetail) +=  barcodePackInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
-    amountPackShipmentDetail(shipmentDetail) +=  amountPackInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
-    packQuantityShipmentDetail(shipmentDetail) +=  packQuantityInvoiceDetail(invoiceDetailInvoiceShipmentDetail(shipmentDetail));
+    showPack(InvoiceShipment shipment) += showPack(invoice(shipment));
+    barcodePack(InvoiceShipmentDetail shipmentDetail) +=  barcodePack(invoiceDetail(shipmentDetail));
+    amountPack(InvoiceShipmentDetail shipmentDetail) +=  amountPack(invoiceDetail(shipmentDetail));
+    packQuantity(InvoiceShipmentDetail shipmentDetail) +=  packQuantity(invoiceDetail(shipmentDetail));
 END
 
 //-- Действие
 
 META defineInvoiceShipmentAction (sign)
-    addUserShipmentInvoice 'Поставка'###sign =  ACTION (invoice) NEWSESSION{
+    addUserShipment 'Поставка'###sign =  ACTION (Invoice invoice) NEWSESSION{
 
         FOR ADDOBJ s = UserShipment DO {
 
-            ASSIGN supplierUserShipment(s) <- supplierInvoice(invoice);
-            ASSIGN supplierStockUserShipment(s) <- supplierStockInvoice(invoice);
-            ASSIGN customerUserShipment(s) <- customerInvoice(invoice);
-            ASSIGN customerStockUserShipment(s) <- customerStockInvoice(invoice);
-            ASSIGN currencyUserShipment(s) <- currencyInvoice(invoice);
-            ASSIGN numberUserShipment(s) <- numberInvoice(invoice);
-            ASSIGN seriesUserShipment(s) <- seriesInvoice(invoice);
-            ASSIGN noteUserShipment(s) <- noteInvoice(invoice);
-            EXEC overFillInvoiceUserShipmentInvoice(s, invoice);
+            ASSIGN supplier(s) <- supplier(invoice);
+            ASSIGN supplierStock(s) <- supplierStock(invoice);
+            ASSIGN customer(s) <- customer(invoice);
+            ASSIGN customerStock(s) <- customerStock(invoice);
+            ASSIGN currency(s) <- currency(invoice);
+            ASSIGN number(s) <- number(invoice);
+            ASSIGN series(s) <- series(invoice);
+            ASSIGN note(s) <- note(invoice);
+            EXEC overFillInvoice(s, invoice);
 
-            FOR invoiceInvoiceDetail(detail) == invoice  ADDOBJ d = UserShipmentDetail DO {
-                userShipmentUserShipmentDetail(d) <- s;
-                invoiceDetailUserShipmentDetail(d) <- detail;
-                orderUserShipmentDetail(d) <- orderInvoiceDetail(detail);
+            FOR invoice(InvoiceDetail detail) == invoice  ADDOBJ d = UserShipmentDetail DO {
+                userShipment(d) <- s;
+                invoiceDetail(d) <- detail;
+                order(d) <- order(detail);
 
-                dataCustomerStockUserShipmentDetail(d) <- dataCustomerStockInvoiceDetail(detail);
-                dataSupplierStockUserShipmentDetail(d) <- dataSupplierStockInvoiceDetail(detail);
+                dataCustomerStock(d) <- dataCustomerStock(detail);
+                dataSupplierStock(d) <- dataSupplierStock(detail);
 
-                skuUserShipmentDetail(d) <- skuInvoiceDetail(detail);
-                quantityUserShipmentDetail (d) <- toShipInvoiceDetail(detail);
+                sku(d) <- sku(detail);
+                quantity (d) <- toShip(detail);
                 
-                priceUserShipmentDetail(d) <- shipmentPriceInvoiceDetail(detail);
-                EXEC overFillInvoiceUserShipmentDetailInvoiceDetail(d, detail);
+                price(d) <- shipmentPrice(detail);
+                EXEC overFillInvoice(d, detail);
             }
 
             FORM userShipment OBJECTS s = s MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
-    Shipment.addUserShipmentInvoice(invoice) += WHEN invoice IS Invoice THEN ACTION addUserShipmentInvoice(invoice);
+    addUserShipment(Invoice invoice) += WHEN invoice IS Invoice THEN ACTION addUserShipment(invoice);
 
     EXTEND FORM invoices
-        PROPERTIES(i) addUserShipmentInvoice
+        PROPERTIES(i) addUserShipment
     ;
     DESIGN invoices {
         createdContainer{
-            MOVE PROPERTY(addUserShipmentInvoice(i));
+            MOVE PROPERTY(addUserShipment(i));
         }
     }
 END

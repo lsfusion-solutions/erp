@@ -19,13 +19,13 @@ REQUIRE RepricingDisparity, RepricingManufacturingPrice, PriceListLedger, Dispar
 //    afterInputManufacturingPriceDisparityDetail 'Цена изготовителя после' = DATA NUMERIC[14,2] (DisparityDetail);
 //};
 
-overCurRepricingPriceRepricingDetail(detail) += curInputManufacturingPriceDisparityDetail(disparityDetailDisparityRepricingDetail(detail));
-overCurInputRepricingPriceDisparityDetail(detail) += curInputManufacturingPriceDisparityDetail(detail);
-curManufacturingPriceRepricingDetail(detail) += curInputManufacturingPriceDisparityDetail(disparityDetailDisparityRepricingDetail(detail));
+overCurRepricingPrice(DisparityRepricingDetail detail) += curInputManufacturingPrice(disparityDetail(detail));
+overCurInputRepricingPrice(DisparityDetail detail) += curInputManufacturingPrice(detail);
+curManufacturingPrice(DisparityRepricingDetail detail) += curInputManufacturingPrice(disparityDetail(detail));
 
-overRepricingPriceRepricingDetail(detail) += afterInputManufacturingPriceDisparityDetail(disparityDetailDisparityRepricingDetail(detail));
-overAfterInputRepricingPriceDisparityDetail(detail) += afterInputManufacturingPriceDisparityDetail(detail);
-manufacturingPriceRepricingDetail(detail) += afterInputManufacturingPriceDisparityDetail(disparityDetailDisparityRepricingDetail(detail));
+overRepricingPrice(DisparityRepricingDetail detail) += afterInputManufacturingPrice(disparityDetail(detail));
+overAfterInputRepricingPrice(DisparityDetail detail) += afterInputManufacturingPrice(detail);
+manufacturingPrice(DisparityRepricingDetail detail) += afterInputManufacturingPrice(disparityDetail(detail));
 
 //afterInputManufacturingPriceDisparityDetail(detail) <- curInputManufacturingPriceDisparityDetail(detail) WHEN CHANGED (curInputManufacturingPriceDisparityDetail(detail));
 
@@ -66,27 +66,27 @@ manufacturingPriceRepricingDetail(detail) += afterInputManufacturingPriceDispari
 //    }
 //};
 
-showIfManufacturingPriceDisparityDetail (d) += WHEN createRepricingDisparityDetail(d) THEN TRUE;
+showIfManufacturingPrice (DisparityDetail d) += WHEN createRepricing(d) THEN TRUE;
 
-calcCurInputPriceDisparityDetail(disparityDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
-    curInputManufacturingPriceDisparityDetail(disparityDetail),
-    curInputMarkupDisparityDetail(disparityDetail),
-    valueCurInputVATDisparityDetail(disparityDetail))), roundConditionDisparityDetail(disparityDetail));
+calcCurInputPrice(DisparityDetail disparityDetail)  = round(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    curInputManufacturingPrice(disparityDetail),
+    curInputMarkup(disparityDetail),
+    valueCurInputVAT(disparityDetail))), roundCondition(disparityDetail));
         
-overCurInputManufacturingPriceDisparityDetail(d) += ACTION (d) {      
-    curInputRetailPriceDisparityDetail(d) <- calcCurInputPriceDisparityDetail(d) WHERE calcCurInputPriceDisparityDetail(d);
+overCurInputManufacturingPrice(DisparityDetail d) += ACTION (d) {      
+    curInputRetailPrice(d) <- calcCurInputPrice(d) WHERE calcCurInputPrice(d);
 } 
-backgroundCurInputManufacturingPriceDisparityDetail (d) += WHEN createRepricingDisparityDetail(d) THEN RGB(255, 255, 224);
+backgroundCurInputManufacturingPrice (DisparityDetail d) += WHEN createRepricing(d) THEN RGB(255, 255, 224);
 
 
-calcAfterInputPriceDisparityDetail(disparityDetail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
-    afterInputManufacturingPriceDisparityDetail(disparityDetail),
-    afterInputMarkupDisparityDetail(disparityDetail),
-    valueAfterInputVATDisparityDetail(disparityDetail))), roundConditionDisparityDetail(disparityDetail));
-overAfterInputManufacturingPriceDisparityDetail(d) += ACTION (d) {      
-            afterInputRetailPriceDisparityDetail(d) <- calcAfterInputPriceDisparityDetail(d) WHERE calcAfterInputPriceDisparityDetail(d);
+calcAfterInputPrice(DisparityDetail disparityDetail)  = round(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    afterInputManufacturingPrice(disparityDetail),
+    afterInputMarkup(disparityDetail),
+    valueAfterInputVAT(disparityDetail))), roundCondition(disparityDetail));
+overAfterInputManufacturingPrice(DisparityDetail d) += ACTION (d) {      
+            afterInputRetailPrice(d) <- calcAfterInputPrice(d) WHERE calcAfterInputPrice(d);
 }  
-backgroundAfterInputManufacturingPriceDisparityDetail (d) += WHEN createRepricingDisparityDetail(d) THEN RGB(255, 255, 200);       
+backgroundAfterInputManufacturingPrice (DisparityDetail d) += WHEN createRepricing(d) THEN RGB(255, 255, 200);       
         
 //EXTEND FORM disparity
 //    PROPERTIES(d)  BACKGROUND backgroundCurDisparity(dis) SHOWIF createRepricingDisparity(dis)

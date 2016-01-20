@@ -5,34 +5,34 @@ REQUIRE DisparityOperation, Dashboard, TaxItem;
 NAMESPACE Disparity;
 
 //АРМ уценки
-disparityQuantityItemStock 'Кол-во' = DATA LOCAL NUMERIC[14,3] (Item, Stock);
-disparityPriceItemStock 'Цена' = DATA LOCAL NUMERIC[16,2] (Item, Stock);
+disparityQuantity 'Кол-во' = DATA LOCAL NUMERIC[14,3] (Item, Stock);
+disparityPrice 'Цена' = DATA LOCAL NUMERIC[16,2] (Item, Stock);
 
-backgroundDisparityQuantityItemStock (item, stock) = RGB(212,255,212) IF item IS Item AND stock IS Stock;
+backgroundDisparityQuantity (Item item, Stock stock) = RGB(212,255,212) IF item IS Item AND stock IS Stock;
 
-disparityQuantityStock = GROUP SUM disparityQuantityItemStock(item, stock) BY stock;
+disparityQuantity = GROUP SUM disparityQuantity(Item item, Stock stock) BY stock;
 
-overCreateDisparityItemStock = ABSTRACT ACTION LIST (Item, Stock, DisparityDetail);
+overCreateItemStock = ABSTRACT ACTION LIST (Item, Stock, DisparityDetail);
 
-createDisparityStock 'Создать уценку' = ACTION (stock, operation) {
-    NEWSESSION NESTED disparityQuantityItemStock, disparityPriceItemStock {
+createDisparity 'Создать уценку' = ACTION (Stock stock, Operation operation) {
+    NEWSESSION NESTED disparityQuantity[Item,Stock], disparityPrice[Item,Stock] {
         FOR ADDOBJ d = Disparity DO {
-            operationDisparity(d) <- operation;
-            stockDisparity(d) <- stock;
-            dateDisparity(d) <- currentDate();
-            timeDisparity(d) <- currentTime();
+            operation(d) <- operation;
+            stock(d) <- stock;
+            date(d) <- currentDate();
+            time(d) <- currentTime();
             
-            FOR disparityQuantityItemStock(item, stock) ADDOBJ dd = DisparityDetail DO {
-                disparityDisparityDetail(dd) <- d;
-                skuDisparityDetail(dd) <- item;
-                batchDisparityDetail(dd) <- defaultBatchSkuStock(item, stock);
-                quantityDisparityDetail(dd) <- disparityQuantityItemStock(item, stock); 
+            FOR disparityQuantity(Item item, stock) ADDOBJ dd = DisparityDetail DO {
+                disparity(dd) <- d;
+                sku(dd) <- item;
+                batch(dd) <- defaultBatch(item, stock);
+                quantity(dd) <- disparityQuantity(item, stock); 
                 FOR ADDOBJ i = Item DO {
-                    copyDisparityDataItem(item, i);
-                    inputSkuDisparityDetail(dd) <- i;
+                    copyDisparityData(item, i);
+                    inputSku(dd) <- i;
                 }  
-                inputPriceDisparityDetail(dd) <- disparityPriceItemStock(item, stock);
-                overCreateDisparityItemStock (item, stock, dd);
+                inputPrice(dd) <- disparityPrice(item, stock);
+                overCreateItemStock (item, stock, dd);
             }
             
             FORM disparity OBJECTS dis=d MANAGESESSION DOCKEDMODAL;
@@ -45,42 +45,42 @@ FORM disparityItemItemDashboard 'Уценки'
     PROPERTIES (dt) OBJVALUE 
     
     OBJECTS s = Stock FIXED PANEL
-    PROPERTIES(s) nameStock SELECTOR
-    FILTERS isCompanyStock(s)
+    PROPERTIES(s) name SELECTOR
+    FILTERS isCompany(s)
     
     OBJECTS o = Operation FIXED PANEL
-    PROPERTIES (o) nameOperation SELECTOR
+    PROPERTIES (o) name SELECTOR
    
     OBJECTS i=Item
-    PROPERTIES (i) READONLY idBarcodeSku, nameSku
-    PROPERTIES(i, s) READONLY currentBalanceSkuStock, averagePriceSkuStock, currentSumSkuStock, 
-                     averageCostPriceBatchSkuStock
-    PROPERTIES (i) valueVATItem                
-    PROPERTIES(i, s) disparityQuantityItemStock BACKGROUND backgroundDisparityQuantityItemStock(i, s),
-                     disparityPriceItemStock BACKGROUND backgroundDisparityQuantityItemStock(i, s)
-    ORDER BY nameSku(i)
-    FILTERS currentBalanceSkuStock(i, s) AND NOT disparityItemItem(i)
+    PROPERTIES (i) READONLY idBarcode, name
+    PROPERTIES(i, s) READONLY currentBalance, averagePrice, currentSum, 
+                     averageCostPriceBatch
+    PROPERTIES (i) valueVAT                
+    PROPERTIES(i, s) disparityQuantity BACKGROUND backgroundDisparityQuantity(i, s),
+                     disparityPrice BACKGROUND backgroundDisparityQuantity(i, s)
+    ORDER BY name(i)
+    FILTERS currentBalance(i, s) AND NOT disparityItem(i)
     FILTERGROUP baseFilter
-        FILTER 'Позиции с уценкой'countItemDisparityItem(i) 'F9' 
+        FILTER 'Позиции с уценкой'countItemDisparity(i) 'F9' 
     
-    PROPERTIES (s, o) createDisparityStock TODRAW i SHOWIF disparityQuantityStock(s)
+    PROPERTIES (s, o) createDisparity TODRAW i SHOWIF disparityQuantity(s)
         
     OBJECTS di=Item
-    PROPERTIES (di) READONLY idBarcodeSku, nameSku
-    PROPERTIES (di, s) READONLY currentBalanceSkuStock, averageCostPriceBatchSkuStock, averagePriceSkuStock, currentSumSkuStock  
-    FILTERS disparityItemItem(di)==i, currentBalanceSkuStock(di, s)  
+    PROPERTIES (di) READONLY idBarcode, name
+    PROPERTIES (di, s) READONLY currentBalance, averageCostPriceBatch, averagePrice, currentSum  
+    FILTERS disparityItem(di)==i, currentBalance(di, s)  
        
     OBJECTS dis = Disparity
-    PROPERTIES (dis) READONLY isClosedDisparity, isPostedDisparity, numberDisparity, seriesDisparity, dateDisparity, timeDisparity, nameStockDisparity
-    PROPERTIES(dis)  READONLY countDisparityDetailDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
-                              inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity, noteDisparity
+    PROPERTIES (dis) READONLY isClosed, isPosted, number, series, date, time, nameStock
+    PROPERTIES(dis)  READONLY countDisparityDetail, quantityDisparityDetail, sumDisparityDetail,
+                              inputQuantityDisparityDetail, inputSumDisparityDetail, note
 
-    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpenedDisparity(dis)
-    PROPERTIES(dis)  closeDisparity SHOWIF isOpenedDisparity(dis), openDisparity SHOWIF isClosedDisparity(dis)     
+    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpened(dis)
+    PROPERTIES(dis)  close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
     
-    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedDisparity(dis)
+    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(dis)
     FILTERGROUP bdisparityFilter
-        FILTER 'Уценки на дату' dateDisparity(dis)==dt 'F8' DEFAULT
+        FILTER 'Уценки на дату' date(dis)==dt 'F8' DEFAULT
 ;
 
 DESIGN disparityItemItemDashboard {

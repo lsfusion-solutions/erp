@@ -5,17 +5,17 @@ REQUIRE Operation, PriceListType, Sale;
 NAMESPACE Sale;
 
 @defineOperation('(продажа)');
-nameReturnOperation 'Наименование (возврат)' = DATA VARISTRING[100](Operation);
-Operation.nameReturnOperation(operation) += nameReturnOperation(operation);
+nameReturn 'Наименование (возврат)' = DATA VARISTRING[100](Operation);
+nameReturn(Operation operation) += nameReturn(operation);
 EXTEND FORM operation 
-    PROPERTIES(o)  nameReturnOperation AFTER nameOperation(o)
+    PROPERTIES(o)  nameReturn AFTER name(o)
 ;  
 DESIGN operation {
     propertyContainer{
-        MOVE PROPERTY(nameReturnOperation(o)) AFTER PROPERTY(nameOperation(o));
+        MOVE PROPERTY(nameReturn(o)) AFTER PROPERTY(name(o));
     }
 } 
-overNameOperation = OVERRIDE nameOperation(o), nameReturnOperation(o);
+overName = OVERRIDE name(Operation o), nameReturn(o);
  
 @defineOperationPriceListType();
 
@@ -36,38 +36,38 @@ TABLE stockGroupOperation(StockGroup, Operation);
 @defineCountStockOperation(customer, customer, buyer);
 
 // Подсчет операций для складов поставщика и покупателя по-умолчанию            
-countOperationSupplierStockCustomerStock (supplierStock, customerStock) = GROUP SUM 1 
-    IF inSupplierStockOperation(supplierStock,operation)
-    AND isCompanyStock(supplierStock) 
-    AND inSupplierOperation(legalEntityStock(supplierStock),operation)
-    AND isSellerLegalEntity(legalEntityStock(supplierStock))                                                     
-    AND inCustomerStockOperation(customerStock,operation)
-    AND isCustomerStock(customerStock) 
-    AND inCustomerOperation(legalEntityStock(customerStock),operation)
-    AND isBuyerLegalEntity(legalEntityStock(customerStock))                                                                                                       
+countOperationSupplierCustomer (supplierStock, customerStock) = GROUP SUM 1 
+    IF inSupplier(Stock supplierStock,Operation operation)
+    AND isCompany(supplierStock) 
+    AND inSupplier(legalEntity(supplierStock),operation)
+    AND isSeller(legalEntity(supplierStock))                                                     
+    AND inCustomer(Stock customerStock,operation)
+    AND isCustomer(customerStock) 
+    AND inCustomer(legalEntity(customerStock),operation)
+    AND isBuyer(legalEntity(customerStock))                                                                                                       
         BY supplierStock, customerStock;
                                                         
                                                         
-defaultOperationSupplierStockCustomerStock (supplierStock, customerStock) = GROUP MIN operation 
-    IF inSupplierStockOperation(supplierStock,operation)
-    AND isCompanyStock(supplierStock) 
-    AND inSupplierOperation(legalEntityStock(supplierStock),operation)
-    AND isSellerLegalEntity(legalEntityStock(supplierStock))                                                     
-    AND inCustomerStockOperation(customerStock,operation)
-    AND isCustomerStock(customerStock) 
-    AND inCustomerOperation(legalEntityStock(customerStock),operation)
-    AND isBuyerLegalEntity(legalEntityStock(customerStock))                                                                                                       
+defaultOperationSupplierCustomer (supplierStock, customerStock) = GROUP MIN Operation operation 
+    IF inSupplier(Stock supplierStock,operation)
+    AND isCompany(supplierStock) 
+    AND inSupplier(legalEntity(supplierStock),operation)
+    AND isSeller(legalEntity(supplierStock))                                                     
+    AND inCustomer(Stock customerStock,operation)
+    AND isCustomer(customerStock) 
+    AND inCustomer(legalEntity(customerStock),operation)
+    AND isBuyer(legalEntity(customerStock))                                                                                                       
         BY supplierStock, customerStock;
 
 EXTEND FORM operation
-    FILTERS countCompanyStockStockGroup(stsg),
-            isCompanyStock(sts),
-            countCustomerStockStockGroup(stcg),
-            isCustomerStock(stc),
-            inSupplierOperation(legalEntityStock(sts), o),
-            inCustomerOperation(legalEntityStock(stc), o),
-            isSellerLegalEntity(legalEntityStock(sts)),
-            isBuyerLegalEntity(legalEntityStock(stc))
+    FILTERS countCompanyStock(stsg),
+            isCompany(sts),
+            countCustomerStock(stcg),
+            isCustomer(stc),
+            inSupplier(legalEntity(sts), o),
+            inCustomer(legalEntity(stc), o),
+            isSeller(legalEntity(sts)),
+            isBuyer(legalEntity(stc))
 ;
 
 @defineOperationRole();
@@ -75,19 +75,19 @@ EXTEND FORM operation
 //@extendFormFilterRole(o, operations);     //-- пока не нужен
 
 EXTEND FORM operation
-    FILTERS isCompanyLegalEntity(s),
-            isBuyerLegalEntity(c)
+    FILTERS isCompany(s),
+            isBuyer(c)
 ;
 
-countOperationSupplierCustomerSupplierStockCustomerStockUser 'Кол-во операций' (s, c, ss, cs, u) = 
-    GROUP SUM 1 IF inSupplierOperation(s, o) AND inSupplierStockOperation(ss, o)
-               AND inCustomerOperation(c, o) AND inCustomerStockOperation(cs, o) 
-               AND inUserOperation(u, o) BY s, c, ss, cs, u COMPLEX;   
+countOperationSupplierCustomerSupplierCustomer 'Кол-во операций' (s, c, ss, cs, u) = 
+    GROUP SUM 1 IF inSupplier(LegalEntity s, Operation o) AND inSupplier(Stock ss, o)
+               AND inCustomer(LegalEntity c, o) AND inCustomer(Stock cs, o) 
+               AND in(User u, o) BY s, c, ss, cs, u COMPLEX;   
 
-defaultOperationSupplierCustomerSupplierStockCustomerStockUser 'Операция по умолчанию' (s, c, ss, cs, u) = 
-    GROUP MAX o IF inSupplierOperation(s, o) AND inSupplierStockOperation(ss, o)
-               AND inCustomerOperation(c, o) AND inCustomerStockOperation(cs, o) 
-               AND inUserOperation(u, o) BY s, c, ss, cs, u COMPLEX;   
+defaultOperationSupplierCustomerSupplierCustomer 'Операция по умолчанию' (s, c, ss, cs, u) = 
+    GROUP MAX Operation o IF inSupplier(LegalEntity s, o) AND inSupplier(Stock ss, o)
+               AND inCustomer(LegalEntity c, o) AND inCustomer(Stock cs, o) 
+               AND in(User u, o) BY s, c, ss, cs, u COMPLEX;   
 
 DESIGN operation{
     tabContainer {

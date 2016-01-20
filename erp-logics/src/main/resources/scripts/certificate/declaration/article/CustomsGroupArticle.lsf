@@ -6,79 +6,79 @@ NAMESPACE CustomsGroup;
 
 //-- ТН ВЭД
 TABLE countryArticle(Country, Article);
-customsGroupCountryArticle = DATA CustomsGroup(Country, Article);
-codeCustomsGroupCountryArticle 'ТН ВЭД' (country, article) = codeCustomsGroup(customsGroupCountryArticle(country, article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameCustomsGroupCountryArticle 'Позиция ТН ВЭД' (country, article) = nameCustomsGroup(customsGroupCountryArticle(country, article)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
-codeCustomsGroupDefaultCountryArticle 'ТН ВЭД' (article) = codeCustomsGroup(customsGroupCountryArticle(defaultCountry(), article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+customsGroup = DATA CustomsGroup(Country, Article);
+codeCustomsGroup 'ТН ВЭД' (Country country, Article article) = code(customsGroup(country, article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameCustomsGroup 'Позиция ТН ВЭД' (Country country, Article article) = name(customsGroup(country, article)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+codeCustomsGroupDefaultCountry 'ТН ВЭД' (Article article) = code(customsGroup(defaultCountry(), article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-originalCustomsGroupArticle 'Код ТНВЭД (ориг.)' = DATA STRING[10] (Article) IN base FIXEDCHARWIDTH 10;
+originalCustomsGroup 'Код ТНВЭД (ориг.)' = DATA STRING[10] (Article) IN base FIXEDCHARWIDTH 10;
 
 // Действие по изменению кода ТНВЭД через ручной ввод
-changeCodeCustomsGroupCountryArticle = ACTION (country, article) {
+changeCodeCustomsGroup = ACTION (Country country, Article article) {
     IF requestInputChangeCustomsCode() THEN {
         REQUEST STRING[10] INPUT;
         IF requestedString() THEN {
-            IF customsGroupCode(rpad(requestedString(),10,'0')) THEN {
-                customsGroupCountryArticle(country, article) <- customsGroupCode(rpad(requestedString(),10,'0')); 
+            IF customsGroup(rpad(requestedString(),10,'0')) THEN {
+                customsGroup(country, article) <- customsGroup(rpad(requestedString(),10,'0')); 
             } ELSE {
                 REQUEST OBJECT cg
-                    FORM customsGroups OBJECTS cz = customsZoneCountry(country), cg = nearestCustomsGroupCode(requestedString()) MODAL;
+                    FORM customsGroups OBJECTS cz = customsZone(country), cg = nearestCustomsGroup(requestedString()) MODAL;
                 IF formResult() == FormResult.ok THEN {
-                    customsGroupCountryArticle(country, article) <- chosenObject('cg');
+                    customsGroup(country, article) <- chosenObject('cg');
                 }
             }
         } ELSE
-            customsGroupCountryArticle(country, article) <- NULL;
+            customsGroup(country, article) <- NULL;
     } ELSE {
         REQUEST OBJECT cg
-            FORM customsGroups OBJECTS cz = customsZoneCountry(country), cg = customsGroupCountryArticle(country, article) CONTEXTFILTER cg = customsGroupCountryArticle(country, article) DIALOG SHOWDROP;
+            FORM customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, article) CONTEXTFILTER cg = customsGroup(country, article) DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
-            customsGroupCountryArticle(country, article) <- requestedObject();
+            customsGroup(country, article) <- requestedObject();
         } ELSE IF formResult() == FormResult.drop THEN {
-            customsGroupCountryArticle(country, article) <- NULL;
+            customsGroup(country, article) <- NULL;
         }
     }
 }
 
-changeCustomsGroupDefaultCountryArticle = ACTION (article) {
+changeCustomsGroupDefaultCountry = ACTION (Article article) {
     REQUEST OBJECT cg
     FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        customsGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
+        customsGroup(Country country, article) <- requestedObject() WHERE country == defaultCountry();
 
     } ELSE IF formResult() == FormResult.drop THEN {
-        customsGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
+        customsGroup(Country country, article) <- NULL WHERE country == defaultCountry();
     }
 }
 
-CONSTRAINT customsZoneCustomsGroup(customsGroupCountryArticle(country, article)) != customsZoneCountry(country) CHECKED BY customsGroupCountryArticle
+CONSTRAINT customsZone(customsGroup(Country country, Article article)) != customsZone(country) CHECKED BY customsGroup[Country,Article]
     MESSAGE 'Таможенная зона должна соответствовать стране';
 
 EXTEND FORM article
-    PROPERTIES(a)    originalCustomsGroupArticle,
-                     codeCustomsGroupDefaultCountryArticle  ON CHANGE changeCustomsGroupDefaultCountryArticle(a)
-    PROPERTIES(c, a) codeCustomsGroupCountryArticle
+    PROPERTIES(a)    originalCustomsGroup,
+                     codeCustomsGroupDefaultCountry  ON CHANGE changeCustomsGroupDefaultCountry(a)
+    PROPERTIES(c, a) codeCustomsGroup
     
-    PROPERTIES(i) BEFORE deletei codeCustomsGroupDefaultCountryItem ON CHANGE changeCustomsGroupDefaultCountryItem(i) 
+    PROPERTIES(i) BEFORE deletei codeCustomsGroupDefaultCountry ON CHANGE changeCustomsGroupDefaultCountry(i) 
 ;
 DESIGN article  {
     regionPrm {
-        MOVE PROPERTY(originalCustomsGroupArticle(a));
-        MOVE PROPERTY(codeCustomsGroupDefaultCountryArticle(a));
+        MOVE PROPERTY(originalCustomsGroup(a));
+        MOVE PROPERTY(codeCustomsGroupDefaultCountry(a));
     }
 }
 
 EXTEND FORM articles
-    PROPERTIES(a) originalCustomsGroupArticle
+    PROPERTIES(a) originalCustomsGroup
 ;
 
-WHEN SESSION FORMS article CHANGED(customsGroupCountryArticle(country, article)) DO         
-    customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, article) WHERE articleItem(i) == article;      
+WHEN SESSION FORMS article CHANGED(customsGroup(Country country, Article article)) DO         
+    customsGroup(country, Item i) <- customsGroup(country, article) WHERE article(i) == article;      
 
-WHEN SESSION FORMS article SET(i IS Item) DO
-    customsGroupCountryItem(country, i) <- customsGroupCountryArticle(country, articleItem(i));      
+WHEN SESSION FORMS article SET(Item i IS Item) DO
+    customsGroup(Country country, i) <- customsGroup(country, article(i));      
     
 
 EXTEND FORM articles
-    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  codeCustomsGroupDefaultCountryArticle
+    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  codeCustomsGroupDefaultCountry
 ;

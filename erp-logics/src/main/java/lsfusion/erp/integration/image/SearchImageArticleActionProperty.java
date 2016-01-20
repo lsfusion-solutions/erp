@@ -40,13 +40,13 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
             for (int i = 0; i < 64; i++) {
 
                 DataObject currentObject = new DataObject(i);
-                findProperty("thumbnailImage").change((Object) null, context, currentObject);
-                findProperty("urlImage").change((Object)null, context, currentObject);
-                findProperty("sizeImage").change((Object)null, context, currentObject);
+                findProperty("thumbnailImage[INTEGER]").change((Object) null, context, currentObject);
+                findProperty("urlImage[INTEGER]").change((Object)null, context, currentObject);
+                findProperty("sizeImage[INTEGER]").change((Object)null, context, currentObject);
             }
 
-            findProperty("startImage").change((Object)null, context);
-            findProperty("articleImage").change((Object)null, context);
+            findProperty("startImage[]").change((Object)null, context);
+            findProperty("articleImage[]").change((Object)null, context);
 
         } catch (SQLException e) {
             throw Throwables.propagate(e);

@@ -7,24 +7,24 @@ REQUIRE System, MasterData, Historizable, Tax, Country, I18n, Employee, Numerato
 CLASS Ownership 'Форма собственности';
 TABLE ownership (Ownership);
 
-nameOwnership 'Наименование' = DATA VARISTRING[100](Ownership);
+name 'Наименование' = DATA VARISTRING[100](Ownership);
 
-shortNameOwnership 'Cокращенное название' = DATA STRING[10] (Ownership) IN base FIXEDCHARWIDTH 6;
-ownershipShortName (string) = GROUP NAGGR ownership BY shortNameOwnership (ownership) WHERE ownership IS Ownership;
+shortName 'Cокращенное название' = DATA STRING[10] (Ownership) IN base FIXEDCHARWIDTH 6;
+ownershipShortName (string) = GROUP NAGGR Ownership ownership BY shortName (ownership) WHERE ownership IS Ownership;
 
-countryOwnership = DATA Country (Ownership);
-nameCountryOwnership 'Страна' (ownership) = nameCountry(countryOwnership(ownership)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
+country = DATA Country (Ownership);
+nameCountry 'Страна' (Ownership ownership) = name(country(ownership)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
 
 FORM ownership 'Форма собственности'
     OBJECTS o = Ownership FIXED PANEL
-    PROPERTIES(o) nameOwnership, shortNameOwnership, nameCountryOwnership
+    PROPERTIES(o) name, shortName, nameCountry
 
     EDIT Ownership OBJECT o
 ;
 
 FORM ownerships 'Формы собственности'
     OBJECTS o = Ownership
-    PROPERTIES(o) READONLY nameOwnership, shortNameOwnership, nameCountryOwnership
+    PROPERTIES(o) READONLY name, shortName, nameCountry
     PROPERTIES(o)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Ownership OBJECT o
@@ -40,32 +40,32 @@ TABLE legalEntityDate (LegalEntity, DATE);
 
 @defineNumeratedID(LegalEntity, 'Организации');
 
-nameLegalEntity 'Наименование' = DATA VARISTRING[150](LegalEntity) IN recognize INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = DATA VARISTRING[150](LegalEntity) IN recognize INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-nameTaxUnitGroup(group) += nameLegalEntity(group) IF group IS LegalEntity;
+name(LegalEntity group) += name(group) IF group IS LegalEntity;
 
-countryLegalEntity = DATA Country(LegalEntity);
-nameCountryLegalEntity 'Страна' (legalEntity) = nameCountry(countryLegalEntity(legalEntity)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
-countryLegalEntity(l) <- defaultCountry() WHEN SET(l IS LegalEntity);
+country = DATA Country(LegalEntity);
+nameCountry 'Страна' (LegalEntity legalEntity) = name(country(legalEntity)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
+country(LegalEntity l) <- defaultCountry() WHEN SET(l IS LegalEntity);
 
-currencyLegalEntity = DATA Currency(LegalEntity);
-nameCurrencyLegalEntity 'Базовая валюта' (legalEntity) = nameCurrency(currencyLegalEntity(legalEntity)) MINCHARWIDTH 10 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
-currencyLegalEntity(legalEntity) <- currencyCountry(countryLegalEntity(legalEntity)) WHEN CHANGED(countryLegalEntity(legalEntity));
+currency = DATA Currency(LegalEntity);
+nameCurrency 'Базовая валюта' (LegalEntity legalEntity) = name(currency(legalEntity)) MINCHARWIDTH 10 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
+currency(LegalEntity legalEntity) <- currency(country(legalEntity)) WHEN CHANGED(country(legalEntity));
 
-languageLegalEntity = DATA Language(LegalEntity);
-nameLanguageLegalEntity 'Язык' (legalEntity) = nameLanguage(languageLegalEntity(legalEntity)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
-languageLegalEntity(legalEntity) <- languageCountry(countryLegalEntity(legalEntity)) WHEN CHANGED(countryLegalEntity(legalEntity));
+language = DATA Language(LegalEntity);
+nameLanguage 'Язык' (LegalEntity legalEntity) = name(language(legalEntity)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
+language(LegalEntity legalEntity) <- language(country(legalEntity)) WHEN CHANGED(country(legalEntity));
 
 GROUP law 'Реквизиты' : public;
 
-ownershipLegalEntity = DATA Ownership (LegalEntity);
-nameOwnershipLegalEntity 'Форма собственности' = nameOwnership(ownershipLegalEntity(legalEntity)) IN law;
-shortNameOwnershipLegalEntity 'Форма собственности (сокр.)' = shortNameOwnership(ownershipLegalEntity(legalEntity)) IN law;
+ownership = DATA Ownership (LegalEntity);
+nameOwnership 'Форма собственности' = name(ownership(LegalEntity legalEntity)) IN law;
+shortNameOwnership 'Форма собственности (сокр.)' = shortName(ownership(LegalEntity legalEntity)) IN law;
 
-CONSTRAINT countryOwnership(ownershipLegalEntity(legalEntity)) != countryLegalEntity(legalEntity)
-    CHECKED BY ownershipLegalEntity MESSAGE 'Страна формы собственности должна совпадать со страной организации';
+CONSTRAINT country(ownership(LegalEntity legalEntity)) != country(legalEntity)
+    CHECKED BY ownership[LegalEntity] MESSAGE 'Страна формы собственности должна совпадать со страной организации';
 
-fullNameLegalEntity 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law MINCHARWIDTH 50 PREFCHARWIDTH 50;
+fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
 @defineHistorizable(address, , 'Юридический адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
 @defineHistorizable(postAddress, , 'Почтовый адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
@@ -73,24 +73,24 @@ fullNameLegalEntity 'Полное наименование' = DATA VARISTRING[20
 GROUP contact 'Контактная информация' : public;
 
 @defineHistorizable(phone, , 'Телефон/факс', VARSTRING[100], legalEntity, nameLegalEntity, contact);
-emailLegalEntity 'E-mail' = DATA VARSTRING[400] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
-siteLegalEntity 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
-contactsLegalEntity 'Дополнительная информация' = DATA VARSTRING[300] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
+email 'E-mail' = DATA VARSTRING[400] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
+site 'Сайт' = DATA VARSTRING[100] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
+contacts 'Дополнительная информация' = DATA VARSTRING[300] (LegalEntity) IN contact MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
 GROUP management 'Управление' : public;
 
 @defineHistorizableCustom(chief, 'Руководитель', Employee, name, customUser, legalEntity, nameLegalEntity, management );
 @defineHistorizableCustom(booker, 'Главный бухгалтер', Employee, name, customUser, legalEntity, nameLegalEntity, management );
 // Должность ФИО
-positionNameManagerLegalEntity 'Руководитель' (legalEntity) = positionNameEmployee(chiefLegalEntity(legalEntity)) IN management; 
-positionNameAccountantLegalEntity 'Главный бухгалтер' (legalEntity) = positionNameEmployee(bookerLegalEntity(legalEntity)) IN management;
+positionNameManager 'Руководитель' (LegalEntity legalEntity) = positionName(chief(legalEntity)) IN management; 
+positionNameAccountant 'Главный бухгалтер' (LegalEntity legalEntity) = positionName(booker(legalEntity)) IN management;
 
 GROUP doc 'Для договора' : public;
 GROUP order 'Для заказов' : public;
 
 // Неактивный
-inactiveLegalEntity 'Неактивная' = DATA BOOLEAN (LegalEntity);
-activeLegalEntity 'Активная' (l) = l IS LegalEntity AND NOT inactiveLegalEntity(l);
+inactive 'Неактивная' = DATA BOOLEAN (LegalEntity);
+active 'Активная' (LegalEntity l) = l IS LegalEntity AND NOT inactive(l);
 
 // ----------------------------------- Группы юридический лиц ---------------------------- //
 
@@ -98,9 +98,9 @@ CLASS LegalEntityGroup 'Группа организаций' ;
 TABLE legalEntityGroup(LegalEntityGroup);
 
 @defineExternalizable(legalEntityGroup, VARSTRING[100]);
-nameLegalEntityGroup 'Наименование' = DATA VARISTRING[100](LegalEntityGroup);
-legalEntityGroupLegalEntity (legalEntity) = DATA LegalEntityGroup (LegalEntity) PERSISTENT INDEXED AUTOSET;
-nameLegalEntityGroupLegalEntity 'Группа организаций' (legalEntity) = nameLegalEntityGroup(legalEntityGroupLegalEntity(legalEntity));
+name 'Наименование' = DATA VARISTRING[100](LegalEntityGroup);
+legalEntityGroup (legalEntity) = DATA LegalEntityGroup (LegalEntity) PERSISTENT INDEXED AUTOSET;
+nameLegalEntityGroup 'Группа организаций' (LegalEntity legalEntity) = name(legalEntityGroup(legalEntity));
 
 TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
 @defineHierarchy(legalEntityGroup);
@@ -108,15 +108,15 @@ TABLE legalEntityGroupLegalEntityGroup(LegalEntityGroup, LegalEntityGroup);
 FORM legalEntityGroup 'Группа организаций'
 
     OBJECTS l = LegalEntityGroup FIXED PANEL
-    PROPERTIES(l) nameLegalEntityGroup, nameParentLegalEntityGroup, idLegalEntityGroup SHOWIF showIDs()
+    PROPERTIES(l) name, nameParent, id SHOWIF showIDs()
 
     EDIT LegalEntityGroup OBJECT l
 ;
 
 FORM legalEntityGroups 'Группы организаций'
 
-    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY lgTreeName = name(lg)
     ORDER BY lgTreeName
 
     DIALOG LegalEntityGroup OBJECT lg
@@ -127,39 +127,39 @@ GROUP license 'Лицензионная информация' : base;
 CLASS License 'Лицензия';
 TABLE license (License);
 
-numberLicense 'Номер лицензии' = DATA VARSTRING[100] (License) IN license;
-dateFromLicense 'Действует с ' = DATA DATE (License) IN license;
-dateToLicense 'Действует по ' = DATA DATE (License) IN license;
+number 'Номер лицензии' = DATA VARSTRING[100] (License) IN license;
+dateFrom 'Действует с ' = DATA DATE (License) IN license;
+dateTo 'Действует по ' = DATA DATE (License) IN license;
 
-descriptionLicense(license) = VARSTRING[150]( CONCAT '; ', '№ '+numberLicense(license),
-                                                           'с '+ dateFromLicense(license),
-                                                           'по '+ dateToLicense(license));
+description(License license) = VARSTRING[150]( CONCAT '; ', '№ '+number(license),
+                                                           'с '+ dateFrom(license),
+                                                           'по '+ dateTo(license));
 
-countryLicense = DATA Country (License);
-nameCountryLicense 'Страна' = nameCountry(countryLicense(license));
+country = DATA Country (License);
+nameCountry 'Страна' = name(country(License license));
 
-legalEntityLicense 'ЮЛ (ИД)' = DATA LegalEntity (License);
+legalEntity 'ЮЛ (ИД)' = DATA LegalEntity (License);
 
-licenseLegalEntityDate 'Действующая на дату' (legalEntity, date) = GROUP MAX license IF dateFromLicense(license) <= date AND NOT dateToLicense(license) < date
-                                                                         BY legalEntityLicense(license), date;
-currentLicenseLegalEntity 'Действующая' (legalEntity) = licenseLegalEntityDate(legalEntity, currentDate());
-numberCurrentLicenseLegalEntity 'Действующая лицензия' (legalEntity) = numberLicense(currentLicenseLegalEntity(legalEntity)) IN law;
+license 'Действующая на дату' (legalEntity, date) = GROUP MAX License license IF dateFrom(license) <= DATE date AND NOT dateTo(license) < date
+                                                                         BY legalEntity(license), date;
+currentLicense 'Действующая' (LegalEntity legalEntity) = license(legalEntity, currentDate());
+numberCurrentLicense 'Действующая лицензия' (LegalEntity legalEntity) = number(currentLicense(legalEntity)) IN law;
 
-CONSTRAINT countryLegalEntity(legalEntityLicense(license)) != countryLicense(license)
-    CHECKED BY legalEntityLicense MESSAGE 'Страна лицензии должна совпадать со страной организации';
+CONSTRAINT country(legalEntity(License license)) != country(license)
+    CHECKED BY legalEntity[License] MESSAGE 'Страна лицензии должна совпадать со страной организации';
 
 // ------------------------------------ Собственные компании ----------------------------- //
 GROUP filterEntity 'Фильтры' : public;
 
-isSupplierLegalEntity 'Явл. поставщиком' = DATA BOOLEAN (LegalEntity) IN filterEntity;
-isCompanyLegalEntity 'Явл. компанией' = DATA BOOLEAN (LegalEntity) IN filterEntity;
-isCustomerLegalEntity 'Явл. покупателем' = DATA BOOLEAN (LegalEntity) IN filterEntity;
-isSellerLegalEntity 'Поставщик или компания' (legalEntity) = isSupplierLegalEntity(legalEntity) OR isCompanyLegalEntity(legalEntity);
-isBuyerLegalEntity 'Покупатель или компания' (legalEntity) = isCustomerLegalEntity(legalEntity) OR isCompanyLegalEntity(legalEntity);
+isSupplier 'Явл. поставщиком' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+isCompany 'Явл. компанией' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+isCustomer 'Явл. покупателем' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+isSeller 'Поставщик или компания' (LegalEntity legalEntity) = isSupplier(legalEntity) OR isCompany(legalEntity);
+isBuyer 'Покупатель или компания' (LegalEntity legalEntity) = isCustomer(legalEntity) OR isCompany(legalEntity);
 
-defaultCompany = GROUP MIN legalEntity IF isCompanyLegalEntity(legalEntity);
+defaultCompany = GROUP MIN LegalEntity legalEntity IF isCompany(legalEntity);
 
-differentStocksInDetailsLegalEntity 'Разные склады в строках' = DATA BOOLEAN (LegalEntity) IN filterEntity;
+differentStocksInDetails 'Разные склады в строках' = DATA BOOLEAN (LegalEntity) IN filterEntity;
 
 needSignLegalEntity 'У организации должен быть задан обязательно минимум один из трех признаков (компания, поставщик или покупатель)' = DATA BOOLEAN ();
 
@@ -172,35 +172,35 @@ DESIGN options {
     }
 }
 
-CONSTRAINT needSignLegalEntity() IF l IS LegalEntity AND NOT (isSupplierLegalEntity(l) OR isCompanyLegalEntity(l) OR isCustomerLegalEntity(l))
+CONSTRAINT needSignLegalEntity() IF LegalEntity l IS LegalEntity AND NOT (isSupplier(l) OR isCompany(l) OR isCustomer(l))
     MESSAGE 'У организации должен быть задан обязательно минимум один из трех признаков (компания, поставщик или покупатель)';
 
 // ------------------------------------ Доступные организации для пользователей -------------------------- //
 
-toShowLegalEntity = ABSTRACT BOOLEAN (LegalEntity);
-toShowIndividualLegalEntity = ABSTRACT BOOLEAN (LegalEntity);
+toShow = ABSTRACT BOOLEAN (LegalEntity);
+toShowIndividual = ABSTRACT BOOLEAN (LegalEntity);
 
-toShowLegalEntity(legalEntity) += legalEntity IS LegalEntity AND NOT toShowIndividualLegalEntity(legalEntity);
+toShow(LegalEntity legalEntity) += legalEntity IS LegalEntity AND NOT toShowIndividual(legalEntity);
 
-isParentLegalEntityGroupLegalEntity (lg,l) = isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg);
+isParent (LegalEntityGroup lg,LegalEntity l) = isParent(legalEntityGroup(l), lg);
 
 
 // ------------------------------------ объединение организаций -------------------------- //
 
-inLegalEntity 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
-countInLegalEntity = GROUP SUM 1 IF inLegalEntity(legalEntity);
+in 'Отм.' = DATA LOCAL BOOLEAN (LegalEntity);
+countInLegalEntity = GROUP SUM 1 IF in(LegalEntity legalEntity);
 
 FORM confirmReplaceLegalEntity 'Объединяемые организации'
     OBJECTS legalEntity = LegalEntity FIXED PANEL 
 
     OBJECTS l = LegalEntity  
-    PROPERTIES(l) READONLY nameLegalEntity, addressLegalEntity, phoneLegalEntity
+    PROPERTIES(l) READONLY name, address, phone
     FILTERS l==legalEntity
 
     OBJECTS l2 = LegalEntity
-    PROPERTIES(l2) inLegalEntity
-    PROPERTIES(l2) READONLY nameLegalEntity, addressLegalEntity, phoneLegalEntity
-    FILTERS inLegalEntity(l2)
+    PROPERTIES(l2) in
+    PROPERTIES(l2) READONLY name, address, phone
+    FILTERS in(l2)
 ;
 
 DESIGN confirmReplaceLegalEntity {
@@ -218,17 +218,17 @@ DESIGN confirmReplaceLegalEntity {
     MOVE functions.box;
 }
 
-replaceLegalEntityLegalEntity = ABSTRACT ACTION LIST (LegalEntity, LegalEntity);
-preReplaceLegalEntityLegalEntity = ABSTRACT ACTION LIST (LegalEntity, LegalEntity);
+replace = ABSTRACT ACTION LIST (LegalEntity, LegalEntity);
+preReplace = ABSTRACT ACTION LIST (LegalEntity, LegalEntity);
 
-replaceLegalEntity 'Объединить' = ACTION (legalEntity) {
+replace 'Объединить' = ACTION (LegalEntity legalEntity) {
     FORM confirmReplaceLegalEntity OBJECTS l=legalEntity MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR inLegalEntity(l) AND legalEntity IS LegalEntity AND NOT isCompanyLegalEntity(l) AND NOT isCompanyLegalEntity(legalEntity)DO {
+        FOR in(LegalEntity l) AND legalEntity IS LegalEntity AND NOT isCompany(l) AND NOT isCompany(legalEntity)DO {
             IF l != legalEntity THEN {
-                preReplaceLegalEntityLegalEntity(l, legalEntity);            
-                replaceLegalEntityLegalEntity(l, legalEntity);
-                inLegalEntity(l) <- NULL;
+                preReplace(l, legalEntity);            
+                replace(l, legalEntity);
+                in(l) <- NULL;
                 DELETE l;            
             } ELSE {
                 MESSAGE 'Выделенная организации не может совпадать с объединяемой и не должна являться собственной компанией';
@@ -236,7 +236,7 @@ replaceLegalEntity 'Объединить' = ACTION (legalEntity) {
         }
         apply();
     } ELSE {
-        inLegalEntity(l) <- NULL WHERE inLegalEntity(l);           
+        in(LegalEntity l) <- NULL WHERE in(l);           
     }
 } CONFIRM;
 
@@ -244,17 +244,17 @@ replaceLegalEntity 'Объединить' = ACTION (legalEntity) {
 
 FORM legalEntity 'Организация'
     OBJECTS l=LegalEntity FIXED PANEL
-    PROPERTIES(l)  nameLegalEntity, nameLegalEntityGroupLegalEntity, nameOwnershipLegalEntity, shortNameOwnershipLegalEntity,
-                   nameCountryLegalEntity, nameLanguageLegalEntity, nameCurrencyLegalEntity, inactiveLegalEntity
-    PROPERTIES(l)  SHOWIF toShowLegalEntity(l) fullNameLegalEntity,
-                   addressLegalEntity, postAddressLegalEntity, nameCustomUserChiefLegalEntity, nameCustomUserBookerLegalEntity, phoneLegalEntity,
-                   emailLegalEntity, siteLegalEntity
-    PROPERTIES(l)  isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity, idLegalEntity SHOWIF showIDs()
-    PROPERTIES(l)  differentStocksInDetailsLegalEntity SHOWIF isCompanyLegalEntity(l)
+    PROPERTIES(l)  name, nameLegalEntityGroup, nameOwnership, shortNameOwnership,
+                   nameCountry, nameLanguage, nameCurrency, inactive
+    PROPERTIES(l)  SHOWIF toShow(l) fullName,
+                   address, postAddress, nameCustomUserChief, nameCustomUserBooker, phone,
+                   email, site
+    PROPERTIES(l)  isSupplier, isCompany, isCustomer, id SHOWIF showIDs()
+    PROPERTIES(l)  differentStocksInDetails SHOWIF isCompany(l)
 
     OBJECTS li=License FIXED GRID
-    PROPERTIES(li) SHOWIF toShowLegalEntity(l) numberLicense, dateFromLicense, dateToLicense, ADDOBJ, DELETESESSION
-    FILTERS legalEntityLicense(li) == l
+    PROPERTIES(li) SHOWIF toShow(l) number, dateFrom, dateTo, ADDOBJ, DELETESESSION
+    FILTERS legalEntity(li) == l
     
     EDIT LegalEntity OBJECT l
 ;
@@ -271,19 +271,19 @@ DESIGN legalEntity {
                 NEW row11 {
                     type = COLUMNS;
                     columns = 2;
-                    MOVE PROPERTY(nameLegalEntity(l));
-                    MOVE PROPERTY(nameLegalEntityGroupLegalEntity(l));
-                    MOVE PROPERTY(nameOwnershipLegalEntity(l));
-                    MOVE PROPERTY(shortNameOwnershipLegalEntity(l));
-                    MOVE PROPERTY(idLegalEntity(l));
-                    MOVE PROPERTY(inactiveLegalEntity(l));
+                    MOVE PROPERTY(name(l));
+                    MOVE PROPERTY(nameLegalEntityGroup(l));
+                    MOVE PROPERTY(nameOwnership(l));
+                    MOVE PROPERTY(shortNameOwnership(l));
+                    MOVE PROPERTY(id(l));
+                    MOVE PROPERTY(inactive(l));
                 }
                 NEW regionContainer {
                     type = CONTAINERH;
                     caption = 'Региональные настройки';
-                    MOVE PROPERTY(nameCountryLegalEntity(l));
-                    MOVE PROPERTY(nameCurrencyLegalEntity(l));
-                    MOVE PROPERTY(nameLanguageLegalEntity(l));
+                    MOVE PROPERTY(nameCountry(l));
+                    MOVE PROPERTY(nameCurrency(l));
+                    MOVE PROPERTY(nameLanguage(l));
                 }
                 NEW row12 {
                     type = COLUMNS;
@@ -319,22 +319,22 @@ DESIGN legalEntity {
 
 FORM legalEntities 'Организации'
 
-    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY lgTreeName = name(lg)
     PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l=LegalEntity
-    PROPERTIES(l) inLegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
-                                          nameLegalEntityGroupLegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() addressLegalEntity, phoneLegalEntity, emailLegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
-    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replaceLegalEntity FORCE PANEL TOOLBAR 
+    PROPERTIES(l) in
+    PROPERTIES(l) READONLYIF isReadonly() nameL = name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+                                          nameLegalEntityGroup
+    PROPERTIES(l) READONLYIF isReadonly() address, phone, email
+    PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replace FORCE PANEL TOOLBAR 
     ORDER BY nameL
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT    
-    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
+    FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
-            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
 
     DIALOG LegalEntity OBJECT l
 ;
@@ -367,22 +367,22 @@ DESIGN legalEntities {
 
 FORM companyLegalEntities 'Организации'
 
-    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY lgTreeName = name(lg)
     PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l=LegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
-                                          nameLegalEntityGroupLegalEntity
-    PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() nameL = name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+                                          nameLegalEntityGroup
+    PROPERTIES(l) READONLY                address, phone
+    PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
-            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
-    FILTERS isCompanyLegalEntity(l)
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+    FILTERS isCompany(l)
 ;
 
 DESIGN companyLegalEntities {
@@ -410,22 +410,22 @@ DESIGN companyLegalEntities {
 
 FORM supplierLegalEntities 'Организации'
 
-    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY lgTreeName = name(lg)
     PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l=LegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
-                                          nameLegalEntityGroupLegalEntity
-    PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() nameL = name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+                                          nameLegalEntityGroup
+    PROPERTIES(l) READONLY                address, phone
+    PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
-            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
-    FILTERS isSupplierLegalEntity(l)
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+    FILTERS isSupplier(l)
 
 ;
 
@@ -454,22 +454,22 @@ DESIGN supplierLegalEntities {
 
 FORM customerLegalEntities 'Организации'
 
-    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY lgTreeName = nameLegalEntityGroup(lg)
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY lgTreeName = name(lg)
     PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l=LegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() nameL = nameLegalEntity, idLegalEntity SHOWIF showIDs(), fullNameLegalEntity, shortNameOwnershipLegalEntity,
-                                          nameLegalEntityGroupLegalEntity
-    PROPERTIES(l) READONLY                addressLegalEntity, phoneLegalEntity
-    PROPERTIES(l) READONLYIF isReadonly() isSupplierLegalEntity, isCompanyLegalEntity, isCustomerLegalEntity
+    PROPERTIES(l) READONLYIF isReadonly() nameL = name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+                                          nameLegalEntityGroup
+    PROPERTIES(l) READONLY                address, phone
+    PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
     PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR
     ORDER BY nameL
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    FILTERS isParentLegalEntityGroupLegalEntityGroup(legalEntityGroupLegalEntity(l), lg) OR
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERS isParent(legalEntityGroup(l), lg) OR
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
-            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroupLegalEntity(l)
-    FILTERS isCustomerLegalEntity(l)
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+    FILTERS isCustomer(l)
 
 ;
 
@@ -496,18 +496,18 @@ DESIGN customerLegalEntities {
     }
 }
 META defineDocumentDialogLegalEntity(objectClass, filter, prefix)
-    change###prefix###filter###objectClass = ACTION (o) {
+    change###prefix###filter = ACTION (###objectClass o) {
         REQUEST OBJECT l
-        IF prefix###objectClass(o) THEN {            
-            FORM filter###legalEntities OBJECTS l = prefix###objectClass(o) CONTEXTFILTER l = prefix###objectClass(o) DIALOG SHOWDROP;       
+        IF prefix(o) THEN {            
+            FORM filter###legalEntities OBJECTS l = prefix(o) CONTEXTFILTER l = prefix(o) DIALOG SHOWDROP;       
         } ELSE {            
-            FORM filter###legalEntities CONTEXTFILTER l = prefix###objectClass(o) DIALOG SHOWDROP;       
+            FORM filter###legalEntities CONTEXTFILTER l = prefix(o) DIALOG SHOWDROP;       
         }
         IF formResult() == FormResult.ok THEN {
-            prefix###objectClass(o) <- requestedObject();
+            prefix(o) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
-            prefix###objectClass(o) <- NULL;
+            prefix(o) <- NULL;
         }
 
     }
@@ -524,30 +524,30 @@ NAVIGATOR {
 }
 // -------------------------------------------- Макросы --------------------------------------------- //
 META defineDocumentHeaderLegalEntity (object, contact, contactCaption)
-    contact###object (object) = DATA LegalEntity (###object);
-    name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###contact###object contactCaption###' (полное наименование)' (object)= fullNameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){ASSIGN contact###object(object) <- o WHERE contact###object(object) == l;} 
+    contact (object) = DATA LegalEntity (###object);
+    name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
+    fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    replace(LegalEntity l, LegalEntity o) += ACTION (l, o){ASSIGN contact(###object object) <- o WHERE contact(object) == l;} 
 END
 META defineDocumentAbstractHeaderLegalEntity (object, contact, contactCaption)
-    contact###object (object) = ABSTRACT LegalEntity (###object) PERSISTENT;
-    name###contact###object contactCaption (object)= nameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###contact###object contactCaption###' (полное наименование)' (object)= fullNameLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
-    address###contact###object contactCaption###' (адрес)' (object)= addressLegalEntity(contact###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    contact (object) = ABSTRACT LegalEntity (###object) PERSISTENT;
+    name###contact contactCaption (###object object)= name(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
+    fullName###contact contactCaption###' (полное наименование)' (###object object)= fullName(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
+    address###contact contactCaption###' (адрес)' (###object object)= address(contact(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;    
 
 END
 META defineDocumentInterfaceHeaderLegalEntity (object, contact, contactCaption)
     @defineDocumentAbstractHeaderLegalEntity(object, contact, contactCaption);
     @defineDocumentHeaderLegalEntity(user###object, contact, contactCaption);
-    contact###object (object) += contact###user###object(object);
+    contact (User###object object) += contact(object);
 END
 
 META defineDocumentDetailLegalEntity (object, detail, contact, contactCaption)
-    contact###detail (idetail) = contact###object(object###detail(idetail)) PERSISTENT;
-    name###contact###detail contactCaption (idetail) = nameLegalEntity(contact###detail(idetail));
-    fullName###contact###detail contactCaption###' (полное наименование)' (idetail) = fullNameLegalEntity(contact###detail(idetail));    
-    address###contact###detail contactCaption###' (адрес)' (idetail)= addressLegalEntity(contact###detail(idetail));           
+    contact (###detail idetail) = contact(object(idetail)) PERSISTENT;
+    name###contact contactCaption (###detail idetail) = name(contact(idetail));
+    fullName###contact contactCaption###' (полное наименование)' (###detail idetail) = fullName(contact(idetail));    
+    address###contact contactCaption###' (адрес)' (###detail idetail)= address(contact(idetail));           
 END
 
 META defineDocumentLegalEntity (object, detail, contact, contactCaption)
@@ -556,23 +556,23 @@ META defineDocumentLegalEntity (object, detail, contact, contactCaption)
 END
 
 META defineDocumentDetailDataLegalEntity (object, detail, contact, contactCaption)
-    data###contact###detail (detail) = DATA LegalEntity (###detail);
-    contact###detail (idetail) = OVERRIDE contact###object(object###detail(idetail)), data###contact###detail(idetail) PERSISTENT;
-    name###contact###detail contactCaption (idetail) = nameLegalEntity(contact###detail(idetail));
-    fullName###contact###detail contactCaption###' (полное наименование)' (idetail) = fullNameLegalEntity(contact###detail(idetail));  
-    address###contact###detail contactCaption###' (адрес)' (idetail)= addressLegalEntity(contact###detail(idetail));                   
+    data###contact (detail) = DATA LegalEntity (###detail);
+    contact (detail idetail) = OVERRIDE contact(object(idetail)), data###contact(idetail) PERSISTENT;
+    name###contact contactCaption (detail idetail) = name(contact(idetail));
+    fullName###contact contactCaption###' (полное наименование)' (detail idetail) = fullName(contact(idetail));  
+    address###contact contactCaption###' (адрес)' (detail idetail)= address(contact(idetail));                   
 END
 META defineDocumentAbstractDetailDataLegalEntity (object, detail, contact, contactCaption)
-    data###contact###detail (detail) = ABSTRACT LegalEntity (###detail);
-    contact###detail (idetail) = OVERRIDE contact###object(object###detail(idetail)), data###contact###detail(idetail) PERSISTENT;
-    name###contact###detail contactCaption (idetail) = nameLegalEntity(contact###detail(idetail));
-    fullName###contact###detail contactCaption###' (полное наименование)' (idetail) = fullNameLegalEntity(contact###detail(idetail));   
-    address###contact###detail contactCaption###' (адрес)' (idetail)= addressLegalEntity(contact###detail(idetail));       
+    data###contact (detail) = ABSTRACT LegalEntity (###detail);
+    contact (detail idetail) = OVERRIDE contact(object(idetail)), data###contact(idetail) PERSISTENT;
+    name###contact contactCaption (detail idetail) = name(contact(idetail));
+    fullName###contact contactCaption###' (полное наименование)' (detail idetail) = fullName(contact(idetail));   
+    address###contact contactCaption###' (адрес)' (detail idetail)= address(contact(idetail));       
 END
 META defineDocumentInterfaceDetailDataLegalEntity (object, detail, contact, contactCaption)
     @defineDocumentAbstractDetailDataLegalEntity (object, detail, contact, contactCaption);
     @defineDocumentDetailDataLegalEntity(user###object, User###detail, contact, contactCaption);
-    data###contact###detail(d) += data###contact###user###detail(d);
+    data###contact(User##detail d) += data###contact(d);
 END
 META defineDocumentInterfaceDetailDataLegalEntity (object, contact, contactCaption)
     @defineDocumentInterfaceDetailDataLegalEntity(object, ###object###detail, contact, contactCaption);
@@ -618,21 +618,21 @@ META defineDocumentInterfaceLegalEntity (object, contact, contactCaption)
 END
 
 META defineDocumentPhone(object, contact, caption)
-    phone###contact###object 'Телефон'###caption (object) = phoneLegalEntity(contact###object(object)) IN documentPrm;
+    phone###contact 'Телефон'###caption (###object object) = phone(contact(object)) IN documentPrm;
 END
 
 // Агрегации
 
 META defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
-    prefixA###legalEntityProp###aggrObject (object) = prefixP###legalEntityProp###primObject(primObject###aggrObject(object)) PERSISTENT;
-    name###prefixA###legalEntityProp###aggrObject legalEntityCaption (object) = nameLegalEntity(prefixA###legalEntityProp###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    legalEntityProp (###aggrObject object) = legalEntityProp(primObject(object)) PERSISTENT;
+    name###legalEntityProp legalEntityCaption (###aggrObject object) = name(legalEntityProp(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 END
 META defineDocumentAggregationHeaderLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
     @defineDocumentAggregationHeaderLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
 END
 
 META defineDocumentAggregationDetailLegalEntityPrefix (primObject, aggrObject, legalEntityProp, legalEntityCaption, prefixP, prefixA)
-    prefixA###legalEntityProp###aggrObject##Detail (detail) = prefixP###legalEntityProp###primObject##Detail(primObject##Detail###aggrObject##Detail(detail)) PERSISTENT;
+    legalEntityProp (###aggrObject##Detail detail) = legalEntityProp(primObject##Detail(detail)) PERSISTENT;
 END
 META defineDocumentAggregationDetailLegalEntity (primObject, aggrObject, legalEntityProp, legalEntityCaption)
     @defineDocumentAggregationDetailLegalEntityPrefix(primObject, aggrObject, legalEntityProp, legalEntityCaption, , );
@@ -648,17 +648,17 @@ END
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultStaticOwnership 'Добавить Формы собственности' = ACTION (iname, isname, sidCountry, static) {    //статик класс
-        ASSIGN nameOwnership(t) <- iname WHERE t == static;
-        ASSIGN shortNameOwnership(t) <- isname WHERE t == static;       
-        ASSIGN countryOwnership(t) <- countrySID(sidCountry) WHERE t == static;
+loadDefaultStaticOwnership 'Добавить Формы собственности' = ACTION (VARISTRING[100] iname, STRING[10] isname, STRING[3] sidCountry, static) {    //статик класс
+        ASSIGN name(Ownership t) <- iname WHERE t == static;
+        ASSIGN shortName(Ownership t) <- isname WHERE t == static;       
+        ASSIGN country(Ownership t) <- country(sidCountry) WHERE t == static;
 }
 
-loadDefaultOwnership 'Добавить Формы собственности' = ACTION (iname, isname, sidCountry) {
+loadDefaultOwnership 'Добавить Формы собственности' = ACTION (VARISTRING[100] iname, STRING[10] isname, STRING[3] sidCountry) {
     FOR ADDOBJ t = Ownership DO {
-        ASSIGN nameOwnership(t) <- iname;
-        ASSIGN shortNameOwnership(t) <- isname;
-        ASSIGN countryOwnership(t) <- countrySID(sidCountry);
+        ASSIGN name(t) <- iname;
+        ASSIGN shortName(t) <- isname;
+        ASSIGN country(t) <- country(sidCountry);
     }
 }
 
@@ -670,18 +670,18 @@ loadDefaultOwnerships 'Загрузить стандарные формы соб
 
 //--
 
-loadDefaultLegalEntityGroup 'Добавить группы организаций' = ACTION (iname, id) {
+loadDefaultLegalEntityGroup 'Добавить группы организаций' = ACTION (VARISTRING[100] iname, VARSTRING[100] id) {
     FOR ADDOBJ lg = LegalEntityGroup DO {
-        nameLegalEntityGroup(lg) <- iname;
-        idLegalEntityGroup(lg) <- id;
+        name(lg) <- iname;
+        id(lg) <- id;
 
     }
 }
-loadDefaultRecLegalEntityGroup 'Добавить группы организаций (рекурсивно)' = ACTION (iname, id, idParent) {
+loadDefaultRecLegalEntityGroup 'Добавить группы организаций (рекурсивно)' = ACTION (VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) {
     FOR ADDOBJ lg = LegalEntityGroup DO {
-        nameLegalEntityGroup(lg) <- iname;
-        idLegalEntityGroup(lg) <- id;
-        parentLegalEntityGroup(lg) <- legalEntityGroupId(idParent);
+        name(lg) <- iname;
+        id(lg) <- id;
+        parent(lg) <- legalEntityGroup(idParent);
     }
 }
 

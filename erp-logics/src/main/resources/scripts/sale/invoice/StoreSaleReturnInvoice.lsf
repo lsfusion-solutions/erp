@@ -5,66 +5,66 @@ REQUIRE SaleReturnInvoice, Store;
 NAMESPACE SaleReturn;
 
 // --------------------- НДС расчетный ----------------------- //
-dateSaleInvoice 'Дата продажи' = ABSTRACT DATE (Invoice) IN documentPrm;
-dateSaleUserInvoice 'Дата продажи' = DATA DATE (UserInvoice) IN documentPrm;
-dateSaleInvoice (invoice) += dateSaleUserInvoice(invoice);
+dateSale 'Дата продажи' = ABSTRACT DATE (Invoice) IN documentPrm;
+dateSale 'Дата продажи' = DATA DATE (UserInvoice) IN documentPrm;
+dateSale (UserInvoice invoice) += dateSale(invoice);
 
-WHEN SESSION SET(o IS UserInvoice) DO {
-    IF o IS UserInvoice AND NOT dateSaleUserInvoice(o) THEN dateSaleUserInvoice(o) <- currentDate();
+WHEN SESSION SET(UserInvoice o IS UserInvoice) DO {
+    IF o IS UserInvoice AND NOT dateSale(o) THEN dateSale(o) <- currentDate();
 }
 
-showDateSaleOperation 'Показывать дату продажи' = DATA BOOLEAN (Sale.Operation);
+showDateSale 'Показывать дату продажи' = DATA BOOLEAN (Sale.Operation);
 
 EXTEND FORM Sale.operation
-    PROPERTIES (o) showDateSaleOperation
+    PROPERTIES (o) showDateSale
 ;
 
 DESIGN Sale.operation {
     showContainer {
-        MOVE PROPERTY(showDateSaleOperation(o));
+        MOVE PROPERTY(showDateSale(o));
     }    
 }
 
-showDateSaleUserInvoice = showDateSaleOperation(operationUserInvoice(invoice));
+showDateSale = showDateSale(operation(UserInvoice invoice));
 
 EXTEND FORM userInvoice
-    PROPERTIES (i) dateSaleUserInvoice SHOWIF showDateSaleUserInvoice(i)
+    PROPERTIES (i) dateSale SHOWIF showDateSale(i)
 ;
 
-VATInvoice = ABSTRACT Range(Invoice);
-numberVATInvoice 'НДС расч.' (invoice) = numberRange(VATInvoice(invoice)) IN documentPrm;
+VAT = ABSTRACT Range(Invoice);
+numberVAT 'НДС расч.' (Invoice invoice) = number(VAT(invoice)) IN documentPrm;
 
-VATUserInvoice = DATA Range(UserInvoice);
-numberVATUserInvoice 'НДС расч.' (userInvoice) = numberRange(VATUserInvoice(userInvoice)) IN documentPrm;
-valueVATUserInvoice 'НДС расч.' (userInvoice) = valueRateRangeDate (VATUserInvoice(userInvoice),  dateSaleUserInvoice(userInvoice)) IN documentPrm;
-VATInvoice (invoice) += VATUserInvoice(invoice);
+VAT = DATA Range(UserInvoice);
+numberVAT 'НДС расч.' (UserInvoice userInvoice) = number(VAT(userInvoice)) IN documentPrm;
+valueVAT 'НДС расч.' (UserInvoice userInvoice) = valueRate (VAT(userInvoice),  dateSale(userInvoice)) IN documentPrm;
+VAT (UserInvoice invoice) += VAT(invoice);
 
-CONSTRAINT taxRange(VATUserInvoice(userInvoice)) != Tax.taxVAT OR
-           countryRange(VATUserInvoice(userInvoice)) != countryStock(supplierStockInvoice(userInvoice)) OR
-           rangeTypeRange(VATUserInvoice(userInvoice)) != RangeType.units
-           CHECKED BY VATUserInvoice
+CONSTRAINT tax(VAT(UserInvoice userInvoice)) != Tax.taxVAT OR
+           country(VAT(userInvoice)) != country(supplierStock[Invoice](userInvoice)) OR
+           rangeType(VAT(userInvoice)) != RangeType.units
+           CHECKED BY VAT[UserInvoice]
            MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: продажа';
 
-useCountVATOperationuserInvoice = useCountVATOperation(operationUserInvoice(invoice));
+useCountVATOperationuser = useCountVAT(operation(UserInvoice invoice));
 
-VATUserInvoice (userInvoice) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserInvoice(userInvoice)))
-        IF useCountVATOperationuserInvoice(userInvoice)
-        WHEN CHANGED(supplierStockUserInvoice(userInvoice));
+VAT (UserInvoice userInvoice) <- range(Tax.taxVAT, store(supplierStock(userInvoice)))
+        IF useCountVATOperationuser(userInvoice)
+        WHEN CHANGED(supplierStock(userInvoice));
 
 //@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
 
-overVATUserInvoiceDetail (d) += VATUserInvoice(userInvoiceUserInvoiceDetail(d));
-WHEN SESSION CHANGED(VATUserInvoice(userInvoiceUserInvoiceDetail(d))) DO {
-    VATUserInvoiceDetail(d) <- overVATUserInvoiceDetail (d); 
+overVAT (UserInvoiceDetail d) += VAT(userInvoice(d));
+WHEN SESSION CHANGED(VAT(userInvoice(UserInvoiceDetail d))) DO {
+    VAT(d) <- overVAT (d); 
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) numberVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i), valueVATUserInvoice SHOWIF useCountVATOperationuserInvoice(i);
+    PROPERTIES(i) numberVAT SHOWIF useCountVATOperationuser(i), valueVAT SHOWIF useCountVATOperationuser(i);
 ;
 
-WHEN SESSION FORMS userInvoice (CHANGED(quantityUserInvoiceDetail(d)) OR CHANGED(invoicePriceUserInvoiceDetail(d)) OR CHANGED(valueVATUserInvoiceDetail(d)))
-                               AND VATUserInvoice(userInvoiceUserInvoiceDetail(d)) AND includeVATPriceListType(priceListTypeUserInvoiceDetail(d)) DO {
-    invoiceSumUserInvoiceDetail(d) <- roundPriceCurrency(quantityUserInvoiceDetail(d) * invoicePriceUserInvoiceDetail(d), currencyUserInvoiceDetail(d));
-    VATSumUserInvoiceDetail(d) <- roundPriceCurrency(invoiceSumUserInvoiceDetail(d) * calcValueVATUserInvoiceDetail(d) / (100.0 + calcValueVATUserInvoiceDetail(d)), currencyUserInvoiceDetail(d));
-    sumUserInvoiceDetail(d) <- invoiceSumUserInvoiceDetail(d) (-) VATSumUserInvoiceDetail(d); 
+WHEN SESSION FORMS userInvoice (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d)))
+                               AND VAT(userInvoice(d)) AND includeVAT(priceListType(d)) DO {
+    invoiceSum(d) <- round(quantity(d) * invoicePrice(d), currency(d));
+    VATSum(d) <- round(invoiceSum(d) * calcValueVAT(d) / (100.0 + calcValueVAT(d)), currency(d));
+    sum(d) <- invoiceSum(d) (-) VATSum(d); 
 }

@@ -5,40 +5,40 @@ REQUIRE ComplianceGroupItem, ItemArticle;
 NAMESPACE Compliance;
 
 //-- Группа сертификации
-complianceGroupCountryArticle = DATA ComplianceGroup(Country, Article);
-nameComplianceGroupCountryArticle 'Группа сертификации' (country, article) = nameComplianceGroup(complianceGroupCountryArticle(country, article)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
-nameComplianceGroupDefaultCountryArticle 'Группа сертификации' (article) = nameComplianceGroup(complianceGroupCountryArticle(defaultCountry(), article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+complianceGroup = DATA ComplianceGroup(Country, Article);
+nameComplianceGroup 'Группа сертификации' (Country country, Article article) = name(complianceGroup(country, article)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+nameComplianceGroupDefaultCountry 'Группа сертификации' (Article article) = name(complianceGroup(defaultCountry(), article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-changeComplianceGroupDefaultCountryArticle = ACTION (article) {
+changeComplianceGroupDefaultCountry = ACTION (Article article) {
     REQUEST OBJECT cg
     FORM complianceGroups DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        complianceGroupCountryArticle(country, article) <- requestedObject() WHERE country == defaultCountry();
+        complianceGroup(Country country, article) <- requestedObject() WHERE country == defaultCountry();
 
     } ELSE IF formResult() == FormResult.drop THEN {
-        complianceGroupCountryArticle(country, article) <- NULL WHERE country == defaultCountry();
+        complianceGroup(Country country, article) <- NULL WHERE country == defaultCountry();
     }
 }
 
 EXTEND FORM article
-    PROPERTIES(a)    nameComplianceGroupDefaultCountryArticle  ON CHANGE changeComplianceGroupDefaultCountryArticle(a)
-    PROPERTIES(c, a) nameComplianceGroupCountryArticle
+    PROPERTIES(a)    nameComplianceGroupDefaultCountry  ON CHANGE changeComplianceGroupDefaultCountry(a)
+    PROPERTIES(c, a) nameComplianceGroup
 
-    PROPERTIES (i) BEFORE deletei nameComplianceGroupDefaultCountryItem ON CHANGE changeComplianceGroupCountryItem(i)
+    PROPERTIES (i) BEFORE deletei nameComplianceGroupDefaultCountry ON CHANGE changeComplianceGroupCountry(i)
 ;
 DESIGN article  {
     regionPrm {
-        MOVE PROPERTY(nameComplianceGroupDefaultCountryArticle(a));
+        MOVE PROPERTY(nameComplianceGroupDefaultCountry(a));
     }
 }
 
-WHEN SESSION FORMS article CHANGED(complianceGroupCountryArticle(country, article)) DO         
-    complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, article) WHERE articleItem(i) == article; 
+WHEN SESSION FORMS article CHANGED(complianceGroup(Country country, Article article)) DO         
+    complianceGroup(country, Item i) <- complianceGroup(country, article) WHERE article(i) == article; 
 
-WHEN SESSION FORMS article SET(i IS Item) DO
-    complianceGroupCountryItem(country, i) <- complianceGroupCountryArticle(country, articleItem(i)); 
+WHEN SESSION FORMS article SET(Item i IS Item) DO
+    complianceGroup(Country country, i) <- complianceGroup(country, article(i)); 
 
 
 EXTEND FORM articles
-    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameComplianceGroupDefaultCountryArticle
+    PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameComplianceGroupDefaultCountry
 ;

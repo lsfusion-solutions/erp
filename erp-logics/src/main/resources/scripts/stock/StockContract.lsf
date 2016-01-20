@@ -8,45 +8,45 @@ NAMESPACE Contract;
 
 META defineInStockGroupObject(prop, object, objectClass)
 
-    all###prop##Stocks###object 'Отм' = DATA BOOLEAN (objectClass);
+    all###prop##Stocks 'Отм' = DATA BOOLEAN (objectClass);
 
-    dataIn###prop##StockGroup###object 'Отм.' = DATA BOOLEAN (StockGroup, objectClass);
+    dataIn###prop 'Отм.' = DATA BOOLEAN (StockGroup, objectClass);
 
-    levelParent###prop##Stock###object###stockGroup (object, stockGroup) =
-        GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataIn###prop##StockGroup###object(parent, object)
+    levelParent###prop##Stock (object, stockGroup) =
+        GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn###prop(parent, ###object object)
               BY object, stockGroup PERSISTENT;
-    nearestParent###prop##object###StockGroup (object, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParent###prop##Stock###object###stockGroup(object, stockGroup));
-    nearestIn###prop##StockGroup###object (stockGroup, object) =
-        dataIn###prop##StockGroup###object(nearestParent###prop##object###StockGroup(object, stockGroup), object) PERSISTENT;
+    nearestParent###prop##contract (###object object, StockGroup stockGroup) = stockGroup(stockGroup, levelParent###prop##Stock(object, stockGroup));
+    nearestIn###prop (StockGroup stockGroup, ###object object) =
+        dataIn###prop(nearestParent###prop##contract(object, stockGroup), object) PERSISTENT;
 
-    in###prop##StockGroup###object 'Отм' (stockGroup, object) =
-        OVERRIDE all###prop##Stocks###object(object) AND stockGroup IS StockGroup,
-                 nearestIn###prop##StockGroup###object(stockGroup, object),
-                 dataIn###prop##StockGroup###object(stockGroup, object);
+    in###prop 'Отм' (StockGroup stockGroup, ###object object) =
+        OVERRIDE all###prop##Stocks(object) AND stockGroup IS StockGroup,
+                 nearestIn###prop(stockGroup, object),
+                 dataIn###prop(stockGroup, object);
 
     // Отметка для складов
-    dataIn###prop##Stock###object 'Отм.' = DATA BOOLEAN (Stock, objectClass);
-    in###prop##Stock###object 'Отм' (stock, object) =
-        (OVERRIDE in###prop##StockGroup###object(stockGroupStock(stock), object),
-                 dataIn###prop##Stock###object(stock, object)) IF inLegalEntityStock(prop###object(object), stock) AND activeStock(stock) PERSISTENT;
-    replaceStockStock(s, o) += ACTION (s, o){ASSIGN dataIn###prop##Stock###object(o, object) <- TRUE WHERE in###prop##Stock###object(s, object) AND NOT in###prop##Stock###object(o, object);}                   
+    dataIn###prop 'Отм.' = DATA BOOLEAN (Stock, objectClass);
+    in###prop 'Отм' (Stock stock, ###object object) =
+        (OVERRIDE in###prop(stockGroup(stock), object),
+                 dataIn###prop(stock, object)) IF in(prop(object), stock) AND active(stock) PERSISTENT;
+    replace(Stock s, Stock o) += ACTION (s, o){ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}                   
                  
-    countDataIn###prop##StockGroups###object = GROUP SUM 1 IF  dataIn###prop##StockGroup###object(stockGroup, object) BY object;            
+    countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, ###object object) BY object;            
                                   
-    background###all###prop##Stocks###object 'Цвет' (object) = IF all###prop##Stocks###object(object) THEN RGB(0,0,0)
-        ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups###object(object);      
+    backgroundAll###prop##Stocks 'Цвет' (###object object) = IF all###prop##Stocks(object) THEN RGB(0,0,0)
+        ELSE RGB(203,203,203) IF countDataIn###prop##StockGroups(object);      
      
-    quantityChildWith###in###prop##StockGroup###object (group, object) = GROUP SUM 1 IF dataIn###prop##StockGroup###object(childGroup, object) AND isParentStockGroupStockGroup(childGroup, group) BY group, object PERSISTENT;
-    quantityParentWith###in###prop##StockGroup###object (group, object) = GROUP SUM 1 IF dataIn###prop##StockGroup###object(parentGroup, object) AND isParentStockGroupStockGroup(group, parentGroup) BY group, object PERSISTENT;          
+    quantityChildWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup childGroup, ###object object) AND isParent(childGroup, StockGroup group) BY group, object PERSISTENT;
+    quantityParentWithIn###prop (group, object) = GROUP SUM 1 IF dataIn###prop(StockGroup parentGroup, ###object object) AND isParent(StockGroup group, parentGroup) BY group, object PERSISTENT;          
           
-    background###in###prop##StockGroup###object 'Цвет' (group, object) = CASE
-        WHEN dataIn###prop##StockGroup###object(group, object) THEN RGB(0,0,0)
-        WHEN nearestIn###prop##StockGroup###object(group, object) THEN RGB(230,248,250) 
-        WHEN quantityChildWith###in###prop##StockGroup###object(group, object) != descendantNumberStockGroup(group) AND NOT quantityParentWith###in###prop##StockGroup###object(group, object) THEN RGB(203,203,203);
+    backgroundIn###prop 'Цвет' (StockGroup group, ###object object) = CASE
+        WHEN dataIn###prop(group, object) THEN RGB(0,0,0)
+        WHEN nearestIn###prop(group, object) THEN RGB(230,248,250) 
+        WHEN quantityChildWithIn###prop(group, object) != descendantNumber(group) AND NOT quantityParentWithIn###prop(group, object) THEN RGB(203,203,203);
         
-    background###in###prop##Stock###object 'Цвет' (stock, object) = IF dataIn###prop##Stock###object(stock, object) THEN RGB(0,0,0)
+    backgroundIn###prop 'Цвет' (Stock stock, ###object object) = IF dataIn###prop(stock, object) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 
-        IF in###prop##StockGroup###object(stockGroupStock(stock), object);  
+        IF in###prop(stockGroup(stock), object);  
 END
 
 META defineInStockGroupObject(prop, object)
@@ -56,67 +56,67 @@ END
 CLASS ABSTRACT ContractSku 'Договор на поставку' : Contract;
 TABLE contractSku(ContractSku);
 
-wordContractSku 'Файл договора'  = ABSTRACT WORDFILE (ContractSku);
-saveWordContractSku 'Загрузить файл договора' (contractSku) = ACTION LOADFILE wordContractSku(contractSku);
-openWordContractSku 'Просмотреть файл договора' (contractSku) = ACTION OPENFILE wordContractSku(contractSku);
-wordContract(contract) += wordContractSku(contract);
+word 'Файл договора'  = ABSTRACT WORDFILE (ContractSku);
+saveWord 'Загрузить файл договора' (ContractSku contractSku) = ACTION LOADFILE word(contractSku);
+openWord 'Просмотреть файл договора' (ContractSku contractSku) = ACTION OPENFILE word(contractSku);
+word(ContractSku contract) += word(contract);
 
-idContractSku 'Код' = ABSTRACT VARSTRING[100] (ContractSku) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
-idContract(c) += idContractSku(c);
+id 'Код' = ABSTRACT VARSTRING[100] (ContractSku) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id(ContractSku c) += id(c);
 
 CLASS UserContractSku 'Договор на поставку (польз.)' : ContractSku;
 @defineDocumentInterfaceHeaderNumber(ContractSku);
 @defineExternalizable(userContractSku, VARSTRING[100]);
 @defineNumeratedID(UserContractSku, 'Договоры (код)', Id);
 
-idContractSku(c) += idUserContractSku(c);
+id(UserContractSku c) += id(c);
 
-numberContract (contract) += numberContractSku(contract);
-seriesContract (contract) += seriesContractSku(contract);
+number (ContractSku contract) += number(contract);
+series (ContractSku contract) += series(contract);
 
 @defineNumeratedDefault(UserContractSku, 'Договоры', 'ДП');
 
-wordUserContractSku 'Файл договора' (UserContractSku) = DATA WORDFILE (UserContractSku);
-saveWordUserContractSku 'Загрузить файл договора' (userContractSku) = ACTION LOADFILE wordUserContractSku(userContractSku);
-openWordUserContractSku 'Просмотреть файл договора' (userContractSku) = ACTION OPENFILE wordUserContractSku(userContractSku);
-wordContractSku(contract) += wordUserContractSku(contract);
+word 'Файл договора' (UserContractSku) = DATA WORDFILE (UserContractSku);
+saveWord 'Загрузить файл договора' (UserContractSku userContractSku) = ACTION LOADFILE word(userContractSku);
+openWord 'Просмотреть файл договора' (UserContractSku userContractSku) = ACTION OPENFILE word(userContractSku);
+word(UserContractSku contract) += word(contract);
 
-supplierContractSku = DATA LegalEntity (ContractSku);
-nameSupplierContractSku 'Поставщик' (contract) = nameLegalEntity(supplierContractSku(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
-partyAContract (contract) += supplierContractSku(contract);
+supplier = DATA LegalEntity (ContractSku);
+nameSupplier 'Поставщик' (ContractSku contract) = name(supplier(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
+partyA (ContractSku contract) += supplier(contract);
 
 //inSupplierStockContractSku 'Вкл.'  = DATA BOOLEAN (Stock, ContractSku);
 TABLE stockGroupContractSku (StockGroup, ContractSku);
 @defineInStockGroupObject(supplier, contractSku);
-inPartyAStockContract (stock, contract) += inSupplierStockContractSku(stock,contract);
+inPartyA (Stock stock, ContractSku contract) += inSupplier(stock,contract);
 
-countSuppliersStockContractSku = GROUP SUM 1 IF inSupplierStockContractSku(stock,contract) BY contract;
+countSuppliersStock = GROUP SUM 1 IF inSupplier(Stock stock,ContractSku contract) BY contract;
 
-CONSTRAINT supplierContractSku(contract) AND inSupplierStockContractSku(stock, contract) AND NOT
-    inLegalEntityStock(supplierContractSku(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
+CONSTRAINT supplier(ContractSku contract) AND inSupplier(Stock stock, contract) AND NOT
+    in(supplier(contract), stock) MESSAGE 'Поставщик и склад поставщика для договора не имеют связи';
 
 
 //--------------------------------------------//
-customerContractSku = DATA LegalEntity (ContractSku);
-nameCustomerContractSku 'Покупатель' (contract) = nameLegalEntity(customerContractSku(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
-partyBContract (contract) += customerContractSku(contract);
+customer = DATA LegalEntity (ContractSku);
+nameCustomer 'Покупатель' (ContractSku contract) = name(customer(contract)) IN recognize MINCHARWIDTH 20 PREFCHARWIDTH 40;
+partyB (ContractSku contract) += customer(contract);
 
 @defineInStockGroupObject(customer, contractSku);
 
-inPartyBStockContract (stock, contract) += inCustomerStockContractSku(stock,contract);
+inPartyB (Stock stock, ContractSku contract) += inCustomer(stock,contract);
 
-countCustomersStockContractSku= GROUP SUM 1 IF inCustomerStockContractSku(stock,contract) BY contract;
+countCustomersStock= GROUP SUM 1 IF inCustomer(Stock stock,ContractSku contract) BY contract;
 
-CONSTRAINT customerContractSku(contract) AND inCustomerStockContractSku(stock, contract) AND NOT
-    inLegalEntityStock(customerContractSku(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';
+CONSTRAINT customer(ContractSku contract) AND inCustomer(Stock stock, contract) AND NOT
+    in(customer(contract), stock) MESSAGE 'Покупатель и склад покупателя для договора не имеют связи';
 
 TABLE supplierCustomer(LegalEntity, LegalEntity);
 @defineContractDefault(contractSku, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
 
 //объединение организаций
-replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){
-    supplierContractSku(contract) <- o WHERE supplierContractSku(contract) == l;
-    customerContractSku(contract) <- o WHERE customerContractSku(contract) == l;
+replace(LegalEntity l, LegalEntity o) += ACTION (l, o){
+    supplier(ContractSku contract) <- o WHERE supplier(contract) == l;
+    customer(ContractSku contract) <- o WHERE customer(contract) == l;
 }   
 
 //для договора
@@ -131,53 +131,53 @@ FORM contractSkuTypes 'Типы договоров на поставку'
     DIALOG ContractSkuType OBJECT t
 ;
 
-typeContractSku = DATA ContractSkuType (ContractSku);
-nameTypeContractSku 'Тип договора' (contract) = staticCaption(typeContractSku(contract)) IN base;
-isSaleTypeContract(contract) = typeContractSku(contract) == ContractSkuType.sale;
+type = DATA ContractSkuType (ContractSku);
+nameType 'Тип договора' (ContractSku contract) = staticCaption(type(contract)) IN base;
+isSaleType(ContractSku contract) = type(contract) == ContractSkuType.sale;
 
-typeContractSku (o) <- ContractSkuType.sale WHEN SET(o IS ContractSku);
+type (ContractSku o) <- ContractSkuType.sale WHEN SET(o IS ContractSku);
 
 // Формы
 FORM userContractSku 'Договор на поставку товаров'
     OBJECTS c = UserContractSku FIXED PANEL
-    PROPERTIES(c) nameSupplierContractSku, nameCustomerContractSku, isDataDefaultContractSku, nameTypeContractSku,
-                  nameNumeratorUserContractSku, numberUserContractSku, seriesUserContractSku, dateFromContract, dateToContract,
-                  nameCurrencyContract,  nameTypeExchangeContract, descriptionPaymentConditionContract,
-                  noteContract, saveWordUserContractSku, openWordUserContractSku, idUserContractSku SHOWIF showIDs()
+    PROPERTIES(c) nameSupplier, nameCustomer, isDataDefault, nameType,
+                  nameNumerator, number, series, dateFrom, dateTo,
+                  nameCurrency,  nameTypeExchange, descriptionPaymentCondition,
+                  note, saveWord, openWord, id SHOWIF showIDs()
 
-        TREE stockTree a=STRING[3], sg = StockGroup PARENT parentStockGroup
-        PROPERTIES READONLY OBJVALUE(a),nameStockGroup(sg)
-        PROPERTIES(c) allSupplierStocksContractSku TODRAW a FORCE GRID BACKGROUND backgroundAllSupplierStocksContractSku(c)
-        PROPERTIES(sg,c) inSupplierStockGroupContractSku BACKGROUND backgroundInSupplierStockGroupContractSku(sg,c)
-        ORDER BY nameStockGroup(sg)
+        TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
+        PROPERTIES READONLY OBJVALUE(a),name(sg)
+        PROPERTIES(c) allSupplierStocks TODRAW a FORCE GRID BACKGROUND backgroundAllSupplierStocks(c)
+        PROPERTIES(sg,c) inSupplier BACKGROUND backgroundInSupplier(sg,c)
+        ORDER BY name(sg)
         FILTERS stringEqualsAll(a)
-        FILTERS countSupplierStockStockGroup(sg) OR countCompanyStockStockGroup(sg)
+        FILTERS countSupplierStock(sg) OR countCompanyStock(sg)
     
         OBJECTS ss = Stock
-        PROPERTIES READONLY  nameStock(ss), idStock(ss) SHOWIF showIDs()
-        PROPERTIES(ss,c)    inSupplierStockContractSku BACKGROUND backgroundInSupplierStockContractSku(ss,c)
-        FILTERS ss IS Stock AND NOT sg IS StockGroup OR isParentStockGroupStock(sg, ss),
-                inLegalEntityStock(supplierContractSku(c), ss),
-                isCompanyStock(ss) OR isSupplierStock(ss)
+        PROPERTIES READONLY  name(ss), id(ss) SHOWIF showIDs()
+        PROPERTIES(ss,c)    inSupplier BACKGROUND backgroundInSupplier(ss,c)
+        FILTERS ss IS Stock AND NOT sg IS StockGroup OR isParent(sg, ss),
+                in(supplier(c), ss),
+                isCompany(ss) OR isSupplier(ss)
         FILTERGROUP filters
-                FILTER 'Отм.'  inSupplierStockContractSku(ss,c) 'F10'   
+                FILTER 'Отм.'  inSupplier(ss,c) 'F10'   
 
-        TREE stockTree1 b=STRING[3], sg1 = StockGroup PARENT parentStockGroup
-        PROPERTIES READONLY OBJVALUE(b), nameStockGroup(sg1)
-        PROPERTIES(c) allCustomerStocksContractSku TODRAW b FORCE GRID BACKGROUND backgroundAllCustomerStocksContractSku(c)
-        PROPERTIES(sg1,c) inCustomerStockGroupContractSku BACKGROUND backgroundInCustomerStockGroupContractSku(sg1,c)
-        ORDER BY nameStockGroup(sg1)
+        TREE stockTree1 b=STRING[3], sg1 = StockGroup PARENT parent
+        PROPERTIES READONLY OBJVALUE(b), name(sg1)
+        PROPERTIES(c) allCustomerStocks TODRAW b FORCE GRID BACKGROUND backgroundAllCustomerStocks(c)
+        PROPERTIES(sg1,c) inCustomer BACKGROUND backgroundInCustomer(sg1,c)
+        ORDER BY name(sg1)
         FILTERS stringEqualsAll(b)
-        FILTERS countCustomerStockStockGroup(sg1) OR countCompanyStockStockGroup(sg1)
+        FILTERS countCustomerStock(sg1) OR countCompanyStock(sg1)
     
         OBJECTS ss1 = Stock
-        PROPERTIES READONLY  nameStock(ss1), idStock(ss1) SHOWIF showIDs()
-        PROPERTIES(ss1,c)    inCustomerStockContractSku BACKGROUND backgroundInCustomerStockContractSku(ss1,c)
-        FILTERS ss1 IS Stock AND NOT sg1 IS StockGroup OR isParentStockGroupStock(sg1, ss1),
-                inLegalEntityStock(customerContractSku(c), ss1),
-                isCompanyStock(ss1) OR isCustomerStock(ss1)
+        PROPERTIES READONLY  name(ss1), id(ss1) SHOWIF showIDs()
+        PROPERTIES(ss1,c)    inCustomer BACKGROUND backgroundInCustomer(ss1,c)
+        FILTERS ss1 IS Stock AND NOT sg1 IS StockGroup OR isParent(sg1, ss1),
+                in(customer(c), ss1),
+                isCompany(ss1) OR isCustomer(ss1)
         FILTERGROUP filters1
-                FILTER 'Отм.'  inCustomerStockContractSku(ss1,c) 'F10'   
+                FILTER 'Отм.'  inCustomer(ss1,c) 'F10'   
       
     EDIT UserContractSku OBJECT c
 
@@ -191,7 +191,7 @@ DESIGN userContractSku {
             type = CONTAINERH;
         }
         MOVE c.contract {
-        MOVE PROPERTY (idUserContractSku(c));
+        MOVE PROPERTY (id(c));
             type = CONTAINERH;
         }
     }
@@ -199,17 +199,17 @@ DESIGN userContractSku {
         type = COLUMNS;
         columns = 3;
         caption = 'Параметры';
-        MOVE PROPERTY(nameSupplierContractSku(c));
-        MOVE PROPERTY(nameCustomerContractSku(c));
-        MOVE PROPERTY(nameTypeContractSku(c));
-        MOVE PROPERTY(isDataDefaultContractSku(c));
+        MOVE PROPERTY(nameSupplier(c));
+        MOVE PROPERTY(nameCustomer(c));
+        MOVE PROPERTY(nameType(c));
+        MOVE PROPERTY(isDataDefault(c));
     }
     MOVE c.payment;
     NEW text {
         type = CONTAINERH;
         caption = 'Содержание';
-        MOVE PROPERTY(saveWordUserContractSku(c));
-        MOVE PROPERTY(openWordUserContractSku(c));
+        MOVE PROPERTY(saveWord(c));
+        MOVE PROPERTY(openWord(c));
     }
     NEW tabContainer{
         fill = 1;
@@ -231,7 +231,7 @@ DESIGN userContractSku {
         NEW noteContainer {
             fill = 1;
             caption = 'Примечание';
-            MOVE PROPERTY(noteContract(c)) {
+            MOVE PROPERTY(note(c)) {
                 panelCaptionAbove = TRUE;
                 fill = 1;
             }
@@ -240,32 +240,32 @@ DESIGN userContractSku {
     MOVE functions.box;
 }
 
-editUserContractSku 'Редактировать' = ACTION EDITFORM UserContractSku;
-editContract(userContractSku) += ACTION editUserContractSku(userContractSku);
+edit 'Редактировать' = ACTION EDITFORM UserContractSku;
+edit(UserContractSku userContractSku) += ACTION edit(userContractSku);
 
-addUserContractSkuSupplierCustomer 'Добавить' = ACTION (supplier, customer) NESTEDSESSION{
+addUserContractSkuSupplierCustomer 'Добавить' = ACTION (LegalEntity supplier, LegalEntity customer) NESTEDSESSION{
     FOR ADDOBJ uc = UserContractSku DO {
-        supplierContractSku(uc) <- supplier;
-        customerContractSku(uc) <- customer;
+        supplier(uc) <- supplier;
+        customer(uc) <- customer;
         FORM userContractSku OBJECTS c = uc MANAGESESSION DOCKEDMODAL;
     }
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
-isUserContractSku (contractSku) = contractSku IS UserContractSku;
+is (UserContractSku contractSku) = contractSku IS UserContractSku;
 
 addUserContractSku 'Добавить' = ACTION ADDFORM UserContractSku;
 
 EXTEND FORM contracts
-    PROPERTIES(c) READONLY nameTypeContractSku
+    PROPERTIES(c) READONLY nameType
     PROPERTIES() addUserContractSku TODRAW c FORCE PANEL
 ;
 
 FORM contractSkus 'Договоры на поставку'
     OBJECTS c = ContractSku   
-    PROPERTIES(c) READONLY nameSupplierContractSku, namePartyAStocksContract, nameCustomerContractSku, namePartyBStocksContract, nameTypeContractSku,
-                  seriesNumberUserContractSku, dateFromContract, dateToContract,
-                  nameCurrencyContract,  nameTypeExchangeContract, noteContract
-    PROPERTIES  addUserContractSku() TODRAW c FORCE PANEL, editContract(c)
+    PROPERTIES(c) READONLY nameSupplier, namePartyAStocks, nameCustomer, namePartyBStocks, nameType,
+                  seriesNumber[UserContractSku], dateFrom, dateTo,
+                  nameCurrency,  nameTypeExchange, note
+    PROPERTIES  addUserContractSku() TODRAW c FORCE PANEL, edit(c)
 
     DIALOG ContractSku OBJECT c
 ;
@@ -278,31 +278,31 @@ NAVIGATOR {
 
 // ----------------------------- Расширяем форму организаций ------------------------------------------- //
 
-isCustomerLegalEntityUserContractSku(l,css) = isCustomerLegalEntity(l) AND isUserContractSku(css);
-isSupplierLegalEntityUserContractSku(l,csc) = isSupplierLegalEntity(l) AND isUserContractSku(csc);
+isCustomer(LegalEntity l,UserContractSku css) = isCustomer(l) AND is(css);
+isSupplier(LegalEntity l,UserContractSku csc) = isSupplier(l) AND is(csc);
 EXTEND FORM legalEntity
 
     OBJECTS css = UserContractSku FIXED GRID
-    PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
-                    dateToContract, nameCurrencyContract, noteContract, namePartyAStocksContract, namePartyBStocksContract
-    PROPERTIES      SHOWIF isCustomerLegalEntity(l) addUserContractSkuSupplierCustomer(s, l) TODRAW css FORCE PANEL TOOLBAR
-    PROPERTIES(css) SHOWIF isCustomerLegalEntity(l) EDITNESTEDFORM
-    PROPERTIES(css) DELETESESSION SHOWIF isCustomerLegalEntityUserContractSku(l,css)
+    PROPERTIES(css) SHOWIF isCustomer(l) READONLY seriesNumber, nameType, dateFrom,
+                    dateTo, nameCurrency, note, namePartyAStocks, namePartyBStocks
+    PROPERTIES      SHOWIF isCustomer(l) addUserContractSkuSupplierCustomer(s, l) TODRAW css FORCE PANEL TOOLBAR
+    PROPERTIES(css) SHOWIF isCustomer(l) EDITNESTEDFORM
+    PROPERTIES(css) DELETESESSION SHOWIF isCustomer(l,css)
     
-    FILTERS customerContractSku(css) == l,
-            supplierContractSku(css) == s
+    FILTERS customer(css) == l,
+            supplier(css) == s
 
 //    FILTERGROUP filters
 //        FILTER 'Есть договор' 'F10' countContractPartyAPartyB(s, l)
 
     OBJECTS csc = UserContractSku FIXED  GRID
-    PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) READONLY seriesNumberUserContractSku, nameTypeContractSku, dateFromContract,
-                    dateToContract, nameCurrencyContract, noteContract
-    PROPERTIES SHOWIF isSupplierLegalEntity(l) addUserContractSkuSupplierCustomer(l, c) TODRAW csc FORCE PANEL TOOLBAR
-    PROPERTIES(csc) SHOWIF isSupplierLegalEntity(l) EDITNESTEDFORM
-    PROPERTIES(csc) DELETESESSION SHOWIF isSupplierLegalEntityUserContractSku(l,csc)
-    FILTERS customerContractSku(csc) == c,
-            supplierContractSku(csc) == l
+    PROPERTIES(csc) SHOWIF isSupplier(l) READONLY seriesNumber, nameType, dateFrom,
+                    dateTo, nameCurrency, note
+    PROPERTIES SHOWIF isSupplier(l) addUserContractSkuSupplierCustomer(l, c) TODRAW csc FORCE PANEL TOOLBAR
+    PROPERTIES(csc) SHOWIF isSupplier(l) EDITNESTEDFORM
+    PROPERTIES(csc) DELETESESSION SHOWIF isSupplier(l,csc)
+    FILTERS customer(csc) == c,
+            supplier(csc) == l
 
 //    FILTERGROUP filters
 //        FILTER 'Есть договор' 'F8' countContractPartyAPartyB(l, c)

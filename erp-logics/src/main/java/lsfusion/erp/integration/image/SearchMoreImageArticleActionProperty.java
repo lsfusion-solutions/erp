@@ -20,8 +20,8 @@ public class SearchMoreImageArticleActionProperty extends DefaultImageArticleAct
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            ObjectValue articleObject = findProperty("articleImage").readClasses(context);
-            Integer start = (Integer) findProperty("startImage").read(context);
+            ObjectValue articleObject = findProperty("articleImage[]").readClasses(context);
+            Integer start = (Integer) findProperty("startImage[]").read(context);
 
             if (articleObject instanceof DataObject)
                 loadImages(context, (DataObject) articleObject, start, 8);

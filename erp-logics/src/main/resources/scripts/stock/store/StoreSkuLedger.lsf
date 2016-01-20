@@ -4,33 +4,33 @@ REQUIRE Store, SkuLedger;
 
 NAMESPACE Store;
 
-explicitBatchLedgerDepartmentStore 'Партионный учет' = DATA BOOLEAN (DepartmentStore);
-explicitBatchLedgerStock(stock) += explicitBatchLedgerDepartmentStore(stock);
+explicitBatchLedger 'Партионный учет' = DATA BOOLEAN (DepartmentStore);
+explicitBatchLedger(DepartmentStore stock) += explicitBatchLedger(stock);
 
-dataPriceBatchLedgerDepartmentStore 'Использовать свои цены для каждой партии' = DATA BOOLEAN (DepartmentStore);
-dataPriceBatchLedgerStock(stock) += dataPriceBatchLedgerDepartmentStore(stock);
+dataPriceBatchLedger 'Использовать свои цены для каждой партии' = DATA BOOLEAN (DepartmentStore);
+dataPriceBatchLedger(DepartmentStore stock) += dataPriceBatchLedger(stock);
 
 EXTEND FORM departmentStore
-    PROPERTIES(d) explicitBatchLedgerDepartmentStore SHOWIF isCompanyStock(d), dataPriceBatchLedgerDepartmentStore SHOWIF showPriceBatchLedgerStock(d) 
+    PROPERTIES(d) explicitBatchLedger SHOWIF isCompany(d), dataPriceBatchLedger SHOWIF showPriceBatchLedger(d) 
 ;
 
 DESIGN departmentStore {
     headerExtraParams {
-        MOVE PROPERTY(explicitBatchLedgerDepartmentStore(d));
-        MOVE PROPERTY(dataPriceBatchLedgerDepartmentStore(d));
+        MOVE PROPERTY(explicitBatchLedger(d));
+        MOVE PROPERTY(dataPriceBatchLedger(d));
     }
 }
 
-balanceASkuStoreDateTime 'Остаток' (sku, store, dateTime) =
-    GROUP SUM balanceASkuStockDateTime(sku, stock, dateTime)
-    BY sku, storeDepartmentStore(stock), dateTime;
-balanceASkuStoreDate 'Остаток' (sku, store, date) =
-    GROUP SUM balanceASkuStockDate(sku, stock, date)
-    BY sku, storeDepartmentStore(stock), date;
+balanceA 'Остаток' (sku, store, dateTime) =
+    GROUP SUM balanceA(Sku sku, DepartmentStore stock, DATETIME dateTime)
+    BY sku, store(stock), dateTime;
+balanceA 'Остаток' (sku, store, date) =
+    GROUP SUM balanceA(Sku sku, DepartmentStore stock, DATE date)
+    BY sku, store(stock), date;
         
-balanceBSkuStoreDateTime 'Остаток' (sku, store, dateTime) = 
-    GROUP SUM balanceBSkuStockDateTime(sku, stock, dateTime) 
-    BY sku, storeDepartmentStore(stock), dateTime;
-balanceBSkuStoreDate 'Остаток' (sku, store, date) = 
-    GROUP SUM balanceBSkuStockDate(sku, stock, date) 
-    BY sku, storeDepartmentStore(stock), date;
+balanceB 'Остаток' (sku, store, dateTime) = 
+    GROUP SUM balanceB(Sku sku, DepartmentStore stock, DATETIME dateTime) 
+    BY sku, store(stock), dateTime;
+balanceB 'Остаток' (sku, store, date) = 
+    GROUP SUM balanceB(Sku sku, DepartmentStore stock, DATE date) 
+    BY sku, store(stock), date;

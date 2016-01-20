@@ -9,25 +9,25 @@ NAMESPACE Invoice;
 @implementConsignmentHeader (Invoice);
 @implementConsignmentDetail (invoice);
 
-dataSupplierConsignment (consignment) += fromInvoice(consignment);
-supplierStockConsignment (consignment) += fromStockInvoice(consignment);
+dataSupplier (Invoice consignment) += from(consignment);
+supplierStock[Consignment] (Invoice consignment) += fromStock(consignment);
 
-dataCustomerConsignment (consignment) += toInvoice(consignment);
-customerStockConsignment (consignment) += toStockInvoice(consignment);
+dataCustomer (Invoice consignment) += to(consignment);
+customerStock[Consignment] (Invoice consignment) += toStock(consignment);
 
-dataCurrencyConsignment (consignment) += currencyInvoice(consignment);
+dataCurrency (Invoice consignment) += currency(consignment);
 
-dataPriceConsignmentDetail (detail) += priceInvoiceDetail(detail);
-invoicePriceConsignmentDetail(detail) += invoicePriceInvoiceDetail(detail);
-invoiceSumConsignmentDetail(detail) += invoiceSumInvoiceDetail(detail);
+dataPrice (InvoiceDetail detail) += price(detail);
+invoicePrice[ConsignmentDetail](InvoiceDetail detail) += invoicePrice(detail);
+invoiceSum[ConsignmentDetail](InvoiceDetail detail) += invoiceSum(detail);
 
-dataSumConsignmentDetail (detail) += sumInvoiceDetail(detail);
-dataVatConsignmentDetail (detail) += valueVATInvoiceDetail(detail);
+dataSum (InvoiceDetail detail) += sum(detail);
+dataVat (InvoiceDetail detail) += valueVAT(detail);
 
-dataSumVATConsignmentDetail (detail) += VATSumInvoiceDetail(detail);
-dataSumInvoiceConsignmentDetail (detail) += invoiceSumInvoiceDetail(detail);
-noteConsignmentDetail (detail) += noteInvoiceDetail(detail);
-extraDescriptionConsignmentDetail (detail) += extraDescriptionInvoiceDetail(detail);
+dataSumVAT (InvoiceDetail detail) += VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) += invoiceSum(detail);
+note[ConsignmentDetail] (InvoiceDetail detail) += note(detail);
+extraDescription[ConsignmentDetail] (InvoiceDetail detail) += extraDescription(detail);
 
 DESIGN options { consignment { MOVE PROPERTY(notNullInvoiceVAT()); } }
 
@@ -37,13 +37,13 @@ META defineInvoiceConsignment(contactA, contactB)
     @implementConsignmentDocumentHeader(invoice, userInvoice, );
 
     EXTEND FORM  invoices
-        PROPERTIES(i) FORCE PANEL editAttributesConsignment
-        PROPERTIES(i) FORCE PANEL SHOWIF showTTN1Consignment(i)
-                         printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
-                         printConsignmentVerticalB, printConsignmentHorizontalB, printConsignmentAttach,
-                         printConsignmentVertical, printConsignmentHorizontal, printConsignmentAttachXLS 
-        PROPERTIES(i) FORCE PANEL SHOWIF showTN2Consignment(i)
-                         printConsignmentSimpleHorizontal, printConsignmentSimpleVertical, printConsignmentSimpleAttach
+        PROPERTIES(i) FORCE PANEL editAttributes
+        PROPERTIES(i) FORCE PANEL SHOWIF showTTN1(i)
+                         printVerticalA, printVerticalAB, printHorizontalA,
+                         printVerticalB, printHorizontalB, printAttach,
+                         printVertical, printHorizontal, printAttachXLS 
+        PROPERTIES(i) FORCE PANEL SHOWIF showTN2(i)
+                         printSimpleHorizontal, printSimpleVertical, printSimpleAttach
     ;
 
     DESIGN invoices {
@@ -56,7 +56,7 @@ META defineInvoiceConsignment(contactA, contactB)
                     alignment = STRETCH;
                     type = CONTAINERH;
                     caption = 'Накладная';
-                    MOVE PROPERTY(editAttributesConsignment(i)) {
+                    MOVE PROPERTY(editAttributes(i)) {
                         alignment = STRETCH;
                     }
                 }
@@ -65,9 +65,9 @@ META defineInvoiceConsignment(contactA, contactB)
                     type = COLUMNS;
                     columns = 3;
                     caption = 'ТН-2';
-                    MOVE PROPERTY(printConsignmentSimpleVertical(i));
-                    MOVE PROPERTY(printConsignmentSimpleHorizontal(i));
-                    MOVE PROPERTY(printConsignmentSimpleAttach(i));
+                    MOVE PROPERTY(printSimpleVertical(i));
+                    MOVE PROPERTY(printSimpleHorizontal(i));
+                    MOVE PROPERTY(printSimpleAttach(i));
                 }
             }
             NEW consignmentRow2 {
@@ -75,21 +75,21 @@ META defineInvoiceConsignment(contactA, contactB)
                 type = COLUMNS;
                 columns = 3;
                 caption = 'ТТН-1';
-                MOVE PROPERTY(printConsignmentVerticalA(i));
-                MOVE PROPERTY(printConsignmentVerticalAB(i));
-                MOVE PROPERTY(printConsignmentHorizontalA(i));
-                MOVE PROPERTY(printConsignmentVerticalB(i));
-                MOVE PROPERTY(printConsignmentHorizontalB(i));
-                MOVE PROPERTY(printConsignmentAttach(i));      
-                MOVE PROPERTY(printConsignmentVertical(i));  
-                MOVE PROPERTY(printConsignmentHorizontal(i));
+                MOVE PROPERTY(printVerticalA(i));
+                MOVE PROPERTY(printVerticalAB(i));
+                MOVE PROPERTY(printHorizontalA(i));
+                MOVE PROPERTY(printVerticalB(i));
+                MOVE PROPERTY(printHorizontalB(i));
+                MOVE PROPERTY(printAttach(i));      
+                MOVE PROPERTY(printVertical(i));  
+                MOVE PROPERTY(printHorizontal(i));
             }
             NEW consignmentRow3 {
                 type = CONTAINERH;            
                 NEW export {
                     type = CONTAINERH;
                     caption = 'Экспорт';  
-                    MOVE PROPERTY(printConsignmentAttachXLS(i));                
+                    MOVE PROPERTY(printAttachXLS(i));                
                 }
             }    
         }
@@ -99,4 +99,4 @@ END
 seriesCharToNum = FORMULA 'lpad(CAST(CASE WHEN ASCII($1) < 1049 THEN ASCII($1) - 1039 ELSE ASCII($1) - 1041 END as char(2)), 2, \'0\')';
 TTN1series (s) = '861' + seriesCharToNum(left(s,1)) + seriesCharToNum(right(s,1));
 
-ttn1SeriesNumberInvoice(i) = TTN1series(seriesInvoice(i)) + numberInvoice(i); 
+ttn1SeriesNumber(Invoice i) = TTN1series(series(i)) + number(i); 

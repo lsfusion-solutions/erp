@@ -23,7 +23,7 @@ CLASS CustomKeyType 'Ключ свойства' {
     documentDetail 'Строка документа'
 }
 
-skuBatchId (idBatch) = skuBatch(batchId(idBatch));
+skuBatch (VARSTRING[100] idBatch) = sku(batch(idBatch));
 
 CLASS ImportTypeDetail 'Свойство' {
     idDocument 'Идентификатор документа',
@@ -97,94 +97,94 @@ CLASS ImportTypeDetail 'Свойство' {
 TABLE ImportTypeDetail(ImportTypeDetail);
 
 // todo : delete in future releases 
-propertyImportTypeDetail 'Свойство (устар.)' (ImportTypeDetail) = DATA VARSTRING[100] (ImportTypeDetail);
+property 'Свойство (устар.)' (ImportTypeDetail) = DATA VARSTRING[100] (ImportTypeDetail);
 
-propImportTypeDetail 'Свойство' (ImportTypeDetail) = DATA Property (ImportTypeDetail);
-canonicalNamePropImportTypeDetail 'Свойство' (d) = canonicalNameProperty(propImportTypeDetail(d));
-migratePropImportTypeDetail = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportDocumentPropertyActionProperty' (ImportTypeDetail);
+prop 'Свойство' (ImportTypeDetail) = DATA Property (ImportTypeDetail);
+canonicalNameProp 'Свойство' (ImportTypeDetail d) = canonicalName(prop(d));
+migrateProp = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportDocumentPropertyActionProperty' (ImportTypeDetail);
 propsMigrated() = DATA BOOLEAN ();
 migrateProps() = ACTION {
     IF NOT propsMigrated() THEN {
-        FOR propertyImportTypeDetail(ImportTypeDetail d) DO
-            migratePropImportTypeDetail(d);
+        FOR property(ImportTypeDetail d) DO
+            migrateProp(d);
         propsMigrated() <- TRUE;
     }
 }
 onStarted() += ACTION migrateProps();
 
-keyImportTypeDetail 'Ключ' (ImportTypeDetail) = DATA CustomKeyType (ImportTypeDetail);
-nameKeyImportTypeDetail (ImportTypeDetail) = staticName(keyImportTypeDetail(ImportTypeDetail));
-captionKeyImportTypeDetail 'Ключ' (ImportTypeDetail) = staticCaption(keyImportTypeDetail(ImportTypeDetail));
+key 'Ключ' (ImportTypeDetail) = DATA CustomKeyType (ImportTypeDetail);
+nameKey (ImportTypeDetail ImportTypeDetail) = staticName(key(ImportTypeDetail));
+captionKey 'Ключ' (ImportTypeDetail ImportTypeDetail) = staticCaption(key(ImportTypeDetail));
 
 CLASS ImportType 'Тип импорта';
 TABLE importType(ImportType);
 
-nameImportType 'Имя' =  DATA VARSTRING[100](ImportType);
-startRowImportType 'Начинать со строки' = DATA INTEGER(ImportType);
-isPostedImportType 'Импортировать проведёнными' = DATA BOOLEAN(ImportType);
-separatorImportType 'Разделитель' = DATA VARSTRING[2] (ImportType);
+name 'Имя' =  DATA VARSTRING[100](ImportType);
+startRow 'Начинать со строки' = DATA INTEGER(ImportType);
+isPosted 'Импортировать проведёнными' = DATA BOOLEAN(ImportType);
+separator 'Разделитель' = DATA VARSTRING[2] (ImportType);
 
-primaryKeyTypeImportType 'Тип первичного ключа' = DATA KeyType(ImportType);
-captionPrimaryKeyTypeImportType 'Тип первичного ключа' (importType) = staticCaption(primaryKeyTypeImportType(importType));
-namePrimaryKeyTypeImportType 'Тип первичного ключа' (importType) = staticName(primaryKeyTypeImportType(importType));
-checkExistencePrimaryKeyImportType 'Проверять существование по первому ключу' (importType) = DATA BOOLEAN (ImportType);
+primaryKeyType 'Тип первичного ключа' = DATA KeyType(ImportType);
+captionPrimaryKeyType 'Тип первичного ключа' (ImportType importType) = staticCaption(primaryKeyType(importType));
+namePrimaryKeyType 'Тип первичного ключа' (ImportType importType) = staticName(primaryKeyType(importType));
+checkExistencePrimaryKey 'Проверять существование по первому ключу' (importType) = DATA BOOLEAN (ImportType);
 
-secondaryKeyTypeImportType 'Тип вторичного ключа' = DATA KeyType(ImportType);
-captionSecondaryKeyTypeImportType 'Тип вторичного ключа' (importType) = staticCaption(secondaryKeyTypeImportType(importType));
-nameSecondaryKeyTypeImportType 'Тип вторичного ключа' (importType) = staticName(secondaryKeyTypeImportType(importType));
+secondaryKeyType 'Тип вторичного ключа' = DATA KeyType(ImportType);
+captionSecondaryKeyType 'Тип вторичного ключа' (ImportType importType) = staticCaption(secondaryKeyType(importType));
+nameSecondaryKeyType 'Тип вторичного ключа' (ImportType importType) = staticName(secondaryKeyType(importType));
 
-keyIsDigitImportType 'Ключ содержит только цифры' (importType) = DATA BOOLEAN(ImportType);
-checkArticlesImportType 'Проверять артикулы на изменение' (importType) = DATA BOOLEAN(ImportType); 
-multipleDocumentsImportType 'Несколько документов в одном файле' (importType) = DATA BOOLEAN(ImportType); 
-importTypeDetailImportType (ImportType) = DATA ImportTypeDetail(ImportType);
-propertyImportTypeDetailImportType 'Свойство артикула' (importType) = canonicalNamePropImportTypeDetail(importTypeDetailImportType(importType)); 
-staticNameImportTypeDetailImportType  (importType) = staticName(importTypeDetailImportType(importType)); 
-staticCaptionImportTypeDetailImportType  (importType) = staticCaption(importTypeDetailImportType(importType)); 
+keyIsDigit 'Ключ содержит только цифры' (importType) = DATA BOOLEAN(ImportType);
+checkArticles 'Проверять артикулы на изменение' (importType) = DATA BOOLEAN(ImportType); 
+multipleDocuments 'Несколько документов в одном файле' (importType) = DATA BOOLEAN(ImportType); 
+importTypeDetail (ImportType) = DATA ImportTypeDetail(ImportType);
+propertyImportTypeDetail 'Свойство артикула' (ImportType importType) = canonicalNameProp(importTypeDetail(importType)); 
+staticNameImportTypeDetail  (ImportType importType) = staticName(importTypeDetail(importType)); 
+staticCaptionImportTypeDetail  (ImportType importType) = staticCaption(importTypeDetail(importType)); 
 
 TABLE importTypeImportTypeDetail (ImportType, ImportTypeDetail);
-indexImportTypeImportTypeDetail 'Поле' = DATA VARSTRING[50] (ImportType, ImportTypeDetail);
+index 'Поле' = DATA VARSTRING[50] (ImportType, ImportTypeDetail);
 
-replaceOnlyNullImportTypeImportTypeDetail 'Не замещать' = DATA BOOLEAN (ImportType, ImportTypeDetail);
+replaceOnlyNull 'Не замещать' = DATA BOOLEAN (ImportType, ImportTypeDetail);
 
-fileExtensionImportType  = DATA FileExtension(ImportType);
-captionFileExtensionImportType 'Тип файла' (importType) = staticCaption(fileExtensionImportType(importType));
+fileExtension  = DATA FileExtension(ImportType);
+captionFileExtension 'Тип файла' (ImportType importType) = staticCaption(fileExtension(importType));
 
-autoImportImportType 'Автоматический импорт' = DATA BOOLEAN(ImportType);
-autoImportDirectoryImportType 'Папка' =  DATA VARSTRING[100](ImportType);
+autoImport 'Автоматический импорт' = DATA BOOLEAN(ImportType);
+autoImportDirectory 'Папка' =  DATA VARSTRING[100](ImportType);
 
-autoImportOperationImportType =  DATA Operation.Operation(ImportType);
-nameAutoImportOperationImportType 'Операция'(importType) = Operation.nameOperation(autoImportOperationImportType(importType));
+autoImportOperation =  DATA Operation.Operation(ImportType);
+nameAutoImportOperation 'Операция'(ImportType importType) = name(autoImportOperation(importType));
 
-autoImportSupplierImportType =  DATA LegalEntity(ImportType);
-nameAutoImportSupplierImportType 'Поставщик' (importType) =  nameLegalEntity(autoImportSupplierImportType(importType));
-autoImportSupplierStockImportType = DATA Stock(ImportType);
-nameAutoImportSupplierStockImportType 'Склад поставщика' (importType) =  nameStock(autoImportSupplierStockImportType(importType));
-autoImportCustomerImportType = DATA LegalEntity(ImportType);
-nameAutoImportCustomerImportType 'Покупатель' (importType) =  nameLegalEntity(autoImportCustomerImportType(importType));
-autoImportCustomerStockImportType = DATA Stock(ImportType);
-nameAutoImportCustomerStockImportType 'Склад покупателя' (importType) =  nameStock(autoImportCustomerStockImportType(importType));
+autoImportSupplier =  DATA LegalEntity(ImportType);
+nameAutoImportSupplier 'Поставщик' (ImportType importType) =  name(autoImportSupplier(importType));
+autoImportSupplierStock = DATA Stock(ImportType);
+nameAutoImportSupplierStock 'Склад поставщика' (ImportType importType) =  name(autoImportSupplierStock(importType));
+autoImportCustomer = DATA LegalEntity(ImportType);
+nameAutoImportCustomer 'Покупатель' (ImportType importType) =  name(autoImportCustomer(importType));
+autoImportCustomerStock = DATA Stock(ImportType);
+nameAutoImportCustomerStock 'Склад покупателя' (ImportType importType) =  name(autoImportCustomerStock(importType));
 
-useStockMappingImportType 'Настраиваемые коды складов' = DATA BOOLEAN(ImportType);
+useStockMapping 'Настраиваемые коды складов' = DATA BOOLEAN(ImportType);
 
 CLASS StockMappingEntry 'Настраиваемый код склада';
 TABLE stockMappingEntry(StockMappingEntry);
 
-idStockMappingEntry 'Код' = DATA VARSTRING[100] (StockMappingEntry);
-importTypeStockMappingEntry = DATA ImportType(StockMappingEntry);
-stockMappingEntryIdImportType (idEntry, importType) = GROUP AGGR stockMappingEntry BY idStockMappingEntry (stockMappingEntry), importTypeStockMappingEntry(stockMappingEntry); 
-stockStockMappingEntry 'Склад' = DATA Stock (StockMappingEntry);
-nameStockStockMappingEntry 'Склад' (stockMappingEntry) = nameStock(stockStockMappingEntry(stockMappingEntry)); 
-idStockStockMappingEntry (stockMappingEntry) = idStock(stockStockMappingEntry(stockMappingEntry)); 
+id 'Код' = DATA VARSTRING[100] (StockMappingEntry);
+importType = DATA ImportType(StockMappingEntry);
+stockMappingEntry (idEntry, importType) = GROUP AGGR StockMappingEntry stockMappingEntry BY id (stockMappingEntry), importType(stockMappingEntry); 
+stock 'Склад' = DATA Stock (StockMappingEntry);
+nameStock 'Склад' (StockMappingEntry stockMappingEntry) = name(stock(stockMappingEntry)); 
+idStock (StockMappingEntry stockMappingEntry) = id(stock(stockMappingEntry)); 
 
 FORM importTypeDetails
     OBJECTS itd = ImportTypeDetail
-    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption READONLY, property, canonicalNameProp, captionKey
     DIALOG ImportTypeDetail OBJECT itd
 ;
 
 FORM importTypeDetail 'Свойство импорта'
     OBJECTS itd = ImportTypeDetail FIXED PANEL
-    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption, property, canonicalNameProp, captionKey
     EDIT ImportTypeDetail OBJECT itd
 ;
 
@@ -206,30 +206,30 @@ FORM customKeyTypes 'Ключи свойства'
     DIALOG CustomKeyType OBJECT k
 ;
 
-showSeparator (importType) = fileExtensionImportType(importType)==FileExtension.csv OR fileExtensionImportType(importType)==FileExtension.txt;
+showSeparator (ImportType importType) = fileExtension(importType)==FileExtension.csv OR fileExtension(importType)==FileExtension.txt;
 
 FORM importType 'Тип импорта'
     OBJECTS i=ImportType FIXED PANEL
-    PROPERTIES(i) nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
-                  separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
-                  captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
-                  checkArticlesImportType, propertyImportTypeDetailImportType SHOWIF checkArticlesImportType(i), 
-                  multipleDocumentsImportType,
-                  useStockMappingImportType, autoImportImportType, 
-                  autoImportDirectoryImportType FORCE PANEL SHOWIF autoImportImportType(i),
-                  nameAutoImportOperationImportType FORCE PANEL, 
-                  nameAutoImportSupplierImportType FORCE PANEL,
-                  nameAutoImportSupplierStockImportType FORCE PANEL,
-                  nameAutoImportCustomerImportType FORCE PANEL,
-                  nameAutoImportCustomerStockImportType FORCE PANEL 
+    PROPERTIES(i) name, captionFileExtension, startRow, isPosted,
+                  separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey,
+                  captionSecondaryKeyType, keyIsDigit, 
+                  checkArticles, propertyImportTypeDetail SHOWIF checkArticles(i), 
+                  multipleDocuments,
+                  useStockMapping, autoImport, 
+                  autoImportDirectory FORCE PANEL SHOWIF autoImport(i),
+                  nameAutoImportOperation FORCE PANEL, 
+                  nameAutoImportSupplier FORCE PANEL,
+                  nameAutoImportSupplierStock FORCE PANEL,
+                  nameAutoImportCustomer FORCE PANEL,
+                  nameAutoImportCustomerStock FORCE PANEL 
                                    
     OBJECTS  s=StockMappingEntry FIXED GRID              
-    PROPERTIES(s) SHOWIF useStockMappingImportType(i) idStockMappingEntry, nameStockStockMappingEntry, DELETE, ADDOBJ                
-    FILTERS importTypeStockMappingEntry(s) == i
+    PROPERTIES(s) SHOWIF useStockMapping(i) id, nameStock, DELETE, ADDOBJ                
+    FILTERS importType(s) == i
               
     OBJECTS d = ImportTypeDetail
-    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
-    PROPERTIES(i,d) indexImportTypeImportTypeDetail, replaceOnlyNullImportTypeImportTypeDetail                   
+    PROPERTIES(d) staticCaption READONLY, property, canonicalNameProp, captionKey
+    PROPERTIES(i,d) index, replaceOnlyNull                   
     PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
     EDIT ImportType OBJECT i
 ;
@@ -245,22 +245,22 @@ DESIGN importType {
         }
         NEW documentParamsContainer {
             caption = 'Параметры документа';
-            MOVE PROPERTY(nameAutoImportOperationImportType(i));
-            MOVE PROPERTY(nameAutoImportSupplierImportType(i));
-            MOVE PROPERTY(nameAutoImportSupplierStockImportType(i));
-            MOVE PROPERTY(nameAutoImportCustomerImportType(i));
-            MOVE PROPERTY(nameAutoImportCustomerStockImportType(i));
+            MOVE PROPERTY(nameAutoImportOperation(i));
+            MOVE PROPERTY(nameAutoImportSupplier(i));
+            MOVE PROPERTY(nameAutoImportSupplierStock(i));
+            MOVE PROPERTY(nameAutoImportCustomer(i));
+            MOVE PROPERTY(nameAutoImportCustomerStock(i));
             
             NEW autoImportContainer {  
                 caption = 'Автоматический импорт';      
-                MOVE PROPERTY(autoImportImportType(i));
-                MOVE PROPERTY(autoImportDirectoryImportType(i)); 
+                MOVE PROPERTY(autoImport(i));
+                MOVE PROPERTY(autoImportDirectory(i)); 
             }
             
             NEW stockMappingContainer {
                 fill = 1;
                 caption = 'Настраиваемые коды складов'; 
-                MOVE PROPERTY(useStockMappingImportType(i));
+                MOVE PROPERTY(useStockMapping(i));
                 MOVE s.box;
             }            
         }
@@ -270,20 +270,20 @@ DESIGN importType {
 
 FORM importTypes 'Типы импорта'
     OBJECTS i=ImportType
-    PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
-                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType,
-                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
-                   checkArticlesImportType, multipleDocumentsImportType, autoImportImportType, autoImportDirectoryImportType SHOWIF autoImportImportType(i)
+    PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted,
+                   separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey,
+                   captionSecondaryKeyType, keyIsDigit, 
+                   checkArticles, multipleDocuments, autoImport, autoImportDirectory SHOWIF autoImport(i)
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG ImportType OBJECT i
 ;
 
 EXTEND FORM integrationData
     OBJECTS i=ImportType
-    PROPERTIES(i) READONLY nameImportType, captionFileExtensionImportType, startRowImportType, isPostedImportType,
-                   separatorImportType SHOWIF showSeparator(i), captionPrimaryKeyTypeImportType, checkExistencePrimaryKeyImportType, 
-                   captionSecondaryKeyTypeImportType, keyIsDigitImportType, 
-                   checkArticlesImportType, multipleDocumentsImportType
+    PROPERTIES(i) READONLY name, captionFileExtension, startRow, isPosted,
+                   separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey, 
+                   captionSecondaryKeyType, keyIsDigit, 
+                   checkArticles, multipleDocuments
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 ;
 

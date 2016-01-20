@@ -4,28 +4,28 @@ REQUIRE StockContract, Order;
 
 META defineOrderPaymentCondition (sign)
 
-    paymentConditionOrder 'Условия оплаты' = ABSTRACT PaymentCondition (Order) PERSISTENT;
-    paymentConditionUserOrder 'Условия оплаты' = DATA PaymentCondition (UserOrder);
-    paymentConditionOrder(prop) += paymentConditionUserOrder(prop);
-    OrderContract.paymentConditionOrder(prop) += paymentConditionOrder(prop);
-    descriptionPaymentConditionOrder 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionOrder(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    descriptionPaymentConditionUserOrder 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionUserOrder(i)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Order) PERSISTENT;
+    paymentCondition 'Условия оплаты' = DATA PaymentCondition (UserOrder);
+    paymentCondition(UserOrder prop) += paymentCondition(prop);
+    paymentCondition[Order.Order](Order prop) += paymentCondition(prop);
+    descriptionPaymentCondition 'Условия оплаты' (Order i) = description(paymentCondition(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    descriptionPaymentCondition 'Условия оплаты' (UserOrder i) = description(paymentCondition(i)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-    paymentConditionUserOrder(prop) <- OVERRIDE paymentConditionAgreement(agreementUserOrder(prop)), paymentConditionContract(contractSkuUserOrder(prop))
-        WHEN CHANGED(agreementUserOrder(prop)) OR
-             CHANGED(contractSkuUserOrder(prop));
+    paymentCondition(UserOrder prop) <- OVERRIDE paymentCondition(agreement(prop)), paymentCondition(contractSku(prop))
+        WHEN CHANGED(agreement(prop)) OR
+             CHANGED(contractSku(prop));
 
     EXTEND FORM userOrder
-        PROPERTIES(o) descriptionPaymentConditionUserOrder
+        PROPERTIES(o) descriptionPaymentCondition
     ;
 
     DESIGN userOrder{
         o.documentPrm{
-            MOVE PROPERTY(descriptionPaymentConditionUserOrder(o));
+            MOVE PROPERTY(descriptionPaymentCondition(o));
         }
     }
 
 END
 
-paymentConditionOrder 'Условие оплаты' = ABSTRACT PaymentCondition (Order) PERSISTENT;
-descriptionPaymentConditionOrder 'Условие оплаты' (o) = descriptionPaymentCondition(paymentConditionOrder(o)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+paymentCondition 'Условие оплаты' = ABSTRACT PaymentCondition (Order) PERSISTENT;
+descriptionPaymentCondition 'Условие оплаты' (Order o) = description(paymentCondition(o)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;

@@ -25,13 +25,13 @@ public class ImportPurchaseInvoiceItemPharmacyBy extends ImportDefaultPurchaseIn
         if (LM != null && itemKey != null) {
 
             if (showField(userInvoiceDetailsList, "pharmacyPriceGroupItem")) {
-                ImportField idPharmacyPriceGroupField = new ImportField(LM.findProperty("idPharmacyPriceGroup"));
+                ImportField idPharmacyPriceGroupField = new ImportField(LM.findProperty("id[PharmacyPriceGroup]"));
                 ImportKey<?> pharmacyPriceGroupKey = new ImportKey((ConcreteCustomClass) LM.findClass("PharmacyPriceGroup"),
-                        LM.findProperty("pharmacyPriceGroupId").getMapping(idPharmacyPriceGroupField));
+                        LM.findProperty("pharmacyPriceGroup[VARSTRING[100]]").getMapping(idPharmacyPriceGroupField));
                 keys.add(pharmacyPriceGroupKey);
-                props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("idPharmacyPriceGroup").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
-                props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("namePharmacyPriceGroup").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
-                props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("pharmacyPriceGroupItem").getMapping(itemKey),
+                props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("id[PharmacyPriceGroup]").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
+                props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("name[PharmacyPriceGroup]").getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
+                props.add(new ImportProperty(idPharmacyPriceGroupField, LM.findProperty("pharmacyPriceGroup[Item]").getMapping(itemKey),
                         object(LM.findClass("PharmacyPriceGroup")).getMapping(pharmacyPriceGroupKey), getReplaceOnlyNull(defaultColumns, "idPharmacyPriceGroup")));
                 fields.add(idPharmacyPriceGroupField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)

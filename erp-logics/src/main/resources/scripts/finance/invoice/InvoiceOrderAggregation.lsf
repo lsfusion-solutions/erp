@@ -7,48 +7,48 @@ NAMESPACE Invoice;
 META defineInvoiceOrder(sign, NS)
 
     @defineDocumentInterfaceDataTimePrefix(order, invoice, ' накладной');
-    invoiceDateUserOrder(i) <- dateUserOrder(i) WHEN CHANGED(dateUserOrder(i));
-    invoiceTimeUserOrder(i) <- timeUserOrder(i) WHEN CHANGED(timeUserOrder(i));
+    invoiceDate(UserOrder i) <- date(i) WHEN CHANGED(date(i));
+    invoiceTime(UserOrder i) <- time(i) WHEN CHANGED(time(i));
     
-    invoiceNumberOrder 'Номер' = ABSTRACT STRING[18] (Order) IN numbered MINCHARWIDTH 7;
-    invoiceSeriesOrder 'Серия' = ABSTRACT STRING[2] (Order) IN numbered FIXEDCHARWIDTH 3; 
+    invoiceNumber 'Номер' = ABSTRACT STRING[18] (Order) IN numbered MINCHARWIDTH 7;
+    invoiceSeries 'Серия' = ABSTRACT STRING[2] (Order) IN numbered FIXEDCHARWIDTH 3; 
 
-    invoiceSeriesNumberOrder 'Серия/Номер' (o) = 
-        CONCAT '', seriesOrder(o), numberOrder(o) 
+    invoiceSeriesNumber 'Серия/Номер' (Order o) = 
+        CONCAT '', series(o), number(o) 
         MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
         
-    invoiceNumberUserOrder 'Номер' = DATA STRING[18] (UserOrder) IN numbered MINCHARWIDTH 7;
-    invoiceSeriesUserOrder 'Серия' = DATA STRING[2] (UserOrder) IN numbered FIXEDCHARWIDTH 3; 
+    invoiceNumber 'Номер' = DATA STRING[18] (UserOrder) IN numbered MINCHARWIDTH 7;
+    invoiceSeries 'Серия' = DATA STRING[2] (UserOrder) IN numbered FIXEDCHARWIDTH 3; 
     
-    invoiceNumberUserOrder(o) <- numberUserOrder(o) WHEN SET (o IS UserOrder);
-    invoiceSeriesUserOrder(o) <- seriesUserOrder(o) WHEN SET (o IS UserOrder);
+    invoiceNumber(UserOrder o) <- number(o) WHEN SET (o IS UserOrder);
+    invoiceSeries(UserOrder o) <- series(o) WHEN SET (o IS UserOrder);
 
-    invoiceSeriesNumberUserOrder 'Серия/Номер' (o) = 
-        CONCAT '', seriesUserOrder(o), numberUserOrder(o) 
+    invoiceSeriesNumber 'Серия/Номер' (UserOrder o) = 
+        CONCAT '', series(o), number(o) 
         MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;   
         
-    invoiceNumberOrder(o) += invoiceNumberUserOrder(o);  
-    invoiceSeriesOrder(o) += invoiceSeriesUserOrder(o);    
+    invoiceNumber(UserOrder o) += invoiceNumber(o);  
+    invoiceSeries(UserOrder o) += invoiceSeries(o);    
 
     @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
-    invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
+    invoiceQuantity(UserOrderDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
     @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
 
-    overCopyOrder(s, d) += ACTION (s, d) {
-        createInvoiceUserOrder(d) <- createInvoiceUserOrder(s);
+    overCopy(UserOrder s, UserOrder d) += ACTION (s, d) {
+        createInvoice(d) <- createInvoice(s);
     }  
         
-    showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
+    showInvoice (Order order) =  order IS Order AND NOT createInvoice(order);
     
     
     EXTEND FORM userOrder
     
-        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
-        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) invoiceDateUserOrder, invoiceTimeUserOrder,
-                      invoiceNumberUserOrder, invoiceSeriesUserOrder
+        PROPERTIES(o) BACKGROUND backgroundInvoice(o) createInvoice
+        PROPERTIES(o) BACKGROUND backgroundInvoice(o) SHOWIF createInvoice(o) invoiceDate, invoiceTime,
+                      invoiceNumber, invoiceSeries
 
-        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-        PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail(d) SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
+        PROPERTIES(d) READONLY invoiced AFTER quantity(d) SHOWIF showInvoice(o) BACKGROUND backgroundInvoice(o)
+        PROPERTIES(d) invoiceQuantity AFTER quantity(d) SHOWIF createInvoice(o) BACKGROUND backgroundInvoice(o)
     ;
     DESIGN userOrder {
         headerCreateDocuments {
@@ -57,11 +57,11 @@ META defineInvoiceOrder(sign, NS)
                 caption = 'Накладная';
                 NEW headerInvoice1 {
                     type = CONTAINERH;
-                    MOVE PROPERTY(createInvoiceUserOrder(o));
-                    MOVE PROPERTY(invoiceDateUserOrder(o));
-                    MOVE PROPERTY(invoiceTimeUserOrder(o));    
-                    MOVE PROPERTY(invoiceNumberUserOrder(o));
-                    MOVE PROPERTY(invoiceSeriesUserOrder(o));                                        
+                    MOVE PROPERTY(createInvoice(o));
+                    MOVE PROPERTY(invoiceDate(o));
+                    MOVE PROPERTY(invoiceTime(o));    
+                    MOVE PROPERTY(invoiceNumber(o));
+                    MOVE PROPERTY(invoiceSeries(o));                                        
                                     
                 }
 //                NEW headerInvoice2 {
@@ -74,13 +74,13 @@ META defineInvoiceOrder(sign, NS)
     } 
 
     EXTEND FORM orders
-        PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreementOrder(o) BACKGROUND backgroundInvoiceOrder(o) isCommissionOrder, seriesNumberContractSkuOrder
+        PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreement(o) BACKGROUND backgroundInvoice(o) isCommission, seriesNumberContractSku
 
-        PROPERTIES(d) READONLY AFTER quantityOrderDetail(d) BACKGROUND backgroundInvoiceOrder(o) 
-                      invoicedOrderDetail SHOWIF showInvoiceOrder(o), invoiceQuantityOrderDetail SHOWIF createInvoiceOrder(o) 
+        PROPERTIES(d) READONLY AFTER quantity(d) BACKGROUND backgroundInvoice(o) 
+                      invoiced SHOWIF showInvoice(o), invoiceQuantity SHOWIF createInvoice(o) 
     ;
     EXTEND FORM invoiceOrders
-        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoiceOrderDetail
+        PROPERTIES (d) READONLY BACKGROUND backgroundInvoice(o)  toInvoice
     ;
 
     CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;
@@ -90,114 +90,114 @@ META defineInvoiceOrder(sign, NS)
 
     @defineDocumentAggregation(order, orderInvoice, createInvoice);
 
-    invoiceInvoiceDetail(detail) += orderInvoiceOrderInvoiceDetail(detail);
+    invoice(OrderInvoiceDetail detail) += orderInvoice(detail);
 
     //@defineDocumentDetailIndex(orderInvoice);
     
-    operationOrderInvoice (invoice) = operationOrder(orderOrderInvoice(invoice));
-    operationInvoice(invoice) += operationOrderInvoice(invoice);
+    operation (OrderInvoice invoice) = operation(order(invoice));
+    operation(OrderInvoice invoice) += operation(invoice);
     @defineDocumentAggregationHeaderTimePrefix (order, OrderInvoice, invoice);
-    dateInvoice(invoice) += invoiceDateOrderInvoice(invoice);
-    timeInvoice(invoice) += invoiceTimeOrderInvoice(invoice);
+    date(OrderInvoice invoice) += invoiceDate(invoice);
+    time(OrderInvoice invoice) += invoiceTime(invoice);
     
-    indexInvoiceDetail(detail) += indexOrderInvoiceDetail(detail);
+    index(OrderInvoiceDetail detail) += index(detail);
 
     @defineDocumentAggregationStockPrefix(order, orderInvoice, supplier, 'Склад поставщика', , );
-    supplierStockInvoice(invoice) += supplierStockOrderInvoice(invoice);
-    dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    supplierStock(OrderInvoice invoice) += supplierStock(invoice);
+    dataSupplierStock(OrderInvoiceDetail invoiceDetail) += dataSupplierStock(orderDetail(invoiceDetail));
     @defineDocumentAggregationStockPrefix(order, orderInvoice, customer, 'Склад покупателя', , );
-    customerStockInvoice(invoice) += customerStockOrderInvoice(invoice);
-    dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    customerStock(OrderInvoice invoice) += customerStock(invoice);
+    dataCustomerStock(OrderInvoiceDetail invoiceDetail) += dataCustomerStock(orderDetail(invoiceDetail));
 
     @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, supplier, 'Поставщик', , );
-    supplierInvoice(invoice) += supplierOrderInvoice(invoice);
+    supplier(OrderInvoice invoice) += supplier(invoice);
     @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, customer, 'Покупатель', , );
-    customerInvoice(invoice) += customerOrderInvoice(invoice);
+    customer(OrderInvoice invoice) += customer(invoice);
 
     @defineDocumentAggregationPosted(order, orderInvoice);
-    isPostedInvoice(invoice) += isPostedOrderInvoice(invoice);
+    isPosted(OrderInvoice invoice) += isPosted(invoice);
     
     @defineDocumentAggregationClosed(order, orderInvoice);
-    isClosedInvoice(invoice) += isClosedOrderInvoice(invoice);    
+    isClosed(OrderInvoice invoice) += isClosed(invoice);    
 
-    numberOrderInvoice 'Номер документа' (orderInvoice) = invoiceNumberOrder(orderOrderInvoice(orderInvoice));
-    numberInvoice(invoice) += numberOrderInvoice(invoice);
+    number 'Номер документа' (OrderInvoice orderInvoice) = invoiceNumber(order(orderInvoice));
+    number(OrderInvoice invoice) += number(invoice);
 
-    seriesOrderInvoice 'Серия документа' (orderInvoice) = invoiceSeriesOrder(orderOrderInvoice(orderInvoice));
-    seriesInvoice(invoice) += seriesOrderInvoice(invoice);
+    series 'Серия документа' (OrderInvoice orderInvoice) = invoiceSeries(order(orderInvoice));
+    series(OrderInvoice invoice) += series(invoice);
 
-    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = invoiceSeriesNumberOrder(orderOrderInvoice(orderInvoice));
+    seriesNumber 'Серия/номер документа' (OrderInvoice orderInvoice) = invoiceSeriesNumber(order(orderInvoice));
 
-    noteInvoiceOrderInvoice 'Примечание' (orderInvoice) = noteOrder(orderOrderInvoice(orderInvoice));
-    noteInvoice(invoice) += noteInvoiceOrderInvoice(invoice);
+    noteInvoice 'Примечание' (OrderInvoice orderInvoice) = note(order(orderInvoice));
+    note(OrderInvoice invoice) += noteInvoice(invoice);
 
-    currencyOrderInvoice  (orderInvoice) = currencyOrder(orderOrderInvoice(orderInvoice));
-    currencyInvoice (invoice) += currencyOrderInvoice(invoice);
+    currency  (OrderInvoice orderInvoice) = currency(order(orderInvoice));
+    currency (OrderInvoice invoice) += currency(invoice);
 
-    priceListTypeInvoice(invoice) += priceListTypeOrder(orderOrderInvoice(invoice));
-    agreementInvoice(invoice) += agreementOrder(orderOrderInvoice(invoice));
-    contractSkuInvoice(invoice) += contractSkuOrder(orderOrderInvoice(invoice));
-    paymentConditionInvoice(invoice) += paymentConditionOrder(orderOrderInvoice(invoice));
-    isCommissionInvoice (invoice) += isCommissionOrder(orderOrderInvoice(invoice));
+    priceListType(OrderInvoice invoice) += priceListType(order(invoice));
+    agreement(OrderInvoice invoice) += agreement(order(invoice));
+    contractSku(OrderInvoice invoice) += contractSku(order(invoice));
+    paymentCondition(OrderInvoice invoice) += paymentCondition(order(invoice));
+    isCommission (OrderInvoice invoice) += isCommission(order(invoice));
 
-    descriptionOrderInvoice 'Название документа' (o) =
-        'Накладная на основе заказа (продажа)' + ' № ' + seriesNumberOrderInvoice(o) + ' от ' + dateOrderInvoice(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-    description##NS##OrderInvoiceDetail 'Название документа' (d) = descriptionOrderInvoice(orderInvoiceOrderInvoiceDetail(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-    descriptionIndexOrderInvoiceDetail 'Название документа' (d) = description##NS##OrderInvoiceDetail(d) + ', позиция ' + indexOrderInvoiceDetail(d) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN base;
-    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);  
+    description 'Название документа' (OrderInvoice o) =
+        'Накладная на основе заказа (продажа)' + ' № ' + seriesNumber(o) + ' от ' + date(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    description##NS 'Название документа' (OrderInvoiceDetail d) = description(orderInvoice(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    descriptionIndex 'Название документа' (OrderInvoiceDetail d) = description##NS(d) + ', позиция ' + index(d) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN base;
+    description (OrderInvoice invoice) += description(invoice);  
 
     @defineDocumentAggregationDetailSku(order, orderInvoice, sku);
-    skuInvoiceDetail(invoiceDetail) +=  skuOrderInvoiceDetail(invoiceDetail);
+    sku(OrderInvoiceDetail invoiceDetail) +=  sku(invoiceDetail);
 
     @defineDocumentAggregationDetailBatch(order, orderInvoice);
-    batchInvoiceDetail (invoiceDetail) += batchOrderInvoiceDetail(invoiceDetail);
+    batch (OrderInvoiceDetail invoiceDetail) += batch(invoiceDetail);
     
-    currencyOrderInvoiceDetail (detail) = currencyOrderInvoice(orderInvoiceOrderInvoiceDetail(detail)) PERSISTENT;
+    currency (OrderInvoiceDetail detail) = currency(orderInvoice(detail)) PERSISTENT;
 
-    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
+    priceListType(OrderInvoiceDetail detail) += priceListType(orderDetail(detail));
 
-    sumInvoiceUserOrderDetail 'Сумма' = DATA NUMERIC[16,2] (UserOrderDetail);
-    sumInvoiceOrderDetail 'Сумма' = ABSTRACT NUMERIC[16,2] (OrderDetail);
-    sumInvoiceOrderDetail(d) += sumInvoiceUserOrderDetail(d);
+    sumInvoice 'Сумма' = DATA NUMERIC[16,2] (UserOrderDetail);
+    sumInvoice 'Сумма' = ABSTRACT NUMERIC[16,2] (OrderDetail);
+    sumInvoice(UserOrderDetail d) += sumInvoice(d);
     
-    sumInvoiceUserOrderDetail (orderDetail) <- NUMERIC[16,2](roundPriceCurrency(invoiceQuantityOrderDetail(orderDetail) * priceOrderDetail(orderDetail), currencyOrderDetail(orderDetail)))
-                    WHEN DO CHANGED(invoiceQuantityOrderDetail(orderDetail)) OR CHANGED (priceOrderDetail(orderDetail)) OR CHANGED(currencyOrderDetail(orderDetail));  
+    sumInvoice (UserOrderDetail orderDetail) <- NUMERIC[16,2](round(invoiceQuantity[OrderDetail](orderDetail) * price[OrderDetail](orderDetail), currency[OrderDetail](orderDetail)))
+                    WHEN DO CHANGED(invoiceQuantity[OrderDetail](orderDetail)) OR CHANGED (price[OrderDetail](orderDetail)) OR CHANGED(currency[OrderDetail](orderDetail));  
 
-    VATSumInvoiceUserOrderDetail 'Сумма НДС'  = DATA NUMERIC[16,2] (UserOrderDetail);
-    VATSumInvoiceOrderDetail 'Сумма НДС'  = ABSTRACT NUMERIC[16,2] (OrderDetail);
-    VATSumInvoiceOrderDetail(d) += VATSumInvoiceUserOrderDetail(d);
+    VATSumInvoice 'Сумма НДС'  = DATA NUMERIC[16,2] (UserOrderDetail);
+    VATSumInvoice 'Сумма НДС'  = ABSTRACT NUMERIC[16,2] (OrderDetail);
+    VATSumInvoice(UserOrderDetail d) += VATSumInvoice(d);
     
-    VATSumInvoiceUserOrderDetail (orderDetail)  <- roundPriceCurrency((sumInvoiceOrderDetail(orderDetail) * calcValueVATOrderDetail (orderDetail) / 100), currencyOrderDetail(orderDetail))
-                    WHEN DO CHANGED(sumInvoiceOrderDetail(orderDetail)) OR CHANGED (calcValueVATOrderDetail (orderDetail)) OR CHANGED (currencyOrderDetail (orderDetail));
+    VATSumInvoice (UserOrderDetail orderDetail)  <- round((sumInvoice[OrderDetail](orderDetail) * calcValueVAT[OrderDetail] (orderDetail) / 100), currency[OrderDetail](orderDetail))
+                    WHEN DO CHANGED(sumInvoice[OrderDetail](orderDetail)) OR CHANGED (calcValueVAT[OrderDetail] (orderDetail)) OR CHANGED (currency[OrderDetail] (orderDetail));
     
-    invoiceSumInvoiceUserOrderDetail 'Сумма с НДС'  = DATA NUMERIC[16,2] (UserOrderDetail);
-    invoiceSumInvoiceOrderDetail 'Сумма с НДС'  = ABSTRACT NUMERIC[16,2] (OrderDetail);
-    invoiceSumInvoiceOrderDetail(d) += invoiceSumInvoiceUserOrderDetail(d);
+    invoiceSumInvoice 'Сумма с НДС'  = DATA NUMERIC[16,2] (UserOrderDetail);
+    invoiceSumInvoice 'Сумма с НДС'  = ABSTRACT NUMERIC[16,2] (OrderDetail);
+    invoiceSumInvoice(UserOrderDetail d) += invoiceSumInvoice(d);
     
-    invoiceSumInvoiceUserOrderDetail (orderDetail) <- sumInvoiceOrderDetail(orderDetail) (+) VATSumInvoiceOrderDetail(orderDetail)
-        WHEN CHANGED(sumInvoiceOrderDetail(orderDetail)) OR CHANGED(VATSumInvoiceOrderDetail(orderDetail));
+    invoiceSumInvoice (UserOrderDetail orderDetail) <- sumInvoice[OrderDetail](orderDetail) (+) VATSumInvoice[OrderDetail](orderDetail)
+        WHEN CHANGED(sumInvoice[OrderDetail](orderDetail)) OR CHANGED(VATSumInvoice[OrderDetail](orderDetail));
 
-    quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    sumInvoiceDetail(invoiceDetail) += sumInvoiceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumInvoiceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-    VATSumInvoiceDetail(invoiceDetail) += VATSumInvoiceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    quantity(OrderInvoiceDetail invoiceDetail) += invoiceQuantity(orderDetail(invoiceDetail));
+    price(OrderInvoiceDetail invoiceDetail) += price(orderDetail(invoiceDetail));
+    sum(OrderInvoiceDetail invoiceDetail) += sumInvoice(orderDetail(invoiceDetail));
+    VAT(OrderInvoiceDetail invoiceDetail) += VAT(orderDetail(invoiceDetail));
+    valueVAT(OrderInvoiceDetail invoiceDetail) += valueVAT(orderDetail(invoiceDetail));
+    invoicePrice(OrderInvoiceDetail invoiceDetail) += invoicePrice(orderDetail(invoiceDetail));
+    invoiceSum(OrderInvoiceDetail invoiceDetail) += invoiceSumInvoice(orderDetail(invoiceDetail));
+    VATSum(OrderInvoiceDetail invoiceDetail) += VATSumInvoice(orderDetail(invoiceDetail));
 
-    orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
+    order(OrderInvoiceDetail invoiceDetail) += order(orderDetail(invoiceDetail));
 
-    editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
-    closeInvoice(invoice) += ACTION EXEC closeOrder(orderOrderInvoice(invoice)); 
-    editInvoiceDetail(d) += ACTION EXEC editOrderDetail(orderDetailOrderInvoiceDetail(d));
+    edit(OrderInvoice invoice) += ACTION EXEC edit(order(invoice));
+    close(OrderInvoice invoice) += ACTION EXEC close(order(invoice)); 
+    edit(OrderInvoiceDetail d) += ACTION EXEC edit(orderDetail(d));
     
     isNewOrderInvoiceDetail = DATA BOOLEAN ();
     onStarted() += ACTION (){
         IF NOT isNewOrderInvoiceDetail() THEN {
-            sumInvoiceUserOrderDetail(d) <- sumOrderDetail(d); 
-            VATSumInvoiceUserOrderDetail(d) <- VATSumOrderDetail(d); 
-            invoiceSumInvoiceUserOrderDetail(d) <- invoiceSumOrderDetail(d);
+            sumInvoice(UserOrderDetail d) <- sum[OrderDetail](d); 
+            VATSumInvoice(UserOrderDetail d) <- VATSum[OrderDetail](d); 
+            invoiceSumInvoice(UserOrderDetail d) <- invoiceSum[OrderDetail](d);
             isNewOrderInvoiceDetail() <- TRUE;
             apply();
         }

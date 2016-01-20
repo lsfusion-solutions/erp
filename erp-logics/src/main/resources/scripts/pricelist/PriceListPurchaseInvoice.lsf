@@ -4,32 +4,32 @@ REQUIRE PurchaseInvoice, PriceList;
 
 NAMESPACE PriceList;
 
-createPriceListPurchaseInvoice 'Прайс-лист' = ACTION (purchaseInvoice) NEWSESSION {
+createPriceListPurchase 'Прайс-лист' = ACTION (Purchase.Invoice purchaseInvoice) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
-        fromDateUserPriceList(p) <- Purchase.dateInvoice(purchaseInvoice);
-        fromTimeUserPriceList(p) <- Purchase.timeInvoice(purchaseInvoice);
-        companyUserPriceList(p) <- Purchase.customerInvoice(purchaseInvoice);
-        allStocksUserPriceList(p) <- TRUE;
-        currencyUserPriceList(p) <- OVERRIDE Purchase.currencyInvoice(purchaseInvoice), homeCurrencyInvoice(purchaseInvoice);
+        fromDate(p) <- date(purchaseInvoice);
+        fromTime(p) <- time(purchaseInvoice);
+        company(p) <- customer(purchaseInvoice);
+        allStocks(p) <- TRUE;
+        currency(p) <- OVERRIDE currency(purchaseInvoice), homeCurrency(purchaseInvoice);
 
-        FOR Purchase.invoiceInvoiceDetail(id)==purchaseInvoice ADDOBJ pd=UserPriceListDetail DO {
-            userPriceListUserPriceListDetail(pd) <- p;
-            skuPriceListDetail(pd) <- Purchase.skuInvoiceDetail(id);
+        FOR invoice(Purchase.InvoiceDetail id)==purchaseInvoice ADDOBJ pd=UserPriceListDetail DO {
+            userPriceList(pd) <- p;
+            sku[PriceListDetail](pd) <- Purchase.sku(id);
         }
 
-        FORM userPriceList OBJECTS p = p, tt = Purchase.customerStockInvoice(purchaseInvoice) MANAGESESSION DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = p, tt = customerStock(purchaseInvoice) MANAGESESSION DOCKEDMODAL;
     }
 
 } TOOLBAR;
 
 EXTEND FORM invoices
-    PROPERTIES(i) createPriceListPurchaseInvoice BEFORE copyInvoice(i)
+    PROPERTIES(i) createPriceListPurchase BEFORE copy(i)
 ;
 
 DESIGN invoices {
     main {
         createdContainer {
-            MOVE PROPERTY(createPriceListPurchaseInvoice(i));
+            MOVE PROPERTY(createPriceListPurchase(i));
         }
     }
 }

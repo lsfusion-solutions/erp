@@ -48,85 +48,85 @@ CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-�
 TABLE importPriceListTypeDetail(ImportUserPriceListTypeDetail);
 
 // todo : delete in future releases 
-propertyImportTypeDetail 'Свойство (устар.)' = DATA VARSTRING[100] (ImportUserPriceListTypeDetail);
+propertyImport 'Свойство (устар.)' = DATA VARSTRING[100] (ImportUserPriceListTypeDetail);
 
-propImportTypeDetail 'Свойство' (ImportTypeDetail) = DATA Property (ImportUserPriceListTypeDetail);
-canonicalNamePropImportTypeDetail 'Свойство' (d) = canonicalNameProperty(propImportTypeDetail(d));
-migratePropImportTypeDetail = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportUserPriceListPropertyActionProperty' (ImportUserPriceListTypeDetail);
+propImport 'Свойство' (ImportTypeDetail) = DATA Property (ImportUserPriceListTypeDetail);
+canonicalNamePropImport 'Свойство' (ImportUserPriceListTypeDetail d) = canonicalName(propImport(d));
+migratePropImport = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportUserPriceListPropertyActionProperty' (ImportUserPriceListTypeDetail);
 propsMigrated() = DATA BOOLEAN ();
 migrateProps() = ACTION {
     IF NOT propsMigrated() THEN {
-        FOR propertyImportTypeDetail(d) DO
-            migratePropImportTypeDetail(d);
+        FOR propertyImport(ImportUserPriceListTypeDetail d) DO
+            migratePropImport(d);
         propsMigrated() <- TRUE;
     }
 }
 onStarted() += ACTION migrateProps();
 
-keyImportTypeDetail 'Ключ' = DATA CustomKeyType (ImportUserPriceListTypeDetail);
-nameKeyImportTypeDetail 'Ключ' (importTypeDetail) = staticName(keyImportTypeDetail(importTypeDetail));
-captionKeyImportTypeDetail 'Ключ' (importTypeDetail) = staticCaption(keyImportTypeDetail(importTypeDetail));
+keyImport 'Ключ' = DATA CustomKeyType (ImportUserPriceListTypeDetail);
+nameKeyImport 'Ключ' (ImportUserPriceListTypeDetail importTypeDetail) = staticName(keyImport(importTypeDetail));
+captionKeyImport 'Ключ' (ImportUserPriceListTypeDetail importTypeDetail) = staticCaption(keyImport(importTypeDetail));
 
 CLASS ImportUserPriceListType 'Тип импорта (импорт прайс-листов)';
 TABLE importUserPriceListType(ImportUserPriceListType);
-nameImportUserPriceListType 'Имя' =  DATA VARSTRING[100](ImportUserPriceListType);
+name 'Имя' =  DATA VARSTRING[100](ImportUserPriceListType);
 
-importUserPriceListAction 'Импортировать прайс-лист' = ACTION CUSTOM 'lsfusion.erp.integration.universal.userpricelist.ImportUserPriceListActionProperty' (UserPriceList);
-importUserPriceListTypeUserPriceList = DATA ImportUserPriceListType(UserPriceList);
-nameImportUserPriceListTypeUserPriceList 'Тип импорта' (userPriceList) = nameImportUserPriceListType(importUserPriceListTypeUserPriceList(userPriceList));
+importAction 'Импортировать прайс-лист' = ACTION CUSTOM 'lsfusion.erp.integration.universal.userpricelist.ImportUserPriceListActionProperty' (UserPriceList);
+importUserPriceListType = DATA ImportUserPriceListType(UserPriceList);
+nameImportUserPriceListType 'Тип импорта' (UserPriceList userPriceList) = name(importUserPriceListType(userPriceList));
 
 importUserPriceListsAction 'Импортировать прайс-листы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.userpricelist.ImportUserPriceListsActionProperty' ();
 
-userPriceListDetailIdSkuIdUserPriceList (sku, userPriceList) = GROUP MAX userPriceListDetail BY idItem(skuUserPriceListDetail(userPriceListDetail)), idUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail));
-idUserPriceListDetail = DATA VARSTRING[100] (UserPriceListDetail) IN recognize;
-userPriceListDetailIdUserPriceList (id, userPriceList) = GROUP AGGR userPriceListDetail BY idUserPriceListDetail(userPriceListDetail), userPriceListUserPriceListDetail(userPriceListDetail) WHERE userPriceListDetail IS UserPriceListDetail;
-userPriceListDetailIdIdUserPriceList (id, idUserPriceList) = GROUP AGGR userPriceListDetail BY idUserPriceListDetail(userPriceListDetail), idUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail)) WHERE userPriceListDetail IS UserPriceListDetail;
+userPriceListDetailIdId (sku, userPriceList) = GROUP MAX UserPriceListDetail userPriceListDetail BY id[Item](sku(userPriceListDetail)), id(userPriceList(userPriceListDetail));
+id = DATA VARSTRING[100] (UserPriceListDetail) IN recognize;
+userPriceListDetail (id, userPriceList) = GROUP AGGR UserPriceListDetail userPriceListDetail BY id(userPriceListDetail), userPriceList(userPriceListDetail) WHERE userPriceListDetail IS UserPriceListDetail;
+userPriceListDetail (id, idUserPriceList) = GROUP AGGR UserPriceListDetail userPriceListDetail BY id(userPriceListDetail), id(userPriceList(userPriceListDetail)) WHERE userPriceListDetail IS UserPriceListDetail;
 
-originalUserPriceList 'Файл оригинала прайса'  = DATA CUSTOMFILE (UserPriceList);
+original 'Файл оригинала прайса'  = DATA CUSTOMFILE (UserPriceList);
 
-saveOriginalUserPriceList 'Загрузить файл оригинала прайса' (i) = ACTION LOADFILE originalUserPriceList(i);
-openOriginalUserPriceList 'Просмотреть оригинал прайса' (i) = ACTION OPENFILE originalUserPriceList(i);
+saveOriginal 'Загрузить файл оригинала прайса' (UserPriceList i) = ACTION LOADFILE original(i);
+openOriginal 'Просмотреть оригинал прайса' (UserPriceList i) = ACTION OPENFILE original(i);
 
-importedUserPriceList 'Импортирована' = DATA BOOLEAN (UserPriceList);
-importedUserPriceListDetail 'Импортирована' = DATA BOOLEAN (UserPriceListDetail);
+imported 'Импортирована' = DATA BOOLEAN (UserPriceList);
+imported 'Импортирована' = DATA BOOLEAN (UserPriceListDetail);
 
-autoImportImportUserPriceListType 'Автоматический импорт' = DATA BOOLEAN(ImportUserPriceListType);
-autoImportDirectoryImportUserPriceListType 'Папка' =  DATA VARSTRING[100](ImportUserPriceListType);
+autoImport 'Автоматический импорт' = DATA BOOLEAN(ImportUserPriceListType);
+autoImportDirectory 'Папка' =  DATA VARSTRING[100](ImportUserPriceListType);
 
-operationImportUserPriceListType =  DATA Operation.Operation(ImportUserPriceListType);
-nameOperationImportUserPriceListType 'Операция' (importUserPriceListType) =  Operation.nameOperation(operationImportUserPriceListType(importUserPriceListType));
+operation =  DATA Operation.Operation(ImportUserPriceListType);
+nameOperation 'Операция' (ImportUserPriceListType importUserPriceListType) =  name(operation(importUserPriceListType));
 
-companyImportUserPriceListType =  DATA LegalEntity(ImportUserPriceListType);
-nameCompanyImportUserPriceListType 'Организация' (importUserPriceListType) =  nameLegalEntity(companyImportUserPriceListType(importUserPriceListType));
+company =  DATA LegalEntity(ImportUserPriceListType);
+nameCompany 'Организация' (ImportUserPriceListType importUserPriceListType) =  name(company(importUserPriceListType));
 
-stockImportUserPriceListType =  DATA Stock(ImportUserPriceListType);
-nameStockImportUserPriceListType 'Склад' (importUserPriceListType) =  nameStock(stockImportUserPriceListType(importUserPriceListType));
+stock =  DATA Stock(ImportUserPriceListType);
+nameStock 'Склад' (ImportUserPriceListType importUserPriceListType) =  name(stock(importUserPriceListType));
 
-quantityAdjustmentImportUserPriceListType 'Колонка остатка' =  DATA VARSTRING[20](ImportUserPriceListType);
+quantityAdjustment 'Колонка остатка' =  DATA VARSTRING[20](ImportUserPriceListType);
  
-defaultItemGroupImportUserPriceListType =  DATA ItemGroup(ImportUserPriceListType);
-nameDefaultItemGroupImportUserPriceListType 'Группа товаров' (importUserPriceListType) =  nameItemGroup(defaultItemGroupImportUserPriceListType(importUserPriceListType));
+defaultItemGroup =  DATA ItemGroup(ImportUserPriceListType);
+nameDefaultItemGroup 'Группа товаров' (ImportUserPriceListType importUserPriceListType) =  name(defaultItemGroup(importUserPriceListType));
 
-startRowImportUserPriceListType 'Начинать со строки' = DATA INTEGER(ImportUserPriceListType);
-isPostedImportUserPriceListType 'Импортировать проведёнными' = DATA BOOLEAN(ImportUserPriceListType);
-doNotCreateItemsImportUserPriceListType 'Не создавать товары и штрихкоды' = DATA BOOLEAN(ImportUserPriceListType);
-barcodeMaybeUPCImportUserPriceListType 'Добавлять 0 к UPC штрих-кодам' = DATA BOOLEAN(ImportUserPriceListType);
-checkColumnImportUserPriceListType 'Проверочное поле' = DATA VARSTRING[50](ImportUserPriceListType);
-separatorImportUserPriceListType 'Разделитель' = DATA VARSTRING[2](ImportUserPriceListType);
-importUserPriceListKeyTypeImportUserPriceListType 'Тип ключа' = DATA ImportUserPriceListKeyType(ImportUserPriceListType);
-captionImportUserPriceListKeyTypeImportUserPriceListType 'Тип ключа' (importUserPriceListType) = staticCaption(importUserPriceListKeyTypeImportUserPriceListType(importUserPriceListType));
-nameImportUserPriceListKeyTypeImportUserPriceListType 'Тип ключа' (importUserPriceListType) = staticName(importUserPriceListKeyTypeImportUserPriceListType(importUserPriceListType));
+startRow 'Начинать со строки' = DATA INTEGER(ImportUserPriceListType);
+isPosted 'Импортировать проведёнными' = DATA BOOLEAN(ImportUserPriceListType);
+doNotCreateItems 'Не создавать товары и штрихкоды' = DATA BOOLEAN(ImportUserPriceListType);
+barcodeMaybeUPC 'Добавлять 0 к UPC штрих-кодам' = DATA BOOLEAN(ImportUserPriceListType);
+checkColumn 'Проверочное поле' = DATA VARSTRING[50](ImportUserPriceListType);
+separator 'Разделитель' = DATA VARSTRING[2](ImportUserPriceListType);
+importUserPriceListKeyType 'Тип ключа' = DATA ImportUserPriceListKeyType(ImportUserPriceListType);
+captionImportUserPriceListKeyType 'Тип ключа' (ImportUserPriceListType importUserPriceListType) = staticCaption(importUserPriceListKeyType(importUserPriceListType));
+nameImportUserPriceListKeyType 'Тип ключа' (ImportUserPriceListType importUserPriceListType) = staticName(importUserPriceListKeyType(importUserPriceListType));
 
 TABLE importUserPriceListTypeDetail(ImportUserPriceListType, ImportUserPriceListTypeDetail);
-indexImportUserPriceListTypeImportUserPriceListTypeDetail 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, ImportUserPriceListTypeDetail);
+index 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, ImportUserPriceListTypeDetail);
 
-replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail 'Не замещать' = DATA BOOLEAN (ImportUserPriceListType, ImportUserPriceListTypeDetail);
+replaceOnlyNull 'Не замещать' = DATA BOOLEAN (ImportUserPriceListType, ImportUserPriceListTypeDetail);
 
-importUserPriceListTypeFileExtensionImportUserPriceListType  = DATA ImportUserPriceListTypeFileExtension(ImportUserPriceListType);
-captionImportUserPriceListTypeFileExtensionImportUserPriceListType 'Тип файла' (importUserPriceListType) = staticCaption(importUserPriceListTypeFileExtensionImportUserPriceListType(importUserPriceListType));
+importUserPriceListTypeFileExtension  = DATA ImportUserPriceListTypeFileExtension(ImportUserPriceListType);
+captionImportUserPriceListTypeFileExtension 'Тип файла' (ImportUserPriceListType importUserPriceListType) = staticCaption(importUserPriceListTypeFileExtension(importUserPriceListType));
 
 TABLE importUserPriceListTypeDataPriceListType(ImportUserPriceListType, DataPriceListType);
-indexImportUserPriceListTypeDataPriceListType 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, DataPriceListType);
+index 'Поле' = DATA VARSTRING[50] (ImportUserPriceListType, DataPriceListType);
 
 FORM customKeyTypes 'Ключи свойства'
     OBJECTS k=CustomKeyType
@@ -136,13 +136,13 @@ FORM customKeyTypes 'Ключи свойства'
 
 FORM importUserPriceListTypeDetails
     OBJECTS itd = ImportUserPriceListTypeDetail
-    PROPERTIES(itd) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption READONLY, propertyImport, canonicalNamePropImport, captionKeyImport
     DIALOG ImportUserPriceListTypeDetail OBJECT itd
 ;
 
 FORM importUserPriceListTypeDetail 'Свойство импорта'
     OBJECTS itd = ImportUserPriceListTypeDetail FIXED PANEL
-    PROPERTIES(itd) staticCaption, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
+    PROPERTIES(itd) staticCaption, propertyImport, canonicalNamePropImport, captionKeyImport
     EDIT ImportUserPriceListTypeDetail OBJECT itd
 ;
 
@@ -158,26 +158,26 @@ FORM importUserPriceListKeyTypes 'Типы ключа'
     DIALOG ImportUserPriceListKeyType OBJECT k
 ;
 
-showSeparator (t) = importUserPriceListTypeFileExtensionImportUserPriceListType(t) == ImportUserPriceListTypeFileExtension.csv;
+showSeparator (ImportUserPriceListType t) = importUserPriceListTypeFileExtension(t) == ImportUserPriceListTypeFileExtension.csv;
 
 FORM importUserPriceListType 'Тип импорта'
     OBJECTS i=ImportUserPriceListType FIXED PANEL
-    PROPERTIES(i) nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
-                  isPostedImportUserPriceListType, doNotCreateItemsImportUserPriceListType, barcodeMaybeUPCImportUserPriceListType, 
-                  checkColumnImportUserPriceListType, separatorImportUserPriceListType SHOWIF showSeparator(i), 
-                  captionImportUserPriceListKeyTypeImportUserPriceListType
-    PROPERTIES(i) FORCE PANEL nameOperationImportUserPriceListType, nameCompanyImportUserPriceListType, nameStockImportUserPriceListType, nameDefaultItemGroupImportUserPriceListType,
-                              quantityAdjustmentImportUserPriceListType
-    PROPERTIES(i) autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType FORCE PANEL SHOWIF autoImportImportUserPriceListType(i)
+    PROPERTIES(i) name, captionImportUserPriceListTypeFileExtension, startRow,
+                  isPosted, doNotCreateItems, barcodeMaybeUPC, 
+                  checkColumn, separator SHOWIF showSeparator(i), 
+                  captionImportUserPriceListKeyType
+    PROPERTIES(i) FORCE PANEL nameOperation, nameCompany, nameStock, nameDefaultItemGroup,
+                              quantityAdjustment
+    PROPERTIES(i) autoImport, autoImportDirectory FORCE PANEL SHOWIF autoImport(i)
                    
     OBJECTS d = ImportUserPriceListTypeDetail
-    PROPERTIES(d) staticCaption READONLY, propertyImportTypeDetail, canonicalNamePropImportTypeDetail, captionKeyImportTypeDetail
-    PROPERTIES(i,d) indexImportUserPriceListTypeImportUserPriceListTypeDetail, replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail 
+    PROPERTIES(d) staticCaption READONLY, propertyImport, canonicalNamePropImport, captionKeyImport
+    PROPERTIES(i,d) index, replaceOnlyNull 
     PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
                       
     OBJECTS p = DataPriceListType
-    PROPERTIES(p) nameDataPriceListType
-    PROPERTIES(i, p) indexImportUserPriceListTypeDataPriceListType                  
+    PROPERTIES(p) name
+    PROPERTIES(i, p) index                  
                       
     EDIT ImportUserPriceListType OBJECT i
 ;
@@ -193,11 +193,11 @@ DESIGN importUserPriceListType {
         }
         NEW invoiceParamsContainer {
             caption = 'Параметры прайс-листа';
-            MOVE PROPERTY(nameOperationImportUserPriceListType(i));
-            MOVE PROPERTY(nameCompanyImportUserPriceListType(i));
-            MOVE PROPERTY(nameStockImportUserPriceListType(i));
-            MOVE PROPERTY(nameDefaultItemGroupImportUserPriceListType(i));
-            MOVE PROPERTY(quantityAdjustmentImportUserPriceListType(i));
+            MOVE PROPERTY(nameOperation(i));
+            MOVE PROPERTY(nameCompany(i));
+            MOVE PROPERTY(nameStock(i));
+            MOVE PROPERTY(nameDefaultItemGroup(i));
+            MOVE PROPERTY(quantityAdjustment(i));
             MOVE p.box;
         }
     }
@@ -206,21 +206,21 @@ DESIGN importUserPriceListType {
 
 FORM importUserPriceListTypes 'Типы импорта'
     OBJECTS i=ImportUserPriceListType
-    PROPERTIES(i) READONLY nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
-                   isPostedImportUserPriceListType, doNotCreateItemsImportUserPriceListType, barcodeMaybeUPCImportUserPriceListType, 
-                   checkColumnImportUserPriceListType, separatorImportUserPriceListType SHOWIF showSeparator(i), 
-                   captionImportUserPriceListKeyTypeImportUserPriceListType
-    PROPERTIES(i) READONLY autoImportImportUserPriceListType, autoImportDirectoryImportUserPriceListType SHOWIF autoImportImportUserPriceListType(i)               
+    PROPERTIES(i) READONLY name, captionImportUserPriceListTypeFileExtension, startRow,
+                   isPosted, doNotCreateItems, barcodeMaybeUPC, 
+                   checkColumn, separator SHOWIF showSeparator(i), 
+                   captionImportUserPriceListKeyType
+    PROPERTIES(i) READONLY autoImport, autoImportDirectory SHOWIF autoImport(i)               
     PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG ImportUserPriceListType OBJECT i
 ;
 
 EXTEND FORM integrationData
     OBJECTS ip=ImportUserPriceListType
-    PROPERTIES(ip) READONLY nameImportUserPriceListType, captionImportUserPriceListTypeFileExtensionImportUserPriceListType, startRowImportUserPriceListType,
-                   isPostedImportUserPriceListType, doNotCreateItemsImportUserPriceListType, barcodeMaybeUPCImportUserPriceListType, 
-                   checkColumnImportUserPriceListType, separatorImportUserPriceListType SHOWIF showSeparator(ip), 
-                   captionImportUserPriceListKeyTypeImportUserPriceListType
+    PROPERTIES(ip) READONLY name, captionImportUserPriceListTypeFileExtension, startRow,
+                   isPosted, doNotCreateItems, barcodeMaybeUPC, 
+                   checkColumn, separator SHOWIF showSeparator(ip), 
+                   captionImportUserPriceListKeyType
     PROPERTIES(ip) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES() importUserPriceListsAction TOOLBAR
 ;
@@ -236,9 +236,9 @@ DESIGN integrationData {
 }
 
 EXTEND FORM userPriceList
-    PROPERTIES(p) importUserPriceListAction TODRAW d TOOLBAR
-    PROPERTIES(p) nameImportUserPriceListTypeUserPriceList
-    PROPERTIES(p) saveOriginalUserPriceList, openOriginalUserPriceList 
+    PROPERTIES(p) importAction TODRAW d TOOLBAR
+    PROPERTIES(p) nameImportUserPriceListType
+    PROPERTIES(p) saveOriginal, openOriginal 
 ;
 
 DESIGN userPriceList{
@@ -248,13 +248,13 @@ DESIGN userPriceList{
             type = CONTAINERH;
             NEW universalImport {
                 caption = 'Универсальный импорт';
-                MOVE PROPERTY(nameImportUserPriceListTypeUserPriceList(p));
-                MOVE PROPERTY(importUserPriceListAction(p));
+                MOVE PROPERTY(nameImportUserPriceListType(p));
+                MOVE PROPERTY(importAction(p));
             }
             NEW origin {
                 caption = 'Оригинал прайса';
-                MOVE PROPERTY(saveOriginalUserPriceList(p));
-                MOVE PROPERTY(openOriginalUserPriceList(p));
+                MOVE PROPERTY(saveOriginal(p));
+                MOVE PROPERTY(openOriginal(p));
             }
         }
     }

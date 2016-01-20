@@ -9,14 +9,14 @@ NAMESPACE Pricing;
 @defineDocumentInterfaceProperty (pricing, showLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (pricing, limit, ' предельная');
 
-limitMarkupUserPricingDetail(detail) <- markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(departmentStoreUserPricingDetail(detail)), skuUserPricingDetail(detail)) WHEN
-     CHANGED (departmentStoreUserPricingDetail(detail)) OR
-     CHANGED (skuUserPricingDetail(detail));
+limitMarkup(UserPricingDetail detail) <- markup(priceLimitPriceListType(departmentStore(detail)), sku(detail)) WHEN
+     CHANGED (departmentStore(detail)) OR
+     CHANGED (sku(detail));
 
-changeLimitMarkupUserPricingDetail = ACTION(detail) {
+changeLimitMarkup = ACTION(UserPricingDetail detail) {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN {
-        ASSIGN dataMarkupCalcPriceListTypeSku(t, s) <- requestedNumeric() WHERE t == priceLimitPriceListTypeDepartmentStore(departmentStoreUserPricingDetail(detail)) AND s == skuUserPricingDetail(detail);
+        ASSIGN dataMarkup(CalcPriceListType t, Sku s) <- requestedNumeric() WHERE t == priceLimitPriceListType(departmentStore(detail)) AND s == sku(detail);
     }
 }
 
@@ -26,40 +26,40 @@ changeLimitMarkupUserPricingDetail = ACTION(detail) {
 @defineDocumentHeaderProperty (operation, showLimitPrice, 'Предельная надбавка');
 
 EXTEND FORM Pricing.operation
-    PROPERTIES(o) showLimitPriceOperation
+    PROPERTIES(o) showLimitPrice
 ;
 
 DESIGN Pricing.operation {
     showContainer {
-        MOVE PROPERTY(showLimitPriceOperation(o));
+        MOVE PROPERTY(showLimitPrice(o));
     }
 }
 
 // Записываем необходимо ли показывать предельную надбавку по умолчанию из операции
-showLimitPriceUserPricing (pricing) <- showLimitPriceOperation(operationUserPricing(pricing))
-    WHEN CHANGED(operationUserPricing(pricing));
+showLimitPrice (UserPricing pricing) <- showLimitPrice(operation(pricing))
+    WHEN CHANGED(operation(pricing));
 
 EXTEND FORM userPricing
-    PROPERTIES(p) showLimitPriceUserPricing
-    PROPERTIES(d) SHOWIF showLimitPriceUserPricing(p) BEFORE retailMarkupUserPricingDetail(d) limitMarkupUserPricingDetail ON CHANGE changeLimitMarkupUserPricingDetail(d)
+    PROPERTIES(p) showLimitPrice
+    PROPERTIES(d) SHOWIF showLimitPrice(p) BEFORE retailMarkup(d) limitMarkup ON CHANGE changeLimitMarkup(d)
 ;
 DESIGN userPricing{
     p.documentPrm{
-        MOVE PROPERTY (showLimitPriceUserPricing(p));
+        MOVE PROPERTY (showLimitPrice(p));
     }
 }
 
 EXTEND FORM pricings
-    PROPERTIES(d) READONLY SHOWIF showLimitPricePricing(p) BEFORE retailMarkupPricingDetail(d) limitMarkupPricingDetail READONLY
+    PROPERTIES(d) READONLY SHOWIF showLimitPrice(p) BEFORE retailMarkup(d) limitMarkup READONLY
 ;
 
 // Имплементим для расчета оптимальной розничной цены
 
-overLimitPriceUserPricingDetail (detail) += roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
-                                                pricingPriceUserPricingDetail(detail),
-                                                limitMarkupUserPricingDetail(detail),
-                                                valueRetailVATUserPricingDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(departmentStoreUserPricingDetail(detail)), skuUserPricingDetail(detail)))
-                                            IF showLimitPriceUserPricingDetail(detail);
+overLimitPrice (UserPricingDetail detail) += round([= X*(Y+100)*(Z+100)/10000](
+                                                pricingPrice(detail),
+                                                limitMarkup(detail),
+                                                valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(departmentStore(detail)), sku(detail)))
+                                            IF showLimitPrice(detail);
 
 
 

@@ -41,10 +41,10 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            ObjectValue dateFrom = findProperty("dateFromExportGeneralLedgerDBF").readClasses(context);
-            ObjectValue dateTo = findProperty("dateToExportGeneralLedgerDBF").readClasses(context);
-            ObjectValue legalEntity = findProperty("legalEntityExportGeneralLedgerDBF").readClasses(context);
-            ObjectValue glAccountType = findProperty("GLAccountTypeExportGeneralLedgerDBF").readClasses(context);
+            ObjectValue dateFrom = findProperty("dateFromExportGeneralLedgerDBF[]").readClasses(context);
+            ObjectValue dateTo = findProperty("dateToExportGeneralLedgerDBF[]").readClasses(context);
+            ObjectValue legalEntity = findProperty("legalEntityExportGeneralLedgerDBF[]").readClasses(context);
+            ObjectValue glAccountType = findProperty("GLAccountTypeExportGeneralLedgerDBF[]").readClasses(context);
 
             File file = exportGeneralLedgers(context, dateFrom, dateTo, legalEntity, glAccountType);
             if (file != null) {
@@ -89,9 +89,9 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "idOperationGeneralLedger"};
-        LCP[] generalLedgerProperties = findProperties("dateGeneralLedger", "numberGLDocumentGeneralLedger",
-                "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
-                "idOperationGeneralLedger");
+        LCP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]",
+                "description[GeneralLedger]", "idDebit[GeneralLedger]", "idCredit[GeneralLedger]", "sum[GeneralLedger]",
+                "idOperation[GeneralLedger]");
         for (int j = 0; j < generalLedgerProperties.length; j++) {
             generalLedgerQuery.addProperty(generalLedgerNames[j], generalLedgerProperties[j].getExpr(generalLedgerExpr));
         }
@@ -99,26 +99,26 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         String[] dimensionTypeNames = new String[]{"idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
                 "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType"};
-        LCP[] dimensionTypeProperties = findProperties("idDebitGeneralLedgerDimensionType", "orderDebitGeneralLedgerDimensionType",
-                "idCreditGeneralLedgerDimensionType", "orderCreditGeneralLedgerDimensionType");
+        LCP[] dimensionTypeProperties = findProperties("idDebit[GeneralLedger,DimensionType]", "orderDebit[GeneralLedger,DimensionType]",
+                "idCredit[GeneralLedger,DimensionType]", "orderCredit[GeneralLedger,DimensionType]");
         for (int j = 0; j < dimensionTypeProperties.length; j++) {
             generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));
         }
 
-        generalLedgerQuery.and(findProperty("sumGeneralLedger").getExpr(generalLedgerExpr).getWhere());
-        generalLedgerQuery.and(findProperty("nameDimensionType").getExpr(dimensionTypeExpr).getWhere());
+        generalLedgerQuery.and(findProperty("sum[GeneralLedger]").getExpr(generalLedgerExpr).getWhere());
+        generalLedgerQuery.and(findProperty("name[DimensionType]").getExpr(dimensionTypeExpr).getWhere());
         
         if(glAccountType instanceof DataObject) {
-            Where where1 = findProperty("glAccountTypeDebitGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) glAccountType, Compare.EQUALS);
-            Where where2 = findProperty("glAccountTypeCreditGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) glAccountType, Compare.EQUALS);
+            Where where1 = findProperty("glAccountTypeDebit[GeneralLedger]").getExpr(generalLedgerExpr).compare((DataObject) glAccountType, Compare.EQUALS);
+            Where where2 = findProperty("glAccountTypeCredit[GeneralLedger]").getExpr(generalLedgerExpr).compare((DataObject) glAccountType, Compare.EQUALS);
             generalLedgerQuery.and(where1.or(where2));
         }
         if(legalEntity instanceof DataObject)
-            generalLedgerQuery.and(findProperty("legalEntityGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) legalEntity, Compare.EQUALS));
+            generalLedgerQuery.and(findProperty("legalEntity[GeneralLedger]").getExpr(generalLedgerExpr).compare((DataObject) legalEntity, Compare.EQUALS));
         if (dateFrom instanceof DataObject)
-            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) dateFrom, Compare.GREATER_EQUALS));
+            generalLedgerQuery.and(findProperty("date[GeneralLedger]").getExpr(generalLedgerExpr).compare((DataObject) dateFrom, Compare.GREATER_EQUALS));
         if (dateTo instanceof DataObject)
-            generalLedgerQuery.and(findProperty("dateGeneralLedger").getExpr(generalLedgerExpr).compare((DataObject) dateTo, Compare.LESS_EQUALS));
+            generalLedgerQuery.and(findProperty("date[GeneralLedger]").getExpr(generalLedgerExpr).compare((DataObject) dateTo, Compare.LESS_EQUALS));
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> generalLedgerResult = generalLedgerQuery.executeClasses(context);
 

@@ -33,14 +33,14 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
-            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
-            Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister").read(context);
-            BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister").read(context);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
+            BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
 
-            BigDecimal sumPayment = (BigDecimal) findProperty("Payment.sumPayment").read(context, paymentObject);
-            Integer typePayment = (Integer) findProperty("fiscalTypePayment").read(context, paymentObject);
+            BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
+            Integer typePayment = (Integer) findProperty("fiscalType[Payment.Payment]").read(context, paymentObject);
 
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
@@ -51,9 +51,9 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, false));
             if(result == null)
-                findProperty("printReceiptResult").change(new DataObject(true), context);
+                findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else
-                findProperty("printReceiptResult").change((Object) null, context);
+                findProperty("printReceiptResult[]").change((Object) null, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

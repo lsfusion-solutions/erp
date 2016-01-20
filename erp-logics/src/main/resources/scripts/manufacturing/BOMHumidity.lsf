@@ -6,138 +6,138 @@ REQUIRE ItemHumidity, BOMNutrition;
 // ------------------------------------------------------------------- //
 GROUP humidity 'Влажность' : base;
 
-showHumidityBOM 'Отображать влажность' = DATA BOOLEAN(BOM) IN documentPrm;
+showHumidity 'Отображать влажность' = DATA BOOLEAN(BOM) IN documentPrm;
 
 // Влажность изделия
-percentHumidityProduct 'Влажность, %' (p) = percentHumidityItem(skuProduct(p)) IN itemHumidity;
+percentHumidity 'Влажность, %' (Product p) = percentHumidity(sku(p)) IN itemHumidity;
 @changeNutrition(product, sku, percentHumidity) ;
-percentDrynessProduct 'Массовая доля сухих веществ, %' (p) = percentDrynessItem(skuProduct(p)) IN itemHumidity;
-changePercentDrynessProduct  = ACTION (product) {
+percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
+changePercentDryness  = ACTION (Product product) {
     REQUEST  NUMERIC[8,2] INPUT ;
     IF requestedNumeric() THEN {
-        percentHumidityItem(item) <- (100-requestedNumeric()) WHERE item == skuProduct(product);
+        percentHumidity(Item item) <- (100-requestedNumeric()) WHERE item == sku(product);
     } ELSE {
-        percentHumidityItem(item) <- NULL WHERE item == skuProduct(product);
+        percentHumidity(Item item) <- NULL WHERE item == sku(product);
     }    
 };
 
 // Влажность компонент
-percentHumidityComponent 'Влажность, %' (component) = percentHumidityItem(overSkuComponent(component));
+percentHumidity 'Влажность, %' (Component component) = percentHumidity[Item](overSku(component));
 @changeNutrition(component, overSku, percentHumidity);
-percentDrynessComponent 'Массовая доля сухих веществ, %' (component) = percentDrynessItem(overSkuComponent(component)) IN itemHumidity;     
-changePercentDrynessComponent  = ACTION (component) {
+percentDryness 'Массовая доля сухих веществ, %' (Component component) = percentDryness[Item](overSku(component)) IN itemHumidity;     
+changePercentDryness  = ACTION (Component component) {
     REQUEST  NUMERIC[8,2] INPUT ;
     IF requestedNumeric() THEN {
-        percentHumidityItem(item) <- (100-requestedNumeric()) WHERE item == overSkuComponent(component);
+        percentHumidity(Item item) <- (100-requestedNumeric()) WHERE item == overSku(component);
     } ELSE {
-        percentHumidityItem(item) <- NULL WHERE item == overSkuComponent(component);
+        percentHumidity(Item item) <- NULL WHERE item == overSku(component);
     }    
 };                                           
                                               
 //------------------------- Производственная рецептура --------------------------//
 
-overBruttoQuantityComponentDate 'Выход полуфабрикатов' (c,dt)=bruttoQuantityComponentDate(c,dt)* (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+overBruttoQuantity 'Выход полуфабрикатов' (Component c,DATE dt)=bruttoQuantity(c,dt)* (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
 
 // -- по всей спецификации
 
-recBruttoDrynessQuantityBOMSkuDate 'В сухих веществах' (BOM, sku, date)= recBruttoQuantityBOMSkuDate (BOM, sku, date) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku)) *
-    percentDrynessItem(sku)/100;
+recBruttoDrynessQuantity 'В сухих веществах' (BOM BOM, Item sku, DATE date)= recBruttoQuantity (BOM, sku, date) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeight(sku)) *
+    percentDryness(sku)/100;
 
-quantityComponentSkuDate 'Кол-во для компонента, если он полуфабрикат' (component, sku, date)= recBruttoQuantityBOMSkuDate (BOMProduct(materialComponent(component)), sku, date) *
-    bruttoQuantityComponentDate(component, date)/
-    (quantityProduct(materialComponent(component)) IF quantityProduct(materialComponent(component))!=0) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku))
+quantity 'Кол-во для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity (BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity[Product](material(component)) IF quantity[Product](material(component))!=0) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku))
     ;
-quantityBomSkuDate 'Кол-во по спец. для полуфабрикатов' (BOM, sku, date) = GROUP SUM quantityComponentSkuDate(component, sku, date) BY BOMComponent(component), sku, date;
-quantityComponentDate 'Итого сырья на полуфабрикаты' (component, date) = GROUP SUM quantityComponentSkuDate(component, sku, date) BY component, date;
+quantityBom 'Кол-во по спец. для полуфабрикатов' (BOM, sku, date) = GROUP SUM quantity(Component component, Sku sku, DATE date) BY BOM(component), sku, date;
+quantity 'Итого сырья на полуфабрикаты' (component, date) = GROUP SUM quantity(Component component, Sku sku, DATE date) BY component, date;
 
-drynessQuantityBomSkuDate 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBomSkuDate(BOM, sku, date)*percentDrynessItem(sku)/100;
+drynessQuantityBom 'Кол-во по спец. для полуфабрикатов в сухих веществах'= quantityBom(BOM BOM, Item sku, DATE date)*percentDryness(sku)/100;
 
-recBruttoQuantityBOMDate 'Кол-во компонентов в натуре' (BOM, date) = GROUP SUM recBruttoQuantityBOMSkuDate (BOM, sku, date)*(OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku)) BY BOM, date;
-recBruttoDrynessQuantityBOMDate 'В сухих веществах' (BOM, date) = GROUP SUM recBruttoDrynessQuantityBOMSkuDate(BOM, sku, date) BY BOM, date;
+recBruttoQuantity 'Кол-во компонентов в натуре' (BOM, date) = GROUP SUM recBruttoQuantity (BOM BOM, Sku sku, DATE date)*(OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku)) BY BOM, date;
+recBruttoDrynessQuantity 'В сухих веществах' (BOM, date) = GROUP SUM recBruttoDrynessQuantity(BOM BOM, Item sku, DATE date) BY BOM, date;
 
-drynessQuantityComponentDate 'Кол-во для комонента(товар) в сухих веществах' (cc,dt)=  bruttoQuantityComponentDate(cc,dt) * 
-                                                                                       (OVERRIDE 1.0 IF cc IS Component, overNetWeightComponent(cc)) *
-                                                                                       percentDrynessComponent(cc)/100;
-drynessQuantityComponent 'Кол-во для комонентов сухих веществах' (c) = overNettoNetWeightComponent(c) * percentDrynessComponent(c)/100;
-drynessQuantityComponentsBOM 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantityComponent(c) BY BOMComponent(c);
-calcPercentHumidityBOM 'Массовая доля сухих веществ, %' (b)= drynessQuantityComponentsBOM(b)/(overNettoNetWeightComponentBOM(b) IF overNettoNetWeightComponentBOM(b)!=0)*100; 
+drynessQuantity 'Кол-во для комонента(товар) в сухих веществах' (Component cc,DATE dt)=  bruttoQuantity(cc,dt) * 
+                                                                                       (OVERRIDE 1.0 IF cc IS Component, overNetWeight(cc)) *
+                                                                                       percentDryness(cc)/100;
+drynessQuantity 'Кол-во для комонентов сухих веществах' (Component c) = overNettoNetWeight(c) * percentDryness(c)/100;
+drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (b) = GROUP SUM drynessQuantity(Component c) BY BOM(c);
+calcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= drynessQuantityComponents(b)/(overNettoNetWeightComponent(b) IF overNettoNetWeightComponent(b)!=0)*100; 
 
 //--
-recBruttoQuantityProductDate 'Кол-во компонентов в натуре' (product, date) = recBruttoQuantityBOMDate(BOMProduct(product),date);
-recBruttoDrynessQuantityProductDate 'В сухих веществах' (product, date) = recBruttoDrynessQuantityBOMDate(BOMProduct(product),date);
-drynessQuantityComponentsProduct 'Кол-во по комонентам в сухих веществах' (product) =drynessQuantityComponentsBOM(BOMProduct(product));
+recBruttoQuantity 'Кол-во компонентов в натуре' (Product product, DATE date) = recBruttoQuantity(BOM(product),date);
+recBruttoDrynessQuantity 'В сухих веществах' (Product product, DATE date) = recBruttoDrynessQuantity(BOM(product),date);
+drynessQuantityComponents 'Кол-во по комонентам в сухих веществах' (Product product) =drynessQuantityComponents(BOM(product));
 //--
-calcPercentHumidityProduct 'Массовая доля сухих веществ, %' (product) =calcPercentHumidityBOM(BOMProduct(product));
+calcPercentHumidity 'Массовая доля сухих веществ, %' (Product product) =calcPercentHumidity(BOM(product));
 
-percentHumidityProductComponent 'Влажность' (c) = percentHumidityProduct(materialComponent(c));
+percentHumidityProduct 'Влажность' (Component c) = percentHumidity(material(c));
 
 //-- Альтернатива для расчета "Массовая доля сухих веществ, %" т.е. берем не по компонентам, а для всех sku рекурсивно
 // todo: может быть так правильнее ????
 
-drynessQuantityBOMSku'Кол-во в сухих веществах для нетто' (BOM,sku) = recNettoQuantityBOMSku(BOM,sku) *
-                                                                          (OVERRIDE 1.0 IF BOM IS BOM , netWeightItem(sku)) *
-                                                                          percentDrynessItem(sku)/100;
-nettoQuantityBOMSku 'Кол-во нетто' (BOM,sku) = recNettoQuantityBOMSku(BOM,sku) * (OVERRIDE 1.0 IF BOM IS BOM , netWeightItem(sku));  
-nettoQuantityBOM 'Кол-во нетто' (BOM) = GROUP SUM nettoQuantityBOMSku(BOM,sku) BY BOM;                                                                        
+drynessQuantity'Кол-во в сухих веществах для нетто' (BOM BOM,Item sku) = recNettoQuantity(BOM,sku) *
+                                                                          (OVERRIDE 1.0 IF BOM IS BOM , netWeight(sku)) *
+                                                                          percentDryness(sku)/100;
+nettoQuantity 'Кол-во нетто' (BOM BOM,Sku sku) = recNettoQuantity(BOM,sku) * (OVERRIDE 1.0 IF BOM IS BOM , netWeight[Item](sku));  
+nettoQuantity 'Кол-во нетто' (BOM) = GROUP SUM nettoQuantity(BOM BOM,Sku sku) BY BOM;                                                                        
                                                                           
-overDrynessQuantityBOM 'Кол-вов сухих веществах для нетто' (BOM) = GROUP SUM drynessQuantityBOMSku(BOM,sku) BY BOM;
-overCalcPercentHumidityBOM 'Массовая доля сухих веществ, %' (b)= overDrynessQuantityBOM(b)/(nettoQuantityBOM(b) IF nettoQuantityBOM(b)!=0)*100;                                                                                                                                                     
+overDrynessQuantity 'Кол-вов сухих веществах для нетто' (BOM) = GROUP SUM drynessQuantity(BOM BOM,Item sku) BY BOM;
+overCalcPercentHumidity 'Массовая доля сухих веществ, %' (BOM b)= overDrynessQuantity(b)/(nettoQuantity(b) IF nettoQuantity(b)!=0)*100;                                                                                                                                                     
 
-productsUOMBOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](shortNameUOMProduct(p)), ', '
-                                       BY BOMProduct(p)
-                                       ORDER indexProduct(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+productsUOM 'Изделия' (BOM) = GROUP CONCAT VARSTRING[255](shortNameUOM(Product p)), ', '
+                                       BY BOM(p)
+                                       ORDER index(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 FORM productionRecipe 'Производственная рецептура'
     OBJECTS dt=DATE FIXED PANEL
     PROPERTIES (dt) date = OBJVALUE
 
     OBJECTS b=BOM FIXED PANEL 
-    PROPERTIES(b)  READONLY productsBOM, productsUOMBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, pricePercentBOM, noteBOM
-    PROPERTIES     READONLY    recBruttoQuantityBOMDate(b,dt), recBruttoDrynessQuantityBOMDate(b,dt), drynessQuantityComponentsBOM(b)
+    PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
+    PROPERTIES     READONLY    recBruttoQuantity(b,dt), recBruttoDrynessQuantity(b,dt), drynessQuantityComponents(b)
     OBJECTS p = Product
-    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct, nameSkuProduct, shortNameUOMProduct, percentHumidityProduct, overNettoNetWeightProduct
-    PROPERTIES(p,dt) READONLY recBruttoQuantityProductDate, recBruttoDrynessQuantityProductDate
-    PROPERTIES(p) drynessQuantityComponentsProduct, calcPercentHumidityProduct
-    FILTERS       BOMProduct(p) == b
+    PROPERTIES(p) READONLY index, idBarcodeSku, id, nameSku, shortNameUOM, percentHumidity, overNettoNetWeight
+    PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
+    PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
+    FILTERS       BOM(p) == b
 
     OBJECTS c = Component FIXED GRID
-    FILTERS       BOMComponent(c) == b,
-                  materialComponent(c) IS Product                                 
+    FILTERS       BOM(c) == b,
+                  material(c) IS Product                                 
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku, percentDrynessItem 
-    PROPERTIES     quantityComponentSkuDate(c,sk,dt) COLUMNS (c) HEADER nameMaterialComponent(c)
-    PROPERTIES     READONLY quantityBomSkuDate(b,sk,dt), drynessQuantityBomSkuDate(b,sk,dt)
-    FILTERS        quantityBomSkuDate(b,sk,dt)
+    PROPERTIES(sk) READONLY name, percentDryness 
+    PROPERTIES     quantity(c,sk,dt) COLUMNS (c) HEADER nameMaterial(c)
+    PROPERTIES     READONLY quantityBom(b,sk,dt), drynessQuantityBom(b,sk,dt)
+    FILTERS        quantityBom(b,sk,dt)
     
     OBJECTS cc = Component
-    PROPERTIES(cc) READONLY indexComponent, idBarcodeSkuComponent, idComponent, nameMaterialComponent, shortNameUOMComponent, overNettoNetWeightComponent
-    PROPERTIES    READONLY wastageComponentDate(cc,dt), overBruttoQuantityComponentDate(cc,dt), percentDrynessComponent(cc), drynessQuantityComponentDate(cc,dt)    
-    FILTERS       BOMComponent(cc) == b,
-                  materialComponent(cc) IS Sku     
+    PROPERTIES(cc) READONLY index, idBarcodeSku, id, nameMaterial, shortNameUOM, overNettoNetWeight
+    PROPERTIES    READONLY wastage(cc,dt), overBruttoQuantity(cc,dt), percentDryness(cc), drynessQuantity(cc,dt)    
+    FILTERS       BOM(cc) == b,
+                  material(cc) IS Sku     
                   
-    PROPERTIES READONLY  overNettoNetWeightComponent(c)  COLUMNS (c) FOOTER nameMaterialComponent(c)
-    ,quantityComponentDate(c,dt) COLUMNS (c) FOOTER nameMaterialComponent(c), overBruttoQuantityComponentDate(c,dt) COLUMNS (c) FOOTER nameMaterialComponent(c)       
+    PROPERTIES READONLY  overNettoNetWeight(c)  COLUMNS (c) FOOTER nameMaterial(c)
+    ,quantity(c,dt) COLUMNS (c) FOOTER nameMaterial(c), overBruttoQuantity(c,dt) COLUMNS (c) FOOTER nameMaterial(c)       
                   
                   
     OBJECTS ccc = Component
-    PROPERTIES(ccc) READONLY idComponent, nameMaterialComponent, overNettoNetWeightComponent                                                                                        
-    FILTERS       BOMComponent(ccc) == b    
+    PROPERTIES(ccc) READONLY id, nameMaterial, overNettoNetWeight                                                                                        
+    FILTERS       BOM(ccc) == b    
                   
     OBJECTS c1 = Component FIXED GRID
-    PROPERTIES READONLY  overNettoNetWeightComponent(c1)  COLUMNS (c1) FOOTER nameMaterialComponent(c1)  
-    FILTERS       BOMComponent(c1) == b,
-                  materialComponent(c1) IS Product                    
+    PROPERTIES READONLY  overNettoNetWeight(c1)  COLUMNS (c1) FOOTER nameMaterial(c1)  
+    FILTERS       BOM(c1) == b,
+                  material(c1) IS Product                    
 
     OBJECTS c2 = Component FIXED GRID
-    PROPERTIES READONLY  percentHumidityProductComponent(c2)  COLUMNS (c2) FOOTER nameMaterialComponent(c2)  
-    FILTERS       BOMComponent(c2) == b,
-                  materialComponent(c2) IS Product                      
+    PROPERTIES READONLY  percentHumidityProduct(c2)  COLUMNS (c2) FOOTER nameMaterial(c2)  
+    FILTERS       BOM(c2) == b,
+                  material(c2) IS Product                      
                   
 ;
-printProductionRecipe 'Производственная рецептура'  = ACTION (BOM) NEWSESSION {
+printProductionRecipe 'Производственная рецептура'  = ACTION (BOM BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM productionRecipe OBJECTS dt = chosenDate('d'), b = BOM PRINT;
@@ -147,51 +147,51 @@ printProductionRecipe 'Производственная рецептура'  = A
 
 //------------------------- Расчет пищевой ценности --------------------------//
 
-recBruttoNetQuantityBOMSkuDate 'В натуре' (BOM, sku, d)= recBruttoQuantityBOMSkuDate(BOM, sku, d) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku));
+recBruttoNetQuantity 'В натуре' (BOM BOM, Sku sku, DATE d)= recBruttoQuantity(BOM, sku, d) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku));
 
 //-- все берем на 100 грамм
 
-netGramsQuantityProductSkuDate 'Кол-во на 100 гр. изделия в натуре' (p,sku,d)= recBruttoNetQuantityBOMSkuDate(BOMProduct(p), sku, d)/ (overNettoNetWeightProduct(p) IF overNettoNetWeightProduct(p) !=0) *1000/10;
-netGramsDrynessQuantityProductSkuDate 'Кол-во на 100 гр. изделия в сухих веществах' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)* percentDrynessItem(sku)/100;
+netGramsQuantity 'Кол-во на 100 гр. изделия в натуре' (Product p,Sku sku,DATE d)= recBruttoNetQuantity(BOM(p), sku, d)/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *1000/10;
+netGramsDrynessQuantity 'Кол-во на 100 гр. изделия в сухих веществах' (Product p,Item sku,DATE d)= netGramsQuantity(p,sku,d)* percentDryness(sku)/100;
 
 
 
-proteinsGramsQuantityProductSkuDate 'Белки в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*proteinsItem(sku)/100;
-fatsGramsQuantityProductSkuDate 'Жиры в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*fatsItem(sku)/100;
-carbohydratesGramsQuantityProductSkuDate 'Углеводы в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*carbohydratesItem(sku)/100;
-energyGramsQuantityProductSkuDate 'Энергетическая ценность в рецепте' (p,sku,d)= netGramsQuantityProductSkuDate(p,sku,d)*energyItem(sku)/100;
+proteinsGramsQuantity 'Белки в рецепте' (Product p,Item sku,DATE d)= netGramsQuantity(p,sku,d)*proteins(sku)/100;
+fatsGramsQuantity 'Жиры в рецепте' (Product p,Item sku,DATE d)= netGramsQuantity(p,sku,d)*fats(sku)/100;
+carbohydratesGramsQuantity 'Углеводы в рецепте' (Product p,Item sku,DATE d)= netGramsQuantity(p,sku,d)*carbohydrates(sku)/100;
+energyGramsQuantity 'Энергетическая ценность в рецепте' (Product p,Item sku,DATE d)= netGramsQuantity(p,sku,d)*energy(sku)/100;
 
 
 //-- по всему изделию
-netGramsQuantityProductDate  'Кол-во на 100 гр. изделия в натуре всего' (p,d) = GROUP SUM netGramsQuantityProductSkuDate(p,sku,d) BY p,d;
-netGramsDrynessQuantityProductDate  'Кол-во на 100 гр. изделия в сухих веществах всего' (p,d) = GROUP SUM netGramsDrynessQuantityProductSkuDate(p,sku,d) BY p,d;
-gramsQuantityComponentsProduct 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (p)= drynessQuantityComponentsBOM(BOMProduct(p))/ (overNettoNetWeightProduct(p) IF overNettoNetWeightProduct(p) !=0) *1000/10;
+netGramsQuantity  'Кол-во на 100 гр. изделия в натуре всего' (p,d) = GROUP SUM netGramsQuantity(Product p,Sku sku,DATE d) BY p,d;
+netGramsDrynessQuantity  'Кол-во на 100 гр. изделия в сухих веществах всего' (p,d) = GROUP SUM netGramsDrynessQuantity(Product p,Item sku,DATE d) BY p,d;
+gramsQuantityComponents 'Кол-во на 100 гр. изделия в сухих веществах по компонентам' (Product p)= drynessQuantityComponents(BOM(p))/ (overNettoNetWeight(p) IF overNettoNetWeight(p) !=0) *1000/10;
 
-coeffGramsDrynessQuantityProductDate 'Коэффициент' (p,d) = gramsQuantityComponentsProduct(p)/netGramsDrynessQuantityProductDate(p,d);
+coeffGramsDrynessQuantity 'Коэффициент' (Product p,DATE d) = gramsQuantityComponents(p)/netGramsDrynessQuantity(p,d);
 
-proteinsGramsQuantityProductDate  'Белки в рецепте' (p,d) = GROUP SUM proteinsGramsQuantityProductSkuDate(p,sku,d) BY p,d;
-fatsGramsQuantityProductDate  'Жиры в рецепте' (p,d) = GROUP SUM fatsGramsQuantityProductSkuDate(p,sku,d) BY p,d;
-carbohydratesGramsQuantityProductDate  'Углеводы в рецепте' (p,d) = GROUP SUM carbohydratesGramsQuantityProductSkuDate(p,sku,d) BY p,d;
-energyGramsQuantityProductDate  'Энергетическая ценность в рецепте' (p,d) = GROUP SUM energyGramsQuantityProductSkuDate(p,sku,d) BY p,d;
+proteinsGramsQuantity  'Белки в рецепте' (p,d) = GROUP SUM proteinsGramsQuantity(Product p,Item sku,DATE d) BY p,d;
+fatsGramsQuantity  'Жиры в рецепте' (p,d) = GROUP SUM fatsGramsQuantity(Product p,Item sku,DATE d) BY p,d;
+carbohydratesGramsQuantity  'Углеводы в рецепте' (p,d) = GROUP SUM carbohydratesGramsQuantity(Product p,Item sku,DATE d) BY p,d;
+energyGramsQuantity  'Энергетическая ценность в рецепте' (p,d) = GROUP SUM energyGramsQuantity(Product p,Item sku,DATE d) BY p,d;
 
-netProteinsGramsQuantityProductDate  'Белки в рецепте' (p,d) = proteinsGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
-netFatsGramsQuantityProductDate  'Жиры в рецепте' (p,d) = fatsGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
-netCarbohydratesGramsQuantityProductDate 'Углеводы в рецепте' (p,d) = carbohydratesGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
-netEnergyGramsQuantityProductDate 'Энергетическая ценность в рецепте' (p,d) = energyGramsQuantityProductDate(p,d)*coeffGramsDrynessQuantityProductDate(p,d);
+netProteinsGramsQuantity  'Белки в рецепте' (Product p,DATE d) = proteinsGramsQuantity(p,d)*coeffGramsDrynessQuantity(p,d);
+netFatsGramsQuantity  'Жиры в рецепте' (Product p,DATE d) = fatsGramsQuantity(p,d)*coeffGramsDrynessQuantity(p,d);
+netCarbohydratesGramsQuantity 'Углеводы в рецепте' (Product p,DATE d) = carbohydratesGramsQuantity(p,d)*coeffGramsDrynessQuantity(p,d);
+netEnergyGramsQuantity 'Энергетическая ценность в рецепте' (Product p,DATE d) = energyGramsQuantity(p,d)*coeffGramsDrynessQuantity(p,d);
 
-calcNetEnergyGramsQuantityProductDate'Энергетическая ценность в рецепте' (p,d) = 
-    netProteinsGramsQuantityProductDate(p,d)*4 (+)
-    netFatsGramsQuantityProductDate(p,d)*9 (+)
-    netCarbohydratesGramsQuantityProductDate(p,d)*4;
+calcNetEnergyGramsQuantity'Энергетическая ценность в рецепте' (Product p,DATE d) = 
+    netProteinsGramsQuantity(p,d)*4 (+)
+    netFatsGramsQuantity(p,d)*9 (+)
+    netCarbohydratesGramsQuantity(p,d)*4;
     
-fillNutritionBOM 'Записать энерг.ценность' (BOM) = ACTION (BOM) {
-    FOR BOMProduct(p) == BOM DO {
-        proteinsItem(item)<- NUMERIC[8,2](netProteinsGramsQuantityProductDate(p,currentDate())) WHERE item == skuProduct(p);
-        fatsItem(item)<- NUMERIC[8,2](netFatsGramsQuantityProductDate(p,currentDate())) WHERE item == skuProduct(p);     
-        carbohydratesItem(item)<- NUMERIC[8,2](netCarbohydratesGramsQuantityProductDate(p,currentDate())) WHERE item == skuProduct(p); 
-        energyItem(item)<- NUMERIC[8,2](calcNetEnergyGramsQuantityProductDate(p,currentDate())) WHERE item == skuProduct(p); 
-        percentHumidityItem(item) <- gramsQuantityComponentsProduct(p) WHERE item == skuProduct(p); 
+fillNutrition 'Записать энерг.ценность' (BOM BOM) = ACTION (BOM) {
+    FOR BOM(Product p) == BOM DO {
+        proteins(Item item)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate())) WHERE item == sku(p);
+        fats(Item item)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate())) WHERE item == sku(p);     
+        carbohydrates(Item item)<- NUMERIC[8,2](netCarbohydratesGramsQuantity(p,currentDate())) WHERE item == sku(p); 
+        energy(Item item)<- NUMERIC[8,2](calcNetEnergyGramsQuantity(p,currentDate())) WHERE item == sku(p); 
+        percentHumidity(Item item) <- gramsQuantityComponents(p) WHERE item == sku(p); 
     }
 } TOOLBAR;    
 
@@ -200,30 +200,30 @@ FORM nutritionalValue 'Пищевая ценность'
     PROPERTIES (dt) date = OBJVALUE
 
     OBJECTS b=BOM FIXED PANEL 
-    PROPERTIES(b)  READONLY productsBOM, nameBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, pricePercentBOM, noteBOM
+    PROPERTIES(b)  READONLY products, name, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
 
     OBJECTS p = Product
-    PROPERTIES(p) READONLY nameSkuProduct, shortNameUOMProduct, percentHumidityProduct, overNettoNetWeightProduct, gramsQuantityComponentsProduct
-    PROPERTIES(p,dt) READONLY recBruttoQuantityProductDate, recBruttoDrynessQuantityProductDate
-    PROPERTIES(p) drynessQuantityComponentsProduct, calcPercentHumidityProduct
-    FILTERS       BOMProduct(p) == b    
+    PROPERTIES(p) READONLY nameSku, shortNameUOM, percentHumidity, overNettoNetWeight, gramsQuantityComponents
+    PROPERTIES(p,dt) READONLY recBruttoQuantity, recBruttoDrynessQuantity
+    PROPERTIES(p) drynessQuantityComponents, calcPercentHumidity
+    FILTERS       BOM(p) == b    
     
-    PROPERTIES(p,dt) READONLY netGramsQuantityProductDate, netGramsDrynessQuantityProductDate,
-                     proteinsGramsQuantityProductDate, fatsGramsQuantityProductDate, 
-                     carbohydratesGramsQuantityProductDate, energyGramsQuantityProductDate,
-                     netProteinsGramsQuantityProductDate, netFatsGramsQuantityProductDate,
-                     netCarbohydratesGramsQuantityProductDate, netEnergyGramsQuantityProductDate,
-                     calcNetEnergyGramsQuantityProductDate, coeffGramsDrynessQuantityProductDate                              
+    PROPERTIES(p,dt) READONLY netGramsQuantity, netGramsDrynessQuantity,
+                     proteinsGramsQuantity, fatsGramsQuantity, 
+                     carbohydratesGramsQuantity, energyGramsQuantity,
+                     netProteinsGramsQuantity, netFatsGramsQuantity,
+                     netCarbohydratesGramsQuantity, netEnergyGramsQuantity,
+                     calcNetEnergyGramsQuantity, coeffGramsDrynessQuantity                              
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku, percentDrynessItem, proteinsItem, fatsItem, carbohydratesItem, energyItem
+    PROPERTIES(sk) READONLY name, percentDryness, proteins, fats, carbohydrates, energy
                                                           
-    PROPERTIES(p,sk,dt)  READONLY netGramsQuantityProductSkuDate, netGramsDrynessQuantityProductSkuDate,
-                        proteinsGramsQuantityProductSkuDate, fatsGramsQuantityProductSkuDate, 
-                        carbohydratesGramsQuantityProductSkuDate, energyGramsQuantityProductSkuDate 
-    FILTERS recBruttoQuantityBOMSkuDate(b,sk,dt)                                      
+    PROPERTIES(p,sk,dt)  READONLY netGramsQuantity, netGramsDrynessQuantity,
+                        proteinsGramsQuantity, fatsGramsQuantity, 
+                        carbohydratesGramsQuantity, energyGramsQuantity 
+    FILTERS recBruttoQuantity(b,sk,dt)                                      
 ;
-printNutritionalValue 'Расчет пищевой ценности'  = ACTION (BOM) NEWSESSION {
+printNutritionalValue 'Расчет пищевой ценности'  = ACTION (BOM BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM nutritionalValue OBJECTS dt = chosenDate('d'), b = BOM PRINT;
@@ -235,32 +235,32 @@ printNutritionalValue 'Расчет пищевой ценности'  = ACTION (
 
 // Расширяем формы
 EXTEND FORM BOM
-    PROPERTIES(b) showHumidityBOM
-    PROPERTIES(p) SHOWIF showHumidityBOM(b) BEFORE deletep percentHumidityProduct ON CHANGE changePercentHumidityProduct(p),
-                  percentDrynessProduct ON CHANGE changePercentDrynessProduct(p)
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) BEFORE deletec percentHumidityComponent ON CHANGE  changePercentHumidityComponent(c),
-                   percentDrynessComponent ON CHANGE changePercentDrynessComponent(c)
+    PROPERTIES(b) showHumidity
+    PROPERTIES(p) SHOWIF showHumidity(b) BEFORE deletep percentHumidity ON CHANGE changePercentHumidity(p),
+                  percentDryness ON CHANGE changePercentDryness(p)
+    PROPERTIES(c) BACKGROUND  background(c) SHOWIF showHumidity(b) BEFORE deletec percentHumidity ON CHANGE  changePercentHumidity(c),
+                   percentDryness ON CHANGE changePercentDryness(c)
                    
-    PROPERTIES(b) fillNutritionBOM TODRAW p              
+    PROPERTIES(b) fillNutrition TODRAW p              
 ;
 
 DESIGN BOM {
     kitchen {
-        MOVE PROPERTY(showHumidityBOM(b));        
+        MOVE PROPERTY(showHumidity(b));        
     }
 }
 EXTEND FORM BOMs
-    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showHumidityBOM
-    PROPERTIES(p) SHOWIF showHumidityBOM(b) READONLY percentHumidityProduct
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) READONLY percentHumidityComponent
+    PROPERTIES(b) READONLY BACKGROUND background(b) showHumidity
+    PROPERTIES(p) SHOWIF showHumidity(b) READONLY percentHumidity
+    PROPERTIES(c) BACKGROUND  background(c) SHOWIF showHumidity(b) READONLY percentHumidity
     PROPERTIES(b) FORCE  PANEL printProductionRecipe, printNutritionalValue
-    PROPERTIES(p1) FORCE GRID percentHumidityItem, percentDrynessItem
-    PROPERTIES(c2) FORCE GRID percentHumidityItem, percentDrynessItem
+    PROPERTIES(p1) FORCE GRID percentHumidity, percentDryness
+    PROPERTIES(c2) FORCE GRID percentHumidity, percentDryness
     
 ;
 EXTEND FORM BOMsDialog
-    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showHumidityBOM
-    PROPERTIES(p) SHOWIF showHumidityBOM(b) READONLY percentHumidityProduct
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) SHOWIF showHumidityBOM(b) READONLY percentHumidityComponent    
+    PROPERTIES(b) READONLY BACKGROUND background(b) showHumidity
+    PROPERTIES(p) SHOWIF showHumidity(b) READONLY percentHumidity
+    PROPERTIES(c) BACKGROUND  background(c) SHOWIF showHumidity(b) READONLY percentHumidity    
 ;
 

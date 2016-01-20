@@ -10,62 +10,62 @@ overLoadDefaultOwnerships () += ACTION ()  {
     EXEC loadDefaultStaticOwnership('Физическое лицо', 'Ф.Л.', '112', Ownership.individual);
 }
 
-isIndividualLegalEntity 'Физ.лицо' (legalEntity) =  ownershipLegalEntity(legalEntity) == Ownership.individual;
+isIndividual 'Физ.лицо' (LegalEntity legalEntity) =  ownership(legalEntity) == Ownership.individual;
 
-passportNumberLegalEntity 'Номер паспорта' = DATA STRING[10] (LegalEntity);
+passportNumber 'Номер паспорта' = DATA STRING[10] (LegalEntity);
 
 // Уникальность
 legalEntityPassportNumber =
-    GROUP AGGR legalEntity
-        BY passportNumberLegalEntity(legalEntity) WHERE legalEntity IS LegalEntity;
+    GROUP AGGR LegalEntity legalEntity
+        BY passportNumber(legalEntity) WHERE legalEntity IS LegalEntity;
 
-WHEN SESSION CHANGED(nameContact(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN nameLegalEntity(legalEntity) <- nameContact(legalEntity);
-}
-
-WHEN SESSION CHANGED(phoneContact(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN dataPhoneLegalEntityDate(legalEntity, date) <- phoneContact(legalEntity) WHERE date == currentDate();
-}
-WHEN SESSION CHANGED(phoneLegalEntity(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN phoneContact(legalEntity) <- phoneLegalEntity(legalEntity);
+WHEN SESSION CHANGED(name[Contact](LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN name(legalEntity) <- name[Contact](legalEntity);
 }
 
-WHEN SESSION CHANGED(postAddressContact(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN dataPostAddressLegalEntityDate(legalEntity, date) <- postAddressContact(legalEntity) WHERE date == currentDate();
+WHEN SESSION CHANGED(phone[Contact](LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN dataPhone(legalEntity, DATE date) <- phone[Contact](legalEntity) WHERE date == currentDate();
+}
+WHEN SESSION CHANGED(phone(LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN phone[Contact](legalEntity) <- phone(legalEntity);
 }
 
-WHEN SESSION CHANGED(postAddressContact(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN dataAddressLegalEntityDate(legalEntity, date) <- postAddressContact(legalEntity) WHERE date == currentDate();
+WHEN SESSION CHANGED(postAddress[Contact](LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN dataPostAddress(legalEntity, DATE date) <- postAddress[Contact](legalEntity) WHERE date == currentDate();
 }
 
-WHEN SESSION GOAFTER dataAddressLegalEntityDate CHANGED(postAddressLegalEntity(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN postAddressContact(legalEntity) <- postAddressLegalEntity(legalEntity);
+WHEN SESSION CHANGED(postAddress[Contact](LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN dataAddress(legalEntity, DATE date) <- postAddress[Contact](legalEntity) WHERE date == currentDate();
 }
 
-WHEN SESSION GOAFTER dataAddressLegalEntityDate CHANGED(postAddressLegalEntity(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN postAddressContact(legalEntity) <- addressLegalEntity(legalEntity);
+WHEN SESSION GOAFTER dataAddress[LegalEntity,DATE] CHANGED(postAddress(LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN postAddress[Contact](legalEntity) <- postAddress(legalEntity);
 }
 
-WHEN SESSION CHANGED(emailContact(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN emailLegalEntity(legalEntity) <- emailContact(legalEntity);
+WHEN SESSION GOAFTER dataAddress[LegalEntity,DATE] CHANGED(postAddress(LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN postAddress[Contact](legalEntity) <- address(legalEntity);
 }
-WHEN SESSION CHANGED(emailLegalEntity(legalEntity)) AND isIndividualLegalEntity(legalEntity) DO {
-    ASSIGN emailContact(legalEntity) <- emailLegalEntity(legalEntity);
+
+WHEN SESSION CHANGED(email[Contact](LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN email(legalEntity) <- email[Contact](legalEntity);
 }
-toShowIndividualLegalEntity(legalEntity) += isIndividualLegalEntity(legalEntity);
+WHEN SESSION CHANGED(email(LegalEntity legalEntity)) AND isIndividual(legalEntity) DO {
+    ASSIGN email[Contact](legalEntity) <- email(legalEntity);
+}
+toShowIndividual(LegalEntity legalEntity) += isIndividual(legalEntity);
 
 requireFillingAttributesContact 'Требовать заполнения контактной информации для физических лиц' = DATA BOOLEAN ();
 
-CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT passportNumberLegalEntity(l)
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnership(LegalEntity l) == 'Ф.Л.' AND NOT passportNumber(l)
     MESSAGE 'Не заполнен номер паспорта';
     
-CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT phoneContact(l)
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnership(LegalEntity l) == 'Ф.Л.' AND NOT phone[Contact](l)
     MESSAGE 'Не заполнен номер телефона';
         
-CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT nameLegalEntity(l)
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnership(LegalEntity l) == 'Ф.Л.' AND NOT name(l)
     MESSAGE 'Не заполнены ФИО';
             
-CONSTRAINT requireFillingAttributesContact() AND shortNameOwnershipLegalEntity(l) == 'Ф.Л.' AND NOT postAddressContact(l)
+CONSTRAINT requireFillingAttributesContact() AND shortNameOwnership(LegalEntity l) == 'Ф.Л.' AND NOT postAddress[Contact](l)
     MESSAGE 'Не заполнен почтовый адрес';   
              
 EXTEND FORM options
@@ -80,8 +80,8 @@ DESIGN options {
 
 EXTEND FORM legalEntity
 
-    PROPERTIES(l) SHOWIF toShowIndividualLegalEntity(l)  firstNameContact, lastNameContact, passportNumberLegalEntity, 
-                         pc = phoneContact, pac = postAddressContact, birthdayContact, ec = emailContact
+    PROPERTIES(l) SHOWIF toShowIndividual(l)  firstName, lastName, passportNumber, 
+                         pc = phone[Contact], pac = postAddress[Contact], birthday, ec = email[Contact]
 ;
 
 DESIGN legalEntity {
@@ -94,16 +94,16 @@ DESIGN legalEntity {
         NEW contact AFTER regionContainer{
             caption = 'Личные данные';
             type = CONTAINERH;
-            MOVE PROPERTY(firstNameContact(l));
-            MOVE PROPERTY(lastNameContact(l));
-            MOVE PROPERTY(birthdayContact(l));
-            MOVE PROPERTY(passportNumberLegalEntity(l));
+            MOVE PROPERTY(firstName(l));
+            MOVE PROPERTY(lastName(l));
+            MOVE PROPERTY(birthday(l));
+            MOVE PROPERTY(passportNumber(l));
         }
     }
 }
 
 EXTEND FORM legalEntities
-    PROPERTIES(l) READONLYIF isReadonly() firstNameContact, lastNameContact, passportNumberLegalEntity, 
-                                          pc = phoneContact, postAddressContact, birthdayContact, ec = emailContact 
+    PROPERTIES(l) READONLYIF isReadonly() firstName, lastName, passportNumber, 
+                                          pc = phone[Contact], postAddress[Contact], birthday, ec = email[Contact] 
 ;
 

@@ -6,35 +6,35 @@ NAMESPACE Purchase;
 
 @defineDocumentCertificate(compliance, invoice, i, 'Сертификат соответствия');
 @deriveDocumentPurchaseCertificate(compliance, invoice, customerStock, data);
-fromDateComplianceInvoiceDetail 'Дата с' (detail) = fromDateCompliance(complianceInvoiceDetail(detail));
-toDateComplianceInvoiceDetail 'Дата по' (detail) = toDateCompliance(complianceInvoiceDetail(detail));
+fromDateCompliance 'Дата с' (InvoiceDetail detail) = fromDate(compliance(detail));
+toDateCompliance 'Дата по' (InvoiceDetail detail) = toDate(compliance(detail));
 
-sumInvoiceDetailCompliance 'Сумма (по накладным)' = GROUP SUM sumInvoiceDetail(d)
-                                                         BY complianceInvoiceDetail(d) MINCHARWIDTH 15;
-sumUserInvoiceDetailCompliance 'Сумма (по накладным)' = GROUP SUM sumUserInvoiceDetail(d)
-                                                             BY complianceUserInvoiceDetail(d) MINCHARWIDTH 15;
+sumInvoiceDetail 'Сумма (по накладным)' = GROUP SUM sum(InvoiceDetail d)
+                                                         BY compliance(d) MINCHARWIDTH 15;
+sumUserInvoiceDetail 'Сумма (по накладным)' = GROUP SUM sum(UserInvoiceDetail d)
+                                                             BY compliance(d) MINCHARWIDTH 15;
 
-imageUserInvoiceDetail 'Файл сертификата' (userInvoiceDetail) = imageCompliance(complianceUserInvoiceDetail(userInvoiceDetail));
-openImageUserInvoiceDetail 'Просмотреть сертификат' (userInvoiceDetail) = ACTION OPENFILE imageUserInvoiceDetail(userInvoiceDetail);
+image 'Файл сертификата' (UserInvoiceDetail userInvoiceDetail) = image(compliance(userInvoiceDetail));
+openImage 'Просмотреть сертификат' (UserInvoiceDetail userInvoiceDetail) = ACTION OPENFILE image(userInvoiceDetail);
 
 EXTEND FORM userInvoice
-    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImageUserInvoiceDetail
+    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImage
 ;
 
 @defineDocumentCertificate(compliance, shipment, s, 'Сертификат соответствия');
 
 // Проставляем автоматически сертификат от строки инвойса
-WHEN CHANGED(complianceInvoiceDetail(invoiceDetailUserShipmentDetail(d))) AND 
-     NOT CHANGED(complianceUserShipmentDetail(d)) DO
-     dataComplianceUserShipmentDetail(d) <- complianceInvoiceDetail(invoiceDetailUserShipmentDetail(d)); 
+WHEN CHANGED(compliance(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(compliance(d)) DO
+     dataCompliance(d) <- compliance(invoiceDetail(d)); 
 
 @deriveDocumentPurchaseCertificate(compliance, shipment, customerStock, data);
 
-complianceShipmentDetail(detail) += complianceInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+compliance(InvoiceShipmentDetail detail) += compliance(invoiceDetail(detail));
 
-overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
-    ASSIGN dataComplianceUserShipmentDetail(s) <- complianceInvoiceDetail(i);
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+    ASSIGN dataCompliance(s) <- compliance(i);
 }
 
-complianceBatch (batch) += complianceShipmentDetail(shipmentDetailShipmentBatch(batch));
-idComplianceBatch (batch) = numberCompliance(complianceBatch(batch));
+compliance (ShipmentBatch batch) += compliance(shipmentDetail(batch));
+idCompliance (Batch batch) = number(compliance(batch));

@@ -4,90 +4,90 @@ REQUIRE StockReports, SaleLedger, PurchaseLedger, PurchaseShipment;
 
 NAMESPACE StockReports;
 
-inReportStock 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+inReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
 
 //-- закупка
-quantityPurchaseSkuSupplierStockDateFromTo 'Закуплено за интервал (кол-во)' = GROUP SUM quantityPurchaseSkuStockSupplierStockDateFromTo (sku, stock, supplierStock, dateFrom, dateTo) IF inReportStock(stock)
+quantityPurchaseSupplierFromTo 'Закуплено за интервал (кол-во)' = GROUP SUM quantityPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inReport(stock)
     BY sku, supplierStock, dateFrom, dateTo;
-sumPurchaseSkuSupplierStockDateFromTo 'Закуплено за интервал (сумма с НДС)' = GROUP SUM sumPurchaseSkuStockSupplierStockDateFromTo (sku, stock, supplierStock, dateFrom, dateTo) IF inReportStock(stock)
+sumPurchaseSupplierFromTo 'Закуплено за интервал (сумма с НДС)' = GROUP SUM sumPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inReport(stock)
     BY sku, supplierStock, dateFrom, dateTo;    
-supplierSumPurchaseSkuSupplierStockDateFromTo 'Закуплено за интервал (сумма без НДС)' = GROUP SUM 
-    (sumPurchaseSkuStockSupplierStockDateFromTo (sku, stock, supplierStock, dateFrom, dateTo) (-)
-    sumVATPurchaseSkuStockSupplierStockDateFromTo (sku, stock, supplierStock, dateFrom, dateTo)) IF inReportStock(stock)
+supplierSumPurchaseSupplierFromTo 'Закуплено за интервал (сумма без НДС)' = GROUP SUM 
+    (sumPurchaseSupplier (Sku sku, Stock stock, Stock supplierStock, DATE dateFrom, DATE dateTo) (-)
+    sumVATPurchaseSupplier (sku, stock, supplierStock, dateFrom, dateTo)) IF inReport(stock)
         BY sku, supplierStock, dateFrom, dateTo;       
-averagePricePurchaseSkuSupplierStockDateFromTo 'Средняя цена закупки с НДС' =  sumPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) /
-    quantityPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo);         
+averagePricePurchaseSupplier 'Средняя цена закупки с НДС' =  sumPurchaseSupplierFromTo(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) /
+    quantityPurchaseSupplierFromTo(sku, supplierStock, dateFrom, dateTo);         
 
-quantityPurchaseSupplierStockDateFromTo 'Закуплено за интервал (кол-во)' = GROUP SUM quantityPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+quantityPurchaseSupplierFromTo 'Закуплено за интервал (кол-во)' = GROUP SUM quantityPurchaseSupplierFromTo(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
-sumPurchaseSupplierStockDateFromTo 'Закуплено за интервал (сумма с НДС)' = GROUP SUM sumPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+sumPurchaseSupplierFromTo 'Закуплено за интервал (сумма с НДС)' = GROUP SUM sumPurchaseSupplierFromTo(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
-supplierSumPurchaseSupplierStockDateFromTo 'Закуплено за интервал (сумма без НДС)' = GROUP SUM supplierSumPurchaseSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+supplierSumPurchaseSupplierFromTo 'Закуплено за интервал (сумма без НДС)' = GROUP SUM supplierSumPurchaseSupplierFromTo(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
 
 //-- реализация         
-quantitySoldSkuSupplierStockDateFromTo 'Реализация (кол-во)' (sku, supplierStock, dateFrom, dateTo)= GROUP SUM 
-    quantitySoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom, dateTo; 
-sumSoldSkuSupplierStockDateFromTo 'Реализация (сумма)' (sku, supplierStock, dateFrom, dateTo)= GROUP SUM 
-    sumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom, dateTo;  
-averagePriceSkuSupplierStockDateFromTo 'Средняя цена реализации' =  sumSoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) /
-    (quantitySoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) !=0);
+quantitySoldSupplier 'Реализация (кол-во)' (sku, supplierStock, dateFrom, dateTo)= GROUP SUM 
+    quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateFrom, dateTo; 
+sumSoldSupplier 'Реализация (сумма)' (sku, supplierStock, dateFrom, dateTo)= GROUP SUM 
+    sumSold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateFrom, dateTo;  
+averagePriceSupplier 'Средняя цена реализации' =  sumSoldSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) /
+    (quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) !=0);
 
-quantitySoldSupplierStockDateFromTo 'Реализация (кол-во)' = GROUP SUM quantitySoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+quantitySoldSupplierFromTo 'Реализация (кол-во)' = GROUP SUM quantitySoldSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
-sumSoldSupplierStockDateFromTo 'Реализация (сумма)' = GROUP SUM sumSoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+sumSoldSupplierFromTo 'Реализация (сумма)' = GROUP SUM sumSoldSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
 
 //-- р-ия в ценах поставщика  
-sumSaleSkuSupplierStockDateFromTo 'Продано за интервал (сумма с НДС)' (batch, stock, dateFrom, dateTo)= GROUP SUM 
-    quantitySoldBatchStockDate(batch, stock, date)* invoicePriceInvoiceDetailBatch(batch)
-    IF date >= dateFrom AND date <= dateTo AND inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom, dateTo;   
-supplierSumSaleSkuSupplierStockDateFromTo 'Продано за интервал (сумма без НДС)' (batch, stock, dateFrom, dateTo)= GROUP SUM 
-    quantitySoldBatchStockDate(batch, stock, date)* priceInvoiceDetailBatch(batch)
-    IF date >= dateFrom AND date <= dateTo AND inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom, dateTo;    
-averageSalePriceSkuSupplierStockDateFromTo 'Средняя цена реализации с НДС' =  sumSaleSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) /
-    (quantitySoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) !=0);        
+sumSaleSupplier 'Продано за интервал (сумма с НДС)' (batch, stock, dateFrom, dateTo)= GROUP SUM 
+    quantitySold(Batch batch, Stock stock, DATE date)* invoicePriceInvoiceDetail(batch)
+    IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY sku(batch), supplierStock(batch), dateFrom, dateTo;   
+supplierSumSaleSupplier 'Продано за интервал (сумма без НДС)' (batch, stock, dateFrom, dateTo)= GROUP SUM 
+    quantitySold(Batch batch, Stock stock, DATE date)* priceInvoiceDetail(batch)
+    IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY sku(batch), supplierStock(batch), dateFrom, dateTo;    
+averageSalePriceSupplier 'Средняя цена реализации с НДС' =  sumSaleSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) /
+    (quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) IF quantitySoldSupplier(sku, supplierStock, dateFrom, dateTo) !=0);        
 
-sumSaleSupplierStockDateFromTo 'Продано за интервал (сумма с НДС)' = GROUP SUM sumSaleSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+sumSaleSupplierFromTo 'Продано за интервал (сумма с НДС)' = GROUP SUM sumSaleSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
-supplierSumSaleSupplierStockDateFromTo 'Продано за интервал (сумма без НДС)' = GROUP SUM supplierSumSaleSkuSupplierStockDateFromTo(sku, supplierStock, dateFrom, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+supplierSumSaleSupplierFromTo 'Продано за интервал (сумма без НДС)' = GROUP SUM supplierSumSaleSupplier(Sku sku, Stock supplierStock, DATE dateFrom, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom, dateTo;
 
 // остаток на начало
-balanceBSkuSupplierStockDateFrom 'Остаток на начало'  =  GROUP SUM balanceBBatchStockDate(batch, stock, dateFrom) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom;           
-sumBSkuSupplierStockDateFrom 'Сумма с НДС начало'  =  GROUP SUM balanceBBatchStockDate(batch, stock, dateFrom)*invoicePriceInvoiceDetailBatch(batch) IF inReportStock(stock)    
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom;   
-supplierSumBSkuSupplierStockDateFrom 'Сумма без НДС начало'  =  GROUP SUM balanceBBatchStockDate(batch, stock, dateFrom)*priceInvoiceDetailBatch(batch) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateFrom;    
+balanceBSupplierFrom 'Остаток на начало'  =  GROUP SUM balanceB(Batch batch, Stock stock, DATE dateFrom) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateFrom;           
+sumBSupplierFrom 'Сумма с НДС начало'  =  GROUP SUM balanceB(Batch batch, Stock stock, DATE dateFrom)*invoicePriceInvoiceDetail(batch) IF inReport(stock)    
+        BY sku(batch), supplierStock(batch), dateFrom;   
+supplierSumBSupplierFrom 'Сумма без НДС начало'  =  GROUP SUM balanceB(Batch batch, Stock stock, DATE dateFrom)*priceInvoiceDetail(batch) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateFrom;    
                        
-balanceBSupplierStockDateFrom 'Остаток на начало' = GROUP SUM balanceBSkuSupplierStockDateFrom(sku, supplierStock, dateFrom) IF inSessionSkuGroup(skuGroupSku(sku))
+balanceBSupplierFrom 'Остаток на начало' = GROUP SUM balanceBSupplierFrom(Sku sku, Stock supplierStock, DATE dateFrom) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom;
-sumBSupplierStockDateFrom 'Сумма с НДС начало' = GROUP SUM sumBSkuSupplierStockDateFrom(sku, supplierStock, dateFrom) IF inSessionSkuGroup(skuGroupSku(sku))
+sumBSupplierFrom 'Сумма с НДС начало' = GROUP SUM sumBSupplierFrom(Sku sku, Stock supplierStock, DATE dateFrom) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom;                       
-supplierSumBSupplierStockDateFrom 'Сумма без НДС начало' = GROUP SUM supplierSumBSkuSupplierStockDateFrom(sku, supplierStock, dateFrom) IF inSessionSkuGroup(skuGroupSku(sku))
+supplierSumBSupplierFrom 'Сумма без НДС начало' = GROUP SUM supplierSumBSupplierFrom(Sku sku, Stock supplierStock, DATE dateFrom) IF inSession(skuGroup(sku))
     BY supplierStock, dateFrom;   
 
 // остаток на конец
-balanceASkuSupplierStockDateTo'Остаток на конец'  =  GROUP SUM balanceABatchStockDate(batch, stock, dateTo) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateTo;           
-sumASkuSupplierStockDateTo 'Сумма с НДС конец'  =  GROUP SUM balanceABatchStockDate(batch, stock, dateTo)*invoicePriceInvoiceDetailBatch(batch) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateTo;   
-supplierSumASkuSupplierStockDateTo 'Сумма без НДС конец'  =  GROUP SUM balanceABatchStockDate(batch, stock, dateTo)*priceInvoiceDetailBatch(batch) IF inReportStock(stock)
-        BY skuBatch(batch), supplierStockBatch(batch), dateTo; 
+balanceASupplierTo'Остаток на конец'  =  GROUP SUM balanceA(Batch batch, Stock stock, DATE dateTo) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateTo;           
+sumASupplierTo 'Сумма с НДС конец'  =  GROUP SUM balanceA(Batch batch, Stock stock, DATE dateTo)*invoicePriceInvoiceDetail(batch) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateTo;   
+supplierSumASupplierTo 'Сумма без НДС конец'  =  GROUP SUM balanceA(Batch batch, Stock stock, DATE dateTo)*priceInvoiceDetail(batch) IF inReport(stock)
+        BY sku(batch), supplierStock(batch), dateTo; 
 
-balanceASupplierStockDateTo 'Остаток на конец' = GROUP SUM balanceASkuSupplierStockDateTo(sku, supplierStock, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+balanceASupplierTo 'Остаток на конец' = GROUP SUM balanceASupplierTo(Sku sku, Stock supplierStock, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateTo;
-sumASupplierStockDateTo 'Сумма с НДС конец' = GROUP SUM sumASkuSupplierStockDateTo(sku, supplierStock, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+sumASupplierTo 'Сумма с НДС конец' = GROUP SUM sumASupplierTo(Sku sku, Stock supplierStock, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateTo;                       
-supplierSumASupplierStockDateTo 'Сумма без НДС конец' = GROUP SUM supplierSumASkuSupplierStockDateTo(sku, supplierStock, dateTo) IF inSessionSkuGroup(skuGroupSku(sku))
+supplierSumASupplierTo 'Сумма без НДС конец' = GROUP SUM supplierSumASupplierTo(Sku sku, Stock supplierStock, DATE dateTo) IF inSession(skuGroup(sku))
     BY supplierStock, dateTo;   
        
-stocksReport 'Склады' () = GROUP CONCAT nameStock(stock) IF inReportStock(stock) , ', '                                                 
+stocksReport 'Склады' () = GROUP CONCAT name(Stock stock) IF inReport(stock) , ', '                                                 
                                                  ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
         
 FORM supplierStockReportPrint 'По поставщикам'
@@ -96,39 +96,39 @@ FORM supplierStockReportPrint 'По поставщикам'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)    
     
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES (st) SELECTOR nameStock, fullNameStock, nameLegalEntityStock, fullNameLegalEntityStock
-    FILTERS isSupplierStock(st)
+    PROPERTIES (st) SELECTOR name, fullName, nameLegalEntity, fullNameLegalEntity
+    FILTERS isSupplier(st)
     PROPERTIES  TODRAW st stocksReport(), currentDate(), sessionConcatSkuGroups()
     
     OBJECTS sk = Sku  
-    PROPERTIES(sk) idSku, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES(sk) id, idBarcode, name, shortNameUOM
 
-    PROPERTIES (sk,st,dFrom,dTo) quantityPurchaseSkuSupplierStockDateFromTo, sumPurchaseSkuSupplierStockDateFromTo,
-                supplierSumPurchaseSkuSupplierStockDateFromTo, averagePricePurchaseSkuSupplierStockDateFromTo, 
-                quantitySoldSkuSupplierStockDateFromTo, sumSoldSkuSupplierStockDateFromTo, averagePriceSkuSupplierStockDateFromTo,
-                sumSaleSkuSupplierStockDateFromTo, supplierSumSaleSkuSupplierStockDateFromTo, averageSalePriceSkuSupplierStockDateFromTo
-    PROPERTIES (sk,st,dFrom) balanceBSkuSupplierStockDateFrom, sumBSkuSupplierStockDateFrom, supplierSumBSkuSupplierStockDateFrom 
-    PROPERTIES (sk,st,dTo) balanceASkuSupplierStockDateTo, sumASkuSupplierStockDateTo, supplierSumASkuSupplierStockDateTo          
+    PROPERTIES (sk,st,dFrom,dTo) quantityPurchaseSupplierFromTo, sumPurchaseSupplierFromTo,
+                supplierSumPurchaseSupplierFromTo, averagePricePurchaseSupplier, 
+                quantitySoldSupplier, sumSoldSupplier, averagePriceSupplier,
+                sumSaleSupplier, supplierSumSaleSupplier, averageSalePriceSupplier
+    PROPERTIES (sk,st,dFrom) balanceBSupplierFrom, sumBSupplierFrom, supplierSumBSupplierFrom 
+    PROPERTIES (sk,st,dTo) balanceASupplierTo, sumASupplierTo, supplierSumASupplierTo          
     
-    PROPERTIES(st,dFrom,dTo) quantityPurchaseSupplierStockDateFromTo,sumPurchaseSupplierStockDateFromTo, supplierSumPurchaseSupplierStockDateFromTo,
-                quantitySoldSupplierStockDateFromTo,sumSoldSupplierStockDateFromTo,
-                sumSaleSupplierStockDateFromTo, supplierSumSaleSupplierStockDateFromTo
-    PROPERTIES(st,dFrom) balanceBSupplierStockDateFrom,  sumBSupplierStockDateFrom,  supplierSumBSupplierStockDateFrom        
-    PROPERTIES(st,dTo) balanceASupplierStockDateTo,  sumASupplierStockDateTo,  supplierSumASupplierStockDateTo              
+    PROPERTIES(st,dFrom,dTo) quantityPurchaseSupplierFromTo,sumPurchaseSupplierFromTo, supplierSumPurchaseSupplierFromTo,
+                quantitySoldSupplierFromTo,sumSoldSupplierFromTo,
+                sumSaleSupplierFromTo, supplierSumSaleSupplierFromTo
+    PROPERTIES(st,dFrom) balanceBSupplierFrom,  sumBSupplierFrom,  supplierSumBSupplierFrom        
+    PROPERTIES(st,dTo) balanceASupplierTo,  sumASupplierTo,  supplierSumASupplierTo              
     
-    ORDER BY nameSku(sk)
+    ORDER BY name(sk)
     
-    FILTERS quantityPurchaseSkuSupplierStockDateFromTo(sk,st,dFrom,dTo) OR 
-            quantitySoldSkuSupplierStockDateFromTo(sk,st,dFrom,dTo) OR 
-            balanceASkuSupplierStockDateTo(sk,st,dTo)
-    FILTERS inSessionSkuGroup(skuGroupSku(sk)) 
+    FILTERS quantityPurchaseSupplierFromTo(sk,st,dFrom,dTo) OR 
+            quantitySoldSupplier(sk,st,dFrom,dTo) OR 
+            balanceASupplierTo(sk,st,dTo)
+    FILTERS inSession(skuGroup(sk)) 
             
 ;
-supplierStockReportPrintXLS 'Отчет по поставщику (xls)' (st,dFrom,dTo) = ACTION (st,dFrom,dTo) {
+supplierReportPrintXLS 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = ACTION (st,dFrom,dTo) {
     FORM supplierStockReportPrint OBJECTS st=st, dFrom = dFrom, dTo=dTo PRINT XLS;
 //    inReportStock(stock) <- NULL;
 }IMAGE 'print.png' IN print;    
-supplierStockReportPrintXLSX 'Отчет по поставщику (xlsx)' (st,dFrom,dTo) = ACTION (st,dFrom,dTo) {
+supplierReportPrintXLSX 'Отчет по поставщику (xlsx)' (Stock st,DATE dFrom,DATE dTo) = ACTION (st,dFrom,dTo) {
     FORM supplierStockReportPrint OBJECTS st=st, dFrom = dFrom, dTo=dTo PRINT XLSX;
 //    inReportStock(stock) <- NULL;
 }IMAGE 'print.png' IN print;    
@@ -139,33 +139,33 @@ FORM supplierStockReport 'По поставщикам'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)    
     
     OBJECTS sup=Stock FIXED PANEL // склад поставщика
-    PROPERTIES (sup) SELECTOR nameStock
-    FILTERS isSupplierStock(sup)
+    PROPERTIES (sup) SELECTOR name
+    FILTERS isSupplier(sup)
     
-    TREE stockGroupTree b=STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(b), nameStockGroup(sg)
-    ORDER BY nameStockGroup(sg)
+    TREE stockGroupTree b=STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(b), name(sg)
+    ORDER BY name(sg)
     FILTERS stringEqualsAll(b)
     
     OBJECTS st = Stock FIXED GRID
-    PROPERTIES (st) READONLY nameStock, idStock SHOWIF showIDs()
-    PROPERTIES (st) inReportStock
-    ORDER BY nameStock(st)
-    FILTERS isParentStockGroupStockGroup(stockGroupStock(st), sg) OR
+    PROPERTIES (st) READONLY name, id SHOWIF showIDs()
+    PROPERTIES (st) inReport
+    ORDER BY name(st)
+    FILTERS isParent(stockGroup(st), sg) OR
             st IS Stock AND NOT sg IS StockGroup OR
-            st IS Stock AND sg IS StockGroup AND NOT stockGroupStock(st)   
-    FILTERS isCompanyStock(st)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'F10' DEFAULT
+            st IS Stock AND sg IS StockGroup AND NOT stockGroup(st)   
+    FILTERS isCompany(st)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(st) 'F10' DEFAULT
     
-    TREE treeGroup g=SkuGroup PARENT parentSkuGroup
-    PROPERTIES inSessionSkuGroup(g) ON SHORTCUT resetSelectedGroups()       
-    PROPERTIES READONLY orderSkuGroup(g), idSkuGroup(g) SHOWIF showIDs(), nameSkuGroup(g) 
+    TREE treeGroup g=SkuGroup PARENT parent
+    PROPERTIES inSession(g) ON SHORTCUT resetSelectedGroups()       
+    PROPERTIES READONLY order(g), id(g) SHOWIF showIDs(), name(g) 
 
-    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT        
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT        
     PROPERTIES resetSelectedGroups() TOOLBAR FORCE PANEL TODRAW g        
 
-    PROPERTIES(sup,dFrom,dTo) supplierStockReportPrintXLS, supplierStockReportPrintXLSX
+    PROPERTIES(sup,dFrom,dTo) supplierReportPrintXLS, supplierReportPrintXLSX
 ;
 DESIGN supplierStockReport {
     NEW top {

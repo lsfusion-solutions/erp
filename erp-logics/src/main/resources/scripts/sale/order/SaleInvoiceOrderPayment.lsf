@@ -4,18 +4,18 @@ REQUIRE SaleInvoiceOrderAggregation, SaleInvoicePayment;
 
 NAMESPACE Sale;
   
-costOutContractLedgerOrder 'Оплачено из документа' = costOutContractLedgerInContractLedger(payment, orderInvoiceOrder(order));
+cost 'Оплачено из документа' = cost(OutContractLedger payment, orderInvoice(Order order));
 
-addPaymentOrder 'Оплатить' = ACTION (order) {
-    currentInContractLedger() <- orderInvoiceOrder(order);
+addPayment 'Оплатить' = ACTION (Order order) {
+    currentInContractLedger() <- orderInvoice(order);
     FOR ADDOBJ p = Payment DO{
-        contractPayment(p) <- contractSkuInvoice(orderInvoiceOrder(order));
-        datePayment(p) <- currentDate();
-        timePayment(p) <- currentTime();
-        payerPayment(p) <- customerInvoice(orderInvoiceOrder(order));
-        beneficiaryPayment(p) <- supplierInvoice(orderInvoiceOrder(order));
-        sumPayment(p) <- invoiceSumInvoiceDetailInvoice(orderInvoiceOrder(order));
-        costOutContractLedgerInContractLedger(p, invoice) <- sumContractPayment(p) WHERE invoice == currentInContractLedger();
+        contract(p) <- contractSku(orderInvoice(order));
+        date(p) <- currentDate();
+        time(p) <- currentTime();
+        payer(p) <- customer[Invoice](orderInvoice(order));
+        beneficiary(p) <- supplier[Invoice](orderInvoice(order));
+        sum(p) <- invoiceSumInvoiceDetail(orderInvoice(order));
+        cost(p, InContractLedger invoice) <- sumContract(p) WHERE invoice == currentInContractLedger();
         FORM payment OBJECTS p=p MODAL;
         IF NOT formResult() == FormResult.ok THEN {
             DELETE p;
@@ -23,23 +23,23 @@ addPaymentOrder 'Оплатить' = ACTION (order) {
     }
 }
 
-editPaymentOrder 'Редактировать' = ACTION (payment, order) {
-    currentInContractLedger() <- orderInvoiceOrder(order);
+edit 'Редактировать' = ACTION (Payment payment, Order order) {
+    currentInContractLedger() <- orderInvoice(order);
     FORM payment OBJECTS p=payment MODAL;
 } IMAGE 'edit.png';
     
 EXTEND FORM userOrder
     OBJECTS pm = Payment FIXED GRID
-    PROPERTIES(pm) READONLY SHOWIF createInvoiceUserOrder(o) seriesNumberPayment, dateTimePayment, namePayerPayment, nameBeneficiaryPayment,
-                            notePayment, isPostedPayment
-    ORDER BY dateTimePayment(pm)
-    PROPERTIES(pm, o) SHOWIF createInvoiceUserOrder(o)  costOutContractLedgerOrder
-    PROPERTIES TODRAW pm FORCE PANEL TOOLBAR SHOWIF createInvoiceUserOrder(o)  addPaymentOrder(o), editPaymentOrder(pm, o)
-    PROPERTIES(pm) SHOWIF createInvoiceUserOrder(o) DELETESESSION
+    PROPERTIES(pm) READONLY SHOWIF createInvoice(o) seriesNumber, dateTime, namePayer, nameBeneficiary,
+                            note, isPosted
+    ORDER BY dateTime(pm)
+    PROPERTIES(pm, o) SHOWIF createInvoice(o)  cost
+    PROPERTIES TODRAW pm FORCE PANEL TOOLBAR SHOWIF createInvoice(o)  addPayment(o), edit(pm, o)
+    PROPERTIES(pm) SHOWIF createInvoice(o) DELETESESSION
 
     FILTERGROUP filters
-        FILTER 'Платежи по накладной' costOutContractLedgerOrder(pm, o) 'F10' DEFAULT
-    FILTERS contractPayment(pm) == contractSkuUserOrder(o)
+        FILTER 'Платежи по накладной' cost(pm, o) 'F10' DEFAULT
+    FILTERS contract(pm) == contractSku(o)
 ;
 
 DESIGN userOrder{

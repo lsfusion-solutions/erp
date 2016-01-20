@@ -8,41 +8,41 @@ PRIORITY PurchaseReturn;
 
 GROUP shipment 'Информация о поставке' : base;
 
-createSaleReturnShipment 'Создать поставку (продажа-возврат)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
-createSaleReturnUserShipment 'Создать поставку (продажа-возврат)' = DATA BOOLEAN (UserShipment) PERSISTENT;
-createSaleReturnShipment(shipment) += createSaleReturnUserShipment(shipment);
+createSaleReturn 'Создать поставку (продажа-возврат)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
+createSaleReturn 'Создать поставку (продажа-возврат)' = DATA BOOLEAN (UserShipment) PERSISTENT;
+createSaleReturn(UserShipment shipment) += createSaleReturn(shipment);
 
-createSaleReturnUserShipment (o) <- createShipmentOperation(operationUserShipment(o))
-    WHEN CHANGED(operationUserShipment(o));
+createSaleReturn (UserShipment o) <- createShipment(operation(o))
+    WHEN CHANGED(operation(o));
 
-createSaleReturnShipmentDetail 'Создать поставку (продажа-возврат)' (shipmentDetail) = createSaleReturnShipment(shipmentShipmentDetail(shipmentDetail))PERSISTENT;
-createSaleReturnUserShipmentDetail 'Создать поставку (продажа-возврат)' (userShipmentDetail) = createSaleReturnUserShipment(userShipmentUserShipmentDetail(userShipmentDetail));
-backgroundSaleReturnShipment 'Цвет' (shipment) = RGB(255, 224, 255) IF shipment IS Shipment;
+createSaleReturn 'Создать поставку (продажа-возврат)' (ShipmentDetail shipmentDetail) = createSaleReturn(shipment(shipmentDetail))PERSISTENT;
+createSaleReturn 'Создать поставку (продажа-возврат)' (UserShipmentDetail userShipmentDetail) = createSaleReturn(userShipment(userShipmentDetail));
+backgroundSaleReturn 'Цвет' (Shipment shipment) = RGB(255, 224, 255) IF shipment IS Shipment;
 
 @defineDocumentInterfaceHeaderTimePrefix(Shipment, saleReturnShipment, ' поставки (продажа-возврат)');
-saleReturnShipmentDateUserShipment(i) <- dateUserShipment(i) WHEN CHANGED(dateUserShipment(i));
-saleReturnShipmentTimeUserShipment(i) <- timeUserShipment(i) WHEN CHANGED(timeUserShipment(i));
+saleReturnShipmentDate(UserShipment i) <- date(i) WHEN CHANGED(date(i));
+saleReturnShipmentTime(UserShipment i) <- time(i) WHEN CHANGED(time(i));
 
 @defineDocumentInterfaceOperationPrefix (shipment, saleReturn, Sale, ' (продажа-возврат)');
 
 // Записываем операцию для закупки по умолчанию из операции
-saleReturnOperationUserShipment (shipment) <- saleReturnOperationOperation(operationUserShipment(shipment))
-    WHEN CHANGED(operationUserShipment(shipment));
+saleReturnOperation (UserShipment shipment) <- saleReturnOperation(operation(shipment))
+    WHEN CHANGED(operation(shipment));
 
 EXTEND FORM userShipment
-    PROPERTIES(s) BACKGROUND backgroundSaleReturnShipment(s) createSaleReturnUserShipment
-    PROPERTIES(s) BACKGROUND backgroundSaleReturnShipment(s) SHOWIF createSaleReturnUserShipment(s) nameSaleReturnOperationUserShipment,
-                  saleReturnShipmentDateUserShipment, saleReturnShipmentTimeUserShipment
+    PROPERTIES(s) BACKGROUND backgroundSaleReturn(s) createSaleReturn
+    PROPERTIES(s) BACKGROUND backgroundSaleReturn(s) SHOWIF createSaleReturn(s) nameSaleReturnOperation,
+                  saleReturnShipmentDate, saleReturnShipmentTime
 ;
 DESIGN userShipment {
     headerCreateDocuments{
         NEW headerShipment{
             caption = 'Поставка';
             type = CONTAINERH;
-            MOVE PROPERTY(createSaleReturnUserShipment(s));
-            MOVE PROPERTY(nameSaleReturnOperationUserShipment(s));
-            MOVE PROPERTY(saleReturnShipmentDateUserShipment(s));
-            MOVE PROPERTY(saleReturnShipmentTimeUserShipment(s));
+            MOVE PROPERTY(createSaleReturn(s));
+            MOVE PROPERTY(nameSaleReturnOperation(s));
+            MOVE PROPERTY(saleReturnShipmentDate(s));
+            MOVE PROPERTY(saleReturnShipmentTime(s));
         }
     }
 }
@@ -53,38 +53,38 @@ DESIGN userShipment {
 //;
 //--  Связь поставки с поставкой
 
-shipmentDetailShipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) PERSISTENT;
-shipmentDetailUserShipmentDetail = DATA ShipmentDetail (SaleReturn.UserShipmentDetail);
-shipmentDetailShipmentDetail(shipmentDetail) += shipmentDetailUserShipmentDetail(shipmentDetail);
+shipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) PERSISTENT;
+shipmentDetail = DATA ShipmentDetail (SaleReturn.UserShipmentDetail);
+shipmentDetail(SaleReturn.UserShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
-CONSTRAINT SaleReturn.supplierShipmentDetail(detail) != supplierShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           SaleReturn.supplierStockShipmentDetail(detail) != supplierStockShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           SaleReturn.customerShipmentDetail(detail) != customerShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           SaleReturn.customerStockShipmentDetail(detail) != customerStockShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           SaleReturn.skuShipmentDetail(detail) != skuShipmentDetail(shipmentDetailUserShipmentDetail(detail))
-    CHECKED BY shipmentDetailUserShipmentDetail
+CONSTRAINT supplier[SaleReturn.ShipmentDetail](SaleReturn.UserShipmentDetail detail) != supplier(shipmentDetail(detail)) OR
+           supplierStock[SaleReturn.ShipmentDetail](detail) != supplierStock(shipmentDetail(detail)) OR
+           customer[SaleReturn.ShipmentDetail](detail) != customer(shipmentDetail(detail)) OR
+           customerStock[SaleReturn.ShipmentDetail](detail) != customerStock(shipmentDetail(detail)) OR
+           sku[SaleReturn.ShipmentDetail](detail) != sku(shipmentDetail(detail))
+    CHECKED BY shipmentDetail[SaleReturn.UserShipmentDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в поставке и поставке на основе поставке должны соответствовать друг другу';
 
 
-descriptionIndexShipmentDetailShipmentDetail 'Строка поставки (закупка-возврат)' (detail) = descriptionIndexShipmentDetail(shipmentDetailShipmentDetail(detail));
-descriptionIndexShipmentDetailUserShipmentDetail 'Строка поставки (закупка-возврат)' (detail) = descriptionIndexShipmentDetail(shipmentDetailUserShipmentDetail(detail));
+descriptionIndexShipmentDetail 'Строка поставки (закупка-возврат)' (SaleReturn.ShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
+descriptionIndexShipmentDetail 'Строка поставки (закупка-возврат)' (SaleReturn.UserShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
 
-SaleReturn.overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-    shipmentDetailUserShipmentDetail(d) <- shipmentDetailUserShipmentDetail(detail);             
+overCopy[SaleReturn.UserShipmentDetail,SaleReturn.UserShipmentDetail](SaleReturn.UserShipmentDetail d, SaleReturn.UserShipmentDetail detail) += ACTION (d, detail) {      
+    shipmentDetail(d) <- shipmentDetail(detail);             
 } 
 
-quantityShipmentDetailShipmentShipment (purchaseReturn, saleReturn) = GROUP SUM SaleReturn.quantityShipmentDetail(detail) BY shipmentShipmentDetail(shipmentDetailShipmentDetail(detail)), SaleReturn.shipmentShipmentDetail(detail);
+quantityShipmentDetail (purchaseReturn, saleReturn) = GROUP SUM quantity(SaleReturn.ShipmentDetail detail) BY shipment(shipmentDetail(detail)), shipment(detail);
 
-saleShipmentsShipment 'Поставки (закупка-возврат)' (saleReturn) = GROUP CONCAT VARSTRING[255](descriptionShipment(purchaseReturn)) IF quantityShipmentDetailShipmentShipment(purchaseReturn, saleReturn) , ', '
+saleShipments 'Поставки (закупка-возврат)' (saleReturn) = GROUP CONCAT VARSTRING[255](description(Shipment purchaseReturn)) IF quantityShipmentDetail(purchaseReturn, SaleReturn.Shipment saleReturn) , ', '
                                                         BY saleReturn
                                                         ORDER purchaseReturn IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-relationSaleReturnShipment 'Связь' (saleReturn) = GROUP SUM quantityShipmentDetailShipmentShipment (purchaseReturn, saleReturn) BY saleReturn PERSISTENT;
+relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityShipmentDetail (Shipment purchaseReturn, SaleReturn.Shipment saleReturn) BY saleReturn PERSISTENT;
 
-shippedShipmentDetail 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM SaleReturn.quantityShipmentDetail(detail) IF SaleReturn.isPostedShipmentDetail(detail)
-                                                                   BY shipmentDetailShipmentDetail(detail) PERSISTENT;
+shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM quantity(SaleReturn.ShipmentDetail detail) IF isPosted(detail)
+                                                                   BY shipmentDetail(detail) PERSISTENT;
 
-toShipShipmentDetail 'Не поставлено' (shipmentDetail) = quantityShipmentDetail (shipmentDetail) (-) shippedShipmentDetail(shipmentDetail);
+toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail);
 
 CLASS SaleReturnShipment 'Поставка возврат на основе поставки возврат': SaleReturn.Shipment;
 CLASS SaleReturnShipmentDetail 'Строка поставки возврат на основе поставки возврат' : SaleReturn.ShipmentDetail;
@@ -92,101 +92,101 @@ CLASS SaleReturnShipmentDetail 'Строка поставки возврат н�
 @defineDocumentTables(saleReturnShipment);
 
 @defineDocumentAggregation(shipment, saleReturnShipment, createSaleReturn);
-SaleReturn.shipmentShipmentDetail(detail) += saleReturnShipmentSaleReturnShipmentDetail(detail);
+shipment(SaleReturnShipmentDetail detail) += saleReturnShipment(detail);
 
-SaleReturn.indexShipmentDetail(detail) += indexSaleReturnShipmentDetail(detail);
+index(SaleReturnShipmentDetail detail) += index(detail);
 
-SaleReturn.dateShipment(shipment) += saleReturnShipmentDateShipment(shipmentSaleReturnShipment(shipment));
-SaleReturn.timeShipment(shipment) += saleReturnShipmentTimeShipment(shipmentSaleReturnShipment(shipment));
+date(SaleReturnShipment shipment) += saleReturnShipmentDate(shipment(shipment));
+time(SaleReturnShipment shipment) += saleReturnShipmentTime(shipment(shipment));
 
 @defineDocumentAggregationStockPrefix(shipment, saleReturnShipment, supplier, 'Склад поставщика', , );
-SaleReturn.supplierStockShipment(shipment) += supplierStockSaleReturnShipment(shipment);
-SaleReturn.dataSupplierStockShipmentDetail(shipmentDetail) += dataSupplierStockShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+supplierStock(SaleReturnShipment shipment) += supplierStock(shipment);
+dataSupplierStock(SaleReturnShipmentDetail shipmentDetail) += dataSupplierStock(shipmentDetail(shipmentDetail));
 @defineDocumentAggregationStockPrefix(shipment, saleReturnShipment, customer, 'Склад покупателя', , );
-SaleReturn.customerStockShipment(shipment) += customerStockSaleReturnShipment(shipment);
-SaleReturn.dataCustomerStockShipmentDetail(shipmentDetail) += dataCustomerStockShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+customerStock(SaleReturnShipment shipment) += customerStock(shipment);
+dataCustomerStock(SaleReturnShipmentDetail shipmentDetail) += dataCustomerStock(shipmentDetail(shipmentDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(shipment, saleReturnShipment, supplier, 'Поставщик', , );
-SaleReturn.supplierShipment(shipment) += supplierSaleReturnShipment(shipment);
+supplier(SaleReturnShipment shipment) += supplier(shipment);
 @defineDocumentAggregationLegalEntityPrefix(shipment, saleReturnShipment, customer, 'Покупатель', , );
-SaleReturn.customerShipment(shipment) += customerSaleReturnShipment(shipment);
+customer(SaleReturnShipment shipment) += customer(shipment);
 
 @defineDocumentAggregationPosted(shipment, saleReturnShipment);
-SaleReturn.isPostedShipment(shipment) += isPostedSaleReturnShipment(shipment);
+isPosted(SaleReturnShipment shipment) += isPosted(shipment);
 
 @defineDocumentAggregationClosed(shipment, saleReturnShipment);
-SaleReturn.isClosedShipment(shipment) += isClosedSaleReturnShipment(shipment);
+isClosed(SaleReturnShipment shipment) += isClosed(shipment);
 
-SaleReturn.numberShipment(shipment) += numberShipment(shipmentSaleReturnShipment(shipment));
-SaleReturn.seriesShipment(shipment) += seriesShipment(shipmentSaleReturnShipment(shipment));
-seriesNumberSaleReturnShipment 'Серия/номер документа' (saleReturnShipment) = seriesNumberShipment(shipmentSaleReturnShipment(saleReturnShipment));
+number(SaleReturnShipment shipment) += number(shipment(shipment));
+series(SaleReturnShipment shipment) += series(shipment(shipment));
+seriesNumber 'Серия/номер документа' (SaleReturnShipment saleReturnShipment) = seriesNumber(shipment(saleReturnShipment));
 
-noteShipmentSaleReturnShipment 'Примечание' (saleReturnShipment) = noteShipment(shipmentSaleReturnShipment(saleReturnShipment));
-SaleReturn.noteShipment(shipment) += noteShipmentSaleReturnShipment(shipment);
+noteShipment 'Примечание' (SaleReturnShipment saleReturnShipment) = note(shipment(saleReturnShipment));
+note(SaleReturnShipment shipment) += noteShipment(shipment);
 
-currencySaleReturnShipment  (saleReturnShipment) = currencyShipment(shipmentSaleReturnShipment(saleReturnShipment));
-SaleReturn.currencyShipment (shipment) += currencySaleReturnShipment(shipment);
+currency  (SaleReturnShipment saleReturnShipment) = currency(shipment(saleReturnShipment));
+currency (SaleReturnShipment shipment) += currency(shipment);
 
 @defineDocumentDescription(saleReturnShipment, SaleReturnShipmentDetail, 'Поставка возврат на основе поставки возврат ');
-SaleReturn.descriptionShipment (shipment) += descriptionSaleReturnShipment(shipment);
-SaleReturn.operationShipment(shipment) += saleReturnOperationShipment(shipmentSaleReturnShipment(shipment));
+description (SaleReturnShipment shipment) += description(shipment);
+operation(SaleReturnShipment shipment) += saleReturnOperation(shipment(shipment));
 
 @defineDocumentAggregationDetailSku(shipment, saleReturnShipment, sku);
-SaleReturn.skuShipmentDetail(shipmentDetail) +=  skuSaleReturnShipmentDetail(shipmentDetail);
+sku(SaleReturnShipmentDetail shipmentDetail) +=  sku(shipmentDetail);
 
 @defineDocumentAggregationDetailBatch(shipment, saleReturnShipment);
-SaleReturn.batchShipmentDetail(shipmentDetail) += batchSaleReturnShipmentDetail(shipmentDetail);
+batch(SaleReturnShipmentDetail shipmentDetail) += batch(shipmentDetail);
 
-SaleReturn.quantityShipmentDetail(shipmentDetail) += quantityShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
-SaleReturn.expiryDateShipmentDetail(shipmentDetail) += expiryDateShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+quantity(SaleReturnShipmentDetail shipmentDetail) += quantity(shipmentDetail(shipmentDetail));
+expiryDate(SaleReturnShipmentDetail shipmentDetail) += expiryDate(shipmentDetail(shipmentDetail));
 
-SaleReturn.priceShipmentDetail(shipmentDetail) += priceShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+price(SaleReturnShipmentDetail shipmentDetail) += price(shipmentDetail(shipmentDetail));
 
-SaleReturn.sumShipmentDetail(shipmentDetail) += sumShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+sum(SaleReturnShipmentDetail shipmentDetail) += sum(shipmentDetail(shipmentDetail));
 
-SaleReturn.editShipment(shipment) += ACTION EXEC editShipment(shipmentSaleReturnShipment(shipment));
-SaleReturn.closeShipment(shipment) += ACTION EXEC closeShipment(shipmentSaleReturnShipment(shipment));
-SaleReturn.createdUserShipment(shipment) += createdUserShipment(shipmentSaleReturnShipment(shipment));
-SaleReturn.editShipmentDetail(shipmentDetail) += ACTION editShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+edit(SaleReturnShipment shipment) += ACTION EXEC edit(shipment(shipment));
+close(SaleReturnShipment shipment) += ACTION EXEC close(shipment(shipment));
+createdUser(SaleReturnShipment shipment) += createdUser(shipment(shipment));
+edit(SaleReturnShipmentDetail shipmentDetail) += ACTION edit(shipmentDetail(shipmentDetail));
 
-SaleReturn.showPackShipment(shipment) +=  showPackShipment(shipmentSaleReturnShipment(shipment));
-SaleReturn.barcodePackShipmentDetail(shipmentDetail) += barcodePackShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
-SaleReturn.amountPackShipmentDetail(shipmentDetail) +=  amountPackShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
-SaleReturn.packQuantityShipmentDetail(shipmentDetail) +=  packQuantityShipmentDetail(shipmentDetailSaleReturnShipmentDetail(shipmentDetail));
+showPack(SaleReturnShipment shipment) +=  showPack(shipment(shipment));
+barcodePack(SaleReturnShipmentDetail shipmentDetail) += barcodePack(shipmentDetail(shipmentDetail));
+amountPack(SaleReturnShipmentDetail shipmentDetail) +=  amountPack(shipmentDetail(shipmentDetail));
+packQuantity(SaleReturnShipmentDetail shipmentDetail) +=  packQuantity(shipmentDetail(shipmentDetail));
 
-shipmentDetailShipmentDetail(shipmentDetail) += shipmentDetailSaleReturnShipmentDetail(shipmentDetail);
+shipmentDetail(SaleReturnShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
 // Создание поставки на основе поставки //
 
 FORM shipmentShipments 'Поставки (закупка-возврат)'
     OBJECTS s = LegalEntity FIXED PANEL
-    PROPERTIES (s) READONLY nameLegalEntity
+    PROPERTIES (s) READONLY name
     OBJECTS c = LegalEntity FIXED PANEL
-    PROPERTIES (c) READONLY nameLegalEntity
+    PROPERTIES (c) READONLY name
 
     OBJECTS ss = Stock FIXED PANEL
-    PROPERTIES (ss) READONLY nameStock
+    PROPERTIES (ss) READONLY name
     OBJECTS cs = Stock FIXED PANEL
-    PROPERTIES (cs) READONLY nameStock
+    PROPERTIES (cs) READONLY name
 
     OBJECTS o = Shipment
-    PROPERTIES (o) READONLY isPostedShipment, numberShipment, seriesShipment, dateShipment, timeShipment, nameCurrencyShipment,
-                            countShipmentDetailShipment, quantityShipmentDetailShipment, sumShipmentDetailShipment,
-                            noteShipment
-    FILTERS supplierShipment(o) == s,
-            customerShipment(o) == c,
-            supplierStockShipment(o) == ss,
-            customerStockShipment(o) == cs,
-            isPostedShipment(o) AND NOT createSaleReturnShipment(o)
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameCurrency,
+                            countShipmentDetail, quantityShipmentDetail, sumShipmentDetail,
+                            note
+    FILTERS supplier(o) == s,
+            customer(o) == c,
+            supplierStock(o) == ss,
+            customerStock(o) == cs,
+            isPosted(o) AND NOT createSaleReturn(o)
 
     OBJECTS d = ShipmentDetail
 
-    PROPERTIES (d) READONLY indexShipmentDetail, idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail,
-                            quantityShipmentDetail
-    PROPERTIES (d) READONLY SHOWIF showPackShipment(o) idBarcodePackShipmentDetail, shortNameUOMPackShipmentDetail, amountPackShipmentDetail, packQuantityShipmentDetail
-    PROPERTIES (d) READONLY priceShipmentDetail, sumShipmentDetail,
-                            nameSupplierStockShipmentDetail, toShipShipmentDetail BACKGROUND backgroundSaleReturnShipment(o)
-    FILTERS shipmentShipmentDetail(d) == o
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                            quantity
+    PROPERTIES (d) READONLY SHOWIF showPack(o) idBarcodePack, shortNameUOMPack, amountPack, packQuantity
+    PROPERTIES (d) READONLY price, sum,
+                            nameSupplierStock, toShip BACKGROUND backgroundSaleReturn(o)
+    FILTERS shipment(d) == o
 ;
 
 DESIGN shipmentShipments {
@@ -229,39 +229,39 @@ DESIGN shipmentShipments {
 }
 
 
-fillShipmentUserShipment 'Заполнить на основе поставки (закупка-возврат)' =  ACTION (userShipment) {       // подставляем все количество ???
-    FORM shipmentShipments OBJECTS s = SaleReturn.supplierUserShipment(userShipment), c = SaleReturn.customerUserShipment(userShipment),
-                                   ss = SaleReturn.supplierStockUserShipment(userShipment), cs = SaleReturn.customerStockUserShipment(userShipment) MODAL;
+fillShipment 'Заполнить на основе поставки (закупка-возврат)' =  ACTION (SaleReturn.UserShipment userShipment) {       // подставляем все количество ???
+    FORM shipmentShipments OBJECTS s = supplier(userShipment), c = customer(userShipment),
+                                   ss = supplierStock(userShipment), cs = customerStock(userShipment) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL saleShipment = Shipment();
         ASSIGN saleShipment() <- chosenObject('o');
 
-        FOR shipmentShipmentDetail(shipmentDetail) == saleShipment() ADDOBJ d = SaleReturn.UserShipmentDetail DO {
-            ASSIGN SaleReturn.userShipmentUserShipmentDetail(d) <- userShipment;
-            ASSIGN shipmentDetailUserShipmentDetail(d) <- shipmentDetail;
+        FOR shipment(ShipmentDetail shipmentDetail) == saleShipment() ADDOBJ d = SaleReturn.UserShipmentDetail DO {
+            ASSIGN userShipment(d) <- userShipment;
+            ASSIGN shipmentDetail(d) <- shipmentDetail;
 
-            ASSIGN SaleReturn.priceUserShipmentDetail(d) <- priceShipmentDetail(shipmentDetail);
+            ASSIGN price(d) <- price(shipmentDetail);
 
-            ASSIGN SaleReturn.skuUserShipmentDetail(d) <- skuShipmentDetail(shipmentDetail);
-            ASSIGN SaleReturn.batchUserShipmentDetail(d) <- batchShipmentDetail(shipmentDetail);
-            ASSIGN SaleReturn.quantityUserShipmentDetail (d) <- quantityShipmentDetail(shipmentDetail);
+            ASSIGN sku(d) <- sku(shipmentDetail);
+            ASSIGN batch(d) <- batch(shipmentDetail);
+            ASSIGN quantity (d) <- quantity(shipmentDetail);
 
-            ASSIGN SaleReturn.barcodePackUserShipmentDetail(d) <- barcodePackShipmentDetail(shipmentDetail);
-            ASSIGN SaleReturn.amountPackUserShipmentDetail(d) <- amountPackShipmentDetail(shipmentDetail);
-            ASSIGN SaleReturn.packQuantityUserShipmentDetail(d) <- packQuantityShipmentDetail(shipmentDetail);
+            ASSIGN barcodePack(d) <- barcodePack(shipmentDetail);
+            ASSIGN amountPack(d) <- amountPack(shipmentDetail);
+            ASSIGN packQuantity(d) <- packQuantity(shipmentDetail);
         }
     }
 } IN shipment;
 
 EXTEND FORM SaleReturn.userShipment
-    PROPERTIES(s) fillShipmentUserShipment, saleShipmentsShipment READONLY
-    PROPERTIES(d) descriptionIndexShipmentDetailUserShipmentDetail BEFORE deletesd
+    PROPERTIES(s) fillShipment, saleShipments READONLY
+    PROPERTIES(d) descriptionIndexShipmentDetail BEFORE deletesd
 ;
 DESIGN SaleReturn.userShipment { headerCreateDetail{ MOVE s.shipment { type = CONTAINERV; }}}
 
 EXTEND FORM SaleReturn.shipments
 //    PROPERTIES(s) READONLY saleShipmentsShipment
-    PROPERTIES(d) READONLY descriptionIndexShipmentDetailShipmentDetail SHOWIF relationSaleReturnShipment(s)
+    PROPERTIES(d) READONLY descriptionIndexShipmentDetail SHOWIF relationSaleReturn(s)
 ;
 
 //-- Действие
@@ -269,39 +269,39 @@ EXTEND FORM SaleReturn.shipments
 //overFillShipmentUserShipmentShipment = ABSTRACT ACTION LIST (userShipment, shipment);
 //overFillShipmentUserShipmentDetailShipmentDetail = ABSTRACT ACTION LIST (userDetail, detail);
 
-moveUserShipmentShipment 'Поставка (закупка-возврат)' =  ACTION (shipment) NEWSESSION{
+moveUserShipment 'Поставка (закупка-возврат)' =  ACTION (Shipment shipment) NEWSESSION{
 
     FOR ADDOBJ s = SaleReturn.UserShipment DO {
 
-        ASSIGN SaleReturn.supplierUserShipment(s) <- supplierShipment(shipment);
-        ASSIGN SaleReturn.customerUserShipment(s) <- customerShipment(shipment);
-        ASSIGN SaleReturn.supplierStockUserShipment(s) <- supplierStockShipment(shipment);
-        ASSIGN SaleReturn.customerStockUserShipment(s) <- customerStockShipment(shipment);
-        ASSIGN numberUserShipment(s) <- numberShipment(shipment);
-        ASSIGN seriesUserShipment(s) <- seriesShipment(shipment);
-        ASSIGN SaleReturn.noteUserShipment(s) <- noteShipment(shipment);
-        ASSIGN SaleReturn.currencyUserShipment(s) <- currencyShipment(shipment);
+        ASSIGN supplier(s) <- supplier(shipment);
+        ASSIGN customer(s) <- customer(shipment);
+        ASSIGN supplierStock(s) <- supplierStock(shipment);
+        ASSIGN customerStock(s) <- customerStock(shipment);
+        ASSIGN number(s) <- number(shipment);
+        ASSIGN series(s) <- series(shipment);
+        ASSIGN note(s) <- note(shipment);
+        ASSIGN currency(s) <- currency(shipment);
 
-        ASSIGN SaleReturn.showPackUserShipment(s) <- showPackShipment(shipment);
-        ASSIGN SaleReturn.operationUserShipment(s) <- operationShipment(shipment);
+        ASSIGN showPack(s) <- showPack(shipment);
+        ASSIGN operation(s) <- operation(shipment);
 //        EXEC overFillShipmentUserShipmentShipment(s, shipment);
 
-        FOR shipmentShipmentDetail(detail)==shipment ADDOBJ d = SaleReturn.UserShipmentDetail DO {
+        FOR shipment(ShipmentDetail detail)==shipment ADDOBJ d = SaleReturn.UserShipmentDetail DO {
 
-            ASSIGN SaleReturn.userShipmentUserShipmentDetail(d) <- s;
-            ASSIGN shipmentDetailUserShipmentDetail(d) <- detail;
-            ASSIGN SaleReturn.dataSupplierStockUserShipmentDetail(d) <- dataSupplierStockShipmentDetail(detail);
-            ASSIGN SaleReturn.dataCustomerStockUserShipmentDetail(d) <- dataCustomerStockShipmentDetail(detail);
+            ASSIGN userShipment(d) <- s;
+            ASSIGN shipmentDetail(d) <- detail;
+            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
+            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
 
-            ASSIGN SaleReturn.skuUserShipmentDetail(d) <- skuShipmentDetail(detail);
-            ASSIGN SaleReturn.quantityUserShipmentDetail (d) <- quantityShipmentDetail(detail);
-            ASSIGN SaleReturn.priceUserShipmentDetail (d) <- priceShipmentDetail(detail);
+            ASSIGN sku(d) <- sku(detail);
+            ASSIGN quantity (d) <- quantity(detail);
+            ASSIGN price (d) <- price(detail);
 
-            ASSIGN SaleReturn.barcodePackUserShipmentDetail (d) <- barcodePackShipmentDetail(detail);
-            ASSIGN SaleReturn.amountPackUserShipmentDetail (d) <- amountPackShipmentDetail(detail);
-            ASSIGN SaleReturn.packQuantityUserShipmentDetail (d) <- packQuantityShipmentDetail(detail);
+            ASSIGN barcodePack (d) <- barcodePack(detail);
+            ASSIGN amountPack (d) <- amountPack(detail);
+            ASSIGN packQuantity (d) <- packQuantity(detail);
 
-            ASSIGN SaleReturn.batchUserShipmentDetail(d) <- batchShipmentDetail(detail);
+            ASSIGN batch(d) <- batch(detail);
 //            EXEC overFillShipmentUserShipmentDetailShipmentDetail(d,detail);
         }
 
@@ -310,11 +310,11 @@ moveUserShipmentShipment 'Поставка (закупка-возврат)' =  A
 } TOOLBAR;
 
 EXTEND FORM shipments
-    PROPERTIES(s) moveUserShipmentShipment
+    PROPERTIES(s) moveUserShipment
 ;
 DESIGN shipments {
     createdContainer{
-        MOVE PROPERTY(moveUserShipmentShipment(s));
+        MOVE PROPERTY(moveUserShipment(s));
     }
 }
 

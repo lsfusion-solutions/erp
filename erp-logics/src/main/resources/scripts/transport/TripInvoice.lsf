@@ -4,44 +4,44 @@ REQUIRE OrderInvoice, Shipment, Trip;
 
 NAMESPACE Trip;
 
-tripInvoice = DATA Trip(Invoice);
+trip = DATA Trip(Invoice);
 
-inTripInvoice 'Включен' (trip, invoice) = tripInvoice(invoice) == trip;
+in 'Включен' (Trip trip, Invoice invoice) = trip(invoice) == trip;
 
-countInvoiceTrip 'Кол-во накладных в рейсе' (trip) = GROUP SUM 1 IF inTripInvoice(trip, invoice) BY trip PERSISTENT;
+countInvoice 'Кол-во накладных в рейсе' (trip) = GROUP SUM 1 IF in(Trip trip, Invoice invoice) BY trip PERSISTENT;
 
-quantityInvoicedTripSku 'Кол-во в накладных' (trip, sku) = GROUP SUM quantityInvoiceDetail(invoiceDetail) BY tripInvoice(invoiceInvoiceDetail(invoiceDetail)), skuInvoiceDetail(invoiceDetail);
+quantityInvoiced 'Кол-во в накладных' (trip, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY trip(invoice(invoiceDetail)), sku(invoiceDetail);
 
-grossWeightInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetailInvoice(invoice) BY tripInvoice(invoice);
-netWeightInvoicedTrip 'Суммарный вес накладных (нетто)' (trip) = GROUP SUM sumNetWeightInvoiceDetailInvoice(invoice) BY tripInvoice(invoice);
+grossWeightInvoiced 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
+netWeightInvoiced 'Суммарный вес накладных (нетто)' (trip) = GROUP SUM sumNetWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
 
 EXTEND FORM trip
 
-    PROPERTIES (t) READONLY grossWeightInvoicedTrip
+    PROPERTIES (t) READONLY grossWeightInvoiced
 
     OBJECTS i=Invoice
-    PROPERTIES (t, i) inTripInvoice
-    PROPERTIES (i) READONLY numberInvoice, seriesInvoice, dateInvoice, nameFromInvoice, nameFromStockInvoice, nameToInvoice, 
-                   nameToStockInvoice, sumGrossWeightInvoiceDetailInvoice, sumNetWeightInvoiceDetailInvoice
-    PROPERTIES (i) editInvoice SHOWIF isOpenedInvoice(i)
+    PROPERTIES (t, i) in
+    PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, 
+                   nameToStock, sumGrossWeightInvoiceDetail, sumNetWeightInvoiceDetail
+    PROPERTIES (i) edit SHOWIF isOpened(i)
     FILTERGROUP filterDateInvoice
-        FILTER 'Текущие' dateInvoice(i) <= dateTrip(t) 'F9' DEFAULT
+        FILTER 'Текущие' date(i) <= date(t) 'F9' DEFAULT
     FILTERGROUP filterInvoice
-        FILTER 'Не расписанные или в текущем рейсе' inTripInvoice(t, i) OR NOT tripInvoice(i) 'F11'
-        FILTER 'В текущем рейсе' inTripInvoice(t, i) 'F10' DEFAULT
+        FILTER 'Не расписанные или в текущем рейсе' in(t, i) OR NOT trip(i) 'F11'
+        FILTER 'В текущем рейсе' in(t, i) 'F10' DEFAULT
 
-    FILTERS customerInvoice(i) == customerTrip(t) OR (i IS Invoice AND NOT customerTrip(t)),
-            supplierInvoice(i) == supplierTrip(t) OR (i IS Invoice AND NOT supplierTrip(t))
+    FILTERS customer(i) == customer(t) OR (i IS Invoice AND NOT customer(t)),
+            supplier(i) == supplier(t) OR (i IS Invoice AND NOT supplier(t))
 
     OBJECTS id=InvoiceDetail
-    PROPERTIES (id) READONLY idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail, quantityInvoiceDetail, 
-                    nameFromStockInvoiceDetail, nameToStockInvoiceDetail, sumGrossWeightInvoiceDetail, sumNetWeightInvoiceDetail
-    FILTERS invoiceInvoiceDetail(id)==i
+    PROPERTIES (id) READONLY idBarcodeSku, nameSku, shortNameUOMSku, quantity, 
+                    nameFromStock, nameToStock, sumGrossWeight, sumNetWeight
+    FILTERS invoice(id)==i
 ;
 
 DESIGN trip {
     headerSum {
-        MOVE PROPERTY(grossWeightInvoicedTrip(t));
+        MOVE PROPERTY(grossWeightInvoiced(t));
     }
 
     pane {
@@ -60,10 +60,10 @@ DESIGN trip {
 }
 
 EXTEND FORM trips
-    PROPERTIES (t) READONLY grossWeightInvoicedTrip
+    PROPERTIES (t) READONLY grossWeightInvoiced
     OBJECTS i=Invoice
-    PROPERTIES (i) READONLY numberInvoice, seriesInvoice, dateInvoice, nameFromInvoice, nameFromStockInvoice, nameToInvoice, nameToStockInvoice
-    FILTERS inTripInvoice(t, i)
+    PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, nameToStock
+    FILTERS in(t, i)
 ;
 
 DESIGN trips {

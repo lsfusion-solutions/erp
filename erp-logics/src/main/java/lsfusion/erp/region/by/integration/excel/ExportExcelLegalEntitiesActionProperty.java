@@ -53,17 +53,17 @@ public class ExportExcelLegalEntitiesActionProperty extends ExportExcelActionPro
             String[] legalEntityNames = new String[]{"nameLegalEntity", "fullNameLegalEntity",
                     "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",
                     "phoneLegalEntity"};
-            LCP[] legalEntityProperties = findProperties("nameLegalEntity", "fullNameLegalEntity",
-                    "shortNameOwnershipLegalEntity", "nameLegalEntityGroupLegalEntity", "addressLegalEntity",
-                    "phoneLegalEntity");
+            LCP[] legalEntityProperties = findProperties("name[LegalEntity]", "fullName[LegalEntity]",
+                    "shortNameOwnership[LegalEntity]", "nameLegalEntityGroup[LegalEntity]", "address[LegalEntity]",
+                    "phone[LegalEntity]");
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
             for (int i = 0; i < legalEntityProperties.length; i++) {
                 legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(context.getModifier(), legalEntityExpr));
             }
             if(legalEntityByLM != null)
-                legalEntityQuery.addProperty("UNPLegalEntity", legalEntityByLM.findProperty("UNPLegalEntity").getExpr(context.getModifier(), legalEntityExpr));
+                legalEntityQuery.addProperty("UNPLegalEntity", legalEntityByLM.findProperty("UNP[LegalEntity]").getExpr(context.getModifier(), legalEntityExpr));
 
-            legalEntityQuery.and(findProperty("nameLegalEntity").getExpr(context.getModifier(), legalEntityQuery.getMapExprs().get("LegalEntity")).getWhere());
+            legalEntityQuery.and(findProperty("name[LegalEntity]").getExpr(context.getModifier(), legalEntityQuery.getMapExprs().get("LegalEntity")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
 

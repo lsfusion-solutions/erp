@@ -4,68 +4,68 @@ REQUIRE OrderRamp;
 
 NAMESPACE Order;
 
-countOrdersRampDateDateFromTo (ramp, date, dateFrom, dateTo) = GROUP SUM 1 IF 
-    orderRampIntervalDate(r,i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE)
+countOrders (ramp, date, dateFrom, dateTo) = GROUP SUM 1 IF 
+    order(Ramp r,Interval i,DATE d) AND d >= (DATE dateFrom AS DATE) AND d <= (DATE dateTo AS DATE)
         BY r, d, dateFrom, dateTo;
         
-countOrdersStockDateDateFromTo (stock, date, dateFrom, dateTo) = GROUP SUM 1 IF 
-    orderRampIntervalDate(r,i,d) AND d >= (dateFrom AS DATE) AND d <= (dateTo AS DATE)
-        BY stockRamp(r), d, dateFrom, dateTo;     
-countDatesStockDateFromTo 'Кол-во дней' (stock, dateFrom, dateTo) = GROUP SUM 1 IF 
-    countOrdersStockDateDateFromTo (stock, date, dateFrom, dateTo)
+countOrders (stock, date, dateFrom, dateTo) = GROUP SUM 1 IF 
+    order(Ramp r,Interval i,DATE d) AND d >= (DATE dateFrom AS DATE) AND d <= (DATE dateTo AS DATE)
+        BY stock(r), d, dateFrom, dateTo;     
+countDates 'Кол-во дней' (stock, dateFrom, dateTo) = GROUP SUM 1 IF 
+    countOrders (Stock stock, DATE date, DATE dateFrom, DATE dateTo)
         BY stock, dateFrom, dateTo; 
                    
-countLoadIntervalRampDate (ramp, date) = GROUP SUM 1 IF 
-    orderRampIntervalDate(r,i,d) BY r, d;  
-countLoadIntervalStockDate (stock, date) = GROUP SUM 1 IF
-    orderRampIntervalDate(r,i,d) BY stockRamp(r), d;
+countLoadInterval (ramp, date) = GROUP SUM 1 IF 
+    order(Ramp r,Interval i,DATE d) BY r, d;  
+countLoadInterval (stock, date) = GROUP SUM 1 IF
+    order(Ramp r,Interval i,DATE d) BY stock(r), d;
            
-percIntervalRampDate '% загрузки рампы' (r,d) = countLoadIntervalRampDate (r, d) * 100.00 / countIntervalRamp(r);            
-percIntervalStockDate '% загрузки рампы' (st,d) = countLoadIntervalStockDate (st, d)* 100.00 / countIntervalStock(st) ;          
+percInterval '% загрузки рампы' (Ramp r,DATE d) = countLoadInterval (r, d) * 100.00 / countInterval(r);            
+percInterval '% загрузки рампы' (Stock st,DATE d) = countLoadInterval (st, d)* 100.00 / countInterval(st) ;          
         
 
-countLoadIntervalStockDateFromTo 'Кол-во загруженных интервалов' (st,dFrom,dTo) = GROUP SUM countLoadIntervalStockDate (st, d) IF 
-    countOrdersStockDateDateFromTo(st,d,dFrom,dTo) BY st,dFrom,dTo;
+countLoadIntervalDate 'Кол-во загруженных интервалов' (st,dFrom,dTo) = GROUP SUM countLoadInterval (Stock st, DATE d) IF 
+    countOrders(st,d,DATE dFrom,DATE dTo) BY st,dFrom,dTo;
     
-percIntervalStockDateFromTo '% загрузки рамп' (st,dateFrom,dateTo) = countLoadIntervalStockDateFromTo(st,dateFrom,dateTo) *100.00 / 
-    (countDatesStockDateFromTo(st,dateFrom,dateTo) * countIntervalStock(st));  
+percInterval '% загрузки рамп' (Stock st,DATE dateFrom,DATE dateTo) = countLoadIntervalDate(st,dateFrom,dateTo) *100.00 / 
+    (countDates(st,dateFrom,dateTo) * countInterval(st));  
 
 FORM rampStockDate 'Загрузка рамп'
     OBJECTS st=Stock FIXED PANEL 
-    PROPERTIES(st) SELECTOR nameStock
-    FILTERS isCompanyStock(st)
+    PROPERTIES(st) SELECTOR name
+    FILTERS isCompany(st)
         
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)       
       
     OBJECTS d=DATE 
     PROPERTIES READONLY objDate = OBJVALUE(d)  
-    PROPERTIES(st,d) READONLY percIntervalStockDate           
+    PROPERTIES(st,d) READONLY percInterval           
         
-    FILTERS countOrdersStockDateDateFromTo(st,d,dFrom,dTo),
-            iterateDate(d, dFrom, dTo)               
+    FILTERS countOrders(st,d,dFrom,dTo),
+            iterate(d, dFrom, dTo)               
     
-    PROPERTIES(st,dFrom,dTo) READONLY percIntervalStockDateFromTo            
+    PROPERTIES(st,dFrom,dTo) READONLY percInterval            
             
     OBJECTS r=Ramp 
-    PROPERTIES(r) READONLY nameRamp
-    PROPERTIES(r,d) READONLY percIntervalRampDate   
-    ORDER BY      nameRamp(r)
-    FILTERS stockRamp(r) == st,
-            countOrdersRampDateDateFromTo(r,d,dFrom,dTo)
+    PROPERTIES(r) READONLY name
+    PROPERTIES(r,d) READONLY percInterval   
+    ORDER BY      name(r)
+    FILTERS stock(r) == st,
+            countOrders(r,d,dFrom,dTo)
                 
     
     OBJECTS i= Interval
-    PROPERTIES(i) READONLY timeInterval
-    ORDER BY timeInterval(i)
-    FILTERS inRampInterval(r,i) 
+    PROPERTIES(i) READONLY time
+    ORDER BY time(i)
+    FILTERS in(r,i) 
        
-    PROPERTIES(r,i,d) READONLY descriptionOrdersRampIntervalDate,
-                      nameSupplierOrdersRampIntervalDate, nameCustomerOrdersRampIntervalDate 
+    PROPERTIES(r,i,d) READONLY descriptionOrders,
+                      nameSupplierOrders, nameCustomerOrders 
     FILTERGROUP filter1
-        FILTER 'Только свободные рампы' percIntervalRampDate(r,d) < 100 'F9'                         
+        FILTER 'Только свободные рампы' percInterval(r,d) < 100 'F9'                         
     FILTERGROUP filter
-        FILTER 'Только свободное время' TRUE AND NOT orderRampIntervalDate(r,i,d) 'F10'                          
+        FILTER 'Только свободное время' TRUE AND NOT order(r,i,d) 'F10'                          
 ;
 DESIGN rampStockDate {
     main{ 
@@ -90,12 +90,12 @@ DESIGN rampStockDate {
     } 
 }
 @extendFormFilterStockAccess(st, rampStockDate, company);
-percIntervalRampOrder '% загрузки рампы' (r,o) = percIntervalRampDate(r, shipmentDateOrder(o));
+percInterval '% загрузки рампы' (Ramp r,Order o) = percInterval(r, shipmentDate(o));
 EXTEND FORM orderRamp
-    PROPERTIES READONLY percIntervalRampOrder(r,o)         
+    PROPERTIES READONLY percInterval(r,o)         
 
     FILTERGROUP filter1
-        FILTER 'Только свободные рампы' percIntervalRampOrder(r,o) < 100 'F9'    
+        FILTER 'Только свободные рампы' percInterval(r,o) < 100 'F9'    
 ;
 
 NAVIGATOR {

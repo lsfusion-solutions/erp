@@ -12,51 +12,51 @@ NAMESPACE Purchase;
 @defineDocumentLegalEntityStockAccess(ScheduleOrder, supplier, supplier, scheduleOrder);
 
 
-WHEN SESSION FORMS scheduleOrder CHANGED(customerScheduleOrder(o)) DO {
-    IF countAccessCompanyStockEmployeeLegalEntity (currentUser(), customerScheduleOrder(o)) == 1 THEN         
-        dataInScheduleOrderStock(o, stock) <- TRUE WHERE defaultCompanyStockEmployeeLegalEntity(currentUser(), customerScheduleOrder(o))==stock;               
+WHEN SESSION FORMS scheduleOrder CHANGED(customer(ScheduleOrder o)) DO {
+    IF countAccessCompanyStock (currentUser(), customer(o)) == 1 THEN         
+        dataIn(o, Stock stock) <- TRUE WHERE defaultCompanyStock(currentUser(), customer(o))==stock;               
 }
 @defineDocumentLegalEntityAccess(ScheduleOrder, customer, company);
 
 @defineDocumentOperationRoleOver(scheduleOrder, purchase);
     
-countShipmentDOWStockDate 'Кол-во поставок' (DOW, stock, date)= GROUP SUM 1 IF 
-    typeScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime))== GenType.genDayMonth AND 
-    date >=  startDateScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime)) AND NOT 
-    (date >  endDateScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime))) AND 
-    inScheduleOrderStock(scheduleOrderScheduleOrderTime(scheduleOrderTime), stock)
-        BY shipmentDOWScheduleOrderTime(scheduleOrderTime), stock, date;
+countShipment 'Кол-во поставок' (DOW, stock, date)= GROUP SUM 1 IF 
+    type(scheduleOrder(ScheduleOrderTime scheduleOrderTime))== GenType.genDayMonth AND 
+    DATE date >=  startDate(scheduleOrder(scheduleOrderTime)) AND NOT 
+    (date >  endDate(scheduleOrder(scheduleOrderTime))) AND 
+    in(scheduleOrder(scheduleOrderTime), Stock stock)
+        BY shipmentDOW(scheduleOrderTime), stock, date;
 
-countShipmentDOWStockScheduleOrderTimeDate 'Кол-во поставок' (DOW, stock, scheduleOrderTime, date)= GROUP SUM 1 IF 
-    typeScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime))== GenType.genDayMonth AND 
-    date >=  startDateScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime)) AND NOT 
-    (date >  endDateScheduleOrder(scheduleOrderScheduleOrderTime(scheduleOrderTime))) AND 
-    inScheduleOrderStock(scheduleOrderScheduleOrderTime(scheduleOrderTime), stock)
-        BY shipmentDOWScheduleOrderTime(scheduleOrderTime), stock, scheduleOrderTime, date;
+countShipment 'Кол-во поставок' (DOW, stock, scheduleOrderTime, date)= GROUP SUM 1 IF 
+    type(scheduleOrder(ScheduleOrderTime scheduleOrderTime))== GenType.genDayMonth AND 
+    DATE date >=  startDate(scheduleOrder(scheduleOrderTime)) AND NOT 
+    (date >  endDate(scheduleOrder(scheduleOrderTime))) AND 
+    in(scheduleOrder(scheduleOrderTime), Stock stock)
+        BY shipmentDOW(scheduleOrderTime), stock, scheduleOrderTime, date;
  
-nameSupplierScheduleOrderTime 'Поставщик'  (o)= nameLegalEntity(supplierScheduleOrder(scheduleOrderScheduleOrderTime(o)));
-countShipmentDOWStockDateScheduleOrder 'Кол-во поставок' (DOW, stock, order) =  countShipmentDOWStockDate(DOW, stock, startDateScheduleOrder(order));  
-countShipmentDOWStockScheduleOrderTimeDateScheduleOrder 'Кол-во поставок' (DOW, stock, scheduleOrderTime, order) =  countShipmentDOWStockScheduleOrderTimeDate(DOW, stock, scheduleOrderTime, startDateScheduleOrder(order));  
+nameSupplier 'Поставщик'  (ScheduleOrderTime o)= name(supplier(scheduleOrder(o)));
+countShipmentDate 'Кол-во поставок' (DOW DOW, Stock stock, ScheduleOrder order) =  countShipment(DOW, stock, startDate(order));  
+countShipmentDate 'Кол-во поставок' (DOW DOW, Stock stock, ScheduleOrderTime scheduleOrderTime, ScheduleOrder order) =  countShipment(DOW, stock, scheduleOrderTime, startDate(order));  
     
-overPeriodScheduleOrderTime 'Кол-во недель между поставками' (o)= overPeriodScheduleOrder(scheduleOrderScheduleOrderTime(o));        
+overPeriod 'Кол-во недель между поставками' (ScheduleOrderTime o)= overPeriod(scheduleOrder(o));        
         
 EXTEND FORM scheduleOrder
     OBJECTS st=Stock FIXED PANEL  
-    PROPERTIES (st) SHOWIF toShowGenDayMonth(s) SELECTOR nameStock
-    FILTERS isCompanyStock(st)
+    PROPERTIES (st) SHOWIF toShowGenDayMonth(s) SELECTOR name
+    FILTERS isCompany(st)
 
     OBJECTS do=DOW FIXED GRID
     PROPERTIES(do) SHOWIF toShowGenDayMonth(s) staticCaption
-    PROPERTIES READONLY SHOWIF toShowGenDayMonth(s) countShipmentDOWStockDateScheduleOrder(do,st,s)
-    FILTERS countShipmentDOWStockDateScheduleOrder(do,st,s)
+    PROPERTIES READONLY SHOWIF toShowGenDayMonth(s) countShipmentDate(do,st,s)
+    FILTERS countShipmentDate(do,st,s)
     
           
     OBJECTS l=ScheduleOrderTime FIXED GRID
-    PROPERTIES(l) SHOWIF toShowGenDayMonth(s) READONLY nameSupplierScheduleOrderTime, orderNameDOWScheduleOrderTime, overPeriodScheduleOrderTime 
+    PROPERTIES(l) SHOWIF toShowGenDayMonth(s) READONLY nameSupplier, orderNameDOW, overPeriod 
 //    PROPERTIES READONLY SHOWIF toShowGenDayMonth(s) countShipmentDOWStockScheduleOrderTimeDateScheduleOrder(do,st,l,s)     
     
-    FILTERS shipmentDOWScheduleOrderTime(l) == do,
-            countShipmentDOWStockScheduleOrderTimeDateScheduleOrder(do,st,l,s) 
+    FILTERS shipmentDOW(l) == do,
+            countShipmentDate(do,st,l,s) 
 ;
 DESIGN scheduleOrder {
 
@@ -87,9 +87,9 @@ DESIGN scheduleOrder {
 }
 
 
-WHEN SESSION CHANGED(supplierScheduleOrder(o)) DO {
-    supplierStockScheduleOrder(o) <- defaultSupplierStockEmployeeLegalEntity(currentUser(), supplierScheduleOrder(o))
-        IF countAccessSupplierStockEmployeeLegalEntity (currentUser(), supplierScheduleOrder(o)) == 1;
+WHEN SESSION CHANGED(supplier(ScheduleOrder o)) DO {
+    supplierStock(o) <- defaultSupplierStock(currentUser(), supplier(o))
+        IF countAccessSupplierStock (currentUser(), supplier(o)) == 1;
 }
 
 //WHEN SESSION CHANGED(customerScheduleOrder(o)) DO {
@@ -97,17 +97,17 @@ WHEN SESSION CHANGED(supplierScheduleOrder(o)) DO {
 //        IF countAccessCustomerStockEmployeeLegalEntity (currentUser(), customerScheduleOrder(o)) == 1;
 //}
 
-CONSTRAINT supplierScheduleOrder(scheduleOrder) AND NOT isSupplierLegalEntity(supplierScheduleOrder(scheduleOrder))
-    CHECKED BY supplierScheduleOrder MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся поставщиком';
-CONSTRAINT customerScheduleOrder(scheduleOrder) AND NOT isCompanyLegalEntity(customerScheduleOrder(scheduleOrder))
-    CHECKED BY customerScheduleOrder MESSAGE 'Для заказа выбрано в качестве покупателя организация, не являющаяся компанией';
+CONSTRAINT supplier(ScheduleOrder scheduleOrder) AND NOT isSupplier(supplier(scheduleOrder))
+    CHECKED BY supplier[ScheduleOrder] MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT customer(ScheduleOrder scheduleOrder) AND NOT isCompany(customer(scheduleOrder))
+    CHECKED BY customer[ScheduleOrder] MESSAGE 'Для заказа выбрано в качестве покупателя организация, не являющаяся компанией';
 
-CONSTRAINT supplier() AND NOT isSupplierLegalEntity(supplier())
-    CHECKED BY supplier MESSAGE 'Выбрана в качестве поставщика организация, не являющаяся поставщиком';
-CONSTRAINT customer() AND NOT isCompanyLegalEntity(customer())
-    CHECKED BY customer MESSAGE 'Выбрана в качестве покупателя организация, не являющаяся компанией';
+CONSTRAINT supplier() AND NOT isSupplier(supplier())
+    CHECKED BY supplier[] MESSAGE 'Выбрана в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT customer() AND NOT isCompany(customer())
+    CHECKED BY customer[] MESSAGE 'Выбрана в качестве покупателя организация, не являющаяся компанией';
 
-isCompanySupplier(l, s) = isCompanyLegalEntity(l) AND isSupplierLegalEntity(s);
+isCompanySupplier(LegalEntity l, LegalEntity s) = isCompany(l) AND isSupplier(s);
 
 EXTEND FORM legalEntity
     PROPERTIES(s, l) addSaleSchedulerOrder = addScheduleOrderSupplierCustomer TODRAW ss SHOWIF isCompanySupplier(l, s) //isCompanyLegalEntity(l) AND isSupplierLegalEntity(s)
@@ -119,7 +119,7 @@ EXTEND FORM legalEntity
 
 autoCloseScheduleOrderInterval 'За сколько дней аннулировать точки заказов по графику' = DATA INTEGER ();
 autoCloseScheduleOrderDetails 'Аннулировать точки заказов' = ACTION () {
-    isClosedScheduleOrderDetail(o) <- TRUE WHERE dateOrderScheduleOrderDetail(o) <= subtractDate(currentDate(), autoCloseScheduleOrderInterval());
+    isClosed(ScheduleOrderDetail o) <- TRUE WHERE dateOrder(o) <= subtract(currentDate(), autoCloseScheduleOrderInterval());
 }
 
 EXTEND FORM options
@@ -142,10 +142,10 @@ NAVIGATOR {
     }
 }
 
-CONSTRAINT customerStock() AND NOT isCompanyStock(customerStock())
-    CHECKED BY customerStock MESSAGE 'Склад покупателя должен быть складом компании';
+CONSTRAINT customerStock() AND NOT isCompany(customerStock())
+    CHECKED BY customerStock[] MESSAGE 'Склад покупателя должен быть складом компании';
     
 EXTEND FORM scheduleOrderDetails
     FILTERGROUP myOrders
-        FILTER 'Мои' createdUserOrder(o) == currentUser() 'F7' DEFAULT
+        FILTER 'Мои' createdUser(o) == currentUser() 'F7' DEFAULT
 ;

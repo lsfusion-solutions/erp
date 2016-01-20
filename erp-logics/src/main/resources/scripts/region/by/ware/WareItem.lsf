@@ -8,22 +8,22 @@ NAMESPACE Item;
 @defineUniteAttributeItemWithoutExtendForm(ware, nameWare, 'посуда', 'посуда', item);
 
 EXTEND FORM attributesItem
-    TREE treeGroups wareGroup=WareGroup PARENT parentWareGroup
-    PROPERTIES READONLY nameWareGroup(wareGroup)
-    ORDER BY nameWareGroup(wareGroup)
+    TREE treeGroups wareGroup=WareGroup PARENT parent
+    PROPERTIES READONLY name(wareGroup)
+    ORDER BY name(wareGroup)
 
     OBJECTS ware=Ware
-    PROPERTIES inWare(ware)    
-    PROPERTIES(ware) READONLY nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, priceWare, numberVATWare, valueVATWare
+    PROPERTIES in(ware)    
+    PROPERTIES(ware) READONLY name, id SHOWIF showIDs(), canonicalNameWareGroup, price, numberVAT, valueVAT
     PROPERTIES(ware) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
-    ORDER BY nameWare(ware)
-    PROPERTIES replaceWare(ware) TODRAW ware FORCE PANEL TOOLBAR    
-    FILTERS isParentWareGroupWare(wareGroup, ware)
+    ORDER BY name(ware)
+    PROPERTIES replace(ware) TODRAW ware FORCE PANEL TOOLBAR    
+    FILTERS isParent(wareGroup, ware)
     
     OBJECTS wareItem = Item
-    PROPERTIES(wareItem) READONLY idBarcodeSku, nameSku, idSku, idSkuGroupSku
-    PROPERTIES(wareItem) nameWareItem, editSku FORCE PANEL
-    FILTERS wareItem(wareItem) == ware    
+    PROPERTIES(wareItem) READONLY idBarcode, name, id[Sku], idSkuGroup
+    PROPERTIES(wareItem) nameWare, edit FORCE PANEL
+    FILTERS ware(wareItem) == ware    
 
 ;
 
@@ -64,9 +64,9 @@ DESIGN ware {
 
 @defineItemExtractObjectAttribute(ware, nameWare, wareName);
 
-inWareItem 'Товар в посуде' (item) = item IS Item AND wareItem(item);
+inWare 'Товар в посуде' (Item item) = item IS Item AND ware(item);
 
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN wareItem(d) <- wareItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    ASSIGN ware(d) <- ware(s);
 }
 

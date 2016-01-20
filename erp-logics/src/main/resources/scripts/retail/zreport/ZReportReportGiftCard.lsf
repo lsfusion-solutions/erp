@@ -4,26 +4,26 @@ REQUIRE ZReportReport, GiftCard;
 
 NAMESPACE ZReport;
 
-sumGiftCardPaymentZReportStockDate 'Сумма продаж (сертификат)' (stock, date)= GROUP SUM sumGiftCardPaymentZReport(zReport) IF isPostedZReport(zReport)
-        BY departmentStoreZReport(zReport), dateZReport(zReport);
-sumReceiptDetailGiftCardZReportStockDate 'Сумма проданных сертификатов' (stock, date)= GROUP SUM sumReceiptDetailGiftCardZReport(zReport) IF isPostedZReport(zReport)
-        BY departmentStoreZReport(zReport), dateZReport(zReport);                                              
-sumGiftCardPaymentZReportStocksDate 'Сумма продаж (сертификат)' = GROUP SUM sumGiftCardPaymentZReportStockDate(st,dt) IF inReportStock(st) BY dt;
-sumReceiptDetailGiftCardZReportStocksDate 'Сумма проданных сертификатов' = GROUP SUM sumReceiptDetailGiftCardZReportStockDate(st,dt) IF inReportStock(st) BY dt;
+sumGiftCardPaymentZReport 'Сумма продаж (сертификат)' (stock, date)= GROUP SUM sumGiftCardPayment(ZReport zReport) IF isPosted(zReport)
+        BY departmentStore(zReport), date(zReport);
+sumReceiptDetailGiftCardZReport 'Сумма проданных сертификатов' (stock, date)= GROUP SUM sumReceiptDetailGiftCard(ZReport zReport) IF isPosted(zReport)
+        BY departmentStore(zReport), date(zReport);                                              
+sumGiftCardPaymentZReportStocks 'Сумма продаж (сертификат)' = GROUP SUM sumGiftCardPaymentZReport(DepartmentStore st,DATE dt) IF inReport(st) BY dt;
+sumReceiptDetailGiftCardZReportStocks 'Сумма проданных сертификатов' = GROUP SUM sumReceiptDetailGiftCardZReport(DepartmentStore st,DATE dt) IF inReport(st) BY dt;
 
 EXTEND FORM saleZreportStock
-    PROPERTIES READONLY SHOWIF showPropertyDepartmentStore(st) sumGiftCardPaymentZReportStockDate(st,dt)  COLUMNS (st) HEADER nameGiftCardStock(st)
-    PROPERTIES READONLY SHOWIF showPropertyDepartmentStore(st) sumReceiptDetailGiftCardZReportStockDate(st,dt)  COLUMNS (st) HEADER nameReceiptDetailGiftCardStock(st)   
+    PROPERTIES READONLY SHOWIF showProperty(st) sumGiftCardPaymentZReport(st,dt)  COLUMNS (st) HEADER nameGiftCard(st)
+    PROPERTIES READONLY SHOWIF showProperty(st) sumReceiptDetailGiftCardZReport(st,dt)  COLUMNS (st) HEADER nameReceiptDetailGiftCard(st)   
                                   
-    PROPERTIES READONLY SHOWIF allStocks() sumGiftCardPaymentZReportStocksDate(dt)  
-    PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailGiftCardZReportStocksDate(dt)                                
+    PROPERTIES READONLY SHOWIF allStocks() sumGiftCardPaymentZReportStocks(dt)  
+    PROPERTIES READONLY SHOWIF allStocks() sumReceiptDetailGiftCardZReportStocks(dt)                                
                                   
 ;
 
 DESIGN saleZreportStock {
-    PROPERTY(sumGiftCardPaymentZReportStockDate(st,dt)) { background =  #FFBBFF; }  
-    PROPERTY(sumReceiptDetailGiftCardZReportStockDate(st,dt)) { background = #EEEEEE; }    
+    PROPERTY(sumGiftCardPaymentZReport(st,dt)) { background =  #FFBBFF; }  
+    PROPERTY(sumReceiptDetailGiftCardZReport(st,dt)) { background = #EEEEEE; }    
               
-    PROPERTY(sumGiftCardPaymentZReportStocksDate(dt)) { background =  #FFBBFF; }  
-    PROPERTY(sumReceiptDetailGiftCardZReportStocksDate(dt)) { background = #EEEEEE; }                  
+    PROPERTY(sumGiftCardPaymentZReportStocks(dt)) { background =  #FFBBFF; }  
+    PROPERTY(sumReceiptDetailGiftCardZReportStocks(dt)) { background = #EEEEEE; }                  
 }

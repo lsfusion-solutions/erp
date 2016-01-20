@@ -11,8 +11,8 @@ NAMESPACE PriceList;
 
 TABLE priceListTypeOperation(PriceListType, Operation);
 
-changeDataPriceListTypeOperation 'Изменять цены' = DATA BOOLEAN (DataPriceListType, Operation);
-showPriceListTypeOperation 'Показывать цены' = DATA BOOLEAN (PriceListType, Operation);
+change 'Изменять цены' = DATA BOOLEAN (DataPriceListType, Operation);
+show 'Показывать цены' = DATA BOOLEAN (PriceListType, Operation);
 
 TABLE stockOperation(Stock, Operation);
 TABLE stockGroupOperation(StockGroup, Operation);
@@ -22,34 +22,34 @@ TABLE legalEntityGroupOperation(LegalEntityGroup, Operation);
 @defineOperationLegalEntity( ,legalEntity, l, 'Организации');
 
 EXTEND FORM operation
-    FILTERS countCompanyStockStockGroup(stg),
-            isCompanyStock(st)
+    FILTERS countCompanyStock(stg),
+            isCompany(st)
 ;
 
-dataLegalEntityOperation = DATA LegalEntity (Operation);
+dataLegalEntity = DATA LegalEntity (Operation);
 
-nameDefaultLegalEntityOperation 'Организация по умолчанию' (operation) = nameLegalEntity(dataLegalEntityOperation(operation));
-isDefaultLegalEntityOperation 'Организация по умолчанию' (legalEntity, operation) =
-    dataLegalEntityOperation(operation) == legalEntity;
+nameDefaultLegalEntity 'Организация по умолчанию' (Operation operation) = name(dataLegalEntity(operation));
+isDefault 'Организация по умолчанию' (LegalEntity legalEntity, Operation operation) =
+    dataLegalEntity(operation) == legalEntity;
 
-CONSTRAINT dataLegalEntityOperation(operation) AND NOT inLegalEntityOperation(dataLegalEntityOperation(operation), operation)
-    CHECKED BY dataLegalEntityOperation MESSAGE 'Организация по умолчанию должна быть в списке отмечанных организаций';
+CONSTRAINT dataLegalEntity(Operation operation) AND NOT in(dataLegalEntity(operation), operation)
+    CHECKED BY dataLegalEntity[Operation] MESSAGE 'Организация по умолчанию должна быть в списке отмечанных организаций';
 
 @defineOperationCurrency();
 @defineOperationGroupType();
-userDefaultCurrencyOperation = DATA Currency (Operation);
+userDefaultCurrency = DATA Currency (Operation);
 //userDefaultCurrencyOperation(operation) => inCurrencyOperation(userDefaultCurrencyOperation(operation), operation) RESOLVE RIGHT;
-calcDefaultCurrencyOperation(operation) =
-    GROUP MAX currency IF inCurrencyOperation(currency, operation)
+calcDefaultCurrency(operation) =
+    GROUP MAX Currency currency IF in(currency, Operation operation)
     BY operation PERSISTENT;
-defaultCurrencyOperation(operation) = OVERRIDE calcDefaultCurrencyOperation(operation),
-                                               userDefaultCurrencyOperation(operation) PERSISTENT;
-nameDefaultCurrencyOperation 'Валюта по умолчанию' (operation) = nameCurrency(defaultCurrencyOperation(operation));
-isDefaultCurrencyOperation 'Валюта по умолчанию' (currency, operation) =
-    defaultCurrencyOperation(operation) == currency;
+defaultCurrency(Operation operation) = OVERRIDE calcDefaultCurrency(operation),
+                                               userDefaultCurrency(operation) PERSISTENT;
+nameDefaultCurrency 'Валюта по умолчанию' (Operation operation) = name(defaultCurrency(operation));
+isDefault 'Валюта по умолчанию' (Currency currency, Operation operation) =
+    defaultCurrency(operation) == currency;
 
-CONSTRAINT userDefaultCurrencyOperation(operation) AND NOT inCurrencyOperation(userDefaultCurrencyOperation(operation), operation)
-    CHECKED BY userDefaultCurrencyOperation MESSAGE 'Валюта по умолчанию должны быть в списке отмечанных валют';
+CONSTRAINT userDefaultCurrency(Operation operation) AND NOT in(userDefaultCurrency(operation), operation)
+    CHECKED BY userDefaultCurrency[Operation] MESSAGE 'Валюта по умолчанию должны быть в списке отмечанных валют';
 
 //Определение операции для прайсов
 //@defineDocumentOperationContainer(priceList, p){
@@ -82,16 +82,16 @@ CONSTRAINT userDefaultCurrencyOperation(operation) AND NOT inCurrencyOperation(u
 //    };
 //};
     
-operationPriceList = ABSTRACT Operation (PriceList) PERSISTENT;
-nameOperationPriceList 'Операция' = nameOperation(operationPriceList(priceList));
-idOperationPriceList 'ID операции' = idOperation(operationPriceList(priceList));
-operationUserPriceList = DATA Operation (UserPriceList);
-nameOperationUserPriceList 'Операция' = nameOperation(operationUserPriceList(userPriceList));
-idOperationUserPriceList 'ID операции' = idOperation(operationUserPriceList(userPriceList));
-operationPriceList(priceList) += operationUserPriceList(priceList);
+operation = ABSTRACT Operation (PriceList) PERSISTENT;
+nameOperation 'Операция' = name(operation(PriceList priceList));
+idOperation 'ID операции' = id(operation(PriceList priceList));
+operation = DATA Operation (UserPriceList);
+nameOperation 'Операция' = name(operation(UserPriceList userPriceList));
+idOperation 'ID операции' = id(operation(UserPriceList userPriceList));
+operation(UserPriceList priceList) += operation(priceList);
 
-operationPriceListDetail 'Операция' (priceListDetail) = operationPriceList(priceListPriceListDetail(priceListDetail)) PERSISTENT;
-operationUserPriceListDetail 'Операция' (userPriceListDetail) = operationUserPriceList(userPriceListUserPriceListDetail(userPriceListDetail));
+operation 'Операция' (PriceListDetail priceListDetail) = operation(priceList(priceListDetail)) PERSISTENT;
+operation 'Операция' (UserPriceListDetail userPriceListDetail) = operation(userPriceList(userPriceListDetail));
 
 DESIGN options {
     pane {        
@@ -107,44 +107,44 @@ DESIGN options {
 
 
 EXTEND FORM userPriceList
-    PROPERTIES(p) nameOperationUserPriceList
+    PROPERTIES(p) nameOperation
 ;
 
 DESIGN userPriceList{
     first {
-        MOVE PROPERTY(nameOperationUserPriceList(p));
+        MOVE PROPERTY(nameOperation(p));
     }
-    PROPERTY(nameOperationUserPriceList(p)) {minimumCharWidth = 30; preferredCharWidth = 40;} 
+    PROPERTY(nameOperation(p)) {minimumCharWidth = 30; preferredCharWidth = 40;} 
 }
 EXTEND FORM priceLists
-    PROPERTIES(p) READONLYIF isReadonly() BACKGROUND backgroundPriceList(p) nameOperationPriceList BEFORE nameCurrencyPriceList(p)
+    PROPERTIES(p) READONLYIF isReadonly() BACKGROUND background(p) nameOperation BEFORE nameCurrency(p)
 ;
 
 @defineDocumentOperationRole(userPriceList);
 
-inUserPriceListDataPriceListType(priceList, dataPriceListType) <- changeDataPriceListTypeOperation(dataPriceListType, operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+in(UserPriceList priceList, DataPriceListType dataPriceListType) <- change(dataPriceListType, operation(priceList))
+    WHEN CHANGED(operation(priceList));
 
-showUserPriceListPriceListType(priceList, priceListType) <- showPriceListTypeOperation(priceListType, operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+show(UserPriceList priceList, PriceListType priceListType) <- show(priceListType, operation(priceList))
+    WHEN CHANGED(operation(priceList));
 
-WHEN SESSION CHANGED(operationUserPriceList(priceList)) AND dataLegalEntityOperation(operationUserPriceList(priceList)) DO
-    companyUserPriceList(priceList) <- dataLegalEntityOperation(operationUserPriceList(priceList));
+WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND dataLegalEntity(operation(priceList)) DO
+    company(priceList) <- dataLegalEntity(operation(priceList));
 
-WHEN SESSION CHANGED(operationUserPriceList(priceList)) AND defaultCurrencyOperation(operationUserPriceList(priceList)) DO
-    currencyUserPriceList(priceList) <- defaultCurrencyOperation(operationUserPriceList(priceList));
+WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND defaultCurrency(operation(priceList)) DO
+    currency(priceList) <- defaultCurrency(operation(priceList));
 
-copyOperationPriceList = ACTION (priceList, userPriceList){
-    operationUserPriceList(userPriceList) <- operationUserPriceList(priceList);
+copyOperation = ACTION (UserPriceList priceList, UserPriceList userPriceList){
+    operation(userPriceList) <- operation(priceList);
 }
-copyAbstractDataPriceList(priceList, userPriceList) += ACTION copyOperationPriceList(priceList, userPriceList);
+copyAbstractData(UserPriceList priceList, UserPriceList userPriceList) += ACTION copyOperation(priceList, userPriceList);
 
-CONSTRAINT operationUserPriceList(priceList) AND companyUserPriceList(priceList) AND NOT inLegalEntityOperation(companyUserPriceList(priceList), operationUserPriceList(priceList))
-    CHECKED BY companyUserPriceList MESSAGE 'Компания прайса должна соответствовать ограничениям операции';
+CONSTRAINT operation(UserPriceList priceList) AND company(priceList) AND NOT in(company(priceList), operation(priceList))
+    CHECKED BY company[UserPriceList] MESSAGE 'Компания прайса должна соответствовать ограничениям операции';
 
-groupTypeUserPriceList(priceList) <- IF operationUserPriceList(priceList) THEN groupTypeOperation(operationUserPriceList(priceList))
+groupType(UserPriceList priceList) <- IF operation(priceList) THEN groupType(operation(priceList))
                                         ELSE SystemGroupType.skuGroupType
-    WHEN CHANGED(operationUserPriceList(priceList)) OR
+    WHEN CHANGED(operation(priceList)) OR
          SET(priceList IS UserPriceList);
          
 doNotSetStocksUserPriceList 'Не проставлять склады по умолчанию' = DATA BOOLEAN (Operation);
@@ -157,52 +157,52 @@ DESIGN operation {
     }
 }
 
-WHEN SESSION CHANGED(operationUserPriceList(priceList)) AND NOT doNotSetStocksUserPriceList(operationUserPriceList(priceList)) DO {
-    allStocksUserPriceList(priceList) <- allStocksOperation(operationUserPriceList(priceList));
-    dataInUserPriceListStockGroup(priceList, stockGroup) <- dataInStockGroupOperation(stockGroup, operationUserPriceList(priceList));
-    dataInUserPriceListStock(priceList, stock) <- dataInStockOperation(stock, operationUserPriceList(priceList));
+WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND NOT doNotSetStocksUserPriceList(operation(priceList)) DO {
+    allStocks(priceList) <- allStocks(operation(priceList));
+    dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
+    dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
 } 
 
-CONSTRAINT operationUserPriceList(priceList) AND NOT inStockOperation(stock, operationUserPriceList(priceList)) AND inPriceListStock(priceList, stock)
-    CHECKED BY inPriceListStock MESSAGE 'Склады прайса должна соответствовать ограничениям операции';
+CONSTRAINT operation(UserPriceList priceList) AND NOT in(Stock stock, operation(priceList)) AND in(priceList, stock)
+    CHECKED BY in[PriceList,Stock] MESSAGE 'Склады прайса должна соответствовать ограничениям операции';
 
 
-showOriginalNameSkuOperation 'Наименование поставщика' = DATA BOOLEAN (Operation);
-showOriginalNameSkuUserPriceList(priceList) <- showOriginalNameSkuOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+showOriginalNameSku 'Наименование поставщика' = DATA BOOLEAN (Operation);
+showOriginalNameSku(UserPriceList priceList) <- showOriginalNameSku(operation(priceList))
+    WHEN CHANGED(operation(priceList));
     
-showDateTimeOperation 'Даты действия' = DATA BOOLEAN (Operation);
-showDateTimeUserPriceList(priceList) <- showDateTimeOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));  
+showDateTime 'Даты действия' = DATA BOOLEAN (Operation);
+showDateTimeUser(UserPriceList priceList) <- showDateTime(operation(priceList))
+    WHEN CHANGED(operation(priceList));  
       
-showBatchOperation 'Партия' = DATA BOOLEAN (Operation);
-showBatchUserPriceList(priceList) <- showBatchOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));    
+showBatch 'Партия' = DATA BOOLEAN (Operation);
+showBatchUser(UserPriceList priceList) <- showBatch(operation(priceList))
+    WHEN CHANGED(operation(priceList));    
  
-showCompanyOperation 'Организация строки' = DATA BOOLEAN (Operation);
-showCompanyUserPriceList(priceList) <- showCompanyOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));             
+showCompany 'Организация строки' = DATA BOOLEAN (Operation);
+showCompanyUser(UserPriceList priceList) <- showCompany(operation(priceList))
+    WHEN CHANGED(operation(priceList));             
          
-showOriginalIdBarcodeSkuOperation 'Штрихкод поставщика' = DATA BOOLEAN (Operation);
-showOriginalIdBarcodeSkuUserPriceList(priceList) <- showOriginalIdBarcodeSkuOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+showOriginalIdBarcodeSku 'Штрихкод поставщика' = DATA BOOLEAN (Operation);
+showOriginalIdBarcodeSku(UserPriceList priceList) <- showOriginalIdBarcodeSku(operation(priceList))
+    WHEN CHANGED(operation(priceList));
     
-showNotCompanyStocksOperation 'Склады контрагентов' = DATA BOOLEAN (Operation);
-showNotCompanyStocksUserPriceList(priceList) <- showNotCompanyStocksOperation(operationUserPriceList(priceList))
-    WHEN CHANGED(operationUserPriceList(priceList));
+showNotCompanyStocks 'Склады контрагентов' = DATA BOOLEAN (Operation);
+showNotCompanyStocksUser(UserPriceList priceList) <- showNotCompanyStocks(operation(priceList))
+    WHEN CHANGED(operation(priceList));
 
 EXTEND FORM operation
     OBJECTS pt = PriceListType
-    PROPERTIES(pt, o) changeDataPriceListTypeOperation TODRAW pt FORCE GRID, showPriceListTypeOperation
-    PROPERTIES(pt) READONLY namePriceListType, nameCurrencyPriceListType, objectClassName
+    PROPERTIES(pt, o) change TODRAW pt FORCE GRID, show
+    PROPERTIES(pt) READONLY name, nameCurrency, objectClassName
     FILTERGROUP filters
-        FILTER 'Показывать отмеченные' changeDataPriceListTypeOperation(pt, o) 'F9'
-    PROPERTIES(l, o) isDefaultLegalEntityOperation AFTER inLegalEntityOperation(l,o)
-    PROPERTIES(c, o) isDefaultCurrencyOperation AFTER inCurrencyOperation(c,o)
-    PROPERTIES(o) nameDefaultLegalEntityOperation, nameDefaultCurrencyOperation
-    FILTERS isCompanyStock(st)
-    PROPERTIES(o) showOriginalIdBarcodeSkuOperation, showOriginalNameSkuOperation, showDateTimeOperation, showBatchOperation, 
-                  showCompanyOperation, showNotCompanyStocksOperation
+        FILTER 'Показывать отмеченные' change(pt, o) 'F9'
+    PROPERTIES(l, o) isDefault AFTER in(l,o)
+    PROPERTIES(c, o) isDefault AFTER in(c,o)
+    PROPERTIES(o) nameDefaultLegalEntity, nameDefaultCurrency
+    FILTERS isCompany(st)
+    PROPERTIES(o) showOriginalIdBarcodeSku, showOriginalNameSku, showDateTime, showBatch, 
+                  showCompany, showNotCompanyStocks
     
 ;
 
@@ -211,8 +211,8 @@ DESIGN operation {
         NEW defaultContainer{
             type = CONTAINERH;
             caption = 'Параметры по умолчанию';
-            MOVE PROPERTY(nameDefaultLegalEntityOperation(o));
-            MOVE PROPERTY(nameDefaultCurrencyOperation(o));
+            MOVE PROPERTY(nameDefaultLegalEntity(o));
+            MOVE PROPERTY(nameDefaultCurrency(o));
         }
     }
     tabContainer {
@@ -220,49 +220,49 @@ DESIGN operation {
         NEW showContainer {
             caption = 'Отображение свойств';
             type = CONTAINERV;
-            MOVE PROPERTY(showOriginalIdBarcodeSkuOperation(o));
-            MOVE PROPERTY(showOriginalNameSkuOperation(o));
-            MOVE PROPERTY(showDateTimeOperation(o));
-            MOVE PROPERTY(showBatchOperation(o));
-            MOVE PROPERTY(showCompanyOperation(o));
-            MOVE PROPERTY(showNotCompanyStocksOperation(o));
+            MOVE PROPERTY(showOriginalIdBarcodeSku(o));
+            MOVE PROPERTY(showOriginalNameSku(o));
+            MOVE PROPERTY(showDateTime(o));
+            MOVE PROPERTY(showBatch(o));
+            MOVE PROPERTY(showCompany(o));
+            MOVE PROPERTY(showNotCompanyStocks(o));
         }
     }
 }
 
 // Подсчет цен по прайс-листам
 
-priceListDetailAPriceListTypeSkuStockDateTimeOperation  (type, sku, stock, dateTime, operation) =
-    GROUP LAST detail
-          BY type, skuPriceListDetail(detail), stock, dateTimeIn, operationPriceListDetail(detail)
-          ORDER fromDateTimePriceListDetail(detail), detail
-          WHERE inPriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
-                fromDateTimePriceListDetail(detail) <= dateTimeIn AND NOT toDateTimePriceListDetail(detail) < dateTimeIn COMPLEX;
+priceListDetailA  (type, sku, stock, dateTime, operation) =
+    GROUP LAST PriceListDetail detail
+          BY DataPriceListType type, sku(detail), Stock stock, DATETIME dateTimeIn, operation(detail)
+          ORDER fromDateTime(detail), detail
+          WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
+                fromDateTime(detail) <= dateTimeIn AND NOT toDateTime(detail) < dateTimeIn COMPLEX;
                 
-priceListDetailAPriceListTypeSkuStockDateOperation  (type, sku, stock, date, operation) =
-    GROUP LAST detail
-          BY type, skuPriceListDetail(detail), stock, dateIn, operationPriceListDetail(detail)
-          ORDER fromDatePriceListDetail(detail), detail
-          WHERE inPriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
-                fromDatePriceListDetail(detail) <= dateIn AND NOT toDatePriceListDetail(detail) < dateIn COMPLEX;
+priceListDetailA  (type, sku, stock, date, operation) =
+    GROUP LAST PriceListDetail detail
+          BY DataPriceListType type, sku(detail), Stock stock, DATE dateIn, operation(detail)
+          ORDER fromDate(detail), detail
+          WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
+                fromDate(detail) <= dateIn AND NOT toDate(detail) < dateIn COMPLEX;
 
-lastPriceListDetailAPriceListTypeSkuStockDateTimeOperation (type, sku, stock, dateTime, operation) =
-    GROUP LAST detail
-          BY type, skuPriceListDetail(detail), stock, dateTimeIn, operationPriceListDetail(detail)
-          ORDER fromDateTimePriceListDetail(detail), detail
-          WHERE inPriceListDetailDataPriceListType(detail, type) AND isPostedPriceListDetail(detail) AND inPriceListStock(priceListPriceListDetail(detail),stock) AND
-                toDateTimePriceListDetail(detail) >= dateTimeIn COMPLEX;
+lastPriceListDetailA (type, sku, stock, dateTime, operation) =
+    GROUP LAST PriceListDetail detail
+          BY DataPriceListType type, sku(detail), Stock stock, DATETIME dateTimeIn, operation(detail)
+          ORDER fromDateTime(detail), detail
+          WHERE in(detail, type) AND isPosted(detail) AND in(priceList(detail),stock) AND
+                toDateTime(detail) >= dateTimeIn COMPLEX;
 
 
 //-- Фильтр
 filterPriceListOperation  = DATA LOCAL Operation ();
-nameFilterPriceListOperation 'Операция' = nameOperation(filterPriceListOperation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
-filterOperationPriceList (i) = operationPriceList(i) == filterPriceListOperation() OR (i IS PriceList AND NOT filterPriceListOperation());   
+nameFilterPriceListOperation 'Операция' = name(filterPriceListOperation()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterOperation (PriceList i) = operation(i) == filterPriceListOperation() OR (i IS PriceList AND NOT filterPriceListOperation());   
 
 EXTEND FORM priceLists
     PROPERTIES() nameFilterPriceListOperation
     
-    FILTERS filterOperationPriceList(p)
+    FILTERS filterOperation(p)
 ;
 DESIGN priceLists {
     topFilters {

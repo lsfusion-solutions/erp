@@ -7,17 +7,17 @@ NAMESPACE Sale;
 
 @defineScheduleOrder(' (продажа)', company, customer, supplier);
 
-CONSTRAINT supplierScheduleOrder(scheduleOrder) AND NOT isCompanyLegalEntity(supplierScheduleOrder(scheduleOrder))
-    CHECKED BY supplierScheduleOrder MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT customerScheduleOrder(scheduleOrder) AND NOT isCustomerLegalEntity(customerScheduleOrder(scheduleOrder))
-    CHECKED BY customerScheduleOrder MESSAGE 'Для заказа выбрано в качестве покупателя организация, не являющаяся покупателем';
+CONSTRAINT supplier(ScheduleOrder scheduleOrder) AND NOT isCompany(supplier(scheduleOrder))
+    CHECKED BY supplier[ScheduleOrder] MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT customer(ScheduleOrder scheduleOrder) AND NOT isCustomer(customer(scheduleOrder))
+    CHECKED BY customer[ScheduleOrder] MESSAGE 'Для заказа выбрано в качестве покупателя организация, не являющаяся покупателем';
 
-CONSTRAINT supplier() AND NOT isCompanyLegalEntity(supplier())
-    CHECKED BY supplier MESSAGE 'Выбрана в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT customer() AND NOT isCustomerLegalEntity(customer())
-    CHECKED BY customer MESSAGE 'Выбрана в качестве покупателя организация, не являющаяся покупателем';
+CONSTRAINT supplier() AND NOT isCompany(supplier())
+    CHECKED BY supplier[] MESSAGE 'Выбрана в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT customer() AND NOT isCustomer(customer())
+    CHECKED BY customer[] MESSAGE 'Выбрана в качестве покупателя организация, не являющаяся покупателем';
 
-isCompanyCustomer(l, c) = isCompanyLegalEntity(l) AND isCustomerLegalEntity(c);
+isCompanyCustomer(LegalEntity l, LegalEntity c) = isCompany(l) AND isCustomer(c);
 
 EXTEND FORM legalEntity
     PROPERTIES(l, c) addSaleSchedulerOrder = addScheduleOrderSupplierCustomer TODRAW sc SHOWIF isCompanyCustomer(l, c) //isCompanyLegalEntity(l) AND isCustomerLegalEntity(c)

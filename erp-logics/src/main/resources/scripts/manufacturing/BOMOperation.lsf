@@ -4,15 +4,15 @@ REQUIRE BOM, ProductionOperation, ProductionOrder;
 
 NAMESPACE Production;
 
-operationBOM = DATA Operation (BOM) ;
-nameOperationBOM 'Операция' = nameOperation(operationBOM(bom)) IN documentPrm;
+operation = DATA Operation (BOM) ;
+nameOperation 'Операция' = name(operation(BOM bom)) IN documentPrm;
 
-overCopyBOM (BOM, b) += ACTION (BOM, b) {
-    operationBOM(b) <- operationBOM(BOM);
+overCopy (BOM BOM, BOM b) += ACTION (BOM, b) {
+    operation(b) <- operation(BOM);
 }
 
 EXTEND FORM BOM 
-    PROPERTIES (b) nameOperationBOM
+    PROPERTIES (b) nameOperation
 ;
 
 DESIGN BOM {
@@ -23,8 +23,8 @@ DESIGN BOM {
 }
 
 EXTEND FORM BOMs 
-    PROPERTIES (b) READONLY nameOperationBOM AFTER nameBOM(b)
+    PROPERTIES (b) READONLY nameOperation AFTER name(b)
 ;
 
-CONSTRAINT equalsBOMNettoNetWeightOperation(operationBOM(b)) AND overNettoNetWeightProductBOM(b) != overNettoNetWeightComponentBOM(b)
+CONSTRAINT equalsBOMNettoNetWeight(operation(BOM b)) AND overNettoNetWeightProduct(b) != overNettoNetWeightComponent(b)
     MESSAGE 'Вес нетто компонентов не равен весу нетто изделий в спецификации';

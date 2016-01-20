@@ -7,35 +7,35 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceProperty (invoice, createOrderLedger, 'Создать резерв');
 
 EXTEND FORM userInvoice 
-    PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createShipmentUserInvoice(i) createOrderLedgerUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createShipment(i) createOrderLedger
 ;
 
 DESIGN userInvoice {
     headerCreateShipment {
-        MOVE PROPERTY(createOrderLedgerUserInvoice(i));
+        MOVE PROPERTY(createOrderLedger(i));
     }
 }
 
 @defineDocumentInterfaceProperty (shipment, createOrderLedger, 'Создать резерв');
 
 EXTEND FORM userShipment 
-    PROPERTIES(s)  createOrderLedgerUserShipment
+    PROPERTIES(s)  createOrderLedger
 ;
 
 DESIGN userShipment {
     headerCreateDocuments {
         NEW headerCreateOrderLedger {
             caption = 'Резерв';
-            MOVE PROPERTY(createOrderLedgerUserShipment(s));
+            MOVE PROPERTY(createOrderLedger(s));
         }            
     }          
 }
 
-createOrderLedgerShipment(s) += createOrderLedgerInvoice(invoiceInvoiceShipment(s));
+createOrderLedger(InvoiceShipment s) += createOrderLedger(invoice(s));
 
-excludeOrderLedgerShipmentDetail 'Исключить' (d) = ABSTRACT CASE BOOLEAN (ShipmentDetail) PERSISTENT; 
+excludeOrderLedger 'Исключить' (d) = ABSTRACT CASE BOOLEAN (ShipmentDetail) PERSISTENT; 
 
-toCreateOrderLedgerShipmentDetail(d) = createOrderLedgerShipmentDetail(d) AND NOT excludeOrderLedgerShipmentDetail(d);
+toCreateOrderLedger(ShipmentDetail d) = createOrderLedger(d) AND NOT excludeOrderLedger(d);
 
 //--Резерв
 
@@ -46,17 +46,17 @@ TABLE shipmentOrderLedger (ShipmentOrderLedger);
 
 //--------------------- Проводим по регистру резерва ------------------//
 
-dateTimeOrderLedger (ledger) += dateTimeShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-isPostedOrderLedger (ledger) += isPostedShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-isClosedOrderLedger (ledger) += isClosedShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-skuOrderLedger (ledger) += skuShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-batchOrderLedger (ledger) += ledgerBatchShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-stockOrderLedger (ledger) += customerStockShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-descriptionOrderLedger (ledger) += descriptionShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-quantityOrderLedger (ledger) += quantityShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-contactOrderLedger (ledger) += customerShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-contactStockOrderLedger (ledger) += customerStockShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-toShipQuantityOrderLedger (ledger) += quantityShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));
-editOrderLedger (ledger) += ACTION editShipmentDetail(shipmentDetailShipmentOrderLedger(ledger));    
+dateTime (ShipmentOrderLedger ledger) += dateTime(shipmentDetail(ledger));
+isPosted (ShipmentOrderLedger ledger) += isPosted(shipmentDetail(ledger));
+isClosed (ShipmentOrderLedger ledger) += isClosed(shipmentDetail(ledger));
+sku (ShipmentOrderLedger ledger) += sku(shipmentDetail(ledger));
+batch (ShipmentOrderLedger ledger) += ledgerBatch(shipmentDetail(ledger));
+stock (ShipmentOrderLedger ledger) += customerStock(shipmentDetail(ledger));
+description (ShipmentOrderLedger ledger) += description(shipmentDetail(ledger));
+quantity (ShipmentOrderLedger ledger) += quantity(shipmentDetail(ledger));
+contact (ShipmentOrderLedger ledger) += customer(shipmentDetail(ledger));
+contactStock (ShipmentOrderLedger ledger) += customerStock(shipmentDetail(ledger));
+toShipQuantity (ShipmentOrderLedger ledger) += quantity(shipmentDetail(ledger));
+edit (ShipmentOrderLedger ledger) += ACTION edit(shipmentDetail(ledger));    
 
 

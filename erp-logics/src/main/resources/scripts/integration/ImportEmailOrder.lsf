@@ -5,19 +5,19 @@ REQUIRE System, Email, PurchaseOrder, PurchaseOrderStatus;
 importEmailOrderAction 'Загрузить параметры заказов из почты' = ACTION CUSTOM 'lsfusion.erp.integration.universal.emailorder.ImportEmailOrderActionProperty' ();
 
 importEmailOrderAccount 'E-mail аккаунт' =  DATA Email.Account();
-importEmailOrderNameAccount 'E-mail аккаунт' () = nameAccount(importEmailOrderAccount());
+importEmailOrderNameAccount 'E-mail аккаунт' () = name(importEmailOrderAccount());
 importEmailOrderFirstRow 'Начинать со строки' =  DATA INTEGER();
 importEmailOrderNumberCell 'Ячейка номера инвойса' =  DATA VARSTRING[10]();
 importEmailOrderQuantityColumn 'Колонка количества' =  DATA VARSTRING[10]();
 
-orderSeriesNumber (seriesNumber) = GROUP AGGR order BY Purchase.seriesNumberOrder(order); 
-orderDetailIndexNumberOrder (index, numberOrder) = GROUP AGGR orderDetail 
-    BY Purchase.indexOrderDetail(orderDetail), Purchase.seriesNumberOrder(Purchase.orderOrderDetail(orderDetail));
+order (seriesNumber) = GROUP AGGR Purchase.Order order BY seriesNumber(order); 
+orderDetail (index, numberOrder) = GROUP AGGR Purchase.OrderDetail orderDetail 
+    BY index(orderDetail), seriesNumber(order(orderDetail));
 
-importedOrderAttachmentEmail 'Заказ импортирован' = DATA BOOLEAN (AttachmentEmail);  
-notImportedOrderAttachmentEmail (attachmentEmail) = NOT importedOrderAttachmentEmail (attachmentEmail);
+importedOrder 'Заказ импортирован' = DATA BOOLEAN (AttachmentEmail);  
+notImportedOrder (AttachmentEmail attachmentEmail) = NOT importedOrder (attachmentEmail);
 
-EXTEND FORM mail PROPERTIES(ae) importedOrderAttachmentEmail BEFORE importedAttachmentEmail(ae);
+EXTEND FORM mail PROPERTIES(ae) importedOrder BEFORE imported(ae);
 
 EXTEND FORM integrationData
     PROPERTIES() importEmailOrderAction, importEmailOrderNameAccount, importEmailOrderFirstRow, importEmailOrderNumberCell,

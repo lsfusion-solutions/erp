@@ -2,43 +2,43 @@ MODULE InventorySaleLedger;
 
 REQUIRE Inventory, SaleLedger;
 
-soldSumCollationSheetSku 'Объем продаж (сумма)' = DATA NUMERIC[16,2] (CollationSheet, Sku);
-soldQuantityCollationSheetSku 'Объем продаж (к-во)' = DATA NUMERIC[14,3] (CollationSheet, Sku);
+soldSum 'Объем продаж (сумма)' = DATA NUMERIC[16,2] (CollationSheet, Sku);
+soldQuantity 'Объем продаж (к-во)' = DATA NUMERIC[14,3] (CollationSheet, Sku);
 
-soldSumCollationSheetBatch 'Объем продаж (сумма)' = DATA NUMERIC[16,2] (CollationSheet, Batch);
-soldQuantityCollationSheetBatch 'Объем продаж (к-во)' = DATA NUMERIC[14,3] (CollationSheet, Batch);
+soldSum 'Объем продаж (сумма)' = DATA NUMERIC[16,2] (CollationSheet, Batch);
+soldQuantity 'Объем продаж (к-во)' = DATA NUMERIC[14,3] (CollationSheet, Batch);
 
-fillSoldSumCollationSheet 'Заполнить объем продаж'  = ACTION (cs) {
-    IF prevDateCollationSheet(cs) THEN {
-        soldSumCollationSheetSku(cs, i) <- NULL;
-        soldSumCollationSheetSku(cs, i) <- sumSoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                WHERE sumSoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetSku(cs, i) OR cs IS RemainsCollationSheet) ;      
-        soldQuantityCollationSheetSku(cs, i) <- NULL;
-        soldQuantityCollationSheetSku(cs, i) <- quantitySoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                WHERE quantitySoldSkuStockDateFromTo(i, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetSku(cs, i) OR cs IS RemainsCollationSheet);           
-        IF isBatchCollationSheet(cs) THEN {
-            soldSumCollationSheetBatch(cs, i) <- NULL;
-            soldSumCollationSheetBatch(cs, bt) <- sumSoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                    WHERE sumSoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetBatch(cs, bt) OR cs IS RemainsCollationSheet);      
-            soldQuantityCollationSheetBatch(cs, bt) <- NULL;
-            soldQuantityCollationSheetBatch(cs, bt) <- quantitySoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs))
-                    WHERE quantitySoldBatchStockDateFromTo(bt, stockCollationSheet(cs),prevDateCollationSheet(cs), dateCollationSheet(cs)) AND (includeCollationSheetBatch(cs, bt) OR cs IS RemainsCollationSheet);          
+fillSoldSum 'Заполнить объем продаж'  = ACTION (CollationSheet cs) {
+    IF prevDate(cs) THEN {
+        soldSum(cs, Sku i) <- NULL;
+        soldSum(cs, Sku i) <- sumSold(i, stock(cs),prevDate(cs), date(cs))
+                WHERE sumSold(i, stock(cs),prevDate(cs), date(cs)) AND (include(cs, i) OR cs IS RemainsCollationSheet) ;      
+        soldQuantity(cs, Sku i) <- NULL;
+        soldQuantity(cs, Sku i) <- quantitySold(i, stock(cs),prevDate(cs), date(cs))
+                WHERE quantitySold(i, stock(cs),prevDate(cs), date(cs)) AND (include(cs, i) OR cs IS RemainsCollationSheet);           
+        IF isBatch(cs) THEN {
+            soldSum(cs, Batch i) <- NULL;
+            soldSum(cs, Batch bt) <- sumSold(bt, stock(cs),prevDate(cs), date(cs))
+                    WHERE sumSold(bt, stock(cs),prevDate(cs), date(cs)) AND (include(cs, bt) OR cs IS RemainsCollationSheet);      
+            soldQuantity(cs, Batch bt) <- NULL;
+            soldQuantity(cs, Batch bt) <- quantitySold(bt, stock(cs),prevDate(cs), date(cs))
+                    WHERE quantitySold(bt, stock(cs),prevDate(cs), date(cs)) AND (include(cs, bt) OR cs IS RemainsCollationSheet);          
         }                    
     } ELSE {
         MESSAGE 'Не задана дата предыдущей инвентаризации.';
     }
 } CONFIRM IN inventoryAction;
 
-fillSoldSumInventory 'Заполнить объем продаж'  = ACTION (in) {
-    FOR inventoryCollationSheet(cs) == in DO {
-        fillSoldSumCollationSheet(cs);
+fillSoldSum 'Заполнить объем продаж'  = ACTION (Inventory in) {
+    FOR inventory(CollationSheet cs) == in DO {
+        fillSoldSum(cs);
     }
 } CONFIRM IN inventoryAction;
 
 EXTEND FORM inventory
-    PROPERTIES (cs) fillSoldSumCollationSheet
-    PROPERTIES (in) fillSoldSumInventory
+    PROPERTIES (cs) fillSoldSum
+    PROPERTIES (in) fillSoldSum
     
-    PROPERTIES soldSumCollationSheetSku(cs,i), soldQuantityCollationSheetSku(cs,i)
-    PROPERTIES SHOWIF isBatchInventory(in) soldSumCollationSheetBatch(cs,b), soldQuantityCollationSheetBatch(cs,b) 
+    PROPERTIES soldSum(cs,i), soldQuantity(cs,i)
+    PROPERTIES SHOWIF isBatch(in) soldSum(cs,b), soldQuantity(cs,b) 
 ;

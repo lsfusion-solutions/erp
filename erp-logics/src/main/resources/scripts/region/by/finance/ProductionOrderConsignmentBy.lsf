@@ -6,20 +6,20 @@ NAMESPACE Production;
 
 @defineConsignmentHeader (order);
 
-invoiceNumberOrder 'Номер ТТН' = DATA STRING[18] (Order) IN numbered MINCHARWIDTH 7;
-invoiceSeriesOrder 'Серия ТТН' = DATA STRING[2] (Order) IN numbered FIXEDCHARWIDTH 3;
+invoiceNumber 'Номер ТТН' = DATA STRING[18] (Order) IN numbered MINCHARWIDTH 7;
+invoiceSeries 'Серия ТТН' = DATA STRING[2] (Order) IN numbered FIXEDCHARWIDTH 3;
 
-invoiceSeriesNumberOrder 'Серия/Номер ТТН' (o) = 
-    CONCAT '', invoiceSeriesOrder(o), invoiceNumberOrder(o) 
+invoiceSeriesNumber 'Серия/Номер ТТН' (Order o) = 
+    CONCAT '', invoiceSeries(o), invoiceNumber(o) 
     MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
     EXTEND CLASS Order : Consignment;
 
 EXTEND FORM order
-    PROPERTIES(o) invoiceNumberOrder, invoiceSeriesOrder
+    PROPERTIES(o) invoiceNumber, invoiceSeries
 ;
 
 EXTEND FORM orders
-    PROPERTIES(o) READONLY invoiceNumberOrder, invoiceSeriesOrder
+    PROPERTIES(o) READONLY invoiceNumber, invoiceSeries
 ;
 
 DESIGN order {
@@ -27,55 +27,55 @@ DESIGN order {
         NEW invoice {
             caption = 'ТТН';
             type = CONTAINERH;
-            MOVE PROPERTY (invoiceNumberOrder(o));
-            MOVE PROPERTY (invoiceSeriesOrder(o));
+            MOVE PROPERTY (invoiceNumber(o));
+            MOVE PROPERTY (invoiceSeries(o));
         }
     }
 }
 
-dataDateConsignment (consignment) += dateOrder(consignment);
-numberConsignment (consignment) += invoiceNumberOrder(consignment);
-seriesConsignment (consignment) += invoiceSeriesOrder(consignment);
+dataDate (Order consignment) += date(consignment);
+number (Order consignment) += invoiceNumber(consignment);
+series (Order consignment) += invoiceSeries(consignment);
 
-payerConsignment (consignment) += payerOrder (consignment);
+payer (Order consignment) += payer (consignment);
 
-dataTruckConsignment (consignment) += dataTruckOrder (consignment);
-dataTrailerConsignment (consignment) += dataTrailerOrder (consignment);
-dataEmployeeConsignment (consignment) += dataEmployeeOrder (consignment);
-dataWaybillConsignment (consignment) += waybillOrder (consignment);
+dataTruck (Order consignment) += dataTruck (consignment);
+dataTrailer (Order consignment) += dataTrailer (consignment);
+dataEmployee (Order consignment) += dataEmployee (consignment);
+dataWaybill (Order consignment) += waybill (consignment);
 
-dataAddressSupplierStockConsignment (consignment) += dataAddressSupplierStockOrder (consignment);
-dataAddressCustomerStockConsignment (consignment) += dataAddressCustomerStockOrder (consignment);
+dataAddressSupplierStock (Order consignment) += dataAddressSupplierStock (consignment);
+dataAddressCustomerStock (Order consignment) += dataAddressCustomerStock (consignment);
 
-readdressingConsignment (consignment) += readdressingOrder (consignment);
+readdressing (Order consignment) += readdressing (consignment);
 
-countPagesConsignment (consignment) += countPagesOrder (consignment);
+countPages (Order consignment) += countPages (consignment);
 
-overShipmentBaseConsignment (consignment) += overShipmentBaseOrder (consignment);
+overShipmentBase (Order consignment) += overShipmentBase (consignment);
 
-issuanceAllowedConsignment (consignment) += issuanceAllowedOrder (consignment);
+issuanceAllowed (Order consignment) += issuanceAllowed (consignment);
 
-issuanceExecutedConsignment (consignment) += issuanceExecutedOrder (consignment);
+issuanceExecuted (Order consignment) += issuanceExecuted (consignment);
 
-dataForwarderConsignment (consignment) += dataForwarderOrder (consignment);
+dataForwarder (Order consignment) += dataForwarder (consignment);
 
-warrantConsignment (consignment) += warrantOrder (consignment);
-warrantHolderConsignment (consignment) += warrantHolderOrder (consignment);
+warrant (Order consignment) += warrant (consignment);
+warrantHolder (Order consignment) += warrantHolder (consignment);
 
-goodsAcceptedConsignment (consignment) += goodsAcceptedOrder (consignment);
+goodsAccepted (Order consignment) += goodsAccepted (consignment);
 
-loadingExecuterConsignment (consignment) += loadingExecuterOrder (consignment);
-wayOfLoadingConsignment (consignment) += wayOfLoadingOrder (consignment);
+loadingExecuter (Order consignment) += loadingExecuter (consignment);
+wayOfLoading (Order consignment) += wayOfLoading (consignment);
 
-unloadingExecuterConsignment (consignment) += unloadingExecuterOrder (consignment);
-wayOfUnloadingConsignment (consignment) += wayOfUnloadingOrder (consignment);
+unloadingExecuter (Order consignment) += unloadingExecuter (consignment);
+wayOfUnloading (Order consignment) += wayOfUnloading (consignment);
 
-codeLoadingConsignment (consignment) += codeLoadingOrder (consignment);
+codeLoading (Order consignment) += codeLoading (consignment);
 
-dataArrivalTimeConsignment (consignment) += arrivalTimeOrder(consignment);
-dataDowntimeConsignment (consignment) += downtimeOrder(consignment);   
+dataArrivalTime (Order consignment) += arrivalTime(consignment);
+dataDowntime (Order consignment) += downtime(consignment);   
  
-raceQuantityConsignment (consignment) += raceQuantityOrder (consignment);
+raceQuantity (Order consignment) += raceQuantity (consignment);
 
 //@implementConsignmentHeaderData (Order){ // без OVERRIDE для dataArrivalTimeConsignment, dataDowntimeConsignment
 //    EXTEND CLASS Order : Consignment;
@@ -127,53 +127,53 @@ raceQuantityConsignment (consignment) += raceQuantityOrder (consignment);
 
 EXTEND CLASS ProductDetail : ConsignmentDetail;
 
-indexConsignmentDetail (d) += indexProductDetail (d);
-consignmentConsignmentDetail (d) += orderProductDetail (d);
-skuConsignmentDetail (d) += skuProductDetail (d);  
-quantityConsignmentDetail (d) += outputQuantityProductDetail (d);
-skipConsignmentDetail(d) += (outputQuantityProductDetail(d) == 0) OR (NOT outputQuantityProductDetail(d));
+index (ProductDetail d) += index (d);
+consignment (ProductDetail d) += order (d);
+sku[ConsignmentDetail] (ProductDetail d) += sku (d);  
+quantity (ProductDetail d) += outputQuantity (d);
+skip[ConsignmentDetail](ProductDetail d) += (outputQuantity(d) == 0) OR (NOT outputQuantity(d));
 
-dataPackQuantityConsignmentDetail (d) += 1.0 IF outputQuantityProductDetail (d);
-dataGrossWeightConsignmentDetail (d) += NUMERIC[16,5](outputQuantityProductDetail (d)*overNetWeightSku(skuProductDetail(d)));
+dataPackQuantity (ProductDetail d) += 1.0 IF outputQuantity (d);
+dataGrossWeight (ProductDetail d) += NUMERIC[16,5](outputQuantity (d)*overNetWeight(sku(d)));
 
-dataSupplierConsignment (consignment) += componentsLegalEntityStockOrder(consignment);
-supplierStockConsignment (consignment) += componentsStockOrder(consignment);
+dataSupplier (Order consignment) += componentsLegalEntityStock(consignment);
+supplierStock (Order consignment) += componentsStock(consignment);
 
-overPackQuantityOrder 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Order);
-packQuantityConsignment (c) += WHEN c IS Order THEN overPackQuantityOrder(c);
+overPackQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Order);
+packQuantity (Order c) += WHEN c IS Order THEN overPackQuantity(c);
 
 //overFullNameSupplierConsignment(consignment) += VARISTRING[150](CONCAT ' ', fullNameComponentsLegalEntityStockOrder(consignment), addressComponentsLegalEntityStockOrder(consignment));
 //overAddressSupplierConsignment(consignment) += VARISTRING[150](CONCAT ' ', nameComponentsStockOrder(consignment), addressComponentsStockOrder(consignment));
 
 
-dataCustomerConsignment (consignment) += productsLegalEntityStockOrder(consignment);
-customerStockConsignment (consignment) += productsStockOrder(consignment);
+dataCustomer (Order consignment) += productsLegalEntityStock(consignment);
+customerStock (Order consignment) += productsStock(consignment);
 //overFullNameCustomerConsignment(consignment) += VARISTRING[150](CONCAT ' ', fullNameProductsLegalEntityStockOrder(consignment), addressProductsLegalEntityStockOrder(consignment));
 //overAddressCustomerConsignment(consignment) += VARISTRING[150](CONCAT ' ', nameProductsStockOrder(consignment), addressProductsStockOrder(consignment));
 
-dataCurrencyConsignment (consignment) += currencyProductOrder(consignment);
+dataCurrency (Order consignment) += currencyProduct(consignment);
 
-dataPriceConsignmentDetail (detail) += priceProductDetail(detail);
-invoicePriceConsignmentDetail(detail) += priceProductDetail(detail);
-invoiceSumConsignmentDetail(detail) += outputProductsSumProductDetail(detail);
+dataPrice (ProductDetail detail) += price(detail);
+invoicePrice(ProductDetail detail) += price(detail);
+invoiceSum(ProductDetail detail) += outputProductsSum(detail);
 
-dataSumConsignmentDetail (detail) += outputProductsSumProductDetail(detail);
-dataVatConsignmentDetail (detail) += valueVATProductDetail(detail);
+dataSum (ProductDetail detail) += outputProductsSum(detail);
+dataVat (ProductDetail detail) += valueVAT(detail);
 
-dataSumVATConsignmentDetail (detail) += retVATSumProductDetail(detail);
-dataSumInvoiceConsignmentDetail (detail) += outputProductsSumProductDetail(detail);
+dataSumVAT (ProductDetail detail) += retVATSum(detail);
+dataSumInvoice (ProductDetail detail) += outputProductsSum(detail);
 //noteConsignmentDetail (detail) += noteProductDetail(detail);
 //extraDescriptionConsignmentDetail (detail) += extraDescriptionProductDetail(detail);
 
 
 EXTEND FORM  orders
-    PROPERTIES(o) FORCE PANEL editAttributesConsignment
-    PROPERTIES(o) FORCE PANEL SHOWIF showTTN1Consignment(o)
-                     printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
-                     printConsignmentVerticalB, printConsignmentHorizontalB, printConsignmentAttach,
-                     printConsignmentVertical, printConsignmentHorizontal, printConsignmentAttachXLS 
-    PROPERTIES(o) FORCE PANEL SHOWIF showTN2Consignment(o)
-                     printConsignmentSimpleHorizontal, printConsignmentSimpleVertical, printConsignmentSimpleAttach
+    PROPERTIES(o) FORCE PANEL editAttributes
+    PROPERTIES(o) FORCE PANEL SHOWIF showTTN1(o)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach,
+                     printVertical, printHorizontal, printAttachXLS 
+    PROPERTIES(o) FORCE PANEL SHOWIF showTN2(o)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach
 ;
 
 DESIGN orders {
@@ -186,7 +186,7 @@ DESIGN orders {
                 alignment = STRETCH;
                 type = CONTAINERH;
                 caption = 'Накладная';
-                MOVE PROPERTY(editAttributesConsignment(o)) {
+                MOVE PROPERTY(editAttributes(o)) {
                     alignment = STRETCH;
                 }
             }
@@ -195,9 +195,9 @@ DESIGN orders {
                 type = COLUMNS;
                 columns = 3;
                 caption = 'ТН-2';
-                MOVE PROPERTY(printConsignmentSimpleVertical(o));
-                MOVE PROPERTY(printConsignmentSimpleHorizontal(o));
-                MOVE PROPERTY(printConsignmentSimpleAttach(o));
+                MOVE PROPERTY(printSimpleVertical(o));
+                MOVE PROPERTY(printSimpleHorizontal(o));
+                MOVE PROPERTY(printSimpleAttach(o));
             }
         }
         NEW consignmentRow2 {
@@ -205,26 +205,26 @@ DESIGN orders {
             type = COLUMNS;
             columns = 3;
             caption = 'ТТН-1';
-            MOVE PROPERTY(printConsignmentVerticalA(o));
-            MOVE PROPERTY(printConsignmentVerticalAB(o));
-            MOVE PROPERTY(printConsignmentHorizontalA(o));
-            MOVE PROPERTY(printConsignmentVerticalB(o));
-            MOVE PROPERTY(printConsignmentHorizontalB(o));
-            MOVE PROPERTY(printConsignmentAttach(o));      
-            MOVE PROPERTY(printConsignmentVertical(o));  
-            MOVE PROPERTY(printConsignmentHorizontal(o));
+            MOVE PROPERTY(printVerticalA(o));
+            MOVE PROPERTY(printVerticalAB(o));
+            MOVE PROPERTY(printHorizontalA(o));
+            MOVE PROPERTY(printVerticalB(o));
+            MOVE PROPERTY(printHorizontalB(o));
+            MOVE PROPERTY(printAttach(o));      
+            MOVE PROPERTY(printVertical(o));  
+            MOVE PROPERTY(printHorizontal(o));
         }
         NEW consignmentRow3 {
             type = CONTAINERH;            
             NEW export {
                 type = CONTAINERH;
                 caption = 'Экспорт';  
-                MOVE PROPERTY(printConsignmentAttachXLS(o));                
+                MOVE PROPERTY(printAttachXLS(o));                
             }
         }    
     }
 }
-overShipmentBaseOrder(order) <- (CONCAT '', 'Заказ № ', seriesNumberOrder(order)+' ', 'от '+toDateDDMMYYYY(dateOrder(order))) WHEN CHANGED(dateOrder(order)) OR CHANGED(seriesNumberOrder(order));
+overShipmentBase(Order order) <- (CONCAT '', 'Заказ № ', seriesNumber(order)+' ', 'от '+toDateDDMMYYYY(date(order))) WHEN CHANGED(date(order)) OR CHANGED(seriesNumber(order));
 
 DESIGN operation {
     tabContainer {
@@ -239,7 +239,7 @@ DESIGN operation {
 @defineOperationProperty(notUseIssuanceExecuted, 'Не использовать справочник сотрудников "Отпуск произвел"', consignment);
 @defineOperationProperty(useGoodsAccepted, 'Использовать справочник сотрудников "Принял грузополучатель"', consignment);
 
-notUseDriverTruckConsignment(c) += notUseDriverTruckOperation(operationOrder(c));
-notUseIssuanceAllowedConsignment(c) += notUseIssuanceAllowedOperation(operationOrder(c));
-notUseIssuanceExecutedConsignment(c) += notUseIssuanceExecutedOperation(operationOrder(c));
-useGoodsAcceptedConsignment(c) += useGoodsAcceptedOperation(operationOrder(c));
+notUseDriverTruck(Order c) += notUseDriverTruck(operation(c));
+notUseIssuanceAllowed(Order c) += notUseIssuanceAllowed(operation(c));
+notUseIssuanceExecuted(Order c) += notUseIssuanceExecuted(operation(c));
+useGoodsAccepted(Order c) += useGoodsAccepted(operation(c));

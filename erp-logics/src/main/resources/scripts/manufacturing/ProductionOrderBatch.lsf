@@ -4,63 +4,63 @@ REQUIRE ProductionOrder;
 
 NAMESPACE Production;
 
-currentBalanceBatchPriceStockOrder 'Текущий остаток' (batch, order) = currentBalanceBatchStock(batch, priceStockOrder(order)); 
-prevCurrentBalanceBatchPriceStockOrder 'Текущий остаток' (batch, order) = prevCurrentBalanceBatchStock(batch, priceStockOrder(order)); 
-priceStockBatchOrder 'Цена' (batch, order)= OVERRIDE priceStockSkuOrder(skuBatch(batch),order), prevPriceBPriceListTypeBatchStockDateTime(priceListTypeOrder(order), batch, priceStockOrder(order), dateTimeOrder(order));                                                                                                                                                               
+currentBalancePriceStock 'Текущий остаток' (Batch batch, Order order) = currentBalance(batch, priceStock(order)); 
+prevCurrentBalancePriceStock 'Текущий остаток' (Batch batch, Order order) = prevCurrentBalance(batch, priceStock(order)); 
+priceStock 'Цена' (Batch batch, Order order)= OVERRIDE priceStock(sku(batch),order), prevPriceB(priceListType(order), batch, priceStock(order), dateTime(order));                                                                                                                                                               
 
-quantityComponentDetailBatchSkuOrder (bt,s,o)=  GROUP SUM quantityComponentDetail(d)  BY  batchComponentDetail(d), skuComponentDetail(d), orderComponentDetail(d);
-nameBatchesSkuOrder 'Партии' = GROUP CONCAT nameBatch(bt) IF quantityComponentDetailBatchSkuOrder(bt,s,o) , ', '
+quantityComponentDetail (bt,s,o)=  GROUP SUM quantity(ComponentDetail d)  BY  batch(d), sku(d), order(d);
+nameBatches 'Партии' = GROUP CONCAT name(Batch bt) IF quantityComponentDetail(bt,Sku s,Order o) , ', '
     BY s,o
     ORDER bt MINCHARWIDTH 30 PREFCHARWIDTH 50;
-useBatchSkuOrder 'Использовать партию'  = ACTION (bt,sk,o) {
-    batchComponentDetail(d) <- bt WHERE skuComponentDetail(d) == sk AND orderComponentDetail(d) == o;
-    costSkuOrder(sk,o) <- costBatch(bt);
-    dataBruttoPriceSkuOrder(sk,o) <- priceStockBatchOrder(bt,o);
-    valueVATSkuOrder(sk, o) <- valueVATBatch(bt);
+use 'Использовать партию'  = ACTION (Batch bt,Sku sk,Order o) {
+    batch(ComponentDetail d) <- bt WHERE sku(d) == sk AND order(d) == o;
+    cost(sk,o) <- cost(bt);
+    dataBruttoPrice(sk,o) <- priceStock(bt,o);
+    valueVAT(sk, o) <- valueVAT(bt);
 }
 
-defaultBatchPriceStockSkuOrder = GROUP LAST batch
-    BY skuBatch(batch), order
-    ORDER currentBalanceBatchPriceStockOrder(batch,order), batch
-    WHERE currentBalanceBatchPriceStockOrder(batch,order) >0;
+defaultBatchPriceStock = GROUP LAST Batch batch
+    BY sku(batch), Order order
+    ORDER currentBalancePriceStock(batch,order), batch
+    WHERE currentBalancePriceStock(batch,order) >0;
 
-useBatchSkuOrderAll 'Партия с max остатком (для всех)'  = ACTION (o) {
-    batchComponentDetail(d) <- defaultBatchPriceStockSkuOrder(skuComponentDetail(d), o) WHERE  orderComponentDetail(d) == o AND defaultBatchPriceStockSkuOrder(skuComponentDetail(d), o);//skuComponentDetail(d) == sk
-    costSkuOrder(sk,o) <- costBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
-    dataBruttoPriceSkuOrder(sk,o) <- priceStockBatchOrder(defaultBatchPriceStockSkuOrder(sk, o),o) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o); 
-    valueVATSkuOrder(sk, o) <- valueVATBatch(defaultBatchPriceStockSkuOrder(sk, o)) WHERE defaultBatchPriceStockSkuOrder(sk, o) AND quantityComponentDetailSkuOrder(sk,o);
+useBatchSkuAll 'Партия с max остатком (для всех)'  = ACTION (Order o) {
+    batch(ComponentDetail d) <- defaultBatchPriceStock(sku(d), o) WHERE  order(d) == o AND defaultBatchPriceStock(sku(d), o);//skuComponentDetail(d) == sk
+    cost(Sku sk,o) <- cost(defaultBatchPriceStock(sk, o)) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o);
+    dataBruttoPrice(Sku sk,o) <- priceStock(defaultBatchPriceStock(sk, o),o) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o); 
+    valueVAT(Sku sk, o) <- valueVAT(defaultBatchPriceStock(sk, o)) WHERE defaultBatchPriceStock(sk, o) AND quantityComponentDetail(sk,o);
 }
-maxBatchSkuOrder (s,o)=  GROUP MAX bt IF quantityComponentDetailBatchSkuOrder (bt,s,o) BY s,o;
+maxBatch (s,o)=  GROUP MAX Batch bt IF quantityComponentDetail (bt,Sku s,Order o) BY s,o;
 
-changeBatchSkuOrder = ACTION (s,o) {
-    IF maxBatchSkuOrder(s,o) THEN {
-        FORM dialogBatchStockOrder OBJECTS st = componentsStockOrder(o),
-                             t = dateTimeOrder(o),
+changeBatch = ACTION (Sku s,Order o) {
+    IF maxBatch(s,o) THEN {
+        FORM dialogBatchStockOrder OBJECTS st = componentsStock(o),
+                             t = dateTime(o),
                              sk = s ,
-                             bt = maxBatchSkuOrder(s,o) DIALOG SHOWDROP;
+                             bt = maxBatch(s,o) DIALOG SHOWDROP;
     } ELSE {
-        FORM dialogBatchStockOrder OBJECTS st = componentsStockOrder(o),
-                             t = dateTimeOrder(o),
+        FORM dialogBatchStockOrder OBJECTS st = componentsStock(o),
+                             t = dateTime(o),
                              sk = s DIALOG SHOWDROP;    
     }
     IF formResult() == FormResult.ok THEN {
-        useBatchSkuOrder(chosenObject('bt'),s,o);
+        use(chosenObject('bt'),s,o);
     } ELSE IF formResult() == FormResult.drop THEN {
-        batchComponentDetail(d) <- NULL WHERE skuComponentDetail(d) == s AND orderComponentDetail(d) == o;
+        batch(ComponentDetail d) <- NULL WHERE sku(d) == s AND order(d) == o;
     }
 }
 
 EXTEND FORM order 
-    PROPERTIES nameBatchesSkuOrder(sk,o) ON CHANGE changeBatchSkuOrder(sk,o) SHOWIF showBatchComponentOrder(o)
+    PROPERTIES nameBatches(sk,o) ON CHANGE changeBatch(sk,o) SHOWIF showBatchComponent(o)
 
     OBJECTS bt = Batch
-    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch, idBarcodeSkuBatch, shortNameUOMBatch
-    PROPERTIES READONLY currentBalanceBatchPriceStockOrder(bt,o), costBatch(bt), priceStockBatchOrder(bt,o)
-    PROPERTIES FORCE PANEL TOOLBAR useBatchSkuOrder(bt,sk,o), useBatchSkuOrderAll(o) TODRAW bt
+    PROPERTIES(bt) READONLY name, nameSku, idBarcodeSku, shortNameUOM
+    PROPERTIES READONLY currentBalancePriceStock(bt,o), cost(bt), priceStock(bt,o)
+    PROPERTIES FORCE PANEL TOOLBAR use(bt,sk,o), useBatchSkuAll(o) TODRAW bt
 
-    FILTERS skuBatch(bt) == sk     
+    FILTERS sku(bt) == sk     
     FILTERGROUP filter2bt
-        FILTER 'С остатком' currentBalanceBatchPriceStockOrder(bt,o) 'F8' DEFAULT     
+        FILTER 'С остатком' currentBalancePriceStock(bt,o) 'F8' DEFAULT     
 ;
 
 DESIGN order {
@@ -74,18 +74,18 @@ DESIGN order {
     }   
 }
 
-productionNormComponent 'Норма партии' = DATA NUMERIC[20,9] (Component);
-overCopyComponent (c, component) += ACTION {    
-    productionNormComponent(c) <- productionNormComponent(component);
+productionNorm 'Норма партии' = DATA NUMERIC[20,9] (Component);
+overCopy (Component c, Component component) += ACTION {    
+    productionNorm(c) <- productionNorm(component);
 }
 EXTEND FORM BOM
-    PROPERTIES(c) productionNormComponent
+    PROPERTIES(c) productionNorm
 ;
 
-countProductionNormComponentSku(s) = GROUP SUM 1 IF productionNormComponent(c) BY skuComponent(c) PERSISTENT;
+countProductionNormComponent(s) = GROUP SUM 1 IF productionNorm(Component c) BY sku(c) PERSISTENT;
 
-productionCoeffBatch 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) PERSISTENT;
-productionCoeffComponentDetail (d) += NUMERIC[20,9]((100.0 - (productionNormComponent(componentComponentDetail(d)) - productionCoeffBatch(batchComponentDetail(d)))) / 100.0);
+productionCoeff 'Параметры партии' = ABSTRACT NUMERIC[20,9] (Batch) PERSISTENT;
+productionCoeff (ComponentDetail d) += NUMERIC[20,9]((100.0 - (productionNorm(component(d)) - productionCoeff(batch(d)))) / 100.0);
 
 notNullProductionCoeff 'Проверять на наличие параметров партии' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -97,17 +97,17 @@ DESIGN options {
     }
 }
 
-CONSTRAINT notNullProductionCoeff() AND countProductionNormComponentSku(skuBatch(b)) AND NOT productionCoeffBatch(b)
+CONSTRAINT notNullProductionCoeff() AND countProductionNormComponent(sku(Batch b)) AND NOT productionCoeff(b)
     MESSAGE 'Не заданы параметры партии для товара, по которому есть нормы в спецификации';
 
-productionNormComponentDetail 'Норма' = productionNormComponent(componentComponentDetail(d));
-productionCoeffBatchComponentDetail 'Параметры партии' = productionCoeffBatch(batchComponentDetail(d));
+productionNorm 'Норма' = productionNorm(component(ComponentDetail d));
+productionCoeffBatch 'Параметры партии' = productionCoeff(batch(ComponentDetail d));
 
-WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND componentComponentDetail(d) AND productionNormComponent(componentComponentDetail(d)) DO {
-    bruttoQuantityComponentDetail(d) <- calcComponentBruttoQuantityComponentDetail (d);
-    BOMQuantityComponentDetail(d)  <- calcComponentBOMQuantityComponentDetail(d);
+WHEN SESSION FORMS order CHANGED(batch(ComponentDetail d)) AND component(d) AND productionNorm(component(d)) DO {
+    bruttoQuantity(d) <- calcComponentBruttoQuantity (d);
+    BOMQuantity(d)  <- calcComponentBOMQuantity(d);
 }
-WHEN SESSION FORMS order CHANGED(batchComponentDetail(d)) AND NOT componentComponentDetail(d) AND productionNormComponent(componentComponentDetail(d)) DO {
-    bruttoQuantityComponentDetail(d) <- calcSkuBruttoQuantityComponentDetail (d);
-    BOMQuantityComponentDetail(d)  <- calcSkuBOMQuantityComponentDetail(d);
+WHEN SESSION FORMS order CHANGED(batch(ComponentDetail d)) AND NOT component(d) AND productionNorm(component(d)) DO {
+    bruttoQuantity(d) <- calcSkuBruttoQuantity (d);
+    BOMQuantity(d)  <- calcSkuBOMQuantity(d);
 }

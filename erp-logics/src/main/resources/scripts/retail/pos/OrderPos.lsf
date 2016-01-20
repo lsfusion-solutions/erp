@@ -5,73 +5,73 @@ NAMESPACE POS;
 
 META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
 
-    orderDetailReceiptDetail = ABSTRACT OrderDetail (ReceiptDetail) PERSISTENT INDEXED;
-    orderDetailReceiptSaleDetail = DATA OrderDetail (ReceiptSaleDetail);
-    orderDetailReceiptReturnDetail = DATA OrderDetail (ReceiptReturnDetail);
-    orderDetailReceiptDetail(receiptDetail) += orderDetailReceiptSaleDetail(receiptDetail);
-    orderDetailReceiptDetail(receiptDetail) += orderDetailReceiptReturnDetail(receiptDetail);
+    orderDetail = ABSTRACT OrderDetail (ReceiptDetail) PERSISTENT INDEXED;
+    orderDetail = DATA OrderDetail (ReceiptSaleDetail);
+    orderDetail = DATA OrderDetail (ReceiptReturnDetail);
+    orderDetail(Receipt###prop##Detail receiptDetail) += orderDetail(receiptDetail);
+    orderDetail(ReceiptReturnDetail receiptDetail) += orderDetail(receiptDetail);
 
-    CONSTRAINT skuReceiptDetail(detail) != skuOrderDetail(orderDetailReceiptDetail(detail))
-        CHECKED BY orderDetailReceiptDetail
+    CONSTRAINT sku(ReceiptDetail detail) != sku(orderDetail(detail))
+        CHECKED BY orderDetail[ReceiptDetail]
             MESSAGE 'Товар в заказе и чеке должны соответствовать друг другу';
 
-    descriptionIndexOrderDetailReceiptDetail 'Строка заказа' (detail) = descriptionIndexOrderDetail(orderDetailReceiptDetail(detail));
+    descriptionIndexOrderDetail 'Строка заказа' (ReceiptDetail detail) = descriptionIndex(orderDetail(detail));
 
-    quantityReceiptDetailOrderReceipt (order, receipt) = GROUP SUM quantityReceiptDetail(receiptDetail) BY orderOrderDetail(orderDetailReceiptDetail(receiptDetail)), receiptReceiptDetail(receiptDetail);
-    sumReceiptDetailOrderReceipt (order, receipt) = GROUP SUM sumReceiptDetail(receiptDetail) BY orderOrderDetail(orderDetailReceiptDetail(receiptDetail)), receiptReceiptDetail(receiptDetail);
-    relationOrderReceipt 'Связь' (receipt) = GROUP SUM 1 IF quantityReceiptDetailOrderReceipt (order, receipt) BY receipt;
+    quantityReceiptDetail (order, receipt) = GROUP SUM quantity(ReceiptDetail receiptDetail) BY order(orderDetail(receiptDetail)), receipt(receiptDetail);
+    sumReceiptDetail (order, receipt) = GROUP SUM sum(ReceiptDetail receiptDetail) BY order(orderDetail(receiptDetail)), receipt(receiptDetail);
+    relationOrder 'Связь' (receipt) = GROUP SUM 1 IF quantityReceiptDetail (Order order, Receipt receipt) BY receipt;
 
-    ordersReceipt 'Заказы' (receipt) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityReceiptDetailOrderReceipt(order, receipt) , ', '
+    orders 'Заказы' (receipt) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityReceiptDetail(order, Receipt receipt) , ', '
                                                     BY receipt
                                                     ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-    receiptedOrderDetail 'Кол-во (по чеку)' (orderDetail) = GROUP SUM quantityReceiptDetail(receiptDetail) //IF isPostedReceiptDetail(receiptDetail)
-                                                                       BY orderDetailReceiptDetail(receiptDetail) PERSISTENT;
+    receipted 'Кол-во (по чеку)' (orderDetail) = GROUP SUM quantity(ReceiptDetail receiptDetail) //IF isPostedReceiptDetail(receiptDetail)
+                                                                       BY orderDetail(receiptDetail) PERSISTENT;
                                                                        
-    receiptedOrder 'Кол-во (по чеку)' (order) = GROUP SUM receiptedOrderDetail(detail) IF isPostedOrderDetail(detail)
-                                                                       BY orderOrderDetail(detail) PERSISTENT;    
+    receipted 'Кол-во (по чеку)' (order) = GROUP SUM receipted(OrderDetail detail) IF isPosted(detail)
+                                                                       BY order(detail) PERSISTENT;    
                                                                                                                                           
-    receiptQuantityOrderDetailSkuOrder 'Кол-во товара в документе' (sku, order) = 
-        GROUP SUM receiptedOrderDetail(idetail)
-              BY  skuOrderDetail(idetail),
-                  orderOrderDetail(idetail);
+    receiptQuantityOrderDetail 'Кол-во товара в документе' (sku, order) = 
+        GROUP SUM receipted(OrderDetail idetail)
+              BY  sku(idetail),
+                  order(idetail);
                                                                                                                                                               
-    notReceiptedOrder = NOT receiptedOrder(order);
+    notReceipted = NOT receipted(Order order);
 
-    toReceiptOrderDetail 'Не отпущено (по чеку)' (orderDetail) = quantityOrderDetail (orderDetail) (-) receiptedOrderDetail(orderDetail);
+    toReceipt 'Не отпущено (по чеку)' (OrderDetail orderDetail) = quantity (orderDetail) (-) receipted(orderDetail);
 
-    toReceiptOrderDetailOrder 'Не отпущено (по чеку))' (order) = GROUP SUM toReceiptOrderDetail(detail) IF isPostedOrderDetail(detail)
-                                                                       BY orderOrderDetail(detail) PERSISTENT; 
-    backgroundReceiptedOrder 'Цвет' (order) = RGB(255, 224, 255) IF order IS Order;
-    backgroundReceiptedOrderDetail (detail) = backgroundReceiptedOrder(orderOrderDetail(detail));
+    toReceiptOrderDetail 'Не отпущено (по чеку))' (order) = GROUP SUM toReceipt(OrderDetail detail) IF isPosted(detail)
+                                                                       BY order(detail) PERSISTENT; 
+    backgroundReceipted 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
+    backgroundReceipted (OrderDetail detail) = backgroundReceipted(order(detail));
     
-    sumReceiptOrder 'Сумма оплаты' = GROUP SUM sumReceiptDetail(receiptDetail) 
-                                                                     BY orderOrderDetail(orderDetailReceiptDetail(receiptDetail)) PERSISTENT;
+    sumReceipt 'Сумма оплаты' = GROUP SUM sum(ReceiptDetail receiptDetail) 
+                                                                     BY order(orderDetail(receiptDetail)) PERSISTENT;
 
     FORM receiptOrders 'Заказы'###sign
         OBJECTS s = LegalEntity FIXED PANEL
-        PROPERTIES (s) READONLY nameLegalEntity
+        PROPERTIES (s) READONLY name
         OBJECTS c = LegalEntity FIXED PANEL
-        PROPERTIES (c) READONLY nameLegalEntity
+        PROPERTIES (c) READONLY name
 
         OBJECTS i = Order
-        PROPERTIES (i) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
-                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
-                                nameCurrencyOrder, seriesNumberContractSkuOrder, isCommissionOrder,
-                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
-                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, noteOrder
-        FILTERS supplierOrder(i) == s,
-                customerOrder(i) == c,
-                isPostedOrder(i),
-                toReceiptOrderDetailOrder(i)
-        FILTERGROUP orderfilters6 FILTER 'Открыт' isOpenedOrder(i) 'F6' DEFAULT
+        PROPERTIES (i) READONLY isPosted, number, series, date, time,
+                                nameSupplier, name###stockProp, nameCustomer, nameCustomerStock,
+                                nameCurrency, seriesNumberContractSku, isCommission,
+                                countOrderDetail, quantityOrderDetail, sumOrderDetail,
+                                VATSumOrderDetail, invoiceSumOrderDetail, note
+        FILTERS supplier(i) == s,
+                customer(i) == c,
+                isPosted(i),
+                toReceiptOrderDetail(i)
+        FILTERGROUP orderfilters6 FILTER 'Открыт' isOpened(i) 'F6' DEFAULT
         
         OBJECTS d = OrderDetail
-        PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
-        PROPERTIES (d) READONLY quantityOrderDetail, receiptedOrderDetail, priceOrderDetail, sumOrderDetail,
-                       numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                       name###stockProp###OrderDetail
-        FILTERS orderOrderDetail(d) == i
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity, receipted, price, sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       name###stockProp
+        FILTERS order(d) == i
     ;
 
     DESIGN receiptOrders {
@@ -90,26 +90,26 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
     
     FORM receiptSupplierOrders 'Заказы'###sign
         OBJECTS s = LegalEntity FIXED PANEL
-        PROPERTIES (s) READONLY nameLegalEntity
+        PROPERTIES (s) READONLY name
 
         OBJECTS i = Order
-        PROPERTIES (i) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
-                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder,
-                                nameCurrencyOrder, seriesNumberContractSkuOrder, isCommissionOrder,
-                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder,
-                                VATSumOrderDetailOrder, invoiceSumOrderDetailOrder,
-                                noteOrder
-        FILTERS supplierOrder(i) == s,                
-                isPostedOrder(i),
-                toReceiptOrderDetailOrder(i)
-        FILTERGROUP orderfilters6 FILTER 'Открыт' isOpenedOrder(i) 'F6' DEFAULT
+        PROPERTIES (i) READONLY isPosted, number, series, date, time,
+                                nameSupplier, name###stockProp, nameCustomer, nameCustomerStock,
+                                nameCurrency, seriesNumberContractSku, isCommission,
+                                countOrderDetail, quantityOrderDetail, sumOrderDetail,
+                                VATSumOrderDetail, invoiceSumOrderDetail,
+                                note
+        FILTERS supplier(i) == s,                
+                isPosted(i),
+                toReceiptOrderDetail(i)
+        FILTERGROUP orderfilters6 FILTER 'Открыт' isOpened(i) 'F6' DEFAULT
         
         OBJECTS d = OrderDetail
-        PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
-        PROPERTIES (d) READONLY quantityOrderDetail, receiptedOrderDetail, priceOrderDetail, sumOrderDetail,
-                       numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                       name###stockProp###OrderDetail
-        FILTERS orderOrderDetail(d) == i
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity, receipted, price, sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       name###stockProp
+        FILTERS order(d) == i
     ;
 
     DESIGN receiptSupplierOrders {
@@ -125,46 +125,46 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
         }
     }    
     
-    overFillOrderReceiptOrder = ABSTRACT ACTION LIST (Receipt, Order);                          // документ
-    overFillOrderReceiptDetailOrderDetail = ABSTRACT ACTION LIST (ReceiptDetail, OrderDetail);  // детайл
+    overFillOrder = ABSTRACT ACTION LIST (Receipt, Order);                          // документ
+    overFillOrder = ABSTRACT ACTION LIST (ReceiptDetail, OrderDetail);  // детайл
     
-    fillOrderReceiptOrder =  ACTION (receipt, order) {
-        overFillOrderReceiptOrder(receipt, order);
-        FOR orderOrderDetail(orderDetail) == order AND
-            toReceiptOrderDetail(orderDetail) > 0
+    fillOrder =  ACTION (Receipt receipt, Order order) {
+        overFillOrder(receipt, order);
+        FOR order(OrderDetail orderDetail) == order AND
+            toReceipt(orderDetail) > 0
             ADDOBJ d = Receipt###prop###detail DO {
-                receiptReceipt###prop###detail(d) <- receipt;
-                orderDetailReceipt###prop###detail(d) <- orderDetail;
+                receipt(d) <- receipt;
+                orderDetail(d) <- orderDetail;
 
-                skuReceipt###prop###detail(d) <- skuOrderDetail(orderDetail);
-                idBarcodeReceipt###detail(d) <- idBarcodeSku(skuOrderDetail(orderDetail));
+                sku(d) <- sku(orderDetail);
+                idBarcode(d) <- idBarcode(sku(orderDetail));
                 
-                quantityReceipt###prop###detail (d) <- toReceiptOrderDetail(orderDetail);                
-                priceReceipt###prop###detail (d) <- invoicePriceOrderDetail(orderDetail);
-                VATReceipt###prop###detail (d) <- VATOrderDetail(orderDetail);  
+                quantity (d) <- toReceipt(orderDetail);                
+                price (d) <- invoicePrice(orderDetail);
+                VAT (d) <- VAT(orderDetail);  
                               
-                overFillOrderReceiptDetailOrderDetail(d, orderDetail);
+                overFillOrder(d, orderDetail);
         }    
     }
 
-    fillOrderReceipt 'По заказу' =  ACTION (receipt) {
-        IF supplierProp###receipt(receipt) AND customerProp###receipt(receipt) THEN {
-            FORM receiptOrders OBJECTS s = supplierProp###receipt(receipt), c = customerProp###receipt(receipt) DIALOG;
+    fillOrder 'По заказу' =  ACTION (Receipt receipt) {
+        IF supplierProp(receipt) AND customerProp(receipt) THEN {
+            FORM receiptOrders OBJECTS s = supplierProp(receipt), c = customerProp(receipt) DIALOG;
         } ELSE {
-            IF NOT customerProp###receipt(receipt) THEN {
-                FORM receiptSupplierOrders OBJECTS s = supplierProp###receipt(receipt) DIALOG;
+            IF NOT customerProp(receipt) THEN {
+                FORM receiptSupplierOrders OBJECTS s = supplierProp(receipt) DIALOG;
             }
         }
 
         IF formResult() == FormResult.ok THEN {
-            LOCAL saleOrder = Order();
-            saleOrder() <- chosenObject('i');
-            fillOrderReceiptOrder(receipt, saleOrder());
+            LOCAL prop##Order = Order();
+            prop##Order() <- chosenObject('i');
+            fillOrder(receipt, prop##Order());
         }
     } IN order;
 
     EXTEND FORM POS
-        PROPERTIES(r) fillOrderReceipt
+        PROPERTIES(r) fillOrder
 //        PROPERTIES(d) READONLY descriptionIndexOrderDetailReceiptDetail
     ;
     DESIGN POS {
@@ -172,18 +172,18 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
             NEW order {
                 alignment = STRETCH;
                 caption = 'Заказ';
-                MOVE PROPERTY(fillOrderReceipt(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
+                MOVE PROPERTY(fillOrder(r)) { fill = 1; focusable = FALSE; font = 'bold 24';  }
             }
         }
     }    
     
     EXTEND FORM zReports
-        PROPERTIES(b) READONLY ordersReceipt
-        PROPERTIES(d) READONLY descriptionIndexOrderDetailReceiptDetail
+        PROPERTIES(b) READONLY orders
+        PROPERTIES(d) READONLY descriptionIndexOrderDetail
     ;
     EXTEND FORM zReport
-        PROPERTIES(b) READONLY ordersReceipt
-        PROPERTIES(d) descriptionIndexOrderDetailReceiptDetail
+        PROPERTIES(b) READONLY orders
+        PROPERTIES(d) descriptionIndexOrderDetail
     ;    
 
 END

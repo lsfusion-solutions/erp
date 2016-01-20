@@ -6,17 +6,17 @@ NAMESPACE PriceList;
 
 CLASS ABSTRACT LedgerPriceListType 'Регистровый вид цены' : BasePriceListType;
 
-nameLedgerPriceListType 'Наименование' = ABSTRACT VARISTRING[100](LedgerPriceListType) IN recognize;
-nameBasePriceListType(type) += nameLedgerPriceListType(type) IF type IS LedgerPriceListType;
+name 'Наименование' = ABSTRACT VARISTRING[100](LedgerPriceListType) IN recognize;
+name(LedgerPriceListType type) += name(type) IF type IS LedgerPriceListType;
 
-differentOrganizationsLedgerPriceListType 'Для разных организаций' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType);    
+differentOrganizations 'Для разных организаций' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType);    
 
 TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
-batchLedgerPriceListTypeStock 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
+batch 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
                                                    
 FORM ledgerPriceListTypes 'Регистровые виды цен'
    OBJECTS p = LedgerPriceListType
-   PROPERTIES(p) READONLY nameLedgerPriceListType
+   PROPERTIES(p) READONLY name
    
    DIALOG LedgerPriceListType OBJECT p
 ;
@@ -26,495 +26,495 @@ TABLE priceListLedger(PriceListLedger);
 
 @defineCreatedAbstract(PriceListLedger);
 
-fromDateTimePriceListLedger 'Дата/время с' = ABSTRACT DATETIME (PriceListLedger) PERSISTENT INDEXED;
-toDateTimePriceListLedger 'Дата/время по' = ABSTRACT DATETIME (PriceListLedger) PERSISTENT INDEXED;
+fromDateTime 'Дата/время с' = ABSTRACT DATETIME (PriceListLedger) PERSISTENT INDEXED;
+toDateTime 'Дата/время по' = ABSTRACT DATETIME (PriceListLedger) PERSISTENT INDEXED;
 
-isPostedPriceListLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) PERSISTENT;
-skipPriceListLedger 'Не изменять значение' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) PERSISTENT;
+skip 'Не изменять значение' (ledger) = ABSTRACT BOOLEAN (PriceListLedger) PERSISTENT;
 
-activePriceListLedger 'Активен' (ledger) = isPostedPriceListLedger(ledger) AND NOT skipPriceListLedger(ledger) PERSISTENT;
+active 'Активен' (PriceListLedger ledger) = isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
 
-skuPriceListLedger = ABSTRACT Sku (PriceListLedger) PERSISTENT INDEXED;
-nameSkuPriceListLedger 'SKU' (l) = nameSku(skuPriceListLedger(l));
+sku = ABSTRACT Sku (PriceListLedger) PERSISTENT INDEXED;
+nameSku 'SKU' (PriceListLedger l) = name(sku(l));
 
-countPriceListLedgerSku = GROUP SUM 1 BY skuPriceListLedger(ledger);
+countPriceListLedger = GROUP SUM 1 BY sku(PriceListLedger ledger);
 
-editPriceListLedger 'Редактировать' = ABSTRACT ACTION LIST (PriceListLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (PriceListLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 TABLE priceListLedgerBatch(PriceListLedger, Batch);
 //inPriceListLedgerBatch = DATA BOOLEAN (PriceListLedger, Batch) INDEXED;
-inPriceListLedgerBatch = ABSTRACT BOOLEAN (PriceListLedger, Batch) PERSISTENT INDEXED;
+in = ABSTRACT BOOLEAN (PriceListLedger, Batch) PERSISTENT INDEXED;
 
-batchPriceListLedger = GROUP MAX batch IF inPriceListLedgerBatch(ledger, batch) BY ledger;
-idBatchPriceListLedger (ledger) = idBatch(batchPriceListLedger(ledger));
+batch = GROUP MAX Batch batch IF in(PriceListLedger ledger, batch) BY ledger;
+idBatch (PriceListLedger ledger) = id(batch(ledger));
 
-descriptionPriceListLedger 'Описание' = ABSTRACT VARSTRING[200] (PriceListLedger) PERSISTENT;
+description 'Описание' = ABSTRACT VARSTRING[200] (PriceListLedger) PERSISTENT;
 
-companyPriceListLedger = ABSTRACT LegalEntity (PriceListLedger) PERSISTENT;
-nameCompanyPriceListLedger 'Компания' = nameLegalEntity(companyPriceListLedger(ledger));
+company = ABSTRACT LegalEntity (PriceListLedger) PERSISTENT;
+nameCompany 'Компания' = name(company(PriceListLedger ledger));
 
-companyStockPriceListLedger = ABSTRACT Stock (PriceListLedger) PERSISTENT;
-nameCompanyStockPriceListLedger 'Склад компании' = nameStock(companyStockPriceListLedger(ledger));
+companyStock = ABSTRACT Stock (PriceListLedger) PERSISTENT;
+nameCompanyStock 'Склад компании' = name(companyStock(PriceListLedger ledger));
 
 TABLE priceListLedgerLedgerPriceListType(PriceListLedger, LedgerPriceListType);
-inPriceListLedgerLedgerPriceListType = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) PERSISTENT;
-pricePriceListLedgerLedgerPriceListType 'Цена' = ABSTRACT NUMERIC[14,2] (PriceListLedger, LedgerPriceListType) PERSISTENT;
+in = ABSTRACT BOOLEAN (PriceListLedger, LedgerPriceListType) PERSISTENT;
+price 'Цена' = ABSTRACT NUMERIC[14,2] (PriceListLedger, LedgerPriceListType) PERSISTENT;
 
-priceListTypesPriceListLedger 'Цены' (priceList) = GROUP CONCAT nameLedgerPriceListType(type) IF inPriceListLedgerLedgerPriceListType(priceList, type) , ', '
+priceListTypes 'Цены' (priceList) = GROUP CONCAT name(LedgerPriceListType type) IF in(PriceListLedger priceList, type) , ', '
                                                                 BY priceList
                                                                 ORDER type MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-inPriceListLedgerStock (ledger, stock) = ABSTRACT BOOLEAN (PriceListLedger, Stock);
-stockPriceListLedger (ledger) = GROUP MAX stock IF inPriceListLedgerStock(ledger, stock) BY ledger;
+in (ledger, stock) = ABSTRACT BOOLEAN (PriceListLedger, Stock);
+stock (ledger) = GROUP MAX Stock stock IF in(PriceListLedger ledger, stock) BY ledger;
 
-stocksPriceListLedger 'Склады' (priceList) = GROUP CONCAT nameStock(stock) IF inPriceListLedgerStock(priceList, stock) , ', '
+stocks 'Склады' (priceList) = GROUP CONCAT name(Stock stock) IF in(PriceListLedger priceList, stock) , ', '
                                                    BY priceList
                                                    ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 160;
 
 // ------------------ Расчет цен для sku ---------------- //
 
-activePriceListLedgerLedgerPriceListType(ledger, type) =
-    activePriceListLedger(ledger) AND inPriceListLedgerLedgerPriceListType(ledger, type) PERSISTENT INDEXED;
+active(PriceListLedger ledger, LedgerPriceListType type) =
+    active(ledger) AND in(ledger, type) PERSISTENT INDEXED;
 
-priceBLedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceB 'Цена' (type, sku, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-priceALedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceA 'Цена' (type, sku, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
 // ------------------ Расчет цен для sku / company ---------------- //
 
-priceBLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceB 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-priceALedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceA 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-priceListLedgerBLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceListLedgerB 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-priceListLedgerALedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceListLedgerA 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-descriptionBLedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST descriptionPriceListLedger(ledger)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+descriptionB 'Описание' (type, sku, company, dateTime) =
+    GROUP LAST description(PriceListLedger ledger)
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-descriptionALedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST descriptionPriceListLedger(ledger)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+descriptionA 'Описание' (type, sku, company, dateTime) =
+    GROUP LAST description(PriceListLedger ledger)
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
 // Только с ценами
 
-activePriceBLedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activePriceB 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-activePriceALedgerPriceListTypeSkuCompanyDateTime 'Цена' (type, sku, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activePriceA 'Цена' (type, sku, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-activeDescriptionBLedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST descriptionPriceListLedger(ledger)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activeDescriptionB 'Описание' (type, sku, company, dateTime) =
+    GROUP LAST description(PriceListLedger ledger)
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-activeDescriptionALedgerPriceListTypeSkuCompanyDateTime 'Описание' (type, sku, company, dateTime) =
-    GROUP LAST descriptionPriceListLedger(ledger)
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activeDescriptionA 'Описание' (type, sku, company, dateTime) =
+    GROUP LAST description(PriceListLedger ledger)
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-activeLedgerALedgerPriceListTypeSkuCompanyDateTime (type, sku, company, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), companyPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activeLedgerA (type, sku, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger), company(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
 // ------------------ Расчет цен для sku / stock / datetime
 
 TABLE priceListLedgerLedgerPriceListTypeStock (PriceListLedger, LedgerPriceListType, Stock);
-activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
-    activePriceListLedger(ledger) AND inPriceListLedgerLedgerPriceListType(ledger, type) AND inPriceListLedgerStock(ledger, stock) PERSISTENT;
+active(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    active(ledger) AND in(ledger, type) AND in(ledger, stock) PERSISTENT;
 
-pricePriceListLedgerLedgerPriceListTypeStock 'Цена' (ledger, type, stock) =
-    pricePriceListLedgerLedgerPriceListType(ledger, type) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT;
+price 'Цена' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    price(ledger, type) IF active(ledger, type, stock) PERSISTENT;
 
-skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
-    skuPriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT INDEXED;
+sku(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    sku(ledger) IF active(ledger, type, stock) PERSISTENT INDEXED;
     
-INDEX type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock;
+INDEX LedgerPriceListType type, sku(PriceListLedger ledger, type, Stock stock), stock;
 
-fromDateTimePriceListLedgerLedgerPriceListTypeStock 'Дата/время с' (ledger, type, stock) =
-    fromDateTimePriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT INDEXED;
+fromDateTime 'Дата/время с' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    fromDateTime(ledger) IF active(ledger, type, stock) PERSISTENT INDEXED;
 
-toDateTimePriceListLedgerLedgerPriceListTypeStock 'Дата/время по' (ledger, type, stock) =
-    toDateTimePriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT INDEXED;
+toDateTime 'Дата/время по' (PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    toDateTime(ledger) IF active(ledger, type, stock) PERSISTENT INDEXED;
 
-companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) =
-    companyPriceListLedger(ledger) IF activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) PERSISTENT INDEXED;
+company(PriceListLedger ledger, LedgerPriceListType type, Stock stock) =
+    company(ledger) IF active(ledger, type, stock) PERSISTENT INDEXED;
 
 // По товарам
-activePriceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+activePriceB 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-activePriceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+activePriceA 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-activePriceListLedgerBLedgerPriceListTypeSkuStockDateTime  (type, sku, stock, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
-prevActivePriceListLedgerBLedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = PREV(activePriceListLedgerBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));  
+activePriceListLedgerB  (type, sku, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+prevActivePriceListLedgerB (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(activePriceListLedgerB(type, sku, stock, dateTime));  
               
-activePriceListLedgerALedgerPriceListTypeSkuStockDateTime  (type, sku, stock, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
-prevActivePriceListLedgerALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) = PREV(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));   
+activePriceListLedgerA  (type, sku, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+prevActivePriceListLedgerA (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(activePriceListLedgerA(type, sku, stock, dateTime));   
 
 //-- Следующая цена, которая проводится по регистру, после даты/время
-activeNextPriceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER DESC fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) >= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+activeNextPriceA 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+          ORDER DESC fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) >= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
                 
-activeNextPriceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER DESC fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) > dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+activeNextPriceB 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+          ORDER DESC fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) > dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
  
-activeNextPriceALedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), dateTimeIn
-          ORDER DESC fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) >= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activeNextPriceA 'Цена' (type, sku, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), DATETIME dateTimeIn
+          ORDER DESC fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) >= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
                 
-activeNextPriceBLedgerPriceListTypeSkuDateTime 'Цена' (type, sku, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), dateTimeIn
-          ORDER DESC fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) > dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+activeNextPriceB 'Цена' (type, sku, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), DATETIME dateTimeIn
+          ORDER DESC fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type) AND
+                fromDateTime(ledger) > dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
                                 
 // Только с ценами
-priceBLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceB 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-priceALedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceA 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-currentPriceListLedgerLedgerPriceListTypeSkuStock 'Цена' (type, sku, stock) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) COMPLEX;
+currentPriceListLedger 'Цена' (type, sku, stock) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) COMPLEX;
 
-lastPriceListLedgerLedgerPriceListTypeSkuStock 'Цена' (type, sku, stock) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) COMPLEX;
+lastPriceListLedger 'Цена' (type, sku, stock) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) COMPLEX;
 
-lastPriceListLedgerLedgerPriceListTypeSkuStockDateTime 'Цена' (type, sku, stock, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTime
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTime COMPLEX;
+lastPriceListLedger 'Цена' (type, sku, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTime
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND NOT toDateTime(ledger, type, stock) < dateTime COMPLEX;
 
 
 META defineLastLedgerPriceListTypeSkuStock(property, caption)
-    property##BLedgerPriceListTypeSkuStockDateTime caption (type, sku, stock, dateTime) =
-        GROUP LAST property##PriceListLedger(ledger)
-              BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-              ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-              WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                    fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+    property##B caption (type, sku, stock, dateTime) =
+        GROUP LAST property(PriceListLedger ledger)
+              BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTimeIn
+              ORDER fromDateTime(ledger, type, stock), ledger
+              WHERE active(ledger, type, stock) AND
+                    fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-    property##ALedgerPriceListTypeSkuStockDateTime caption (type, sku, stock, dateTime) =
-        GROUP LAST property##PriceListLedger(ledger)
-              BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-              ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-              WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                    fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+    property##A caption (type, sku, stock, dateTime) =
+        GROUP LAST property(PriceListLedger ledger)
+              BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, DATETIME dateTimeIn
+              ORDER fromDateTime(ledger, type, stock), ledger
+              WHERE active(ledger, type, stock) AND
+                    fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 END
 
 META defineLastLedgerPriceListTypeSkuStockAggr(property, caption)
-    property##BLedgerPriceListTypeSkuStockDateTime caption (type, sku, stock, dateTime) =
-        GROUP LAST property##PriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-              BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-              ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-              WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+    property##B caption (type, sku, stock, dateTime) =
+        GROUP LAST property(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+              BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+              ORDER fromDateTime(ledger, type, stock), ledger
+              WHERE fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-    property##ALedgerPriceListTypeSkuStockDateTime caption (type, sku, stock, dateTime) =
-        GROUP LAST property##PriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-              BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, dateTimeIn
-              ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-              WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+    property##A caption (type, sku, stock, dateTime) =
+        GROUP LAST property(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+              BY type, sku(ledger, type, stock), stock, DATETIME dateTimeIn
+              ORDER fromDateTime(ledger, type, stock), ledger
+              WHERE fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 END
 
 @defineLastLedgerPriceListTypeSkuStockAggr(company, 'Организация');
-nameCompanyBLedgerPriceListTypeSkuStockDateTime 'Организация' (type, sku, stock, dateTime) =
-    nameLegalEntity(companyBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
-nameCompanyALedgerPriceListTypeSkuStockDateTime 'Организация' (type, sku, stock, dateTime) =
-    nameLegalEntity(companyALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime));
+nameCompanyB 'Организация' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    name(companyB(type, sku, stock, dateTime));
+nameCompanyA 'Организация' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    name(companyA(type, sku, stock, dateTime));
 
 @defineLastLedgerPriceListTypeSkuStock(description, 'Описание');
 
 @defineLastLedgerPriceListTypeSkuStock(fromDateTime, 'Дата/время с');
 
-pricePriceListLedgerLedgerPriceListTypeBatch (ledger, type, batch) = 
-    pricePriceListLedgerLedgerPriceListType(ledger, type) IF inPriceListLedgerBatch(ledger, batch); 
+price (PriceListLedger ledger, LedgerPriceListType type, Batch batch) = 
+    price(ledger, type) IF in(ledger, batch); 
 
-activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) =
-    activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND inPriceListLedgerBatch(ledger, batch);
+active(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch) =
+    active(ledger, type, stock) AND in(ledger, batch);
     
 
 // По партиям
 
-activePriceListLedgerBLedgerPriceListTypeBatchStockDateTime (type, batch, stock, dateTime) =
-    GROUP LAST ledger
-        BY type, batch, stock, dateTimeIn
-        ORDER fromDateTimePriceListLedger(ledger), ledger
-        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch) AND
-              fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn;
+activePriceListLedgerB (type, batch, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+        BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn
+        ORDER fromDateTime(ledger), ledger
+        WHERE active(ledger, type, stock, batch) AND price(ledger, type, batch) AND
+              fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
 
-activePriceListLedgerALedgerPriceListTypeBatchStockDateTime  (type, batch, stock, dateTime) =
-    GROUP LAST ledger
-        BY type, batch, stock, dateTimeIn
-        ORDER fromDateTimePriceListLedger(ledger), ledger
-        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch) AND
-              fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn;
+activePriceListLedgerA  (type, batch, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+        BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn
+        ORDER fromDateTime(ledger), ledger
+        WHERE active(ledger, type, stock, batch) AND price(ledger, type, batch) AND
+              fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
 
-priceBLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    IF batchLedgerPriceListTypeStock(type, stock) THEN
-        [= GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
-               BY type, batch, stock, dateTimeIn
-               ORDER fromDateTimePriceListLedger(ledger), ledger
-               WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
-                     fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn] (type, batch, stock, dateTime)
+priceB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    IF batch(type, stock) THEN
+        [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
+               BY type, batch, Stock stock, DATETIME dateTimeIn
+               ORDER fromDateTime(ledger), ledger
+               WHERE active(ledger, type, stock, batch) AND
+                     fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn] (type, batch, stock, dateTime)
     ELSE
-        priceBLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime) COMPLEX;
+        priceB(type, sku(batch), stock, dateTime) COMPLEX;
 
-priceALedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    IF batchLedgerPriceListTypeStock(type, stock) THEN
-        [= GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
-               BY type, batch, stock, dateTimeIn
-               ORDER fromDateTimePriceListLedger(ledger), ledger
-               WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
-                     fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn] (type, batch, stock, dateTime)
+priceA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    IF batch(type, stock) THEN
+        [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
+               BY type, batch, Stock stock, DATETIME dateTimeIn
+               ORDER fromDateTime(ledger), ledger
+               WHERE active(ledger, type, stock, batch) AND
+                     fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn] (type, batch, stock, dateTime)
     ELSE
-        priceALedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime) COMPLEX;
+        priceA(type, sku(batch), stock, dateTime) COMPLEX;
 
-prevPriceBLedgerPriceListTypeBatchStockDateTime 'Цена (пред.)' (type, batch, stock, dateTime) = PREV(priceBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)) COMPLEX;
-prevPriceALedgerPriceListTypeBatchStockDateTime 'Цена (пред.)' (type, batch, stock, dateTime) = PREV(priceALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime)) COMPLEX;
+prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceB(type, batch, stock, dateTime)) COMPLEX;
+prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) = PREV(priceA(type, batch, stock, dateTime)) COMPLEX;
 
-prevPriceBLedgerPriceListTypeSkuStockDateTime 'Цена (пред.)' (type, sku, stock, dateTime) = PREV(priceBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
-prevPriceALedgerPriceListTypeSkuStockDateTime 'Цена (пред.)' (type, sku, stock, dateTime) = PREV(priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
+prevPriceB 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceB(type, sku, stock, dateTime)) COMPLEX;
+prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = PREV(priceA(type, sku, stock, dateTime)) COMPLEX;
 
 //-- Только от партии
-priceBBatchLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
-        BY type, batch, stock, dateTimeIn
-        ORDER fromDateTimePriceListLedger(ledger), ledger
-        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
-            fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceBBatch 'Цена' (type, batch, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
+        BY type, batch, Stock stock, DATETIME dateTimeIn
+        ORDER fromDateTime(ledger), ledger
+        WHERE active(ledger, type, stock, batch) AND
+            fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
-priceABatchLedgerPriceListTypeBatchStockDateTime 'Цена' (type, batch, stock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeBatch(ledger, type, batch)
-        BY type, batch, stock, dateTimeIn
-        ORDER fromDateTimePriceListLedger(ledger), ledger
-        WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
-            fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
+priceABatch 'Цена' (type, batch, stock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
+        BY type, batch, Stock stock, DATETIME dateTimeIn
+        ORDER fromDateTime(ledger), ledger
+        WHERE active(ledger, type, stock, batch) AND
+            fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 
 META defineLastLedgerPriceListTypeBatchStock(property, caption)
-    property##BLedgerPriceListTypeBatchStockDateTime caption (type, batch, stock, dateTime) =
-        IF batchLedgerPriceListTypeStock(type, stock) THEN
-            [= GROUP LAST property##PriceListLedger(ledger) IF inPriceListLedgerBatch(ledger, batch)
-                   BY type, batch, stock, dateTimeIn
-                   ORDER fromDateTimePriceListLedger(ledger), ledger
-                   WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
-                        fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn](type, batch, stock, dateTime)
+    property##B caption (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+        IF batch(type, stock) THEN
+            [= GROUP LAST property(PriceListLedger ledger) IF in(ledger, Batch batch)
+                   BY LedgerPriceListType type, batch, Stock stock, DATETIME dateTimeIn
+                   ORDER fromDateTime(ledger), ledger
+                   WHERE active(ledger, type, stock, batch) AND
+                        fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn](type, batch, stock, dateTime)
         ELSE
-            property##BLedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime) COMPLEX;
+            property##B(type, sku(batch), stock, dateTime) COMPLEX;
 
-    property##ALedgerPriceListTypeBatchStockDateTime caption (type, batch, stock, dateTime) =
-        IF batchLedgerPriceListTypeStock(type, stock) THEN
-            [= GROUP LAST property##PriceListLedger(ledger) IF inPriceListLedgerBatch(ledger, batch)
-                   BY type, batch, stock, dateTimeIn
-                   ORDER fromDateTimePriceListLedger(ledger), ledger
-                   WHERE activePriceListLedgerLedgerPriceListTypeStockBatch(ledger, type, stock, batch) AND
-                        fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn](type, batch, stock, dateTime)
+    property##A caption (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+        IF batch(type, stock) THEN
+            [= GROUP LAST property(PriceListLedger ledger) IF in(ledger, Batch batch)
+                   BY LedgerPriceListType type, batch, Stock stock, DATETIME dateTimeIn
+                   ORDER fromDateTime(ledger), ledger
+                   WHERE active(ledger, type, stock, batch) AND
+                        fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn](type, batch, stock, dateTime)
         ELSE
-            property##ALedgerPriceListTypeSkuStockDateTime(type, skuBatch(batch), stock, dateTime) COMPLEX;
+            property##A(type, sku(batch), stock, dateTime) COMPLEX;
 END
 
 @defineLastLedgerPriceListTypeBatchStock(company, 'Организация');
-nameCompanyBLedgerPriceListTypeBatchStockDateTime 'Компания прайса' (type, batch, stock, dateTime) =
-    nameLegalEntity(companyBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
-nameCompanyALedgerPriceListTypeBatchStockDateTime 'Компания прайса' (type, batch, stock, dateTime) =
-    nameLegalEntity(companyALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
+nameCompanyB 'Компания прайса' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    name(companyB(type, batch, stock, dateTime));
+nameCompanyA 'Компания прайса' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    name(companyA(type, batch, stock, dateTime));
 
 @defineLastLedgerPriceListTypeBatchStock(description, 'Описание');
 
 // ------------------ Расчет цен для sku / stock / company / datetime
 
-priceBLedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceB 'Цена' (type, sku, stock, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
                 
-prevPriceBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime) =
-    PREV(priceBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)); 
+prevPriceB(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime) =
+    PREV(priceB(type, sku, stock, company, dateTime)); 
 
-priceALedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceA 'Цена' (type, sku, stock, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-currentPriceLedgerPriceListTypeSkuStockCompany 'Цена' (type, sku, stock, company) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) COMPLEX;
+currentPrice 'Цена' (type, sku, stock, company) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock)
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) COMPLEX;
 
-priceListLedgerBLedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceListLedgerB 'Цена' (type, sku, stock, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, company(ledger, type, stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-priceListLedgerALedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceListLedgerA 'Цена' (type, sku, stock, company, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, company(ledger, type, stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
 // Только с ценами                
-activePriceBLedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+activePriceB 'Цена' (type, sku, stock, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-activePriceALedgerPriceListTypeSkuStockCompanyDateTime 'Цена' (type, sku, stock, company, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;                
+activePriceA 'Цена' (type, sku, stock, company, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE price(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;                
                 
 
 // ------------------ Расчет цен для sku / stock / company / stockCompany / datetime
 
-priceBLedgerPriceListTypeSkuStockCompanyStockDateTime 'Цена' (type, sku, stock, company, companyStock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), companyStockPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceB 'Цена' (type, sku, stock, company, companyStock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock), companyStock(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-priceALedgerPriceListTypeSkuStockCompanyStockDateTime 'Цена' (type, sku, stock, company, companyStock, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock)
-          BY type, skuPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), stock, companyPriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), companyStockPriceListLedger(ledger), dateTimeIn
-          ORDER fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) <= dateTimeIn AND NOT toDateTimePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) < dateTimeIn COMPLEX;
+priceA 'Цена' (type, sku, stock, company, companyStock, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock)
+          BY type, sku(ledger, type, stock), stock, company(ledger, type, stock), companyStock(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
-countStockBPriceListTypeSkuCompanyDateTime 'Кол-во складов' (type, sku, company, dateTime) =
-    GROUP SUM 1 IF priceBLedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
+countStockB 'Кол-во складов' (type, sku, company, dateTime) =
+    GROUP SUM 1 IF priceB(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime)
     BY type, sku, company, dateTime;
 
-countStockAPriceListTypeSkuCompanyDateTime 'Кол-во складов' (type, sku, company, dateTime) =
-    GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
+countStockA 'Кол-во складов' (type, sku, company, dateTime) =
+    GROUP SUM 1 IF priceA(LedgerPriceListType type, Sku sku, Stock stock, LegalEntity company, DATETIME dateTime)
     BY type, sku, company, dateTime;
 
 // ------- НДС --- //
 
-includeVATLedgerPriceListType 'Цена с НДС' = ABSTRACT BOOLEAN (LedgerPriceListType);
-includeVATBasePriceListType(type) += includeVATLedgerPriceListType(type);
+includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (LedgerPriceListType);
+includeVAT(LedgerPriceListType type) += includeVAT(type);
 
 // ------------------ Связь с базовым видом цен ------------- //
 
-priceBBasePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBLedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-priceABasePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+priceB(LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
+priceA(LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
 
-priceBBasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceBLedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-priceABasePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceALedgerPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+priceB(LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceB(type, batch, stock, dateTime);
+priceA(LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceA(type, batch, stock, dateTime);
 
 // ------ оптимизация для ассортиментов
-ledgerPriceListTypePriceListType = ABSTRACT LedgerPriceListType (PriceListType) PERSISTENT;
+ledgerPriceListType = ABSTRACT LedgerPriceListType (PriceListType) PERSISTENT;
 
-ledgerPriceListTypePriceListType(type) += type AS LedgerPriceListType;
+ledgerPriceListType(LedgerPriceListType type) += type AS LedgerPriceListType;
 
 // --------------------------- Системные виды цен, на основе Ledger'ов ------------------ //
 
@@ -522,114 +522,114 @@ CLASS SystemLedgerPriceListType 'Системный вид цены (регис�
     accountPriceListType 'Учетная'
 }: LedgerPriceListType;
 
-showCopyPriceListType(p) += p IS PriceListType AND NOT (p IS SystemLedgerPriceListType);
+showCopy(PriceListType p) += p IS PriceListType AND NOT (p IS SystemLedgerPriceListType);
 
-nameLedgerPriceListType (type) += VARISTRING[100](staticCaption(type)) IF type IS SystemLedgerPriceListType;
+name (SystemLedgerPriceListType type) += VARISTRING[100](staticCaption(type)) IF type IS SystemLedgerPriceListType;
 
-batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.accountPriceListType AND isCompanyStock(stock)
-                                              THEN priceBatchLedgerStock(stock);
+batch(SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.accountPriceListType AND isCompany(stock)
+                                              THEN priceBatchLedger(stock);
 
-includeVATSystemLedgerPriceListType 'Цена с НДС' = ABSTRACT CASE EXCLUSIVE BOOLEAN (SystemLedgerPriceListType);
-includeVATLedgerPriceListType (type) += includeVATSystemLedgerPriceListType(type);
+includeVAT 'Цена с НДС' = ABSTRACT CASE EXCLUSIVE BOOLEAN (SystemLedgerPriceListType);
+includeVAT (SystemLedgerPriceListType type) += includeVAT(type);
 
-inPriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE EXCLUSIVE BOOLEAN (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
-pricePriceListLedgerSystemLedgerPriceListType = ABSTRACT CASE EXCLUSIVE NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
-inPriceListLedgerLedgerPriceListType(ledger, type) += inPriceListLedgerSystemLedgerPriceListType(ledger, type);
-pricePriceListLedgerLedgerPriceListType(ledger, type) += pricePriceListLedgerSystemLedgerPriceListType(ledger, type);
+in = ABSTRACT CASE EXCLUSIVE BOOLEAN (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
+price = ABSTRACT CASE EXCLUSIVE NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
+in(PriceListLedger ledger, SystemLedgerPriceListType type) += in(ledger, type);
+price(PriceListLedger ledger, SystemLedgerPriceListType type) += price(ledger, type);
 
 //Учетные цены и суммы для партий
-accountPriceBBatchStockDate 'Учетная цена товара в партии на начало дня' (batch, stock, date) =
-    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(date));
-accountPriceABatchStockDate 'Учетная цена товара в партии на конец дня' (batch, stock, date) =
-    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(sumDate(date,1)));
-accountSumBBatchStockDate 'Учетная сумма на начало дня' (batch, stock, date) =
-    balanceBBatchStockDate(batch, stock, date) * accountPriceBBatchStockDate(batch, stock, date);
-accountSumABatchStockDate 'Учетная сумма на конец дня' (batch, stock, date) =
-    balanceABatchStockDate(batch, stock, date) * accountPriceABatchStockDate(batch, stock, date);
-accountSumBBatchesStockDate 'Учетная сумма склада(по партиям) на начало дня' (stock, date) =
-    GROUP SUM accountSumBBatchStockDate(batch, stock, date)
+accountPriceB 'Учетная цена товара в партии на начало дня' (Batch batch, Stock stock, DATE date) =
+    prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(date));
+accountPriceA 'Учетная цена товара в партии на конец дня' (Batch batch, Stock stock, DATE date) =
+    prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, toDateTime(sum(date,1)));
+accountSumB 'Учетная сумма на начало дня' (Batch batch, Stock stock, DATE date) =
+    balanceB(batch, stock, date) * accountPriceB(batch, stock, date);
+accountSumA 'Учетная сумма на конец дня' (Batch batch, Stock stock, DATE date) =
+    balanceA(batch, stock, date) * accountPriceA(batch, stock, date);
+accountSumBBatches 'Учетная сумма склада(по партиям) на начало дня' (stock, date) =
+    GROUP SUM accountSumB(Batch batch, Stock stock, DATE date)
     BY stock, date;
-accountSumABatchesStockDate 'Учетная сумма склада(по партиям) на конец дня' (stock, date) =
-    GROUP SUM accountSumABatchStockDate(batch, stock, date)
+accountSumABatches 'Учетная сумма склада(по партиям) на конец дня' (stock, date) =
+    GROUP SUM accountSumA(Batch batch, Stock stock, DATE date)
     BY stock, date;
 
-accountSumBSkuGroupBatchStockDate 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumBBatchStockDate(batch, stock, date)
-    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
-accountSumRecBSkuGroupBatchStockDate 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumBBatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
+accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
+    GROUP SUM accountSumB(Batch batch, Stock stock, DATE date)
+    BY group(GroupType groupType, sku(batch)), stock, date;
+accountSumRecBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, date) =
+    GROUP SUM accountSumB(Batch batch, Stock stock, DATE date) IF isParent(Group group, batch)
     BY group, stock, date;
 
-accountSumASkuGroupBatchStockDate 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumABatchStockDate(batch, stock, date)
-    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, date;
-accountSumRecASkuGroupBatchStockDate 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
-    GROUP SUM accountSumABatchStockDate(batch, stock, date) IF isParentGroupBatch(group, batch)
+accountSumASkuBatch 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
+    GROUP SUM accountSumA(Batch batch, Stock stock, DATE date)
+    BY group(GroupType groupType, sku(batch)), stock, date;
+accountSumRecASkuBatch 'Учетная сумма на конец дня(по партиям)' (group, stock, date) =
+    GROUP SUM accountSumA(Batch batch, Stock stock, DATE date) IF isParent(Group group, batch)
     BY group, stock, date;   
 
 //--
-accountPriceABatchStock 'Цена учетная' (batch, stock) =
-    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
+accountPriceA 'Цена учетная' (Batch batch, Stock stock) =
+    prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, currentDateTime());
 
 // Суммы остатков
-currentAccountSumBatchStock 'Сумма учетная' (batch, stock) =
-    currentBalanceBatchStock(batch, stock) * accountPriceABatchStock(batch, stock);
-currentCostSumBatchStock 'Сумма себестоимости' (batch, stock) =
-    currentBalanceBatchStock(batch, stock) * costBatch(batch);    
+currentAccountSum 'Сумма учетная' (Batch batch, Stock stock) =
+    currentBalance(batch, stock) * accountPriceA(batch, stock);
+currentCostSum 'Сумма себестоимости' (Batch batch, Stock stock) =
+    currentBalance(batch, stock) * cost(batch);    
 
-currentAccountSumBatchSkuStock 'Сумма учетная по партиям' (sku, stock) =
-    GROUP SUM currentAccountSumBatchStock(batch, stock) BY skuBatch(batch), stock;
+currentAccountSumBatch 'Сумма учетная по партиям' (sku, stock) =
+    GROUP SUM currentAccountSum(Batch batch, Stock stock) BY sku(batch), stock;
      
-currentCostSumBatchSkuStock 'Сумма себестоимости по партиям' (sku, stock) =
-    GROUP SUM currentCostSumBatchStock(batch, stock) BY skuBatch(batch), stock;
+currentCostSumBatch 'Сумма себестоимости по партиям' (sku, stock) =
+    GROUP SUM currentCostSum(Batch batch, Stock stock) BY sku(batch), stock;
      
-averageCostPriceBatchSkuStock 'Себестоимость (средневзв.)' = 
-    currentCostSumBatchSkuStock(sku, stock) / currentBalanceSkuStock(sku, stock);   
+averageCostPriceBatch 'Себестоимость (средневзв.)' = 
+    currentCostSumBatch(Sku sku, Stock stock) / currentBalance(sku, stock);   
 
 //--Дата/время    
-accountPriceBBatchStockDateTime 'Учетная цена товара в партии' (batch, stock, dateTime) =
-    prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
-accountSumBBatchStockDateTime 'Сумма учетная' (batch, stock, dateTime) =
-    balanceBBatchStockDateTime(batch, stock, dateTime) * accountPriceBBatchStockDateTime(batch, stock, dateTime);
+accountPriceB 'Учетная цена товара в партии' (Batch batch, Stock stock, DATETIME dateTime) =
+    prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
+accountSumB 'Сумма учетная' (Batch batch, Stock stock, DATETIME dateTime) =
+    balanceB(batch, stock, dateTime) * accountPriceB(batch, stock, dateTime);
 
-accountPriceABatchStockDateTime 'Учетная цена товара в партии' (batch, stock, dateTime) =
-    prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
-accountSumABatchStockDateTime 'Сумма учетная' (batch, stock, dateTime) =
-    balanceABatchStockDateTime(batch, stock, dateTime) * accountPriceABatchStockDateTime(batch, stock, dateTime);
+accountPriceA 'Учетная цена товара в партии' (Batch batch, Stock stock, DATETIME dateTime) =
+    prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime);    
+accountSumA 'Сумма учетная' (Batch batch, Stock stock, DATETIME dateTime) =
+    balanceA(batch, stock, dateTime) * accountPriceA(batch, stock, dateTime);
 
-accountSumBatchBSkuStockDateTime 'Сумма учетная по партиям' (sku, stock, dateTime) =
-    GROUP SUM accountSumBBatchStockDateTime(batch, stock, dateTime) BY skuBatch(batch), stock, dateTime; 
+accountSumBatchB 'Сумма учетная по партиям' (sku, stock, dateTime) =
+    GROUP SUM accountSumB(Batch batch, Stock stock, DATETIME dateTime) BY sku(batch), stock, dateTime; 
     
-accountSumBSkuGroupBatchStockDateTime 'Учетная сумма на начало дня(по партиям)' (group, stock, dateTime) =
-    GROUP SUM accountSumBBatchStockDateTime(batch, stock, dateTime)
-    BY groupGroupTypeSku(groupType, skuBatch(batch)), stock, dateTime;
-accountSumRecBSkuGroupBatchStockDateTime 'Учетная сумма (по партиям)' (group, stock, dateTime) =
-    GROUP SUM accountSumBBatchStockDateTime(batch, stock, dateTime) IF isParentGroupBatch(group, batch)
+accountSumBSkuBatch 'Учетная сумма на начало дня(по партиям)' (group, stock, dateTime) =
+    GROUP SUM accountSumB(Batch batch, Stock stock, DATETIME dateTime)
+    BY group(GroupType groupType, sku(batch)), stock, dateTime;
+accountSumRecBSkuBatch 'Учетная сумма (по партиям)' (group, stock, dateTime) =
+    GROUP SUM accountSumB(Batch batch, Stock stock, DATETIME dateTime) IF isParent(Group group, batch)
     BY group, stock, dateTime;
 
 EXTEND FORM currentBalanceBatchStock
-    PROPERTIES(bt, st) READONLY BEFORE dateTimeBatch(bt) accountPriceABatchStock, currentAccountSumBatchStock
+    PROPERTIES(bt, st) READONLY BEFORE dateTime(bt) accountPriceA, currentAccountSum
 ;
 EXTEND FORM balanceBatchStock
-    PROPERTIES(bt, st, t) READONLY BEFORE dateTimeBatch(bt) accountPriceBBatchStockDateTime, accountSumBBatchStockDateTime
+    PROPERTIES(bt, st, t) READONLY BEFORE dateTime(bt) accountPriceB, accountSumB
 ;
 
 EXTEND FORM dialogBatchStockOut
-    PROPERTIES(bt, st, t) READONLY accountPriceABatchStockDateTime
+    PROPERTIES(bt, st, t) READONLY accountPriceA
 ;
 
 EXTEND FORM dialogBatchStockIn
-    PROPERTIES(bt, st, t) READONLY accountPriceABatchStockDateTime
+    PROPERTIES(bt, st, t) READONLY accountPriceA
 ;
 
 // ------------------ Суммы по регистрам ------------------------ //
 
-accountPriceASkuLedgerBatch 'Цена учетная' (ledger, batch) = accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
-accountSumBatchSkuLedger 'Сумма по партиям' = GROUP SUM costSkuLedgerBatch(l, b) * accountPriceASkuLedgerBatch(l, b) BY l;
+accountPriceA 'Цена учетная' (SkuLedger ledger, Batch batch) = accountPriceA(batch, stock(ledger), dateTime(ledger));
+accountSumBatch 'Сумма по партиям' = GROUP SUM cost(SkuLedger l, Batch b) * accountPriceA(l, b) BY l;
 EXTEND FORM costSkuLedger 
-    PROPERTIES(bil) accountSumBatchSkuLedger AFTER sumSkuLedger(bil)
+    PROPERTIES(bil) accountSumBatch AFTER sum(bil)
     FILTERGROUP wrongSum
-        FILTER 'Неправильная сумма по партиям' NOT accountSumBatchSkuLedger(bil) == sumSkuLedger(bil) 'F4' 
+        FILTER 'Неправильная сумма по партиям' NOT accountSumBatch(bil) == sum(bil) 'F4' 
 ;
 
 // ----------------------------- Метакоды ------------------------ //
@@ -638,20 +638,20 @@ EXTEND FORM costSkuLedger
 META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockProp, prefix)
     EXTEND CLASS objectClass : PriceListLedger;
 
-    fromDateTimePriceListLedger (ledger) += dateTime###objectClass(ledger);
+    fromDateTime (objectClass ledger) += dateTime(ledger);
 
-    isPostedPriceListLedger(ledger) += isPosted###objectClass(ledger);
+    isPosted[PriceListLedger](objectClass ledger) += isPosted(ledger);
 
-    skuPriceListLedger (ledger) += sku###objectClass(ledger);
+    sku[PriceListLedger] (objectClass ledger) += sku(ledger);
 
-    descriptionPriceListLedger (ledger) += description###objectClass(ledger);
+    description[PriceListLedger] (objectClass ledger) += description(ledger);
 
-    companyPriceListLedger (ledger) += companyProp###objectClass(ledger);
+    company (objectClass ledger) += companyProp(ledger);
 
-    inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN prefix###price###objectClass(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN TRUE;
-    pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN prefix###price###objectClass(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN prefix###price###objectClass(ledger);
+    in (objectClass ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN TRUE;
+    price (objectClass ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.##type##PriceListType THEN price(ledger);
 
-    inPriceListLedgerStock (ledger, stock) += stockProp###objectClass(ledger) == stock;
+    in (objectClass ledger, ###stockProp stock) += stockProp(ledger) == stock;
 END
 
 META implementSystemLedgerPriceListType (type, objectClass, companyProp, stockProp)
@@ -660,35 +660,35 @@ END
 
 META implementSystemLedgerPriceListTypeBatch (type, objectClass, companyProp, stockProp)
     @implementSystemLedgerPriceListType(type, objectClass, companyProp, stockProp);
-    inPriceListLedgerBatch(ledger, batch) += (ledger AS objectClass) == batch;
+    in(objectClass ledger, objectClass batch) += (ledger AS objectClass) == batch;
 END
 
 // Derive
 META deriveDocumentDetailPriceSystemLedgerPriceListType (concrete, priceListTypeProp, prefixP, skuProp, stockProp)
-    prefixP###price###concrete##Detail (detail)  <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                            skuProp###concrete##Detail(detail),
-                                                                                            stockProp###concrete##Detail(detail),
-                                                                                            dateTime###concrete##Detail(detail))
-                                                    WHEN DO CHANGED(skuProp###concrete##Detail(detail)) OR
-                                                         CHANGED(stockProp###concrete##Detail(detail)) OR
-                                                         CHANGED(dateTime###concrete##Detail(detail));
+    prefixP##Price (###concrete##Detail detail)  <- prevPriceB[PriceListType,###skuProp,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                            skuProp(detail),
+                                                                                            stockProp(detail),
+                                                                                            dateTime(detail))
+                                                    WHEN DO CHANGED(skuProp(detail)) OR
+                                                         CHANGED(stockProp(detail)) OR
+                                                         CHANGED(dateTime(detail));
 END
 
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, prefixP, prefixB, skuProp, stockProp)
-    prefixP###price###concrete##Detail (detail)  <- IF prefixB###batch###concrete##Detail(detail)
+    prefixP###price (###concrete##Detail detail)  <- IF batch(detail)
 
-                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                                   prefixB###batch###concrete##Detail(detail),
-                                                                                                   stockProp###concrete##Detail(detail),
-                                                                                                   dateTime###concrete##Detail(detail))
-                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                                 prefixB###skuProp###concrete##Detail(detail),
-                                                                                                 stockProp###concrete##Detail(detail),
-                                                                                                 dateTime###concrete##Detail(detail))
-                                                    WHEN DO CHANGED(prefixB###skuProp###concrete##Detail(detail)) OR
-                                                         CHANGED(stockProp###concrete##Detail(detail)) OR
-                                                         (CHANGED(dateTime###concrete##Detail(detail)) AND NOT isPosted###concrete##Detail(detail)) OR
-                                                         CHANGED(prefixB###batch###concrete##Detail(detail));
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                   batch(detail),
+                                                                                                   stockProp(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,###skuProp,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                 skuProp(detail),
+                                                                                                 stockProp(detail),
+                                                                                                 dateTime(detail))
+                                                    WHEN DO CHANGED(skuProp(detail)) OR
+                                                         CHANGED(stockProp(detail)) OR
+                                                         (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                                                         CHANGED(batch(detail));
 END
 
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceListTypeProp, prefixP, skuProp, stockProp)
@@ -700,25 +700,25 @@ META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (concrete, priceLis
 END
 
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, prefixP, prefixB, skuProp, stockProp)
-    prevListSku###prefixP###price###concrete##Detail = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (###concrete##Detail);
-    prevListBatch###prefixP###price###concrete##Detail = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (###concrete##Detail);
+    prevList###skuProp###prefixP##Price = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (###concrete##Detail);
+    prevListBatch###prefixP##Price = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (###concrete##Detail);
     
-    prevListBatch###prefixP###price###concrete##Detail(detail) += prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                                           prefixB###batch###concrete##Detail(detail),
-                                                                                                           stockProp###concrete##Detail(detail),
-                                                                                                           dateTime###concrete##Detail(detail));
-    prevListSku###prefixP###price###concrete##Detail(detail) += prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp,
-                                                                                                 prefixB###skuProp###concrete##Detail(detail),
-                                                                                                 stockProp###concrete##Detail(detail),
-                                                                                                 dateTime###concrete##Detail(detail));
+    prevListBatch###prefixP##Price(###concrete##Detail detail) += prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                           batch(detail),
+                                                                                                           stockProp(detail),
+                                                                                                           dateTime(detail));
+    prevList###skuProp###prefixP##Price(###concrete##Detail detail) += prevPriceB[PriceListType,###skuProp,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp,
+                                                                                                 skuProp(detail),
+                                                                                                 stockProp(detail),
+                                                                                                 dateTime(detail));
                                                                                                      
-    prefixP###price###concrete##Detail (detail)  <- IF prefixB###batch###concrete##Detail(detail)    
-                                                    THEN prevListBatch###prefixP###price###concrete##Detail(detail)
-                                                    ELSE prevListSku###prefixP###price###concrete##Detail(detail)
-        WHEN DO CHANGED(prefixB###skuProp###concrete##Detail(detail)) OR
-             CHANGED(stockProp###concrete##Detail(detail)) OR
-             CHANGED(dateTime###concrete##Detail(detail)) OR
-             CHANGED(prefixB###batch###concrete##Detail(detail));
+    prefixP##Price (###concrete##Detail detail)  <- IF batch(detail)    
+                                                    THEN prevListBatch###prefixP##Price(detail)
+                                                    ELSE prevList###skuProp###prefixP##Price(detail)
+        WHEN DO CHANGED(skuProp(detail)) OR
+             CHANGED(stockProp(detail)) OR
+             CHANGED(dateTime(detail)) OR
+             CHANGED(batch(detail));
 END
 META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, prefixP, skuProp, stockProp)
     @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, prefixP, , skuProp, stockProp);
@@ -727,31 +727,31 @@ META deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, pri
     @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra (concrete, priceListTypeProp, , , skuProp, stockProp);
 END
 
-dialogPriceListTypeSkuStock = DATA LOCAL LedgerPriceListType (Sku, Stock);
-nameDialogPriceListTypeSkuStock 'Вид цены' = namePriceListType(dialogPriceListTypeSkuStock(sku, stock));
+dialogPriceListType = DATA LOCAL LedgerPriceListType (Sku, Stock);
+nameDialogPriceListType 'Вид цены' = name[PriceListType](dialogPriceListType(Sku sku, Stock stock));
 
-relationSkuStockPriceListType(s,st,t) = GROUP SUM 1 IF skuPriceListLedger(pl) == s AND isPostedPriceListLedger(pl) AND inPriceListLedgerLedgerPriceListType(pl, t)
-    AND inPriceListLedgerStock(pl,st) AND pricePriceListLedgerLedgerPriceListType(pl,t) BY s,st,t;
-CONSTRAINT dialogPriceListTypeSkuStock(s,st) AND NOT relationSkuStockPriceListType(s,st,dialogPriceListTypeSkuStock(s,st))
-    CHECKED BY dialogPriceListTypeSkuStock MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';
+relation(s,st,t) = GROUP SUM 1 IF sku(PriceListLedger pl) == Sku s AND isPosted(pl) AND in(pl, LedgerPriceListType t)
+    AND in(pl,Stock st) AND price(pl,t) BY s,st,t;
+CONSTRAINT dialogPriceListType(Sku s,Stock st) AND NOT relation(s,st,dialogPriceListType(s,st))
+    CHECKED BY dialogPriceListType[Sku,Stock] MESSAGE 'Выбран вид цены, по которому нет истории изменения по данному товару';
 
 FORM movementPriceSkuStock 'Изменение цены товара по складу'
     OBJECTS s = Sku FIXED PANEL
-    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s) READONLY name
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
-    PROPERTIES(s,st) nameDialogPriceListTypeSkuStock
+    PROPERTIES(st) SELECTOR name
+    PROPERTIES(s,st) nameDialogPriceListType
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
-    PROPERTIES READONLY FORCE GRID namePriceListType(t),  descriptionPriceListLedger(pl), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
-                        pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) 
-    PROPERTIES(pl) editPriceListLedger                     
-    ORDER BY namePriceListType(t), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st)
+    PROPERTIES READONLY FORCE GRID name[PriceListType](t),  description(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
+                        price(pl, t, st) 
+    PROPERTIES(pl) edit                     
+    ORDER BY name(t), fromDateTime(pl, t, st)
 
-    FILTERS skuPriceListLedgerLedgerPriceListTypeStock(pl, t, st) == s,
-            activePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
-            (t IS PriceListType AND NOT dialogPriceListTypeSkuStock(s,st)) OR dialogPriceListTypeSkuStock(s,st) == t
+    FILTERS sku(pl, t, st) == s,
+            active(pl, t, st),
+            (t IS PriceListType AND NOT dialogPriceListType(s,st)) OR dialogPriceListType(s,st) == t
 
 ;
 DESIGN movementPriceSkuStock {
@@ -764,11 +764,11 @@ DESIGN movementPriceSkuStock {
         }
         NEW dialog {
             caption = 'Вид цен';
-            MOVE PROPERTY(nameDialogPriceListTypeSkuStock(s,st));
+            MOVE PROPERTY(nameDialogPriceListType(s,st));
         }
         MOVE pp.box;
-        PROPERTY(nameSku(s)) { focusable = FALSE;}
-        PROPERTY(namePriceListType(t)) { caption = 'Вид цен';}
+        PROPERTY(name(s)) { focusable = FALSE;}
+        PROPERTY(name(t)) { caption = 'Вид цен';}
     }
     MOVE functions.box;
 }
@@ -776,48 +776,48 @@ DESIGN movementPriceSkuStock {
 //--
 FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS s = Sku FIXED PANEL
-    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s) READONLY name
 
     OBJECTS pp = (t = PriceListType, pl = PriceListLedger, st = Stock)
-    PROPERTIES READONLY FORCE GRID namePriceListType(t), nameStock(st), descriptionPriceListLedger(pl),  fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
-                        pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) 
-    PROPERTIES(pl) editPriceListLedger                     
-    ORDER BY nameStock(st), namePriceListType(t), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st)
+    PROPERTIES READONLY FORCE GRID name(t), name(st), description(pl),  fromDateTime(pl, t, st), toDateTime(pl, t, st),
+                        price(pl, t, st) 
+    PROPERTIES(pl) edit                     
+    ORDER BY name(st), name(t), fromDateTime(pl, t, st)
 
-    FILTERS skuPriceListLedgerLedgerPriceListTypeStock(pl, t, st) == s,
-            activePriceListLedgerLedgerPriceListTypeStock(pl, t, st)
+    FILTERS sku(pl, t, st) == s,
+            active(pl, t, st)
 ;
 DESIGN movementPriceSkuStocks {
     main {
         preferredSize = (800, 600);
         MOVE s.box;
         MOVE pp.box;
-        PROPERTY(nameSku(s)) { focusable = FALSE;}
-        PROPERTY(nameStock(st)) { caption = 'Склад';}
-        PROPERTY(namePriceListType(t)) { caption = 'Вид цен';}
+        PROPERTY(name(s)) { focusable = FALSE;}
+        PROPERTY(name(st)) { caption = 'Склад';}
+        PROPERTY(name(t)) { caption = 'Вид цен';}
     }
     MOVE functions.box;
 }
 
 META defineMovementPriceSku(detail, stockProp)
-    showMovementPriceSkuStock###detail 'Показать изменение цены товара по складу' (detail) = ACTION FORM movementPriceSkuStock OBJECTS s = sku###detail(detail), st = stockProp###detail(detail) MODAL SHORTCUT nameSku###detail;
-    showMovementPriceSkuStocks###detail 'Показать изменение цены товара' (detail) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
+    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = ACTION FORM movementPriceSkuStock OBJECTS s = sku(detail), st = stockProp(detail) MODAL SHORTCUT nameSku[###detail];
+    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku(detail) MODAL SHORTCUT nameSku[###detail];
 END
 META defineMovementPriceSku(detail)
-    showMovementPriceSkuStock###detail 'Показать изменение цены товара по складу' (detail) = ACTION FORM movementPriceSkuStock OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
-    showMovementPriceSkuStocks###detail 'Показать изменение цены товара' (detail) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku###detail(detail) MODAL SHORTCUT nameSku###detail;
+    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = ACTION FORM movementPriceSkuStock OBJECTS s = sku(detail) MODAL SHORTCUT nameSku[###detail];
+    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku(detail) MODAL SHORTCUT nameSku[###detail];
 END
 
-showMovementPriceSkuSkuStock 'Показать изменение цены товара по складу' (sku, stock) = ACTION FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
-showBalancePriceSkuSkuStock(sku, stock) += ACTION showMovementPriceSkuSkuStock(sku, stock); 
-showMovementPriceSkuSkuStocks 'Показать изменение цены товара по складу' (sku) = ACTION FORM movementPriceSkuStock OBJECTS s = sku MODAL;
-showMovementPriceSkuStocks 'Показать изменение цены товара' (sku) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku MODAL SHORTCUT nameSku;
+showMovementPriceSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock) = ACTION FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
+showBalancePriceSku(Sku sku, Stock stock) += ACTION showMovementPriceSku(sku, stock); 
+showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Sku sku) = ACTION FORM movementPriceSkuStock OBJECTS s = sku MODAL;
+showMovementPriceStocks 'Показать изменение цены товара' (Sku sku) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku MODAL SHORTCUT name[Sku];
 
-showMovementPriceSkuBatchStock 'Показать изменение цены товара по складу' (batch, stock) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch), st = stock MODAL;
-showMovementPriceSkuBatchStocks 'Показать изменение цены товара по складу' (batch) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch) MODAL SHORTCUT nameSkuBatch;
-showMovementPriceBatchStocks 'Показать изменение цены товара' (batch) = ACTION FORM movementPriceSkuStocks OBJECTS s = skuBatch(batch) MODAL SHORTCUT nameSkuBatch;
+showMovementPriceSku 'Показать изменение цены товара по складу' (Batch batch, Stock stock) = ACTION FORM movementPriceSkuStock OBJECTS s = sku(batch), st = stock MODAL;
+showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Batch batch) = ACTION FORM movementPriceSkuStock OBJECTS s = sku(batch) MODAL SHORTCUT nameSku[Batch];
+showMovementPriceStocks 'Показать изменение цены товара' (Batch batch) = ACTION FORM movementPriceSkuStocks OBJECTS s = sku(batch) MODAL SHORTCUT nameSku[Batch];
 
-showMovementPriceSkuStockBatch 'Показать изменение цены товара по складу возникновения партии' (batch) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MODAL SHORTCUT nameSkuBatch;
+showMovementPriceSkuStock 'Показать изменение цены товара по складу возникновения партии' (Batch batch) = ACTION FORM movementPriceSkuStock OBJECTS s = sku(batch), st = stock(batch) MODAL SHORTCUT nameSku[Batch];
 
 //@defineMovementPriceSku(batch, stock){
 //    showMovementPriceSkuStockBatch 'Показать изменение цены товара по складу' (batch) = ACTION FORM movementPriceSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MODAL SHORTCUT nameSkuBatch;
@@ -828,16 +828,16 @@ showMovementPriceSkuStockBatch 'Показать изменение цены т�
 
 
 filterReportStock  = DATA LOCAL Stock ();
-nameFilterReportStock 'Склад' = nameStock(filterReportStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+nameFilterReportStock 'Склад' = name(filterReportStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
   
-CONSTRAINT  filterReportStock() AND NOT isCompanyStock(filterReportStock())
-    CHECKED BY filterReportStock MESSAGE 'Выбран склад, который не является складом компании';
+CONSTRAINT  filterReportStock() AND NOT isCompany(filterReportStock())
+    CHECKED BY filterReportStock[] MESSAGE 'Выбран склад, который не является складом компании';
   
 filterReportLedgerPriceListType  = DATA LOCAL LedgerPriceListType ();
-nameFilterReportLedgerPriceListType 'Вид цены' = namePriceListType(filterReportLedgerPriceListType()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
+nameFilterReportLedgerPriceListType 'Вид цены' = name[PriceListType](filterReportLedgerPriceListType()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
 
 filterReportSku = DATA LOCAL Sku ();
-nameFilterReportSku 'SKU' = nameSku(filterReportSku()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
+nameFilterReportSku 'SKU' = name(filterReportSku()) MINCHARWIDTH 15 PREFCHARWIDTH 20; 
 
 FORM priceTypeLedgerSkuStock 'Регистр цен'
 
@@ -846,16 +846,16 @@ FORM priceTypeLedgerSkuStock 'Регистр цен'
                nameFilterReportSku()       
 
     OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger, st = Stock)
-    PROPERTIES READONLY namePriceListType(t),  nameStock(st), nameSkuPriceListLedger(pl), descriptionPriceListLedger(pl), fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st), toDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st),
-                        pricePriceListLedgerLedgerPriceListTypeStock(pl, t, st) FORCE GRID
-    PROPERTIES(pl) editPriceListLedger                     
+    PROPERTIES READONLY name[PriceListType](t),  name(st), nameSku(pl), description(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
+                        price(pl, t, st) FORCE GRID
+    PROPERTIES(pl) edit                     
 //    ORDER BY fromDateTimePriceListLedger(pl)
 
-    FILTERS fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st) >= DATETIME(dFrom),
-            fromDateTimePriceListLedgerLedgerPriceListTypeStock(pl, t, st) < DATETIME(sumDate(dTo, 1)),                       
+    FILTERS fromDateTime(pl, t, st) >= DATETIME(dFrom),
+            fromDateTime(pl, t, st) < DATETIME(sum(dTo, 1)),                       
             filterReportStock() == st OR (st IS Stock AND NOT filterReportStock()),
             filterReportLedgerPriceListType() == t OR (t IS PriceListType AND NOT filterReportLedgerPriceListType()),
-            filterReportSku() == skuPriceListLedgerLedgerPriceListTypeStock(pl, t, st) OR (pl IS PriceListLedger AND NOT filterReportSku())
+            filterReportSku() == sku(pl, t, st) OR (pl IS PriceListLedger AND NOT filterReportSku())
 ;
 DESIGN priceTypeLedgerSkuStock {
     main {

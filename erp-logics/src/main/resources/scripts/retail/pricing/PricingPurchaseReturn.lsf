@@ -6,74 +6,74 @@ NAMESPACE PurchaseReturn;
 
 // ------------------------------------- Автоматическое создание расценки для документа -------------------- //
 
-roundConditionUserInvoiceDetail(userInvoiceDetail) = roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));
+roundCondition(UserInvoiceDetail userInvoiceDetail) = roundCondition(customerStock(userInvoiceDetail));
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка-возврат)', 'Акт расценки при возврате', 'Проведенный акт расценки при возврате', customer, );
-batchPricingDetail(detail) += batchInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
-editPricingDetail (d)+= ACTION editInvoiceDetail(invoiceDetailInvoicePricingDetail(d));
+batch(InvoicePricingDetail detail) += batch(invoiceDetail(detail));
+edit (InvoicePricingDetail d)+= ACTION edit(invoiceDetail(d));
 
 
 // Автоматическое проставление свойств
-retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    retailPriceUserInvoiceDetail(userInvoiceDetail),
-    valueRetailVATUserInvoiceDetail(userInvoiceDetail),
-    pricingPriceUserInvoiceDetail(userInvoiceDetail))
-    WHEN CHANGED(retailPriceUserInvoiceDetail(userInvoiceDetail)) OR
-         CHANGED(retailVATUserInvoiceDetail(userInvoiceDetail)) OR
-         CHANGED(pricingPriceUserInvoiceDetail(userInvoiceDetail));
+retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    retailPrice(userInvoiceDetail),
+    valueRetailVAT(userInvoiceDetail),
+    pricingPrice(userInvoiceDetail))
+    WHEN CHANGED(retailPrice(userInvoiceDetail)) OR
+         CHANGED(retailVAT(userInvoiceDetail)) OR
+         CHANGED(pricingPrice(userInvoiceDetail));
 
 //@deriveDocumentDetailVAT(userInvoice, retail, date, sku, customerStock);
 
 // Проставляем НДС розничный, равный НДС входному
-WHEN SESSION CHANGED(VATUserInvoiceDetail(detail)) OR CHANGED(valueVATUserInvoiceDetail(detail)) DO {
-    retailVATUserInvoiceDetail(detail) <- IF valueVATUserInvoiceDetail(detail) == 0 THEN
-                                               VATSkuCountry (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)))
-                                          ELSE VATUserInvoiceDetail(detail);
+WHEN SESSION CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
+    retailVAT(detail) <- IF valueVAT(detail) == 0 THEN
+                                               VAT (sku(detail), country(supplierStock(detail)))
+                                          ELSE VAT(detail);
 }
 
-extraRetailPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail); 
-WHEN SESSION (CHANGED(customerStockUserInvoiceDetail(detail)) OR
-              CHANGED(dateTimeUserInvoiceDetail(detail)) OR
-              CHANGED(batchUserInvoiceDetail(detail))) AND batchUserInvoiceDetail(detail) DO {
-    retailPriceUserInvoiceDetail (detail)  <- prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
-                                                                                                       batchUserInvoiceDetail(detail),
-                                                                                                       customerStockUserInvoiceDetail(detail),
-                                                                                                       dateTimeUserInvoiceDetail(detail)) (-) extraRetailPriceUserInvoiceDetail(detail);
+extraRetailPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail); 
+WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+              CHANGED(dateTime(detail)) OR
+              CHANGED(batch(detail))) AND batch(detail) DO {
+    retailPrice (detail)  <- prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                                       batch(detail),
+                                                                                                       customerStock(detail),
+                                                                                                       dateTime(detail)) (-) extraRetailPrice(detail);
 }
 
-WHEN SESSION (CHANGED(customerStockUserInvoiceDetail(detail)) OR
-              CHANGED(dateTimeUserInvoiceDetail(detail)) OR
-              DROPPED(batchUserInvoiceDetail(detail)) OR
-              CHANGED(skuUserInvoiceDetail(detail))) AND NOT batchUserInvoiceDetail(detail) DO {
-    retailPriceUserInvoiceDetail (detail)  <- prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
-                                                                                      skuUserInvoiceDetail(detail),
-                                                                                      customerStockUserInvoiceDetail(detail),
-                                                                                      dateTimeUserInvoiceDetail(detail)) (-) extraRetailPriceUserInvoiceDetail(detail);
+WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+              CHANGED(dateTime(detail)) OR
+              DROPPED(batch(detail)) OR
+              CHANGED(sku(detail))) AND NOT batch(detail) DO {
+    retailPrice (detail)  <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                      sku(detail),
+                                                                                      customerStock(detail),
+                                                                                      dateTime(detail)) (-) extraRetailPrice(detail);
 }
 
 // Не изменять цену и является обратным
-skipChangeLedgerPricingDetail(d) += d IS InvoicePricingDetail;
-isReturnPricing(pricing) +=  pricing IS InvoicePricing;
+skipChangeLedger(InvoicePricingDetail d) += d IS InvoicePricingDetail;
+isReturn(InvoicePricing pricing) +=  pricing IS InvoicePricing;
 
 // Автоматическое проставление галочки создания акта расценки
 @deriveDocumentOperationProperty(UserInvoice, createPricing);
 // Операция расценки
 @defineDocumentInterfaceOperationPrefix (invoice, pricing, Pricing, ' ( расценка)');
-pricingOperationUserInvoice (invoice) <- pricingOperationOperation(operationUserInvoice(invoice))
-    WHEN CHANGED(operationUserInvoice(invoice));
-operationPricing(pricing) += pricingOperationInvoice(invoiceInvoicePricing(pricing));
+pricingOperation (UserInvoice invoice) <- pricingOperation(operation(invoice))
+    WHEN CHANGED(operation(invoice));
+operation(InvoicePricing pricing) += pricingOperation(invoice(pricing));
 
 // Добавляем операцию расценки на форму
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) namePricingOperationUserInvoice, 
-                                                                                            useShipmentQuantityUserInvoice
+    PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) namePricingOperation, 
+                                                                                            useShipmentQuantity
 ;
 DESIGN userInvoice {
     headerCreatePricing {
-        MOVE PROPERTY(namePricingOperationUserInvoice(i));// BEFORE PROPERTY(namePricingCommitteeUserInvoice(i));
-        MOVE PROPERTY(useShipmentQuantityUserInvoice(i));// AFTER PROPERTY(namePricingCommitteeUserInvoice(i));
+        MOVE PROPERTY(namePricingOperation(i));// BEFORE PROPERTY(namePricingCommitteeUserInvoice(i));
+        MOVE PROPERTY(useShipmentQuantity(i));// AFTER PROPERTY(namePricingCommitteeUserInvoice(i));
     }
 }
 
 //Проставляем свойство расценки поставленного количества 
-useShipmentQuantityUserInvoice (invoice) <- useShipmentQuantityOperation(pricingOperationOperation(operationUserInvoice(invoice)))
-                                                        WHEN CHANGED(operationUserInvoice(invoice));
+useShipmentQuantity (UserInvoice invoice) <- useShipmentQuantity(pricingOperation(operation(invoice)))
+                                                        WHEN CHANGED(operation(invoice));

@@ -5,56 +5,56 @@ REQUIRE SalePickingOrder, SaleBlanketOrder;
 NAMESPACE Sale;
 
 
-createPickingOrderBlanketOrderStock 'Заказ на комплектацию' = DATA BOOLEAN (BlanketOrder, Stock);
+createPickingOrder 'Заказ на комплектацию' = DATA BOOLEAN (BlanketOrder, Stock);
 
-createPickingOrderBlanketOrderStock (o, st) <- createPickingOrderOperation(operationBlanketOrderStock(o, st)) IF inBlanketOrderStock(o,st)  
-    WHEN CHANGED(createPickingOrderOperation(operationBlanketOrderStock(o, st))) OR CHANGED(inBlanketOrderStock(o,st));
+createPickingOrder (BlanketOrder o, Stock st) <- createPickingOrder(operation(o, st)) IF in(o,st)  
+    WHEN CHANGED(createPickingOrder(operation(o, st))) OR CHANGED(in(o,st));
  
 EXTEND FORM blanketOrder
-    PROPERTIES(o,c) createPickingOrderBlanketOrderStock AFTER nameOperationBlanketOrderStock(o,c)
+    PROPERTIES(o,c) createPickingOrder AFTER nameOperation(o,c)
 ;
-createPickingOrderOrder(o) += createPickingOrderBlanketOrderStock(blanketOrderBlanketOrderOrder(o), stockBlanketOrderOrder(o));
-pickingNumberOrderDetail(d) +=  1 IF d IS BlanketOrderOrderDetail;
+createPickingOrder(BlanketOrderOrder o) += createPickingOrder(blanketOrder(o), stock(o));
+pickingNumber(BlanketOrderOrderDetail d) +=  1 IF d IS BlanketOrderOrderDetail;
 
-countOrdersBlanketOrder 'К-во заказов' (blanketOrder) = GROUP SUM 1 BY blanketOrderBlanketOrderOrder(order);
-countBlanketOrderOrder 'К-во заказов' (blanketOrder, order) = GROUP SUM 1 BY blanketOrderBlanketOrderOrder(order), order;
+countOrders 'К-во заказов' (blanketOrder) = GROUP SUM 1 BY blanketOrder(BlanketOrderOrder order);
+count 'К-во заказов' (blanketOrder, order) = GROUP SUM 1 BY blanketOrder(BlanketOrderOrder order), order;
 
-namePerformerBlanketOrder 'Комплектовщики' (blanketOrder) = GROUP CONCAT namePerformerOrder(o) IF countBlanketOrderOrder(blanketOrder, o), ',' BY blanketOrder;
+namePerformer 'Комплектовщики' (blanketOrder) = GROUP CONCAT namePerformer(BlanketOrderOrder o) IF count(BlanketOrder blanketOrder, o), ',' BY blanketOrder;
 
-countFullBlanketOrder 'К-во полностью собранных' (blanketOrder) = GROUP SUM 1 IF calcFullOrder(order) BY blanketOrderBlanketOrderOrder(order);
-countPartBlanketOrder 'К-во частично собранных' (blanketOrder) = GROUP SUM 1 IF calcPartOrder(order) BY blanketOrderBlanketOrderOrder(order);
-countPartFullBlanketOrder 'К-во частично/полностью собранных' (blanketOrder) = GROUP SUM 1 IF (calcPartOrder(order) OR calcFullOrder(order))  BY blanketOrderBlanketOrderOrder(order);
-countAcceptedBlanketOrder 'К-во в комплектации' (blanketOrder) = GROUP SUM 1 IF acceptedOrder(order) BY blanketOrderBlanketOrderOrder(order);
-countPickingBlanketOrder 'К-во ожидает комплектации' (blanketOrder) = GROUP SUM 1 IF countPickingOrderOrder(order) BY blanketOrderBlanketOrderOrder(order);
+countFull 'К-во полностью собранных' (blanketOrder) = GROUP SUM 1 IF calcFull(BlanketOrderOrder order) BY blanketOrder(order);
+countPart 'К-во частично собранных' (blanketOrder) = GROUP SUM 1 IF calcPart(BlanketOrderOrder order) BY blanketOrder(order);
+countPartFull 'К-во частично/полностью собранных' (blanketOrder) = GROUP SUM 1 IF (calcPart(BlanketOrderOrder order) OR calcFull(order))  BY blanketOrder(order);
+countAccepted 'К-во в комплектации' (blanketOrder) = GROUP SUM 1 IF accepted(BlanketOrderOrder order) BY blanketOrder(order);
+countPicking 'К-во ожидает комплектации' (blanketOrder) = GROUP SUM 1 IF countPickingOrder(BlanketOrderOrder order) BY blanketOrder(order);
 
-packQuantityBlanketOrder 'Кол-во собранных мест' (order) = GROUP SUM packQuantityOrder(order) BY blanketOrderBlanketOrderOrder(order);
+packQuantity 'Кол-во собранных мест' (order) = GROUP SUM packQuantity(BlanketOrderOrder order) BY blanketOrder(order);
 
-statusPickingBlanketOrder 'Статус комплектации' (order) = CASE
-    WHEN countOrdersBlanketOrder(order) == countFullBlanketOrder(order) THEN 'Полностью собран'
-    WHEN countOrdersBlanketOrder(order) == countPartFullBlanketOrder(order) THEN 'Частично собран'
-    WHEN countAcceptedBlanketOrder(order)  THEN 'В комплектации'
-    WHEN countPickingBlanketOrder(order) THEN 'Ожидает комплектацию' 
+statusPicking 'Статус комплектации' (BlanketOrder order) = CASE
+    WHEN countOrders(order) == countFull(order) THEN 'Полностью собран'
+    WHEN countOrders(order) == countPartFull(order) THEN 'Частично собран'
+    WHEN countAccepted(order)  THEN 'В комплектации'
+    WHEN countPicking(order) THEN 'Ожидает комплектацию' 
     WHEN order IS BlanketOrder THEN 'Без комплектации';
 
-backgroundStatusPickingBlanketOrder 'Цвет' (order) = CASE
-    WHEN countOrdersBlanketOrder(order) == countFullBlanketOrder(order) THEN RGB(212,255,212)
-    WHEN countOrdersBlanketOrder(order) == countPartFullBlanketOrder(order) THEN RGB(255,238,165)
-    WHEN countAcceptedBlanketOrder(order) THEN RGB(255,238,165)
-    WHEN countPickingBlanketOrder(order) THEN RGB(212,212,255) 
+backgroundStatusPicking 'Цвет' (BlanketOrder order) = CASE
+    WHEN countOrders(order) == countFull(order) THEN RGB(212,255,212)
+    WHEN countOrders(order) == countPartFull(order) THEN RGB(255,238,165)
+    WHEN countAccepted(order) THEN RGB(255,238,165)
+    WHEN countPicking(order) THEN RGB(212,212,255) 
     WHEN order IS BlanketOrder THEN RGB(255,200,216);
 
 EXTEND FORM blanketOrders
-    PROPERTIES(o) READONLY FORCE PANEL countOrdersBlanketOrder, namePerformerBlanketOrder, packQuantityBlanketOrder                  
-    PROPERTIES(o) READONLY statusPickingBlanketOrder BACKGROUND backgroundStatusPickingBlanketOrder(o) BEFORE countBlanketOrderDetailBlanketOrder(o)            
+    PROPERTIES(o) READONLY FORCE PANEL countOrders, namePerformer, packQuantity                  
+    PROPERTIES(o) READONLY statusPicking BACKGROUND backgroundStatusPicking(o) BEFORE countBlanketOrderDetail(o)            
 ;
 DESIGN blanketOrders {
     documentHistory {
         NEW picking {
             caption = 'Комплектация';
             type = CONTAINERV;
-            MOVE PROPERTY(countOrdersBlanketOrder(o));
-            MOVE PROPERTY(packQuantityBlanketOrder(o));
-            MOVE PROPERTY(namePerformerBlanketOrder(o));
+            MOVE PROPERTY(countOrders(o));
+            MOVE PROPERTY(packQuantity(o));
+            MOVE PROPERTY(namePerformer(o));
         }
     }
 }

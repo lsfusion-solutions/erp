@@ -5,45 +5,45 @@ REQUIRE TripOrder, OrderShipment;
 NAMESPACE Trip;
 
 // поставки
-tripShipment = DATA Trip(Shipment);
-inTripShipment 'Включен' (trip, shipment) = tripShipment(shipment)==trip;
+trip = DATA Trip(Shipment);
+in 'Включен' (Trip trip, Shipment shipment) = trip(shipment)==trip;
 
-filterTripShipment(trip, shipment) = tripShipment(shipment)==trip OR (trip IS Trip AND shipment IS Shipment AND NOT tripShipment(shipment));
+filter(Trip trip, Shipment shipment) = trip(shipment)==trip OR (trip IS Trip AND shipment IS Shipment AND NOT trip(shipment));
 
-grossWeightShippedTrip 'Суммарный вес поставок' (trip) = GROUP SUM grossWeightShipmentDetailShipment(shipment) BY tripShipment(shipment);
+grossWeightShipped 'Суммарный вес поставок' (trip) = GROUP SUM grossWeightShipmentDetail(Shipment shipment) BY trip(shipment);
 
-quantityShipmentDetailTripShipment (trip, shipment) = GROUP SUM quantityShipmentDetailOrderShipment (order, shipment) BY tripOrder(order), shipment;
+quantityShipmentDetail (trip, shipment) = GROUP SUM quantityShipmentDetail (Order order, Shipment shipment) BY trip(order), shipment;
 
-quantityShippedTripSku 'Кол-во в поставках' (trip, sku) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY tripShipment(shipmentShipmentDetail(shipmentDetail)), skuShipmentDetail(shipmentDetail);
+quantityShipped 'Кол-во в поставках' (trip, sku) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY trip(shipment(shipmentDetail)), sku(shipmentDetail);
 
 EXTEND FORM trip
-    PROPERTIES (t) READONLY grossWeightShippedTrip
+    PROPERTIES (t) READONLY grossWeightShipped
     
     OBJECTS s=Shipment
-    PROPERTIES (t, s) inTripShipment
-    PROPERTIES(s) READONLY numberShipment, seriesShipment, dateShipment, nameSupplierShipment, nameFromStockShipment,
-                  nameCustomerShipment, nameToStockShipment, grossWeightShipmentDetailShipment
-    PROPERTIES (s) editShipment
+    PROPERTIES (t, s) in
+    PROPERTIES(s) READONLY number, series, date, nameSupplier, nameFromStock,
+                  nameCustomer, nameToStock, grossWeightShipmentDetail
+    PROPERTIES (s) edit
 
-    FILTERS isPostedShipment(s)
+    FILTERS isPosted(s)
 
-    FILTERS customerShipment(s) == customerTrip(t) OR (s IS Shipment AND NOT customerTrip(t)),
-            supplierShipment(s) == supplierTrip(t) OR (s IS Shipment AND NOT supplierTrip(t))
+    FILTERS customer(s) == customer(t) OR (s IS Shipment AND NOT customer(t)),
+            supplier(s) == supplier(t) OR (s IS Shipment AND NOT supplier(t))
 
     FILTERGROUP filterDateShipment
-        FILTER 'Текущие' dateShipment(s) <= dateTrip(t) 'F9' DEFAULT
+        FILTER 'Текущие' date(s) <= date(t) 'F9' DEFAULT
     FILTERGROUP filterShipment
-        FILTER 'Не расписанные или в текущем рейсе' filterTripShipment(t, s) 'F11'
-        FILTER 'В текущем рейсе' inTripShipment(t, s) 'F10' DEFAULT
+        FILTER 'Не расписанные или в текущем рейсе' filter(t, s) 'F11'
+        FILTER 'В текущем рейсе' in(t, s) 'F10' DEFAULT
 
     OBJECTS sd=ShipmentDetail
-    PROPERTIES(sd) READONLY idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail, quantityShipmentDetail, grossWeightShipmentDetail, nameFromStockShipmentDetail, nameToStockShipmentDetail
-    FILTERS shipmentShipmentDetail(sd)==s
+    PROPERTIES(sd) READONLY idBarcodeSku, nameSku, shortNameUOMSku, quantity, grossWeight, nameFromStock, nameToStock
+    FILTERS shipment(sd)==s
 ;
 
 DESIGN trip {
     headerSum {
-        MOVE PROPERTY(grossWeightShippedTrip(t));
+        MOVE PROPERTY(grossWeightShipped(t));
     }
     
     pane {
@@ -57,11 +57,11 @@ DESIGN trip {
 }
 
 EXTEND FORM trips
-    PROPERTIES(t) READONLY grossWeightShippedTrip
+    PROPERTIES(t) READONLY grossWeightShipped
 
     OBJECTS s=Shipment
-    PROPERTIES(s) READONLY numberShipment, seriesShipment, dateShipment, nameSupplierShipment, nameFromStockShipment, nameCustomerShipment, nameToStockShipment, grossWeightShipmentDetailShipment
-    FILTERS inTripShipment(t, s)
+    PROPERTIES(s) READONLY number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightShipmentDetail
+    FILTERS in(t, s)
 ;
 
 DESIGN trips {

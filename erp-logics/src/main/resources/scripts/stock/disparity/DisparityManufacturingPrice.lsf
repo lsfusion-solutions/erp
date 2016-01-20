@@ -7,7 +7,7 @@ REQUIRE Disparity, PurchaseManufacturingPrice;
 
 @defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после');
 
-afterInputManufacturingPriceDisparityDetail(detail) <- curInputManufacturingPriceDisparityDetail(detail) WHEN CHANGED (curInputManufacturingPriceDisparityDetail(detail));
+afterInputManufacturingPrice(DisparityDetail detail) <- curInputManufacturingPrice(detail) WHEN CHANGED (curInputManufacturingPrice(detail));
 
 @defineDocumentDetailDataSumCustomPrefix (disparityDetail, curInputManufacturing, ' изготовителя до');
 @deriveDocumentDetailSumPrefix(disparity, curInputManufacturing, currency, inputQuantity);
@@ -17,49 +17,49 @@ afterInputManufacturingPriceDisparityDetail(detail) <- curInputManufacturingPric
 
 
 
-showIfManufacturingPriceDisparityDetail= ABSTRACT CASE BOOLEAN (DisparityDetail);
+showIfManufacturingPrice= ABSTRACT CASE BOOLEAN (DisparityDetail);
 
-backgroundCurInputManufacturingPriceDisparityDetail= ABSTRACT CASE COLOR (DisparityDetail);
-overCurInputManufacturingPriceDisparityDetail = ABSTRACT ACTION LIST (DisparityDetail);
-changeCurInputManufacturingPriceDisparityDetail = ACTION (disparityDetail) {
+backgroundCurInputManufacturingPrice= ABSTRACT CASE COLOR (DisparityDetail);
+overCurInputManufacturingPrice = ABSTRACT ACTION LIST (DisparityDetail);
+changeCurInputManufacturingPrice = ACTION (DisparityDetail disparityDetail) {
     REQUEST NUMERIC[14,2] INPUT;
 
     IF requestedNumeric() THEN {
-        curInputManufacturingPriceDisparityDetail(disparityDetail) <- requestedNumeric();
-        overCurInputManufacturingPriceDisparityDetail(disparityDetail);
+        curInputManufacturingPrice(disparityDetail) <- requestedNumeric();
+        overCurInputManufacturingPrice(disparityDetail);
     } ELSE {
-        curInputManufacturingPriceDisparityDetail(disparityDetail) <- NULL;
+        curInputManufacturingPrice(disparityDetail) <- NULL;
     }
 }
 //--
-backgroundAfterInputManufacturingPriceDisparityDetail= ABSTRACT CASE COLOR (DisparityDetail);
-overAfterInputManufacturingPriceDisparityDetail = ABSTRACT ACTION LIST (DisparityDetail);
-changeAfterInputManufacturingPriceDisparityDetail = ACTION (disparityDetail) {
+backgroundAfterInputManufacturingPrice= ABSTRACT CASE COLOR (DisparityDetail);
+overAfterInputManufacturingPrice = ABSTRACT ACTION LIST (DisparityDetail);
+changeAfterInputManufacturingPrice = ACTION (DisparityDetail disparityDetail) {
     REQUEST NUMERIC[14,2] INPUT;
 
     IF requestedNumeric() THEN {
-        afterInputManufacturingPriceDisparityDetail(disparityDetail) <- requestedNumeric();
-        overAfterInputManufacturingPriceDisparityDetail(disparityDetail);
+        afterInputManufacturingPrice(disparityDetail) <- requestedNumeric();
+        overAfterInputManufacturingPrice(disparityDetail);
     } ELSE {
-        afterInputManufacturingPriceDisparityDetail(disparityDetail) <- NULL;
+        afterInputManufacturingPrice(disparityDetail) <- NULL;
     }
 }
 
 EXTEND FORM disparity
-    PROPERTIES(d)  AFTER inputSumDisparityDetail(d)
-                   curInputManufacturingPriceDisparityDetail ON CHANGE changeCurInputManufacturingPriceDisparityDetail(d) 
-                   BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
-                   curInputManufacturingSumDisparityDetail BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
-                   afterInputManufacturingPriceDisparityDetail ON CHANGE changeAfterInputManufacturingPriceDisparityDetail(d) 
-                   BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
-                   afterInputManufacturingSumDisparityDetail BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d)                   
+    PROPERTIES(d)  AFTER inputSum(d)
+                   curInputManufacturingPrice ON CHANGE changeCurInputManufacturingPrice(d) 
+                   BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
+                   curInputManufacturingSum BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
+                   afterInputManufacturingPrice ON CHANGE changeAfterInputManufacturingPrice(d) 
+                   BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
+                   afterInputManufacturingSum BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d)                   
                    
 ;
 EXTEND FORM disparities
                    
-    PROPERTIES(d)  READONLY AFTER inputSumDisparityDetail(d) 
-                   curInputManufacturingPriceDisparityDetail BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
-                   curInputManufacturingSumDisparityDetail BACKGROUND backgroundCurInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),  
-                   afterInputManufacturingPriceDisparityDetail BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d),
-                   afterInputManufacturingSumDisparityDetail BACKGROUND backgroundAfterInputManufacturingPriceDisparityDetail(d) SHOWIF showIfManufacturingPriceDisparityDetail(d)                   
+    PROPERTIES(d)  READONLY AFTER inputSum(d) 
+                   curInputManufacturingPrice BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
+                   curInputManufacturingSum BACKGROUND backgroundCurInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),  
+                   afterInputManufacturingPrice BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d),
+                   afterInputManufacturingSum BACKGROUND backgroundAfterInputManufacturingPrice(d) SHOWIF showIfManufacturingPrice(d)                   
 ;

@@ -10,19 +10,19 @@ GROUP bank 'Информация о банке' : base;
 
 @defineExternalizable(bank, VARSTRING[100]);
 
-nameBank 'Наименование' = DATA VARISTRING[100](Bank);
+name 'Наименование' = DATA VARISTRING[100](Bank);
 
-MFOBank 'Код МФО' = DATA STRING[9] (Bank) IN bank;
-departmentBank 'Отдел банка' = DATA VARSTRING[100] (Bank) IN bank;
-CBUBank 'ЦБУ' = DATA STRING[3] (Bank) IN bank;
-infoBank 'Дополнительные сведения' = DATA VARSTRING[100] (Bank) IN bank;
+MFO 'Код МФО' = DATA STRING[9] (Bank) IN bank;
+department 'Отдел банка' = DATA VARSTRING[100] (Bank) IN bank;
+CBU 'ЦБУ' = DATA STRING[3] (Bank) IN bank;
+info 'Дополнительные сведения' = DATA VARSTRING[100] (Bank) IN bank;
 
-countryBank = DATA Country (Bank);
-nameCountryBank 'Страна' (bank) = nameCountry(countryBank(bank)) IN bank MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
+country = DATA Country (Bank);
+nameCountry 'Страна' (Bank bank) = name(country(bank)) IN bank MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 20;
 
 @defineHistorizable(address, , 'Адрес банка', VARSTRING[150], bank, nameBank, bank);
 
-codeBank 'Код банка' (b) = right(MFOBank(b),3);
+code 'Код банка' (Bank b) = right(MFO(b),3);
 //changeCodeBank = ACTION (b) {
 //    REQUEST STRING[9] INPUT ;
 //    IF requestedString() THEN {
@@ -32,7 +32,7 @@ codeBank 'Код банка' (b) = right(MFOBank(b),3);
 
 FORM bank 'Банк'
     OBJECTS b=Bank FIXED PANEL
-    PROPERTIES(b) nameBank, idBank SHOWIF showIDs(), addressBank, MFOBank, departmentBank, CBUBank, nameCountryBank, infoBank
+    PROPERTIES(b) name, id SHOWIF showIDs(), address, MFO, department, CBU, nameCountry, info
     EDIT Bank OBJECT b
 ;
 
@@ -41,21 +41,21 @@ DESIGN bank {
         type = COLUMNS;
         columns = 3;
         caption = 'Информация о банке';
-        MOVE PROPERTY(nameBank(b));
-        MOVE PROPERTY(idBank(b));
-        MOVE PROPERTY(addressBank(b));
-        MOVE PROPERTY(MFOBank(b));
-        MOVE PROPERTY(departmentBank(b));
-        MOVE PROPERTY(CBUBank(b));
-        MOVE PROPERTY(nameCountryBank(b));
-        MOVE PROPERTY(infoBank(b));
+        MOVE PROPERTY(name(b));
+        MOVE PROPERTY(id(b));
+        MOVE PROPERTY(address(b));
+        MOVE PROPERTY(MFO(b));
+        MOVE PROPERTY(department(b));
+        MOVE PROPERTY(CBU(b));
+        MOVE PROPERTY(nameCountry(b));
+        MOVE PROPERTY(info(b));
     }
     MOVE functions.box;
 }
 
 FORM banks 'Банки'
     OBJECTS b=Bank
-    PROPERTIES(b) READONLY nameBank, idBank SHOWIF showIDs(), addressBank, MFOBank, departmentBank, CBUBank, nameCountryBank, infoBank
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), address, MFO, department, CBU, nameCountry, info
     PROPERTIES(b) ADDFORM, EDITFORM, deleteb=DELETE FORCE PANEL TOOLBAR
 
     DIALOG Bank OBJECT b
@@ -74,79 +74,79 @@ TABLE account (Account);
 
 GROUP account 'Банковская информация' : base;
 
-numberAccount 'Номер расчетного счета'  = DATA VARSTRING[20] (Account) IN account FIXEDCHARWIDTH 13;
-accountNumber (number) = GROUP MAX account BY numberAccount(account); // WHERE account IS Account;
+number 'Номер расчетного счета'  = DATA VARSTRING[20] (Account) IN account FIXEDCHARWIDTH 13;
+account (number) = GROUP MAX Account account BY number(account); // WHERE account IS Account;
 
 // Банк
-bankAccount = DATA Bank (Account);
-nameBankAccount 'Наименование банка' (account) = nameBank(bankAccount(account)) IN account;
-addressBankAccount 'Адрес банка' (account) = addressBank(bankAccount(account)) IN account;
-MFOBankAccount 'Код МФО банка' (account) = MFOBank(bankAccount(account)) IN account;
-departmentBankAccount 'Отдел банка' (account) = departmentBank(bankAccount(account)) IN account;
-CBUBankAccount 'ЦБУ банка' (account) = CBUBank(bankAccount(account)) IN account;
+bank = DATA Bank (Account);
+nameBank 'Наименование банка' (Account account) = name(bank(account)) IN account;
+addressBank 'Адрес банка' (Account account) = address(bank(account)) IN account;
+MFOBank 'Код МФО банка' (Account account) = MFO(bank(account)) IN account;
+departmentBank 'Отдел банка' (Account account) = department(bank(account)) IN account;
+CBUBank 'ЦБУ банка' (Account account) = CBU(bank(account)) IN account;
 
 // Организация
-legalEntityAccount = DATA LegalEntity (Account) NOT NULL DELETE;
-nameLegalEntityAccount 'Организация' (account) = nameLegalEntity(legalEntityAccount(account));
+legalEntity = DATA LegalEntity (Account) NOT NULL DELETE;
+nameLegalEntity 'Организация' (Account account) = name(legalEntity(account));
 
-defaultAccountLegalEntity(legalEntity) = GROUP MAX account BY legalEntityAccount(account);
+defaultAccount(legalEntity) = GROUP MAX Account account BY legalEntity(account);
 
-userAccountLegalEntity = DATA Account (LegalEntity);
-CONSTRAINT legalEntityAccount(userAccountLegalEntity(legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
+userAccount = DATA Account (LegalEntity);
+CONSTRAINT legalEntity(userAccount(LegalEntity legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
 
-accountLegalEntity (legalEntity) =  OVERRIDE defaultAccountLegalEntity(legalEntity), userAccountLegalEntity(legalEntity);
-numberAccountLegalEntity 'Основной р/сч.' (legalEntity) = numberAccount(accountLegalEntity(legalEntity)) IN law;
-nameBankLegalEntity 'Банк покупателя' (legalEntity) = nameBankAccount(accountLegalEntity(legalEntity));
-addressBankLegalEntity 'Адрес банка покупателя' (legalEntity) = addressBankAccount(accountLegalEntity(legalEntity));
-departmentBankLegalEntity 'Отдел банка покупателя' (legalEntity) = departmentBankAccount(accountLegalEntity(legalEntity));
-CBUBankLegalEntity 'ЦБУ банка покупателя' (legalEntity) = CBUBankAccount(accountLegalEntity(legalEntity));
-MFOBankLegalEntity 'Код МФО банка покупателя' (legalEntity) = MFOBankAccount(accountLegalEntity(legalEntity));
+account (LegalEntity legalEntity) =  OVERRIDE defaultAccount(legalEntity), userAccount(legalEntity);
+numberAccount 'Основной р/сч.' (LegalEntity legalEntity) = number(account(legalEntity)) IN law;
+nameBank 'Банк покупателя' (LegalEntity legalEntity) = nameBank(account(legalEntity));
+addressBank 'Адрес банка покупателя' (LegalEntity legalEntity) = addressBank(account(legalEntity));
+departmentBank 'Отдел банка покупателя' (LegalEntity legalEntity) = departmentBank(account(legalEntity));
+CBUBank 'ЦБУ банка покупателя' (LegalEntity legalEntity) = CBUBank(account(legalEntity));
+MFOBank 'Код МФО банка покупателя' (LegalEntity legalEntity) = MFOBank(account(legalEntity));
     
-equalsLegalEntityAccount 'Основной' (legalEntity, account) = userAccountLegalEntity(legalEntity) == account;
+equals 'Основной' (LegalEntity legalEntity, Account account) = userAccount(legalEntity) == account;
 
-accountNumberLegalEntityID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP AGGR account BY numberAccount(account), idLegalEntity(legalEntityAccount(account)) WHERE account IS Account;
-legalEntityAccountNumber (number) = legalEntityAccount(accountNumber(number)); 
+accountID 'Расчетный счет по номеру' (number, legalEntityId) = GROUP AGGR Account account BY number(account), id(legalEntity(account)) WHERE account IS Account;
+legalEntityAccount (VARSTRING[20] number) = legalEntity(account(number)); 
 
 // Валюта
-currencyAccount = DATA Currency (Account) NOT NULL;
-currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
-    WHEN SET(legalEntityAccount(account));
-nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account)) IN account;
+currency = DATA Currency (Account) NOT NULL;
+currency(Account account) <- currency(legalEntity(account))
+    WHEN SET(legalEntity(account));
+nameCurrency 'Валюта счета' = name(currency(Account account)) IN account;
 
-noteAccount 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
+note 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
 
 FORM account 'Расчетный счет'
     OBJECTS a = Account FIXED PANEL
-    PROPERTIES(a) numberAccount, nameCurrencyAccount, nameLegalEntityAccount, nameBankAccount, addressBankAccount,
-                  MFOBankAccount, departmentBankAccount, CBUBankAccount, noteAccount
+    PROPERTIES(a) number, nameCurrency, nameLegalEntity, nameBank, addressBank,
+                  MFOBank, departmentBank, CBUBank, note
 
     EDIT Account OBJECT a
 ;
 
 DESIGN account {
     main{
-        MOVE PROPERTY(numberAccount(a));
-        MOVE PROPERTY(nameCurrencyAccount(a));
-        MOVE PROPERTY(nameLegalEntityAccount(a));
-        MOVE PROPERTY(nameBankAccount(a));
-        MOVE PROPERTY(addressBankAccount(a));
-        MOVE PROPERTY(MFOBankAccount(a));
-        MOVE PROPERTY(departmentBankAccount(a));
-        MOVE PROPERTY(CBUBankAccount(a));
-        MOVE PROPERTY(noteAccount(a));
+        MOVE PROPERTY(number(a));
+        MOVE PROPERTY(nameCurrency(a));
+        MOVE PROPERTY(nameLegalEntity(a));
+        MOVE PROPERTY(nameBank(a));
+        MOVE PROPERTY(addressBank(a));
+        MOVE PROPERTY(MFOBank(a));
+        MOVE PROPERTY(departmentBank(a));
+        MOVE PROPERTY(CBUBank(a));
+        MOVE PROPERTY(note(a));
 
         MOVE functions.box;
     }
 }
 
 addAccount 'Добавить расчетный счет' = ACTION ADDFORM Bank.Account;
-editAccount 'Редактировать' (account) = ACTION EDITFORM Bank.Account;
+edit 'Редактировать' (account) = ACTION EDITFORM Bank.Account;
 
 FORM accounts 'Счета'
     OBJECTS a = Account
-    PROPERTIES(a) READONLY numberAccount, nameCurrencyAccount, nameLegalEntityAccount, nameBankAccount, addressBankAccount,
-                           MFOBankAccount, departmentBankAccount, CBUBankAccount, noteAccount
-    PROPERTIES(a) editAccount FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(a) READONLY number, nameCurrency, nameLegalEntity, nameBank, addressBank,
+                           MFOBank, departmentBank, CBUBank, note
+    PROPERTIES(a) edit FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
     PROPERTIES() addAccount TODRAW a FORCE PANEL
 
     DIALOG Account OBJECT a
@@ -155,13 +155,13 @@ FORM accounts 'Счета'
 // ------------------------ Расширяем форму организаций ------------------------ //
 
 EXTEND FORM legalEntity
-    PROPERTIES(l)  SHOWIF toShowLegalEntity(l) numberAccountLegalEntity
+    PROPERTIES(l)  SHOWIF toShow(l) numberAccount
 
     OBJECTS a=Account
-    PROPERTIES(a)  numberAccount, nameCurrencyAccount, nameBankAccount, addressBankAccount, departmentBankAccount,
-                   CBUBankAccount, MFOBankAccount, noteAccount, ADDOBJ, DELETESESSION
-    FILTERS legalEntityAccount(a) == l
-    PROPERTIES equalsLegalEntityAccount(l, a)
+    PROPERTIES(a)  number, nameCurrency, nameBank, addressBank, departmentBank,
+                   CBUBank, MFOBank, note, ADDOBJ, DELETESESSION
+    FILTERS legalEntity(a) == l
+    PROPERTIES equals(l, a)
 ;
 
 DESIGN legalEntity {
@@ -175,10 +175,10 @@ DESIGN legalEntity {
 // ------------------------ Макросы ------------------------ //
 
 META defineDocumentAccount(object, contact, caption)
-    numberAccount###contact###object 'Расчетный счет'###caption (object) = numberAccountLegalEntity(contact###object(object)) IN documentPrm;
-    nameBank###contact###object 'Банк'###caption (object) = nameBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
-    addressBank###contact###object 'Адрес банка'###caption (object) = addressBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
-    departmentBank###contact###object 'Отдел банка'###caption (object) = departmentBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
-    CBUBank###contact###object 'ЦБУ банка'###caption (object) = CBUBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
-    MFOBank###contact###object 'Код МФО банка'###caption (object) = MFOBankAccount(accountLegalEntity(contact###object(object))) IN documentPrm;
+    numberAccount###contact 'Расчетный счет'###caption (###object object) = numberAccount(contact(object)) IN documentPrm;
+    nameBank###contact 'Банк'###caption (###object object) = nameBank(account(contact(object))) IN documentPrm;
+    addressBank###contact 'Адрес банка'###caption (###object object) = addressBank(account(contact(object))) IN documentPrm;
+    departmentBank###contact 'Отдел банка'###caption (###object object) = departmentBank(account(contact(object))) IN documentPrm;
+    CBUBank###contact 'ЦБУ банка'###caption (###object object) = CBUBank(account(contact(object))) IN documentPrm;
+    MFOBank###contact 'Код МФО банка'###caption (###object object) = MFOBank(account(contact(object))) IN documentPrm;
 END

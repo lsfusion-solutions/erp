@@ -8,31 +8,31 @@ TABLE country(Country);
 TABLE countryDate(Country, DATE);
 TABLE countryCountry(Country, Country);
 
-nameCountry 'Наименование' = DATA VARISTRING[50](Country);
+name 'Наименование' = DATA VARISTRING[50](Country);
 
-nameOriginCountry 'Наименование (ориг.)' (country) = DATA VARISTRING[50] (Country) IN base; //logics.country.name.origin.country
-sidCountry 'Код страны' (country) = DATA STRING[3] (Country) IN base; // logics.country.key
+nameOrigin 'Наименование (ориг.)' (country) = DATA VARISTRING[50] (Country) IN base; //logics.country.name.origin.country
+sid 'Код страны' (country) = DATA STRING[3] (Country) IN base; // logics.country.key
 //sid3Country 'Код 3 знака' (country) = DATA STRING[3] (Country) IN base MINCHARWIDTH 15;
-countrySID 'Страна' (sID) =  GROUP AGGR country BY sidCountry(country);  // logics.country
+country 'Страна' (sID) =  GROUP AGGR Country country BY sid(country);  // logics.country
 
-sidOrigin2Country 'Код 2 знака (ориг.)' (country) = DATA STRING[2] (Country) IN base MINCHARWIDTH 15; // logics.country.sid.origin.2.country
-sidOrigin3Country 'Код 3 знака (ориг.)' (country) = DATA STRING[3] (Country) IN base MINCHARWIDTH 15; // logics.country.sid.origin.3.country
+sidOrigin2 'Код 2 знака (ориг.)' (country) = DATA STRING[2] (Country) IN base MINCHARWIDTH 15; // logics.country.sid.origin.2.country
+sidOrigin3 'Код 3 знака (ориг.)' (country) = DATA STRING[3] (Country) IN base MINCHARWIDTH 15; // logics.country.sid.origin.3.country
 
-currencyCountry 'Валюта' (country) = DATA Currency (Country); // logics.country.currency
-nameCurrencyCountry 'Валюта' (country) = nameCurrency(currencyCountry(country)) IN base PREFCHARWIDTH 10;
+currency 'Валюта' (country) = DATA Currency (Country); // logics.country.currency
+nameCurrency 'Валюта' (Country country) = name(currency(country)) IN base PREFCHARWIDTH 10;
 
-generateDatesCountry 'Генерировать выходные' (country) = DATA BOOLEAN (Country); // logics.day.generate.days.off
+generateDates 'Генерировать выходные' (country) = DATA BOOLEAN (Country); // logics.day.generate.days.off
 
-residentCountry 'Отечественный производитель' (country) = DATA BOOLEAN (Country) IN base MINCHARWIDTH 15; // logics.country.resident.country
+resident 'Отечественный производитель' (country) = DATA BOOLEAN (Country) IN base MINCHARWIDTH 15; // logics.country.resident.country
 
-countryName(string) = GROUP NAGGR country BY nameCountry(country) WHERE country IS Country;
+countryName(string) = GROUP NAGGR Country country BY name(country) WHERE country IS Country;
 
-countryNameOrigin(name) = GROUP NAGGR country BY nameOriginCountry(country) WHERE country IS Country;
+countryOrigin(name) = GROUP NAGGR Country country BY nameOrigin(country) WHERE country IS Country;
 
-countrySIDOrigin2(string) = GROUP NAGGR country BY sidOrigin2Country(country) WHERE country IS Country;
+countrySIDOrigin2(string) = GROUP NAGGR Country country BY sidOrigin2(country) WHERE country IS Country;
 
 defaultCountry 'Страна по умолчанию' () = DATA Country (); // logics.country.default.country
-nameDefaultCountry 'Страна по умолчанию' () = nameCountry(defaultCountry()) PREFCHARWIDTH 30; // logics.country.default.country
+nameDefaultCountry 'Страна по умолчанию' () = name(defaultCountry()) PREFCHARWIDTH 30; // logics.country.default.country
 
 jumpWorkdays = FORMULA NULL DATE PG 'jumpWorkdays($1, $2, $3)', MS 'dbo.jumpWorkdays($1, $2, $3)'; //1 - country, 2 - date, 3 - days to jump
 
@@ -46,28 +46,28 @@ DESIGN options {
     }
 }
 
-languageCountry = DATA Language (Country);
-nameLanguageCountry 'Язык' (country) = nameLanguage(languageCountry(country)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
+language = DATA Language (Country);
+nameLanguage 'Язык' (Country country) = name(language(country)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 15;
 
 FORM country 'Страна'
     OBJECTS c = Country FIXED PANEL
 
-    PROPERTIES(c) nameCountry, nameOriginCountry, sidCountry, sidOrigin2Country, sidOrigin3Country,
-                  residentCountry, nameCurrencyCountry, nameLanguageCountry
+    PROPERTIES(c) name, nameOrigin, sid, sidOrigin2, sidOrigin3,
+                  resident, nameCurrency, nameLanguage
 
     OBJECTS l = Language
-    PROPERTIES nameLanguage(l) READONLY, languageName(c, l)
+    PROPERTIES name(l) READONLY, languageName(c, l)
 
     EDIT Country OBJECT c
 ;
 
 FORM countries 'Страны'
     OBJECTS c = Country
-    PROPERTIES(c) READONLY nameCountry, nameOriginCountry, sidCountry, sidOrigin2Country, sidOrigin3Country,
-                           residentCountry, nameCurrencyCountry, nameLanguageCountry
+    PROPERTIES(c) READONLY name, nameOrigin, sid, sidOrigin2, sidOrigin3,
+                           resident, nameCurrency, nameLanguage
 
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY nameCountry(c)
+    ORDER BY name(c)
 
     DIALOG Country OBJECT c
 ;
@@ -80,15 +80,15 @@ NAVIGATOR {
 
 // ------------------------------------------------ Выходные дни --------------------------------------- //
 
-isDayOffCountryDate 'Выходной' (country, date) = DATA BOOLEAN (Country, DATE) IN base; // logics.day.off
+isDayOff 'Выходной' (country, date) = DATA BOOLEAN (Country, DATE) IN base; // logics.day.off
 
 fillDaysOff 'Заполнить выходные дни' = ACTION CUSTOM 'lsfusion.erp.utils.FillDaysOffActionProperty' (Country);
 
-addDayOff 'Добавить выходной день' = ACTION (country) NEWSESSION {
+addDayOff 'Добавить выходной день' = ACTION (Country country) NEWSESSION {
     FORM dialogDate MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR d == chosenDate('d') DO {
-            ASSIGN isDayOffCountryDate (country, d) <- TRUE;
+        FOR DATE d == chosenDate('d') DO {
+            ASSIGN isDayOff (country, d) <- TRUE;
             EXEC apply();
         }
     }
@@ -97,9 +97,9 @@ addDayOff 'Добавить выходной день' = ACTION (country) NEWSES
 FORM daysOffForm 'Выходные дни' // logics.days.off
     OBJECTS country=Country 'Страна', day=DATE 'День'
     PROPERTIES(country) FORCE PANEL fillDaysOff, addDayOff
-    PROPERTIES(country) READONLY nameOriginCountry, sidCountry, sidOrigin2Country, sidOrigin3Country, nameCurrencyCountry, residentCountry
-    PROPERTIES OBJVALUE(day), isDayOffCountryDate(country, day)
-    FILTERS isDayOffCountryDate(country, day)
+    PROPERTIES(country) READONLY nameOrigin, sid, sidOrigin2, sidOrigin3, nameCurrency, resident
+    PROPERTIES OBJVALUE(day), isDayOff(country, day)
+    FILTERS isDayOff(country, day)
 ;
 
 NAVIGATOR {
@@ -110,14 +110,14 @@ NAVIGATOR {
 
 // ------------------------------------------------ Стандартные значения --------------------------------------- //
 
-loadDefaultCountry 'Добавить страны' = ACTION (string, number, stringA, stringB, stringC, shortCurrency) {//, value) {
+loadDefaultCountry 'Добавить страны' = ACTION (VARISTRING[50] string, STRING[3] number, VARISTRING[50] stringA, STRING[2] stringB, STRING[3] stringC, STRING[3] shortCurrency) {//, value) {
     FOR ADDOBJ c = Country DO {
-       ASSIGN nameCountry(c) <- string;
-       ASSIGN sidCountry(c) <- number;
-       ASSIGN nameOriginCountry(c) <- stringA;
-       ASSIGN sidOrigin2Country(c) <- stringB;
-       ASSIGN sidOrigin3Country(c) <- stringC;
-       ASSIGN currencyCountry(c) <- currencyShortName(shortCurrency);
+       ASSIGN name(c) <- string;
+       ASSIGN sid(c) <- number;
+       ASSIGN nameOrigin(c) <- stringA;
+       ASSIGN sidOrigin2(c) <- stringB;
+       ASSIGN sidOrigin3(c) <- stringC;
+       ASSIGN currency(c) <- currencyShortName(shortCurrency);
     }
 }
 

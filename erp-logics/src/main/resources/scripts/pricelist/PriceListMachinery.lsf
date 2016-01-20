@@ -5,45 +5,45 @@ REQUIRE PriceList, PriceListOperation, MachineryPriceTransaction;
 NAMESPACE PriceList;
 
 @Machinery.implementPriceTransactionDocument(PriceList, company);
-createPriceListMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (priceList) NEWSESSION {
-    ASSIGN createMachineryPriceTransactionSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku, priceList);
+createPriceListMachinery 'Загрузить в оборудование' = ACTION (PriceTransactionDocument priceList) NEWSESSION {
+    ASSIGN createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
     ASSIGN createMachineryPriceTransactionDocument() <- priceList;
-    FOR inPriceListStock(priceList, stock) DO {
+    FOR in(priceList, Stock stock) DO {
         EXEC createMachineryPriceTransaction(stock);   
     }            
-    ASSIGN sentPriceTransactionDocument(priceList) <- TRUE;
+    ASSIGN sent(priceList) <- TRUE;
     
     apply();
 } TOOLBAR CONFIRM;
 
-createSnapshotPriceListMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (priceList) NEWSESSION {
+createSnapshotPriceListMachinery 'Перегрузить все позиции' = ACTION (PriceTransactionDocument priceList) NEWSESSION {
     createMachineryPriceTransactionSnapshot() <- TRUE;
-    createMachineryPriceTransactionSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku, priceList);
+    createMachineryPriceTransaction(Sku sku) <- TRUE IF countPriceListDetail(sku, priceList);
     createMachineryPriceTransactionDocument() <- priceList;
-    FOR inPriceListStock(priceList, stock) DO {
+    FOR in(priceList, Stock stock) DO {
         createMachineryPriceTransaction(stock);   
     }  
-    sentPriceTransactionDocument(priceList) <- TRUE;
+    sent(priceList) <- TRUE;
     apply();
 } CONFIRM;
 
-showCreateMachineryPriceTransactionPriceList 'Показывать' (priceList) = isPostedPriceList(priceList) AND NOT Machinery.skipPriceTransactionDocument(priceList)
-                                                                                                       AND NOT sentPriceTransactionDocument(priceList);
-backgroundCreateMachineryPriceTransactionPriceList 'Цвет' (priceList) = IF countProcessPriceTransactionDocument(priceList) THEN
+showCreateMachineryPriceTransaction 'Показывать' (PriceList priceList) = isPosted(priceList) AND NOT skip(priceList)
+                                                                                                       AND NOT sent(priceList);
+backgroundCreateMachineryPriceTransaction 'Цвет' (PriceTransactionDocument priceList) = IF countProcess(priceList) THEN
                                                                             RGB(255,255,128)
                                                                          ELSE
-                                                                            RGB(212,255,212) IF showCreateMachineryPriceTransactionPriceList(priceList);
+                                                                            RGB(212,255,212) IF showCreateMachineryPriceTransaction[PriceList](priceList);
 
 EXTEND FORM priceLists
-    PROPERTIES(p) statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotPriceListMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransactionPriceList(p) READONLY AFTER stocksPriceList(p),
-                  createPriceListMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransactionPriceList(p)
+    PROPERTIES(p) statusMachinery ON SHORTCUT createSnapshotPriceListMachinery(p) BACKGROUND backgroundCreateMachineryPriceTransaction(p) READONLY AFTER stocks(p),
+                  createPriceListMachinery FORCE PANEL SHOWIF showCreateMachineryPriceTransaction(p)
 ;
 DESIGN priceLists {
     actionContainer {
         NEW machineryContainer {
             type = CONTAINERV;               
             caption = 'Загрузки' ;
-            MOVE PROPERTY (createPriceListMachineryPriceTransaction(p));
+            MOVE PROPERTY (createPriceListMachinery(p));
             
         }
     }

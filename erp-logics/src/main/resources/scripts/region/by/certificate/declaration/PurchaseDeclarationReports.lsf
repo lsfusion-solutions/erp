@@ -8,51 +8,51 @@ NAMESPACE Purchase;
 
 left6 = FORMULA STRING[6] 'left($1, 6)';  // ISO
 
-quantityDeclarationCode 'Кол-во' (declaration, code)= GROUP SUM quantityDeclarationDetail(detail) 
-    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
+quantity 'Кол-во' (declaration, code)= GROUP SUM quantity(DeclarationDetail detail) 
+    BY declaration(detail), left6(codeCustomsGroup(detail));
     
-quantityCodeDeclarationDetail 'Кол-во' (code, detail)= GROUP SUM quantityDeclarationDetail(detail) 
-    BY left6(codeCustomsGroupDeclarationDetail(detail)), detail;    
+quantity 'Кол-во' (code, detail)= GROUP SUM quantity(DeclarationDetail detail) 
+    BY left6(codeCustomsGroup(detail)), detail;    
     
-nameCustomsDeclarationCode'Наименование' (declaration, code)= GROUP MIN nameCustomsDeclarationDetail(detail) 
-    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));    
+nameCustoms'Наименование' (declaration, code)= GROUP MIN nameCustoms(DeclarationDetail detail) 
+    BY declaration(detail), left6(codeCustomsGroup(detail));    
         
-sumDeclarationCode 'Стоимость' (declaration, code)= GROUP SUM sumDeclarationDetail(detail) 
-    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
-sumNetWeightDeclarationCode 'Вес нетто, кг' (declaration, code)= GROUP SUM sumNetWeightDeclarationDetail(detail) 
-    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
-sumGrossWeightDeclarationCode 'Вес брутто, кг' (declaration, code)= GROUP SUM sumGrossWeightDeclarationDetail(detail) 
-    BY declarationDeclarationDetail(detail), left6(codeCustomsGroupDeclarationDetail(detail));
+sum 'Стоимость' (declaration, code)= GROUP SUM sum(DeclarationDetail detail) 
+    BY declaration(detail), left6(codeCustomsGroup(detail));
+sumNetWeight 'Вес нетто, кг' (declaration, code)= GROUP SUM sumNetWeight(DeclarationDetail detail) 
+    BY declaration(detail), left6(codeCustomsGroup(detail));
+sumGrossWeight 'Вес брутто, кг' (declaration, code)= GROUP SUM sumGrossWeight(DeclarationDetail detail) 
+    BY declaration(detail), left6(codeCustomsGroup(detail));
         
             
 FORM declarationReport 'Сбивка по декларации'
 
     OBJECTS d = Declaration FIXED PANEL
-    PROPERTIES(d) numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration, sumDeclarationDetailDeclaration,
-                  sumNetWeightDeclarationDetailDeclaration, sumGrossWeightDeclarationDetailDeclaration 
+    PROPERTIES(d) number, series, date, time, sumDeclarationDetail,
+                  sumNetWeightDeclarationDetail, sumGrossWeightDeclarationDetail 
                   
     OBJECTS s=STRING[6]
-    PROPERTIES objS = OBJVALUE(s), nameCustomsDeclarationCode(d,s), sumDeclarationCode(d,s), sumNetWeightDeclarationCode(d,s),
-               sumGrossWeightDeclarationCode(d,s)
+    PROPERTIES objS = OBJVALUE(s), nameCustoms(d,s), sum(d,s), sumNetWeight(d,s),
+               sumGrossWeight(d,s)
     ORDER BY objS
-    FILTERS quantityDeclarationCode(d,s)
+    FILTERS quantity(d,s)
     
     OBJECTS dd=DeclarationDetail
 
-    PROPERTIES(dd) numberDeclarationDetail, invoicesDeclarationDetail READONLY, nameCustomsDeclarationDetail, shortNameUOMDeclarationDetail,
-                   nameCountryDeclarationDetail, sumNetWeightDeclarationDetail, sumGrossWeightDeclarationDetail,
-                   codeCustomsGroupDeclarationDetail, nameVATCustomsExceptionDeclarationDetail BACKGROUND backgroundVATCustomsExceptionDeclarationDetail(dd),
-                   quantityDeclarationDetail, priceDeclarationDetail, sumDeclarationDetail, deliverySumDeclarationDetail, chargeSumDeclarationDetail, homeSumDeclarationDetail,
-                   percentDutyDeclarationDetail, weightDutyDeclarationDetail, dutySumDeclarationDetail,
-                   numberVATDeclarationDetail, percentVATDeclarationDetail, VATSumDeclarationDetail
+    PROPERTIES(dd) number, invoices READONLY, nameCustoms, shortNameUOM,
+                   nameCountry, sumNetWeight, sumGrossWeight,
+                   codeCustomsGroup, nameVATCustomsException BACKGROUND backgroundVATCustomsException(dd),
+                   quantity, price, sum, deliverySum, chargeSum, homeSum,
+                   percentDuty, weightDuty, dutySum,
+                   numberVAT, percentVAT, VATSum
                  
 
-    FILTERS declarationDeclarationDetail(dd) == d,
-            quantityCodeDeclarationDetail(s,dd)
+    FILTERS declaration(dd) == d,
+            quantity(s,dd)
 
 ;
-printReportDeclaration 'Сбивка по декларации' (declaration) = ACTION FORM declarationReport OBJECTS d = declaration PRINT  IMAGE 'print.png' IN print;
+printReport 'Сбивка по декларации' (Declaration declaration) = ACTION FORM declarationReport OBJECTS d = declaration PRINT  IMAGE 'print.png' IN print;
 
 EXTEND FORM declarations
-    PROPERTIES (d) printReportDeclaration FORCE PANEL TOOLBAR
+    PROPERTIES (d) printReport FORCE PANEL TOOLBAR
 ;

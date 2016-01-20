@@ -4,85 +4,85 @@ REQUIRE Order, Shipment;
 
 NAMESPACE Shipment;
 
-quantityShipmentDetailOrderShipment = ABSTRACT NUMERIC[16,5] (Order, Shipment);
+quantityShipmentDetail = ABSTRACT NUMERIC[16,5] (Order, Shipment);
 
-shippedOrderDetail 'Кол-во (поставлено)' (orderDetail) = ABSTRACT NUMERIC[16,5] (OrderDetail);
+shipped 'Кол-во (поставлено)' (orderDetail) = ABSTRACT NUMERIC[16,5] (OrderDetail);
 
-backgroundShippedOrder 'Цвет' (order) = RGB(255, 224, 255) IF order IS Order;
+backgroundShipped 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Order;
 
 META defineOrderShipment(sign, stockProp)
 
-    orderShipmentDetail = ABSTRACT Order (ShipmentDetail) PERSISTENT INDEXED;
-    orderUserShipmentDetail = DATA Order (UserShipmentDetail);
-    orderShipmentDetail(shipmentDetail) += orderUserShipmentDetail(shipmentDetail);
+    order = ABSTRACT Order (ShipmentDetail) PERSISTENT INDEXED;
+    order = DATA Order (UserShipmentDetail);
+    order(UserShipmentDetail shipmentDetail) += order(shipmentDetail);
     
-    overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-        orderUserShipmentDetail(d) <- orderUserShipmentDetail(detail);             
+    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION (d, detail) {      
+        order(d) <- order(detail);             
     } 
 
-    CONSTRAINT supplierUserShipmentDetail(shipmentDetail) != supplierOrder(orderUserShipmentDetail(shipmentDetail)) OR
-               customerUserShipmentDetail(shipmentDetail) != customerOrder(orderUserShipmentDetail(shipmentDetail))
-        CHECKED BY orderUserShipmentDetail
+    CONSTRAINT supplier(UserShipmentDetail shipmentDetail) != supplier(order(shipmentDetail)) OR
+               customer(shipmentDetail) != customer(order(shipmentDetail))
+        CHECKED BY order[UserShipmentDetail]
             MESSAGE 'Поставщик и покупатель в заказе и поставке должны соответствовать друг другу';
 
-    descriptionOrderShipmentDetail 'Заказ' (shipmentDetail) = descriptionOrder(orderShipmentDetail(shipmentDetail)) IN order;
-    descriptionOrderUserShipmentDetail 'Заказ' (userShipmentDetail) = descriptionOrder(orderUserShipmentDetail(userShipmentDetail)) IN order;
+    descriptionOrder 'Заказ' (ShipmentDetail shipmentDetail) = description(order(shipmentDetail)) IN order;
+    descriptionOrder 'Заказ' (UserShipmentDetail userShipmentDetail) = description(order(userShipmentDetail)) IN order;
 
-    quantityShipmentDetailOrderShipment (order, shipment) = GROUP SUM quantityShipmentDetail(shipmentDetail) BY orderShipmentDetail(shipmentDetail), shipmentShipmentDetail(shipmentDetail);
-    Shipment.quantityShipmentDetailOrderShipment (order, shipment) += quantityShipmentDetailOrderShipment (order, shipment);
+    quantityShipmentDetail (order, shipment) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY order(shipmentDetail), shipment(shipmentDetail);
+    quantityShipmentDetail (Order order, Shipment shipment) += quantityShipmentDetail (order, shipment);
 
-    ordersShipment 'Заказы' (shipment) = GROUP CONCAT VARSTRING[255](descriptionOrder(order)) IF quantityShipmentDetailOrderShipment(order, shipment) , ', '
+    orders 'Заказы' (shipment) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityShipmentDetail(order, Shipment shipment) , ', '
                                                BY shipment
                                                ORDER order IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
 //-- Подсчет поставленного к-ва по заказу
 
-    shippedShipmentDetailOrderSku 'Кол-во (поставлено)' (order, sku) = GROUP SUM quantityShipmentDetail(shipmentDetail) IF isPostedShipmentDetail(shipmentDetail)
-                                                      BY orderShipmentDetail(shipmentDetail), skuShipmentDetail(shipmentDetail);
-    shippedOrderDetail 'Кол-во (поставлено)' (orderDetail) = PARTITION UNGROUP shippedShipmentDetailOrderSku
-                                                              LIMIT STRICT quantityOrderDetail (orderDetail)
-                                                              BY orderOrderDetail(orderDetail), skuOrderDetail(orderDetail)
+    shippedShipmentDetail 'Кол-во (поставлено)' (order, sku) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
+                                                      BY order(shipmentDetail), sku(shipmentDetail);
+    shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = PARTITION UNGROUP shippedShipmentDetail
+                                                              LIMIT STRICT quantity (orderDetail)
+                                                              BY order(orderDetail), sku(orderDetail)
                                                               ORDER orderDetail PERSISTENT;
                                                               
-    Shipment.shippedOrderDetail(d) += shippedOrderDetail(d);
-    toShipOrderDetail 'Не поставлено' (orderDetail) = IF (quantityOrderDetail (orderDetail) (-) shippedOrderDetail(orderDetail)) > 0.0 
-                                                        THEN quantityOrderDetail (orderDetail) (-) shippedOrderDetail(orderDetail)
+    shipped(OrderDetail d) += shipped(d);
+    toShip 'Не поставлено' (OrderDetail orderDetail) = IF (quantity (orderDetail) (-) shipped(orderDetail)) > 0.0 
+                                                        THEN quantity (orderDetail) (-) shipped(orderDetail)
                                                         ELSE 0.0; 
-    prevToShipOrderDetail 'Не поставлено' (orderDetail) = PREV(toShipOrderDetail(orderDetail));
-    toShipOrderDetailStockOrder 'Не поставлено по складу' (stock, order) = GROUP SUM toShipOrderDetail(orderDetail) IF toShipOrderDetail(orderDetail) > 0
-                                                                                     BY stockProp###orderDetail(orderDetail), orderOrderDetail(orderDetail);
+    prevToShip 'Не поставлено' (OrderDetail orderDetail) = PREV(toShip(orderDetail));
+    toShipOrderDetail 'Не поставлено по складу' (stock, order) = GROUP SUM toShip(OrderDetail orderDetail) IF toShip(orderDetail) > 0
+                                                                                     BY stockProp(orderDetail), order(orderDetail);
 
-    shippedOrderDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM shippedOrderDetail(orderDetail) BY orderOrderDetail(orderDetail) IN documentSum PERSISTENT;
+    shippedOrderDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail orderDetail) BY order(orderDetail) IN documentSum PERSISTENT;
 
     // Создание поставки на основе заказа //
     FORM shipmentOrders 'Заказы'###sign
         OBJECTS s = LegalEntity FIXED PANEL
-        PROPERTIES (s) READONLY nameLegalEntity
+        PROPERTIES (s) READONLY name
         OBJECTS ss = Stock FIXED PANEL
-        PROPERTIES (ss) READONLY nameStock
+        PROPERTIES (ss) READONLY name
 
         OBJECTS c = LegalEntity FIXED PANEL
-        PROPERTIES (c) READONLY nameLegalEntity
+        PROPERTIES (c) READONLY name
         OBJECTS cs = Stock FIXED PANEL
-        PROPERTIES (cs) READONLY nameStock
+        PROPERTIES (cs) READONLY name
 
         OBJECTS o = Order
-        PROPERTIES (o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder, nameSupplierOrder, nameSupplierStockOrder,
-                                nameCustomerOrder, nameCustomerStockOrder, nameCurrencyOrder, countOrderDetailOrder, quantityOrderDetailOrder,
-                                shippedOrderDetailOrder BACKGROUND backgroundShippedOrder(o), sumOrderDetailOrder, noteOrder
-        FILTERS isPostedOrder(o),
-                inOrderSupplier(o, s),
-                customerOrder(o) == c,
-                customerStockOrder(o) == cs
+        PROPERTIES (o) READONLY isPosted, number, series, date, time, nameSupplier, nameSupplierStock,
+                                nameCustomer, nameCustomerStock, nameCurrency, countOrderDetail, quantityOrderDetail,
+                                shippedOrderDetail BACKGROUND backgroundShipped(o), sumOrderDetail, note
+        FILTERS isPosted(o),
+                inSupplier(o, s),
+                customer(o) == c,
+                customerStock(o) == cs
 //        FILTERGROUP order
 //            FILTER 'Заказы с непоставленными товарами со склада' 'F10' toShipOrderDetailStockOrder(s, o) DEFAULT
 //            FILTER 'Заказы со склада' 'F9' countOrderDetailStockOrder(s, o)
 
         OBJECTS d = OrderDetail
-        PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
-        PROPERTIES (d) READONLY quantityOrderDetail, shippedOrderDetail BACKGROUND backgroundShippedOrder(o), priceOrderDetail, sumOrderDetail, name###stockProp###orderDetail,
-                       toShipOrderDetail
-        FILTERS orderOrderDetail(d) == o
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity, shipped BACKGROUND backgroundShipped(o), price, sum, name###stockProp,
+                       toShip
+        FILTERS order(d) == o
 //        FILTERGROUP orderDetail
 //            FILTER 'Строки с непоставленными товарами со склада' 'F10' stockOrderDetail(d) == s AND toShipOrderDetail(d) > 0 DEFAULT
 //            FILTER 'Строки со склада' 'F9' stockOrderDetail(d) == s
@@ -101,65 +101,65 @@ META defineOrderShipment(sign, stockProp)
             MOVE o.box;
             MOVE d.box;
             MOVE functions.box;
-            PROPERTY(toShipOrderDetail(d)) { background = #FFFFCC; }
+            PROPERTY(toShip(d)) { background = #FFFFCC; }
         }
     }
 
-    inOrderDetailUserShipment (orderDetail, userShipment) = IF differentStocksInDetailsStock(customerStockOrderDetail(orderDetail))
+    in (OrderDetail orderDetail, UserShipment userShipment) = IF differentStocksInDetails(customerStock(orderDetail))
         THEN orderDetail IS OrderDetail AND userShipment IS UserShipment
-        ELSE supplierStockOrderDetail(orderDetail) == supplierStockUserShipment(userShipment);
+        ELSE supplierStock(orderDetail) == supplierStock(userShipment);
 
-    overFillOrderUserShipmentDetailOrderDetail = ABSTRACT ACTION LIST (UserShipmentDetail, OrderDetail);
+    overFillOrder = ABSTRACT ACTION LIST (UserShipmentDetail, OrderDetail);
 
-    fillOrderUserShipment 'Заполнить на основе заказа' =  ACTION (userShipment) {
-        FORM shipmentOrders OBJECTS s = supplierUserShipment(userShipment), ss = supplierStockUserShipment(userShipment),
-                                    c = customerUserShipment(userShipment), cs = customerStockUserShipment(userShipment) MODAL;
+    fillOrder 'Заполнить на основе заказа' =  ACTION (UserShipment userShipment) {
+        FORM shipmentOrders OBJECTS s = supplier(userShipment), ss = supplierStock(userShipment),
+                                    c = customer(userShipment), cs = customerStock(userShipment) MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL saleOrder = Order();
             ASSIGN saleOrder() <- chosenObject('o');
 
-            FOR orderOrderDetail(orderDetail) == saleOrder() AND
+            FOR order(OrderDetail orderDetail) == saleOrder() AND
 //                stockProp###OrderDetail(orderDetail) == stockProp###UserShipment(userShipment) AND
-                toShipOrderDetail(orderDetail) > 0
-                AND inOrderDetailUserShipment(orderDetail, userShipment)
+                toShip(orderDetail) > 0
+                AND in(orderDetail, userShipment)
                 ADDOBJ d = UserShipmentDetail DO {
-                    ASSIGN userShipmentUserShipmentDetail(d) <- userShipment;
-                    ASSIGN orderUserShipmentDetail(d) <- saleOrder();
-                    ASSIGN skuUserShipmentDetail(d) <- skuOrderDetail(orderDetail);
-                    ASSIGN quantityUserShipmentDetail (d) <- toShipOrderDetail(orderDetail);
+                    ASSIGN userShipment(d) <- userShipment;
+                    ASSIGN order(d) <- saleOrder();
+                    ASSIGN sku(d) <- sku(orderDetail);
+                    ASSIGN quantity (d) <- toShip(orderDetail);
 
-                    EXEC overFillOrderUserShipmentDetailOrderDetail(d, orderDetail);
+                    EXEC overFillOrder(d, orderDetail);
             }
         }
     } IN order;
-    notShowShippedOrder = ABSTRACT BOOLEAN (Order);
-    toShowShippedOrder = o IS Order AND NOT notShowShippedOrder(o);
+    notShowShipped = ABSTRACT BOOLEAN (Order);
+    toShowShipped = Order o IS Order AND NOT notShowShipped(o);
     EXTEND FORM userOrder
-        PROPERTIES(o) READONLY BACKGROUND backgroundShippedOrder(o) shippedOrderDetailOrder
-        PROPERTIES(d) READONLY BACKGROUND backgroundShippedOrder(o)  SHOWIF toShowShippedOrder(o) shippedOrderDetail BEFORE namePriceListTypeUserOrderDetail(d)
+        PROPERTIES(o) READONLY BACKGROUND backgroundShipped(o) shippedOrderDetail
+        PROPERTIES(d) READONLY BACKGROUND backgroundShipped(o)  SHOWIF toShowShipped(o) shipped BEFORE namePriceListType(d)
     ;
 
     EXTEND FORM orders
-        PROPERTIES(o) READONLY BACKGROUND backgroundShippedOrder(o) shippedOrderDetailOrder AFTER quantityOrderDetailOrder(o)
-        PROPERTIES(d) READONLY BACKGROUND backgroundShippedOrder(o) SHOWIF toShowShippedOrder(o) shippedOrderDetail BEFORE namePriceListTypeOrderDetail(d)
+        PROPERTIES(o) READONLY BACKGROUND backgroundShipped(o) shippedOrderDetail AFTER quantityOrderDetail(o)
+        PROPERTIES(d) READONLY BACKGROUND backgroundShipped(o) SHOWIF toShowShipped(o) shipped BEFORE namePriceListType(d)
         FILTERGROUP  filter10
-            FILTER   'Непоставленные товары' NOT shippedOrderDetail (d) ==  quantityOrderDetail (d) 'F10'            
+            FILTER   'Непоставленные товары' NOT shipped (d) ==  quantity (d) 'F10'            
     ;
 
     EXTEND FORM userShipment
-        PROPERTIES(s) fillOrderUserShipment, ordersShipment READONLY
-        PROPERTIES(d) descriptionOrderUserShipmentDetail BEFORE deletesd
+        PROPERTIES(s) fillOrder, orders READONLY
+        PROPERTIES(d) descriptionOrder BEFORE deletesd
     ;
     DESIGN userShipment { headerCreateDetail { MOVE s.order { type = CONTAINERV; }}}
 
 
     EXTEND FORM shipments
-        PROPERTIES(s) READONLY ordersShipment
-        PROPERTIES(d) READONLY descriptionOrderShipmentDetail
+        PROPERTIES(s) READONLY orders
+        PROPERTIES(d) READONLY descriptionOrder
     ;
 
 //--  Резервирование
-    toShipQuantityOrderLedger (ledger) += toShipOrderDetail(ledger);
+    toShipQuantity (OrderDetail ledger) += toShip(ledger);
 
     // цены в подборе
     @extendFormDocumentPriceSku(userOrder, accountPriceListType, stockProp, ' учетная', userOrder, o, is);
@@ -168,68 +168,68 @@ END
 
 META defineOrderShipmentPack(showPackage)
     EXTEND FORM shipmentOrders
-        PROPERTIES (d) READONLY SHOWIF showPack###order(o) BEFORE quantityOrderDetail(d)
-                       idBarcodePackOrderDetail, shortNameUOMPackOrderDetail,
-                       amountPackOrderDetail, packQuantityOrderDetail
+        PROPERTIES (d) READONLY SHOWIF showPack(o) BEFORE quantity(d)
+                       idBarcodePack, shortNameUOMPack,
+                       amountPack, packQuantity
     ;
 
-    overFillOrderUserShipmentDetailOrderDetail(s, o) += ACTION (s, o) {
-        ASSIGN barcodePackUserShipmentDetail(s) <- barcodePackOrderDetail(o);
-        ASSIGN amountPackUserShipmentDetail(s) <- amountPackOrderDetail(o);
-        ASSIGN packQuantityUserShipmentDetail (s) <- toShipOrderDetail(o)/amountPackOrderDetail(o);
+    overFillOrder(UserShipmentDetail s, OrderDetail o) += ACTION (s, o) {
+        ASSIGN barcodePack(s) <- barcodePack(o);
+        ASSIGN amountPack(s) <- amountPack(o);
+        ASSIGN packQuantity (s) <- toShip(o)/amountPack(o);
     }
 END
 
 META defineOrderShipmentExecution (dumb)
 
-    shippedShipmentDetailOrder 'Кол-во (поставлено)' (order) = GROUP SUM shippedOrderDetail(d)
-        IF isPostedOrderDetail(d) BY orderOrderDetail(d);
+    shippedShipmentDetail 'Кол-во (поставлено)' (order) = GROUP SUM shipped(OrderDetail d)
+        IF isPosted(d) BY order(d);
                                                                
-    percentQuantityExecutionOrder '% исп. заявки (кол-во)' (order)= shippedShipmentDetailOrder(order)*100.00 /
-        (quantityNotChargeOrderDetailOrder(order) IF quantityNotChargeOrderDetailOrder(order)!= 0);                                                              
+    percentQuantityExecution '% исп. заявки (кол-во)' (Order order)= shippedShipmentDetail(order)*100.00 /
+        (quantityNotChargeOrderDetail(order) IF quantityNotChargeOrderDetail(order)!= 0);                                                              
     
-    countShippedOrderDetailOrder (order) = GROUP SUM 1 IF shippedOrderDetail(d) >= quantityOrderDetail(d) 
-        AND isPostedOrderDetail(d) BY orderOrderDetail(d);   
-    percentCountExecutionOrder '% исп. заявки (позиции)' (order) = countShippedOrderDetailOrder (order)*100.00/
-        (countNotChargeOrderDetailOrder(order) IF countNotChargeOrderDetailOrder(order)!=0);
+    countShippedOrderDetail (order) = GROUP SUM 1 IF shipped(OrderDetail d) >= quantity(d) 
+        AND isPosted(d) BY order(d);   
+    percentCountExecution '% исп. заявки (позиции)' (Order order) = countShippedOrderDetail (order)*100.00/
+        (countNotChargeOrderDetail(order) IF countNotChargeOrderDetail(order)!=0);
     
-    sumShippedOrderDetailOrder (order) = GROUP SUM roundPriceCurrency(shippedOrderDetail(d)*priceOrderDetail(d), currencyOrderDetail(d)) 
-        IF isPostedOrderDetail(d) BY orderOrderDetail(d);   
-    percentSumExecutionOrder '% исп. заявки (сумма)' (order) = sumShippedOrderDetailOrder(order)*100.00/
-    (sumNotChargeOrderDetailOrder(order) IF sumNotChargeOrderDetailOrder(order)!=0);    
+    sumShippedOrderDetail (order) = GROUP SUM round(shipped(OrderDetail d)*price(d), currency(d)) 
+        IF isPosted(d) BY order(d);   
+    percentSumExecution '% исп. заявки (сумма)' (Order order) = sumShippedOrderDetail(order)*100.00/
+    (sumNotChargeOrderDetail(order) IF sumNotChargeOrderDetail(order)!=0);    
     
     EXTEND FORM orders
-        PROPERTIES(o) READONLY percentQuantityExecutionOrder, percentCountExecutionOrder, percentSumExecutionOrder     
+        PROPERTIES(o) READONLY percentQuantityExecution, percentCountExecution, percentSumExecution     
     ;       
 END
 META defineOrderInvoiceSupplierExecution (NS, sign)
                                                       
-    shippedShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM shippedShipmentDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
-            BY supplierOrder(order), dateFrom, dateTo;                                                   
-    quantityShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM quantityOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
-            BY supplierOrder(order), dateFrom, dateTo;                                                                         
-    percentQuantityExecutionSupplierDateFromTo '% исп. заявки (кол-во)' (supplier, dateFrom, dateTo)= shippedShipmentDetailSupplierDateFromTo (supplier, dateFrom, dateTo)*100.00 /
-        (quantityShipmentDetailSupplierDateFromTo(supplier, dateFrom, dateTo) IF quantityShipmentDetailSupplierDateFromTo(supplier, dateFrom, dateTo)!= 0);                                                              
+    shippedShipmentDetail (supplier, dateFrom, dateTo)= GROUP SUM shippedShipmentDetail(Order order) 
+        IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order)
+            BY supplier(order), dateFrom, dateTo;                                                   
+    quantityShipmentDetail (supplier, dateFrom, dateTo)= GROUP SUM quantityOrderDetail(Order order) 
+        IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order)
+            BY supplier(order), dateFrom, dateTo;                                                                         
+    percentQuantityExecution '% исп. заявки (кол-во)' (LegalEntity supplier, DATE dateFrom, DATE dateTo)= shippedShipmentDetail (supplier, dateFrom, dateTo)*100.00 /
+        (quantityShipmentDetail(supplier, dateFrom, dateTo) IF quantityShipmentDetail(supplier, dateFrom, dateTo)!= 0);                                                              
 //--    
-    countShippedSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM countShippedOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
-            BY supplierOrder(order), dateFrom, dateTo;                                                   
-    countSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM countOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
-            BY supplierOrder(order), dateFrom, dateTo;      
-    percentCountExecutionSupplierDateFromTo '% исп. заявки (позиции)' (supplier, dateFrom, dateTo) = countShippedSupplierDateFromTo (supplier, dateFrom, dateTo)*100.00 /
-        (countSupplierDateFromTo(supplier, dateFrom, dateTo) IF countSupplierDateFromTo(supplier, dateFrom, dateTo)!=0);
+    countShipped (supplier, dateFrom, dateTo)= GROUP SUM countShippedOrderDetail(Order order) 
+        IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order)
+            BY supplier(order), dateFrom, dateTo;                                                   
+    count (supplier, dateFrom, dateTo)= GROUP SUM countOrderDetail(Order order) 
+        IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order)
+            BY supplier(order), dateFrom, dateTo;      
+    percentCountExecution '% исп. заявки (позиции)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = countShipped (supplier, dateFrom, dateTo)*100.00 /
+        (count(supplier, dateFrom, dateTo) IF count(supplier, dateFrom, dateTo)!=0);
 //--    
-    sumShippedSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
-            BY supplierOrder(order), dateFrom, dateTo;                                                   
-    sumSupplierDateFromTo (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetailOrder(order) 
-        IF dateOrder(order) >= dateFrom AND dateOrder(order) <= dateTo AND isPostedOrder(order)
-            BY supplierOrder(order), dateFrom, dateTo;      
-    percentSumExecutionSupplierDateFromTo '% исп. заявки (сумма)' (supplier, dateFrom, dateTo) = sumShippedSupplierDateFromTo(supplier, dateFrom, dateTo)*100.00 /
-        (sumSupplierDateFromTo(supplier, dateFrom, dateTo) IF sumSupplierDateFromTo(supplier, dateFrom, dateTo)!=0);    
+    sumShipped (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
+        IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order)
+            BY supplier(order), dateFrom, dateTo;                                                   
+    sum (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetail(Order order) 
+        IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order)
+            BY supplier(order), dateFrom, dateTo;      
+    percentSumExecution '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShipped(supplier, dateFrom, dateTo)*100.00 /
+        (sum(supplier, dateFrom, dateTo) IF sum(supplier, dateFrom, dateTo)!=0);    
     
 
     FORM executionSupplierOrder 'Исполнение заявок' 
@@ -238,18 +238,18 @@ META defineOrderInvoiceSupplierExecution (NS, sign)
         PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
        
         OBJECTS s = LegalEntity
-        PROPERTIES READONLY nameLegalEntity(s), percentQuantityExecutionSupplierDateFromTo(s,dFrom,dTo), percentCountExecutionSupplierDateFromTo(s,dFrom,dTo),
-                   percentSumExecutionSupplierDateFromTo(s,dFrom,dTo)       
-        FILTERS    quantityShipmentDetailSupplierDateFromTo(s,dFrom,dTo)  
+        PROPERTIES READONLY name(s), percentQuantityExecution(s,dFrom,dTo), percentCountExecution(s,dFrom,dTo),
+                   percentSumExecution(s,dFrom,dTo)       
+        FILTERS    quantityShipmentDetail(s,dFrom,dTo)  
         OBJECTS o = Order
-        PROPERTIES (o) READONLY isPostedOrder, isClosedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
-                                nameSupplierOrder, nameSupplierStockOrder, nameCustomerOrder, nameCustomerStockOrder, 
-                                countOrderDetailOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder,
-                                percentQuantityExecutionOrder, percentCountExecutionOrder, percentSumExecutionOrder 
-        FILTERS isPostedOrder(o),
-                supplierOrder(o) == s,
-                dateOrder(o) >= dFrom,
-                dateOrder(o) <= dTo
+        PROPERTIES (o) READONLY isPosted, isClosed, number, series, date, time,
+                                nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, 
+                                countOrderDetail, quantityOrderDetail, sumOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
+                                percentQuantityExecution, percentCountExecution, percentSumExecution 
+        FILTERS isPosted(o),
+                supplier(o) == s,
+                date(o) >= dFrom,
+                date(o) <= dTo
 
     ; 
     

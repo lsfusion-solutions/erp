@@ -6,20 +6,20 @@ REQUIRE LegalEntity;
 
 CLASS ABSTRACT Account 'Счет';
 TABLE account (Account);
-nameAccount 'Имя' = ABSTRACT VARSTRING[30] (Account) PERSISTENT;
+name 'Имя' = ABSTRACT VARSTRING[30] (Account) PERSISTENT;
 
-currencyAccount = ABSTRACT Currency (Account);
-nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account));
+currency = ABSTRACT Currency (Account);
+nameCurrency 'Валюта счета' = name(currency(Account account));
 
-legalEntityAccount = ABSTRACT LegalEntity (Account);
-nameLegalEntityAccount 'Организация' (account) = nameLegalEntity(legalEntityAccount(account));
+legalEntity = ABSTRACT LegalEntity (Account);
+nameLegalEntity 'Организация' (Account account) = name(legalEntity(account));
 
-editAccount 'Редактировать' (account) = ABSTRACT ACTION LIST (Account) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' (account) = ABSTRACT ACTION LIST (Account) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM accounts 'Счета'
     OBJECTS a = Account
-    PROPERTIES(a) READONLY nameAccount, nameCurrencyAccount, nameLegalEntityAccount
-    PROPERTIES(a) editAccount FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(a) READONLY name, nameCurrency, nameLegalEntity
+    PROPERTIES(a) edit FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Account OBJECT a
 ;
@@ -29,31 +29,31 @@ FORM accounts 'Счета'
 CLASS ABSTRACT PaymentLedger 'Движение денег';
 TABLE paymentLedger(PaymentLedger);
 
-dateTimePaymentLedger 'Дата/время' = ABSTRACT DATETIME (PaymentLedger) PERSISTENT;
+dateTime 'Дата/время' = ABSTRACT DATETIME (PaymentLedger) PERSISTENT;
 
-legalEntityFromPaymentLedger = ABSTRACT LegalEntity (PaymentLedger) PERSISTENT;
-nameLegalEntityFromPaymentLedger 'Организация-плательщик' = nameLegalEntity(legalEntityFromPaymentLedger(ledger));
+legalEntityFrom = ABSTRACT LegalEntity (PaymentLedger) PERSISTENT;
+nameLegalEntityFrom 'Организация-плательщик' = name(legalEntityFrom(PaymentLedger ledger));
 
-accountFromPaymentLedger = ABSTRACT Account (PaymentLedger) PERSISTENT;
-nameAccountFromPaymentLedger 'Счет (с)' (ledger) = nameAccount(accountFromPaymentLedger(ledger));
+accountFrom = ABSTRACT Account (PaymentLedger) PERSISTENT;
+nameAccountFrom 'Счет (с)' (PaymentLedger ledger) = name(accountFrom(ledger));
 
-legalEntityToPaymentLedger = ABSTRACT LegalEntity (PaymentLedger) PERSISTENT;
-nameLegalEntityToPaymentLedger 'Организация-получатель' = nameLegalEntity(legalEntityToPaymentLedger(ledger));
+legalEntityTo = ABSTRACT LegalEntity (PaymentLedger) PERSISTENT;
+nameLegalEntityTo 'Организация-получатель' = name(legalEntityTo(PaymentLedger ledger));
 
-accountToPaymentLedger = ABSTRACT Account (PaymentLedger) PERSISTENT;
-nameAccountToPaymentLedger 'Счет (на)' (ledger) = nameAccount(accountToPaymentLedger(ledger));
+accountTo = ABSTRACT Account (PaymentLedger) PERSISTENT;
+nameAccountTo 'Счет (на)' (PaymentLedger ledger) = name(accountTo(ledger));
 
-sumPaymentLedger 'Сумма' = ABSTRACT NUMERIC[16,2] (PaymentLedger) PERSISTENT;
+sum 'Сумма' = ABSTRACT NUMERIC[16,2] (PaymentLedger) PERSISTENT;
 
-descriptionPaymentLedger 'Описание' = ABSTRACT VARSTRING[200] (PaymentLedger) PERSISTENT;
+description 'Описание' = ABSTRACT VARSTRING[200] (PaymentLedger) PERSISTENT;
 
-isPostedPaymentLedger 'Проведен' = ABSTRACT BOOLEAN(PaymentLedger);
+isPosted 'Проведен' = ABSTRACT BOOLEAN(PaymentLedger);
 
 FORM paymentLedger 'Движение денег'
     OBJECTS pl = PaymentLedger
-    PROPERTIES(pl) READONLY isPostedPaymentLedger, descriptionPaymentLedger, dateTimePaymentLedger, nameLegalEntityFromPaymentLedger,
-                            nameAccountFromPaymentLedger, nameLegalEntityToPaymentLedger, nameAccountToPaymentLedger,
-                            sumPaymentLedger
+    PROPERTIES(pl) READONLY isPosted, description, dateTime, nameLegalEntityFrom,
+                            nameAccountFrom, nameLegalEntityTo, nameAccountTo,
+                            sum
 ;
 
 NAVIGATOR {

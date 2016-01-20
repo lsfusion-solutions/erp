@@ -4,13 +4,13 @@ REQUIRE Dashboard, OrderInvoice, TripOrder, OrderPickingOrder, TripInvoiceConsig
 
 NAMESPACE Trip;
 
-inCreatingTripOrder 'Отметить' = DATA LOCAL BOOLEAN (Order);
-inCreatingTripStock = GROUP SUM 1 IF inCreatingTripOrder(order) BY toStockOrder(order);
+inCreatingTrip 'Отметить' = DATA LOCAL BOOLEAN (Order);
+inCreatingTrip = GROUP SUM 1 IF inCreatingTrip(Order order) BY toStock(order);
 
-countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTripOrder(order);
+countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTrip(Order order);
 
-editTripOrder 'Редактировать рейс' = ACTION (order) {
-    FOR t == tripOrder(order) DO {
+editTrip 'Редактировать рейс' = ACTION (Order order) {
+    FOR Trip t == trip(order) DO {
         FORM trip OBJECTS t=t MODAL;
         IF formResult() == FormResult.ok THEN {
             apply();
@@ -22,10 +22,10 @@ editTripOrder 'Редактировать рейс' = ACTION (order) {
 
 FORM optionTrip 'Настройки рейса'
     OBJECTS t = Trip FIXED PANEL
-    PROPERTIES (t) dateTrip, timeTrip, nameDriverTrip, nameTruckTrip
-    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, nameForwarderTrip, nameLoadingExecuterTrip, 
-                   nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip,
-                   timeOfArrivalTrip, downtimeTrip        
+    PROPERTIES (t) date, time, nameDriver, nameTruck
+    PROPERTIES (t) nameIssuanceAllowed, nameIssuanceExecuted, nameForwarder, nameLoadingExecuter, 
+                   nameWayOfLoading, nameUnloadingExecuter, nameWayOfUnloading, codeLoading, documentNameCurrency,
+                   timeOfArrival, downtime        
 ;
 DESIGN optionTrip {
 //    t.panel.props {
@@ -35,44 +35,44 @@ DESIGN optionTrip {
         caption = 'Атрибуты накладных';
         NEW issuanceContainer {
             caption = 'Отпуск';
-            MOVE PROPERTY(nameIssuanceAllowedTrip(t));
-            MOVE PROPERTY(nameIssuanceExecutedTrip(t));
-            MOVE PROPERTY(nameForwarderTrip(t));
+            MOVE PROPERTY(nameIssuanceAllowed(t));
+            MOVE PROPERTY(nameIssuanceExecuted(t));
+            MOVE PROPERTY(nameForwarder(t));
         }
         NEW loadingContainer {
             caption = 'ППР';
-            MOVE PROPERTY(nameLoadingExecuterTrip(t));
-            MOVE PROPERTY(nameWayOfLoadingTrip(t));
-            MOVE PROPERTY(nameUnloadingExecuterTrip(t));
-            MOVE PROPERTY(nameWayOfUnloadingTrip(t));
-            MOVE PROPERTY(codeLoadingTrip(t));
-            MOVE PROPERTY(timeOfArrivalTrip(t));
-            MOVE PROPERTY(downtimeTrip(t));
+            MOVE PROPERTY(nameLoadingExecuter(t));
+            MOVE PROPERTY(nameWayOfLoading(t));
+            MOVE PROPERTY(nameUnloadingExecuter(t));
+            MOVE PROPERTY(nameWayOfUnloading(t));
+            MOVE PROPERTY(codeLoading(t));
+            MOVE PROPERTY(timeOfArrival(t));
+            MOVE PROPERTY(downtime(t));
         }
         NEW dopContainer {
             caption = 'Дополнительно';
-            MOVE PROPERTY(documentNameCurrencyTrip(t));
+            MOVE PROPERTY(documentNameCurrency(t));
         }
 
     }
     MOVE functions.box;
 }
 
-overPrintTrip = ABSTRACT ACTION LIST (Trip);
-overCreateTripOrder = ABSTRACT ACTION LIST (Trip);
+overPrint = ABSTRACT ACTION LIST (Trip);
+overCreateOrder = ABSTRACT ACTION LIST (Trip);
 createTripOrder 'Взять в рейс' = ACTION () {
     FOR ADDOBJ t = Trip DO {
-        dateTrip(t) <- currentDate();
-        timeTrip(t) <- currentTime();
-        overCreateTripOrder(t);
+        date(t) <- currentDate();
+        time(t) <- currentTime();
+        overCreateOrder(t);
         FORM optionTrip OBJECTS t = t MODAL;
 
         IF formResult() == FormResult.ok THEN {
-            FOR inCreatingTripOrder(order) 
-                    AND NOT tripOrder(order) DO {
-                tripOrder(order) <- t;
+            FOR inCreatingTrip(Order order) 
+                    AND NOT trip(order) DO {
+                trip(order) <- t;
             }
-            overPrintTrip(t);
+            overPrint(t);
             apply();
         } ELSE {
             cancel();
@@ -80,12 +80,12 @@ createTripOrder 'Взять в рейс' = ACTION () {
     }
 } TOOLBAR EDITKEY 'ctrl ENTER';
 
-cancelTripOrder 'Отменить' = ACTION (order) {
-    ASSIGN tripOrder (order) <- NULL;
+cancelTrip 'Отменить' = ACTION (Order order) {
+    ASSIGN trip (order) <- NULL;
     EXEC apply();
 } TOOLBAR EDITKEY 'ctrl DELETE';
 
-hideInCreatingTripOrder = TRUE AND NOT (calcPartOrder(o) OR calcFullOrder(o));
+hideInCreatingTrip = TRUE AND NOT (calcPart(Order o) OR calcFull(o));
 
 FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
 
@@ -93,23 +93,23 @@ FORM tripDashboard 'Загрузка транспорта' AUTOREFRESH 60
     PROPERTIES(d) date = OBJVALUE
 
     OBJECTS o = Order FIXED GRID
-    PROPERTIES(o) inCreatingTripOrder READONLYIF hideInCreatingTripOrder(o)
-    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingOrder(o) nameDriverTripOrder, numberOrder, dateOrder,
-                            nameToOrder, nameToStockOrder, addressToStockOrder, packQuantityOrder, 
-                            namePerformerOrder, startDateTimeOrder, finishDateTimeOrder
+    PROPERTIES(o) inCreatingTrip READONLYIF hideInCreatingTrip(o)
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPicking(o) nameDriverTrip, number, date,
+                            nameTo, nameToStock, addressToStock, packQuantity, 
+                            namePerformer, startDateTime, finishDateTime
     PROPERTIES() createTripOrder SHOWIF countInCreatingTripOrder() TODRAW o
     //FILTERS calcPartOrder(o) AND NOT tripOrder(o)
-    FILTERS countPickingOrderOrder(o) AND NOT tripOrder(o)
+    FILTERS countPickingOrder(o) AND NOT trip(o)
 
     OBJECTS to = Order FIXED GRID
-    PROPERTIES(to) READONLY nameDriverTripOrder, dateTripOrder, numberTripOrder,
-                            numberOrder, dateOrder, finishDateTimeOrder,
-                            nameToOrder, nameToStockOrder, addressToStockOrder, packQuantityOrder, quantityOrderDetailOrder
+    PROPERTIES(to) READONLY nameDriverTrip, dateTrip, numberTrip,
+                            number, date, finishDateTime,
+                            nameTo, nameToStock, addressToStock, packQuantity, quantityOrderDetail
                             
-    PROPERTIES(to) editTripOrder TODRAW to FORCE PANEL TOOLBAR, cancelTripOrder
-    FILTERS tripOrder(to) //AND driverTripOrder(to) == currentUser()
-    FILTERGROUP filters FILTER 'Заказы на дату' dateOrder(o)<=d 'F5' DEFAULT
-    FILTERGROUP filters1 FILTER 'Рейсы на дату' dateTripOrder(to)==d 'F5' DEFAULT
+    PROPERTIES(to) editTrip TODRAW to FORCE PANEL TOOLBAR, cancelTrip
+    FILTERS trip(to) //AND driverTripOrder(to) == currentUser()
+    FILTERGROUP filters FILTER 'Заказы на дату' date(o)<=d 'F5' DEFAULT
+    FILTERGROUP filters1 FILTER 'Рейсы на дату' dateTrip(to)==d 'F5' DEFAULT
 
 ;
 
@@ -122,20 +122,20 @@ DESIGN tripDashboard {
             fill = 1;
             MOVE to.box{
                 caption = 'Вывезенные заказы';
-                PROPERTY(addressToStockOrder(to)){
+                PROPERTY(addressToStock(to)){
                     caption = 'Пункт разгрузки';
                     minimumCharWidth = 40;
                 }
-                PROPERTY(nameToOrder(to)){
+                PROPERTY(nameTo(to)){
                     minimumCharWidth = 45;
                 }                
-                PROPERTY(nameToStockOrder(to)){
+                PROPERTY(nameToStock(to)){
                     minimumCharWidth = 45;
                 }
-                PROPERTY(numberOrder(to)) {
+                PROPERTY(number(to)) {
                     caption = 'Номер заказа';
                 }
-                PROPERTY(dateOrder(to)) {
+                PROPERTY(date(to)) {
                     caption = 'Дата заказа';
                 }
             }
@@ -144,26 +144,26 @@ DESIGN tripDashboard {
             fill = 1;
             MOVE o.box{
                 caption = 'Заказы к вывозу';
-                PROPERTY(addressToStockOrder(o)){
+                PROPERTY(addressToStock(o)){
                     caption = 'Пункт разгрузки';
                     minimumCharWidth = 40;
                 }
-                PROPERTY(nameToOrder(o)){
+                PROPERTY(nameTo(o)){
                     minimumCharWidth = 45;
                 }
-                PROPERTY(nameToStockOrder(o)){
+                PROPERTY(nameToStock(o)){
                     minimumCharWidth = 45;
                 }
-                PROPERTY(numberOrder(o)) {
+                PROPERTY(number(o)) {
                     caption = 'Номер заказа';
                 }
-                PROPERTY(dateOrder(o)) {
+                PROPERTY(date(o)) {
                     caption = 'Дата заказа';
                     }
-                PROPERTY(namePerformerOrder(o)) {
+                PROPERTY(namePerformer(o)) {
                     minimumCharWidth = 25;
                     }    
-                PROPERTY(inCreatingTripOrder(o)) {
+                PROPERTY(inCreatingTrip(o)) {
                     editKey = 'SPACE';
                     }
                 }

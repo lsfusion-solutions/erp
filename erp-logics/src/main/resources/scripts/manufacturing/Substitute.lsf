@@ -7,29 +7,29 @@ REQUIRE BOM;
 CLASS Substitute 'Замена';
 TABLE substitute(Substitute);
 
-fromSkuSubstitute = DATA Sku(Substitute);
-idFromSkuSubstitute 'Код товара с' (substitute)= idSku(fromSkuSubstitute(substitute)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameFromSkuSubstitute 'Товар с' (substitute)= nameSku(fromSkuSubstitute(substitute)) IN recognize;
+fromSku = DATA Sku(Substitute);
+idFromSku 'Код товара с' (Substitute substitute)= id(fromSku(substitute)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameFromSku 'Товар с' (Substitute substitute)= name(fromSku(substitute)) IN recognize;
 
-toSkuSubstitute = DATA Sku(Substitute);
-idToSkuSubstitute 'Код товара на' (substitute)= idSku(toSkuSubstitute(substitute)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameToSkuSubstitute 'Товар на' (substitute)= nameSku(toSkuSubstitute(substitute)) IN recognize;
+toSku = DATA Sku(Substitute);
+idToSku 'Код товара на' (Substitute substitute)= id(toSku(substitute)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameToSku 'Товар на' (Substitute substitute)= name(toSku(substitute)) IN recognize;
 
-uniqueSubstituteFromToSku = GROUP AGGR substitute BY fromSkuSubstitute(substitute), toSkuSubstitute(substitute) WHERE substitute IS Substitute;
-countSubstituteFromToSku = GROUP SUM 1 BY fromSkuSubstitute(substitute), toSkuSubstitute(substitute);
+uniqueSubstituteFromTo = GROUP AGGR Substitute substitute BY fromSku(substitute), toSku(substitute) WHERE substitute IS Substitute;
+countSubstituteFromTo = GROUP SUM 1 BY fromSku(Substitute substitute), toSku(substitute);
 
-lastSubstituteFromSku = GROUP LAST substitute
-                                     BY   fromSkuSubstitute(substitute)
+lastSubstituteFrom = GROUP LAST Substitute substitute
+                                     BY   fromSku(substitute)
                                      ORDER substitute;
 
-lastSubstituteToSku = GROUP LAST substitute
-                                     BY   toSkuSubstitute(substitute)
+lastSubstituteTo = GROUP LAST Substitute substitute
+                                     BY   toSku(substitute)
                                      ORDER substitute;
 
-multiplierSubstitute 'Коэффициент' = DATA NUMERIC[10,5] (Substitute) IN recognize;
+multiplier 'Коэффициент' = DATA NUMERIC[10,5] (Substitute) IN recognize;
 
-allBOMsSubstitute 'Во всех спецификациях'= DATA BOOLEAN (Substitute);
-allBOMsSubstitute(substitute) <- TRUE WHEN SET(substitute IS Substitute);
+allBOMs 'Во всех спецификациях'= DATA BOOLEAN (Substitute);
+allBOMs(Substitute substitute) <- TRUE WHEN SET(substitute IS Substitute);
 
 //TABLE substituteComponent(Substitute, Component);
 //includeSubstituteComponent 'Вкл.'= DATA BOOLEAN (Substitute, Component);
@@ -46,38 +46,38 @@ allBOMsSubstitute(substitute) <- TRUE WHEN SET(substitute IS Substitute);
 //countComponentMaterial (material) = GROUP SUM 1 BY materialComponent(component);
 
 TABLE substituteBOM(Substitute, BOM);
-includeSubstituteBOM 'Вкл.'= DATA BOOLEAN (Substitute, BOM);
-excludeSubstituteBOM 'Искл.'= DATA BOOLEAN (Substitute, BOM);
-toShowIncludeSubstitute (substitute) = substitute IS Substitute AND NOT allBOMsSubstitute(substitute);
+include 'Вкл.'= DATA BOOLEAN (Substitute, BOM);
+exclude 'Искл.'= DATA BOOLEAN (Substitute, BOM);
+toShowInclude (Substitute substitute) = substitute IS Substitute AND NOT allBOMs(substitute);
 
-useSubstituteBOM 'Можно использовать' (substitute, BOM) = 
-    (allBOMsSubstitute(substitute) AND BOM IS BOM AND NOT excludeSubstituteBOM(substitute, BOM)) OR 
-    (includeSubstituteBOM(substitute, BOM) AND NOT allBOMsSubstitute(substitute));
+use 'Можно использовать' (Substitute substitute, BOM BOM) = 
+    (allBOMs(substitute) AND BOM IS BOM AND NOT exclude(substitute, BOM)) OR 
+    (include(substitute, BOM) AND NOT allBOMs(substitute));
 
-countComponentMaterial (material) = GROUP SUM 1 BY materialComponent(component);
+countComponent (material) = GROUP SUM 1 BY material(Component component);
 
-relationMaterialBOM (material, BOM)  = GROUP SUM 1 BY materialComponent(c), BOMComponent(c); 
+relation (material, BOM)  = GROUP SUM 1 BY material(Component c), BOM(c); 
 
 FORM substitute 'Замена'
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku, idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
+    PROPERTIES(sk) READONLY name, idBarcode, id SHOWIF showIDs(), shortNameUOM
     FILTERGROUP filters
-        FILTER 'Есть в спецификациях' countComponentMaterial(sk) 'F11' DEFAULT
+        FILTER 'Есть в спецификациях' countComponent(sk) 'F11' DEFAULT
 
     OBJECTS s=Substitute
-    PROPERTIES(s) idFromSkuSubstitute SHOWIF showIDs(), nameFromSkuSubstitute, idToSkuSubstitute SHOWIF showIDs(), nameToSkuSubstitute, multiplierSubstitute, allBOMsSubstitute
+    PROPERTIES(s) idFromSku SHOWIF showIDs(), nameFromSku, idToSku SHOWIF showIDs(), nameToSku, multiplier, allBOMs
     PROPERTIES(s) ADDOBJ, DELETESESSION
 
-    FILTERS fromSkuSubstitute(s) == sk
+    FILTERS fromSku(s) == sk
 
     OBJECTS b = BOM
-    PROPERTIES(b) READONLY seriesNumberBOM, productsBOM
-    PROPERTIES(s,b) SHOWIF toShowIncludeSubstitute(s) includeSubstituteBOM
-    PROPERTIES(s,b) SHOWIF allBOMsSubstitute(s) excludeSubstituteBOM
-    ORDER BY seriesNumberBOM(b)
+    PROPERTIES(b) READONLY seriesNumber, products
+    PROPERTIES(s,b) SHOWIF toShowInclude(s) include
+    PROPERTIES(s,b) SHOWIF allBOMs(s) exclude
+    ORDER BY seriesNumber(b)
 
-    FILTERS relationMaterialBOM(sk,b)
+    FILTERS relation(sk,b)
 ;
 
 DESIGN substitute {

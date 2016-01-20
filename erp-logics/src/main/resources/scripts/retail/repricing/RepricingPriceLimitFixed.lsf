@@ -4,22 +4,22 @@ REQUIRE PurchasePriceLimitFixed, RepricingPriceListPriceLimit;
 
 NAMESPACE Repricing;
 
-fixedLimitPriceDepartmentStoreSkuDateTime(d, s, dt) = priceALedgerPriceListTypeSkuStockDateTime(fixedLimitPriceListType(), 
+fixedLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(fixedLimitPriceListType(), 
     s, d, dt) IF d IS DepartmentStore;
 
-minLimitPriceDepartmentStoreSkuDateTime(d, s, dt) = priceALedgerPriceListTypeSkuStockDateTime(minLimitPriceListType(), 
+minLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(minLimitPriceListType(), 
     s, d, dt) IF d IS DepartmentStore;
 
-overSetManagementRetailPriceDepartmentStoreDateTime(d, dt) += ACTION (d, dt) {
-    LOCAL limitPriceSku = NUMERIC[14,2] (Sku);
-    FOR managementRetailPriceSku(sku) DO {
-        IF fixedLimitPriceDepartmentStoreSkuDateTime(d, sku, dt) THEN {
-            limitPriceSku(sku) <- fixedLimitPriceDepartmentStoreSkuDateTime(d, sku, dt);
-            managementRetailPriceSku (sku) <- limitPriceSku(sku) WHERE limitPriceSku(sku) < managementRetailPriceSku (sku) AND NOT skipRepricingPriceLimitSku(sku); 
+overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) += ACTION (d, dt) {
+    LOCAL limitPrice = NUMERIC[14,2] (Sku);
+    FOR managementRetailPrice(Sku sku) DO {
+        IF fixedLimitPrice(d, sku, dt) THEN {
+            limitPrice(sku) <- fixedLimitPrice(d, sku, dt);
+            managementRetailPrice (sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
         };
-        IF minLimitPriceDepartmentStoreSkuDateTime(d, sku, dt) THEN {
-            limitPriceSku(sku) <- minLimitPriceDepartmentStoreSkuDateTime(d, sku, dt);
-            managementRetailPriceSku (sku) <- limitPriceSku(sku) WHERE limitPriceSku(sku) > managementRetailPriceSku (sku) AND NOT skipRepricingPriceLimitSku(sku); 
+        IF minLimitPrice(d, sku, dt) THEN {
+            limitPrice(sku) <- minLimitPrice(d, sku, dt);
+            managementRetailPrice (sku) <- limitPrice(sku) WHERE limitPrice(sku) > managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
         };    
     }
 }

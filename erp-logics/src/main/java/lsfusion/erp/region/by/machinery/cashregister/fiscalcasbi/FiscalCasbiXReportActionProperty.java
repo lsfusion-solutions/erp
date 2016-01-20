@@ -19,8 +19,8 @@ public class FiscalCasbiXReportActionProperty extends ScriptingActionProperty {
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
             String result = (String) context.requestUserInteraction(new FiscalCasbiCustomOperationClientAction(1, comPort, baudRate));
             if (result == null) {

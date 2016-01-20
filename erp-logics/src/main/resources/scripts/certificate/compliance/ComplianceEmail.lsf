@@ -19,15 +19,15 @@ DESIGN options {
 
 
 
-countToNotificationComplianceDate 'Сертификаты, которым нужно сообщение' (compliance, date) = GROUP SUM 1 
-    IF currentBalanceBatch(b) AND subtractDate(toDateComplianceBatch(b), countDaysToEndCompliance()) <= date
-        BY complianceBatch(b), date;
+countToNotification 'Сертификаты, которым нужно сообщение' (compliance, date) = GROUP SUM 1 
+    IF currentBalance(Batch b) AND subtract(toDateCompliance(b), countDaysToEndCompliance()) <= DATE date
+        BY compliance(b), date;
     
-countToNotificationDate 'Кол-во сертификатов' (date) = GROUP SUM 1 IF countToNotificationComplianceDate(compliance, date) BY date;   
+countToNotification 'Кол-во сертификатов' (date) = GROUP SUM 1 IF countToNotification(Compliance compliance, DATE date) BY date;   
     
-compliancesToNotificationDate 'Сертификаты' (date) = GROUP CONCAT descriptionCompliance(c) IF countToNotificationComplianceDate(c, date), ' , '
+compliancesToNotification 'Сертификаты' (date) = GROUP CONCAT description(Compliance c) IF countToNotification(c, DATE date), ' , '
            BY date
-           ORDER descriptionCompliance(c)
+           ORDER description(c)
 ;  
 FORM emailCompliance 'Сертификаты'
  
@@ -36,22 +36,22 @@ FORM emailCompliance 'Сертификаты'
     PROPERTIES int = countDaysToEndCompliance() TODRAW dt
 
     OBJECTS c = Compliance
-    PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance,
-                  fromDateCompliance, toDateCompliance, nameLegalEntityCompliance
-    ORDER BY toDateCompliance(c)                  
+    PROPERTIES(c) READONLY number, series, date, time,
+                  fromDate, toDate, nameLegalEntity
+    ORDER BY toDate(c)                  
 
-    FILTERS countToNotificationComplianceDate(c,dt) 
+    FILTERS countToNotification(c,dt) 
 ;
 
-emailComplianceDate 'Выслать уведомление об окончании срока действия сертификатов' (date) = ACTION EMAIL
-    SUBJECT 'Уведомление об окончании срока действия сертификатов на ' + countToNotificationDate(date) + ' шт.'
+emailCompliance 'Выслать уведомление об окончании срока действия сертификатов' (DATE date) = ACTION EMAIL
+    SUBJECT 'Уведомление об окончании срока действия сертификатов на ' + countToNotification(date) + ' шт.'
     TO emailToNotification()
     INLINE emailCompliance OBJECTS dt = date AS DATE
 ;
   
   
-WHEN CHANGED (currentDate()) AND countToNotificationDate(currentDate()) DO {
-    emailComplianceDate(currentDate());        
+WHEN CHANGED (currentDate()) AND countToNotification(currentDate()) DO {
+    emailCompliance(currentDate());        
 }
 
 

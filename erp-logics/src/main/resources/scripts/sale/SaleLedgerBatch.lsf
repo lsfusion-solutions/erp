@@ -6,93 +6,93 @@ NAMESPACE SaleLedger;
 
 //------------------- Продажи по партиям -------------------------//
 
-nameBatchBalanceBStock (stock)= nameStock(stock) + ' (остаток на начало)';    
-nameBatchSumBStock (stock)= nameStock(stock) + ' (сумма на начало)';    
-nameBatchBalanceAStock (stock)= nameStock(stock) + ' (остаток на конец)';    
-nameBatchSumAStock (stock)= nameStock(stock) + ' (сумма на конец)';    
-nameBatchQuantitySoldStock (stock)= nameStock(stock) + ' (продано кол-во)';    
-nameBatchSumSoldStock (stock)= nameStock(stock) + ' (продано сумма)';    
+nameBatchBalanceB (Stock stock)= name(stock) + ' (остаток на начало)';    
+nameBatchSumB (Stock stock)= name(stock) + ' (сумма на начало)';    
+nameBatchBalanceA (Stock stock)= name(stock) + ' (остаток на конец)';    
+nameBatchSumA (Stock stock)= name(stock) + ' (сумма на конец)';    
+nameBatchQuantitySold (Stock stock)= name(stock) + ' (продано кол-во)';    
+nameBatchSumSold (Stock stock)= name(stock) + ' (продано сумма)';    
  
-inBatchReportStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+inBatchReport 'Отм.' = DATA LOCAL BOOLEAN (Stock);
 
                   
-filterBalanceBatchDateFromTo 'С остатком' (b,dFrom, dTo) = GROUP SUM 1 IF inBatchReportStock(st) AND (balanceBBatchStockDate(b,st,dFrom) OR balanceABatchStockDate(b,st,dTo))
+filterBalanceDate 'С остатком' (b,dFrom, dTo) = GROUP SUM 1 IF inBatchReport(Stock st) AND (balanceB(Batch b,st,DATE dFrom) OR balanceA(b,st,DATE dTo))
     BY b,dFrom, dTo;
-filterSoldBatchDateFromTo 'С продажей' (b,dFrom,dTo) = GROUP SUM quantitySoldBatchStockDateFromTo(b,st,dFrom,dTo) IF inBatchReportStock(st) 
+filterSoldDate 'С продажей' (b,dFrom,dTo) = GROUP SUM quantitySold(Batch b,Stock st,DATE dFrom,DATE dTo) IF inBatchReport(st) 
     BY b,dFrom,dTo;           
        
 //-------------------------------------------------------------------------//
    
-backgroundLavenderBatch 'Розовато-лавандовый' (b) = RGB(255,238,238) IF b IS Batch;  
-backgroundGreenTeaBatch 'Зеленого чая' (b) = RGB(204,255,204) IF b IS Batch;  
-backgroundSkyBatch 'Небесный' (b) = RGB(127,199,255) IF b IS Batch;  
+backgroundLavender 'Розовато-лавандовый' (Batch b) = RGB(255,238,238) IF b IS Batch;  
+backgroundGreenTea 'Зеленого чая' (Batch b) = RGB(204,255,204) IF b IS Batch;  
+backgroundSky 'Небесный' (Batch b) = RGB(127,199,255) IF b IS Batch;  
 
-dbalanceBBatchStock 'Остаток на начало дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
-dcostBBatchStock 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dVATSumBBatchStock 'НДС поставщика на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dSumBBatchStock 'Сумма поставщика с НДС на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-daccountSumBBatchStock 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dbalanceB 'Остаток на начало дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
+dcostB 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dVATSumB 'НДС поставщика на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dSumB 'Сумма поставщика с НДС на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+daccountSumB 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
         
-dquantitySoldBatchStock 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);  
-dcostSumSoldBatchStock 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);   
-dmarkupSumSoldBatchStock 'Надбавка проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+dquantitySold 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);  
+dcostSumSold 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);   
+dmarkupSumSold 'Надбавка проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
 
-dsumVATSoldBatchStock 'Сумма НДС проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
-daveragePriceSoldBatchStock 'Цена за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
-dsumSoldBatchStock 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
-daverageMarkupSoldBatchStock 'Средний процент надбавки' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+dsumVATSold 'Сумма НДС проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+daveragePriceSold 'Цена за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+dsumSold 'Продано за интервал (сумма)' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
+daverageMarkupSold 'Средний процент надбавки' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
    
-dbalanceABatchStock 'Остаток на конец дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
-dcostABatchStock 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dVATSumABatchStock 'НДС поставщика на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dSumABatchStock 'Сумма поставщика с НДС на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-daccountSumABatchStock 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);                     
+dbalanceA 'Остаток на конец дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
+dcostA 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dVATSumA 'НДС поставщика на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dSumA 'Сумма поставщика с НДС на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+daccountSumA 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);                     
     
-dmovedBatchStock = DATA LOCAL BOOLEAN (Batch, Stock);
+dmoved = DATA LOCAL BOOLEAN (Batch, Stock);
 
-overFillPropertyDateFromTo = ABSTRACT ACTION LIST (DATE, DATE);   
+overFillPropertyFromTo = ABSTRACT ACTION LIST (DATE, DATE);   
                    
-fillPropertyBatchStockDateFromTo 'Заполнить данные'  = ACTION (dFrom,dTo) {
-    dbalanceBBatchStock(bb,sts) <- balanceBBatchStockDate(bb,sts,dFrom) 
-        WHERE inBatchReportStock(sts);
-    dcostBBatchStock(bb,sts) <- NUMERIC[15,3](dbalanceBBatchStock(bb,sts) * costBatch(bb)) 
-        WHERE inBatchReportStock(sts); 
-    dVATSumBBatchStock(bb, sts) <- NUMERIC[15,3](dcostBBatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0)
-        WHERE inBatchReportStock(sts);
-    dSumBBatchStock(bb, sts) <- NUMERIC[15,3](dcostBBatchStock(bb, sts) (+) dVATSumBBatchStock(bb, sts))
-        WHERE inBatchReportStock(sts);         
-    daccountSumBBatchStock(bb,sts) <- NUMERIC[15,3](dbalanceBBatchStock(bb,sts) * accountPriceBBatchStockDate(bb,sts,dFrom)) 
-        WHERE inBatchReportStock(sts); 
+fillPropertyBatchStockFromTo 'Заполнить данные'  = ACTION (DATE dFrom,DATE dTo) {
+    dbalanceB(Batch bb,Stock sts) <- balanceB(bb,sts,dFrom) 
+        WHERE inBatchReport(sts);
+    dcostB(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceB(bb,sts) * cost(bb)) 
+        WHERE inBatchReport(sts); 
+    dVATSumB(Batch bb, Stock sts) <- NUMERIC[15,3](dcostB(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
+        WHERE inBatchReport(sts);
+    dSumB(Batch bb, Stock sts) <- NUMERIC[15,3](dcostB(bb, sts) (+) dVATSumB(bb, sts))
+        WHERE inBatchReport(sts);         
+    daccountSumB(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceB(bb,sts) * accountPriceB(bb,sts,dFrom)) 
+        WHERE inBatchReport(sts); 
 //--            
-    dquantitySoldBatchStock(bb,sts) <- quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
-        WHERE inBatchReportStock(sts);
-    dcostSumSoldBatchStock(bb,sts) <- costSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
-        WHERE inBatchReportStock(sts);
-    dmarkupSumSoldBatchStock(bb,sts) <- markupSumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
-        WHERE inBatchReportStock(sts);     
-    dsumVATSoldBatchStock(bb,sts) <- sumVATSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
-        WHERE inBatchReportStock(sts);
-    dsumSoldBatchStock(bb,sts) <- sumSoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 
-        WHERE inBatchReportStock(sts);
-    daveragePriceSoldBatchStock(bb,sts) <- NUMERIC[22,8](dsumSoldBatchStock(bb,sts) / dquantitySoldBatchStock(bb,sts))
-        WHERE inBatchReportStock(sts); 
-    daverageMarkupSoldBatchStock(bb,sts) <- NUMERIC[22,8](dmarkupSumSoldBatchStock(bb,sts) / dcostSumSoldBatchStock(bb,sts))
-        WHERE inBatchReportStock(sts);
+    dquantitySold(Batch bb,Stock sts) <- quantitySold(bb,sts,dFrom,dTo) 
+        WHERE inBatchReport(sts);
+    dcostSumSold(Batch bb,Stock sts) <- costSumSold(bb,sts,dFrom,dTo) 
+        WHERE inBatchReport(sts);
+    dmarkupSumSold(Batch bb,Stock sts) <- markupSumSold(bb,sts,dFrom,dTo) 
+        WHERE inBatchReport(sts);     
+    dsumVATSold(Batch bb,Stock sts) <- sumVATSold(bb,sts,dFrom,dTo) 
+        WHERE inBatchReport(sts);
+    dsumSold(Batch bb,Stock sts) <- sumSold(bb,sts,dFrom,dTo) 
+        WHERE inBatchReport(sts);
+    daveragePriceSold(Batch bb,Stock sts) <- NUMERIC[22,8](dsumSold(bb,sts) / dquantitySold(bb,sts))
+        WHERE inBatchReport(sts); 
+    daverageMarkupSold(Batch bb,Stock sts) <- NUMERIC[22,8](dmarkupSumSold(bb,sts) / dcostSumSold(bb,sts))
+        WHERE inBatchReport(sts);
     //--
-    dbalanceABatchStock(bb,sts) <- balanceABatchStockDate(bb,sts,dTo) 
-        WHERE inBatchReportStock(sts);
-    dcostABatchStock(bb,sts) <- NUMERIC[15,3](dbalanceABatchStock(bb,sts) * costBatch(bb))
-        WHERE inBatchReportStock(sts); 
-    dVATSumABatchStock(bb, sts) <- NUMERIC[15,3](dcostABatchStock(bb, sts) * valueVATStockBatchDate(sts, bb, dateBatch(bb)) / 100.0)
-        WHERE inBatchReportStock(sts);
-    dSumABatchStock(bb, sts) <- NUMERIC[15,3](dcostABatchStock(bb, sts) (+) dVATSumABatchStock(bb, sts))
-        WHERE inBatchReportStock(sts);           
-    daccountSumABatchStock(bb,sts) <- NUMERIC[15,3](dbalanceABatchStock(bb,sts) * accountPriceABatchStockDate(bb,sts,dTo))
-        WHERE inBatchReportStock(sts); 
+    dbalanceA(Batch bb,Stock sts) <- balanceA(bb,sts,dTo) 
+        WHERE inBatchReport(sts);
+    dcostA(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceA(bb,sts) * cost(bb))
+        WHERE inBatchReport(sts); 
+    dVATSumA(Batch bb, Stock sts) <- NUMERIC[15,3](dcostA(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
+        WHERE inBatchReport(sts);
+    dSumA(Batch bb, Stock sts) <- NUMERIC[15,3](dcostA(bb, sts) (+) dVATSumA(bb, sts))
+        WHERE inBatchReport(sts);           
+    daccountSumA(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceA(bb,sts) * accountPriceA(bb,sts,dTo))
+        WHERE inBatchReport(sts); 
     
-    dmovedBatchStock(bb, sts) <- dquantitySoldBatchStock(bb,sts) OR dbalanceBBatchStock(bb,sts) OR dbalanceABatchStock(bb,sts);
+    dmoved(Batch bb, Stock sts) <- dquantitySold(bb,sts) OR dbalanceB(bb,sts) OR dbalanceA(bb,sts);
     
-    overFillPropertyDateFromTo(dFrom,dTo);
+    overFillPropertyFromTo(dFrom,dTo);
 }                      
         
 FORM saleBatch 'Продажи по партиям'
@@ -101,96 +101,96 @@ FORM saleBatch 'Продажи по партиям'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
        
     OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType    
+    PROPERTIES(gt) SELECTOR name    
    
-    TREE skuTree sk = Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
-    ORDER BY orderGroup(sk), skuTreeName
-    FILTERS groupTypeGroup(sk) == gt
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(sk) 'F5' DEFAULT       
+    TREE skuTree sk = Group PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERS groupType(sk) == gt
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT       
      
     OBJECTS ts = Stock
-    PROPERTIES tsTreeName = nameStock(ts) READONLY, nameLegalEntityStock(ts) READONLY, inBatchReportStock(ts)
+    PROPERTIES tsTreeName = name(ts) READONLY, nameLegalEntity(ts) READONLY, inBatchReport(ts)
     ORDER BY tsTreeName
-    FILTERS isCompanyStock(ts)     
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT  
+    FILTERS isCompany(ts)     
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT  
     OBJECTS st = Stock      
-    FILTERS inBatchReportStock(st)
+    FILTERS inBatchReport(st)
     OBJECTS b = Batch 
-    PROPERTIES(b)  READONLY nameSkuBatch, idBarcodeSkuBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch, costBatch,                     
-                   currentValueVATBatch                    
-    FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT                   
-    PROPERTIES(b)  READONLY imageBatch FORCE PANEL
-    PROPERTIES     READONLY BACKGROUND backgroundLavenderBatch(b) balanceBBatchStockDate(b,st,dFrom)  COLUMNS (st) HEADER nameBatchBalanceBStock(st)
-    PROPERTIES     READONLY BACKGROUND backgroundLavenderBatch(b) accountSumBBatchStockDate(b,st,dFrom)  COLUMNS (st) HEADER nameBatchSumBStock(st)
-    PROPERTIES     READONLY BACKGROUND backgroundGreenTeaBatch(b) quantitySoldBatchStockDateFromTo(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchQuantitySoldStock(st)  
-    PROPERTIES     READONLY BACKGROUND backgroundGreenTeaBatch(b) sumSoldBatchStockDateFromTo(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchSumSoldStock(st)                       
-    PROPERTIES     READONLY BACKGROUND backgroundSkyBatch(b) balanceABatchStockDate(b,st,dTo)  COLUMNS (st) HEADER nameBatchBalanceAStock(st)
-    PROPERTIES     READONLY BACKGROUND backgroundSkyBatch(b) accountSumABatchStockDate(b,st,dTo)  COLUMNS (st) HEADER nameBatchSumAStock(st)    
+    PROPERTIES(b)  READONLY nameSku, idBarcodeSku, nameSkuGroup3, nameSkuGroup4, date, cost,                     
+                   currentValueVAT                    
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(st) 'ctrl F10' DEFAULT                   
+    PROPERTIES(b)  READONLY image FORCE PANEL
+    PROPERTIES     READONLY BACKGROUND backgroundLavender(b) balanceB(b,st,dFrom)  COLUMNS (st) HEADER nameBatchBalanceB(st)
+    PROPERTIES     READONLY BACKGROUND backgroundLavender(b) accountSumB(b,st,dFrom)  COLUMNS (st) HEADER nameBatchSumB(st)
+    PROPERTIES     READONLY BACKGROUND backgroundGreenTea(b) quantitySold(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchQuantitySold(st)  
+    PROPERTIES     READONLY BACKGROUND backgroundGreenTea(b) sumSold(b,st,dFrom,dTo)  COLUMNS (st) HEADER nameBatchSumSold(st)                       
+    PROPERTIES     READONLY BACKGROUND backgroundSky(b) balanceA(b,st,dTo)  COLUMNS (st) HEADER nameBatchBalanceA(st)
+    PROPERTIES     READONLY BACKGROUND backgroundSky(b) accountSumA(b,st,dTo)  COLUMNS (st) HEADER nameBatchSumA(st)    
                 
-    FILTERS           isParentGroupBatch(sk, b)                
+    FILTERS           isParent(sk, b)                
                             
     FILTERGROUP filtersSold
-        FILTER 'С движением' filterSoldBatchDateFromTo(b,dFrom,dTo) OR filterBalanceBatchDateFromTo(b,dFrom,dTo) 'F11' DEFAULT
-        FILTER 'С продажей' filterSoldBatchDateFromTo(b,dFrom,dTo) 'F10'
-        FILTER 'С остатком' filterBalanceBatchDateFromTo(b,dFrom,dTo) 'F9'      
+        FILTER 'С движением' filterSoldDate(b,dFrom,dTo) OR filterBalanceDate(b,dFrom,dTo) 'F11' DEFAULT
+        FILTER 'С продажей' filterSoldDate(b,dFrom,dTo) 'F10'
+        FILTER 'С остатком' filterBalanceDate(b,dFrom,dTo) 'F9'      
                              
     OBJECTS stb = (sts=Stock, bb=Batch)                              
-    PROPERTIES(sts)READONLY stsName = nameStock                          
-    PROPERTIES(bb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSupplierBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
-                   costBatch
-    PROPERTIES(sts, bb) READONLY currentValueVATStockBatch
+    PROPERTIES(sts)READONLY stsName = name                          
+    PROPERTIES(bb) READONLY nameSku, idBarcodeSku, nameSupplier, nameSkuGroup3, nameSkuGroup4, date,  
+                   cost
+    PROPERTIES(sts, bb) READONLY currentValueVAT
                        
-    PROPERTIES(bb,sts,dFrom) READONLY READONLY BACKGROUND backgroundLavenderBatch(bb) balanceBBatchStockDate, 
-                   costBBatchStockDate, accountSumBBatchStockDate         
-    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTeaBatch(bb) quantitySoldBatchStockDateFromTo, 
-                   costSumSoldBatchStockDateFromTo, markupSumSoldBatchStockDateFromTo
-    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTeaBatch(bb) sumVATSoldBatchStockDateFromTo, averagePriceSoldBatchStockDateFromTo,  
-                   sumSoldBatchStockDateFromTo, averageMarkupSoldBatchStockDateFromTo
-    FILTERGROUP inactiveStock3 FILTER 'Активный' activeStock(sts) 'ctrl F10' DEFAULT
+    PROPERTIES(bb,sts,dFrom) READONLY READONLY BACKGROUND backgroundLavender(bb) balanceB, 
+                   costB, accountSumB         
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTea(bb) quantitySold, 
+                   costSumSold, markupSumSold
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTea(bb) sumVATSold, averagePriceSold,  
+                   sumSold, averageMarkupSold
+    FILTERGROUP inactiveStock3 FILTER 'Активный' active(sts) 'ctrl F10' DEFAULT
                                        
-    PROPERTIES(bb,sts,dTo) READONLY BACKGROUND backgroundSkyBatch(bb) balanceABatchStockDate, costABatchStockDate, accountSumABatchStockDate                 
+    PROPERTIES(bb,sts,dTo) READONLY BACKGROUND backgroundSky(bb) balanceA, costA, accountSumA                 
                              
-    FILTERS inBatchReportStock(sts),
-            isParentGroupBatch(sk, bb)  
+    FILTERS inBatchReport(sts),
+            isParent(sk, bb)  
     FILTERGROUP filtersSold1
-        FILTER 'С движением' quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) OR balanceBBatchStockDate(bb,sts,dFrom) OR balanceABatchStockDate(bb,sts,dTo) 'F11' DEFAULT
-        FILTER 'С продажей' quantitySoldBatchStockDateFromTo(bb,sts,dFrom,dTo) 'F10'
-        FILTER 'С остатком' balanceBBatchStockDate(bb,sts,dFrom) OR balanceABatchStockDate(bb,sts,dTo) 'F9'      
+        FILTER 'С движением' quantitySold(bb,sts,dFrom,dTo) OR balanceB(bb,sts,dFrom) OR balanceA(bb,sts,dTo) 'F11' DEFAULT
+        FILTER 'С продажей' quantitySold(bb,sts,dFrom,dTo) 'F10'
+        FILTER 'С остатком' balanceB(bb,sts,dFrom) OR balanceA(bb,sts,dTo) 'F9'      
 
 //-- Таблица                                                 
     OBJECTS stbs = (stst=Stock, bbb=Batch)                              
-    PROPERTIES(stst)READONLY nameStock                          
-    PROPERTIES(bbb) READONLY nameSkuBatch, idBarcodeSkuBatch, nameSupplierBatch, nameSkuGroup3Batch, nameSkuGroup4Batch, dateBatch,  
-                   costBatch
-    PROPERTIES(stst, bbb) READONLY currentValueVATStockBatch
+    PROPERTIES(stst)READONLY name                          
+    PROPERTIES(bbb) READONLY nameSku, idBarcodeSku, nameSupplier, nameSkuGroup3, nameSkuGroup4, date,  
+                   cost
+    PROPERTIES(stst, bbb) READONLY currentValueVAT
                        
-    PROPERTIES(bbb,stst) READONLY READONLY BACKGROUND backgroundLavenderBatch(bbb) dbalanceBBatchStock, 
-                   dcostBBatchStock, dVATSumBBatchStock, dSumBBatchStock, daccountSumBBatchStock         
-    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dquantitySoldBatchStock, 
-                   dcostSumSoldBatchStock, dmarkupSumSoldBatchStock
-    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTeaBatch(bbb) dsumVATSoldBatchStock, daveragePriceSoldBatchStock,  
-                   dsumSoldBatchStock, daverageMarkupSoldBatchStock
+    PROPERTIES(bbb,stst) READONLY READONLY BACKGROUND backgroundLavender(bbb) dbalanceB, 
+                   dcostB, dVATSumB, dSumB, daccountSumB         
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTea(bbb) dquantitySold, 
+                   dcostSumSold, dmarkupSumSold
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTea(bbb) dsumVATSold, daveragePriceSold,  
+                   dsumSold, daverageMarkupSold
                    
                    
-    FILTERGROUP inactiveStock4 FILTER 'Активный' activeStock(stst) 'ctrl F10' DEFAULT
+    FILTERGROUP inactiveStock4 FILTER 'Активный' active(stst) 'ctrl F10' DEFAULT
                                        
-    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSkyBatch(bbb) dbalanceABatchStock, 
-                    dcostABatchStock, dVATSumABatchStock, dSumABatchStock, daccountSumABatchStock                 
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSky(bbb) dbalanceA, 
+                    dcostA, dVATSumA, dSumA, daccountSumA                 
                              
-    FILTERS inBatchReportStock(stst),
-            isParentGroupBatch(sk, bbb)  
+    FILTERS inBatchReport(stst),
+            isParent(sk, bbb)  
     FILTERGROUP filtersSold2
-        FILTER 'С движением' dmovedBatchStock(bbb, stst) 'F11'
-        FILTER 'С продажей' dquantitySoldBatchStock(bbb,stst) 'F10'
-        FILTER 'С остатком' dbalanceBBatchStock(bbb,stst) OR dbalanceABatchStock(bbb,stst) 'F9'                                                      
-    PROPERTIES fillPropertyBatchStockDateFromTo(dFrom,dTo) TODRAW  stbs FORCE PANEL TOOLBAR                                 
+        FILTER 'С движением' dmoved(bbb, stst) 'F11'
+        FILTER 'С продажей' dquantitySold(bbb,stst) 'F10'
+        FILTER 'С остатком' dbalanceB(bbb,stst) OR dbalanceA(bbb,stst) 'F9'                                                      
+    PROPERTIES fillPropertyBatchStockFromTo(dFrom,dTo) TODRAW  stbs FORCE PANEL TOOLBAR                                 
 ;
 
-EXTEND FORM saleBatch FILTERS (ts IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),ts);
-EXTEND FORM saleBatch FILTERS (st IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),st);
-EXTEND FORM saleBatch FILTERS (sts IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),sts);
-EXTEND FORM saleBatch FILTERS (stst IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),stst);
+EXTEND FORM saleBatch FILTERS (ts IS Stock AND NOT limitAccess(currentUser())) OR accessCompany(currentUser(),ts);
+EXTEND FORM saleBatch FILTERS (st IS Stock AND NOT limitAccess(currentUser())) OR accessCompany(currentUser(),st);
+EXTEND FORM saleBatch FILTERS (sts IS Stock AND NOT limitAccess(currentUser())) OR accessCompany(currentUser(),sts);
+EXTEND FORM saleBatch FILTERS (stst IS Stock AND NOT limitAccess(currentUser())) OR accessCompany(currentUser(),stst);
 DESIGN saleBatch {
     NEW top {
         type = CONTAINERH;
@@ -215,7 +215,7 @@ DESIGN saleBatch {
             NEW imageBox {
                 fill = 1;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(imageBatch(b)) {
+                MOVE PROPERTY(image(b)) {
                     caption = '';
                     fill = 1;
                 }
@@ -234,18 +234,18 @@ DESIGN saleBatch {
 
 //регистр продаж по партиям
 
-averagePriceSaleLedgerBatch 'Цена продажи (средняя)'(s,b) = NUMERIC[16,2](averagePriceSaleLedger(s) * coeffSaleLedgerBatch(s,b));
+averagePrice 'Цена продажи (средняя)'(SaleLedger s,Batch b) = NUMERIC[16,2](averagePrice(s) * coeff(s,b));
 
 saleSupplier = DATA LOCAL LegalEntity ();
-nameSaleSupplier 'Поставщик' = nameLegalEntity(saleSupplier());
-filterSaleSupplierBatch = supplierBatch(batch)==saleSupplier() OR (batch IS Batch AND NOT saleSupplier());
+nameSaleSupplier 'Поставщик' = name(saleSupplier());
+filterSaleSupplier = supplier(Batch batch)==saleSupplier() OR (batch IS Batch AND NOT saleSupplier());
 
 saleSupplierStock  = DATA LOCAL Stock ();
-nameSaleSupplierStock 'Склад поставщика' = nameStock(saleSupplierStock());
-filterSaleSupplierStockBatch = supplierStockBatch(batch)==saleSupplierStock() OR (batch IS Batch AND NOT saleSupplierStock());
+nameSaleSupplierStock 'Склад поставщика' = name(saleSupplierStock());
+filterSaleSupplierStock = supplierStock(Batch batch)==saleSupplierStock() OR (batch IS Batch AND NOT saleSupplierStock());
 
-CONSTRAINT saleSupplier() AND saleSupplierStock() AND NOT inLegalEntityStock(saleSupplier(), saleSupplierStock())
-    CHECKED BY saleSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для регистра продаж не имеют связи';
+CONSTRAINT saleSupplier() AND saleSupplierStock() AND NOT in(saleSupplier(), saleSupplierStock())
+    CHECKED BY saleSupplierStock[] MESSAGE 'Поставщик и склад поставщика в фильтре для регистра продаж не имеют связи';
 
 FORM saleLedgerBatch 'Регистр продаж по партиям'
     PROPERTIES() nameSaleStock, nameSaleOperation, nameSaleCustomer, nameSaleCustomerStock, sessionConcatSkuGroups ON CHANGE selectSkuGroups(),
@@ -254,20 +254,20 @@ FORM saleLedgerBatch 'Регистр продаж по партиям'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS sb = (s = SaleLedger, b = Batch)
-    PROPERTIES(s) READONLY nameMonthSaleLedger, nameDOWSaleLedger, dateSaleLedger, hourSaleLedger, dateTimeSaleLedger, 
-                           nameStockSaleLedger, nameCustomerSaleLedger, nameOperationSaleLedger, descriptionSaleLedger, 
-                           numberDocumentSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, 
-                           nameSkuSaleLedger, idBarcodeSkuSaleLedger
-    PROPERTIES(b) READONLY shippedQuantityBatch, costBatch, nameBatch, nameSupplierBatch, nameSupplierStockBatch
-    PROPERTIES(s,b) READONLY costSaleLedgerBatch, costSumSaleLedgerBatch, markupSumSaleLedgerBatch, sumVATSaleLedgerBatch, sumSaleLedgerBatch, averagePriceSaleLedgerBatch
-    PROPERTIES(s) READONLY valueVATSaleLedger
-    PROPERTIES READONLY valueVATBatch(b)
+    PROPERTIES(s) READONLY nameMonth, nameDOW, date, hour, dateTime, 
+                           nameStock, nameCustomer, nameOperation, description, 
+                           numberDocument, nameSkuGroup2Sku, nameSkuGroup3Sku, nameSkuGroup4Sku, 
+                           nameSku, idBarcodeSku
+    PROPERTIES(b) READONLY shippedQuantity, cost, name, nameSupplier, nameSupplierStock
+    PROPERTIES(s,b) READONLY cost, costSum, markupSum, sumVAT, sum, averagePrice
+    PROPERTIES(s) READONLY valueVAT
+    PROPERTIES READONLY valueVAT(b)
     
-    FILTERS activeSaleLedger(s), filterSaleStockSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s),
-            filterSaleSupplierBatch(b), filterSaleSupplierStockBatch(b),
-            dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo    
-    FILTERS costSaleLedgerBatch(s,b)    
-    FILTERS inSessionSkuGroup(skuGroupSku(skuSaleLedger(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
+    FILTERS active(s), filterSaleStock(s), filterSaleOperation(s), filterSaleCustomer(s), filterSaleCustomerStock(s),
+            filterSaleSupplier(b), filterSaleSupplierStock(b),
+            date(s) >= dFrom, date(s) <= dTo    
+    FILTERS cost(s,b)    
+    FILTERS inSession(skuGroup(sku(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
 ;
 
 DESIGN saleLedgerBatch {

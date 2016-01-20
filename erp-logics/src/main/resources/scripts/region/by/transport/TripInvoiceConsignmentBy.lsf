@@ -2,108 +2,108 @@ MODULE TripInvoiceConsignmentBy;
 
 REQUIRE Shipment, Invoice, TripInvoiceBy, InvoiceConsignmentBy;
 
-defaultTruckConsignment(invoice) += truckTrip(tripInvoice(invoice));
-driverConsignment(invoice) += driverTrip(tripInvoice(invoice));
-waybillConsignment(invoice) += seriesNumberTrip(tripInvoice(invoice));
+defaultTruck(Invoice invoice) += truck(trip(invoice));
+driver(Invoice invoice) += driver(trip(invoice));
+waybill(Invoice invoice) += seriesNumber(trip(invoice));
 
 META setTripPropTrip(prop)
-    setTrip###prop##Trip = ACTION (invoice) {
-        ASSIGN prop##Invoice(invoice) <- prop##Trip(tripInvoice(invoice));
+    setTrip###prop##Trip = ACTION (Invoice invoice) {
+        ASSIGN prop(invoice) <- prop(trip(invoice));
     }
-    WHEN CHANGED(prop##Trip(tripInvoice(invoice))) DO EXEC setTrip###prop##Trip(invoice);
+    WHEN CHANGED(prop(trip(Invoice invoice))) DO EXEC setTrip###prop##Trip(invoice);
 END
 
-issuanceAllowedTrip = DATA Employee(Trip);
-nameIssuanceAllowedTrip 'Отпуск разрешил' (trip) = nameContact(issuanceAllowedTrip(trip));
+issuanceAllowed = DATA Employee(Trip);
+nameIssuanceAllowed 'Отпуск разрешил' (Trip trip) = name[Contact](issuanceAllowed(trip));
 @setTripPropTrip(issuanceAllowed);
 
-issuanceExecutedTrip = DATA Employee(Trip);
-nameIssuanceExecutedTrip 'Отпуск произвел' (trip) = nameContact(issuanceExecutedTrip(trip));
+issuanceExecuted = DATA Employee(Trip);
+nameIssuanceExecuted 'Отпуск произвел' (Trip trip) = name[Contact](issuanceExecuted(trip));
 @setTripPropTrip(issuanceExecuted);
 
-dataForwarderTrip = DATA Employee(Trip);
-nameForwarderTrip 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (t)= nameContact(OVERRIDE driverTrip(t), dataForwarderTrip(t));
+dataForwarder = DATA Employee(Trip);
+nameForwarder 'Товар к перевозке принял (экспедитор), должность, фамилия, инициалы' (Trip t)= name[Contact](OVERRIDE driver(t), dataForwarder(t));
 
-overForwarderTrip= OVERRIDE  driverTrip(t), dataForwarderTrip(t);
+overForwarder= OVERRIDE  driver(Trip t), dataForwarder(t);
 
-setTripForwarderTrip = ACTION (invoice) {
-    ASSIGN dataForwarderInvoice(invoice) <- overForwarderTrip(tripInvoice(invoice));
+setTripForwarderTrip = ACTION (Invoice invoice) {
+    ASSIGN dataForwarder(invoice) <- overForwarder(trip(invoice));
 }
-WHEN CHANGED(overForwarderTrip(tripInvoice(invoice))) DO EXEC setTripForwarderTrip(invoice);
+WHEN CHANGED(overForwarder(trip(Invoice invoice))) DO EXEC setTripForwarderTrip(invoice);
 
-loadingExecuterTrip = DATA LegalEntity(Trip);
-nameLoadingExecuterTrip 'Исполнитель погрузки' (trip) = nameLegalEntity(loadingExecuterTrip(trip));
+loadingExecuter = DATA LegalEntity(Trip);
+nameLoadingExecuter 'Исполнитель погрузки' (Trip trip) = name(loadingExecuter(trip));
 @setTripPropTrip(loadingExecuter);
 
-unloadingExecuterTrip = DATA LegalEntity(Trip);
-nameUnloadingExecuterTrip 'Исполнитель разгрузки' (trip) = nameLegalEntity(unloadingExecuterTrip(trip));
+unloadingExecuter = DATA LegalEntity(Trip);
+nameUnloadingExecuter 'Исполнитель разгрузки' (Trip trip) = name(unloadingExecuter(trip));
 @setTripPropTrip(unloadingExecuter);
 
-wayOfLoadingTrip = DATA WayOfLoading(Trip);
-nameWayOfLoadingTrip 'Способ погрузки' (trip) = nameWayOfLoading(wayOfLoadingTrip(trip));
+wayOfLoading = DATA WayOfLoading(Trip);
+nameWayOfLoading 'Способ погрузки' (Trip trip) = name(wayOfLoading(trip));
 @setTripPropTrip(wayOfLoading);
 
-wayOfUnloadingTrip = DATA WayOfLoading(Trip);
-nameWayOfUnloadingTrip 'Способ разгрузки' (trip) = nameWayOfLoading(wayOfUnloadingTrip(trip));
+wayOfUnloading = DATA WayOfLoading(Trip);
+nameWayOfUnloading 'Способ разгрузки' (Trip trip) = name(wayOfUnloading(trip));
 @setTripPropTrip(wayOfUnloading);
 
-codeLoadingTrip 'Код ПРР' = DATA STRING[3] (Trip);
+codeLoading 'Код ПРР' = DATA STRING[3] (Trip);
 @setTripPropTrip(codeLoading);
 
-currencyTrip 'Валюта (ИД)' = DATA Currency(Trip);
-shortNameCurrencyTrip 'Валюта' (trip) = shortNameCurrency(currencyTrip(trip));
-documentNameCurrencyTrip 'Валюта в накладной сокр.' (trip) = documentNameCurrency(currencyTrip(trip));
+currency 'Валюта (ИД)' = DATA Currency(Trip);
+shortNameCurrency 'Валюта' (Trip trip) = shortName(currency(trip));
+documentNameCurrency 'Валюта в накладной сокр.' (Trip trip) = documentName(currency(trip));
 @setTripPropTrip(currency);
 
 //Время прибытия                              
-timeOfArrivalTrip 'Время прибытия' = DATA TIME (Trip);
-setTripDateTimeTrip = ACTION (invoice) {
-    ASSIGN arrivalTimeInvoice(invoice) <- dateTimeToDateTime(dateInvoice(invoice), timeOfArrivalTrip(tripInvoice(invoice)));
+timeOfArrival 'Время прибытия' = DATA TIME (Trip);
+setTripDateTimeTrip = ACTION (Invoice invoice) {
+    ASSIGN arrivalTime(invoice) <- dateTimeToDateTime(date(invoice), timeOfArrival(trip(invoice)));
 }
-WHEN CHANGED(dateTimeTrip(tripInvoice(invoice))) DO EXEC setTripDateTimeTrip(invoice);
+WHEN CHANGED(dateTime(trip(Invoice invoice))) DO EXEC setTripDateTimeTrip(invoice);
 
-downtimeTrip 'Время простоя (мин.)' = DATA  INTEGER (Trip);
-setTripDowntimeTrip = ACTION (invoice) {
-    ASSIGN downtimeInvoice(invoice) <- downtimeTrip(tripInvoice(invoice));
+downtime 'Время простоя (мин.)' = DATA  INTEGER (Trip);
+setTripDowntimeTrip = ACTION (Invoice invoice) {
+    ASSIGN downtime(invoice) <- downtime(trip(invoice));
 }
-WHEN CHANGED(downtimeTrip(tripInvoice(invoice))) DO EXEC setTripDowntimeTrip(invoice);
+WHEN CHANGED(downtime(trip(Invoice invoice))) DO EXEC setTripDowntimeTrip(invoice);
 
-overCopyTrip(t, trip) += ACTION(t, trip) {
-    ASSIGN issuanceAllowedTrip(t) <- issuanceAllowedTrip(trip);         
-    ASSIGN issuanceExecutedTrip(t) <- issuanceExecutedTrip(trip);        
-    ASSIGN dataForwarderTrip(t) <- dataForwarderTrip(trip);        
-    ASSIGN loadingExecuterTrip(t) <- loadingExecuterTrip(trip);        
-    ASSIGN unloadingExecuterTrip(t) <- unloadingExecuterTrip(trip);
-    ASSIGN wayOfLoadingTrip(t) <- wayOfLoadingTrip(trip);
-    ASSIGN wayOfUnloadingTrip(t) <- wayOfUnloadingTrip(trip);
-    ASSIGN codeLoadingTrip(t) <- codeLoadingTrip(trip);
-    ASSIGN currencyTrip(t) <- currencyTrip(trip);
-    ASSIGN timeOfArrivalTrip(t) <- timeOfArrivalTrip(trip);
-    ASSIGN downtimeTrip(t) <- downtimeTrip(trip);
+overCopy(Trip t, Trip trip) += ACTION(t, trip) {
+    ASSIGN issuanceAllowed(t) <- issuanceAllowed(trip);         
+    ASSIGN issuanceExecuted(t) <- issuanceExecuted(trip);        
+    ASSIGN dataForwarder(t) <- dataForwarder(trip);        
+    ASSIGN loadingExecuter(t) <- loadingExecuter(trip);        
+    ASSIGN unloadingExecuter(t) <- unloadingExecuter(trip);
+    ASSIGN wayOfLoading(t) <- wayOfLoading(trip);
+    ASSIGN wayOfUnloading(t) <- wayOfUnloading(trip);
+    ASSIGN codeLoading(t) <- codeLoading(trip);
+    ASSIGN currency(t) <- currency(trip);
+    ASSIGN timeOfArrival(t) <- timeOfArrival(trip);
+    ASSIGN downtime(t) <- downtime(trip);
 }
 
-printHorizontalConsignmentTrip 'Печать ТТН-1 (гор.)' (trip) = ACTION (trip) {
-    FOR inTripInvoice(trip, invoice) DO {
-        EXEC printConsignmentHorizontalA(invoice);
-        EXEC printConsignmentHorizontalB(invoice);
-        EXEC printConsignmentAttach(invoice);
+printHorizontalConsignment 'Печать ТТН-1 (гор.)' (Trip trip) = ACTION (trip) {
+    FOR in(trip, Invoice invoice) DO {
+        EXEC printHorizontalA(invoice);
+        EXEC printHorizontalB(invoice);
+        EXEC printAttach(invoice);
     };
 } TOOLBAR;
 
-printVerticalConsignmentTrip 'Печать ТТН-1 (верт.)' (trip) = ACTION (trip) {
-    FOR inTripInvoice(trip, invoice) DO {
-        EXEC printConsignmentVerticalA(invoice);
-        EXEC printConsignmentVerticalB(invoice);
-        EXEC printConsignmentAttach(invoice);
+printVerticalConsignment 'Печать ТТН-1 (верт.)' (Trip trip) = ACTION (trip) {
+    FOR in(trip, Invoice invoice) DO {
+        EXEC printVerticalA(invoice);
+        EXEC printVerticalB(invoice);
+        EXEC printAttach(invoice);
     };
 } TOOLBAR;
 
 EXTEND FORM trip
-    PROPERTIES (t) nameIssuanceAllowedTrip, nameIssuanceExecutedTrip, nameForwarderTrip, nameLoadingExecuterTrip, 
-                   nameWayOfLoadingTrip, nameUnloadingExecuterTrip, nameWayOfUnloadingTrip, codeLoadingTrip, documentNameCurrencyTrip,
-                   timeOfArrivalTrip, downtimeTrip
-    PROPERTIES printHorizontalConsignmentTrip(t) TODRAW i
-    PROPERTIES printVerticalConsignmentTrip(t) TODRAW i
+    PROPERTIES (t) nameIssuanceAllowed, nameIssuanceExecuted, nameForwarder, nameLoadingExecuter, 
+                   nameWayOfLoading, nameUnloadingExecuter, nameWayOfUnloading, codeLoading, documentNameCurrency,
+                   timeOfArrival, downtime
+    PROPERTIES printHorizontalConsignment(t) TODRAW i
+    PROPERTIES printVerticalConsignment(t) TODRAW i
 
 ;
 
@@ -114,23 +114,23 @@ DESIGN trip {
             caption = 'Атрибуты накладных';
             NEW issuanceContainer {
                 caption = 'Отпуск';
-                MOVE PROPERTY(nameIssuanceAllowedTrip(t));
-                MOVE PROPERTY(nameIssuanceExecutedTrip(t));
-                MOVE PROPERTY(nameForwarderTrip(t));
+                MOVE PROPERTY(nameIssuanceAllowed(t));
+                MOVE PROPERTY(nameIssuanceExecuted(t));
+                MOVE PROPERTY(nameForwarder(t));
             }
             NEW loadingContainer {
                 caption = 'ППР';
-                MOVE PROPERTY(nameLoadingExecuterTrip(t));
-                MOVE PROPERTY(nameWayOfLoadingTrip(t));
-                MOVE PROPERTY(nameUnloadingExecuterTrip(t));
-                MOVE PROPERTY(nameWayOfUnloadingTrip(t));
-                MOVE PROPERTY(codeLoadingTrip(t));
-                MOVE PROPERTY(timeOfArrivalTrip(t));
-                MOVE PROPERTY(downtimeTrip(t));
+                MOVE PROPERTY(nameLoadingExecuter(t));
+                MOVE PROPERTY(nameWayOfLoading(t));
+                MOVE PROPERTY(nameUnloadingExecuter(t));
+                MOVE PROPERTY(nameWayOfUnloading(t));
+                MOVE PROPERTY(codeLoading(t));
+                MOVE PROPERTY(timeOfArrival(t));
+                MOVE PROPERTY(downtime(t));
             }
             NEW dopContainer {
                 caption = 'Дополнительно';
-                MOVE PROPERTY(documentNameCurrencyTrip(t));
+                MOVE PROPERTY(documentNameCurrency(t));
             }
 
         }

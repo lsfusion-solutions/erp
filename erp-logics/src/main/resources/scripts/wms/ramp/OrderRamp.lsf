@@ -5,99 +5,99 @@ REQUIRE Ramp, Order, Time;
 NAMESPACE Order;
 
 TABLE orderRampInterval(Order, Ramp, Interval);
-inOrderRampInterval 'Вкл.' = DATA BOOLEAN (Order, Ramp, Interval);
+in 'Вкл.' = DATA BOOLEAN (Order, Ramp, Interval);
 
-CONSTRAINT inOrderRampInterval(o,r,i) AND NOT inRampInterval(r,i)
+CONSTRAINT in(Order o,Ramp r,Interval i) AND NOT in(r,i)
     MESSAGE 'В заказ включены рампа и интервал, у которых нет связи';    
     
 //orderRampIntervalDate (r,i,d)= GROUP NAGGR o BY r,i,shipmentDateOrder(o) WHERE inOrderRampInterval(o,r,i);   
-orderRampIntervalDate (r,i,d)= GROUP MAX o IF inOrderRampInterval(o,r,i) BY r,i,shipmentDateOrder(o);   
-countRampIntervalDateSupplier (r,i,d,s)= GROUP SUM 1 IF inOrderRampInterval(o,r,i) BY r,i,shipmentDateOrder(o), supplierOrder(o); 
+order (r,i,d)= GROUP MAX Order o IF in(o,Ramp r,Interval i) BY r,i,shipmentDate(o);   
+countSupplier (r,i,d,s)= GROUP SUM 1 IF in(Order o,Ramp r,Interval i) BY r,i,shipmentDate(o), supplier(o); 
 
-countSuppliersRampIntervalDate (r,i,d)= GROUP SUM 1 IF countRampIntervalDateSupplier (r,i,d,s) BY r,i,d; 
+countSuppliers (r,i,d)= GROUP SUM 1 IF countSupplier (Ramp r,Interval i,DATE d,LegalEntity s) BY r,i,d; 
   
-banDiffSupplierRamp'Запрет резервирования рамы на одно время для разных поставщиков (только заказы)'= DATA BOOLEAN (Ramp);
+banDiffSupplier'Запрет резервирования рамы на одно время для разных поставщиков (только заказы)'= DATA BOOLEAN (Ramp);
 EXTEND FORM ramp
-    PROPERTIES (r) banDiffSupplierRamp
+    PROPERTIES (r) banDiffSupplier
 ;
   
-CONSTRAINT countSuppliersRampIntervalDate (r,i,d) >1 AND banDiffSupplierRamp(r)
+CONSTRAINT countSuppliers (Ramp r,Interval i,DATE d) >1 AND banDiffSupplier(r)
     MESSAGE 'Рампа не может быть зарезервирована на одно и то же время для разных поставщиков.';    
 
 //descriptionOrdersRampIntervalDate 'Заказ' (r,i,d)= descriptionOrder(orderRampIntervalDate(r,i,d));   
-descriptionOrdersRampIntervalDate 'Заказы' (r,i,d)= 
-    GROUP CONCAT descriptionOrder(o) IF inOrderRampInterval(o,r,i), ', ' 
-    BY r,i,shipmentDateOrder(o)
+descriptionOrders 'Заказы' (r,i,d)= 
+    GROUP CONCAT description(Order o) IF in(o,Ramp r,Interval i), ', ' 
+    BY r,i,shipmentDate(o)
     ORDER o 
     MINCHARWIDTH 30 PREFCHARWIDTH 50;   
 
 //nameSupplierOrdersRampIntervalDate 'Поставщик' (r,i,d) = nameSupplierOrder(orderRampIntervalDate(r,i,d));
-nameSupplierOrdersRampIntervalDate 'Поставщики' (r,i,d)= 
-    GROUP CONCAT nameLegalEntity(s) IF countRampIntervalDateSupplier (r,i,d,s), ', ' 
+nameSupplierOrders 'Поставщики' (r,i,d)= 
+    GROUP CONCAT name(LegalEntity s) IF countSupplier (Ramp r,Interval i,DATE d,s), ', ' 
     BY r,i,d
     ORDER s 
     MINCHARWIDTH 30 PREFCHARWIDTH 50;   
     
 //nameCustomerOrdersRampIntervalDate 'Покупатель' (r,i,d) = nameCustomerOrder(orderRampIntervalDate(r,i,d)); 
-countRampIntervalDateCustomer (r,i,d,c)= GROUP SUM 1 IF inOrderRampInterval(o,r,i) BY r,i,shipmentDateOrder(o), customerOrder(o); 
-nameCustomerOrdersRampIntervalDate 'Покупатели' (r,i,d)= 
-    GROUP CONCAT nameLegalEntity(c) IF countRampIntervalDateCustomer (r,i,d,c), ', ' 
+countCustomer (r,i,d,c)= GROUP SUM 1 IF in(Order o,Ramp r,Interval i) BY r,i,shipmentDate(o), customer(o); 
+nameCustomerOrders 'Покупатели' (r,i,d)= 
+    GROUP CONCAT name(LegalEntity c) IF countCustomer (Ramp r,Interval i,DATE d,c), ', ' 
     BY r,i,d
     ORDER c 
     MINCHARWIDTH 30 PREFCHARWIDTH 50;   
-descriptionOrdersRampIntervalOrder'Заказы' (r,i,o) =  descriptionOrdersRampIntervalDate(r,i,shipmentDateOrder(o));    
-nameSupplierOrdersRampIntervalOrder 'Поставщики' (r,i,o) = nameSupplierOrdersRampIntervalDate(r,i,shipmentDateOrder(o));
-nameCustomerOrdersRampIntervalOrder 'Покупатели' (r,i,o) = nameCustomerOrdersRampIntervalDate(r,i,shipmentDateOrder(o));
+descriptionOrders'Заказы' (Ramp r,Interval i,Order o) =  descriptionOrders(r,i,shipmentDate(o));    
+nameSupplierOrders 'Поставщики' (Ramp r,Interval i,Order o) = nameSupplierOrders(r,i,shipmentDate(o));
+nameCustomerOrders 'Покупатели' (Ramp r,Interval i,Order o) = nameCustomerOrders(r,i,shipmentDate(o));
 
-descriptionRampsOrder 'Рампы' (o)= 
-    GROUP CONCAT (CONCAT ' ', [= FORMULA STRING[10] 'to_char($1,\'DD.MM.YYYY\')'](shipmentDateOrder(o)), timeInterval(i), '№ '+nameRamp(r)) IF inOrderRampInterval(o,r,i), ', ' 
+descriptionRamps 'Рампы' (o)= 
+    GROUP CONCAT (CONCAT ' ', [= FORMULA STRING[10] 'to_char($1,\'DD.MM.YYYY\')'](shipmentDate(Order o)), time(Interval i), '№ '+name(Ramp r)) IF in(o,r,i), ', ' 
     BY o
-    ORDER shipmentDateOrder(o), nameRamp(r), timeInterval(i) 
+    ORDER shipmentDate(o), name(r), time(i) 
     MINCHARWIDTH 20 PREFCHARWIDTH 30;            
 
-defaultShipmentTimeOrderDate (o)= GROUP MIN timeInterval(i) IF inOrderRampInterval(o,r,i) BY o;
+defaultShipmentTimeDate (o)= GROUP MIN time(Interval i) IF in(Order o,Ramp r,i) BY o;
 
-backgroundOrdersRampIntervalOrder 'Цвет (свой заказ)' (r,i,o) = ABSTRACT CASE COLOR(Ramp,Interval,Order);
+backgroundOrders 'Цвет (свой заказ)' (r,i,o) = ABSTRACT CASE COLOR(Ramp,Interval,Order);
 
-backgroundOrdersRampIntervalOrder(r,i,o) +=  WHEN inOrderRampInterval(o,r,i) THEN  RGB(204,255,204);
+backgroundOrders(Ramp r,Interval i,Order o) +=  WHEN in(o,r,i) THEN  RGB(204,255,204);
 
-changeOrderRampInterval = ACTION (o,r,i) {
+change = ACTION (Order o,Ramp r,Interval i) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
 //        IF o IS Order AND NOT orderRampIntervalDate(r,i,shipmentDateOrder(o)) THEN {
-        inOrderRampInterval(o,r,i) <- TRUE;
+        in(o,r,i) <- TRUE;
 //        }
     } ELSE {
-        inOrderRampInterval(o,r,i) <- NULL;
+        in(o,r,i) <- NULL;
     }        
 }
 
-inRampOrder (ramp, order) = GROUP SUM 1 IF (inRampSku(ramp, skuOrderDetail(detail)) OR (ramp IS Ramp AND NOT countSkuGroupsRamp(ramp) AND skuOrderDetail(detail)))BY ramp, orderOrderDetail(detail);
+in (ramp, order) = GROUP SUM 1 IF (in(Ramp ramp, sku(OrderDetail detail)) OR (ramp IS Ramp AND NOT countSkuGroups(ramp) AND sku(detail)))BY ramp, order(detail);
 
 FORM orderRamp 'Рампы'
     OBJECTS o=Order FIXED PANEL 
     OBJECTS st=Stock FIXED PANEL 
             
     OBJECTS r=Ramp 
-    PROPERTIES(r) READONLY nameRamp
-    ORDER BY      nameRamp(r)
-    FILTERS stockRamp(r) == st,
-            inRampOrder(r,o)
+    PROPERTIES(r) READONLY name
+    ORDER BY      name(r)
+    FILTERS stock(r) == st,
+            in(r,o)
     
     OBJECTS i= Interval
-    PROPERTIES(i) READONLY BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) timeInterval
-    ORDER BY timeInterval(i)
-    FILTERS inRampInterval(r,i) 
+    PROPERTIES(i) READONLY BACKGROUND backgroundOrders(r,i,o) time
+    ORDER BY time(i)
+    FILTERS in(r,i) 
        
-    PROPERTIES(r,i,o) BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) READONLY descriptionOrdersRampIntervalOrder,
-                      nameSupplierOrdersRampIntervalOrder, nameCustomerOrdersRampIntervalOrder 
-    PROPERTIES    BACKGROUND backgroundOrdersRampIntervalOrder(r,i,o) inOrderRampInterval(o,r,i) ON CHANGE changeOrderRampInterval(o,r,i)           
+    PROPERTIES(r,i,o) BACKGROUND backgroundOrders(r,i,o) READONLY descriptionOrders,
+                      nameSupplierOrders, nameCustomerOrders 
+    PROPERTIES    BACKGROUND backgroundOrders(r,i,o) in(o,r,i) ON CHANGE change(o,r,i)           
                                                         
     FILTERGROUP filter
-        FILTER 'Только свободное время' o IS Order AND NOT orderRampIntervalDate(r,i,shipmentDateOrder(o)) 'F10'   
+        FILTER 'Только свободное время' o IS Order AND NOT order(r,i,shipmentDate(o)) 'F10'   
                                                              
     FILTERGROUP filter2
-        FILTER 'По заказу' inOrderRampInterval(o,r,i) 'F9'                                                                      
+        FILTER 'По заказу' in(o,r,i) 'F9'                                                                      
 ;
 DESIGN orderRamp {
     main{ 
@@ -115,16 +115,16 @@ DESIGN orderRamp {
 
 META  defineOrderRamp(stockProp)       
     
-    toFillRampOrder 'Зарезервировать рампу' = ACTION (order) {
+    toFillRamp 'Зарезервировать рампу' = ACTION (Order order) {
     
-        FORM orderRamp OBJECTS o = order, st = stockProp##Order(order)  MODAL;
+        FORM orderRamp OBJECTS o = order, st = stockProp(order)  MODAL;
         IF formResult() == FormResult.ok THEN {
-            shipmentTimeOrder(order) <- defaultShipmentTimeOrderDate(order);         
+            shipmentTime(order) <- defaultShipmentTimeDate(order);         
         }          
     } 
     
     EXTEND FORM userOrder
-        PROPERTIES (o) descriptionRampsOrder READONLY, toFillRampOrder 
+        PROPERTIES (o) descriptionRamps READONLY, toFillRamp 
     ;
     DESIGN userOrder {
         headerExtraParams {                                 
@@ -132,8 +132,8 @@ META  defineOrderRamp(stockProp)
                 caption = 'Погрузка/отгрузка';
                 type = COLUMNS;
                 columns = 1;
-                MOVE PROPERTY(descriptionRampsOrder(o));
-                MOVE PROPERTY(toFillRampOrder(o));
+                MOVE PROPERTY(descriptionRamps(o));
+                MOVE PROPERTY(toFillRamp(o));
             }
         }    
     }    

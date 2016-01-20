@@ -13,37 +13,37 @@ DESIGN options {
 }
 
 META defineDocumentWare(document, NS)
-    skipCreateWareUser###document##Detail = DATA BOOLEAN (NS.User###document##Detail);
+    skipCreateWare = DATA BOOLEAN (NS.User###document##Detail);
 
-    wareUser###document##DetailUser###document##Detail = DATA NS.User###document##Detail(NS.User###document##Detail) INDEXED;
-    itemWareUser###document##DetailUser###document##Detail (user###document##Detail) =
-        GROUP AGGR user###document##Detail BY wareUser###document##DetailUser###document##Detail(user###document##Detail) PERSISTENT;
+    wareUser###document##Detail = DATA NS.User###document##Detail(NS.User###document##Detail) INDEXED;
+    itemWareUser###document##Detail (user###document##Detail) =
+        GROUP AGGR User###document##Detail user###document##Detail BY wareUser###document##Detail(user###document##Detail) PERSISTENT;
 
-    createWareUser###document##Detail = ACTION (user###document##Detail) {
-        IF wareUser###document##DetailUser###document##Detail(user###document##Detail) THEN {
-            ASSIGN NS.quantityUser###document##Detail(d) <- NS.quantityUser###document##Detail(user###document##Detail) WHERE d == wareUser###document##DetailUser###document##Detail(user###document##Detail);
+    createWare = ACTION (User###document##Detail user###document##Detail) {
+        IF wareUser###document##Detail(user###document##Detail) THEN {
+            ASSIGN NS.quantity[User###document##Detail](User###document##Detail d) <- NS.quantity[User###document##Detail](user###document##Detail) WHERE d == wareUser###document##Detail(user###document##Detail);
         } ELSE
             FOR ADDOBJ d = User###document##Detail DO {
-                NS.user###document##User###document##Detail(d) <- NS.user###document##User###document##Detail(user###document##Detail);
-                NS.skuUser###document##Detail(d) <- wareItem(skuUser###document##Detail(user###document##Detail));
-                NS.quantityUser###document##Detail(d) <- NS.quantityUser###document##Detail(user###document##Detail);
-                wareUser###document##DetailUser###document##Detail(user###document##Detail) <- d;
-                invoice##PriceUser###document##Detail(d) <- priceWareDate(NS.skuUser###document##Detail(d), NS.dateUser###document##Detail(d));
-                VATUser###document##Detail(d) <- VATSkuCountry(NS.skuUser###document##Detail(d), countryStock(NS.supplierStockUser###document##Detail(d)));
-                valueVATUser###document##Detail(d) <- valueRateRangeDate(VATUser###document##Detail(d), NS.dateUser###document##Detail(d));
-                priceUser###document##Detail(d) <- round2(invoice##PriceUser###document##Detail(d)*100/(100+calcValueVATUser###document##Detail(d)));
+                user###document(d) <- user###document(user###document##Detail);
+                NS.sku[User###document##Detail](d) <- ware(NS.sku[User###document##Detail](user###document##Detail));
+                NS.quantity[User###document##Detail](d) <- NS.quantity[User###document##Detail](user###document##Detail);
+                wareUser###document##Detail(user###document##Detail) <- d;
+                invoicePrice(d) <- price(NS.sku[User###document##Detail](d), date(d));
+                VAT(d) <- VAT(NS.sku[User###document##Detail](d), country(supplierStock(d)));
+                valueVAT(d) <- valueRate(VAT(d), date(d));
+                price(d) <- round2(invoicePrice(d)*100/(100+calcValueVAT(d)));
             }
     }
 
     WHEN SESSION FORMS user###document
-         (SETCHANGED(NS.skuUser###document##Detail(detail)) OR CHANGED(NS.quantityUser###document##Detail(detail))) AND
-         wareItem(NS.skuUser###document##Detail(detail)) AND NOT skipCreateWareUser###document##Detail(detail)
-            DO EXEC createWareUser###document##Detail(detail);
+         (SETCHANGED(NS.sku[User###document##Detail](User###document##Detail detail)) OR CHANGED(NS.quantity[User###document##Detail](detail))) AND
+         ware(NS.sku[User###document##Detail](detail)) AND NOT skipCreateWare[User###document##Detail](detail)
+            DO EXEC createWare(detail);
 
     WHEN SESSION FORMS user###document
-         DROPPED(itemWareUser###document##DetailUser###document##Detail(detail)) DO
+         DROPPED(itemWareUser###document##Detail(User###document##Detail detail)) DO
          DELETE detail;
     
-    CONSTRAINT strictWareDocument() AND wareItem(NS.skuUser###document##Detail(d)) AND NOT skipCreateWareUser###document##Detail(d) AND NOT wareUser###document##DetailUser###document##Detail(d)
+    CONSTRAINT strictWareDocument() AND ware(NS.sku[User###document##Detail](User###document##Detail d)) AND NOT skipCreateWare[User###document##Detail](d) AND NOT wareUser###document##Detail(d)
         MESSAGE 'Для строки документа должна присутствовать строка посуды';
 END

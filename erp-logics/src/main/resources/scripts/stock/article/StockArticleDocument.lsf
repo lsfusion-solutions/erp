@@ -4,61 +4,61 @@ REQUIRE StockSkuDocument, StockArticle;
 
 NAMESPACE Stock;
 
-nameBalanceSize (size) = CONCAT ' ', nameSize(size), ' (остаток/цена)';
-nameQuantitySize (size) = CONCAT ' ', nameSize(size), ' (кол-во)';
+nameBalance (Size size) = CONCAT ' ', name(size), ' (остаток/цена)';
+nameQuantity (Size size) = CONCAT ' ', name(size), ' (кол-во)';
 
-nameBalanceStockB (stock)= nameStock(stock) + ' (остаток на начало)' MINCHARWIDTH 15 PREFCHARWIDTH 20;    
-nameBalanceStockA (stock)= nameStock(stock) + ' (остаток на конец)' MINCHARWIDTH 15 PREFCHARWIDTH 20;  
+nameBalanceB (Stock stock)= name(stock) + ' (остаток на начало)' MINCHARWIDTH 15 PREFCHARWIDTH 20;    
+nameBalanceA (Stock stock)= name(stock) + ' (остаток на конец)' MINCHARWIDTH 15 PREFCHARWIDTH 20;  
 
 //----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (несколько складов)---------------//
 
 META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
-    detail###ArticleColorSize###object###stockProp###stock (article, color, size, object, stock) =  GROUP MAX detail###Sku###object###stockProp###stock (sku, object, stock)
-        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object, stock;
+    detail###stockProp (article, color, size, object, stock) =  GROUP MAX detail###stockProp (Item sku, ###object object, Stock stock)
+        BY article(sku), calcColor(sku), calcSize(sku), object, stock;
 
-    quantityArticleColorSize###object###stockProp###stock 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantitySku###object###stockProp###stock(sku, object, stock)
-        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object, stock;
+    quantity###stockProp 'Кол-во товара в документе' (article, color, size, object, stock) = GROUP SUM quantity###stockProp(Item sku, ###object object, Stock stock)
+        BY article(sku), calcColor(sku), calcSize(sku), object, stock;
 
-    quantityArticle###object###stockProp###stock 'Кол-во товара в документе' (article, object, stock) = GROUP SUM quantitySku###object###stockProp###stock(sku, object, stock)
-        BY articleItem(sku), object, stock;        
+    quantity###stockProp 'Кол-во товара в документе' (article, object, stock) = GROUP SUM quantity###stockProp(Item sku, ###object object, Stock stock)
+        BY article(sku), object, stock;        
 
-    calcQuantitySkuGroup###object###stockProp###stock 'Кол-во товара в документе' (skuGroup, object, stock) = GROUP SUM quantitySku###object###stockProp###stock(sku, object, stock)
-        BY skuGroupSku(sku), object, stock; 
+    calcQuantity###stockProp 'Кол-во товара в документе' (skuGroup, object, stock) = GROUP SUM quantity###stockProp(###skuProp sku, ###object object, Stock stock)
+        BY skuProp##Group(sku), object, stock; 
         
-    recQuantitySkuGroup###object###stockProp###stock 'Кол-во товара в документе рек.' (skuGroup, object, stock) = GROUP SUM calcQuantitySkuGroup###object###stockProp###stock(group, object, stock) 
-        IF isParentSkuGroupSkuGroup(group, parent) BY parent, object, stock;
+    recQuantity###stockProp 'Кол-во товара в документе рек.' (skuGroup, object, stock) = GROUP SUM calcQuantity###stockProp(###skuProp##Group group, ###object object, Stock stock) 
+        IF isParent(group, ###skuProp##Group parent) BY parent, object, stock;
                                                  
 
-    priceBalanceArticleColorSizeStock###object  (article, color, size, stock, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stock), priceSkuStock###object(maxSkuArticleColorSize (article,color,size), stock, object);
+    priceBalance  (Article article, Color color, Size size, Stock stock, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stock), price(max###skuProp (article,color,size), stock, object);
 
 
-    backgroundQuantityArticleColorSize###object###Stock 'Цвет' (article, color, size, object, stock) = RGB(255,128,128) IF quantityArticleColorSize###object###stockProp###stock(article, color, size, object, stock) AND NOT
-        (quantityArticleColorSize###object###stockProp###stock(article, color, size, object, stock) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stock));
+    backgroundQuantity 'Цвет' (Article article, Color color, Size size, ###object object, Stock stock) = RGB(255,128,128) IF quantity###stockProp(article, color, size, object, stock) AND NOT
+        (quantity###stockProp(article, color, size, object, stock) <= prevCurrentBalance(article, color, size, stock));
 
-    changeQuantityValueArticleColorSize###object###Stock = ACTION (article, color, size, object, stock) {
+    changeQuantityValue = ACTION (Article article, Color color, Size size, ###object object, Stock stock) {
 
-        IF detail###ArticleColorSize###object###stockProp###stock(article, color, size, object, stock) THEN {
+        IF detail###stockProp(article, color, size, object, stock) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN quantity###detail(d) <- requestedNumeric() WHERE d == detail###ArticleColorSize###object###stockProp###stock(article, color, size, object, stock);
+                ASSIGN quantity(###detail d) <- requestedNumeric() WHERE d == detail###stockProp(article, color, size, object, stock);
             } ELSE {
-                FOR detail###ArticleColorSize###object###stockProp###stock(article, color, size, object, stock) == d DO
+                FOR detail###stockProp(article, color, size, object, stock) == ###detail d DO
                     DELETE d;
             }
 
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   ASSIGN object###detail(d) <- object;
-                   ASSIGN data###stockProp###stock###detail (d) <- stock;
-                   ASSIGN skuProp###detail(d) <- maxSkuArticleColorSize(article, color, size);
-                   ASSIGN quantity###detail (d) <- requestedNumeric();
+                   ASSIGN object(d) <- object;
+                   ASSIGN data###stockProp##Stock (d) <- stock;
+                   ASSIGN skuProp(d) <- max###skuProp(article, color, size);
+                   ASSIGN quantity (d) <- requestedNumeric();
                 }
             }
         }
     }
-    changeQuantityArticleColorSize###object###Stock = ACTION (article, color, size, object, stock) {
+    changeQuantity = ACTION (Article article, Color color, Size size, ###object object, Stock stock) {
         REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValueArticleColorSize###object###Stock(article, color, size, object, stock);
+        EXEC changeQuantityValue(article, color, size, object, stock);
     }
 
 END
@@ -71,30 +71,30 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
     EXTEND FORM form
 
         OBJECTS sta=(stk=Stock, ar=Article)
-        PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), nameStock(stk) SHOWIF not###stockProp###object(concrete)
-        FILTERS           isParentGroupArticle(sk, ar),
-                          (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
-                          stk == stockProp###object(concrete) AND NOT sg AND NOT ts
-        FILTERS           legalEntityStock(stk) == legalEntityProp###object(concrete),
-                          activeStock(stk)
-        ORDER BY          idArticle(ar), nameStock(stk)
+        PROPERTIES READONLY id(ar) SHOWIF sh##concrete##wIDs(), capti##concrete##n(ar), name(stk) SHOWIF n##concrete##t###stockProp(concrete)
+        FILTERS           isParent(sk, ar),
+                          (stk == ts AND sg IS StockGroup OR isParent(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT stockProp(concrete) OR
+                          stk == stockProp(concrete) AND NOT sg AND NOT ts
+        FILTERS           legalEntity(stk) == legalEntityProp(concrete),
+                          active(stk)
+        ORDER BY          id(ar), name(stk)
 
         OBJECTS si=Size
-        PROPERTIES(si) nameSize
-        FILTERS countSizeArticle(si,ar)
+        PROPERTIES(si) name
+        FILTERS c##concrete##unt(si,ar)
 
         OBJECTS co=Color
-        PROPERTIES(co) READONLY idColor SHOWIF showIDs(), nameColor
-        FILTERS countColorArticle(co,ar)
+        PROPERTIES(co) READONLY id SHOWIF sh##concrete##wIDs(), name
+        FILTERS c##concrete##unt(co,ar)
 
-        PROPERTIES(ar,co,si,concrete,stk) quantityArticleColorSize###object###stockProp ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk)
-                                          COLUMNS (si) HEADER nameSize(si) BACKGROUND backgroundQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk)
-        PROPERTIES(ar,co,si,stk,concrete) READONLY priceBalanceArticleColorSizeStock###object COLUMNS (si) HEADER nameBalanceSize(si)
+        PROPERTIES(ar,co,si,concrete,stk) quantity###legalEntityProp ON CHANGE changeQuantity(ar,co,si,concrete,stk)
+                                          COLUMNS (si) HEADER name(si) BACKGROUND backgr##concrete##undQuantity(ar,co,si,concrete,stk)
+        PROPERTIES(ar,co,si,stk,concrete) READONLY priceBalance COLUMNS (si) HEADER nameBalance(si)
 
 //        PROPERTIES(ar,co,si,stk,concrete) priceBalanceArticleColorSizeStock###object ON CHANGE changeQuantityArticleColorSize###object###Stock(ar,co,si,concrete,stk) COLUMNS (si) HEADER nameBalanceSize(si)
 // Саше для выявления бага
-        FILTERS nameColor(co), nameSize(si)
-        ORDER BY nameColor(co), nameSize(si)
+        FILTERS name(co), name(si)
+        ORDER BY name(co), name(si)
     ;
 
     DESIGN form {
@@ -108,7 +108,7 @@ META extendFormDocumentArticleStockCustom(object, form, concrete, legalEntityPro
                 REMOVE si.box;
             }
         }
-        PROPERTY(priceBalanceArticleColorSizeStock###object(ar,co,si,stk,concrete)) { background = #FFEEEE; }
+        PROPERTY(priceBalance(ar,co,si,stk,concrete)) { background = #FFEEEE; }
     }
 
 END
@@ -116,45 +116,45 @@ END
 //----------- Изменение кол-ва для строки при изменении кол-ва для Артикула (один склад)---------------//
 
 META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
-    detail###ArticleColorSize###object (article, color, size, object) =  GROUP MAX detail###Sku###object (sku, object)
-        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object;
+    detail (article, color, size, object) =  GROUP MAX detail (Item sku, ###object object)
+        BY article(sku), calcColor(sku), calcSize(sku), object;
 
-    quantityArticleColorSize###object 'Кол-во товара в документе' (article, color, size, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
-        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku), object;
+    quantity 'Кол-во товара в документе' (article, color, size, object) = GROUP SUM quantity###detail(Item sku, ###object object)
+        BY article(sku), calcColor(sku), calcSize(sku), object;
 
-    quantityArticle###object 'Кол-во товара в документе' (article, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
-        BY articleItem(sku), object;
+    quantity 'Кол-во товара в документе' (article, object) = GROUP SUM quantity###detail(Item sku, ###object object)
+        BY article(sku), object;
          
-    calcQuantitySkuGroup###object 'Кол-во товара в документе' (skuGroup, object) = GROUP SUM quantity###detail###skuProp###object(sku, object)
-        BY skuGroupSku(sku), object;    
+    calcQuantity 'Кол-во товара в документе' (skuGroup, object) = GROUP SUM quantity###detail(###skuProp sku, ###object object)
+        BY skuProp##Group(sku), object;    
               
-    recQuantitySkuGroup###object 'Кол-во товара в документе рек.' (skuGroup, object) = GROUP SUM calcQuantitySkuGroup###object(group, object) 
-        IF isParentSkuGroupSkuGroup(group, parent) BY parent, object;              
+    recQuantity 'Кол-во товара в документе рек.' (skuGroup, object) = GROUP SUM calcQuantity(###skuProp##Group group, ###object object) 
+        IF isParent(group, ###skuProp##Group parent) BY parent, object;              
 
-    priceBalanceArticleColorSize###object  (article, color, size, object) = CONCAT ', ', prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)),priceSku###object(maxSkuArticleColorSize (article,color,size), object);
+    priceBalance  (Article article, Color color, Size size, ###object object) = CONCAT ', ', prevCurrentBalance(article, color, size, stockProp(object)),price(max###skuProp (article,color,size), object);
 
 
-    backgroundQuantityArticleColorSize###object 'Цвет' (article, color, size, object) = RGB(255,128,128) IF quantityArticleColorSize###object(article, color, size, object) AND NOT
-        (quantityArticleColorSize###object(article, color, size, object) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stockProp###object(object)));
+    backgroundQuantity 'Цвет' (Article article, Color color, Size size, ###object object) = RGB(255,128,128) IF quantity(article, color, size, object) AND NOT
+        (quantity(article, color, size, object) <= prevCurrentBalance(article, color, size, stockProp(object)));
 
-    changeQuantityValueArticleColorSize###object = ACTION (article, color, size, object) {
+    changeQuantityValue = ACTION (Article article, Color color, Size size, ###object object) {
 
-        IF detail###ArticleColorSize###object(article, color, size, object) THEN {
+        IF detail(article, color, size, object) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN quantity###detail(d) <- requestedNumeric() WHERE d == detail###ArticleColorSize###object(article, color, size, object);
+                ASSIGN quantity(###detail d) <- requestedNumeric() WHERE d == detail(article, color, size, object);
             } ELSE {
-                FOR detail###ArticleColorSize###object(article, color, size, object) == d DO
+                FOR detail(article, color, size, object) == ###detail d DO
                     DELETE d;
             }
 
         } ELSE {
-            IF maxSkuArticleColorSize(article, color, size) THEN {               
+            IF max###skuProp(article, color, size) THEN {               
                 IF requestedNumeric() THEN {
                     FOR ADDOBJ d = ###detail DO {
-                       ASSIGN object###detail(d) <- object;
-                       ASSIGN data###stockProp###detail (d) <- stockProp###object(object);
-                       ASSIGN skuProp###detail(d) <- maxSkuArticleColorSize(article, color, size);
-                       ASSIGN quantity###detail (d) <- requestedNumeric();
+                       ASSIGN object(d) <- object;
+                       ASSIGN data###stockProp (d) <- stockProp(object);
+                       ASSIGN skuProp(d) <- max###skuProp(article, color, size);
+                       ASSIGN quantity (d) <- requestedNumeric();
                     }
                 }
             } ELSE {
@@ -163,9 +163,9 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
               
         }
     }
-    changeQuantityArticleColorSize###object = ACTION (article, color, size, object) {
+    changeQuantity = ACTION (Article article, Color color, Size size, ###object object) {
         REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValueArticleColorSize###object(article, color, size, object);
+        EXEC changeQuantityValue(article, color, size, object);
     }
 
 END
@@ -178,28 +178,28 @@ META extendFormDocumentArticleCustom(object, form, concrete, legalEntityProp, st
     EXTEND FORM form
 
         OBJECTS ar=Article
-        PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar)
-        FILTERS           isParentGroupArticle(sk, ar)
+        PROPERTIES READONLY id(ar) SHOWIF showIDs(), caption(ar)
+        FILTERS           isParent(sk, ar)
 
-        FILTERS           captionArticle(ar)
-        ORDER BY          idArticle(ar)
+        FILTERS           caption(ar)
+        ORDER BY          id(ar)
 
         OBJECTS si=Size
-        PROPERTIES(si) nameSize
-        FILTERS countSizeArticle(si,ar)
+        PROPERTIES(si) name
+        FILTERS count(si,ar)
 
         OBJECTS co=Color
-        PROPERTIES(co) READONLY idColor SHOWIF showIDs(), nameColor
-        FILTERS countColorArticle(co,ar)
+        PROPERTIES(co) READONLY id SHOWIF showIDs(), name
+        FILTERS count(co,ar)
 
-        PROPERTIES(ar,co,si,concrete) quantityArticleColorSize###object ON CHANGE changeQuantityArticleColorSize###object(ar,co,si,concrete)
-                                          COLUMNS (si) HEADER nameSize(si) BACKGROUND backgroundQuantityArticleColorSize###object(ar,co,si,concrete)
-        PROPERTIES(ar,co,si,concrete) READONLY priceBalanceArticleColorSize###object COLUMNS (si) HEADER nameBalanceSize(si)
+        PROPERTIES(ar,co,si,concrete) quantity ON CHANGE changeQuantity(ar,co,si,concrete)
+                                          COLUMNS (si) HEADER name(si) BACKGROUND backgroundQuantity(ar,co,si,concrete)
+        PROPERTIES(ar,co,si,concrete) READONLY priceBalance COLUMNS (si) HEADER nameBalance(si)
 
 //        PROPERTIES(ar,co,si,concrete) priceBalanceArticleColorSize###object ON CHANGE changeQuantityArticleColorSize###object(ar,co,si,concrete) COLUMNS (si) HEADER nameBalanceSize(si)
 // Саше для выявления бага
-        FILTERS nameColor(co), nameSize(si)
-        ORDER BY nameColor(co), nameSize(si)
+        FILTERS name(co), name(si)
+        ORDER BY name(co), name(si)
     ;
 
     DESIGN form {
@@ -213,7 +213,7 @@ META extendFormDocumentArticleCustom(object, form, concrete, legalEntityProp, st
                 REMOVE si.box;
             }
         }
-        PROPERTY(priceBalanceArticleColorSize###object(ar,co,si,concrete)) { background = #FFEEEE; }
+        PROPERTY(priceBalance(ar,co,si,concrete)) { background = #FFEEEE; }
     }
 
 END

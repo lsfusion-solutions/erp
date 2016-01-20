@@ -5,75 +5,75 @@ REQUIRE System, Machinery;
 // Группы
 CLASS GroupPriceChecker 'Группы прайс чекеров' : GroupMachinery;
 
-stockGroupPriceChecker = DATA Stock (GroupPriceChecker);
-stockGroupMachinery (groupMachinery) += stockGroupPriceChecker(groupMachinery);
+stock = DATA Stock (GroupPriceChecker);
+stock (GroupPriceChecker groupMachinery) += stock(groupMachinery);
 
-inactiveGroupPriceChecker 'Неактивный' = DATA BOOLEAN (GroupPriceChecker);
-activeGroupPriceChecker 'Активный' (group) = group IS GroupPriceChecker AND NOT inactiveGroupPriceChecker(group);
-inactiveGroupMachinery(g) += inactiveGroupPriceChecker(g);
+inactive 'Неактивный' = DATA BOOLEAN (GroupPriceChecker);
+active 'Активный' (GroupPriceChecker group) = group IS GroupPriceChecker AND NOT inactive(group);
+inactive(GroupPriceChecker g) += inactive(g);
 
 // Модели
 CLASS PriceCheckerModel 'Модель прайс чекеров' : Model;
 
-namePriceCheckerModel 'Наименование' = DATA VARISTRING[110](PriceCheckerModel);
+name 'Наименование' = DATA VARISTRING[110](PriceCheckerModel);
 
-nameModel(model) += namePriceCheckerModel(model) IF model IS PriceCheckerModel;
+name(PriceCheckerModel model) += name(model) IF model IS PriceCheckerModel;
 
 FORM priceCheckerModel 'Модель прайс чекера'
     OBJECTS ch=PriceCheckerModel FIXED PANEL
-    PROPERTIES(ch) namePriceCheckerModel, noteModel, handlerModel, maxProductModel
+    PROPERTIES(ch) name, note, handler, maxProduct
     EDIT PriceCheckerModel OBJECT ch
 ;
 
 FORM priceCheckerModels 'Модели прайс чекеров'
     OBJECTS m=PriceCheckerModel
-    PROPERTIES(m) READONLY namePriceCheckerModel, maxProductModel, handlerModel, noteModel
+    PROPERTIES(m) READONLY name, maxProduct, handler, note
     PROPERTIES(m) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 ;
 
 // Прайс-чекеры
 CLASS PriceChecker 'Прайс чекер' : Machinery;
-isGroupPriceChecker (machinery) = machinery IS GroupPriceChecker;
+is (GroupPriceChecker machinery) = machinery IS GroupPriceChecker;
 
-groupPriceCheckerPriceChecker = DATA GroupPriceChecker (PriceChecker) NOT NULL DELETE;
-groupMachineryMachinery(machinery) += groupPriceCheckerPriceChecker(machinery);
+groupPriceChecker = DATA GroupPriceChecker (PriceChecker) NOT NULL DELETE;
+groupMachinery(PriceChecker machinery) += groupPriceChecker(machinery);
 
-priceCheckerModelGroupPriceChecker = DATA PriceCheckerModel (GroupPriceChecker);
-modelGroupMachinery(groupMachinery) += priceCheckerModelGroupPriceChecker(groupMachinery);
+priceCheckerModel = DATA PriceCheckerModel (GroupPriceChecker);
+model(GroupPriceChecker groupMachinery) += priceCheckerModel(groupMachinery);
 
-groupPriceCheckerNpp (npp) = GROUP AGGR groupPriceChecker BY nppGroupMachinery(groupPriceChecker) WHERE groupPriceChecker IS GroupPriceChecker;  
+groupPriceChecker (npp) = GROUP AGGR GroupPriceChecker groupPriceChecker BY npp(groupPriceChecker) WHERE groupPriceChecker IS GroupPriceChecker;  
 
 FORM priceChecker 'Прайс чекер'
     OBJECTS ch=PriceChecker FIXED PANEL
-    PROPERTIES(ch) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery
+    PROPERTIES(ch) nameGroupMachinery, npp, description, port
     EDIT PriceChecker OBJECT ch
 ;
 
 FORM groupPriceChecker 'Группа прайс чекеров'
     OBJECTS grch=GroupPriceChecker FIXED PANEL
-    PROPERTIES(grch) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grch),
-                     namePriceListTypeGroupMachinery, inactiveGroupPriceChecker
+    PROPERTIES(grch) npp, nameStock, name,
+                     filterSku, showFilterSku SHOWIF filterSku(grch),
+                     namePriceListType, inactive
 
     OBJECTS ch=PriceChecker
-    PROPERTIES(ch)  nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, ADDOBJ, DELETESESSION
+    PROPERTIES(ch)  nameGroupMachinery, npp, description, port, ADDOBJ, DELETESESSION
     FILTERGROUP filters3
-        FILTER 'Показывать только для данной группы' groupPriceCheckerPriceChecker(ch) == grch 'F10' DEFAULT
+        FILTER 'Показывать только для данной группы' groupPriceChecker(ch) == grch 'F10' DEFAULT
     EDIT GroupPriceChecker OBJECT grch
 ;
 
 FORM groupsPriceChecker 'Группы прайс чекеров'
     OBJECTS grch=GroupPriceChecker
-    PROPERTIES(grch) READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                              filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grch)
+    PROPERTIES(grch) READONLY npp, nameStock, name,
+                              filterSku, showFilterSku SHOWIF filterSku(grch)
     PROPERTIES(grch)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS ch=PriceChecker
-    PROPERTIES(ch)   READONLY nppMachinery, descriptionMachinery, portMachinery
-    FILTERS groupPriceCheckerPriceChecker(ch) == grch
+    PROPERTIES(ch)   READONLY npp, description, port
+    FILTERS groupPriceChecker(ch) == grch
     
     FILTERGROUP active1
-        FILTER 'Активные' activeGroupPriceChecker(grch) 'F5' DEFAULT    
+        FILTER 'Активные' active(grch) 'F5' DEFAULT    
 ;
 
 DESIGN groupsPriceChecker {
@@ -90,10 +90,10 @@ DESIGN groupsPriceChecker {
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
-loadDefaultPriceCheckerModel 'Добавить модель прайс-чекера' = ACTION (stringOne, stringTwo)  {
+loadDefaultPriceCheckerModel 'Добавить модель прайс-чекера' = ACTION (VARISTRING[110] stringOne, VARSTRING[200] stringTwo)  {
     FOR ADDOBJ pcm = PriceCheckerModel DO {
-         ASSIGN namePriceCheckerModel(pcm) <- stringOne;
-         ASSIGN handlerModel(pcm) <- stringTwo;
+         ASSIGN name(pcm) <- stringOne;
+         ASSIGN handler(pcm) <- stringTwo;
     }
 }
 
@@ -104,19 +104,19 @@ loadDefaultPriceCheckerModels 'Загрузить стандартные мод�
 @implementLoadDefaultData(loadDefaultPriceCheckerModels);
 
 // --------------------------------------- Генерация групп прайс-чекеров -------------------------------- //
-loadDefaultGroupPriceChecker 'Сгенерировать группу прайс-чекеров' = ACTION(stock, model, num) {
+loadDefaultGroup 'Сгенерировать группу прайс-чекеров' = ACTION(Stock stock, PriceCheckerModel model, INTEGER num) {
     FOR ADDOBJ g = GroupPriceChecker DO {
-        stockGroupPriceChecker(g) <- stock;
-        nameGroupMachinery(g) <- 'Группа прайс-чекеров по умолчанию';
+        stock(g) <- stock;
+        name(g) <- 'Группа прайс-чекеров по умолчанию';
 
         LOCAL numPriceChecker = INTEGER();
         numPriceChecker() <- 0;
         WHILE numPriceChecker() < num DO {
             FOR ADDOBJ pc = PriceChecker DO {
-                groupPriceCheckerPriceChecker(pc) <- g;
+                groupPriceChecker(pc) <- g;
                 numPriceChecker() <- numPriceChecker() + 1;
-                nppMachinery(pc) <- numPriceChecker();
-                priceCheckerModelGroupPriceChecker(g) <- model;
+                npp(pc) <- numPriceChecker();
+                priceCheckerModel(g) <- model;
             }
         }
     }
@@ -124,15 +124,15 @@ loadDefaultGroupPriceChecker 'Сгенерировать группу прайс
 
 EXTEND FORM defaultData
     OBJECTS         pm=PriceCheckerModel FIXED PANEL
-    PROPERTIES(pm)  SELECTOR namePriceCheckerModel
+    PROPERTIES(pm)  SELECTOR name
 
     OBJECTS         cPriceChecker=INTEGER FIXED PANEL
     PROPERTIES(cPriceChecker)   intValuePriceChecker = OBJVALUE
-    PROPERTIES (s, pm, cPriceChecker)  loadDefaultGroupPriceChecker
+    PROPERTIES (s, pm, cPriceChecker)  loadDefaultGroup
 ;
 
 DESIGN defaultData {
-    PROPERTY(namePriceCheckerModel(pm)) {
+    PROPERTY(name(pm)) {
         caption = 'Модель прайс-чекеров';
     }
     PROPERTY(intValuePriceChecker) {
@@ -141,9 +141,9 @@ DESIGN defaultData {
     machinery {
         NEW priceChecker {
             caption = 'Прайс-чекеры';
-            MOVE PROPERTY(namePriceCheckerModel(pm));
+            MOVE PROPERTY(name(pm));
             MOVE PROPERTY(intValuePriceChecker);
-            MOVE PROPERTY(loadDefaultGroupPriceChecker(s,pm,cPriceChecker));
+            MOVE PROPERTY(loadDefaultGroup(s,pm,cPriceChecker));
         }
     }
 }

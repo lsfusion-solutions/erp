@@ -10,53 +10,53 @@ PRIORITY Utils, Stock;
 GROUP itemPack 'Упаковка товара' : public;
 
 META definePackSku (caption, NS)
-    packBarcodeSku 'Штрихкод для '##caption = DATA Barcode (Sku);
-    packBarcode 'Штрихкод для '##caption (barcode)=  packBarcodeSku(skuBarcode(barcode)) == barcode;
+    packBarcode 'Штрихкод для '##caption = DATA Barcode (Sku);
+    pack 'Штрихкод для '##caption (Barcode barcode)=  packBarcode(sku(barcode)) == barcode;
     
-    CONSTRAINT skuBarcode(packBarcodeSku(item)) != item CHECKED BY packBarcodeSku MESSAGE 'Выбран неверный sku для штрихкода упаковки ('##caption##')';
+    CONSTRAINT sku(packBarcode(Sku item)) != item CHECKED BY packBarcode[Sku] MESSAGE 'Выбран неверный sku для штрихкода упаковки ('##caption##')';
     
-    changePackBarcodeSku = ACTION (barcode, sku) {
+    changePack = ACTION (Barcode barcode, Sku sku) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
-            ASSIGN packBarcodeSku(sku) <- barcode;
+            ASSIGN packBarcode(sku) <- barcode;
         } ELSE
-            ASSIGN packBarcodeSku(sku) <- NULL;
+            ASSIGN packBarcode(sku) <- NULL;
     }
     
     EXTEND FORM barcodeDialog
-        PROPERTIES (b) READONLY NS.packBarcode
+        PROPERTIES (b) READONLY pack
     ;
     EXTEND FORM barcodeSku
-        PROPERTIES (b) READONLY NS.packBarcode
+        PROPERTIES (b) READONLY pack
     ;
     
-    idBarcodePackSku 'Штрихкод упаковки' (sku)= idBarcode(packBarcodeSku(sku));
-    shortNameUOMPackSku 'Ед. изм. упаковки' (sku)= shortNameUOMBarcode(packBarcodeSku(sku));
-    amountPackSku 'Кол-во в упаковке'(sku) =amountBarcode(packBarcodeSku(sku)) IN itemPack;
+    idBarcodePack 'Штрихкод упаковки' (Sku sku)= id(packBarcode(sku));
+    shortNameUOMPack 'Ед. изм. упаковки' (Sku sku)= shortNameUOM(packBarcode(sku));
+    amountPack 'Кол-во в упаковке'(Sku sku) =amount(packBarcode(sku)) IN itemPack;
     
-    changeValuePackSku = ACTION (sku) {
+    changeValuePack = ACTION (Sku sku) {
         IF requestedNumeric() THEN {
-            IF NOT packBarcodeSku(sku) THEN {
+            IF NOT packBarcode(sku) THEN {
                 FOR ADDOBJ b = Barcode DO {
-                   ASSIGN skuBarcode(b) <- sku;
-                   ASSIGN dataAmountBarcode (b) <- requestedNumeric();
+                   ASSIGN sku(b) <- sku;
+                   ASSIGN dataAmount (b) <- requestedNumeric();
     
-                   ASSIGN packBarcodeSku(sku) <- b;
+                   ASSIGN packBarcode(sku) <- b;
                 }
             } ELSE {
-                ASSIGN dataAmountBarcode (bb) <- requestedNumeric() WHERE bb == packBarcodeSku(sku);
+                ASSIGN dataAmount (Barcode bb) <- requestedNumeric() WHERE bb == packBarcode(sku);
             }
     
         } ELSE {
-            IF packBarcodeSku(sku) THEN {
-                DELETE p WHERE p==packBarcodeSku(sku);
+            IF packBarcode(sku) THEN {
+                DELETE Barcode p WHERE p==packBarcode(sku);
             }
         }
     }
 
-    changePackSku = ACTION (sku) {
+    changePack = ACTION (Sku sku) {
         REQUEST NUMERIC[14,3] INPUT;
-        EXEC changeValuePackSku(sku);
+        EXEC changeValuePack(sku);
     }
 END
 
@@ -75,41 +75,41 @@ META defineDocumentPack(object, detail, f)
     @defineDocumentInterfaceDetailQuantityPrefix(object, pack, ' упаковок');
 
     // Автоматически проставляем кол-во упаковок из количества
-    packQuantityUser###detail(d) <- quantityUser###detail(d) / (amountPackUser###detail(d) IF amountPackUser###detail(d) != 0)
-        WHEN CHANGED(quantityUser###detail(d)) OR CHANGED(amountPackUser###detail(d));
+    packQuantity(User###detail d) <- quantity(d) / (amountPack(d) IF amountPack(d) != 0)
+        WHEN CHANGED(quantity(d)) OR CHANGED(amountPack(d));
 
     // Объявляем действия по изменению количества в упаковке и количества упаковок
-    overChangeAmountPackUser###detail = ABSTRACT ACTION LIST (###detail); 
-    changeAmountPackUser###detail = ACTION (detail) {
+    overChangeAmountPackUser = ABSTRACT ACTION LIST (###detail); 
+    changeAmountPackUser = ACTION (###detail detail) {
         REQUEST NUMERIC[14,3] INPUT;
-        ASSIGN amountPackUser###detail(detail) <- requestedNumeric();
-        ASSIGN quantityUser###detail(detail) <- packQuantityUser###detail(detail)*(OVERRIDE 1.0, amountPackUser###detail(detail));
-        EXEC overChangeAmountPackUser###detail(detail);
+        ASSIGN amountPack[User###detail](detail) <- requestedNumeric();
+        ASSIGN quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
+        EXEC overChangeAmountPackUser(detail);
     }
 
-    changePackQuantityUser###detail = ACTION (detail) {
+    changePackQuantity = ACTION (User###detail detail) {
         REQUEST NUMERIC[14,3] INPUT;
-        ASSIGN packQuantityUser###detail(detail) <- requestedNumeric();
-        ASSIGN quantityUser###detail(detail) <- packQuantityUser###detail(detail)*(OVERRIDE 1.0, amountPackUser###detail(detail));
+        ASSIGN packQuantity(detail) <- requestedNumeric();
+        ASSIGN quantity(detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail));
     }
 
     // Расширяем формы
     EXTEND FORM user###object
-        PROPERTIES (f) showPackUser###object
-        PROPERTIES (d) SHOWIF showPackUser###object(f) BEFORE quantityUser###detail(d)
-                       idBarcodePackUser###detail, shortNameUOMPackUser###detail,
-                       amountPackUser###detail ON CHANGE changeAmountPackUser###detail(d), packQuantityUser###detail ON CHANGE changePackQuantityUser###detail(d)
+        PROPERTIES (f) showPack
+        PROPERTIES (d) SHOWIF showPack(f) BEFORE quantity(d)
+                       idBarcodePack, shortNameUOMPack,
+                       amountPack ON CHANGE changeAmountPackUser(d), packQuantity ON CHANGE changePackQuantity(d)
     ;
 
     EXTEND FORM object##s
-        PROPERTIES(d) READONLY SHOWIF showPack###object(f) BEFORE quantity###detail(d)
-                      idBarcodePack###detail, shortNameUOMPack###detail,
-                      amountPack###detail, packQuantity###detail
+        PROPERTIES(d) READONLY SHOWIF showPack(f) BEFORE quantity(d)
+                      idBarcodePack, shortNameUOMPack,
+                      amountPack, packQuantity
     ;
 
     // Добавляем в копирование инвойсов
-    overCopy###object(s, d) += ACTION(s, d) {
-        ASSIGN showPackUser###object(d) <- showPack###object(s);
+    overCopy(###object s, User###object d) += ACTION(s, d) {
+        ASSIGN showPack(d) <- showPack(s);
     }
 END
 
@@ -120,47 +120,47 @@ END
 // --------------------------- Макрос по добавлению упаковки в документы (подбор по нескольким складам) ---------------------- //
 
 META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
-    packQuantitySku###object###stockProp###stock 'Кол-во упаковок в документе' (sku, object, stock) = GROUP SUM packQuantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
+    packQuantity###stockProp 'Кол-во упаковок в документе' (sku, object, stock) = GROUP SUM packQuantity(###detail detail)
+        BY skuProp(detail), object(detail), stockProp##Stock(detail);
 
-    changePackQuantitySku###object###Stock = ACTION (sku, object, stock) {
+    changePackQuantity = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST NUMERIC[14,3] INPUT;
-        IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
+        IF detail###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*(OVERRIDE 1.0, amountPack###detail(detail)) WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
+                ASSIGN packQuantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
+                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail###stockProp(sku, object, stock);
             } ELSE {
-                FOR detail###Sku###object###stockProp###stock(sku, object, stock) == d DO
+                FOR detail###stockProp(sku, object, stock) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
             IF requestedNumeric() THEN  {
                 FOR ADDOBJ d = ###detail DO {
-                   object###detail(d) <- object;
+                   object(d) <- object;
 //                 Пока отключим работу с несколькими складами
 //                 data###stockProp###stock###detail (d) <- stock;
-                   skuProp###detail(d) <- sku;
-                   packQuantity###detail (d) <- requestedNumeric();
-                   quantity###detail(d) <- packQuantity###detail(d) * (OVERRIDE 1.0, amountPack###detail(d));
-                   shipmentDataDate###detail (d) <- shipmentDate###object(object);
-                   shipmentDataTime###detail (d) <- shipmentTime###object(object);
+                   skuProp(d) <- sku;
+                   packQuantity (d) <- requestedNumeric();
+                   quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+                   shipmentDataDate (d) <- shipmentDate(object);
+                   shipmentDataTime (d) <- shipmentTime(object);
                 }
             }
         }
     }
 
-    changeAmountPackSku###object###Stock = ACTION (sku, object, stock) {
+    changeAmountPack = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST NUMERIC[14,3] INPUT;
-        IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
+        IF detail###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
-                ASSIGN amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
-                ASSIGN quantity###detail(detail) <- packQuantity###detail(detail)*(OVERRIDE 1.0, amountPack###detail(detail)) WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock) AND packQuantity###detail(detail);
+                ASSIGN amountPack(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
+                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail###stockProp(sku, object, stock) AND packQuantity(detail);
             } ELSE {
-                ASSIGN amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
+                ASSIGN amountPack(###detail detail) <- NULL WHERE detail == detail###stockProp(sku, object, stock);
             }
 
         }
-        EXEC changeValuePackSku(sku);
+        EXEC changeValuePack(sku);
     }
 
 END
@@ -171,13 +171,13 @@ END
 
 META extendFormDocumentPackSkuStock(object, form, concrete, stockProp)
     EXTEND FORM form
-        PROPERTIES SHOWIF showPack###object(concrete) BEFORE quantitySku###object###stockProp###stock(ks, concrete, st)
+        PROPERTIES SHOWIF sh##concrete##wPack(concrete) BEFORE quantity###stockProp(ks, concrete, st)
 //                   idBarcodePackSku(ks) READONLY, shortNameUOMPackSku(ks) READONLY,
-                   amountPackSku(ks) ON CHANGE changeAmountPackSku###object###Stock(ks, concrete, st),
-                   packQuantitySku###object###stockProp###stock(ks, concrete, st) ON CHANGE changePackQuantitySku###object###stock(ks, concrete, st)
+                   am##concrete##untPack(ks) ON CHANGE changeAm##concrete##untPack(ks, concrete, st),
+                   packQuantity###stockProp(ks, concrete, st) ON CHANGE changePackQuantity(ks, concrete, st)
     ;
     DESIGN form {
-        PROPERTY(packQuantitySku###object###stockProp###stock(ks, concrete, st)) { background = #FFBC02;}  //9AFC9A
+        PROPERTY(packQuantity###stockProp(ks, concrete, st)) { background = #FFBC02;}  //9AFC9A
     }
         
     
@@ -186,41 +186,41 @@ END
 // --------------------------- Макрос по добавлению упаковки в документы (подбор по одному складу ) ---------------------- //
 
 META defineDocumentPackSku(object, detail, skuProp, stockProp)
-    packQuantitySku###object 'Кол-во упаковок в документе' (sku, object) = GROUP SUM packQuantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail);
+    packQuantity 'Кол-во упаковок в документе' (sku, object) = GROUP SUM packQuantity(###detail detail)
+        BY skuProp(detail), object(detail);
 
-    changePackQuantitySku###object = ACTION (sku, object) {
+    changePackQuantity = ACTION (###skuProp sku, ###object object) {
         REQUEST NUMERIC[14,3] INPUT;
-        IF detail###Sku###object(sku, object) THEN {
+        IF detail(sku, object) THEN {
             IF requestedNumeric() THEN {
-                packQuantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                quantity###detail(detail) <- packQuantity###detail(detail)*(OVERRIDE 1.0, amountPack###detail(detail)) WHERE detail == detail###Sku###object(sku, object);
+                packQuantity(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
+                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object);
             } ELSE {
-                FOR detail###Sku###object(sku, object) == d DO 
+                FOR detail(sku, object) == ###detail d DO 
                     DELETE d;
             }
         } ELSE {
             IF requestedNumeric() THEN
                 FOR ADDOBJ d = ###detail DO {
-                    object###detail(d) <- object;
-                    skuProp###detail(d) <- sku;
-                    packQuantity###detail (d) <- requestedNumeric();
-                    quantity###detail(d) <- packQuantity###detail(d) * (OVERRIDE 1.0, amountPack###detail(d));
+                    object(d) <- object;
+                    skuProp(d) <- sku;
+                    packQuantity (d) <- requestedNumeric();
+                    quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
                 }
         }
     }
-    changeAmountPackSku###object = ACTION (sku, object) {
+    changeAmountPack = ACTION (###skuProp sku, ###object object) {
         REQUEST NUMERIC[14,3] INPUT;
-        IF detail###Sku###object(sku, object) THEN {
+        IF detail(sku, object) THEN {
             IF requestedNumeric() THEN {
-                amountPack###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                quantity###detail(detail) <- packQuantity###detail(detail)*(OVERRIDE 1.0, amountPack###detail(detail)) WHERE detail == detail###Sku###object(sku, object) AND packQuantity###detail(detail);
+                amountPack(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
+                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND packQuantity(detail);
             } ELSE {
-                amountPack###detail(detail) <- NULL WHERE detail == detail###Sku###object(sku, object);
+                amountPack(###detail detail) <- NULL WHERE detail == detail(sku, object);
             }
 
         }
-        EXEC changeValuePackSku(sku);
+        EXEC changeValuePack(sku);
     }
 
 END
@@ -231,12 +231,12 @@ END
 
 META extendFormDocumentPackSku(object, form, concrete)
     EXTEND FORM form
-        PROPERTIES SHOWIF showPack###object(concrete) BEFORE quantity###object##Detail###sku###object(ks, concrete)
+        PROPERTIES SHOWIF showPack(concrete) BEFORE quant##concrete##ty###form##Deta##concrete##l(ks, concrete)
 //                   idBarcodePackSku(ks) READONLY, shortNameUOMPackSku(ks) READONLY,
-                   amountPackSku(ks) ON CHANGE changeAmountPackSku###object(ks, concrete),
-                   packQuantitySku###object(ks, concrete) ON CHANGE changePackQuantitySku###object(ks, concrete) SHOWIF showQuantitySkuDocument###object(concrete)
+                   amountPack(ks) ON CHANGE changeAmountPack(ks, concrete),
+                   packQuant##concrete##ty(ks, concrete) ON CHANGE changePackQuant##concrete##ty(ks, concrete) SHOWIF showQuant##concrete##tySkuDocument(concrete)
     ;
     DESIGN form {
-        PROPERTY(packQuantitySku###object(ks, concrete)) { background = #FFBC02;}
+        PROPERTY(packQuant##concrete##ty(ks, concrete)) { background = #FFBC02;}
     }
 END

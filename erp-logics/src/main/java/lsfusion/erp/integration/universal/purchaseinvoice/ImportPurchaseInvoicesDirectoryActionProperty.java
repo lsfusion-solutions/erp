@@ -41,11 +41,11 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectory[ImportType]").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImport[ImportType]").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportDirectory[ImportType]").getExpr(importTypeKey).getWhere());
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
@@ -54,8 +54,8 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                 DataObject importTypeObject = importTypeResult.getKey(i).valueIt().iterator().next();
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
-                String staticNameImportType = (String) findProperty("staticNameImportTypeDetailImportType").read(session, importTypeObject);
-                String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetailImportType").read(session, importTypeObject);
+                String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(session, importTypeObject);
+                String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(session, importTypeObject);
                 
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();

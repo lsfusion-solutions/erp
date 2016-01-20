@@ -5,64 +5,64 @@ REQUIRE Compliance, SaleCertificate;
 NAMESPACE Sale;
 
 CLASS ABSTRACT PrintPageCompliance 'Страница сертификата соответствия';
-compliancePrintPageCompliance = ABSTRACT Compliance (PrintPageCompliance);
-imagePrintPageCompliance = ABSTRACT IMAGEFILE (PrintPageCompliance);
+compliance = ABSTRACT Compliance (PrintPageCompliance);
+image = ABSTRACT IMAGEFILE (PrintPageCompliance);
 
 EXTEND CLASS Compliance : PrintPageCompliance;
-compliancePrintPageCompliance(compliance) += compliance IF compliance IS Compliance;
-imagePrintPageCompliance(compliance) += imageCompliance(compliance);
+compliance(Compliance compliance) += compliance IF compliance IS Compliance;
+image(Compliance compliance) += Compliance.image(compliance);
 
 EXTEND CLASS ExtraPageComplianceDetail : PrintPageCompliance;
-compliancePrintPageCompliance(detail) += complianceExtraPageComplianceDetail(detail);
-imagePrintPageCompliance(detail) += imageExtraPageComplianceDetail(detail);
+compliance(ExtraPageComplianceDetail detail) += Compliance.compliance(detail);
+image(ExtraPageComplianceDetail detail) += Compliance.image(detail);
 
 @defineDocumentCertificate(compliance, invoice, i, 'Сертификат соответствия');
 @defineDocumentCertificateConstraint(compliance, invoice, 'Сертификат соответствия');
 @deriveDocumentSaleCertificate(compliance, invoice, supplierStock, data);
 
-countComplianceInvoice (compliance, invoice) =
+count (compliance, invoice) =
     GROUP SUM 1
-    BY complianceInvoiceDetail(detail), invoiceInvoiceDetail(detail);
+    BY compliance(InvoiceDetail detail), invoice(detail);
 
-seriesComplianceUserInvoiceDetail(d) = seriesCompliance(complianceUserInvoiceDetail(d));
-numberComplianceUserInvoiceDetail(d) = numberCompliance(complianceUserInvoiceDetail(d));
+seriesCompliance(UserInvoiceDetail d) = series(compliance(d));
+numberCompliance(UserInvoiceDetail d) = number(compliance(d));
 
-imageInvoiceDetail 'Файл сертификата' (invoiceDetail) = imageCompliance(complianceInvoiceDetail(invoiceDetail));
-openImageInvoiceDetail 'Просмотреть сертификат' (invoiceDetail) = ACTION OPENFILE imageInvoiceDetail(invoiceDetail);
+image 'Файл сертификата' (InvoiceDetail invoiceDetail) = Compliance.image(compliance(invoiceDetail));
+openImage 'Просмотреть сертификат' (InvoiceDetail invoiceDetail) = ACTION OPENFILE image(invoiceDetail);
 
 // todo : при попытке распечатать выдет сообщение "Форма не подходит для данных параметров"
 FORM imageComplianceInvoice 'Файл сертификата'
     OBJECTS i = Invoice FIXED PANEL
 
     OBJECTS c = Compliance
-    FILTERS countComplianceInvoice(c, i)
+    FILTERS count(c, i)
     
     OBJECTS p = PrintPageCompliance
-    PROPERTIES(p) imagePrintPageCompliance
-    FILTERS compliancePrintPageCompliance(p) == c    
+    PROPERTIES(p) image
+    FILTERS compliance(p) == c    
 ;
-printAllImageInvoice 'Печать сертификатов' = ACTION (invoice) {
+printAllImage 'Печать сертификатов' = ACTION (Invoice invoice) {
     FORM imageComplianceInvoice OBJECTS i = invoice PRINT;
 }
-printAllImageInvoiceAuto 'Печать сертификатов' = ACTION (invoice) {
+printAllImageAuto 'Печать сертификатов' = ACTION (Invoice invoice) {
     FORM imageComplianceInvoice OBJECTS i = invoice PRINT AUTO;
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) TODRAW dc FORCE PANEL TOOLBAR printAllImageInvoice
-    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImageInvoiceDetail
+    PROPERTIES(i) TODRAW dc FORCE PANEL TOOLBAR printAllImage
+    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImage
 ;
 
 EXTEND FORM invoices
-    PROPERTIES(i) TODRAW dc FORCE PANEL TOOLBAR printAllImageInvoice
-    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImageInvoiceDetail
+    PROPERTIES(i) TODRAW dc FORCE PANEL TOOLBAR printAllImage
+    PROPERTIES(dc) TODRAW dc FORCE PANEL TOOLBAR openImage
 ;
 
 @defineDocumentCertificate(compliance, shipment, s, 'сертификат соответствия');
-complianceShipmentDetail(detail) += complianceInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+compliance(InvoiceShipmentDetail detail) += compliance(invoiceDetail(detail));
 
-overFillInvoiceUserShipmentDetailInvoiceDetail(s, i) += ACTION (s, i) {
-    ASSIGN dataComplianceUserShipmentDetail(s) <- complianceInvoiceDetail(i);
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+    ASSIGN dataCompliance(s) <- compliance(i);
 }
 @defineDocumentCertificateConstraint(compliance, shipment, 'сертификат соответствия');
 @deriveDocumentSaleCertificate(compliance, shipment, supplierStock, data);

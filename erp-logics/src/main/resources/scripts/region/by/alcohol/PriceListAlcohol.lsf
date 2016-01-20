@@ -4,41 +4,41 @@ REQUIRE PriceList, ItemAlcohol;
 
 NAMESPACE PriceList;
 
-alcoholSupplierTypeUserPriceListDetail = alcoholSupplierTypeLegalEntityItem(companyPriceList(priceListPriceListDetail(detail)), skuPriceListDetail(detail)); 
-nameAlcoholSupplierTypeUserPriceListDetail 'Тип поставщика алкоголя' = staticCaption(alcoholSupplierTypeUserPriceListDetail(detail));
+alcoholSupplierTypeUser = alcoholSupplierType(company(priceList(PriceListDetail detail)), sku(detail)); 
+nameAlcoholSupplierTypeUser 'Тип поставщика алкоголя' = staticCaption(alcoholSupplierTypeUser(PriceListDetail detail));
 
-showAlcoholSupplierTypeUserPriceList 'Тип поставщика алкоголя' = DATA BOOLEAN (UserPriceList);
-showAlcoholSupplierTypeUserPriceListDetail = showAlcoholSupplierTypeUserPriceList(priceListPriceListDetail(detail));
+showAlcoholSupplierType 'Тип поставщика алкоголя' = DATA BOOLEAN (UserPriceList);
+showAlcoholSupplierTypeUser = showAlcoholSupplierType(priceList(PriceListDetail detail));
 
-changeAlcoholSupplierTypePriceListDetail = ACTION (detail) {
+changeAlcoholSupplierType = ACTION (PriceListDetail detail) {
     REQUEST OBJECT d
         FORM alcoholSupplierTypies DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN
-        FOR l == companyPriceListDetail(detail) AND i == skuPriceListDetail(detail) DO {
-            alcoholSupplierTypeLegalEntityItem(l, i) <- requestedObject();
+        FOR LegalEntity l == company(detail) AND Sku i == sku(detail) DO {
+            alcoholSupplierType(l, i) <- requestedObject();
         }
     ELSE
         IF formResult() == FormResult.drop THEN
-            FOR l == companyPriceListDetail(detail) AND i == skuPriceListDetail(detail) DO {
-                alcoholSupplierTypeLegalEntityItem(l, i) <- NULL;   
+            FOR LegalEntity l == company(detail) AND Sku i == sku(detail) DO {
+                alcoholSupplierType(l, i) <- NULL;   
             }             
 }   
 
-changeWYSAlcoholSupplierTypePriceListDetail = ACTION (detail) {
+changeWYSAlcoholSupplierType = ACTION (PriceListDetail detail) {
     REQUEST ISTRING[100] INPUT;
-    FOR l == companyPriceListDetail(detail) AND i == skuPriceListDetail(detail) DO {
-        alcoholSupplierTypeLegalEntityItem(l, i) <- alcoholSupplierTypeCaption(requestedString());
+    FOR LegalEntity l == company(detail) AND Sku i == sku(detail) DO {
+        alcoholSupplierType(l, i) <- alcoholSupplierTypeCaption(requestedString());
     }
 }   
 
 EXTEND FORM userPriceList
-    PROPERTIES (p) showAlcoholSupplierTypeUserPriceList
-    PROPERTIES (d) nameAlcoholSupplierTypeUserPriceListDetail ON CHANGE changeAlcoholSupplierTypePriceListDetail(d) ON CHANGEWYS changeWYSAlcoholSupplierTypePriceListDetail(d)  
-                                SHOWIF showAlcoholSupplierTypeUserPriceListDetail(d) AFTER nameSkuUserPriceListDetail(d)
+    PROPERTIES (p) showAlcoholSupplierType
+    PROPERTIES (d) nameAlcoholSupplierTypeUser ON CHANGE changeAlcoholSupplierType(d) ON CHANGEWYS changeWYSAlcoholSupplierType(d)  
+                                SHOWIF showAlcoholSupplierTypeUser(d) AFTER nameSku(d)
 ;
 
 DESIGN userPriceList{
     param {
-        MOVE PROPERTY(showAlcoholSupplierTypeUserPriceList(p)); 
+        MOVE PROPERTY(showAlcoholSupplierType(p)); 
     }    
 }

@@ -6,22 +6,22 @@ NAMESPACE Item;
 
 GROUP itemHumidity 'Влажность' : public;
 
-percentHumidityItem 'Влажность, %' = DATA NUMERIC[8,2] (Item) IN itemHumidity;
-percentDrynessItem 'Массовая доля сухих веществ, %' (item) = 100 - (OVERRIDE 0 IF item IS Item, percentHumidityItem(item)) IN itemHumidity; 
+percentHumidity 'Влажность, %' = DATA NUMERIC[8,2] (Item) IN itemHumidity;
+percentDryness 'Массовая доля сухих веществ, %' (Item item) = 100 - (OVERRIDE 0 IF item IS Item, percentHumidity(item)) IN itemHumidity; 
 
-changePercentDrynessItem  = ACTION (item) {
+changePercentDryness  = ACTION (Item item) {
     REQUEST  NUMERIC[8,2] INPUT ;
     IF requestedNumeric() THEN {
-        percentHumidityItem(item) <- (100-requestedNumeric());
+        percentHumidity(item) <- (100-requestedNumeric());
     } ELSE {
-        percentHumidityItem(item) <- NULL;
+        percentHumidity(item) <- NULL;
     }    
 };
 
 @defineItemAttribute(humidity, 'Влажность', itemHumidity);
 
-EXTEND FORM itemGroup PROPERTIES(g) userShowHumidityItemGroup;
-EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showHumidityItemGroup BACKGROUND backgroundShowHumidityItemGroup(g) BEFORE deleteg;
+EXTEND FORM itemGroup PROPERTIES(g) userShowHumidity;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showHumidity BACKGROUND backgroundShowHumidity(g) BEFORE deleteg;
 DESIGN itemGroup {
     itemGroupDetail1 {
         MOVE g.itemHumidity {
@@ -29,12 +29,12 @@ DESIGN itemGroup {
     }
 }
 
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN percentHumidityItem(d) <- percentHumidityItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    ASSIGN percentHumidity(d) <- percentHumidity(s);
 }
 
 EXTEND FORM item 
-    PROPERTIES(i) SHOWIF showHumidityItem(i) percentHumidityItem, percentDrynessItem ON CHANGE  changePercentDrynessItem(i)
+    PROPERTIES(i) SHOWIF showHumidity(i) percentHumidity, percentDryness ON CHANGE  changePercentDryness(i)
 ;
 DESIGN item {
     itemPrimaryColumn1 {
@@ -44,5 +44,5 @@ DESIGN item {
     }
 }
 EXTEND FORM items 
-    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showHumidityItemGroup(g) percentHumidityItem
+    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showHumidity(g) percentHumidity
 ;

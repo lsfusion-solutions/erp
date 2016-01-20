@@ -4,21 +4,21 @@ REQUIRE ZReportDiscountCard, ZReportReport;
 
 NAMESPACE ZReport;
 
-countReceiptsDiscountCardDepartmentStoreDate 'Кол-во чеков по дисконтным картам' (st,dt)= GROUP SUM countReceiptsDiscountCardZReport(zReport) 
-    IF isPostedZReport(zReport) AND inReportStock(departmentStoreZReport(zReport))
-        BY departmentStoreZReport(zReport), dateZReport(zReport);
+countReceiptsDiscountCard 'Кол-во чеков по дисконтным картам' (st,dt)= GROUP SUM countReceiptsDiscountCard(ZReport zReport) 
+    IF isPosted(zReport) AND inReport(departmentStore(zReport))
+        BY departmentStore(zReport), date(zReport);
         
-nameDiscountCardStock (stock)= nameStock(stock) + ' (кол-во чеков по диск.картам)';    
-countReceiptsDiscountCardStocksDate 'Кол-во чеков по дисконтным картам' = GROUP SUM countReceiptsDiscountCardDepartmentStoreDate(st,dt) IF inReportStock(st) BY dt; 
+nameDiscountCard (Stock stock)= name(stock) + ' (кол-во чеков по диск.картам)';    
+countReceiptsDiscountCardStocks 'Кол-во чеков по дисконтным картам' = GROUP SUM countReceiptsDiscountCard(DepartmentStore st,DATE dt) IF inReport(st) BY dt; 
         
 EXTEND FORM saleZreportStock 
-    PROPERTIES READONLY SHOWIF showPropertyDepartmentStore(sts) countReceiptsDiscountCardDepartmentStoreDate(sts,d)  COLUMNS (sts) HEADER nameDiscountCardStock(sts) AFTER countFiscalReceiptDepartmentStoreDate(sts,d)  
-    PROPERTIES READONLY SHOWIF allStocks() countReceiptsDiscountCardStocksDate(d) 
+    PROPERTIES READONLY SHOWIF showProperty(sts) countReceiptsDiscountCard(sts,d)  COLUMNS (sts) HEADER nameDiscountCard(sts) AFTER countFiscalReceipt(sts,d)  
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptsDiscountCardStocks(d) 
 
-    PROPERTIES READONLY SHOWIF showPropertyDepartmentStore(st) countReceiptsDiscountCardDepartmentStoreDate(st,dt)  COLUMNS (st) HEADER nameDiscountCardStock(st) AFTER countFiscalReceiptDepartmentStoreDate(st,dt)  
-    PROPERTIES READONLY SHOWIF allStocks() countReceiptsDiscountCardStocksDate(dt)                       
+    PROPERTIES READONLY SHOWIF showProperty(st) countReceiptsDiscountCard(st,dt)  COLUMNS (st) HEADER nameDiscountCard(st) AFTER countFiscalReceipt(st,dt)  
+    PROPERTIES READONLY SHOWIF allStocks() countReceiptsDiscountCardStocks(dt)                       
 ;
 
 EXTEND FORM receiptListPeriod
-    PROPERTIES(r) READONLY AFTER nameEmployeeReceipt(r) numberDiscountCardReceipt, nameLegalEntityDiscountCardReceipt
+    PROPERTIES(r) READONLY AFTER nameEmployee(r) numberDiscountCard, nameLegalEntityDiscountCard
 ;

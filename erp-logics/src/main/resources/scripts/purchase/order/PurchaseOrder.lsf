@@ -10,7 +10,7 @@ NAMESPACE Purchase;
 @extendFormFilterAccessLegalEntity(Order, o, orders, customer, company);
 @extendFormFilterAccessLegalEntity(Order, o, orders, supplier, supplier);
 
-Order.inOrder(o) += o IS Order;
+in(Order o) += o IS Order;
 
    
 @defineOrderBatch(customer, customer);
@@ -19,13 +19,13 @@ Order.inOrder(o) += o IS Order;
 @implementOrderDestination(supplier, customer);
 
 //использовать цены склада поставщика
-usePriceSupplierStockOrder 'Использовать цены для склада поставщика' = ABSTRACT BOOLEAN (Order);
-usePriceSupplierStockUserOrder 'Использовать цены для склада поставщика'  = DATA BOOLEAN (UserOrder);
+usePriceSupplierStock 'Использовать цены для склада поставщика' = ABSTRACT BOOLEAN (Order);
+usePriceSupplierStock 'Использовать цены для склада поставщика'  = DATA BOOLEAN (UserOrder);
 
-usePriceSupplierStockOrder(order) += usePriceSupplierStockUserOrder(order);
+usePriceSupplierStock(UserOrder order) += usePriceSupplierStock(order);
 
 EXTEND FORM userOrder
-    PROPERTIES (o) usePriceSupplierStockUserOrder         
+    PROPERTIES (o) usePriceSupplierStock         
 ;          
 
 DESIGN userOrder {
@@ -34,26 +34,26 @@ DESIGN userOrder {
             caption = 'Цены';
             type = COLUMNS;
             columns = 1;
-            MOVE PROPERTY(usePriceSupplierStockUserOrder(o));
+            MOVE PROPERTY(usePriceSupplierStock(o));
         }         
     }
 }
 
-overPriceStockUserOrder(o) += WHEN usePriceSupplierStockUserOrder(o) THEN supplierStockUserOrder(o); 
+overPriceStockUser(UserOrder o) += WHEN usePriceSupplierStock(o) THEN supplierStock(o); 
 
-idSupplierOrder (order) = idLegalEntity(supplierOrder(order)); 
+idSupplier (Order order) = id(supplier(order)); 
 
 EXTEND FORM userOrder
-    PROPERTIES READONLY TODRAW sts FORCE GRID AFTER prevCurrentBalanceSkuStock(ks, st) prevCurrentBalanceSkuStock(ks, sst)
+    PROPERTIES READONLY TODRAW sts FORCE GRID AFTER prevCurrentBalance(ks, st) prevCurrentBalance(ks, sst)
                            
-    FILTERS sst == supplierStockUserOrder(o), 
-            legalEntityStock(sst) == supplierUserOrder(o),
-            isCompanyStock(sst),
-            activeStock(sst)     
+    FILTERS sst == supplierStock(o), 
+            legalEntity(sst) == supplier(o),
+            isCompany(sst),
+            active(sst)     
 ;
 
 DESIGN userOrder {
-    PROPERTY(prevCurrentBalanceSkuStock(ks, sst)){
+    PROPERTY(prevCurrentBalance(ks, sst)){
         caption = 'Текущий остаток (поставщик)';
         background = RGB(240, 240, 224);
     }
@@ -64,7 +64,7 @@ DESIGN userOrder {
 @defineDocumentOperationContainer(order, o);
 @extendFormFilterRoleAccess(order, o, orders);
 @defineDocumentOperationConstraint(order, 'заказ (закупка)', Purchase);
-Order.operationOrder(order) += operationOrder(order);
+operation[Order.Order](Order order) += operation(order);
 @defineDocumentOperationPriceListType(userOrder, 'заказа (закупка)', userOrder);
 
 @defineDocumentOperationLegalEntity(userOrder, supplier, 'Поставщик');
@@ -79,8 +79,8 @@ Order.operationOrder(order) += operationOrder(order);
 
 @defineDocumentOperationRoleOver(userOrder, purchase);
 
-overCopyOrder(s, d) += ACTION(s, d) {
-    ASSIGN operationUserOrder(d) <- operationOrder(s);
+overCopy(Order s, UserOrder d) += ACTION(s, d) {
+    ASSIGN operation(d) <- operation(s);
 }
 
 @defineOperationFilterProperty(order, o, orders, nameFilterOrderSupplier);
@@ -90,22 +90,22 @@ overCopyOrder(s, d) += ACTION(s, d) {
        
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
-CONSTRAINT supplierUserOrder(userOrder) AND NOT isSupplierLegalEntity(supplierUserOrder(userOrder))
-    CHECKED BY supplierUserOrder MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся поставщиком';
-CONSTRAINT customerUserOrder(userOrder) AND NOT isCompanyLegalEntity(customerUserOrder(userOrder))
-    CHECKED BY customerUserOrder MESSAGE 'Для заказа выбрано в качестве покупателя организация, не являющаяся компанией';
+CONSTRAINT supplier(UserOrder userOrder) AND NOT isSupplier(supplier(userOrder))
+    CHECKED BY supplier[UserOrder] MESSAGE 'Для заказа выбрано в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT customer(UserOrder userOrder) AND NOT isCompany(customer(userOrder))
+    CHECKED BY customer[UserOrder] MESSAGE 'Для заказа выбрано в качестве покупателя организация, не являющаяся компанией';
     
-CONSTRAINT filterOrderSupplier() AND NOT isSupplierLegalEntity(filterOrderSupplier())
-    CHECKED BY filterOrderSupplier MESSAGE 'Для фильтра в заказе выбрана в качестве поставщика организация, не являющаяся поставщиком';
-CONSTRAINT filterOrderCustomer() AND NOT isCompanyLegalEntity(filterOrderCustomer())
-    CHECKED BY filterOrderCustomer MESSAGE 'Для фильтра в заказе выбрана в качестве покупателя организация, не являющаяся компанией';  
-CONSTRAINT filterOrderCustomerStock() AND NOT isCompanyStock(filterOrderCustomerStock())
-    CHECKED BY filterOrderCustomerStock MESSAGE 'Для фильтра в заказе выбрана в качестве склада покупателя склад, который не принадлежит компании';      
+CONSTRAINT filterOrderSupplier() AND NOT isSupplier(filterOrderSupplier())
+    CHECKED BY filterOrderSupplier[] MESSAGE 'Для фильтра в заказе выбрана в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT filterOrderCustomer() AND NOT isCompany(filterOrderCustomer())
+    CHECKED BY filterOrderCustomer[] MESSAGE 'Для фильтра в заказе выбрана в качестве покупателя организация, не являющаяся компанией';  
+CONSTRAINT filterOrderCustomerStock() AND NOT isCompany(filterOrderCustomerStock())
+    CHECKED BY filterOrderCustomerStock[] MESSAGE 'Для фильтра в заказе выбрана в качестве склада покупателя склад, который не принадлежит компании';      
         
-CONSTRAINT filterOrderSupplier() AND filterOrderSupplierStock() AND NOT inLegalEntityStock(filterOrderSupplier(), filterOrderSupplierStock())
-    CHECKED BY filterOrderSupplierStock   MESSAGE 'Поставщик и склад поставщика в фильтре для заказа не имеют связи';
-CONSTRAINT filterOrderCustomer() AND filterOrderCustomerStock() AND NOT inLegalEntityStock(filterOrderCustomer(), filterOrderCustomerStock())
-    CHECKED BY filterOrderCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для заказа не имеют связи';            
+CONSTRAINT filterOrderSupplier() AND filterOrderSupplierStock() AND NOT in(filterOrderSupplier(), filterOrderSupplierStock())
+    CHECKED BY filterOrderSupplierStock[]   MESSAGE 'Поставщик и склад поставщика в фильтре для заказа не имеют связи';
+CONSTRAINT filterOrderCustomer() AND filterOrderCustomerStock() AND NOT in(filterOrderCustomer(), filterOrderCustomerStock())
+    CHECKED BY filterOrderCustomerStock[] MESSAGE 'Покупатель и склад покупателя в фильтре для заказа не имеют связи';            
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
@@ -115,18 +115,18 @@ CONSTRAINT filterOrderCustomer() AND filterOrderCustomerStock() AND NOT inLegalE
 
 @defineDocumentPack(order, o);
 DESIGN userOrder {
-    PROPERTY(packQuantityUserOrderDetail(d)) { background = #FFBC02; }
+    PROPERTY(packQuantity(d)) { background = #FFBC02; }
 }
 DESIGN orders {
-    PROPERTY(packQuantityOrderDetail(d)) { background = #FFBC02; }
+    PROPERTY(packQuantity(d)) { background = #FFBC02; }
 }
 
-Order.packQuantityOrderDetail(detail) += packQuantityOrderDetail(detail);
+packQuantity[Order.OrderDetail](OrderDetail detail) += packQuantity(detail);
 DESIGN userOrder {
     headerExtraParams {
         NEW headerPack {
             caption = 'Упаковка';
-            MOVE PROPERTY(showPackUserOrder(o));
+            MOVE PROPERTY(showPack(o));
         }
     }
 }
@@ -134,15 +134,15 @@ DESIGN userOrder {
 @defineDocumentPackSkuStock(userOrder, sku, customer);
 @extendFormDocumentPackSkuStock(userOrder, userOrder, o, customer);
 
-overChangeQuantityValueSkuUserOrderDetail(detail) += ACTION (detail) {
-    IF packBarcodeSku(skuUserOrderDetail(detail)) THEN {
-        ASSIGN packQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail)/amountPackUserOrderDetail(detail);
+overChangeQuantityValueSku(UserOrderDetail detail) += ACTION (detail) {
+    IF packBarcode(sku(detail)) THEN {
+        ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
 
-overChangeQuantityValueBatchUserOrderDetail(detail) += ACTION (detail) {
-    IF packBarcodeSku(skuBatch(batchUserOrderDetail(detail))) THEN {
-        ASSIGN packQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail)/amountPackUserOrderDetail(detail);
+overChangeQuantityValueBatch(UserOrderDetail detail) += ACTION (detail) {
+    IF packBarcode(sku(batch(detail))) THEN {
+        ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
 
@@ -151,45 +151,45 @@ overChangeQuantityValueBatchUserOrderDetail(detail) += ACTION (detail) {
 //------------------------------ Расширение формы -----------------------------//
 
 // Фильтры
-inAssortmentSkuStockUserOrder (sku, stock, userOrder) =
-    companyALedgerPriceListTypeSkuStockDateTime(ledgerPriceListTypePriceListType(priceListTypeUserOrderSku(userOrder, sku)),
-                                                sku, stock, dateTimeUserOrder(userOrder)) == supplierUserOrder(userOrder);
+inAssortment (Sku sku, Stock stock, UserOrder userOrder) =
+    companyA(ledgerPriceListType(priceListType(userOrder, sku)),
+                                                sku, stock, dateTime(userOrder)) == supplier(userOrder);
 
 EXTEND FORM userOrder
 
     FILTERGROUP filter
-        FILTER 'С остатком ' prevCurrentBalanceSkuStock(ks, st) 'F10'
-        FILTER 'В заказе ' quantitySkuUserOrderCustomerStock(ks, o, st) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(ks, st) 'F10'
+        FILTER 'В заказе ' quantityCustomer(ks, o, st) 'F9'
 
     FILTERGROUP filter1
-        FILTER 'С поступлением' quantityPurchaseSupplierSku(supplierUserOrder(o), ks) 'F8' 
-        FILTER 'С поступлением со склада' quantityPurchaseSupplierStockSku (supplierStockUserOrder(o), ks) 'shift F8'
-        FILTER 'В прайсе' priceALedgerPriceListTypeSkuStockCompanyDateTime(ledgerPriceListTypePriceListType(priceListTypeUserOrderSku(o, ks)),
+        FILTER 'С поступлением' quantityPurchaseSupplier(supplier(o), ks) 'F8' 
+        FILTER 'С поступлением со склада' quantityPurchaseSupplier (supplierStock(o), ks) 'shift F8'
+        FILTER 'В прайсе' priceA(ledgerPriceListType(priceListType(o, ks)),
                                                                                       ks,
                                                                                       st,
-                                                                                      supplierUserOrder(o),
-                                                                                      dateTimeUserOrder(o)) 'F7'
+                                                                                      supplier(o),
+                                                                                      dateTime(o)) 'F7'
                                                                                       
-        FILTER 'В прайсе склада' priceALedgerPriceListTypeSkuStockCompanyStockDateTime(ledgerPriceListTypePriceListType(priceListTypeUserOrderSku(o, ks)),
+        FILTER 'В прайсе склада' priceA(ledgerPriceListType(priceListType(o, ks)),
                                                                                       ks,
                                                                                       st,
-                                                                                      supplierUserOrder(o),
-                                                                                      supplierStockUserOrder(o),
-                                                                                      dateTimeUserOrder(o)) 'F6'                                                                                      
+                                                                                      supplier(o),
+                                                                                      supplierStock(o),
+                                                                                      dateTime(o)) 'F6'                                                                                      
 ;
 
 EXTEND FORM userOrder
 
     FILTERGROUP filter4
-        FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserOrderCustomerStock(b, o, sto) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantityCustomer(b, o, sto) 'F9'
         
     FILTERGROUP filter5
-        FILTER 'С поступлением ' quantityPurchaseSupplierSku(supplierUserOrder(o), skuBatch(b)) 'F8'
-        FILTER 'В прайсе ' companyALedgerPriceListTypeBatchStockDateTime(priceListTypeUserOrderBatch(o, b), 
+        FILTER 'С поступлением ' quantityPurchaseSupplier(supplier(o), sku(b)) 'F8'
+        FILTER 'В прайсе ' companyA(priceListType(o, b), 
                                                                               b, 
-                                                                              customerStockUserOrder(o), 
-                                                                              dateTimeUserOrder(o)) == supplierUserOrder(o) 'F7'
+                                                                              customerStock(o), 
+                                                                              dateTime(o)) == supplier(o) 'F7'
 ;
 
 // Резервы
@@ -200,17 +200,17 @@ EXTEND FORM userOrder
 @extendFormDocumentBatchStockOrderLedgerAll(userOrder, userOrder, o);
 
 EXTEND FORM userOrder
-    PROPERTIES READONLY TODRAW sts FORCE GRID AFTER prevCurrentBalanceSkuStock(ks, sst)
-            prevAvailableQuantitySkuStockUserOrder(ks, sst, o)
+    PROPERTIES READONLY TODRAW sts FORCE GRID AFTER prevCurrentBalance(ks, sst)
+            prevAvailableQuantity(ks, sst, o)
                            
-    FILTERS sst == supplierStockUserOrder(o), 
-            legalEntityStock(sst) == supplierUserOrder(o),
-            isCompanyStock(sst),
-            activeStock(sst)     
+    FILTERS sst == supplierStock(o), 
+            legalEntity(sst) == supplier(o),
+            isCompany(sst),
+            active(sst)     
 ;
 
 DESIGN userOrder {
-    PROPERTY(prevAvailableQuantitySkuStockUserOrder(ks, sst, o)){
+    PROPERTY(prevAvailableQuantity(ks, sst, o)){
         caption = 'Доступное кол-во (поставщик)';
         background = RGB(240, 240, 224);
     }
@@ -219,13 +219,13 @@ DESIGN userOrder {
 //--------------------- Проводим по регистру резерва ------------------//
 @implementPurchaseOrderLedger(Order, sku, shipmentDateTime, customerStock, supplier);
 
-editOrderLedger(ledger) += ACTION editOrderDetail(ledger);
+edit[OrderLedger](OrderDetail ledger) += ACTION edit(ledger);
 
 //-- Запрет на изменение документа другим пользователем
 @defineOperationChangesDocument(order, UserOrder, preventChangesDocument, created);
-skipToShowDeleteOrder = ABSTRACT BOOLEAN (Order);
-overShowEditOrder (i) += showEditDeleteUserOrder(i) AND isOpenedOrder(i);
-overShowDeleteOrder (i) += showEditDeleteUserOrder(i) AND isUserOpenedOrder(i) AND NOT skipToShowDeleteOrder(i); 
+skipToShowDelete = ABSTRACT BOOLEAN (Order);
+overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i);
+overShowDelete (UserOrder i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipToShowDelete(i); 
 
 NAVIGATOR {
     purchasePurchaseNavigator {
@@ -233,7 +233,7 @@ NAVIGATOR {
     }
 }
 
-CONSTRAINT  isPostedUserOrder(i) AND isContractOperation(operationUserOrder(i)) AND NOT contractSkuOrder(i) 
+CONSTRAINT  isPosted(UserOrder i) AND isContract(operation(i)) AND NOT contractSku[Order](i) 
     MESSAGE 'Для заказа (закупка) обязан быть задан договор';   
-CONSTRAINT  isPostedUserOrderDetail(d) AND isPriceOperation(operationUserOrderDetail(d)) AND NOT priceUserOrderDetail(d) 
+CONSTRAINT  isPosted(UserOrderDetail d) AND isPrice(operation(d)) AND NOT price(d) 
     MESSAGE 'Для строки заказа (закупка) должна быть задана цена';   

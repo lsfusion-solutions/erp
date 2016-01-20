@@ -14,75 +14,75 @@ TABLE payment(Payment);
 @defineNumeratedDefault(Payment, 'Платежи', 'ПЛ');
 @defineExternalizable(payment, VARSTRING[100]);
 
-datePayment 'Дата' (payment) = DATA DATE (Payment);
-datePayment(payment) <- currentDate() WHEN SET(payment IS Payment);
-timePayment 'Время' (payment) = DATA TIME (Payment);
-timePayment(payment) <- currentTime() WHEN SET(payment IS Payment);
-dateTimePayment 'Дата время' (payment) = dateTimeToDateTime(datePayment(payment), timePayment(payment));
+date 'Дата' (payment) = DATA DATE (Payment);
+date(Payment payment) <- currentDate() WHEN SET(payment IS Payment);
+time 'Время' (payment) = DATA TIME (Payment);
+time(Payment payment) <- currentTime() WHEN SET(payment IS Payment);
+dateTime 'Дата время' (Payment payment) = dateTimeToDateTime(date(payment), time(payment));
 
-orderPayment 'Порядок' (payment) = DATA INTEGER(Payment);
+order 'Порядок' (payment) = DATA INTEGER(Payment);
 
-isReturnPayment 'Возвратный' = DATA BOOLEAN (Payment);
+isReturn 'Возвратный' = DATA BOOLEAN (Payment);
 
-payerPayment(payment) = DATA LegalEntity (Payment);
-namePayerPayment 'Плательщик' (payment) = nameLegalEntity(payerPayment(payment));
-accountFromPayment(payment) = DATA PaymentLedger.Account (Payment);
-accountFromPayment(payment) <- accountLegalEntity(payerPayment(payment))
-    WHEN CHANGED(payerPayment(payment));
-nameAccountFromPayment 'Счет' (payment) = PaymentLedger.nameAccount(accountFromPayment(payment));
-currencyAccountFromPayment (payment) = PaymentLedger.currencyAccount(accountFromPayment(payment));
-nameCurrencyAccountFromPayment 'Валюта счета' (payment) = PaymentLedger.nameCurrencyAccount(accountFromPayment(payment));
-sumPayment 'Сумма' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
+payer(payment) = DATA LegalEntity (Payment);
+namePayer 'Плательщик' (Payment payment) = name(payer(payment));
+accountFrom(payment) = DATA PaymentLedger.Account (Payment);
+accountFrom(Payment payment) <- account(payer(payment))
+    WHEN CHANGED(payer(payment));
+nameAccountFrom 'Счет' (Payment payment) = name(accountFrom(payment));
+currencyAccountFrom (Payment payment) = currency(accountFrom(payment));
+nameCurrencyAccountFrom 'Валюта счета' (Payment payment) = nameCurrency(accountFrom(payment));
+sum 'Сумма' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
 
-CONSTRAINT payerPayment(payment) != PaymentLedger.legalEntityAccount(accountFromPayment(payment))
-    CHECKED BY accountFromPayment MESSAGE 'Организация счета должна совпадать с плательщиком';
+CONSTRAINT payer(Payment payment) != legalEntity(accountFrom(payment))
+    CHECKED BY accountFrom[Payment] MESSAGE 'Организация счета должна совпадать с плательщиком';
 
-beneficiaryPayment(payment) = DATA LegalEntity (Payment);
-nameBeneficiaryPayment 'Бенефициар' (payment) = nameLegalEntity(beneficiaryPayment(payment));
-accountToPayment(payment) = DATA PaymentLedger.Account (Payment);
-accountToPayment(payment) <- accountLegalEntity(beneficiaryPayment(payment))
-    WHEN CHANGED(beneficiaryPayment(payment));
-nameAccountToPayment 'Счет' (payment) = PaymentLedger.nameAccount(accountToPayment(payment));
-currencyAccountToPayment(payment) = PaymentLedger.currencyAccount(accountToPayment(payment));
-nameCurrencyAccountToPayment 'Валюта счета' (payment) = PaymentLedger.nameCurrencyAccount(accountToPayment(payment));
+beneficiary(payment) = DATA LegalEntity (Payment);
+nameBeneficiary 'Бенефициар' (Payment payment) = name(beneficiary(payment));
+accountTo(payment) = DATA PaymentLedger.Account (Payment);
+accountTo(Payment payment) <- account(beneficiary(payment))
+    WHEN CHANGED(beneficiary(payment));
+nameAccountTo 'Счет' (Payment payment) = name(accountTo(payment));
+currencyAccountTo(Payment payment) = currency(accountTo(payment));
+nameCurrencyAccountTo 'Валюта счета' (Payment payment) = nameCurrency(accountTo(payment));
 
-CONSTRAINT beneficiaryPayment(payment) != PaymentLedger.legalEntityAccount(accountToPayment(payment))
-    CHECKED BY accountToPayment MESSAGE 'Организация счета должна совпадать с бенефициаром';
+CONSTRAINT beneficiary(Payment payment) != legalEntity(accountTo(payment))
+    CHECKED BY accountTo[Payment] MESSAGE 'Организация счета должна совпадать с бенефициаром';
     
-textPayment 'Назначение платежа' = DATA TEXT (Payment);
+text 'Назначение платежа' = DATA TEXT (Payment);
 
-notePayment 'Примечание' (payment) = DATA VARSTRING[200] (Payment);
+note 'Примечание' (payment) = DATA VARSTRING[200] (Payment);
 
-descriptionPayment 'Название документа' = VARSTRING[200]('Платеж ' + seriesNumberPayment(payment) + ' от ' +  datePayment(payment) + ' ' + nameBeneficiaryPayment(payment) + ' <-' + namePayerPayment(payment)) PERSISTENT;
+description 'Название документа' = VARSTRING[200]('Платеж ' + seriesNumber(Payment payment) + ' от ' +  date(payment) + ' ' + nameBeneficiary(payment) + ' <-' + namePayer(payment)) PERSISTENT;
 
-dateTimePaymentLedger(paymentLedger) += dateTimePayment(paymentLedger);
-legalEntityFromPaymentLedger(paymentLedger) += payerPayment(paymentLedger);
-legalEntityToPaymentLedger(paymentLedger) += beneficiaryPayment(paymentLedger);
-accountFromPaymentLedger(payment) += accountFromPayment(payment);
-sumPaymentLedger(paymentLedger) += sumPayment(paymentLedger);
-accountToPaymentLedger(payment) += accountToPayment(payment);
-descriptionPaymentLedger(paymentLedger) += descriptionPayment(paymentLedger);
-PaymentLedger.isPostedPaymentLedger(paymentLedger) += isPostedPayment(paymentLedger);
+dateTime(Payment paymentLedger) += dateTime(paymentLedger);
+legalEntityFrom(Payment paymentLedger) += payer(paymentLedger);
+legalEntityTo(Payment paymentLedger) += beneficiary(paymentLedger);
+accountFrom(Payment payment) += accountFrom(payment);
+sum(Payment paymentLedger) += sum(paymentLedger);
+accountTo(Payment payment) += accountTo(payment);
+description(Payment paymentLedger) += description(paymentLedger);
+isPosted(Payment paymentLedger) += isPosted(paymentLedger);
 
-CONSTRAINT PaymentLedger.legalEntityAccount(accountFromPayment(payment)) != payerPayment(payment)
-    CHECKED BY accountFromPayment MESSAGE 'Организация счета(с) должна совпадать с организацией(покупатель)';
+CONSTRAINT legalEntity(accountFrom(Payment payment)) != payer(payment)
+    CHECKED BY accountFrom[Payment] MESSAGE 'Организация счета(с) должна совпадать с организацией(покупатель)';
 
-CONSTRAINT PaymentLedger.legalEntityAccount(accountToPayment(payment)) != beneficiaryPayment(payment)
-    CHECKED BY accountToPayment MESSAGE 'Организация счета(на) должна совпадать с организацией(поставщик)';
+CONSTRAINT legalEntity(accountTo(Payment payment)) != beneficiary(payment)
+    CHECKED BY accountTo[Payment] MESSAGE 'Организация счета(на) должна совпадать с организацией(поставщик)';
 
-CONSTRAINT currencyAccountFromPayment(payment) != currencyAccountToPayment(payment)
-    CHECKED BY accountFromPayment, accountToPayment MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
+CONSTRAINT currencyAccountFrom(Payment payment) != currencyAccountTo(payment)
+    CHECKED BY accountFrom[Payment], accountTo[Payment] MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
     
 //объединение организаций
-replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){
-    payerPayment(payment) <- o WHERE payerPayment(payment) == l;
-    beneficiaryPayment(payment) <- o WHERE beneficiaryPayment(payment) == l;
+replace(LegalEntity l, LegalEntity o) += ACTION (l, o){
+    payer(Payment payment) <- o WHERE payer(payment) == l;
+    beneficiary(Payment payment) <- o WHERE beneficiary(payment) == l;
 }     
 
 //Операции
-operationPayment = DATA PaymentOperation.Operation (Payment);
-nameOperationPayment 'Операция' = PaymentOperation.nameOperation(operationPayment(Payment));
-idOperationPayment 'ID операции' = PaymentOperation.idOperation(operationPayment(Payment));
+operation = DATA PaymentOperation.Operation (Payment);
+nameOperation 'Операция' = name(operation(Payment Payment));
+idOperation 'ID операции' = id(operation(Payment Payment));
 
 @defineDocumentOperationLegalEntity(payment, payer, 'Плательщик');
 @defineDocumentOperationLegalEntity(payment, beneficiary, 'Бенефициар');
@@ -91,21 +91,21 @@ idOperationPayment 'ID операции' = PaymentOperation.idOperation(operatio
 
 //-------------------------------------------- Форма платежей -------------------------------------------------------//
 
-backgroundPaymentDate 'Цвет' (payment, date) = RGB(255,160,160) IF datePayment(payment) > date;
+background 'Цвет' (Payment payment, DATE date) = RGB(255,160,160) IF date(payment) > date;
 
 partyA = DATA LOCAL LegalEntity();
-namePartyA 'Организация (поставщик)' = nameLegalEntity(partyA());
+namePartyA 'Организация (поставщик)' = name(partyA());
 partyB = DATA LOCAL LegalEntity();
-namePartyB 'Организация (покупатель)' = nameLegalEntity(partyB());
+namePartyB 'Организация (покупатель)' = name(partyB());
 
 FORM payment 'Платеж'
 
     OBJECTS p = Payment FIXED PANEL
-    PROPERTIES(p) isPostedPayment, nameNumeratorPayment, orderPayment, numberPayment, seriesPayment, datePayment, timePayment, textPayment,
-                  notePayment, namePayerPayment, nameBeneficiaryPayment, nameAccountToPayment, nameAccountFromPayment, sumPayment,
-                  nameCurrencyAccountToPayment, nameCurrencyAccountFromPayment, nameOperationPayment, isReturnPayment 
+    PROPERTIES(p) isPosted, nameNumerator, order, number, series, date, time, text,
+                  note, namePayer, nameBeneficiary, nameAccountTo, nameAccountFrom, sum,
+                  nameCurrencyAccountTo, nameCurrencyAccountFrom, nameOperation, isReturn 
     EVENTS
-        ON OK prePostPayment(p)
+        ON OK prePost(p)
 
     EDIT Payment OBJECT p
 ;
@@ -120,18 +120,18 @@ DESIGN payment {
             type = CONTAINERV;
             NEW first {
                 type = CONTAINERH;
-                MOVE PROPERTY(isPostedPayment(p));
-                MOVE PROPERTY(nameOperationPayment(p));
-                MOVE PROPERTY(isReturnPayment(p));
+                MOVE PROPERTY(isPosted(p));
+                MOVE PROPERTY(nameOperation(p));
+                MOVE PROPERTY(isReturn(p));
             }
             NEW second { 
                 type = CONTAINERH;
-                MOVE PROPERTY(nameNumeratorPayment(p));
-                MOVE PROPERTY(orderPayment(p));
-                MOVE PROPERTY(numberPayment(p));
-                MOVE PROPERTY(seriesPayment(p));
-                MOVE PROPERTY(datePayment(p));
-                MOVE PROPERTY(timePayment(p));
+                MOVE PROPERTY(nameNumerator(p));
+                MOVE PROPERTY(order(p));
+                MOVE PROPERTY(number(p));
+                MOVE PROPERTY(series(p));
+                MOVE PROPERTY(date(p));
+                MOVE PROPERTY(time(p));
             }                                                                        
         }
         NEW columnContainer{
@@ -141,27 +141,27 @@ DESIGN payment {
                 columns = 1;
                 fill = 1;
                 caption = 'Сторона (с)';
-                MOVE PROPERTY(namePayerPayment(p));
-                MOVE PROPERTY(nameAccountFromPayment(p));
-                MOVE PROPERTY(nameCurrencyAccountFromPayment(p));
+                MOVE PROPERTY(namePayer(p));
+                MOVE PROPERTY(nameAccountFrom(p));
+                MOVE PROPERTY(nameCurrencyAccountFrom(p));
             }
             NEW secondColumn{
                 type = COLUMNS;
                 columns = 1;
                 fill = 1;
                 caption = 'Сторона (на)';
-                MOVE PROPERTY(nameBeneficiaryPayment(p));
-                MOVE PROPERTY(nameAccountToPayment(p));
-                MOVE PROPERTY(nameCurrencyAccountToPayment(p));
+                MOVE PROPERTY(nameBeneficiary(p));
+                MOVE PROPERTY(nameAccountTo(p));
+                MOVE PROPERTY(nameCurrencyAccountTo(p));
             }
         }
         NEW paramContainer {
             type = CONTAINERH;                             
             caption = 'Параметры документа';             
-            MOVE PROPERTY(sumPayment(p));
-            MOVE PROPERTY(notePayment(p));
+            MOVE PROPERTY(sum(p));
+            MOVE PROPERTY(note(p));
         }
-        MOVE PROPERTY(textPayment(p)){
+        MOVE PROPERTY(text(p)){
             panelCaptionAbove = TRUE;
             alignment = STRETCH;
         }
@@ -175,51 +175,51 @@ DESIGN payment {
 }
 
 //----------------------------------------- Копирование платежей ----------------------------------------------------//
-copyDataPayment = ACTION (payment, p) {
-    operationPayment(p) <- operationPayment(payment);
-    isReturnPayment(p) <- isReturnPayment(payment);
-    orderPayment(p) <- orderPayment(payment);
-    datePayment(p) <- datePayment(payment);
-    timePayment(p) <- timePayment(payment);
-    payerPayment(p) <- payerPayment(payment);
-    beneficiaryPayment(p) <- beneficiaryPayment(payment);
-    sumPayment(p) <- sumPayment(payment);
+copyData = ACTION (Payment payment, Payment p) {
+    operation(p) <- operation(payment);
+    isReturn(p) <- isReturn(payment);
+    order(p) <- order(payment);
+    date(p) <- date(payment);
+    time(p) <- time(payment);
+    payer(p) <- payer(payment);
+    beneficiary(p) <- beneficiary(payment);
+    sum(p) <- sum(payment);
 }
     
-copyPayment 'Копировать' = ACTION (payment) NEWSESSION {
+copy 'Копировать' = ACTION (Payment payment) NEWSESSION {
     FOR ADDOBJ p = Payment DO {
-        EXEC copyDataPayment(payment, p);
+        EXEC copyData(payment, p);
         FORM payment OBJECTS p = p MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
 
-editPayment 'Редактировать' = ACTION EDITFORM Payment IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ACTION EDITFORM Payment IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 filterPaymentDateFrom 'Дата с' = DATA DATE ();
-filterDateFromPayment (p) = datePayment(p) >= filterPaymentDateFrom() OR (p IS Payment AND NOT filterPaymentDateFrom());      
+filterDateFrom (Payment p) = date(p) >= filterPaymentDateFrom() OR (p IS Payment AND NOT filterPaymentDateFrom());      
 
 filterPaymentDateTo 'Дата по' = DATA DATE ();
-filterDateToPayment (p) = datePayment(p) <= filterPaymentDateTo() OR (p IS Payment AND NOT filterPaymentDateTo());         
+filterDateTo (Payment p) = date(p) <= filterPaymentDateTo() OR (p IS Payment AND NOT filterPaymentDateTo());         
     
 FORM payments 'Платежи'
 
     PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, namePartyA, namePartyB
 
     OBJECTS p = Payment LAST
-    PROPERTIES(p) READONLYIF isReadonly() isPostedPayment, isReturnPayment, orderPayment, numberPayment, seriesPayment,
-                  datePayment, timePayment, namePayerPayment, nameAccountFromPayment, nameBeneficiaryPayment, nameAccountToPayment,
-                  nameCurrencyAccountToPayment, sumPayment, notePayment, nameOperationPayment 
+    PROPERTIES(p) READONLYIF isReadonly() isPosted, isReturn, order, number, series,
+                  date, time, namePayer, nameAccountFrom, nameBeneficiary, nameAccountTo,
+                  nameCurrencyAccountTo, sum, note, nameOperation 
 
-    PROPERTIES(p) READONLY TODRAW p FORCE PANEL createdNameUserPayment, createdTimePayment, createdHostnameComputerPayment, 
-                                                postedNameUserPayment, postedTimePayment, postedHostnameComputerPayment 
+    PROPERTIES(p) READONLY TODRAW p FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                                postedNameUser, postedTime, postedHostnameComputer 
 
-    PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR, copyPayment
+    PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR, copy
 
-    ORDER BY datePayment(p), orderPayment(p)
+    ORDER BY date(p), order(p)
 
-    FILTERS payerPayment(p) == partyB() OR (p IS Payment AND NOT partyB()),
-            beneficiaryPayment(p) == partyA() OR (p IS Payment AND NOT partyA()),
-            filterDateFromPayment(p), filterDateToPayment(p)
+    FILTERS payer(p) == partyB() OR (p IS Payment AND NOT partyB()),
+            beneficiary(p) == partyA() OR (p IS Payment AND NOT partyA()),
+            filterDateFrom(p), filterDateTo(p)
 
 ;
         

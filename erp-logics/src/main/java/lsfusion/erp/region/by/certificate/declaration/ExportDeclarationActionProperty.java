@@ -43,10 +43,10 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
                     "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",
                     "shortNameUOMDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
                     "sumDeclarationDetail", "sumNetWeightDeclarationDetail", "sumGrossWeightDeclarationDetail");
-            LCP[] exportProperties = findProperties("numberDeclarationDetail", "nameCustomsDeclarationDetail",
-                    "codeCustomsGroupDeclarationDetail", "sidCountryDeclarationDetail", "idUOMDeclarationDetail",
-                    "shortNameUOMDeclarationDetail", "sidOrigin2CountryDeclarationDetail", "quantityDeclarationDetail",
-                    "sumDeclarationDetail", "sumNetWeightDeclarationDetail", "sumGrossWeightDeclarationDetail");
+            LCP[] exportProperties = findProperties("number[DeclarationDetail]", "nameCustoms[DeclarationDetail]",
+                    "codeCustomsGroup[DeclarationDetail]", "sidCountry[DeclarationDetail]", "idUOM[DeclarationDetail]",
+                    "shortNameUOM[DeclarationDetail]", "sidOrigin2Country[DeclarationDetail]", "quantity[DeclarationDetail]",
+                    "sum[DeclarationDetail]", "sumNetWeight[DeclarationDetail]", "sumGrossWeight[DeclarationDetail]");
 
             List<String> exportTitlesTSware = BaseUtils.toList("Порядковый номер декларируемого товара", "Наименование товара", "Вес брутто",
                     "Вес нетто", "Вес нетто без упаковки", "Фактурная стоимость товара", "Таможенная стоимость",
@@ -126,7 +126,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
                 query.addProperty(exportNames.get(j), exportProperties[j].getExpr(context.getModifier(), key));
             }
             query.and(isDeclarationDetail.getExpr(key).getWhere());
-            query.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
+            query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
             TreeMap<Integer, Map<String, Object>> sortedRows = new TreeMap<Integer, Map<String, Object>>();
@@ -156,10 +156,10 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
                 ImRevMap<Object, KeyExpr> invoiceKeys = MapFact.singletonRev((Object)"invoice", invoiceExpr);
 
                 QueryBuilder<Object, Object> invoiceQuery = new QueryBuilder<Object, Object>(invoiceKeys);
-                invoiceQuery.addProperty("seriesNumberInvoice", findProperty("Purchase.seriesNumberInvoice").getExpr(invoiceExpr));
-                invoiceQuery.addProperty("dateInvoice", findProperty("Purchase.dateInvoice").getExpr(invoiceExpr));
+                invoiceQuery.addProperty("seriesNumberInvoice", findProperty("seriesNumber[Purchase.Invoice]").getExpr(invoiceExpr));
+                invoiceQuery.addProperty("dateInvoice", findProperty("date[Purchase.Invoice]").getExpr(invoiceExpr));
 
-                invoiceQuery.and(findProperty("inDeclarationDetailUserInvoice").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) findClass("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
+                invoiceQuery.and(findProperty("in[DeclarationDetail,UserInvoice]").getExpr(new DataObject(entry.getValue().get("declarationDetailID"), (ConcreteClass) findClass("DeclarationDetail")).getExpr(), invoiceExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> invoiceResult = invoiceQuery.execute(context);
 

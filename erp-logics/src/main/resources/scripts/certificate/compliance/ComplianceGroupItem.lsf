@@ -4,30 +4,30 @@ REQUIRE ComplianceGroup, Item;
 
 NAMESPACE Compliance;
 
-complianceGroupCountryItem = DATA ComplianceGroup(Country, Item);
-nameComplianceGroupCountryItem 'Группа сертификации' (country, item) = nameComplianceGroup(complianceGroupCountryItem(country, item)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+complianceGroup = DATA ComplianceGroup(Country, Item);
+nameComplianceGroup 'Группа сертификации' (Country country, Item item) = name(complianceGroup(country, item)) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
-complianceGroupCountrySku(country, sku) += complianceGroupCountryItem(country, sku);
+complianceGroup(Country country, Item sku) += complianceGroup(country, sku);
 
-complianceGroupDefaultCountryItem (item) = complianceGroupCountryItem (defaultCountry(), item);
-nameComplianceGroupDefaultCountryItem 'Группа сертификации' (item) = nameComplianceGroup(complianceGroupDefaultCountryItem(item));
+complianceGroupDefaultCountry (Item item) = complianceGroup (defaultCountry(), item);
+nameComplianceGroupDefaultCountry 'Группа сертификации' (Item item) = name(complianceGroupDefaultCountry(item));
 
-changeComplianceGroupCountryItem = ACTION (item) {
+changeComplianceGroupCountry = ACTION (Item item) {
     REQUEST OBJECT cg FORM complianceGroups MODAL;
     IF requestedObject() THEN {
-        complianceGroupCountryItem(country, item) <- requestedObject() WHERE country == defaultCountry();
+        complianceGroup(Country country, item) <- requestedObject() WHERE country == defaultCountry();
     } ELSE {
-        complianceGroupCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+        complianceGroup(Country country, item) <- NULL WHERE country == defaultCountry();
     }
 }
 
 EXTEND FORM item
-    PROPERTIES(c, i) nameComplianceGroupCountryItem
-    PROPERTIES(i) nameComplianceGroupDefaultCountryItem ON CHANGE changeComplianceGroupCountryItem(i)
+    PROPERTIES(c, i) nameComplianceGroup
+    PROPERTIES(i) nameComplianceGroupDefaultCountry ON CHANGE changeComplianceGroupCountry(i)
 ;
-DESIGN item { regionPrm  { MOVE PROPERTY(nameComplianceGroupDefaultCountryItem(i)); } }
+DESIGN item { regionPrm  { MOVE PROPERTY(nameComplianceGroupDefaultCountry(i)); } }
 
-overCopyItem(s, d) += ACTION (s, d) {
-    complianceGroupCountryItem(c,d) <- complianceGroupCountryItem(c,s) WHERE complianceGroupCountryItem(c,s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    complianceGroup(Country c,d) <- complianceGroup(c,s) WHERE complianceGroup(c,s);
 }
 

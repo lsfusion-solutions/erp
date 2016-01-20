@@ -5,8 +5,8 @@ REQUIRE PurchaseBox, PurchaseShipment;
 NAMESPACE Purchase;
 
 @defineDocumentInterfaceDetailBox(shipment);
-overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-    boxUserShipmentDetail(d) <- boxUserShipmentDetail(detail);
+overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION (d, detail) {      
+    box(d) <- box(detail);
 }
 @extendFormInterfaceDetailBox(shipment, s, , quantity);
 
@@ -19,47 +19,47 @@ overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {
 
 
 EXTEND CLASS Box : ShipmentDimension;
-nameShipmentDimension(d) += nameBox(d);
+name(Box d) += Box.name(d);
 
-shipmentDimensionUserShipmentDetail(d) += boxUserShipmentDetail(d);
-shipmentDimensionUserInvoiceDetail(d) += boxUserInvoiceDetail(d);
+shipmentDimension[UserShipmentDetail](UserShipmentDetail d) += box(d);
+shipmentDimension[UserInvoiceDetail](UserInvoiceDetail d) += box(d);
 
 //---------------------------------Новый функционал ----------------------------------//
 
 @defineDocumentDetailBoxCustom(userShipment, current, ' текущий');
-currentBoxUserShipmentDetail (detail) = currentBoxUserShipment(userShipmentUserShipmentDetail(detail));
+currentBox (UserShipmentDetail detail) = currentBox(userShipment(detail));
 
-shipmentDimensionUserShipment(s) += currentBoxUserShipment(s);
+shipmentDimension(UserShipment s) += currentBox(s);
 
 EXTEND FORM userShipment
-    PROPERTIES(s) SHOWIF showBoxUserShipment(s) nameCurrentBoxUserShipment
+    PROPERTIES(s) SHOWIF showBox(s) nameCurrentBox
 ;
 
 DESIGN userShipment {
     headerBox {
-        MOVE PROPERTY(nameCurrentBoxUserShipment(s)) AFTER PROPERTY(showBoxUserShipment(s));
+        MOVE PROPERTY(nameCurrentBox(s)) AFTER PROPERTY(showBox(s));
     }
 }
 
-inBoxUserShipment (box, userShipment) = GROUP SUM 1 IF includeInvoiceUserShipment(invoiceInvoiceDetail(detail), userShipment)
-    BY boxInvoiceDetail(detail), userShipment;
-CONSTRAINT  currentBoxUserShipment(userShipment) AND NOT inBoxUserShipment(currentBoxUserShipment(userShipment), userShipment)
-    CHECKED BY currentBoxUserShipment MESSAGE 'В качестве текущего короба выбран короб, которого нету в накладных';
+in (box, userShipment) = GROUP SUM 1 IF include(invoice(InvoiceDetail detail), UserShipment userShipment)
+    BY box(detail), userShipment;
+CONSTRAINT  currentBox(UserShipment userShipment) AND NOT in(currentBox(userShipment), userShipment)
+    CHECKED BY currentBox[UserShipment] MESSAGE 'В качестве текущего короба выбран короб, которого нету в накладных';
 
 WHEN SESSION FORMS userShipment
-    SET(detail IS UserShipmentDetail) AND currentBoxUserShipmentDetail(detail)
-        DO ASSIGN boxUserShipmentDetail(detail) <- currentBoxUserShipmentDetail(detail) WHERE currentBoxUserShipmentDetail(detail);
+    SET(UserShipmentDetail detail IS UserShipmentDetail) AND currentBox(detail)
+        DO ASSIGN box(detail) <- currentBox(detail) WHERE currentBox(detail);
 
 WHEN SESSION FORMS userShipment
-    CHANGED(invoiceDetailUserShipmentDetail(detail)) AND NOT boxUserShipmentDetail(detail)
-        DO ASSIGN boxUserShipmentDetail(detail) <- boxInvoiceDetail(invoiceDetailUserShipmentDetail(detail));
+    CHANGED(invoiceDetail(UserShipmentDetail detail)) AND NOT box(detail)
+        DO ASSIGN box(detail) <- box(invoiceDetail(detail));
 
 WHEN SESSION FORMS userShipment
-    CHANGED(skuUserShipmentDetail(detail)) AND boxUserShipmentDetail(detail)
-        DO ASSIGN invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), boxUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail))
-                                                                WHERE defaultInvoiceDetailSkuDimensionUserShipment(skuUserShipmentDetail(detail), boxUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
+    CHANGED(sku(UserShipmentDetail detail)) AND box(detail)
+        DO ASSIGN invoiceDetail(detail) <- defaultInvoiceDetail(sku(detail), box(detail), userShipment(detail))
+                                                                WHERE defaultInvoiceDetail(sku(detail), box(detail), userShipment(detail));
 
 WHEN SESSION FORMS userShipment
-    CHANGED(skuUserShipmentDetail(detail)) AND NOT boxUserShipmentDetail(detail)
-        DO ASSIGN invoiceDetailUserShipmentDetail(detail) <- defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail)) 
-                                                                WHERE defaultInvoiceDetailSkuUserShipment(skuUserShipmentDetail(detail), userShipmentUserShipmentDetail(detail));
+    CHANGED(sku(UserShipmentDetail detail)) AND NOT box(detail)
+        DO ASSIGN invoiceDetail(detail) <- defaultInvoiceDetail(sku(detail), userShipment(detail)) 
+                                                                WHERE defaultInvoiceDetail(sku(detail), userShipment(detail));

@@ -6,109 +6,109 @@ NAMESPACE BOM;
 
 // ----------------- Акт контрольной проработки-------------------- //
 
-actNettoNetWeightProduct 'Вес нетто изделия для акта г' (p) = actQuantityBOM(BOMProduct(p))* (OVERRIDE 1.0 IF p IS Product, netWeightSku(skuProduct(p)))*1000;
-nameSkusBOMDate 'Компоненты (все)' = GROUP CONCAT nameSku(sku) IF recBruttoQuantityBOMSkuDate(BOM, sku, date), ', ' 
+actNettoNetWeight 'Вес нетто изделия для акта г' (Product p) = actQuantity(BOM(p))* (OVERRIDE 1.0 IF p IS Product, netWeight(sku(p)))*1000;
+nameSkus 'Компоненты (все)' = GROUP CONCAT Stock.name(Sku sku) IF recBruttoQuantity(BOM BOM, sku, DATE date), ', ' 
     BY BOM, date
-    ORDER nameSku(sku);
+    ORDER Stock.name(sku);
     
-netWeightProductBOM 'Вес' (BOM) = GROUP SUM netWeightSku(skuProduct(p))*1000 BY BOMProduct(p);    
+netWeightProduct 'Вес' (BOM) = GROUP SUM netWeight(sku(Product p))*1000 BY BOM(p);    
     
 //-- тепловая обработка    
-countHeatTechnologiesComponent (c)= GROUP SUM 1 IF inTechnologyComponent(t, c) AND heatTechnology(t) BY c;    
+countHeatTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND heat(t) BY c;    
     
-minHeatTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) AND heatTechnology(t) BY c;
-maxHeatTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) AND heatTechnology(t) BY c;
+minHeatTechnology (c) = GROUP MIN Technology t IF in(t,Component c) AND heat(t) BY c;
+maxHeatTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND heat(t) BY c;
 //equalsMaxMinHeatTechnologyComponent (c) = minHeatTechnologyComponent (c) == maxHeatTechnologyComponent (c);    
      
-wastageHeatComponentDate (c,date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
-    (IF countHeatTechnologiesComponent(c) THEN (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(minHeatTechnologyComponent(c),materialComponent(c), date)) ELSE 0 IF c IS Component),
-    (IF countHeatTechnologiesComponent(c) > 1 THEN (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(maxHeatTechnologyComponent(c),materialComponent(c), date)) ELSE 0 IF c IS Component),
-    (IF heatWastageComponent(c) THEN (OVERRIDE 0 IF c IS Component, wastageComponent(c)) ELSE 0 IF c IS Component) 
+wastageHeat (Component c,DATE date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
+    (IF countHeatTechnologies(c) THEN (OVERRIDE 0 IF c IS Component, wastage(minHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
+    (IF countHeatTechnologies(c) > 1 THEN (OVERRIDE 0 IF c IS Component, wastage(maxHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
+    (IF heatWastage(c) THEN (OVERRIDE 0 IF c IS Component, wastage(c)) ELSE 0 IF c IS Component) 
 );
 //-- холодная обработка
-countColdTechnologiesComponent (c)= GROUP SUM 1 IF inTechnologyComponent(t, c) AND NOT heatTechnology(t) BY c;    
+countColdTechnologies (c)= GROUP SUM 1 IF in(Technology t, Component c) AND NOT heat(t) BY c;    
     
-minColdTechnologyComponent (c) = GROUP MIN t IF inTechnologyComponent(t,c) AND NOT heatTechnology(t) BY c;
-maxColdTechnologyComponent (c) = GROUP MAX t IF inTechnologyComponent(t,c) AND NOT heatTechnology(t) BY c;
+minColdTechnology (c) = GROUP MIN Technology t IF in(t,Component c) AND NOT heat(t) BY c;
+maxColdTechnology (c) = GROUP MAX Technology t IF in(t,Component c) AND NOT heat(t) BY c;
 //equalsMaxMinColdTechnologyComponent (c) = minColdTechnologyComponent (c) == maxColdTechnologyComponent (c);    
      
-wastageColdComponentDate (c,date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
-    (IF countColdTechnologiesComponent(c) THEN (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(minHeatTechnologyComponent(c),materialComponent(c), date)) ELSE 0 IF c IS Component),
-    (IF countColdTechnologiesComponent(c) > 1 THEN (OVERRIDE 0 IF c IS Component, wastageTechnologyMaterialDate(maxHeatTechnologyComponent(c),materialComponent(c), date)) ELSE 0 IF c IS Component),
-    (IF NOT heatWastageComponent(c) THEN (OVERRIDE 0 IF c IS Component, wastageComponent(c)) ELSE 0 IF c IS Component) 
+wastageCold (Component c,DATE date) = [= (1-((100-X)*(100-Y)*(100-Z)/1000000))*100](
+    (IF countColdTechnologies(c) THEN (OVERRIDE 0 IF c IS Component, wastage(minHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
+    (IF countColdTechnologies(c) > 1 THEN (OVERRIDE 0 IF c IS Component, wastage(maxHeatTechnology(c),material(c), date)) ELSE 0 IF c IS Component),
+    (IF NOT heatWastage(c) THEN (OVERRIDE 0 IF c IS Component, wastage(c)) ELSE 0 IF c IS Component) 
 );    
 
-actBruttoNetWeightComponentDate 'Выход полуфабриката брутто, г' (c,dt)=overBruttoQuantityComponentDate(c,dt)*actQuantityBOM(BOMComponent(c))*1000/quantityProductBOM(BOMComponent(c));
-actNettoNetWeightComponent 'Выход полуфабриката нетто, г' (c)=nettoQuantityComponent(c)*actQuantityBOM(BOMComponent(c))*1000*(OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c))/quantityProductBOM(BOMComponent(c));
-actBruttoNetWeightComponentSkuDate 'Вес товара для компонента, если он полуфабрикат' (component, sku, date)= recBruttoQuantityBOMSkuDate(BOMProduct(materialComponent(component)), sku, date) *
-    bruttoQuantityComponentDate(component, date)/
-    (quantityProduct(materialComponent(component)) IF quantityProduct(materialComponent(component))!=0) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku))*
-    actQuantityBOM(BOMComponent(component))*1000/
-    (quantityProductBOM(BOMComponent(component)) IF quantityProductBOM(BOMComponent(component))!=0); 
+actBruttoNetWeight 'Выход полуфабриката брутто, г' (Component c,DATE dt)=overBruttoQuantity(c,dt)*actQuantity(BOM(c))*1000/quantityProduct(BOM(c));
+actNettoNetWeight 'Выход полуфабриката нетто, г' (Component c)=nettoQuantity(c)*actQuantity(BOM(c))*1000*(OVERRIDE 1.0 IF c IS Component, overNetWeight(c))/quantityProduct(BOM(c));
+actBruttoNetWeight 'Вес товара для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recBruttoQuantity(BOM(material(component)), sku, date) *
+    bruttoQuantity(component, date)/
+    (quantity(material(component)) IF quantity(material(component))!=0) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku))*
+    actQuantity(BOM(component))*1000/
+    (quantityProduct(BOM(component)) IF quantityProduct(BOM(component))!=0); 
 
-actBruttoNetWeightSkusComponentDate 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP SUM actBruttoNetWeightComponentSkuDate(component, sku, date) BY component, date;
+actBruttoNetWeightSkus 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP SUM actBruttoNetWeight(Component component, Sku sku, DATE date) BY component, date;
 
-actNBruttoNetWeightComponentSkuDate 'Вес товара для компонента, если он полуфабрикат' (component, sku, date)= recNettoQuantityBOMSku(BOMProduct(materialComponent(component)), sku) *
-    bruttoQuantityComponentDate(component, date)/
-    (quantityProduct(materialComponent(component)) IF quantityProduct(materialComponent(component))!=0) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku))*
-    actQuantityBOM(BOMComponent(component))*1000/
-    (quantityProductBOM(BOMComponent(component)) IF quantityProductBOM(BOMComponent(component))!=0); 
+actNBruttoNetWeight 'Вес товара для компонента, если он полуфабрикат' (Component component, Sku sku, DATE date)= recNettoQuantity(BOM(material(component)), sku) *
+    bruttoQuantity(component, date)/
+    (quantity(material(component)) IF quantity(material(component))!=0) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku))*
+    actQuantity(BOM(component))*1000/
+    (quantityProduct(BOM(component)) IF quantityProduct(BOM(component))!=0); 
 
-actNBruttoNetWeightSkusComponentDate 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP SUM actNBruttoNetWeightComponentSkuDate(component, sku, date) BY component, date;
+actNBruttoNetWeightSkus 'Вес компонента, если он полуфабрикат по товарам' (component, date)= GROUP SUM actNBruttoNetWeight(Component component, Sku sku, DATE date) BY component, date;
 
-actBruttoNetWeightProductSkuDate 'Вес изделия по товарам, брутто г' (product, sku, date)= recBruttoQuantityBOMSkuDate(BOMProduct(product), sku, date) *
-    actQuantityBOM(BOMProduct(product))*1000/
-    (quantityProduct(product) IF (quantityProduct(product)!=0)) *
-    (OVERRIDE 1.0 IF sku IS Sku, netWeightItem(sku)); 
+actBruttoNetWeight 'Вес изделия по товарам, брутто г' (Product product, Sku sku, DATE date)= recBruttoQuantity(BOM(product), sku, date) *
+    actQuantity(BOM(product))*1000/
+    (quantity(product) IF (quantity(product)!=0)) *
+    (OVERRIDE 1.0 IF sku IS Sku, netWeight[Item](sku)); 
 
-actBruttoNetWeightSkusProductDate 'Вес брутто изделия по товарам, г' (product, date)= GROUP SUM actBruttoNetWeightProductSkuDate(product, sku, date) BY product, date;
-actPercProductDate '%' (p,dt) = (1 - (actNettoNetWeightProduct(p)/ (actBruttoNetWeightSkusProductDate(p,dt) IF actBruttoNetWeightSkusProductDate(p,dt)!=0)))*100;
+actBruttoNetWeightSkus 'Вес брутто изделия по товарам, г' (product, date)= GROUP SUM actBruttoNetWeight(Product product, Sku sku, DATE date) BY product, date;
+actPerc '%' (Product p,DATE dt) = (1 - (actNettoNetWeight(p)/ (actBruttoNetWeightSkus(p,dt) IF actBruttoNetWeightSkus(p,dt)!=0)))*100;
 
 FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     OBJECTS dt=DATE FIXED PANEL
-    PROPERTIES (dt) date = OBJVALUE , extractYearBOMsDate 
+    PROPERTIES (dt) date = OBJVALUE , extractYearBOMs 
 
     OBJECTS b=BOM FIXED PANEL 
-    PROPERTIES(b)  READONLY productsBOM, productsUOMBOM, nameBOM, numberBOM, seriesBOM, fromDateBOM, toDateBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, pricePercentBOM, noteBOM
-    PROPERTIES(b) nameOwnershipCompanyBOM, nameCompanyBOM, shortNameOwnershipCompanyBOM, recipesBOM, extractYearFromDateBOM,
-                  actQuantityBOM, nameActStockBOM, actStudyOfCulinaryCommitteeBOM, commonNameEmployeeCommitteeBOM, netWeightProductBOM, dateBOM    
+    PROPERTIES(b)  READONLY products, productsUOM, name, number, series, fromDate, toDate, components, overNettoNetWeightProduct, overNettoNetWeightComponent, pricePercent, note
+    PROPERTIES(b) nameOwnershipCompany, nameCompany, shortNameOwnershipCompany, recipes, extractYearFromDate,
+                  actQuantity, nameActStock, actStudyOfCulinaryCommittee, commonNameEmployeeCommittee, netWeightProduct, date    
    
-    PROPERTIES(b,dt) firstShortNameChiefBOMDate, namePositionChiefBOMDate, nameSkusBOMDate
+    PROPERTIES(b,dt) firstShortNameChief, namePositionChief, nameSkus
 
     OBJECTS p = Product
-    PROPERTIES(p) READONLY nameSkuProduct, shortNameUOMProduct 
-    PROPERTIES READONLY actNettoNetWeightProduct(p), actBruttoNetWeightSkusProductDate(p,dt), actPercProductDate(p,dt)
+    PROPERTIES(p) READONLY nameSku, shortNameUOM 
+    PROPERTIES READONLY actNettoNetWeight(p), actBruttoNetWeightSkus(p,dt), actPerc(p,dt)
                   
-    FILTERS       BOMProduct(p) == b
+    FILTERS       BOM(p) == b
 
     OBJECTS c = Component FIXED GRID
-    FILTERS       BOMComponent(c) == b,
-                  materialComponent(c) IS Product     
-    PROPERTIES    READONLY  nameMaterialComponent(c), wastageHeatComponentDate(c,dt), wastageColdComponentDate(c,dt), actBruttoNetWeightComponentDate(c,dt), 
-                  actNettoNetWeightComponent(c), actBruttoNetWeightSkusComponentDate(c,dt), actNBruttoNetWeightSkusComponentDate(c,dt)         
+    FILTERS       BOM(c) == b,
+                  material(c) IS Product     
+    PROPERTIES    READONLY  nameMaterial(c), wastageHeat(c,dt), wastageCold(c,dt), actBruttoNetWeight(c,dt), 
+                  actNettoNetWeight(c), actBruttoNetWeightSkus(c,dt), actNBruttoNetWeightSkus(c,dt)         
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku 
+    PROPERTIES(sk) READONLY Stock.name 
 
-    PROPERTIES     READONLY actBruttoNetWeightComponentSkuDate(c,sk,dt)
-    FILTERS        actBruttoNetWeightComponentSkuDate(c,sk,dt), actNBruttoNetWeightComponentSkuDate(c,sk,dt)
+    PROPERTIES     READONLY actBruttoNetWeight(c,sk,dt)
+    FILTERS        actBruttoNetWeight(c,sk,dt), actNBruttoNetWeight(c,sk,dt)
     
     OBJECTS cc = Component
-    PROPERTIES(cc) READONLY nameMaterialComponent, shortNameUOMComponent, overNettoNetWeightComponent
-    PROPERTIES    READONLY  wastageHeatComponentDate(cc,dt), wastageColdComponentDate(cc,dt), actBruttoNetWeightComponentDate(cc,dt), 
-                  actNettoNetWeightComponent(cc)                                    
+    PROPERTIES(cc) READONLY nameMaterial, shortNameUOM, overNettoNetWeight
+    PROPERTIES    READONLY  wastageHeat(cc,dt), wastageCold(cc,dt), actBruttoNetWeight(cc,dt), 
+                  actNettoNetWeight(cc)                                    
                   
-    FILTERS       BOMComponent(cc) == b,
-                  materialComponent(cc) IS Sku     
+    FILTERS       BOM(cc) == b,
+                  material(cc) IS Sku     
                   
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY nameContact, namePositionEmployee
-    FILTERS       inCommitteeBOMEmployee(b,e)                  
+    PROPERTIES(e) READONLY name[Contact], namePosition
+    FILTERS       inCommittee(b,e)                  
               
 ;
-printActStudyOfCulinaryBOM 'Акт контрольной проработки новый'  = ACTION (BOM) NEWSESSION {
+printActStudyOfCulinary 'Акт контрольной проработки новый'  = ACTION (BOM BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM actStudyOfCulinaryBOM OBJECTS dt = chosenDate('d'), b = BOM PRINT;
@@ -117,5 +117,5 @@ printActStudyOfCulinaryBOM 'Акт контрольной проработки �
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs
-    PROPERTIES(b) FORCE  PANEL printActStudyOfCulinaryBOM    
+    PROPERTIES(b) FORCE  PANEL printActStudyOfCulinary    
 ;

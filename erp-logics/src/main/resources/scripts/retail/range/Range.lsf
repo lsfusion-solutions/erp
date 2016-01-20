@@ -6,26 +6,26 @@ REQUIRE Store, Sku, Barcode, PriceListStore, EmployeeSku, PriceListDashboardStor
 
 CLASS RangeLevel 'Уровень ассортимента';
 TABLE rangeLevel(RangeLevel);
-nameRangeLevel 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
-rangeLevelName (name) = GROUP AGGR (level) BY nameRangeLevel (level);
+name 'Название' = DATA VARISTRING[10] (RangeLevel) IN recognize;
+rangeLevel (name) = GROUP AGGR (RangeLevel level) BY name (level);
 
 
 FORM rangeLevel 'Уровень ассортимента'
     OBJECTS l = RangeLevel FIXED PANEL
-    PROPERTIES(l) nameRangeLevel
+    PROPERTIES(l) name
 
     EDIT RangeLevel OBJECT l
 ;
 
 FORM rangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
-    PROPERTIES(l) READONLY nameRangeLevel
+    PROPERTIES(l) READONLY name
     PROPERTIES(l) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
 ;
 
 FORM dialogRangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
-    PROPERTIES(l) READONLY nameRangeLevel
+    PROPERTIES(l) READONLY name
     
     DIALOG RangeLevel OBJECT l
 ;
@@ -41,45 +41,45 @@ NAVIGATOR {
 // Ассортименты
 CLASS Range 'Ассортимент';
 TABLE range(Range);
-nameRange 'Название' = DATA VARISTRING[100] (Range) IN recognize;
+name 'Название' = DATA VARISTRING[100] (Range) IN recognize;
 
 TABLE rangeSkuGroup(Range, SkuGroup);
-inDataRangeSkuGroup 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
+inData 'Вкл' = DATA BOOLEAN (Range, SkuGroup);
 
-countSkuGroupRange 'Кол-во групп' = GROUP SUM 1 IF inDataRangeSkuGroup(r, g) BY r PERSISTENT; 
+countSkuGroup 'Кол-во групп' = GROUP SUM 1 IF inData(Range r, SkuGroup g) BY r PERSISTENT; 
 
-inParentRangeSkuGroup (range, parent) = GROUP SUM 1 IF inDataRangeSkuGroup(range, child) AND isParentSkuGroupSkuGroup(child, parent)
+inParent (range, parent) = GROUP SUM 1 IF inData(Range range, SkuGroup child) AND isParent(child, SkuGroup parent)
                               BY range, parent PERSISTENT;
 
-inChildRangeSkuGroup (range, child) = GROUP SUM 1 IF inDataRangeSkuGroup(range, parent) AND isParentSkuGroupSkuGroup(child, parent)
+inChild (range, child) = GROUP SUM 1 IF inData(Range range, SkuGroup parent) AND isParent(SkuGroup child, parent)
                               BY range, child PERSISTENT;
                               
-inChildRangeSku (range, sku) = inChildRangeSkuGroup(range, skuGroupSku(sku)); 
+inChild (Range range, Sku sku) = inChild(range, skuGroup(sku)); 
 
-quantityChildWithSkuGroupRange (skuGroup, range) = GROUP SUM 1 IF inDataRangeSkuGroup(range, childSkuGroup) AND isParentSkuGroupSkuGroup(childSkuGroup, skuGroup) BY skuGroup, range PERSISTENT;
-quantityParentWithSkuGroupRange (skuGroup, range) = GROUP SUM 1 IF inDataRangeSkuGroup(range, parentSkuGroup) AND isParentSkuGroupSkuGroup(skuGroup, parentSkuGroup) BY skuGroup, range PERSISTENT; 
+quantityChildWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup childSkuGroup) AND isParent(childSkuGroup, SkuGroup skuGroup) BY skuGroup, range PERSISTENT;
+quantityParentWith (skuGroup, range) = GROUP SUM 1 IF inData(Range range, SkuGroup parentSkuGroup) AND isParent(SkuGroup skuGroup, parentSkuGroup) BY skuGroup, range PERSISTENT; 
 
-backgroundInRangeSkuGroup 'Цвет' (range, skuGroup) = CASE 
-    WHEN inDataRangeSkuGroup(range, skuGroup) THEN RGB(0,0,0)
-    WHEN quantityChildWithSkuGroupRange (skuGroup,range) != descendantNumberSkuGroup(skuGroup) AND NOT quantityParentWithSkuGroupRange (skuGroup,range) THEN RGB(203,203,203);    
+backgroundIn 'Цвет' (Range range, SkuGroup skuGroup) = CASE 
+    WHEN inData(range, skuGroup) THEN RGB(0,0,0)
+    WHEN quantityChildWith (skuGroup,range) != descendantNumber(skuGroup) AND NOT quantityParentWith (skuGroup,range) THEN RGB(203,203,203);    
 
 TABLE rangeRangeLevel(Range, RangeLevel);
-inRangeRangeLevel 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
+in 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
 
 FORM range 'Ассортиментная матрица'
     OBJECTS r = Range FIXED PANEL
-    PROPERTIES(r) nameRange
+    PROPERTIES(r) name
 
     OBJECTS l = RangeLevel
-    PROPERTIES(l) READONLY nameRangeLevel
-    PROPERTIES(r, l) inRangeRangeLevel
+    PROPERTIES(l) READONLY name
+    PROPERTIES(r, l) in
 
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    PROPERTIES inDataRangeSkuGroup(r, sg) BACKGROUND backgroundInRangeSkuGroup(r, sg)
-    ORDER BY orderSkuGroup(sg), skuGroupName
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    PROPERTIES inData(r, sg) BACKGROUND backgroundIn(r, sg)
+    ORDER BY order(sg), skuGroupName
     
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
 
     EDIT Range OBJECT r
 ;
@@ -111,16 +111,16 @@ FORM ranges 'Ассортиментные матрицы'
     OBJECTS d = DATE FIXED PANEL
     PROPERTIES(d) OBJVALUE
 
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(sg), skuGroupName
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    ORDER BY order(sg), skuGroupName
     
     OBJECTS r = Range
-    PROPERTIES(r) READONLY nameRange
+    PROPERTIES(r) READONLY name
     PROPERTIES(r) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
-    FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
-    ORDER BY nameRange(r)
+    FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
+    ORDER BY name(r)
     
     DIALOG Range OBJECT r
 ;
@@ -138,8 +138,8 @@ DESIGN ranges {
     MOVE functions.box;
 }
 
-countSkuGroupEmployeeRange 'Кол-во групп' = GROUP SUM 1 IF inDataRangeSkuGroup(r, g) AND countAccessEmployeeSkuGroup(e, g) BY e, r; 
-EXTEND FORM ranges FILTERS (r IS Range AND NOT limitAccessEmployee(currentUser())) OR countSkuGroupEmployeeRange(currentUser(), r);
+countSkuGroup 'Кол-во групп' = GROUP SUM 1 IF inData(Range r, SkuGroup g) AND countAccess(Employee e, g) BY e, r; 
+EXTEND FORM ranges FILTERS (r IS Range AND NOT limitAccess(currentUser())) OR countSkuGroup(currentUser(), r);
 
 NAVIGATOR {
     retailRangeNavigator {
@@ -151,134 +151,134 @@ NAVIGATOR {
 
 CLASS RangeRev 'Версия ассортиментной матрицы';
 TABLE rangeRev(RangeRev);
-dateTimeRangeRev 'Действует (с)' = DATA DATETIME (RangeRev) IN recognize;
-dateTimeRangeRev(v) <- currentDateTime() WHEN SET(v IS RangeRev);
+dateTime 'Действует (с)' = DATA DATETIME (RangeRev) IN recognize;
+dateTime(RangeRev v) <- currentDateTime() WHEN SET(v IS RangeRev);
 
-dateRangeRev 'Действует (с)' (v) = toDate(dateTimeRangeRev(v)) PERSISTENT;
+date 'Действует (с)' (RangeRev v) = toDate(dateTime(v)) PERSISTENT;
 
-rangeRangeRev 'Ассортиментная матрица' = DATA Range(RangeRev) NOT NULL AUTOSET;  
+range 'Ассортиментная матрица' = DATA Range(RangeRev) NOT NULL AUTOSET;  
 
-rangeRevRangeDate 'Версия' = GROUP LAST rev
-                                       BY rangeRangeRev(rev), date
-                                       ORDER dateTimeRangeRev(rev), rev
-                                       WHERE dateRangeRev(rev) <= (date AS DATE) COMPLEX;
+rangeRev 'Версия' = GROUP LAST RangeRev rev
+                                       BY range(rev), DATE date
+                                       ORDER dateTime(rev), rev
+                                       WHERE date(rev) <= (date AS DATE) COMPLEX;
                            
 TABLE rangeRevSku(RangeRev, Sku);
-levelRangeRevSku = DATA RangeLevel(RangeRev, Sku);
-nameLevelRangeRevSku 'Уровень' (r, s)= nameRangeLevel(levelRangeRevSku(r, s));
+level = DATA RangeLevel(RangeRev, Sku);
+nameLevel 'Уровень' (RangeRev r, Sku s)= name(level(r, s));
 
-levelRangeSkuDate(r, s, d) = levelRangeRevSku(rangeRevRangeDate(r, d), s);
-nameLevelRangeSkuDate 'Уровень' (r, s, d) = nameRangeLevel(levelRangeSkuDate(r, s, d));
+level(Range r, Sku s, DATE d) = level(rangeRev(r, d), s);
+nameLevel 'Уровень' (Range r, Sku s, DATE d) = name(level(r, s, d));
 
-inRangeRevRangeLevel 'Вкл' = inRangeRangeLevel(rangeRangeRev(v), l);
+in 'Вкл' = in(range(RangeRev v), RangeLevel l);
 
-CONSTRAINT levelRangeRevSku(r, s) AND NOT inRangeRevRangeLevel(r, levelRangeRevSku(r, s))
-    CHECKED BY levelRangeRevSku 
+CONSTRAINT level(RangeRev r, Sku s) AND NOT in(r, level(r, s))
+    CHECKED BY level[RangeRev,Sku] 
     MESSAGE 'Уровень ассортимента для товара не соответствует типу ассортимента';
 
-countSkuRangeRev 'Кол-во товаров' = GROUP SUM 1 IF levelRangeRevSku(r, s) BY r; 
+countSku 'Кол-во товаров' = GROUP SUM 1 IF level(RangeRev r, Sku s) BY r; 
 
-countSkuRangeRevRangeLevel 'Кол-во товаров' = GROUP SUM 1 BY r, levelRangeRevSku(r, s);
+countSku 'Кол-во товаров' = GROUP SUM 1 BY RangeRev r, level(r, Sku s);
 
-countRecSkuRangeRevRangeLevel 'Кол-во товаров' = GROUP SUM countSkuRangeRevRangeLevel(r, l) IF l <= (level AS RangeLevel) BY r, level;
+countRecSku 'Кол-во товаров' = GROUP SUM countSku(RangeRev r, RangeLevel l) IF l <= (RangeLevel level AS RangeLevel) BY r, level;
 
-countSkuRangeDate 'Кол-во товаров' (r, d) = countSkuRangeRev(rangeRevRangeDate(r, d));
-countSkuRangeRangeLevelDate 'Кол-во товаров' (r, l, d)= countSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), l);
+countSku 'Кол-во товаров' (Range r, DATE d) = countSku(rangeRev(r, d));
+countSku 'Кол-во товаров' (Range r, RangeLevel l, DATE d)= countSku(rangeRev(r, d), l);
 
 filterSupplier = DATA LOCAL LegalEntity();
-nameFilterSupplier 'Поставщик' = nameLegalEntity(filterSupplier());
+nameFilterSupplier 'Поставщик' = name(filterSupplier());
 
-retailPriceASkuDepartmentStoreRangeRev 'Розничная цена (управленческая)' (s, d, v) =  
-    retailPriceASkuDepartmentStoreDateTime(s, d, dateTimeRangeRev(v));
+retailPriceA 'Розничная цена (управленческая)' (Sku s, DepartmentStore d, RangeRev v) =  
+    retailPriceA(s, d, dateTime(v));
 
-markupPriceASkuDepartmentStoreRangeRev 'Розничная цена (надбавка)' (pt, s, d, v) =
-    markupPriceABasePriceListTypeSkuDepartmentStoreDateTime(pt, s, d, dateTimeRangeRev(v));
+markupA 'Розничная цена (надбавка)' (BasePriceListType pt, Sku s, DepartmentStore d, RangeRev v) =
+    markupPriceA(pt, s, d, dateTime(v));
 
-valueVATSkuStockRangeRev 'НДС, %' (s, d, v) =
-    valueVATSkuStockDate(s, d, dateRangeRev(v));
+valueVAT 'НДС, %' (Sku s, Stock d, RangeRev v) =
+    valueVAT(s, d, date(v));
 
-priceALedgerPriceListTypeSkuStockRangeRev 'Цена' (pt, s, st, v)=  
-    priceALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
+priceA 'Цена' (LedgerPriceListType pt, Sku s, Stock st, RangeRev v)=  
+    priceA(pt, s, st, dateTime(v));
 
-nameCompanyALedgerPriceListTypeSkuStockRangeRev 'Поставщик' (pt, s, st, v)=  
-    nameCompanyALedgerPriceListTypeSkuStockDateTime(pt, s, st, dateTimeRangeRev(v));
+nameCompanyA 'Поставщик' (LedgerPriceListType pt, Sku s, Stock st, RangeRev v)=  
+    nameCompanyA(pt, s, st, dateTime(v));
 
 
-currentBalanceDepartmentsSku 'Остаток (все магазины)' (sku) = GROUP SUM currentBalanceSkuStock(sku, stock) IF stock IS DepartmentStore  BY sku;
-quantitySoldDepartmentsSkuDateFromTo 'Продано за интервал (кол-во) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
+currentBalanceDepartments 'Остаток (все магазины)' (sku) = GROUP SUM currentBalance(Sku sku, DepartmentStore stock) IF stock IS DepartmentStore  BY sku;
+quantitySoldDepartments 'Продано за интервал (кол-во) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
         BY sku, dateFrom, dateTo;
-sumSoldDepartmentsSkuDateFromTo 'Продано за интервал (сумма) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
-        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
+sumSoldDepartments 'Продано за интервал (сумма) (все магазины)' (sku, dateFrom, dateTo) = GROUP SUM
+        sumSold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
         BY sku, dateFrom, dateTo;
 
-currentBalanceSkuStore 'Остаток (все магазины)' (sku, store) = GROUP SUM currentBalanceSkuStock(sku, stock) IF stock IS DepartmentStore  BY sku, storeDepartmentStore(stock);
-quantitySoldStoreSkuDateFromTo 'Продано за интервал (кол-во)' (store, sku, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
-        BY storeDepartmentStore(stock), sku, dateFrom, dateTo;
-sumSoldStoreSkuDateFromTo 'Продано за интервал (сумма)' (store, sku, dateFrom, dateTo) = GROUP SUM
-        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo AND stock IS DepartmentStore
-        BY storeDepartmentStore(stock), sku, dateFrom, dateTo;
+currentBalance 'Остаток (все магазины)' (sku, store) = GROUP SUM currentBalance(Sku sku, DepartmentStore stock) IF stock IS DepartmentStore  BY sku, store(stock);
+quantitySold 'Продано за интервал (кол-во)' (store, sku, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
+        BY store(stock), sku, dateFrom, dateTo;
+sumSold 'Продано за интервал (сумма)' (store, sku, dateFrom, dateTo) = GROUP SUM
+        sumSold(Sku sku, DepartmentStore stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND stock IS DepartmentStore
+        BY store(stock), sku, dateFrom, dateTo;
 
-dateTimeLastMovedSkuStore 'Время последнего движения' = GROUP MAX dateTimeLastMovedSkuStock (sku, stock) BY sku, storeDepartmentStore(stock);
-dateLastMovedSkuStore 'Дата последнего движения'= toDate(dateTimeLastMovedSkuStore(s,st));
+dateTimeLastMoved 'Время последнего движения' = GROUP MAX dateTimeLastMoved (Sku sku, DepartmentStore stock) BY sku, store(stock);
+dateLastMoved 'Дата последнего движения'= toDate(dateTimeLastMoved(Sku s,Store st));
                                                                                        
-priceBLedgerPriceListTypeSkuStoreDateTime 'Цена' (type, sku, store, dateTime) =
-    GROUP LAST pricePriceListLedgerLedgerPriceListType(ledger, type)
-          BY type, skuPriceListLedger(ledger), storeDepartmentStore(stockPriceListLedger(ledger)), dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListType(ledger, type) AND
-                fromDateTimePriceListLedger(ledger) < dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;                                                                                        
+priceB 'Цена' (type, sku, store, dateTime) =
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type)
+          BY type, sku(ledger), store(stock(ledger)), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type) AND
+                fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;                                                                                        
                                                                                         
-lastAccountPriceSkuStore 'Учетная цена' (sku, store) = priceBLedgerPriceListTypeSkuStoreDateTime(SystemLedgerPriceListType.accountPriceListType,sku,store,currentDateTime());;                                                                                        
+lastAccountPrice 'Учетная цена' (Sku sku, Store store) = priceB(SystemLedgerPriceListType.accountPriceListType,sku,store,currentDateTime());;                                                                                        
 
-countSkusRangeRevRangeLevel 'Кол-во наименований' = GROUP SUM 1 BY v, levelRangeRevSku(v,sku);
+countSkus 'Кол-во наименований' = GROUP SUM 1 BY RangeRev v, level(v,Sku sku);
 
-countSkusRangeRevSupplier 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP SUM 1 IF levelRangeRevSku(v, sku)
-    BY v, companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
+countSkus 'Кол-во наименований (всего)' (v, supplier, pt, d) = GROUP SUM 1 IF level(RangeRev v, Sku sku)
+    BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
 
-hasSkusRangeRevSupplier 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP SUM 1 IF inChildRangeSku(rangeRangeRev(v), sku) 
-    BY v, companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
+hasSkus 'Кол-во наименований по всему поставщику' (v, supplier, pt, d) = GROUP SUM 1 IF inChild(range(RangeRev v), Sku sku) 
+    BY v, companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
     
-countSkusRangeRevRangeLevelSupplier 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1
-    BY v, levelRangeRevSku(v, sku), companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)), pt, d;
+countSkus 'Кол-во наименований' (v,l,supplier,pt,d) = GROUP SUM 1
+    BY RangeRev v, level(v, Sku sku), companyA(LedgerPriceListType pt, sku, Stock d, dateTime(v)), pt, d;
 
-lastOrderBatchSkuStore (sku, store) =
-    GROUP LAST lastOrderBatchSkuStock(sku, stock)
-        BY sku, storeDepartmentStore(stock)
-        ORDER dateTimeLastOrderBatchSkuStock(sku, stock), lastOrderBatchSkuStock(sku, stock)
-        WHERE lastOrderBatchSkuStock(sku, stock);
-dateTimeLastOrderBatchSkuStore 'Дата последнего прихода' (sku,store) = dateTimeBatch(lastOrderBatchSkuStore(sku,store));
-dateLastOrderBatchSkuStore 'Дата последнего прихода'= toDate(dateTimeLastOrderBatchSkuStore(s,st));
+lastOrderBatch (sku, store) =
+    GROUP LAST lastOrderBatch(Sku sku, DepartmentStore stock)
+        BY sku, store(stock)
+        ORDER dateTimeLastOrderBatch(sku, stock), lastOrderBatch(sku, stock)
+        WHERE lastOrderBatch(sku, stock);
+dateTimeLastOrderBatch 'Дата последнего прихода' (Sku sku,Store store) = dateTime(lastOrderBatch(sku,store));
+dateLastOrderBatch 'Дата последнего прихода'= toDate(dateTimeLastOrderBatch(Sku s,Store st));
 
-nameSupplierLastBatchSkuStore 'Последний поставщик' (sku,store) = nameSupplierBatch(lastOrderBatchSkuStore(sku,store)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+nameSupplierLastBatch 'Последний поставщик' (Sku sku,Store store) = nameSupplier(lastOrderBatch(sku,store)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 FORM currentBalanceSku 'Текущие остатки'
     OBJECTS s = Sku FIXED PANEL 
-    PROPERTIES nameSku(s) READONLY 
+    PROPERTIES name(s) READONLY 
         
     OBJECTS st = Store
-    PROPERTIES  READONLY nameStore(st), currentBalanceSkuStore(s,st), dateTimeLastMovedSkuStore(s,st), dateTimeLastOrderBatchSkuStore(s,st), lastAccountPriceSkuStore(s,st)
-    FILTERS currentBalanceSkuStore(s,st)
+    PROPERTIES  READONLY name(st), currentBalance(s,st), dateTimeLastMoved(s,st), dateTimeLastOrderBatch(s,st), lastAccountPrice(s,st)
+    FILTERS currentBalance(s,st)
 ;
-reviewCurrentBalanceSku (sku) = ACTION FORM currentBalanceSku OBJECTS s=sku MODAL;
+reviewCurrentBalance (Sku sku) = ACTION FORM currentBalanceSku OBJECTS s=sku MODAL;
 
 FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     OBJECTS s = Sku FIXED PANEL 
-    PROPERTIES nameSku(s) READONLY 
+    PROPERTIES name(s) READONLY 
     OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
     PROPERTIES READONLY valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
         
     OBJECTS st = Store
-    PROPERTIES  READONLY nameStore(st), quantitySoldStoreSkuDateFromTo(st,s,dFrom,dTo), sumSoldStoreSkuDateFromTo(st,s,dFrom,dTo)
-    FILTERS quantitySoldStoreSkuDateFromTo(st,s,dFrom,dTo) OR sumSoldStoreSkuDateFromTo(st,s,dFrom,dTo)
+    PROPERTIES  READONLY name(st), quantitySold(st,s,dFrom,dTo), sumSold(st,s,dFrom,dTo)
+    FILTERS quantitySold(st,s,dFrom,dTo) OR sumSold(st,s,dFrom,dTo)
 ;
-reviewSoldStoreSkuDateFromTo (sku, dFrom, dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
+reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
 
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
-quantityShelfRangeRevRangeLevelSku 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
+quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
 
-nameQuantityRangeLevel (rl) = CONCAT ' / ', '('+nameRangeLevel(rl)+')', 'к-во на полке'; 
+nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
 
 FORM rangeRevSelectSuppliers 'Выбор поставщика'
     OBJECTS v = RangeRev FIXED PANEL
@@ -286,11 +286,11 @@ FORM rangeRevSelectSuppliers 'Выбор поставщика'
     OBJECTS d = DepartmentStore FIXED PANEL
     
     OBJECTS l = LegalEntity
-    PROPERTIES(l) READONLY nameLegalEntity
-    FILTERS hasSkusRangeRevSupplier(v, l, p, d)
+    PROPERTIES(l) READONLY name
+    FILTERS hasSkus(v, l, p, d)
 ;
 
-changeNameFilterSupplier = ACTION (v, p, d) {
+changeNameFilterSupplier = ACTION (RangeRev v, PriceListType p, DepartmentStore d) {
     FORM rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         filterSupplier() <- chosenObject('l');
@@ -301,13 +301,13 @@ changeNameFilterSupplier = ACTION (v, p, d) {
 
 FORM rangeRev 'Версия ассортиментной матрицы'
     OBJECTS v = RangeRev FIXED PANEL
-    PROPERTIES(v) dateTimeRangeRev
+    PROPERTIES(v) dateTime
 
     OBJECTS pt = DataPriceListType FIXED PANEL
-    PROPERTIES(pt) SELECTOR namePriceListType
+    PROPERTIES(pt) SELECTOR name[PriceListType]
 
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) SELECTOR nameDepartmentStore
+    PROPERTIES(d) SELECTOR name
 
     PROPERTIES() nameFilterSupplier ON CHANGE changeNameFilterSupplier(v, pt, d) 
 
@@ -315,62 +315,62 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
     OBJECTS rl = RangeLevel    
-    FILTERS inRangeRevRangeLevel(v, rl)     
+    FILTERS in(v, rl)     
     
     
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku ON SHORTCUT showMovementSkuSkuStock(s, d) ON SHORTCUT showMovementPriceSkuSkuStock(s, d), nameUOMSku
-    PROPERTIES(s) amountPackSku ON CHANGE changePackSku(s) 
-    PROPERTIES READONLY    nameCompanyALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
-                           priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v),
-                           retailPriceASkuDepartmentStoreRangeRev(s, d, v),
-                           markupSkuDepartmentStore(s, d),
-                           valueVATSkuStockRangeRev(s, d, v),
-                           markupPriceASkuDepartmentStoreRangeRev(pt, s, d, v)
-    PROPERTIES(v, s) nameLevelRangeRevSku
-    PROPERTIES READONLY currentBalanceSkuStock(s,d), quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo), sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)
-    PROPERTIES currentBalanceDepartmentsSku(s) ON CHANGE reviewCurrentBalanceSku(s), quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo), 
-               sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo) ON CHANGE reviewSoldStoreSkuDateFromTo(s, dFrom, dTo)
+    PROPERTIES(s) READONLY idBarcode, id SHOWIF showIDs(), name ON SHORTCUT showMovementSku(s, d) ON SHORTCUT showMovementPriceSku(s, d), nameUOM
+    PROPERTIES(s) amountPack ON CHANGE changePack(s) 
+    PROPERTIES READONLY    nameCompanyA(pt, s, d, v),
+                           priceA(pt, s, d, v),
+                           retailPriceA(s, d, v),
+                           markup(s, d),
+                           valueVAT(s, d, v),
+                           markupA(pt, s, d, v)
+    PROPERTIES(v, s) nameLevel
+    PROPERTIES READONLY currentBalance(s,d), quantitySold(s,d,dFrom,dTo), sumSold(s,d,dFrom,dTo)
+    PROPERTIES currentBalanceDepartments(s) ON CHANGE reviewCurrentBalance(s), quantitySoldDepartments(s,dFrom,dTo) ON CHANGE reviewSoldStoreDate(s, dFrom, dTo), 
+               sumSoldDepartments(s,dFrom,dTo) ON CHANGE reviewSoldStoreDate(s, dFrom, dTo)
                
-    PROPERTIES quantityShelfRangeRevRangeLevelSku(v,rl,s) COLUMNS (rl) HEADER nameQuantityRangeLevel(rl)
+    PROPERTIES quantityShelf(v,rl,s) COLUMNS (rl) HEADER nameQuantity(rl)
               
-    FILTERS inChildRangeSku(rangeRangeRev(v), s),
-            (filterSupplier() AND priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, s, d, filterSupplier(), dateTimeRangeRev(v))) OR 
+    FILTERS inChild(range(v), s),
+            (filterSupplier() AND priceA(pt, s, d, filterSupplier(), dateTime(v))) OR 
                 (s IS Sku AND NOT filterSupplier())
     
     FILTERGROUP active 
-        FILTER 'Активный' activeSku(s) 'F11' DEFAULT
+        FILTER 'Активный' active(s) 'F11' DEFAULT
     
-    ORDER BY nameSku(s)
+    ORDER BY name(s)
     
     FILTERGROUP filters
-        FILTER 'Включен' levelRangeRevSku(v, s)  DEFAULT
-        FILTER 'Без поставщиков' levelRangeRevSku(v, s) AND NOT companyALedgerPriceListTypeSkuStockDateTime(pt, s, d, dateTimeRangeRev(v))
+        FILTER 'Включен' level(v, s)  DEFAULT
+        FILTER 'Без поставщиков' level(v, s) AND NOT companyA(pt, s, d, dateTime(v))
         
     OBJECTS store = Store
-    PROPERTIES  READONLY nameStore(store), nameStoreTypeStore(store), currentBalanceSkuStore(s,store), dateLastMovedSkuStore(s,store), 
-                dateLastOrderBatchSkuStore(s,store), nameSupplierLastBatchSkuStore(s,store), lastAccountPriceSkuStore(s,store),
-                quantitySoldStoreSkuDateFromTo(store,s,dFrom,dTo), sumSoldStoreSkuDateFromTo(store,s,dFrom,dTo)
-    ORDER BY nameStoreTypeStore(store)
-    FILTERS quantitySoldStoreSkuDateFromTo(store,s,dFrom,dTo) OR sumSoldStoreSkuDateFromTo(store,s,dFrom,dTo) OR currentBalanceSkuStore(s,store)         
+    PROPERTIES  READONLY name(store), nameStoreType(store), currentBalance(s,store), dateLastMoved(s,store), 
+                dateLastOrderBatch(s,store), nameSupplierLastBatch(s,store), lastAccountPrice(s,store),
+                quantitySold(store,s,dFrom,dTo), sumSold(store,s,dFrom,dTo)
+    ORDER BY nameStoreType(store)
+    FILTERS quantitySold(store,s,dFrom,dTo) OR sumSold(store,s,dFrom,dTo) OR currentBalance(s,store)         
           
     OBJECTS l = RangeLevel
-    PROPERTIES READONLY nameRangeLevel(l), countSkusRangeRevRangeLevel(v,l)  
-    FILTERS inRangeRevRangeLevel(v, l)  
+    PROPERTIES READONLY name(l), countSkus(v,l)  
+    FILTERS in(v, l)  
    
     OBJECTS l2 = RangeLevel FIXED GRID
-    FILTERS inRangeRevRangeLevel(v, l2)  
+    FILTERS in(v, l2)  
 
     OBJECTS su = LegalEntity
-    PROPERTIES READONLY nameLegalEntity(su), countSkusRangeRevSupplier(v, su, pt, d), countSkusRangeRevRangeLevelSupplier(v, l2, su, pt, d) COLUMNS (l2) HEADER nameRangeLevel(l2) 
-    ORDER BY nameLegalEntity(su)
-    FILTERS countSkusRangeRevSupplier(v, su, pt, d)         
+    PROPERTIES READONLY name(su), countSkus(v, su, pt, d), countSkus(v, l2, su, pt, d) COLUMNS (l2) HEADER name(l2) 
+    ORDER BY name(su)
+    FILTERS countSkus(v, su, pt, d)         
           
     EDIT RangeRev OBJECT v
 ;
 
 defaultDepartmentStore = DATA DepartmentStore();
-nameDefaultDepartmentStore 'Отдел магазина для ассортиментных матриц по умолчанию' = nameDepartmentStore(defaultDepartmentStore());
+nameDefaultDepartmentStore 'Отдел магазина для ассортиментных матриц по умолчанию' = name(defaultDepartmentStore());
 EXTEND FORM options
     PROPERTIES() nameDefaultDepartmentStore
 ;
@@ -393,23 +393,23 @@ EXTEND FORM rangeRev
     EVENTS ON INIT seekDefaultPriceListType()
 ;
 
-copyRangeRev 'Копировать' = ACTION (pr) NESTEDSESSION {
+copy 'Копировать' = ACTION (RangeRev pr) NESTEDSESSION {
     FOR ADDOBJ r = RangeRev DO {
-        rangeRangeRev(r) <- rangeRangeRev(pr);
-        levelRangeRevSku(r, s) <- levelRangeRevSku(pr, s);
+        range(r) <- range(pr);
+        level(r, Sku s) <- level(pr, s);
         FORM rangeRev OBJECTS v = r MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
 
 EXTEND FORM range
     OBJECTS vl = RangeLevel FIXED GRID
-    FILTERS inRangeRangeLevel(r, vl)
+    FILTERS in(r, vl)
     
     OBJECTS v = RangeRev
-    PROPERTIES(v) READONLY dateTimeRangeRev, countSkuRangeRev
-    PROPERTIES READONLY countSkuRangeRevRangeLevel(v, vl) COLUMNS (vl) HEADER nameRangeLevel(vl) 
-    PROPERTIES(v) ADDNESTEDFORM, EDITNESTEDFORM, copyRangeRev, DELETESESSION TOOLBAR FORCE PANEL
-    FILTERS rangeRangeRev(v) == r
+    PROPERTIES(v) READONLY dateTime, countSku
+    PROPERTIES READONLY countSku(v, vl) COLUMNS (vl) HEADER name(vl) 
+    PROPERTIES(v) ADDNESTEDFORM, EDITNESTEDFORM, copy, DELETESESSION TOOLBAR FORCE PANEL
+    FILTERS range(v) == r
 ;
 
 DESIGN range {
@@ -420,23 +420,23 @@ DESIGN range {
     }
 }
 
-countSkuNotSupplierTypeDepartmentStoreRangeRev 'Кол-во товаров без поставщика' = GROUP SUM 1 IF levelRangeRevSku(v, sku) AND pt IS DataPriceListType AND d IS DepartmentStore 
-    AND NOT companyALedgerPriceListTypeSkuStockDateTime(pt, sku, d, dateTimeRangeRev(v)) 
+countSkuNotSupplier 'Кол-во товаров без поставщика' = GROUP SUM 1 IF level(RangeRev v, Sku sku) AND DataPriceListType pt IS DataPriceListType AND DepartmentStore d IS DepartmentStore 
+    AND NOT companyA(pt, sku, d, dateTime(v)) 
         BY pt, d, v; 
-calcCountSkuNotSupplierTypeDepartmentStoreRangeDate 'Кол-во товаров без поставщика' (pt, d, r, dt) = countSkuNotSupplierTypeDepartmentStoreRangeRev(pt, d , rangeRevRangeDate(r, dt));
+calcCountSkuNotSupplier 'Кол-во товаров без поставщика' (DataPriceListType pt, DepartmentStore d, Range r, DATE dt) = countSkuNotSupplier(pt, d , rangeRev(r, dt));
 
-countSkuNotSupplierTypeDepartmentStoreRangeDate 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
+countSkuNotSupplier 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
 
-fillCountSkuNotSupplier 'Обновить' = ACTION (pt, d, dt) {
-    countSkuNotSupplierTypeDepartmentStoreRangeDate(pt, d, r, dt) <- calcCountSkuNotSupplierTypeDepartmentStoreRangeDate(pt, d, r, dt) WHERE r IS Range;   
+fillCountSkuNotSupplier 'Обновить' = ACTION (DataPriceListType pt, DepartmentStore d, DATE dt) {
+    countSkuNotSupplier(pt, d, Range r, dt) <- calcCountSkuNotSupplier(pt, d, r, dt) WHERE r IS Range;   
 }
-createRangeRevRangeDate 'Создать версию' = ACTION (range, date) NEWSESSION {
+createRangeRev 'Создать версию' = ACTION (Range range, DATE date) NEWSESSION {
     LOCAL rev = RangeRev();
-    rev () <- rangeRevRangeDate(range, date);
+    rev () <- rangeRev(range, date);
 
     FOR ADDOBJ v = RangeRev DO {
-        rangeRangeRev(v) <- range;
-        levelRangeRevSku(v, s) <- levelRangeRevSku(rev(), s);
+        range(v) <- range;
+        level(v, Sku s) <- level(rev(), s);
         FORM rangeRev OBJECTS v=v MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
@@ -444,25 +444,25 @@ createRangeRevRangeDate 'Создать версию' = ACTION (range, date) NEW
 EXTEND FORM ranges
     OBJECTS vl = RangeLevel FIXED GRID BEFORE r
 
-    PROPERTIES READONLY countSkuRangeDate(r, d)
-    PROPERTIES READONLY countSkuRangeRangeLevelDate(r, vl, d) TODRAW r COLUMNS (vl) HEADER nameRangeLevel(vl) 
+    PROPERTIES READONLY countSku(r, d)
+    PROPERTIES READONLY countSku(r, vl, d) TODRAW r COLUMNS (vl) HEADER name(vl) 
 
     OBJECTS pt = DataPriceListType FIXED PANEL
-    PROPERTIES(pt) SELECTOR namePriceListType
+    PROPERTIES(pt) SELECTOR name[PriceListType]
 
     OBJECTS ds = DepartmentStore FIXED PANEL
-    PROPERTIES(ds) SELECTOR nameDepartmentStore
-    FILTERS isCompanyStock(ds)
+    PROPERTIES(ds) SELECTOR name
+    FILTERS isCompany(ds)
     
     OBJECTS r1 = Range
-    PROPERTIES(r1) READONLY nameRange
-    FILTERS inParentRangeSkuGroup(r1, sg) OR NOT countSkuGroupRange(r1)        
+    PROPERTIES(r1) READONLY name
+    FILTERS inParent(r1, sg) OR NOT countSkuGroup(r1)        
     
-    PROPERTIES READONLY countSkuNotSupplierTypeDepartmentStoreRangeDate(pt,ds,r1,d)
-    PROPERTIES fillCountSkuNotSupplier(pt, ds, d) TODRAW r1 TOOLBAR , createRangeRevRangeDate(r1,d) 
+    PROPERTIES READONLY countSkuNotSupplier(pt,ds,r1,d)
+    PROPERTIES fillCountSkuNotSupplier(pt, ds, d) TODRAW r1 TOOLBAR , createRangeRev(r1,d) 
     
     FILTERGROUP notSupplier
-        FILTER 'Без поставщиков' countSkuNotSupplierTypeDepartmentStoreRangeDate(pt, ds, r1, d) DEFAULT 
+        FILTER 'Без поставщиков' countSkuNotSupplier(pt, ds, r1, d) DEFAULT 
     
 ;
 
@@ -493,201 +493,201 @@ DESIGN ranges {
         }        
     }
 }
-EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccessEmployee(currentUser())) OR countSkuGroupEmployeeRange(currentUser(), r1);
+EXTEND FORM ranges FILTERS (r1 IS Range AND NOT limitAccess(currentUser())) OR countSkuGroup(currentUser(), r1);
 
 
 @extendFormFilterSkuGroupAccess(ranges, sg);
 
 // ----------------- Связь ассортиментов и магазинов --------------- //
 
-useRangeStoreType 'Использовать ассортиментную матрицу' = DATA BOOLEAN (StoreType);
+useRange 'Использовать ассортиментную матрицу' = DATA BOOLEAN (StoreType);
 EXTEND FORM chainStores
-    PROPERTIES(s) useRangeStoreType AFTER nameStoreType(s)    
+    PROPERTIES(s) useRange AFTER name(s)    
 ;
-useRangeStore 'Использовать ассортиментную матрицу' (s) = useRangeStoreType(storeTypeStore(s)) PERSISTENT; 
-useRangeDepartmentStore 'Использовать ассортиментную матрицу' (s) = useRangeStore(storeDepartmentStore(s)) PERSISTENT; 
+useRange 'Использовать ассортиментную матрицу' (Store s) = useRange(storeType(s)) PERSISTENT; 
+useRange 'Использовать ассортиментную матрицу' (DepartmentStore s) = useRange(store(s)) PERSISTENT; 
 
 TABLE rangeStoreTypeDate(Range, StoreType, DATE);
-dataLevelRangeStoreTypeDate = DATA RangeLevel (Range, StoreType, DATE);
-excludeLevelRangeStoreTypeDate = DATA BOOLEAN (Range, StoreType, DATE);
+dataLevel = DATA RangeLevel (Range, StoreType, DATE);
+excludeLevel = DATA BOOLEAN (Range, StoreType, DATE);
 
-CONSTRAINT dataLevelRangeStoreTypeDate(r, t, d) AND NOT inRangeRangeLevel(r, dataLevelRangeStoreTypeDate(r, t, d))
-    CHECKED BY dataLevelRangeStoreTypeDate
+CONSTRAINT dataLevel(Range r, StoreType t, DATE d) AND NOT in(r, dataLevel(r, t, d))
+    CHECKED BY dataLevel[Range,StoreType,DATE]
     MESSAGE 'Уровень ассортимента для формата магазина не соответствует типу ассортимента';
 
-levelRangeStoreTypeDate (r, t, d) = GROUP LAST dataLevelRangeStoreTypeDate(range, storeType, dateIn)
-                                              BY range, storeType, date
+level (r, t, d) = GROUP LAST dataLevel(Range range, StoreType storeType, DATE dateIn)
+                                              BY range, storeType, DATE date
                                               ORDER dateIn
-                                              WHERE (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
+                                              WHERE (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn)) AND dateIn <= (date AS DATE); 
 
-dateRangeStoreTypeDate (r, t, d) = GROUP LAST dateIn
-                                              BY range, storeType, date
+date (r, t, d) = GROUP LAST DATE dateIn
+                                              BY Range range, StoreType storeType, DATE date
                                               ORDER dateIn
-                                              WHERE dataLevelRangeStoreTypeDate(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
+                                              WHERE dataLevel(range, storeType, dateIn) AND dateIn <= (date AS DATE); 
 
 //levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
-nameLevelRangeStoreTypeDate 'Уровень' (r, t, d)= nameRangeLevel(levelRangeStoreTypeDate(r, t, d)); 
+nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d)); 
 
-changeLevelRangeStoreTypeDate (r, t, d)= ACTION (r, t, d) {
+changeLevel (Range r, StoreType t, DATE d)= ACTION (r, t, d) {
     REQUEST OBJECT l
-        IF levelRangeStoreTypeDate(r, t, d) THEN {
-            FORM dialogRangeLevels OBJECTS l = levelRangeStoreTypeDate(r, t, d) CONTEXTFILTER l = dataLevelRangeStoreTypeDate(r, t, d) DIALOG SHOWDROP;
+        IF level(r, t, d) THEN {
+            FORM dialogRangeLevels OBJECTS l = level(r, t, d) CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
         } ELSE {
-            FORM dialogRangeLevels CONTEXTFILTER l = dataLevelRangeStoreTypeDate(r, t, d) DIALOG SHOWDROP;
+            FORM dialogRangeLevels CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
         }        
     IF formResult() == FormResult.ok THEN {
-        dataLevelRangeStoreTypeDate (r, t, d) <- requestedObject();
-        excludeLevelRangeStoreTypeDate (r, t, d) <- NULL;
+        dataLevel (r, t, d) <- requestedObject();
+        excludeLevel (r, t, d) <- NULL;
     } ELSE IF formResult() == FormResult.drop THEN {
-        dataLevelRangeStoreTypeDate (r, t, d) <- NULL;
-        excludeLevelRangeStoreTypeDate (r, t, d) <- TRUE;
+        dataLevel (r, t, d) <- NULL;
+        excludeLevel (r, t, d) <- TRUE;
     }
 }
 
-backgroundLevelRangeStoreTypeDate(range, storeType, dateIn) = (dataLevelRangeStoreTypeDate(range, storeType, dateIn) OR excludeLevelRangeStoreTypeDate(range, storeType, dateIn));
+backgroundLevel(Range range, StoreType storeType, DATE dateIn) = (dataLevel(range, storeType, dateIn) OR excludeLevel(range, storeType, dateIn));
 
-countSkuRangeStoreTypeDate 'Кол-во товаров' (r, t, d) = countRecSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), levelRangeStoreTypeDate(r, t, d));
+countSku 'Кол-во товаров' (Range r, StoreType t, DATE d) = countRecSku(rangeRev(r, d), level(r, t, d));
      
-quantityShelfRangeStoreTypeSkuDate 'Количество на полке'  = GROUP SUM quantityShelfRangeRevRangeLevelSku(rangeRevRangeDate(range, date), levelRangeStoreTypeDate(range, type, date), sku) 
+quantityShelf 'Количество на полке'  = GROUP SUM quantityShelf(rangeRev(Range range, DATE date), level(range, StoreType type, date), Sku sku) 
         BY range, type, sku, date;
 
-quantityShelfRangeStoreSkuDate 'Количество на полке'  (range, store, sku, date) =  quantityShelfRangeStoreTypeSkuDate(range, storeTypeStore(store), sku, date);   
+quantityShelf 'Количество на полке'  (Range range, Store store, Sku sku, DATE date) =  quantityShelf(range, storeType(store), sku, date);   
 
-quantityShelfStoreSkuDate 'Количество на полке'  (store, sku, date) = GROUP SUM quantityShelfRangeStoreSkuDate(r, st, sk, d) BY st, sk, d;   
-quantityShelfDepartmentStoreSkuDate 'Количество на полке'  (d, sku, date) = quantityShelfStoreSkuDate(storeDepartmentStore(d), sku, date);   
+quantityShelf 'Количество на полке'  (store, sku, date) = GROUP SUM quantityShelf(Range r, Store st, Sku sk, DATE d) BY st, sk, d;   
+quantityShelf 'Количество на полке'  (DepartmentStore d, Sku sku, DATE date) = quantityShelf(store(d), sku, date);   
 
 TABLE rangeStoreDate(Range, Store, DATE);
-dataLevelRangeStoreDate = DATA RangeLevel (Range, Store, DATE);
-excludeLevelRangeStoreDate = DATA BOOLEAN (Range, Store, DATE);
+dataLevel = DATA RangeLevel (Range, Store, DATE);
+excludeLevel = DATA BOOLEAN (Range, Store, DATE);
    
-CONSTRAINT dataLevelRangeStoreDate(r, st, d) AND NOT inRangeRangeLevel(r, dataLevelRangeStoreDate(r, st, d))
-    CHECKED BY dataLevelRangeStoreDate
+CONSTRAINT dataLevel(Range r, Store st, DATE d) AND NOT in(r, dataLevel(r, st, d))
+    CHECKED BY dataLevel[Range,Store,DATE]
     MESSAGE 'Уровень ассортимента для магазина не соответствует типу ассортимента';
 
-levelRangeStoreDate (r, st, d) = GROUP LAST dataLevelRangeStoreDate(range, st, dateIn)
-                                              BY range, st, date
+level (r, st, d) = GROUP LAST dataLevel(Range range, Store st, DATE dateIn)
+                                              BY range, st, DATE date
                                               ORDER dateIn
-                                              WHERE (dataLevelRangeStoreDate(range, st, dateIn) OR excludeLevelRangeStoreDate(range, st, dateIn)) AND dateIn <= (date AS DATE); 
+                                              WHERE (dataLevel(range, st, dateIn) OR excludeLevel(range, st, dateIn)) AND dateIn <= (date AS DATE); 
 
-dateRangeStoreDate (r, st, d) = GROUP LAST dateIn
-                                              BY range, st, date
+date (r, st, d) = GROUP LAST DATE dateIn
+                                              BY Range range, Store st, DATE date
                                               ORDER dateIn
-                                              WHERE dataLevelRangeStoreDate(range, st, dateIn) AND dateIn <= (date AS DATE); 
+                                              WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
 
-changeLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
+changeLevel (Range r, Store st, DATE d)= ACTION (r, st, d) {
     REQUEST OBJECT l
-        IF levelRangeStoreDate(r, st, d) THEN {
-            FORM dialogRangeLevels OBJECTS l = levelRangeStoreDate(r, st, d) CONTEXTFILTER l = dataLevelRangeStoreDate(r, st, d) DIALOG SHOWDROP;
+        IF level(r, st, d) THEN {
+            FORM dialogRangeLevels OBJECTS l = level(r, st, d) CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
         } ELSE {
-            FORM dialogRangeLevels CONTEXTFILTER l = dataLevelRangeStoreDate(r, st, d) DIALOG SHOWDROP;
+            FORM dialogRangeLevels CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
         }        
     IF formResult() == FormResult.ok THEN {
-        dataLevelRangeStoreDate (r, st, d) <- requestedObject();
-        excludeLevelRangeStoreDate (r, st, d) <- NULL;
+        dataLevel (r, st, d) <- requestedObject();
+        excludeLevel (r, st, d) <- NULL;
     } ELSE IF formResult() == FormResult.drop THEN {
-        dataLevelRangeStoreDate (r, st, d) <- NULL;
-        excludeLevelRangeStoreDate (r, st, d) <- TRUE;
+        dataLevel (r, st, d) <- NULL;
+        excludeLevel (r, st, d) <- TRUE;
     }
 }              
 
-changeWYSLevelRangeStoreDate (r, st, d)= ACTION (r, st, d) {
+changeWYSLevel (Range r, Store st, DATE d)= ACTION (r, st, d) {
     REQUEST VARISTRING[10] INPUT;
     
     IF requestedString() THEN {
-        dataLevelRangeStoreDate (r, st, d) <- [= GROUP MAX l BY nameRangeLevel(l)](requestedString());
-        excludeLevelRangeStoreDate (r, st, d) <- NULL;
+        dataLevel (r, st, d) <- [= GROUP MAX RangeLevel l BY name(l)](requestedString());
+        excludeLevel (r, st, d) <- NULL;
     } ELSE {
-        dataLevelRangeStoreDate (r, st, d) <- NULL;
-        excludeLevelRangeStoreDate (r, st, d) <- TRUE;
+        dataLevel (r, st, d) <- NULL;
+        excludeLevel (r, st, d) <- TRUE;
     }
 }              
-backgroundLevelRangeStoreDate(range, store, dateIn) = (dataLevelRangeStoreDate(range, store, dateIn) OR excludeLevelRangeStoreDate(range, store, dateIn));
+backgroundLevel(Range range, Store store, DATE dateIn) = (dataLevel(range, store, dateIn) OR excludeLevel(range, store, dateIn));
 
-countRangeSkuStoreTypeDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF levelRangeStoreTypeDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
+countRange 'В ассортименте' (s, t, d) = GROUP SUM 1 IF level(Range range, StoreType t, DATE d) >= level(range, Sku s, d) BY s, t, d;
 
-overLevelRangeStoreDate(r, st, d) = OVERRIDE levelRangeStoreTypeDate(r, storeTypeStore(st), d), levelRangeStoreDate(r, st, d);  
-overDateRangeStoreDate 'Дата включения' (r, st, d) = OVERRIDE dateRangeStoreTypeDate(r, storeTypeStore(st), d), dateRangeStoreDate(r, st, d);  
-nameOverLevelRangeStoreDate 'Уровень (перегруженный)' (r, st, d)= nameRangeLevel(overLevelRangeStoreDate(r, st, d));               
-nameLevelRangeStoreDate 'Уровень' (r, st, d)= nameRangeLevel(levelRangeStoreDate(r, st, d));
+overLevel(Range r, Store st, DATE d) = OVERRIDE level(r, storeType(st), d), level(r, st, d);  
+overDate 'Дата включения' (Range r, Store st, DATE d) = OVERRIDE date(r, storeType(st), d), date(r, st, d);  
+nameOverLevel 'Уровень (перегруженный)' (Range r, Store st, DATE d)= name(overLevel(r, st, d));               
+nameLevel 'Уровень' (Range r, Store st, DATE d)= name(level(r, st, d));
 
-countSkuRangeStoreDate 'Кол-во товаров' (r, st, d) = countRecSkuRangeRevRangeLevel(rangeRevRangeDate(r, d), overLevelRangeStoreDate(r, st, d));
+countSku 'Кол-во товаров' (Range r, Store st, DATE d) = countRecSku(rangeRev(r, d), overLevel(r, st, d));
 
 //overCountRangeSkuStoreDate 'В ассортименте' (s, t, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, t, d) >= levelRangeSkuDate(range, s, d) BY s, t, d;
 //countRangeSkuStoreDate 'В ассортименте' (s, st, d) = countRangeSkuStoreTypeDate(s, storeTypeStore(st), d);  
-countRangeSkuStoreDate 'В ассортименте' (s, st, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, st, d) >= levelRangeSkuDate(range, s, d) BY s, st, d;
-countRangeSkuDepartmentStoreDate 'В ассортименте' (s, ds, d) = countRangeSkuStoreDate(s, storeDepartmentStore(ds), d); 
-countRangeRangeSkuStoreDate 'В ассортименте' (r, s, st, d) = GROUP SUM 1 IF overLevelRangeStoreDate(range, st, d) >= levelRangeSkuDate(range, s, d) BY range, s, st, d;
+countRange 'В ассортименте' (s, st, d) = GROUP SUM 1 IF overLevel(Range range, Store st, DATE d) >= level(range, Sku s, d) BY s, st, d;
+countRange 'В ассортименте' (Sku s, DepartmentStore ds, DATE d) = countRange(s, store(ds), d); 
+countRange 'В ассортименте' (r, s, st, d) = GROUP SUM 1 IF overLevel(Range range, Store st, DATE d) >= level(range, Sku s, d) BY range, s, st, d;
 
 
-countRangeStoreSkuDate = GROUP SUM 1 IF levelRangeStoreDate(r, st, d) >= levelRangeSkuDate(r, sk, d) BY st, sk, d;
-countTypeRangeStoreSkuDate = GROUP SUM 1 IF levelRangeStoreTypeDate(r, storeTypeStore(st), d) >= levelRangeSkuDate(r, sk, d) BY st, sk, d;
+countRange = GROUP SUM 1 IF level(Range r, Store st, DATE d) >= level(r, Sku sk, d) BY st, sk, d;
+countTypeRange = GROUP SUM 1 IF level(Range r, storeType(Store st), DATE d) >= level(r, Sku sk, d) BY st, sk, d;
 
-statusRangeSkuDate 'Вид ассортимента' (st, s, d) = CASE WHEN countRangeStoreSkuDate(st, s, d) THEN 'Магазин'
-    WHEN countTypeRangeStoreSkuDate(st, s, d) THEN 'Формат';
+statusRange 'Вид ассортимента' (Store st, Sku s, DATE d) = CASE WHEN countRange(st, s, d) THEN 'Магазин'
+    WHEN countTypeRange(st, s, d) THEN 'Формат';
 
 FORM storeRange 'Ассортимент магазинов'
     OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
     PROPERTIES(d) OBJVALUE
-    PROPERTIES(c) SELECTOR nameChainStores
+    PROPERTIES(c) SELECTOR name
      
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(sg), skuGroupName
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    ORDER BY order(sg), skuGroupName
 
     // По форматам
     OBJECTS t = StoreType FIXED GRID
-    FILTERS chainStoresStoreType(t) == c
+    FILTERS chainStores(t) == c
     
     OBJECTS r = Range
-    PROPERTIES(r) READONLY nameRange
-    PROPERTIES(r, t, d) nameLevelRangeStoreTypeDate COLUMNS (t) HEADER nameStoreType(t) BACKGROUND backgroundLevelRangeStoreTypeDate(r, t, d) ON CHANGE changeLevelRangeStoreTypeDate(r, t, d),
-                        countSkuRangeStoreTypeDate COLUMNS(t) HEADER nameStoreType(t)
-    FILTERS inParentRangeSkuGroup(r, sg) OR NOT countSkuGroupRange(r)
-    ORDER BY nameRange(r)
+    PROPERTIES(r) READONLY name
+    PROPERTIES(r, t, d) nameLevel COLUMNS (t) HEADER name(t) BACKGROUND backgroundLevel(r, t, d) ON CHANGE changeLevel(r, t, d),
+                        countSku COLUMNS(t) HEADER name(t)
+    FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
+    ORDER BY name(r)
 
     OBJECTS s = Sku FIXED GRID 
-    PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
-    PROPERTIES(s, t, d) READONLY countRangeSkuStoreTypeDate COLUMNS (t) HEADER nameStoreType(t)
-    FILTERS levelRangeSkuDate(r, s, d)
+    PROPERTIES(s) READONLY idBarcode, name, nameUOM
+    PROPERTIES(s, t, d) READONLY countRange COLUMNS (t) HEADER name(t)
+    FILTERS level(r, s, d)
      
     // По магазинам
     OBJECTS st = Store FIXED GRID 
-    PROPERTIES READONLY nameStore(st), nameStoreTypeStore(st)
-    ORDER BY nameStoreTypeStore(st), nameStore(st)
+    PROPERTIES READONLY name(st), nameStoreType(st)
+    ORDER BY nameStoreType(st), name(st)
     
     OBJECTS sr = Range
-    PROPERTIES(sr) READONLY nameRange
-    PROPERTIES nameOverLevelRangeStoreDate(sr, st, d) BACKGROUND backgroundLevelRangeStoreDate(sr, st, d) ON CHANGE changeLevelRangeStoreDate(sr, st, d) ON CHANGEWYS changeWYSLevelRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st)
-    PROPERTIES countSkuRangeStoreDate(sr, st, d) COLUMNS (st) HEADER nameStore(st) 
-    ORDER BY nameRange(sr)
-    FILTERS inParentRangeSkuGroup(sr, sg) OR NOT countSkuGroupRange(sr)
+    PROPERTIES(sr) READONLY name
+    PROPERTIES nameOverLevel(sr, st, d) BACKGROUND backgroundLevel(sr, st, d) ON CHANGE changeLevel(sr, st, d) ON CHANGEWYS changeWYSLevel(sr, st, d) COLUMNS (st) HEADER name(st)
+    PROPERTIES countSku(sr, st, d) COLUMNS (st) HEADER name(st) 
+    ORDER BY name(sr)
+    FILTERS inParent(sr, sg) OR NOT countSkuGroup(sr)
     
     OBJECTS ss = Sku FIXED GRID 
-    PROPERTIES(ss) READONLY idBarcodeSku, nameSku, nameUOMSku
-    PROPERTIES READONLY nameLevelRangeSkuDate(sr, ss, d)
-    PROPERTIES(ss, st, d) READONLY countRangeSkuStoreDate COLUMNS (st) HEADER nameStore(st)
-    ORDER BY nameLevelRangeSkuDate(sr, ss, d), nameSku(ss)
-    FILTERS levelRangeSkuDate(sr, ss, d)
+    PROPERTIES(ss) READONLY idBarcode, name, nameUOM
+    PROPERTIES READONLY nameLevel(sr, ss, d)
+    PROPERTIES(ss, st, d) READONLY countRange COLUMNS (st) HEADER name(st)
+    ORDER BY nameLevel(sr, ss, d), name(ss)
+    FILTERS level(sr, ss, d)
 
     // -------------- Ассортимент магазина ------------------ //
     OBJECTS ds = Store FIXED PANEL
-    PROPERTIES (ds) nameStore SELECTOR
+    PROPERTIES (ds) name SELECTOR
     
-    TREE treeGroup g=SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
-    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
-    FILTERGROUP inactiveD FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+    TREE treeGroup g=SkuGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactiveD FILTER 'Активные' active(g) 'F5' DEFAULT
     
     OBJECTS sk = Sku 
-    PROPERTIES (sk) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku
-    PROPERTIES statusRangeSkuDate(ds, sk, d)
-    FILTERS isParentSkuGroupSku(g, sk) OR s IS Sku AND NOT g, countRangeSkuStoreDate(sk, ds, d)
+    PROPERTIES (sk) READONLY idBarcode, id SHOWIF showIDs(), name
+    PROPERTIES statusRange(ds, sk, d)
+    FILTERS isParent(g, sk) OR s IS Sku AND NOT g, countRange(sk, ds, d)
     
     OBJECTS rn = Range
-    PROPERTIES READONLY nameRange(rn), nameLevelRangeSkuDate(rn, sk, d), overDateRangeStoreDate(rn, st, d)
+    PROPERTIES READONLY name(rn), nameLevel(rn, sk, d), overDate(rn, st, d)
     PROPERTIES (rn) EDITFORM
-    FILTERS countRangeRangeSkuStoreDate (rn, sk, ds, d)
+    FILTERS countRange (rn, sk, ds, d)
 ;
 
 DESIGN storeRange {
@@ -714,7 +714,7 @@ DESIGN storeRange {
                     caption = 'По форматам';
                     MOVE r.box {
                         fill = 2;
-                        PROPERTY(countSkuRangeStoreTypeDate(r, t, d)) {
+                        PROPERTY(countSku(r, t, d)) {
                             background = #FFEEFF;
                         }
                     }
@@ -762,67 +762,67 @@ NAVIGATOR {
     }
 }
 
-countFilterRangeSkuStoreDate  = GROUP SUM 1 IF (currentBalanceSkuStock(sku,stock) OR dateTimeLastMovedSkuStock(sku, stock) > DATETIME(dateFrom AS DATE)) 
-    BY sku, storeDepartmentStore(stock), dateFrom;
+countFilterRange  = GROUP SUM 1 IF (currentBalance(Sku sku,DepartmentStore stock) OR dateTimeLastMoved(sku, stock) > DATETIME(DATE dateFrom AS DATE)) 
+    BY sku, store(stock), dateFrom;
 
     
-countFilterRangeSkuDate 'Кол-во магазинов' (range, sku, dateFrom) = GROUP SUM 1 IF countFilterRangeSkuStoreDate(sku, store, dateFrom) 
-    AND inChildRangeSku(range, sku)
+countFilter 'Кол-во магазинов' (range, sku, dateFrom) = GROUP SUM 1 IF countFilterRange(Sku sku, Store store, DATE dateFrom) 
+    AND inChild(Range range, sku)
     BY range, sku, dateFrom;
 
-countRangeLevel 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
-countRangeLevelsRange = GROUP SUM  countRangeLevel(l) IF inRangeRangeLevel(r,l) BY r;
+count 'Количество товара' = DATA LOCAL INTEGER (RangeLevel);
+countRangeLevels = GROUP SUM  count(RangeLevel l) IF in(Range r,l) BY r;
 
 //indexRangeGroupSkuDateFromTo 'Порядок' (range, sku, dateFrom, dateTo) =
 //    PARTITION SUM 1 IF countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo)
 //    BY range, dateFrom, dateTo
 //    ORDER DESC countFilterRangeSkuDateFromTo(range, sku, dateFrom, dateTo), sku;
 
-indexRangeGroupSkuDate 'Порядок' (v, sku, dateFrom, pt, stock) =
-    PARTITION SUM 1 IF countFilterRangeSkuDate(rangeRangeRev(v), sku, dateFrom) AND companyALedgerPriceListTypeSkuStockDateTime(pt, sku, stock, dateTimeRangeRev(v))
+indexGroup 'Порядок' (RangeRev v, Sku sku, DATE dateFrom, LedgerPriceListType pt, Stock stock) =
+    PARTITION SUM 1 IF countFilter(range(v), sku, dateFrom) AND companyA(pt, sku, stock, dateTime(v))
     BY v, dateFrom, pt, stock
-    ORDER DESC countFilterRangeSkuDate(rangeRangeRev(v), sku, dateFrom), sku;
+    ORDER DESC countFilter(range(v), sku, dateFrom), sku;
 
-countFilterRangeRevSkuDate 'Кол-во магазинов' (v, sku, dateFrom) = countFilterRangeSkuDate(rangeRangeRev(v), sku, dateFrom);
+countFilter 'Кол-во магазинов' (RangeRev v, Sku sku, DATE dateFrom) = countFilter(range(v), sku, dateFrom);
 
-totalRangeLevel 'Накоплено' (range, level) =
-    PARTITION SUM countRangeLevel(level) IF inRangeRangeLevel(range,level)
+total 'Накоплено' (Range range, RangeLevel level) =
+    PARTITION SUM count(level) IF in(range,level)
     BY range
     ORDER  level;
-total 'Накоплено' = totalRangeLevel(rangeRangeRev(v), level);      
+total 'Накоплено' = total(range(RangeRev v), RangeLevel level);      
     
-levelSkuRangeDate (sku, v, dateFrom, pt, stock) = 
-    GROUP MIN level IF indexRangeGroupSkuDate(v, sku, dateFrom, pt, stock) <= totalRangeLevel(rangeRangeRev(v), level)
+level (sku, v, dateFrom, pt, stock) = 
+    GROUP MIN RangeLevel level IF indexGroup(RangeRev v, Sku sku, DATE dateFrom, LedgerPriceListType pt, Stock stock) <= total(range(v), level)
           BY sku, v, dateFrom, pt, stock;
 
 
-countFilterRangeStoreDate 'Кол-во с продажей или остатком' (range, store, dateFrom) = GROUP SUM 1 IF countFilterRangeSkuStoreDate(sku, store, dateFrom) 
-    AND inChildRangeSku(range, sku)
+countFilter 'Кол-во с продажей или остатком' (range, store, dateFrom) = GROUP SUM 1 IF countFilterRange(Sku sku, Store store, DATE dateFrom) 
+    AND inChild(Range range, sku)
         BY range, store, dateFrom;
 
-countFilterRangeRevStoreDate 'Кол-во с продажей или остатком' (v, store, dateFrom) = countFilterRangeStoreDate(rangeRangeRev(v), store, dateFrom);
+countFilter 'Кол-во с продажей или остатком' (RangeRev v, Store store, DATE dateFrom) = countFilter(range(v), store, dateFrom);
 
-currentBalanceRangeStore 'Остаток (ассортимент)' (range, store) = GROUP SUM currentBalanceSkuStock(sku,stock) IF inChildRangeSku(range, sku)
-        BY range, storeDepartmentStore(stock);
+currentBalance 'Остаток (ассортимент)' (range, store) = GROUP SUM currentBalance(Sku sku,DepartmentStore stock) IF inChild(Range range, sku)
+        BY range, store(stock);
 
-currentBalanceRangeRevStore 'Остаток (ассортимент)' (v, store) = currentBalanceRangeStore(rangeRangeRev(v),store);
+currentBalance 'Остаток (ассортимент)' (RangeRev v, Store store) = currentBalance(range(v),store);
 
-nameLevelRangeRevStoreType 'Уровень' (v,t)= nameLevelRangeStoreTypeDate(rangeRangeRev(v), t, dateRangeRev(v));
-countSkuRangeRevStoreType 'Кол-во наименований' (v,t) = countSkuRangeStoreTypeDate(rangeRangeRev(v), t, dateRangeRev(v));
+nameLevel 'Уровень' (RangeRev v,StoreType t)= nameLevel(range(v), t, date(v));
+countSku 'Кол-во наименований' (RangeRev v,StoreType t) = countSku(range(v), t, date(v));
 
 EXTEND FORM rangeRev
-    PROPERTIES READONLY countFilterRangeRevSkuDate(v, s, dFrom)
+    PROPERTIES READONLY countFilter(v, s, dFrom)
     
     OBJECTS t = StoreType FIXED GRID
-    PROPERTIES READONLY nameStoreType(t)
-    PROPERTIES(v, t) nameLevelRangeRevStoreType, countSkuRangeRevStoreType
+    PROPERTIES READONLY name(t)
+    PROPERTIES(v, t) nameLevel, countSku
     
     OBJECTS st = Store FIXED GRID
-    PROPERTIES READONLY nameStore(st), countFilterRangeRevStoreDate(v, st, dFrom), currentBalanceRangeRevStore(v, st)
-    FILTERS activeStore(st)
+    PROPERTIES READONLY name(st), countFilter(v, st, dFrom), currentBalance(v, st)
+    FILTERS active(st)
     
     FILTERGROUP type
-        FILTER 'По форматам' storeTypeStore(st) == t DEFAULT 
+        FILTER 'По форматам' storeType(st) == t DEFAULT 
 ;
 DESIGN rangeRev {
     NEW rev {
@@ -863,8 +863,8 @@ DESIGN rangeRev {
                 MOVE store.box {
                     caption = 'Магазин остатки/продажи';
                     fill = 5;
-                    PROPERTY (nameStore(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
-                    PROPERTY (nameStoreTypeStore(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    PROPERTY (name(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
+                    PROPERTY (nameStoreType(store)) {minimumCharWidth = 10; preferredCharWidth = 15;}
                     REMOVE store.controls;
                 }
             }
@@ -879,17 +879,17 @@ DESIGN rangeRev {
                 caption = 'Товары';
                 MOVE s.box {
                     fill = 2;
-                    PROPERTY(priceALedgerPriceListTypeSkuStockRangeRev(pt, s, d, v)) {
+                    PROPERTY(priceA(pt, s, d, v)) {
                         caption = 'Цена закупки';
                     }  
-                    PROPERTY(nameLevelRangeRevSku(v,s)) { background = #CCCCFF; }
-                    PROPERTY(currentBalanceSkuStock(s,d)) { background = #F4FFBD; }  
-                    PROPERTY(quantitySoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
-                    PROPERTY(sumSoldSkuStockDateFromTo(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(nameLevel(v,s)) { background = #CCCCFF; }
+                    PROPERTY(currentBalance(s,d)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSold(s,d,dFrom,dTo)) { background = #CCFFCC; }  
                     
-                    PROPERTY(currentBalanceDepartmentsSku(s)) { background = #F4FFBD; }  
-                    PROPERTY(quantitySoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }  
-                    PROPERTY(sumSoldDepartmentsSkuDateFromTo(s,dFrom,dTo)) { background = #CCFFCC; }          
+                    PROPERTY(currentBalanceDepartments(s)) { background = #F4FFBD; }  
+                    PROPERTY(quantitySoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }  
+                    PROPERTY(sumSoldDepartments(s,dFrom,dTo)) { background = #CCFFCC; }          
                 }
                 
                 NEW supplier1 {
@@ -922,16 +922,16 @@ FORM param 'Параметры заполнения ассортиментной
     OBJECTS v = RangeRev FIXED PANEL 
 
     OBJECTS l = RangeLevel
-    PROPERTIES(l) nameRangeLevel READONLY, countRangeLevel 
-    FILTERS inRangeRevRangeLevel(v, l)
+    PROPERTIES(l) name READONLY, count 
+    FILTERS in(v, l)
     
 ;
 
-fillRangeRev 'Заполнить матрицу по остаткам и продажам' = ACTION (rangeRev, dateFrom, pt, stock) {
+fill 'Заполнить матрицу по остаткам и продажам' = ACTION (RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) {
     FORM param OBJECTS v = rangeRev MODAL;
     IF formResult() == FormResult.ok THEN { 
-        IF countRangeLevelsRange(rangeRangeRev(rangeRev)) THEN {
-            levelRangeRevSku(rangeRev,sku) <- levelSkuRangeDate (sku, rangeRev, dateFrom, pt, stock) WHERE levelSkuRangeDate (sku, rangeRev, dateFrom, pt, stock) ;
+        IF countRangeLevels(range(rangeRev)) THEN {
+            level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;
         } ELSE {
             MESSAGE 'Не задано количество товара ни для одного уровня ассортиментной матрицы.';
         }
@@ -941,21 +941,21 @@ fillRangeRev 'Заполнить матрицу по остаткам и про�
 
 
 EXTEND FORM rangeRev
-    PROPERTIES (v, dFrom, pt, d) fillRangeRev TODRAW s
+    PROPERTIES (v, dFrom, pt, d) fill TODRAW s
 ;
 
-nameGroupRange 'Включенные группы'(r) = GROUP CONCAT nameSkuGroup(g) IF inDataRangeSkuGroup(r,g), ',' BY r MINCHARWIDTH 50 PREFCHARWIDTH 50 ;
+nameGroup 'Включенные группы'(r) = GROUP CONCAT name(SkuGroup g) IF inData(Range r,g), ',' BY r MINCHARWIDTH 50 PREFCHARWIDTH 50 ;
 
-EXTEND FORM ranges PROPERTIES nameGroupRange(r);
+EXTEND FORM ranges PROPERTIES nameGroup(r);
 
-inRangeSku (r, s) = GROUP SUM 1 IF levelRangeRevSku(v, s) BY rangeRangeRev(v), s;
+in (r, s) = GROUP SUM 1 IF level(RangeRev v, Sku s) BY range(v), s;
 
 EXTEND FORM ranges 
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY idBarcodeSku, idSku SHOWIF showIDs(),nameSku, nameUOMSku, amountPackSku
-    PROPERTIES READONLY nameLevelRangeSkuDate(r, s, d)
-    ORDER BY nameLevelRangeSkuDate(r, s, d), nameSku(s)
-    FILTERS inRangeSku (r, s)
+    PROPERTIES(s) READONLY idBarcode, id SHOWIF showIDs(),name, nameUOM, amountPack
+    PROPERTIES READONLY nameLevel(r, s, d)
+    ORDER BY nameLevel(r, s, d), name(s)
+    FILTERS in (r, s)
 ;
 
 DESIGN ranges {
@@ -964,4 +964,4 @@ DESIGN ranges {
     }
 }
 
-CONSTRAINT levelRangeRevSku(v, s) AND NOT inChildRangeSku(rangeRangeRev(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
+CONSTRAINT level(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';

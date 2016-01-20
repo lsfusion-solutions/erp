@@ -6,19 +6,19 @@ PRIORITY Sale;
 
 // ------------------------------------- Печать ценников ------------------------------ //
 
-statusLabelPriceSaleInvoice 'Статус печати ценника' (invoice) = statusLabelPriceTransactionDocument(purchaseInvoiceInvoice(invoice));
-backgroundPrintLabelTransactionSaleInvoice 'Цвет' (invoice) = backgroundPrintLabelTransactionInvoice(purchaseInvoiceInvoice(invoice));
-createSaleInvoiceLabelTransaction 'Распечатать ценники' (invoice) = ACTION Purchase.createInvoiceLabelTransaction(purchaseInvoiceInvoice(invoice)) TOOLBAR;
-createSnapshotSaleInvoiceLabelTransaction 'Перепечатать ценники' (invoice) = ACTION Purchase.createSnapshotInvoiceLabelTransaction(purchaseInvoiceInvoice(invoice)) TOOLBAR;
+statusLabelPriceSale 'Статус печати ценника' (Invoice invoice) = statusLabel(purchaseInvoice(invoice));
+backgroundPrintLabelTransactionSale 'Цвет' (Invoice invoice) = backgroundPrintLabelTransaction(purchaseInvoice(invoice));
+createSaleLabelTransaction 'Распечатать ценники' (Invoice invoice) = ACTION createLabelTransaction(purchaseInvoice(invoice)) TOOLBAR;
+createSnapshotSaleLabelTransaction 'Перепечатать ценники' (Invoice invoice) = ACTION createSnapshotLabelTransaction(purchaseInvoice(invoice)) TOOLBAR;
 
 
-showToPrintLabelTransactionSaleInvoice 'Показывать' (invoice) = Purchase.showToPrintLabelTransactionInvoice(purchaseInvoiceInvoice(invoice))
-                                                                                      AND isCompanyStock(customerStockInvoice(invoice));
+showToPrintLabelTransactionSale 'Показывать' (Invoice invoice) = showToPrintLabelTransaction(purchaseInvoice(invoice))
+                                                                                      AND isCompany(customerStock(invoice));
 
 EXTEND FORM invoices
-PROPERTIES(i) statusLabelPriceSaleInvoice  BACKGROUND backgroundPrintLabelTransactionSaleInvoice(i) READONLY AFTER isCommissionInvoice(i),
-              createSaleInvoiceLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransactionSaleInvoice(i), 
-              createSnapshotSaleInvoiceLabelTransaction FORCE PANEL
+PROPERTIES(i) statusLabelPriceSale  BACKGROUND backgroundPrintLabelTransactionSale(i) READONLY AFTER isCommission(i),
+              createSaleLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransactionSale(i), 
+              createSnapshotSaleLabelTransaction FORCE PANEL
 ;
 DESIGN invoices {
     machineryContainer{
@@ -26,8 +26,8 @@ DESIGN invoices {
             caption = 'Ценники' ;
             type = CONTAINERV;
             
-            MOVE PROPERTY (createSaleInvoiceLabelTransaction(i));
-            MOVE PROPERTY (createSnapshotSaleInvoiceLabelTransaction(i));
+            MOVE PROPERTY (createSaleLabelTransaction(i));
+            MOVE PROPERTY (createSnapshotSaleLabelTransaction(i));
         }
     }
 }

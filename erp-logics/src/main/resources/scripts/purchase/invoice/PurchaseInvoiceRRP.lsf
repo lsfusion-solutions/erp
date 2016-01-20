@@ -13,49 +13,49 @@ NAMESPACE Purchase;
 
 @defineDocumentInterfaceDetailPriceListType (invoice, priceListType, RRP, ' (RRP)');
 
-RRPPriceListTypeUserInvoiceDetail(userInvoiceDetail) <- RRPPriceListTypeAgreement(agreementUserInvoice(userInvoiceUserInvoiceDetail(userInvoiceDetail)))
-    WHEN CHANGED (agreementUserInvoice(userInvoiceUserInvoiceDetail(userInvoiceDetail)));
+RRPPriceListType(UserInvoiceDetail userInvoiceDetail) <- RRPPriceListType(agreement(userInvoice(userInvoiceDetail)))
+    WHEN CHANGED (agreement(userInvoice(userInvoiceDetail)));
 
-currencyRRPUserInvoiceDetail (userInvoiceDetail) = currencyPriceListType(RRPPriceListTypeUserInvoiceDetail(userInvoiceDetail));
-nameCurrencyRRPUserInvoiceDetail 'Валюта (RRP)' (userInvoiceDetail) = nameCurrency(currencyRRPUserInvoiceDetail(userInvoiceDetail));
+currencyRRP (UserInvoiceDetail userInvoiceDetail) = currency(RRPPriceListType(userInvoiceDetail));
+nameCurrencyRRP 'Валюта (RRP)' (UserInvoiceDetail userInvoiceDetail) = name(currencyRRP(userInvoiceDetail));
 
-currencyRRPInvoiceDetail (invoiceDetail) = currencyPriceListType(RRPPriceListTypeInvoiceDetail(invoiceDetail));
-nameCurrencyRRPInvoiceDetail 'Валюта (RRP)' (invoiceDetail) = nameCurrency(currencyRRPInvoiceDetail(invoiceDetail));
+currencyRRP (InvoiceDetail invoiceDetail) = currency(RRPPriceListType(invoiceDetail));
+nameCurrencyRRP 'Валюта (RRP)' (InvoiceDetail invoiceDetail) = name(currencyRRP(invoiceDetail));
 
 @defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, RRP, ' (RRP)');
-WHEN SESSION (CHANGED(RRPPriceListTypeUserInvoiceDetail(detail)) OR
-         CHANGED(skuUserInvoiceDetail(detail)) OR
-         CHANGED(customerStockUserInvoiceDetail(detail)) OR
-         CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == RRPPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
-    RRPPriceUserInvoiceDetail (detail)  <-  prevPriceBPriceListTypeSkuStockDateTime(pt,
-                                                                                    skuUserInvoiceDetail(detail),
-                                                                                    customerStockUserInvoiceDetail(detail),
-                                                                                    dateTimeUserInvoiceDetail(detail));
+WHEN SESSION (CHANGED(RRPPriceListType(UserInvoiceDetail detail)) OR
+         CHANGED(sku(detail)) OR
+         CHANGED(customerStock(detail)) OR
+         CHANGED(dateTime(detail))) AND PriceListType pt == RRPPriceListType(detail) NOINLINE (pt) DO
+    RRPPrice (detail)  <-  prevPriceB(pt,
+                                                                                    sku(detail),
+                                                                                    customerStock(detail),
+                                                                                    dateTime(detail));
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showRRPUserInvoice
-    PROPERTIES(d) SHOWIF showRRPUserInvoice(i) BEFORE deleteid nameRRPPriceListTypeUserInvoiceDetail, nameCurrencyRRPUserInvoiceDetail READONLY, RRPPriceUserInvoiceDetail
+    PROPERTIES(i) showRRP
+    PROPERTIES(d) SHOWIF showRRP(i) BEFORE deleteid nameRRPPriceListType, nameCurrencyRRP READONLY, RRPPrice
 ;
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerRRP {
             caption = 'RRP';
-            MOVE PROPERTY(showRRPUserInvoice(i));
+            MOVE PROPERTY(showRRP(i));
         }
     }
 }
 
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showRRPInvoice(i) nameRRPPriceListTypeInvoiceDetail, nameCurrencyRRPInvoiceDetail, RRPPriceInvoiceDetail
+    PROPERTIES(d) READONLY SHOWIF showRRP(i) nameRRPPriceListType, nameCurrencyRRP, RRPPrice
 ;
 
 // Создаем виды цен
 EXTEND CLASS SystemLedgerPriceListType { purchaseRRPInvoiceStockPriceListType 'RRP (последняя по складу)' }
-batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType AND isCompanyStock(stock)
-                                               THEN priceBatchLedgerStock(stock);
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(RRPPriceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN CLASS(RRPPriceInvoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN RRPPriceInvoiceDetail(ledger);
+batch (SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType AND isCompany(stock)
+                                               THEN priceBatchLedger(stock);
+in (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN CLASS(RRPPrice(ledger)) AND type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN TRUE;
+price (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN CLASS(RRPPrice(ledger)) AND type == SystemLedgerPriceListType.purchaseRRPInvoiceStockPriceListType THEN RRPPrice(ledger);
 
 //// Тип обмена для RRP, пок не используется.
 //RRPTypeExchangeInvoiceDetail  (invoiceDetail) = ABSTRACT TypeExchange (InvoiceDetail) PERSISTENT;

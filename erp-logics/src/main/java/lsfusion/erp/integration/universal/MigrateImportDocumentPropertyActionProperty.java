@@ -24,13 +24,13 @@ public class MigrateImportDocumentPropertyActionProperty extends ScriptingAction
 
         DataObject object = context.getSingleDataKeyValue();
         try {
-            String propertyImportTypeDetail = (String) findProperty("propertyImportTypeDetail").read(context, object);
+            String propertyImportTypeDetail = (String) findProperty("property[ImportTypeDetail]").read(context, object);
             String moduleName = ImportDocumentActionProperty.getSplittedPart(propertyImportTypeDetail, "\\.", 0);
             String sidProperty = ImportDocumentActionProperty.getSplittedPart(propertyImportTypeDetail, "\\.", 1);
 
             ScriptingLogicsModule customModuleLM = context.getBL().getModule(moduleName);
             LCP<?> lp = customModuleLM.findProperty(sidProperty);
-            findProperty("propImportTypeDetail").change(findProperty("propertyCanonicalName").read(context, new DataObject(lp.property.getCanonicalName(), StringClass.get(255))), context, object);
+            findProperty("prop[ImportTypeDetail]").change(findProperty("propertyCanonicalName[VARSTRING[512]]").read(context, new DataObject(lp.property.getCanonicalName(), StringClass.get(255))), context, object);
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }

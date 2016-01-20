@@ -68,7 +68,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
         try {
 
-            ObjectValue accountObject = findProperty("importEmailOrderAccount").readClasses(context);
+            ObjectValue accountObject = findProperty("importEmailOrderAccount[]").readClasses(context);
             if (accountObject instanceof NullValue) {
                 ServerLoggers.systemLogger.error("Импорт из почты: не задан почтовый аккаунт");
             } else {
@@ -77,13 +77,13 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
                 QueryBuilder<Object, Object> emailQuery = new QueryBuilder<Object, Object>(emailKeys);
-                emailQuery.addProperty("fileAttachmentEmail", findProperty("fileAttachmentEmail").getExpr(attachmentEmailExpr));
-                emailQuery.addProperty("nameAttachmentEmail", findProperty("nameAttachmentEmail").getExpr(attachmentEmailExpr));
+                emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(attachmentEmailExpr));
+                emailQuery.addProperty("nameAttachmentEmail", findProperty("name[AttachmentEmail]").getExpr(attachmentEmailExpr));
 
-                emailQuery.and(findProperty("emailAttachmentEmail").getExpr(attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
-                emailQuery.and(findProperty("accountEmail").getExpr(emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
-                emailQuery.and(findProperty("notImportedOrderAttachmentEmail").getExpr(attachmentEmailExpr).getWhere());
-                emailQuery.and(findProperty("fileAttachmentEmail").getExpr(attachmentEmailExpr).getWhere());
+                emailQuery.and(findProperty("email[AttachmentEmail]").getExpr(attachmentEmailExpr).compare(emailExpr, Compare.EQUALS));
+                emailQuery.and(findProperty("account[Email]").getExpr(emailExpr).compare(accountObject.getExpr(), Compare.EQUALS));
+                emailQuery.and(findProperty("notImportedOrder[AttachmentEmail]").getExpr(attachmentEmailExpr).getWhere());
+                emailQuery.and(findProperty("file[AttachmentEmail]").getExpr(attachmentEmailExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> emailResult = emailQuery.executeClasses(context);
 
@@ -107,9 +107,9 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
     private void importOrder(ExecutionContext context, byte[] file) throws IOException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        Integer firstRow = (Integer) findProperty("importEmailOrderFirstRow").read(context);
-        String numberCell = (String) findProperty("importEmailOrderNumberCell").read(context);
-        String quantityColumn = (String) findProperty("importEmailOrderQuantityColumn").read(context);
+        Integer firstRow = (Integer) findProperty("importEmailOrderFirstRow[]").read(context);
+        String numberCell = (String) findProperty("importEmailOrderNumberCell[]").read(context);
+        String quantityColumn = (String) findProperty("importEmailOrderQuantityColumn[]").read(context);
 
         if (firstRow == null || !notNullNorEmpty(numberCell) || !notNullNorEmpty(quantityColumn)) {
             ServerLoggers.systemLogger.error("Импорт из почты: не все параметры заданы (начинать со строки, ячейка номера заказа или колонка количества)");
@@ -123,28 +123,28 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 List<ImportField> fields = new ArrayList<ImportField>();
                 List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-                ImportField seriesNumberUserOrderField = new ImportField(findProperty("Purchase.seriesNumberUserOrder"));
+                ImportField seriesNumberUserOrderField = new ImportField(findProperty("seriesNumber[UserOrder]"));
                 ImportKey<?> userOrderKey = new ImportKey((CustomClass) findClass("Purchase.UserOrder"),
-                        findProperty("orderSeriesNumber").getMapping(seriesNumberUserOrderField));
+                        findProperty("order[STRING[18]]").getMapping(seriesNumberUserOrderField));
                 userOrderKey.skipKey = true;
                 keys.add(userOrderKey);
                 fields.add(seriesNumberUserOrderField);
 
-                ImportField isConfirmedOrderField = new ImportField(findProperty("Purchase.isConfirmedOrder"));
-                props.add(new ImportProperty(isConfirmedOrderField, findProperty("Purchase.isConfirmedOrder").getMapping(userOrderKey)));
+                ImportField isConfirmedOrderField = new ImportField(findProperty("isConfirmed[Purchase.Order]"));
+                props.add(new ImportProperty(isConfirmedOrderField, findProperty("isConfirmed[Purchase.Order]").getMapping(userOrderKey)));
                 fields.add(isConfirmedOrderField);
 
-                ImportField indexUserOrderDetailField = new ImportField(findProperty("Purchase.indexUserOrderDetail"));
+                ImportField indexUserOrderDetailField = new ImportField(findProperty("index[UserOrderDetail]"));
                 ImportKey<?> userOrderDetailKey = new ImportKey((CustomClass) findClass("Purchase.UserOrderDetail"),
-                        findProperty("orderDetailIndexNumberOrder").getMapping(indexUserOrderDetailField, seriesNumberUserOrderField));
+                        findProperty("orderDetail[INTEGER,STRING[18]]").getMapping(indexUserOrderDetailField, seriesNumberUserOrderField));
                 userOrderDetailKey.skipKey = true;
                 keys.add(userOrderDetailKey);
-                props.add(new ImportProperty(seriesNumberUserOrderField, findProperty("Purchase.userOrderUserOrderDetail").getMapping(userOrderDetailKey),
+                props.add(new ImportProperty(seriesNumberUserOrderField, findProperty("userOrder[UserOrderDetail]").getMapping(userOrderDetailKey),
                         object(findClass("Purchase.UserOrder")).getMapping(userOrderKey)));
                 fields.add(indexUserOrderDetailField);
 
-                ImportField quantityUserOrderDetailField = new ImportField(findProperty("Purchase.quantityUserOrderDetail"));
-                props.add(new ImportProperty(quantityUserOrderDetailField, findProperty("Purchase.quantityUserOrderDetail").getMapping(userOrderDetailKey)));
+                ImportField quantityUserOrderDetailField = new ImportField(findProperty("quantity[UserOrderDetail]"));
+                props.add(new ImportProperty(quantityUserOrderDetailField, findProperty("quantity[UserOrderDetail]").getMapping(userOrderDetailKey)));
                 fields.add(quantityUserOrderDetailField);
 
                 ImportTable table = new ImportTable(fields, data);
@@ -162,7 +162,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
     private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = context.createSession()) {
-            findProperty("importedOrderAttachmentEmail").change(true, session, (DataObject) orderObject);
+            findProperty("importedOrder[AttachmentEmail]").change(true, session, (DataObject) orderObject);
             session.apply(context.getBL());
         }
     }

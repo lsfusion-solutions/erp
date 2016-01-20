@@ -7,101 +7,101 @@ NAMESPACE SaleLedger;
 //------------------- Продажи по артикулам -------------------------//
 
 
-nameArticleBalanceBStock (stock)= nameStock(stock) + ' (остаток на начало)';    
-nameArticleSumBStock (stock)= nameStock(stock) + ' (сумма на начало)';    
-nameArticleBalanceAStock (stock)= nameStock(stock) + ' (остаток на конец)';    
-nameArticleSumAStock (stock)= nameStock(stock) + ' (сумма на конец)';    
-nameArticleQuantitySoldStock (stock)= nameStock(stock) + ' (продано кол-во)';    
-nameArticleSumSoldStock (stock)= nameStock(stock) + ' (продано сумма)';    
-nameArticleDaysOnStockStock (stock)= nameStock(stock) + ' (дней на складе)';    
-nameArticleAverageReportSoldStock (stock)= nameStock(stock) + ' (продаж в день)';    
-nameArticleTurnoverStock (stock)= nameStock(stock) + ' (товарооборачиваемость)';
+nameArticleBalanceB (Stock stock)= name(stock) + ' (остаток на начало)';    
+nameArticleSumB (Stock stock)= name(stock) + ' (сумма на начало)';    
+nameArticleBalanceA (Stock stock)= name(stock) + ' (остаток на конец)';    
+nameArticleSumA (Stock stock)= name(stock) + ' (сумма на конец)';    
+nameArticleQuantitySold (Stock stock)= name(stock) + ' (продано кол-во)';    
+nameArticleSumSold (Stock stock)= name(stock) + ' (продано сумма)';    
+nameArticleDaysOnStock (Stock stock)= name(stock) + ' (дней на складе)';    
+nameArticleAverageReportSold (Stock stock)= name(stock) + ' (продаж в день)';    
+nameArticleTurnover (Stock stock)= name(stock) + ' (товарооборачиваемость)';
 
-nameArticleContractSumSoldStock (stock)= nameStock(stock) + ' (сумма контр. вал.)';    
-nameArticleCostSumSoldStock (stock)= nameStock(stock) + ' (сумма себестоимость)';    
-nameArticleMarkupSumSoldStock (stock)= nameStock(stock) + ' (сумма торг. надбавки)';    
-nameArticleVATSumSoldStock (stock)= nameStock(stock) + ' (сумма НДС)';    
-nameArticleAveragePriceSoldStock (stock)= nameStock(stock) + ' (цена ср.)';    
-nameArticleContractSumByrSoldStock (stock)= nameStock(stock) + ' (сумма контр. руб.)';    
-nameArticleAverageMarkupSoldStock (stock)= nameStock(stock) + ' (ср. % надбавки)';    
+nameArticleContractSumSold (Stock stock)= name(stock) + ' (сумма контр. вал.)';    
+nameArticleCostSumSold (Stock stock)= name(stock) + ' (сумма себестоимость)';    
+nameArticleMarkupSumSold (Stock stock)= name(stock) + ' (сумма торг. надбавки)';    
+nameArticleVATSumSold (Stock stock)= name(stock) + ' (сумма НДС)';    
+nameArticleAveragePriceSold (Stock stock)= name(stock) + ' (цена ср.)';    
+nameArticleContractSumByrSold (Stock stock)= name(stock) + ' (сумма контр. руб.)';    
+nameArticleAverageMarkupSold (Stock stock)= name(stock) + ' (ср. % надбавки)';    
     
-inArticleReportStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+inArticleReport 'Отм.' = DATA LOCAL BOOLEAN (Stock);
 
-filterBalanceArticleDateFromTo 'С остатком' (ar,dFrom, dTo) = GROUP SUM 1 IF inArticleReportStock(st) AND (balanceBArticleStockDate(ar,st,dFrom) OR balanceAArticleStockDate(ar,st,dTo))
+filterBalanceDate 'С остатком' (ar,dFrom, dTo) = GROUP SUM 1 IF inArticleReport(Stock st) AND (balanceB(Article ar,st,DATE dFrom) OR balanceA(ar,st,DATE dTo))
     BY ar,dFrom, dTo;
-filterSoldArticleDateFromTo 'С продажей' (ar,dFrom,dTo) = GROUP SUM quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo) IF inArticleReportStock(st) 
+filterSoldDate 'С продажей' (ar,dFrom,dTo) = GROUP SUM quantitySold(Article ar,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) 
     BY ar,dFrom,dTo;   
 
-daysOnStockArticleStock 'Дней на складе' = DATA LOCAL INTEGER (Article, Stock);
-averageReportSoldArticleStock 'Продаж в день' = DATA LOCAL NUMERIC[14,3] (Article, Stock);
-turnoverArticleStock 'Товарооборачиваемость' = DATA LOCAL NUMERIC[14,2] (Article, Stock);
+daysOnStock 'Дней на складе' = DATA LOCAL INTEGER (Article, Stock);
+averageReportSold 'Продаж в день' = DATA LOCAL NUMERIC[14,3] (Article, Stock);
+turnover 'Товарооборачиваемость' = DATA LOCAL NUMERIC[14,2] (Article, Stock);
 //-- Итого по всем выделенным складам 
-daysOnStockArticle 'Дней на складе (итого)' = DATA LOCAL INTEGER (Article);
-averageReportSoldArticle 'Продаж в день  (итого)' = DATA LOCAL NUMERIC[14,3] (Article);
-turnoverArticle 'Товарооборачиваемость  (итого)' = DATA LOCAL NUMERIC[14,2] (Article);
+daysOnStock 'Дней на складе (итого)' = DATA LOCAL INTEGER (Article);
+averageReportSold 'Продаж в день  (итого)' = DATA LOCAL NUMERIC[14,3] (Article);
+turnover 'Товарооборачиваемость  (итого)' = DATA LOCAL NUMERIC[14,2] (Article);
 
-filterBalanceSkuDateFromTo 'С остатком' (ks,dFrom, dTo) = GROUP SUM 1 IF inArticleReportStock(st) AND (balanceBSkuStockDate(ks,st,dFrom) OR balanceASkuStockDate(ks,st,dTo))
+filterBalanceDate 'С остатком' (ks,dFrom, dTo) = GROUP SUM 1 IF inArticleReport(Stock st) AND (balanceB(Sku ks,st,DATE dFrom) OR balanceA(ks,st,DATE dTo))
     BY ks,dFrom, dTo;
-filterSoldSkuDateFromTo 'С продажей' (ks,dFrom,dTo) = GROUP SUM quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) 
+filterSoldDate 'С продажей' (ks,dFrom,dTo) = GROUP SUM quantitySold(Sku ks,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) 
     BY ks,dFrom,dTo; 
       
-quantitySoldInArticleDateFromTo 'Продано за интервал (кол-во)' (article, dateFrom, dateTo) = GROUP SUM
-        quantitySoldArticleStockDateFromTo(article, stock, dateFrom, dateTo) IF inArticleReportStock(stock)
+quantitySoldIn 'Продано за интервал (кол-во)' (article, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Article article, Stock stock, DATE dateFrom, DATE dateTo) IF inArticleReport(stock)
         BY article, dateFrom, dateTo;      
       
 
-calcSaleArticleParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (dateFrom, dateTo) {
+calcSaleArticleParamsInterval 'Рассчитать продажи в день и товарооборачиваемость' = ACTION (DATE dateFrom, DATE dateTo) {
     LOCAL balance = NUMERIC[14,3] (Article, Stock);
     LOCAL cumBalance = NUMERIC[16,3] (Article, Stock);
     LOCAL dateCur = DATE();
 
     dateCur() <- dateFrom;
-    balance(a, stock) <- balanceBArticleStockDate(a, stock, dateFrom) WHERE inArticleReportStock(stock);
-    daysOnStockArticleStock(a, stock) <- NULL;
+    balance(Article a, Stock stock) <- balanceB(a, stock, dateFrom) WHERE inArticleReport(stock);
+    daysOnStock(Article a, Stock stock) <- NULL;
     
-    daysOnStockArticle(a) <- NULL;
+    daysOnStock(Article a) <- NULL;
     
     WHILE dateCur() <= dateTo DO {
-        daysOnStockArticleStock(a, stock) <- daysOnStockArticleStock(a, stock) (+)
-                   (1 IF ((balance(a, stock) > 0) OR (quantityArticleStockDate(a, stock, dateCur()) > 0)));
-        cumBalance(a, stock) <- cumBalance(a, stock) (+) balance(a, stock);  
-        balance(a, stock) <- balance(a, stock) (+)
-                   signedQuantityArticleStockDate(a, stock, dateCur());
-        daysOnStockArticle(a) <- daysOnStockArticle(a) (+) (1 IF [ = GROUP SUM 1 IF ((balance(a, stock) > 0) OR (quantityArticleStockDate(a, stock, dateCur()) > 0)) AND inArticleReportStock(stock) BY a](a));                                                
+        daysOnStock(Article a, Stock stock) <- daysOnStock(a, stock) (+)
+                   (1 IF ((balance(a, stock) > 0) OR (quantity(a, stock, dateCur()) > 0)));
+        cumBalance(Article a, Stock stock) <- cumBalance(a, stock) (+) balance(a, stock);  
+        balance(Article a, Stock stock) <- balance(a, stock) (+)
+                   signedQuantity(a, stock, dateCur());
+        daysOnStock(Article a) <- daysOnStock(a) (+) (1 IF [ = GROUP SUM 1 IF ((balance(Article a, Stock stock) > 0) OR (quantity(a, stock, dateCur()) > 0)) AND inArticleReport(stock) BY a](a));                                                
 
-        dateCur() <- sumDate(dateCur(), 1);
+        dateCur() <- sum(dateCur(), 1);
     }
 
-    averageReportSoldArticleStock(a, stock) <- quantitySoldArticleStockDateFromTo (a, stock, dateFrom, dateTo) / daysOnStockArticleStock(a, stock);
-    turnoverArticleStock(a, stock) <- IF quantitySoldArticleStockDateFromTo (a, stock, dateFrom, dateTo) != 0 THEN
-                                         cumBalance(a, stock) / quantitySoldArticleStockDateFromTo (a, stock, dateFrom, dateTo)
+    averageReportSold(Article a, Stock stock) <- quantitySold (a, stock, dateFrom, dateTo) / daysOnStock(a, stock);
+    turnover(Article a, Stock stock) <- IF quantitySold (a, stock, dateFrom, dateTo) != 0 THEN
+                                         cumBalance(a, stock) / quantitySold (a, stock, dateFrom, dateTo)
                                       ELSE
                                         9999.99;
                                         
-    averageReportSoldArticle(a) <- quantitySoldInArticleDateFromTo (a, dateFrom, dateTo) / daysOnStockArticle(a);
-    turnoverArticle(a) <- IF quantitySoldInArticleDateFromTo (a, dateFrom, dateTo) != 0 THEN
-                                         [ = GROUP SUM cumBalance(a, stock) IF inArticleReportStock(stock) BY a](a) / quantitySoldInArticleDateFromTo (a, dateFrom, dateTo)
+    averageReportSold(Article a) <- quantitySoldIn (a, dateFrom, dateTo) / daysOnStock(a);
+    turnover(Article a) <- IF quantitySoldIn (a, dateFrom, dateTo) != 0 THEN
+                                         [ = GROUP SUM cumBalance(Article a, Stock stock) IF inArticleReport(stock) BY a](a) / quantitySoldIn (a, dateFrom, dateTo)
                                       ELSE
                                         9999.99;                                    
                                         
 } TOOLBAR; 
 
 
-balanceBInReportArticleDate 'Итого (остаток на начало)' (ar,dFrom)= GROUP SUM balanceBArticleStockDate(ar,st,dFrom) IF inArticleReportStock(st) BY ar, dFrom;
-quantitySoldInReportArticleDateFromTo 'Итого (продано кол-во)' (ar,dFrom,dTo)= GROUP SUM quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo) IF inArticleReportStock(st) BY ar, dFrom, dTo;
-balanceAInReportArticleDate 'Итого (остаток на конец)' (ar,dTo)= GROUP SUM balanceAArticleStockDate(ar,st,dTo) IF inArticleReportStock(st) BY ar, dTo;
+balanceBInReport 'Итого (остаток на начало)' (ar,dFrom)= GROUP SUM balanceB(Article ar,Stock st,DATE dFrom) IF inArticleReport(st) BY ar, dFrom;
+quantitySoldInReportDate 'Итого (продано кол-во)' (ar,dFrom,dTo)= GROUP SUM quantitySold(Article ar,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ar, dFrom, dTo;
+balanceAInReport 'Итого (остаток на конец)' (ar,dTo)= GROUP SUM balanceA(Article ar,Stock st,DATE dTo) IF inArticleReport(st) BY ar, dTo;
 
-sumBInReportArticleDate 'Итого (сумма на начало)' (ar,dFrom)= GROUP SUM sumBArticleStockDate(ar,st,dFrom) IF inArticleReportStock(st) BY ar, dFrom;
-sumSoldInReportArticleDateFromTo 'Итого (продано сумма)' (ar,dFrom,dTo)= GROUP SUM sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo) IF inArticleReportStock(st) BY ar, dFrom, dTo;
-sumAInReportArticleDate 'Итого (сумма на конец)' (ar,dTo)= GROUP SUM sumAArticleStockDate(ar,st,dTo) IF inArticleReportStock(st) BY ar, dTo; 
+sumBInReport 'Итого (сумма на начало)' (ar,dFrom)= GROUP SUM sumB(Article ar,Stock st,DATE dFrom) IF inArticleReport(st) BY ar, dFrom;
+sumSoldInReportDate 'Итого (продано сумма)' (ar,dFrom,dTo)= GROUP SUM sumSold(Article ar,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ar, dFrom, dTo;
+sumAInReport 'Итого (сумма на конец)' (ar,dTo)= GROUP SUM sumA(Article ar,Stock st,DATE dTo) IF inArticleReport(st) BY ar, dTo; 
 
-balanceBInReportSkuDate 'Итого (остаток на начало)' (ks,dFrom)= GROUP SUM balanceBSkuStockDate(ks,st,dFrom) IF inArticleReportStock(st) BY ks, dFrom;
-quantitySoldInReportSkuDateFromTo 'Итого (продано кол-во)' (ks,dFrom,dTo)= GROUP SUM quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) BY ks, dFrom, dTo;
-balanceAInReportSkuDate 'Итого (остаток на конец)' (ks,dTo)= GROUP SUM balanceASkuStockDate(ks,st,dTo) IF inArticleReportStock(st) BY ks, dTo;
+balanceBInReport 'Итого (остаток на начало)' (ks,dFrom)= GROUP SUM balanceB(Sku ks,Stock st,DATE dFrom) IF inArticleReport(st) BY ks, dFrom;
+quantitySoldInReportDate 'Итого (продано кол-во)' (ks,dFrom,dTo)= GROUP SUM quantitySold(Sku ks,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ks, dFrom, dTo;
+balanceAInReport 'Итого (остаток на конец)' (ks,dTo)= GROUP SUM balanceA(Sku ks,Stock st,DATE dTo) IF inArticleReport(st) BY ks, dTo;
 
-sumBInReportSkuDate 'Итого (сумма на начало)' (ks,dFrom)= GROUP SUM sumBSkuStockDate(ks,st,dFrom) IF inArticleReportStock(st) BY ks, dFrom;
-sumSoldInReportSkuDateFromTo 'Итого (продано сумма)' (ks,dFrom,dTo)= GROUP SUM sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo) IF inArticleReportStock(st) BY ks, dFrom, dTo;
-sumAInReportSkuDate 'Итого (сумма на конец)' (ks,dTo)= GROUP SUM sumASkuStockDate(ks,st,dTo) IF inArticleReportStock(st) BY ks, dTo; 
+sumBInReport 'Итого (сумма на начало)' (ks,dFrom)= GROUP SUM sumB(Sku ks,Stock st,DATE dFrom) IF inArticleReport(st) BY ks, dFrom;
+sumSoldInReportDate 'Итого (продано сумма)' (ks,dFrom,dTo)= GROUP SUM sumSold(Sku ks,Stock st,DATE dFrom,DATE dTo) IF inArticleReport(st) BY ks, dFrom, dTo;
+sumAInReport 'Итого (сумма на конец)' (ks,dTo)= GROUP SUM sumA(Sku ks,Stock st,DATE dTo) IF inArticleReport(st) BY ks, dTo; 
 
 FORM saleArticle 'Продажи по артикулам'
 
@@ -109,102 +109,102 @@ FORM saleArticle 'Продажи по артикулам'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
        
     OBJECTS gt = GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType    
+    PROPERTIES(gt) SELECTOR name    
     
     
-    TREE skuTree sk = Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(sk), skuTreeName = nameGroup(sk)
-    ORDER BY orderGroup(sk), skuTreeName
-    FILTERS groupTypeGroup(sk) == gt
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(sk) 'F5' DEFAULT       
+    TREE skuTree sk = Group PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERS groupType(sk) == gt
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT       
      
     OBJECTS ts = Stock
-    PROPERTIES tsTreeName = nameStock(ts) READONLY, nameLegalEntityStock(ts) READONLY, inArticleReportStock(ts)
+    PROPERTIES tsTreeName = name(ts) READONLY, nameLegalEntity(ts) READONLY, inArticleReport(ts)
     ORDER BY tsTreeName
-    FILTERS isCompanyStock(ts)     
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
+    FILTERS isCompany(ts)     
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
       
     OBJECTS st = Stock      
-    FILTERS isCompanyStock(st),
-            activeStock(st),
-            inArticleReportStock(st)
+    FILTERS isCompany(st),
+            active(st),
+            inArticleReport(st)
             
     OBJECTS ar = Article 
-    PROPERTIES(ar) READONLY idArticle, captionArticle,
-                   nameSkuGroup3Article, nameSkuGroup4Article, nameSkuGroup5Article, imageArticle FORCE PANEL, imageArticleGrid=imageArticle
-    PROPERTIES     READONLY balanceBArticleStockDate(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st), 
-                   balanceBInReportArticleDate(ar,dFrom)
-    PROPERTIES     READONLY quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st),
-                   quantitySoldInReportArticleDateFromTo(ar,dFrom,dTo)
-    PROPERTIES     READONLY balanceAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st),
-                   balanceAInReportArticleDate(ar,dTo)
+    PROPERTIES(ar) READONLY id, caption,
+                   nameSkuGroup3, nameSkuGroup4, nameSkuGroup5, image FORCE PANEL, imageArticleGrid=image
+    PROPERTIES     READONLY balanceB(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceB(st), 
+                   balanceBInReport(ar,dFrom)
+    PROPERTIES     READONLY quantitySold(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySold(st),
+                   quantitySoldInReportDate(ar,dFrom,dTo)
+    PROPERTIES     READONLY balanceA(ar,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceA(st),
+                   balanceAInReport(ar,dTo)
 
-    PROPERTIES     READONLY sumBArticleStockDate(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st),
-                   sumBInReportArticleDate(ar,dFrom)
-    PROPERTIES     READONLY sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st),
-                   sumSoldInReportArticleDateFromTo(ar,dFrom,dTo)
-    PROPERTIES     READONLY sumAArticleStockDate(ar,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st),    
-                   sumAInReportArticleDate(ar,dTo)
+    PROPERTIES     READONLY sumB(ar,st,dFrom)  COLUMNS (st) HEADER nameArticleSumB(st),
+                   sumBInReport(ar,dFrom)
+    PROPERTIES     READONLY sumSold(ar,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSold(st),
+                   sumSoldInReportDate(ar,dFrom,dTo)
+    PROPERTIES     READONLY sumA(ar,st,dTo)  COLUMNS (st) HEADER nameArticleSumA(st),    
+                   sumAInReport(ar,dTo)
                    
-    PROPERTIES     READONLY daysOnStockArticleStock(ar, st) COLUMNS (st) HEADER nameArticleDaysOnStockStock(st),
-                   daysOnStockArticle(ar)
-    PROPERTIES     READONLY averageReportSoldArticleStock(ar, st) COLUMNS (st) HEADER nameArticleAverageReportSoldStock(st),
-                   averageReportSoldArticle(ar)
-    PROPERTIES     READONLY turnoverArticleStock(ar, st) COLUMNS (st) HEADER nameArticleTurnoverStock(st),
-                   turnoverArticle(ar) 
+    PROPERTIES     READONLY daysOnStock(ar, st) COLUMNS (st) HEADER nameArticleDaysOnStock(st),
+                   daysOnStock(ar)
+    PROPERTIES     READONLY averageReportSold(ar, st) COLUMNS (st) HEADER nameArticleAverageReportSold(st),
+                   averageReportSold(ar)
+    PROPERTIES     READONLY turnover(ar, st) COLUMNS (st) HEADER nameArticleTurnover(st),
+                   turnover(ar) 
 
     PROPERTIES(dFrom, dTo) calcSaleArticleParamsInterval FORCE PANEL TODRAW ar
                 
-    FILTERS           isParentGroupArticle(sk, ar)                
+    FILTERS           isParent(sk, ar)                
                             
     FILTERGROUP filtersSold
-        FILTER 'С движением' filterSoldArticleDateFromTo(ar,dFrom,dTo) OR filterBalanceArticleDateFromTo(ar,dFrom,dTo) 'F11' DEFAULT
-        FILTER 'С продажей' filterSoldArticleDateFromTo(ar,dFrom,dTo) 'F10'
-        FILTER 'С остатком' filterBalanceArticleDateFromTo(ar,dFrom,dTo) 'F9'      
+        FILTER 'С движением' filterSoldDate(ar,dFrom,dTo) OR filterBalanceDate(ar,dFrom,dTo) 'F11' DEFAULT
+        FILTER 'С продажей' filterSoldDate(ar,dFrom,dTo) 'F10'
+        FILTER 'С остатком' filterBalanceDate(ar,dFrom,dTo) 'F9'      
              
     OBJECTS sts = Stock      
-    FILTERS isCompanyStock(sts),
-            inArticleReportStock(sts)                             
-    FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(sts) 'ctrl F10' DEFAULT                         
+    FILTERS isCompany(sts),
+            inArticleReport(sts)                             
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(sts) 'ctrl F10' DEFAULT                         
     OBJECTS ks = Sku 
-    PROPERTIES(ks) READONLY idBarcodeSku, nameSku, nameSkuGroup3Sku, nameSkuGroup4Sku, nameSkuGroup5Sku                            
-    PROPERTIES     READONLY balanceBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceBStock(st),
-                   balanceBInReportSkuDate(ks,dFrom)
-    PROPERTIES     READONLY quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySoldStock(st),
-                   quantitySoldInReportSkuDateFromTo(ks,dFrom,dTo)
-    PROPERTIES     READONLY balanceASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceAStock(st),
-                   balanceAInReportSkuDate(ks,dTo) 
+    PROPERTIES(ks) READONLY idBarcode, name, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5                            
+    PROPERTIES     READONLY balanceB(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleBalanceB(st),
+                   balanceBInReport(ks,dFrom)
+    PROPERTIES     READONLY quantitySold(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleQuantitySold(st),
+                   quantitySoldInReportDate(ks,dFrom,dTo)
+    PROPERTIES     READONLY balanceA(ks,st,dTo)  COLUMNS (st) HEADER nameArticleBalanceA(st),
+                   balanceAInReport(ks,dTo) 
     
-    PROPERTIES     READONLY sumBSkuStockDate(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleSumBStock(st),
-                   sumBInReportSkuDate(ks,dFrom)
-    PROPERTIES     READONLY sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSoldStock(st),
-                   sumSoldInReportSkuDateFromTo(ks,dFrom,dTo)
-    PROPERTIES     READONLY sumASkuStockDate(ks,st,dTo)  COLUMNS (st) HEADER nameArticleSumAStock(st),
-                   sumAInReportSkuDate(ks,dTo)                  
+    PROPERTIES     READONLY sumB(ks,st,dFrom)  COLUMNS (st) HEADER nameArticleSumB(st),
+                   sumBInReport(ks,dFrom)
+    PROPERTIES     READONLY sumSold(ks,st,dFrom,dTo)  COLUMNS (st) HEADER nameArticleSumSold(st),
+                   sumSoldInReportDate(ks,dFrom,dTo)
+    PROPERTIES     READONLY sumA(ks,st,dTo)  COLUMNS (st) HEADER nameArticleSumA(st),
+                   sumAInReport(ks,dTo)                  
                              
-    FILTERS           articleItem(ks) == ar  
+    FILTERS           article(ks) == ar  
               
     FILTERGROUP filtersSold1
-        FILTER 'С движением' filterSoldSkuDateFromTo(ks,dFrom,dTo) OR filterBalanceSkuDateFromTo(ks,dFrom,dTo) 'F11' DEFAULT
-        FILTER 'С продажей' filterSoldSkuDateFromTo(ks,dFrom,dTo) 'F10'
-        FILTER 'С остатком' filterBalanceSkuDateFromTo(ks,dFrom,dTo) 'F9'      
+        FILTER 'С движением' filterSoldDate(ks,dFrom,dTo) OR filterBalanceDate(ks,dFrom,dTo) 'F11' DEFAULT
+        FILTER 'С продажей' filterSoldDate(ks,dFrom,dTo) 'F10'
+        FILTER 'С остатком' filterBalanceDate(ks,dFrom,dTo) 'F9'      
                       
     OBJECTS s = SaleLedger
-    PROPERTIES(s) READONLY dateTimeSaleLedger, 
-                           nameStockSaleLedger, nameCustomerSaleLedger, 
-                           nameSkuSaleLedger,
-                           quantitySaleLedger,
-                           averagePriceSaleLedger,
-                           sumSaleLedger 
-    ORDER BY nameStockSaleLedger(s)
+    PROPERTIES(s) READONLY dateTime, 
+                           nameStock, nameCustomer, 
+                           nameSku,
+                           quantity,
+                           averagePrice,
+                           sum 
+    ORDER BY nameStock(s)
                            
-    FILTERS activeSaleLedger(s),
-            dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo,                      
-            inArticleReportStock(stockSaleLedger(s)),
-            articleItem(skuSaleLedger(s)) == ar                                        
+    FILTERS active(s),
+            date(s) >= dFrom, date(s) <= dTo,                      
+            inArticleReport(stock(s)),
+            article(sku(s)) == ar                                        
 ;
 
-EXTEND FORM saleArticle FILTERS (ts IS Stock AND NOT limitAccessEmployee(currentUser())) OR accessCompanyEmployeeStock(currentUser(),ts);
+EXTEND FORM saleArticle FILTERS (ts IS Stock AND NOT limitAccess(currentUser())) OR accessCompany(currentUser(),ts);
 
 DESIGN saleArticle {
     NEW top {
@@ -231,7 +231,7 @@ DESIGN saleArticle {
             NEW imageBox {
                 fill = 1;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(imageArticle(ar)) {
+                MOVE PROPERTY(image(ar)) {
                     caption = '';
                     fill = 1;
                 }
@@ -250,30 +250,30 @@ DESIGN saleArticle {
         }     
     } 
     MOVE functions.box;
-    PROPERTY(balanceBArticleStockDate(ar,st,dFrom)) { background = #FFEEEE; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumBArticleStockDate(ar,st,dFrom)) { background = #FFEEEE; }
-    PROPERTY(quantitySoldArticleStockDateFromTo(ar,st,dFrom,dTo)) { background = #CCFFCC; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumSoldArticleStockDateFromTo(ar,st,dFrom,dTo)) { background = #CCFFCC; }
-    PROPERTY(balanceAArticleStockDate(ar,st,dTo)) { background = #BDE3FF; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumAArticleStockDate(ar,st,dTo)) { background = #BDE3FF; }        
+    PROPERTY(balanceB(ar,st,dFrom)) { background = #FFEEEE; minimumCharWidth = 2; preferredCharWidth = 2;}
+    PROPERTY(sumB(ar,st,dFrom)) { background = #FFEEEE; }
+    PROPERTY(quantitySold(ar,st,dFrom,dTo)) { background = #CCFFCC; minimumCharWidth = 2; preferredCharWidth = 2;}
+    PROPERTY(sumSold(ar,st,dFrom,dTo)) { background = #CCFFCC; }
+    PROPERTY(balanceA(ar,st,dTo)) { background = #BDE3FF; minimumCharWidth = 2; preferredCharWidth = 2;}
+    PROPERTY(sumA(ar,st,dTo)) { background = #BDE3FF; }        
 
-    PROPERTY(balanceBInReportArticleDate(ar,dFrom)) { minimumCharWidth = 4; preferredCharWidth = 4;}
-    PROPERTY(quantitySoldInReportArticleDateFromTo(ar,dFrom,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
-    PROPERTY(balanceAInReportArticleDate(ar,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(balanceBInReport(ar,dFrom)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(quantitySoldInReportDate(ar,dFrom,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(balanceAInReport(ar,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
    
-    PROPERTY(balanceBSkuStockDate(ks,st,dFrom)) { background = #FFEEEE; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumBSkuStockDate(ks,st,dFrom)) { background = #FFEEEE; }
-    PROPERTY(quantitySoldSkuStockDateFromTo(ks,st,dFrom,dTo)) { background = #CCFFCC; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumSoldSkuStockDateFromTo(ks,st,dFrom,dTo)) { background = #CCFFCC; }
-    PROPERTY(balanceASkuStockDate(ks,st,dTo)) { background = #BDE3FF; minimumCharWidth = 2; preferredCharWidth = 2;}
-    PROPERTY(sumASkuStockDate(ks,st,dTo)) { background = #BDE3FF; }
+    PROPERTY(balanceB(ks,st,dFrom)) { background = #FFEEEE; minimumCharWidth = 2; preferredCharWidth = 2;}
+    PROPERTY(sumB(ks,st,dFrom)) { background = #FFEEEE; }
+    PROPERTY(quantitySold(ks,st,dFrom,dTo)) { background = #CCFFCC; minimumCharWidth = 2; preferredCharWidth = 2;}
+    PROPERTY(sumSold(ks,st,dFrom,dTo)) { background = #CCFFCC; }
+    PROPERTY(balanceA(ks,st,dTo)) { background = #BDE3FF; minimumCharWidth = 2; preferredCharWidth = 2;}
+    PROPERTY(sumA(ks,st,dTo)) { background = #BDE3FF; }
 
-    PROPERTY(balanceBInReportSkuDate(ks,dFrom)) { minimumCharWidth = 4; preferredCharWidth = 4;}
-    PROPERTY(quantitySoldInReportSkuDateFromTo(ks,dFrom,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
-    PROPERTY(balanceAInReportSkuDate(ks,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(balanceBInReport(ks,dFrom)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(quantitySoldInReportDate(ks,dFrom,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
+    PROPERTY(balanceAInReport(ks,dTo)) { minimumCharWidth = 4; preferredCharWidth = 4;}
     
-    PROPERTY(quantitySaleLedger(s)) { background = #CCFFCC; }
-    PROPERTY(sumSaleLedger(s)) { background = #CCFFCC; }
+    PROPERTY(quantity(s)) { background = #CCFFCC; }
+    PROPERTY(sum(s)) { background = #CCFFCC; }
     
 }
 

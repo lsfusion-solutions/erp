@@ -14,79 +14,79 @@ TABLE giftCard(GiftCard);
 
 // Уникальность
 giftCardSeriesNumber (string) =
-    GROUP AGGR giftCard
-        BY seriesNumberGiftCard(giftCard) WHERE giftCard IS GiftCard;
+    GROUP AGGR GiftCard giftCard
+        BY seriesNumber(giftCard) WHERE giftCard IS GiftCard;
 
 
-dateGiftCard 'Дата' = DATA DATE(GiftCard);
-expiryDaysGiftCard 'Срок действия (дней)' = DATA INTEGER(GiftCard);
+date 'Дата' = DATA DATE(GiftCard);
+expiryDays 'Срок действия (дней)' = DATA INTEGER(GiftCard);
 
-priceGiftCard 'Цена' = DATA NUMERIC[14,2] (GiftCard);
+price 'Цена' = DATA NUMERIC[14,2] (GiftCard);
 
 //регистр движений подарочного сертификата
 CLASS ABSTRACT GiftCardLedger 'Движение подарочных сертификатов';
 
-giftCardGiftCardLedger = ABSTRACT GiftCard (GiftCardLedger);
-dateTimeGiftCardLedger 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger);
-seriesNumberGiftCardLedger 'Серия/Номер' = ABSTRACT STRING[20] (GiftCardLedger);
-sumGiftCardLedger 'Сумма' = ABSTRACT NUMERIC[16,2] (GiftCardLedger);
-descriptionGiftCardLedger 'Описание' = ABSTRACT STRING[15] (GiftCardLedger);
+giftCard = ABSTRACT GiftCard (GiftCardLedger);
+dateTime 'Дата/время' = ABSTRACT DATETIME (GiftCardLedger);
+seriesNumber 'Серия/Номер' = ABSTRACT STRING[20] (GiftCardLedger);
+sum 'Сумма' = ABSTRACT NUMERIC[16,2] (GiftCardLedger);
+description 'Описание' = ABSTRACT STRING[15] (GiftCardLedger);
 
 //продажа подарочных сертификатов
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, GiftCardLedger;
 
 @defineExternalizable(receiptGiftCardSaleDetail, VARSTRING[100]);
 
-giftCardReceiptGiftCardSaleDetail = DATA GiftCard (ReceiptGiftCardSaleDetail);
+giftCard = DATA GiftCard (ReceiptGiftCardSaleDetail);
 
-receiptReceiptGiftCardSaleDetail = DATA Receipt (ReceiptGiftCardSaleDetail);
-receiptReceiptDetail(detail) += receiptReceiptGiftCardSaleDetail(detail);
-zReportReceiptGiftCardSaleDetail(d) = zReportReceipt(receiptReceiptGiftCardSaleDetail(d)); 
+receipt = DATA Receipt (ReceiptGiftCardSaleDetail);
+receipt(ReceiptGiftCardSaleDetail detail) += receipt(detail);
+zReport(ReceiptGiftCardSaleDetail d) = zReport(receipt(d)); 
 
 @defineDocumentDetailPosted(receipt, ReceiptGiftCardSaleDetail);
-isPostedReceiptDetail(d) += isPostedReceiptGiftCardSaleDetail(d); 
+isPosted(ReceiptGiftCardSaleDetail d) += isPosted(d); 
 
 @defineDocumentDetailClosed(receipt, ReceiptGiftCardSaleDetail);
-isClosedReceiptDetail(d) += isPostedReceiptGiftCardSaleDetail(d); 
+isClosed(ReceiptGiftCardSaleDetail d) += isPosted(d); 
 
 @defineDocumentDetailDepartmentStoreCustom(receipt, receiptGiftCardSaleDetail);
-departmentStoreReceiptDetail (d) += departmentStoreReceiptGiftCardSaleDetail(d);
+departmentStore (ReceiptGiftCardSaleDetail d) += departmentStore(d);
 
-soldGiftCard (giftCard) =
-    GROUP AGGR detail
-        BY giftCardReceiptGiftCardSaleDetail(detail) WHERE detail IS ReceiptGiftCardSaleDetail;
-isSoldGiftCard 'Продан' (giftCard) = TRUE IF soldGiftCard(giftCard);
-dateSoldGiftCard 'Дата продажи' (giftCard) = dateReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)));
-nameDepartmentStoreSoldGiftCard 'Где продан' (giftCard) = nameDepartmentStoreReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)));
+sold (giftCard) =
+    GROUP AGGR ReceiptGiftCardSaleDetail detail
+        BY giftCard(detail) WHERE detail IS ReceiptGiftCardSaleDetail;
+isSold 'Продан' (GiftCard giftCard) = TRUE IF sold(giftCard);
+dateSold 'Дата продажи' (GiftCard giftCard) = date(receipt(sold(giftCard)));
+nameDepartmentStoreSold 'Где продан' (GiftCard giftCard) = nameDepartmentStore(receipt(sold(giftCard)));
 
-typeReceiptDetail(detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
-quantityReceiptDetail(detail) += 1.0 IF detail IS ReceiptGiftCardSaleDetail;
+type(ReceiptGiftCardSaleDetail detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
+quantity(ReceiptGiftCardSaleDetail detail) += 1.0 IF detail IS ReceiptGiftCardSaleDetail;
 
-priceReceiptGiftCardSaleDetail 'Цена' = DATA NUMERIC[14,2] (ReceiptGiftCardSaleDetail);
-priceReceiptDetail(detail) += priceReceiptGiftCardSaleDetail(detail);
+price 'Цена' = DATA NUMERIC[14,2] (ReceiptGiftCardSaleDetail);
+price(ReceiptGiftCardSaleDetail detail) += price(detail);
 
-sumReceiptGiftCardSaleDetail 'Сумма' = DATA NUMERIC[16,2] (ReceiptGiftCardSaleDetail);
-sumReceiptDetail(detail) += sumReceiptGiftCardSaleDetail(detail);
-signedSumReceiptDetail(detail) += sumReceiptGiftCardSaleDetail(detail);
+sum 'Сумма' = DATA NUMERIC[16,2] (ReceiptGiftCardSaleDetail);
+sum[ReceiptDetail](ReceiptGiftCardSaleDetail detail) += sum(detail);
+signedSum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 
-sumReceiptDetailGiftCardZReport 'Сумма проданных сертификатов' (zReport)= GROUP SUM sumReceiptDetail(d) IF d IS ReceiptGiftCardSaleDetail BY zReportReceiptDetail(d);
+sumReceiptDetailGiftCard 'Сумма проданных сертификатов' (zReport)= GROUP SUM sum[ReceiptDetail](ReceiptGiftCardSaleDetail d) IF d IS ReceiptGiftCardSaleDetail BY zReport[ReceiptDetail](d);
 
 //имплемент в GiftCardLedger
-giftCardGiftCardLedger(detail) += giftCardReceiptGiftCardSaleDetail(detail);
-dateTimeGiftCardLedger(detail) += dateTimeReceipt(receiptReceiptGiftCardSaleDetail(detail));
-seriesNumberGiftCardLedger(detail) += seriesNumberGiftCard(giftCardReceiptGiftCardSaleDetail(detail));
-sumGiftCardLedger(detail) += sumReceiptGiftCardSaleDetail(detail);
-descriptionGiftCardLedger(detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
+giftCard(ReceiptGiftCardSaleDetail detail) += giftCard(detail);
+dateTime(ReceiptGiftCardSaleDetail detail) += dateTime(receipt(detail));
+seriesNumber(ReceiptGiftCardSaleDetail detail) += seriesNumber(giftCard(detail));
+sum(ReceiptGiftCardSaleDetail detail) += sum(detail);
+description(ReceiptGiftCardSaleDetail detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
 
-editReceiptGiftCardSaleDetail 'Редактировать' (d) = ACTION (d) NEWSESSION {
-    FORM zReport OBJECTS z = zReportReceiptGiftCardSaleDetail(d), b = receiptReceiptGiftCardSaleDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = ACTION (d) NEWSESSION {
+    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKEDMODAL;
 }
-editReceiptDetail(d) += ACTION editReceiptGiftCardSaleDetail(d);
+edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);
 
 //генерация подарочных сертификатов
 FORM generationGiftCards 'Генерация подарочных сертификатов'
     OBJECTS n=Numerator  FIXED PANEL
-    PROPERTIES(n) SELECTOR nameNumerator
+    PROPERTIES(n) SELECTOR name
 
     OBJECTS quantityCards=INTEGER FIXED PANEL
     PROPERTIES(quantityCards) intValueQuantityCards = OBJVALUE
@@ -106,7 +106,7 @@ DESIGN generationGiftCards {
     main{
         NEW topContainer{
             caption = 'Параметры';
-            MOVE PROPERTY(nameNumerator(n));
+            MOVE PROPERTY(name(n));
             MOVE PROPERTY(intValueQuantityCards) {caption = 'Количество подарочных сертификатов';}
             MOVE PROPERTY(valuePriceCards) {caption = 'Цена подарочных сертификатов';}
             MOVE PROPERTY(valueDt) {caption = 'Дата';}
@@ -124,14 +124,14 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
         ASSIGN num() <- 0;
         WHILE num() < chosenInteger('quantityCards') DO {
             FOR ADDOBJ g = GiftCard DO {
-                numeratorGiftCard(g) <- chosenObject('n');
-                numberGiftCard(g) <- curStringValueNumerator(numeratorGiftCard(g));
-                seriesGiftCard(g) <- seriesNumerator(numeratorGiftCard(g));
-                priceGiftCard(g) <- chosenNumeric('priceCards');
-                dateGiftCard(g) <- chosenDate('dt');                
-                expiryDaysGiftCard(g) <- chosenInteger('d');
+                numerator(g) <- chosenObject('n');
+                number(g) <- curStringValue(numerator(g));
+                series(g) <- series(numerator(g));
+                price(g) <- chosenNumeric('priceCards');
+                date(g) <- chosenDate('dt');                
+                expiryDays(g) <- chosenInteger('d');
                 
-                curValueNumerator(numerator) <- curValueNumerator(numerator) + 1 WHERE numerator == numeratorGiftCard(g);
+                curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(g);
             }
 
             num() <- num() + 1;
@@ -142,7 +142,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
 //формы
 FORM giftCard 'Подарочный сертификат'
     OBJECTS g = GiftCard FIXED PANEL
-    PROPERTIES(g) nameNumeratorGiftCard, numberGiftCard, seriesGiftCard, dateGiftCard, priceGiftCard, expiryDaysGiftCard
+    PROPERTIES(g) nameNumerator, number, series, date, price, expiryDays
 
     EDIT GiftCard OBJECT g
 ;
@@ -150,27 +150,27 @@ FORM giftCard 'Подарочный сертификат'
 DESIGN giftCard {
     NEW topContainer{
         caption = 'Подарочный сертификат';
-        MOVE PROPERTY(nameNumeratorGiftCard(g));
-        MOVE PROPERTY(numberGiftCard(g));
-        MOVE PROPERTY(seriesGiftCard(g));
-        MOVE PROPERTY(dateGiftCard(g));
-        MOVE PROPERTY(expiryDaysGiftCard(g));
-        MOVE PROPERTY(priceGiftCard(g));
+        MOVE PROPERTY(nameNumerator(g));
+        MOVE PROPERTY(number(g));
+        MOVE PROPERTY(series(g));
+        MOVE PROPERTY(date(g));
+        MOVE PROPERTY(expiryDays(g));
+        MOVE PROPERTY(price(g));
     }
     MOVE functions.box;
 }
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY numberGiftCard, seriesGiftCard, dateGiftCard, 
-                           dateSoldGiftCard, nameDepartmentStoreSoldGiftCard, expiryDaysGiftCard, priceGiftCard
+    PROPERTIES(g) READONLY number, series, date, 
+                           dateSold, nameDepartmentStoreSold, expiryDays, price
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l = GiftCardLedger
-    PROPERTIES(l) READONLY dateTimeGiftCardLedger, seriesNumberGiftCardLedger, sumGiftCardLedger, descriptionGiftCardLedger
-    ORDER BY dateTimeGiftCardLedger(l)
-    FILTERS giftCardGiftCardLedger(l) == g
+    PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description
+    ORDER BY dateTime(l)
+    FILTERS giftCard(l) == g
 ;
 
 NAVIGATOR {
@@ -184,85 +184,85 @@ CLASS PaymentGiftCard : Payment, GiftCardLedger;
 
 @defineExternalizable(paymentGiftCard, VARSTRING[100]);
 
-giftCardPaymentGiftCard = DATA GiftCard (PaymentGiftCard);
-seriesNumberGiftCardPaymentGiftCard 'Серия/номер' (payment) = seriesNumberGiftCard(giftCardPaymentGiftCard(payment));
+giftCard = DATA GiftCard (PaymentGiftCard);
+seriesNumberGiftCard 'Серия/номер' (PaymentGiftCard payment) = seriesNumber(giftCard(payment));
 
 //имплемент в GiftCardLedger
-giftCardGiftCardLedger(payment) += giftCardPaymentGiftCard(payment);
-dateTimeGiftCardLedger(payment) += dateTimeReceipt(receiptPayment(payment)) IF payment IS PaymentGiftCard;
-seriesNumberGiftCardLedger(payment) += seriesNumberGiftCard(giftCardPaymentGiftCard(payment));
-sumGiftCardLedger(payment) += sumPayment(payment) IF payment IS PaymentGiftCard;
-descriptionGiftCardLedger(payment) += 'Погашение' IF payment IS PaymentGiftCard;
+giftCard(PaymentGiftCard payment) += giftCard(payment);
+dateTime(PaymentGiftCard payment) += dateTime(receipt(payment)) IF payment IS PaymentGiftCard;
+seriesNumber(PaymentGiftCard payment) += seriesNumber(giftCard(payment));
+sum(PaymentGiftCard payment) += sum[Payment](payment) IF payment IS PaymentGiftCard;
+description(PaymentGiftCard payment) += 'Погашение' IF payment IS PaymentGiftCard;
 
-sumGiftCardReceipt 'Сумма подарочных сертификатов в чеке' (receipt) =
-    GROUP SUM sumPayment(payment) IF payment IS PaymentGiftCard
-    BY receiptPayment(payment);
+sumGiftCard 'Сумма подарочных сертификатов в чеке' (receipt) =
+    GROUP SUM sum[Payment](PaymentGiftCard payment) IF payment IS PaymentGiftCard
+    BY receipt(payment);
     
-CONSTRAINT sumGiftCardReceipt(receipt) > sumReceiptDetailReceipt(receipt) 
-    CHECKED BY sumGiftCardReceipt MESSAGE 'Сумма сертификатов не может превышать всего суммы чека';
+CONSTRAINT sumGiftCard(Receipt receipt) > sumReceiptDetail(receipt) 
+    CHECKED BY sumGiftCard[Receipt] MESSAGE 'Сумма сертификатов не может превышать всего суммы чека';
 
-CONSTRAINT giftCardPaymentGiftCard(p) AND p IS PaymentGiftCard AND NOT (priceGiftCard(giftCardPaymentGiftCard(p)) == sumPayment(p)) 
+CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) 
     MESSAGE 'Сумма оплаты сертификатом должна быть равно цене сертификата';
 
-usedGiftCard (giftCard) =
-    GROUP AGGR payment
-        BY giftCardPaymentGiftCard(payment) WHERE payment IS PaymentGiftCard;
-isUsedGiftCard 'Погашен' (giftCard) = TRUE IF usedGiftCard(giftCard);
-dateUsedGiftCard 'Дата использования' (giftCard) = toDate(dateTimeReceipt(receiptPayment(usedGiftCard(giftCard))));
+used (giftCard) =
+    GROUP AGGR PaymentGiftCard payment
+        BY giftCard(payment) WHERE payment IS PaymentGiftCard;
+isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
+dateUsed 'Дата использования' (GiftCard giftCard) = toDate(dateTime(receipt(used(giftCard))));
 
-expireDateGiftCard 'Дата истечения' (giftCard) = sumDate(toDate(dateTimeReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)))), expiryDaysGiftCard(giftCard));
-isExpiredDateGiftCard 'Истек срок' (giftCard) = expireDateGiftCard(giftCard) < currentDate(); 
+expireDate 'Дата истечения' (GiftCard giftCard) = sum(toDate(dateTime(receipt(sold(giftCard)))), expiryDays(giftCard));
+isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
 
-nameDepartmentStoreUsedGiftCard 'Где использован' (giftCard) = nameDepartmentStoreReceipt(receiptPayment(usedGiftCard(giftCard)));
-numberReceiptUsedGiftCard 'Номер чека' (giftCard) = numberReceipt(receiptReceiptGiftCardSaleDetail(soldGiftCard(giftCard)));
+nameDepartmentStoreUsed 'Где использован' (GiftCard giftCard) = nameDepartmentStore(receipt(used(giftCard)));
+numberReceiptUsed 'Номер чека' (GiftCard giftCard) = number(receipt(sold(giftCard)));
 
-sumCardGiftCard 'Сумма (карточка)' (giftCard) = GROUP SUM sumReceiptDetailPayment(soldGiftCard(giftCard), payment) IF 
-    paymentMeansPaymentType(paymentTypePayment(payment))==  PaymentMeans.paymentMeansCard AND isPostedReceiptDetail(soldGiftCard(giftCard)) BY giftCard;
+sumCard 'Сумма (карточка)' (giftCard) = GROUP SUM sum(sold(GiftCard giftCard), Payment payment) IF 
+    paymentMeans(paymentType(payment))==  PaymentMeans.paymentMeansCard AND isPosted[ReceiptDetail](sold(giftCard)) BY giftCard;
 
 EXTEND FORM giftCards
-    PROPERTIES(g) READONLY BEFORE expiryDaysGiftCard(g) dateUsedGiftCard, nameDepartmentStoreUsedGiftCard,
-                  numberReceiptUsedGiftCard 
-    PROPERTIES(g) READONLY AFTER expiryDaysGiftCard(g) expireDateGiftCard  
-    PROPERTIES(g) READONLY sumCardGiftCard    
+    PROPERTIES(g) READONLY BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
+                  numberReceiptUsed 
+    PROPERTIES(g) READONLY AFTER expiryDays(g) expireDate  
+    PROPERTIES(g) READONLY sumCard    
 
     FILTERGROUP filter1
-        FILTER 'Просрочен' expireDateGiftCard(g) < currentDate() 'F10'
-        FILTER 'Не просрочен' soldGiftCard(g) AND NOT (expireDateGiftCard(g) < currentDate()) 'F9'
+        FILTER 'Просрочен' expireDate(g) < currentDate() 'F10'
+        FILTER 'Не просрочен' sold(g) AND NOT (expireDate(g) < currentDate()) 'F9'
  
         
     FILTERGROUP filter2
-        FILTER 'Погашен' usedGiftCard(g) 'F8' 
-        FILTER 'Не погашен' soldGiftCard(g) AND NOT usedGiftCard(g) 'F7'                                                      
+        FILTER 'Погашен' used(g) 'F8' 
+        FILTER 'Не погашен' sold(g) AND NOT used(g) 'F7'                                                      
 ;
 
 EXTEND CLASS PaymentMeans { paymentMeansGiftCard 'Подарочный сертификат'}
 
 overLoadDefaultPaymentTypes() += ACTION () {
-    loadDefaultPaymentType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
+    loadDefaultType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
 }
 
-sumGiftCardPaymentReceipt 'Сумма продаж (сертификат)' (receipt) = GROUP SUM sumPayment(payment) IF paymentMeansPayment(payment) == PaymentMeans.paymentMeansGiftCard BY receiptPayment(payment);
-sumGiftCardPaymentZReport 'Сумма продаж (сертификат)' (zReport) = GROUP SUM sumGiftCardPaymentReceipt(r) BY zReportReceipt(r) IN documentSum;
+sumGiftCardPayment 'Сумма продаж (сертификат)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansGiftCard BY receipt(payment);
+sumGiftCardPayment 'Сумма продаж (сертификат)' (zReport) = GROUP SUM sumGiftCardPayment(Receipt r) BY zReport(r) IN documentSum;
 
-minGiftCardPaymentType() = GROUP MIN paymentType IF paymentMeansPaymentType(paymentType) == PaymentMeans.paymentMeansGiftCard;
+minGiftCardPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansGiftCard;
 
-sumGiftCardReceiptDetailZReportRange 'Сумма (сертификат) по товарам' (zReport, range) = sumSkuReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansGiftCard, range);
-sumGiftCardReceiptDetailZReport 'Сумма (сертификат) по товарам' (zReport) = GROUP SUM  sumGiftCardReceiptDetailZReportRange(zReport, range) BY zReport;
-sumVATGiftCardReceiptDetailZReportRange 'Сумма НДС (сертификат) по товарам' (zReport, range) = sumVATSkuReceiptDetailZReportPaymentMeansRange(zReport, PaymentMeans.paymentMeansGiftCard, range);
+sumGiftCardReceiptDetail 'Сумма (сертификат) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansGiftCard, range);
+sumGiftCardReceiptDetail 'Сумма (сертификат) по товарам' (zReport) = GROUP SUM  sumGiftCardReceiptDetail(ZReport zReport, Range range) BY zReport;
+sumVATGiftCardReceiptDetail 'Сумма НДС (сертификат) по товарам' (ZReport zReport, Range range) = sumVATSkuReceiptDetail(zReport, PaymentMeans.paymentMeansGiftCard, range);
 
 EXTEND FORM zReports
-    PROPERTIES (z) READONLY BEFORE sumNegativeCashPaymentZReport(z) sumGiftCardPaymentZReport
-    PROPERTIES (z) READONLY  sumReceiptDetailGiftCardZReport
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumGiftCardPayment
+    PROPERTIES (z) READONLY  sumReceiptDetailGiftCard
 ;
 
-overCopyReceiptDetailReceipt(detail,r) += ACTION (detail,r) {
+overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += ACTION (detail,r) {
     IF detail IS ReceiptGiftCardSaleDetail THEN {
         FOR ADDOBJ d=ReceiptGiftCardSaleDetail DO {
-            receiptReceiptGiftCardSaleDetail(d) <- r;
-            giftCardReceiptGiftCardSaleDetail(d) <- giftCardReceiptGiftCardSaleDetail(detail);
-            priceReceiptGiftCardSaleDetail(d) <- priceReceiptGiftCardSaleDetail(detail);            
-            sumReceiptGiftCardSaleDetail(d) <- sumReceiptGiftCardSaleDetail(detail);
-            overCopyReceiptDetailReceiptDetail(d, detail);
+            receipt(d) <- r;
+            giftCard(d) <- giftCard(detail);
+            price(d) <- price(detail);            
+            sum(d) <- sum(detail);
+            overCopy(d, detail);
         }
     }
 }

@@ -10,49 +10,49 @@ sizeImage 'Размер' = DATA LOCAL VARSTRING[10] (INTEGER);
 startImage 'Страница поиска' = DATA LOCAL INTEGER ();
 articleImage 'Артикул' = DATA LOCAL Article ();
 
-searchImageArticle 'Искать изображение в сети' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchImageArticleActionProperty' (Article);  
-searchFirstImageArticle 'Мне повезёт' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchFirstImageArticleActionProperty' (Article); 
+searchImage 'Искать изображение в сети' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchImageArticleActionProperty' (Article);  
+searchFirstImage 'Мне повезёт' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchFirstImageArticleActionProperty' (Article); 
 searchMoreImageArticle 'Следующие' = ACTION CUSTOM 'lsfusion.erp.integration.image.SearchMoreImageArticleActionProperty' (); 
-loadImageArticle 'Загрузить изображение в артикул' = ACTION CUSTOM 'lsfusion.erp.integration.image.LoadImageArticleActionProperty' (Article, STRING[1000]); 
-uploadImageArticleFromDirectory 'Загрузить изображение из папки' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromDirectoryActionProperty' (Article);
-uploadImageArticleFromURL 'Загрузить изображение по ссылке' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromURLActionProperty' (Article);
+loadImage 'Загрузить изображение в артикул' = ACTION CUSTOM 'lsfusion.erp.integration.image.LoadImageArticleActionProperty' (Article, STRING[1000]); 
+uploadImageFromDirectory 'Загрузить изображение из папки' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromDirectoryActionProperty' (Article);
+uploadImageFromURL 'Загрузить изображение по ссылке' = ACTION CUSTOM 'lsfusion.erp.integration.image.UploadImageArticleFromURLActionProperty' (Article);
 
-patternImageBrand 'Шаблон поиска изображений' = DATA VARSTRING[100] (Brand);
-patternImageArticle 'Шаблон поиска изображений' (article) = patternImageBrand(brandArticle(article));
+patternImage 'Шаблон поиска изображений' = DATA VARSTRING[100] (Brand);
+patternImage 'Шаблон поиска изображений' (Article article) = patternImage(brand(article));
 
-urlImageArticle 'Ссылка' = DATA VARSTRING[1000] (Article) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-WHEN SESSION CHANGED(urlImageArticle(a)) DO uploadImageArticleFromURL(a); 
+urlImage 'Ссылка' = DATA VARSTRING[1000] (Article) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+WHEN SESSION CHANGED(urlImage(Article a)) DO uploadImageFromURL(a); 
 
-idImageArticle 'Идентификатор изображения' = DATA VARSTRING[100] (Article);
-overIdImageArticle (article) = OVERRIDE idArticle(article), idImageArticle(article);
-timeChangedImageArticle 'Время последнего изменения' = DATA DATETIME (Article);
+idImage 'Идентификатор изображения' = DATA VARSTRING[100] (Article);
+overIdImage (Article article) = OVERRIDE id(article), idImage(article);
+timeChangedImage 'Время последнего изменения' = DATA DATETIME (Article);
 pathImageArticles 'Папка с изображениями' = DATA STRING[100] ();
 uploadAllImagesArticle 'Загрузить все изображения' () = ACTION {
-    FOR (overIdImageArticle(a)) DO {
-        EXEC uploadImageArticleFromDirectory(a);
+    FOR (overIdImage(Article a)) DO {
+        EXEC uploadImageFromDirectory(a);
     }
 };
 
 EXTEND FORM article 
-PROPERTIES(a) idImageArticle, searchImageArticle, searchFirstImageArticle, uploadImageArticleFromDirectory, 
-              urlImageArticle, patternImageArticle;
+PROPERTIES(a) idImage, searchImage, searchFirstImage, uploadImageFromDirectory, 
+              urlImage, patternImage;
 
 DESIGN article {
     imageBox {
-        MOVE PROPERTY(idImageArticle(a));
+        MOVE PROPERTY(idImage(a));
         NEW buttonsBox {
             type = CONTAINERH;
-            MOVE PROPERTY(searchImageArticle(a));
-            MOVE PROPERTY(searchFirstImageArticle(a));
-            MOVE PROPERTY(uploadImageArticleFromDirectory(a));
-            MOVE PROPERTY(urlImageArticle(a));
-            MOVE PROPERTY(patternImageArticle(a));
+            MOVE PROPERTY(searchImage(a));
+            MOVE PROPERTY(searchFirstImage(a));
+            MOVE PROPERTY(uploadImageFromDirectory(a));
+            MOVE PROPERTY(urlImage(a));
+            MOVE PROPERTY(patternImage(a));
         }
     }
 }
 
-EXTEND FORM brand PROPERTIES(t) patternImageBrand;
-EXTEND FORM attributesItem PROPERTIES(brand) patternImageBrand;
+EXTEND FORM brand PROPERTIES(t) patternImage;
+EXTEND FORM attributesItem PROPERTIES(brand) patternImage;
 
 EXTEND FORM options PROPERTIES() pathImageArticles, uploadAllImagesArticle;
 DESIGN options {
@@ -88,10 +88,10 @@ DESIGN chooseImage {
     MOVE functions.box;
 }
 
-chooseImageAction 'Выбор изображения' (article) = ACTION {
+chooseImageAction 'Выбор изображения' (Article article) = ACTION {
     FORM chooseImage MODAL;
     IF formResult() == FormResult.ok THEN {
-        loadImageArticle(article, urlImage(chosenInteger('i')));
+        loadImage(article, urlImage(chosenInteger('i')));
         startImage() <- NULL;
         articleImage() <- NULL;
     }   

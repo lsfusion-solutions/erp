@@ -8,80 +8,80 @@ PRIORITY Sale;
 
 GROUP shipment 'Информация о поставке' : base;
 
-createPurchaseShipment 'Создать поставку (закупка)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
-createPurchaseUserShipment 'Создать поставку (закупка)' = DATA BOOLEAN (UserShipment) PERSISTENT;
-createPurchaseShipment(shipment) += createPurchaseUserShipment(shipment);
+createPurchase 'Создать поставку (закупка)' = ABSTRACT BOOLEAN (Shipment) PERSISTENT;
+createPurchase 'Создать поставку (закупка)' = DATA BOOLEAN (UserShipment) PERSISTENT;
+createPurchase(UserShipment shipment) += createPurchase(shipment);
 
-createPurchaseShipmentDetail 'Создать поставку (закупка)' (shipmentDetail) = createPurchaseShipment(shipmentShipmentDetail(shipmentDetail))PERSISTENT;
-createPurchaseUserShipmentDetail 'Создать поставку (закупка)' (userShipmentDetail) = createPurchaseUserShipment(userShipmentUserShipmentDetail(userShipmentDetail));
-backgroundPurchaseShipment 'Цвет' (shipment) = RGB(255, 224, 255) IF shipment IS Shipment;
+createPurchase 'Создать поставку (закупка)' (ShipmentDetail shipmentDetail) = createPurchase(shipment(shipmentDetail))PERSISTENT;
+createPurchase 'Создать поставку (закупка)' (UserShipmentDetail userShipmentDetail) = createPurchase(userShipment(userShipmentDetail));
+backgroundPurchase 'Цвет' (Shipment shipment) = RGB(255, 224, 255) IF shipment IS Shipment;
 
 @defineDocumentInterfaceHeaderTimePrefix(Shipment, purchaseShipment, ' поставки (закупка)');
-purchaseShipmentDateUserShipment(i) <- dateUserShipment(i) WHEN CHANGED(dateUserShipment(i));
-purchaseShipmentTimeUserShipment(i) <- timeUserShipment(i) WHEN CHANGED(timeUserShipment(i));
+purchaseShipmentDate(UserShipment i) <- date(i) WHEN CHANGED(date(i));
+purchaseShipmentTime(UserShipment i) <- time(i) WHEN CHANGED(time(i));
 
 @defineDocumentInterfaceOperationPrefix (shipment, purchase, Purchase, ' (закупка)');
 
 // Записываем операцию для закупки по умолчанию из операции
-purchaseOperationUserShipment (shipment) <- purchaseOperationOperation(operationUserShipment(shipment))
-    WHEN CHANGED(operationUserShipment(shipment));
+purchaseOperation (UserShipment shipment) <- purchaseOperation(operation(shipment))
+    WHEN CHANGED(operation(shipment));
 
 EXTEND FORM userShipment
-    PROPERTIES(s) BACKGROUND backgroundPurchaseShipment(s) createPurchaseUserShipment
-    PROPERTIES(s) BACKGROUND backgroundPurchaseShipment(s) SHOWIF createPurchaseUserShipment(s) namePurchaseOperationUserShipment,
-                  purchaseShipmentDateUserShipment, purchaseShipmentTimeUserShipment
+    PROPERTIES(s) BACKGROUND backgroundPurchase(s) createPurchase
+    PROPERTIES(s) BACKGROUND backgroundPurchase(s) SHOWIF createPurchase(s) namePurchaseOperation,
+                  purchaseShipmentDate, purchaseShipmentTime
 ;
 DESIGN userShipment {
     headerCreateDocuments{
         NEW headerShipment{
             caption = 'Поставка';
             type = CONTAINERH;
-            MOVE PROPERTY(createPurchaseUserShipment(s));
-            MOVE PROPERTY(namePurchaseOperationUserShipment(s));
-            MOVE PROPERTY(purchaseShipmentDateUserShipment(s));
-            MOVE PROPERTY(purchaseShipmentTimeUserShipment(s));
+            MOVE PROPERTY(createPurchase(s));
+            MOVE PROPERTY(namePurchaseOperation(s));
+            MOVE PROPERTY(purchaseShipmentDate(s));
+            MOVE PROPERTY(purchaseShipmentTime(s));
         }
     }
 }
 
 EXTEND FORM shipments
-    PROPERTIES(s) READONLYIF isReadonly() BACKGROUND backgroundPurchaseShipment(s) SHOWIF createPurchaseShipment(s) purchaseShipmentDateShipment,
-                  purchaseShipmentTimeShipment
+    PROPERTIES(s) READONLYIF isReadonly() BACKGROUND backgroundPurchase(s) SHOWIF createPurchase(s) purchaseShipmentDate,
+                  purchaseShipmentTime
 ;
 //--  Связь поставки с поставкой
 
-shipmentDetailShipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) PERSISTENT INDEXED;
-shipmentDetailUserShipmentDetail = DATA ShipmentDetail (Purchase.UserShipmentDetail);
-shipmentDetailShipmentDetail(shipmentDetail) += shipmentDetailUserShipmentDetail(shipmentDetail);
+shipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) PERSISTENT INDEXED;
+shipmentDetail = DATA ShipmentDetail (Purchase.UserShipmentDetail);
+shipmentDetail(Purchase.UserShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
-CONSTRAINT Purchase.supplierShipmentDetail(detail) != supplierShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           Purchase.supplierStockShipmentDetail(detail) != supplierStockShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           Purchase.customerShipmentDetail(detail) != customerShipmentDetail(shipmentDetailUserShipmentDetail(detail)) OR
-           Purchase.customerStockShipmentDetail(detail) != customerStockShipmentDetail(shipmentDetailUserShipmentDetail(detail))
+CONSTRAINT supplier[Purchase.ShipmentDetail](Purchase.UserShipmentDetail detail) != supplier(shipmentDetail(detail)) OR
+           supplierStock[Purchase.ShipmentDetail](detail) != supplierStock(shipmentDetail(detail)) OR
+           customer[Purchase.ShipmentDetail](detail) != customer(shipmentDetail(detail)) OR
+           customerStock[Purchase.ShipmentDetail](detail) != customerStock(shipmentDetail(detail))
 //           Purchase.skuShipmentDetail(detail) != skuShipmentDetail(shipmentDetailUserShipmentDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
-    CHECKED BY shipmentDetailUserShipmentDetail
+    CHECKED BY shipmentDetail[Purchase.UserShipmentDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в поставке и поставке на основе поставке должны соответствовать друг другу';
 
 
-descriptionIndexShipmentDetailShipmentDetail 'Строка поставки (продажа)' (detail) = descriptionIndexShipmentDetail(shipmentDetailShipmentDetail(detail));
-descriptionIndexShipmentDetailUserShipmentDetail 'Строка поставки (продажа)' (detail) = descriptionIndexShipmentDetail(shipmentDetailUserShipmentDetail(detail));
+descriptionIndexShipmentDetail 'Строка поставки (продажа)' (Purchase.ShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
+descriptionIndexShipmentDetail 'Строка поставки (продажа)' (Purchase.UserShipmentDetail detail) = descriptionIndex(shipmentDetail(detail));
 
-Purchase.overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-    shipmentDetailUserShipmentDetail(d) <- shipmentDetailUserShipmentDetail(detail);             
+overCopy[Purchase.UserShipmentDetail,Purchase.UserShipmentDetail](Purchase.UserShipmentDetail d, Purchase.UserShipmentDetail detail) += ACTION (d, detail) {      
+    shipmentDetail(d) <- shipmentDetail(detail);             
 } 
 
-quantityShipmentDetailShipmentShipment (sale, purchase) = GROUP SUM Purchase.quantityShipmentDetail(detail) BY shipmentShipmentDetail(shipmentDetailShipmentDetail(detail)), Purchase.shipmentShipmentDetail(detail);
+quantityShipmentDetail (sale, purchase) = GROUP SUM quantity(Purchase.ShipmentDetail detail) BY shipment(shipmentDetail(detail)), shipment(detail);
 
-saleShipmentsShipment 'Поставки (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](descriptionShipment(sale)) IF quantityShipmentDetailShipmentShipment(sale, purchase) , ', '
+saleShipments 'Поставки (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](description(Shipment sale)) IF quantityShipmentDetail(sale, Purchase.Shipment purchase) , ', '
                                                         BY purchase
                                                         ORDER sale IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-relationPurchaseShipment 'Связь' (purchase) = GROUP SUM quantityShipmentDetailShipmentShipment (sale, purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
+relationPurchase 'Связь' (purchase) = GROUP SUM quantityShipmentDetail (Shipment sale, Purchase.Shipment purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
 
-shippedShipmentDetail 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM Purchase.quantityShipmentDetail(detail) IF Purchase.isPostedShipmentDetail(detail)
-                                                                   BY shipmentDetailShipmentDetail(detail) PERSISTENT;
+shipped 'Кол-во (поставлено)' (shipmentDetail) = GROUP SUM quantity(Purchase.ShipmentDetail detail) IF isPosted(detail)
+                                                                   BY shipmentDetail(detail) PERSISTENT;
 
-toShipShipmentDetail 'Не поставлено' (shipmentDetail) = quantityShipmentDetail (shipmentDetail) (-) shippedShipmentDetail(shipmentDetail);
+toShip 'Не поставлено' (ShipmentDetail shipmentDetail) = quantity (shipmentDetail) (-) shipped(shipmentDetail);
 
 CLASS PurchaseShipment 'Поставка на основе поставки': Purchase.Shipment;
 CLASS PurchaseShipmentDetail 'Строка поставки на основе поставки' : Purchase.ShipmentDetail;
@@ -89,101 +89,101 @@ CLASS PurchaseShipmentDetail 'Строка поставки на основе п
 @defineDocumentTables(purchaseShipment);
 
 @defineDocumentAggregation(shipment, purchaseShipment, createPurchase);
-Purchase.shipmentShipmentDetail(detail) += purchaseShipmentPurchaseShipmentDetail(detail);
+shipment(PurchaseShipmentDetail detail) += purchaseShipment(detail);
 
-Purchase.indexShipmentDetail(detail) += indexPurchaseShipmentDetail(detail);
+index(PurchaseShipmentDetail detail) += index(detail);
 
-Purchase.dateShipment(shipment) += purchaseShipmentDateShipment(shipmentPurchaseShipment(shipment));
-Purchase.timeShipment(shipment) += purchaseShipmentTimeShipment(shipmentPurchaseShipment(shipment));
+date(PurchaseShipment shipment) += purchaseShipmentDate(shipment(shipment));
+time(PurchaseShipment shipment) += purchaseShipmentTime(shipment(shipment));
 
 @defineDocumentAggregationStockPrefix(shipment, purchaseShipment, supplier, 'Склад поставщика', , );
-Purchase.supplierStockShipment(shipment) += supplierStockPurchaseShipment(shipment);
-Purchase.dataSupplierStockShipmentDetail(shipmentDetail) += dataSupplierStockShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+supplierStock(PurchaseShipment shipment) += supplierStock(shipment);
+dataSupplierStock(PurchaseShipmentDetail shipmentDetail) += dataSupplierStock(shipmentDetail(shipmentDetail));
 @defineDocumentAggregationStockPrefix(shipment, purchaseShipment, customer, 'Склад покупателя', , );
-Purchase.customerStockShipment(shipment) += customerStockPurchaseShipment(shipment);
-Purchase.dataCustomerStockShipmentDetail(shipmentDetail) += dataCustomerStockShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+customerStock(PurchaseShipment shipment) += customerStock(shipment);
+dataCustomerStock(PurchaseShipmentDetail shipmentDetail) += dataCustomerStock(shipmentDetail(shipmentDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(shipment, purchaseShipment, supplier, 'Поставщик', , );
-Purchase.supplierShipment(shipment) += supplierPurchaseShipment(shipment);
+supplier(PurchaseShipment shipment) += supplier(shipment);
 @defineDocumentAggregationLegalEntityPrefix(shipment, purchaseShipment, customer, 'Покупатель', , );
-Purchase.customerShipment(shipment) += customerPurchaseShipment(shipment);
+customer(PurchaseShipment shipment) += customer(shipment);
 
 @defineDocumentAggregationPosted(shipment, purchaseShipment);
-Purchase.isPostedShipment(shipment) += isPostedPurchaseShipment(shipment);
+isPosted(PurchaseShipment shipment) += isPosted(shipment);
 
 @defineDocumentAggregationClosed(shipment, purchaseShipment);
-Purchase.isClosedShipment(shipment) += isClosedPurchaseShipment(shipment);
+isClosed(PurchaseShipment shipment) += isClosed(shipment);
 
-Purchase.numberShipment(shipment) += numberShipment(shipmentPurchaseShipment(shipment));
-Purchase.seriesShipment(shipment) += seriesShipment(shipmentPurchaseShipment(shipment));
-seriesNumberPurchaseShipment 'Серия/номер документа' (purchaseShipment) = seriesNumberShipment(shipmentPurchaseShipment(purchaseShipment));
+number(PurchaseShipment shipment) += number(shipment(shipment));
+series(PurchaseShipment shipment) += series(shipment(shipment));
+seriesNumber 'Серия/номер документа' (PurchaseShipment purchaseShipment) = seriesNumber(shipment(purchaseShipment));
 
-noteShipmentPurchaseShipment 'Примечание' (purchaseShipment) = noteShipment(shipmentPurchaseShipment(purchaseShipment));
-Purchase.noteShipment(shipment) += noteShipmentPurchaseShipment(shipment);
+noteShipment 'Примечание' (PurchaseShipment purchaseShipment) = note(shipment(purchaseShipment));
+note(PurchaseShipment shipment) += noteShipment(shipment);
 
-currencyPurchaseShipment  (purchaseShipment) = currencyShipment(shipmentPurchaseShipment(purchaseShipment));
-Purchase.currencyShipment (shipment) += currencyPurchaseShipment(shipment);
+currency  (PurchaseShipment purchaseShipment) = currency(shipment(purchaseShipment));
+currency (PurchaseShipment shipment) += currency(shipment);
 
 @defineDocumentDescription(purchaseShipment, PurchaseShipmentDetail, 'Поставка на основе поставки ');
-Purchase.descriptionShipment (shipment) += descriptionPurchaseShipment(shipment);
-Purchase.operationShipment(shipment) += purchaseOperationShipment(shipmentPurchaseShipment(shipment));
+description (PurchaseShipment shipment) += description(shipment);
+operation(PurchaseShipment shipment) += purchaseOperation(shipment(shipment));
 
 @defineDocumentAggregationDetailSku(shipment, purchaseShipment, sku);
-Purchase.skuShipmentDetail(shipmentDetail) +=  skuPurchaseShipmentDetail(shipmentDetail);
+sku(PurchaseShipmentDetail shipmentDetail) +=  sku(shipmentDetail);
 
 @defineDocumentAggregationDetailBatch(shipment, purchaseShipment);
-Purchase.batchShipmentDetail(shipmentDetail) += batchPurchaseShipmentDetail(shipmentDetail);
+batch(PurchaseShipmentDetail shipmentDetail) += batch(shipmentDetail);
 
-Purchase.quantityShipmentDetail(shipmentDetail) += quantityShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
-Purchase.expiryDateShipmentDetail(shipmentDetail) += expiryDateShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+quantity(PurchaseShipmentDetail shipmentDetail) += quantity(shipmentDetail(shipmentDetail));
+expiryDate(PurchaseShipmentDetail shipmentDetail) += expiryDate(shipmentDetail(shipmentDetail));
 
-Purchase.priceShipmentDetail(shipmentDetail) += priceShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+price(PurchaseShipmentDetail shipmentDetail) += price(shipmentDetail(shipmentDetail));
 
-Purchase.sumShipmentDetail(shipmentDetail) += sumShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+sum(PurchaseShipmentDetail shipmentDetail) += sum(shipmentDetail(shipmentDetail));
 
-Purchase.editShipment(shipment) += ACTION EXEC editShipment(shipmentPurchaseShipment(shipment));
-Purchase.closeShipment(shipment) += ACTION EXEC closeShipment(shipmentPurchaseShipment(shipment));
-Purchase.createdUserShipment(shipment) += createdUserShipment(shipmentPurchaseShipment(shipment));
+edit(PurchaseShipment shipment) += ACTION EXEC edit(shipment(shipment));
+close(PurchaseShipment shipment) += ACTION EXEC close(shipment(shipment));
+createdUser(PurchaseShipment shipment) += createdUser(shipment(shipment));
 
-Purchase.showPackShipment(shipment) +=  showPackShipment(shipmentPurchaseShipment(shipment));
-Purchase.barcodePackShipmentDetail(shipmentDetail) += barcodePackShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
-Purchase.amountPackShipmentDetail(shipmentDetail) +=  amountPackShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
-Purchase.packQuantityShipmentDetail(shipmentDetail) +=  packQuantityShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+showPack(PurchaseShipment shipment) +=  showPack(shipment(shipment));
+barcodePack(PurchaseShipmentDetail shipmentDetail) += barcodePack(shipmentDetail(shipmentDetail));
+amountPack(PurchaseShipmentDetail shipmentDetail) +=  amountPack(shipmentDetail(shipmentDetail));
+packQuantity(PurchaseShipmentDetail shipmentDetail) +=  packQuantity(shipmentDetail(shipmentDetail));
 
-shipmentDetailShipmentDetail(shipmentDetail) += shipmentDetailPurchaseShipmentDetail(shipmentDetail);
+shipmentDetail(PurchaseShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
-Purchase.editShipmentDetail(shipmentDetail) += ACTION editShipmentDetail(shipmentDetailPurchaseShipmentDetail(shipmentDetail));
+edit(PurchaseShipmentDetail shipmentDetail) += ACTION edit(shipmentDetail(shipmentDetail));
 // Создание поставки на основе поставки //
 
 FORM shipmentShipments 'Поставки'
     OBJECTS s = LegalEntity FIXED PANEL
-    PROPERTIES (s) READONLY nameLegalEntity
+    PROPERTIES (s) READONLY name
     OBJECTS c = LegalEntity FIXED PANEL
-    PROPERTIES (c) READONLY nameLegalEntity
+    PROPERTIES (c) READONLY name
 
     OBJECTS ss = Stock FIXED PANEL
-    PROPERTIES (ss) READONLY nameStock
+    PROPERTIES (ss) READONLY name
     OBJECTS cs = Stock FIXED PANEL
-    PROPERTIES (cs) READONLY nameStock
+    PROPERTIES (cs) READONLY name
 
     OBJECTS o = Shipment
-    PROPERTIES (o) READONLY isPostedShipment, numberShipment, seriesShipment, dateShipment, timeShipment, nameCurrencyShipment,
-                            countShipmentDetailShipment, quantityShipmentDetailShipment, sumShipmentDetailShipment,
-                            noteShipment
-    FILTERS supplierShipment(o) == s,
-            customerShipment(o) == c,
-            supplierStockShipment(o) == ss,
-            customerStockShipment(o) == cs,
-            isPostedShipment(o) AND NOT createPurchaseShipment(o)
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameCurrency,
+                            countShipmentDetail, quantityShipmentDetail, sumShipmentDetail,
+                            note
+    FILTERS supplier(o) == s,
+            customer(o) == c,
+            supplierStock(o) == ss,
+            customerStock(o) == cs,
+            isPosted(o) AND NOT createPurchase(o)
 
     OBJECTS d = ShipmentDetail
 
-    PROPERTIES (d) READONLY indexShipmentDetail, idBarcodeSkuShipmentDetail, nameSkuShipmentDetail, shortNameUOMSkuShipmentDetail,
-                            quantityShipmentDetail
-    PROPERTIES (d) READONLY SHOWIF showPackShipment(o) idBarcodePackShipmentDetail, shortNameUOMPackShipmentDetail, amountPackShipmentDetail, packQuantityShipmentDetail
-    PROPERTIES (d) READONLY priceShipmentDetail, sumShipmentDetail,
-                            nameSupplierStockShipmentDetail, toShipShipmentDetail BACKGROUND backgroundPurchaseShipment(o)
-    FILTERS shipmentShipmentDetail(d) == o
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                            quantity
+    PROPERTIES (d) READONLY SHOWIF showPack(o) idBarcodePack, shortNameUOMPack, amountPack, packQuantity
+    PROPERTIES (d) READONLY price, sum,
+                            nameSupplierStock, toShip BACKGROUND backgroundPurchase(o)
+    FILTERS shipment(d) == o
 ;
 
 DESIGN shipmentShipments {
@@ -226,39 +226,39 @@ DESIGN shipmentShipments {
 }
 
 
-fillShipmentUserShipment 'Заполнить на основе поставки' =  ACTION (userShipment) {       // подставляем все количество ???
-    FORM shipmentShipments OBJECTS s = Purchase.supplierUserShipment(userShipment), c = Purchase.customerUserShipment(userShipment),
-                                   ss = Purchase.supplierStockUserShipment(userShipment), cs = Purchase.customerStockUserShipment(userShipment) MODAL;
+fillShipment 'Заполнить на основе поставки' =  ACTION (Purchase.UserShipment userShipment) {       // подставляем все количество ???
+    FORM shipmentShipments OBJECTS s = supplier(userShipment), c = customer(userShipment),
+                                   ss = supplierStock(userShipment), cs = customerStock(userShipment) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL saleShipment = Shipment();
         ASSIGN saleShipment() <- chosenObject('o');
 
-        FOR shipmentShipmentDetail(shipmentDetail) == saleShipment() ADDOBJ d = Purchase.UserShipmentDetail DO {
-            ASSIGN Purchase.userShipmentUserShipmentDetail(d) <- userShipment;
-            ASSIGN shipmentDetailUserShipmentDetail(d) <- shipmentDetail;
+        FOR shipment(ShipmentDetail shipmentDetail) == saleShipment() ADDOBJ d = Purchase.UserShipmentDetail DO {
+            ASSIGN userShipment(d) <- userShipment;
+            ASSIGN shipmentDetail(d) <- shipmentDetail;
 
-            ASSIGN Purchase.priceUserShipmentDetail(d) <- priceShipmentDetail(shipmentDetail);
+            ASSIGN price(d) <- price(shipmentDetail);
 
-            ASSIGN Purchase.skuUserShipmentDetail(d) <- skuShipmentDetail(shipmentDetail);
-            ASSIGN Purchase.batchUserShipmentDetail(d) <- batchShipmentDetail(shipmentDetail);
-            ASSIGN Purchase.quantityUserShipmentDetail (d) <- quantityShipmentDetail(shipmentDetail);
+            ASSIGN sku(d) <- sku(shipmentDetail);
+            ASSIGN batch(d) <- batch(shipmentDetail);
+            ASSIGN quantity (d) <- quantity(shipmentDetail);
 
-            ASSIGN Purchase.barcodePackUserShipmentDetail(d) <- barcodePackShipmentDetail(shipmentDetail);
-            ASSIGN Purchase.amountPackUserShipmentDetail(d) <- amountPackShipmentDetail(shipmentDetail);
-            ASSIGN Purchase.packQuantityUserShipmentDetail(d) <- packQuantityShipmentDetail(shipmentDetail);
+            ASSIGN barcodePack(d) <- barcodePack(shipmentDetail);
+            ASSIGN amountPack(d) <- amountPack(shipmentDetail);
+            ASSIGN packQuantity(d) <- packQuantity(shipmentDetail);
         }
     }
 } IN shipment;
 
 EXTEND FORM Purchase.userShipment
-    PROPERTIES(s) fillShipmentUserShipment, saleShipmentsShipment READONLY
-    PROPERTIES(d) descriptionIndexShipmentDetailUserShipmentDetail BEFORE deletesd
+    PROPERTIES(s) fillShipment, saleShipments READONLY
+    PROPERTIES(d) descriptionIndexShipmentDetail BEFORE deletesd
 ;
 DESIGN Purchase.userShipment { headerCreateDetail{ MOVE s.shipment { type = CONTAINERV; }}}
 
 EXTEND FORM Purchase.shipments
 //    PROPERTIES(s) READONLY saleShipmentsShipment
-    PROPERTIES(d) READONLY descriptionIndexShipmentDetailShipmentDetail SHOWIF relationPurchaseShipment(s)
+    PROPERTIES(d) READONLY descriptionIndexShipmentDetail SHOWIF relationPurchase(s)
 ;
 
 //-- Действие
@@ -266,41 +266,41 @@ EXTEND FORM Purchase.shipments
 //overFillShipmentUserShipmentShipment = ABSTRACT ACTION LIST (userShipment, shipment);
 //overFillShipmentUserShipmentDetailShipmentDetail = ABSTRACT ACTION LIST (userDetail, detail);
 
-moveUserShipmentShipment 'Поставка (закупка)' =  ACTION (shipment) NEWSESSION{
+moveUserShipment 'Поставка (закупка)' =  ACTION (Shipment shipment) NEWSESSION{
 
     FOR ADDOBJ s = Purchase.UserShipment DO {
 
 
 
-        ASSIGN Purchase.supplierUserShipment(s) <- supplierShipment(shipment);
-        ASSIGN Purchase.customerUserShipment(s) <- customerShipment(shipment);
-        ASSIGN Purchase.supplierStockUserShipment(s) <- supplierStockShipment(shipment);
-        ASSIGN Purchase.customerStockUserShipment(s) <- customerStockShipment(shipment);
-        ASSIGN numberUserShipment(s) <- numberShipment(shipment);
-        ASSIGN seriesUserShipment(s) <- seriesShipment(shipment);
-        ASSIGN Purchase.noteUserShipment(s) <- noteShipment(shipment);
-        ASSIGN Purchase.currencyUserShipment(s) <- currencyShipment(shipment);
+        ASSIGN supplier(s) <- supplier(shipment);
+        ASSIGN customer(s) <- customer(shipment);
+        ASSIGN supplierStock(s) <- supplierStock(shipment);
+        ASSIGN customerStock(s) <- customerStock(shipment);
+        ASSIGN number(s) <- number(shipment);
+        ASSIGN series(s) <- series(shipment);
+        ASSIGN note(s) <- note(shipment);
+        ASSIGN currency(s) <- currency(shipment);
 
-        ASSIGN Purchase.showPackUserShipment(s) <- showPackShipment(shipment);
-        ASSIGN Purchase.operationUserShipment(s) <- operationShipment(shipment);
+        ASSIGN showPack(s) <- showPack(shipment);
+        ASSIGN operation(s) <- operation(shipment);
 //        EXEC overFillShipmentUserShipmentShipment(s, shipment);
 
-        FOR shipmentShipmentDetail(detail)==shipment ADDOBJ d = Purchase.UserShipmentDetail DO {
+        FOR shipment(ShipmentDetail detail)==shipment ADDOBJ d = Purchase.UserShipmentDetail DO {
 
-            ASSIGN Purchase.userShipmentUserShipmentDetail(d) <- s;
-            ASSIGN shipmentDetailUserShipmentDetail(d) <- detail;
-            ASSIGN Purchase.dataSupplierStockUserShipmentDetail(d) <- dataSupplierStockShipmentDetail(detail);
-            ASSIGN Purchase.dataCustomerStockUserShipmentDetail(d) <- dataCustomerStockShipmentDetail(detail);
+            ASSIGN userShipment(d) <- s;
+            ASSIGN shipmentDetail(d) <- detail;
+            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
+            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
 
-            ASSIGN Purchase.skuUserShipmentDetail(d) <- skuShipmentDetail(detail);
-            ASSIGN Purchase.quantityUserShipmentDetail (d) <- quantityShipmentDetail(detail);
-            ASSIGN Purchase.priceUserShipmentDetail (d) <- priceShipmentDetail(detail);
+            ASSIGN sku(d) <- sku(detail);
+            ASSIGN quantity (d) <- quantity(detail);
+            ASSIGN price (d) <- price(detail);
 
-            ASSIGN Purchase.barcodePackUserShipmentDetail (d) <- barcodePackShipmentDetail(detail);
-            ASSIGN Purchase.amountPackUserShipmentDetail (d) <- amountPackShipmentDetail(detail);
-            ASSIGN Purchase.packQuantityUserShipmentDetail (d) <- packQuantityShipmentDetail(detail);
+            ASSIGN barcodePack (d) <- barcodePack(detail);
+            ASSIGN amountPack (d) <- amountPack(detail);
+            ASSIGN packQuantity (d) <- packQuantity(detail);
 
-            ASSIGN Purchase.batchUserShipmentDetail(d) <- batchShipmentDetail(detail);
+            ASSIGN batch(d) <- batch(detail);
 //            EXEC overFillShipmentUserShipmentDetailShipmentDetail(d,detail);
         }
 
@@ -309,11 +309,11 @@ moveUserShipmentShipment 'Поставка (закупка)' =  ACTION (shipment
 } TOOLBAR;
 
 EXTEND FORM shipments
-    PROPERTIES(s) moveUserShipmentShipment
+    PROPERTIES(s) moveUserShipment
 ;
 DESIGN shipments {
     createdContainer{
-        MOVE PROPERTY(moveUserShipmentShipment(s));
+        MOVE PROPERTY(moveUserShipment(s));
     }
 }
 

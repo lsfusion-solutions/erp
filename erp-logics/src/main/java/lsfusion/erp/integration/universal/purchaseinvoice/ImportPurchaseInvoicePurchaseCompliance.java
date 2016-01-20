@@ -25,12 +25,12 @@ public class ImportPurchaseInvoicePurchaseCompliance extends ImportDefaultPurcha
         if(LM != null && userInvoiceDetailKey != null) {
             
             if (showField(userInvoiceDetailsList, "numberCompliance")) {
-                ImportField numberComplianceField = new ImportField(LM.findProperty("numberCompliance"));
+                ImportField numberComplianceField = new ImportField(LM.findProperty("number[Compliance]"));
                 ImportKey<?> complianceKey = new ImportKey((ConcreteCustomClass) LM.findClass("Compliance"),
-                        LM.findProperty("complianceNumber").getMapping(numberComplianceField));
+                        LM.findProperty("compliance[STRING[100]]").getMapping(numberComplianceField));
                 keys.add(complianceKey);
-                props.add(new ImportProperty(numberComplianceField, LM.findProperty("numberCompliance").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
-                props.add(new ImportProperty(numberComplianceField, LM.findProperty("complianceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(numberComplianceField, LM.findProperty("number[Compliance]").getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
+                props.add(new ImportProperty(numberComplianceField, LM.findProperty("compliance[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         object(LM.findClass("Compliance")).getMapping(complianceKey), getReplaceOnlyNull(defaultColumns, "numberCompliance")));
                 fields.add(numberComplianceField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -38,11 +38,11 @@ public class ImportPurchaseInvoicePurchaseCompliance extends ImportDefaultPurcha
 
 
                 if (showField(userInvoiceDetailsList, "dateCompliance")) {
-                    addDataField(props, fields, defaultColumns, LM.findProperty("dateCompliance"), "dateCompliance", complianceKey);
+                    addDataField(props, fields, defaultColumns, LM.findProperty("date[Compliance]"), "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateCompliance"));
 
-                    addDataField(props, fields, defaultColumns, LM.findProperty("fromDateCompliance"), "dateCompliance", complianceKey);
+                    addDataField(props, fields, defaultColumns, LM.findProperty("fromDate[Compliance]"), "dateCompliance", complianceKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateCompliance"));
                 }

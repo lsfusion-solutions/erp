@@ -16,78 +16,78 @@ CLASS RowType 'Тип' {
 }
 TABLE rowType(RowType); 
 
-dataOrderRowType 'Порядок' = DATA INTEGER (RowType);
-defaultOrderRowType 'Порядок' = ABSTRACT CASE INTEGER (RowType);
-orderRowType 'Порядок' (ty)= OVERRIDE defaultOrderRowType(ty), dataOrderRowType(ty) PERSISTENT;  
+dataOrder 'Порядок' = DATA INTEGER (RowType);
+defaultOrder 'Порядок' = ABSTRACT CASE INTEGER (RowType);
+order 'Порядок' (RowType ty)= OVERRIDE defaultOrder(ty), dataOrder(ty) PERSISTENT;  
 
-defaultOrderRowType(ty) += WHEN ty == RowType.balanceSupplier  THEN 1; 
-defaultOrderRowType(ty) += WHEN ty == RowType.inDocument  THEN 3;
-defaultOrderRowType(ty) += WHEN ty == RowType.balanceCustomer  THEN 4;
+defaultOrder(RowType ty) += WHEN ty == RowType.balanceSupplier  THEN 1; 
+defaultOrder(RowType ty) += WHEN ty == RowType.inDocument  THEN 3;
+defaultOrder(RowType ty) += WHEN ty == RowType.balanceCustomer  THEN 4;
 
-prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o)= prevCurrentBalanceArticleColorSizeStock(ar, co, si, customerStockUserOrder(o));
+prevCurrentBalanceCustomer(Article ar, Color co, Size si, UserOrder o)= prevCurrentBalance(ar, co, si, customerStock(o));
 
-quantityArticleColorSizeUserOrderSupplierStockRowType = ABSTRACT CASE NUMERIC[14,3] (Article,Color,Size,UserOrder,Stock, RowType);
+quantitySupplier = ABSTRACT CASE NUMERIC[14,3] (Article,Color,Size,UserOrder,Stock, RowType);
 
-quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
-                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder AND CLASS(prevCurrentBalanceArticleColorSizeStock(ar, co, si, stk)) THEN NUMERIC[14,3](prevCurrentBalanceArticleColorSizeStock(ar, co, si, stk))
+quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk,RowType ty) +=  
+                                          WHEN ty == RowType.balanceSupplier AND o IS UserOrder AND CLASS(prevCurrentBalance(ar, co, si, stk)) THEN NUMERIC[14,3](prevCurrentBalance(ar, co, si, stk))
                                           ;
-quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
-                                          WHEN ty == RowType.inDocument AND CLASS(quantityArticleColorSizeUserOrderSupplierStock(ar,co,si,o,stk)) THEN NUMERIC[14,3](quantityArticleColorSizeUserOrderSupplierStock(ar,co,si,o,stk))
+quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk,RowType ty) +=  
+                                          WHEN ty == RowType.inDocument AND CLASS(quantitySupplier(ar,co,si,o,stk)) THEN NUMERIC[14,3](quantitySupplier(ar,co,si,o,stk))
                                           ;
-quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk,ty) +=  
-                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock AND CLASS(prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o)) THEN NUMERIC[14,3](prevCurrentBalanceCustomerArticleColorSizeUserOrder(ar, co, si, o))
+quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk,RowType ty) +=  
+                                          WHEN ty == RowType.balanceCustomer AND stk IS Stock AND CLASS(prevCurrentBalanceCustomer(ar, co, si, o)) THEN NUMERIC[14,3](prevCurrentBalanceCustomer(ar, co, si, o))
                                           ;                                          
 
-changeQuantityArticleColorSizeUserOrderStockRowType = ACTION (article, color, size, userOrder, stock, type) {
+changeQuantity = ACTION (Article article, Color color, Size size, UserOrder userOrder, Stock stock, RowType type) {
     IF type == RowType.inDocument THEN { 
         REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValueArticleColorSizeUserOrderStock(article, color, size, userOrder, stock);
+        EXEC changeQuantityValue(article, color, size, userOrder, stock);
     }               
 }
 
-backgroundQuantityArticleColorSizeUserOrderStockRowType(article, color, size, userOrder, stock, type) = 
+backgroundQuantity(Article article, Color color, Size size, UserOrder userOrder, Stock stock, RowType type) = 
     IF type == RowType.inDocument THEN 
-        IF quantityArticleColorSizeUserOrderSupplierStock(article, color, size, userOrder, stock) 
-                AND NOT (quantityArticleColorSizeUserOrderSupplierStock(article, color, size, userOrder, stock) <= prevCurrentBalanceArticleColorSizeStock(article, color, size, stock)) THEN
+        IF quantitySupplier(article, color, size, userOrder, stock) 
+                AND NOT (quantitySupplier(article, color, size, userOrder, stock) <= prevCurrentBalance(article, color, size, stock)) THEN
             RGB(255,128,128) 
         ELSE
             RGB(204,255,204)
     ;
 
-backgroundRowType 'Цвет' (type) = RGB(204,255,204) IF  type == RowType.inDocument;
+background 'Цвет' (RowType type) = RGB(204,255,204) IF  type == RowType.inDocument;
 
-currentBalanceCustomerArticleUserOrder 'Текущий остаток (пок-ля)' (article, order )=  prevCurrentBalanceArticleStock(article, customerStockUserOrder(order));
+currentBalanceCustomer 'Текущий остаток (пок-ля)' (Article article, UserOrder order )=  prevCurrentBalance(article, customerStock(order));
 
 EXTEND FORM userOrder
 
     OBJECTS sta=(stk=Stock, ar=Article)
-    PROPERTIES READONLY idArticle(ar) SHOWIF showIDs(), captionArticle(ar), nameStock(stk) SHOWIF notSupplierStockUserOrder(o), imageArticle(ar) FORCE PANEL 
-    PROPERTIES READONLY prevCurrentBalanceArticleStock(ar,stk)
-    FILTERS           isParentGroupArticle(sk, ar),
-                      (stk == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStockUserOrder(o) OR
-                      stk == supplierStockUserOrder(o) AND NOT sg AND NOT ts,
-                      legalEntityStock(stk) == supplierUserOrder(o),
-                      activeStock(stk)
-    ORDER BY          idArticle(ar), nameStock(stk)
+    PROPERTIES READONLY id(ar) SHOWIF showIDs(), caption(ar), name(stk) SHOWIF notSupplierStock(o), image(ar) FORCE PANEL 
+    PROPERTIES READONLY prevCurrentBalance(ar,stk)
+    FILTERS           isParent(sk, ar),
+                      (stk == ts AND sg IS StockGroup OR isParent(sg, stk) AND NOT ts OR stk IS Stock AND NOT sg AND NOT ts) AND NOT supplierStock(o) OR
+                      stk == supplierStock(o) AND NOT sg AND NOT ts,
+                      legalEntity(stk) == supplier(o),
+                      active(stk)
+    ORDER BY          id(ar), name(stk)
 
     OBJECTS si=Size
-    PROPERTIES(si) nameSize
-    FILTERS countSizeArticle(si,ar)
+    PROPERTIES(si) name
+    FILTERS count(si,ar)
 
     OBJECTS cor=(co=Color, ty=RowType) 
-    PROPERTIES(co) READONLY BACKGROUND backgroundRowType(ty) idColor SHOWIF showIDs(), nameColor
-    PROPERTIES(ty) READONLY BACKGROUND backgroundRowType(ty) staticCaption 
-    FILTERS countColorArticle(co,ar)
+    PROPERTIES(co) READONLY BACKGROUND background(ty) id SHOWIF showIDs(), name
+    PROPERTIES(ty) READONLY BACKGROUND background(ty) staticCaption 
+    FILTERS count(co,ar)
 
-    PROPERTIES(ar,co,si,o,stk,ty) quantityArticleColorSizeUserOrderSupplierStockRowType ON CHANGE changeQuantityArticleColorSizeUserOrderStockRowType(ar,co,si,o,stk,ty)
-                                      COLUMNS (si) HEADER nameQuantitySize(si) BACKGROUND backgroundQuantityArticleColorSizeUserOrderStockRowType(ar,co,si,o,stk,ty)
+    PROPERTIES(ar,co,si,o,stk,ty) quantitySupplier ON CHANGE changeQuantity(ar,co,si,o,stk,ty)
+                                      COLUMNS (si) HEADER nameQuantity(si) BACKGROUND backgroundQuantity(ar,co,si,o,stk,ty)
 
-    PROPERTIES(ty)  orderRowType
-    ORDER BY nameColor(co), nameSize(si), orderRowType(ty)
+    PROPERTIES(ty)  order
+    ORDER BY name(co), name(si), order(ty)
     
-    FILTERGROUP balance FILTER 'С остатком скл. пост-ка' prevCurrentBalanceArticleStock(ar,st) 'ctrl F6'   
-                        FILTER 'С остатком скл. пок-ля' currentBalanceCustomerArticleUserOrder(ar,o) 'ctrl F7' 
-                        FILTER 'С остатком' prevCurrentBalanceArticleStock(ar,st) OR currentBalanceCustomerArticleUserOrder(ar,o) 'ctrl F8' DEFAULT    
+    FILTERGROUP balance FILTER 'С остатком скл. пост-ка' prevCurrentBalance(ar,st) 'ctrl F6'   
+                        FILTER 'С остатком скл. пок-ля' currentBalanceCustomer(ar,o) 'ctrl F7' 
+                        FILTER 'С остатком' prevCurrentBalance(ar,st) OR currentBalanceCustomer(ar,o) 'ctrl F8' DEFAULT    
 ;
 
 DESIGN userOrder {
@@ -106,7 +106,7 @@ DESIGN userOrder {
                     NEW imageBox {
                         fill = 2;
                         caption = 'Изображение';                     
-                        MOVE PROPERTY(imageArticle(ar)) {
+                        MOVE PROPERTY(image(ar)) {
                             caption = '';
                             fill = 1;
                         }
@@ -117,34 +117,34 @@ DESIGN userOrder {
             REMOVE si.box;
         }
     }
-    PROPERTY(prevCurrentBalanceArticleStock(ar,stk)) { caption = 'Текущий остаток (пост-ка)'; background = #FFEEEE; } 
+    PROPERTY(prevCurrentBalance(ar,stk)) { caption = 'Текущий остаток (пост-ка)'; background = #FFEEEE; } 
 }
 
 // Реализация по складу, артикулу, цвету, размеру за период
-quantitySoldArticleColorSizeStockDateFromTo 'Продано за интервал (кол-во)' (article, color, size, stock, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
-        BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku),stock, dateFrom, dateTo;
+quantitySold 'Продано за интервал (кол-во)' (article, color, size, stock, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Item sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
+        BY article(sku), calcColor(sku), calcSize(sku),stock, dateFrom, dateTo;
         
-quantitySoldArticleColorSizeUserOrderOneWeek 'Продано за последнюю неделю (кол-во)' (article, color, size, order)= quantitySoldArticleColorSizeStockDateFromTo(article, color, size, customerStockUserOrder(order), subtractDate(dateUserOrder(order),7), dateUserOrder(order));        
-quantitySoldArticleColorSizeUserOrderTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (article, color, size, order)= quantitySoldArticleColorSizeStockDateFromTo(article, color, size, customerStockUserOrder(order), subtractDate(dateUserOrder(order),14), subtractDate(dateUserOrder(order),7));        
+quantitySoldOneWeek 'Продано за последнюю неделю (кол-во)' (Article article, Color color, Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),7), date(order));        
+quantitySoldTwoWeek 'Продано за предпоследнюю неделю (кол-во)' (Article article, Color color, Size size, UserOrder order)= quantitySold(article, color, size, customerStock(order), subtract(date(order),14), subtract(date(order),7));        
 
 //quantitySoldArticleStockDateFromTo 'Продано за интервал (кол-во)' (article, stock, dateFrom, dateTo) = GROUP SUM
 //        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
 //        BY articleItem(sku), stock, dateFrom, dateTo;
 
 EXTEND CLASS RowType { selling7 'Реал-ия скл. пок-ля последняя нед.' }
-quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 
-    WHEN ty ==  RowType.selling7 AND stk IS Stock AND CLASS(quantitySoldArticleColorSizeUserOrderOneWeek(ar,co,si,o)) 
-        THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderOneWeek(ar,co,si,o))
+quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk, RowType ty) += 
+    WHEN ty ==  RowType.selling7 AND stk IS Stock AND CLASS(quantitySoldOneWeek(ar,co,si,o)) 
+        THEN NUMERIC[14,3](quantitySoldOneWeek(ar,co,si,o))
     ;     
 
 //-- 
 EXTEND CLASS RowType { selling14 'Реал-ия скл. пок-ля предпоследняя нед.' }
-quantityArticleColorSizeUserOrderSupplierStockRowType (ar,co,si,o,stk, ty) += 
-    WHEN ty ==  RowType.selling14 AND stk IS Stock AND CLASS(quantitySoldArticleColorSizeUserOrderTwoWeek(ar,co,si,o))
-        THEN NUMERIC[14,3](quantitySoldArticleColorSizeUserOrderTwoWeek(ar,co,si,o))
+quantitySupplier (Article ar,Color co,Size si,UserOrder o,Stock stk, RowType ty) += 
+    WHEN ty ==  RowType.selling14 AND stk IS Stock AND CLASS(quantitySoldTwoWeek(ar,co,si,o))
+        THEN NUMERIC[14,3](quantitySoldTwoWeek(ar,co,si,o))
     ; 
-defaultOrderRowType(ty) += WHEN ty == RowType.selling7  THEN 5; 
-defaultOrderRowType(ty) += WHEN ty == RowType.selling14  THEN 6;
+defaultOrder(RowType ty) += WHEN ty == RowType.selling7  THEN 5; 
+defaultOrder(RowType ty) += WHEN ty == RowType.selling14  THEN 6;
 
 @extendFormDocumentArticleStockOrderLedger(userOrder);

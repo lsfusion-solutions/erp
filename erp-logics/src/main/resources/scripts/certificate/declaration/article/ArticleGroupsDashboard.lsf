@@ -6,64 +6,64 @@ NAMESPACE Item;
 
 // Обработка статуса
 
-completedGroupsItem 'Обработан' = DATA BOOLEAN (Item);
-notCompletedGroupsArticle 'Не обработан' (article) = GROUP SUM 1 IF i IS Item AND NOT completedGroupsItem(i) BY articleItem(i);
-completedGroupsArticle 'Обработан' = a IS Article AND NOT notCompletedGroupsArticle(a);
+completedGroups 'Обработан' = DATA BOOLEAN (Item);
+notCompletedGroups 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedGroups(i) BY article(i);
+completedGroups 'Обработан' = Article a IS Article AND NOT notCompletedGroups(a);
 
-changeCompletedGroupsArticle (article) = ACTION (article) {
+changeCompletedGroups (Article article) = ACTION (article) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
-        FOR articleItem(item) == article DO {
-            completedGroupsItem(item) <- TRUE;
+        FOR article(Item item) == article DO {
+            completedGroups(item) <- TRUE;
         }
     } ELSE {
-        FOR articleItem(item) == article DO {
-            completedGroupsItem(item) <- NULL;
+        FOR article(Item item) == article DO {
+            completedGroups(item) <- NULL;
         }                
     }        
 }
 
 // Подсчет непереведенных артикулов для групп
-countNotCompletedGroupsArticlesItemGroup 'Не обработано (к-во)' (group) = 
-    GROUP SUM 1 IF completedTranslateArticle(article) AND notCompletedGroupsArticle(article) AND ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailArticleUser(article, currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) 
-    BY itemGroupArticle(article);
-recCountNotCompletedGroupsArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedGroupsArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
+countNotCompletedGroupsArticles 'Не обработано (к-во)' (group) = 
+    GROUP SUM 1 IF completedTranslate(Article article) AND notCompletedGroups(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) 
+    BY itemGroup(article);
+recCountNotCompletedGroupsArticles 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedGroupsArticles(ItemGroup child) IF isParent(child, ItemGroup parent) BY parent;
 
 
 // необходимость заполнения группы 
-childNumberItemGroupItem 'Количество непосредственных потомков' (item) = childNumberItemGroup(itemGroupItem(item));
-childNumberItemGroupArticle 'Количество непосредственных потомков' (article) = childNumberItemGroup(itemGroupArticle(article));
-backgroundChildNumberItemGroupArticle 'Цвет' (article) = RGB(224, 224, 255) IF childNumberItemGroupArticle(article) OR (article IS Article AND NOT itemGroupArticle(article));
+childNumberItemGroup 'Количество непосредственных потомков' (Item item) = childNumber(itemGroup(item));
+childNumberItemGroup 'Количество непосредственных потомков' (Article article) = childNumber(itemGroup(article));
+backgroundChildNumberItemGroup 'Цвет' (Article article) = RGB(224, 224, 255) IF childNumberItemGroup(article) OR (article IS Article AND NOT itemGroup(article));
 
 // Не заполнены атрибуты
-overNullGroupsItem = ABSTRACT BOOLEAN (Item);
-nullGroupsItem (item)= item IS Item AND NOT completedGroupsItem(item) AND 
-    (NOT itemGroupItem(item) OR childNumberItemGroupItem(item) OR overNullGroupsItem(item));
-nullGroupsArticle (article)= GROUP SUM 1 IF nullGroupsItem(item) AND NOT completedGroupsItem(item) BY articleItem(item);    
+overNullGroups = ABSTRACT BOOLEAN (Item);
+nullGroups (Item item)= item IS Item AND NOT completedGroups(item) AND 
+    (NOT itemGroup(item) OR childNumberItemGroup(item) OR overNullGroups(item));
+nullGroups (article)= GROUP SUM 1 IF nullGroups(Item item) AND NOT completedGroups(item) BY article(item);    
 
 filterGroupsInvoice= DATA LOCAL Purchase.Invoice ();
-descriptionFilterGroupsInvoice 'Накладная' = Purchase.descriptionInvoice(filterGroupsInvoice());
+descriptionFilterGroupsInvoice 'Накладная' = description(filterGroupsInvoice());
 
-overChangeSeasonYearArticle = ABSTRACT ACTION LIST (Article);
+overChangeSeasonYear = ABSTRACT ACTION LIST (Article);
 
-changeSeasonYearArticle = ACTION (article) {
+changeSeasonYear = ACTION (Article article) {
     REQUEST OBJECT t
     FORM seasonYears  DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        seasonYearArticle(article) <- requestedObject();   
-        overChangeSeasonYearArticle(article); 
+        seasonYear(article) <- requestedObject();   
+        overChangeSeasonYear(article); 
              
     }
 }
 
-overChangeSeasonArticle = ABSTRACT ACTION LIST (Article);
+overChangeSeason = ABSTRACT ACTION LIST (Article);
 
-changeSeasonArticle = ACTION (article) {
+changeSeason = ACTION (Article article) {
     REQUEST OBJECT t
     FORM seasons  DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        seasonArticle(article) <- requestedObject();   
-        overChangeSeasonArticle(article); 
+        season(article) <- requestedObject();   
+        overChangeSeason(article); 
              
     }
 }
@@ -71,55 +71,55 @@ changeSeasonArticle = ACTION (article) {
 FORM articleGroupsDashboard 'Классификация'
     PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     
-    TREE groupTree g=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g), recCountNotCompletedGroupsArticlesItemGroup(g)
-    ORDER BY orderItemGroup(g), nameItemGroup(g)
-    FILTERS activeItemGroup(g)
+    TREE groupTree g=ItemGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g), recCountNotCompletedGroupsArticles(g)
+    ORDER BY order(g), name(g)
+    FILTERS active(g)
     FILTERGROUP notGroupsFilters
-        FILTER 'Не обработан' recCountNotCompletedGroupsArticlesItemGroup(g) 'F6'
+        FILTER 'Не обработан' recCountNotCompletedGroupsArticles(g) 'F6'
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLY nameBrandArticle, idArticle, captionArticle, nameUOMArticle
-    PROPERTIES(a) BACKGROUND backgroundChildNumberItemGroupArticle(a) canonicalNameItemGroupArticle
-    PROPERTIES(a) BACKGROUND hintEditableBackground() nameSeasonYearArticle //ON CHANGE changeSeasonYearArticle(a),
-                    , nameSeasonArticle //ON CHANGE changeSeasonArticle(a)   
-    PROPERTIES(a) completedGroupsArticle ON CHANGE changeCompletedGroupsArticle(a)
+    PROPERTIES(a) READONLY nameBrand, id, caption, nameUOM
+    PROPERTIES(a) BACKGROUND backgroundChildNumberItemGroup(a) canonicalNameItemGroup
+    PROPERTIES(a) BACKGROUND hintEditableBackground() nameSeasonYear //ON CHANGE changeSeasonYearArticle(a),
+                    , nameSeason //ON CHANGE changeSeasonArticle(a)   
+    PROPERTIES(a) completedGroups ON CHANGE changeCompletedGroups(a)
     PROPERTIES(a) EDITFORM
     
     FILTERGROUP attributesFilters
-        FILTER 'Без атрибутов' nullGroupsArticle(a) 'F7'                   
-        FILTER 'С атрибутами' NOT nullGroupsArticle(a) 'F6'
+        FILTER 'Без атрибутов' nullGroups(a) 'F7'                   
+        FILTER 'С атрибутами' NOT nullGroups(a) 'F6'
                            
     FILTERGROUP stickerFilters
-        FILTER 'Переведены' completedTranslateArticle(a) 'F10' DEFAULT
+        FILTER 'Переведены' completedTranslate(a) 'F10' DEFAULT
         
-    FILTERS isParentGroupArticle(g, a)
+    FILTERS isParent(g, a)
 //    FILTERGROUP groupFilters
 //        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
 //        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)        
         
     FILTERGROUP articleFilters
-        FILTER 'Не обработан' notCompletedGroupsArticle(a) 'F8' DEFAULT
-        FILTER 'Обработан' completedGroupsArticle(a) 'F9'   
+        FILTER 'Не обработан' notCompletedGroups(a) 'F8' DEFAULT
+        FILTER 'Обработан' completedGroups(a) 'F9'   
                
-    FILTERS isParentGroupArticle(g, a) OR (g IS ItemGroup AND NOT itemGroupArticle(a))
+    FILTERS isParent(g, a) OR (g IS ItemGroup AND NOT itemGroup(a))
 
     OBJECTS i=Item
-    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, captionItem, nameUOMItem, imageItem FORCE PANEL
-    PROPERTIES(i) BACKGROUND hintEditableBackground() canonicalNameItemGroupItem
-    PROPERTIES(i) completedGroupsItem
-    PROPERTIES(i) EDITFORM SHOWIF enableEditingItem(i)
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoice, idBarcode, id, caption, nameUOM, image FORCE PANEL
+    PROPERTIES(i) BACKGROUND hintEditableBackground() canonicalNameItemGroup
+    PROPERTIES(i) completedGroups
+    PROPERTIES(i) EDITFORM SHOWIF enableEditing(i)
     
     FILTERGROUP attributesFilters2
-        FILTER 'Без атрибутов' nullGroupsItem(i) 'F7'
-        FILTER 'С атрибутами' NOT nullGroupsItem(i) 'F6'
+        FILTER 'Без атрибутов' nullGroups(i) 'F7'
+        FILTER 'С атрибутами' NOT nullGroups(i) 'F6'
           
     FILTERGROUP itemFilters
-        FILTER 'По артикулам' articleItem(i) == a 'F4' DEFAULT
-        FILTER 'По группам (не обработан)' completedTranslateItem(i) AND NOT completedGroupsItem(i) AND isParentItemGroupItem(g,i) 'shift F4'
-        FILTER 'По группам ' isParentItemGroupItem(g,i) 'ctrl F4'
+        FILTER 'По артикулам' article(i) == a 'F4' DEFAULT
+        FILTER 'По группам (не обработан)' completedTranslate(i) AND NOT completedGroups(i) AND isParent(g,i) 'shift F4'
+        FILTER 'По группам ' isParent(g,i) 'ctrl F4'
         
-    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
+    FILTERS quantityInvoiceDetail(a, currentUser()) OR (a IS Article AND NOT countInvoices(currentUser()))
         
 ;
 
@@ -140,7 +140,7 @@ DESIGN articleGroupsDashboard {
             NEW imageBox4 {
                 fill = 3;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(imageItem(i)) {                           
+                MOVE PROPERTY(image(i)) {                           
                     caption = '';
                     fill = 1;
                 }
@@ -160,26 +160,26 @@ DESIGN articleGroupsDashboard {
     MOVE functions.box;
 }
 
-WHEN SESSION FORMS articleGroupsDashboard CHANGED(seasonArticle(article)) DO {
-    overChangeSeasonArticle(article);     
+WHEN SESSION FORMS articleGroupsDashboard CHANGED(season(Article article)) DO {
+    overChangeSeason(article);     
 }
 
-WHEN SESSION FORMS articleGroupsDashboard CHANGED(seasonYearArticle(article)) DO {
-    overChangeSeasonYearArticle(article);     
+WHEN SESSION FORMS articleGroupsDashboard CHANGED(seasonYear(Article article)) DO {
+    overChangeSeasonYear(article);     
 }
 
 completeArticleGroupsDashboard 'Подтвердить все' = ACTION () {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
-    FOR [= FILTER articleGroupsDashboard.a](article) AND nullGroupsArticle(article) DO{   
+    FOR [= FILTER articleGroupsDashboard.a](Article article) AND nullGroups(article) DO{   
         k() <- k() + 1;              
     }    
     IF k() > 0 THEN {
         MESSAGE 'Для артикула не задана группа товара, статистическая группа или нужна доп. классификация ('+k()+' шт.)';
     } ELSE {
-        FOR [= FILTER articleGroupsDashboard.a](article) DO {
-            completedGroupsItem(item) <- TRUE WHERE articleItem(item) ==article;
+        FOR [= FILTER articleGroupsDashboard.a](Article article) DO {
+            completedGroups(Item item) <- TRUE WHERE article(item) ==article;
         }
     }      
 } TOOLBAR CONFIRM;

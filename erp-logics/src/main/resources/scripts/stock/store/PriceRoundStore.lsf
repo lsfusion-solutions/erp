@@ -4,43 +4,43 @@ REQUIRE PriceRound, Store, Country;
 
 //------------------------- Расширяем форму Отдела -------------------------//
 
-dataDiscountRoundConditionDepartmentStore = DATA RoundCondition (DepartmentStore);
-nameDiscountDataRoundConditionDepartmentStore 'Условие округления скидки' (departmentStore)= nameRoundCondition(dataDiscountRoundConditionDepartmentStore(departmentStore)) IN bookkeeping;
+dataDiscountRoundCondition = DATA RoundCondition (DepartmentStore);
+nameDiscountDataRoundCondition 'Условие округления скидки' (DepartmentStore departmentStore)= name(dataDiscountRoundCondition(departmentStore)) IN bookkeeping;
 
-dataRoundConditionDepartmentStore = DATA RoundCondition (DepartmentStore);
-nameDataRoundConditionDepartmentStore 'Условие округления розничной цены' (departmentStore)= nameRoundCondition(dataRoundConditionDepartmentStore(departmentStore)) IN bookkeeping;
+dataRoundCondition = DATA RoundCondition (DepartmentStore);
+nameDataRoundCondition 'Условие округления розничной цены' (DepartmentStore departmentStore)= name(dataRoundCondition(departmentStore)) IN bookkeeping;
 
-roundConditionCountry = DATA RoundCondition(Country);
-nameRoundConditionCountry 'Условие округления розничной цены (по умолчанию)' (country)= nameRoundCondition(roundConditionCountry(country));
+roundCondition = DATA RoundCondition(Country);
+nameRoundCondition 'Условие округления розничной цены (по умолчанию)' (Country country)= name(roundCondition(country));
 
-roundConditionCountryDepartmentStore (departmentStore) = roundConditionCountry(countryLegalEntity(legalEntityDepartmentStore(departmentStore))) PERSISTENT;
+roundConditionCountry (DepartmentStore departmentStore) = roundCondition(country(legalEntity(departmentStore))) PERSISTENT;
 
-roundConditionDepartmentStore (departmentStore) = OVERRIDE roundConditionCountryDepartmentStore(departmentStore), dataRoundConditionDepartmentStore(departmentStore) PERSISTENT;
-roundDiscountConditionDepartmentStore (departmentStore) = OVERRIDE roundConditionDepartmentStore(departmentStore), dataDiscountRoundConditionDepartmentStore(departmentStore) PERSISTENT;
+roundCondition (DepartmentStore departmentStore) = OVERRIDE roundConditionCountry(departmentStore), dataRoundCondition(departmentStore) PERSISTENT;
+roundDiscountCondition (DepartmentStore departmentStore) = OVERRIDE roundCondition(departmentStore), dataDiscountRoundCondition(departmentStore) PERSISTENT;
 
-CONSTRAINT currencyStock(departmentStore) != currencyRoundCondition(dataRoundConditionDepartmentStore(departmentStore))
-           CHECKED BY dataRoundConditionDepartmentStore
+CONSTRAINT currency(DepartmentStore departmentStore) != currency(dataRoundCondition(departmentStore))
+           CHECKED BY dataRoundCondition[DepartmentStore]
            MESSAGE 'Валюта округления должна совпадать с валютой склада';
 
-CONSTRAINT currencyStock(departmentStore) != currencyRoundCondition(dataDiscountRoundConditionDepartmentStore(departmentStore))
-           CHECKED BY dataDiscountRoundConditionDepartmentStore
+CONSTRAINT currency(DepartmentStore departmentStore) != currency(dataDiscountRoundCondition(departmentStore))
+           CHECKED BY dataDiscountRoundCondition[DepartmentStore]
            MESSAGE 'Валюта округления должна совпадать с валютой склада';
 
-CONSTRAINT currencyCountry(country) != currencyRoundCondition(roundConditionCountry(country))
-           CHECKED BY roundConditionCountry
+CONSTRAINT currency(Country country) != currency(roundCondition(country))
+           CHECKED BY roundCondition[Country]
            MESSAGE 'Валюта округления должна совпадать с валютой страны';
 
 EXTEND FORM departmentStore
-    PROPERTIES(d) nameDataRoundConditionDepartmentStore, nameDiscountDataRoundConditionDepartmentStore
+    PROPERTIES(d) nameDataRoundCondition, nameDiscountDataRoundCondition
 ;
 
 DESIGN departmentStore {
     headerExtraParams {
-        MOVE PROPERTY(nameDataRoundConditionDepartmentStore(d));
-        MOVE PROPERTY(nameDiscountDataRoundConditionDepartmentStore(d));
+        MOVE PROPERTY(nameDataRoundCondition(d));
+        MOVE PROPERTY(nameDiscountDataRoundCondition(d));
     }
 }
 
 EXTEND FORM country
-    PROPERTIES (c) nameRoundConditionCountry
+    PROPERTIES (c) nameRoundCondition
 ;

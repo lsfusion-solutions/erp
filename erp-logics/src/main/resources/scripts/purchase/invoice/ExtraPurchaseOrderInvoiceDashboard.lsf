@@ -4,39 +4,39 @@ REQUIRE PurchaseOrderInvoiceDashboard;
 
 NAMESPACE Purchase;
 
-orderDetailInvoiceDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT INDEXED;
-orderDetailUserInvoiceDetail = DATA OrderDetail (UserInvoiceDetail);
-orderDetailInvoiceDetail(d) += orderDetailUserInvoiceDetail(d);
+orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT INDEXED;
+orderDetail = DATA OrderDetail (UserInvoiceDetail);
+orderDetail(UserInvoiceDetail d) += orderDetail(d);
 
-countInvoiceDetailsOrderDetail = GROUP SUM 1 BY orderDetailInvoiceDetail(id);
-backgroundInvoiceDetailsOrderDetail = RGB (212,255,212) IF d IS OrderDetail AND countInvoiceDetailsOrderDetail(d);
-performUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
+countInvoiceDetails = GROUP SUM 1 BY orderDetail(InvoiceDetail id);
+backgroundInvoiceDetails = RGB (212,255,212) IF OrderDetail d IS OrderDetail AND countInvoiceDetails(d);
+perform = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
 
 
-performOrderDetailUserInvoice 'Принять' = ACTION (od, invoice) {
+perform 'Принять' = ACTION (OrderDetail od, UserInvoice invoice) {
     FOR ADDOBJ d = UserInvoiceDetail DO {    
         
-        userInvoiceUserInvoiceDetail(d) <- invoice;  
-        orderDetailUserInvoiceDetail(d) <- od; 
+        userInvoice(d) <- invoice;  
+        orderDetail(d) <- od; 
 
-        orderUserInvoiceDetail(d) <- orderOrderDetail(od);
-        skuUserInvoiceDetail(d) <- skuOrderDetail(od);
-        quantityUserInvoiceDetail (d) <- toInvoiceOrderDetail(od);
+        order(d) <- order(od);
+        sku(d) <- sku(od);
+        quantity (d) <- toInvoice(od);
                                 
-        fillUserInvoiceDetailOrderDetail(d, od);
-        overFillUserInvoiceDetailOrderDetail(d, od);        
-        performUserInvoiceDetailOrderDetail (d,od);
+        fill(d, od);
+        overFill(d, od);        
+        perform (d,od);
     }   
 } TOOLBAR EDITKEY 'BACK_SPACE';
 
-priceLocalOrderDetail 'Цена' = DATA LOCAL NUMERIC[14,2] (OrderDetail);
-quantityLocalOrderDetail 'Количество' = DATA LOCAL NUMERIC[14,3](OrderDetail);
+priceLocal 'Цена' = DATA LOCAL NUMERIC[14,2] (OrderDetail);
+quantityLocal 'Количество' = DATA LOCAL NUMERIC[14,3](OrderDetail);
 
 FORM quantityPrice 'Цена и количество'
     OBJECTS od = OrderDetail FIXED PANEL
-    PROPERTIES (od) READONLY nameSkuOrderDetail
-    PROPERTIES (od) quantityLocalOrderDetail    
-    PROPERTIES (od) priceLocalOrderDetail
+    PROPERTIES (od) READONLY nameSku
+    PROPERTIES (od) quantityLocal    
+    PROPERTIES (od) priceLocal
         
 ;
 DESIGN quantityPrice {
@@ -45,12 +45,12 @@ DESIGN quantityPrice {
             type = CONTAINERV;
             caption = '';
             NEW row1 {
-                MOVE PROPERTY (nameSkuOrderDetail(od)) {caption = 'Товар'; focusable = FALSE; font = 'bold 22';}
+                MOVE PROPERTY (nameSku(od)) {caption = 'Товар'; focusable = FALSE; font = 'bold 22';}
             }
             NEW row2 {
                 type = CONTAINERH;
-                MOVE PROPERTY (quantityLocalOrderDetail(od)) {font = 'bold 22';}
-                MOVE PROPERTY (priceLocalOrderDetail(od)) {font = 'bold 22';}
+                MOVE PROPERTY (quantityLocal(od)) {font = 'bold 22';}
+                MOVE PROPERTY (priceLocal(od)) {font = 'bold 22';}
             }
         }
         MOVE functions.box;
@@ -58,63 +58,63 @@ DESIGN quantityPrice {
 }
  
 
-correctUserInvoiceDetailOrderDetail = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
-correctLocalUserOrderDetail = ABSTRACT ACTION LIST (OrderDetail);
+correct = ABSTRACT ACTION LIST (UserInvoiceDetail, OrderDetail);
+correctLocalUser = ABSTRACT ACTION LIST (OrderDetail);
 
-correctOrderDetailUserInvoice 'Корректировать' = ACTION (od, invoice) {
-    quantityLocalOrderDetail(od) <- quantityOrderDetail(od);
-    priceLocalOrderDetail(od) <- priceOrderDetail(od);
-    correctLocalUserOrderDetail(od);
+correct 'Корректировать' = ACTION (OrderDetail od, UserInvoice invoice) {
+    quantityLocal(od) <- quantity(od);
+    priceLocal(od) <- price(od);
+    correctLocalUser(od);
     FORM quantityPrice OBJECTS od = od MODAL;
 
     FOR ADDOBJ d = UserInvoiceDetail DO {    
         
-        userInvoiceUserInvoiceDetail(d) <- invoice;  
-        orderDetailUserInvoiceDetail(d) <- od; 
+        userInvoice(d) <- invoice;  
+        orderDetail(d) <- od; 
 
-        orderUserInvoiceDetail(d) <- orderOrderDetail(od);
-        skuUserInvoiceDetail(d) <- skuOrderDetail(od);
-        quantityUserInvoiceDetail (d) <- OVERRIDE toInvoiceOrderDetail(od), quantityLocalOrderDetail(od);
+        order(d) <- order(od);
+        sku(d) <- sku(od);
+        quantity (d) <- OVERRIDE toInvoice(od), quantityLocal(od);
                                 
 //        fillUserInvoiceDetailOrderDetail(d, od);
-        VATUserInvoiceDetail(d) <- VATOrderDetail(od);
-        valueVATUserInvoiceDetail(d) <- valueVATOrderDetail(od);
-        priceListTypeUserInvoiceDetail(d) <- priceListTypeOrderDetail(od);
-        IF NOT notFillPriceInvoiceOrderOperation(operationOrderDetail(od)) THEN {
-            priceUserInvoiceDetail(d) <- OVERRIDE priceOrderDetail(od), priceLocalOrderDetail(od);
-            invoicePriceUserInvoiceDetail (d) <- priceUserInvoiceDetail (d) * (100 + calcValueVATUserInvoiceDetail(d)) / 100;
+        VAT(d) <- VAT(od);
+        valueVAT(d) <- valueVAT(od);
+        priceListType(d) <- priceListType(od);
+        IF NOT notFillPriceInvoiceOrder(operation(od)) THEN {
+            price(d) <- OVERRIDE price(od), priceLocal(od);
+            invoicePrice (d) <- price (d) * (100 + calcValueVAT(d)) / 100;
 
         }
-        dataCustomerStockUserInvoiceDetail(d) <- dataCustomerStockOrderDetail(od);
+        dataCustomerStock(d) <- dataCustomerStock(od);
 
-        overFillUserInvoiceDetailOrderDetail(d, od);
-        correctUserInvoiceDetailOrderDetail (d,od);
+        overFill(d, od);
+        correct (d,od);
     }   
 } TOOLBAR EDITKEY 'F9';
 
 EXTEND FORM userInvoice
     OBJECTS od = OrderDetail FIXED GRID
-    PROPERTIES READONLY SHOWIF countIncludeOrdersInvoice(i) BACKGROUND backgroundInvoiceDetailsOrderDetail(od) indexOrderDetail(od), idBarcodeSkuOrderDetail(od), nameSkuOrderDetail(od), shortNameUOMSkuOrderDetail(od),
-               quantityOrderDetail(od), priceOrderDetail(od), sumOrderDetail(od), invoiceSumOrderDetail(od) 
-    PROPERTIES SHOWIF countIncludeOrdersInvoice(i) performOrderDetailUserInvoice(od,i), correctOrderDetailUserInvoice(od,i)               
+    PROPERTIES READONLY SHOWIF countIncludeOrders(i) BACKGROUND backgroundInvoiceDetails(od) index(od), idBarcodeSku(od), nameSku(od), shortNameUOMSku(od),
+               quantity(od), price(od), sum(od), invoiceSum(od) 
+    PROPERTIES SHOWIF countIncludeOrders(i) perform(od,i), correct(od,i)               
                
-    ORDER BY  indexOrderDetail(od)          
-    FILTERS  includeOrderUserInvoice(orderOrderDetail(od), i)         
+    ORDER BY  index(od)          
+    FILTERS  include(order(od), i)         
     FILTERGROUP orderFilter
-        FILTER 'Без выписки' NOT countInvoiceDetailsOrderDetail(od) DEFAULT 
+        FILTER 'Без выписки' NOT countInvoiceDetails(od) DEFAULT 
               
     OBJECTS oid = UserInvoiceDetail FIXED GRID
-    PROPERTIES (oid) SHOWIF countIncludeOrdersInvoice(i) indexUserInvoiceDetail
-    PROPERTIES (oid) SHOWIF countIncludeOrdersInvoice(i) ON EDIT editSkuUserInvoiceDetail(oid) BACKGROUND backgroundSkuUserInvoiceDetail(oid) idBarcodeSkuUserInvoiceDetail, 
-                   nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail
-    PROPERTIES (oid) SHOWIF countIncludeOrdersInvoice(i) quantityUserInvoiceDetail,//SHOWIF showQuantityInvoice(i) 
-                   namePriceListTypeUserInvoiceDetail,
-                   priceUserInvoiceDetail ON CHANGE changePriceUserInvoiceDetail(oid), sumUserInvoiceDetail,
-                   numberVATUserInvoiceDetail ON CHANGE changeNumberVATUserInvoiceDetail(oid) BACKGROUND backgroundVATUserInvoiceDetail(oid),
-                   valueVATUserInvoiceDetail ON CHANGE changeValueVATUserInvoiceDetail(oid) BACKGROUND backgroundVATUserInvoiceDetail(oid),
-                   invoicePriceUserInvoiceDetail ON CHANGE changeInvoicePriceUserInvoiceDetail(oid),
-                   VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, ADDOBJ, deleteoid=DELETESESSION            
-    FILTERS  userInvoiceUserInvoiceDetail(oid) == i         
+    PROPERTIES (oid) SHOWIF countIncludeOrders(i) index
+    PROPERTIES (oid) SHOWIF countIncludeOrders(i) ON EDIT editSku(oid) BACKGROUND backgroundSku(oid) idBarcodeSku, 
+                   nameSku, shortNameUOMSku
+    PROPERTIES (oid) SHOWIF countIncludeOrders(i) quantity,//SHOWIF showQuantityInvoice(i) 
+                   namePriceListType,
+                   price ON CHANGE changePrice(oid), sum,
+                   numberVAT ON CHANGE changeNumberVAT(oid) BACKGROUND backgroundVAT(oid),
+                   valueVAT ON CHANGE changeValueVAT(oid) BACKGROUND backgroundVAT(oid),
+                   invoicePrice ON CHANGE changeInvoicePrice(oid),
+                   VATSum, invoiceSum, ADDOBJ, deleteoid=DELETESESSION            
+    FILTERS  userInvoice(oid) == i         
 ;
 
 DESIGN userInvoice {
@@ -149,44 +149,44 @@ DESIGN userInvoice {
     MOVE functions.box;
 }
 
-extraCreateMultiUserInvoiceOrder 'Создать накладную (без строк)'= ACTION (order) NEWSESSION {
+extraCreateMultiUserInvoice 'Создать накладную (без строк)'= ACTION (Order order) NEWSESSION {
     IF order IS Order THEN {
         FOR ADDOBJ i = UserInvoice DO {
 
-            fillHeaderUserInvoiceOrder(i, order);               
-            includeOrderUserInvoice(order, i)<- TRUE;
+            fillHeader(i, order);               
+            include(order, i)<- TRUE;
                           
             FORM userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     }
 }
 
-numberInvoiceOrderDetail 'Номер накладной' = DATA LOCAL NESTED INTEGER (OrderDetail);
-countNumberInvoiceOrder = GROUP SUM 1 IF numberInvoiceOrderDetail(d) BY orderOrderDetail(d); 
+numberInvoice 'Номер накладной' = DATA LOCAL NESTED INTEGER (OrderDetail);
+countNumberInvoice = GROUP SUM 1 IF numberInvoice(OrderDetail d) BY order(d); 
 
 FORM selectOrderOrderDetail 'Формирование нескольких накладных'
 
     OBJECTS o = Order FIXED PANEL 
     
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(sg), skuGroupName
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    ORDER BY order(sg), skuGroupName
     
     OBJECTS d=OrderDetail
-    PROPERTIES (d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, idSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail
-    PROPERTIES (d) READONLY quantityOrderDetail, namePriceListTypeOrderDetail, priceOrderDetail , sumOrderDetail,
-                   numberVATOrderDetail, valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                   toInvoiceOrderDetail BACKGROUND backgroundQuantityParamOrderDetail(d)
-    PROPERTIES(d)  numberInvoiceOrderDetail              
-    ORDER BY indexOrderDetail(d)
+    PROPERTIES (d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, namePriceListType, price , sum,
+                   numberVAT, valueVAT, VATSum, invoiceSum,
+                   toInvoice BACKGROUND backgroundQuantityParam(d)
+    PROPERTIES(d)  numberInvoice              
+    ORDER BY index(d)
 
-    FILTERS orderOrderDetail(d) == o
+    FILTERS order(d) == o
     FILTERGROUP filterInvoiced 
-        FILTER 'Не оприходованы' toInvoiceOrderDetail(d) 'F9' DEFAULT
+        FILTER 'Не оприходованы' toInvoice(d) 'F9' DEFAULT
         
     FILTERGROUP filterGroup 
-        FILTER 'По группам' isParentSkuGroupSku(sg, skuOrderDetail(d)) 'F8' DEFAULT
+        FILTER 'По группам' isParent(sg, sku(d)) 'F8' DEFAULT
     
 ;
 DESIGN selectOrderOrderDetail {
@@ -199,44 +199,44 @@ DESIGN selectOrderOrderDetail {
             MOVE skuTree.tree.box;
             MOVE d.box { 
                 fill = 2; 
-                PROPERTY (numberInvoiceOrderDetail(d)) {background = #FFEEEE;}                
+                PROPERTY (numberInvoice(d)) {background = #FFEEEE;}                
             }
         }
         MOVE functions.box;
     }
 }
 
-extraCreateInvoicesOrder 'Создать несколько накладных'= ACTION (order)  {
-    numberInvoiceOrderDetail(od) <- NULL WHERE orderOrderDetail(od) == order;
+extraCreateInvoices 'Создать несколько накладных'= ACTION (Order order)  {
+    numberInvoice(OrderDetail od) <- NULL WHERE order(od) == order;
     FORM selectOrderOrderDetail OBJECTS o = order MODAL;
     IF formResult() == FormResult.ok THEN {
-        IF countNumberInvoiceOrder(order) THEN {
-            FOR [ = GROUP SUM 1 BY numberInvoiceOrderDetail(d), orderOrderDetail(d)](num,order) DO {
+        IF countNumberInvoice(order) THEN {
+            FOR [ = GROUP SUM 1 BY numberInvoice(OrderDetail d), order(d)](INTEGER num,order) DO {
                 NEWSESSION {
                     FOR ADDOBJ i = UserInvoice DO {
         
-                        fillHeaderUserInvoiceOrder(i, order);               
-                        includeOrderUserInvoice(order, i)<- TRUE;
+                        fillHeader(i, order);               
+                        include(order, i)<- TRUE;
                         
-                        FOR orderOrderDetail(orderDetail) == order AND numberInvoiceOrderDetail(orderDetail) == num AND toInvoiceOrderDetail(orderDetail) >0
-                            AND inOrderDetailUserInvoice(orderDetail, i) AND NOT skipCreateUserInvoiceOrderDetail(orderDetail)
-                            ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
+                        FOR order(OrderDetail orderDetail) == order AND numberInvoice(orderDetail) == num AND toInvoice(orderDetail) >0
+                            AND in(orderDetail, i) AND NOT skipCreateUserInvoice(orderDetail)
+                            ORDER orderCreateUserInvoice(orderDetail) 
                             ADDOBJ d = UserInvoiceDetail DO {
-                                userInvoiceUserInvoiceDetail(d) <- i;
-                                orderUserInvoiceDetail(d) <- order;
-                                skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-                                batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-                                quantityUserInvoiceDetail (d) <- toInvoiceOrderDetail(orderDetail);
+                                userInvoice(d) <- i;
+                                order(d) <- order;
+                                sku(d) <- sku(orderDetail);
+                                batch(d) <- batch(orderDetail);
+                                quantity (d) <- toInvoice(orderDetail);
             
-                                fillUserInvoiceDetailOrderDetail(d, orderDetail);
-                                overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+                                fill(d, orderDetail);
+                                overFill(d, orderDetail);
                         }
                                   
                         FORM userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
                     }
                 }
             }
-            numberInvoiceOrderDetail(od) <- NULL WHERE orderOrderDetail(od) == order;
+            numberInvoice(OrderDetail od) <- NULL WHERE order(od) == order;
         } ELSE {
             MESSAGE 'Не задано количество накладных для формирования';
         }
@@ -245,6 +245,6 @@ extraCreateInvoicesOrder 'Создать несколько накладных'=
 }
 
 EXTEND FORM orderInvoiceDashboard
-PROPERTIES(o) FORCE PANEL TOOLBAR   AFTER createMultiUserInvoice(o) extraCreateMultiUserInvoiceOrder, extraCreateInvoicesOrder
+PROPERTIES(o) FORCE PANEL TOOLBAR   AFTER createMultiUserInvoice(o) extraCreateMultiUserInvoice, extraCreateInvoices
                        
 ;

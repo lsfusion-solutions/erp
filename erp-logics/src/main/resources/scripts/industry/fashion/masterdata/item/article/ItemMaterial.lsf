@@ -8,74 +8,74 @@ NAMESPACE Item;
 CLASS Material 'Материал';
 TABLE material(Material);
 
-nameMaterial 'Наименование' = DATA VARISTRING[100](Material);
-shortNameMaterial 'Наименование (сокр.)' = DATA VARISTRING[50](Material);
+name 'Наименование' = DATA VARISTRING[100](Material);
+shortName 'Наименование (сокр.)' = DATA VARISTRING[50](Material);
 
 @defineExternalizable(material, VARSTRING[100]);
 
-parseCompositionItem 'Разбить состав на материалы' = ACTION CUSTOM 'lsfusion.erp.ParseCompositionItemActionProperty' (Item);
+parseComposition 'Разбить состав на материалы' = ACTION CUSTOM 'lsfusion.erp.ParseCompositionItemActionProperty' (Item);
 
 FORM material 'Материал'
     OBJECTS t=Material FIXED PANEL
-    PROPERTIES(t) nameMaterial, shortNameMaterial, idMaterial SHOWIF showIDs()
+    PROPERTIES(t) name, shortName, id SHOWIF showIDs()
     EDIT Material OBJECT t
 ;
 
 FORM materials 'Материалы'
     OBJECTS t=Material
-    PROPERTIES(t) nameMaterial READONLY, shortNameMaterial READONLY , idMaterial SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, shortName READONLY , id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameMaterial(t)
+    ORDER BY name(t)
     DIALOG Material OBJECT t
 ;
 DESIGN materials { main{ preferredSize = (600, 400); } }
 
 TABLE materialItem (Material, Item);
-percentMaterialItem 'Процент' = DATA INTEGER (Material, Item);
+percent 'Процент' = DATA INTEGER (Material, Item);
 
-percentMaterialsItem 'Процент' (i) = GROUP SUM percentMaterialItem(m,i) BY i;
+percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Item i) BY i;
 
-calcCompositionItem 'Состав' (i) = VARSTRING[255](
-                       [= GROUP CONCAT (percentMaterialItem(m,i)+'% '+nameMaterial(m)) IF percentMaterialItem(m,i), ', ' BY i ORDER DESC percentMaterialItem(m,i)](i))
+calcComposition 'Состав' (Item i) = VARSTRING[255](
+                       [= GROUP CONCAT (percent(Material m,Item i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
                        MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
 
-WHEN SESSION FORMS item CHANGED(calcCompositionItem(i)) DO {
-    compositionItem(i) <- calcCompositionItem(i);            
+WHEN SESSION FORMS item CHANGED(calcComposition(Item i)) DO {
+    composition(i) <- calcComposition(i);            
 } 
-backgroundMaterialsItem (i) = RGB(255,0,0) IF i IS Item AND (percentMaterialsItem(i) != 100.0);
+backgroundMaterials (Item i) = RGB(255,0,0) IF i IS Item AND (percentMaterials(i) != 100.0);
 
 FORM itemMaterial 'Материалы'
     OBJECTS i=Item FIXED PANEL 
-    PROPERTIES(i) READONLY percentMaterialsItem BACKGROUND  backgroundMaterialsItem(i)
+    PROPERTIES(i) READONLY percentMaterials BACKGROUND  backgroundMaterials(i)
     
     OBJECTS t=Material
-    PROPERTIES(t) nameMaterial READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t,i) percentMaterialItem
+    PROPERTIES(t) name READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t,i) percent
     
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameMaterial(t)
+    ORDER BY name(t)
 ;
 DESIGN itemMaterial { main { preferredSize = (600, 400); } }     
 
-createCompositionItem 'Выбрать состав' = ACTION (item) {          
+createComposition 'Выбрать состав' = ACTION (Item item) {          
     FORM itemMaterial OBJECTS i = item MODAL; 
-} SHORTCUT compositionItem;  
+} SHORTCUT composition[Item];  
 
 //добавление на форму атрибутов товара
-inMaterial 'Отм.' = DATA BOOLEAN (Material) MAXCHARWIDTH 5;
+in 'Отм.' = DATA BOOLEAN (Material) MAXCHARWIDTH 5;
 allowReplaceMaterial = DATA LOCAL BOOLEAN ();
 
 FORM confirmReplaceMaterial 'Объединяемые материалы'
     OBJECTS material = Material FIXED PANEL 
 
     OBJECTS o = Material  
-    PROPERTIES(o) READONLY nameMaterial
+    PROPERTIES(o) READONLY name
     FILTERS o==material
 
     OBJECTS o2 = Material
-    PROPERTIES(o2) inMaterial
-    PROPERTIES(o2) READONLY nameMaterial
-    FILTERS inMaterial(o2)
+    PROPERTIES(o2) in
+    PROPERTIES(o2) READONLY name
+    FILTERS in(o2)
 ;
 
 DESIGN confirmReplaceMaterial {
@@ -93,23 +93,23 @@ DESIGN confirmReplaceMaterial {
     MOVE functions.box;
 }
 
-replaceMaterial 'Объединить' = ACTION (material) {
+replace 'Объединить' = ACTION (Material material) {
     FORM confirmReplaceMaterial OBJECTS o=material MODAL;
     IF formResult() == FormResult.ok THEN {
         allowReplaceMaterial() <- TRUE;
-        FOR inMaterial(o) AND allowReplaceMaterial() DO{
+        FOR in(Material o) AND allowReplaceMaterial() DO{
             IF o != material THEN {
-                FOR percentMaterialItem(o, item) DO {
-                    IF percentMaterialItem(material, item) THEN {
-                        percentMaterialItem(material, item) <- percentMaterialItem(o, item) + percentMaterialItem(material, item);   
-                        percentMaterialItem(o, item) <- NULL;                        
+                FOR percent(o, Item item) DO {
+                    IF percent(material, item) THEN {
+                        percent(material, item) <- percent(o, item) + percent(material, item);   
+                        percent(o, item) <- NULL;                        
                     } ELSE {
-                        percentMaterialItem(material, item) <- percentMaterialItem(o, item);
-                        percentMaterialItem(o, item) <- NULL;
+                        percent(material, item) <- percent(o, item);
+                        percent(o, item) <- NULL;
                     }                    
-                    compositionItem(item) <- calcCompositionItem(item);                                                                         
+                    composition(item) <- calcComposition(item);                                                                         
                 }
-                inMaterial(o) <- NULL;
+                in(o) <- NULL;
                 DELETE o;                  
             } ELSE {
                 MESSAGE 'Выделенный материал не может совпадать с объединяемым';
@@ -117,18 +117,18 @@ replaceMaterial 'Объединить' = ACTION (material) {
         }
         apply();
     } ELSE {
-        inMaterial(o) <- NULL WHERE inMaterial(o);           
+        in(Material o) <- NULL WHERE in(o);           
     }   
 };
 
 EXTEND FORM attributesItem
     OBJECTS material = Material
-    PROPERTIES inMaterial(material)
-    PROPERTIES(material) READONLY nameMaterial
-    PROPERTIES(material) READONLY shortNameMaterial, idMaterial SHOWIF showIDs()
+    PROPERTIES in(material)
+    PROPERTIES(material) READONLY name
+    PROPERTIES(material) READONLY shortName, id SHOWIF showIDs()
     PROPERTIES(material) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
-    ORDER BY nameMaterial(material)
-    PROPERTIES replaceMaterial(material) TODRAW material FORCE PANEL TOOLBAR
+    ORDER BY name(material)
+    PROPERTIES replace(material) TODRAW material FORCE PANEL TOOLBAR
 ;
 
 DESIGN attributesItem {

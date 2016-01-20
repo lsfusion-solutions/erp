@@ -6,32 +6,32 @@ NAMESPACE Repricing;
 
 //------------------------ Управленческая переоценка ----------------------------//
 
-createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
-    IF [=GROUP SUM 1 IF inDashboardRepricingSku(sku)]() THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- inDashboardRepricingSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
-        FOR [= GROUP SUM 1 IF selectSkuLabelTypeDepartmentStore(s,l,d) BY l, d](labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
-            departmentStoreLabelTransaction(t) <- departmentStore;
-            labelTypeLabelTransaction(t) <- labelType;
-            priceListTypeLabelTransaction(t) <- OVERRIDE retailPriceListTypeDepartmentStore(departmentStore), priceListTypeOperation(operation);   
-            dateLabelTransaction(t) <- toDate(dateTime);      
-            timeLabelTransaction(t) <- toTime(dateTime);      
+createRepricingLabelTransaction 'Распечатать ценники' = ACTION (DepartmentStore departmentStore, Operation operation, DATETIME dateTime) NEWSESSION NESTED select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku] {
+    IF [=GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
+        select(Sku sku, LabelType labelType, departmentStore) <- inDashboardRepricing(sku) AND in(labelType, sku, departmentStore);   
+        FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
+            departmentStore(t) <- departmentStore;
+            labelType(t) <- labelType;
+            priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), priceListType(operation);   
+            date(t) <- toDate(dateTime);      
+            time(t) <- toTime(dateTime);      
             
-            FOR selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
+            FOR select(Sku sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
                 
-                labelTransactionLabelTransactionDetail(d) <- t;
-                skuLabelTransactionDetail(d) <- sku;
+                labelTransaction(d) <- t;
+                sku(d) <- sku;
     
-                nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-                createAttributeLabelTransactionDetail(d);
+                name(d) <- name(sku(d));
+                createAttribute(d);
     
-                quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-                                                        THEN INTEGER(currentBalanceSkuStock(sku, departmentStore))
-                                                     ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                quantity(d) <- IF include(labelType, sku(d))
+                                                        THEN INTEGER(currentBalance(sku, departmentStore))
+                                                     ELSE count(labelType, sku(d));
                                                      
-                priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
+                price(d) <- calcPrice(d);
+                retailPrice(d) <- overRetailPrice(d);
             } 
-            printLabelTransaction(t);
+            print(t);
         }
     }
     apply();
@@ -63,56 +63,56 @@ createRepricingLabelTransactionDepartmentStoreOperationDateTime 'Распеча�
 //    apply();
 //} TOOLBAR;
 
-createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime)  {
-    IF countSelectSkus() THEN  NEWSESSION NESTED selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku {
+createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (Stock departmentStore, Operation operation, DATETIME dateTime)  {
+    IF countSelectSkus() THEN  NEWSESSION NESTED select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku] {
         FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;
         IF formResult() == FormResult.ok THEN { 
 
             IF NOT countSelectType() THEN {
-                selectType(type) <- TRUE WHERE type == chosenObject('l');
+                select(LabelType type) <- TRUE WHERE type == chosenObject('l');
             }            
-            FOR selectType(type) DO {
+            FOR select(LabelType type) DO {
                 FOR ADDOBJ t = LabelTransaction DO {
-                    departmentStoreLabelTransaction(t) <- departmentStore;
-                    priceListTypeLabelTransaction(t) <- OVERRIDE retailPriceListTypeDepartmentStore(departmentStore), priceListTypeOperation(operation);    
-                    dateLabelTransaction(t) <- toDate(dateTime);      
-                    timeLabelTransaction(t) <- toTime(dateTime);
-                    labelTypeLabelTransaction(t) <- type;
+                    departmentStore(t) <- departmentStore;
+                    priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), priceListType(operation);    
+                    date(t) <- toDate(dateTime);      
+                    time(t) <- toTime(dateTime);
+                    labelType(t) <- type;
             
-                    FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
-                        labelTransactionLabelTransactionDetail(d) <- t;
-                        skuLabelTransactionDetail(d) <- sku;
+                    FOR select(Sku sku) ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransaction(d) <- t;
+                        sku(d) <- sku;
             
-                        nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-                        documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
+                        name(d) <- name(sku(d));
+                        documentQuantity(d) <- currentBalance(sku, departmentStore); 
             
-                        createAttributeLabelTransactionDetail(d);                      
+                        createAttribute(d);                      
                
-                        priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
-                        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
+                        price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+                        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
                 
 //                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
 //                                                                INTEGER(documentQuantityLabelTransactionDetail(d))
 //                                                             ELSE 
 //                                                                countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));  
                                                                                                                                                                                            
-                        quantityLabelTransactionDetail(d) <- IF NOT countLabelDepartmentStore(departmentStore) 
-                                                                 THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
-                                                                    THEN INTEGER(documentQuantityLabelTransactionDetail(d))
-                                                                     ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
-                                                                 ELSE countLabelDepartmentStore(departmentStore);                                                                                                                                                                                              
+                        quantity(d) <- IF NOT countLabel(departmentStore) 
+                                                                 THEN (IF include(labelType(d), sku(d)) 
+                                                                    THEN INTEGER(documentQuantity(d))
+                                                                     ELSE count(labelType(d), sku(d)))
+                                                                 ELSE countLabel(departmentStore);                                                                                                                                                                                              
                                                                                                                                                                                            
                     }
                     
-                    IF changeDepartmentStore(departmentStore) THEN {
+                    IF change(departmentStore) THEN {
                         FORM customLabelTransaction OBJECTS l = t MODAL;
                         IF formResult() == FormResult.ok THEN {    
-                            printLabelTransaction(t);
+                            print(t);
                         } ELSE {
                             cancel();
                         }             
                     } ELSE {
-                        printLabelTransaction(t);
+                        print(t);
                     }
                 }
             }                     
@@ -122,58 +122,58 @@ createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Пер�
 } TOOLBAR;
 
 clearDashboardRepricing = ACTION() {
-    inDashboardRepricingSku(sk) <- NULL;
-    managementRetailPriceSku(sk) <- NULL;
-    managementPriceListPriceSku(sk) <- NULL;
+    inDashboardRepricing(Sku sk) <- NULL;
+    managementRetailPrice(Sku sk) <- NULL;
+    managementPriceListPrice(Sku sk) <- NULL;
     
     formRefresh();
 }
 
 FORM repricingDashboard 'Переоценка'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES (d) SELECTOR nameDepartmentStore
-    FILTERS isCompanyStock(d)
+    PROPERTIES (d) SELECTOR name
+    FILTERS isCompany(d)
         
     OBJECTS o = Repricing.Operation FIXED PANEL
-    PROPERTIES (o) SELECTOR Repricing.nameOperation
-    FILTERS inUserOperation(currentUser(), o)
+    PROPERTIES (o) SELECTOR name
+    FILTERS in(currentUser(), o)
 
     OBJECTS t=DATETIME FIXED PANEL
     PROPERTIES(t) OBJVALUE
     
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuTreeName = nameSkuGroup(sg)
-    ORDER BY orderSkuGroup(sg), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) DEFAULT
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuTreeName = name(sg)
+    ORDER BY order(sg), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sg) DEFAULT
     
     OBJECTS sk=Sku
-    PROPERTIES(sk)          inDashboardRepricingSku, selectSku
-    PROPERTIES(sk) READONLY idBarcodeSku, idSku, nameSku ON SHORTCUT showMovementSkuSkuStock(sk, d) ON SHORTCUT showMovementPriceSkuSkuStock(sk, d), shortNameUOMSku
-    PROPERTIES     READONLY dateTimeLastMovedSkuStock(sk, d), dateTimeLastOrderBatchSkuStock(sk, d), nameSupplierLastOrderBatchSkuStock(sk, d), nameCountrySku(sk), currentBalanceSkuStock(sk,d), managementRetailPriceSku(sk), retailPricingPriceBSkuStockDateTime(sk,d,t) 
+    PROPERTIES(sk)          inDashboardRepricing, select
+    PROPERTIES(sk) READONLY idBarcode, id, name ON SHORTCUT showMovementSku(sk, d) ON SHORTCUT showMovementPriceSku(sk, d), shortNameUOM
+    PROPERTIES     READONLY dateTimeLastMoved(sk, d), dateTimeLastOrderBatch(sk, d), nameSupplierLastOrderBatch(sk, d), nameCountry(sk), currentBalance(sk,d), managementRetailPrice(sk), retailPricingPriceB(sk,d,t) 
     PROPERTIES (d,o,t)  TODRAW sk FORCE PANEL calculateDashboardRepricing, calculateDashboardManagementRepricing, createDashboardRepricing,
-                                              createRepricingLabelTransactionDepartmentStoreOperationDateTime,
-                                              createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime
+                                              createRepricingLabelTransaction,
+                                              createSnapshotRepricingLabelTransactionDepartmentStore
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk                                          
-    FILTERS inDashboardRepricingSku(sk), isParentSkuGroupSku(sg, sk) 
+    FILTERS inDashboardRepricing(sk), isParent(sg, sk) 
 
     OBJECTS p = Repricing
-    PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
-                   nameDepartmentStoreRepricing, countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
-                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
-                   diffRetailSumRepricingDetailRepricing, numberDisposalRepricing, skipChangeLedgerRepricing,
-                   statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransactionRepricing(p),
-                   statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotMachineryPriceTransactionRepricing(p) BACKGROUND backgroundCreateMachineryPriceTransactionRepricing(p), 
-                   noteRepricing                      
+    PROPERTIES (p) READONLY isPosted, number, series, date, time, beforeDate,
+                   nameDepartmentStore, countRepricingDetail, diffSumRepricingDetail,
+                   diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+                   diffRetailSumRepricingDetail, numberDisposal, skipChangeLedger,
+                   statusLabel BACKGROUND backgroundPrintLabelTransaction(p),
+                   statusMachinery ON SHORTCUT createSnapshotMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransaction(p), 
+                   note                      
                
-    PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
-                   createSnapshotRepricingLabelTransaction FORCE PANEL
+    PROPERTIES (p) createLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction(p), 
+                   createSnapshotLabelTransaction FORCE PANEL
                    
-    PROPERTIES (p) createMachineryPriceTransactionRepricing FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
-    PROPERTIES (p) printRepricing FORCE PANEL TOOLBAR                                           
-    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
+    PROPERTIES (p) createMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransaction(p)
+    PROPERTIES (p) print FORCE PANEL TOOLBAR                                           
+    PROPERTIES (p) edit SHOWIF isOpened(p), ADDFORM
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)    
                        
-    FILTERGROUP filters FILTER 'Переоценки на дату' dateRepricing(p)==toDate(t) 'F5' DEFAULT                         
+    FILTERGROUP filters FILTER 'Переоценки на дату' date(p)==toDate(t) 'F5' DEFAULT                         
     
     EVENTS
         ON CHANGE d clearDashboardRepricing()
@@ -197,7 +197,7 @@ DESIGN repricingDashboard {
                 MOVE skuTree.tree.box { caption = 'Группы SKU'; fill=0.5; }
                 MOVE sk.box {
                     caption = 'Товары, для которых необходима переоценка';
-                    PROPERTY(retailPricingPriceBSkuStockDateTime(sk,d,t)) {
+                    PROPERTY(retailPricingPriceB(sk,d,t)) {
                         caption = 'Цена (текущая)';
                     }
                 }
@@ -214,8 +214,8 @@ DESIGN repricingDashboard {
                         type = COLUMNS;
                         columns = 5;
                         MOVE PROPERTY(createDashboardRepricing(d,o,t));
-                        MOVE PROPERTY(createRepricingLabelTransactionDepartmentStoreOperationDateTime(d,o,t));
-                        MOVE PROPERTY(createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime(d,o,t));                    
+                        MOVE PROPERTY(createRepricingLabelTransaction(d,o,t));
+                        MOVE PROPERTY(createSnapshotRepricingLabelTransactionDepartmentStore(d,o,t));                    
                     }
                 }
             }

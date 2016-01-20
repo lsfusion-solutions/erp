@@ -4,9 +4,9 @@ REQUIRE UpdatePriceDashboard, PricingPurchase;
 
 NAMESPACE Pricing;
 
-quantityPurchasePriceListLedgerSkuStock 'Кол-во' (sk,st) = quantityInvoiceDetail(invoiceDetailInvoicePricingDetail(activePriceListLedgerALedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, sk, st, currentDateTime())));
-quantityBeforePurchasePriceListLedgerSkuStock 'Остаток до' (sk,st)= currentBalanceSkuStock(sk,st) (-) quantityPurchasePriceListLedgerSkuStock(sk,st);
+quantityPurchasePriceListLedger 'Кол-во' (Sku sk,Stock st) = quantity(Purchase.invoiceDetail[InvoicePricingDetail](activePriceListLedgerA(SystemLedgerPriceListType.retailPricingPriceListType, sk, st, currentDateTime())));
+quantityBeforePurchasePriceListLedger 'Остаток до' (Sku sk,Stock st)= currentBalance(sk,st) (-) quantityPurchasePriceListLedger(sk,st);
 
 EXTEND FORM updatePriceDashboard 
-    PROPERTIES(sk,d) READONLY  AFTER currentBalanceSkuStock(sk,d) quantityBeforePurchasePriceListLedgerSkuStock
+    PROPERTIES(sk,d) READONLY  AFTER currentBalance(sk,d) quantityBeforePurchasePriceListLedger
 ;

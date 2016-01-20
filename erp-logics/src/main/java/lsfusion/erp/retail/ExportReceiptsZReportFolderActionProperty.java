@@ -20,7 +20,7 @@ public class ExportReceiptsZReportFolderActionProperty extends ExportReceiptsZRe
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            String pathExportReceipts = (String) findProperty("pathExportReceipts").read(context);
+            String pathExportReceipts = (String) findProperty("pathExportReceipts[]").read(context);
 
             if (pathExportReceipts != null) {
                 if (!new File(pathExportReceipts).exists() && !new File(pathExportReceipts).mkdir())

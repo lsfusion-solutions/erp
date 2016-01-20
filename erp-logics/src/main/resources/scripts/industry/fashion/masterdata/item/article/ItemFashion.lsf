@@ -40,17 +40,17 @@ GROUP itemFashion 'Одежда' : public;
 @defineItemAttributeBatch (insoleLength, 'Длина стельки');
 
 
-overCopyItem(s, d) += ACTION (s, d) {
-    sizeHeightItem(d) <- sizeHeightItem(s);
-    sizeChestItem(d) <- sizeChestItem(s);  
-    sizeUnderChestItem(d) <- sizeUnderChestItem(s);  
-    sizeCupBraItem(d) <- sizeCupBraItem(s);  
-    sizeHipsItem(d) <- sizeHipsItem(s);  
-    sizeWaistItem(d) <- sizeWaistItem(s);  
-    sizeNeckItem(d) <- sizeNeckItem(s);  
-    sizeHeadItem(d) <- sizeHeadItem(s);         
-    sizeHandItem(d) <- sizeHandItem(s);  
-    footLengthItem(d) <- footLengthItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    sizeHeight(d) <- sizeHeight(s);
+    sizeChest(d) <- sizeChest(s);  
+    sizeUnderChest(d) <- sizeUnderChest(s);  
+    sizeCupBra(d) <- sizeCupBra(s);  
+    sizeHips(d) <- sizeHips(s);  
+    sizeWaist(d) <- sizeWaist(s);  
+    sizeNeck(d) <- sizeNeck(s);  
+    sizeHead(d) <- sizeHead(s);         
+    sizeHand(d) <- sizeHand(s);  
+    footLength(d) <- footLength(s);
 }
 
 DESIGN item {
@@ -84,39 +84,39 @@ CLASS SeasonYear 'Год';
 TABLE seasonYear (SeasonYear);
 @defineExternalizable(seasonYear, VARSTRING[100]);
 
-nameSeasonYear 'Год' = DATA VARISTRING[50](SeasonYear);
-seasonYearName = GROUP AGGR season BY nameSeasonYear(season);
+name 'Год' = DATA VARISTRING[50](SeasonYear);
+seasonYearName = GROUP AGGR SeasonYear season BY name(season);
 
 FORM seasonYear 'Год'
     OBJECTS t=SeasonYear FIXED PANEL
-    PROPERTIES(t) nameSeasonYear, idSeasonYear SHOWIF showIDs()
+    PROPERTIES(t) name, id SHOWIF showIDs()
     EDIT SeasonYear OBJECT t
 ;
 
 FORM seasonYears 'Годы'
     OBJECTS t=SeasonYear
-    PROPERTIES(t) nameSeasonYear READONLY, idSeasonYear SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameSeasonYear(t)
+    ORDER BY name(t)
     DIALOG SeasonYear OBJECT t
 ;
 DESIGN seasonYears { main{ preferredSize = (600, 400); } }
 
-seasonYearArticle = DATA SeasonYear (Article);
-nameSeasonYearArticle 'Год' (a) = nameSeasonYear(seasonYearArticle(a)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+seasonYear = DATA SeasonYear (Article);
+nameSeasonYear 'Год' (Article a) = name(seasonYear(a)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-seasonYearItem (item) = seasonYearArticle(articleItem(item));
-nameSeasonYearItem 'Год' (i) = nameSeasonYear(seasonYearItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameSeasonYearBatch 'Год' (b) =  nameSeasonYearItem(skuBatch(b));
+seasonYear (Item item) = seasonYear(article(item));
+nameSeasonYear 'Год' (Item i) = name(seasonYear(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameSeasonYear 'Год' (Batch b) =  nameSeasonYear(sku(b));
 
 @defineItemAttribute(seasonYear, name, 'Год', itemFashion);
 
-EXTEND FORM article PROPERTIES(a)  nameSeasonYearArticle;
-EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYearArticle;
+EXTEND FORM article PROPERTIES(a)  nameSeasonYear;
+EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea  nameSeasonYear;
 
 @defineUniteAttributeItem(seasonYear, name, 'год', 'годы', article);
 EXTEND FORM attributesItem
-    PROPERTIES READONLY AFTER nameSeasonYear(seasonYear) idSeasonYear(seasonYear) SHOWIF showIDs()
+    PROPERTIES READONLY AFTER name(seasonYear) id(seasonYear) SHOWIF showIDs()
 ;
 
 // Сезон
@@ -124,43 +124,43 @@ CLASS Season 'Сезон';
 TABLE season (Season);
 @defineExternalizable(season, VARSTRING[100]);
 
-nameSeason 'Сезон' = DATA VARISTRING[50](Season);
-seasonName = GROUP AGGR season BY nameSeason(season);
+name 'Сезон' = DATA VARISTRING[50](Season);
+seasonName = GROUP AGGR Season season BY name(season);
 
 FORM season 'Сезон'
     OBJECTS t=Season FIXED PANEL
-    PROPERTIES(t) nameSeason, idSeason SHOWIF showIDs()
+    PROPERTIES(t) name, id SHOWIF showIDs()
     EDIT Season OBJECT t
 ;
 
 FORM seasons 'Сезоны'
     OBJECTS t=Season
-    PROPERTIES(t) nameSeason READONLY, idSeason SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameSeason(t)
+    ORDER BY name(t)
     DIALOG Season OBJECT t
 ;
 DESIGN seasons { main{ preferredSize = (600, 400); } }
 
-seasonArticle = DATA Season (Article);
-idSeasonArticle 'Сезон' (a) = idSeason(seasonArticle(a));
-nameSeasonArticle 'Сезон' (a) = nameSeason(seasonArticle(a)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
+season = DATA Season (Article);
+idSeason 'Сезон' (Article a) = id(season(a));
+nameSeason 'Сезон' (Article a) = name(season(a)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-seasonItem (item) = seasonArticle(articleItem(item));
-nameSeasonItem 'Сезон' (i) = nameSeason(seasonItem(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
-nameSeasonBatch 'Сезон' (b) =  nameSeasonItem(skuBatch(b));
+season (Item item) = season(article(item));
+nameSeason 'Сезон' (Item i) = name(season(i)) IN itemArticle MINCHARWIDTH 20 PREFCHARWIDTH 30;
+nameSeason 'Сезон' (Batch b) =  nameSeason(sku(b));
  
-idSeasonBarcode(barcode) = idSeason(seasonItem(skuBarcode(barcode)));
-nameSeasonBarcode(barcode) = nameSeason(seasonItem(skuBarcode(barcode))); 
+idSeason(Barcode barcode) = id(season(sku(barcode)));
+nameSeason(Barcode barcode) = name(season(sku(barcode))); 
  
 @defineItemAttribute(season, name, 'Сезон', itemFashion);
 
-EXTEND FORM article PROPERTIES(a)  nameSeasonArticle;
-EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameSeasonArticle;
+EXTEND FORM article PROPERTIES(a)  nameSeason;
+EXTEND FORM articles PROPERTIES(a)  READONLYIF isReadonly() BEFORE deletea nameSeason;
 
 @defineUniteAttributeItem(season, name, 'сезон', 'сезоны', article);
 EXTEND FORM attributesItem
-    PROPERTIES READONLY AFTER nameSeason(season) idSeason(season) SHOWIF showIDs()
+    PROPERTIES READONLY AFTER name(season) id(season) SHOWIF showIDs()
 ;
 
 // Коллекция
@@ -168,37 +168,37 @@ CLASS Collection 'Коллекция';
 TABLE collection (Collection);
 
 @defineExternalizable(collection, VARSTRING[100]);
-nameCollection 'Наименование' = DATA VARISTRING[100](Collection);
-collectionName = GROUP AGGR collection BY nameCollection(collection);
+name 'Наименование' = DATA VARISTRING[100](Collection);
+collectionName = GROUP AGGR Collection collection BY name(collection);
 
 FORM collection 'Коллекция'
     OBJECTS t=Collection FIXED PANEL
-    PROPERTIES(t) nameCollection, idCollection SHOWIF showIDs()
+    PROPERTIES(t) name, id SHOWIF showIDs()
     EDIT Collection OBJECT t
 ;
 
 FORM collections 'Коллекции'
     OBJECTS t=Collection
-    PROPERTIES(t) nameCollection READONLY, idCollection SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameCollection(t)
+    ORDER BY name(t)
     DIALOG Collection OBJECT t
 ;
 DESIGN collections { main{ preferredSize = (600, 400); } }
 
-collectionArticle  = DATA Collection(Article);
-nameCollectionArticle 'Коллекция' (Article) = nameCollection(collectionArticle(Article)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 20;
+collection  = DATA Collection(Article);
+nameCollection 'Коллекция' (Article Article) = name(collection(Article)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
-collectionItem (item) = collectionArticle(articleItem(item));
-nameCollectionItem 'Коллекция' (i) = nameCollection(collectionItem(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
-nameCollectionBatch 'Коллекция' (b) =  nameCollectionItem(skuBatch(b));
+collection (Item item) = collection(article(item));
+nameCollection 'Коллекция' (Item i) = name(collection(i)) IN itemArticle MINCHARWIDTH 10 PREFCHARWIDTH 15;
+nameCollection 'Коллекция' (Batch b) =  nameCollection(sku(b));
 
 @defineItemAttribute(collection, name, 'Коллекция', itemFashion);
 
 @defineUniteAttributeItem(collection, name, 'коллекция', 'коллекции', article);
 EXTEND FORM attributesItem
-    PROPERTIES READONLY AFTER nameCollection(collection) idCollection(collection) SHOWIF showIDs()
+    PROPERTIES READONLY AFTER name(collection) id(collection) SHOWIF showIDs()
 ;
 
-EXTEND FORM article PROPERTIES(a)  nameCollectionArticle;
-EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollectionArticle;
+EXTEND FORM article PROPERTIES(a)  nameCollection;
+EXTEND FORM articles PROPERTIES(a)  BEFORE deletea READONLYIF isReadonly() nameCollection;

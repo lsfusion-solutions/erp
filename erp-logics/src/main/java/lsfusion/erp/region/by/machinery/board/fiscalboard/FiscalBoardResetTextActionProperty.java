@@ -27,10 +27,10 @@ public class FiscalBoardResetTextActionProperty extends ScriptingActionProperty 
         DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
         try {
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister").read(context);
-                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister").read(context);
+                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
+                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
 
                 String line = "";
                 for (int i = 0; i < 20; i++)

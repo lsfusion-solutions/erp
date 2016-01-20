@@ -28,18 +28,18 @@ public class FiscalShtrihServiceInOutActionProperty extends ScriptingActionPrope
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
-            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
             int password = pass==null ? 30000 : pass * 1000;
             
-            Boolean isDone = findProperty("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal) findProperty("sumCashOperation").read(context.getSession(), cashOperationObject);
+            Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalShtrihServiceInOutClientAction(password, comPort, baudRate, sum));
                 if (result == null) {
-                    findProperty("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
                 } else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

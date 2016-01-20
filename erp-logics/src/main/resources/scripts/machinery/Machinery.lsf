@@ -7,46 +7,46 @@ REQUIRE System, SkuLedger, Barcode, PriceListType, DefaultData;
 CLASS ABSTRACT GroupMachinery 'Группы оборудования';
 TABLE groupMachinery (GroupMachinery);
 
-nppGroupMachinery 'Порядковый номер' = DATA INTEGER (GroupMachinery) IN recognize NOT NULL; 
-nameGroupMachinery 'Наименование' = DATA VARSTRING[200] (GroupMachinery) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 20;
-directoryGroupMachinery = ABSTRACT VARSTRING[200] (GroupMachinery);
+npp 'Порядковый номер' = DATA INTEGER (GroupMachinery) IN recognize NOT NULL; 
+name 'Наименование' = DATA VARSTRING[200] (GroupMachinery) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 20;
+directory = ABSTRACT VARSTRING[200] (GroupMachinery);
 
-inactiveGroupMachinery 'Неактивный' = ABSTRACT BOOLEAN (GroupMachinery);
-activeGroupMachinery 'Активный' (group) = group IS GroupMachinery AND NOT inactiveGroupMachinery(group);
+inactive 'Неактивный' = ABSTRACT BOOLEAN (GroupMachinery);
+active 'Активный' (GroupMachinery group) = group IS GroupMachinery AND NOT inactive(group);
 
-groupMachineryNpp = GROUP AGGR groupMachinery BY nppGroupMachinery(groupMachinery);
+groupMachineryNpp = GROUP AGGR GroupMachinery groupMachinery BY npp(groupMachinery);
 
 // -------------------------------- Склады --------------------------------------------- //
 
-stockGroupMachinery = ABSTRACT Stock (GroupMachinery) PERSISTENT;
-idStockGroupMachinery 'Склад' (groupMachinery) = idStock(stockGroupMachinery(groupMachinery));
-nameStockGroupMachinery 'Склад' (groupMachinery) = nameStock(stockGroupMachinery(groupMachinery));
+stock = ABSTRACT Stock (GroupMachinery) PERSISTENT;
+idStock 'Склад' (GroupMachinery groupMachinery) = id(stock(groupMachinery));
+nameStock 'Склад' (GroupMachinery groupMachinery) = name(stock(groupMachinery));
 
 // фильтрация по группам товаров
 
-filterSkuGroupMachinery 'Фильтровать по классификатору' = DATA BOOLEAN (GroupMachinery);
+filterSku 'Фильтровать по классификатору' = DATA BOOLEAN (GroupMachinery);
 
 TABLE groupMachinerySkuGroup (GroupMachinery, SkuGroup);
-inGroupMachinerySkuGroup 'Вкл' = DATA BOOLEAN (GroupMachinery, SkuGroup);
+in 'Вкл' = DATA BOOLEAN (GroupMachinery, SkuGroup);
 
 FORM filterSkuGroupMachinery 'Фильтрация по классификатору'
     OBJECTS gm = GroupMachinery FIXED PANEL
-    PROPERTIES(gm) READONLY nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery
+    PROPERTIES(gm) READONLY npp, nameStock, name
 
-    TREE treeGroups g=SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
-    ORDER BY orderSkuGroup(g), nameSkuGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
+    TREE treeGroups g=SkuGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS cg=SkuGroup
-    PROPERTIES(cg) READONLY canonicalNameSkuGroup
-    PROPERTIES(gm, cg)      inGroupMachinerySkuGroup
-    ORDER BY canonicalNameSkuGroup(cg)
-    FILTERS isParentLeafSkuGroupSkuGroup(cg, g)
-    FILTERGROUP inactive1 FILTER 'Активные' activeSkuGroup(cg) 'F5' DEFAULT
+    PROPERTIES(cg) READONLY canonicalName
+    PROPERTIES(gm, cg)      in
+    ORDER BY canonicalName(cg)
+    FILTERS isParentLeaf(cg, g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(cg) 'F5' DEFAULT
 
     FILTERGROUP filters
-        FILTER 'Только выбранные группы' inGroupMachinerySkuGroup(gm, cg) 'F10'
+        FILTER 'Только выбранные группы' in(gm, cg) 'F10'
 ;
 
 DESIGN filterSkuGroupMachinery {
@@ -64,62 +64,62 @@ DESIGN filterSkuGroupMachinery {
 
 }
 
-showFilterSkuGroupMachinery 'Выбрать группы' (groupMachinery) = ACTION FORM filterSkuGroupMachinery OBJECTS gm = groupMachinery MODAL;
+showFilterSku 'Выбрать группы' (GroupMachinery groupMachinery) = ACTION FORM filterSkuGroupMachinery OBJECTS gm = groupMachinery MODAL;
 
 // --------------------------------- Вид цены ----------------------------- //
 
-priceListTypeGroupMachinery 'Вид цен' = DATA PriceListType (GroupMachinery) NOT NULL;
-namePriceListTypeGroupMachinery 'Вид цен' (groupMachinery) = namePriceListType(priceListTypeGroupMachinery(groupMachinery));
-idPriceListTypeGroupMachinery 'Вид цен' (groupMachinery) = idPriceListType(priceListTypeGroupMachinery(groupMachinery));
+priceListType 'Вид цен' = DATA PriceListType (GroupMachinery) NOT NULL;
+namePriceListType 'Вид цен' (GroupMachinery groupMachinery) = name(priceListType(groupMachinery));
+idPriceListType 'Вид цен' (GroupMachinery groupMachinery) = id(priceListType(groupMachinery));
 
 // ---------------------------- Модели оборудования ----------------------------------------//
 CLASS ABSTRACT Model 'Модель';
 TABLE model (Model);
 
-nameModel 'Наименование' = ABSTRACT VARISTRING[110](Model);
+name 'Наименование' = ABSTRACT VARISTRING[110](Model);
 
-sidModel 'Код' = DATA VARSTRING[20] (Model) IN base;
-noteModel 'Примечание' = DATA VARSTRING[200] (Model) IN base;
-handlerModel 'Обработчик' = DATA VARSTRING[200] (Model) IN base;
-maxProductModel 'MAX допустимое колич. товаров' = DATA INTEGER (Model) IN base;
+sid 'Код' = DATA VARSTRING[20] (Model) IN base;
+note 'Примечание' = DATA VARSTRING[200] (Model) IN base;
+handler 'Обработчик' = DATA VARSTRING[200] (Model) IN base;
+maxProduct 'MAX допустимое колич. товаров' = DATA INTEGER (Model) IN base;
 
 //---------------------------- типы оборудования  ----------------------------------------//
 CLASS ABSTRACT Machinery 'Оборудование';
 TABLE machinery(Machinery);
 
-groupMachineryMachinery = ABSTRACT GroupMachinery (Machinery) PERSISTENT;
-dataDirectoryMachinery = ABSTRACT VARSTRING[100] (Machinery);
-overDirectoryMachinery (machinery) = OVERRIDE directoryGroupMachinery(groupMachineryMachinery(machinery)), dataDirectoryMachinery(machinery);
-nppGroupMachineryMachinery 'Номер группы' (machinery) = nppGroupMachinery(groupMachineryMachinery(machinery));
-nameGroupMachineryMachinery 'Группа' (machinery) = nameGroupMachinery(groupMachineryMachinery(machinery));
-stockMachinery (machinery) = stockGroupMachinery(groupMachineryMachinery(machinery));
-idStockMachinery (machinery) = idStock(stockMachinery(machinery));
+groupMachinery = ABSTRACT GroupMachinery (Machinery) PERSISTENT;
+dataDirectory = ABSTRACT VARSTRING[100] (Machinery);
+overDirectory (Machinery machinery) = OVERRIDE directory(groupMachinery(machinery)), dataDirectory(machinery);
+nppGroupMachinery 'Номер группы' (Machinery machinery) = npp(groupMachinery(machinery));
+nameGroupMachinery 'Группа' (Machinery machinery) = name(groupMachinery(machinery));
+stock (Machinery machinery) = stock(groupMachinery(machinery));
+idStock (Machinery machinery) = id(stock(machinery));
 
-modelGroupMachinery = ABSTRACT Model(GroupMachinery) PERSISTENT;
-sidModelGroupMachinery 'Код' (groupMachinery) = sidModel(modelGroupMachinery(groupMachinery)) IN base;
-nameModelGroupMachinery 'Модель' (groupMachinery) = nameModel(modelGroupMachinery(groupMachinery)) IN base;
-handlerModelGroupMachinery 'Обработчик' (machinery) = handlerModel(modelGroupMachinery(machinery)) IN base;
-handlerModelMachinery (machinery) = handlerModelGroupMachinery(groupMachineryMachinery(machinery));
+model = ABSTRACT Model(GroupMachinery) PERSISTENT;
+sidModel 'Код' (GroupMachinery groupMachinery) = sid(model(groupMachinery)) IN base;
+nameModel 'Модель' (GroupMachinery groupMachinery) = name(model(groupMachinery)) IN base;
+handlerModel 'Обработчик' (GroupMachinery machinery) = handler(model(machinery)) IN base;
+handlerModel (Machinery machinery) = handlerModel(groupMachinery(machinery));
 
-nppMachinery 'Порядковый номер' = DATA INTEGER (Machinery) IN base NOT NULL;
-shortDescriptionMachinery 'Краткое описание' = DATA VARSTRING[10] (Machinery) IN base;
-overNppMachinery 'Номер' (machinery) = OVERRIDE VARSTRING[10](nppMachinery(machinery)), shortDescriptionMachinery(machinery);
-descriptionMachinery 'Описание' = DATA VARSTRING[200] (Machinery) IN base;
+npp 'Порядковый номер' = DATA INTEGER (Machinery) IN base NOT NULL;
+shortDescription 'Краткое описание' = DATA VARSTRING[10] (Machinery) IN base;
+overNpp 'Номер' (Machinery machinery) = OVERRIDE VARSTRING[10](npp(machinery)), shortDescription(machinery);
+description 'Описание' = DATA VARSTRING[200] (Machinery) IN base;
 
-portMachinery 'Адрес/порт' = DATA VARSTRING[100] (Machinery) IN base PREFCHARWIDTH 20;
-portsGroupMachinery 'Адрес/порт' = GROUP CONCAT portMachinery(m), ',' BY groupMachineryMachinery(m);
+port 'Адрес/порт' = DATA VARSTRING[100] (Machinery) IN base PREFCHARWIDTH 20;
+ports 'Адрес/порт' = GROUP CONCAT port(Machinery m), ',' BY groupMachinery(m);
 
-overInactiveMachinery = ABSTRACT BOOLEAN (Machinery);
-inactiveMachinery 'Неактивный' (m)= OVERRIDE inactiveGroupMachinery(groupMachineryMachinery(m)), overInactiveMachinery(m);
+overInactive = ABSTRACT BOOLEAN (Machinery);
+inactive 'Неактивный' (Machinery m)= OVERRIDE inactive(groupMachinery(m)), overInactive(m);
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 EXTEND FORM defaultData
     OBJECTS         pt=PriceListType FIXED PANEL
-    PROPERTIES(pt)  SELECTOR namePriceListType
+    PROPERTIES(pt)  SELECTOR name
 
     OBJECTS         s=Stock FIXED PANEL
-    PROPERTIES(s)   SELECTOR nameStock
+    PROPERTIES(s)   SELECTOR name
 ;
 
 DESIGN defaultData {
@@ -128,10 +128,10 @@ DESIGN defaultData {
             fill = 1;
             caption = 'Оборудование';
 
-            MOVE PROPERTY(namePriceListType(pt)) {
+            MOVE PROPERTY(name(pt)) {
                 caption = 'Вид цен';
             }
-            MOVE PROPERTY(nameStock(s)) {
+            MOVE PROPERTY(name(s)) {
                 caption = 'Склад';
             }
         }

@@ -4,41 +4,41 @@ REQUIRE PurchaseInvoiceCharge, TripInvoice;
 
 NAMESPACE  Trip;
 
-sumChargeTrip 'Сумма услуг' = DATA NUMERIC[16,2] (Trip) PREFCHARWIDTH 15;
+sumCharge 'Сумма услуг' = DATA NUMERIC[16,2] (Trip) PREFCHARWIDTH 15;
 
-sumGrossWeightPurchaseInvoicedTrip 'Суммарный вес накладных' (trip) = GROUP SUM Purchase.sumGrossWeightInvoiceDetailInvoice(invoice) IF invoice IS Purchase.UserInvoice BY tripInvoice(invoice);
-calcGrossSumInvoiceTrip 'Сумма услуг' (invoice, trip)= NUMERIC[16,2](sumChargeTrip(trip)* 
-                                                        Purchase.sumGrossWeightInvoiceDetailInvoice(invoice) /
-                                                        (sumGrossWeightPurchaseInvoicedTrip(trip) IF sumGrossWeightPurchaseInvoicedTrip(trip)!=0.0));
+sumGrossWeightPurchaseInvoiced 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetail(UserInvoice invoice) IF invoice IS Purchase.UserInvoice BY trip(invoice);
+calcGrossSum 'Сумма услуг' (Purchase.Invoice invoice, Trip trip)= NUMERIC[16,2](sumCharge(trip)* 
+                                                        sumGrossWeightInvoiceDetail(invoice) /
+                                                        (sumGrossWeightPurchaseInvoiced(trip) IF sumGrossWeightPurchaseInvoiced(trip)!=0.0));
 
-signChargeInvoicesTrip 'Расписать сумму услуг' = ACTION (trip) {
+signChargeInvoices 'Расписать сумму услуг' = ACTION (Trip trip) {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
-        sumChargeTrip(trip) <- requestedNumeric();
-        FOR tripInvoice(invoice)==trip AND invoice IS Purchase.UserInvoice DO {
-            setChargePercentUserInvoice(invoice, calcGrossSumInvoiceTrip (invoice, trip) * 100.000000 / (incomeSumUserInvoice(invoice) IF incomeSumUserInvoice(invoice) != 0));
-            FOR Purchase.userInvoiceUserInvoiceDetail(d) == invoice DO{
-                Purchase.chargePriceUserInvoiceDetail(d) <- Purchase.chargePercentUserInvoiceDetail(d) * Purchase.incomePriceUserInvoiceDetail(d) / 100.000000;
+        sumCharge(trip) <- requestedNumeric();
+        FOR trip(UserInvoice invoice)==trip AND invoice IS Purchase.UserInvoice DO {
+            setChargePercent(invoice, calcGrossSum (invoice, trip) * 100.000000 / (incomeSum(invoice) IF incomeSum(invoice) != 0));
+            FOR userInvoice(UserInvoiceDetail d) == invoice DO{
+                chargePrice(d) <- chargePercent(d) * incomePrice(d) / 100.000000;
             }
         }
     } ELSE {
-        sumChargeTrip(trip) <- NULL;
-        FOR tripInvoice(invoice)==trip AND invoice IS Purchase.UserInvoice DO {
-            chargePercentUserInvoiceDetail(d) <- NULL WHERE Purchase.userInvoiceUserInvoiceDetail(d) == invoice;
-            Purchase.chargePriceUserInvoiceDetail(d) <- NULL WHERE Purchase.userInvoiceUserInvoiceDetail(d) == invoice;
+        sumCharge(trip) <- NULL;
+        FOR trip(UserInvoice invoice)==trip AND invoice IS Purchase.UserInvoice DO {
+            chargePercent(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == invoice;
+            chargePrice(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == invoice;
 
         }        
     }   
 }
 
 EXTEND FORM trip
-    PROPERTIES(t) sumChargeTrip ON CHANGE signChargeInvoicesTrip(t)
-    PROPERTIES(i) READONLY FORCE GRID chargeSumInvoiceDetailInvoice
-    PROPERTIES(id) READONLY FORCE GRID chargeSumInvoiceDetail
+    PROPERTIES(t) sumCharge ON CHANGE signChargeInvoices(t)
+    PROPERTIES(i) READONLY FORCE GRID chargeSumInvoiceDetail
+    PROPERTIES(id) READONLY FORCE GRID chargeSum[Purchase.InvoiceDetail]
 ;
 
 DESIGN trip {
     invoiceSum1 {       
-        MOVE PROPERTY(sumChargeTrip(t));
+        MOVE PROPERTY(sumCharge(t));
     }
 }

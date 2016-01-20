@@ -7,283 +7,283 @@ TABLE purchaseLedger(PurchaseLedger);
 
 TABLE skuStockStock(Stock, Stock, Sku);
 
-dateTimePurchaseLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
-datePurchaseLedger 'Дата' (ledger) = toDate(dateTimePurchaseLedger(ledger)) PERSISTENT INDEXED;
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
+date 'Дата' (PurchaseLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
 
-shipmentDateTimePurchaseLedger 'Дата/время поставки' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
-shipmentDatePurchaseLedger 'Дата поставки' (ledger) = toDate(shipmentDateTimePurchaseLedger(ledger)) PERSISTENT INDEXED;
+shipmentDateTime 'Дата/время поставки' (ledger) = ABSTRACT DATETIME (PurchaseLedger) PERSISTENT INDEXED;
+shipmentDate 'Дата поставки' (PurchaseLedger ledger) = toDate(shipmentDateTime(ledger)) PERSISTENT INDEXED;
 
-isPostedPurchaseLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
 
-isClosedPurchaseLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
-allowedEditPurchaseLedger (d) = NOT isClosedPurchaseLedger(d) OR allowedEditClosedDocumentsCustomUser(currentUser());
+isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger);
+allowedEdit (PurchaseLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
 
-skipPurchaseLedger 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
+skip 'Не проводить' (ledger) = ABSTRACT BOOLEAN (PurchaseLedger) PERSISTENT;
 
-activePurchaseLedger (ledger) = isPostedPurchaseLedger(ledger) AND NOT skipPurchaseLedger(ledger);
+active (PurchaseLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
 
-skuPurchaseLedger (ledger) = ABSTRACT Sku (PurchaseLedger) PERSISTENT INDEXED;
-nameSkuPurchaseLedger 'SKU' (ledger) = nameSku(skuPurchaseLedger(ledger));
-idSkuPurchaseLedger'Код товара' (ledger) = idSku(skuPurchaseLedger(ledger));
+sku (ledger) = ABSTRACT Sku (PurchaseLedger) PERSISTENT INDEXED;
+nameSku 'SKU' (PurchaseLedger ledger) = name(sku(ledger));
+idSku'Код товара' (PurchaseLedger ledger) = id(sku(ledger));
 
-canonicalNameSkuGroupPurchaseLedger 'Каноническое имя' (ledger) = canonicalNameGroup(skuGroupSku(skuPurchaseLedger(ledger)));
-nameSkuGroup1SkuPurchaseLedger 'Категория' = nameSkuGroup1Sku(skuPurchaseLedger(ledger));
-nameSkuGroup2SkuPurchaseLedger 'Направление' = nameSkuGroup2Sku(skuPurchaseLedger(ledger));
-nameSkuGroup3SkuPurchaseLedger 'Группа' = nameSkuGroup3Sku(skuPurchaseLedger(ledger));
-nameSkuGroup4SkuPurchaseLedger 'Подгруппа' = nameSkuGroup4Sku(skuPurchaseLedger(ledger));
-nameSkuGroup5SkuPurchaseLedger 'Субгруппа' = nameSkuGroup5Sku(skuPurchaseLedger(ledger));
+canonicalNameSkuGroup 'Каноническое имя' (PurchaseLedger ledger) = canonicalName[Group](skuGroup(sku(ledger)));
+nameSkuGroup1Sku 'Категория' = nameSkuGroup1(sku(PurchaseLedger ledger));
+nameSkuGroup2Sku 'Направление' = nameSkuGroup2(sku(PurchaseLedger ledger));
+nameSkuGroup3Sku 'Группа' = nameSkuGroup3(sku(PurchaseLedger ledger));
+nameSkuGroup4Sku 'Подгруппа' = nameSkuGroup4(sku(PurchaseLedger ledger));
+nameSkuGroup5Sku 'Субгруппа' = nameSkuGroup5(sku(PurchaseLedger ledger));
 
-stockPurchaseLedger (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT INDEXED;
-nameStockPurchaseLedger 'Склад' (ledger) = nameStock(stockPurchaseLedger(ledger));
+stock (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT INDEXED;
+nameStock 'Склад' (PurchaseLedger ledger) = name(stock(ledger));
 
-descriptionPurchaseLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (PurchaseLedger) PERSISTENT;
-numberDocumentPurchaseLedger 'Номер документа' (ledger) = ABSTRACT STRING[18] (PurchaseLedger) PERSISTENT;
-seriesDocumentPurchaseLedger 'Серия документа' (ledger) = ABSTRACT STRING[18] (PurchaseLedger) PERSISTENT;
-seriesNumberDocumentPurchaseLedger 'Серия/Номер документа' (o) = 
-    CONCAT '', seriesDocumentPurchaseLedger(o), numberDocumentPurchaseLedger(o) 
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (PurchaseLedger) PERSISTENT;
+numberDocument 'Номер документа' (ledger) = ABSTRACT STRING[18] (PurchaseLedger) PERSISTENT;
+seriesDocument 'Серия документа' (ledger) = ABSTRACT STRING[18] (PurchaseLedger) PERSISTENT;
+seriesNumberDocument 'Серия/Номер документа' (PurchaseLedger o) = 
+    CONCAT '', seriesDocument(o), numberDocument(o) 
     MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
         
-quantityPurchaseLedger 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) PERSISTENT;
-shipmentQuantityPurchaseLedger 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) PERSISTENT;
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) PERSISTENT;
+shipmentQuantity 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERIC[16,5] (PurchaseLedger) PERSISTENT;
 
-pricePurchaseLedger 'Цена без НДС' (ledger) = ABSTRACT NUMERIC[14,2] (PurchaseLedger) PERSISTENT;
+price 'Цена без НДС' (ledger) = ABSTRACT NUMERIC[14,2] (PurchaseLedger) PERSISTENT;
 
 
-sumPurchaseLedger 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[16,2] (PurchaseLedger) PERSISTENT; 
+sum 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[16,2] (PurchaseLedger) PERSISTENT; 
 
-currencyPurchaseLedger = ABSTRACT Currency (PurchaseLedger) PERSISTENT;
-nameCurrencyPurchaseLedger 'Валюта' = nameCurrency(currencyPurchaseLedger(ledger));
+currency = ABSTRACT Currency (PurchaseLedger) PERSISTENT;
+nameCurrency 'Валюта' = name(currency(PurchaseLedger ledger));
 
-supplierPurchaseLedger  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) PERSISTENT;
-nameSupplierPurchaseLedger 'Поставщик' (ledger) = nameLegalEntity(supplierPurchaseLedger (ledger));
+supplier  (ledger) = ABSTRACT LegalEntity (PurchaseLedger) PERSISTENT;
+nameSupplier 'Поставщик' (PurchaseLedger ledger) = name(supplier (ledger));
 
-supplierStockPurchaseLedger  (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT;
-nameSupplierStockPurchaseLedger 'Склад поставщика' (ledger) = nameStock(supplierStockPurchaseLedger (ledger));
+supplierStock  (ledger) = ABSTRACT Stock (PurchaseLedger) PERSISTENT;
+nameSupplierStock 'Склад поставщика' (PurchaseLedger ledger) = name(supplierStock (ledger));
 
-operationPurchaseLedger  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) PERSISTENT;
-nameOperationPurchaseLedger 'Операция' (ledger) = nameOperation(operationPurchaseLedger (ledger));
+operation  (ledger) = ABSTRACT Purchase.Operation (PurchaseLedger) PERSISTENT;
+nameOperation 'Операция' (PurchaseLedger ledger) = name(operation (ledger));
 
-quantityPurchaseSupplierSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY supplierPurchaseLedger(ledger), skuPurchaseLedger(ledger) PERSISTENT;
+quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY supplier(ledger), sku(ledger) PERSISTENT;
     
-quantityPurchaseSupplierStockSku 'Кол-во закуплено' = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY supplierStockPurchaseLedger(ledger), skuPurchaseLedger(ledger);
+quantityPurchaseSupplier 'Кол-во закуплено' = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY supplierStock(ledger), sku(ledger);
     
-lastExternalSupplierStockSku (stock, sku) = 
-    GROUP LAST supplierPurchaseLedger(ledger)
-        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
-        ORDER dateTimePurchaseLedger(ledger), ledger
-        WHERE activePurchaseLedger(ledger) AND NOT isCompanyLegalEntity(supplierPurchaseLedger(ledger));
+lastExternalSupplier (stock, sku) = 
+    GROUP LAST supplier(PurchaseLedger ledger)
+        BY stock(ledger), sku(ledger)
+        ORDER dateTime(ledger), ledger
+        WHERE active(ledger) AND NOT isCompany(supplier(ledger));
     
-lastSupplierStockSku (stock, sku) = 
-    GROUP LAST supplierPurchaseLedger(ledger)
-        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
-        ORDER dateTimePurchaseLedger(ledger), ledger
-        WHERE activePurchaseLedger(ledger);
+lastSupplier (stock, sku) = 
+    GROUP LAST supplier(PurchaseLedger ledger)
+        BY stock(ledger), sku(ledger)
+        ORDER dateTime(ledger), ledger
+        WHERE active(ledger);
  
-lastSupplierSku (sku) = 
-    GROUP LAST supplierPurchaseLedger(ledger)
-        BY skuPurchaseLedger(ledger)
-        ORDER dateTimePurchaseLedger(ledger), ledger
-        WHERE activePurchaseLedger(ledger);
+lastSupplier (sku) = 
+    GROUP LAST supplier(PurchaseLedger ledger)
+        BY sku(ledger)
+        ORDER dateTime(ledger), ledger
+        WHERE active(ledger);
         
 //-- по складу поставщика        
-lastExternalSupplierStockStockSku (stock, sku) = 
-    GROUP LAST supplierStockPurchaseLedger(ledger)
-        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
-        ORDER dateTimePurchaseLedger(ledger), ledger
-        WHERE activePurchaseLedger(ledger) AND NOT isCompanyStock(supplierStockPurchaseLedger(ledger));
+lastExternalSupplierStock (stock, sku) = 
+    GROUP LAST supplierStock(PurchaseLedger ledger)
+        BY stock(ledger), sku(ledger)
+        ORDER dateTime(ledger), ledger
+        WHERE active(ledger) AND NOT isCompany(supplierStock(ledger));
     
-lastSupplierStockStockSku (stock, sku) = 
-    GROUP LAST supplierStockPurchaseLedger(ledger)
-        BY stockPurchaseLedger(ledger), skuPurchaseLedger(ledger)
-        ORDER dateTimePurchaseLedger(ledger), ledger
-        WHERE activePurchaseLedger(ledger);        
+lastSupplierStock (stock, sku) = 
+    GROUP LAST supplierStock(PurchaseLedger ledger)
+        BY stock(ledger), sku(ledger)
+        ORDER dateTime(ledger), ledger
+        WHERE active(ledger);        
 
-inSupplierSku 'Были поставки' (legalEntity, sku) = TRUE IF quantityPurchaseSupplierSku(legalEntity, sku) PERSISTENT;
-prevInSupplierSku 'Были поставки (пред.)' (legalEntity, sku) = PREV(inSupplierSku(legalEntity, sku));
+inSupplier 'Были поставки' (LegalEntity legalEntity, Sku sku) = TRUE IF quantityPurchaseSupplier(legalEntity, sku) PERSISTENT;
+prevInSupplier 'Были поставки (пред.)' (LegalEntity legalEntity, Sku sku) = PREV(inSupplier(legalEntity, sku));
 
-sumPurchaseTypeExchangePurchaseLedger 'Сумма покупки валюта' (typeExchange, purchaseLedger)= roundPriceCurrency((sumPurchaseLedger (purchaseLedger)*
-    rateOnTypeExchangeCurrencyDate(typeExchange, currencyPurchaseLedger(purchaseLedger), datePurchaseLedger(purchaseLedger))), currencyTypeExchange(typeExchange));
+sumPurchase 'Сумма покупки валюта' (TypeExchange typeExchange, PurchaseLedger purchaseLedger)= round((sum (purchaseLedger)*
+    rateOn(typeExchange, currency(purchaseLedger), date(purchaseLedger))), currency(typeExchange));
 
-editPurchaseLedger 'Редактировать' = ABSTRACT ACTION LIST (PurchaseLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (PurchaseLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 TABLE purchaseLedgerBatch(PurchaseLedger, Batch);
 
-costPurchaseLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLedger, Batch) PERSISTENT;
+cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (PurchaseLedger, Batch) PERSISTENT;
 
-coeffPurchaseLedgerBatch 'Удельный вес' (ledger, batch) =
-    NUMERIC[22,8](costPurchaseLedgerBatch(ledger, batch)/quantityPurchaseLedger(ledger));
+coeff 'Удельный вес' (PurchaseLedger ledger, Batch batch) =
+    NUMERIC[22,8](cost(ledger, batch)/quantity(ledger));
 
-costSumPurchaseLedger 'Себестоимость' = GROUP SUM costPurchaseLedgerBatch(ledger, batch) * costBatch(batch) BY ledger;
+costSum 'Себестоимость' = GROUP SUM cost(PurchaseLedger ledger, Batch batch) * cost(batch) BY ledger;
 
 //CONSTRAINT quantityPurchaseLedger(purchaseLedger) == 0 MESSAGE 'ошибка: Количество покупки не должно быть равно нулю';
 
-averagePricePurchaseLedger 'Цена покупки (средняя) с НДС' (purchaseLedger) = NUMERIC[14,2](sumPurchaseLedger(purchaseLedger)/quantityPurchaseLedger(purchaseLedger) IF quantityPurchaseLedger(purchaseLedger) != 0);
+averagePrice 'Цена покупки (средняя) с НДС' (PurchaseLedger purchaseLedger) = NUMERIC[14,2](sum(purchaseLedger)/quantity(purchaseLedger) IF quantity(purchaseLedger) != 0);
 
-VATPurchaseLedger (ledger) = ABSTRACT Range (PurchaseLedger) PERSISTENT;
-valueVATPurchaseLedger 'НДС, %' (ledger) = valueRateRangeDate(VATPurchaseLedger(ledger), datePurchaseLedger(ledger));
+VAT (ledger) = ABSTRACT Range (PurchaseLedger) PERSISTENT;
+valueVAT 'НДС, %' (PurchaseLedger ledger) = valueRate(VAT(ledger), date(ledger));
 
-sumVATPurchaseLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
-        sumPurchaseLedger(ledger), valueVATPurchaseLedger(ledger)));
+sumVAT 'Сумма НДС' (PurchaseLedger ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
+        sum(ledger), valueVAT(ledger)));
 
 
 //по складу и batch
-quantityPurchaseBatchStockDate (batch, stock, date) = GROUP SUM costPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
-    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);
-sumVATPurchaseBatchStockDate (batch, stock, date) = GROUP SUM sumVATPurchaseLedger(ledger)*coeffPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
-    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);
-sumPurchaseBatchStockDate (batch, stock, date) = GROUP SUM sumPurchaseLedger(ledger)*coeffPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
-    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);    
-costSumPurchaseBatchStockDate (batch, stock, date) = GROUP SUM costSumPurchaseLedger(ledger)*coeffPurchaseLedgerBatch(ledger,batch) IF activePurchaseLedger(ledger)
-    BY batch, stockPurchaseLedger(ledger), datePurchaseLedger(ledger);
+quantityPurchase (batch, stock, date) = GROUP SUM cost(PurchaseLedger ledger,Batch batch) IF active(ledger)
+    BY batch, stock(ledger), date(ledger);
+sumVATPurchase (batch, stock, date) = GROUP SUM sumVAT(PurchaseLedger ledger)*coeff(ledger,Batch batch) IF active(ledger)
+    BY batch, stock(ledger), date(ledger);
+sumPurchase (batch, stock, date) = GROUP SUM sum(PurchaseLedger ledger)*coeff(ledger,Batch batch) IF active(ledger)
+    BY batch, stock(ledger), date(ledger);    
+costSumPurchase (batch, stock, date) = GROUP SUM costSum(PurchaseLedger ledger)*coeff(ledger,Batch batch) IF active(ledger)
+    BY batch, stock(ledger), date(ledger);
     
 //по складу и Batch
-quantityPurchaseBatchStockDateFromTo 'Закуплено за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+quantityPurchase 'Закуплено за интервал (кол-во)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        quantityPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY batch, stock, dateFrom, dateTo;
 
-sumVATPurchaseBatchStockDateFromTo 'Сумма НДС закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+sumVATPurchase 'Сумма НДС закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        sumVATPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY batch, stock, dateFrom, dateTo;
 
-sumPurchaseBatchStockDateFromTo 'Закуплено за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+sumPurchase 'Закуплено за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY batch, stock, dateFrom, dateTo;
         
-costSumPurchaseBatchStockDateFromTo 'Себестоимость закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        costSumPurchaseBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+costSumPurchase 'Себестоимость закупленного за интервал' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        costSumPurchase(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY batch, stock, dateFrom, dateTo;     
 
 TABLE purchaseSkuStockDate(Sku, Stock, DATE);
 
 //по складу и SKU
-quantityPurchaseSkuStockDate (sku, stock, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;
+quantityPurchase (sku, stock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;
 
-sumVATPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;
+sumVATPurchase (sku, stock, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;
 
-sumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;
+sumPurchase (sku, stock, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;
     
-costSumPurchaseSkuStockDate (sku, stock, date) = GROUP SUM costSumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), datePurchaseLedger(ledger) PERSISTENT TABLE purchaseSkuStockDate;    
+costSumPurchase (sku, stock, date) = GROUP SUM costSum(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE purchaseSkuStockDate;    
 
 //по складу, поставщику и SKU
-quantityPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger), datePurchaseLedger(ledger);  // PERSISTENT
+quantityPurchase (sku, stock, supplier, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // PERSISTENT
 
-sumVATPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger), datePurchaseLedger(ledger);  // PERSISTENT
+sumVATPurchase (sku, stock, supplier, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);  // PERSISTENT
 
-sumPurchaseSkuStockSupplierDate (sku, stock, supplier, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger), datePurchaseLedger(ledger);   // PERSISTENT
+sumPurchase (sku, stock, supplier, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplier(ledger), date(ledger);   // PERSISTENT
 
 
-quantityPurchaseSkuStockSupplier 'Кол-во закуплено' (sku, stock, supplier) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierPurchaseLedger(ledger);  // PERSISTENT
+quantityPurchase 'Кол-во закуплено' (sku, stock, supplier) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplier(ledger);  // PERSISTENT
     
 //по складу, складу поставщика  и SKU
-quantityPurchaseSkuStockSupplierStockDate (sku, stock, supplierStock, date) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierStockPurchaseLedger(ledger), datePurchaseLedger(ledger);  // PERSISTENT
+quantityPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // PERSISTENT
 
-sumVATPurchaseSkuStockSupplierStockDate (sku, stock, supplierStock, date) = GROUP SUM sumVATPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierStockPurchaseLedger(ledger), datePurchaseLedger(ledger);  // PERSISTENT
+sumVATPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM sumVAT(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);  // PERSISTENT
 
-sumPurchaseSkuStockSupplierStockDate (sku, stock, supplierStock, date) = GROUP SUM sumPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY skuPurchaseLedger(ledger), stockPurchaseLedger(ledger), supplierStockPurchaseLedger(ledger), datePurchaseLedger(ledger);   // PERSISTENT
+sumPurchaseSupplier (sku, stock, supplierStock, date) = GROUP SUM sum(PurchaseLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), supplierStock(ledger), date(ledger);   // PERSISTENT
 
-quantityPurchaseStockSupplierStockSku 'Кол-во закуплено' (stock, supplierStock, sku) = GROUP SUM quantityPurchaseLedger(ledger) IF activePurchaseLedger(ledger)
-    BY stockPurchaseLedger(ledger), supplierStockPurchaseLedger(ledger), skuPurchaseLedger(ledger);     
+quantityPurchaseSupplier 'Кол-во закуплено' (stock, supplierStock, sku) = GROUP SUM quantity(PurchaseLedger ledger) IF active(ledger)
+    BY stock(ledger), supplierStock(ledger), sku(ledger);     
 
 //по складу и SKU
-quantityPurchaseSkuStockDateFromTo 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
-sumVATPurchaseSkuStockDateFromTo 'Сумма НДС закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumVATPurchase 'Сумма НДС закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        sumVATPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
-sumPurchaseSkuStockDateFromTo 'Закуплено за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumPurchase 'Закуплено за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
         
-costSumPurchaseSkuStockDateFromTo 'Себестоимость закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        costSumPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+costSumPurchase 'Себестоимость закупленного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        costSumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
         
 //по складу, поставщику и SKU
-quantityPurchaseSkuStockSupplierDateFromTo 'Закуплено за интервал (кол-во)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSkuStockSupplierDate(sku, stock, supplier, date) IF date >= dateFrom AND date <= dateTo
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
+        quantityPurchase(Sku sku, Stock stock, LegalEntity supplier, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, supplier, dateFrom, dateTo;
 
-sumVATPurchaseSkuStockSupplierDateFromTo 'Сумма НДС закупленного за интервал' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchaseSkuStockSupplierDate(sku, stock, supplier, date) IF date >= dateFrom AND date <= dateTo
+sumVATPurchase 'Сумма НДС закупленного за интервал' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
+        sumVATPurchase(Sku sku, Stock stock, LegalEntity supplier, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, supplier, dateFrom, dateTo;
 
-sumPurchaseSkuStockSupplierDateFromTo 'Закуплено за интервал (сумма)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSkuStockSupplierDate(sku, stock, supplier, date) IF date >= dateFrom AND date <= dateTo
+sumPurchase 'Закуплено за интервал (сумма)' (sku, stock, supplier, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(Sku sku, Stock stock, LegalEntity supplier, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, supplier, dateFrom, dateTo;
 
 //по складу, складу поставщика и SKU
-quantityPurchaseSkuStockSupplierStockDateFromTo 'Закуплено за интервал (кол-во)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSkuStockSupplierStockDate(sku, stock, supplierStock, date) IF date >= dateFrom AND date <= dateTo
+quantityPurchaseSupplier 'Закуплено за интервал (кол-во)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
+        quantityPurchaseSupplier(Sku sku, Stock stock, Stock supplierStock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, supplierStock, dateFrom, dateTo;
 
-sumVATPurchaseSkuStockSupplierStockDateFromTo 'Сумма НДС закупленного за интервал' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
-        sumVATPurchaseSkuStockSupplierStockDate(sku, stock, supplierStock, date) IF date >= dateFrom AND date <= dateTo
+sumVATPurchaseSupplier 'Сумма НДС закупленного за интервал' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
+        sumVATPurchaseSupplier(Sku sku, Stock stock, Stock supplierStock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, supplierStock, dateFrom, dateTo;
 
-sumPurchaseSkuStockSupplierStockDateFromTo 'Закуплено за интервал (сумма)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSkuStockSupplierStockDate(sku, stock, supplierStock, date) IF date >= dateFrom AND date <= dateTo
+sumPurchaseSupplier 'Закуплено за интервал (сумма)' (sku, stock, supplierStock, dateFrom, dateTo) = GROUP SUM
+        sumPurchaseSupplier(Sku sku, Stock stock, Stock supplierStock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, supplierStock, dateFrom, dateTo;
 //по SKU
-quantityPurchaseSkuDateFromTo 'Закуплено за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP SUM
+        quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, dateFrom, dateTo;
 
-sumPurchaseSkuDateFromTo 'Закуплено за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumPurchase 'Закуплено за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, dateFrom, dateTo;
 
 //---------------------------------Тип обмена---------------------------------------//
 
-sumPurchaseTypeExchangeSkuStockDate (typeExchange, sku, stock, date)= roundPriceCurrency((sumPurchaseSkuStockDate (sku, stock, date)/ rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stock), date)), currencyTypeExchange(typeExchange));
+sumPurchase (TypeExchange typeExchange, Sku sku, Stock stock, DATE date)= round((sumPurchase (sku, stock, date)/ rateOn(typeExchange, currency(stock), date)), currency(typeExchange));
 
-sumPurchaseTypeExchangeSkuStockDateFromTo 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseTypeExchangeSkuStockDate (typeExchange, sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumPurchase 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, stock, dateFrom, dateTo) = GROUP SUM
+        sumPurchase (TypeExchange typeExchange, Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY typeExchange, sku, stock, dateFrom, dateTo;
 
-sumPurchaseTypeExchangeSkuDateFromTo 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseTypeExchangeSkuStockDateFromTo(typeExchange, sku, stock, dateFrom, dateTo) BY typeExchange, sku, dateFrom, dateTo;
+sumPurchase 'Закуплено за интервал (сумма-валюта)' (typeExchange, sku, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(TypeExchange typeExchange, Sku sku, Stock stock, DATE dateFrom, DATE dateTo) BY typeExchange, sku, dateFrom, dateTo;
 
 
 skuStockAveragePurchaseInterval 'Интервал расчета закупок в день' = DATA INTEGER ();
 
-averagePurchaseSkuStock 'Закупок в день' = DATA NUMERIC[14,3] (Sku, Stock);
+averagePurchase 'Закупок в день' = DATA NUMERIC[14,3] (Sku, Stock);
 
-calcQuantityPurchaseInterval = ACTION (dateFrom, dateTo) {
+calcQuantityPurchaseInterval = ACTION (DATE dateFrom, DATE dateTo) {
     LOCAL balance = NUMERIC[14,3] (Sku, Stock);
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
 
     ASSIGN dateCur() <- dateFrom;
-    ASSIGN balance(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom);
+    ASSIGN balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom);
 
     WHILE dateCur() <= dateTo DO {
-        ASSIGN days(sku, stock) <- days(sku, stock) (+)
-                   (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0)));
-        ASSIGN balance(sku, stock) <- balance(sku, stock) (+)
-                   signedQuantitySkuStockDate(sku, stock, dateCur());
-        ASSIGN dateCur() <- sumDate(dateCur(), 1);
+        ASSIGN days(Sku sku, Stock stock) <- days(sku, stock) (+)
+                   (1 IF ((balance(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0)));
+        ASSIGN balance(Sku sku, Stock stock) <- balance(sku, stock) (+)
+                   signedQuantity(sku, stock, dateCur());
+        ASSIGN dateCur() <- sum(dateCur(), 1);
     }
 
-    ASSIGN averagePurchaseSkuStock(sku, stock) <- quantityPurchaseSkuStockDateFromTo (sku, stock, dateFrom, dateTo) / days(sku, stock);
+    ASSIGN averagePurchase(Sku sku, Stock stock) <- quantityPurchase (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
 calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки' = ACTION () NEWSESSION {
-    EXEC calcQuantityPurchaseInterval(subtractDate(currentDate(), skuStockAveragePurchaseInterval()), subtractDate(currentDate(), 1));
+    EXEC calcQuantityPurchaseInterval(subtract(currentDate(), skuStockAveragePurchaseInterval()), subtract(currentDate(), 1));
     apply();
 }
 
@@ -299,15 +299,15 @@ DESIGN options {
 
 //---------------------------------------------- Формы закупки -------------------------------------//
 purchaseOperation 'Операция' = DATA LOCAL Purchase.Operation ();
-namePurchaseOperation 'Операция' = nameOperation(purchaseOperation());
+namePurchaseOperation 'Операция' = name(purchaseOperation());
 
-filterPurchaseOperationSaleLedger = operationPurchaseLedger(ledger)==purchaseOperation() OR (ledger IS PurchaseLedger AND NOT purchaseOperation());
+filterPurchaseOperationSale = operation(PurchaseLedger ledger)==purchaseOperation() OR (ledger IS PurchaseLedger AND NOT purchaseOperation());
 
 purchaseSupplier 'Поставщик' = DATA LOCAL LegalEntity ();
-namePurchaseCustomer 'Поставщик' = nameLegalEntity(purchaseSupplier());
+namePurchaseCustomer 'Поставщик' = name(purchaseSupplier());
 
-filterPurchaseCustomerSaleLedger = supplierPurchaseLedger(ledger)==purchaseSupplier() OR (ledger IS PurchaseLedger AND NOT purchaseSupplier());
-idBarcodeSkuPurchaseLedger 'Штрихкод' (l) = idBarcodeSku(skuPurchaseLedger(l));
+filterPurchaseCustomerSale = supplier(PurchaseLedger ledger)==purchaseSupplier() OR (ledger IS PurchaseLedger AND NOT purchaseSupplier());
+idBarcodeSku 'Штрихкод' (PurchaseLedger l) = idBarcode(sku(l));
 
 isShipmentDatePurchaseLedger 'Данные фильтровать по дате поставки в "Регистре поступлений"' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -332,21 +332,21 @@ FORM purchaseLedger 'Регистр поступлений'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo), isShipmentDate()
 
     OBJECTS te = TypeExchange FIXED PANEL
-    PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
+    PROPERTIES nameType = name(te) SELECTOR, nameCurrency(te) READONLY
 
     OBJECTS s = PurchaseLedger
-    PROPERTIES(s) READONLY datePurchaseLedger, dateTimePurchaseLedger, numberDocumentPurchaseLedger, shipmentDatePurchaseLedger, shipmentDateTimePurchaseLedger,
-                           nameStockPurchaseLedger, nameSupplierPurchaseLedger, nameOperationPurchaseLedger,
-                           canonicalNameSkuGroupPurchaseLedger, nameSkuGroup1SkuPurchaseLedger, nameSkuGroup2SkuPurchaseLedger, nameSkuGroup3SkuPurchaseLedger, nameSkuGroup4SkuPurchaseLedger, nameSkuGroup5SkuPurchaseLedger, 
-                           nameSkuPurchaseLedger, idBarcodeSkuPurchaseLedger, idSkuPurchaseLedger, descriptionPurchaseLedger,
-                           quantityPurchaseLedger, pricePurchaseLedger, valueVATPurchaseLedger, sumVATPurchaseLedger, sumPurchaseLedger, averagePricePurchaseLedger, nameCurrencyPurchaseLedger,
-                           shipmentQuantityPurchaseLedger
-    PROPERTIES    READONLY sumPurchaseTypeExchangePurchaseLedger (te, s)
-    PROPERTIES(s) editPurchaseLedger SHOWIF allowedEditPurchaseLedger(s)
+    PROPERTIES(s) READONLY date, dateTime, numberDocument, shipmentDate, shipmentDateTime,
+                           nameStock, nameSupplier, nameOperation,
+                           canonicalNameSkuGroup, nameSkuGroup1Sku, nameSkuGroup2Sku, nameSkuGroup3Sku, nameSkuGroup4Sku, nameSkuGroup5Sku, 
+                           nameSku, idBarcodeSku, idSku, description,
+                           quantity, price, valueVAT, sumVAT, sum, averagePrice, nameCurrency,
+                           shipmentQuantity
+    PROPERTIES    READONLY sumPurchase (te, s)
+    PROPERTIES(s) edit SHOWIF allowedEdit(s)
     
-    FILTERS activePurchaseLedger(s), filterPurchaseOperationSaleLedger(s), filterPurchaseCustomerSaleLedger(s)  
-    FILTERS (datePurchaseLedger(s) >= dFrom AND datePurchaseLedger(s) <= dTo IF NOT isShipmentDate()) OR (s IS PurchaseLedger AND isShipmentDate()),  
-            (shipmentDatePurchaseLedger(s) >= dFrom AND shipmentDatePurchaseLedger(s) <= dTo IF isShipmentDate()) OR (s IS PurchaseLedger AND NOT isShipmentDate())
+    FILTERS active(s), filterPurchaseOperationSale(s), filterPurchaseCustomerSale(s)  
+    FILTERS (date(s) >= dFrom AND date(s) <= dTo IF NOT isShipmentDate()) OR (s IS PurchaseLedger AND isShipmentDate()),  
+            (shipmentDate(s) >= dFrom AND shipmentDate(s) <= dTo IF isShipmentDate()) OR (s IS PurchaseLedger AND NOT isShipmentDate())
             
     EVENTS 
         ON INIT onInitPurchaseLedger()
@@ -363,7 +363,7 @@ DESIGN purchaseLedger {
             MOVE dates.box {
                 type = CONTAINERH;
                 MOVE PROPERTY (isShipmentDate());
-                PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
+                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
                 PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
             }
             NEW operationContainer{
@@ -375,7 +375,7 @@ DESIGN purchaseLedger {
             }  
             MOVE te.box {
                 type = CONTAINERH;
-                PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
+                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
                 PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
             }
         }
@@ -397,41 +397,41 @@ NAVIGATOR {
 //---------------------------------------------- Макросы для имплементаций -------------------------------------//
 
 META implementPurchaseLedgerCustom(concrete, skuProp, stockProp)
-    dateTimePurchaseLedger (ledger) += dateTime###concrete##Detail(ledger);
-    isPostedPurchaseLedger (ledger) += isPosted###concrete##Detail(ledger);
-    isClosedPurchaseLedger (ledger) += isClosed###concrete##Detail(ledger);
-    numberDocumentPurchaseLedger(ledger) += number###concrete##Detail(ledger);
-    seriesDocumentPurchaseLedger(ledger) += series###concrete##Detail(ledger);
-    skuPurchaseLedger (ledger) += skuProp###concrete##Detail(ledger);
-    stockPurchaseLedger (ledger) += stockProp###concrete##Detail(ledger);
-    operationPurchaseLedger (ledger) += operation###concrete##Detail(ledger);
-    descriptionPurchaseLedger (ledger) += description###concrete##Detail(ledger);
-    editPurchaseLedger (ledger) += ACTION edit###concrete##Detail(ledger);
+    dateTime[PurchaseLedger] (concrete##Detail ledger) += dateTime(ledger);
+    isPosted[PurchaseLedger] (concrete##Detail ledger) += isPosted(ledger);
+    isClosed[PurchaseLedger] (concrete##Detail ledger) += isClosed(ledger);
+    numberDocument[PurchaseLedger](concrete##Detail ledger) += number(ledger);
+    seriesDocument[PurchaseLedger](concrete##Detail ledger) += series(ledger);
+    skuProp[PurchaseLedger] (concrete##Detail ledger) += skuProp(ledger);
+    stock[PurchaseLedger] (concrete##Detail ledger) += stockProp(ledger);
+    operation[PurchaseLedger] (concrete##Detail ledger) += operation(ledger);
+    description[PurchaseLedger] (concrete##Detail ledger) += description(ledger);
+    edit[PurchaseLedger] (concrete##Detail ledger) += ACTION edit(ledger);
 END
 META implementPurchaseLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : PurchaseLedger;
     @implementPurchaseLedgerCustom(concrete, skuProp, stockProp);
 END
 
-EXTEND FORM currentBalanceSkuStock PROPERTIES(s, st) averagePurchaseSkuStock READONLY;
-EXTEND FORM balanceSkuStock PROPERTIES(s, st) averagePurchaseSkuStock READONLY;
+EXTEND FORM currentBalanceSkuStock PROPERTIES(s, st) averagePurchase READONLY;
+EXTEND FORM balanceSkuStock PROPERTIES(s, st) averagePurchase READONLY;
 
 //---------------------------------------------- Расширение формы подбор товаров -------------------------------------//
 META defineSupplierDialogStockSku (form)
 
-    form###supplier = DATA LOCAL LegalEntity ();
-    form###nameSupplier 'Поставщик' () = nameLegalEntity(form###supplier()) PREFCHARWIDTH 30;
-    form###suppliersFilter (sku) =  inSupplierSku(form###supplier(), sku) OR
-                                    (sku IS Sku AND NOT form###supplier());
+    form##Supplier = DATA LOCAL LegalEntity ();
+    form##NameSupplier 'Поставщик' () = name(form##Supplier()) PREFCHARWIDTH 30;
+    dialogSuppliersFilter (Sku sku) =  inSupplier(form##Supplier(), sku) OR
+                                    (sku IS Sku AND NOT form##Supplier());
 
     EXTEND FORM form
-        PROPERTIES() form###nameSupplier
-        FILTERS form###suppliersFilter(s)
+        PROPERTIES() form##NameSupplier
+        FILTERS dialogSuppliersFilter(s)
 
     ;
     DESIGN form {
         filterContainer {
-            MOVE PROPERTY(form###nameSupplier());
+            MOVE PROPERTY(form##NameSupplier());
         }
     }
 END

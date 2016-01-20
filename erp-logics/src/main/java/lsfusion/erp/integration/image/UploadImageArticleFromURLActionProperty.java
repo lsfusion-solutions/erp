@@ -38,12 +38,12 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
 
             DataObject articleObject = context.getDataKeyValue(articleInterface);
 
-            String urlImageArticle = (String) findProperty("urlImageArticle").read(context, articleObject);
+            String urlImageArticle = (String) findProperty("urlImage[Article]").read(context, articleObject);
             File imageFile = readImage(urlImageArticle);
             if (imageFile != null) {
                 Timestamp timeChangedImageArticle = new Timestamp(Calendar.getInstance().getTime().getTime());
-                findProperty("imageArticle").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
-                findProperty("timeChangedImageArticle").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
+                findProperty("image[Article]").change(new DataObject(IOUtils.toByteArray(new FileInputStream(imageFile)), ImageClass.get(false, false)), context, articleObject);
+                findProperty("timeChangedImage[Article]").change(new DataObject(timeChangedImageArticle, DateTimeClass.instance), context, articleObject);
                 imageFile.delete();
 
             }

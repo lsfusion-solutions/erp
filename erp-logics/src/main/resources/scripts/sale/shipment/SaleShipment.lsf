@@ -18,7 +18,7 @@ NAMESPACE Sale;
 
 @defineShipmentBatchDialogStock(supplierStock, Out);
 
-expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDetail(detail)) WHEN CHANGED (batchUserShipmentDetail(detail));
+expiryDate(UserShipmentDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));
 
 @defineShipmentStockDestination(supplierStock, customerStock);
 
@@ -37,7 +37,7 @@ expiryDateUserShipmentDetail(detail) <- prevExpiryDateBatch(batchUserShipmentDet
 //------------------------------------------------- Операции ------------------------------------------------------//
 
 @defineDocumentOperationContainer(shipment, s);
-Shipment.operationShipment(s)+=operationShipment(s);
+operation[Shipment.Shipment](Shipment s)+=operation(s);
 @extendFormFilterRoleAccess(shipment, s, shipments);
 @defineDocumentOperationConstraint(shipment, 'поставка (продажа)', Sale);
 
@@ -55,43 +55,43 @@ Shipment.operationShipment(s)+=operationShipment(s);
 @defineOperationProperty(createShipment, 'Поставка', saleContainer);
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoiceUserShipmentInvoice(s, i) += ACTION (s, i) {
-    ASSIGN operationUserShipment(s) <- operationInvoice(i);
+overFillInvoice(UserShipment s, Invoice i) += ACTION (s, i) {
+    ASSIGN operation(s) <- operation(i);
 }
-operationShipment(shipment) += operationInvoice(invoiceInvoiceShipment(shipment));
+operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopyShipment(s, d) += ACTION(s, d) {
-    ASSIGN operationUserShipment(d) <- operationShipment(s);
+overCopy(Shipment s, UserShipment d) += ACTION(s, d) {
+    ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
-CONSTRAINT supplierUserShipment(userShipment) AND NOT isCompanyLegalEntity(supplierUserShipment(userShipment))
-    CHECKED BY supplierUserShipment MESSAGE 'Для поставки выбрано в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT customerUserShipment(userShipment) AND NOT isCustomerLegalEntity(customerUserShipment(userShipment))
-    CHECKED BY customerUserShipment MESSAGE 'Для поставки выбрано в качестве покупателя организация, не являющаяся покупателем';
+CONSTRAINT supplier(UserShipment userShipment) AND NOT isCompany(supplier(userShipment))
+    CHECKED BY supplier[UserShipment] MESSAGE 'Для поставки выбрано в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT customer(UserShipment userShipment) AND NOT isCustomer(customer(userShipment))
+    CHECKED BY customer[UserShipment] MESSAGE 'Для поставки выбрано в качестве покупателя организация, не являющаяся покупателем';
     
-CONSTRAINT filterShipmentSupplier() AND NOT isCompanyLegalEntity(filterShipmentSupplier())
-    CHECKED BY filterShipmentSupplier MESSAGE 'Для фильтра в поставке выбрана в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT filterShipmentSupplierStock() AND NOT isCompanyStock(filterShipmentSupplierStock())
-    CHECKED BY filterShipmentSupplierStock MESSAGE 'Для фильтра в поставке выбран в качестве склада поставщика склад, который не принадлежит компании';              
-CONSTRAINT filterShipmentCustomer() AND NOT isCustomerLegalEntity(filterShipmentCustomer())
-    CHECKED BY filterShipmentCustomer MESSAGE 'Для фильтра в поставке выбрана в качестве покупателя организация, не являющаяся покупателем';       
+CONSTRAINT filterShipmentSupplier() AND NOT isCompany(filterShipmentSupplier())
+    CHECKED BY filterShipmentSupplier[] MESSAGE 'Для фильтра в поставке выбрана в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT filterShipmentSupplierStock() AND NOT isCompany(filterShipmentSupplierStock())
+    CHECKED BY filterShipmentSupplierStock[] MESSAGE 'Для фильтра в поставке выбран в качестве склада поставщика склад, который не принадлежит компании';              
+CONSTRAINT filterShipmentCustomer() AND NOT isCustomer(filterShipmentCustomer())
+    CHECKED BY filterShipmentCustomer[] MESSAGE 'Для фильтра в поставке выбрана в качестве покупателя организация, не являющаяся покупателем';       
 
-CONSTRAINT filterShipmentSupplier() AND filterShipmentSupplierStock() AND NOT inLegalEntityStock(filterShipmentSupplier(), filterShipmentSupplierStock())
-    CHECKED BY filterShipmentSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для поставки не имеют связи';
-CONSTRAINT filterShipmentCustomer() AND filterShipmentCustomerStock() AND NOT inLegalEntityStock(filterShipmentCustomer(), filterShipmentCustomerStock())
-    CHECKED BY filterShipmentCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для поставки не имеют связи';  
+CONSTRAINT filterShipmentSupplier() AND filterShipmentSupplierStock() AND NOT in(filterShipmentSupplier(), filterShipmentSupplierStock())
+    CHECKED BY filterShipmentSupplierStock[] MESSAGE 'Поставщик и склад поставщика в фильтре для поставки не имеют связи';
+CONSTRAINT filterShipmentCustomer() AND filterShipmentCustomerStock() AND NOT in(filterShipmentCustomer(), filterShipmentCustomerStock())
+    CHECKED BY filterShipmentCustomerStock[] MESSAGE 'Покупатель и склад покупателя в фильтре для поставки не имеют связи';  
 //------------------------------ Ввод в упаковках -----------------------------//
 
 @defineDocumentPack(shipment, s);
-Shipment.packQuantityShipmentDetail(detail) += packQuantityShipmentDetail(detail);
+packQuantity[Shipment.ShipmentDetail](ShipmentDetail detail) += packQuantity(detail);
 DESIGN userShipment {
     headerExtraParams {
         NEW headerPack {
             caption = 'Упаковка';
-            MOVE PROPERTY(showPackUserShipment(s));
+            MOVE PROPERTY(showPack(s));
         }
     }
 }
@@ -108,27 +108,27 @@ DESIGN userShipment {
 //------------------------------ Расширение формы -----------------------------//
 
 // Фильтры
-inUserShipmentSku (userShipment, sku)= inCustomerSku(customerUserShipment(userShipment), sku);
+in (UserShipment userShipment, Sku sku)= inCustomer(customer(userShipment), sku);
 EXTEND FORM userShipment
 
     FILTERGROUP filter
-        FILTER 'С остатком ' prevCurrentBalanceSkuUserShipment(ks, s) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserShipmentDetailSkuUserShipment(ks, s) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(ks, s) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserShipmentDetail(ks, s) 'F9'
 
     FILTERGROUP filter2
-        FILTER 'С продажей ' inUserShipmentSku(s, ks) 'F8'
+        FILTER 'С продажей ' in(s, ks) 'F8'
 //        FILTER 'В прайсе' 'F7' ledgerPriceSkuUserShipment(ks, s)
 
 ;
-inUserShipmentBatch (userShipment, batch)= inCustomerSku(customerUserShipment(userShipment), skuBatch(batch));
+in (UserShipment userShipment, Batch batch)= inCustomer(customer(userShipment), sku(batch));
 EXTEND FORM userShipment
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalanceBatchUserShipment(b,s) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserShipmentDetailBatchUserShipment(b,s) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b,s) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserShipmentDetail(b,s) 'F9'
 
     FILTERGROUP filter4
-        FILTER 'С продажей ' inUserShipmentBatch(s,b) 'F8'
+        FILTER 'С продажей ' in(s,b) 'F8'
 //        FILTER 'В прайсе' 'F7' ledgerPriceBatchUserShipment(b, s)
 
 ;
@@ -142,55 +142,55 @@ EXTEND FORM userShipment
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
 
-disableUpdateShipmentPriceUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
-WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
-              CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-              (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail)) OR
-              CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(shipmentPriceUserInvoiceDetail(detail)) AND NOT disableUpdateShipmentPriceUserInvoiceDetail(detail) DO 
-    shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail)
+disableUpdateShipmentPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
+WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
+              CHANGED(supplierStock(detail)) OR
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+              CHANGED(batch(detail))) AND NOT CHANGED(shipmentPrice(detail)) AND NOT disableUpdateShipmentPrice(detail) DO 
+    shipmentPrice (detail)  <- IF batch(detail) AND NOT notUseBatchPrice(detail)
 
-                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
-                                                                                                   batchUserInvoiceDetail(detail),
-                                                                                                   supplierStockUserInvoiceDetail(detail),
-                                                                                                   dateTimeUserInvoiceDetail(detail))
-                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
-                                                                                                 skuUserInvoiceDetail(detail),
-                                                                                                 supplierStockUserInvoiceDetail(detail),
-                                                                                                 dateTimeUserInvoiceDetail(detail));
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   supplierStock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 supplierStock(detail),
+                                                                                                 dateTime(detail));
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, , , sku, supplierStock);
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 @implementStockDocumentLedgerOut(Shipment, supplierStock);
-typeStockDocumentLedger(l) += 'Продажа' IF l IS Shipment;
-sumItemOutStockDocumentLedger (ledger) += sumItemShipmentDetailShipment(ledger);
-sumContainerOutStockDocumentLedger (ledger) += sumContainerShipmentDetailShipment(ledger);
+type(Shipment l) += 'Продажа' IF l IS Shipment;
+sumItem (Shipment ledger) += sumItemShipmentDetail(ledger);
+sumContainer (Shipment ledger) += sumContainerShipmentDetail(ledger);
 
-legalEntityStockDocumentLedger(ledger) += customerShipment(ledger);  
-legalEntityStockStockDocumentLedger(ledger) += customerStockShipment(ledger);  
+legalEntity(Shipment ledger) += customer(ledger);  
+legalEntityStock(Shipment ledger) += customerStock(ledger);  
 
-operationStockDocumentLedger(ledger) += operationShipment(ledger);
+operation[StockDocumentLedger](Shipment ledger) += operation(ledger);
 
 // ------------------------------- Проведение по регистру остатков ------------------------ //
 @implementSkuLedgerOutFIFO(ShipmentDetail, sku, supplierStock);
-quantityOutFIFOSkuLedger (ledger) += quantityShipmentDetail (ledger);
-batchSkuLedger(ledger) += batchShipmentDetail(ledger);
+quantity[OutFIFOSkuLedger] (ShipmentDetail ledger) += quantity (ledger);
+batch[SkuLedger](ShipmentDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(shipmentDetail, supplierStock);
-sumOutSkuLedger(ledger) += sumShipmentDetail(ledger);
+sum[OutSkuLedger](ShipmentDetail ledger) += sum(ledger);
 
-stockDocumentLedgerSkuLedger(ledger) += shipmentShipmentDetail(ledger); 
+stockDocumentLedger(ShipmentDetail ledger) += shipment(ledger); 
 
-costShipmentDetailBatch(detail, batch) += costSkuLedgerBatch(detail, batch) IF detail IS ShipmentDetail;
+cost(ShipmentDetail detail, Batch batch) += cost[SkuLedger,Batch](detail, batch) IF detail IS ShipmentDetail;
 
-editSkuLedger(d) += ACTION editShipmentDetail(d);  
+edit[SkuLedger](ShipmentDetail d) += ACTION edit(d);  
 
 // ------------------------------- Себестоимость продажи ------------------------ //
-costSaleInvoiceDetail (invoiceDetail) = GROUP SUM costSumSkuLedger(shipmentDetail) BY invoiceDetailShipmentDetail(shipmentDetail);
-costSumSaleLedger(ledger) += costSaleInvoiceDetail(ledger);
-costSaleLedgerBatch(ledger, batch) += costInvoiceDetailBatch (ledger, batch);
+costSale (invoiceDetail) = GROUP SUM costSum[SkuLedger](ShipmentDetail shipmentDetail) BY invoiceDetail(shipmentDetail);
+costSum(InvoiceDetail ledger) += costSale(ledger);
+cost(InvoiceDetail ledger, Batch batch) += cost (ledger, batch);
 
-skipSaleLedger (ledger) += WHEN userShippedQuantityOperation(operationInvoiceDetail(ledger)) AND NOT shippedInvoiceDetail(ledger) THEN TRUE;
-overQuantityInvoiceDetail(detail) += shippedInvoiceDetail(detail) IF userShippedQuantityOperation(operationInvoiceDetail(detail));
+skip (InvoiceDetail ledger) += WHEN userShippedQuantity(operation(ledger)) AND NOT shipped(ledger) THEN TRUE;
+overQuantity(InvoiceDetail detail) += shipped(detail) IF userShippedQuantity(operation(detail));
 
 NAVIGATOR {
     saleStockNavigator {
@@ -198,27 +198,27 @@ NAVIGATOR {
     }
 }
 
-sumWholesaleMarkupInvoiceDetail(detail) = sumInvoiceDetail(detail) - shipmentSumInvoiceDetail(detail);
-sumWholesaleMarkupInvoiceDetailInvoice(invoice) = GROUP SUM sumWholesaleMarkupInvoiceDetail(detail) BY invoiceInvoiceDetail(detail);
+sumWholesaleMarkup(InvoiceDetail detail) = sum(detail) - shipmentSum(detail);
+sumWholesaleMarkupInvoiceDetail(invoice) = GROUP SUM sumWholesaleMarkup(InvoiceDetail detail) BY invoice(detail);
 
 //-- Запрет на изменение документа другим пользователем
 @defineOperationChangesDocument(shipment, UserShipment, preventChangesDocument, created);
 
-overShowEditShipment (i) += showEditDeleteUserShipment(i) AND isOpenedShipment(i) AND NOT skipShowEditShipment(i);
-overShowDeleteShipment (i) += showEditDeleteUserShipment(i) AND isUserOpenedShipment(i) AND NOT skipShowDeleteShipment(i); 
+overShowEdit (Shipment i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (UserShipment i) += showEditDeleteUser(i) AND isUserOpened(i) AND NOT skipShowDelete(i); 
 
 fillShipmentPriceAll 'Переписать учетную цену в накладных (продажа)'  = ACTION () {
-    FOR detail IS UserInvoiceDetail AND NOT disableUpdateShipmentPriceUserInvoiceDetail(detail) 
-        AND isOpenedUserInvoice(userInvoiceUserInvoiceDetail(detail))  DO {
-        shipmentPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail)    
-                                                        THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType,
-                                                                                                       batchUserInvoiceDetail(detail),
-                                                                                                       supplierStockUserInvoiceDetail(detail),
-                                                                                                       dateTimeUserInvoiceDetail(detail))
-                                                        ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType,
-                                                                                                     skuUserInvoiceDetail(detail),
-                                                                                                     supplierStockUserInvoiceDetail(detail),
-                                                                                                     dateTimeUserInvoiceDetail(detail));    
+    FOR UserInvoiceDetail detail IS UserInvoiceDetail AND NOT disableUpdateShipmentPrice(detail) 
+        AND isOpened(userInvoice(detail))  DO {
+        shipmentPrice (detail)  <- IF batch(detail)    
+                                                        THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                                                                       batch(detail),
+                                                                                                       supplierStock(detail),
+                                                                                                       dateTime(detail))
+                                                        ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                                                                     sku(detail),
+                                                                                                     supplierStock(detail),
+                                                                                                     dateTime(detail));    
     }
 }
 
@@ -233,5 +233,5 @@ DESIGN options {
         }            
     }
 }
-CONSTRAINT isPostedShipmentDetail(d) AND isShipmentPriceOperation(operationShipmentDetail(d)) AND NOT priceShipmentDetail(d)
+CONSTRAINT isPosted(ShipmentDetail d) AND isShipmentPrice(operation(d)) AND NOT price(d)
     MESSAGE 'Для документа (продажа) должна быть задана учетная цена';

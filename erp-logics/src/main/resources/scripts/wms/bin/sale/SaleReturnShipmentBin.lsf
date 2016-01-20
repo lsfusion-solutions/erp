@@ -7,22 +7,22 @@ NAMESPACE SaleReturn;
 //---------------------------------Ячейка ----------------------------------//
 
 @defineDocumentInterfaceDetailBin(shipment);
-overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-    binUserShipmentDetail(d) <- binUserShipmentDetail(detail);
+overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION (d, detail) {      
+    bin(d) <- bin(detail);
 }
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
 @deriveDocumentOperationProperty(UserShipment, showBin);
-binUserShipmentDetail(detail) <- binStockSku(supplierStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
-    WHEN CHANGED(supplierStockUserShipmentDetail(detail)) OR
-         CHANGED(skuUserShipmentDetail(detail));
+bin(UserShipmentDetail detail) <- bin(supplierStock(detail), sku(detail))
+    WHEN CHANGED(supplierStock(detail)) OR
+         CHANGED(sku(detail));
 
 //-- invoice
 @defineInvoiceShipmentBin(supplierStock);
 @deriveDocumentOperationProperty(UserInvoice, showBin);
 
-binUserInvoiceDetail(detail) <- binStockSku(supplierStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail))
-    WHEN CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-         CHANGED(skuUserInvoiceDetail(detail));
+bin(UserInvoiceDetail detail) <- bin(supplierStock(detail), sku(detail))
+    WHEN CHANGED(supplierStock(detail)) OR
+         CHANGED(sku(detail));
 
 //-- Проводим по регистру (ячейка)
-binDataSkuLedger(ledger) += binShipmentDetail(ledger);
+bin[DataSkuLedger](ShipmentDetail ledger) += bin(ledger);

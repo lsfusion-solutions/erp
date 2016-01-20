@@ -7,32 +7,32 @@ NAMESPACE Pricing;
 FORM priceLabelTransactionDetails 'Цена на ценниках' 
     
     OBJECTS s = Sku FIXED PANEL 
-    PROPERTIES READONLY nameSku(s)
+    PROPERTIES READONLY name(s)
     OBJECTS st = Stock FIXED PANEL     
     
     OBJECTS d = LabelTransactionDetail FIXED GRID
-    PROPERTIES READONLY dateLabelTransactionDetail(d), timeLabelTransactionDetail(d), nameLabelTypeLabelTransactionDetail(d), priceLabelTransactionDetail(d)
-    ORDER BY dateLabelTransactionDetail(d), timeLabelTransactionDetail(d)
-    FILTERS skuLabelTransactionDetail(d) == s,
-            departmentStoreLabelTransactionDetail(d) == st
+    PROPERTIES READONLY date(d), time(d), nameLabelType(d), price(d)
+    ORDER BY date(d), time(d)
+    FILTERS sku(d) == s,
+            departmentStore(d) == st
 ;
-showPriceLabelTransactionDetailSkuStock 'Показать изменение цены' (sku, stock) = ACTION FORM priceLabelTransactionDetails OBJECTS s = sku, st = stock MODAL SHORTCUT priceLabelTransactionDetailSkuDepartmentStore;
+showPriceLabelTransactionDetail 'Показать изменение цены' (Sku sku, Stock stock) = ACTION FORM priceLabelTransactionDetails OBJECTS s = sku, st = stock MODAL SHORTCUT priceLabelTransactionDetail[Sku,DepartmentStore];
 
 FORM priceMachineryPriceTransactionBarcode 'Цена в оборудовании' 
     
     OBJECTS b = Barcode FIXED PANEL 
-    PROPERTIES READONLY nameSkuBarcode(b)
+    PROPERTIES READONLY nameSku(b)
     OBJECTS st = Stock FIXED PANEL     
     
     OBJECTS t= MachineryPriceTransaction FIXED GRID
-    PROPERTIES READONLY dateMachineryPriceTransaction(t), timeMachineryPriceTransaction(t), nameGroupMachineryMachineryPriceTransaction(t), nameMachineryPriceTransactionBarcode(t,b), priceMachineryPriceTransactionBarcode(t,b)
-    ORDER BY dateMachineryPriceTransaction(t), timeMachineryPriceTransaction(t)
+    PROPERTIES READONLY date(t), time(t), nameGroupMachinery(t), name(t,b), price(t,b)
+    ORDER BY date(t), time(t)
     
-    FILTERS stockGroupMachinery(groupMachineryMachineryPriceTransaction(t)) == st,
-            inMachineryPriceTransactionBarcode(t,b),
-            NOT canceledMachineryPriceTransaction(t)
+    FILTERS stock(groupMachinery(t)) == st,
+            in(t,b),
+            NOT canceled(t)
 ;
-showPriceMachineryPriceTransactionSkuStock 'Показать изменение цены' (sku, stock) = ACTION FORM priceMachineryPriceTransactionBarcode OBJECTS b = barcodeSku(sku), st = stock MODAL SHORTCUT transactionPriceSkuStock;
+showPriceMachineryPriceTransaction 'Показать изменение цены' (Sku sku, Stock stock) = ACTION FORM priceMachineryPriceTransactionBarcode OBJECTS b = barcode(sku), st = stock MODAL SHORTCUT transactionPrice[Sku,Stock];
 
 useCurrentPriceUpdatePriceDashboard 'Использовать текущие цены в обновлении цен' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -49,68 +49,68 @@ useCurrentPrice = DATA LOCAL BOOLEAN();
 initUseCurrentPrice = ACTION() {
     useCurrentPrice() <- useCurrentPriceUpdatePriceDashboard();
 }
-updatePriceSkuStock 'Розничная цена' (sku, stock) = IF useCurrentPrice() THEN currentRetailPricingPriceSkuStock(sku, stock) ELSE retailPricingPriceASkuStock(sku, stock);   
-updateDescriptionSkuStock 'Описание' (sku, stock) = IF useCurrentPrice() THEN currentRetailPricingDescriptionSkuStock(sku, stock) ELSE retailPricingDescriptionASkuStock(sku, stock);   
-updateFromDateTimeSkuStock 'Дата/время с' (sku, stock) = IF useCurrentPrice() THEN currentRetailPricingFromDateTimeSkuStock(sku, stock) ELSE retailPricingFromDateTimeASkuStock(sku, stock);   
+updatePrice 'Розничная цена' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingPrice(sku, stock) ELSE retailPricingPriceA(sku, stock);   
+updateDescription 'Описание' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingDescription(sku, stock) ELSE retailPricingDescriptionA(sku, stock);   
+updateFromDateTime 'Дата/время с' (Sku sku, Stock stock) = IF useCurrentPrice() THEN currentRetailPricingFromDateTime(sku, stock) ELSE retailPricingFromDateTimeA(sku, stock);   
 
-showMovementPriceSkuSkuStocks 'Показать изменение цены товара' (sku, stock) = ACTION (sku, stock)  {
-    dialogPriceListTypeSkuStock(sku, stock) <- SystemLedgerPriceListType.retailPricingPriceListType;
+showMovementPriceSkuStocks 'Показать изменение цены товара' (Sku sku, Stock stock) = ACTION (sku, stock)  {
+    dialogPriceListType(sku, stock) <- SystemLedgerPriceListType.retailPricingPriceListType;
     FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
-} SHORTCUT updatePriceSkuStock;
+} SHORTCUT updatePrice[Sku,Stock];
 
 FORM updatePriceDashboard 'Обновление розничных цен'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDepartmentStore SELECTOR
-    FILTERS isCompanyStock(d)
+    PROPERTIES(d) name SELECTOR
+    FILTERS isCompany(d)
     
-    TREE skuGroupTree sg=SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), nameSkuGroup(sg)
-    ORDER BY orderSkuGroup(sg), nameSkuGroup(sg)
-    FILTERGROUP sginactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
+    TREE skuGroupTree sg=SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), name(sg)
+    ORDER BY order(sg), name(sg)
+    FILTERGROUP sginactive FILTER 'Активные' active(sg) 'F5' DEFAULT
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) selectSku
-    PROPERTIES(sk) READONLY idBarcodeSku, idSku, nameSku ON SHORTCUT showMovementSkuSkuStock(sk, d) ON SHORTCUT showMovementPriceSkuSkuStock(sk, d), shortNameUOMSku
-    PROPERTIES(sk, d) READONLY currentBalanceSkuStock, updateDescriptionSkuStock, updateFromDateTimeSkuStock, updatePriceSkuStock, 
-                      priceLabelTransactionDetailSkuDepartmentStore,  transactionPriceSkuStock BACKGROUND backgroundLastTransactionSkuStock(sk, d)
-    PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransactionDepartmentStore, printSelectedSkuSnapshotLabelTransactionDepartmentStore, createSelectedSkuPriceTransactionDocumentStock
-    FILTERS isParentSkuGroupSku(sg, sk),
-            isItemSku(sk)
-    ORDER BY nameSku(sk)
-    FILTERGROUP inactive FILTER 'Активные' activeSku(sk) 'F5' DEFAULT
+    PROPERTIES(sk) select
+    PROPERTIES(sk) READONLY idBarcode, id, name ON SHORTCUT showMovementSku(sk, d) ON SHORTCUT showMovementPriceSku(sk, d), shortNameUOM
+    PROPERTIES(sk, d) READONLY currentBalance, updateDescription, updateFromDateTime, updatePrice, 
+                      priceLabelTransactionDetail,  transactionPrice BACKGROUND backgroundLastTransaction(sk, d)
+    PROPERTIES(d) TODRAW sk printSelectedSkuLabelTransaction, printSelectedSkuSnapshotLabelTransactionDepartmentStore, createSelectedSkuPriceTransactionDocument
+    FILTERS isParent(sg, sk),
+            isItem(sk)
+    ORDER BY name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
     FILTERGROUP diffPrice
-        FILTER 'Ценники' updatePriceSkuStock(sk, d) AND NOT updatePriceSkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d) 'F11' 
-        FILTER 'Оборудование' updatePriceSkuStock(sk, d) AND barcodeSku(sk) AND NOT updatePriceSkuStock(sk, d) == transactionPriceSkuStock(sk, d) 'F10'
-        FILTER 'Ценники и оборуд.' updatePriceSkuStock(sk, d) 
-                                                            AND (NOT (updatePriceSkuStock(sk, d) == priceLabelTransactionDetailSkuDepartmentStore(sk, d)) OR 
-                                                                 (barcodeSku(sk) AND NOT updatePriceSkuStock(sk, d) == transactionPriceSkuStock(sk, d))) 'F9' DEFAULT 
+        FILTER 'Ценники' updatePrice(sk, d) AND NOT updatePrice(sk, d) == priceLabelTransactionDetail(sk, d) 'F11' 
+        FILTER 'Оборудование' updatePrice(sk, d) AND barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d) 'F10'
+        FILTER 'Ценники и оборуд.' updatePrice(sk, d) 
+                                                            AND (NOT (updatePrice(sk, d) == priceLabelTransactionDetail(sk, d)) OR 
+                                                                 (barcode(sk) AND NOT updatePrice(sk, d) == transactionPrice(sk, d))) 'F9' DEFAULT 
                                                                  
     FILTERGROUP error
-        FILTER 'С ошибками' quantityMachineryPriceTransactionErrorMachineryPriceTransaction(lastTransactionBarcodeStock(barcodeSku(sk), d)) AND NOT
-                                succeededMachineryPriceTransaction(lastTransactionBarcodeStock(barcodeSku(sk), d)) 'F6'                                                                  
+        FILTER 'С ошибками' quantityMachineryPriceTransactionError(lastTransaction(barcode(sk), d)) AND NOT
+                                succeeded(lastTransaction(barcode(sk), d)) 'F6'                                                                  
                                                                  
     PROPERTIES() READONLY countSelectSkus SHOWIF countSelectSkus() TODRAW sk
     
     OBJECTS p = Machinery.PriceTransactionDocument LAST
-    PROPERTIES (p) READONLY isClosedPriceTransactionDocument, isPostedPriceTransactionDocument, datePriceTransactionDocument, timePriceTransactionDocument, seriesPriceTransactionDocument, numberPriceTransactionDocument,
-                nameLegalEntityPriceTransactionDocument, nameOperationPriceTransactionDocument, descriptionPriceTransactionDocument, statusMachineryPriceTransactionDocument, statusLabelPriceTransactionDocument FORCE GRID
-    PROPERTIES (p) SHOWIF showCreateMachineryPriceTransactionPriceTransactionDocument(p) createMachineryPriceTransactionPriceTransactionDocument, createSnapshotMachineryPriceTransactionPriceTransactionDocument
-    PROPERTIES (p) SHOWIF  showPrintLabelTransactionPriceTransactionDocument(p) createLabelTransactionPriceTransactionDocument, createSnapshotLabelTransactionPriceTransactionDocument
-    FILTERS d == stockPriceTransactionDocument(p)
-    ORDER BY datePriceTransactionDocument(p), timePriceTransactionDocument(p)
+    PROPERTIES (p) READONLY isClosed, isPosted, date, time, series, number,
+                nameLegalEntity, nameOperation, description, statusMachinery, statusLabel FORCE GRID
+    PROPERTIES (p) SHOWIF showCreateMachineryPriceTransaction(p) createMachineryPriceTransaction, createSnapshotMachineryPriceTransaction
+    PROPERTIES (p) SHOWIF  showPrintLabelTransaction(p) createLabelTransaction, createSnapshotLabelTransaction
+    FILTERS d == stock(p)
+    ORDER BY date(p), time(p)
     FILTERGROUP succeeded
-        FILTER 'Ценники' NOT skipPriceTransactionDocument(p) AND NOT printedPriceTransactionDocument(p) 'F11'
-        FILTER 'Оборудование' NOT succeededPriceTransactionDocument(p) AND NOT skipPriceTransactionDocument(p) 'F10'
-        FILTER 'Ценники и оборуд.' (NOT succeededPriceTransactionDocument(p) AND NOT skipPriceTransactionDocument(p) ) OR 
-                (NOT skipPriceTransactionDocument(p) AND NOT printedPriceTransactionDocument(p)) 'F9' DEFAULT
+        FILTER 'Ценники' NOT skip(p) AND NOT printed(p) 'F11'
+        FILTER 'Оборудование' NOT succeeded(p) AND NOT skip(p) 'F10'
+        FILTER 'Ценники и оборуд.' (NOT succeeded(p) AND NOT skip(p) ) OR 
+                (NOT skip(p) AND NOT printed(p)) 'F9' DEFAULT
     FILTERGROUP opened
-        FILTER 'Открыт' NOT isClosedPriceTransactionDocument(p) DEFAULT
+        FILTER 'Открыт' NOT isClosed(p) DEFAULT
     FILTERGROUP posted
-        FILTER 'Проведен' NOT isDraftPriceTransactionDocument(p) DEFAULT
+        FILTER 'Проведен' NOT isDraft(p) DEFAULT
     
     OBJECTS pd = Machinery.PriceTransactionDocumentDetail
-    PROPERTIES (pd) READONLY idBarcodeSkuPriceTransactionDocumentDetail, nameSkuPriceTransactionDocumentDetail, quantityPriceTransactionDocumentDetail, pricePriceTransactionDocumentDetail
-    FILTERS priceTransactionDocumentPriceTransactionDocumentDetail(pd) == p
+    PROPERTIES (pd) READONLY idBarcodeSku, nameSku, quantity, price
+    FILTERS priceTransactionDocument(pd) == p
                                                                                      
     EVENTS
         ON INIT initUseCurrentPrice()
@@ -158,15 +158,15 @@ DESIGN updatePriceDashboard {
                         caption = 'Загрузки' ;
                         type = CONTAINERV;    
                                 
-                        MOVE PROPERTY (createMachineryPriceTransactionPriceTransactionDocument(p));
-                        MOVE PROPERTY (createSnapshotMachineryPriceTransactionPriceTransactionDocument(p));
+                        MOVE PROPERTY (createMachineryPriceTransaction(p));
+                        MOVE PROPERTY (createSnapshotMachineryPriceTransaction(p));
                     }
                     NEW label {
                         caption = 'Ценники' ;
                         type = CONTAINERV;
                         
-                        MOVE PROPERTY (createLabelTransactionPriceTransactionDocument(p));
-                        MOVE PROPERTY (createSnapshotLabelTransactionPriceTransactionDocument(p));
+                        MOVE PROPERTY (createLabelTransaction(p));
+                        MOVE PROPERTY (createSnapshotLabelTransaction(p));
                     }
                 }
             }
@@ -174,15 +174,15 @@ DESIGN updatePriceDashboard {
     }
     MOVE functions.box;
 }
-filterSupplierDepartmentStore = DATA LOCAL LegalEntity (DepartmentStore);
-nameFilterSupplierDepartmentStore 'Поставщик' (departmentStore) = nameLegalEntity(filterSupplierDepartmentStore(departmentStore));
-filterSupplierDepartmentStoreSku (departmentStore, sku) = prevInSupplierSku(filterSupplierDepartmentStore(departmentStore), sku) OR
-                                              (sku IS Sku AND NOT filterSupplierDepartmentStore(departmentStore));
+filterSupplier = DATA LOCAL LegalEntity (DepartmentStore);
+nameFilterSupplier 'Поставщик' (DepartmentStore departmentStore) = name(filterSupplier(departmentStore));
+filterSupplier (DepartmentStore departmentStore, Sku sku) = prevInSupplier(filterSupplier(departmentStore), sku) OR
+                                              (sku IS Sku AND NOT filterSupplier(departmentStore));
 
 EXTEND FORM updatePriceDashboard
-    PROPERTIES nameFilterSupplierDepartmentStore(d) FORCE PANEL
-    FILTERS    filterSupplierDepartmentStoreSku(d, sk)
-    FILTERS legalEntityPriceTransactionDocument(p) == filterSupplierDepartmentStore(d) OR NOT filterSupplierDepartmentStore(d)
+    PROPERTIES nameFilterSupplier(d) FORCE PANEL
+    FILTERS    filterSupplier(d, sk)
+    FILTERS legalEntity(p) == filterSupplier(d) OR NOT filterSupplier(d)
 ;
 DESIGN updatePriceDashboard {
     header {
@@ -190,7 +190,7 @@ DESIGN updatePriceDashboard {
         NEW header1 {
             type = CONTAINERH;
             caption = 'Фильтр';
-            MOVE PROPERTY (nameFilterSupplierDepartmentStore(d));
+            MOVE PROPERTY (nameFilterSupplier(d));
         } 
     }    
 }

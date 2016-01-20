@@ -64,68 +64,68 @@ NAMESPACE Purchase;
 
 //-- По дням недели
 TABLE stockScheduleOrderTimeRampInterval(Stock, ScheduleOrderTime, Ramp, Interval);
-inStockScheduleOrderTimeRampInterval 'Вкл.' = DATA BOOLEAN (Stock, ScheduleOrderTime, Ramp, Interval);
+in 'Вкл.' = DATA BOOLEAN (Stock, ScheduleOrderTime, Ramp, Interval);
 
-CONSTRAINT inStockScheduleOrderTimeRampInterval(st,o,r,i) AND NOT inRampInterval(r,i)
+CONSTRAINT in(Stock st,ScheduleOrderTime o,Ramp r,Interval i) AND NOT in(r,i)
     MESSAGE 'Для дня недели и склады включены рампа и интервал, у которых нет связи';  
 
-CONSTRAINT inStockScheduleOrderTimeRampInterval(st,o,r,i) AND NOT stockRamp(r)==st
+CONSTRAINT in(Stock st,ScheduleOrderTime o,Ramp r,Interval i) AND NOT stock(r)==st
     MESSAGE 'Для дня недели и склада включена рампа, у которой нет связи со складом';   
  
 //-- По предварительным заказам
 TABLE scheduleOrderDetailRampInterval(ScheduleOrderDetail, Ramp, Interval);
-inScheduleOrderDetailRampInterval 'Вкл.' = DATA BOOLEAN (ScheduleOrderDetail, Ramp, Interval);
-countIntervalsScheduleOrderDetailRamp (o,r) = GROUP SUM 1 IF inScheduleOrderDetailRampInterval(o,r,i) BY o,r;
+in 'Вкл.' = DATA BOOLEAN (ScheduleOrderDetail, Ramp, Interval);
+countIntervals (o,r) = GROUP SUM 1 IF in(ScheduleOrderDetail o,Ramp r,Interval i) BY o,r;
 
-countScheduleOrderDetailsDateRampInterval (date,r,i) = GROUP SUM 1 IF inScheduleOrderDetailRampInterval(o,r,i) AND isOpenedScheduleOrderDetail(o) BY dateSupplyScheduleOrderDetail(o),r,i;
+countScheduleOrderDetails (date,r,i) = GROUP SUM 1 IF in(ScheduleOrderDetail o,Ramp r,Interval i) AND isOpened(o) BY dateSupply(o),r,i;
   
-CONSTRAINT inScheduleOrderDetailRampInterval(o,r,i) AND NOT inRampInterval(r,i)
+CONSTRAINT in(ScheduleOrderDetail o,Ramp r,Interval i) AND NOT in(r,i)
     MESSAGE 'Для предварительного заказа и склады включены рампа и интервал, у которых нет связи';   
      
-CONSTRAINT inScheduleOrderDetailRampInterval(o,r,i) AND NOT stockRamp(r)==customerStockScheduleOrderDetail(o)
+CONSTRAINT in(ScheduleOrderDetail o,Ramp r,Interval i) AND NOT stock(r)==customerStock(o)
     MESSAGE 'Для предварительного заказа и склада включена рампа, у которой нет связи со складом';                      
       
-overCreateScheduleOrderDetail(o) += ACTION (o) {
-    inScheduleOrderDetailRampInterval(o,ramp,interval) <- inStockScheduleOrderTimeRampInterval(
-                                                            customerStockScheduleOrderDetail(o),
-                                                            shipmentScheduleOrderTimeScheduleOrderDOW(scheduleOrderScheduleOrderDetail(o),extractDOW(dateSupplyScheduleOrderDetail(o))),
+overCreate(ScheduleOrderDetail o) += ACTION (o) {
+    in(o,Ramp ramp,Interval interval) <- in(
+                                                            customerStock(o),
+                                                            shipmentScheduleOrderTime(scheduleOrder(o),extractDOW(dateSupply(o))),
                                                             ramp,
                                                             interval);                                                             
 }  
 
-descriptionRampsScheduleOrderDetail 'Рампы' (o)= 
-    GROUP CONCAT (CONCAT ' ', timeInterval(i), nameRamp(r)) IF inScheduleOrderDetailRampInterval(o,r,i), ', ' 
+descriptionRamps 'Рампы' (o)= 
+    GROUP CONCAT (CONCAT ' ', time(Interval i), name(Ramp r)) IF in(ScheduleOrderDetail o,r,i), ', ' 
     BY o
-    ORDER nameRamp(r), timeInterval(i) 
+    ORDER name(r), time(i) 
     MINCHARWIDTH 20 PREFCHARWIDTH 30; 
       
-overCreateOrder(o) += ACTION {
+overCreate(UserOrder o) += ACTION {
     IF o IS UserOrder THEN {
-        inOrderRampInterval(o,r,i) <-  inScheduleOrderDetailRampInterval(scheduleOrderDetailUserOrder(o),r,i); 
-        shipmentTimeUserOrder(o) <- [ = GROUP MIN timeInterval(i) IF inOrderRampInterval(o,r,i) BY o](o);
+        in(o,Ramp r,Interval i) <-  in(scheduleOrderDetail(o),r,i); 
+        shipmentTime(o) <- [ = GROUP MIN time(Interval i) IF in(Order.Order o,Ramp r,i) BY o](o);
     }      
 } 
  
-backgroundInStockScheduleOrderTimeRamp = RGB(0,255,0) IF [ = GROUP SUM 1 IF inStockScheduleOrderTimeRampInterval(tts,d,r,in) BY tts,d,r](tts,d,r);      
+backgroundIn = RGB(0,255,0) IF [ = GROUP SUM 1 IF in(Stock tts,ScheduleOrderTime d,Ramp r,Interval in) BY tts,d,r](Stock tts,ScheduleOrderTime d,Ramp r);      
 EXTEND FORM scheduleOrder
     OBJECTS tts=Stock FIXED GRID       
-    PROPERTIES (tts) SHOWIF toShowGenDayMonth(s) READONLY nameStock    
-    FILTERS inScheduleOrderStock(s,tts)
+    PROPERTIES (tts) SHOWIF toShowGenDayMonth(s) READONLY name    
+    FILTERS in(s,tts)
     
     OBJECTS r=Ramp FIXED GRID
-    PROPERTIES(r) SHOWIF toShowGenDayMonth(s) READONLY  nameRamp BACKGROUND backgroundInStockScheduleOrderTimeRamp(tts,d,r)
-    FILTERS stockRamp(r) == tts 
+    PROPERTIES(r) SHOWIF toShowGenDayMonth(s) READONLY  name BACKGROUND backgroundIn(tts,d,r)
+    FILTERS stock(r) == tts 
     
     OBJECTS in=Interval FIXED GRID
-    PROPERTIES (in) SHOWIF toShowGenDayMonth(s) READONLY timeInterval            
-    PROPERTIES SHOWIF toShowGenDayMonth(s) inStockScheduleOrderTimeRampInterval(tts,d,r,in)
-    FILTERS inRampInterval(r,in)
+    PROPERTIES (in) SHOWIF toShowGenDayMonth(s) READONLY time            
+    PROPERTIES SHOWIF toShowGenDayMonth(s) in(tts,d,r,in)
+    FILTERS in(r,in)
     
     FILTERGROUP filter
-        FILTER 'Отм.' inStockScheduleOrderTimeRampInterval(tts,d,r,in) 'F10'
+        FILTER 'Отм.' in(tts,d,r,in) 'F10'
         
         
-    PROPERTIES(sd) SHOWIF toShowGenDayMonth(s) READONLY descriptionRampsScheduleOrderDetail FORCE GRID BEFORE deletesd
+    PROPERTIES(sd) SHOWIF toShowGenDayMonth(s) READONLY descriptionRamps FORCE GRID BEFORE deletesd
     
 ;
 DESIGN scheduleOrder {
@@ -161,21 +161,21 @@ DESIGN scheduleOrder {
     }
 }
 
-includeShipmentDowSupplierCustomerRampIntervalDate '' = GROUP SUM 1 IF isOpenedScheduleOrderDetail(d) AND dateSupplyScheduleOrderDetail(d) >= date AND
-    inScheduleOrderDetailRampInterval(d,r,i) 
-        BY extractDOW(dateSupplyScheduleOrderDetail(d)), supplierScheduleOrderDetail(d), customerScheduleOrderDetail(d), r, i, date;
+includeShipmentDowSupplierCustomer '' = GROUP SUM 1 IF isOpened(ScheduleOrderDetail d) AND dateSupply(d) >= DATE date AND
+    in(d,Ramp r,Interval i) 
+        BY extractDOW(dateSupply(d)), supplier(d), customer(d), r, i, date;
         
-descriptionSuppliersDOWCustomerRampIntervalDate 'Поставщики' (dow, c, r, i, date)= 
-    GROUP CONCAT nameLegalEntity(s) IF includeShipmentDowSupplierCustomerRampIntervalDate(dow, s, c, r, i,date), ', ' 
+descriptionSuppliersCustomer 'Поставщики' (dow, c, r, i, date)= 
+    GROUP CONCAT name(LegalEntity s) IF includeShipmentDowSupplierCustomer(DOW dow, s, LegalEntity c, Ramp r, Interval i,DATE date), ', ' 
     BY dow, c, r, i, date
-    ORDER nameLegalEntity(s), s
+    ORDER name(s), s
     MINCHARWIDTH 20 PREFCHARWIDTH 30; 
-prevDescriptionSuppliersDOWCustomerRampIntervalDate 'Поставщики' (dow, c, r, i, date) = PREV(descriptionSuppliersDOWCustomerRampIntervalDate(dow, c, r, i, date)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+prevDescriptionSuppliersCustomer 'Поставщики' (DOW dow, LegalEntity c, Ramp r, Interval i, DATE date) = PREV(descriptionSuppliersCustomer(dow, c, r, i, date)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
   
-descriptionSuppliersScheduleOrderTimeRampInterval 'Поставщики' (d,r,i) = descriptionSuppliersDOWCustomerRampIntervalDate(shipmentDOWScheduleOrderTime(d), customerScheduleOrder(scheduleOrderScheduleOrderTime(d)), r, i, startDateScheduleOrder(scheduleOrderScheduleOrderTime(d)));
+descriptionSuppliers 'Поставщики' (ScheduleOrderTime d,Ramp r,Interval i) = descriptionSuppliersCustomer(shipmentDOW(d), customer(scheduleOrder(d)), r, i, startDate(scheduleOrder(d)));
     
 EXTEND FORM scheduleOrder
-    PROPERTIES (d,r,in) READONLY descriptionSuppliersScheduleOrderTimeRampInterval SHOWIF toShowGenDayMonth(s)
+    PROPERTIES (d,r,in) READONLY descriptionSuppliers SHOWIF toShowGenDayMonth(s)
 ;
 
 FORM listScheduleOrderDetail 'Список предварительных заказов'
@@ -186,24 +186,24 @@ FORM listScheduleOrderDetail 'Список предварительных зак
     OBJECTS i = Interval FIXED PANEL
     
     OBJECTS d=ScheduleOrderDetail
-    PROPERTIES (d) READONLY isClosedScheduleOrderDetail, dateOrderScheduleOrderDetail, dateSupplyScheduleOrderDetail
-    PROPERTIES (d) READONLY monthInDateScheduleOrderDetail, DOWInDateScheduleOrderDetail,
-                    nameSupplierScheduleOrderDetail, nameSupplierStockScheduleOrderDetail,
-                    nameCustomerScheduleOrderDetail, nameCustomerStockScheduleOrderDetail,
-                    nameOperationScheduleOrderDetail
+    PROPERTIES (d) READONLY isClosed, dateOrder, dateSupply
+    PROPERTIES (d) READONLY monthInDate, DOWInDate,
+                    nameSupplier, nameSupplierStock,
+                    nameCustomer, nameCustomerStock,
+                    nameOperation
 
-    ORDER BY dateSupplyScheduleOrderDetail(d)
-    FILTERS dateSupplyScheduleOrderDetail(d) >= dt,
-            customerScheduleOrderDetail(d) ==c,
-            inScheduleOrderDetailRampInterval(d,r,i),
-            extractDOW(dateSupplyScheduleOrderDetail(d)) == dow
+    ORDER BY dateSupply(d)
+    FILTERS dateSupply(d) >= dt,
+            customer(d) ==c,
+            in(d,r,i),
+            extractDOW(dateSupply(d)) == dow
     FILTERGROUP curDate
-        FILTER 'Больше текущей даты' dateSupplyScheduleOrderDetail(d) > currentDate() 'F9'
+        FILTER 'Больше текущей даты' dateSupply(d) > currentDate() 'F9'
 ;
-showListScheduleOrderDetail 'Показать список предварительных заказов' (d,r,in) = ACTION {
-    FORM listScheduleOrderDetail OBJECTS dt = startDateScheduleOrder(scheduleOrderScheduleOrderTime(d)), 
-                                         dow = shipmentDOWScheduleOrderTime(d),
-                                         c = customerScheduleOrder(scheduleOrderScheduleOrderTime(d)),
+showListDetail 'Показать список предварительных заказов' (ScheduleOrderTime d,Ramp r,Interval in) = ACTION {
+    FORM listScheduleOrderDetail OBJECTS dt = startDate(scheduleOrder(d)), 
+                                         dow = shipmentDOW(d),
+                                         c = customer(scheduleOrder(d)),
                                          r = r,
                                          i = in MODAL; 
-} SHORTCUT descriptionSuppliersScheduleOrderTimeRampInterval;
+} SHORTCUT descriptionSuppliers[ScheduleOrderTime,Ramp,Interval];

@@ -5,23 +5,23 @@ REQUIRE PriceListCalc, Item;
 NAMESPACE PriceList;
 
 TABLE calcPriceListTypeBrand (CalcPriceListType, Brand);
-markupCalcPriceListTypeBrand'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Brand);
+markup'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Brand);
 
-extraMarkupCalcPriceListTypeSku(t,sku) += markupCalcPriceListTypeBrand(t,brandItem(sku));
+extraMarkup(CalcPriceListType t,Item sku) += markup(t,brand(sku));
 
 
 EXTEND FORM calcPriceListType
     OBJECTS b=Brand
-    PROPERTIES(b) nameBrand READONLY, idBrand READONLY SHOWIF showIDs()
-    PROPERTIES  markupCalcPriceListTypeBrand(c, b)
+    PROPERTIES(b) name READONLY, id READONLY SHOWIF showIDs()
+    PROPERTIES  markup(c, b)
     
-    ORDER BY nameBrand(b)
+    ORDER BY name(b)
     
     OBJECTS s1 = Sku
-    PROPERTIES(s1) READONLY nameSku, idBarcodeSku    
-    PROPERTIES (c, s1) dataMarkupCalcPriceListTypeSku, overMarkupCalcPriceListTypeSku, nameRoundConditionCalcPriceListTypeSku
+    PROPERTIES(s1) READONLY name, idBarcode    
+    PROPERTIES (c, s1) dataMarkup, overMarkup, nameRoundCondition
     
-    FILTERS brandItem(s1) == b
+    FILTERS brand(s1) == b
         
 ;
 DESIGN calcPriceListType {

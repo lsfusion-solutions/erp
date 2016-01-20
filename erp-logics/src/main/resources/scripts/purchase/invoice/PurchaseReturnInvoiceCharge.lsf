@@ -14,37 +14,37 @@ NAMESPACE PurchaseReturn;
 @defineDocumentInterfaceDetailDataSumCustomPrefix (invoiceDetail, charge, ' услуг (закупка)'); // объявляем сумму услуг
 @deriveDocumentDetailSumCustomPrefix(userInvoiceDetail, charge, currency, quantity); // записываем сумму услуг
 
-overRecalculatedPriceUserInvoiceDetail(detail) += ACTION (detail) {
-    ASSIGN PurchaseReturn.chargePriceUserInvoiceDetail(detail) <- Purchase.chargePriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+overRecalculatedPrice(UserInvoiceDetail detail) += ACTION (detail) {
+    ASSIGN chargePrice(detail) <- chargePrice(invoiceDetail(detail));
 }
 
-chargeSumUserInvoiceDetailUserInvoice 'Сумма услуг в документе (построчно)' (userInvoice) = GROUP SUM chargeSumUserInvoiceDetail(idetail)
-    BY userInvoiceUserInvoiceDetail(idetail) IN documentSum;
-chargeSumInvoiceDetailInvoice 'Сумма услуг в документе (построчно)' (invoice) = GROUP SUM chargeSumInvoiceDetail(idetail)
-    BY invoiceInvoiceDetail(idetail) IN documentSum;
+chargeSumUserInvoiceDetail 'Сумма услуг в документе (построчно)' (userInvoice) = GROUP SUM chargeSum(UserInvoiceDetail idetail)
+    BY userInvoice(idetail) IN documentSum;
+chargeSumInvoiceDetail 'Сумма услуг в документе (построчно)' (invoice) = GROUP SUM chargeSum(InvoiceDetail idetail)
+    BY invoice(idetail) IN documentSum;
 
-backgroundChargeInvoice 'Цвет' (invoice) = RGB(224, 255, 128) IF invoice IS Invoice;
+backgroundCharge 'Цвет' (Invoice invoice) = RGB(224, 255, 128) IF invoice IS Invoice;
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) showChargePriceUserInvoice
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i)
-                                                        sumChargeUserInvoiceDetailUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceUserInvoice(i) BEFORE numberVATUserInvoiceDetail(d)
-                                                        chargePriceUserInvoiceDetail, chargeSumUserInvoiceDetail
+    PROPERTIES(i) BACKGROUND backgroundCharge(i) showChargePrice
+    PROPERTIES(i) BACKGROUND backgroundCharge(i) SHOWIF showChargePrice(i)
+                                                        sumChargeUserInvoiceDetail
+    PROPERTIES(d) BACKGROUND backgroundCharge(i) SHOWIF showChargePrice(i) BEFORE numberVAT(d)
+                                                        chargePrice, chargeSum
 ;
 
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerCharge {
             caption = 'Услуги';
-            MOVE PROPERTY(showChargePriceUserInvoice(i));
+            MOVE PROPERTY(showChargePrice(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) BACKGROUND backgroundChargeInvoice(i) sumChargeInvoiceDetailInvoice READONLY
-    PROPERTIES(d) BACKGROUND backgroundChargeInvoice(i) SHOWIF showChargePriceInvoice(i) READONLY BEFORE numberVATInvoiceDetail(d)
-                                                        chargePriceInvoiceDetail, chargeSumInvoiceDetail
+    PROPERTIES(i) BACKGROUND backgroundCharge(i) sumChargeInvoiceDetail READONLY
+    PROPERTIES(d) BACKGROUND backgroundCharge(i) SHOWIF showChargePrice(i) READONLY BEFORE numberVAT(d)
+                                                        chargePrice, chargeSum
 ;
 

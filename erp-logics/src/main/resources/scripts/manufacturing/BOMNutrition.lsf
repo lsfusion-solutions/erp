@@ -6,28 +6,28 @@ REQUIRE BOM, ItemNutrition;
 // ------------------------------------------------------------------- //
 GROUP nutrition 'Энергетическая ценность' : base;
 
-showNutritionBOM 'Отображать энергетическую ценность' = DATA BOOLEAN(BOM) IN documentPrm;
+showNutrition 'Отображать энергетическую ценность' = DATA BOOLEAN(BOM) IN documentPrm;
 
-recipesBOM 'Номер по сборнику рецептов' = DATA VARSTRING[100] (BOM) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 20;
-recipesProduct 'Номер по сборнику рецептов' (product) = recipesBOM(BOMProduct(product));
+recipes 'Номер по сборнику рецептов' = DATA VARSTRING[100] (BOM) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 20;
+recipes 'Номер по сборнику рецептов' (Product product) = recipes(BOM(product));
 
 // Энергетическая ценность компонент
 
 META changeNutrition(object, skuProp, property)
-    change###property###object  = ACTION (object) {
+    change###property  = ACTION (###object object) {
         REQUEST  NUMERIC[8,2] INPUT ;
         IF requestedNumeric() THEN {
-            property###Item(item) <- requestedNumeric() WHERE item == skuProp###object(object);
+            property(Item item) <- requestedNumeric() WHERE item == skuProp(object);
         } ELSE {
-            property###Item(item) <- NULL WHERE item == skuProp###object(object);
+            property(Item item) <- NULL WHERE item == skuProp(object);
         }    
     };
 END
 
-fatsComponent 'Жиры на 100г, г' = fatsItem(overSkuComponent(c));
-carbohydratesComponent 'Углеводы 100г, г' = carbohydratesItem(overSkuComponent(c));
-proteinsComponent 'Белки 100г, г' = proteinsItem(overSkuComponent(c));
-energyComponent 'Энерг.ценность на 100г, ккал' = energyItem(overSkuComponent(c));
+fats 'Жиры на 100г, г' = fats[Item](overSku(Component c));
+carbohydrates 'Углеводы 100г, г' = carbohydrates[Item](overSku(Component c));
+proteins 'Белки 100г, г' = proteins[Item](overSku(Component c));
+energy 'Энерг.ценность на 100г, ккал' = energy[Item](overSku(Component c));
 
 @changeNutrition(component, overSku, fats);
 @changeNutrition(component, overSku, carbohydrates);
@@ -36,18 +36,18 @@ energyComponent 'Энерг.ценность на 100г, ккал' = energyItem(
 
 // Энергетическая ценность спецификации
 
-fatsBOM 'Жиры'(BOM) = GROUP SUM fatsComponent(component) BY BOMComponent(component) IN nutrition;
-carbohydratesBOM 'Углеводы'(BOM) = GROUP SUM carbohydratesComponent(component) BY BOMComponent(component) IN nutrition;
-proteinsBOM 'Белки'(BOM) = GROUP SUM proteinsComponent(component) BY BOMComponent(component) IN nutrition;
-energyBOM 'Энерг.ценность'(BOM) = GROUP SUM energyComponent(component) BY BOMComponent(component) IN nutrition;
+fats 'Жиры'(BOM) = GROUP SUM fats(Component component) BY BOM(component) IN nutrition;
+carbohydrates 'Углеводы'(BOM) = GROUP SUM carbohydrates(Component component) BY BOM(component) IN nutrition;
+proteins 'Белки'(BOM) = GROUP SUM proteins(Component component) BY BOM(component) IN nutrition;
+energy 'Энерг.ценность'(BOM) = GROUP SUM energy(Component component) BY BOM(component) IN nutrition;
 
 // Энергетическая ценность изделий
 
-fatsProduct 'Жиры 100г, г' =  DATA NUMERIC[8,2](Product);
-carbohydratesProduct 'Углеводы 100г, г' = DATA NUMERIC[8,2](Product);
-proteinsProduct 'Белки 100г, г' = DATA NUMERIC[8,2](Product);
-energyProduct 'Энерг.ценность на 100г, ккал' = DATA NUMERIC[8,2](Product);
-productYieldProduct 'Выход' = DATA VARSTRING[100] (Product) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+fats 'Жиры 100г, г' =  DATA NUMERIC[8,2](Product);
+carbohydrates 'Углеводы 100г, г' = DATA NUMERIC[8,2](Product);
+proteins 'Белки 100г, г' = DATA NUMERIC[8,2](Product);
+energy 'Энерг.ценность на 100г, ккал' = DATA NUMERIC[8,2](Product);
+productYield 'Выход' = DATA VARSTRING[100] (Product) MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
 //@changeNutrition(product, sku, fats){
 //    changeFatsProduct  = ACTION (product) {
@@ -90,34 +90,34 @@ productYieldProduct 'Выход' = DATA VARSTRING[100] (Product) MINCHARWIDTH 20
 //    };
 //};
 
-compositionProduct 'Состав' = DATA VARSTRING[2550] (Product) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-componentsProduct 'Компоненты' (product)= componentsBOM(BOMProduct(product));
-compositionProduct(product) <- componentsProduct(product) WHEN CHANGED(componentsProduct(product));
+composition 'Состав' = DATA VARSTRING[2550] (Product) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+components 'Компоненты' (Product product)= components(BOM(product));
+composition(Product product) <- components(product) WHEN CHANGED(components(product));
 
-changeCompositionProduct 'Записать в товар' = ACTION (product) {
-    FOR skuProduct(product) == item DO {
-        ASSIGN compositionItem(item) <- compositionProduct(product);
+changeComposition 'Записать в товар' = ACTION (Product product) {
+    FOR sku(product) == Sku item DO {
+        ASSIGN composition[Item](item) <- composition(product);
     }
-} SHORTCUT compositionProduct;
+} SHORTCUT composition[Product];
 
 //------------------------------- СТБ -------------------------------------//
 CLASS StateStandart 'СТБ';
 TABLE stateStandart (StateStandart);
   
-nameStateStandart 'Наименование' = DATA VARISTRING[100](StateStandart);
-numberStateStandart 'Номер' = DATA STRING[50](StateStandart);   
-noteStateStandart 'Примечание' = DATA STRING[250](StateStandart);  
+name 'Наименование' = DATA VARISTRING[100](StateStandart);
+number 'Номер' = DATA STRING[50](StateStandart);   
+note 'Примечание' = DATA STRING[250](StateStandart);  
 @defineExternalizable(stateStandart, VARSTRING[100]); 
  
 FORM stateStandart 'СТБ'
     OBJECTS s=StateStandart FIXED PANEL
-    PROPERTIES(s) idStateStandart SHOWIF  showIDs(), nameStateStandart, numberStateStandart, noteStateStandart 
+    PROPERTIES(s) id SHOWIF  showIDs(), name, number, note 
     EDIT StateStandart OBJECT s
 ;
 
 DESIGN stateStandart {
     main{
-        PROPERTY(nameStateStandart(s)){
+        PROPERTY(name(s)){
             preferredCharWidth = 50;    
         }
     }       
@@ -125,29 +125,29 @@ DESIGN stateStandart {
 
 FORM stateStandarts 'СТБ'
     OBJECTS s=StateStandart
-    PROPERTIES(s) idStateStandart READONLY SHOWIF showIDs(), nameStateStandart READONLY, numberStateStandart READONLY , noteStateStandart, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(s) id READONLY SHOWIF showIDs(), name READONLY, number READONLY , note, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(s) ADDFORM, EDITFORM
-    ORDER BY numberStateStandart(s)
+    ORDER BY number(s)
     DIALOG StateStandart OBJECT s
 ;
 DESIGN stateStandarts { main{ preferredSize = (600, 400); } } 
 
-stateStandartBOM= DATA StateStandart (BOM);
-numberStateStandartBOM 'СТБ' (BOM) = numberStateStandart(stateStandartBOM(BOM));
-numberStateStandartProduct 'СТБ' (p) = numberStateStandartBOM(BOMProduct(p));
+stateStandart= DATA StateStandart (BOM);
+numberStateStandart 'СТБ' (BOM BOM) = number(stateStandart(BOM));
+numberStateStandart 'СТБ' (Product p) = numberStateStandart(BOM(p));
 
 // Расширяем формы
 EXTEND FORM BOM
-    PROPERTIES(b) showNutritionBOM
-    PROPERTIES(b) recipesBOM, numberStateStandartBOM //SHOWIF showNutritionBOM(b)
-    PROPERTIES(p) SHOWIF showNutritionBOM(b) BEFORE deletep 
-                  fatsProduct,// ON CHANGE changeFatsProduct(p), 
-                  carbohydratesProduct,// ON CHANGE changeCarbohydratesProduct(p), 
-                  proteinsProduct,// ON CHANGE changeProteinsProduct(p), 
-                  energyProduct,// ON CHANGE changeEnergyProduct(p), 
-                  compositionProduct, productYieldProduct
-    PROPERTIES(c) BACKGROUND backgroundComponent(c)SHOWIF showNutritionBOM(b) BEFORE deletec fatsComponent ON CHANGE changeFatsComponent(c), carbohydratesComponent ON CHANGE changeCarbohydratesComponent(c), 
-                  proteinsComponent ON CHANGE changeProteinsComponent(c), energyComponent ON CHANGE changeEnergyComponent(c)
+    PROPERTIES(b) showNutrition
+    PROPERTIES(b) recipes, numberStateStandart //SHOWIF showNutritionBOM(b)
+    PROPERTIES(p) SHOWIF showNutrition(b) BEFORE deletep 
+                  fats,// ON CHANGE changeFatsProduct(p), 
+                  carbohydrates,// ON CHANGE changeCarbohydratesProduct(p), 
+                  proteins,// ON CHANGE changeProteinsProduct(p), 
+                  energy,// ON CHANGE changeEnergyProduct(p), 
+                  composition, productYield
+    PROPERTIES(c) BACKGROUND background(c)SHOWIF showNutrition(b) BEFORE deletec fats ON CHANGE changeFats(c), carbohydrates ON CHANGE changeCarbohydrates(c), 
+                  proteins ON CHANGE changeProteins(c), energy ON CHANGE changeEnergy(c)
 ;
 
 DESIGN BOM {
@@ -155,23 +155,23 @@ DESIGN BOM {
 //        ADD b.nutrition {type = CONTAINERV;}
 //    }
     kitchen {
-        MOVE PROPERTY(showNutritionBOM(b));
-        MOVE PROPERTY(recipesBOM(b));
-        MOVE PROPERTY(numberStateStandartBOM(b)); 
+        MOVE PROPERTY(showNutrition(b));
+        MOVE PROPERTY(recipes(b));
+        MOVE PROPERTY(numberStateStandart(b)); 
     }
 }
 EXTEND FORM BOMs
-    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showNutritionBOM
-    PROPERTIES(p) SHOWIF showNutritionBOM(b) READONLY fatsProduct, carbohydratesProduct, proteinsProduct, energyProduct, compositionProduct, productYieldProduct
-    PROPERTIES(c) SHOWIF showNutritionBOM(b) BACKGROUND backgroundComponent(c) READONLY fatsComponent, carbohydratesComponent, proteinsComponent, energyComponent
+    PROPERTIES(b) READONLY BACKGROUND background(b) showNutrition
+    PROPERTIES(p) SHOWIF showNutrition(b) READONLY fats, carbohydrates, proteins, energy, composition, productYield
+    PROPERTIES(c) SHOWIF showNutrition(b) BACKGROUND background(c) READONLY fats, carbohydrates, proteins, energy
     
-    PROPERTIES(p1) FORCE GRID fatsItem, carbohydratesItem, proteinsItem, energyItem
-    PROPERTIES(c2) FORCE GRID fatsItem, carbohydratesItem, proteinsItem, energyItem
+    PROPERTIES(p1) FORCE GRID fats, carbohydrates, proteins, energy
+    PROPERTIES(c2) FORCE GRID fats, carbohydrates, proteins, energy
 ;
 EXTEND FORM BOMsDialog
-    PROPERTIES(b) READONLY BACKGROUND backgroundBOM(b) showNutritionBOM
-    PROPERTIES(p) SHOWIF showNutritionBOM(b) READONLY fatsProduct, carbohydratesProduct, proteinsProduct, energyProduct, compositionProduct, productYieldProduct
-    PROPERTIES(c) SHOWIF showNutritionBOM(b) BACKGROUND backgroundComponent(c) READONLY fatsComponent, carbohydratesComponent, proteinsComponent, energyComponent
+    PROPERTIES(b) READONLY BACKGROUND background(b) showNutrition
+    PROPERTIES(p) SHOWIF showNutrition(b) READONLY fats, carbohydrates, proteins, energy, composition, productYield
+    PROPERTIES(c) SHOWIF showNutrition(b) BACKGROUND background(c) READONLY fats, carbohydrates, proteins, energy
     
 ;
 

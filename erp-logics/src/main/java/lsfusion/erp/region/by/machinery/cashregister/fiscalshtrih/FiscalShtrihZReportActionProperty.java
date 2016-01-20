@@ -22,9 +22,9 @@ public class FiscalShtrihZReportActionProperty extends ScriptingActionProperty {
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
-            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Integer pass = (Integer) findProperty("operatorNumberCurrentCashRegisterCurrentUser[]").read(context.getSession());
             int password = pass==null ? 30000 : pass * 1000;
             
             if (context.checkApply()) {
@@ -32,7 +32,7 @@ public class FiscalShtrihZReportActionProperty extends ScriptingActionProperty {
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-            findAction("closeCurrentZReport").execute(session);
+            findAction("closeCurrentZReport[]").execute(session);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {

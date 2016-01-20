@@ -25,19 +25,19 @@ public class ImportPurchaseInvoicePurchaseShipmentBox extends ImportDefaultPurch
         if(LM != null && userInvoiceDetailKey != null) {
 
             if (showField(userInvoiceDetailsList, "idBox")) {
-                ImportField idBoxField = new ImportField(LM.findProperty("idBox"));
+                ImportField idBoxField = new ImportField(LM.findProperty("id[Box]"));
                 ImportKey<?> boxKey = new ImportKey((ConcreteCustomClass) LM.findClass("Box"),
-                        LM.findProperty("boxId").getMapping(idBoxField));
+                        LM.findProperty("box[VARSTRING[100]]").getMapping(idBoxField));
                 keys.add(boxKey);
-                props.add(new ImportProperty(idBoxField, LM.findProperty("idBox").getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
-                props.add(new ImportProperty(idBoxField, LM.findProperty("boxUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(idBoxField, LM.findProperty("id[Box]").getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
+                props.add(new ImportProperty(idBoxField, LM.findProperty("box[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         LM.object(LM.findClass("Box")).getMapping(boxKey), getReplaceOnlyNull(defaultColumns, "idBox")));
                 fields.add(idBoxField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idBox"));
 
                 if (showField(userInvoiceDetailsList, "nameBox")) {
-                    addDataField(props, fields, defaultColumns, LM.findProperty("nameBox"), "nameBox", boxKey);
+                    addDataField(props, fields, defaultColumns, LM.findProperty("name[Box]"), "nameBox", boxKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameBox"));
                 }

@@ -5,260 +5,260 @@ REQUIRE System, Stock, SkuLedgerTax, EmployeeStock, Sale, PriceRound, StockSkuDo
 CLASS ABSTRACT SaleLedger 'Продажа товара';
 TABLE saleLedger(SaleLedger) FULL;
 
-dateTimeSaleLedger 'Дата/время' (ledger) = ABSTRACT DATETIME (SaleLedger) PERSISTENT INDEXED;
-hourSaleLedger 'Час' (ledger) = extractHour(dateTimeSaleLedger(ledger));  
-dateSaleLedger 'Дата' (ledger) = toDate(dateTimeSaleLedger(ledger)) PERSISTENT INDEXED;
-nameDOWSaleLedger 'День недели' (ledger) = extractDOWName(dateSaleLedger(ledger));
-nameMonthSaleLedger 'Месяц' (ledger) = extractMonthName(dateSaleLedger(ledger));
+dateTime 'Дата/время' (ledger) = ABSTRACT DATETIME (SaleLedger) PERSISTENT INDEXED;
+hour 'Час' (SaleLedger ledger) = extractHour(dateTime(ledger));  
+date 'Дата' (SaleLedger ledger) = toDate(dateTime(ledger)) PERSISTENT INDEXED;
+nameDOW 'День недели' (SaleLedger ledger) = extractDOWName(date(ledger));
+nameMonth 'Месяц' (SaleLedger ledger) = extractMonthName(date(ledger));
 
-isPostedSaleLedger 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT;
+isPosted 'Проведен' (ledger) = ABSTRACT BOOLEAN (SaleLedger) PERSISTENT;
 
-isClosedSaleLedger 'Закрыт' (ledger) = ABSTRACT BOOLEAN (SaleLedger);
-allowedEditSaleLedger (d) = NOT isClosedSaleLedger(d) OR allowedEditClosedDocumentsCustomUser(currentUser());
+isClosed 'Закрыт' (ledger) = ABSTRACT BOOLEAN (SaleLedger);
+allowedEdit (SaleLedger d) = NOT isClosed(d) OR allowedEditClosedDocuments(currentUser());
 
-skipSaleLedger 'Не проводить' (ledger) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (SaleLedger) PERSISTENT; 
+skip 'Не проводить' (ledger) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (SaleLedger) PERSISTENT; 
 
-activeSaleLedger (ledger) = isPostedSaleLedger(ledger) AND NOT skipSaleLedger(ledger);
+active (SaleLedger ledger) = isPosted(ledger) AND NOT skip(ledger);
 
-skuSaleLedger (ledger) = ABSTRACT Sku (SaleLedger) PERSISTENT INDEXED;
-idSkuSaleLedger 'Код SKU' (s) = idSku(skuSaleLedger(s));
-nameSkuSaleLedger 'SKU' (ledger) = nameSku(skuSaleLedger(ledger));
+sku (ledger) = ABSTRACT Sku (SaleLedger) PERSISTENT INDEXED;
+idSku 'Код SKU' (SaleLedger s) = id(sku(s));
+nameSku 'SKU' (SaleLedger ledger) = name(sku(ledger));
 
-canonicalNameSkuGroupSaleLedger 'Группа (полная)' (ledger) = canonicalNameGroup(skuGroupSku(skuSaleLedger(ledger)));
-idSkuGroupSkuSaleLedger 'Группа' = idSkuGroupSku(skuSaleLedger(ledger));
-nameSkuGroup1SkuSaleLedger 'Категория' = nameSkuGroup1Sku(skuSaleLedger(ledger));
-nameSkuGroup2SkuSaleLedger 'Направление' = nameSkuGroup2Sku(skuSaleLedger(ledger));
-nameSkuGroup3SkuSaleLedger 'Группа' = nameSkuGroup3Sku(skuSaleLedger(ledger));
-nameSkuGroup4SkuSaleLedger 'Подгруппа' = nameSkuGroup4Sku(skuSaleLedger(ledger));
-nameSkuGroup5SkuSaleLedger 'Субгруппа' = nameSkuGroup5Sku(skuSaleLedger(ledger));
+canonicalNameSkuGroup 'Группа (полная)' (SaleLedger ledger) = canonicalName[Group](skuGroup(sku(ledger)));
+idSkuGroupSku 'Группа' = idSkuGroup(sku(SaleLedger ledger));
+nameSkuGroup1Sku 'Категория' = nameSkuGroup1(sku(SaleLedger ledger));
+nameSkuGroup2Sku 'Направление' = nameSkuGroup2(sku(SaleLedger ledger));
+nameSkuGroup3Sku 'Группа' = nameSkuGroup3(sku(SaleLedger ledger));
+nameSkuGroup4Sku 'Подгруппа' = nameSkuGroup4(sku(SaleLedger ledger));
+nameSkuGroup5Sku 'Субгруппа' = nameSkuGroup5(sku(SaleLedger ledger));
 
-stockSaleLedger (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
-idStockSaleLedger 'Склад' (ledger) = idStock(stockSaleLedger(ledger));
-nameStockSaleLedger 'Склад' (ledger) = nameStock(stockSaleLedger(ledger));
+stock (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
+idStock 'Склад' (SaleLedger ledger) = id(stock(ledger));
+nameStock 'Склад' (SaleLedger ledger) = name(stock(ledger));
 
-operationSaleLedger  (ledger) = ABSTRACT Sale.Operation (SaleLedger) PERSISTENT;
-nameOperationSaleLedger 'Операция' (ledger) = nameOperation(operationSaleLedger (ledger));
+operation  (ledger) = ABSTRACT Sale.Operation (SaleLedger) PERSISTENT;
+nameOperation 'Операция' (SaleLedger ledger) = name(operation (ledger));
 
-descriptionSaleLedger 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (SaleLedger) PERSISTENT;
-numberDocumentSaleLedger 'Номер документа' (ledger) = ABSTRACT STRING[18] (SaleLedger) PERSISTENT;
+description 'Название документа' (ledger) = ABSTRACT VARSTRING[200] (SaleLedger) PERSISTENT;
+numberDocument 'Номер документа' (ledger) = ABSTRACT STRING[18] (SaleLedger) PERSISTENT;
 
-quantitySaleLedger 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (SaleLedger) PERSISTENT;
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (SaleLedger) PERSISTENT;
 
-priceSaleLedger 'Цена продажи' (ledger) = ABSTRACT NUMERIC[14,2] (SaleLedger);// todo: PERSISTENT;
-sumSaleLedger 'Сумма продажи' (ledger) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT;
+price 'Цена продажи' (ledger) = ABSTRACT NUMERIC[14,2] (SaleLedger);// todo: PERSISTENT;
+sum 'Сумма продажи' (ledger) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT;
 
-discountSumSaleLedger 'Сумма скидки' (d) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT;
+discountSum 'Сумма скидки' (d) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT;
 
-costSumSaleLedger 'Себестоимость продажи' (ledger) = ABSTRACT NUMERIC[16,3] (SaleLedger) PERSISTENT;
+costSum 'Себестоимость продажи' (ledger) = ABSTRACT NUMERIC[16,3] (SaleLedger) PERSISTENT;
 
-customerSaleLedger (ledger) = ABSTRACT LegalEntity (SaleLedger) PERSISTENT INDEXED;
-nameCustomerSaleLedger 'Покупатель' (ledger) = nameLegalEntity(customerSaleLedger(ledger));
+customer (ledger) = ABSTRACT LegalEntity (SaleLedger) PERSISTENT INDEXED;
+nameCustomer 'Покупатель' (SaleLedger ledger) = name(customer(ledger));
 
-customerStockSaleLedger (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
-nameCustomerStockSaleLedger 'Склад покупателя' (ledger) = nameStock(customerStockSaleLedger(ledger));
+customerStock (ledger) = ABSTRACT Stock (SaleLedger) PERSISTENT INDEXED;
+nameCustomerStock 'Склад покупателя' (SaleLedger ledger) = name(customerStock(ledger));
 
-inCustomerSku 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY customerSaleLedger(ledger), skuSaleLedger(ledger) PERSISTENT;
-prevInCustomerSku 'Были продажи (пред.)' (legalEntity, sku) = PREV(inCustomerSku(legalEntity, sku));
+inCustomer 'Кол-во продано' (legalEntity, sku)= GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
+    BY customer(ledger), sku(ledger) PERSISTENT;
+prevInCustomer 'Были продажи (пред.)' (LegalEntity legalEntity, Sku sku) = PREV(inCustomer(legalEntity, sku));
 
-sumSoldTypeExchangeSaleLedger 'Сумма продажи валюта' (typeExchange, saleLedger) = sumSaleLedger(saleLedger)*
-    rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockSaleLedger(saleLedger)), dateSaleLedger(saleLedger));
+sumSold 'Сумма продажи валюта' (TypeExchange typeExchange, SaleLedger saleLedger) = sum(saleLedger)*
+    rateOn(typeExchange, currency(stock(saleLedger)), date(saleLedger));
 
-CONSTRAINT quantitySaleLedger(l) == 0 AND activeSaleLedger(l) MESSAGE 'ошибка: Количество продажи не должно быть равно нулю';
+CONSTRAINT quantity(SaleLedger l) == 0 AND active(l) MESSAGE 'ошибка: Количество продажи не должно быть равно нулю';
 
-averagePriceSaleLedger 'Цена продажи (средняя)' (saleLedger) = NUMERIC[14,2](sumSaleLedger(saleLedger) / quantitySaleLedger(saleLedger));
-averageDiscountPriceSaleLedger 'Цена продажи (средняя) полная' (saleLedger) = NUMERIC[14,2]((sumSaleLedger(saleLedger) (+) discountSumSaleLedger(saleLedger))/quantitySaleLedger(saleLedger));
+averagePrice 'Цена продажи (средняя)' (SaleLedger saleLedger) = NUMERIC[14,2](sum(saleLedger) / quantity(saleLedger));
+averageDiscountPrice 'Цена продажи (средняя) полная' (SaleLedger saleLedger) = NUMERIC[14,2]((sum(saleLedger) (+) discountSum(saleLedger))/quantity(saleLedger));
 
-averagePriceSoldTypeExchangeSaleLedger 'Цена продажи (валюта)' (typeExchange, saleLedger)= averagePriceSaleLedger (saleLedger)*
-    rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stockSaleLedger(saleLedger)), dateSaleLedger(saleLedger));
+averagePriceSold 'Цена продажи (валюта)' (TypeExchange typeExchange, SaleLedger saleLedger)= averagePrice (saleLedger)*
+    rateOn(typeExchange, currency(stock(saleLedger)), date(saleLedger));
 
-VATSaleLedger (ledger) = ABSTRACT Range (SaleLedger) PERSISTENT;
-valueVATSaleLedger 'НДС, %' (ledger) = valueRateRangeDate(VATSaleLedger(ledger), dateSaleLedger(ledger)) PERSISTENT;
+VAT (ledger) = ABSTRACT Range (SaleLedger) PERSISTENT;
+valueVAT 'НДС, %' (SaleLedger ledger) = valueRate(VAT(ledger), date(ledger)) PERSISTENT;
 
-sumVATSaleLedger 'Сумма НДС' (ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
-        sumSaleLedger(ledger), valueVATSaleLedger(ledger)));
+sumVAT 'Сумма НДС' (SaleLedger ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
+        sum(ledger), valueVAT(ledger)));
 
-markupSumSaleLedger 'Надбавка' (ledger) = sumSaleLedger(ledger) (-) sumVATSaleLedger(ledger) (-) costSumSaleLedger(ledger);
+markupSum 'Надбавка' (SaleLedger ledger) = sum(ledger) (-) sumVAT(ledger) (-) costSum(ledger);
 
-editSaleLedger 'Редактировать' = ABSTRACT ACTION LIST (SaleLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (SaleLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 TABLE soldSkuStockDate(Sku, Stock, DATE);
 
 //по складу и SKU
-quantitySoldSkuStockDate (sku, stock, date) = GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT TABLE soldSkuStockDate;
+quantitySold (sku, stock, date) = GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
 
-costSumSoldSkuStockDate (sku, stock, date) = GROUP SUM costSumSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT TABLE soldSkuStockDate;
+costSumSold (sku, stock, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
 
-markupSumSoldSkuStockDate (sku, stock, date) = GROUP SUM markupSumSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT TABLE soldSkuStockDate;
+markupSumSold (sku, stock, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
 
-sumVATSoldSkuStockDate (sku, stock, date) = GROUP SUM sumVATSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT TABLE soldSkuStockDate;
+sumVATSold (sku, stock, date) = GROUP SUM sumVAT(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
 
-sumSoldSkuStockDate (sku, stock, date) = GROUP SUM sumSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT TABLE soldSkuStockDate;
+sumSold (sku, stock, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
 
 //по складу, покупателю и SKU
-quantitySoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM quantitySaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
+quantitySold (sku, stock, customer, date) = GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
 
-costSumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM costSumSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
+costSumSold (sku, stock, customer, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
 
-markupSumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM markupSumSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
+markupSumSold (sku, stock, customer, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
 
-sumVATSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumVATSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
+sumVATSold (sku, stock, customer, date) = GROUP SUM sumVAT(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
 
-sumSoldSkuStockCustomerDate (sku, stock, customer, date) = GROUP SUM sumSaleLedger(ledger) IF activeSaleLedger(ledger)
-    BY skuSaleLedger(ledger), stockSaleLedger(ledger), customerSaleLedger(ledger), dateSaleLedger(ledger);// PERSISTENT;
+sumSold (sku, stock, customer, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
+    BY sku(ledger), stock(ledger), customer(ledger), date(ledger);// PERSISTENT;
 
 //по складу и SKU
-quantitySoldSkuStockDateFromTo 'Продано за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+quantitySold 'Продано за интервал (кол-во)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
-costSumSoldSkuStockDateFromTo 'Себестоимость проданного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        costSumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+costSumSold 'Себестоимость проданного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        costSumSold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
-markupSumSoldSkuStockDateFromTo 'Надбавка проданного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        markupSumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+markupSumSold 'Надбавка проданного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        markupSumSold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
-sumVATSoldSkuStockDateFromTo 'Сумма НДС проданного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumVATSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumVATSold 'Сумма НДС проданного за интервал' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        sumVATSold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
-sumSoldSkuStockDateFromTo 'Продано за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumSold 'Продано за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        sumSold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;
 
 //по складу, покупателю и SKU
-quantitySoldSkuStockCustomerDateFromTo 'Продано за интервал (кол-во)' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockCustomerDate(sku, stock, customer, date) IF date >= dateFrom AND date <= dateTo
+quantitySold 'Продано за интервал (кол-во)' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, customer, dateFrom, dateTo;
 
-costSumSoldSkuStockCustomerDateFromTo 'Себестоимость проданного за интервал' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
-        costSumSoldSkuStockCustomerDate(sku, stock, customer, date) IF date >= dateFrom AND date <= dateTo
+costSumSold 'Себестоимость проданного за интервал' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
+        costSumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, customer, dateFrom, dateTo;
 
-markupSumSoldSkuStockCustomerDateFromTo 'Надбавка проданного за интервал' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
-        markupSumSoldSkuStockCustomerDate(sku, stock, customer, date) IF date >= dateFrom AND date <= dateTo
+markupSumSold 'Надбавка проданного за интервал' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
+        markupSumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, customer, dateFrom, dateTo;
 
-sumVATSoldSkuStockCustomerDateFromTo 'Сумма НДС проданного за интервал' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
-        sumVATSoldSkuStockCustomerDate(sku, stock, customer, date) IF date >= dateFrom AND date <= dateTo
+sumVATSold 'Сумма НДС проданного за интервал' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
+        sumVATSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, customer, dateFrom, dateTo;
 
-sumSoldSkuStockCustomerDateFromTo 'Продано за интервал (сумма)' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
-        sumSoldSkuStockCustomerDate(sku, stock, customer, date) IF date >= dateFrom AND date <= dateTo
+sumSold 'Продано за интервал (сумма)' (sku, stock, customer, dateFrom, dateTo) = GROUP SUM
+        sumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, customer, dateFrom, dateTo;
 
 //по SKU
-quantitySoldSkuDateFromTo 'Продано за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+quantitySold 'Продано за интервал (кол-во)' (sku, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, dateFrom, dateTo;
 
-sumSoldSkuDateFromTo 'Продано за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP SUM
-        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumSold 'Продано за интервал (сумма)' (sku, dateFrom, dateTo) = GROUP SUM
+        sumSold(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, dateFrom, dateTo;
 
-quantityDaysDateToFrom 'Кол-во дней' (dateTo, dateFrom) = subtractInteger(dateTo, dateFrom) + 1;
-averageSoldInDaySkuStockDateFromTo 'Продаж в день' (sku, stock, dateFrom, dateTo) =  quantitySoldSkuStockDateFromTo(sku, stock, dateFrom, dateTo) / quantityDaysDateToFrom(dateTo, dateFrom);
+quantityDays 'Кол-во дней' (DATE dateTo, DATE dateFrom) = subtractInteger(dateTo, dateFrom) + 1;
+averageSoldInDay 'Продаж в день' (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) =  quantitySold(sku, stock, dateFrom, dateTo) / quantityDays(dateTo, dateFrom);
 
 //------------------------------ Партии --------------------------------//
 
 TABLE saleLedgerBatch (SaleLedger, Batch);
 
-costSaleLedgerBatch 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (SaleLedger, Batch) PERSISTENT;
+cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (SaleLedger, Batch) PERSISTENT;
 
-coeffSaleLedgerBatch 'Удельный вес' (ledger, batch) =
-    NUMERIC[22,8](costSaleLedgerBatch(ledger, batch) / quantitySaleLedger(ledger));
+coeff 'Удельный вес' (SaleLedger ledger, Batch batch) =
+    NUMERIC[22,8](cost(ledger, batch) / quantity(ledger));
 
-sumSaleLedgerBatch 'Сумма продажи' (ledger, batch) = NUMERIC[16,2](sumSaleLedger(ledger) * coeffSaleLedgerBatch(ledger, batch));
-costSumSaleLedgerBatch 'Себестоимость' (ledger, batch) = NUMERIC[16,2](costSaleLedgerBatch(ledger, batch) * costBatch(batch));
-sumVATSaleLedgerBatch 'Сумма НДС' (s,b) = NUMERIC[16,2](sumSaleLedgerBatch(s,b) * valueVATBatch(b) / (100 + valueVATBatch(b)));
-markupSumSaleLedgerBatch 'Надбавка' (ledger, batch) = NUMERIC[16,2](sumSaleLedgerBatch(ledger, batch) - sumVATSaleLedgerBatch(ledger, batch) - costSumSaleLedgerBatch(ledger, batch));
+sum 'Сумма продажи' (SaleLedger ledger, Batch batch) = NUMERIC[16,2](sum(ledger) * coeff(ledger, batch));
+costSum 'Себестоимость' (SaleLedger ledger, Batch batch) = NUMERIC[16,2](cost(ledger, batch) * cost(batch));
+sumVAT 'Сумма НДС' (SaleLedger s,Batch b) = NUMERIC[16,2](sum(s,b) * valueVAT(b) / (100 + valueVAT(b)));
+markupSum 'Надбавка' (SaleLedger ledger, Batch batch) = NUMERIC[16,2](sum(ledger, batch) - sumVAT(ledger, batch) - costSum(ledger, batch));
 
 //по складу и Batch на дату
-quantitySoldBatchStockDate (batch, stock, date) = GROUP SUM costSaleLedgerBatch(ledger, batch) IF activeSaleLedger(ledger)
-    BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+quantitySold (batch, stock, date) = GROUP SUM cost(SaleLedger ledger, Batch batch) IF active(ledger)
+    BY batch, stock(ledger), date(ledger) PERSISTENT;
 
-costSumSoldBatchStockDate (batch, stock, date) = GROUP SUM costSumSaleLedgerBatch(ledger, batch) 
-    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+costSumSold (batch, stock, date) = GROUP SUM costSum(SaleLedger ledger, Batch batch) 
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
 
-markupSumSoldBatchStockDate (batch, stock, date) = GROUP SUM markupSumSaleLedgerBatch(ledger, batch) 
-    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+markupSumSold (batch, stock, date) = GROUP SUM markupSum(SaleLedger ledger, Batch batch) 
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
 
-sumVATSoldBatchStockDate (batch, stock, date) = GROUP SUM sumVATSaleLedgerBatch(ledger, batch)  
-    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;
+sumVATSold (batch, stock, date) = GROUP SUM sumVAT(SaleLedger ledger, Batch batch)  
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
 
-sumSoldBatchStockDate (batch, stock, date) = GROUP SUM sumSaleLedgerBatch(ledger, batch)  
-    IF activeSaleLedger(ledger) BY batch, stockSaleLedger(ledger), dateSaleLedger(ledger) PERSISTENT;       
+sumSold (batch, stock, date) = GROUP SUM sum(SaleLedger ledger, Batch batch)  
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;       
     
 //по складу и Batch за интервал
     
-quantitySoldBatchStockDateFromTo 'Продано за интервал (кол-во)' (batch, stock, dateFrom, dateTo)= GROUP SUM quantitySoldBatchStockDate(batch, stock, date) 
-    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo; 
+quantitySold 'Продано за интервал (кол-во)' (batch, stock, dateFrom, dateTo)= GROUP SUM quantitySold(Batch batch, Stock stock, DATE date) 
+    IF date >= DATE dateFrom AND date <= DATE dateTo BY batch, stock, dateFrom, dateTo; 
     
-costSumSoldBatchStockDateFromTo 'Себестоимость проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  costSumSoldBatchStockDate(batch, stock, date) 
-    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;   
+costSumSold 'Себестоимость проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  costSumSold(Batch batch, Stock stock, DATE date) 
+    IF date >= DATE dateFrom AND date <= DATE dateTo BY batch, stock, dateFrom, dateTo;   
         
-markupSumSoldBatchStockDateFromTo 'Надбавка проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  markupSumSoldBatchStockDate(batch, stock, date) 
-    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;  
+markupSumSold 'Надбавка проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  markupSumSold(Batch batch, Stock stock, DATE date) 
+    IF date >= DATE dateFrom AND date <= DATE dateTo BY batch, stock, dateFrom, dateTo;  
      
-sumVATSoldBatchStockDateFromTo 'Сумма НДС проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  sumVATSoldBatchStockDate(batch, stock, date) 
-    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;   
+sumVATSold 'Сумма НДС проданного за интервал' (batch, stock, dateFrom, dateTo)= GROUP SUM  sumVATSold(Batch batch, Stock stock, DATE date) 
+    IF date >= DATE dateFrom AND date <= DATE dateTo BY batch, stock, dateFrom, dateTo;   
                        
-sumSoldBatchStockDateFromTo 'Продано за интервал (сумма)' (batch, stock, dateFrom, dateTo)= GROUP SUM  sumSoldBatchStockDate(batch, stock, date) 
-    IF date >= dateFrom AND date <= dateTo BY batch, stock, dateFrom, dateTo;    
+sumSold 'Продано за интервал (сумма)' (batch, stock, dateFrom, dateTo)= GROUP SUM  sumSold(Batch batch, Stock stock, DATE date) 
+    IF date >= DATE dateFrom AND date <= DATE dateTo BY batch, stock, dateFrom, dateTo;    
 
 
-averagePriceSoldBatchStockDateFromTo 'Цена за интервал' (batch, stock, dateFrom, dateTo) = sumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo)/
-    quantitySoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
-averageMarkupSoldBatchStockDateFromTo 'Средний процент надбавки' (batch, stock, dateFrom, dateTo) = markupSumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo)/
-    costSumSoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo)*100.0;    
+averagePriceSold 'Цена за интервал' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = sumSold(batch, stock, dateFrom, dateTo)/
+    quantitySold(batch, stock, dateFrom, dateTo);
+averageMarkupSold 'Средний процент надбавки' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = markupSumSold(batch, stock, dateFrom, dateTo)/
+    costSumSold(batch, stock, dateFrom, dateTo)*100.0;    
     
 //---------------------------------Тип обмена---------------------------------------//
 
-sumSoldTypeExchangeSkuStockDate (typeExchange, sku, stock, date)= roundPriceCurrency((sumSoldSkuStockDate (sku, stock, date)/ rateOnTypeExchangeCurrencyDate(typeExchange, currencyStock(stock), date)), currencyTypeExchange(typeExchange));
+sumSold (TypeExchange typeExchange, Sku sku, Stock stock, DATE date)= round((sumSold (sku, stock, date)/ rateOn(typeExchange, currency(stock), date)), currency(typeExchange));
 
-sumSoldTypeExchangeSkuStockDateFromTo 'Продано за интервал (сумма-валюта)' (typeExchange, sku, stock, dateFrom, dateTo) = GROUP SUM
-        sumSoldTypeExchangeSkuStockDate (typeExchange, sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumSold 'Продано за интервал (сумма-валюта)' (typeExchange, sku, stock, dateFrom, dateTo) = GROUP SUM
+        sumSold (TypeExchange typeExchange, Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY typeExchange, sku, stock, dateFrom, dateTo;
 
-sumSoldTypeExchangeSkuDateFromTo 'Продано за интервал (сумма-валюта)' (typeExchange, sku, dateFrom, dateTo) = GROUP SUM
-        sumSoldTypeExchangeSkuStockDateFromTo(typeExchange, sku, stock, dateFrom, dateTo) BY typeExchange, sku, dateFrom, dateTo;
+sumSold 'Продано за интервал (сумма-валюта)' (typeExchange, sku, dateFrom, dateTo) = GROUP SUM
+        sumSold(TypeExchange typeExchange, Sku sku, Stock stock, DATE dateFrom, DATE dateTo) BY typeExchange, sku, dateFrom, dateTo;
 
 
 skuStockAverageInterval 'Интервал расчета продаж в день' = DATA INTEGER ();
 
-averageSoldSkuStock 'Продаж в день' = DATA NUMERIC[14,3] (Sku, Stock);
+averageSold 'Продаж в день' = DATA NUMERIC[14,3] (Sku, Stock);
 
-calcQuantitySoldInterval = ACTION (dateFrom, dateTo) {
+calcQuantitySoldInterval = ACTION (DATE dateFrom, DATE dateTo) {
     LOCAL balance = NUMERIC[14,3] (Sku, Stock);
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
 
     ASSIGN dateCur() <- dateFrom;
-    ASSIGN balance(sku, stock) <- balanceBSkuStockDate(sku, stock, dateFrom);
+    ASSIGN balance(Sku sku, Stock stock) <- balanceB(sku, stock, dateFrom);
 
     WHILE dateCur() <= dateTo DO {
-        ASSIGN days(sku, stock) <- days(sku, stock) (+)
-                   (1 IF ((balance(sku, stock) > 0) OR (quantitySkuStockDate(sku, stock, dateCur()) > 0) OR (quantitySoldSkuStockDate(sku, stock, dateCur()) > 0)));
-        ASSIGN balance(sku, stock) <- balance(sku, stock) (+)
-                   signedQuantitySkuStockDate(sku, stock, dateCur());
-        ASSIGN dateCur() <- sumDate(dateCur(), 1);
+        ASSIGN days(Sku sku, Stock stock) <- days(sku, stock) (+)
+                   (1 IF ((balance(sku, stock) > 0) OR (quantity(sku, stock, dateCur()) > 0) OR (quantitySold(sku, stock, dateCur()) > 0)));
+        ASSIGN balance(Sku sku, Stock stock) <- balance(sku, stock) (+)
+                   signedQuantity(sku, stock, dateCur());
+        ASSIGN dateCur() <- sum(dateCur(), 1);
     }
 
-    ASSIGN averageSoldSkuStock(sku, stock) <- quantitySoldSkuStockDateFromTo (sku, stock, dateFrom, dateTo) / days(sku, stock);
+    ASSIGN averageSold(Sku sku, Stock stock) <- quantitySold (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
 calcCurrentQuantitySoldInterval 'Пересчитать однодневные продажи' = ACTION () NEWSESSION {
-    EXEC calcQuantitySoldInterval(subtractDate(currentDate(), skuStockAverageInterval()), subtractDate(currentDate(), 1));
+    EXEC calcQuantitySoldInterval(subtract(currentDate(), skuStockAverageInterval()), subtract(currentDate(), 1));
     apply();
 }
 
@@ -274,55 +274,55 @@ DESIGN options {
 
 //---------------------------------------------- Формы продаж -------------------------------------//
 saleOperation 'Операция' = DATA LOCAL Sale.Operation ();
-nameSaleOperation 'Операция' = nameOperation(saleOperation());
+nameSaleOperation 'Операция' = name(saleOperation());
 
-filterSaleOperationSaleLedger = operationSaleLedger(ledger)==saleOperation() OR (ledger IS SaleLedger AND NOT saleOperation());
+filterSaleOperation = operation(SaleLedger ledger)==saleOperation() OR (ledger IS SaleLedger AND NOT saleOperation());
 
 saleCustomer = DATA LOCAL LegalEntity ();
-nameSaleCustomer 'Покупатель' = nameLegalEntity(saleCustomer());
-filterSaleCustomerSaleLedger = customerSaleLedger(ledger)==saleCustomer() OR (ledger IS SaleLedger AND NOT saleCustomer());
+nameSaleCustomer 'Покупатель' = name(saleCustomer());
+filterSaleCustomer = customer(SaleLedger ledger)==saleCustomer() OR (ledger IS SaleLedger AND NOT saleCustomer());
 
 saleCustomerStock  = DATA LOCAL Stock ();
-nameSaleCustomerStock 'Склад покупателя' = nameStock(saleCustomerStock());
-filterSaleCustomerStockSaleLedger = customerStockSaleLedger(ledger)==saleCustomerStock() OR (ledger IS SaleLedger AND NOT saleCustomerStock());
+nameSaleCustomerStock 'Склад покупателя' = name(saleCustomerStock());
+filterSaleCustomerStock = customerStock(SaleLedger ledger)==saleCustomerStock() OR (ledger IS SaleLedger AND NOT saleCustomerStock());
 
-CONSTRAINT saleCustomer() AND saleCustomerStock() AND NOT inLegalEntityStock(saleCustomer(), saleCustomerStock())
-    CHECKED BY saleCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для регистра продаж не имеют связи';     
+CONSTRAINT saleCustomer() AND saleCustomerStock() AND NOT in(saleCustomer(), saleCustomerStock())
+    CHECKED BY saleCustomerStock[] MESSAGE 'Покупатель и склад покупателя в фильтре для регистра продаж не имеют связи';     
 
 saleStock  = DATA LOCAL Stock ();
-nameSaleStock 'Склад' = nameStock(saleStock());
-filterSaleStockSaleLedger = stockSaleLedger(ledger)==saleStock() OR (ledger IS SaleLedger AND NOT saleStock());
+nameSaleStock 'Склад' = name(saleStock());
+filterSaleStock = stock(SaleLedger ledger)==saleStock() OR (ledger IS SaleLedger AND NOT saleStock());
 
-idBarcodeSkuSaleLedger 'Штрихкод' (l) = idBarcodeSku(skuSaleLedger(l));
+idBarcodeSku 'Штрихкод' (SaleLedger l) = idBarcode(sku(l));
 
-dataInSessionSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+dataInSession 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
 
-levelParentSkuGroup (group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF dataInSessionSkuGroup(parent)
+levelParent (group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF dataInSession(parent)
     BY group;
 
-inParentSkuGroup (group) = TRUE IF levelParentSkuGroup(group);
+inParent (SkuGroup group) = TRUE IF levelParent(group);
 
-inSessionSkuGroup 'Отм.' (group) = OVERRIDE
-    inParentSkuGroup(group),
-    dataInSessionSkuGroup(group);
+inSession 'Отм.' (SkuGroup group) = OVERRIDE
+    inParent(group),
+    dataInSession(group);
 
 sessionConcatSkuGroups 'Группы' () =
-    GROUP CONCAT nameSkuGroup(group) IF inSessionSkuGroup(group) AND NOT inSessionSkuGroup(parentSkuGroup(group)),'; ' PREFCHARWIDTH 30;
+    GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' PREFCHARWIDTH 30;
     
     
-countInSessionSkuGroups  = GROUP SUM 1 IF dataInSessionSkuGroup(g);
+countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(SkuGroup g);
 resetSelectedGroups  'Сбросить отмеченные' = ACTION () {
-    dataInSessionSkuGroup(g) <- NULL WHERE g IS SkuGroup ;    
+    dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
   
 FORM filterGroupType 'Фильтр по группам'    
      
-     TREE treeGroup g=SkuGroup PARENT parentSkuGroup
-     PROPERTIES READONLY orderSkuGroup(g), idSkuGroup(g) SHOWIF showIDs(), nameSkuGroup(g)
-     PROPERTIES inSessionSkuGroup(g) ON SHORTCUT resetSelectedGroups()    
+     TREE treeGroup g=SkuGroup PARENT parent
+     PROPERTIES READONLY order(g), id(g) SHOWIF showIDs(), name(g)
+     PROPERTIES inSession(g) ON SHORTCUT resetSelectedGroups()    
 
-     ORDER BY orderSkuGroup(g), nameSkuGroup(g)
-     FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT        
+     ORDER BY order(g), name(g)
+     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT        
      PROPERTIES resetSelectedGroups() TOOLBAR FORCE PANEL TODRAW g
 ;   
 selectSkuGroups 'Выбор групп' = ACTION () {
@@ -336,22 +336,22 @@ FORM saleLedger 'Регистр продаж'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS te = TypeExchange FIXED PANEL
-    PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
+    PROPERTIES nameType = name(te) SELECTOR, nameCurrency(te) READONLY
 
     OBJECTS s = SaleLedger
-    PROPERTIES(s) READONLY nameMonthSaleLedger, nameDOWSaleLedger, dateSaleLedger, hourSaleLedger, dateTimeSaleLedger, 
-                           nameStockSaleLedger, nameCustomerSaleLedger, nameCustomerStockSaleLedger, nameOperationSaleLedger,
-                           nameSkuGroup1SkuSaleLedger, nameSkuGroup2SkuSaleLedger, nameSkuGroup3SkuSaleLedger, nameSkuGroup4SkuSaleLedger, nameSkuGroup5SkuSaleLedger, 
-                           canonicalNameSkuGroupSaleLedger, idSkuSaleLedger, nameSkuSaleLedger, idBarcodeSkuSaleLedger, descriptionSaleLedger, numberDocumentSaleLedger,
-                           quantitySaleLedger, costSumSaleLedger, markupSumSaleLedger, valueVATSaleLedger,
-                           sumVATSaleLedger, sumSaleLedger, discountSumSaleLedger, averagePriceSaleLedger, averageDiscountPriceSaleLedger
-    PROPERTIES    READONLY sumSoldTypeExchangeSaleLedger (te, s)    
-    PROPERTIES(s) editSaleLedger SHOWIF allowedEditSaleLedger(s)
+    PROPERTIES(s) READONLY nameMonth, nameDOW, date, hour, dateTime, 
+                           nameStock, nameCustomer, nameCustomerStock, nameOperation,
+                           nameSkuGroup1Sku, nameSkuGroup2Sku, nameSkuGroup3Sku, nameSkuGroup4Sku, nameSkuGroup5Sku, 
+                           canonicalNameSkuGroup, idSku, nameSku, idBarcodeSku, description, numberDocument,
+                           quantity, costSum, markupSum, valueVAT,
+                           sumVAT, sum, discountSum, averagePrice, averageDiscountPrice
+    PROPERTIES    READONLY sumSold (te, s)    
+    PROPERTIES(s) edit SHOWIF allowedEdit(s)
     
-    FILTERS activeSaleLedger(s), filterSaleStockSaleLedger(s), filterSaleOperationSaleLedger(s), filterSaleCustomerSaleLedger(s), filterSaleCustomerStockSaleLedger(s)
-    FILTERS dateSaleLedger(s) >= dFrom, dateSaleLedger(s) <= dTo
+    FILTERS active(s), filterSaleStock(s), filterSaleOperation(s), filterSaleCustomer(s), filterSaleCustomerStock(s)
+    FILTERS date(s) >= dFrom, date(s) <= dTo
     
-    FILTERS inSessionSkuGroup(skuGroupSku(skuSaleLedger(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
+    FILTERS inSession(skuGroup(sku(s))) OR (s IS SaleLedger AND NOT countInSessionSkuGroups())
 ;
 @extendFormFilterAccessStock(SaleLedger, s, saleLedger, stock, company);
 @extendFormFilterAccessLegalEntity(SaleLedger, s, saleLedger, customer, customer);
@@ -364,7 +364,7 @@ DESIGN saleLedger {
         }            
         MOVE te.box {
             type = CONTAINERH;
-            PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
+            PROPERTY(nameCurrency(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
             PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
         }
     }
@@ -393,18 +393,18 @@ NAVIGATOR {
 //---------------------------------------------- Расширение формы подбор товаров -------------------------------------//
 META defineCustomerDialogStockSku (form)
 
-    form###customer = DATA LOCAL LegalEntity ();
-    form###nameCustomer 'Покупатель' () = nameLegalEntity(form###customer()) PREFCHARWIDTH 30;
-    form###customersFilter (sku) =  inCustomerSku(form###customer(), sku) OR (sku IS Sku AND NOT form###customer());
+    form##Customer = DATA LOCAL LegalEntity ();
+    form##NameCustomer 'Покупатель' () = name(form##Customer()) PREFCHARWIDTH 30;
+    dialogCustomersFilter (Sku sku) =  inCustomer(form##Customer(), sku) OR (sku IS Sku AND NOT form##Customer());
 
     EXTEND FORM form
-        PROPERTIES() form###nameCustomer
-        FILTERS form###customersFilter(s)
+        PROPERTIES() form##NameCustomer
+        FILTERS dialogCustomersFilter(s)
     ;
 
     DESIGN form {
         filterContainer {
-            MOVE PROPERTY(form###nameCustomer());
+            MOVE PROPERTY(form##NameCustomer());
         }
     }
 END
@@ -413,17 +413,17 @@ END
 //---------------------------------------------- Макросы для имплементаций -------------------------------------//
 
 META implementSaleLedgerCustom(concrete, skuProp, stockProp)
-    dateTimeSaleLedger (ledger) += dateTime###concrete##Detail(ledger);
-    isPostedSaleLedger (ledger) += isPosted###concrete##Detail(ledger);
-    isClosedSaleLedger (ledger) += isClosed###concrete##Detail(ledger);
-    skuSaleLedger (ledger) += skuProp###concrete##Detail(ledger);
-    stockSaleLedger (ledger) += stockProp###concrete##Detail(ledger);
-    descriptionSaleLedger (ledger) += description###concrete##Detail(ledger);
+    dateTime[SaleLedger] (concrete##Detail ledger) += dateTime(ledger);
+    isPosted[SaleLedger] (concrete##Detail ledger) += isPosted(ledger);
+    isClosed[SaleLedger] (concrete##Detail ledger) += isClosed(ledger);
+    skuProp[SaleLedger] (concrete##Detail ledger) += skuProp(ledger);
+    stock[SaleLedger] (concrete##Detail ledger) += stockProp(ledger);
+    description[SaleLedger] (concrete##Detail ledger) += description(ledger);
 END
 META implementSaleLedger(concrete, skuProp, stockProp)
     EXTEND CLASS concrete##Detail : SaleLedger;
     @implementSaleLedgerCustom(concrete, skuProp, stockProp);
 END
 
-EXTEND FORM currentBalanceSkuStock PROPERTIES(s, st) averageSoldSkuStock READONLY;
-EXTEND FORM balanceSkuStock PROPERTIES(s, st) averageSoldSkuStock READONLY;
+EXTEND FORM currentBalanceSkuStock PROPERTIES(s, st) averageSold READONLY;
+EXTEND FORM balanceSkuStock PROPERTIES(s, st) averageSold READONLY;

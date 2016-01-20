@@ -4,25 +4,25 @@ REQUIRE PurchaseLedger;
 
 NAMESPACE PurchaseLedger;
 
-quantityPurchaseSkuStockWeekDateFromTo 'Закуплено за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+quantityPurchase 'Закуплено за неделю (кол-во)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
+        quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, extractWeek(date), dateFrom, dateTo;
 
-sumPurchaseSkuStockWeekDateFromTo 'Закуплено за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+sumPurchase 'Закуплено за неделю (сумма)' (sku, stock, week, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, extractWeek(date), dateFrom, dateTo;
 
-averagePricePurchaseSkuStockWeekDateFromTo 'Средняя цена за неделю' (sku, stock, week, dateFrom, dateTo)=  round2(sumPurchaseSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo) /
-        quantityPurchaseSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo));
+averagePricePurchase 'Средняя цена за неделю' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)=  round2(sumPurchase(sku, stock, week, dateFrom, dateTo) /
+        quantityPurchase(sku, stock, week, dateFrom, dateTo));
 
-averagePurchaseSkuStockWeekDateFromTo 'Закуплено за неделю кол-во/цена' (sku, stock, week, dateFrom, dateTo)= 
-        quantityPurchaseSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo) + '(' + averagePricePurchaseSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo) + ')' MINCHARWIDTH 10 PREFCHARWIDTH 15;
+averagePurchase 'Закуплено за неделю кол-во/цена' (Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo)= 
+        quantityPurchase(sku, stock, week, dateFrom, dateTo) + '(' + averagePricePurchase(sku, stock, week, dateFrom, dateTo) + ')' MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-quantitySkuPurchaseWeekDateFromTo 'Закуплено за неделю (кол-во)' (week, dateFrom, dateTo) = GROUP SUM
-        quantityPurchaseSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo) BY  week, dateFrom, dateTo;
+quantitySkuPurchase 'Закуплено за неделю (кол-во)' (week, dateFrom, dateTo) = GROUP SUM
+        quantityPurchase(Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo) BY  week, dateFrom, dateTo;
 
-sumPurchaseWeekDateFromTo 'Закуплено за неделю (сумма)' (week, dateFrom, dateTo) = GROUP SUM
-        sumPurchaseSkuStockWeekDateFromTo(sku, stock, week, dateFrom, dateTo) BY  week, dateFrom, dateTo;
+sumPurchase 'Закуплено за неделю (сумма)' (week, dateFrom, dateTo) = GROUP SUM
+        sumPurchase(Sku sku, Stock stock, INTEGER week, DATE dateFrom, DATE dateTo) BY  week, dateFrom, dateTo;
 
 toString4 = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
 
@@ -32,37 +32,37 @@ FORM purchaseSkuStock 'Поступления по неделям'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS te = TypeExchange FIXED PANEL
-    PROPERTIES nameType = nameTypeExchange(te) SELECTOR, nameCurrencyTypeExchange(te) READONLY
+    PROPERTIES nameType = name(te) SELECTOR, nameCurrency(te) READONLY
 
     OBJECTS w = INTEGER
-    FILTERS quantitySkuPurchaseWeekDateFromTo(w, dFrom, dTo)
+    FILTERS quantitySkuPurchase(w, dFrom, dTo)
 
-    TREE stockTree sg = StockGroup PARENT parentStockGroup, ts = Stock
-    PROPERTIES READONLY sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
-    FILTERS stockGroupStock(ts) == sg
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
-    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-    ORDER BY orderSkuGroup(sk), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+    TREE stockTree sg = StockGroup PARENT parent, ts = Stock
+    PROPERTIES READONLY sgTreeName = name(sg), tsTreeName = name(ts)
+    FILTERS stockGroup(ts) == sg
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS           sts=(st=Stock, s=Sku)
-    PROPERTIES        READONLY nameSku(s), stockName = nameStock(st)
+    PROPERTIES        READONLY name(s), stockName = name(st)
 
-    FILTERS           isParentSkuGroupSku(sk, s),
-                      (st == ts AND sg IS StockGroup) OR (isParentStockGroupStock(sg, st) AND NOT ts)
-    FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
-    ORDER BY          nameSku(s)
+    FILTERS           isParent(sk, s),
+                      (st == ts AND sg IS StockGroup) OR (isParent(sg, st) AND NOT ts)
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
+    ORDER BY          name(s)
 
-    PROPERTIES        balanceBSkuStockDate(s, st, dFrom), quantityPurchaseSkuStockWeekDateFromTo(s, st, w, dFrom, dTo)  COLUMNS (w) HEADER toString4 (w),
-                      quantityPurchaseSkuStockDateFromTo(s, st, dFrom, dTo),
-                      balanceASkuStockDate(s, st, dTo), sumPurchaseSkuStockDateFromTo (s, st, dFrom, dTo),  sumPurchaseTypeExchangeSkuStockDateFromTo(te,s, st, dFrom, dTo)
+    PROPERTIES        balanceB(s, st, dFrom), quantityPurchase(s, st, w, dFrom, dTo)  COLUMNS (w) HEADER toString4 (w),
+                      quantityPurchase(s, st, dFrom, dTo),
+                      balanceA(s, st, dTo), sumPurchase (s, st, dFrom, dTo),  sumPurchase(te,s, st, dFrom, dTo)
 
     FILTERGROUP filtersPurchase
-        FILTER 'Показывать поступившие за интервал' quantityPurchaseSkuStockDateFromTo(s, st, dFrom, dTo) 'F11'
+        FILTER 'Показывать поступившие за интервал' quantityPurchase(s, st, dFrom, dTo) 'F11'
 
     FILTERGROUP filtersPurchase2
-        FILTER 'Показывать с остатками' balanceASkuStockDate(s, st, dTo) 'F10'
+        FILTER 'Показывать с остатками' balanceA(s, st, dTo) 'F10'
 
 ;
 @extendFormFilterStockAccess(st, purchaseSkuStock);
@@ -93,7 +93,7 @@ DESIGN purchaseSkuStock {
                 MOVE dates.box { type = CONTAINERH; }
                 MOVE te.box {
                     type = CONTAINERH;
-                    PROPERTY(nameCurrencyTypeExchange(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
+                    PROPERTY(nameCurrency(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
                     PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
                 }
                 MOVE sts.box { fill = 2; }

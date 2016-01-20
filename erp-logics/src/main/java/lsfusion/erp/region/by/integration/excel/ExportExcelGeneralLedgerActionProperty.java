@@ -71,16 +71,16 @@ public class ExportExcelGeneralLedgerActionProperty extends ExportExcelActionPro
                     "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
                     "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
                     "dimensionsCreditGeneralLedger", "sumGeneralLedger"};
-            LCP[] generalLedgerProperties = findProperties("isPostedGeneralLedger", "dateGeneralLedger",
-                    "nameLegalEntityGeneralLedger", "nameGLDocumentGeneralLedger", "descriptionGeneralLedger",
-                    "idDebitGeneralLedger", "dimensionsDebitGeneralLedger", "idCreditGeneralLedger",
-                    "dimensionsCreditGeneralLedger", "sumGeneralLedger");
+            LCP[] generalLedgerProperties = findProperties("isPosted[GeneralLedger]", "date[GeneralLedger]",
+                    "nameLegalEntity[GeneralLedger]", "nameGLDocument[GeneralLedger]", "description[GeneralLedger]",
+                    "idDebit[GeneralLedger]", "dimensionsDebit[GeneralLedger]", "idCredit[GeneralLedger]",
+                    "dimensionsCredit[GeneralLedger]", "sum[GeneralLedger]");
             QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<>(generalLedgerKeys);
             for (int i = 0; i < generalLedgerProperties.length; i++) {
                 generalLedgerQuery.addProperty(generalLedgerNames[i], generalLedgerProperties[i].getExpr(context.getModifier(), generalLedgerExpr));
             }
 
-            generalLedgerQuery.and(findProperty("sumGeneralLedger").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());
+            generalLedgerQuery.and(findProperty("sum[GeneralLedger]").getExpr(context.getModifier(), generalLedgerQuery.getMapExprs().get("GeneralLedger")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> generalLedgerResult = generalLedgerQuery.execute(session);
 

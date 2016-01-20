@@ -22,9 +22,9 @@ public class FiscalVMKPrintCopyReceiptActionProperty extends ScriptingActionProp
 
         try {
 
-            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(ip, comPort, baudRate));
             if (result != null) {

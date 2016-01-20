@@ -4,19 +4,19 @@ REQUIRE ContractLedger;
 
 PRIORITY Contract;
 
-sumContractLedgerDate(date) = GROUP SUM sumContractLedger(ledger) //IF dateContractALedger(conractALedger) > dateFrom AND dateContractALedger(conractALedger) < dateTo
-                                     BY dateContractLedger(ledger);
+sumContractLedger(date) = GROUP SUM sum(ContractLedger ledger) //IF dateContractALedger(conractALedger) > dateFrom AND dateContractALedger(conractALedger) < dateTo
+                                     BY date(ledger);
 
-sumContractDateFromDateTo(contract, dateFrom, dateTo) = GROUP SUM sumContractLedger(ledger) IF dateContractLedger(ledger) > dateFrom AND dateContractLedger(ledger) < dateTo
-                                                               BY contractContractLedger(ledger), dateFrom, dateTo;
+sum(contract, dateFrom, dateTo) = GROUP SUM sum(ContractLedger ledger) IF date(ledger) > DATE dateFrom AND date(ledger) < DATE dateTo
+                                                               BY contract(ledger), dateFrom, dateTo;
 
-sumContractDate(contract, date) = GROUP SUM sumContractLedger(ledger)
-                                         BY contractContractLedger(ledger), dateContractLedger(ledger);
+sum(contract, date) = GROUP SUM sum(ContractLedger ledger)
+                                         BY contract(ledger), date(ledger);
 
-toString10Date(date) = STRING[10](date);
+toString10(date) = STRING[10](date);
 
 toStringG999 = FORMULA TEXT PG 'to_char($1,\'999G999G999G999\')', MS 'REPLACE(REPLACE(PARSENAME(CONVERT(nvarchar(max), CONVERT(MONEY,$1), 1), 2), \'.\', \' \'), \',\', \' \')';
-sumsContractDate 'Суммы' (contract, date) = CONCAT ' \n', toStringG999(balanceAContractDate(contract, date)), toStringG999(sumContractDate(contract, date));
+sums 'Суммы' (Contract contract, DATE date) = CONCAT ' \n', toStringG999(balanceA(contract, date)), toStringG999(sum(contract, date));
 
 EXTEND FORM contractLedger
 
@@ -26,20 +26,20 @@ EXTEND FORM contractLedger
     PROPERTIES(dateTo) date2 = OBJVALUE
 
     OBJECTS dateIn = DATE FIXED GRID
-    FILTERS sumContractLedgerDate(dateIn) AND dateFrom < dateIn AND dateIn < dateTo
+    FILTERS sumContractLedger(dateIn) AND dateFrom < dateIn AND dateIn < dateTo
 
     OBJECTS cc = Contract
-    PROPERTIES(cc) READONLY seriesNumberContract, namePartyAContract, namePartyBContract
-    ORDER BY seriesNumberContract(c)
-    FILTERS sumContractDateFromDateTo(cc, dateFrom, dateTo),
-            partyBContract(cc) == partyB() OR (cc IS Contract AND NOT partyB()),
-            partyAContract(cc) == partyA() OR (cc IS Contract AND NOT partyA())
+    PROPERTIES(cc) READONLY seriesNumber, namePartyA, namePartyB
+    ORDER BY seriesNumber(c)
+    FILTERS sum(cc, dateFrom, dateTo),
+            partyB(cc) == partyB() OR (cc IS Contract AND NOT partyB()),
+            partyA(cc) == partyA() OR (cc IS Contract AND NOT partyA())
 
-    PROPERTIES READONLY sumsContractDate(cc, dateIn) COLUMNS (dateIn) HEADER toString10Date(dateIn)
+    PROPERTIES READONLY sums(cc, dateIn) COLUMNS (dateIn) HEADER toString10(dateIn)
 
     OBJECTS cl2 = ContractLedger
-    PROPERTIES (cl2) READONLY dateContractLedger, sumContractLedger, descriptionContractLedger
-    FILTERS contractContractLedger(cl2) == cc
+    PROPERTIES (cl2) READONLY date, sum, description
+    FILTERS contract(cl2) == cc
 
 ;
 
@@ -58,7 +58,7 @@ DESIGN contractLedger {
                 fill = 1;
                 MOVE cc.box {
                     fill = 2;
-                    PROPERTY(sumsContractDate(cc,dateIn)) {
+                    PROPERTY(sums(cc,dateIn)) {
                         minimumSize = ( -1, 34);
                         preferredSize = ( -1, 34);
                         maximumSize = ( -1, 34);

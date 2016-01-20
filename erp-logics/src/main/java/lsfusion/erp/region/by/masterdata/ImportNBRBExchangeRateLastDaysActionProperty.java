@@ -34,9 +34,9 @@ public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExch
 
             DataObject currencyObject = context.getDataKeyValue(currencyInterface);
 
-            String shortNameCurrency = (String) findProperty("shortNameCurrency").read(context, currencyObject);
+            String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, currencyObject);
             long currentTime = Calendar.getInstance().getTimeInMillis();
-            Integer days = (Integer) findProperty("importNBRBExchangeRateDaysCount").read(context);
+            Integer days = (Integer) findProperty("importNBRBExchangeRateDaysCount[]").read(context);
             if (shortNameCurrency != null && days != null && days > 0) {
                 importExchanges(new Date(currentTime - (long) days * 24 * 3600 * 1000), new Date(currentTime),
                         shortNameCurrency, context);

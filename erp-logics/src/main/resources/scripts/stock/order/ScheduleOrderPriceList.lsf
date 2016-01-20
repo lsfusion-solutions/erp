@@ -6,27 +6,27 @@ NAMESPACE  ScheduleOrder;
 
 //--
 META addScheduleOrder(filter, cap, filterStock) 
-    countPriceLists###filter###stockDate 'Поставщики, у которых есть действующие прайсы' (filter, stock, date) = GROUP SUM 1 
-        IF is###filter###legalEntity(companyPriceList(priceList)) AND isPostedPriceList(priceList) AND fromDatePriceList(priceList) <= (date AS DATE) 
-        AND NOT (toDatePriceList(priceList) < (date AS DATE)) AND inPriceListStock(priceList, stock)
-            BY companyPriceList(priceList), stock, date;
+    countPriceLists 'Поставщики, у которых есть действующие прайсы' (filter, stock, date) = GROUP SUM 1 
+        IF is###filter(filterStock(PriceList priceList)) AND isPosted(priceList) AND fromDate(priceList) <= (DATE date AS DATE) 
+        AND NOT (toDate(priceList) < (date AS DATE)) AND in(priceList, Stock stock)
+            BY filterStock(priceList), stock, date;
         
-    countScheduleOrders###filter###stockDate 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, stock, date) = GROUP SUM 1 IF 
-        startDateScheduleOrder(order) AND NOT (endDateScheduleOrder(order) < (date AS DATE)) AND inScheduleOrderStock(order, stock)
-         BY supplierScheduleOrder(order), stock, date;  
+    countScheduleOrders 'Поставщики, у которых есть действующие и будующие графики заказов' (filter, stock, date) = GROUP SUM 1 IF 
+        startDate(ScheduleOrder order) AND NOT (endDate(order) < (DATE date AS DATE)) AND in(order, Stock stock)
+         BY filter(order), stock, date;  
           
-    filterLegalEntity###filter###stockDate 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, stock, date) = countPriceLists###filter###stockDate  (filter, stock, date) IF NOT countScheduleOrders###filter###stockDate (filter, stock, date);
-    filterLegalEntity###filter###Date 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, date)= GROUP SUM 1 IF filterLegalEntity###filter###stockDate(filter, stock, date) BY filter, date;
+    filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (LegalEntity filter, Stock stock, DATE date) = countPriceLists  (filter, stock, date) IF NOT countScheduleOrders (filter, stock, date);
+    filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, date)= GROUP SUM 1 IF filterLegalEntity(LegalEntity filter, Stock stock, DATE date) BY filter, date;
     
-    addScheduleOrder###filter###stock 'Добавить' = ACTION (filter, stock) {
+    addScheduleOrder###filter 'Добавить' = ACTION (LegalEntity filter, Stock stock) {
         FOR ADDOBJ o = ScheduleOrder DO {
-            supplierScheduleOrder(o) <- filter;
-            supplierStockScheduleOrder(o) <- default###filter###stockEmployeeLegalEntity(currentUser(), supplierScheduleOrder(o))
-                WHERE countAccess###filter###stockEmployeeLegalEntity (currentUser(), supplierScheduleOrder(o)) == 1;
+            filter(o) <- filter;
+            filter##Stock(o) <- default###filter##Stock(currentUser(), filter(o))
+                WHERE countAccess###filter##Stock (currentUser(), filter(o)) == 1;
                                 
-            customerScheduleOrder(o) <- legalEntityStock(stock);
+            customer(o) <- legalEntity(stock);
 //            customerStockScheduleOrder(o) <- stock;   
-            dataInScheduleOrderStock(o,stock) <- TRUE;                    
+            dataIn(o,stock) <- TRUE;                    
             
             FORM scheduleOrder OBJECTS s=o MANAGESESSION DOCKEDMODAL;
             IF NOT formResult() == FormResult.ok THEN {
@@ -38,15 +38,15 @@ META addScheduleOrder(filter, cap, filterStock)
     EXTEND FORM scheduleOrderDashboard
         
         OBJECTS l=LegalEntity
-        PROPERTIES(l) READONLY nameLegalEntity
-        FILTERS is###filter###legalEntity(l)
-        FILTERS filterLegalEntity###filter###Date(l,d)
+        PROPERTIES(l) READONLY name
+        FILTERS is###filter(l)
+        FILTERS filterLegalEntity(l,d)
         
         OBJECTS st=Stock
-        PROPERTIES(st) READONLY nameStock               
-        PROPERTIES(l,st) addScheduleOrder###filter###stock
+        PROPERTIES(st) READONLY name               
+        PROPERTIES(l,st) addScheduleOrder###filter
         
-        FILTERS filterLegalEntity###filter###stockDate(l,st,d)
+        FILTERS filterLegalEntity(l,st,d)
     ;
     
     DESIGN scheduleOrderDashboard {

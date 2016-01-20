@@ -4,80 +4,80 @@ REQUIRE Inventory, Terminal;
 
 NAMESPACE Terminal;
 
-detailCountInventory 'Количество строк на страницу'  = DATA INTEGER (Inventory) IN documentPrm;
+detailCount 'Количество строк на страницу'  = DATA INTEGER (Inventory) IN documentPrm;
 
 EXTEND FORM inventory
-    PROPERTIES detailCountInventory(in);
+    PROPERTIES detailCount(in);
 
-detailCountOperation 'Количество строк на страницу' = DATA INTEGER (Inventory.Operation);
+detailCount 'Количество строк на страницу' = DATA INTEGER (Inventory.Operation);
 
 EXTEND FORM Inventory.operation
-     PROPERTIES(o) detailCountOperation
+     PROPERTIES(o) detailCount
  ;
 DESIGN Inventory.operation {
     showContainer {
-        MOVE PROPERTY(detailCountOperation(o));
+        MOVE PROPERTY(detailCount(o));
     }
 }
 
 @deriveDocumentOperationProperty(Inventory, detailCount);
 
-addInventoryDetailsTerminalDocumentListInventory = ACTION (td,li){
+addInventoryDetails = ACTION (TerminalDocument td,ListInventory li){
 
     LOCAL page = PageInventory ();
     LOCAL detailCount = INTEGER();
     detailCount() <- 0;
 
     LOCAL countDetail = INTEGER();
-    countDetail() <- (OVERRIDE 20, detailCountInventory(inventoryListInventory(li)));
+    countDetail() <- (OVERRIDE 20, detailCount(inventory(li)));
     
     LOCAL countPages = INTEGER();
-    countPages() <- (countTerminalDocumentDetailTerminalDocument(td) + countDetail() - 1) / countDetail();
+    countPages() <- (countTerminalDocumentDetail(td) + countDetail() - 1) / countDetail();
     
-    FOR iterate(i, 1, countPages()) ADDOBJ p = PageInventory DO {
-        listInventoryPageInventory(p) <- li;
+    FOR iterate(INTEGER i, 1, countPages()) ADDOBJ p = PageInventory DO {
+        listInventory(p) <- li;
     }
     
-    FOR terminalDocumentTerminalDocumentDetail(tdd) == td INLINE ADDOBJ pid = PageInventoryDetail DO {
-        pageInventoryPageInventoryDetail(pid) <- pageInventoryListInventoryIndex(li, ((indexTerminalDocumentDetail(tdd) - 1)/countDetail()) + 1);
-        skuPageInventoryDetail(pid) <- OVERRIDE skuId(barcodeTerminalDocumentDetail(tdd)), skuBarcodeIdDate(barcodeTerminalDocumentDetail(tdd), dateListInventory(li));
-        quantityPageInventoryDetail(pid) <- quantityTerminalDocumentDetail(tdd);
+    FOR terminalDocument(TerminalDocumentDetail tdd) == td INLINE ADDOBJ pid = PageInventoryDetail DO {
+        pageInventory(pid) <- pageInventoryIndex(li, ((index(tdd) - 1)/countDetail()) + 1);
+        sku(pid) <- OVERRIDE sku(barcode(tdd)), skuBarcode(barcode(tdd), date(li));
+        quantity(pid) <- quantity(tdd);
     }
 
 }
 
-addDetailDialogTerminalListInventory 'Заполнить из документа ТСД' (listInventory) = ACTION (listInventory) {
+addDetailDialogTerminal 'Заполнить из документа ТСД' (ListInventory listInventory) = ACTION (listInventory) {
     FORM terminalDocuments MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL document = TerminalDocument ();
         document() <- chosenObject('td');
-        usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document();
+        used(TerminalDocument terminalDocument) <- TRUE WHERE terminalDocument == document();
 
-        addInventoryDetailsTerminalDocumentListInventory(document(),listInventory);
+        addInventoryDetails(document(),listInventory);
     }
 } TOOLBAR;
 
-includeTerminalDocument 'Отм.' = DATA LOCAL BOOLEAN (TerminalDocument);
-EXTEND FORM terminalDocuments PROPERTIES (td) includeTerminalDocument BEFORE idTerminalDocument(td);
+include 'Отм.' = DATA LOCAL BOOLEAN (TerminalDocument);
+EXTEND FORM terminalDocuments PROPERTIES (td) include BEFORE id(td);
  
-addListInventoryDialogTerminalStockInventory 'Заполнить из документов ТСД' (stock, inventory) = ACTION (stock, inventory) {
+addListInventoryDialogTerminal 'Заполнить из документов ТСД' (Stock stock, Inventory inventory) = ACTION (stock, inventory) {
     FORM terminalDocuments MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR  includeTerminalDocument(td) ADDOBJ  li = ListInventory DO {
-            usedTerminalDocument(td) <- TRUE;
-            stockListInventory(li) <- stock;
-            inventoryListInventory(li) <- inventory;
-            includeTerminalDocument(td) <- NULL;
+        FOR  include(TerminalDocument td) ADDOBJ  li = ListInventory DO {
+            used(td) <- TRUE;
+            stock(li) <- stock;
+            inventory(li) <- inventory;
+            include(td) <- NULL;
             
-            addInventoryDetailsTerminalDocumentListInventory(td,li);
+            addInventoryDetails(td,li);
         }
     }
 } TOOLBAR;
 
 EXTEND FORM listInventory
-    PROPERTIES SHOWIF isSkuListInventory(li) addDetailDialogTerminalListInventory(li) TODRAW dp
+    PROPERTIES SHOWIF isSku(li) addDetailDialogTerminal(li) TODRAW dp
 ;
 
 EXTEND FORM inventory
-    PROPERTIES(ds, in) addListInventoryDialogTerminalStockInventory
+    PROPERTIES(ds, in) addListInventoryDialogTerminal
 ;

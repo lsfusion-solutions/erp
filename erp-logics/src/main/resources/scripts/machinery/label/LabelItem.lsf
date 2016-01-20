@@ -12,62 +12,62 @@ REQUIRE Label, Item;
 @defineLabelTransactionAttribute(nameManufacturerItem, 'Производитель', VARSTRING[255], Item, nameManufacturer);
 @defineLabelTransactionAttribute(addressManufacturerItem, 'Адрес производителя', STRING[255], Item, addressManufacturer);
 
-nameAddressManufacturerItemLabelTransactionDetail 'Производитель' (d) = CONCAT ', ', nameManufacturerItemLabelTransactionDetail(d), addressManufacturerItemLabelTransactionDetail(d);
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressManufacturerItemLabelTransactionDetail;
-EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressManufacturerItemLabelTransactionDetail;
-EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerItemLabelTransactionDetail;
+nameAddressManufacturerItem 'Производитель' (LabelTransactionDetail d) = CONCAT ', ', nameManufacturerItem(d), addressManufacturerItem(d);
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressManufacturerItem;
+EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressManufacturerItem;
+EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressManufacturerItem;
 
-createItemLabelsTransaction 'Сформировать ценники' = ACTION (item, stock) NEWSESSION {
-     FOR inLabelTypeSkuDepartmentStore(labelType, item, stock)
+createItemLabelsTransaction 'Сформировать ценники' = ACTION (Sku item, DepartmentStore stock) NEWSESSION {
+     FOR in(LabelType labelType, item, stock)
          ADDOBJ t = LabelTransaction DO {
-             departmentStoreLabelTransaction(t) <- stock;
-             labelTypeLabelTransaction(t) <- labelType;
+             departmentStore(t) <- stock;
+             labelType(t) <- labelType;
              
              FOR ADDOBJ d = LabelTransactionDetail DO {
-                 labelTransactionLabelTransactionDetail(d) <- t;
-                 skuLabelTransactionDetail(d) <- item;
-                 nameLabelTransactionDetail(d) <- nameSku(item);
+                 labelTransaction(d) <- t;
+                 sku(d) <- item;
+                 name(d) <- name(item);
  
-                 createAttributeLabelTransactionDetail(d);
+                 createAttribute(d);
  
-                 priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                 retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d); 
+                 price(d) <- calcPrice(d);
+                 retailPrice(d) <- overRetailPrice(d); 
              } 
-             printLabelTransaction(t);
+             print(t);
      }
  }
 
-createItemLabelTransaction 'Сформировать ценник' = ACTION (item, stock, labelType) NEWSESSION {
+createItemTransaction 'Сформировать ценник' = ACTION (Sku item, DepartmentStore stock, LabelType labelType) NEWSESSION {
     FOR ADDOBJ t = LabelTransaction DO {
-            departmentStoreLabelTransaction(t) <- stock;
-            labelTypeLabelTransaction(t) <- labelType;
+            departmentStore(t) <- stock;
+            labelType(t) <- labelType;
             
             FOR ADDOBJ d = LabelTransactionDetail DO {
-                labelTransactionLabelTransactionDetail(d) <- t;
-                skuLabelTransactionDetail(d) <- item;
-                nameLabelTransactionDetail(d) <- nameSku(item);
-                quantityLabelTransactionDetail(d) <- countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                labelTransaction(d) <- t;
+                sku(d) <- item;
+                name(d) <- name(item);
+                quantity(d) <- count(labelType, sku(d));
                                                                              
-                createAttributeLabelTransactionDetail(d);
+                createAttribute(d);
 
-                priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d); 
+                price(d) <- calcPrice(d);
+                retailPrice(d) <- overRetailPrice(d); 
             } 
             // вызываем печатную форму для каждого из них
-            printLabelTransaction(t);
+            print(t);
     }
 } IMAGE 'print.png';
 
 EXTEND FORM item
     OBJECTS ld = DepartmentStore FIXED PANEL
-    PROPERTIES(ld) SELECTOR nameDepartmentStore  
+    PROPERTIES(ld) SELECTOR name  
     PROPERTIES (i, ld) createItemLabelsTransaction
-    FILTERS isCompanyStock(ld)
+    FILTERS isCompany(ld)
         
     OBJECTS lt = LabelType
-    PROPERTIES (lt) nameLabelType READONLY, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR 
-    PROPERTIES (lt, i) inLabelTypeSku
-    PROPERTIES (i, ld, lt) createItemLabelTransaction
+    PROPERTIES (lt) name READONLY, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR 
+    PROPERTIES (lt, i) in
+    PROPERTIES (i, ld, lt) createItemTransaction
 ;
 
 DESIGN item {

@@ -78,7 +78,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             DataObject userPriceListObject = context.getDataKeyValue(userPriceListInterface);
 
-            ObjectValue importUserPriceListTypeObject = findProperty("importUserPriceListTypeUserPriceList").readClasses(context, userPriceListObject);
+            ObjectValue importUserPriceListTypeObject = findProperty("importUserPriceListType[UserPriceList]").readClasses(context, userPriceListObject);
 
             if (!(importUserPriceListTypeObject instanceof NullValue)) {
 
@@ -132,7 +132,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         
         List<UserPriceListDetail> userPriceListDetailList;
         
-        Date dateDocument = (Date) findProperty("dateUserPriceList").read(context, userPriceListObject);
+        Date dateDocument = (Date) findProperty("date[UserPriceList]").read(context, userPriceListObject);
         dateDocument = dateDocument == null ? new Date(Calendar.getInstance().getTime().getTime()) : dateDocument;
         String fileExtension = settings.getFileExtension();
 
@@ -158,7 +158,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 && (settings.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, settings.getStockObject(), settings.getItemKeyType(), apply));
 
 
-        findProperty("originalUserPriceList").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), 
+        findProperty("original[UserPriceList]").change(new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()),
                 DynamicFormatFileClass.get(false, true)), context, userPriceListObject);
         if(apply)
             context.apply();
@@ -179,65 +179,65 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ObjectValue companyDocument = findProperty("companyUserPriceList").readClasses(context, userPriceListObject);
+            ObjectValue companyDocument = findProperty("company[UserPriceList]").readClasses(context, userPriceListObject);
             DataObject companyObject = companyDocument instanceof NullValue ? settings.getCompanyObject() : (DataObject) companyDocument;
             
             List<List<Object>> data = initData(userPriceListDetailList.size());
 
             if (settings.getOperationObject() != null) {
-                props.add(new ImportProperty(settings.getOperationObject(), findProperty("operationUserPriceList").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(settings.getOperationObject(), findProperty("operation[UserPriceList]").getMapping(userPriceListObject)));
             }
 
             if (companyObject!= null) {
-                props.add(new ImportProperty(companyObject, findProperty("companyUserPriceList").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(companyObject, findProperty("company[UserPriceList]").getMapping(userPriceListObject)));
             }
 
-            ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+            ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(idBarcodeSkuField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
             if (settings.isDoNotCreateItems())
                 barcodeKey.skipKey = true;
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idBarcodeSkuField, findProperty("idBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
-            props.add(new ImportProperty(idBarcodeSkuField, findProperty("extIdBarcode").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Barcode]").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
+            props.add(new ImportProperty(idBarcodeSkuField, findProperty("extId[Barcode]").getMapping(barcodeKey), getReplaceOnlyNull(defaultColumns, "barcodeItem")));
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(userPriceListDetailList.get(i).barcodeItem);
 
-            ImportField idExtraBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+            ImportField idExtraBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> extraBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(idExtraBarcodeSkuField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idExtraBarcodeSkuField));
             if (settings.isDoNotCreateItems())
                 extraBarcodeKey.skipKey = true;
             keys.add(extraBarcodeKey);
-            props.add(new ImportProperty(idExtraBarcodeSkuField, findProperty("idBarcode").getMapping(extraBarcodeKey), getReplaceOnlyNull(defaultColumns, "extraBarcodeItem")));
-            props.add(new ImportProperty(idExtraBarcodeSkuField, findProperty("extIdBarcode").getMapping(extraBarcodeKey), getReplaceOnlyNull(defaultColumns, "extraBarcodeItem")));
+            props.add(new ImportProperty(idExtraBarcodeSkuField, findProperty("id[Barcode]").getMapping(extraBarcodeKey), getReplaceOnlyNull(defaultColumns, "extraBarcodeItem")));
+            props.add(new ImportProperty(idExtraBarcodeSkuField, findProperty("extId[Barcode]").getMapping(extraBarcodeKey), getReplaceOnlyNull(defaultColumns, "extraBarcodeItem")));
             fields.add(idExtraBarcodeSkuField);
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(userPriceListDetailList.get(i).getFieldValue("extraBarcodeItem"));
 
-            ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extIdBarcode"));
+            ImportField extIdPackBarcodeSkuField = new ImportField(findProperty("extId[Barcode]"));
             ImportKey<?> packBarcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(extIdPackBarcodeSkuField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(extIdPackBarcodeSkuField));
             if (settings.isDoNotCreateItems())
                 packBarcodeKey.skipKey = true;
             keys.add(packBarcodeKey);
-            props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extIdBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
+            props.add(new ImportProperty(extIdPackBarcodeSkuField, findProperty("extId[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
             fields.add(extIdPackBarcodeSkuField);
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(userPriceListDetailList.get(i).extIdPackBarcode);
 
             if (showField(userPriceListDetailList, "packBarcode")) {
-                ImportField packBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
-                props.add(new ImportProperty(packBarcodeSkuField, findProperty("idBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
+                ImportField packBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
+                props.add(new ImportProperty(packBarcodeSkuField, findProperty("id[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
                 fields.add(packBarcodeSkuField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).packBarcode);
             }
 
             if (showField(userPriceListDetailList, "amountPackBarcode")) {
-                ImportField amountBarcodeField = new ImportField(findProperty("amountBarcode"));
-                props.add(new ImportProperty(amountBarcodeField, findProperty("amountBarcode").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "amountPackBarcode")));
+                ImportField amountBarcodeField = new ImportField(findProperty("amount[Barcode]"));
+                props.add(new ImportProperty(amountBarcodeField, findProperty("amount[Barcode]").getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "amountPackBarcode")));
                 fields.add(amountBarcodeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("amountPackBarcode"));
@@ -245,9 +245,9 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
             boolean isItemKey = (settings.getItemKeyType() == null || settings.getItemKeyType().equals("item"));
             
-            ImportField idItemField = new ImportField(findProperty("idItem"));
+            ImportField idItemField = new ImportField(findProperty("id[Item]"));
             
-            LCP iGroupAggr = findProperty(isItemKey ? "itemId" : "skuBarcodeId");
+            LCP iGroupAggr = findProperty(isItemKey ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
             ImportField iField = isItemKey ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
@@ -257,7 +257,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             keys.add(itemKey);
             
             if (isItemKey || showField(userPriceListDetailList, "idItem")) {
-                props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+                props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
                 fields.add(idItemField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).idItem);
@@ -265,19 +265,19 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             
             if (!settings.isDoNotCreateItems()) {
                 if (purchasePackLM != null)
-                    props.add(new ImportProperty(extIdPackBarcodeSkuField, purchasePackLM.findProperty("Purchase.packBarcodeSku").getMapping(itemKey),
+                    props.add(new ImportProperty(extIdPackBarcodeSkuField, purchasePackLM.findProperty("packBarcode[Sku]").getMapping(itemKey),
                             object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
                 if (salePackLM != null)
-                    props.add(new ImportProperty(extIdPackBarcodeSkuField, salePackLM.findProperty("Sale.packBarcodeSku").getMapping(itemKey),
+                    props.add(new ImportProperty(extIdPackBarcodeSkuField, salePackLM.findProperty("packBarcode[Sku]").getMapping(itemKey),
                             object(findClass("Barcode")).getMapping(packBarcodeKey), getReplaceOnlyNull(defaultColumns, "packBarcode")));
             }
 
             if (showField(userPriceListDetailList, "idItemGroup")) {
-                ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+                ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
                 ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
-                        findProperty("itemGroupId").getMapping(idItemGroupField));
+                        findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
                 keys.add(itemGroupKey);
-                props.add(new ImportProperty(idItemGroupField, findProperty("itemGroupItem").getMapping(itemKey),
+                props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
                         object(findClass("ItemGroup")).getMapping(itemGroupKey), getReplaceOnlyNull(defaultColumns, "idItemGroup")));
                 fields.add(idItemGroupField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
@@ -285,12 +285,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (itemArticleLM != null && showField(userPriceListDetailList, "articleItem")) {
-                ImportField idArticleItemField = new ImportField(itemArticleLM.findProperty("idArticleItem"));
+                ImportField idArticleItemField = new ImportField(itemArticleLM.findProperty("idArticle[Item]"));
                 ImportKey<?> articleKey = new ImportKey((ConcreteCustomClass) itemArticleLM.findClass("Article"),
-                        itemArticleLM.findProperty("articleId").getMapping(idArticleItemField));
+                        itemArticleLM.findProperty("article[VARSTRING[100]]").getMapping(idArticleItemField));
                 keys.add(articleKey);
-                props.add(new ImportProperty(idArticleItemField, itemArticleLM.findProperty("idArticle").getMapping(articleKey)));
-                props.add(new ImportProperty(idArticleItemField, itemArticleLM.findProperty("articleItem").getMapping(itemKey),
+                props.add(new ImportProperty(idArticleItemField, itemArticleLM.findProperty("id[Article]").getMapping(articleKey)));
+                props.add(new ImportProperty(idArticleItemField, itemArticleLM.findProperty("article[Item]").getMapping(itemKey),
                         itemArticleLM.object(itemArticleLM.findClass("Article")).getMapping(articleKey)));
                 fields.add(idArticleItemField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
@@ -298,80 +298,80 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (showField(userPriceListDetailList, "idUserPriceList")) {
-                ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
-                props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "idUserPriceList")));
-                props.add(new ImportProperty(idUserPriceListField, findProperty("numberUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "idUserPriceList")));
+                ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
+                props.add(new ImportProperty(idUserPriceListField, findProperty("id[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "idUserPriceList")));
+                props.add(new ImportProperty(idUserPriceListField, findProperty("number[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "idUserPriceList")));
                 fields.add(idUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("idUserPriceList"));
 
-                ImportField isPostedUserPriceListField = new ImportField(findProperty("isPostedUserPriceList"));
-                props.add(new ImportProperty(isPostedUserPriceListField, findProperty("isPostedUserPriceList").getMapping(userPriceListObject)));
+                ImportField isPostedUserPriceListField = new ImportField(findProperty("isPosted[UserPriceList]"));
+                props.add(new ImportProperty(isPostedUserPriceListField, findProperty("isPosted[UserPriceList]").getMapping(userPriceListObject)));
                 fields.add(isPostedUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(true);
             }
 
-            ImportField idUserPriceListDetailField = new ImportField(findProperty("idUserPriceListDetail"));
+            ImportField idUserPriceListDetailField = new ImportField(findProperty("id[UserPriceListDetail]"));
             ImportKey<?> userPriceListDetailKey = new ImportKey((ConcreteCustomClass) findClass("UserPriceListDetail"),
-                    findProperty("userPriceListDetailIdUserPriceList").getMapping(idUserPriceListDetailField, userPriceListObject));
+                    findProperty("userPriceListDetail[VARSTRING[100],UserPriceList]").getMapping(idUserPriceListDetailField, userPriceListObject));
             keys.add(userPriceListDetailKey);
-            props.add(new ImportProperty(userPriceListObject, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey)));
-            props.add(new ImportProperty(idUserPriceListDetailField, findProperty("idUserPriceListDetail").getMapping(userPriceListDetailKey)));
-            props.add(new ImportProperty(iField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
+            props.add(new ImportProperty(userPriceListObject, findProperty("userPriceList[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
+            props.add(new ImportProperty(idUserPriceListDetailField, findProperty("id[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
+            props.add(new ImportProperty(iField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
                     object(findClass("Sku")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, findProperty("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, findProperty("skuBarcode").getMapping(extraBarcodeKey),
+            props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(extraBarcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, findProperty("skuBarcode").getMapping(packBarcodeKey),
+            props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(packBarcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
             fields.add(idUserPriceListDetailField);
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(userPriceListDetailList.get(i).idUserPriceListDetail);
 
-            ImportField indexField = new ImportField(findProperty("dataIndexUserPriceListDetail"));
-            props.add(new ImportProperty(indexField, findProperty("dataIndexUserPriceListDetail").getMapping(userPriceListDetailKey)));
+            ImportField indexField = new ImportField(findProperty("dataIndex[UserPriceListDetail]"));
+            props.add(new ImportProperty(indexField, findProperty("dataIndex[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
             fields.add(indexField);
             for (int i = 0; i < userPriceListDetailList.size(); i++)
                 data.get(i).add(i+1);
 
             if (settings.getDefaultItemGroupObject() != null) {
-                props.add(new ImportProperty(settings.getDefaultItemGroupObject(), findProperty("itemGroupItem").getMapping(itemKey)));
+                props.add(new ImportProperty(settings.getDefaultItemGroupObject(), findProperty("itemGroup[Item]").getMapping(itemKey)));
             }
             
             if (showField(userPriceListDetailList, "originalName")) {
-                ImportField originalNameField = new ImportField(findProperty("originalNameSkuUserPriceListDetail"));
-                props.add(new ImportProperty(originalNameField, findProperty("originalNameSkuUserPriceListDetail").getMapping(userPriceListDetailKey)));
+                ImportField originalNameField = new ImportField(findProperty("originalNameSku[UserPriceListDetail]"));
+                props.add(new ImportProperty(originalNameField, findProperty("originalNameSku[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
                 fields.add(originalNameField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("originalName"));
             }
 
             if (showField(userPriceListDetailList, "originalBarcode")) {
-                ImportField originalIdBarcodeField = new ImportField(findProperty("originalIdBarcodeSkuUserPriceListDetail"));
-                props.add(new ImportProperty(originalIdBarcodeField, findProperty("originalIdBarcodeSkuUserPriceListDetail").getMapping(userPriceListDetailKey)));
+                ImportField originalIdBarcodeField = new ImportField(findProperty("originalIdBarcodeSku[UserPriceListDetail]"));
+                props.add(new ImportProperty(originalIdBarcodeField, findProperty("originalIdBarcodeSku[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
                 fields.add(originalIdBarcodeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("originalBarcode"));
             }
 
             if (showField(userPriceListDetailList, "captionItem")) {
-                ImportField captionItemField = new ImportField(findProperty("captionItem"));
-                props.add(new ImportProperty(captionItemField, findProperty("captionItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "captionItem")));
+                ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+                props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "captionItem")));
                 fields.add(captionItemField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("captionItem"));
             }
 
             if (showField(userPriceListDetailList, "idUOMItem")) {
-                ImportField idUOMField = new ImportField(findProperty("idUOM"));
+                ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
                 ImportKey<?> UOMKey = new ImportKey((ConcreteCustomClass) findClass("UOM"),
-                        findProperty("UOMId").getMapping(idUOMField));
+                        findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
                 keys.add(UOMKey);
-                props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
-                props.add(new ImportProperty(idUOMField, findProperty("shortNameUOM").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
-                props.add(new ImportProperty(idUOMField, findProperty("UOMItem").getMapping(itemKey),
+                props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
+                props.add(new ImportProperty(idUOMField, findProperty("shortName[UOM]").getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
+                props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
                         object(findClass("UOM")).getMapping(UOMKey), getReplaceOnlyNull(defaultColumns, "idUOMItem")));
                 fields.add(idUOMField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
@@ -379,89 +379,89 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (showField(userPriceListDetailList, "netWeightItem")) {
-                ImportField netWeightItemField = new ImportField(findProperty("netWeightItem"));
-                props.add(new ImportProperty(netWeightItemField, findProperty("netWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "netWeightItem")));
+                ImportField netWeightItemField = new ImportField(findProperty("netWeight[Item]"));
+                props.add(new ImportProperty(netWeightItemField, findProperty("netWeight[Item]").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "netWeightItem")));
                 fields.add(netWeightItemField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("netWeightItem"));
             }
 
             if (showField(userPriceListDetailList, "grossWeightItem")) {
-                ImportField grossWeightItemField = new ImportField(findProperty("grossWeightItem"));
-                props.add(new ImportProperty(grossWeightItemField, findProperty("grossWeightItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "grossWeightItem")));
+                ImportField grossWeightItemField = new ImportField(findProperty("grossWeight[Item]"));
+                props.add(new ImportProperty(grossWeightItemField, findProperty("grossWeight[Item]").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "grossWeightItem")));
                 fields.add(grossWeightItemField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("grossWeightItem"));
             }
 
             for (DataObject dataPriceListTypeObject : priceColumns) {
-                ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
-                props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, findProperty("pricePriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
+                ImportField pricePriceListDetailDataPriceListTypeField = new ImportField(findProperty("price[PriceListDetail,DataPriceListType]"));
+                props.add(new ImportProperty(pricePriceListDetailDataPriceListTypeField, findProperty("price[PriceListDetail,DataPriceListType]").getMapping(userPriceListDetailKey, dataPriceListTypeObject)));
                 fields.add(pricePriceListDetailDataPriceListTypeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).prices.get(dataPriceListTypeObject));
             }
 
             if (showField(userPriceListDetailList, "dateUserPriceList")) {
-                ImportField dateUserPriceListField = new ImportField(findProperty("dateUserPriceList"));
-                props.add(new ImportProperty(dateUserPriceListField, findProperty("dateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
-                props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
+                ImportField dateUserPriceListField = new ImportField(findProperty("date[UserPriceList]"));
+                props.add(new ImportProperty(dateUserPriceListField, findProperty("date[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
+                props.add(new ImportProperty(dateUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "date")));
                 fields.add(dateUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).dateUserPriceList);
 
-                ImportField timeUserPriceListField = new ImportField(findProperty("timeUserPriceList"));
-                props.add(new ImportProperty(timeUserPriceListField, findProperty("timeUserPriceList").getMapping(userPriceListObject)));
-                props.add(new ImportProperty(timeUserPriceListField, findProperty("fromTimeUserPriceList").getMapping(userPriceListObject)));
+                ImportField timeUserPriceListField = new ImportField(findProperty("time[UserPriceList]"));
+                props.add(new ImportProperty(timeUserPriceListField, findProperty("time[UserPriceList]").getMapping(userPriceListObject)));
+                props.add(new ImportProperty(timeUserPriceListField, findProperty("fromTime[UserPriceList]").getMapping(userPriceListObject)));
                 fields.add(timeUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(new Time(0, 0, 0));
             }
 
             if (showField(userPriceListDetailList, "isPosted")) {
-                ImportField isPostedUserPriceListField = new ImportField(findProperty("isPostedUserPriceList"));
-                props.add(new ImportProperty(isPostedUserPriceListField, findProperty("isPostedUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "isPosted")));
+                ImportField isPostedUserPriceListField = new ImportField(findProperty("isPosted[UserPriceList]"));
+                props.add(new ImportProperty(isPostedUserPriceListField, findProperty("isPosted[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "isPosted")));
                 fields.add(isPostedUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).isPosted);
             }
 
             if (showField(userPriceListDetailList, "dateFrom")) {
-                ImportField dateFromUserPriceListField = new ImportField(findProperty("fromDateUserPriceList"));
-                props.add(new ImportProperty(dateFromUserPriceListField, findProperty("fromDateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateFrom")));
+                ImportField dateFromUserPriceListField = new ImportField(findProperty("fromDate[UserPriceList]"));
+                props.add(new ImportProperty(dateFromUserPriceListField, findProperty("fromDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateFrom")));
                 fields.add(dateFromUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).dateFrom);
             }
 
             if (showField(userPriceListDetailList, "dateTo")) {
-                ImportField dateToUserPriceListField = new ImportField(findProperty("toDateUserPriceList"));
-                props.add(new ImportProperty(dateToUserPriceListField, findProperty("toDateUserPriceList").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateTo")));
+                ImportField dateToUserPriceListField = new ImportField(findProperty("toDate[UserPriceList]"));
+                props.add(new ImportProperty(dateToUserPriceListField, findProperty("toDate[UserPriceList]").getMapping(userPriceListObject), getReplaceOnlyNull(defaultColumns, "dateTo")));
                 fields.add(dateToUserPriceListField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("dateTo"));
             }
 
             if (showField(userPriceListDetailList, "valueVAT")) {
-                ImportField valueVATUserPriceListDetailField = new ImportField(findProperty("valueVATUserPriceListDetail"));
+                ImportField valueVATUserPriceListDetailField = new ImportField(findProperty("valueVAT[UserPriceListDetail]"));
                 ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) findClass("Range"),
-                        findProperty("valueCurrentVATDefaultValue").getMapping(valueVATUserPriceListDetailField));
+                        findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(valueVATUserPriceListDetailField));
                 keys.add(VATKey);
                 fields.add(valueVATUserPriceListDetailField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).getFieldValue("valueVAT"));
 
                 ImportField dateField = new ImportField(DateClass.instance);
-                props.add(new ImportProperty(dateField, findProperty("dataDateBarcode").getMapping(barcodeKey)));
+                props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey)));
                 fields.add(dateField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
                     data.get(i).add(userPriceListDetailList.get(i).dateVAT);
 
-                ImportField countryVATField = new ImportField(findProperty("nameCountry"));
+                ImportField countryVATField = new ImportField(findProperty("name[Country]"));
                 ImportKey<?> countryKey = new ImportKey((ConcreteCustomClass) findClass("Country"),
-                        findProperty("countryName").getMapping(countryVATField));
+                        findProperty("countryName[VARISTRING[50]]").getMapping(countryVATField));
                 keys.add(countryKey);
-                props.add(new ImportProperty(valueVATUserPriceListDetailField, findProperty("VATItemCountry").getMapping(itemKey, countryKey),
+                props.add(new ImportProperty(valueVATUserPriceListDetailField, findProperty("VAT[Item,Country]").getMapping(itemKey, countryKey),
                         object(findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
                 fields.add(countryVATField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
@@ -469,13 +469,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (itemAlcoholLM != null && showField(userPriceListDetailList, "alcoholSupplierType")) {
-                ImportField numberAlcoholSupplierTypeField = new ImportField(itemAlcoholLM.findProperty("numberAlcoholSupplierType"));
+                ImportField numberAlcoholSupplierTypeField = new ImportField(itemAlcoholLM.findProperty("number[AlcoholSupplierType]"));
                 ImportKey<?> alcoholSupplierTypeKey = new ImportKey((ConcreteCustomClass) itemAlcoholLM.findClass("AlcoholSupplierType"),
-                        itemAlcoholLM.findProperty("alcoholSupplierTypeNumber").getMapping(numberAlcoholSupplierTypeField));
+                        itemAlcoholLM.findProperty("alcoholSupplierType[INTEGER]").getMapping(numberAlcoholSupplierTypeField));
                 alcoholSupplierTypeKey.skipKey = true;
                 keys.add(alcoholSupplierTypeKey);
                 if (companyObject != null)
-                    props.add(new ImportProperty(numberAlcoholSupplierTypeField, itemAlcoholLM.findProperty("alcoholSupplierTypeLegalEntityItem").getMapping(companyObject, itemKey),
+                    props.add(new ImportProperty(numberAlcoholSupplierTypeField, itemAlcoholLM.findProperty("alcoholSupplierType[LegalEntity,Item]").getMapping(companyObject, itemKey),
                             object(itemAlcoholLM.findClass("AlcoholSupplierType")).getMapping(alcoholSupplierTypeKey), getReplaceOnlyNull(defaultColumns, "alcoholSupplierType")));
                 fields.add(numberAlcoholSupplierTypeField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
@@ -483,12 +483,12 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             }
 
             if (itemFoodLM != null && showField(userPriceListDetailList, "alcoholItem")) {
-                ImportField nameAlcoholField = new ImportField(itemFoodLM.findProperty("nameAlcohol"));
+                ImportField nameAlcoholField = new ImportField(itemFoodLM.findProperty("name[Alcohol]"));
                 ImportKey<?> alcoholKey = new ImportKey((ConcreteCustomClass) itemFoodLM.findClass("Alcohol"),
-                        itemFoodLM.findProperty("alcoholName").getMapping(nameAlcoholField));
+                        itemFoodLM.findProperty("alcoholName[VARISTRING[50]]").getMapping(nameAlcoholField));
                 keys.add(alcoholKey);
-                props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("nameAlcohol").getMapping(alcoholKey), getReplaceOnlyNull(defaultColumns, "alcoholItem")));
-                props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("alcoholItem").getMapping(itemKey),
+                props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("name[Alcohol]").getMapping(alcoholKey), getReplaceOnlyNull(defaultColumns, "alcoholItem")));
+                props.add(new ImportProperty(nameAlcoholField, itemFoodLM.findProperty("alcohol[Item]").getMapping(itemKey),
                             object(itemFoodLM.findClass("Alcohol")).getMapping(alcoholKey), getReplaceOnlyNull(defaultColumns, "alcoholItem")));
                 fields.add(nameAlcoholField);
                 for (int i = 0; i < userPriceListDetailList.size(); i++)
@@ -527,7 +527,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 session.popVolatileStats();
             }
 
-            findAction("formRefresh").execute(context);
+            findAction("formRefresh[]").execute(context);
 
             return result == null;
         }
@@ -548,8 +548,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         if (stockAdjustmentLM != null && dataAdjustment != null) {
 
-            stockAdjustmentLM.findAction("unpostAllUserAdjustment").execute(context.getSession());
-            stockAdjustmentLM.findAction("overImportAdjustment").execute(context.getSession());
+            stockAdjustmentLM.findAction("unpostAllUserAdjustment[]").execute(context.getSession());
+            stockAdjustmentLM.findAction("overImportAdjustment[]").execute(context.getSession());
 
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) stockAdjustmentLM.findClass("UserAdjustment"));
 
@@ -560,64 +560,64 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
             List<List<Object>> data = initData(dataAdjustment.size());
 
             if (stockObject != null) {
-                props.add(new ImportProperty(stockObject, stockAdjustmentLM.findProperty("stockUserAdjustment").getMapping(userAdjustmentObject)));
+                props.add(new ImportProperty(stockObject, stockAdjustmentLM.findProperty("stock[UserAdjustment]").getMapping(userAdjustmentObject)));
             }
 
-            ImportField idItemField = new ImportField(findProperty("idItem"));
+            ImportField idItemField = new ImportField(findProperty("id[Item]"));
             fields.add(idItemField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).idItem);
 
-            ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+            ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
             ImportKey<?> barcodeKey = new ImportKey((ConcreteCustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(idBarcodeSkuField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
             keys.add(barcodeKey);
             fields.add(idBarcodeSkuField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).barcodeItem);
 
-            LCP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "itemId" : "skuBarcodeId");
+            LCP<?> iGroupAggr = findProperty((itemKeyType == null || itemKeyType.equals("item")) ? "item[VARSTRING[100]]" : "skuBarcode[STRING[15]]");
             ImportField iField = (itemKeyType == null || itemKeyType.equals("item")) ? idItemField : idBarcodeSkuField;
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
             keys.add(itemKey);
 
-            ImportField idUserAdjustmentDetailField = new ImportField(stockAdjustmentLM.findProperty("idUserAdjustmentDetail"));
+            ImportField idUserAdjustmentDetailField = new ImportField(stockAdjustmentLM.findProperty("id[UserAdjustmentDetail]"));
             ImportKey<?> userAdjustmentDetailKey = new ImportKey((ConcreteCustomClass) stockAdjustmentLM.findClass("UserAdjustmentDetail"),
-                    stockAdjustmentLM.findProperty("userAdjustmentDetailIdUserAdjustment").getMapping(idUserAdjustmentDetailField, userAdjustmentObject));
+                    stockAdjustmentLM.findProperty("userAdjustmentDetail[VARSTRING[100],UserAdjustment]").getMapping(idUserAdjustmentDetailField, userAdjustmentObject));
             keys.add(userAdjustmentDetailKey);
-            props.add(new ImportProperty(userAdjustmentObject, stockAdjustmentLM.findProperty("userAdjustmentUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
-            props.add(new ImportProperty(idUserAdjustmentDetailField, stockAdjustmentLM.findProperty("idUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
-            props.add(new ImportProperty(iField, stockAdjustmentLM.findProperty("skuUserAdjustmentDetail").getMapping(userAdjustmentDetailKey),
+            props.add(new ImportProperty(userAdjustmentObject, stockAdjustmentLM.findProperty("userAdjustment[UserAdjustmentDetail]").getMapping(userAdjustmentDetailKey)));
+            props.add(new ImportProperty(idUserAdjustmentDetailField, stockAdjustmentLM.findProperty("id[UserAdjustmentDetail]").getMapping(userAdjustmentDetailKey)));
+            props.add(new ImportProperty(iField, stockAdjustmentLM.findProperty("sku[UserAdjustmentDetail]").getMapping(userAdjustmentDetailKey),
                     object(findClass("Sku")).getMapping(itemKey)));
-            props.add(new ImportProperty(iField, findProperty("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(iField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
             fields.add(idUserAdjustmentDetailField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).idUserPriceListDetail);
 
-            ImportField quantityUserAdjustmentDetailField = new ImportField(stockAdjustmentLM.findProperty("quantityUserAdjustmentDetail"));
-            props.add(new ImportProperty(quantityUserAdjustmentDetailField, stockAdjustmentLM.findProperty("quantityUserAdjustmentDetail").getMapping(userAdjustmentDetailKey)));
+            ImportField quantityUserAdjustmentDetailField = new ImportField(stockAdjustmentLM.findProperty("quantity[UserAdjustmentDetail]"));
+            props.add(new ImportProperty(quantityUserAdjustmentDetailField, stockAdjustmentLM.findProperty("quantity[UserAdjustmentDetail]").getMapping(userAdjustmentDetailKey)));
             fields.add(quantityUserAdjustmentDetailField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(dataAdjustment.get(i).quantityAdjustment);
 
             if (showField(dataAdjustment, "dateUserPriceList")) {
-                ImportField dateUserAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("dateUserAdjustment"));
-                props.add(new ImportProperty(dateUserAdjustmentField, stockAdjustmentLM.findProperty("dateUserAdjustment").getMapping(userAdjustmentObject)));
+                ImportField dateUserAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("date[UserAdjustment]"));
+                props.add(new ImportProperty(dateUserAdjustmentField, stockAdjustmentLM.findProperty("date[UserAdjustment]").getMapping(userAdjustmentObject)));
                 fields.add(dateUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
                     data.get(i).add(dataAdjustment.get(i).dateUserPriceList);
 
-                ImportField timeUserAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("timeUserAdjustment"));
-                props.add(new ImportProperty(timeUserAdjustmentField, stockAdjustmentLM.findProperty("timeUserAdjustment").getMapping(userAdjustmentObject)));
+                ImportField timeUserAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("time[UserAdjustment]"));
+                props.add(new ImportProperty(timeUserAdjustmentField, stockAdjustmentLM.findProperty("time[UserAdjustment]").getMapping(userAdjustmentObject)));
                 fields.add(timeUserAdjustmentField);
                 for (int i = 0; i < dataAdjustment.size(); i++)
                     data.get(i).add(new Time(0, 0, 0));
             }
 
-            ImportField isPostedAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("isPostedAdjustment"));
-            props.add(new ImportProperty(isPostedAdjustmentField, stockAdjustmentLM.findProperty("isPostedAdjustment").getMapping(userAdjustmentObject)));
+            ImportField isPostedAdjustmentField = new ImportField(stockAdjustmentLM.findProperty("isPosted[Adjustment]"));
+            props.add(new ImportProperty(isPostedAdjustmentField, stockAdjustmentLM.findProperty("isPosted[Adjustment]").getMapping(userAdjustmentObject)));
             fields.add(isPostedAdjustmentField);
             for (int i = 0; i < dataAdjustment.size(); i++)
                 data.get(i).add(true);
@@ -636,7 +636,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                 session.popVolatileStats();
             }
 
-            findAction("formRefresh").execute(context);
+            findAction("formRefresh[]").execute(context);
 
             return result == null;
         }
@@ -951,13 +951,13 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "importUserPriceListTypeDetail", importUserPriceListTypeDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         String[] names = new String[] {"staticName", "staticCaption", "propertyImportUserPriceListTypeDetail", "nameKeyImportUserPriceListTypeDetail"};
-        LCP[] properties = findProperties("staticName", "staticCaption", "canonicalNamePropImportTypeDetail", "nameKeyImportTypeDetail");
+        LCP[] properties = findProperties("staticName[Object]", "staticCaption[Object]", "canonicalNamePropImport[ImportUserPriceListTypeDetail]", "nameKeyImport[ImportUserPriceListTypeDetail]");
         for (int j = 0; j < properties.length; j++) {
             query.addProperty(names[j], properties[j].getExpr(importUserPriceListTypeDetailExpr));
         }
-        query.addProperty("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail", findProperty("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(importTypeObject.getExpr(), importUserPriceListTypeDetailExpr));
-        query.addProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail", findProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(importTypeObject.getExpr(), importUserPriceListTypeDetailExpr));
-        query.and(findProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail").getExpr(importTypeObject.getExpr(), importUserPriceListTypeDetailExpr).getWhere());
+        query.addProperty("replaceOnlyNullImportUserPriceListTypeImportUserPriceListTypeDetail", findProperty("replaceOnlyNull[ImportUserPriceListType,ImportUserPriceListTypeDetail]").getExpr(importTypeObject.getExpr(), importUserPriceListTypeDetailExpr));
+        query.addProperty("indexImportUserPriceListTypeImportUserPriceListTypeDetail", findProperty("index[ImportUserPriceListType,ImportUserPriceListTypeDetail]").getExpr(importTypeObject.getExpr(), importUserPriceListTypeDetailExpr));
+        query.and(findProperty("index[ImportUserPriceListType,ImportUserPriceListTypeDetail]").getExpr(importTypeObject.getExpr(), importUserPriceListTypeDetailExpr).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         for (ImMap<Object, Object> entry : result.valueIt()) {
@@ -993,7 +993,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         ImRevMap<PropertyInterface, KeyExpr> keys = isDataPriceListType.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<PropertyInterface, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("indexImportUserPriceListTypeDataPriceListType", findProperty("indexImportUserPriceListTypeDataPriceListType").getExpr(context.getModifier(), importUserPriceListTypeObject.getExpr(), key));
+        query.addProperty("indexImportUserPriceListTypeDataPriceListType", findProperty("index[ImportUserPriceListType,DataPriceListType]").getExpr(context.getModifier(), importUserPriceListTypeObject.getExpr(), key));
         query.and(isDataPriceListType.getExpr(key).getWhere());
         ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
 
@@ -1013,32 +1013,32 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
     }
 
     public ImportPriceListSettings readImportPriceListSettings(ExecutionContext context, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String fileExtension = trim((String) findProperty("captionImportUserPriceListTypeFileExtensionImportUserPriceListType").read(context, importTypeObject));        
-        String quantityAdjustmentColumn = (String) findProperty("quantityAdjustmentImportUserPriceListType").read(context, importTypeObject);
+        String fileExtension = trim((String) findProperty("captionImportUserPriceListTypeFileExtension[ImportUserPriceListType]").read(context, importTypeObject));
+        String quantityAdjustmentColumn = (String) findProperty("quantityAdjustment[ImportUserPriceListType]").read(context, importTypeObject);
 
-        ObjectValue operation = findProperty("operationImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue operation = findProperty("operation[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
         DataObject operationObject = operation instanceof NullValue ? null : (DataObject) operation;
 
-        ObjectValue company = findProperty("companyImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue company = findProperty("company[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
         DataObject companyObject = company instanceof NullValue ? null : (DataObject) company;
 
-        ObjectValue stock = findProperty("stockImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue stock = findProperty("stock[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
         DataObject stockObject = stock instanceof NullValue ? null : (DataObject) stock;
 
-        ObjectValue defaultItemGroup = findProperty("defaultItemGroupImportUserPriceListType").readClasses(context, (DataObject) importTypeObject);
+        ObjectValue defaultItemGroup = findProperty("defaultItemGroup[ImportUserPriceListType]").readClasses(context, (DataObject) importTypeObject);
         DataObject defaultItemGroupObject = defaultItemGroup instanceof NullValue ? null : (DataObject) defaultItemGroup;
         
-        String itemKeyType = (String) findProperty("nameImportUserPriceListKeyTypeImportUserPriceListType").read(context, importTypeObject);
+        String itemKeyType = (String) findProperty("nameImportUserPriceListKeyType[ImportUserPriceListType]").read(context, importTypeObject);
         String[] parts = itemKeyType == null ? null : itemKeyType.split("\\.");
         itemKeyType = parts == null ? null : trim(parts[parts.length - 1]);
         
-        String separator = trim((String) findProperty("separatorImportUserPriceListType").read(context, importTypeObject), ";");
-        Integer startRow = (Integer) findProperty("startRowImportUserPriceListType").read(context, importTypeObject);
+        String separator = trim((String) findProperty("separator[ImportUserPriceListType]").read(context, importTypeObject), ";");
+        Integer startRow = (Integer) findProperty("startRow[ImportUserPriceListType]").read(context, importTypeObject);
         startRow = startRow == null || startRow.equals(0) ? 1 : startRow;
-        Boolean isPosted = (Boolean) findProperty("isPostedImportUserPriceListType").read(context, importTypeObject);
-        boolean doNotCreateItems = findProperty("doNotCreateItemsImportUserPriceListType").read(context, importTypeObject) != null;
-        boolean barcodeMaybeUPC = findProperty("barcodeMaybeUPCImportUserPriceListType").read(context, importTypeObject) != null;
-        String checkColumn = (String) findProperty("checkColumnImportUserPriceListType").read(context, importTypeObject);
+        Boolean isPosted = (Boolean) findProperty("isPosted[ImportUserPriceListType]").read(context, importTypeObject);
+        boolean doNotCreateItems = findProperty("doNotCreateItems[ImportUserPriceListType]").read(context, importTypeObject) != null;
+        boolean barcodeMaybeUPC = findProperty("barcodeMaybeUPC[ImportUserPriceListType]").read(context, importTypeObject) != null;
+        String checkColumn = (String) findProperty("checkColumn[ImportUserPriceListType]").read(context, importTypeObject);
         return new ImportPriceListSettings(fileExtension, quantityAdjustmentColumn, operationObject, companyObject, stockObject, defaultItemGroupObject, 
                 itemKeyType, separator, startRow, isPosted, doNotCreateItems, barcodeMaybeUPC, checkColumn);
     }

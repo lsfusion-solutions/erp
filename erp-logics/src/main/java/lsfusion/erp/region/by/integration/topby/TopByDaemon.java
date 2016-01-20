@@ -173,9 +173,9 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                                                 break;
                                             case "1":
                                                 try (DataSession session = dbManager.createSession()) {
-                                                    ObjectValue invoiceObject = topByLM.findProperty("Purchase.userInvoiceId").readClasses(session, new DataObject(inputDocument.seriesNumber));
+                                                    ObjectValue invoiceObject = topByLM.findProperty("userInvoice[VARSTRING[100]]").readClasses(session, new DataObject(inputDocument.seriesNumber));
                                                     if (invoiceObject instanceof DataObject) {
-                                                        topByLM.findProperty("isCancelledUserInvoice").change(true, session, (DataObject) invoiceObject);
+                                                        topByLM.findProperty("isCancelled[UserInvoice]").change(true, session, (DataObject) invoiceObject);
                                                         session.apply(businessLogics);
                                                     }
                                                 }
@@ -223,206 +223,206 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
 
             try (DataSession session = dbManager.createSession()) {
 
-                ImportField idUserInvoiceField = new ImportField(topByLM.findProperty("idUserInvoice"));
+                ImportField idUserInvoiceField = new ImportField(topByLM.findProperty("id[UserInvoice]"));
                 ImportKey<?> userInvoiceKey = new ImportKey((ConcreteCustomClass) topByLM.findClass("Purchase.UserInvoice"),
-                        topByLM.findProperty("userInvoiceId").getMapping(idUserInvoiceField));
+                        topByLM.findProperty("userInvoice[VARSTRING[100]]").getMapping(idUserInvoiceField));
                 keys.add(userInvoiceKey);
-                props.add(new ImportProperty(idUserInvoiceField, topByLM.findProperty("idUserInvoice").getMapping(userInvoiceKey)));
+                props.add(new ImportProperty(idUserInvoiceField, topByLM.findProperty("id[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(idUserInvoiceField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.seriesNumber);
 
-                ImportField idOperationField = new ImportField(topByLM.findProperty("Purchase.idOperation"));
+                ImportField idOperationField = new ImportField(topByLM.findProperty("id[Purchase.Operation]"));
                 ImportKey<?> operationKey = new ImportKey((CustomClass) topByLM.findClass("Purchase.Operation"),
-                        topByLM.findProperty("Purchase.operationId").getMapping(idOperationField));
+                        topByLM.findProperty("Purchase.operation[VARISTRING[100]]").getMapping(idOperationField));
                 keys.add(operationKey);
-                props.add(new ImportProperty(idOperationField, topByLM.findProperty("Purchase.operationUserInvoice").getMapping(userInvoiceKey),
+                props.add(new ImportProperty(idOperationField, topByLM.findProperty("operation[UserInvoice]").getMapping(userInvoiceKey),
                         topByLM.object(topByLM.findClass("Purchase.Operation")).getMapping(operationKey)));
                 fields.add(idOperationField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(null);
 
-                ImportField GLNSupplierField = new ImportField(topByLM.findProperty("GLNLegalEntity"));
+                ImportField GLNSupplierField = new ImportField(topByLM.findProperty("GLN[LegalEntity]"));
                 ImportKey<?> supplierKey = new ImportKey((ConcreteCustomClass) topByLM.findClass("LegalEntity"),
-                        topByLM.findProperty("legalEntityGLN").getMapping(GLNSupplierField));
+                        topByLM.findProperty("legalGLN[VARSTRING[13]]").getMapping(GLNSupplierField));
                 supplierKey.skipKey = true;
                 keys.add(supplierKey);
-                props.add(new ImportProperty(GLNSupplierField, topByLM.findProperty("GLNLegalEntity").getMapping(supplierKey), true));
-                props.add(new ImportProperty(GLNSupplierField, topByLM.findProperty("Purchase.supplierUserInvoice").getMapping(userInvoiceKey),
+                props.add(new ImportProperty(GLNSupplierField, topByLM.findProperty("GLN[LegalEntity]").getMapping(supplierKey), true));
+                props.add(new ImportProperty(GLNSupplierField, topByLM.findProperty("supplier[UserInvoice]").getMapping(userInvoiceKey),
                         topByLM.object(topByLM.findClass("LegalEntity")).getMapping(supplierKey)));
                 fields.add(GLNSupplierField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.glnSupplier);
 
-                ImportField nameSupplierField = new ImportField(topByLM.findProperty("nameLegalEntity"));
-                props.add(new ImportProperty(nameSupplierField, topByLM.findProperty("nameLegalEntity").getMapping(supplierKey), true));
+                ImportField nameSupplierField = new ImportField(topByLM.findProperty("name[LegalEntity]"));
+                props.add(new ImportProperty(nameSupplierField, topByLM.findProperty("name[LegalEntity]").getMapping(supplierKey), true));
                 fields.add(nameSupplierField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.nameSupplier);
 
-                ImportField addressSupplierField = new ImportField(topByLM.findProperty("addressLegalEntity"));
-                props.add(new ImportProperty(addressSupplierField, topByLM.findProperty("addressLegalEntity").getMapping(supplierKey), true));
+                ImportField addressSupplierField = new ImportField(topByLM.findProperty("address[LegalEntity]"));
+                props.add(new ImportProperty(addressSupplierField, topByLM.findProperty("address[LegalEntity]").getMapping(supplierKey), true));
                 fields.add(addressSupplierField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.addressSupplier);
 
-                ImportField UNPSupplierField = new ImportField(topByLM.findProperty("UNPLegalEntity"));
-                props.add(new ImportProperty(UNPSupplierField, topByLM.findProperty("UNPLegalEntity").getMapping(supplierKey), true));
+                ImportField UNPSupplierField = new ImportField(topByLM.findProperty("UNP[LegalEntity]"));
+                props.add(new ImportProperty(UNPSupplierField, topByLM.findProperty("UNP[LegalEntity]").getMapping(supplierKey), true));
                 fields.add(UNPSupplierField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.UNPSupplier);
 
-                ImportField GLNSupplierStockField = new ImportField(topByLM.findProperty("GLNStock"));
+                ImportField GLNSupplierStockField = new ImportField(topByLM.findProperty("GLN[Stock]"));
                 ImportKey<?> supplierStockKey = new ImportKey((CustomClass) topByLM.findClass("Stock"),
-                        topByLM.findProperty("stockGLN").getMapping(GLNSupplierStockField));
+                        topByLM.findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNSupplierStockField));
                 supplierStockKey.skipKey = true;
                 keys.add(supplierStockKey);
-                props.add(new ImportProperty(GLNSupplierStockField, topByLM.findProperty("GLNStock").getMapping(supplierStockKey), true));
-                props.add(new ImportProperty(GLNSupplierStockField, topByLM.findProperty("Purchase.supplierStockUserInvoice").getMapping(userInvoiceKey),
+                props.add(new ImportProperty(GLNSupplierStockField, topByLM.findProperty("GLN[Stock]").getMapping(supplierStockKey), true));
+                props.add(new ImportProperty(GLNSupplierStockField, topByLM.findProperty("supplierStock[UserInvoice]").getMapping(userInvoiceKey),
                         topByLM.object(topByLM.findClass("Stock")).getMapping(supplierStockKey)));
                 fields.add(GLNSupplierStockField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.glnSupplierStock);
 
-                ImportField addressSupplierStockField = new ImportField(topByLM.findProperty("addressStock"));
-                props.add(new ImportProperty(addressSupplierStockField, topByLM.findProperty("addressStock").getMapping(supplierStockKey), true));
+                ImportField addressSupplierStockField = new ImportField(topByLM.findProperty("address[Stock]"));
+                props.add(new ImportProperty(addressSupplierStockField, topByLM.findProperty("address[Stock]").getMapping(supplierStockKey), true));
                 fields.add(addressSupplierStockField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.addressSupplierStock);
 
-                ImportField GLNCustomerField = new ImportField(topByLM.findProperty("GLNLegalEntity"));
+                ImportField GLNCustomerField = new ImportField(topByLM.findProperty("GLN[LegalEntity]"));
                 ImportKey<?> customerKey = new ImportKey((CustomClass) topByLM.findClass("LegalEntity"),
-                        topByLM.findProperty("legalEntityGLN").getMapping(GLNCustomerField));
+                        topByLM.findProperty("legalGLN[VARSTRING[13]]").getMapping(GLNCustomerField));
                 customerKey.skipKey = true;
                 keys.add(customerKey);
-                props.add(new ImportProperty(GLNCustomerField, topByLM.findProperty("GLNLegalEntity").getMapping(customerKey), true));
-                props.add(new ImportProperty(GLNCustomerField, topByLM.findProperty("Purchase.customerUserInvoice").getMapping(userInvoiceKey),
+                props.add(new ImportProperty(GLNCustomerField, topByLM.findProperty("GLN[LegalEntity]").getMapping(customerKey), true));
+                props.add(new ImportProperty(GLNCustomerField, topByLM.findProperty("customer[UserInvoice]").getMapping(userInvoiceKey),
                         topByLM.object(topByLM.findClass("LegalEntity")).getMapping(customerKey)));
                 fields.add(GLNCustomerField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.glnCustomer);
 
-                ImportField nameCustomerField = new ImportField(topByLM.findProperty("nameLegalEntity"));
-                props.add(new ImportProperty(nameCustomerField, topByLM.findProperty("nameLegalEntity").getMapping(customerKey), true));
+                ImportField nameCustomerField = new ImportField(topByLM.findProperty("name[LegalEntity]"));
+                props.add(new ImportProperty(nameCustomerField, topByLM.findProperty("name[LegalEntity]").getMapping(customerKey), true));
                 fields.add(nameCustomerField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.nameCustomer);
 
-                ImportField addressCustomerField = new ImportField(topByLM.findProperty("addressLegalEntity"));
-                props.add(new ImportProperty(addressCustomerField, topByLM.findProperty("addressLegalEntity").getMapping(customerKey), true));
+                ImportField addressCustomerField = new ImportField(topByLM.findProperty("address[LegalEntity]"));
+                props.add(new ImportProperty(addressCustomerField, topByLM.findProperty("address[LegalEntity]").getMapping(customerKey), true));
                 fields.add(addressCustomerField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.addressCustomer);
 
-                ImportField UNPCustomerField = new ImportField(topByLM.findProperty("UNPLegalEntity"));
-                props.add(new ImportProperty(UNPCustomerField, topByLM.findProperty("UNPLegalEntity").getMapping(customerKey), true));
+                ImportField UNPCustomerField = new ImportField(topByLM.findProperty("UNP[LegalEntity]"));
+                props.add(new ImportProperty(UNPCustomerField, topByLM.findProperty("UNP[LegalEntity]").getMapping(customerKey), true));
                 fields.add(UNPCustomerField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.UNPCustomer);
 
-                ImportField GLNCustomerStockField = new ImportField(topByLM.findProperty("GLNStock"));
+                ImportField GLNCustomerStockField = new ImportField(topByLM.findProperty("GLN[Stock]"));
                 ImportKey<?> customerStockKey = new ImportKey((CustomClass) topByLM.findClass("Stock"),
-                        topByLM.findProperty("stockGLN").getMapping(GLNCustomerStockField));
+                        topByLM.findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockField));
                 customerStockKey.skipKey = true;
                 keys.add(customerStockKey);
-                props.add(new ImportProperty(GLNCustomerStockField, topByLM.findProperty("GLNStock").getMapping(customerStockKey), true));
-                props.add(new ImportProperty(GLNCustomerStockField, topByLM.findProperty("Purchase.customerStockUserInvoice").getMapping(userInvoiceKey),
+                props.add(new ImportProperty(GLNCustomerStockField, topByLM.findProperty("GLN[Stock]").getMapping(customerStockKey), true));
+                props.add(new ImportProperty(GLNCustomerStockField, topByLM.findProperty("customerStock[UserInvoice]").getMapping(userInvoiceKey),
                         topByLM.object(topByLM.findClass("Stock")).getMapping(customerStockKey)));
                 fields.add(GLNCustomerStockField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.glnCustomerStock);
 
-                ImportField addressCustomerStockField = new ImportField(topByLM.findProperty("addressStock"));
-                props.add(new ImportProperty(addressCustomerStockField, topByLM.findProperty("addressStock").getMapping(customerStockKey), true));
+                ImportField addressCustomerStockField = new ImportField(topByLM.findProperty("address[Stock]"));
+                props.add(new ImportProperty(addressCustomerStockField, topByLM.findProperty("address[Stock]").getMapping(customerStockKey), true));
                 fields.add(addressCustomerStockField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.addressCustomerStock);
 
-                ImportField numberUserInvoiceField = new ImportField(topByLM.findProperty("Purchase.numberUserInvoice"));
-                props.add(new ImportProperty(numberUserInvoiceField, topByLM.findProperty("Purchase.numberUserInvoice").getMapping(userInvoiceKey)));
+                ImportField numberUserInvoiceField = new ImportField(topByLM.findProperty("number[UserInvoice]"));
+                props.add(new ImportProperty(numberUserInvoiceField, topByLM.findProperty("number[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(numberUserInvoiceField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.uniqueNumber);
 
-                ImportField seriesUserInvoiceField = new ImportField(topByLM.findProperty("Purchase.seriesUserInvoice"));
-                props.add(new ImportProperty(seriesUserInvoiceField, topByLM.findProperty("Purchase.seriesUserInvoice").getMapping(userInvoiceKey)));
+                ImportField seriesUserInvoiceField = new ImportField(topByLM.findProperty("series[UserInvoice]"));
+                props.add(new ImportProperty(seriesUserInvoiceField, topByLM.findProperty("series[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(seriesUserInvoiceField);
                 String series = inputDocument.seriesNumber == null ? null : inputDocument.seriesNumber.split("-")[0];
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(series);
 
-                ImportField dateUserInvoiceField = new ImportField(topByLM.findProperty("Purchase.dateUserInvoice"));
-                props.add(new ImportProperty(dateUserInvoiceField, topByLM.findProperty("Purchase.dateUserInvoice").getMapping(userInvoiceKey)));
+                ImportField dateUserInvoiceField = new ImportField(topByLM.findProperty("date[UserInvoice]"));
+                props.add(new ImportProperty(dateUserInvoiceField, topByLM.findProperty("date[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(dateUserInvoiceField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.date);
 
                 ImportField timeUserInvoiceField = new ImportField(TimeClass.instance);
-                props.add(new ImportProperty(timeUserInvoiceField, topByLM.findProperty("Purchase.timeUserInvoice").getMapping(userInvoiceKey)));
+                props.add(new ImportProperty(timeUserInvoiceField, topByLM.findProperty("time[UserInvoice]").getMapping(userInvoiceKey)));
                 fields.add(timeUserInvoiceField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.time);
 
-                ImportField idUserInvoiceDetailField = new ImportField(topByLM.findProperty("idUserInvoiceDetail"));
+                ImportField idUserInvoiceDetailField = new ImportField(topByLM.findProperty("id[UserInvoiceDetail]"));
                 ImportKey<?> userInvoiceDetailKey = new ImportKey((ConcreteCustomClass) topByLM.findClass("Purchase.UserInvoiceDetail"),
-                        topByLM.findProperty("userInvoiceDetailId").getMapping(idUserInvoiceDetailField));
+                        topByLM.findProperty("userInvoiceDetail[VARSTRING[100]]").getMapping(idUserInvoiceDetailField));
                 keys.add(userInvoiceDetailKey);
-                props.add(new ImportProperty(idUserInvoiceDetailField, topByLM.findProperty("idUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                props.add(new ImportProperty(idUserInvoiceField, topByLM.findProperty("Purchase.userInvoiceUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(idUserInvoiceDetailField, topByLM.findProperty("id[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(idUserInvoiceField, topByLM.findProperty("userInvoice[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         topByLM.object(topByLM.findClass("Purchase.UserInvoice")).getMapping(userInvoiceKey)));
                 fields.add(idUserInvoiceDetailField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).id);
 
-                ImportField idBarcodeField = new ImportField(topByLM.findProperty("idBarcode"));
+                ImportField idBarcodeField = new ImportField(topByLM.findProperty("id[Barcode]"));
                 ImportKey<?> itemKey = new ImportKey((CustomClass) topByLM.findClass("Item"),
-                        topByLM.findProperty("skuBarcodeId").getMapping(idBarcodeField));
+                        topByLM.findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeField));
                 keys.add(itemKey);
-                props.add(new ImportProperty(idBarcodeField, topByLM.findProperty("Purchase.skuInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(idBarcodeField, topByLM.findProperty("sku[Purchase.InvoiceDetail]").getMapping(userInvoiceDetailKey),
                         topByLM.object(topByLM.findClass("Item")).getMapping(itemKey)));
                 fields.add(idBarcodeField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).barcode);
 
-                ImportField quantityUserInvoiceDetailField = new ImportField(topByLM.findProperty("Purchase.quantityUserInvoiceDetail"));
-                props.add(new ImportProperty(quantityUserInvoiceDetailField, topByLM.findProperty("Purchase.quantityUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                ImportField quantityUserInvoiceDetailField = new ImportField(topByLM.findProperty("quantity[UserInvoiceDetail]"));
+                props.add(new ImportProperty(quantityUserInvoiceDetailField, topByLM.findProperty("quantity[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                 fields.add(quantityUserInvoiceDetailField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).quantity);
 
-                ImportField priceUserInvoiceDetail = new ImportField(topByLM.findProperty("Purchase.priceUserInvoiceDetail"));
-                props.add(new ImportProperty(priceUserInvoiceDetail, topByLM.findProperty("Purchase.priceUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                ImportField priceUserInvoiceDetail = new ImportField(topByLM.findProperty("price[UserInvoiceDetail]"));
+                props.add(new ImportProperty(priceUserInvoiceDetail, topByLM.findProperty("price[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                 fields.add(priceUserInvoiceDetail);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).price);
 
-                ImportField sumNetWeightUserInvoiceDetail = new ImportField(topByLM.findProperty("Purchase.sumNetWeightUserInvoiceDetail"));
-                props.add(new ImportProperty(sumNetWeightUserInvoiceDetail, topByLM.findProperty("Purchase.sumNetWeightUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
-                props.add(new ImportProperty(sumNetWeightUserInvoiceDetail, topByLM.findProperty("Purchase.sumGrossWeightUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                ImportField sumNetWeightUserInvoiceDetail = new ImportField(topByLM.findProperty("sumNetWeight[UserInvoiceDetail]"));
+                props.add(new ImportProperty(sumNetWeightUserInvoiceDetail, topByLM.findProperty("sumNetWeight[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+                props.add(new ImportProperty(sumNetWeightUserInvoiceDetail, topByLM.findProperty("sumGrossWeight[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                 fields.add(sumNetWeightUserInvoiceDetail);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).netWeight);
 
-                ImportField valueVATUserInvoiceDetailField = new ImportField(topByLM.findProperty("Purchase.valueVATUserInvoiceDetail"));
+                ImportField valueVATUserInvoiceDetailField = new ImportField(topByLM.findProperty("valueVAT[UserInvoiceDetail]"));
                 ImportKey<?> VATKey = new ImportKey((ConcreteCustomClass) topByLM.findClass("Range"),
-                        topByLM.findProperty("valueCurrentVATDefaultValue").getMapping(valueVATUserInvoiceDetailField));
+                        topByLM.findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(valueVATUserInvoiceDetailField));
                 VATKey.skipKey = true;
                 keys.add(VATKey);
-                props.add(new ImportProperty(valueVATUserInvoiceDetailField, topByLM.findProperty("Purchase.VATUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(valueVATUserInvoiceDetailField, topByLM.findProperty("VAT[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         topByLM.object(topByLM.findClass("Range")).getMapping(VATKey)));
                 fields.add(valueVATUserInvoiceDetailField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).vat);
 
-                ImportField VATSumUserInvoiceDetailField = new ImportField(topByLM.findProperty("Purchase.VATSumUserInvoiceDetail"));
-                props.add(new ImportProperty(VATSumUserInvoiceDetailField, topByLM.findProperty("Purchase.VATSumUserInvoiceDetail").getMapping(userInvoiceDetailKey)));
+                ImportField VATSumUserInvoiceDetailField = new ImportField(topByLM.findProperty("VATSum[UserInvoiceDetail]"));
+                props.add(new ImportProperty(VATSumUserInvoiceDetailField, topByLM.findProperty("VATSum[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                 fields.add(VATSumUserInvoiceDetailField);
                 for (int i = 0; i < inputDocument.detailList.size(); i++)
                     data.get(i).add(inputDocument.detailList.get(i).vatSum);
 
                 ImportTable table = new ImportTable(fields, data);
 
-                topByLM.findProperty("maxMessageNumber").change(uniqueMessageNumber, session);
+                topByLM.findProperty("maxMessageNumber[]").change(uniqueMessageNumber, session);
 
                 session.pushVolatileStats("TB_UI");
                 IntegrationService service = new IntegrationService(session, table, keys, props);
@@ -435,7 +435,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
         private Integer readUniqueMessageNumber(DataSession session) {
             Integer uniqueMessageNumber;
             try {
-                uniqueMessageNumber = (Integer) topByLM.findProperty("maxMessageNumber").read(session);
+                uniqueMessageNumber = (Integer) topByLM.findProperty("maxMessageNumber[]").read(session);
                 if (uniqueMessageNumber == null)
                     uniqueMessageNumber = 0;
             } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -562,7 +562,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
         private void createOutputDocument(String directoryOut, Integer uniqueMessageNumber, InputDocument inputDocument, boolean wbl) throws IOException, SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
             String nameChief;
             try (DataSession session = dbManager.createSession()) {
-                nameChief = (String) topByLM.findProperty("nameCustomUserChiefLegalEntity").read(session, topByLM.findProperty("legalEntityGLN").readClasses(session, new DataObject(inputDocument.glnCustomer)));
+                nameChief = (String) topByLM.findProperty("nameCustomUserChief[LegalEntity]").read(session, topByLM.findProperty("legalGLN[VARSTRING[13]]").readClasses(session, new DataObject(inputDocument.glnCustomer)));
             }
             java.util.Date dateTime = Calendar.getInstance().getTime();
             File outputFile = new File(String.format("%s/%s_%s_%s.txt", directoryOut, wbl ? "BLRWBR" : "BLRDNR", inputDocument.glnCustomer, dateTime.getTime()));

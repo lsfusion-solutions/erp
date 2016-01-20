@@ -5,52 +5,52 @@ REQUIRE PurchaseOrder;
 NAMESPACE Purchase;
 
 //-- Объединение заказов
-selectedOrder 'Отм.' = DATA LOCAL BOOLEAN (Order);  
-notSelectedOrder (order)= order IS Order AND NOT selectedOrder(order);
+selected 'Отм.' = DATA LOCAL BOOLEAN (Order);  
+notSelected (Order order)= order IS Order AND NOT selected(order);
 
-countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selectedOrder(order);
-countSelectedUserOrder 'Кол-во отм. (польз.)' = GROUP SUM 1 IF selectedOrder(order) AND order IS UserOrder;
+countSelectedOrder 'Кол-во отм.' = GROUP SUM 1 IF selected(Order order);
+countSelectedUserOrder 'Кол-во отм. (польз.)' = GROUP SUM 1 IF selected(UserOrder order) AND order IS UserOrder;
 
-countSelectedSupplier 'Кол-во поставщиков' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierOrder(order)](supplier);
-minSupplier = GROUP MIN supplier IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierOrder(order)](supplier);
+countSelectedSupplier 'Кол-во поставщиков' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY supplier(order)](LegalEntity supplier);
+minSupplier = GROUP MIN LegalEntity supplier IF [= GROUP SUM 1 IF selected(Order order) BY supplier(order)](supplier);
 
-countSelectedCustomer 'Кол-во покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY customerOrder(order)](customer);
-minCustomer = GROUP MIN customer IF [= GROUP SUM 1 IF selectedOrder(order) BY customerOrder(order)](customer);
+countSelectedCustomer 'Кол-во покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY customer(order)](LegalEntity customer);
+minCustomer = GROUP MIN LegalEntity customer IF [= GROUP SUM 1 IF selected(Order order) BY customer(order)](customer);
 
-countSelectedSupplierStock 'Кол-во складов поставщика' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierStockOrder(order)](supplierStock);
-minSupplierStock = GROUP MIN supplierStock IF [= GROUP SUM 1 IF selectedOrder(order) BY supplierStockOrder(order)](supplierStock);       
+countSelectedSupplierStock 'Кол-во складов поставщика' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](Stock supplierStock);
+minSupplierStock = GROUP MIN Stock supplierStock IF [= GROUP SUM 1 IF selected(Order order) BY supplierStock(order)](supplierStock);       
 
-countSelectedCustomerStock 'Кол-во складов покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY customerStockOrder(order)](customerStock);
-minCustomerStock = GROUP MIN customerStock IF [= GROUP SUM 1 IF selectedOrder(order) BY customerStockOrder(order)](customerStock);
+countSelectedCustomerStock 'Кол-во складов покупателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY customerStock(order)](Stock customerStock);
+minCustomerStock = GROUP MIN Stock customerStock IF [= GROUP SUM 1 IF selected(Order order) BY customerStock(order)](customerStock);
 
-countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedOrder(order) BY operationOrder(order)](operation);
-minOperation = GROUP MIN operation IF [= GROUP SUM 1 IF selectedOrder(order) BY operationOrder(order)](operation);
+countSelectedOperation 'Кол-во операций' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(Order order) BY operation(order)](Operation operation);
+minOperation = GROUP MIN Operation operation IF [= GROUP SUM 1 IF selected(Order order) BY operation(order)](operation);
 
-toShowSelectedOrder (order)= order IS UserOrder AND NOT selectedOrder(order);
+toShowSelected (UserOrder order)= order IS UserOrder AND NOT selected(order);
 
-replaceOrder 'Объединить' = ACTION (order) {
+replace 'Объединить' = ACTION (UserOrder order) {
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
     
             IF (NOT countSelectedSupplier()==1) OR (NOT countSelectedCustomer() == 1) OR (NOT countSelectedSupplierStock() ==1) OR (NOT countSelectedCustomerStock()==1) OR (NOT countSelectedOperation()==1) THEN {
                 MESSAGE 'Отмечены заказы с разными операциями, покупателями, поставщиками или их складами';               
             } ELSE {                  
-                IF (NOT minSupplier() == supplierOrder(order)) OR (NOT minSupplierStock() == supplierStockOrder(order)) OR (NOT minCustomer() == customerOrder(order)) OR (NOT minCustomerStock() == customerStockOrder(order)) OR (NOT minOperation() == operationOrder(order)) THEN {
+                IF (NOT minSupplier() == supplier[Order](order)) OR (NOT minSupplierStock() == supplierStock[Order](order)) OR (NOT minCustomer() == customer[Order](order)) OR (NOT minCustomerStock() == customerStock[Order](order)) OR (NOT minOperation() == operation[Order](order)) THEN {
                     MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
                 } ELSE {   
-                    FOR selectedOrder(o) AND orderOrderDetail(detail)==o ADDOBJ d = UserOrderDetail DO {
-                        userOrderUserOrderDetail(d) <- order;
-                        skuUserOrderDetail(d) <- skuOrderDetail(detail);
-                        batchUserOrderDetail(d) <- batchOrderDetail(detail);
-                        quantityUserOrderDetail(d) <- quantityOrderDetail(detail);
-                        dataSupplierStockUserOrderDetail(d) <- dataSupplierStockOrderDetail(detail);
-                        priceUserOrderDetail(d) <- priceOrderDetail(detail);
-                        invoicePriceUserOrderDetail(d) <- invoicePriceOrderDetail(detail);
-                        priceListTypeUserOrderDetail(d) <- priceListTypeOrderDetail(detail);      
-                        shipmentDataDateUserOrderDetail(d) <- shipmentDataDateOrderDetail(detail);         
-                        shipmentDataTimeUserOrderDetail(d) <- shipmentDataTimeOrderDetail(detail);        
-                        closeDataDateUserOrderDetail(d) <- closeDataDateOrderDetail(detail);                                         
-                        selectedOrder(o) <- NULL;
+                    FOR selected(Order o) AND order(OrderDetail detail)==o ADDOBJ d = UserOrderDetail DO {
+                        userOrder(d) <- order;
+                        sku(d) <- sku(detail);
+                        batch(d) <- batch(detail);
+                        quantity(d) <- quantity(detail);
+                        dataSupplierStock(d) <- dataSupplierStock(detail);
+                        price(d) <- price(detail);
+                        invoicePrice(d) <- invoicePrice(detail);
+                        priceListType(d) <- priceListType(detail);      
+                        shipmentDataDate(d) <- shipmentDataDate(detail);         
+                        shipmentDataTime(d) <- shipmentDataTime(detail);        
+                        closeDataDate(d) <- closeDataDate(detail);                                         
+                        selected(o) <- NULL;
                         DELETE o;
                     }
                     apply();
@@ -66,6 +66,6 @@ replaceOrder 'Объединить' = ACTION (order) {
 } CONFIRM;
 
 EXTEND FORM orders
-    PROPERTIES (o) selectedOrder BEFORE isClosedOrder(o)
-    PROPERTIES replaceOrder(o) FORCE PANEL TOOLBAR SHOWIF toShowSelectedOrder(o)
+    PROPERTIES (o) selected BEFORE isClosed(o)
+    PROPERTIES replace(o) FORCE PANEL TOOLBAR SHOWIF toShowSelected(o)
 ;

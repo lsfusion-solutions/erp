@@ -4,26 +4,26 @@ REQUIRE POS, SaleInvoiceContract, SaleReturnInvoiceContract, ContractPayment, Sa
 
 NAMESPACE Sale;
 
-passportPartyBContract 'Паспорт' = passportNumberLegalEntity(partyBContract(contract));
-shortNameOwnershipPartyBContract 'Форма собственности (сокр.)' = shortNameOwnershipLegalEntity(partyBContract(contract));
-balanceAContractCurrentDate 'Задолженность' = balanceAContractDate(contract, currentDate());
-lastPaymentContract 'Платеж' = GROUP LAST payment BY contractPayment(payment) ORDER payment WHERE isCostedOutContractLedger(payment);
+passportPartyB 'Паспорт' = passportNumber(partyB(Contract contract));
+shortNameOwnershipPartyB 'Форма собственности (сокр.)' = shortNameOwnership(partyB(Contract contract));
+balanceACurrentDate 'Задолженность' = balanceA(Contract contract, currentDate());
+lastPayment 'Платеж' = GROUP LAST Payment.Payment payment BY contract(payment) ORDER payment WHERE isCosted(payment);
 
-fiscalTypePayment 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment); 
-dataFiscalTypePayment 'Тип платежа' = DATA INTEGER (Payment.Payment);
-fiscalTypePayment(p) += dataFiscalTypePayment(p); 
+fiscalType 'Тип платежа' = ABSTRACT INTEGER (Payment.Payment); 
+dataFiscalType 'Тип платежа' = DATA INTEGER (Payment.Payment);
+fiscalType(Payment.Payment p) += dataFiscalType(p); 
 
 defaultCurrencyPaymentInstallments = DATA Currency (); 
-nameDefaultCurrencyPaymentInstallmentsy 'Валюта рассрочки' = nameCurrency(defaultCurrencyPaymentInstallments()) PREFCHARWIDTH 30;
+nameDefaultCurrencyPaymentInstallmentsy 'Валюта рассрочки' = name(defaultCurrencyPaymentInstallments()) PREFCHARWIDTH 30;
 
 defaultTypeExchangePaymentInstallments  = DATA TypeExchange ();
-nameDefaultTypeExchangePaymentInstallments 'Тип обмена рассрочки' = nameTypeExchange(defaultTypeExchangePaymentInstallments());
+nameDefaultTypeExchangePaymentInstallments 'Тип обмена рассрочки' = name(defaultTypeExchangePaymentInstallments());
 
 defaultTypeExchangeRepaymentInstallments  = DATA TypeExchange ();
-nameDefaultTypeExchangeReaymentInstallments 'Тип обмена погашения' = nameTypeExchange(defaultTypeExchangeRepaymentInstallments());
+nameDefaultTypeExchangeReaymentInstallments 'Тип обмена погашения' = name(defaultTypeExchangeRepaymentInstallments());
 
 defaultOperationPaymentInstallments = DATA Operation ();
-nameDefaultOperationPaymentInstallments 'Операция рассрочки' = nameOperation(defaultOperationPaymentInstallments()); 
+nameDefaultOperationPaymentInstallments 'Операция рассрочки' = name(defaultOperationPaymentInstallments()); 
 
 EXTEND FORM options
     PROPERTIES() nameDefaultCurrencyPaymentInstallmentsy, nameDefaultTypeExchangePaymentInstallments, nameDefaultTypeExchangeReaymentInstallments,
@@ -73,10 +73,10 @@ FORM paymentInstallments 'Рассрочка'
     PROPERTIES(n) sumPayment = OBJVALUE
     
     OBJECTS pt = PaymentType FIXED PANEL 
-    PROPERTIES(pt) SELECTOR namePaymentType
+    PROPERTIES(pt) SELECTOR name
     
     OBJECTS pc = PaymentCondition FIXED PANEL
-    PROPERTIES(pc) SELECTOR descriptionPaymentCondition    
+    PROPERTIES(pc) SELECTOR description    
 ;
 
 DESIGN paymentInstallments {
@@ -137,13 +137,13 @@ DESIGN paymentInstallments {
         }
         NEW sumContainer {
             caption = 'Платеж';
-            MOVE PROPERTY(descriptionPaymentCondition(pc)) {
+            MOVE PROPERTY(description(pc)) {
                 caption = 'Условия рассрочки';
                 fontSize = 32;   
                 panelCaptionAbove = TRUE;
                 preferredCharWidth = 15;
             }              
-            MOVE PROPERTY(namePaymentType(pt)) {
+            MOVE PROPERTY(name(pt)) {
                 caption = 'Тип платежа';
                 fontSize = 32;   
                 panelCaptionAbove = TRUE;
@@ -174,90 +174,90 @@ DESIGN paymentInstallments {
 setPassportLegalEntity () += ACTION () {
     REQUEST STRING[10] INPUT;
     passportNumberLegalEntity() <- requestedString(); 
-    FOR NOT requestCanceled() AND passportNumberLegalEntity(l) == requestedString() AND NOT isReadonly() DO {
-        nameLegalEntity() <- nameLegalEntity(l);
-        phoneContact() <- phoneContact(l);
-        postAddressContact() <- postAddressContact(l);
+    FOR NOT requestCanceled() AND passportNumber(LegalEntity l) == requestedString() AND NOT isReadonly() DO {
+        nameLegalEntity() <- name(l);
+        phoneContact() <- phone[Contact](l);
+        postAddressContact() <- postAddress[Contact](l);
         isReadonly() <- TRUE;
     }
 }
 
 setNameEmployee () += ACTION () {
     REQUEST VARSTRING[100] INPUT;
-    FOR NOT requestCanceled() AND idEmployee(e) == requestedString() DO {
+    FOR NOT requestCanceled() AND id(Employee e) == requestedString() DO {
         idEmployee() <- requestedString();    
-        nameEmployee() <- shortNameContact(e);
+        nameEmployee() <- shortName(e);
     } 
 }
 
-printReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
-printReturnReceiptInvoicePayment = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
+printReceipt = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
+printReturnReceipt = ABSTRACT ACTION LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
-createInvoiceReceipt  = ACTION (receipt, customer, employee, sum, paymentType, paymentCondition, note) {       
+createInvoice  = ACTION (Receipt receipt, LegalEntity customer, CustomUser employee, NUMERIC[16,2] sum, PaymentType paymentType, PaymentCondition paymentCondition, VARSTRING[100] note) {       
     FOR ADDOBJ i = UserInvoice DO {
-        operationUserInvoice(i) <- defaultOperationPaymentInstallments();
-        supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
-        supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
-        customerUserInvoice(i) <- customer;
-        customerStockUserInvoice(i) <- defaultStockLegalEntity(customer);
-        dateUserInvoice(i) <- dateReceipt(receipt);
-        timeUserInvoice(i) <- timeReceipt(receipt);
-        paymentConditionUserInvoice(i) <- paymentCondition;
-        priceListTypeUserInvoice(i) <- defaultPriceListTypeOperation(operationUserInvoice(i));
-        noteUserInvoice(i) <- note;
-        createShipmentUserInvoice(i) <- TRUE;
-        isPostedUserInvoice(i) <- TRUE;
-        createdUserUserInvoice(i) <- employee;
-        postedUserUserInvoice(i) <- employee;
+        operation(i) <- defaultOperationPaymentInstallments();
+        supplierStock(i) <- departmentStore(receipt);
+        supplier(i) <- legalEntity[Stock](departmentStore(receipt));
+        customer(i) <- customer;
+        customerStock(i) <- defaultStock(customer);
+        date(i) <- date(receipt);
+        time(i) <- time(receipt);
+        paymentCondition(i) <- paymentCondition;
+        priceListType(i) <- defaultPriceListType(operation(i));
+        note(i) <- note;
+        createShipment(i) <- TRUE;
+        isPosted(i) <- TRUE;
+        createdUser(i) <- employee;
+        postedUser(i) <- employee;
         FOR ADDOBJ c = UserContractSku DO {
-            supplierContractSku(c) <- legalEntityStock(departmentStoreReceipt(receipt));
-            customerContractSku(c) <- customer;
-            dateFromContract(c) <- dateReceipt(receipt);
-            currencyContract(c) <- defaultCurrencyPaymentInstallments();
-            typeContractSku(c) <- ContractSkuType.sale;
-            paymentConditionContract(c) <- paymentCondition;
-            typeExchangeContract(c) <- defaultTypeExchangePaymentInstallments();
-            contractSkuUserInvoice(i) <- c;            
+            supplier(c) <- legalEntity[Stock](departmentStore(receipt));
+            customer(c) <- customer;
+            dateFrom(c) <- date(receipt);
+            currency(c) <- defaultCurrencyPaymentInstallments();
+            type(c) <- ContractSkuType.sale;
+            paymentCondition(c) <- paymentCondition;
+            typeExchange(c) <- defaultTypeExchangePaymentInstallments();
+            contractSku(i) <- c;            
         }
         
-        FOR receiptReceiptDetail(detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
-            userInvoiceUserInvoiceDetail(d) <- i;
-            skuUserInvoiceDetail(d) <- skuReceiptDetail(detail);
-            quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
-            invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
-            shipmentSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
-            VATUserInvoiceDetail(d) <- VATReceiptDetail(detail);
-            valueVATUserInvoiceDetail(d) <- valueVATReceiptDetail(detail);
-            invoicePriceUserInvoiceDetail(d) <- priceReceiptDetail(detail);
-            priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + valueVATUserInvoiceDetail(d));
+        FOR receipt(ReceiptDetail detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
+            userInvoice(d) <- i;
+            sku(d) <- sku(detail);
+            quantity(d) <- quantity(detail);
+            invoiceSum(d) <- sum(detail);
+            shipmentSum(d) <- sum(detail);
+            VAT(d) <- VAT(detail);
+            valueVAT(d) <- valueVAT(detail);
+            invoicePrice(d) <- price(detail);
+            price(d) <- invoicePrice (d) * 100/(100 + valueVAT(d));
         }
         
         FOR ADDOBJ p = Payment.Payment DO {
-            datePayment(p) <- dateReceipt(receipt);
-            timePayment(p) <- timeReceipt(receipt); 
-            payerPayment(p) <- customer;
-            beneficiaryPayment(p) <- legalEntityStock(departmentStoreReceipt(receipt));
-            sumPayment(p) <- sum;
-            contractPayment(p) <- contractSkuUserInvoice(i);
-            isPostedPayment(p) <- TRUE;
-            IF debtInContractLedger(i) >= sumContractPayment(p) THEN {
-                costOutContractLedgerInContractLedger(p, i) <- sumContractPayment(p);    
-            } ELSE IF debtInContractLedger(i) < sumContractPayment(p) THEN{
-                costOutContractLedgerInContractLedger(p, i) <- debtInContractLedger(i);     
+            date(p) <- date(receipt);
+            time(p) <- time(receipt); 
+            payer(p) <- customer;
+            beneficiary(p) <- legalEntity[Stock](departmentStore(receipt));
+            sum(p) <- sum;
+            contract(p) <- contractSku(i);
+            isPosted(p) <- TRUE;
+            IF debt(i) >= sumContract(p) THEN {
+                cost(p, i) <- sumContract(p);    
+            } ELSE IF debt(i) < sumContract(p) THEN{
+                cost(p, i) <- debt(i);     
             } 
-            dataFiscalTypePayment(p) <- IF sidPaymentType(paymentType) == 'card' THEN 1 ELSE 0;
-            typePayment(p) <- IF sidPaymentType(paymentType) == 'card' THEN 1 ELSE 0;
+            dataFiscalType(p) <- IF sid(paymentType) == 'card' THEN 1 ELSE 0;
+            type(p) <- IF sid(paymentType) == 'card' THEN 1 ELSE 0;
             
-            DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
+            DELETE ReceiptDetail detail WHERE receipt(detail) == receipt;                                   
             DELETE receipt;
             
-            IF modelGroupMachinery(groupCashRegisterCashRegister(currentCashRegister())) AND NOT fiscalSkipReceipt(receipt) THEN {
+            IF model(groupCashRegister(currentCashRegister())) AND NOT fiscalSkip(receipt) THEN {
                 check();
                 IF NOT canceled() THEN {
-                    printReceiptInvoicePayment(i, p); 
+                    printReceipt(i, p); 
                     IF printReceiptResult() THEN {
-                        zReportPayment(p) <- currentZReport();             
+                        zReport(p) <- currentZReport();             
                         apply();
                         createCurrentReceipt();
                     }   
@@ -271,8 +271,8 @@ createInvoiceReceipt  = ACTION (receipt, customer, employee, sum, paymentType, p
     }
 }
 
-createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
-    IF quantityReceiptDetailReceipt(receipt) THEN {
+createPaymentInstallments 'Рассрочка' = ACTION (Receipt receipt) {
+    IF quantityReceiptDetail(receipt) THEN {
         passportNumberLegalEntity() <- NULL;
         nameLegalEntity() <- NULL;
         phoneContact() <- NULL;
@@ -282,30 +282,30 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
         nameEmployee() <- NULL;        
         FORM paymentInstallments MODAL;
         IF formResult() == FormResult.ok THEN {
-            FOR passportNumberLegalEntity(l) == passportNumberLegalEntity() AND idEmployee(e) == idEmployee() DO { 
-                createInvoiceReceipt(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
+            FOR passportNumber(LegalEntity l) == passportNumberLegalEntity() AND id(Employee e) == idEmployee() DO { 
+                createInvoice(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
             } ELSE {
                 ADDOBJ LegalEntity;
-                FOR l == addedObject() AND idEmployee(e) == idEmployee() DO {
-                    nameLegalEntity(l) <- nameLegalEntity();
-                    passportNumberLegalEntity(l) <- passportNumberLegalEntity();
-                    phoneContact(l) <- phoneContact();
-                    postAddressContact(l) <- postAddressContact();
-                    isCustomerLegalEntity(l) <- TRUE;
-                    FOR shortNameOwnership(ownership) == 'Ф.Л.' DO {
-                        ownershipLegalEntity(l) <- ownership;
+                FOR Object l == addedObject() AND id(Employee e) == idEmployee() DO {
+                    name[LegalEntity](l) <- nameLegalEntity();
+                    passportNumber(l) <- passportNumberLegalEntity();
+                    phone[Contact](l) <- phoneContact();
+                    postAddress[Contact](l) <- postAddressContact();
+                    isCustomer[LegalEntity](l) <- TRUE;
+                    FOR shortName(Ownership ownership) == 'Ф.Л.' DO {
+                        ownership(l) <- ownership;
                     }
-                    FOR nameLegalEntityGroup(group) == 'Покупатели' DO {
-                        legalEntityGroupLegalEntity(l) <- group;
+                    FOR name(LegalEntityGroup group) == 'Покупатели' DO {
+                        legalEntityGroup(l) <- group;
                     }
                     FOR ADDOBJ s = Warehouse DO {
-                        nameWarehouse(s) <- nameLegalEntity();
-                        legalEntityWarehouse(s) <- l;
-                        FOR nameWarehouseGroup(gr) == 'Склады контрагентов' DO {
-                            warehouseGroupWarehouse(s) <- gr;
+                        name(s) <- nameLegalEntity();
+                        legalEntity(s) <- l;
+                        FOR name(WarehouseGroup gr) == 'Склады контрагентов' DO {
+                            warehouseGroup(s) <- gr;
                         }
                     }
-                    createInvoiceReceipt(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
+                    createInvoice(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
                 }
             }    
         } ELSE {
@@ -314,15 +314,15 @@ createPaymentInstallments 'Рассрочка' = ACTION (receipt) {
     }         
 }
 
-backgroundContractReceipt (contract, receipt)= RGB(255,75,75) IF (balanceAContractCurrentDate(contract) (+) sumReceiptDetailReceipt(receipt) > 0.0); 
+background (Contract contract, Receipt receipt)= RGB(255,75,75) IF (balanceACurrentDate(contract) (+) sumReceiptDetail(receipt) > 0.0); 
 
 FORM prePayment 'Предоплата'
     OBJECTS r = Receipt FIXED PANEL 
     OBJECTS c = Contract
-    PROPERTIES(c) READONLY BACKGROUND backgroundContractReceipt(c, r) namePartyBContract, passportPartyBContract, balanceAContractCurrentDate
-    FILTERS balanceAContractCurrentDate(c) < 0,
-            shortNameOwnershipPartyBContract(c) == 'Ф.Л.',
-            legalEntityStock(departmentStoreReceipt(r)) == partyAContract(c)
+    PROPERTIES(c) READONLY BACKGROUND background(c, r) namePartyB, passportPartyB, balanceACurrentDate
+    FILTERS balanceACurrentDate(c) < 0,
+            shortNameOwnershipPartyB(c) == 'Ф.Л.',
+            legalEntity[Stock](departmentStore(r)) == partyA(c)
     
     PROPERTIES noteInvoice()
 ;
@@ -330,7 +330,7 @@ FORM prePayment 'Предоплата'
 DESIGN prePayment {
     REMOVE r.box;
     MOVE c.box {
-        PROPERTY(namePartyBContract(c)){
+        PROPERTY(namePartyB(c)){
             caption = 'ФИО';    
         }   
     }
@@ -346,45 +346,45 @@ DESIGN prePayment {
     MOVE functions.box;
 }
 
-createInvoicePrePayment 'Предоплата'  = ACTION (receipt) {
-    IF quantityReceiptDetailReceipt(receipt) THEN {
+createInvoicePrePayment 'Предоплата'  = ACTION (Receipt receipt) {
+    IF quantityReceiptDetail(receipt) THEN {
         noteInvoice() <- NULL;
         FORM prePayment OBJECTS r = receipt MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR ADDOBJ i = UserInvoice DO {
-                operationUserInvoice(i) <- defaultOperationPaymentInstallments();
-                supplierStockUserInvoice(i) <- departmentStoreReceipt(receipt);
-                supplierUserInvoice(i) <- legalEntityStock(departmentStoreReceipt(receipt));
-                customerUserInvoice(i) <- partyBContract(chosenObject('c'));
-                customerStockUserInvoice(i) <- defaultStockLegalEntity(partyBContract(chosenObject('c')));
-                dateUserInvoice(i) <- dateReceipt(receipt);
-                timeUserInvoice(i) <- timeReceipt(receipt);
-                contractSkuUserInvoice(i) <- chosenObject('c');
-                paymentConditionUserInvoice(i) <- paymentConditionContract(chosenObject('c'));
-                priceListTypeUserInvoice(i) <- defaultPriceListTypeOperation(operationUserInvoice(i));                
-                noteUserInvoice(i) <- noteInvoice();
-                createShipmentUserInvoice(i) <- TRUE;
-                isPostedUserInvoice(i) <- TRUE;
-                FOR p == lastPaymentContract(chosenObject('c')) DO {
-                    IF isCostedOutContractLedger(p) < sumReceiptDetailReceipt(receipt) THEN {
-                        costOutContractLedgerInContractLedger(p, i) <- isCostedOutContractLedger(p);    
+                operation(i) <- defaultOperationPaymentInstallments();
+                supplierStock(i) <- departmentStore(receipt);
+                supplier(i) <- legalEntity[Stock](departmentStore(receipt));
+                customer(i) <- partyB(chosenObject('c'));
+                customerStock(i) <- defaultStock(partyB(chosenObject('c')));
+                date(i) <- date(receipt);
+                time(i) <- time(receipt);
+                contractSku(i) <- chosenObject('c');
+                paymentCondition(i) <- paymentCondition[Contract](chosenObject('c'));
+                priceListType(i) <- defaultPriceListType(operation(i));                
+                note(i) <- noteInvoice();
+                createShipment(i) <- TRUE;
+                isPosted(i) <- TRUE;
+                FOR Payment.Payment p == lastPayment(chosenObject('c')) DO {
+                    IF isCosted(p) < sumReceiptDetail(receipt) THEN {
+                        cost(p, i) <- isCosted(p);    
                     } ELSE {
-                        costOutContractLedgerInContractLedger(p, i) <- sumReceiptDetailReceipt(receipt);                     
+                        cost(p, i) <- sumReceiptDetail(receipt);                     
                     }
                 }
-                FOR receiptReceiptDetail(detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
-                    userInvoiceUserInvoiceDetail(d) <- i;
-                    skuUserInvoiceDetail(d) <- skuReceiptDetail(detail);
-                    quantityUserInvoiceDetail(d) <- quantityReceiptDetail(detail);
-                    invoiceSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
-                    shipmentSumUserInvoiceDetail(d) <- sumReceiptDetail(detail);
-                    VATUserInvoiceDetail(d) <- VATReceiptDetail(detail);
-                    valueVATUserInvoiceDetail(d) <- valueVATReceiptDetail(detail);
-                    invoicePriceUserInvoiceDetail(d) <- priceReceiptDetail(detail);
-                    priceUserInvoiceDetail(d) <- invoicePriceUserInvoiceDetail (d) * 100/(100 + valueVATUserInvoiceDetail(d));
+                FOR receipt(ReceiptDetail detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
+                    userInvoice(d) <- i;
+                    sku(d) <- sku(detail);
+                    quantity(d) <- quantity(detail);
+                    invoiceSum(d) <- sum(detail);
+                    shipmentSum(d) <- sum(detail);
+                    VAT(d) <- VAT(detail);
+                    valueVAT(d) <- valueVAT(detail);
+                    invoicePrice(d) <- price(detail);
+                    price(d) <- invoicePrice (d) * 100/(100 + valueVAT(d));
                 }
             }
-            DELETE detail WHERE receiptReceiptDetail(detail) == receipt;                                   
+            DELETE ReceiptDetail detail WHERE receipt(detail) == receipt;                                   
             DELETE receipt;            
             apply();
             createCurrentReceipt();             

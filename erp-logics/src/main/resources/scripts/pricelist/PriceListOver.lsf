@@ -7,68 +7,68 @@ NAMESPACE PriceList;
 CLASS  OverPriceListType 'Перегруженный вид цены' : PriceList.PriceListType;
 TABLE overPriceListType(OverPriceListType);
 
-nameOverPriceListType 'Наименование' = DATA VARISTRING[100](OverPriceListType) IN recognize;
+name 'Наименование' = DATA VARISTRING[100](OverPriceListType) IN recognize;
 
-baseAPriceListLedgerOverPriceListType = DATA LedgerPriceListType (OverPriceListType);
-nameBaseAPriceListLedgerOverPriceListType 'Вид цены 1'(t) = nameLedgerPriceListType(baseAPriceListLedgerOverPriceListType(t));
+baseAPriceListLedger = DATA LedgerPriceListType (OverPriceListType);
+nameBaseAPriceListLedger 'Вид цены 1'(OverPriceListType t) = name(baseAPriceListLedger(t));
 
-baseBPriceListLedgerOverPriceListType = DATA LedgerPriceListType (OverPriceListType);
-nameBaseBPriceListLedgerOverPriceListType 'Вид цены 2' (t)= nameLedgerPriceListType(baseBPriceListLedgerOverPriceListType(t));
+baseBPriceListLedger = DATA LedgerPriceListType (OverPriceListType);
+nameBaseBPriceListLedger 'Вид цены 2' (OverPriceListType t)= name(baseBPriceListLedger(t));
 
-ledgerPriceListTypePriceListType(type) += baseAPriceListLedgerOverPriceListType(type); 
+ledgerPriceListType(OverPriceListType type) += baseAPriceListLedger(type); 
 
-priceBOverPriceListTypeSkuStockDateTime = OVERRIDE priceBLedgerPriceListTypeSkuStockDateTime(baseBPriceListLedgerOverPriceListType(type), sku, stock, dateTime), 
-    priceBLedgerPriceListTypeSkuStockDateTime(baseAPriceListLedgerOverPriceListType(type), sku, stock, dateTime);
-priceAOverPriceListTypeSkuStockDateTime = OVERRIDE priceALedgerPriceListTypeSkuStockDateTime(baseBPriceListLedgerOverPriceListType(type), sku, stock, dateTime), 
-    priceALedgerPriceListTypeSkuStockDateTime(baseAPriceListLedgerOverPriceListType(type), sku, stock, dateTime);
+priceB = OVERRIDE priceB(baseBPriceListLedger(OverPriceListType type), Sku sku, Stock stock, DATETIME dateTime), 
+    priceB(baseAPriceListLedger(type), sku, stock, dateTime);
+priceA = OVERRIDE priceA(baseBPriceListLedger(OverPriceListType type), Sku sku, Stock stock, DATETIME dateTime), 
+    priceA(baseAPriceListLedger(type), sku, stock, dateTime);
 
-priceBOverPriceListTypeBatchStockDateTime = OVERRIDE priceBLedgerPriceListTypeBatchStockDateTime(baseBPriceListLedgerOverPriceListType(type), batch, stock, dateTime), 
-    priceBLedgerPriceListTypeBatchStockDateTime(baseAPriceListLedgerOverPriceListType(type), batch, stock, dateTime);
-priceAOverPriceListTypeBatchStockDateTime = OVERRIDE priceALedgerPriceListTypeBatchStockDateTime(baseBPriceListLedgerOverPriceListType(type), batch, stock, dateTime), 
-    priceALedgerPriceListTypeBatchStockDateTime(baseAPriceListLedgerOverPriceListType(type), batch, stock, dateTime);
+priceB = OVERRIDE priceB(baseBPriceListLedger(OverPriceListType type), Batch batch, Stock stock, DATETIME dateTime), 
+    priceB(baseAPriceListLedger(type), batch, stock, dateTime);
+priceA = OVERRIDE priceA(baseBPriceListLedger(OverPriceListType type), Batch batch, Stock stock, DATETIME dateTime), 
+    priceA(baseAPriceListLedger(type), batch, stock, dateTime);
     
-countIncludeVATTypesOverPriceListType(type) = (1 IF includeVATLedgerPriceListType(baseAPriceListLedgerOverPriceListType(type))) (+) 
-                                                         (1 IF includeVATLedgerPriceListType(baseBPriceListLedgerOverPriceListType(type)));    
+countIncludeVATTypes(OverPriceListType type) = (1 IF includeVAT(baseAPriceListLedger(type))) (+) 
+                                                         (1 IF includeVAT(baseBPriceListLedger(type)));    
 
-CONSTRAINT countIncludeVATTypesOverPriceListType(type) == 1 IF type IS OverPriceListType
+CONSTRAINT countIncludeVATTypes(OverPriceListType type) == 1 IF type IS OverPriceListType
    MESSAGE 'Вид цены 1 и вид цены 2 должны быть одновременно или с НДС или без НДС' ;  
         
-namePriceListType(type) += nameOverPriceListType(type);
-includeVATPriceListType (type) += countIncludeVATTypesOverPriceListType(type) ==2;
+name(OverPriceListType type) += name(type);
+includeVAT (OverPriceListType type) += countIncludeVATTypes(type) ==2;
 
-priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBOverPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceAOverPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+priceB(OverPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
+priceA(OverPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
 
-priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceBOverPriceListTypeBatchStockDateTime(type, batch, stock, dateTime); 
-priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceAOverPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+priceB(OverPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceB(type, batch, stock, dateTime); 
+priceA(OverPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceA(type, batch, stock, dateTime);
     
 FORM overPriceListType 'Перегруженный вид цены'
     OBJECTS p = OverPriceListType FIXED PANEL
-    PROPERTIES(p) nameOverPriceListType, nameBaseAPriceListLedgerOverPriceListType, nameBaseBPriceListLedgerOverPriceListType 
+    PROPERTIES(p) name, nameBaseAPriceListLedger, nameBaseBPriceListLedger 
 
     EDIT OverPriceListType OBJECT p
 ;
     
 FORM overPriceListTypeDialog 'Перегруженный вид цены'
     OBJECTS p = OverPriceListType
-    PROPERTIES(p) READONLY nameOverPriceListType, nameBaseAPriceListLedgerOverPriceListType, nameBaseBPriceListLedgerOverPriceListType 
+    PROPERTIES(p) READONLY name, nameBaseAPriceListLedger, nameBaseBPriceListLedger 
 
     DIALOG OverPriceListType OBJECT p
 ;
 
-editOverPriceListType 'Редактировать' = ACTION EDITFORM OverPriceListType;
-editPriceListType(priceListType) += ACTION editOverPriceListType(priceListType);
+edit 'Редактировать' = ACTION EDITFORM OverPriceListType;
+edit(OverPriceListType priceListType) += ACTION edit(priceListType);
 addOverPriceListType 'Добавить перегруженную цену' = ACTION ADDFORM OverPriceListType;
 
 EXTEND FORM priceListTypes
     PROPERTIES() TODRAW pt FORCE PANEL addOverPriceListType        
 ;
 
-overCopyPriceListType (priceListType) += ACTION (priceListType) NEWSESSION {
+overCopy (OverPriceListType priceListType) += ACTION (priceListType) NEWSESSION {
     IF priceListType IS OverPriceListType THEN {
         FOR ADDOBJ p = OverPriceListType DO {
-            baseAPriceListLedgerOverPriceListType(p) <- baseAPriceListLedgerOverPriceListType(priceListType);
-            baseBPriceListLedgerOverPriceListType(p) <- baseBPriceListLedgerOverPriceListType(priceListType);
+            baseAPriceListLedger(p) <- baseAPriceListLedger(priceListType);
+            baseBPriceListLedger(p) <- baseBPriceListLedger(priceListType);
 
                                     
             FORM overPriceListType OBJECTS p=p MANAGESESSION DOCKEDMODAL; 

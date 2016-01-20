@@ -7,28 +7,28 @@ NAMESPACE OrderLedger;
 FORM orderArticleLedgerNotDate 'Резерв по артикулам'
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES  SELECTOR nameStock(st)
+    PROPERTIES  SELECTOR name(st)
 
     OBJECTS ar = Article FIXED PANEL
-    PROPERTIES SELECTOR idArticle(ar)
+    PROPERTIES SELECTOR id(ar)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
-    PROPERTIES(s) READONLY  dateOrderLedger, 
-                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  toShipQuantityOrderLedger, quantityOrderLedger
-    ORDER BY statusReserveOrderLedger(s), dateTimeOrderLedger(s)
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve     
+    PROPERTIES(s) READONLY  date, 
+                  dateTime, nameContact, nameContactStock, description,
+                  toShipQuantity, quantity
+    ORDER BY statusReserve(s), dateTime(s)
                   
-    FILTERS stockOrderLedger(s)==st,
-            articleItem(skuOrderLedger(s))==ar
+    FILTERS stock(s)==st,
+            article(sku(s))==ar
 
-    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERS isPosted(s) AND NOT isClosed(s)
     FILTERGROUP toShipQuantityFilters
-        FILTER 'Не выполнено' toShipQuantityOrderLedger(s) > 0 'F7' DEFAULT   
+        FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT   
 
     FILTERGROUP stockTimesFilters
-        FILTER 'Резерв (закупки) всего' isPurchaseOrderLedger(s) 'F11'
-        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchaseOrderLedger(s) 'F10'
+        FILTER 'Резерв (закупки) всего' isPurchase(s) 'F11'
+        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchase(s) 'F10'
 ;
 
 DESIGN orderArticleLedgerNotDate {
@@ -50,31 +50,31 @@ FORM orderArticleLedger 'Резерв по артикулам'
     PROPERTIES  dVal=OBJVALUE(t)
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES  SELECTOR nameStock(st)
+    PROPERTIES  SELECTOR name(st)
 
     OBJECTS ar = Article FIXED PANEL
-    PROPERTIES SELECTOR idArticle(ar)
+    PROPERTIES SELECTOR id(ar)
 
     OBJECTS s = OrderLedger
-    PROPERTIES(s) READONLY BACKGROUND backgroundReserveOrderLedger(s) statusReserveOrderLedger     
-    PROPERTIES(s) READONLY BACKGROUND backgroundOrderLedgerDateTime(s,t)  dateOrderLedger, 
-                  dateTimeOrderLedger, nameContactOrderLedger, nameContactStockOrderLedger, descriptionOrderLedger,
-                  toShipQuantityOrderLedger, quantityOrderLedger
-    ORDER BY statusReserveOrderLedger(s)
+    PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve     
+    PROPERTIES(s) READONLY BACKGROUND background(s,t)  date, 
+                  dateTime, nameContact, nameContactStock, description,
+                  toShipQuantity, quantity
+    ORDER BY statusReserve(s)
                   
-    FILTERS stockOrderLedger(s)==st,
-            articleItem(skuOrderLedger(s))==ar
+    FILTERS stock(s)==st,
+            article(sku(s))==ar
 
-    FILTERS isPostedOrderLedger(s) AND NOT isClosedOrderLedger(s)
+    FILTERS isPosted(s) AND NOT isClosed(s)
     FILTERGROUP toShipQuantityFilters
-        FILTER 'Не выполнено' toShipQuantityOrderLedger(s) > 0 'F7' DEFAULT   
+        FILTER 'Не выполнено' toShipQuantity(s) > 0 'F7' DEFAULT   
 
     FILTERGROUP stockTimesFilters
-        FILTER 'Резерв (закупки) всего' isPurchaseOrderLedger(s) 'F11'
-        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchaseOrderLedger(s) 'F10'
-        FILTER 'Резерв (закупки) на дату' dateTimeOrderLedger(s) < t AND isPurchaseOrderLedger(s) 'F9'
-        FILTER 'Резерв (продажи) на дату' dateTimeOrderLedger(s)< t AND NOT isPurchaseOrderLedger(s) 'F8'
-        FILTER 'На дату' dateTimeOrderLedger(s) < t 'F7'
+        FILTER 'Резерв (закупки) всего' isPurchase(s) 'F11'
+        FILTER 'Резерв (продажи) всего' TRUE AND NOT isPurchase(s) 'F10'
+        FILTER 'Резерв (закупки) на дату' dateTime(s) < t AND isPurchase(s) 'F9'
+        FILTER 'Резерв (продажи) на дату' dateTime(s)< t AND NOT isPurchase(s) 'F8'
+        FILTER 'На дату' dateTime(s) < t 'F7'
 
 
 ;
@@ -94,9 +94,9 @@ DESIGN orderArticleLedger {
 }
 //-- Для просмотра резерва несколько складов
 META extendFormDocumentArticleStockOrderLedger(object)
-    reviewReserveArticleStock###object 'Резерв' (article, stock, object) = ACTION {
-        IF shipmentDateTime###object(object) THEN {
-            FORM orderArticleLedger OBJECTS t=shipmentDateTime###object(object), st=stock, ar = article MODAL;
+    reviewReserve 'Резерв' (Article article, Stock stock, ###object object) = ACTION {
+        IF shipmentDateTime(object) THEN {
+            FORM orderArticleLedger OBJECTS t=shipmentDateTime(object), st=stock, ar = article MODAL;
         } ELSE {
             FORM orderArticleLedgerNotDate OBJECTS st=stock, ar = article MODAL;    
         }
@@ -105,11 +105,11 @@ META extendFormDocumentArticleStockOrderLedger(object)
 END
 //-- Для просмотра резерва один склад
 META extendFormDocumentArticleOrderLedger(object, stockProp)
-    reviewReserveArticle###object 'Резерв' (article, object) = ACTION {
-        IF dateTime###object(object) THEN {
-            FORM orderArticleLedger OBJECTS t=dateTime###object(object), st=stockProp###object(object), ar = article MODAL;
+    reviewReserve 'Резерв' (Article article, ###object object) = ACTION {
+        IF dateTime(object) THEN {
+            FORM orderArticleLedger OBJECTS t=dateTime(object), st=stockProp(object), ar = article MODAL;
         } ELSE {
-            FORM orderArticleLedgerNotDate OBJECTS st=stockProp###object(object), ar = article MODAL;
+            FORM orderArticleLedgerNotDate OBJECTS st=stockProp(object), ar = article MODAL;
         }
     }
     

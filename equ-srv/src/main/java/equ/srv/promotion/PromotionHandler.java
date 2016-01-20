@@ -49,12 +49,12 @@ public class PromotionHandler extends LifecycleAdapter implements PromotionInter
 
                     String[] htcPromotionTimeNames = new String[]{"isStopHTCPromotionTime", "idHTCPromotionTime", "captionDayHTCPromotionTime",
                             "numberDayHTCPromotionTime", "beginTimeHTCPromotionTime", "endTimeHTCPromotionTime", "percentHTCPromotionTime"};
-                    LCP[] htcPromotionTimeProperties = HTCPromotionLM.findProperties("isStopHTCPromotionTime", "idHTCPromotionTime", "captionDayHTCPromotionTime",
-                            "numberDayHTCPromotionTime", "beginTimeHTCPromotionTime", "endTimeHTCPromotionTime", "percentHTCPromotionTime");
+                    LCP[] htcPromotionTimeProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionTime]", "id[HTCPromotionTime]", "captionDay[HTCPromotionTime]",
+                            "numberDay[HTCPromotionTime]", "beginTime[HTCPromotionTime]", "endTime[HTCPromotionTime]", "percent[HTCPromotionTime]");
                     for (int i = 0; i < htcPromotionTimeProperties.length; i++) {
                         htcPromotionTimeQuery.addProperty(htcPromotionTimeNames[i], htcPromotionTimeProperties[i].getExpr(htcPromotionTimeExpr));
                     }
-                    htcPromotionTimeQuery.and(HTCPromotionLM.findProperty("percentHTCPromotionTime").getExpr(htcPromotionTimeExpr).getWhere());
+                    htcPromotionTimeQuery.and(HTCPromotionLM.findProperty("percent[HTCPromotionTime]").getExpr(htcPromotionTimeExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> htcPromotionTimeResult = htcPromotionTimeQuery.execute(session);
 
@@ -81,12 +81,12 @@ public class PromotionHandler extends LifecycleAdapter implements PromotionInter
 
                     String[] htcPromotionQuantityNames = new String[]{"isStopHTCPromotionQuantity", "idHTCPromotionQuantity", "barcodeItemHTCPromotionQuantity",
                             "idItemHTCPromotionQuantity", "quantityHTCPromotionQuantity", "percentHTCPromotionQuantity"};
-                    LCP[] htcPromotionQuantityProperties = HTCPromotionLM.findProperties("isStopHTCPromotionQuantity", "idHTCPromotionQuantity", "barcodeItemHTCPromotionQuantity",
-                            "idItemHTCPromotionQuantity", "quantityHTCPromotionQuantity", "percentHTCPromotionQuantity");
+                    LCP[] htcPromotionQuantityProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionQuantity]", "id[HTCPromotionQuantity]", "barcodeItem[HTCPromotionQuantity]",
+                            "idItem[HTCPromotionQuantity]", "quantity[HTCPromotionQuantity]", "percent[HTCPromotionQuantity]");
                     for (int i = 0; i < htcPromotionQuantityProperties.length; i++) {
                         htcPromotionQuantityQuery.addProperty(htcPromotionQuantityNames[i], htcPromotionQuantityProperties[i].getExpr(htcPromotionQuantityExpr));
                     }
-                    htcPromotionQuantityQuery.and(HTCPromotionLM.findProperty("percentHTCPromotionQuantity").getExpr(htcPromotionQuantityExpr).getWhere());
+                    htcPromotionQuantityQuery.and(HTCPromotionLM.findProperty("percent[HTCPromotionQuantity]").getExpr(htcPromotionQuantityExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> htcPromotionQuantityResult = htcPromotionQuantityQuery.execute(session);
 
@@ -112,11 +112,11 @@ public class PromotionHandler extends LifecycleAdapter implements PromotionInter
                     QueryBuilder<Object, Object> htcPromotionSumQuery = new QueryBuilder<Object, Object>(htcPromotionSumKeys);
 
                     String[] htcPromotionSumNames = new String[]{"isStopHTCPromotionSum", "idHTCPromotionSum", "sumHTCPromotionSum", "percentHTCPromotionSum"};
-                    LCP[] htcPromotionSumProperties = HTCPromotionLM.findProperties("isStopHTCPromotionSum", "idHTCPromotionSum", "sumHTCPromotionSum", "percentHTCPromotionSum");
+                    LCP[] htcPromotionSumProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionSum]", "id[HTCPromotionSum]", "sum[HTCPromotionSum]", "percent[HTCPromotionSum]");
                     for (int i = 0; i < htcPromotionSumProperties.length; i++) {
                         htcPromotionSumQuery.addProperty(htcPromotionSumNames[i], htcPromotionSumProperties[i].getExpr(htcPromotionSumExpr));
                     }
-                    htcPromotionSumQuery.and(HTCPromotionLM.findProperty("percentHTCPromotionSum").getExpr(htcPromotionSumExpr).getWhere());
+                    htcPromotionSumQuery.and(HTCPromotionLM.findProperty("percent[HTCPromotionSum]").getExpr(htcPromotionSumExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> htcPromotionSumResult = htcPromotionSumQuery.execute(session);
 

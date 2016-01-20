@@ -18,14 +18,14 @@ importNBRBExchangeRateDateFromDateToAction 'Импортировать курс�
 importNBRBExchangeRateLastDaysAction 'Импортировать последние курсы НБРБ' = ACTION CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateLastDaysActionProperty' (Currency) IN nbrb;
 
 importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ' = ACTION () {
-    FOR c IS Currency DO {
+    FOR Currency c IS Currency DO {
         EXEC importNBRBExchangeRateDateFromDateToAction(c);
     }
     EXEC apply();
 } IN nbrb;
 
 importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ' = ACTION () {
-    FOR c IS Currency DO {
+    FOR Currency c IS Currency DO {
         EXEC importNBRBExchangeRateLastDaysAction(c);
     }
     EXEC apply();
@@ -53,27 +53,27 @@ loadDefaultScheduledTasks () += ACTION ()  {
     loadDefaultScheduledTaskDetail ('Загрузка курсов НБРБ', 1, 'NBRB.importNBRBExchangeRateLastDays[]');
 }
 
-fillCrossDateFromTo 'Пересчитать обратный и кросс-курс за период' = ACTION (dateFrom, dateTo) {
+fillCrossFromTo 'Пересчитать обратный и кросс-курс за период' = ACTION (DATE dateFrom, DATE dateTo) {
     LOCAL dateCur = DATE();
     
     dateCur() <- dateFrom;
     WHILE dateCur() <= dateTo DO { 
-        FOR parentTypeExchange(t) DO {
-            IF isReversTypeExchange(t) THEN {    
-                rateExchange(t, c, date) <- NUMERIC[15,8]( 1 / (rateExchange(parentTypeExchange(t), currencyTypeExchange(t), dateCur()) IF rateExchange(parentTypeExchange(t), currencyTypeExchange(t), dateCur())!=0)) 
-                    WHERE date == dateCur() AND c ==currencyTypeExchange(parentTypeExchange(t));
+        FOR parent(TypeExchange t) DO {
+            IF isRevers(t) THEN {    
+                rate(t, Currency c, DATE date) <- NUMERIC[15,8]( 1 / (rate(parent(t), currency(t), dateCur()) IF rate(parent(t), currency(t), dateCur())!=0)) 
+                    WHERE date == dateCur() AND c ==currency(parent(t));
             } ELSE {
-                rateExchange(t, c, date) <- NUMERIC[15,8](rateOnTypeExchangeCurrencyDate(parentTypeExchange(t), currencyTypeExchange(t),dateCur())/(rateOnTypeExchangeCurrencyDate(parentTypeExchange(t), c, dateCur()) IF rateOnTypeExchangeCurrencyDate(parentTypeExchange(t), c, dateCur())!=0)) WHERE date == dateCur() AND c IS Currency;
+                rate(t, Currency c, DATE date) <- NUMERIC[15,8](rateOn(parent(t), currency(t),dateCur())/(rateOn(parent(t), c, dateCur()) IF rateOn(parent(t), c, dateCur())!=0)) WHERE date == dateCur() AND c IS Currency;
             
             }        
         }
-        dateCur() <- sumDate(dateCur(), 1);
+        dateCur() <- sum(dateCur(), 1);
     }
 }
 
 fillCrossPeriod 'Пересчитать обратный и кросс-курс за период' = ACTION () {
     IF importNBRBExchangeRateDateFrom() AND importNBRBExchangeRateDateTo() THEN {
-        fillCrossDateFromTo(importNBRBExchangeRateDateFrom(), importNBRBExchangeRateDateTo());
+        fillCrossFromTo(importNBRBExchangeRateDateFrom(), importNBRBExchangeRateDateTo());
         apply();
     } ELSE {
         MESSAGE 'Не задан период';
@@ -82,7 +82,7 @@ fillCrossPeriod 'Пересчитать обратный и кросс-курс 
 
 fillCrossLastDays 'Пересчитать обратный и кросс-курс последние' = ACTION () {    
     IF importNBRBExchangeRateDaysCount() THEN {        
-        fillCrossDateFromTo(subtractDate(currentDate(), importNBRBExchangeRateDaysCount()), currentDate());
+        fillCrossFromTo(subtract(currentDate(), importNBRBExchangeRateDaysCount()), currentDate());
         apply();
     } ELSE {
         MESSAGE 'Не указано количество дней для пересчета';

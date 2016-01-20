@@ -7,25 +7,25 @@ NAMESPACE PurchaseReturn;
 //------------------- Приход товара/тары от поставщ. --------------------//
 
 EXTEND CLASS Invoice : GeneralLedger.GLDocument;
-isPostedGLDocument(document) += isPostedInvoice(document);
-nameGLDocument(document) += descriptionInvoice(document);
+isPosted[GLDocument](Invoice document) += isPosted(document);
+name[GLDocument](Invoice document) += description(document);
 
-numberGLDocument(document) += numberInvoice(document);
-seriesGLDocument(document) += seriesInvoice(document);
+number[GLDocument](Invoice document) += number(document);
+series[GLDocument](Invoice document) += series(document);
 
-dateTimeGLDocument(document) += dateTimeInvoice(document);
-operationGLDocument(document) += operationInvoice(document);
+dateTime[GLDocument](Invoice document) += dateTime(document);
+operation[GLDocument](Invoice document) += operation(document);
 //editGLDocument (GLDocument)+= ACTION editInvoice(GLDocument);
 
-descriptionInvoiceRange(invoice, range) =  CONCAT ', ', descriptionInvoice(invoice),
-                                                       staticCaption(taxRange(range)),
-                                                       'шкала' + numberRange(range),
-                                                       'тек.ставка' + valueRateRangeDate(range, dateInvoice(invoice)); 
+description(Invoice invoice, Range range) =  CONCAT ', ', description(invoice),
+                                                       staticCaption(tax(range)),
+                                                       'шкала' + number(range),
+                                                       'тек.ставка' + valueRate(range, date(invoice)); 
                                                           
 ///////////////////////// Сторно ///////////////////////////
 //-------------------------------- НДС поставщика с разбивкой по ставке----------------------------------//
 //-- Тара
-negativeVATSumContainerInvoiceDetailInvoiceRange (invoice, range) = -VATSumContainerInvoiceDetailInvoiceRange(invoice, range);
+negativeVATSumContainerInvoiceDetail (Invoice invoice, Range range) = -VATSumContainerInvoiceDetail(invoice, range);
 @defineGeneralLedgerAggregationOperation (invoice,                                      // основание
                                           range,                                        // шкала
                                           InvSupVATC,                                   // идентификатор
@@ -37,14 +37,14 @@ negativeVATSumContainerInvoiceDetailInvoiceRange (invoice, range) = -VATSumConta
                                           'by_default',                                 // идентификатор плана счетов
                                           'by_default_purchase_invoice'                         // идентификатор операции
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupVATCGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupVATCGeneralLedger(generalLedger);
+debit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
 
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupVATCGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupVATCGeneralLedger;    
+credit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+idOperation(InvSupVATCGeneralLedger l) += '01' IF l IS InvSupVATCGeneralLedger;    
 
 //-- Услуги
-negativeVATSumChargeInvoiceDetailInvoiceRange (invoice, range) = -VATSumChargeInvoiceDetailInvoiceRange(invoice, range);
+negativeVATSumChargeInvoiceDetail (Invoice invoice, Range range) = -VATSumChargeInvoiceDetail(invoice, range);
 
 @defineGeneralLedgerAggregationOperation (invoice,
                                           range,
@@ -57,14 +57,14 @@ negativeVATSumChargeInvoiceDetailInvoiceRange (invoice, range) = -VATSumChargeIn
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupVATCHGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupVATCHGeneralLedger(generalLedger);
+debit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
 
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupVATCHGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupVATCHGeneralLedger;    
+credit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+idOperation(InvSupVATCHGeneralLedger l) += '01' IF l IS InvSupVATCHGeneralLedger;    
 
 //-- Товар
-negativeVATSumItemInvoiceDetailInvoiceRange (invoice, range) = -VATSumItemInvoiceDetailInvoiceRange(invoice, range);
+negativeVATSumItemInvoiceDetail (Invoice invoice, Range range) = -VATSumItemInvoiceDetail(invoice, range);
 
 @defineGeneralLedgerAggregationOperation (invoice,
                                           range,
@@ -77,14 +77,14 @@ negativeVATSumItemInvoiceDetailInvoiceRange (invoice, range) = -VATSumItemInvoic
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupVATIGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupVATIGeneralLedger(generalLedger);
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupVATIGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupVATIGeneralLedger;    
+debit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
+credit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+idOperation(InvSupVATIGeneralLedger l) += '01' IF l IS InvSupVATIGeneralLedger;    
 
 //-------------------------------- Сумма поставщика ----------------------------------//
 //-- Тара
-negativeSumContainerInvoiceDetailInvoice (invoice) = -sumContainerInvoiceDetailInvoice(invoice);
+negativeSumContainerInvoiceDetail (Invoice invoice) = -sumContainerInvoiceDetail(invoice);
 
 @defineGeneralLedgerAggregationOperation (invoice,
                                           InvSupC,
@@ -96,12 +96,12 @@ negativeSumContainerInvoiceDetailInvoice (invoice) = -sumContainerInvoiceDetailI
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupCGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupCGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupCGeneralLedger;    
+debit(InvSupCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+credit(InvSupCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+idOperation(InvSupCGeneralLedger l) += '01' IF l IS InvSupCGeneralLedger;    
 
 //-- Товар
-negativeSumItemInvoiceDetailInvoice (invoice) = -sumItemInvoiceDetailInvoice(invoice);
+negativeSumItemInvoiceDetail (Invoice invoice) = -sumItemInvoiceDetail(invoice);
 
 @defineGeneralLedgerAggregationOperation (invoice,
                                           InvSupIH,
@@ -113,9 +113,9 @@ negativeSumItemInvoiceDetailInvoice (invoice) = -sumItemInvoiceDetailInvoice(inv
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupIHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupIHGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupIHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupIHGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupIHGeneralLedger;    
+debit(InvSupIHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+credit(InvSupIHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+idOperation(InvSupIHGeneralLedger l) += '01' IF l IS InvSupIHGeneralLedger;    
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 

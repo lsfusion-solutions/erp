@@ -8,52 +8,52 @@ NAMESPACE PriceList;
 FORM currentPrices 'Текущие цены'
     
     OBJECTS pt = PriceListType
-    PROPERTIES(pt) READONLY namePriceListType
+    PROPERTIES(pt) READONLY name
      
     OBJECTS s = Stock FIXED PANEL
-    PROPERTIES(s) nameStock SELECTOR
-    FILTERS isCompanyStock(s)
+    PROPERTIES(s) name SELECTOR
+    FILTERS isCompany(s)
         
     OBJECTS dt = DATETIME FIXED PANEL
     PROPERTIES(dt) OBJVALUE
 
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuTreeName = nameSkuGroup(sg)
-    ORDER BY orderSkuGroup(sg), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuTreeName = name(sg)
+    ORDER BY order(sg), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
      
     OBJECTS sk = Sku 
-    PROPERTIES(sk) READONLY nameSku ON SHORTCUT showMovementSkuSkuStock(sk, s) ON SHORTCUT showMovementPriceSkuSkuStock(sk, s), idBarcodeSku, idSku SHOWIF showIDs()
-    PROPERTIES(sk, s, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES(pt, sk, s, dt) READONLY priceAPriceListTypeSkuStockDateTime, nameCompanyALedgerPriceListTypeSkuStockDateTime, descriptionALedgerPriceListTypeSkuStockDateTime
-    ORDER BY nameSku(sk)
-    FILTERS isParentSkuGroupSku(sg, sk),
-            priceAPriceListTypeSkuStockDateTime(pt, sk, s, dt)
+    PROPERTIES(sk) READONLY name ON SHORTCUT showMovementSku(sk, s) ON SHORTCUT showMovementPriceSku(sk, s), idBarcode, id SHOWIF showIDs()
+    PROPERTIES(sk, s, dt) READONLY balanceA
+    PROPERTIES(pt, sk, s, dt) READONLY priceA, nameCompanyA, descriptionA
+    ORDER BY name(sk)
+    FILTERS isParent(sg, sk),
+            priceA(pt, sk, s, dt)
            
     OBJECTS pp = PriceListType
-    PROPERTIES(pp) READONLY namePriceListType, nameCurrencyPriceListType 
-    PROPERTIES(pp, sk, s, dt) READONLY priceAPriceListTypeSkuStockDateTime
-    FILTERS  priceAPriceListTypeSkuStockDateTime(pp, sk, s, dt)
+    PROPERTIES(pp) READONLY name, nameCurrency 
+    PROPERTIES(pp, sk, s, dt) READONLY priceA
+    FILTERS  priceA(pp, sk, s, dt)
     
-    TREE skuTree2 sg2 = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg2), skuTreeName2 = nameSkuGroup(sg2)
-    ORDER BY orderSkuGroup(sg2), skuTreeName2
-    FILTERGROUP inactive1 FILTER 'Активные' activeSkuGroup(sg2) 'F5' DEFAULT
+    TREE skuTree2 sg2 = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg2), skuTreeName2 = name(sg2)
+    ORDER BY order(sg2), skuTreeName2
+    FILTERGROUP inactive1 FILTER 'Активные' active(sg2) 'F5' DEFAULT
 
     OBJECTS b = Batch
-    PROPERTIES(b) READONLY isPostedBatch, dateBatch, timeBatch, idBatch SHOWIF showIDs(), nameSkuBatch, nameStockBatch, nameBatch, costBatch
-    PROPERTIES(b, s, dt) READONLY balanceABatchStockDateTime
-    ORDER BY dateBatch(b), timeBatch(b)
-    PROPERTIES(pt, b, s, dt) READONLY priceAPriceListTypeBatchStockDateTime, nameCompanyALedgerPriceListTypeBatchStockDateTime, descriptionALedgerPriceListTypeBatchStockDateTime
+    PROPERTIES(b) READONLY isPosted, date, time, id SHOWIF showIDs(), nameSku, nameStock, name, cost
+    PROPERTIES(b, s, dt) READONLY balanceA
+    ORDER BY date(b), time(b)
+    PROPERTIES(pt, b, s, dt) READONLY priceA, nameCompanyA, descriptionA
     FILTERGROUP filters
-    FILTER 'Проведенные партии' isPostedBatch(b) 'F10' DEFAULT
-    FILTERS isParentSkuGroupBatch(sg2, b),
-            priceAPriceListTypeBatchStockDateTime(pt, b, s, dt)
+    FILTER 'Проведенные партии' isPosted(b) 'F10' DEFAULT
+    FILTERS isParent(sg2, b),
+            priceA(pt, b, s, dt)
     
     OBJECTS pb = PriceListType
-    PROPERTIES(pb) READONLY namePriceListType, nameCurrencyPriceListType
-    PROPERTIES(pb, b, s, dt) READONLY priceAPriceListTypeBatchStockDateTime
-    FILTERS  priceAPriceListTypeBatchStockDateTime(pb, b, s, dt)
+    PROPERTIES(pb) READONLY name, nameCurrency
+    PROPERTIES(pb, b, s, dt) READONLY priceA
+    FILTERS  priceA(pb, b, s, dt)
 ;
 @extendFormFilterStockAccess(s, currentPrices);
 

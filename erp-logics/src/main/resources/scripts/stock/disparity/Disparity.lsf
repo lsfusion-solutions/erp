@@ -40,23 +40,23 @@ CLASS DisparityDetail 'Строка изменения сортности';
 
 @showDocumentDetailBatch(disparity);
 @defineDocumentDetailBatchCustomPrefix(disparityDetail, batch, );
-changeBatchDisparityDetail = ACTION (d) {
-    FORM dialogBatchStockOut OBJECTS st = stockDisparityDetail(d),
-                             t = dateTimeDisparityDetail(d),
-                             sk = skuDisparityDetail(d) DIALOG SHOWDROP;
+changeBatch = ACTION (DisparityDetail d) {
+    FORM dialogBatchStockOut OBJECTS st = stock(d),
+                             t = dateTime(d),
+                             sk = sku(d) DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
-        batchDisparityDetail(d) <- chosenObject('bt');
+        batch(d) <- chosenObject('bt');
     } ELSE IF formResult() == FormResult.drop THEN {
-        batchDisparityDetail(d) <- NULL;
+        batch(d) <- NULL;
     }
 }
 
-costBatchDisparityDetail 'Себестоимость партии' = DATA NUMERIC[14,2] (DisparityDetail);
-costBatchDisparityDetail(detail) <- prevCostBatch(batchDisparityDetail(detail)) WHEN CHANGED(batchDisparityDetail(detail));
+costBatch 'Себестоимость партии' = DATA NUMERIC[14,2] (DisparityDetail);
+costBatch(DisparityDetail detail) <- prevCost(batch(detail)) WHEN CHANGED(batch(detail));
 
-expiryDateBatchDisparityDetail 'Годен до' = DATA DATE (DisparityDetail);
-expiryDateBatchDisparityDetail(detail) <- prevExpiryDateBatch(batchDisparityDetail(detail)) WHEN CHANGED(batchDisparityDetail(detail));
+expiryDateBatch 'Годен до' = DATA DATE (DisparityDetail);
+expiryDateBatch(DisparityDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED(batch(detail));
 
 disallowLineDisparities 'Запретить строки без партий в изменениях сортности' = DATA BOOLEAN ();
 
@@ -72,17 +72,17 @@ DESIGN options {
     }
 }
 
-CONSTRAINT isPostedDisparityDetail(d) AND disallowLineDisparities() AND NOT batchDisparityDetail(d) 
+CONSTRAINT isPosted(DisparityDetail d) AND disallowLineDisparities() AND NOT batch(d) 
     MESSAGE 'Для строки изменения сортности должна быть задана партия';  
 
 @defineDocumentDetailQuantityPrefix (disparity, , ' (расход)');
 @defineDocumentDetailQuantityPrefix (disparity, input, ' (приход)');
-inputQuantityDisparityDetail(detail) <- quantityDisparityDetail(detail) WHEN CHANGED(quantityDisparityDetail(detail));
+inputQuantity(DisparityDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
 
 @defineDocumentDetailPricePrefix (disparity, , ' учетная (расход)');
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (disparity, accountPriceListType, , , sku, stock);
 @defineDocumentDetailPricePrefix (disparity, input, ' учетная (приход)');
-inputPriceDisparityDetail(detail) <- priceDisparityDetail(detail) WHEN CHANGED(priceDisparityDetail(detail));
+inputPrice(DisparityDetail detail) <- price(detail) WHEN CHANGED(price(detail));
 
 @defineDocumentDetailDataSumCustomPrefix (disparityDetail, , ' учетная (расход)');
 @deriveDocumentDetailSumPrefix(disparity, , currency, quantity);
@@ -99,32 +99,32 @@ inputPriceDisparityDetail(detail) <- priceDisparityDetail(detail) WHEN CHANGED(p
 @defineAddDetailDialogBarcode(disparity, sku);
 
 @defineDocumentDetailDiffSumCustomPrefix(disparityDetail, sum, , input, ' изменения учетной');
-diffSumDisparityDetailDisparity 'Сумма' (disparity) =
-    GROUP SUM diffSumDisparityDetail(idetail) 
-        BY disparityDisparityDetail(idetail) IN documentSum;
+diffSumDisparityDetail 'Сумма' (disparity) =
+    GROUP SUM diffSum(DisparityDetail idetail) 
+        BY disparity(idetail) IN documentSum;
             
 @defineDocumentHeaderItemSum (disparity, diff, diff);
 // ------------ Проведение по товарному отчету ----------------- //
 @implementStockDocumentLedgerOut(Disparity, stock);
-typeStockDocumentLedger(l) += 'Сортность' IF l IS Disparity;
-sumItemOutStockDocumentLedger (ledger) += diffSumItemDisparityDetailDisparity(ledger);
-sumContainerOutStockDocumentLedger (ledger) += diffSumContainerDisparityDetailDisparity(ledger);
+type(Disparity l) += 'Сортность' IF l IS Disparity;
+sumItem (Disparity ledger) += diffSumItemDisparityDetail(ledger);
+sumContainer (Disparity ledger) += diffSumContainerDisparityDetail(ledger);
 
 // ------------ Проведение по регистру ----------------- //
 @implementSkuLedgerOutFIFO(DisparityDetail, sku, stock);
-quantityOutFIFOSkuLedger (ledger) += quantityDisparityDetail(ledger);
-batchSkuLedger(ledger) += batchDisparityDetail(ledger);
-sumOutSkuLedger (ledger) += sumDisparityDetail(ledger);
+quantity (DisparityDetail ledger) += quantity(ledger);
+batch(DisparityDetail ledger) += batch(ledger);
+sum (DisparityDetail ledger) += sum(ledger);
 
-stockDocumentLedgerSkuLedger(ledger) += disparityDisparityDetail(ledger); 
+stockDocumentLedger(DisparityDetail ledger) += disparity(ledger); 
 
 //----------------------------  Изменение остатка пересорт --------------------------------------------//
 
 CLASS InputDisparityDetail 'Приход пересортицы';
 TABLE inputDisparityDetail (InputDisparityDetail);
 
-needToInputDisparityDetail (disparityDetail) = inputQuantityDisparityDetail(disparityDetail) > 0
-    AND isPostedDisparityDetail(disparityDetail);
+needToInput (DisparityDetail disparityDetail) = inputQuantity(disparityDetail) > 0
+    AND isPosted(disparityDetail);
 
 @defineAggregation(disparityDetail, inputDisparityDetail, needToInput);
 
@@ -133,33 +133,33 @@ needToInputDisparityDetail (disparityDetail) = inputQuantityDisparityDetail(disp
 @defineDocumentAggregationDetailClosed(disparity, inputDisparity);
 @defineDocumentAggregationDetailStock(disparity, inputDisparity, stock, 'Склад');
 @defineDocumentAggregationDetailSkuPrefix(disparity, inputDisparity, sku, input);
-quantityInputDisparityDetail(inputDisparityDetail) = inputQuantityDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
-priceInputDisparityDetail(inputDisparityDetail) = inputPriceDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
-sumInputDisparityDetail(inputDisparityDetail) = inputSumDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
-descriptionInputDisparityDetail(inputDisparityDetail) = descriptionDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
-costBatchInputDisparityDetail(inputDisparityDetail) = costBatchDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
-expiryDateBatchInputDisparityDetail (inputDisparityDetail) = expiryDateBatchDisparityDetail(disparityDetailInputDisparityDetail(inputDisparityDetail));
+quantity(InputDisparityDetail inputDisparityDetail) = inputQuantity(disparityDetail(inputDisparityDetail));
+price(InputDisparityDetail inputDisparityDetail) = inputPrice(disparityDetail(inputDisparityDetail));
+sum(InputDisparityDetail inputDisparityDetail) = inputSum(disparityDetail(inputDisparityDetail));
+description(InputDisparityDetail inputDisparityDetail) = description(disparityDetail(inputDisparityDetail));
+costBatch(InputDisparityDetail inputDisparityDetail) = costBatch(disparityDetail(inputDisparityDetail));
+expiryDateBatch (InputDisparityDetail inputDisparityDetail) = expiryDateBatch(disparityDetail(inputDisparityDetail));
 
 
 @implementBatch(InputDisparityDetail, sku, stock, costBatch);
-quantityBatch (ledger) += quantityInputDisparityDetail(ledger);
-expiryDateBatch (ledger) += expiryDateBatchInputDisparityDetail(ledger);
-sumInSkuLedger (ledger) += sumInputDisparityDetail(ledger);
-seriesBatch (ledger) += seriesDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
-numberBatch (ledger) += numberDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger)));
+quantity (InputDisparityDetail ledger) += quantity(ledger);
+expiryDate (InputDisparityDetail ledger) += expiryDateBatch(ledger);
+sum (InputDisparityDetail ledger) += sum(ledger);
+series (InputDisparityDetail ledger) += series(disparity(disparityDetail(ledger)));
+number (InputDisparityDetail ledger) += number(disparity(disparityDetail(ledger)));
 
-supplierDisparityDetail = DATA LegalEntity (DisparityDetail);
-supplierDisparityDetail(detail) <- prevSupplierBatch(batchDisparityDetail(detail)) WHEN CHANGED(batchDisparityDetail(detail));
-nameSupplierDisparityDetail = nameLegalEntity(supplierDisparityDetail(detail) );
+supplier = DATA LegalEntity (DisparityDetail);
+supplier(DisparityDetail detail) <- prevSupplier(batch(detail)) WHEN CHANGED(batch(detail));
+nameSupplier = name(supplier(DisparityDetail detail) );
 
-stockDocumentLedgerSkuLedger(ledger) += disparityDisparityDetail(disparityDetailInputDisparityDetail(ledger));
+stockDocumentLedger(InputDisparityDetail ledger) += disparity(disparityDetail(ledger));
 
-nameBatch(batch) += VARISTRING[200](CONCAT '', STRING[10](dateDisparityDetail(disparityDetailInputDisparityDetail(batch))),
-                             '/ ' + seriesNumberDisparity(disparityDisparityDetail(disparityDetailInputDisparityDetail(batch))),
-                             '/ ' + fullNameLegalEntityStockDisparityDetail(disparityDetailInputDisparityDetail(batch)));
+name(InputDisparityDetail batch) += VARISTRING[200](CONCAT '', STRING[10](date(disparityDetail(batch))),
+                             '/ ' + seriesNumber(disparity(disparityDetail(batch))),
+                             '/ ' + fullNameLegalEntityStock(disparityDetail(batch)));
 
-supplierInputDisparityDetail = supplierDisparityDetail(disparityDetailInputDisparityDetail(detail));
-supplierBatch(batch) += supplierInputDisparityDetail(batch);
+supplier = supplier(disparityDetail(InputDisparityDetail detail));
+supplier(InputDisparityDetail batch) += supplier(batch);
 
 @implementSystemLedgerPriceListTypeBatch(account, InputDisparityDetail, supplier, stock);   
 
@@ -168,32 +168,32 @@ supplierBatch(batch) += supplierInputDisparityDetail(batch);
 
 //------------------------------------------- Пересорт товара----------------------------------------------------//
 
-quantityDisparityDetailSkuDisparity 'Кол-во для закачки в оборудование (приход)' (sku, disparity) = GROUP SUM inputQuantityDisparityDetail(disparityDetail) BY inputSkuDisparityDetail(disparityDetail), disparityDisparityDetail(disparityDetail);
+quantityDisparityDetail 'Кол-во для закачки в оборудование (приход)' (sku, disparity) = GROUP SUM inputQuantity(DisparityDetail disparityDetail) BY inputSku(disparityDetail), disparity(disparityDetail);
 
 FORM disparity 'Изменение сортности'
 
     OBJECTS dis=Disparity FIXED PANEL
 
-    PROPERTIES(dis) isPostedDisparity, nameNumeratorDisparity, numberDisparity, seriesDisparity, nameStockDisparity ON CHANGE changeStockCompanyDisparity(dis), 
-                    dateDisparity, timeDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
-                    inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity, noteDisparity
+    PROPERTIES(dis) isPosted, nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(dis), 
+                    date, time, quantityDisparityDetail, sumDisparityDetail,
+                    inputQuantityDisparityDetail, inputSumDisparityDetail, note
 
     OBJECTS d = DisparityDetail
-    PROPERTIES(d)   indexDisparityDetail,
-                    idBarcodeSkuDisparityDetail, nameSkuDisparityDetail, shortNameUOMSkuDisparityDetail, nameBatchDisparityDetail ON CHANGE changeBatchDisparityDetail(d),
-                    costBatchDisparityDetail, expiryDateBatchDisparityDetail,
-                    quantityDisparityDetail, priceDisparityDetail, sumDisparityDetail,
-                    inputIdBarcodeSkuDisparityDetail, inputNameSkuDisparityDetail, inputShortNameUOMSkuDisparityDetail,
-                    inputQuantityDisparityDetail, inputPriceDisparityDetail, inputSumDisparityDetail
+    PROPERTIES(d)   index,
+                    idBarcodeSku, nameSku, shortNameUOMSku, nameBatch ON CHANGE changeBatch(d),
+                    costBatch, expiryDateBatch,
+                    quantity, price, sum,
+                    inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku,
+                    inputQuantity, inputPrice, inputSum
     PROPERTIES(d)   ADDOBJ, deletedd=DELETESESSION
 
-    PROPERTIES(dis) TODRAW d addDetailDialogSkuStockDisparityDetailDisparity,
-                             addDetailInputBarcodeDisparityDetailDisparity, deleteDisparityDetailDisparity
+    PROPERTIES(dis) TODRAW d addDetailDialogSkuStockDisparityDetail,
+                             addDetailInputBarcodeDisparityDetail, deleteDisparityDetail
 
-    FILTERS         disparityDisparityDetail(d) == dis
+    FILTERS         disparity(d) == dis
 
     EVENTS
-        ON OK prePostDisparity(dis)
+        ON OK prePost(dis)
 
     EDIT Disparity OBJECT dis
 ;
@@ -208,13 +208,13 @@ DESIGN disparity {
                 fill = 1;
                 MOVE dis.documentHeader {
                     type = CONTAINERH;
-                    MOVE PROPERTY(isPostedDisparity(dis)) { preferredCharWidth = 10; }
-                    MOVE PROPERTY(nameStockDisparity(dis));
-                    MOVE PROPERTY(nameNumeratorDisparity(dis));
-                    MOVE PROPERTY(numberDisparity(dis));
-                    MOVE PROPERTY(seriesDisparity(dis));
-                    MOVE PROPERTY(dateDisparity(dis));
-                    MOVE PROPERTY(timeDisparity(dis));
+                    MOVE PROPERTY(isPosted(dis)) { preferredCharWidth = 10; }
+                    MOVE PROPERTY(nameStock(dis));
+                    MOVE PROPERTY(nameNumerator(dis));
+                    MOVE PROPERTY(number(dis));
+                    MOVE PROPERTY(series(dis));
+                    MOVE PROPERTY(date(dis));
+                    MOVE PROPERTY(time(dis));
                 }
 
                 NEW headerTabbedPane {
@@ -254,19 +254,19 @@ DESIGN disparity {
         PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(sumDisparityDetailDisparity(dis)) { preferredCharWidth = 13;}
-        PROPERTY(inputSumDisparityDetailDisparity(dis)) { preferredCharWidth = 13;}
+        PROPERTY(sumDisparityDetail(dis)) { preferredCharWidth = 13;}
+        PROPERTY(inputSumDisparityDetail(dis)) { preferredCharWidth = 13;}
     }
 }
 
-editDisparityDetail 'Редактировать' (d) = ACTION (d) NEWSESSION {
-    FORM disparity OBJECTS dis = disparityDisparityDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+edit 'Редактировать' (DisparityDetail d) = ACTION (d) NEWSESSION {
+    FORM disparity OBJECTS dis = disparity(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
-editSkuLedger(batch) += ACTION editDisparityDetail(disparityDetailInputDisparityDetail(batch)); 
-editSkuLedger(d) += ACTION editDisparityDetail(d); 
+edit[SkuLedger](InputDisparityDetail batch) += ACTION edit(disparityDetail(batch)); 
+edit(DisparityDetail d) += ACTION edit(d); 
 
-editPriceListLedger(d) += ACTION editDisparityDetail(disparityDetailInputDisparityDetail(d));                       
+edit[PriceListLedger](InputDisparityDetail d) += ACTION edit(disparityDetail(d));                       
 
 //-- SKU
 @defineDocumentSkuStockPriceListTypeSystemLedger(disparity, accountPriceListType, );
@@ -277,47 +277,47 @@ editPriceListLedger(d) += ACTION editDisparityDetail(disparityDetailInputDispari
 @extendFormDocumentBatchStock(disparity, disparity, dis, legalEntityStock, );
 
 
-editDisparity 'Редактировать' (disparity) = ACTION EDITFORM Disparity;
-editStockDocumentLedger(l) += ACTION editDisparity(l);
-closeStockDocumentLedger(l) += ACTION closeDisparity(l);
+edit 'Редактировать' (disparity) = ACTION EDITFORM Disparity;
+edit(Disparity l) += ACTION edit(l);
+close(Disparity l) += ACTION close(l);
 EXTEND FORM disparity
 
     FILTERGROUP filter
-        FILTER 'С остатком ' prevCurrentBalanceSkuStock(ks, st) 'F10' DEFAULT
-        FILTER 'В документе ' quantitySkuDisparityStock(ks, dis, st) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(ks, st) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(ks, dis, st) 'F9'
 ;
 
 EXTEND FORM disparity
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchDisparityStock(b, dis, sto) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(b, dis, sto) 'F9'
 ;
 
 FORM disparities 'Изменения сортности'
 
     OBJECTS dis=Disparity
-    PROPERTIES (dis) READONLYIF isReadonly() isClosedDisparity, isPostedDisparity, numberDisparity, seriesDisparity, dateDisparity, timeDisparity, nameStockDisparity
-    PROPERTIES(dis)  READONLY countDisparityDetailDisparity, quantityDisparityDetailDisparity, sumDisparityDetailDisparity,
-                              inputQuantityDisparityDetailDisparity, inputSumDisparityDetailDisparity
-    PROPERTIES (dis) READONLYIF isReadonly() noteDisparity
+    PROPERTIES (dis) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, nameStock
+    PROPERTIES(dis)  READONLY countDisparityDetail, quantityDisparityDetail, sumDisparityDetail,
+                              inputQuantityDisparityDetail, inputSumDisparityDetail
+    PROPERTIES (dis) READONLYIF isReadonly() note
 
-    PROPERTIES(dis)  READONLY FORCE PANEL createdNameUserDisparity, createdTimeDisparity, createdHostnameComputerDisparity, 
-                                          postedNameUserDisparity, postedTimeDisparity, postedHostnameComputerDisparity
+    PROPERTIES(dis)  READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                          postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpenedDisparity(dis)
-    PROPERTIES(dis)  closeDisparity SHOWIF isOpenedDisparity(dis), openDisparity SHOWIF isClosedDisparity(dis)     
+    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpened(dis)
+    PROPERTIES(dis)  close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
     
-    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedDisparity(dis)
+    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(dis)
 
     OBJECTS d=DisparityDetail
-    PROPERTIES(d)   READONLY indexDisparityDetail,
-                    idBarcodeSkuDisparityDetail, nameSkuDisparityDetail, shortNameUOMSkuDisparityDetail, nameBatchDisparityDetail,
-                    costBatchDisparityDetail, expiryDateBatchDisparityDetail, quantityDisparityDetail, priceDisparityDetail, sumDisparityDetail,
-                    inputIdBarcodeSkuDisparityDetail, inputNameSkuDisparityDetail, inputShortNameUOMSkuDisparityDetail,
-                    inputQuantityDisparityDetail, inputPriceDisparityDetail, inputSumDisparityDetail
+    PROPERTIES(d)   READONLY index,
+                    idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
+                    costBatch, expiryDateBatch, quantity, price, sum,
+                    inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku,
+                    inputQuantity, inputPrice, inputSum
 
-    FILTERS         disparityDisparityDetail(d) == dis
+    FILTERS         disparity(d) == dis
 ;
 @extendFormFilterAccessStock(Disparity, dis, disparities, stock, company);
 
@@ -367,41 +367,41 @@ NAVIGATOR {
 
 //Родительский товар
 
-disparityItemItem 'Уцененный товар' = DATA Item (Item);
-nameSkuDisparityItemItem 'Уцененный товар' = nameSku(disparityItemItem(item));
+disparityItem 'Уцененный товар' = DATA Item (Item);
+nameSkuDisparityItem 'Уцененный товар' = name(disparityItem(Item item));
 
-countItemDisparityItem = GROUP SUM 1 IF disparityItemItem(item) == disparityItem BY disparityItem; 
+countItemDisparity = GROUP SUM 1 IF disparityItem(Item item) == Item disparityItem BY disparityItem; 
 
-copyDisparityDataItem = ACTION (item, i) {
-    disparityItemItem(i) <- item; 
-    itemGroupItem(i) <- itemGroupItem(item);
-    captionItem(i) <- captionItem(item) + ' (УЦЕН.)';
-    originalCaptionItem(i) <- originalCaptionItem(item);
-    UOMItem(i) <- UOMItem(item);
-    brandItem(i) <- brandItem(item);
-    manufacturerItem(i) <- manufacturerItem(item);
-    compositionItem(i) <- compositionItem(item);
-    originalCompositionItem(i) <- originalCompositionItem(item);
-    netWeightItem(i) <- netWeightItem(item);
-    grossWeightItem(i) <- grossWeightItem(item);
-    countryItem(i) <- countryItem(item);
-    dataImageItem(i) <- dataImageItem(item);
-    skuTypeItem(i) <- skuTypeItem(item);
-    splitItem(i) <- splitItem(item);
-    inactiveItem(i) <- inactiveItem(item);
+copyDisparityData = ACTION (Item item, Sku i) {
+    disparityItem(i) <- item; 
+    itemGroup(i) <- itemGroup(item);
+    caption(i) <- caption(item) + ' (УЦЕН.)';
+    originalCaption(i) <- originalCaption(item);
+    UOM[Item](i) <- UOM(item);
+    brand(i) <- brand(item);
+    manufacturer(i) <- manufacturer(item);
+    composition[Item](i) <- composition(item);
+    originalComposition(i) <- originalComposition(item);
+    netWeight[Item](i) <- netWeight(item);
+    grossWeight[Item](i) <- grossWeight(item);
+    country[Item](i) <- country(item);
+    dataImage(i) <- dataImage(item);
+    skuType[Item](i) <- skuType(item);
+    split[Item](i) <- split(item);
+    inactive[Item](i) <- inactive(item);
     
-    generateBarcodeSku(i);       
+    generateBarcode(i);       
     
-    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeItem(type, item);
+    customGroup[CustomGroupType,Item](CustomGroupType type, i) <- customGroup(type, item);
     
-    EXEC overCopyItem(item, i);    
+    EXEC overCopy(item, i);    
 }
 
-copyDisparityItem 'Создать уцененный товар' = ACTION (item) {
+copyDisparity 'Создать уцененный товар' = ACTION (Item item) {
     IF (item IS Item) THEN {
-        NEWSESSION NESTED addedSku {
+        NEWSESSION NESTED addedSku[] {
             FOR ADDOBJ i = Item DO {
-                copyDisparityDataItem(item, i);
+                copyDisparityData(item, i);
                 FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
                 IF formResult() == FormResult.ok THEN {
                     addedSku() <- i;
@@ -412,10 +412,10 @@ copyDisparityItem 'Создать уцененный товар' = ACTION (item)
 } EDITKEY 'F6' TOOLBAR;
 
 EXTEND FORM item
-    PROPERTIES(i) nameSkuDisparityItemItem 
+    PROPERTIES(i) nameSkuDisparityItem 
     OBJECTS di = Item
-    PROPERTIES(di) READONLY idBarcodeSku, nameSku
-    FILTERS disparityItemItem(di)==i 
+    PROPERTIES(di) READONLY idBarcode, name
+    FILTERS disparityItem(di)==i 
 ;
 
 DESIGN item {
@@ -423,19 +423,19 @@ DESIGN item {
         NEW disparityItem AFTER calcPriceListTypePrm {
             type = CONTAINERV;
             caption = 'Уценки';
-            MOVE PROPERTY(nameSkuDisparityItemItem(i));
+            MOVE PROPERTY(nameSkuDisparityItem(i));
             MOVE di.box;
         }
     }    
 }
 
-isNotDisparityItem = item IS Item AND NOT disparityItemItem(item);
+isNotDisparity = Item item IS Item AND NOT disparityItem(item);
 
 EXTEND FORM items
-    PROPERTIES (i) copyDisparityItem
+    PROPERTIES (i) copyDisparity
     FILTERGROUP disparityFilter
-        FILTER 'Без уцен.' isNotDisparityItem(i) 'F5' DEFAULT
-        FILTER 'С уценкой' disparityItemItem(i) 'ctrl F5' 
+        FILTER 'Без уцен.' isNotDisparity(i) 'F5' DEFAULT
+        FILTER 'С уценкой' disparityItem(i) 'ctrl F5' 
 ;
 
 DESIGN items {
@@ -444,7 +444,7 @@ DESIGN items {
             caption = 'Уценка';
             type = CONTAINERH;
             MOVE filters.disparityFilter;
-            MOVE PROPERTY(copyDisparityItem(i));
+            MOVE PROPERTY(copyDisparity(i));
         }
     }
 }

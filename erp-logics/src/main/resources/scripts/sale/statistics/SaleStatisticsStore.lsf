@@ -6,36 +6,36 @@ NAMESPACE Sale;
 
 EXTEND FORM statisticalReport
 
-    PROPERTIES  FORCE PANEL sumCardDepartmentStoreDateFromTo(ts, dFrom, dTo), sumSaleDepartmentStoreDateFromTo(ts, dFrom, dTo)
+    PROPERTIES  FORCE PANEL sumCard(ts, dFrom, dTo), sumSale(ts, dFrom, dTo)
 ;
 DESIGN statisticalReport {
     row {
         NEW row2 {
         caption = 'По отделу, cум..';
-        MOVE PROPERTY(sumCardDepartmentStoreDateFromTo(ts,dFrom,dTo));
-        MOVE PROPERTY(sumSaleDepartmentStoreDateFromTo(ts,dFrom,dTo));
+        MOVE PROPERTY(sumCard(ts,dFrom,dTo));
+        MOVE PROPERTY(sumSale(ts,dFrom,dTo));
         }
     }
 }
 
-retailSumCardLegalEntityRegionDateFromTo 'Продано с использованием банк. карточек' (legalEntity, region, dateFrom, dateTo) =
-    GROUP SUM  sumCardDepartmentStoreDateFromTo(stock, dateFrom, dateTo)
-        BY legalEntityStock(stock), regionStock(stock), dateFrom, dateTo;
+retailSumCard 'Продано с использованием банк. карточек' (legalEntity, region, dateFrom, dateTo) =
+    GROUP SUM  sumCard(DepartmentStore stock, DATE dateFrom, DATE dateTo)
+        BY legalEntity[Stock](stock), region(stock), dateFrom, dateTo;
 
-retailSumSaleLegalEntityRegionDateFromTo 'Продано по кассе' (legalEntity, region, dateFrom, dateTo) =
-    GROUP SUM  sumSaleDepartmentStoreDateFromTo(stock, dateFrom, dateTo)
-        BY legalEntityStock(stock), regionStock(stock), dateFrom, dateTo;
+retailSumSale 'Продано по кассе' (legalEntity, region, dateFrom, dateTo) =
+    GROUP SUM  sumSale(DepartmentStore stock, DATE dateFrom, DATE dateTo)
+        BY legalEntity[Stock](stock), region(stock), dateFrom, dateTo;
 
 EXTEND FORM torgSales
-    PROPERTIES(l, r, dFrom, dTo) retailSumSaleLegalEntityRegionDateFromTo, retailSumCardLegalEntityRegionDateFromTo
+    PROPERTIES(l, r, dFrom, dTo) retailSumSale, retailSumCard
 ;
 DESIGN torgSales {
     main {
         NEW secondCase BEFORE functions.box {
             type = CONTAINERH;
             caption = 'Суммы, руб.';
-            MOVE PROPERTY(retailSumSaleLegalEntityRegionDateFromTo(l,r,dFrom,dTo));
-            MOVE PROPERTY(retailSumCardLegalEntityRegionDateFromTo(l,r,dFrom,dTo));
+            MOVE PROPERTY(retailSumSale(l,r,dFrom,dTo));
+            MOVE PROPERTY(retailSumCard(l,r,dFrom,dTo));
         }
     }
 }

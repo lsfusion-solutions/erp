@@ -11,14 +11,14 @@ NAMESPACE SaleReturn;
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, manufacturing, ' изготовителя');
 @defineDocumentInterfaceDetailInclVATCustomPrefix (invoiceDetail);
-includeVATUserInvoiceDetail(detail) <-  fixedPriceSku(skuUserInvoiceDetail(detail)) WHEN CHANGED (skuUserInvoiceDetail(detail));
+includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, manufacturing, sku, supplierStock);
 
-overRecalculatedPriceUserInvoiceDetail(detail) += ACTION (detail) {
-    ASSIGN SaleReturn.manufacturingPriceUserInvoiceDetail(detail) <- Sale.manufacturingPriceInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+overRecalculatedPrice(UserInvoiceDetail detail) += ACTION (detail) {
+    ASSIGN manufacturingPrice(detail) <- manufacturingPrice(invoiceDetail(detail));
 }
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, manufacturing, ' изготовителя'); // объявляем сумму изготовителя
@@ -27,23 +27,23 @@ overRecalculatedPriceUserInvoiceDetail(detail) += ACTION (detail) {
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i)  showManufacturingPriceUserInvoice
-    PROPERTIES(d)  SHOWIF showManufacturingPriceUserInvoice(i) AFTER invoiceSumUserInvoiceDetail(d)  
-                   manufacturingPriceUserInvoiceDetail, includeVATUserInvoiceDetail, manufacturingSumUserInvoiceDetail 
+    PROPERTIES(i)  showManufacturingPrice
+    PROPERTIES(d)  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d)  
+                   manufacturingPrice, includeVAT, manufacturingSum 
 
 ;
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerManufacturing {
             caption = 'Цена изготовителя';
-            MOVE PROPERTY(showManufacturingPriceUserInvoice(i));
+            MOVE PROPERTY(showManufacturingPrice(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY  SHOWIF showManufacturingPriceInvoice(i) AFTER invoiceSumInvoiceDetail(d) 
-                  manufacturingPriceInvoiceDetail, includeVATInvoiceDetail, manufacturingSumInvoiceDetail 
+    PROPERTIES(d) READONLY  SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d) 
+                  manufacturingPrice, includeVAT, manufacturingSum 
 ;
 
 // цены в подборе

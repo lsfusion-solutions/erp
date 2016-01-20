@@ -3,115 +3,115 @@ MODULE POSConsultant;
 REQUIRE POS;
 
 
-barcodeEmployee 'Штрихкод' = DATA STRING[15] (Employee) FIXEDCHARWIDTH 15;
-isConsultantEmployee 'Продавец' = DATA BOOLEAN (Employee);
+barcode 'Штрихкод' = DATA STRING[15] (Employee) FIXEDCHARWIDTH 15;
+isConsultant 'Продавец' = DATA BOOLEAN (Employee);
 
 employeeBarcode (string) =
-    GROUP AGGR e
-        BY barcodeEmployee(e) WHERE e IS Employee;
+    GROUP AGGR Employee e
+        BY barcode(e) WHERE e IS Employee;
 
 EXTEND FORM employee
-    PROPERTIES (e) isConsultantEmployee, barcodeEmployee
+    PROPERTIES (e) isConsultant, barcode
 ;
 DESIGN employee{
     personal {
         type = COLUMNS;
         columns = 2;
-        MOVE PROPERTY (barcodeEmployee(e));
-        MOVE PROPERTY (isConsultantEmployee(e));
+        MOVE PROPERTY (barcode(e));
+        MOVE PROPERTY (isConsultant(e));
     }
 }
 
 EXTEND FORM employees
-    PROPERTIES (e) READONLYIF isReadonly() barcodeEmployee
+    PROPERTIES (e) READONLYIF isReadonly() barcode
 ;
 
-isConsultantReceiptStore 'Учет личных продаж' = DATA BOOLEAN (Store);
-isConsultantReceiptDepartmentStore 'Учет личных продаж' = isConsultantReceiptStore(storeDepartmentStore(d));
-isConsultantReceip = isConsultantReceiptDepartmentStore(departmentStoreReceipt(r));
+isConsultantReceipt 'Учет личных продаж' = DATA BOOLEAN (Store);
+isConsultantReceipt 'Учет личных продаж' = isConsultantReceipt(store(DepartmentStore d));
+isConsultantReceip = isConsultantReceipt(departmentStore(Receipt r));
 
 EXTEND FORM store
-    PROPERTIES (s) isConsultantReceiptStore
+    PROPERTIES (s) isConsultantReceipt
 ;
 DESIGN store {
     headerExtraParams {
-        MOVE PROPERTY (isConsultantReceiptStore(s));
+        MOVE PROPERTY (isConsultantReceipt(s));
     }
 }
 
-consultantReceipt = DATA Employee (Receipt);
-nameConsultantReceipt 'Продавец' (r) = nameContact(consultantReceipt(r)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+consultant = DATA Employee (Receipt);
+nameConsultant 'Продавец' (Receipt r) = name[Contact](consultant(r)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-CONSTRAINT consultantReceipt(r) AND NOT inStockEmployee(departmentStoreReceipt(r), consultantReceipt(r))
-    CHECKED BY consultantReceipt MESSAGE 'В качестве продавца в чекевыбран сотрудник, которые не является работником данного отдела';
-CONSTRAINT consultantReceipt(r) AND NOT isConsultantEmployee(consultantReceipt(r))
-    CHECKED BY consultantReceipt MESSAGE 'В качестве продавца в чеке выбран сотрудник, у которого не задан признак "Продавец".';    
+CONSTRAINT consultant(Receipt r) AND NOT in(departmentStore(r), consultant(r))
+    CHECKED BY consultant[Receipt] MESSAGE 'В качестве продавца в чекевыбран сотрудник, которые не является работником данного отдела';
+CONSTRAINT consultant(Receipt r) AND NOT isConsultant(consultant(r))
+    CHECKED BY consultant[Receipt] MESSAGE 'В качестве продавца в чеке выбран сотрудник, у которого не задан признак "Продавец".';    
     
         
-consultantReceiptDetail = ABSTRACT Employee (ReceiptDetail);
-nameConsultantReceiptDetail 'Продавец' (d) = nameContact(consultantReceiptDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+consultant = ABSTRACT Employee (ReceiptDetail);
+nameConsultant 'Продавец' (ReceiptDetail d) = name[Contact](consultant(d)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-consultantReceiptSaleDetail = DATA Employee (ReceiptSaleDetail);
+consultant = DATA Employee (ReceiptSaleDetail);
 
-WHEN SESSION FORMS POS SET (d IS ReceiptSaleDetail) AND NOT CHANGED (consultantReceiptSaleDetail(d)) DO {
-    consultantReceiptSaleDetail(d) <- consultantReceipt(receiptReceiptSaleDetail(d));
+WHEN SESSION FORMS POS SET (ReceiptSaleDetail d IS ReceiptSaleDetail) AND NOT CHANGED (consultant(d)) DO {
+    consultant(d) <- consultant(receipt(d));
 };
 
-CONSTRAINT consultantReceiptSaleDetail(r) AND NOT inStockEmployee(departmentStoreReceiptSaleDetail(r), consultantReceiptSaleDetail(r))
-    CHECKED BY consultantReceiptSaleDetail MESSAGE 'В качестве продавца в строке чеке выбран сотрудник, которые не является работником данного отдела';
-CONSTRAINT consultantReceiptSaleDetail(r) AND NOT isConsultantEmployee(consultantReceiptSaleDetail(r))
-    CHECKED BY consultantReceiptSaleDetail MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
+CONSTRAINT consultant(ReceiptSaleDetail r) AND NOT in(departmentStore(r), consultant(r))
+    CHECKED BY consultant[ReceiptSaleDetail] MESSAGE 'В качестве продавца в строке чеке выбран сотрудник, которые не является работником данного отдела';
+CONSTRAINT consultant(ReceiptSaleDetail r) AND NOT isConsultant(consultant(r))
+    CHECKED BY consultant[ReceiptSaleDetail] MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
         
-consultantReceiptReturnDetail = DATA Employee (ReceiptReturnDetail);
+consultant = DATA Employee (ReceiptReturnDetail);
 
-WHEN SESSION FORMS POS CHANGED (receiptSaleDetailReceiptReturnDetail(d)) AND NOT CHANGED (consultantReceiptReturnDetail(d))  DO {
-    consultantReceiptReturnDetail(d) <- consultantReceiptSaleDetail(receiptSaleDetailReceiptReturnDetail(d));
+WHEN SESSION FORMS POS CHANGED (receiptSaleDetail(ReceiptReturnDetail d)) AND NOT CHANGED (consultant(d))  DO {
+    consultant(d) <- consultant(receiptSaleDetail(d));
 };
 
-CONSTRAINT consultantReceiptReturnDetail(r) AND NOT inStockEmployee(departmentStoreReceiptReturnDetail(r), consultantReceiptReturnDetail(r))
-    CHECKED BY consultantReceiptReturnDetail MESSAGE 'В качестве продавца в строке чека выбран сотрудник, которые не является работником данного отдела';
-CONSTRAINT consultantReceiptReturnDetail(r) AND NOT isConsultantEmployee(consultantReceiptReturnDetail(r))
-    CHECKED BY consultantReceiptReturnDetail MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
+CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT in(departmentStore(r), consultant(r))
+    CHECKED BY consultant[ReceiptReturnDetail] MESSAGE 'В качестве продавца в строке чека выбран сотрудник, которые не является работником данного отдела';
+CONSTRAINT consultant(ReceiptReturnDetail r) AND NOT isConsultant(consultant(r))
+    CHECKED BY consultant[ReceiptReturnDetail] MESSAGE 'В качестве продавца в строке чека выбран сотрудник, у которого не задан признак "Продавец".';  
     
-consultantReceiptDetail(d) += consultantReceiptSaleDetail(d);
-consultantReceiptDetail(d) += consultantReceiptReturnDetail(d);
+consultant[ReceiptDetail](ReceiptSaleDetail d) += consultant(d);
+consultant[ReceiptDetail](ReceiptReturnDetail d) += consultant(d);
 
 EXTEND FORM POS
-    PROPERTIES (r) SHOWIF isConsultantReceip(r) nameConsultantReceipt
-    PROPERTIES (d) SHOWIF isConsultantReceip(r) nameConsultantReceiptDetail
+    PROPERTIES (r) SHOWIF isConsultantReceip(r) nameConsultant
+    PROPERTIES (d) SHOWIF isConsultantReceip(r) nameConsultant
 ;
 
 DESIGN POS {
     receiptDiscountRow2 {
-        MOVE PROPERTY (nameConsultantReceipt(r)){ alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
+        MOVE PROPERTY (nameConsultant(r)){ alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
     } 
 }
 
 EXTEND FORM zReport
-    PROPERTIES (d) SHOWIF isConsultantReceip(b) nameConsultantReceiptDetail
+    PROPERTIES (d) SHOWIF isConsultantReceip(b) nameConsultant
 ;
 EXTEND FORM zReports
-    PROPERTIES (d) READONLY SHOWIF isConsultantReceip(b) nameConsultantReceiptDetail
+    PROPERTIES (d) READONLY SHOWIF isConsultantReceip(b) nameConsultant
 ;
 
-consultantSaleLedger = ABSTRACT Employee (SaleLedger);
-nameConsultantSaleLedger 'Продавец' (l) = nameContact(consultantSaleLedger(l)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+consultant = ABSTRACT Employee (SaleLedger);
+nameConsultant 'Продавец' (SaleLedger l) = name[Contact](consultant(l)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-consultantSaleLedger(l) +=  consultantReceiptSaleDetail(l);
-consultantSaleLedger(l) +=  consultantReceiptReturnDetail(l); 
+consultant[SaleLedger](ReceiptSaleDetail l) +=  consultant(l);
+consultant[SaleLedger](ReceiptReturnDetail l) +=  consultant(l); 
 
 saleConsultant 'Продавец' = DATA LOCAL Employee ();
-nameSaleConsultant 'Продавец' = nameContact(saleConsultant());
-filterSaleConsultantSaleLedger = consultantSaleLedger(ledger)==saleConsultant() OR (ledger IS SaleLedger AND NOT saleConsultant());
+nameSaleConsultant 'Продавец' = name[Contact](saleConsultant());
+filterSaleConsultant = consultant(SaleLedger ledger)==saleConsultant() OR (ledger IS SaleLedger AND NOT saleConsultant());
 
-CONSTRAINT saleConsultant()  AND NOT isConsultantEmployee(saleConsultant())
-    CHECKED BY saleConsultant MESSAGE 'В качестве продавца в фильтре выбран сотрудник, у которого не задан признак "Продавец".';  
+CONSTRAINT saleConsultant()  AND NOT isConsultant(saleConsultant())
+    CHECKED BY saleConsultant[] MESSAGE 'В качестве продавца в фильтре выбран сотрудник, у которого не задан признак "Продавец".';  
 
 EXTEND FORM saleLedger
     PROPERTIES()   nameSaleConsultant
-    PROPERTIES (s) READONLY nameConsultantSaleLedger
+    PROPERTIES (s) READONLY nameConsultant
     
-    FILTERS filterSaleConsultantSaleLedger(s)
+    FILTERS filterSaleConsultant(s)
 ;
 DESIGN saleLedger {
     operationContainer{
@@ -121,14 +121,14 @@ DESIGN saleLedger {
 
 //задание продавца по штрихкоду для чека
 
-overChangeBarcodeConsultant = ACTION (string, receipt) {
-    IF employeeBarcode(string) AND isConsultantEmployee(employeeBarcode(string)) AND receipt IS Receipt AND string IS STRING[15]  THEN {
-        consultantReceipt(receipt) <- employeeBarcode(string);        
+overChangeBarcodeConsultant = ACTION (STRING[15] string, Receipt receipt) {
+    IF employeeBarcode(string) AND isConsultant(employeeBarcode(string)) AND receipt IS Receipt AND string IS STRING[15]  THEN {
+        consultant(receipt) <- employeeBarcode(string);        
         consumedChangeBarcodeSaleReceipt() <- TRUE;
     }
 } TOOLBAR;
 
-overChangeBarcodeSaleReceipt(string, receipt) += ACTION overChangeBarcodeConsultant(string, receipt);
+overChangeBarcodeSale(STRING[15] string, Receipt receipt) += ACTION overChangeBarcodeConsultant(string, receipt);
 
 
 

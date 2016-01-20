@@ -14,42 +14,42 @@ NAMESPACE Sale;
 
 @defineDocumentInterfaceDetailPriceListType (invoice, priceListType, RRP, ' (RRP)');
 
-RRPPriceListTypeUserInvoiceDetail(userInvoiceDetail) <- RRPPriceListTypeAgreement(agreementUserInvoice(userInvoiceUserInvoiceDetail(userInvoiceDetail)))
-    WHEN CHANGED (agreementUserInvoice(userInvoiceUserInvoiceDetail(userInvoiceDetail)));
+RRPPriceListType(UserInvoiceDetail userInvoiceDetail) <- RRPPriceListType(agreement(userInvoice(userInvoiceDetail)))
+    WHEN CHANGED (agreement(userInvoice(userInvoiceDetail)));
 
-currencyRRPUserInvoiceDetail (userInvoiceDetail) = currencyPriceListType(RRPPriceListTypeUserInvoiceDetail(userInvoiceDetail));
-nameCurrencyRRPUserInvoiceDetail 'Валюта (RRP)' (userInvoiceDetail) = nameCurrency(currencyRRPUserInvoiceDetail(userInvoiceDetail));
+currencyRRP (UserInvoiceDetail userInvoiceDetail) = currency(RRPPriceListType(userInvoiceDetail));
+nameCurrencyRRP 'Валюта (RRP)' (UserInvoiceDetail userInvoiceDetail) = name(currencyRRP(userInvoiceDetail));
 
-currencyRRPInvoiceDetail (invoiceDetail) = currencyPriceListType(RRPPriceListTypeInvoiceDetail(invoiceDetail));
-nameCurrencyRRPInvoiceDetail 'Валюта (RRP)' (invoiceDetail) = nameCurrency(currencyRRPInvoiceDetail(invoiceDetail));
+currencyRRP (InvoiceDetail invoiceDetail) = currency(RRPPriceListType(invoiceDetail));
+nameCurrencyRRP 'Валюта (RRP)' (InvoiceDetail invoiceDetail) = name(currencyRRP(invoiceDetail));
 
 @defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, RRP, ' (RRP)');
-WHEN SESSION (CHANGED(RRPPriceListTypeUserInvoiceDetail(detail)) OR
-             CHANGED(skuUserInvoiceDetail(detail)) OR
-             CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-             CHANGED(dateTimeUserInvoiceDetail(detail))) AND pt == RRPPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
-    RRPPriceUserInvoiceDetail (detail)  <-  prevPriceBPriceListTypeSkuStockDateTime(pt,
-                                                                               skuUserInvoiceDetail(detail),
-                                                                               supplierStockUserInvoiceDetail(detail),
-                                                                               dateTimeUserInvoiceDetail(detail))
+WHEN SESSION (CHANGED(RRPPriceListType(UserInvoiceDetail detail)) OR
+             CHANGED(sku(detail)) OR
+             CHANGED(supplierStock(detail)) OR
+             CHANGED(dateTime(detail))) AND PriceListType pt == RRPPriceListType(detail) NOINLINE (pt) DO
+    RRPPrice (detail)  <-  prevPriceB(pt,
+                                                                               sku(detail),
+                                                                               supplierStock(detail),
+                                                                               dateTime(detail))
                                                     ;
 
-RRPSumUserInvoiceDetail 'Сумма (RRP)' (detail) = roundPriceCurrency(RRPPriceUserInvoiceDetail (detail)*quantityUserInvoiceDetail(detail), currencyUserInvoiceDetail(detail));
-RRPSumInvoiceDetail 'Сумма (RRP)' (detail) = roundPriceCurrency(RRPPriceInvoiceDetail(detail)*quantityInvoiceDetail(detail), currencyInvoiceDetail(detail));
+RRPSum 'Сумма (RRP)' (UserInvoiceDetail detail) = round(RRPPrice (detail)*quantity(detail), currency(detail));
+RRPSum 'Сумма (RRP)' (InvoiceDetail detail) = round(RRPPrice(detail)*quantity(detail), currency(detail));
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showRRPUserInvoice
-    PROPERTIES(d) SHOWIF showRRPUserInvoice(i) BEFORE deleteid nameRRPPriceListTypeUserInvoiceDetail, nameCurrencyRRPUserInvoiceDetail READONLY, RRPPriceUserInvoiceDetail
+    PROPERTIES(i) showRRP
+    PROPERTIES(d) SHOWIF showRRP(i) BEFORE deleteid nameRRPPriceListType, nameCurrencyRRP READONLY, RRPPrice
 ;
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerRRP {
             caption = 'RRP';
-            MOVE PROPERTY(showRRPUserInvoice(i));
+            MOVE PROPERTY(showRRP(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showRRPInvoice(i) nameRRPPriceListTypeInvoiceDetail, nameCurrencyRRPInvoiceDetail, RRPPriceInvoiceDetail
+    PROPERTIES(d) READONLY SHOWIF showRRP(i) nameRRPPriceListType, nameCurrencyRRP, RRPPrice
 ;

@@ -11,12 +11,12 @@ NAMESPACE Sale;
 @extendFormFilterAccessLegalEntity(Invoice, i, invoices, supplier, company);
 @extendFormFilterAccessLegalEntity(Invoice, i, invoices, customer, customer);
 
-idCustomerStockInvoice(invoice) = idStock(customerStockInvoice(invoice));
-idSupplierStockInvoice(invoice) = idStock(supplierStockInvoice(invoice));
+idCustomerStock(Invoice invoice) = id(customerStock(invoice));
+idSupplierStock(Invoice invoice) = id(supplierStock(invoice));
 
 // Добавляем партии
 @defineInvoiceBatch(supplier, , Sale, ' (продажа)');
-Invoice.batchInvoiceDetail(d) += batchInvoiceDetail(d);
+batch[Invoice.InvoiceDetail](InvoiceDetail d) += batch(d);
 @defineInvoiceBatchDialogStock(supplierStock, Out);
 
 @defineInvoiceDestination(supplier, customer);
@@ -43,24 +43,24 @@ Invoice.batchInvoiceDetail(d) += batchInvoiceDetail(d);
 
 @defineDocumentOperationRole(userInvoice);
 
-Invoice.operationInvoice(o) += operationInvoice(o);
+operation[Invoice.Invoice](Invoice o) += operation(o);
 
 // Добавляем в копирование инвойсов
-overCopyInvoice(s, d) += ACTION(s, d) {
-    ASSIGN operationUserInvoice(d) <- operationInvoice(s);
+overCopy(Invoice s, UserInvoice d) += ACTION(s, d) {
+    ASSIGN operation(d) <- operation(s);
 }
 
 @defineOperationFilterProperty(invoice, i, invoices, nameFilterInvoiceSupplier);
 // ---------------------------------------------- Создание инвойса по заказу ---------------------------------- //
 
-notFillPriceInvoiceOrderOperation 'Не использовать цены в накладной из заказа' = DATA BOOLEAN (Operation);
+notFillPriceInvoiceOrder 'Не использовать цены в накладной из заказа' = DATA BOOLEAN (Operation);
 EXTEND FORM operation
-    PROPERTIES(o) notFillPriceInvoiceOrderOperation
+    PROPERTIES(o) notFillPriceInvoiceOrder
 ;
 
 DESIGN operation {
     createContainer {
-        MOVE PROPERTY(notFillPriceInvoiceOrderOperation(o));
+        MOVE PROPERTY(notFillPriceInvoiceOrder(o));
     }
 }
 
@@ -68,33 +68,33 @@ DESIGN operation {
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
-CONSTRAINT supplierUserInvoice(userInvoice) AND NOT isCompanyLegalEntity(supplierUserInvoice(userInvoice))
-    CHECKED BY supplierUserInvoice MESSAGE 'Для накладной выбрана в качестве поставщика организация, не являющаяся компанией: продажа';
-CONSTRAINT customerUserInvoice(userInvoice) AND NOT isCustomerLegalEntity(customerUserInvoice(userInvoice))
-    CHECKED BY customerUserInvoice MESSAGE 'Для накладной выбрана в качестве покупателя организация, не являющаяся покупателем: продажа';
+CONSTRAINT supplier(UserInvoice userInvoice) AND NOT isCompany(supplier(userInvoice))
+    CHECKED BY supplier[UserInvoice] MESSAGE 'Для накладной выбрана в качестве поставщика организация, не являющаяся компанией: продажа';
+CONSTRAINT customer(UserInvoice userInvoice) AND NOT isCustomer(customer(userInvoice))
+    CHECKED BY customer[UserInvoice] MESSAGE 'Для накладной выбрана в качестве покупателя организация, не являющаяся покупателем: продажа';
     
-CONSTRAINT filterInvoiceSupplier() AND NOT isCompanyLegalEntity(filterInvoiceSupplier())
-    CHECKED BY filterInvoiceSupplier MESSAGE 'Для фильтра в накладной выбрана в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT filterInvoiceSupplierStock() AND NOT isCompanyStock(filterInvoiceSupplierStock())
-    CHECKED BY filterInvoiceSupplierStock MESSAGE 'Для фильтра в накладной выбран в качестве склада поставщика склад, который не принадлежит компании';     
+CONSTRAINT filterInvoiceSupplier() AND NOT isCompany(filterInvoiceSupplier())
+    CHECKED BY filterInvoiceSupplier[] MESSAGE 'Для фильтра в накладной выбрана в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT filterInvoiceSupplierStock() AND NOT isCompany(filterInvoiceSupplierStock())
+    CHECKED BY filterInvoiceSupplierStock[] MESSAGE 'Для фильтра в накладной выбран в качестве склада поставщика склад, который не принадлежит компании';     
     
-CONSTRAINT filterInvoiceCustomer() AND NOT isCustomerLegalEntity(filterInvoiceCustomer())
-    CHECKED BY filterInvoiceCustomer MESSAGE 'Для фильтра в накладной выбрана в качестве покупателя организация, не являющаяся покупателем';   
+CONSTRAINT filterInvoiceCustomer() AND NOT isCustomer(filterInvoiceCustomer())
+    CHECKED BY filterInvoiceCustomer[] MESSAGE 'Для фильтра в накладной выбрана в качестве покупателя организация, не являющаяся покупателем';   
         
-CONSTRAINT filterInvoiceSupplier() AND filterInvoiceSupplierStock() AND NOT inLegalEntityStock(filterInvoiceSupplier(), filterInvoiceSupplierStock())
-    CHECKED BY filterInvoiceSupplierStock MESSAGE 'Поставщик и склад поставщика в фильтре для накладной не имеют связи';
-CONSTRAINT filterInvoiceCustomer() AND filterInvoiceCustomerStock() AND NOT inLegalEntityStock(filterInvoiceCustomer(), filterInvoiceCustomerStock())
-    CHECKED BY filterInvoiceCustomerStock MESSAGE 'Покупатель и склад покупателя в фильтре для накладной не имеют связи';      
+CONSTRAINT filterInvoiceSupplier() AND filterInvoiceSupplierStock() AND NOT in(filterInvoiceSupplier(), filterInvoiceSupplierStock())
+    CHECKED BY filterInvoiceSupplierStock[] MESSAGE 'Поставщик и склад поставщика в фильтре для накладной не имеют связи';
+CONSTRAINT filterInvoiceCustomer() AND filterInvoiceCustomerStock() AND NOT in(filterInvoiceCustomer(), filterInvoiceCustomerStock())
+    CHECKED BY filterInvoiceCustomerStock[] MESSAGE 'Покупатель и склад покупателя в фильтре для накладной не имеют связи';      
 
 //------------------------------ Ввод в упаковках -----------------------------//
 
 @defineDocumentPack(invoice, i);
-Invoice.packQuantityInvoiceDetail(detail) += packQuantityInvoiceDetail(detail);
+packQuantity[Invoice.InvoiceDetail](InvoiceDetail detail) += packQuantity(detail);
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerPack {
             caption = 'Упаковка';
-            MOVE PROPERTY(showPackUserInvoice(i));
+            MOVE PROPERTY(showPack(i));
         }
     }
 }
@@ -104,14 +104,14 @@ DESIGN userInvoice {
 @defineDocumentPackSku(userInvoice, sku, supplierStock);
 @extendFormDocumentPackSku(userInvoice, userInvoice, i);
 
-overChangeQuantityValueSkuUserInvoiceDetail(detail) += ACTION (detail) {
-    IF packBarcodeSku(skuUserInvoiceDetail(detail)) THEN {
-        ASSIGN packQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail)/amountPackUserInvoiceDetail(detail);
+overChangeQuantityValueSku(UserInvoiceDetail detail) += ACTION (detail) {
+    IF packBarcode(sku(detail)) THEN {
+        ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
-overChangeQuantityValueBatchUserInvoiceDetail(detail) += ACTION (detail) {
-    IF packBarcodeSku(skuBatch(batchUserInvoiceDetail(detail))) THEN {
-        ASSIGN packQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail)/amountPackUserInvoiceDetail(detail);
+overChangeQuantityValueBatch(UserInvoiceDetail detail) += ACTION (detail) {
+    IF packBarcode(sku(batch(detail))) THEN {
+        ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
 
@@ -120,7 +120,7 @@ overChangeQuantityValueBatchUserInvoiceDetail(detail) += ACTION (detail) {
 
 // ---------------- Проставление партий в инвойсе с использование партий заказа -------- //
 
-useExplicitBatchDetailUserInvoiceOrder (order) += order IS Sale.Order;
+useExplicitBatchDetailUserInvoice (Order order) += order IS Sale.Order;
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
@@ -129,28 +129,28 @@ useExplicitBatchDetailUserInvoiceOrder (order) += order IS Sale.Order;
 //------------------------------ Расширение формы -----------------------------//
 
 // Фильтры
-inUserInvoiceSku (userInvoice, sku)= inCustomerSku(customerUserInvoice(userInvoice), sku);
+in (UserInvoice userInvoice, Sku sku)= inCustomer(customer(userInvoice), sku);
 EXTEND FORM userInvoice
 
     FILTERGROUP filter
-        FILTER 'С остатком ' prevCurrentBalanceSkuUserInvoice(ks, i) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserInvoiceDetailSkuUserInvoice(ks, i) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(ks, i) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserInvoiceDetail(ks, i) 'F9'
 
     FILTERGROUP filter2
-        FILTER 'С продажей ' inUserInvoiceSku(i, ks) 'F8'
-        FILTER 'В прайсе' ledgerPriceSkuUserInvoice(ks, i) 'F7'
+        FILTER 'С продажей ' in(i, ks) 'F8'
+        FILTER 'В прайсе' ledgerPrice(ks, i) 'F7'
 
 ;
-inUserInvoiceBatch (userInvoice, batch)= inCustomerSku(customerUserInvoice(userInvoice), skuBatch(batch));
+in (UserInvoice userInvoice, Batch batch)= inCustomer(customer(userInvoice), sku(batch));
 EXTEND FORM userInvoice
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalanceBatchUserInvoice(b,i) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserInvoiceDetailBatchUserInvoice(b,i) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b,i) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserInvoiceDetail(b,i) 'F9'
 
     FILTERGROUP filter4
-        FILTER 'С продажей ' inUserInvoiceBatch(i,b) 'F8'
-        FILTER 'В прайсе' ledgerPriceBatchUserInvoice(b, i) 'F7'
+        FILTER 'С продажей ' in(i,b) 'F8'
+        FILTER 'В прайсе' ledgerPrice(b, i) 'F7'
 
 ;
 
@@ -163,8 +163,8 @@ EXTEND FORM userInvoice
 
 // --------------- Заполнение кода партии ----------------- //
 
-idBatchInvoiceDetail 'Код партии' (d) = idBatch(batchInvoiceDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-idBatchUserInvoiceDetail 'Код партии' (d) = idBatch(batchUserInvoiceDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatch 'Код партии' (InvoiceDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatch 'Код партии' (UserInvoiceDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 @defineMovementIdBatch(invoiceDetail, batch, supplierStock);
 @defineBalancesIdBatch(invoiceDetail, batch);
@@ -172,55 +172,55 @@ idBatchUserInvoiceDetail 'Код партии' (d) = idBatch(batchUserInvoiceDet
 @defineBalancesIdBatch(userInvoiceDetail, batch);
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) READONLYIF batchUserInvoiceDetail(d) SHOWIF showBatchInvoice(i)
-                  idBatchUserInvoiceDetail ON CHANGE changeBatchUserInvoiceDetail(d) BEFORE nameBatchUserInvoiceDetail(d)
+    PROPERTIES(d) READONLYIF batch(d) SHOWIF showBatch[Invoice](i)
+                  idBatch ON CHANGE changeBatch(d) BEFORE nameBatch(d)
 ;
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showBatchInvoice(i)
-                  idBatchInvoiceDetail AFTER nameBatchInvoiceDetail(d)
+    PROPERTIES(d) READONLY SHOWIF showBatch(i)
+                  idBatch AFTER nameBatch(d)
 ;
 
 // --------------------------- Проведение по регистру продаж ------------------------------------ //
 @implementSaleLedger(Invoice, sku, supplierStock);
-editSaleLedger (ledger) += ACTION editInvoiceDetail(ledger);
+edit[SaleLedger] (InvoiceDetail ledger) += ACTION edit(ledger);
 
-overQuantityInvoiceDetail = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
+overQuantity = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
 
-operationSaleLedger (ledger) += operationInvoiceDetail(ledger);
-quantitySaleLedger (ledger) += OVERRIDE quantityInvoiceDetail(ledger), overQuantityInvoiceDetail(ledger);
-VATSaleLedger (ledger) += VATInvoiceDetail(ledger);
-priceSaleLedger (ledger) += invoicePriceInvoiceDetail(ledger);
-sumSaleLedger (ledger) += invoiceSumInvoiceDetail(ledger);
-customerSaleLedger (ledger) += customerInvoiceDetail(ledger);
-customerStockSaleLedger (ledger) += customerStockInvoiceDetail(ledger);
-skipSaleLedger (ledger) += WHEN ledger IS Sale.InvoiceDetail THEN skipSaleLedgerOperation(operationInvoiceDetail(ledger));
-numberDocumentSaleLedger (ledger) += numberInvoiceDetail(ledger);
+operation (InvoiceDetail ledger) += operation(ledger);
+quantity[SaleLedger] (InvoiceDetail ledger) += OVERRIDE quantity(ledger), overQuantity(ledger);
+VAT[SaleLedger] (InvoiceDetail ledger) += VAT(ledger);
+price[SaleLedger] (InvoiceDetail ledger) += invoicePrice(ledger);
+sum[SaleLedger] (InvoiceDetail ledger) += invoiceSum(ledger);
+customer (InvoiceDetail ledger) += customer(ledger);
+customerStock (InvoiceDetail ledger) += customerStock(ledger);
+skip (InvoiceDetail ledger) += WHEN ledger IS Sale.InvoiceDetail THEN skipSaleLedger(operation(ledger));
+numberDocument (InvoiceDetail ledger) += number(ledger);
 
 
 //-- Запрет на изменение документа другим пользователем
 @defineOperationChangesDocument(invoice, UserInvoice, preventChangesDocument, created);
 
-overShowEditInvoice (i) += showEditDeleteUserInvoice(i) AND isOpenedInvoice(i) AND NOT skipShowEditInvoice(i);
-overShowDeleteInvoice (i) += showEditDeleteUserInvoice(i) AND isUserOpenedInvoice(i)AND NOT skipShowDeleteInvoice(i); 
+overShowEdit (Invoice i) += showEditDeleteUser(i) AND isOpened(i) AND NOT skipShowEdit(i);
+overShowDelete (UserInvoice i) += showEditDeleteUser(i) AND isUserOpened(i)AND NOT skipShowDelete(i); 
 
-overPreventCloseUserInvoice (i) += preventCloseDocumentUserOperation(currentUser(), operationUserInvoice(i));
+overPreventClose (UserInvoice i) += preventCloseDocument(currentUser(), operation(i));
 
 //--
 
-orderBatchSkuStockDateTime (sku, stock, dateTime) = GROUP MIN orderBatch(batch) IF balanceBBatchStockDateTime(batch, stock, dateTime)
-                                                   BY skuLedgerBatchStock(batch, stock), stock, dateTime;
-firstOrderBatchSkuStockDateTime(sku, stock, dateTime) = orderBatchSkuStockDateTime(sku, stock, dateTime)[2];
+orderBatch (sku, stock, dateTime) = GROUP MIN order(Batch batch) IF balanceB(batch, Stock stock, DATETIME dateTime)
+                                                   BY skuLedger(batch, stock), stock, dateTime;
+firstOrderBatch(Sku sku, Stock stock, DATETIME dateTime) = orderBatch(sku, stock, dateTime)[2];
 
-fillBatchUserInvoiceDetail 'Проставить партию'  = ACTION (d) {    
-    batchUserInvoiceDetail(d) <- firstOrderBatchSkuStockDateTime(skuUserInvoiceDetail(d), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d)) 
-        WHERE NOT batchUserInvoiceDetail(d)  AND
-        balanceBBatchStockDateTime(firstOrderBatchSkuStockDateTime(skuUserInvoiceDetail(d), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d)), supplierStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d)) >= quantityUserInvoiceDetail(d);
-} SHORTCUT nameBatchUserInvoiceDetail;
+fillBatch 'Проставить партию'  = ACTION (UserInvoiceDetail d) {    
+    batch(d) <- firstOrderBatch(sku(d), supplierStock(d), dateTime(d)) 
+        WHERE NOT batch(d)  AND
+        balanceB(firstOrderBatch(sku(d), supplierStock(d), dateTime(d)), supplierStock(d), dateTime(d)) >= quantity(d);
+} SHORTCUT nameBatch[UserInvoiceDetail];
 
-fillAllBatchUserInvoiceDetail 'Проставить партии для всех' = ACTION (detail) {
-   FOR userInvoiceUserInvoiceDetail(detail) == userInvoiceUserInvoiceDetail(d) DO
-       fillBatchUserInvoiceDetail(d);
-} SHORTCUT nameBatchUserInvoiceDetail;
+fillAllBatch 'Проставить партии для всех' = ACTION (UserInvoiceDetail detail) {
+   FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) DO
+       fillBatch(d);
+} SHORTCUT nameBatch[UserInvoiceDetail];
 
 NAVIGATOR {
     saleSaleNavigator {
@@ -228,17 +228,17 @@ NAVIGATOR {
     }
 }
 
-CONSTRAINT  isPostedUserInvoice(i) AND isContractOperation(operationUserInvoice(i)) AND NOT contractSkuInvoice(i) 
+CONSTRAINT  isPosted(UserInvoice i) AND isContract(operation(i)) AND NOT contractSku[Invoice](i) 
     MESSAGE 'Для накладной (продажа) обязан быть задан договор';  
     
-disableShowBatchInvoice(i) += disableShowBatchOperation(operationInvoice(i));
-notUseBatchPriceUserInvoiceDetail(d) += notUseBatchPriceOperation(operationUserInvoiceDetail(d));
+disableShowBatch(Invoice i) += disableShowBatch(operation(i));
+notUseBatchPrice(UserInvoiceDetail d) += notUseBatchPrice(operation(d));
 
-CONSTRAINT  isPostedUserInvoiceDetail(d) AND isPriceOperation(operationUserInvoiceDetail(d)) AND NOT priceUserInvoiceDetail(d) 
+CONSTRAINT  isPosted(UserInvoiceDetail d) AND isPrice(operation(d)) AND NOT price(d) 
     MESSAGE 'Для строки накладная (продажа) должна быть задана цена'; 
     
-CONSTRAINT isPostedUserInvoiceDetail(d) AND isSaleBatchOperation(operationUserInvoiceDetail(d)) AND skuUserInvoiceDetail(d) AND NOT batchUserInvoiceDetail(d) 
+CONSTRAINT isPosted(UserInvoiceDetail d) AND isSaleBatch(operation(d)) AND sku(d) AND NOT batch(d) 
     MESSAGE 'Для строки накладной (продажа) должна быть задана партия'; 
     
-CONSTRAINT isPostedInvoice(i) AND isCharLengthOperation(operationInvoice(i)) AND NOT (charLength(numberInvoice(i)) == 7 AND onlyDigits(numberInvoice(i)) == 1)
+CONSTRAINT isPosted(Invoice i) AND isCharLength(operation(i)) AND NOT (charLength(number(i)) == 7 AND onlyDigits(number(i)) == 1)
     MESSAGE 'У накладной (продажа) номер должен состоять из семи цифр';

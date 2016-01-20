@@ -8,17 +8,17 @@ NAMESPACE StopList;
 
 //-------------------- Создание стоп-листа для склада, если нет движения и остатков----------------------//
      
-ff 'Дата с' = subtractDate(currentDate(), int);
+ff 'Дата с' = subtract(currentDate(), LONG int);
 FORM stockDays 'Выбор склада и количества дней'
 
     OBJECTS s=Stock FIXED PANEL
 
-    PROPERTIES(s) SELECTOR nameStock
+    PROPERTIES(s) SELECTOR name
                    
     OBJECTS i=INTEGER FIXED PANEL
     PROPERTIES    val =OBJVALUE(i)     
     PROPERTIES(i) ff
-    FILTERS isCompanyStock(s)                               
+    FILTERS isCompany(s)                               
 
 ;
 DESIGN stockDays {
@@ -39,11 +39,11 @@ DESIGN stockDays {
 }
 
 
-quantityPurchaseSkuStockDateFrom 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom) = GROUP SUM
-        quantityPurchaseSkuStockDate(sku, stock, date) IF date >= dateFrom 
+quantityPurchase 'Закуплено за интервал (кол-во)' (sku, stock, dateFrom) = GROUP SUM
+        PurchaseLedger.quantityPurchase(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom 
         BY sku, stock, dateFrom;
         
-notPurchaseStockDateFromDateTime (stock, dateFrom, dateTime)= GROUP SUM 1 IF NOT (quantityPurchaseSkuStockDateFrom(sku, stock, dateFrom) OR currentBalanceSkuStock(sku, stock) OR lastStopListDetailSkuStockDateTime(sku, stock, dateTime)) 
+notPurchase (stock, dateFrom, dateTime)= GROUP SUM 1 IF NOT (quantityPurchase(Sku sku, Stock stock, DATE dateFrom) OR currentBalance(sku, stock) OR lastStopListDetail(sku, stock, DATETIME dateTime)) 
     AND sku IS Sku AND stock IS Stock AND dateFrom IS DATE AND dateTime IS DATETIME 
         BY stock, dateFrom, dateTime; 
      
@@ -51,17 +51,17 @@ createStopList 'Создать по товарам без прихода и ос
     FORM stockDays MODAL; 
     IF formResult() == FormResult.ok THEN{
         
-        IF notPurchaseStockDateFromDateTime(chosenObject('s'), subtractDate(currentDate(), chosenInteger('i')), currentDateTime()) THEN {
+        IF notPurchase(chosenObject('s'), subtract(currentDate(), chosenInteger('i')), currentDateTime()) THEN {
             FOR ADDOBJ sl = StopList DO {
             
-                inStockStopList(st, sl) <- TRUE WHERE st == chosenObject('s');  
+                in(Stock st, sl) <- TRUE WHERE st == chosenObject('s');  
                
                 
-                FOR sku IS Sku IF NOT (quantityPurchaseSkuStockDateFrom(sku, chosenObject('s'), subtractDate(currentDate(), chosenInteger('i'))) OR currentBalanceSkuStock(sku, chosenObject('s')) OR lastStopListDetailSkuStockDateTime(sku, chosenObject('s'), currentDateTime()))   
+                FOR Sku sku IS Sku IF NOT (quantityPurchase(sku, chosenObject('s'), subtract(currentDate(), chosenInteger('i'))) OR currentBalance(sku, chosenObject('s')) OR lastStopListDetail(sku, chosenObject('s'), currentDateTime()))   
                     ADDOBJ d = StopListDetail DO {
                     
-                    stopListStopListDetail(d) <- sl;
-                    skuStopListDetail(d) <- sku;
+                    stopList(d) <- sl;
+                    sku(d) <- sku;
                 }   
                 FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
             }

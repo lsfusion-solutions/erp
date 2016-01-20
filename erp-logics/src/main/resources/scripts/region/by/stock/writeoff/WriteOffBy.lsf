@@ -4,38 +4,38 @@ REQUIRE WriteOff, LegalEntityBy;
 
 NAMESPACE WriteOff;
 
-UNPLegalEntityStockWriteOff 'УНП' (writeOff) = UNPLegalEntity(legalEntityStockWriteOff(writeOff));
+UNPLegalEntityStock 'УНП' (WriteOff writeOff) = UNP(legalEntityStock(writeOff));
 
 // --------------------------- Печатная форма ---------------------------------
 
 FORM printWriteOffBy 'Акт списания'
     OBJECTS w=WriteOff FIXED PANEL
-    PROPERTIES (w)  SELECTOR numberWriteOff, seriesWriteOff, fullNameStockWriteOff,
-                   dateWriteOff, timeWriteOff, nameReasonWriteOff, noteWriteOff, countWriteOffDetailWriteOff, quantityWriteOffDetailWriteOff,
-                   sumWriteOffDetailWriteOff,
-                   nameLegalEntityStockWriteOff, addressLegalEntityWriteOff, nameWriteOffCommitteeWriteOff,
-                   nameEmployeeWriteOffCommitteeWriteOff, writeOffCommitteeWriteOff, UNPLegalEntityStockWriteOff
+    PROPERTIES (w)  SELECTOR number, series, fullNameStock,
+                   date, time, nameReason, note, countWriteOffDetail, quantityWriteOffDetail,
+                   sumWriteOffDetail,
+                   nameLegalEntityStock, addressLegalEntity, nameWriteOffCommittee,
+                   nameEmployeeWriteOffCommittee, writeOffCommittee, UNPLegalEntityStock
 
     OBJECTS d=WriteOffDetail
-    PROPERTIES (d) READONLY indexWriteOffDetail, idBarcodeSkuWriteOffDetail, nameSkuWriteOffDetail, shortNameUOMSkuWriteOffDetail, nameBatchWriteOffDetail,
-                   quantityWriteOffDetail, priceWriteOffDetail, sumWriteOffDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
+                   quantity, price, sum
 
     OBJECTS e=Employee
-    PROPERTIES(e) SELECTOR   nameContact, namePositionEmployee
+    PROPERTIES(e) SELECTOR   name[Contact], namePosition
 
-    FILTERS inWriteOffWriteOffDetail(w, d),
-            inWriteOffCommitteeWriteOffEmployee(w, e)
+    FILTERS in(w, d),
+            inWriteOffCommittee(w, e)
 ;
 
-printWriteOffBy 'Акт списания' (writeOff) = ACTION FORM printWriteOffBy OBJECTS w = writeOff PRINT  IMAGE 'print.png' IN print;
+printBy 'Акт списания' (WriteOff writeOff) = ACTION FORM printWriteOffBy OBJECTS w = writeOff PRINT  IMAGE 'print.png' IN print;
 
 EXTEND FORM writeOffs
 
-    PROPERTIES (w) FORCE PANEL printWriteOffBy
+    PROPERTIES (w) FORCE PANEL printBy
 ;
 
 DESIGN writeOffs{
     printContainer{
-        MOVE PROPERTY(printWriteOffBy(w));
+        MOVE PROPERTY(printBy(w));
     }
 }

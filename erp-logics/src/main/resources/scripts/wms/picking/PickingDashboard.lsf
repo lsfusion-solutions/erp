@@ -4,14 +4,14 @@ REQUIRE Dashboard, OrderPickingOrder;
 
 NAMESPACE Picking;
 
-skipPickingOrder 'Пропустить печать' = ABSTRACT BOOLEAN (PickingOrder);
-overPrintPickingOrder 'Печать' = ABSTRACT ACTION LIST (PickingOrder);
+skip 'Пропустить печать' = ABSTRACT BOOLEAN (PickingOrder);
+overPrint 'Печать' = ABSTRACT ACTION LIST (PickingOrder);
 
-acceptPrintPickingOrder 'Принять' (pickingOrder) = ACTION (pickingOrder) {
-    acceptPickingOrder(pickingOrder);       
-    overPrintPickingOrder(pickingOrder);
-    IF NOT skipPickingOrder(pickingOrder) THEN {
-        printPickingOrder(pickingOrder);
+acceptPrint 'Принять' (PickingOrder pickingOrder) = ACTION (pickingOrder) {
+    accept(pickingOrder);       
+    overPrint(pickingOrder);
+    IF NOT skip(pickingOrder) THEN {
+        print(pickingOrder);
     }
 } TOOLBAR EDITKEY 'SPACE';
 
@@ -21,38 +21,38 @@ FORM pickingDashboard 'Комплектация' AUTOREFRESH 60
     PROPERTIES(d) date = OBJVALUE
 
     OBJECTS po=PickingOrder FIXED GRID
-    PROPERTIES (po) READONLY BACKGROUND backgroundStatusPickingPickingOrder(po) statusPickingPickingOrder, namePerformerPickingOrder,
-                    startDateTimePickingOrder, numberOrderPickingOrder, datePickingOrder, nameToPickingOrder, nameToStockPickingOrder, addressToStockPickingOrder,
-                    countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder, grossWeightPickingOrderDetailPickingOrder, notePickingOrder
+    PROPERTIES (po) READONLY BACKGROUND backgroundStatusPicking(po) statusPicking, namePerformer,
+                    startDateTime, numberOrder, date, nameTo, nameToStock, addressToStock,
+                    countPickingOrderDetail, quantityPickingOrderDetail, grossWeightPickingOrderDetail, note
 
-    PROPERTIES (po) acceptPrintPickingOrder SHOWIF notAcceptedPickingOrder(po),
-                    unacceptPickingOrder SHOWIF acceptedPickingOrder(po), fully = fullyAssembledPickingOrder SHOWIF acceptedPickingOrder(po),
-                    partially = partiallyAssembledPickingOrder SHOWIF acceptedPickingOrder(po)
+    PROPERTIES (po) acceptPrint SHOWIF notAccepted(po),
+                    unaccept SHOWIF accepted(po), fully = fullyAssembled SHOWIF accepted(po),
+                    partially = partiallyAssembled SHOWIF accepted(po)
                     
-    FILTERS isPostedPickingOrder(po) 
+    FILTERS isPosted(po) 
     FILTERGROUP pickingFilters
-        FILTER 'Не скомплектованные' NOT (calcPartPickingOrder(po) OR calcFullPickingOrder(po)) 'F4' DEFAULT
+        FILTER 'Не скомплектованные' NOT (calcPart(po) OR calcFull(po)) 'F4' DEFAULT
 
     OBJECTS pd=PickingOrderDetail FIXED GRID
-    PROPERTIES (pd) READONLY nameSkuPickingOrderDetail, shortNameUOMSkuPickingOrderDetail,
-                    nameBinPickingOrderDetail, quantityPickingOrderDetail
+    PROPERTIES (pd) READONLY nameSku, shortNameUOMSku,
+                    nameBin, quantity
 
-    FILTERS pickingOrderPickingOrderDetail(pd)==po
+    FILTERS pickingOrder(pd)==po
 
     OBJECTS p = Picking FIXED GRID
-    PROPERTIES (p) READONLY BACKGROUND backgroundStatusPicking(p) statusPicking, namePerformerPicking, numberPicking, finishDateTimePicking,
-                   nameToPicking, nameToStockPicking, addressToStockPicking, packQuantityPicking, quantityPickingDetailPicking, 
-                   grossWeightPickingDetailPicking, notePickingOrderPicking
+    PROPERTIES (p) READONLY BACKGROUND backgroundStatus(p) status, namePerformer, number, finishDateTime,
+                   nameTo, nameToStock, addressToStock, packQuantity, quantityPickingDetail, 
+                   grossWeightPickingDetail, notePickingOrder
 
-    PROPERTIES (p) editPicking
-    PROPERTIES     deleteo=DELETE(p) FORCE PANEL TOOLBAR  SHOWIF isUserPicking(p)
+    PROPERTIES (p) edit
+    PROPERTIES     deleteo=DELETE(p) FORCE PANEL TOOLBAR  SHOWIF is[UserPicking](p)
 
-    FILTERGROUP filters FILTER 'Текущие заказы' datePickingOrder(po)<=d 'F5' DEFAULT
-                        FILTER 'Будущие заказы' datePickingOrder(po)>d 'F6'
+    FILTERGROUP filters FILTER 'Текущие заказы' date(po)<=d 'F5' DEFAULT
+                        FILTER 'Будущие заказы' date(po)>d 'F6'
                         
-    FILTERGROUP filters1 FILTER 'Предыдущие комплектации' datePicking(p)<d 'F7'
-                         FILTER 'Комплектации на дату' datePicking(p)==d 'F8' DEFAULT
-                         FILTER 'Будущие комплектации' datePicking(p)>d 'F9'
+    FILTERGROUP filters1 FILTER 'Предыдущие комплектации' date(p)<d 'F7'
+                         FILTER 'Комплектации на дату' date(p)==d 'F8' DEFAULT
+                         FILTER 'Будущие комплектации' date(p)>d 'F9'
 
 ;
 
@@ -71,7 +71,7 @@ DESIGN pickingDashboard {
                 fill = 1;
                 type = TABBED;
                 MOVE p.box{
-                    PROPERTY(numberPicking(p)){
+                    PROPERTY(number(p)){
                         caption = 'Номер комплектации';
                     }
                 };

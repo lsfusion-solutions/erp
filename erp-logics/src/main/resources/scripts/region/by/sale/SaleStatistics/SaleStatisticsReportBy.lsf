@@ -10,55 +10,55 @@ NAMESPACE Sale;
 CLASS StatisticReportType 'Тип статистического отчета';
 CLASS StatisticReportTypeDetail 'Строка типа статистического отчета';
 
-nameStatisticReportType 'Наименование' = DATA VARISTRING[255] (StatisticReportType) MINCHARWIDTH 20 PREFCHARWIDTH 30 IN documentPrm;
+name 'Наименование' = DATA VARISTRING[255] (StatisticReportType) MINCHARWIDTH 20 PREFCHARWIDTH 30 IN documentPrm;
 @defineDocument(statisticReportType);
 @deriveDocumentHeaderTimePrefix(StatisticReportType, );
 
 
 @deriveDocumentHeaderTimePrefix(StatisticReportType, );
 
-statisticGroupTypeStatisticReportType = DATA StatisticGroupType (StatisticReportType) AUTOSET NOT NULL DELETE;
-nameStatisticGroupTypeStatisticReportType 'Тип классификатора' = nameStatisticGroupType(statisticGroupTypeStatisticReportType(r)) IN documentPrm;
+statisticGroupType = DATA StatisticGroupType (StatisticReportType) AUTOSET NOT NULL DELETE;
+nameStatisticGroupType 'Тип классификатора' = name(statisticGroupType(StatisticReportType r)) IN documentPrm;
 
-isSumReportStatisticReportType 'Сумовой отчет' = DATA BOOLEAN (StatisticReportType) IN documentPrm;
-notSumReportStatisticReportType = r IS StatisticReportType AND NOT isSumReportStatisticReportType(r);
-rateStatisticReportType 'Кратность для отчета'  = DATA NUMERIC[15,4] (StatisticReportType) IN documentPrm;
+isSumReport 'Сумовой отчет' = DATA BOOLEAN (StatisticReportType) IN documentPrm;
+notSumReport = StatisticReportType r IS StatisticReportType AND NOT isSumReport(r);
+rate 'Кратность для отчета'  = DATA NUMERIC[15,4] (StatisticReportType) IN documentPrm;
 
 //------------------------------ Строки -------------------------------//
 
-nameStatisticReportTypeDetail 'Наименование' = DATA VARISTRING[255] (StatisticReportTypeDetail);
-nameUOMStatisticReportTypeDetail 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportTypeDetail);
-isIntegerStatisticReportTypeDetail 'Целое' = DATA BOOLEAN (StatisticReportTypeDetail);
+name 'Наименование' = DATA VARISTRING[255] (StatisticReportTypeDetail);
+nameUOM 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportTypeDetail);
+isInteger 'Целое' = DATA BOOLEAN (StatisticReportTypeDetail);
 
-statisticGroupStatisticReportTypeDetail  = DATA StatisticGroup (StatisticReportTypeDetail);
-nameStatisticGroupStatisticReportTypeDetail 'Наименование группы' = nameStatisticGroup(statisticGroupStatisticReportTypeDetail(d));
-sidStatisticGroupStatisticReportTypeDetail 'Код группы' = sidStatisticGroup(statisticGroupStatisticReportTypeDetail(d));
+statisticGroup  = DATA StatisticGroup (StatisticReportTypeDetail);
+nameStatisticGroup 'Наименование группы' = name(statisticGroup(StatisticReportTypeDetail d));
+sidStatisticGroup 'Код группы' = sid(statisticGroup(StatisticReportTypeDetail d));
 
-CONSTRAINT statisticGroupStatisticReportTypeDetail(d) AND statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReportTypeDetail(d)) 
-    AND NOT groupTypeStatisticGroup(statisticGroupStatisticReportTypeDetail(d)) == statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReportTypeDetail(d))
-    CHECKED BY statisticGroupStatisticReportTypeDetail
+CONSTRAINT statisticGroup(StatisticReportTypeDetail d) AND statisticGroupType(statisticReportType(d)) 
+    AND NOT groupType(statisticGroup(d)) == statisticGroupType(statisticReportType(d))
+    CHECKED BY statisticGroup[StatisticReportTypeDetail]
     MESSAGE 'Для строки типа статистического отчета выбрана группа, которая не соответствует выбранному классификатору.';
 
-numberStatisticReportTypeDetail 'Код строки' = DATA STRING[10] (StatisticReportTypeDetail);    
+number 'Код строки' = DATA STRING[10] (StatisticReportTypeDetail);    
 
 FORM statisticReportType 'Тип статистического отчета'
 
     OBJECTS r = StatisticReportType FIXED PANEL
-    PROPERTIES (r) nameStatisticReportType, noteStatisticReportType,  nameStatisticGroupTypeStatisticReportType, isSumReportStatisticReportType, rateStatisticReportType SHOWIF isSumReportStatisticReportType(r)
+    PROPERTIES (r) name, note,  nameStatisticGroupType, isSumReport, rate SHOWIF isSumReport(r)
                 
-    PROPERTIES (r) countStatisticReportTypeDetailStatisticReportType
+    PROPERTIES (r) countStatisticReportTypeDetail
 
     OBJECTS d = StatisticReportTypeDetail
-    PROPERTIES (d) indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, numberStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
-                   sidStatisticGroupStatisticReportTypeDetail, nameUOMStatisticReportTypeDetail, isIntegerStatisticReportTypeDetail
+    PROPERTIES (d) index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, isInteger
                 
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION    
     
-    ORDER BY indexStatisticReportTypeDetail(d)
+    ORDER BY index(d)
 
-    PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetailStatisticReportType
+    PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetail
     
-    FILTERS statisticReportTypeStatisticReportTypeDetail(d) == r
+    FILTERS statisticReportType(d) == r
 
     EDIT StatisticReportType OBJECT r
 ;
@@ -83,25 +83,25 @@ DESIGN statisticReportType {
             }
         }
         MOVE functions.box;
-        PROPERTY (indexStatisticReportTypeDetail(d)) {caption ='Порядок';}
+        PROPERTY (index(d)) {caption ='Порядок';}
     }
 }
 
 FORM statisticReportTypes 'Типы статистических отчетов'
 
     OBJECTS r = StatisticReportType 
-    PROPERTIES (r) READONLY nameStatisticReportType, nameStatisticGroupTypeStatisticReportType, noteStatisticReportType, isSumReportStatisticReportType
+    PROPERTIES (r) READONLY name, nameStatisticGroupType, note, isSumReport
                 
-    PROPERTIES (r) READONLY countStatisticReportTypeDetailStatisticReportType
+    PROPERTIES (r) READONLY countStatisticReportTypeDetail
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
-    PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReportType, createdTimeStatisticReportType, createdHostnameComputerStatisticReportType 
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
         
     OBJECTS d = StatisticReportTypeDetail
-    PROPERTIES (d) READONLY indexStatisticReportTypeDetail, nameStatisticReportTypeDetail, numberStatisticReportTypeDetail, nameStatisticGroupStatisticReportTypeDetail,
-                   sidStatisticGroupStatisticReportTypeDetail, nameUOMStatisticReportTypeDetail, isIntegerStatisticReportTypeDetail 
-    ORDER BY indexStatisticReportTypeDetail(d)
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, isInteger 
+    ORDER BY index(d)
 
-    FILTERS statisticReportTypeStatisticReportTypeDetail(d) == r
+    FILTERS statisticReportType(d) == r
                 
     DIALOG StatisticReportType OBJECT r
 ;
@@ -141,7 +141,7 @@ DESIGN statisticReportTypes {
                 }
             }
         }
-        PROPERTY (indexStatisticReportTypeDetail(d)) {caption ='Порядок';}
+        PROPERTY (index(d)) {caption ='Порядок';}
     }
 }
 
@@ -152,7 +152,7 @@ DESIGN statisticReportTypes {
 CLASS StatisticReport 'Статистический отчет';
 CLASS StatisticReportDetail 'Строка статистического отчета';
 
-nameStatisticReport 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 @defineDocument(statisticReport);
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 
@@ -162,25 +162,25 @@ nameStatisticReport 'Наименование' = DATA VARISTRING[255] (Statistic
 @defineNumeratedDefault(StatisticReport, 'Статистический отчет', 'СО');
 @defineDocumentHeaderDescription (StatisticReport, 'Статистический отчет');
 
-fromDateStatisticReport 'Дата с' = DATA DATE (StatisticReport) IN documentHeader;
-toDateStatisticReport 'Дата по' = DATA DATE (StatisticReport) IN documentHeader;
+fromDate 'Дата с' = DATA DATE (StatisticReport) IN documentHeader;
+toDate 'Дата по' = DATA DATE (StatisticReport) IN documentHeader;
 
-fromDateStatisticReportDetail 'Дата с' = fromDateStatisticReport(statisticReportStatisticReportDetail(d));
-toDateStatisticReportDetail 'Дата по' = toDateStatisticReport(statisticReportStatisticReportDetail(d));
+fromDate 'Дата с' = fromDate(statisticReport(StatisticReportDetail d));
+toDate 'Дата по' = toDate(statisticReport(StatisticReportDetail d));
 
-startTimeStatisticReport 'Время начала формирования' = DATA DATETIME (StatisticReport) IN created;
-finishTimeStatisticReport 'Время окончания формирования' = DATA DATETIME (StatisticReport) IN created;
+startTime 'Время начала формирования' = DATA DATETIME (StatisticReport) IN created;
+finishTime 'Время окончания формирования' = DATA DATETIME (StatisticReport) IN created;
 
-WHEN SESSION SET(o IS StatisticReport) DO {
-    IF o IS StatisticReport AND NOT fromDateStatisticReport(o) THEN fromDateStatisticReport(o) <- currentDate();
-    IF o IS StatisticReport AND NOT toDateStatisticReport(o) THEN toDateStatisticReport(o) <- currentDate();
+WHEN SESSION SET(StatisticReport o IS StatisticReport) DO {
+    IF o IS StatisticReport AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+    IF o IS StatisticReport AND NOT toDate(o) THEN toDate(o) <- currentDate();
 };
 
-statisticGroupTypeStatisticReport = DATA StatisticGroupType (StatisticReport) AUTOSET NOT NULL DELETE;
-nameStatisticGroupTypeStatisticReport 'Тип классификатора' = nameStatisticGroupType(statisticGroupTypeStatisticReport(r)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
+statisticGroupType = DATA StatisticGroupType (StatisticReport) AUTOSET NOT NULL DELETE;
+nameStatisticGroupType 'Тип классификатора' = name(statisticGroupType(StatisticReport r)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-statisticReportTypeStatisticReport = DATA StatisticReportType (StatisticReport);
-nameStatisticReportTypeStatisticReport 'Тип отчета' = nameStatisticReportType(statisticReportTypeStatisticReport(r));
+statisticReportType = DATA StatisticReportType (StatisticReport);
+nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r));
 
 @defineDocumentDataStock(statisticReport, stock, 'Склад', );
 @defineDocumentDialogStocks(statisticReport, stock, company, , );
@@ -205,172 +205,172 @@ DESIGN reportKinds {
     PROPERTY(staticCaption(k)) { caption = 'Наименование'; } 
 }
 
-rateStatisticReport 'Кратность для отчета' (r) = rateStatisticReportType(statisticReportTypeStatisticReport(r));
+rate 'Кратность для отчета' (StatisticReport r) = rate(statisticReportType(r));
 
-isThingStatisticReport(r) = notSumReportStatisticReportType(statisticReportTypeStatisticReport(r));
-isSumStatisticReport(r) = isSumReportStatisticReportType(statisticReportTypeStatisticReport(r));
+isThing(StatisticReport r) = notSumReport(statisticReportType(r));
+isSum(StatisticReport r) = isSumReport(statisticReportType(r));
 
-reportKindStatisticReport = DATA ReportKind (StatisticReport);
-nameReportKindStatisticReport 'Вид отчета'(r) = staticCaption(reportKindStatisticReport(r));
+reportKind = DATA ReportKind (StatisticReport);
+nameReportKind 'Вид отчета'(StatisticReport r) = staticCaption(reportKind(r));
 
-isStockStatisticReport(r) = reportKindStatisticReport(r) == ReportKind.stock;
-isStockThingStatisticReport(r) = isStockStatisticReport(r) AND notSumReportStatisticReportType(statisticReportTypeStatisticReport(r));
-isStockSumStatisticReport(r) = isStockStatisticReport(r) AND isSumReportStatisticReportType(statisticReportTypeStatisticReport(r));
+isStock(StatisticReport r) = reportKind(r) == ReportKind.stock;
+isStockThing(StatisticReport r) = isStock(r) AND notSumReport(statisticReportType(r));
+isStockSum(StatisticReport r) = isStock(r) AND isSumReport(statisticReportType(r));
 
-isRegionStatisticReport(r) = reportKindStatisticReport(r) == ReportKind.region;
-isRegionThingStatisticReport(r) = isRegionStatisticReport(r) AND notSumReportStatisticReportType(statisticReportTypeStatisticReport(r));
-isRegionSumStatisticReport(r) = isRegionStatisticReport(r) AND isSumReportStatisticReportType(statisticReportTypeStatisticReport(r));
+isRegion(StatisticReport r) = reportKind(r) == ReportKind.region;
+isRegionThing(StatisticReport r) = isRegion(r) AND notSumReport(statisticReportType(r));
+isRegionSum(StatisticReport r) = isRegion(r) AND isSumReport(statisticReportType(r));
 
-isConsolidateStatisticReport(r) = reportKindStatisticReport(r) == ReportKind.consolidate;
-notConsolidateStatisticReport(r) = reportKindStatisticReport(r) != ReportKind.consolidate;
+isConsolidate(StatisticReport r) = reportKind(r) == ReportKind.consolidate;
+notConsolidate(StatisticReport r) = reportKind(r) != ReportKind.consolidate;
 
-WHEN SESSION SET ( r IS StatisticReport) AND NOT reportKindStatisticReport(r) DO {
-    reportKindStatisticReport(r) <- ReportKind.stock;
+WHEN SESSION SET ( StatisticReport r IS StatisticReport) AND NOT reportKind(r) DO {
+    reportKind(r) <- ReportKind.stock;
 }
 
-WHEN SESSION SETCHANGED ( reportKindStatisticReport(r)) AND NOT companyStatisticReport(r) AND isRegionStatisticReport(r) DO {
-    companyStatisticReport(r) <- defaultCompany();
+WHEN SESSION SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND isRegion(r) DO {
+    company(r) <- defaultCompany();
 }
 
-regionStatisticReport = DATA Region (StatisticReport);
-nameRegionStatisticReport 'Регион' (r) = nameRegion(regionStatisticReport(r));
-consolidateStocksStatisticReport 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport);
+region = DATA Region (StatisticReport);
+nameRegion 'Регион' (StatisticReport r) = name(region(r));
+consolidateStocks 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport);
 
-nameStockRegionStatisticReport 'Склад/Регион' (r) = CASE 
-    WHEN isStockStatisticReport(r) THEN nameStockStatisticReport(r) 
-    WHEN isRegionStatisticReport(r) THEN nameRegionStatisticReport(r)
-    WHEN isConsolidateStatisticReport(r) THEN consolidateStocksStatisticReport(r);
+nameStockRegion 'Склад/Регион' (StatisticReport r) = CASE 
+    WHEN isStock(r) THEN nameStock(r) 
+    WHEN isRegion(r) THEN nameRegion(r)
+    WHEN isConsolidate(r) THEN consolidateStocks(r);
 //------------------------------ Строки -------------------------------//
 
-nameStatisticReportDetail 'Наименование' = DATA VARISTRING[255] (StatisticReportDetail);
-nameUOMStatisticReportDetail 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportDetail);
-isIntegerStatisticReportDetail 'Целое' = DATA BOOLEAN (StatisticReportDetail);
-numberStatisticReportDetail 'Код строки' = DATA STRING[10] (StatisticReportDetail);
+name 'Наименование' = DATA VARISTRING[255] (StatisticReportDetail);
+nameUOM 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportDetail);
+isInteger 'Целое' = DATA BOOLEAN (StatisticReportDetail);
+number 'Код строки' = DATA STRING[10] (StatisticReportDetail);
 
-statisticGroupStatisticReportDetail  = DATA StatisticGroup (StatisticReportDetail);
-nameStatisticGroupStatisticReportDetail 'Наименование группы' = nameStatisticGroup(statisticGroupStatisticReportDetail(d));
-sidStatisticGroupStatisticReportDetail 'Код группы' = sidStatisticGroup(statisticGroupStatisticReportDetail(d));
+statisticGroup  = DATA StatisticGroup (StatisticReportDetail);
+nameStatisticGroup 'Наименование группы' = name(statisticGroup(StatisticReportDetail d));
+sidStatisticGroup 'Код группы' = sid(statisticGroup(StatisticReportDetail d));
 
-CONSTRAINT statisticGroupStatisticReportDetail(d) AND statisticGroupTypeStatisticReport(statisticReportStatisticReportDetail(d)) 
-    AND NOT groupTypeStatisticGroup(statisticGroupStatisticReportDetail(d)) == statisticGroupTypeStatisticReport(statisticReportStatisticReportDetail(d))
-    CHECKED BY statisticGroupStatisticReportDetail
+CONSTRAINT statisticGroup(StatisticReportDetail d) AND statisticGroupType(statisticReport(d)) 
+    AND NOT groupType(statisticGroup(d)) == statisticGroupType(statisticReport(d))
+    CHECKED BY statisticGroup[StatisticReportDetail]
     MESSAGE 'Для строки статистического отчета выбрана группа, которая не соответствует выбранному классификатору.';
     
-soldStatisticReportDetail 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
-soldResidentStatisticReportDetail 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
-balanceStatisticReportDetail 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
-balanceResidentStatisticReportDetail 'Запас отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
+sold 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+soldResident 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
+balance 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+balanceResident 'Запас отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
 
-soldSumStatisticReportDetail 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
-soldSumResidentStatisticReportDetail 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
-balanceSumStatisticReportDetail 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+soldSum 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+soldSumResident 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
+balanceSum 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
 
-fillDataStatisticReport 'Заполнить данные' = ACTION (report) {
-    soldStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    soldResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    balanceStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;    
-    balanceResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
+fillData 'Заполнить данные' = ACTION (StatisticReport report) {
+    sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
+    balanceResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     
-    FOR s == statisticGroupStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report AND 
-        st == stockStatisticReport(report) AND dFrom == fromDateStatisticReport(report) AND dTo == toDateStatisticReport(report) NOINLINE DO { 
+    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
+        Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO { 
     
-        soldStatisticReportDetail(d) <- NUMERIC[16,2](valueByStatisticGroupDateFromTo(s, st, dFrom, dTo));
-        soldResidentStatisticReportDetail(d) <- NUMERIC[16,2](valueResidentByStatisticGroupDateFromTo(s, st, dFrom, dTo));
-        balanceStatisticReportDetail(d) <- NUMERIC[16,2](valueByStatisticGroupDateTo(s, st, dTo));
-        balanceResidentStatisticReportDetail(d) <- NUMERIC[16,2](valueResidentByStatisticGroupDateTo(s, st, dTo));
+        sold(d) <- NUMERIC[16,2](valueBy(s, st, dFrom, dTo));
+        soldResident(d) <- NUMERIC[16,2](valueResidentBy(s, st, dFrom, dTo));
+        balance(d) <- NUMERIC[16,2](valueByTo(s, st, dTo));
+        balanceResident(d) <- NUMERIC[16,2](valueResidentByTo(s, st, dTo));
     }                                                                                                                                                  
     
-    soldStatisticReportDetail(d) <- INTEGER(soldStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    soldResidentStatisticReportDetail(d) <- INTEGER(soldResidentStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    balanceStatisticReportDetail(d) <- INTEGER(balanceStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    balanceResidentStatisticReportDetail(d) <- INTEGER(balanceResidentStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
+    sold(StatisticReportDetail d) <- INTEGER(sold(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- INTEGER(soldResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- INTEGER(balance(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    balanceResident(StatisticReportDetail d) <- INTEGER(balanceResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
 }
 
-fillRegionDataStatisticReport 'Заполнить данные' = ACTION (report) {
-    soldStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    soldResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    balanceStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;    
-    balanceResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
+fillRegionData 'Заполнить данные' = ACTION (StatisticReport report) {
+    sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
+    balanceResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
     
-    FOR s == statisticGroupStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report AND 
-        c == companyStatisticReport(report) AND r == regionStatisticReport(report) AND dFrom == fromDateStatisticReport(report) AND dTo == toDateStatisticReport(report) 
+    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
+        LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) 
         NOINLINE DO {
     
-        soldStatisticReportDetail(d) <- NUMERIC[16,2](valueByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo));
-        soldResidentStatisticReportDetail(d) <- NUMERIC[16,2](valueResidentByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo));
-        balanceStatisticReportDetail(d) <- NUMERIC[16,2](valueByStatisticGroupLegalEntityRegionDateTo(s, c, r, dTo));
-        balanceResidentStatisticReportDetail(d) <- NUMERIC[16,2](valueResidentByStatisticGroupLegalEntityRegionDateTo(s, c, r, dTo));
+        sold(d) <- NUMERIC[16,2](valueBy(s, c, r, dFrom, dTo));
+        soldResident(d) <- NUMERIC[16,2](valueResidentBy(s, c, r, dFrom, dTo));
+        balance(d) <- NUMERIC[16,2](valueByTo(s, c, r, dTo));
+        balanceResident(d) <- NUMERIC[16,2](valueResidentByTo(s, c, r, dTo));
 
     }
                                                                                                                                                       
-    soldStatisticReportDetail(d) <- INTEGER(soldStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    soldResidentStatisticReportDetail(d) <- INTEGER(soldResidentStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    balanceStatisticReportDetail(d) <- INTEGER(balanceStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    balanceResidentStatisticReportDetail(d) <- INTEGER(balanceResidentStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
+    sold(StatisticReportDetail d) <- INTEGER(sold(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- INTEGER(soldResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- INTEGER(balance(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    balanceResident(StatisticReportDetail d) <- INTEGER(balanceResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
 }
 //суммы
-fillSumDataStatisticReport 'Заполнить данные' = ACTION (report) {
-    soldSumStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    soldSumResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    balanceSumStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;    
+fillSumData 'Заполнить данные' = ACTION (StatisticReport report) {
+    soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
     
-    FOR s == statisticGroupStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report AND 
-        st == stockStatisticReport(report) AND dFrom == fromDateStatisticReport(report) AND dTo == toDateStatisticReport(report) NOINLINE DO { 
+    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
+        Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO { 
     
-        soldSumStatisticReportDetail(d) <- NUMERIC[16,2](totalSumSoldByStatisticGroupStockDateFromTo(s, st, dFrom, dTo));
-        soldSumResidentStatisticReportDetail(d) <- NUMERIC[16,2](totalSumResidentSoldByStatisticGroupStockDateFromTo(s, st, dFrom, dTo));
-        balanceSumStatisticReportDetail(d) <- NUMERIC[16,2](sumBalanceAByStatisticGroupStockDate(s, st, dTo));
+        soldSum(d) <- NUMERIC[16,2](totalSumSoldBy(s, st, dFrom, dTo));
+        soldSumResident(d) <- NUMERIC[16,2](totalSumResidentSoldBy(s, st, dFrom, dTo));
+        balanceSum(d) <- NUMERIC[16,2](sumBalanceABy(s, st, dTo));
     }                                                                                                                  
     
-    soldSumStatisticReportDetail(d) <- NUMERIC[16,2](soldSumStatisticReportDetail(d) / rateStatisticReport(report)) WHERE statisticReportStatisticReportDetail(d) == report;
-    soldSumResidentStatisticReportDetail(d) <- NUMERIC[16,2](soldSumResidentStatisticReportDetail(d)/ rateStatisticReport(report)) WHERE statisticReportStatisticReportDetail(d) == report;
-    balanceSumStatisticReportDetail(d) <- NUMERIC[16,2](balanceSumStatisticReportDetail(d)/ rateStatisticReport(report)) WHERE statisticReportStatisticReportDetail(d) == report;                           
+    soldSum(StatisticReportDetail d) <- NUMERIC[16,2](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NUMERIC[16,2](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NUMERIC[16,2](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                           
     
-    soldSumStatisticReportDetail(d) <- INTEGER(soldSumStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    soldSumResidentStatisticReportDetail(d) <- INTEGER(soldSumResidentStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    balanceSumStatisticReportDetail(d) <- INTEGER(balanceSumStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
+    soldSum(StatisticReportDetail d) <- INTEGER(soldSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- INTEGER(soldSumResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- INTEGER(balanceSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
 }
 
-fillSumRegionDataStatisticReport 'Заполнить данные' = ACTION (report) {
-    soldSumStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    soldSumResidentStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;
-    balanceSumStatisticReportDetail(d) <- NULL WHERE statisticReportStatisticReportDetail(d) == report;    
+fillSumRegionData 'Заполнить данные' = ACTION (StatisticReport report) {
+    soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;    
     
-    FOR s == statisticGroupStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report AND 
-        c == companyStatisticReport(report) AND r == regionStatisticReport(report) AND dFrom == fromDateStatisticReport(report) AND dTo == toDateStatisticReport(report) 
+    FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
+        LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) 
         NOINLINE DO {
     
-        soldSumStatisticReportDetail(d) <- NUMERIC[16,2](totalSumSoldByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo));
-        soldSumResidentStatisticReportDetail(d) <- NUMERIC[16,2](totalSumResidentSoldByStatisticGroupLegalEntityRegionDateFromTo(s, c, r, dFrom, dTo));
-        balanceSumStatisticReportDetail(d) <- NUMERIC[16,2](sumBalanceAByStatisticGroupLegalEntityRegionDate(s, c, r, dTo));
+        soldSum(d) <- NUMERIC[16,2](totalSumSoldBy(s, c, r, dFrom, dTo));
+        soldSumResident(d) <- NUMERIC[16,2](totalSumResidentSoldBy(s, c, r, dFrom, dTo));
+        balanceSum(d) <- NUMERIC[16,2](sumBalanceABy(s, c, r, dTo));
     }
 
-    soldSumStatisticReportDetail(d) <- NUMERIC[16,2](soldSumStatisticReportDetail(d) / rateStatisticReport(report)) WHERE statisticReportStatisticReportDetail(d) == report;
-    soldSumResidentStatisticReportDetail(d) <- NUMERIC[16,2](soldSumResidentStatisticReportDetail(d)/ rateStatisticReport(report)) WHERE statisticReportStatisticReportDetail(d) == report;
-    balanceSumStatisticReportDetail(d) <- NUMERIC[16,2](balanceSumStatisticReportDetail(d)/ rateStatisticReport(report)) WHERE statisticReportStatisticReportDetail(d) == report;                                                                                                         
+    soldSum(StatisticReportDetail d) <- NUMERIC[16,2](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NUMERIC[16,2](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NUMERIC[16,2](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                                                                                                         
    
-    soldSumStatisticReportDetail(d) <- INTEGER(soldSumStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    soldSumResidentStatisticReportDetail(d) <- INTEGER(soldSumResidentStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
-    balanceSumStatisticReportDetail(d) <- INTEGER(balanceSumStatisticReportDetail(d)) WHERE isIntegerStatisticReportDetail(d) AND statisticReportStatisticReportDetail(d) == report;
+    soldSum(StatisticReportDetail d) <- INTEGER(soldSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- INTEGER(soldSumResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- INTEGER(balanceSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
 }
 
 
-changeStatisticReportTypeStatisticReport (r) = ACTION (r) {
+changeStatisticReportType (StatisticReport r) = ACTION (r) {
     FORM statisticReportTypes DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN { 
-        statisticReportTypeStatisticReport(r) <- chosenObject('r');
-        nameStatisticReport(r) <- nameStatisticReportType(statisticReportTypeStatisticReport(r));
-        statisticGroupTypeStatisticReport(r) <- statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReport(r));     
-        DELETE d WHERE statisticReportStatisticReportDetail(d) ==r;
+        statisticReportType(r) <- chosenObject('r');
+        name(r) <- name(statisticReportType(r));
+        statisticGroupType(r) <- statisticGroupType(statisticReportType(r));     
+        DELETE StatisticReportDetail d WHERE statisticReport(d) ==r;
         
-        FOR statisticReportTypeStatisticReport(r) == statisticReportTypeStatisticReportTypeDetail(detail) ADDOBJ d = StatisticReportDetail DO {
-            statisticReportStatisticReportDetail(d) <-r;
-            indexStatisticReportDetail(d) <- indexStatisticReportTypeDetail(detail);
-            numberStatisticReportDetail(d) <-numberStatisticReportTypeDetail(detail);
-            nameStatisticReportDetail(d) <- nameStatisticReportTypeDetail(detail);
-            statisticGroupStatisticReportDetail(d) <- statisticGroupStatisticReportTypeDetail(detail);
-            nameUOMStatisticReportDetail(d) <- nameUOMStatisticReportTypeDetail(detail);
-            isIntegerStatisticReportDetail(d) <- isIntegerStatisticReportTypeDetail(detail);            
+        FOR statisticReportType(r) == statisticReportType(StatisticReportTypeDetail detail) ADDOBJ d = StatisticReportDetail DO {
+            statisticReport(d) <-r;
+            index(d) <- index(detail);
+            number(d) <-number(detail);
+            name(d) <- name(detail);
+            statisticGroup(d) <- statisticGroup(detail);
+            nameUOM(d) <- nameUOM(detail);
+            isInteger(d) <- isInteger(detail);            
         }               
     }
 }
@@ -378,35 +378,35 @@ changeStatisticReportTypeStatisticReport (r) = ACTION (r) {
 FORM statisticReport 'Статистический отчет'
 
     OBJECTS r = StatisticReport FIXED PANEL
-    PROPERTIES (r) nameStatisticReport, nameReportKindStatisticReport READONLYIF isConsolidateStatisticReport(r), 
-                nameStockStatisticReport SHOWIF isStockStatisticReport(r) ON CHANGE changeStockCompanyStatisticReport(r),  
-                nameCompanyStatisticReport SHOWIF isRegionStatisticReport(r),
-                nameRegionStatisticReport SHOWIF isRegionStatisticReport(r), 
-                consolidateStocksStatisticReport SHOWIF isConsolidateStatisticReport(r) READONLY,
-                nameStatisticReportTypeStatisticReport ON CHANGE changeStatisticReportTypeStatisticReport(r) READONLYIF isConsolidateStatisticReport(r),
-                nameNumeratorStatisticReport, numberStatisticReport, seriesStatisticReport, dateStatisticReport, timeStatisticReport,
-                noteStatisticReport, fromDateStatisticReport, toDateStatisticReport, nameStatisticGroupTypeStatisticReport               
+    PROPERTIES (r) name, nameReportKind READONLYIF isConsolidate(r), 
+                nameStock SHOWIF isStock(r) ON CHANGE changeStockCompany(r),  
+                nameCompany SHOWIF isRegion(r),
+                nameRegion SHOWIF isRegion(r), 
+                consolidateStocks SHOWIF isConsolidate(r) READONLY,
+                nameStatisticReportType ON CHANGE changeStatisticReportType(r) READONLYIF isConsolidate(r),
+                nameNumerator, number, series, date, time,
+                note, fromDate, toDate, nameStatisticGroupType               
                 
-    PROPERTIES (r) countStatisticReportDetailStatisticReport
+    PROPERTIES (r) countStatisticReportDetail
 
     OBJECTS d = StatisticReportDetail
-    PROPERTIES (d) indexStatisticReportDetail, nameStatisticReportDetail, numberStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
-                   sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail
-    PROPERTIES (d) SHOWIF isThingStatisticReport(r) soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail  
-    PROPERTIES (d) SHOWIF isSumStatisticReport(r) soldSumStatisticReportDetail, soldSumResidentStatisticReportDetail, balanceSumStatisticReportDetail
+    PROPERTIES (d) index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, isInteger
+    PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
+    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
                 
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
     
-    PROPERTIES(r) fillDataStatisticReport FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockThingStatisticReport(r) ,
-                fillRegionDataStatisticReport FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionThingStatisticReport(r),
-                fillSumDataStatisticReport FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockSumStatisticReport(r) ,
-                fillSumRegionDataStatisticReport FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionSumStatisticReport(r)
+    PROPERTIES(r) fillData FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockThing(r) ,
+                fillRegionData FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionThing(r),
+                fillSumData FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockSum(r) ,
+                fillSumRegionData FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionSum(r)
     
-    ORDER BY indexStatisticReportDetail(d)
+    ORDER BY index(d)
 
-    PROPERTIES(r) TODRAW d deleteStatisticReportDetailStatisticReport
+    PROPERTIES(r) TODRAW d deleteStatisticReportDetail
     
-    FILTERS statisticReportStatisticReportDetail(d) == r
+    FILTERS statisticReport(d) == r
 
     EDIT StatisticReport OBJECT r
 ;
@@ -416,7 +416,7 @@ DESIGN statisticReport {
         preferredSize = (1024, 768);
         NEW header.box {
             type = CONTAINERH;
-            PROPERTY (indexStatisticReportDetail(d)) {caption ='Порядок';}
+            PROPERTY (index(d)) {caption ='Порядок';}
             NEW headerParams {
                 fill = 1;
                 type = CONTAINERV;
@@ -424,23 +424,23 @@ DESIGN statisticReport {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
-                        MOVE PROPERTY(nameStatisticReportTypeStatisticReport(r));
-                        MOVE PROPERTY(nameReportKindStatisticReport(r));
-                        MOVE PROPERTY(nameCompanyStatisticReport(r));
-                        MOVE PROPERTY(nameStockStatisticReport(r));
-                        MOVE PROPERTY(nameRegionStatisticReport(r));
-                        MOVE PROPERTY(consolidateStocksStatisticReport(r));
-                        MOVE PROPERTY(fromDateStatisticReport(r));
-                        MOVE PROPERTY(toDateStatisticReport(r));
+                        MOVE PROPERTY(nameStatisticReportType(r));
+                        MOVE PROPERTY(nameReportKind(r));
+                        MOVE PROPERTY(nameCompany(r));
+                        MOVE PROPERTY(nameStock(r));
+                        MOVE PROPERTY(nameRegion(r));
+                        MOVE PROPERTY(consolidateStocks(r));
+                        MOVE PROPERTY(fromDate(r));
+                        MOVE PROPERTY(toDate(r));
                     }
                     NEW second { 
                         type = CONTAINERH;
-                        MOVE PROPERTY(nameStatisticReport(r));
-                        MOVE PROPERTY(nameNumeratorStatisticReport(r));
-                        MOVE PROPERTY(numberStatisticReport(r));
-                        MOVE PROPERTY(seriesStatisticReport(r));
-                        MOVE PROPERTY(dateStatisticReport(r));
-                        MOVE PROPERTY(timeStatisticReport(r));
+                        MOVE PROPERTY(name(r));
+                        MOVE PROPERTY(nameNumerator(r));
+                        MOVE PROPERTY(number(r));
+                        MOVE PROPERTY(series(r));
+                        MOVE PROPERTY(date(r));
+                        MOVE PROPERTY(time(r));
                     }   
 
                                                                                                                    
@@ -462,116 +462,116 @@ DESIGN statisticReport {
     }
 }
 
-fromMonthStatisticReport = extractMonthName(fromDateStatisticReport(r));
-toMonthStatisticReport = extractMonthName(toDateStatisticReport(r));
+fromMonth = extractMonthName(fromDate(StatisticReport r));
+toMonth = extractMonthName(toDate(StatisticReport r));
 
 FORM statisticReportPrint '4-торг (продажа)'
 
     OBJECTS r = StatisticReport FIXED PANEL 
-    PROPERTIES (r) READONLY nameStatisticReport, nameStockStatisticReport,  fullNameLegalEntityStockStatisticReport, 
-                   addressLegalEntityStockStatisticReport, addressStockStatisticReport,
-                   noteStatisticReport, fromDateStatisticReport, toDateStatisticReport,   
-                   fromMonthStatisticReport, toMonthStatisticReport
+    PROPERTIES (r) READONLY name, nameStock,  fullNameLegalEntityStock, 
+                   addressLegalEntityStock, addressStock,
+                   note, fromDate, toDate,   
+                   fromMonth, toMonth
                 
-    PROPERTIES (r) READONLY countStatisticReportDetailStatisticReport
+    PROPERTIES (r) READONLY countStatisticReportDetail
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
-    PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReport, createdTimeStatisticReport, createdHostnameComputerStatisticReport 
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
         
     OBJECTS d = StatisticReportDetail
-    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, numberStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
-                   sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail, 
-                   soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail 
-    ORDER BY indexStatisticReportDetail(d)
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, isInteger, 
+                   sold, soldResident, balance, balanceResident 
+    ORDER BY index(d)
 
-    FILTERS statisticReportStatisticReportDetail(d) == r
+    FILTERS statisticReport(d) == r
 ;
-statisticReportPrint '4-торг (продажа)' (r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT  IMAGE 'print.png' IN print;   
-excelStatisticReportPrint '4-торг (продажа) (xls)' (r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT XLSX  IMAGE 'print.png' IN print;   
+statisticPrint '4-торг (продажа)' (StatisticReport r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT  IMAGE 'print.png' IN print;   
+excelPrint '4-торг (продажа) (xls)' (StatisticReport r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT XLSX  IMAGE 'print.png' IN print;   
 
-inStatisticReport 'Отм' = DATA LOCAL NESTED BOOLEAN (StatisticReport);
+in 'Отм' = DATA LOCAL NESTED BOOLEAN (StatisticReport);
 
-balanceStockStatisticGroup = GROUP LAST balanceStatisticReportDetail(d) 
-    BY stockStatisticReportDetail(d), statisticGroupStatisticReportDetail(d) 
-    ORDER toDateStatisticReportDetail(d)
-    WHERE inStatisticReport(statisticReportStatisticReportDetail(d)) ;
-balanceRegionStatisticGroup  = GROUP LAST balanceStatisticReportDetail(d) 
-    BY regionStatisticReport(statisticReportStatisticReportDetail(d)), statisticGroupStatisticReportDetail(d) 
-    ORDER toDateStatisticReportDetail(d)
-    WHERE inStatisticReport(statisticReportStatisticReportDetail(d)) ;
+balance = GROUP LAST balance(StatisticReportDetail d) 
+    BY stock(d), statisticGroup(d) 
+    ORDER toDate(d)
+    WHERE in(statisticReport(d)) ;
+balance  = GROUP LAST balance(StatisticReportDetail d) 
+    BY region(statisticReport(d)), statisticGroup(d) 
+    ORDER toDate(d)
+    WHERE in(statisticReport(d)) ;
     
-balanceResidentStockStatisticGroup = GROUP LAST balanceResidentStatisticReportDetail(d) 
-    BY stockStatisticReportDetail(d), statisticGroupStatisticReportDetail(d) 
-    ORDER toDateStatisticReportDetail(d)
-    WHERE inStatisticReport(statisticReportStatisticReportDetail(d)) ;
-balanceResidentRegionStatisticGroup  = GROUP LAST balanceResidentStatisticReportDetail(d) 
-    BY regionStatisticReport(statisticReportStatisticReportDetail(d)), statisticGroupStatisticReportDetail(d) 
-    ORDER toDateStatisticReportDetail(d)
-    WHERE inStatisticReport(statisticReportStatisticReportDetail(d)) ;
+balanceResident = GROUP LAST balanceResident(StatisticReportDetail d) 
+    BY stock(d), statisticGroup(d) 
+    ORDER toDate(d)
+    WHERE in(statisticReport(d)) ;
+balanceResident  = GROUP LAST balanceResident(StatisticReportDetail d) 
+    BY region(statisticReport(d)), statisticGroup(d) 
+    ORDER toDate(d)
+    WHERE in(statisticReport(d)) ;
 
 
 createSumReport 'Создать суммарный отчет'= ACTION () NEWSESSION {
-    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF inStatisticReport(r) BY statisticReportTypeStatisticReport(r) ](str)]() > 1 THEN {
+    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY statisticReportType(r) ](StatisticReportType str)]() > 1 THEN {
         MESSAGE 'Выбраны отчеты разных типов';
         RETURN;
     }
-    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF inStatisticReport(r) BY reportKindStatisticReport(r) ](str)]() > 1 THEN {
+    IF [=GROUP SUM 1 IF [=GROUP SUM 1 IF in(StatisticReport r) BY reportKind(r) ](ReportKind str)]() > 1 THEN {
         MESSAGE 'Выбраны отчеты разных видов';
         RETURN;
     }
-    IF NOT [=GROUP SUM 1 IF inStatisticReport(r)]() THEN {
+    IF NOT [=GROUP SUM 1 IF in(StatisticReport r)]() THEN {
         MESSAGE 'Не выбраны отчеты для объединения';
         RETURN;
     }
     FOR ADDOBJ s = StatisticReport DO {
-        statisticReportTypeStatisticReport(s) <- [=GROUP MAX statisticReportTypeStatisticReport(r) IF inStatisticReport(r) ]();
-        reportKindStatisticReport(s) <- ReportKind.consolidate;
-        consolidateStocksStatisticReport(s) <- OVERRIDE [=GROUP CONCAT [=GROUP MAX nameStockRegionStatisticReport(r) IF inStatisticReport(r) BY nameStockRegionStatisticReport(r) ](str), ',']();
-        fromDateStatisticReport(s) <- [= GROUP MIN fromDateStatisticReport(r) IF inStatisticReport(r)]();
-        toDateStatisticReport(s) <- [= GROUP MAX toDateStatisticReport(r) IF inStatisticReport(r)]();
-        nameStatisticReport(s) <- 'Суммарный отчет ' + nameStatisticReportType(statisticReportTypeStatisticReport(s));
-        statisticGroupTypeStatisticReport(s) <- statisticGroupTypeStatisticReportType(statisticReportTypeStatisticReport(s));     
+        statisticReportType(s) <- [=GROUP MAX statisticReportType(StatisticReport r) IF in(r) ]();
+        reportKind(s) <- ReportKind.consolidate;
+        consolidateStocks(s) <- OVERRIDE [=GROUP CONCAT [=GROUP MAX nameStockRegion(StatisticReport r) IF in(r) BY nameStockRegion(r) ](VARISTRING[255] str), ',']();
+        fromDate(s) <- [= GROUP MIN fromDate(StatisticReport r) IF in(r)]();
+        toDate(s) <- [= GROUP MAX toDate(StatisticReport r) IF in(r)]();
+        name(s) <- 'Суммарный отчет ' + name(statisticReportType(s));
+        statisticGroupType(s) <- statisticGroupType(statisticReportType(s));     
         
-        FOR statisticReportTypeStatisticReport(s) == statisticReportTypeStatisticReportTypeDetail(detail) ADDOBJ d = StatisticReportDetail DO {
-            statisticReportStatisticReportDetail(d) <-s;
-            indexStatisticReportDetail(d) <- indexStatisticReportTypeDetail(detail);
-            numberStatisticReportDetail(d) <-numberStatisticReportTypeDetail(detail);
-            nameStatisticReportDetail(d) <- nameStatisticReportTypeDetail(detail);
-            statisticGroupStatisticReportDetail(d) <- statisticGroupStatisticReportTypeDetail(detail);
-            nameUOMStatisticReportDetail(d) <- nameUOMStatisticReportTypeDetail(detail);
-            isIntegerStatisticReportDetail(d) <- isIntegerStatisticReportTypeDetail(detail);
+        FOR statisticReportType(s) == statisticReportType(StatisticReportTypeDetail detail) ADDOBJ d = StatisticReportDetail DO {
+            statisticReport(d) <-s;
+            index(d) <- index(detail);
+            number(d) <-number(detail);
+            name(d) <- name(detail);
+            statisticGroup(d) <- statisticGroup(detail);
+            nameUOM(d) <- nameUOM(detail);
+            isInteger(d) <- isInteger(detail);
             
-            soldStatisticReportDetail(d) <- [=GROUP SUM soldStatisticReportDetail(d) IF inStatisticReport(statisticReportStatisticReportDetail(d)) BY statisticGroupStatisticReportDetail(d)](statisticGroupStatisticReportDetail(d));
-            soldResidentStatisticReportDetail(d) <- [=GROUP SUM soldResidentStatisticReportDetail(d) IF inStatisticReport(statisticReportStatisticReportDetail(d)) BY statisticGroupStatisticReportDetail(d)](statisticGroupStatisticReportDetail(d));
-            balanceStatisticReportDetail(d) <- IF [=GROUP MAX reportKindStatisticReport(r) IF inStatisticReport(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceStockStatisticGroup(s,sg) BY sg](statisticGroupStatisticReportDetail(d))
-                ELSE IF [=GROUP MAX reportKindStatisticReport(r) IF inStatisticReport(r) ]() == ReportKind.region THEN [= GROUP SUM balanceRegionStatisticGroup(s,sg) BY sg](statisticGroupStatisticReportDetail(d));
-            balanceResidentStatisticReportDetail(d) <- IF [=GROUP MAX reportKindStatisticReport(r) IF inStatisticReport(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceResidentStockStatisticGroup(s,sg) BY sg](statisticGroupStatisticReportDetail(d))
-                ELSE IF [=GROUP MAX reportKindStatisticReport(r) IF inStatisticReport(r) ]() == ReportKind.region THEN [= GROUP SUM balanceResidentRegionStatisticGroup(s,sg) BY sg](statisticGroupStatisticReportDetail(d));
+            sold(d) <- [=GROUP SUM sold(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+            soldResident(d) <- [=GROUP SUM soldResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+            balance(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balance(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
+                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balance(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
+            balanceResident(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceResident(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
+                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceResident(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
         }
         FORM statisticReport OBJECTS r = s MANAGESESSION DOCKEDMODAL;
     }
-    inStatisticReport(r) <- NULL;
+    in(StatisticReport r) <- NULL;
 }
 
 FORM statisticReports 'Статистические отчеты'
 
     OBJECTS r = StatisticReport 
-    PROPERTIES (r) inStatisticReport
-    PROPERTIES (r) READONLY nameStatisticReport, nameStockRegionStatisticReport, 
-                   numberStatisticReport, seriesStatisticReport, dateStatisticReport, timeStatisticReport,
-                   noteStatisticReport, fromDateStatisticReport, toDateStatisticReport, nameStatisticGroupTypeStatisticReport   
+    PROPERTIES (r) in
+    PROPERTIES (r) READONLY name, nameStockRegion, 
+                   number, series, date, time,
+                   note, fromDate, toDate, nameStatisticGroupType   
 
-    PROPERTIES (r) READONLY countStatisticReportDetailStatisticReport
+    PROPERTIES (r) READONLY countStatisticReportDetail
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
-    PROPERTIES (r) READONLY FORCE PANEL createdNameUserStatisticReport, createdTimeStatisticReport, createdHostnameComputerStatisticReport 
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
     PROPERTIES createSumReport()
         
     OBJECTS d = StatisticReportDetail
-    PROPERTIES (d) READONLY indexStatisticReportDetail, nameStatisticReportDetail, numberStatisticReportDetail, nameStatisticGroupStatisticReportDetail,
-                   sidStatisticGroupStatisticReportDetail, nameUOMStatisticReportDetail, isIntegerStatisticReportDetail, 
-                   soldStatisticReportDetail, soldResidentStatisticReportDetail, balanceStatisticReportDetail, balanceResidentStatisticReportDetail 
-    ORDER BY indexStatisticReportDetail(d)
-    PROPERTIES FORCE PANEL statisticReportPrint(r), excelStatisticReportPrint(r) 
-    FILTERS statisticReportStatisticReportDetail(d) == r
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, isInteger, 
+                   sold, soldResident, balance, balanceResident 
+    ORDER BY index(d)
+    PROPERTIES FORCE PANEL statisticPrint(r), excelPrint(r) 
+    FILTERS statisticReport(d) == r
                 
     DIALOG StatisticReport OBJECT r
 ;
@@ -616,7 +616,7 @@ DESIGN statisticReports {
                 }
             }
         }
-        PROPERTY (indexStatisticReportDetail(d)) {caption ='Порядок';}
+        PROPERTY (index(d)) {caption ='Порядок';}
     }
 }
 

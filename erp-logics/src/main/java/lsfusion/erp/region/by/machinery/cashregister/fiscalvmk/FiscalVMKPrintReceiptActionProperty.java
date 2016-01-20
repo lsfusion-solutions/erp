@@ -40,28 +40,28 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
       
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
-            DataObject zReportObject = (DataObject) findProperty("zReportReceipt").readClasses(context, receiptObject);
+            DataObject zReportObject = (DataObject) findProperty("zReport[Receipt]").readClasses(context, receiptObject);
 
-            String fiscalVMKReceiptTop = (String) findProperty("fiscalVMKReceiptTop").read(context, receiptObject);
-            String fiscalVMKReceiptBottom = (String) findProperty("fiscalVMKReceiptBottom").read(context, receiptObject);
+            String fiscalVMKReceiptTop = (String) findProperty("fiscalVMKTop[Receipt]").read(context, receiptObject);
+            String fiscalVMKReceiptBottom = (String) findProperty("fiscalVMKBottom[Receipt]").read(context, receiptObject);
             
             ScriptingLogicsModule giftCardLM = context.getBL().getModule("GiftCard");
 
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context, receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
                 context.apply();
-                findAction("createCurrentReceipt").execute(context);
+                findAction("createCurrentReceipt[]").execute(context);
             } else {
-                String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context);
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context);
-                Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister").read(context);
-                ObjectValue userObject = findProperty("employeeReceipt").readClasses(context, receiptObject);
-                Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister").read(context, (DataObject) userObject);
-                BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetailReceipt").read(context, receiptObject);
-                BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister").read(context);
+                String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+                Integer placeNumber = (Integer) findProperty("nppMachineryCurrentCashRegister[]").read(context);
+                ObjectValue userObject = findProperty("employee[Receipt]").readClasses(context, receiptObject);
+                Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
+                BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
+                BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
-                boolean giftCardAsDiscount = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsDiscountCurrentCashRegister").read(context) != null);
+                boolean giftCardAsDiscount = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsDiscountCurrentCashRegister[]").read(context) != null);
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
@@ -76,9 +76,9 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
                 QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
-                paymentQuery.addProperty("sumPayment", findProperty("sumPayment").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeansPayment").getExpr(context.getModifier(), paymentExpr));
-                paymentQuery.and(findProperty("receiptPayment").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
+                paymentQuery.and(findProperty("receipt[Payment]").getExpr(context.getModifier(), paymentQuery.getMapExprs().get("payment")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> paymentResult = paymentQuery.execute(context);
                 for (ImMap<Object, Object> paymentValues : paymentResult.valueIt()) {
@@ -102,20 +102,20 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
-                receiptDetailQuery.addProperty("nameSkuReceiptDetail", findProperty("nameSkuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("quantityReceiptDetail", findProperty("quantityReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("quantityReceiptSaleDetail", findProperty("quantityReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("quantityReceiptReturnDetail", findProperty("quantityReceiptReturnDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("priceReceiptDetail", findProperty("priceReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("idBarcodeReceiptDetail", findProperty("idBarcodeReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("sumReceiptDetail", findProperty("sumReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("discountPercentReceiptSaleDetail", findProperty("discountPercentReceiptSaleDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("discountSumReceiptDetail", findProperty("discountSumReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("numberVATReceiptDetail", findProperty("numberVATReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("typeReceiptDetail", findProperty("typeReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("skuReceiptDetail", findProperty("skuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("boardNameSkuReceiptDetail", findProperty("boardNameSkuReceiptDetail").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.and(findProperty("receiptReceiptDetail").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
+                receiptDetailQuery.addProperty("nameSkuReceiptDetail", findProperty("nameSku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("quantityReceiptDetail", findProperty("quantity[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("quantityReceiptSaleDetail", findProperty("quantity[ReceiptSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("quantityReceiptReturnDetail", findProperty("quantity[ReceiptReturnDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("priceReceiptDetail", findProperty("price[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("idBarcodeReceiptDetail", findProperty("idBarcode[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("sumReceiptDetail", findProperty("sum[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("discountPercentReceiptSaleDetail", findProperty("discountPercent[ReceiptSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("discountSumReceiptDetail", findProperty("discountSum[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("numberVATReceiptDetail", findProperty("numberVAT[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("typeReceiptDetail", findProperty("type[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("skuReceiptDetail", findProperty("sku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.addProperty("boardNameSkuReceiptDetail", findProperty("boardNameSku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
                 List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
@@ -158,9 +158,9 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList),
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsDiscount));
                     if (result instanceof Integer) {
-                        findProperty("numberReceipt").change(result, context, receiptObject);
+                        findProperty("number[Receipt]").change(result, context, receiptObject);
                         context.apply();
-                        findAction("createCurrentReceipt").execute(context);
+                        findAction("createCurrentReceipt[]").execute(context);
                     } else
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                 }

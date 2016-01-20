@@ -29,16 +29,16 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
-            Boolean isDone = findProperty("isCompleteCashOperation").read(context.getSession(), cashOperationObject) != null;
-            BigDecimal sum = (BigDecimal) findProperty("sumCashOperation").read(context.getSession(), cashOperationObject);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+            Boolean isDone = findProperty("isComplete[CashOperation]").read(context.getSession(), cashOperationObject) != null;
+            BigDecimal sum = (BigDecimal) findProperty("sum[CashOperation]").read(context.getSession(), cashOperationObject);
 
             if (!isDone) {
                 String result = (String) context.requestUserInteraction(new FiscalVMKServiceInOutClientAction(ip, comPort, baudRate, sum));
                 if (result == null){
-                    findProperty("isCompleteCashOperation").change(true, context.getSession(), cashOperationObject);
+                    findProperty("isComplete[CashOperation]").change(true, context.getSession(), cashOperationObject);
                 }
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

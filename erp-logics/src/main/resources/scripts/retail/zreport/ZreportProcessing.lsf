@@ -2,34 +2,34 @@ MODULE ZReportProcessing;
 
 REQUIRE ZReport, Pricing;
 
-retailPriceReceiptDetail 'Розничная цена' (d)= IF batchReceiptDetail(d) 
-    THEN priceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batchReceiptDetail(d), departmentStoreReceiptDetail(d), dateTimeReceiptDetail(d)) 
-    ELSE priceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuReceiptDetail(d), departmentStoreReceiptDetail(d), dateTimeReceiptDetail(d));
+retailPrice 'Розничная цена' (ReceiptDetail d)= IF batch(d) 
+    THEN priceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType, batch(d), departmentStore(d), dateTime(d)) 
+    ELSE priceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType, sku(d), departmentStore(d), dateTime(d));
 
 FORM ZReportProcessing 'Обработка Z-отчетов'
     OBJECTS ds = DepartmentStore FIXED PANEL
-    PROPERTIES(ds) SELECTOR nameDepartmentStore 
+    PROPERTIES(ds) SELECTOR name 
     
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)         
 
-    FILTERS isCompanyStock(ds)
+    FILTERS isCompany(ds)
 
     OBJECTS d = ReceiptDetail FIXED GRID
-    PROPERTIES(d) READONLY FORCE GRID nameDepartmentStoreReceiptDetail, dateTimeReceiptDetail, dateReceiptDetail, timeReceiptDetail, numberCashRegisterReceiptDetail, numberZReportReceiptDetail, numberReceiptReceiptDetail, 
-                                      nameEmployeeReceiptDetail, typeReceiptDetail, idBarcodeReceiptDetail
-    PROPERTIES(d) FORCE GRID idSkuReceiptDetail READONLY, nameSkuReceiptDetail ON CHANGE changeDialogSkuReceiptDetail(d)
-    PROPERTIES(d) READONLY FORCE GRID descriptionSaleReceiptReturnDetail, quantityReceiptDetail, quantityReturnedReceiptSaleDetail,
-                  priceReceiptDetail, sumReceiptDetail, discountPercentReceiptSaleDetail, discountSumReceiptDetail, numberVATReceiptDetail, 
-                  valueVATReceiptDetail, nameSkuGroup1SkuReceiptDetail, nameSkuGroup2SkuReceiptDetail, nameSkuGroup3SkuReceiptDetail, nameSkuGroup4SkuReceiptDetail, nameSkuGroup5SkuReceiptDetail, nameSkuGroup6SkuReceiptDetail
-    ORDER BY dateReceiptDetail(d)              
+    PROPERTIES(d) READONLY FORCE GRID nameDepartmentStore, dateTime, date, time, numberCashRegister, numberZReport, numberReceipt, 
+                                      nameEmployee, type, idBarcode
+    PROPERTIES(d) FORCE GRID idSku READONLY, nameSku ON CHANGE changeDialogSku(d)
+    PROPERTIES(d) READONLY FORCE GRID descriptionSale, quantity, quantityReturned,
+                  price, sum, discountPercent, discountSum, numberVAT, 
+                  valueVAT, nameSkuGroup1Sku, nameSkuGroup2Sku, nameSkuGroup3Sku, nameSkuGroup4Sku, nameSkuGroup5Sku, nameSkuGroup6Sku
+    ORDER BY date(d)              
     FILTERGROUP department
-        FILTER 'По магазину' departmentStoreReceiptDetail(d) == ds DEFAULT                  
+        FILTER 'По магазину' departmentStore(d) == ds DEFAULT                  
     FILTERGROUP priceFilter
-        FILTER  'Без расценки' skuReceiptDetail(d) AND NOT retailPriceReceiptDetail(d) 'F11'
-        FILTER  'Разные цены' retailPriceReceiptDetail(d) != priceReceiptDetail(d) 'F10'
+        FILTER  'Без расценки' sku(d) AND NOT retailPrice(d) 'F11'
+        FILTER  'Разные цены' retailPrice(d) != price(d) 'F10'
         
-    FILTERS dateReceiptDetail(d) >= dFrom,  dateReceiptDetail(d) <= dTo  
+    FILTERS date(d) >= dFrom,  date(d) <= dTo  
 ;
 DESIGN ZReportProcessing {
     NEW top {
@@ -44,14 +44,14 @@ DESIGN ZReportProcessing {
 fillSkuReceiptDetails 'Привязать штрихкоды' = ACTION () { 
     CONFIRM 'Вы хотите перепривязать товары в соответствии со штрихкодом?';
     IF (confirmed()) THEN {
-        FOR [= FILTER ZReportProcessing.d](detail) AND idBarcodeReceiptDetail(detail) AND skuReceiptDetail(detail) 
-            AND NOT (skuBarcode(barcodeIdDate(idBarcodeReceiptDetail(detail), dateReceiptDetail(detail)))==skuReceiptDetail(detail))  DO {
+        FOR [= FILTER ZReportProcessing.d](ReceiptDetail detail) AND idBarcode(detail) AND sku(detail) 
+            AND NOT (sku(barcode(idBarcode(detail), date(detail)))==sku(detail))  DO {
             
-            skuReceiptDetail(detail) <-  skuBarcode(barcodeIdDate(idBarcodeReceiptDetail(detail),dateReceiptDetail(detail)));               
+            sku(detail) <-  sku(barcode(idBarcode(detail),date(detail)));               
         }
     } 
-    FOR [= FILTER ZReportProcessing.d](detail) AND idBarcodeReceiptDetail(detail) AND NOT skuReceiptDetail(detail)  DO {
-        skuReceiptDetail(detail) <-  skuBarcode(barcodeIdDate(idBarcodeReceiptDetail(detail),dateReceiptDetail(detail)));   
+    FOR [= FILTER ZReportProcessing.d](ReceiptDetail detail) AND idBarcode(detail) AND NOT sku(detail)  DO {
+        sku(detail) <-  sku(barcode(idBarcode(detail),date(detail)));   
     }
     apply();
 }

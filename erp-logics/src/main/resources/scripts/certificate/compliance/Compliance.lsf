@@ -9,85 +9,85 @@ TABLE compliance(Compliance);
 
 @defineDocumentHeaderTimePrefix(Compliance, ,' документа');
 @deriveDocumentHeaderTimePrefix(Compliance, );
-dateCertificate(certificate) += dateCompliance(certificate);
-timeCertificate(certificate) += timeCompliance(certificate);
+date(Compliance certificate) += date(certificate);
+time(Compliance certificate) += time(certificate);
 
-fromDateCompliance 'Дата с' = DATA DATE (Compliance) IN documentHeader;
-fromDateCertificate(certificate) += fromDateCompliance(certificate);
+fromDate 'Дата с' = DATA DATE (Compliance) IN documentHeader;
+fromDate(Compliance certificate) += fromDate(certificate);
 
-toDateCompliance 'Дата по' = DATA DATE (Compliance) IN documentHeader;
-toDateCertificate(certificate) += toDateCompliance(certificate);
+toDate 'Дата по' = DATA DATE (Compliance) IN documentHeader;
+toDate(Compliance certificate) += toDate(certificate);
 
 // ------ Номер ----------- //
 
-numberCompliance 'Номер' = DATA STRING[100] (Compliance) NOT NULL IN numbered MINCHARWIDTH 10;
-seriesCompliance 'Серия' = DATA STRING[2] (Compliance) IN numbered FIXEDCHARWIDTH 3; 
+number 'Номер' = DATA STRING[100] (Compliance) NOT NULL IN numbered MINCHARWIDTH 10;
+series 'Серия' = DATA STRING[2] (Compliance) IN numbered FIXEDCHARWIDTH 3; 
 
-seriesNumberCompliance 'Серия/Номер' (o) = 
-    CONCAT '', seriesCompliance(o), numberCompliance(o) 
+seriesNumber 'Серия/Номер' (Compliance o) = 
+    CONCAT '', series(o), number(o) 
     MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
 
-seriesCertificate(compliance) += seriesCompliance(compliance);
-numberCertificate(compliance) += numberCompliance(compliance);
+series(Compliance compliance) += series(compliance);
+number(Compliance compliance) += number(compliance);
 
-complianceNumber (number) = GROUP AGGR compliance BY numberCompliance (compliance);
+compliance (number) = GROUP AGGR Compliance compliance BY number (compliance);
 
 // Описание
-descriptionCompliance 'Сертификат соответствия' (compliance) = CONCAT ' ', seriesNumberCompliance(compliance),
-                                                 'от ' + fromDateCompliance(compliance), 'по ' + toDateCompliance(compliance);
+description 'Сертификат соответствия' (Compliance compliance) = CONCAT ' ', seriesNumber(compliance),
+                                                 'от ' + fromDate(compliance), 'по ' + toDate(compliance);
 // История                                                 
 @defineDocumentHeaderCreated(Compliance);                                                 
 
 // Текст
-textCompliance 'Текст сертификата' = DATA TEXT (Compliance);
+text 'Текст сертификата' = DATA TEXT (Compliance);
 
 @defineBatchCertificate(compliance, Compliance, 'Сертификат соответствия');
-fromDateComplianceBatch 'Дата с' (batch) = fromDateCompliance(complianceBatch(batch));
-toDateComplianceBatch 'Дата по' (batch) = toDateCompliance(complianceBatch(batch));
+fromDateCompliance 'Дата с' (Batch batch) = fromDate(compliance(batch));
+toDateCompliance 'Дата по' (Batch batch) = toDate(compliance(batch));
 
-legalEntityCompliance = DATA LegalEntity(Compliance);
-nameLegalEntityCompliance 'Держатель' (compliance) = nameLegalEntity(legalEntityCompliance(compliance));
+legalEntity = DATA LegalEntity(Compliance);
+nameLegalEntity 'Держатель' (Compliance compliance) = name(legalEntity(compliance));
 
 // Файл сертификата
-imageCompliance 'Файл сертификата'  = DATA IMAGEFILE (Compliance);
-saveImageCompliance 'Загрузить сертификат' (compliance) = ACTION LOADFILE imageCompliance(compliance);
-openImageCompliance 'Просмотреть сертификат' (compliance) = ACTION OPENFILE imageCompliance(compliance);
+image 'Файл сертификата'  = DATA IMAGEFILE (Compliance);
+saveImage 'Загрузить сертификат' (Compliance compliance) = ACTION LOADFILE image(compliance);
+openImage 'Просмотреть сертификат' (Compliance compliance) = ACTION OPENFILE image(compliance);
 
 CLASS ExtraPageComplianceDetail 'Дополнительная страница сертификата';
 TABLE extraPageComplianceDetail (ExtraPageComplianceDetail);
 
-complianceExtraPageComplianceDetail = DATA Compliance (ExtraPageComplianceDetail);
+compliance = DATA Compliance (ExtraPageComplianceDetail);
 
-imageExtraPageComplianceDetail 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageComplianceDetail);
-saveImageExtraPageComplianceDetail 'Загрузить сертификат' (extraPageComplianceDetail) = ACTION LOADFILE imageExtraPageComplianceDetail(extraPageComplianceDetail);
-openImageExtraPageComplianceDetail 'Просмотреть сертификат' (extraPageComplianceDetail) = ACTION OPENFILE imageExtraPageComplianceDetail(extraPageComplianceDetail);
+image 'Файл сертификата'  = DATA IMAGEFILE (ExtraPageComplianceDetail);
+saveImage 'Загрузить сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail) = ACTION LOADFILE image(extraPageComplianceDetail);
+openImage 'Просмотреть сертификат' (ExtraPageComplianceDetail extraPageComplianceDetail) = ACTION OPENFILE image(extraPageComplianceDetail);
 
 @defineDocumentDetailIndex(compliance, ExtraPageComplianceDetail);
 
-extraPageComplianceDetailIndexCompliance (index, compliance) = GROUP AGGR extraPageComplianceDetail BY indexExtraPageComplianceDetail (extraPageComplianceDetail), complianceExtraPageComplianceDetail(extraPageComplianceDetail) WHERE extraPageComplianceDetail IS ExtraPageComplianceDetail;
+extraPageComplianceDetail (index, compliance) = GROUP AGGR ExtraPageComplianceDetail extraPageComplianceDetail BY index (extraPageComplianceDetail), compliance(extraPageComplianceDetail) WHERE extraPageComplianceDetail IS ExtraPageComplianceDetail;
 
 @defineDocumentDetailNote(ExtraPageComplianceDetail);
 
-addExtraPageComplianceDetail 'Добавить' = ACTION (compliance){
+addExtraPageDetail 'Добавить' = ACTION (Compliance compliance){
     FOR ADDOBJ d = ExtraPageComplianceDetail DO {
-        complianceExtraPageComplianceDetail(d) <- compliance;
-        EXEC saveImageExtraPageComplianceDetail(d);
+        compliance(d) <- compliance;
+        EXEC saveImage(d);
         EXEC apply();
     }    
 } IMAGE 'add.png';
 
 FORM compliance 'Сертификат соответствия'
     OBJECTS c = Compliance FIXED PANEL
-    PROPERTIES(c) numberCompliance, seriesCompliance, dateCompliance, timeCompliance,
-                  fromDateCompliance, toDateCompliance, nameLegalEntityCompliance, saveImageCompliance, openImageCompliance
+    PROPERTIES(c) number, series, date, time,
+                  fromDate, toDate, nameLegalEntity, saveImage, openImage
                       
     OBJECTS d = ExtraPageComplianceDetail
-    PROPERTIES(d) indexExtraPageComplianceDetail, noteExtraPageComplianceDetail
-    PROPERTIES(c) addExtraPageComplianceDetail TODRAW d FORCE PANEL TOOLBAR
-    PROPERTIES(d) openImageExtraPageComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
-                  saveImageExtraPageComplianceDetail TODRAW d FORCE PANEL TOOLBAR,
+    PROPERTIES(d) index, note
+    PROPERTIES(c) addExtraPageDetail TODRAW d FORCE PANEL TOOLBAR
+    PROPERTIES(d) openImage TODRAW d FORCE PANEL TOOLBAR,
+                  saveImage TODRAW d FORCE PANEL TOOLBAR,
                   DELETE TODRAW d FORCE PANEL TOOLBAR
-    FILTERS complianceExtraPageComplianceDetail(d) == c                   
+    FILTERS compliance(d) == c                   
 
     EDIT Compliance OBJECT c
 ;
@@ -99,31 +99,31 @@ DESIGN compliance {
             NEW header {
                 caption = 'Шапка документа';
                 type = CONTAINERH;
-                MOVE PROPERTY (numberCompliance(c));
-                MOVE PROPERTY (seriesCompliance(c));
-                MOVE PROPERTY (dateCompliance(c));
-                MOVE PROPERTY (timeCompliance(c));
+                MOVE PROPERTY (number(c));
+                MOVE PROPERTY (series(c));
+                MOVE PROPERTY (date(c));
+                MOVE PROPERTY (time(c));
 
             }
             NEW params {
                 NEW timeContainer{
                     type = CONTAINERH;
                     caption = 'Период действия';
-                    MOVE PROPERTY (fromDateCompliance(c));
-                    MOVE PROPERTY (toDateCompliance(c));
+                    MOVE PROPERTY (fromDate(c));
+                    MOVE PROPERTY (toDate(c));
                 }
                 NEW documentParams {
                     type = COLUMNS;
                     columns = 3;
                     caption = 'Параметры документа';
-                    MOVE PROPERTY(nameLegalEntityCompliance(c));
+                    MOVE PROPERTY(nameLegalEntity(c));
                 }
             }
             NEW fileContainer{
                 type = CONTAINERH;
                 caption = 'Файл сертификата';
-                MOVE PROPERTY(openImageCompliance(c));
-                MOVE PROPERTY(saveImageCompliance(c));
+                MOVE PROPERTY(openImage(c));
+                MOVE PROPERTY(saveImage(c));
             }
             NEW tabContainer{
                 fill = 1;
@@ -134,7 +134,7 @@ DESIGN compliance {
                 }
                 MOVE d.box{
                     caption = 'Дополнительные страницы сертификата';
-                    PROPERTY(indexExtraPageComplianceDetail(d)){
+                    PROPERTY(index(d)){
                         caption = 'Номер файла';
                     }
                 }
@@ -144,26 +144,26 @@ DESIGN compliance {
     }
 }
 
-overCompliance = ABSTRACT ACTION LIST (Compliance, Compliance);
-overCopyComplianceDetail = ABSTRACT ACTION LIST (ExtraPageComplianceDetail, ExtraPageComplianceDetail);
+over = ABSTRACT ACTION LIST (Compliance, Compliance);
+overCopy = ABSTRACT ACTION LIST (ExtraPageComplianceDetail, ExtraPageComplianceDetail);
     
-copyCompliance 'Копировать' = ACTION (compliance) NEWSESSION {
+copy 'Копировать' = ACTION (Compliance compliance) NEWSESSION {
     FOR ADDOBJ c = Compliance DO {
-        fromDateCompliance(c) <- fromDateCompliance(compliance);
-        toDateCompliance(c) <- toDateCompliance(compliance);
-        legalEntityCompliance(c) <- legalEntityCompliance(compliance);
-        textCompliance(c) <- textCompliance(compliance);
-        imageCompliance(c) <- imageCompliance(compliance);
+        fromDate(c) <- fromDate(compliance);
+        toDate(c) <- toDate(compliance);
+        legalEntity(c) <- legalEntity(compliance);
+        text(c) <- text(compliance);
+        image(c) <- image(compliance);
         
-        overCompliance(compliance, c);
+        over(compliance, c);
 
-        FOR complianceExtraPageComplianceDetail(detail) == compliance DO {
+        FOR compliance(ExtraPageComplianceDetail detail) == compliance DO {
             FOR ADDOBJ d=ExtraPageComplianceDetail DO {
-                complianceExtraPageComplianceDetail(d) <- c;
-                imageExtraPageComplianceDetail(d) <- imageExtraPageComplianceDetail(detail);
+                compliance(d) <- c;
+                image(d) <- image(detail);
 
                 
-                overCopyComplianceDetail(d, detail);
+                overCopy(d, detail);
             }
         }
 
@@ -171,17 +171,17 @@ copyCompliance 'Копировать' = ACTION (compliance) NEWSESSION {
     }
 } TOOLBAR;
 
-skipShowEditCompliance = ABSTRACT BOOLEAN (Compliance);
-showEditCompliance = c IS Compliance AND NOT skipShowEditCompliance(c);
+skipShowEdit = ABSTRACT BOOLEAN (Compliance);
+showEdit = Compliance c IS Compliance AND NOT skipShowEdit(c);
 
 FORM compliances 'Сертификаты соответствия'
     OBJECTS c = Compliance
-    PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance, toDateCompliance,
-                           nameLegalEntityCompliance
-    PROPERTIES(c) copyCompliance
+    PROPERTIES(c) READONLY number, series, date, time, fromDate, toDate,
+                           nameLegalEntity
+    PROPERTIES(c) copy
 
-    PROPERTIES (c) READONLY FORCE PANEL createdNameUserCompliance, createdTimeCompliance, createdHostnameComputerCompliance
-    PROPERTIES(c) ADDFORM, EDITFORM SHOWIF showEditCompliance(c), DELETE SHOWIF showEditCompliance(c) FORCE PANEL TOOLBAR
+    PROPERTIES (c) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(c) ADDFORM, EDITFORM SHOWIF showEdit(c), DELETE SHOWIF showEdit(c) FORCE PANEL TOOLBAR
     
     DIALOG Compliance OBJECT c
 ;
@@ -214,4 +214,4 @@ NAVIGATOR {
     }
 }
 
-editCompliance 'Редактировать' (compliance) = ACTION EDITFORM Compliance;    
+edit 'Редактировать' (compliance) = ACTION EDITFORM Compliance;    

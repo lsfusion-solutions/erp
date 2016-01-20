@@ -34,9 +34,9 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
 
         try {
             // Get a connection to the database
-            conn = DriverManager.getConnection(((String) findProperty("importUrl").read(context)).trim(),
-                    ((String) findProperty("importLogin").read(context)).trim(),
-                    ((String) findProperty("importPassword").read(context)).trim());
+            conn = DriverManager.getConnection(((String) findProperty("importUrl[]").read(context)).trim(),
+                    ((String) findProperty("importLogin[]").read(context)).trim(),
+                    ((String) findProperty("importPassword[]").read(context)).trim());
 
             importItemGroup(context, conn);
 
@@ -56,19 +56,19 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
         ResultSet rs = conn.createStatement().executeQuery(
                 "SELECT num_class AS ext_id, name_u AS name, par AS par_id FROM klass");
 
-        ImportField idItemGroup = new ImportField(findProperty("idItemGroup"));
-        ImportField itemGroupName = new ImportField(findProperty("nameItemGroup"));
-        ImportField idParentGroup = new ImportField(findProperty("idItemGroup"));
+        ImportField idItemGroup = new ImportField(findProperty("id[ItemGroup]"));
+        ImportField itemGroupName = new ImportField(findProperty("name[ItemGroup]"));
+        ImportField idParentGroup = new ImportField(findProperty("id[ItemGroup]"));
 
         ImportKey<?> itemGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
-                findProperty("itemGroupId").getMapping(idItemGroup));
-        ImportProperty<?> itemGroupIDProperty = new ImportProperty(idItemGroup, findProperty("idItemGroup").getMapping(itemGroupKey));
-        ImportProperty<?> itemGroupNameProperty = new ImportProperty(itemGroupName, findProperty("nameItemGroup").getMapping(itemGroupKey));
+                findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroup));
+        ImportProperty<?> itemGroupIDProperty = new ImportProperty(idItemGroup, findProperty("id[ItemGroup]").getMapping(itemGroupKey));
+        ImportProperty<?> itemGroupNameProperty = new ImportProperty(itemGroupName, findProperty("name[ItemGroup]").getMapping(itemGroupKey));
 
         ImportKey<?> parentGroupKey = new ImportKey((ConcreteCustomClass) findClass("ItemGroup"),
-                findProperty("itemGroupId").getMapping(idParentGroup));
+                findProperty("itemGroup[VARSTRING[100]]").getMapping(idParentGroup));
 
-        ImportProperty<?> parentGroupProperty = new ImportProperty(idParentGroup, findProperty("parentItemGroup").getMapping(itemGroupKey),
+        ImportProperty<?> parentGroupProperty = new ImportProperty(idParentGroup, findProperty("parent[ItemGroup]").getMapping(itemGroupKey),
                 object(findClass("ItemGroup")).getMapping(parentGroupKey));
 
         Collection<? extends ImportKey<?>> keys = Arrays.asList(itemGroupKey, parentGroupKey);

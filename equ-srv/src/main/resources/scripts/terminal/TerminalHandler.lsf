@@ -2,19 +2,19 @@ MODULE TerminalHandler;
 
 REQUIRE Terminal, MachineryPriceTransaction;
 
-processTerminalDocument 'Обработка документа ТСД' (terminalDocument) = ABSTRACT ACTION LIST (TerminalDocument);
+process 'Обработка документа ТСД' (terminalDocument) = ABSTRACT ACTION LIST (TerminalDocument);
 
-priceBeforeSkuStock 'Старая цена' = ABSTRACT NUMERIC[14,2](Sku, Stock);
+priceBefore 'Старая цена' = ABSTRACT NUMERIC[14,2](Sku, Stock);
 
 checkIdTerminal 'Ограничение доступа по коду терминала' = DATA BOOLEAN ();
 
 @defineExternalizable(terminal, VARSTRING[100]);
-blockedTerminal 'Заблокирован' = DATA BOOLEAN (Terminal);
-lastConnectionTimeTerminal 'Последнее подключение' = DATA DATETIME (Terminal);
-lastUserTerminal 'Пользователь' = DATA CustomUser (Terminal);
-shortNameLastUserTerminal 'Пользователь' (terminal) = shortNameContact(lastUserTerminal(terminal));
+blocked 'Заблокирован' = DATA BOOLEAN (Terminal);
+lastConnectionTime 'Последнее подключение' = DATA DATETIME (Terminal);
+lastUser 'Пользователь' = DATA CustomUser (Terminal);
+shortNameLastUser 'Пользователь' (Terminal terminal) = shortName(lastUser(terminal));
 
-EXTEND FORM groupTerminal PROPERTIES(t) AFTER nppMachinery(t) idTerminal, blockedTerminal, lastConnectionTimeTerminal, shortNameLastUserTerminal;
+EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser;
 EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
-    PROPERTIES(t) AFTER nppMachinery(t) READONLY idTerminal, blockedTerminal, lastConnectionTimeTerminal, shortNameLastUserTerminal;
+    PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser;

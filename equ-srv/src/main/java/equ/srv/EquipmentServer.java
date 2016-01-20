@@ -222,14 +222,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             String[] mptNames = new String[]{"dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
                     "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
                     "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction"};
-            LCP[] mptProperties = equLM.findProperties("dateTimeMachineryPriceTransaction", "groupMachineryMachineryPriceTransaction",
-                    "nppGroupMachineryMachineryPriceTransaction", "nameGroupMachineryMachineryPriceTransaction", "snapshotMachineryPriceTransaction",
-                    "descriptionMachineryPriceTransaction", "lastDateMachineryPriceTransactionErrorMachineryPriceTransaction");
+            LCP[] mptProperties = equLM.findProperties("dateTime[MachineryPriceTransaction]", "groupMachinery[MachineryPriceTransaction]",
+                    "nppGroupMachinery[MachineryPriceTransaction]", "nameGroupMachinery[MachineryPriceTransaction]", "snapshot[MachineryPriceTransaction]",
+                    "description[MachineryPriceTransaction]", "lastDateMachineryPriceTransactionError[MachineryPriceTransaction]");
             for (int i = 0; i < mptProperties.length; i++) {
                 query.addProperty(mptNames[i], mptProperties[i].getExpr(machineryPriceTransactionExpr));
             }
-            query.and(equLM.findProperty("sidEquipmentServerMachineryPriceTransaction").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
-            query.and(equLM.findProperty("processMachineryPriceTransaction").getExpr(machineryPriceTransactionExpr).getWhere());
+            query.and(equLM.findProperty("sidEquipmentServer[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+            query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
 
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
             List<Object[]> transactionObjects = new ArrayList<>();
@@ -268,8 +268,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 boolean isPriceCheckerPriceTransaction = priceCheckerLM != null && transactionObject.objectClass.equals(priceCheckerLM.findClass("PriceCheckerPriceTransaction"));
                 boolean isTerminalPriceTransaction = terminalLM != null && transactionObject.objectClass.equals(terminalLM.findClass("TerminalPriceTransaction"));
                 
-                String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModelGroupMachinery").read(session, groupMachineryObject);
-                String nameModelGroupMachinery = (String) equLM.findProperty("nameModelGroupMachinery").read(session, groupMachineryObject);
+                String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, groupMachineryObject);
+                String nameModelGroupMachinery = (String) equLM.findProperty("nameModel[GroupMachinery]").read(session, groupMachineryObject);
 
                 ValueExpr transactionExpr = transactionObject.getExpr();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
@@ -282,52 +282,52 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
                         "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
                         "canonicalNameSkuGroupMachineryPriceTransactionBarcode"};
-                LCP[] skuProperties = equLM.findProperties("nameMachineryPriceTransactionBarcode", "priceMachineryPriceTransactionBarcode",
-                        "expiryDateMachineryPriceTransactionBarcode", "splitMachineryPriceTransactionBarcode", "passScalesMachineryPriceTransactionBarcode",
-                        "idUOMMachineryPriceTransactionBarcode", "shortNameUOMMachineryPriceTransactionBarcode", "pluNumberMachineryPriceTransactionBarcode",
-                        "flagsMachineryPriceTransactionBarcode", "expiryDaysMachineryPriceTransactionBarcode", "minPriceMachineryPriceTransactionBarcode",
-                        "canonicalNameSkuGroupMachineryPriceTransactionBarcode");
+                LCP[] skuProperties = equLM.findProperties("name[MachineryPriceTransaction,Barcode]", "price[MachineryPriceTransaction,Barcode]",
+                        "expiryDate[MachineryPriceTransaction,Barcode]", "split[MachineryPriceTransaction,Barcode]", "passScales[MachineryPriceTransaction,Barcode]",
+                        "idUOM[MachineryPriceTransaction,Barcode]", "shortNameUOM[MachineryPriceTransaction,Barcode]", "pluNumber[MachineryPriceTransaction,Barcode]",
+                        "flags[MachineryPriceTransaction,Barcode]", "expiryDays[MachineryPriceTransaction,Barcode]", "minPrice[MachineryPriceTransaction,Barcode]",
+                        "canonicalNameSkuGroup[MachineryPriceTransaction,Barcode]");
                 for (int i = 0; i < skuProperties.length; i++) {
                     skuQuery.addProperty(skuNames[i], skuProperties[i].getExpr(transactionExpr, barcodeExpr));
                 }
 
                 String[] barcodeNames = new String[]{"idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode"};
-                LCP[] barcodeProperties = equLM.findProperties("idBarcode", "skuBarcode", "idSkuBarcode", "skuGroupBarcode");
+                LCP[] barcodeProperties = equLM.findProperties("id[Barcode]", "sku[Barcode]", "idSku[Barcode]", "skuGroup[Barcode]");
                 for (int i = 0; i < barcodeProperties.length; i++) {
                     skuQuery.addProperty(barcodeNames[i], barcodeProperties[i].getExpr(barcodeExpr));
                 }
 
                 if (isCashRegisterPriceTransaction) {
-                    skuQuery.addProperty("amountBarcode", equLM.findProperty("amountBarcode").getExpr(barcodeExpr));
+                    skuQuery.addProperty("amountBarcode", equLM.findProperty("amount[Barcode]").getExpr(barcodeExpr));
                 }
                 
                 if(itemLM != null) {
-                    skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrandBarcode").getExpr(barcodeExpr));
-                    skuQuery.addProperty("nameBrandBarcode", itemLM.findProperty("nameBrandBarcode").getExpr(barcodeExpr));
+                    skuQuery.addProperty("idBrandBarcode", itemLM.findProperty("idBrand[Barcode]").getExpr(barcodeExpr));
+                    skuQuery.addProperty("nameBrandBarcode", itemLM.findProperty("nameBrand[Barcode]").getExpr(barcodeExpr));
                 }
                 
                 if(itemFashionLM != null) {
-                    skuQuery.addProperty("idSeasonBarcode", itemFashionLM.findProperty("idSeasonBarcode").getExpr(barcodeExpr));
-                    skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeasonBarcode").getExpr(barcodeExpr));
+                    skuQuery.addProperty("idSeasonBarcode", itemFashionLM.findProperty("idSeason[Barcode]").getExpr(barcodeExpr));
+                    skuQuery.addProperty("nameSeasonBarcode", itemFashionLM.findProperty("nameSeason[Barcode]").getExpr(barcodeExpr));
                 }
 
                 if(cashRegisterItemLM != null) {
                     skuQuery.addProperty("CashRegisterItem.idSkuGroupMachineryPriceTransactionBarcode", 
-                            cashRegisterItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                            cashRegisterItemLM.findProperty("idSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                     skuQuery.addProperty("CashRegisterItem.overIdSkuGroupMachineryPriceTransactionBarcode",
-                            cashRegisterItemLM.findProperty("overIdSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                            cashRegisterItemLM.findProperty("overIdSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if(scalesItemLM != null) {
                     skuQuery.addProperty("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode", 
-                            scalesItemLM.findProperty("idSkuGroupMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                            scalesItemLM.findProperty("idSkuGroup[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if (scalesItemLM != null) {
                     String[] scalesSkuNames = new String[]{"hoursExpiryMachineryPriceTransactionBarcode",
                             "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode"};
-                    LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiryMachineryPriceTransactionBarcode",
-                            "labelFormatMachineryPriceTransactionBarcode", "descriptionMachineryPriceTransactionBarcode", "descriptionNumberMachineryPriceTransactionBarcode");
+                    LCP[] scalesSkuProperties = scalesItemLM.findProperties("hoursExpiry[MachineryPriceTransaction,Barcode]",
+                            "labelFormat[MachineryPriceTransaction,Barcode]", "description[MachineryPriceTransaction,Barcode]", "descriptionNumber[MachineryPriceTransaction,Barcode]");
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
@@ -335,7 +335,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 if (machineryPriceTransactionStockTaxLM != null) {
                     String[] taxNames = new String[]{"VATMachineryPriceTransactionBarcode"};
-                    LCP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VATMachineryPriceTransactionBarcode");
+                    LCP[] taxProperties = machineryPriceTransactionStockTaxLM.findProperties("VAT[MachineryPriceTransaction,Barcode]");
                     for (int i = 0; i < taxProperties.length; i++) {
                         skuQuery.addProperty(taxNames[i], taxProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
@@ -343,27 +343,27 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 if(machineryPriceTransactionSectionLM != null) {
                     skuQuery.addProperty("sectionMachineryPriceTransactionBarcode",
-                            machineryPriceTransactionSectionLM.findProperty("sectionMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr));
+                            machineryPriceTransactionSectionLM.findProperty("section[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                     skuQuery.addProperty("deleteSectionBarcode",
-                            machineryPriceTransactionSectionLM.findProperty("deleteSectionBarcode").getExpr(barcodeExpr));
+                            machineryPriceTransactionSectionLM.findProperty("deleteSectionBarcode[?]").getExpr(barcodeExpr));
                 }
 
-                skuQuery.and(equLM.findProperty("inMachineryPriceTransactionBarcode").getExpr(transactionExpr, barcodeExpr).getWhere());
+                skuQuery.and(equLM.findProperty("in[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
 
                 String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LCP[] machineryProperties = machineryLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery");
+                LCP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
                 
                 if (isCashRegisterPriceTransaction) {
                     
-                    java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDateGroupCashRegister").read(session, groupMachineryObject);
-                    boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailedGroupCashRegister").read(session, groupMachineryObject) != null;
-                    Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberGroupCashRegister").read(session, groupMachineryObject);
-                    String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idDepartmentStoreGroupCashRegister").read(session, groupMachineryObject);
-                    String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCodeGroupCashRegister").read(session, groupMachineryObject);
-                    String weightCodeGroupCashRegister = (String) cashRegisterLM.findProperty("weightCodeGroupCashRegister").read(session, groupMachineryObject);
-                    String nameStockGroupCashRegister = (String) cashRegisterLM.findProperty("nameStockGroupMachinery").read(session, groupMachineryObject);
+                    java.sql.Date startDateGroupCashRegister = (java.sql.Date) cashRegisterLM.findProperty("startDate[GroupCashRegister]").read(session, groupMachineryObject);
+                    boolean notDetailedGroupCashRegister = cashRegisterLM.findProperty("notDetailed[GroupCashRegister]").read(session, groupMachineryObject) != null;
+                    Integer overDepartmentNumberGroupCashRegister = (Integer) cashRegisterLM.findProperty("overDepartmentNumberCashRegister[GroupMachinery]").read(session, groupMachineryObject);
+                    String idDepartmentStoreGroupCashRegister = (String) cashRegisterLM.findProperty("idDepartmentStore[GroupCashRegister]").read(session, groupMachineryObject);
+                    String pieceCodeGroupCashRegister = (String) cashRegisterLM.findProperty("pieceCode[GroupCashRegister]").read(session, groupMachineryObject);
+                    String weightCodeGroupCashRegister = (String) cashRegisterLM.findProperty("weightCode[GroupCashRegister]").read(session, groupMachineryObject);
+                    String nameStockGroupCashRegister = (String) cashRegisterLM.findProperty("nameStock[GroupMachinery]").read(session, groupMachineryObject);
 
                     List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
                     KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
@@ -373,15 +373,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (int i = 0; i < machineryProperties.length; i++) {
                         cashRegisterQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
                     }
-                    cashRegisterQuery.addProperty("disableSalesCashRegister", cashRegisterLM.findProperty("disableSalesCashRegister").getExpr(cashRegisterExpr));
+                    cashRegisterQuery.addProperty("disableSalesCashRegister", cashRegisterLM.findProperty("disableSales[CashRegister]").getExpr(cashRegisterExpr));
                     cashRegisterQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                            cashRegisterLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(cashRegisterExpr, transactionExpr));
+                            cashRegisterLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(cashRegisterExpr, transactionExpr));
                     cashRegisterQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            cashRegisterLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(cashRegisterExpr, transactionExpr));
+                            cashRegisterLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(cashRegisterExpr, transactionExpr));
                     cashRegisterQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            equLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, cashRegisterExpr));
-                    cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegisterCashRegister").getExpr(cashRegisterExpr).compare(groupMachineryObject, Compare.EQUALS));
-                    query.and(cashRegisterLM.findProperty("activeCashRegister").getExpr(cashRegisterExpr).getWhere());
+                            equLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, cashRegisterExpr));
+                    cashRegisterQuery.and(cashRegisterLM.findProperty("groupCashRegister[CashRegister]").getExpr(cashRegisterExpr).compare(groupMachineryObject, Compare.EQUALS));
+                    query.and(cashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> cashRegisterResult = cashRegisterQuery.execute(session);
 
@@ -443,9 +443,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
-                    String directory = (String) scalesLM.findProperty("directoryGroupScales").read(session, groupMachineryObject);
-                    String pieceCodeGroupScales = (String) scalesLM.findProperty("pieceCodeGroupScales").read(session, groupMachineryObject);
-                    String weightCodeGroupScales = (String) scalesLM.findProperty("weightCodeGroupScales").read(session, groupMachineryObject);
+                    String directory = (String) scalesLM.findProperty("directory[GroupScales]").read(session, groupMachineryObject);
+                    String pieceCodeGroupScales = (String) scalesLM.findProperty("pieceCode[GroupScales]").read(session, groupMachineryObject);
+                    String weightCodeGroupScales = (String) scalesLM.findProperty("weightCode[GroupScales]").read(session, groupMachineryObject);
 
                     KeyExpr scalesExpr = new KeyExpr("scales");
                     ImRevMap<Object, KeyExpr> scalesKeys = MapFact.singletonRev((Object) "scales", scalesExpr);
@@ -455,13 +455,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         scalesQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(scalesExpr));
                     }
                     scalesQuery.addProperty("inMachineryPriceTransactionMachinery", 
-                            scalesLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, scalesExpr));
+                            scalesLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, scalesExpr));
                     scalesQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                                scalesLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(scalesExpr, transactionExpr));
+                                scalesLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
                     scalesQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            scalesLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(scalesExpr, transactionExpr));
-                    scalesQuery.and(scalesLM.findProperty("groupScalesScales").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
-                    scalesQuery.and(scalesLM.findProperty("activeScales").getExpr(scalesExpr).getWhere());
+                            scalesLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
+                    scalesQuery.and(scalesLM.findProperty("groupScales[Scales]").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
+                    scalesQuery.and(scalesLM.findProperty("active[Scales]").getExpr(scalesExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session);
 
@@ -520,12 +520,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         priceCheckerQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(priceCheckerExpr));
                     }
                     priceCheckerQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            priceCheckerLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, priceCheckerExpr));
+                            priceCheckerLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, priceCheckerExpr));
                     priceCheckerQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                            priceCheckerLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(priceCheckerExpr, transactionExpr));
+                            priceCheckerLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(priceCheckerExpr, transactionExpr));
                     priceCheckerQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            priceCheckerLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(priceCheckerExpr, transactionExpr));
-                    priceCheckerQuery.and(priceCheckerLM.findProperty("groupPriceCheckerPriceChecker").getExpr(priceCheckerExpr).compare(groupMachineryObject, Compare.EQUALS));
+                            priceCheckerLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(priceCheckerExpr, transactionExpr));
+                    priceCheckerQuery.and(priceCheckerLM.findProperty("groupPriceChecker[PriceChecker]").getExpr(priceCheckerExpr).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> priceCheckerResult = priceCheckerQuery.execute(session);
 
@@ -564,11 +564,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 } else if (isTerminalPriceTransaction) {
                     List<TerminalInfo> terminalInfoList = new ArrayList<>();
                     
-                    Integer nppGroupTerminal = (Integer) terminalLM.findProperty("nppGroupMachinery").read(session, groupMachineryObject);
-                    String directoryGroupTerminal = (String) terminalLM.findProperty("directoryGroupTerminal").read(session, groupMachineryObject);
-                    ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListTypeGroupMachinery").readClasses(session, groupMachineryObject);
-                    ObjectValue stockGroupTerminal = terminalLM.findProperty("stockGroupTerminal").readClasses(session, groupMachineryObject);
-                    String idPriceListType = (String) terminalLM.findProperty("idPriceListType").read(session, priceListTypeGroupMachinery);
+                    Integer nppGroupTerminal = (Integer) terminalLM.findProperty("npp[GroupMachinery]").read(session, groupMachineryObject);
+                    String directoryGroupTerminal = (String) terminalLM.findProperty("directory[GroupTerminal]").read(session, groupMachineryObject);
+                    ObjectValue priceListTypeGroupMachinery = terminalLM.findProperty("priceListType[GroupMachinery]").readClasses(session, groupMachineryObject);
+                    ObjectValue stockGroupTerminal = terminalLM.findProperty("stock[GroupTerminal]").readClasses(session, groupMachineryObject);
+                    String idPriceListType = (String) terminalLM.findProperty("id[PriceListType]").read(session, priceListTypeGroupMachinery);
 
                     KeyExpr terminalExpr = new KeyExpr("terminal");
                     ImRevMap<Object, KeyExpr> terminalKeys = MapFact.singletonRev((Object) "terminal", terminalExpr);
@@ -578,12 +578,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         terminalQuery.addProperty(machineryNames[i], machineryProperties[i].getExpr(terminalExpr));
                     }
                     terminalQuery.addProperty("inMachineryPriceTransactionMachinery",
-                            terminalLM.findProperty("inMachineryPriceTransactionMachinery").getExpr(transactionExpr, terminalExpr));
+                            terminalLM.findProperty("in[MachineryPriceTransaction,Machinery]").getExpr(transactionExpr, terminalExpr));
                     terminalQuery.addProperty("succeededMachineryMachineryPriceTransaction",
-                            terminalLM.findProperty("succeededMachineryMachineryPriceTransaction").getExpr(terminalExpr, transactionExpr));
+                            terminalLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
                     terminalQuery.addProperty("clearedMachineryMachineryPriceTransaction",
-                            terminalLM.findProperty("clearedMachineryMachineryPriceTransaction").getExpr(terminalExpr, transactionExpr));
-                    terminalQuery.and(terminalLM.findProperty("groupTerminalTerminal").getExpr(terminalExpr).compare(groupMachineryObject, Compare.EQUALS));
+                            terminalLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(terminalExpr, transactionExpr));
+                    terminalQuery.and(terminalLM.findProperty("groupTerminal[Terminal]").getExpr(terminalExpr).compare(groupMachineryObject, Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> terminalResult = terminalQuery.execute(session);
 
@@ -642,12 +642,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         QueryBuilder<Object, Object> itemGroupQuery = new QueryBuilder<>(itemGroupKeys);
 
         String[] itemGroupNames = new String[] {"idItemGroup", "overIdItemGroup", "nameItemGroup", "idParentItemGroup"};
-        LCP[] itemGroupProperties = itemLM.findProperties("idItemGroup", "overIdItemGroup", "nameItemGroup", "idParentItemGroup");
+        LCP[] itemGroupProperties = itemLM.findProperties("id[ItemGroup]", "overId[ItemGroup]", "name[ItemGroup]", "idParent[ItemGroup]");
         for (int i = 0; i < itemGroupProperties.length; i++) {
             itemGroupQuery.addProperty(itemGroupNames[i], itemGroupProperties[i].getExpr(itemGroupExpr));
         }
         
-        itemGroupQuery.and(itemLM.findProperty("idItemGroup").getExpr(itemGroupExpr).getWhere());
+        itemGroupQuery.and(itemLM.findProperty("id[ItemGroup]").getExpr(itemGroupExpr).getWhere());
         
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemGroupResult = itemGroupQuery.execute(session);
 
@@ -684,18 +684,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
                         "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard"};
-                LCP[] discountCardProperties = discountCardLM.findProperties("idDiscountCard", "numberDiscountCard", "nameDiscountCard",
-                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard");
+                LCP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "number[DiscountCard]", "name[DiscountCard]",
+                        "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
-                discountCardQuery.and(discountCardLM.findProperty("numberDiscountCard").getExpr(discountCardExpr).getWhere());
+                discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
                 Integer idFrom = parseInt(idDiscountCardFrom);
                 if (idFrom != null)
-                    discountCardQuery.and(discountCardLM.findProperty("intIdDiscountCard").getExpr(discountCardExpr).compare(new DataObject(idFrom).getExpr(), Compare.GREATER_EQUALS));
+                    discountCardQuery.and(discountCardLM.findProperty("intId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idFrom).getExpr(), Compare.GREATER_EQUALS));
                 Integer idTo = parseInt(idDiscountCardTo);
                 if (idTo != null)
-                    discountCardQuery.and(discountCardLM.findProperty("intIdDiscountCard").getExpr(discountCardExpr).compare(new DataObject(idTo).getExpr(), Compare.LESS_EQUALS));
+                    discountCardQuery.and(discountCardLM.findProperty("intId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idTo).getExpr(), Compare.LESS_EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
 
@@ -752,13 +752,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
             String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
-            LCP[] employeeProperties = equLM.findProperties("idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee");
+            LCP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "idStock[Employee]");
             for (int i = 0; i < employeeProperties.length; i++) {
                 employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
             }
-            employeeQuery.and(equLM.findProperty("idStockEmployee").getExpr(employeeExpr).getWhere());
-            employeeQuery.and(equLM.findProperty("idEmployee").getExpr(employeeExpr).getWhere());
-            employeeQuery.and(equLM.findProperty("shortNameContact").getExpr(employeeExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("idStock[Employee]").getExpr(employeeExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("id[Employee]").getExpr(employeeExpr).getWhere());
+            employeeQuery.and(equLM.findProperty("shortName[Contact]").getExpr(employeeExpr).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> employeeResult = employeeQuery.execute(session);
 
@@ -795,14 +795,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> slQuery = new QueryBuilder<>(slKeys);
                 String[] slNames = new String[]{"excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList", 
                         "toDateStopList", "toTimeStopList"};
-                LCP<?>[] slProperties = stopListLM.findProperties("excludeStopList", "numberStopList", "fromDateStopList", "fromTimeStopList",
-                        "toDateStopList", "toTimeStopList");
+                LCP<?>[] slProperties = stopListLM.findProperties("exclude[StopList]", "number[StopList]", "fromDate[StopList]", "fromTime[StopList]",
+                        "toDate[StopList]", "toTime[StopList]");
                 for (int i = 0; i < slProperties.length; i++) {
                     slQuery.addProperty(slNames[i], slProperties[i].getExpr(stopListExpr));
                 }
-                slQuery.and(stopListLM.findProperty("numberStopList").getExpr(stopListExpr).getWhere());
-                slQuery.and(stopListLM.findProperty("isPostedStopList").getExpr(stopListExpr).getWhere());
-                slQuery.and(stopListLM.findProperty("toExportStopList").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("number[StopList]").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("isPosted[StopList]").getExpr(stopListExpr).getWhere());
+                slQuery.and(stopListLM.findProperty("toExport[StopList]").getExpr(stopListExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> slResult = slQuery.executeClasses(session);
                 for (int i = 0, size = slResult.size(); i < size; i++) {
                     DataObject stopListObject = slResult.getKey(i).get("stopList");
@@ -821,13 +821,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
                     ImRevMap<Object, KeyExpr> stockKeys = MapFact.toRevMap((Object) "stock", stockExpr, "groupMachinery", groupMachineryExpr);
                     QueryBuilder<Object, Object> stockQuery = new QueryBuilder<>(stockKeys);
-                    stockQuery.addProperty("idStock", stopListLM.findProperty("idStock").getExpr(stockExpr));
-                    stockQuery.addProperty("nppGroupMachinery", machineryLM.findProperty("nppGroupMachinery").getExpr(groupMachineryExpr));
-                    stockQuery.and(stopListLM.findProperty("inStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
-                    stockQuery.and(stopListLM.findProperty("notSucceededStockStopList").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
-                    stockQuery.and(machineryLM.findProperty("stockGroupMachinery").getExpr(groupMachineryExpr).compare(stockExpr, Compare.EQUALS));
-                    stockQuery.and(equipmentLM.findProperty("equipmentServerGroupMachinery").getExpr(groupMachineryExpr).getWhere());
-                    stockQuery.and(machineryLM.findProperty("activeGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+                    stockQuery.addProperty("idStock", stopListLM.findProperty("id[Stock]").getExpr(stockExpr));
+                    stockQuery.addProperty("nppGroupMachinery", machineryLM.findProperty("npp[GroupMachinery]").getExpr(groupMachineryExpr));
+                    stockQuery.and(stopListLM.findProperty("in[Stock,StopList]").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
+                    stockQuery.and(stopListLM.findProperty("notSucceeded[Stock,StopList]").getExpr(stockExpr, stopListObject.getExpr()).getWhere());
+                    stockQuery.and(machineryLM.findProperty("stock[GroupMachinery]").getExpr(groupMachineryExpr).compare(stockExpr, Compare.EQUALS));
+                    stockQuery.and(equipmentLM.findProperty("equipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+                    stockQuery.and(machineryLM.findProperty("active[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> stockResult = stockQuery.executeClasses(session);
                     for (int j = 0; j < stockResult.size(); j++) {
                         ImMap<Object, ObjectValue> stockEntry = stockResult.getValue(j);
@@ -881,19 +881,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
         String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery"};
-        LCP[] groupMachineryProperties = machineryLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery");
+        LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "idStock[GroupMachinery]");
         for (int i = 0; i < groupMachineryProperties.length; i++) {
             machineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
         }
-        machineryQuery.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
-        machineryQuery.addProperty("portMachinery", machineryLM.findProperty("portMachinery").getExpr(machineryExpr));
-        machineryQuery.addProperty("nppMachinery", machineryLM.findProperty("nppMachinery").getExpr(machineryExpr));
+        machineryQuery.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr));
+        machineryQuery.addProperty("portMachinery", machineryLM.findProperty("port[Machinery]").getExpr(machineryExpr));
+        machineryQuery.addProperty("nppMachinery", machineryLM.findProperty("npp[Machinery]").getExpr(machineryExpr));
 
-        machineryQuery.and(machineryLM.findProperty("handlerModelGroupMachinery").getExpr(groupMachineryExpr).getWhere());
-        machineryQuery.and(machineryLM.findProperty("idStockGroupMachinery").getExpr(groupMachineryExpr).getWhere());
-        machineryQuery.and(machineryLM.findProperty("groupMachineryMachinery").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
-        machineryQuery.and(machineryLM.findProperty("activeGroupMachinery").getExpr(groupMachineryExpr).getWhere());
-        machineryQuery.and(equipmentLM.findProperty("equipmentServerGroupMachinery").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(machineryLM.findProperty("idStock[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
+        machineryQuery.and(machineryLM.findProperty("active[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+        machineryQuery.and(equipmentLM.findProperty("equipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> machineryResult = machineryQuery.executeClasses(session);
         ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
         ValueClass scalesClass = scalesLM == null ? null : scalesLM.findClass("Scales");
@@ -930,17 +930,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
                 "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail"};
-        LCP[] sldProperties = stopListLM.findProperties("idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail");
+        LCP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
+                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
         if(scalesItemLM != null) {
-            sldQuery.addProperty("skuStopListDetail", stopListLM.findProperty("skuStopListDetail").getExpr(sldExpr));
-            sldQuery.and(stopListLM.findProperty("skuStopListDetail").getExpr(sldExpr).getWhere());
+            sldQuery.addProperty("skuStopListDetail", stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr));
+            sldQuery.and(stopListLM.findProperty("sku[StopListDetail]").getExpr(sldExpr).getWhere());
         }
-        sldQuery.and(stopListLM.findProperty("idBarcodeSkuStopListDetail").getExpr(sldExpr).getWhere());
-        sldQuery.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        sldQuery.and(stopListLM.findProperty("idBarcodeSku[StopListDetail]").getExpr(sldExpr).getWhere());
+        sldQuery.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> sldResult = sldQuery.executeClasses(session);
         for (int i = 0; i < sldResult.size(); i++) {
             ImMap<Object, ObjectValue> values = sldResult.getValue(i);
@@ -956,7 +956,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
             Map<String, Integer> stockPluNumberMap = new HashMap();
             for(String idStock : idStockSet) {
-                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku").read(session, new DataObject(idStock), skuObject);
+                Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[VARSTRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
             stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
@@ -971,9 +971,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         KeyExpr sldExpr = new KeyExpr("stopListDetail");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSkuStopListDetail").getExpr(sldExpr));
-        query.and(stopListLM.findProperty("inGroupMachineryStopListDetail").getExpr(groupMachineryObject.getExpr(), sldExpr).getWhere());
-        query.and(stopListLM.findProperty("stopListStopListDetail").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
+        query.addProperty("idSkuStopListDetail", stopListLM.findProperty("idSku[StopListDetail]").getExpr(sldExpr));
+        query.and(stopListLM.findProperty("in[GroupMachinery,StopListDetail]").getExpr(groupMachineryObject.getExpr(), sldExpr).getWhere());
+        query.and(stopListLM.findProperty("stopList[StopListDetail]").getExpr(sldExpr).compare(stopListObject, Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for (int i = 0; i < result.size(); i++) {
             String idItem = trim((String) result.getValue(i).get("idSkuStopListDetail"));
@@ -986,13 +986,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public void errorStopListReport(String numberStopList, Exception e) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) stopListLM.findClass("StopListError"));
-            ObjectValue stopListObject = stopListLM.findProperty("stopListNumber").readClasses(session, new DataObject(numberStopList));
-            stopListLM.findProperty("stopListStopListError").change(stopListObject.getValue(), session, errorObject);
-            stopListLM.findProperty("dataStopListError").change(e.toString(), session, errorObject);
-            stopListLM.findProperty("dateStopListError").change(getCurrentTimestamp(), session, errorObject);
+            ObjectValue stopListObject = stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
+            stopListLM.findProperty("stopList[StopListError]").change(stopListObject.getValue(), session, errorObject);
+            stopListLM.findProperty("data[StopListError]").change(e.toString(), session, errorObject);
+            stopListLM.findProperty("date[StopListError]").change(getCurrentTimestamp(), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             e.printStackTrace(new PrintStream(os));
-            stopListLM.findProperty("errorTraceStopListError").change(os.toString(), session, errorObject);
+            stopListLM.findProperty("errorTrace[StopListError]").change(os.toString(), session, errorObject);
 
             session.apply(getBusinessLogics());
         } catch (Exception e2) {
@@ -1003,10 +1003,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     @Override
     public void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
-            DataObject stopListObject = (DataObject) stopListLM.findProperty("stopListNumber").readClasses(session, new DataObject(numberStopList));
+            DataObject stopListObject = (DataObject) stopListLM.findProperty("stopList[STRING[18]]").readClasses(session, new DataObject(numberStopList));
             for(String idStock : idStockSet) {
-                DataObject stockObject = (DataObject) stopListLM.findProperty("stockId").readClasses(session, new DataObject(idStock));
-                stopListLM.findProperty("succeededStockStopList").change(true, session, stockObject, stopListObject);
+                DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+                stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);
             }
             session.apply(getBusinessLogics());
         } catch (Exception e) {
@@ -1023,11 +1023,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalHandbookType", "nameTerminalHandbookType"};
-            LCP<?>[] properties = terminalLM.findProperties("idTerminalHandbookType", "nameTerminalHandbookType");
+            LCP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
-            query.and(terminalLM.findProperty("idTerminalHandbookType").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalLM.findProperty("id[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = trim((String) entry.get("idTerminalHandbookType"));
@@ -1047,12 +1047,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             String[] names = new String[]{"idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
                     "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType"};
-            LCP<?>[] properties = terminalLM.findProperties("idTerminalDocumentType", "nameTerminalDocumentType", "flagTerminalDocumentType",
-                    "idTerminalHandbookType1TerminalDocumentType", "idTerminalHandbookType2TerminalDocumentType");
+            LCP<?>[] properties = terminalLM.findProperties("id[TerminalDocumentType]", "name[TerminalDocumentType]", "flag[TerminalDocumentType]",
+                    "idTerminalHandbookType1[TerminalDocumentType]", "idTerminalHandbookType2[TerminalDocumentType]");
             for (int i = 0; i < properties.length; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
-            query.and(terminalLM.findProperty("idTerminalDocumentType").getExpr(terminalDocumentTypeExpr).getWhere());
+            query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = trim((String) entry.get("idTerminalDocumentType"));
@@ -1076,32 +1076,32 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
                 QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
                 String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.dateOrder", "Purchase.numberOrder", "Purchase.idSupplierOrder");
+                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idSupplier[Purchase.Order]");
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
                 String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
                         "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
-                LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("Purchase.idBarcodeSkuOrderDetail", "Purchase.nameSkuOrderDetail", "Purchase.priceOrderDetail",
-                        "Purchase.quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
-                        "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail");
+                LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]",
+                        "quantity[Purchase.OrderDetail]", "minDeviationQuantity[Purchase.OrderDetail]", "maxDeviationQuantity[Purchase.OrderDetail]",
+                        "minDeviationPrice[Purchase.OrderDetail]", "maxDeviationPrice[Purchase.OrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
                 if (requestExchange.dateFrom != null)
-                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
+                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
                             new DataObject(requestExchange.dateFrom, DateClass.instance).getExpr(), Compare.GREATER_EQUALS));
                 if (requestExchange.dateTo != null)
-                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.dateOrder").getExpr(orderExpr).compare(
+                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("date[Purchase.Order]").getExpr(orderExpr).compare(
                             new DataObject(requestExchange.dateTo, DateClass.instance).getExpr(), Compare.LESS_EQUALS));
                 if (requestExchange.idStock != null)
-                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.customerStockOrder").getExpr(orderExpr).compare(
-                            purchaseInvoiceAgreementLM.findProperty("stockId").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.orderOrderDetail").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.numberOrder").getExpr(orderExpr).getWhere());
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.isOpenedOrder").getExpr(orderExpr).getWhere());
-                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("Purchase.idBarcodeSkuOrderDetail").getExpr(orderDetailExpr).getWhere());
+                    orderQuery.and(purchaseInvoiceAgreementLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
+                            purchaseInvoiceAgreementLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(requestExchange.idStock)).getExpr(), Compare.EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("order[Purchase.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("number[Purchase.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("isOpened[Purchase.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("idBarcodeSku[Purchase.OrderDetail]").getExpr(orderDetailExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
                 for (ImMap<Object, Object> entry : orderResult.values()) {
                     Date dateOrder = (Date) entry.get("dateOrder");
@@ -1133,11 +1133,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImRevMap<Object, KeyExpr> legalEntityKeys = MapFact.singletonRev((Object) "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> legalEntityQuery = new QueryBuilder<>(legalEntityKeys);
             String[] legalEntityNames = new String[]{"idLegalEntity", "nameLegalEntity"};
-            LCP<?>[] legalEntityProperties = terminalLM.findProperties("idLegalEntity", "nameLegalEntity");
+            LCP<?>[] legalEntityProperties = terminalLM.findProperties("id[LegalEntity]", "name[LegalEntity]");
             for (int i = 0; i < legalEntityProperties.length; i++) {
                 legalEntityQuery.addProperty(legalEntityNames[i], legalEntityProperties[i].getExpr(legalEntityExpr));
             }
-            legalEntityQuery.and(terminalLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
+            legalEntityQuery.and(terminalLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> legalEntityResult = legalEntityQuery.execute(session);
             for (ImMap<Object, Object> entry : legalEntityResult.values()) {
                 String idLegalEntity = trim((String) entry.get("idLegalEntity"));
@@ -1160,13 +1160,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", terminalLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(),
+            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", terminalLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
-            query.addProperty("idBarcodeSku", terminalLM.findProperty("idBarcodeSku").getExpr(skuExpr));
-            query.addProperty("idLegalEntity", terminalLM.findProperty("idLegalEntity").getExpr(legalEntityExpr));
-            query.and(terminalLM.findProperty("idLegalEntity").getExpr(legalEntityExpr).getWhere());
-            query.and(terminalLM.findProperty("idBarcodeSku").getExpr(skuExpr).getWhere());
-            query.and(terminalLM.findProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime").getExpr(priceListTypeObject.getExpr(),
+            query.addProperty("idBarcodeSku", terminalLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
+            query.addProperty("idLegalEntity", terminalLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr));
+            query.and(terminalLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
+            query.and(terminalLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
+            query.and(terminalLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
@@ -1192,12 +1192,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 String[] requestExchangeNames = new String[]{"dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
                         "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange"};
-                LCP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFromRequestExchange", "dateToRequestExchange", "startDateRequestExchange",
-                        "nameRequestExchangeTypeRequestExchange", "idDiscountCardFromRequestExchange", "idDiscountCardToRequestExchange");
+                LCP[] requestExchangeProperties = machineryPriceTransactionLM.findProperties("dateFrom[RequestExchange]", "dateTo[RequestExchange]", "startDate[RequestExchange]",
+                        "nameRequestExchangeType[RequestExchange]", "idDiscountCardFrom[RequestExchange]", "idDiscountCardTo[RequestExchange]");
                 for (int i = 0; i < requestExchangeProperties.length; i++) {
                     requestExchangeQuery.addProperty(requestExchangeNames[i], requestExchangeProperties[i].getExpr(requestExchangeExpr));
                 }
-                requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceededRequestExchange").getExpr(requestExchangeExpr).getWhere());
+                requestExchangeQuery.and(machineryPriceTransactionLM.findProperty("notSucceeded[RequestExchange]").getExpr(requestExchangeExpr).getWhere());
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> requestExchangeResult = requestExchangeQuery.executeClasses(session);
                 for (int i = 0; i < requestExchangeResult.size(); i++) {
 
@@ -1218,14 +1218,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
                     String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery"};
-                    LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectoryMachinery", "idStockMachinery", "nppMachinery");
+                    LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectory[Machinery]", "idStock[Machinery]", "npp[Machinery]");
                     for (int j = 0; j < machineryProperties.length; j++) {
                         machineryQuery.addProperty(machineryNames[j], machineryProperties[j].getExpr(machineryExpr));
                     }
-                    machineryQuery.and(machineryPriceTransactionLM.findProperty("inMachineryRequestExchange").getExpr(machineryExpr, requestExchangeObject.getExpr()).getWhere());
-                    machineryQuery.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(
-                            machineryPriceTransactionLM.findProperty("stockRequestExchange").getExpr(requestExchangeObject.getExpr()), Compare.EQUALS));
-                    machineryQuery.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
+                    machineryQuery.and(machineryPriceTransactionLM.findProperty("in[Machinery,RequestExchange]").getExpr(machineryExpr, requestExchangeObject.getExpr()).getWhere());
+                    machineryQuery.and(machineryLM.findProperty("stock[Machinery]").getExpr(machineryExpr).compare(
+                            machineryPriceTransactionLM.findProperty("stock[RequestExchange]").getExpr(requestExchangeObject.getExpr()), Compare.EQUALS));
+                    machineryQuery.and(machineryLM.findProperty("inactive[Machinery]").getExpr(machineryExpr).getWhere().not());
                     ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = machineryQuery.executeClasses(session);
                     for (int j = 0; j < result.size(); j++) {
 
@@ -1256,12 +1256,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "stock", stockExpr, "machinery", machineryExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-        query.addProperty("idStock", machineryPriceTransactionLM.findProperty("idStock").getExpr(stockExpr));
-        query.addProperty("overDirectoryMachinery", machineryPriceTransactionLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr));
-        query.and(machineryPriceTransactionLM.findProperty("inStockRequestExchange").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
-        query.and(machineryPriceTransactionLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
-        query.and(machineryLM.findProperty("stockMachinery").getExpr(machineryExpr).compare(stockExpr, Compare.EQUALS));
-        query.and(machineryLM.findProperty("inactiveMachinery").getExpr(machineryExpr).getWhere().not());
+        query.addProperty("idStock", machineryPriceTransactionLM.findProperty("id[Stock]").getExpr(stockExpr));
+        query.addProperty("overDirectoryMachinery", machineryPriceTransactionLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr));
+        query.and(machineryPriceTransactionLM.findProperty("in[Stock,RequestExchange]").getExpr(stockExpr, requestExchangeObject.getExpr()).getWhere());
+        query.and(machineryPriceTransactionLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr).getWhere());
+        query.and(machineryLM.findProperty("stock[Machinery]").getExpr(machineryExpr).compare(stockExpr, Compare.EQUALS));
+        query.and(machineryLM.findProperty("inactive[Machinery]").getExpr(machineryExpr).getWhere().not());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
         for (ImMap<Object, Object> entry : result.values())
             putDirectoryStockMap(directoryStockMap, trim((String) entry.get("overDirectoryMachinery")), trim((String) entry.get("idStock")));
@@ -1284,8 +1284,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             try (DataSession session = getDbManager().createSession()) {
                 for (Integer request : succeededRequestsSet) {
                     DataObject requestExchangeObject = new DataObject(request, (ConcreteClass) machineryPriceTransactionLM.findClass("RequestExchange"));
-                    machineryPriceTransactionLM.findProperty("succeededRequestExchange").change(true, session, requestExchangeObject);
-                    machineryPriceTransactionLM.findProperty("dateTimeSucceededRequestExchange").change(getCurrentTimestamp(), session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
+                    machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
                 }
                 session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -1300,9 +1300,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             try (DataSession session = getDbManager().createSession()) {
                 for (Map.Entry<Integer, String> request : succeededRequestsMap.entrySet()) {
                     DataObject errorObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeError"));
-                    machineryPriceTransactionLM.findProperty("messageRequestExchangeError").change(request.getValue(), session, errorObject);
-                    machineryPriceTransactionLM.findProperty("dateRequestExchangeError").change(getCurrentTimestamp(), session, errorObject);
-                    machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeError").change(request.getKey(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("message[RequestExchangeError]").change(request.getValue(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
+                    machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(request.getKey(), session, errorObject);
                 }
                 session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -1322,11 +1322,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-                query.addProperty("idZReport", zReportLM.findProperty("idZReport").getExpr(zReportExpr));
-                query.addProperty("sumReceiptDetailZReport", zReportLM.findProperty("sumReceiptDetailZReport").getExpr(zReportExpr));
+                query.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
+                query.addProperty("sumReceiptDetailZReport", zReportLM.findProperty("sumReceiptDetail[ZReport]").getExpr(zReportExpr));
 
-                query.and(zReportLM.findProperty("idZReport").getExpr(zReportExpr).getWhere());
-                query.and(zReportLM.findProperty("succeededExtraCheckZReport").getExpr(zReportExpr).getWhere());
+                query.and(zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr).getWhere());
+                query.and(zReportLM.findProperty("succeededExtraCheck[ZReport]").getExpr(zReportExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -1346,7 +1346,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             if (zReportLM != null) {
                 for (String idZReport : idZReportList) {
                     try (DataSession session = getDbManager().createSession()) {
-                        zReportLM.findProperty("succeededExtraCheckZReport").change(true, session, (DataObject) zReportLM.findProperty("zReportId").readClasses(session, new DataObject(idZReport)));
+                        zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
                         session.apply(getBusinessLogics());
                     }
                 }
@@ -1369,24 +1369,24 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] cashRegisterNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister"};
-                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery", "disableSalesCashRegister");
+                LCP[] cashRegisterProperties = cashRegisterLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]", "disableSales[CashRegister]");
                 for (int i = 0; i < cashRegisterProperties.length; i++) {
                     query.addProperty(cashRegisterNames[i], cashRegisterProperties[i].getExpr(cashRegisterExpr));
                 }
 
                 String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
                         "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister", "idStockGroupMachinery"};
-                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
-                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister", "idStockGroupMachinery");
+                LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]",
+                        "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
 
-                query.and(cashRegisterLM.findProperty("handlerModelGroupMachinery").getExpr(groupCashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupCashRegisterExpr).getWhere());
                 //query.and(cashRegisterLM.findProperty("overDirectoryMachinery").getExpr(cashRegisterExpr).getWhere());
-                query.and(cashRegisterLM.findProperty("groupMachineryMachinery").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
-                query.and(equLM.findProperty("sidEquipmentServerGroupMachinery").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
-                query.and(cashRegisterLM.findProperty("activeGroupCashRegister").getExpr(groupCashRegisterExpr).getWhere());
+                query.and(cashRegisterLM.findProperty("groupMachinery[Machinery]").getExpr(cashRegisterExpr).compare(groupCashRegisterExpr, Compare.EQUALS));
+                query.and(equLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupCashRegisterExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+                query.and(cashRegisterLM.findProperty("active[GroupCashRegister]").getExpr(groupCashRegisterExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -1423,24 +1423,24 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] terminalNames = new String[]{"nppMachinery", "portMachinery"};
-                LCP[] terminalProperties = machineryLM.findProperties("nppMachinery", "portMachinery");
+                LCP[] terminalProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]");
                 for (int i = 0; i < terminalProperties.length; i++) {
                     query.addProperty(terminalNames[i], terminalProperties[i].getExpr(terminalExpr));
                 }
 
                 String[] groupTerminalNames = new String[]{"nameModelGroupMachinery", "handlerModelGroupMachinery",
                         "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery"};
-                LCP[] groupTerminalProperties = terminalLM.findProperties("nameModelGroupMachinery", "handlerModelGroupMachinery",
-                        "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery");
+                LCP[] groupTerminalProperties = terminalLM.findProperties("nameModel[GroupMachinery]", "handlerModel[GroupMachinery]",
+                        "directory[GroupTerminal]", "idPriceListType[GroupMachinery]", "npp[GroupMachinery]");
                 for (int i = 0; i < groupTerminalProperties.length; i++) {
                     query.addProperty(groupTerminalNames[i], groupTerminalProperties[i].getExpr(groupTerminalExpr));
                 }
 
-                query.and(terminalLM.findProperty("handlerModelGroupMachinery").getExpr(groupTerminalExpr).getWhere());
-                query.and(terminalLM.findProperty("directoryGroupTerminal").getExpr(groupTerminalExpr).getWhere());
-                query.and(terminalLM.findProperty("groupTerminalTerminal").getExpr(terminalExpr).compare(groupTerminalExpr, Compare.EQUALS));
-                query.and(terminalLM.findProperty("activeGroupTerminal").getExpr(groupTerminalExpr).getWhere());
-                query.and(equLM.findProperty("sidEquipmentServerGroupMachinery").getExpr(groupTerminalExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+                query.and(terminalLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupTerminalExpr).getWhere());
+                query.and(terminalLM.findProperty("directory[GroupTerminal]").getExpr(groupTerminalExpr).getWhere());
+                query.and(terminalLM.findProperty("groupTerminal[Terminal]").getExpr(terminalExpr).compare(groupTerminalExpr, Compare.EQUALS));
+                query.and(terminalLM.findProperty("active[GroupTerminal]").getExpr(groupTerminalExpr).getWhere());
+                query.and(equLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupTerminalExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -1471,21 +1471,21 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
                 String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
-                LCP[] machineryProperties = machineryLM.findProperties("nppMachinery", "portMachinery", "overDirectoryMachinery");
+                LCP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
                 for (int i = 0; i < machineryProperties.length; i++) {
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
                 }
 
                 String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery"};
-                LCP[] groupMachineryProperties = machineryLM.findProperties("nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery");
+                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]");
                 for (int i = 0; i < groupMachineryProperties.length; i++) {
                     query.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
                 }
 
-                query.and(machineryLM.findProperty("handlerModelGroupMachinery").getExpr(groupMachineryExpr).getWhere());
-                query.and(machineryLM.findProperty("overDirectoryMachinery").getExpr(machineryExpr).getWhere());
-                query.and(machineryLM.findProperty("groupMachineryMachinery").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
-                query.and(equLM.findProperty("sidEquipmentServerGroupMachinery").getExpr(groupMachineryExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+                query.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+                query.and(machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr).getWhere());
+                query.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
+                query.and(equLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
@@ -1514,122 +1514,122 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
             if (notNullNorEmpty(terminalDocumentDetailList)) {
 
-                ImportField idTerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalDocument"));
+                ImportField idTerminalDocumentField = new ImportField(terminalLM.findProperty("id[TerminalDocument]"));
                 ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocument"),
-                        terminalLM.findProperty("terminalDocumentId").getMapping(idTerminalDocumentField));
+                        terminalLM.findProperty("terminalDocument[VARSTRING[100]]").getMapping(idTerminalDocumentField));
                 keys.add(terminalDocumentKey);
-                props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("idTerminalDocument").getMapping(terminalDocumentKey)));
+                props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("id[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).idDocument);
 
-                ImportField titleTerminalDocumentField = new ImportField(terminalLM.findProperty("titleTerminalDocument"));
-                props.add(new ImportProperty(titleTerminalDocumentField, terminalLM.findProperty("titleTerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField titleTerminalDocumentField = new ImportField(terminalLM.findProperty("title[TerminalDocument]"));
+                props.add(new ImportProperty(titleTerminalDocumentField, terminalLM.findProperty("title[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(titleTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).numberDocument);
 
-                ImportField dateTerminalDocumentField = new ImportField(terminalLM.findProperty("dateTerminalDocument"));
-                props.add(new ImportProperty(dateTerminalDocumentField, terminalLM.findProperty("dateTerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField dateTerminalDocumentField = new ImportField(terminalLM.findProperty("date[TerminalDocument]"));
+                props.add(new ImportProperty(dateTerminalDocumentField, terminalLM.findProperty("date[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(dateTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).dateDocument);
 
-                ImportField timeTerminalDocumentField = new ImportField(terminalLM.findProperty("timeTerminalDocument"));
-                props.add(new ImportProperty(timeTerminalDocumentField, terminalLM.findProperty("timeTerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField timeTerminalDocumentField = new ImportField(terminalLM.findProperty("time[TerminalDocument]"));
+                props.add(new ImportProperty(timeTerminalDocumentField, terminalLM.findProperty("time[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(timeTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).timeDocument);
 
-                ImportField commentTerminalDocumentField = new ImportField(terminalLM.findProperty("commentTerminalDocument"));
-                props.add(new ImportProperty(commentTerminalDocumentField, terminalLM.findProperty("commentTerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField commentTerminalDocumentField = new ImportField(terminalLM.findProperty("comment[TerminalDocument]"));
+                props.add(new ImportProperty(commentTerminalDocumentField, terminalLM.findProperty("comment[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(commentTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).commentDocument);
 
-                ImportField directoryGroupTerminalField = new ImportField(terminalLM.findProperty("directoryGroupTerminal"));
+                ImportField directoryGroupTerminalField = new ImportField(terminalLM.findProperty("directory[GroupTerminal]"));
                 ImportKey<?> groupTerminalKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("GroupTerminal"),
-                        terminalLM.findProperty("groupTerminalDirectory").getMapping(directoryGroupTerminalField));
+                        terminalLM.findProperty("groupTerminalDirectory[VARSTRING[100]]").getMapping(directoryGroupTerminalField));
                 keys.add(groupTerminalKey);
-                props.add(new ImportProperty(directoryGroupTerminalField, terminalLM.findProperty("groupTerminalTerminalDocument").getMapping(terminalDocumentKey),
+                props.add(new ImportProperty(directoryGroupTerminalField, terminalLM.findProperty("groupTerminal[TerminalDocument]").getMapping(terminalDocumentKey),
                         terminalLM.object(terminalLM.findClass("GroupTerminal")).getMapping(groupTerminalKey)));
                 fields.add(directoryGroupTerminalField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).directoryGroupTerminal);
 
-                ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType1TerminalDocument"));
-                props.add(new ImportProperty(idTerminalHandbookType1TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType1TerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField idTerminalHandbookType1TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType1[TerminalDocument]"));
+                props.add(new ImportProperty(idTerminalHandbookType1TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType1[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalHandbookType1TerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).idTerminalHandbookType1);
 
-                ImportField idTerminalHandbookType2TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType2TerminalDocument"));
-                props.add(new ImportProperty(idTerminalHandbookType2TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType2TerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField idTerminalHandbookType2TerminalDocumentField = new ImportField(terminalLM.findProperty("idTerminalHandbookType2[TerminalDocument]"));
+                props.add(new ImportProperty(idTerminalHandbookType2TerminalDocumentField, terminalLM.findProperty("idTerminalHandbookType2[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(idTerminalHandbookType2TerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).idTerminalHandbookType2);
 
-                ImportField idTerminalDocumentTypeField = new ImportField(terminalLM.findProperty("idTerminalDocumentType"));
+                ImportField idTerminalDocumentTypeField = new ImportField(terminalLM.findProperty("id[TerminalDocumentType]"));
                 ImportKey<?> terminalDocumentTypeKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentType"),
-                        terminalLM.findProperty("terminalDocumentTypeId").getMapping(idTerminalDocumentTypeField));
+                        terminalLM.findProperty("terminalDocumentType[VARSTRING[100]]").getMapping(idTerminalDocumentTypeField));
                 terminalDocumentTypeKey.skipKey = true;
                 keys.add(terminalDocumentTypeKey);
-                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("idTerminalDocumentType").getMapping(terminalDocumentTypeKey)));
-                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("terminalDocumentTypeTerminalDocument").getMapping(terminalDocumentKey),
+                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("id[TerminalDocumentType]").getMapping(terminalDocumentTypeKey)));
+                props.add(new ImportProperty(idTerminalDocumentTypeField, terminalLM.findProperty("terminalDocumentType[TerminalDocument]").getMapping(terminalDocumentKey),
                         terminalLM.object(terminalLM.findClass("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
                 fields.add(idTerminalDocumentTypeField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).idTerminalDocumentType);
 
-                ImportField quantityTerminalDocumentField = new ImportField(terminalLM.findProperty("quantityTerminalDocument"));
-                props.add(new ImportProperty(quantityTerminalDocumentField, terminalLM.findProperty("quantityTerminalDocument").getMapping(terminalDocumentKey)));
+                ImportField quantityTerminalDocumentField = new ImportField(terminalLM.findProperty("quantity[TerminalDocument]"));
+                props.add(new ImportProperty(quantityTerminalDocumentField, terminalLM.findProperty("quantity[TerminalDocument]").getMapping(terminalDocumentKey)));
                 fields.add(quantityTerminalDocumentField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).quantityDocument);
 
-                ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("idTerminalDocumentDetail"));
+                ImportField idTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("id[TerminalDocumentDetail]"));
                 ImportKey<?> terminalDocumentDetailKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocumentDetail"),
-                        terminalLM.findProperty("terminalDocumentDetailIdTerminalDocumentId").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
+                        terminalLM.findProperty("terminalIdTerminalId[VARSTRING[100],VARSTRING[100]]").getMapping(idTerminalDocumentField, idTerminalDocumentDetailField));
                 keys.add(terminalDocumentDetailKey);
-                props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findProperty("idTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
-                props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("terminalDocumentTerminalDocumentDetail").getMapping(terminalDocumentDetailKey),
+                props.add(new ImportProperty(idTerminalDocumentDetailField, terminalLM.findProperty("id[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                props.add(new ImportProperty(idTerminalDocumentField, terminalLM.findProperty("terminalDocument[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey),
                         terminalLM.object(terminalLM.findClass("TerminalDocument")).getMapping(terminalDocumentKey)));
                 fields.add(idTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).idDocumentDetail);
 
-                ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("numberTerminalDocumentDetail"));
-                props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findProperty("numberTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                ImportField numberTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("number[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findProperty("number[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(numberTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).numberDocumentDetail);
 
-                ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("barcodeTerminalDocumentDetail"));
-                props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findProperty("barcodeTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("barcode[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findProperty("barcode[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(barcodeTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).barcodeDocumentDetail);
 
-                ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("nameTerminalDocumentDetail"));
-                props.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findProperty("nameTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                ImportField nameTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("name[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(nameTerminalDocumentDetailField, terminalLM.findProperty("name[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(nameTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).nameDocumentDetail);
 
-                ImportField priceTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("priceTerminalDocumentDetail"));
-                props.add(new ImportProperty(priceTerminalDocumentDetailField, terminalLM.findProperty("priceTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                ImportField priceTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("price[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(priceTerminalDocumentDetailField, terminalLM.findProperty("price[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(priceTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).priceDocumentDetail);
 
-                ImportField quantityTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("quantityTerminalDocumentDetail"));
-                props.add(new ImportProperty(quantityTerminalDocumentDetailField, terminalLM.findProperty("quantityTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                ImportField quantityTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("quantity[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(quantityTerminalDocumentDetailField, terminalLM.findProperty("quantity[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(quantityTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).quantityDocumentDetail);
 
-                ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("sumTerminalDocumentDetail"));
-                props.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findProperty("sumTerminalDocumentDetail").getMapping(terminalDocumentDetailKey)));
+                ImportField sumTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("sum[TerminalDocumentDetail]"));
+                props.add(new ImportProperty(sumTerminalDocumentDetailField, terminalLM.findProperty("sum[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(sumTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
                     data.get(i).add(terminalDocumentDetailList.get(i).sumDocumentDetail);
@@ -1657,20 +1657,20 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try (DataSession session = getDbManager().createSession()) {
                       
-                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stockId").readClasses(session, new DataObject(idStock));
+                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
                 
                 KeyExpr zReportExpr = new KeyExpr("zReport");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
                 String[] names = new String[]{"sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport", "dateZReport"};
-                LCP<?>[] properties = zReportLM.findProperties("sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport", "dateZReport");
+                LCP<?>[] properties = zReportLM.findProperties("sumReceiptDetail[ZReport]", "number[ZReport]", "numberCashRegister[ZReport]", "date[ZReport]");
                 for (int i = 0; i < properties.length; i++) {
                     query.addProperty(names[i], properties[i].getExpr(zReportExpr));
                 }
-                query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
-                query.and(zReportLM.findProperty("dateZReport").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
-                query.and(zReportLM.findProperty("departmentStoreZReport").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
-                query.and(zReportLM.findProperty("numberZReport").getExpr(zReportExpr).getWhere());
+                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
+                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
+                query.and(zReportLM.findProperty("departmentStore[ZReport]").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
+                query.and(zReportLM.findProperty("number[ZReport]").getExpr(zReportExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
                 for (ImMap<Object, Object> entry : zReportResult.values()) {
                     String numberZReport = trim((String) entry.get("numberZReport"));
@@ -1696,11 +1696,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     Object nppMachinery = entry.get(0);
                     Object message = entry.get(1);
                     DataObject logObject = session.addObject((ConcreteCustomClass) machineryPriceTransactionLM.findClass("RequestExchangeLog"));
-                    ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
-                    machineryPriceTransactionLM.findProperty("dateRequestExchangeLog").change(getCurrentTimestamp(), session, logObject);
-                    machineryPriceTransactionLM.findProperty("messageRequestExchangeLog").change(message, session, logObject);
-                    machineryPriceTransactionLM.findProperty("machineryRequestExchangeLog").change(cashRegisterObject.getValue(), session, logObject);
-                    machineryPriceTransactionLM.findProperty("requestExchangeRequestExchangeLog").change(idRequestExchange, session, logObject);
+                    ObjectValue cashRegisterObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(nppGroupMachinery), new DataObject((Integer) nppMachinery));
+                    machineryPriceTransactionLM.findProperty("date[RequestExchangeLog]").change(getCurrentTimestamp(), session, logObject);
+                    machineryPriceTransactionLM.findProperty("message[RequestExchangeLog]").change(message, session, logObject);
+                    machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject.getValue(), session, logObject);
+                    machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);
                 }
                 session.apply(getBusinessLogics());
             } catch (Exception e) {
@@ -1715,21 +1715,21 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         if(equipmentCashRegisterLM != null)
         try (DataSession session = getDbManager().createSession()) {
 
-            DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stockId").readClasses(session, new DataObject(idStock));
+            DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
 
             KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
             String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
-            LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery");
+            LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]", "overDirectory[Machinery]");
             for (int i = 0; i < machineryProperties.length; i++) {
                 query.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
             }
             
-            query.and(equipmentCashRegisterLM.findProperty("departmentStoreCashRegister").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
-            query.and(equipmentCashRegisterLM.findProperty("nppMachinery").getExpr(cashRegisterExpr).getWhere());
-            query.and(equipmentCashRegisterLM.findProperty("activeCashRegister").getExpr(cashRegisterExpr).getWhere());
+            query.and(equipmentCashRegisterLM.findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(stockObject.getExpr(), Compare.EQUALS));
+            query.and(equipmentCashRegisterLM.findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
+            query.and(equipmentCashRegisterLM.findProperty("active[CashRegister]").getExpr(cashRegisterExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
             for (ImMap<Object, Object> entry : zReportResult.values()) {
                 Integer nppMachinery = (Integer) entry.get("nppMachinery");
@@ -1790,217 +1790,217 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                     try (DataSession session = getDbManager().createSession()) {
 
-                        ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(sidEquipmentServer));
-                        Date startDate = (Date) equLM.findProperty("startDateEquipmentServer").read(session, equipmentServerObject);
+                        ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+                        Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
 
-                        ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("nppGroupMachinery"));
-                        ImportField nppMachineryField = new ImportField(zReportLM.findProperty("nppMachinery"));
+                        ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("npp[GroupMachinery]"));
+                        ImportField nppMachineryField = new ImportField(zReportLM.findProperty("npp[Machinery]"));
 
-                        ImportField idZReportField = new ImportField(zReportLM.findProperty("idZReport"));
-                        ImportField numberZReportField = new ImportField(zReportLM.findProperty("numberZReport"));
-                        ImportField dateZReportField = new ImportField(zReportLM.findProperty("dateZReport"));
-                        ImportField timeZReportField = new ImportField(zReportLM.findProperty("timeZReport"));
+                        ImportField idZReportField = new ImportField(zReportLM.findProperty("id[ZReport]"));
+                        ImportField numberZReportField = new ImportField(zReportLM.findProperty("number[ZReport]"));
+                        ImportField dateZReportField = new ImportField(zReportLM.findProperty("date[ZReport]"));
+                        ImportField timeZReportField = new ImportField(zReportLM.findProperty("time[ZReport]"));
 
-                        ImportField idReceiptField = new ImportField(zReportLM.findProperty("idReceipt"));
-                        ImportField numberReceiptField = new ImportField(zReportLM.findProperty("numberReceipt"));
-                        ImportField dateReceiptField = new ImportField(zReportLM.findProperty("dateReceipt"));
-                        ImportField timeReceiptField = new ImportField(zReportLM.findProperty("timeReceipt"));
-                        ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPostedZReport"));
+                        ImportField idReceiptField = new ImportField(zReportLM.findProperty("id[Receipt]"));
+                        ImportField numberReceiptField = new ImportField(zReportLM.findProperty("number[Receipt]"));
+                        ImportField dateReceiptField = new ImportField(zReportLM.findProperty("date[Receipt]"));
+                        ImportField timeReceiptField = new ImportField(zReportLM.findProperty("time[Receipt]"));
+                        ImportField isPostedZReportField = new ImportField(zReportLM.findProperty("isPosted[ZReport]"));
 
-                        ImportField idEmployeeField = new ImportField(zReportLM.findProperty("idEmployee"));
-                        ImportField firstNameContactField = new ImportField(zReportLM.findProperty("firstNameContact"));
-                        ImportField lastNameContactField = new ImportField(zReportLM.findProperty("lastNameContact"));
+                        ImportField idEmployeeField = new ImportField(zReportLM.findProperty("id[Employee]"));
+                        ImportField firstNameContactField = new ImportField(zReportLM.findProperty("firstName[Contact]"));
+                        ImportField lastNameContactField = new ImportField(zReportLM.findProperty("lastName[Contact]"));
 
-                        ImportField idReceiptDetailField = new ImportField(zReportLM.findProperty("idReceiptDetail"));
-                        ImportField numberReceiptDetailField = new ImportField(zReportLM.findProperty("numberReceiptDetail"));
-                        ImportField idBarcodeReceiptDetailField = new ImportField(zReportLM.findProperty("idBarcodeReceiptDetail"));
+                        ImportField idReceiptDetailField = new ImportField(zReportLM.findProperty("id[ReceiptDetail]"));
+                        ImportField numberReceiptDetailField = new ImportField(zReportLM.findProperty("number[ReceiptDetail]"));
+                        ImportField idBarcodeReceiptDetailField = new ImportField(zReportLM.findProperty("idBarcode[ReceiptDetail]"));
 
                         //sale 1
-                        ImportField quantityReceiptSaleDetailField = new ImportField(zReportLM.findProperty("quantityReceiptSaleDetail"));
-                        ImportField priceReceiptSaleDetailField = new ImportField(zReportLM.findProperty("priceReceiptSaleDetail"));
-                        ImportField sumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sumReceiptSaleDetail"));
-                        ImportField discountSumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("discountSumReceiptSaleDetail"));
-                        ImportField discountSumSaleReceiptField = new ImportField(zReportLM.findProperty("discountSumSaleReceipt"));
+                        ImportField quantityReceiptSaleDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptSaleDetail]"));
+                        ImportField priceReceiptSaleDetailField = new ImportField(zReportLM.findProperty("price[ReceiptSaleDetail]"));
+                        ImportField sumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("sum[ReceiptSaleDetail]"));
+                        ImportField discountSumReceiptSaleDetailField = new ImportField(zReportLM.findProperty("discountSum[ReceiptSaleDetail]"));
+                        ImportField discountSumSaleReceiptField = new ImportField(zReportLM.findProperty("discountSumSale[Receipt]"));
 
                         //return 1
-                        ImportField idSaleReceiptReceiptReturnDetailField = new ImportField(zReportLM.findProperty("idReceipt"));
-                        ImportField quantityReceiptReturnDetailField = new ImportField(zReportLM.findProperty("quantityReceiptReturnDetail"));
-                        ImportField priceReceiptReturnDetailField = new ImportField(zReportLM.findProperty("priceReceiptReturnDetail"));
-                        ImportField retailSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sumReceiptReturnDetail"));
-                        ImportField discountSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("discountSumReceiptReturnDetail"));
-                        ImportField discountSumReturnReceiptField = new ImportField(zReportLM.findProperty("discountSumReturnReceipt"));
+                        ImportField idSaleReceiptReceiptReturnDetailField = new ImportField(zReportLM.findProperty("id[Receipt]"));
+                        ImportField quantityReceiptReturnDetailField = new ImportField(zReportLM.findProperty("quantity[ReceiptReturnDetail]"));
+                        ImportField priceReceiptReturnDetailField = new ImportField(zReportLM.findProperty("price[ReceiptReturnDetail]"));
+                        ImportField retailSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("sum[ReceiptReturnDetail]"));
+                        ImportField discountSumReceiptReturnDetailField = new ImportField(zReportLM.findProperty("discountSum[ReceiptReturnDetail]"));
+                        ImportField discountSumReturnReceiptField = new ImportField(zReportLM.findProperty("discountSumReturn[Receipt]"));
 
                         //giftCard 1
                         ImportField priceReceiptGiftCardSaleDetailField = null;
                         ImportField sumReceiptGiftCardSaleDetailField = null;
                         ImportField idGiftCardField = null;
                         if (giftCardLM != null) {
-                            priceReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("priceReceiptGiftCardSaleDetail"));
-                            sumReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("sumReceiptGiftCardSaleDetail"));
-                            idGiftCardField = new ImportField(giftCardLM.findProperty("idGiftCard"));
+                            priceReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]"));
+                            sumReceiptGiftCardSaleDetailField = new ImportField(giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]"));
+                            idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
                         }
 
-                        ImportField idPaymentField = new ImportField(zReportLM.findProperty("ZReport.idPayment"));
-                        ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sidPaymentType"));
-                        ImportField sumPaymentField = new ImportField(zReportLM.findProperty("ZReport.sumPayment"));
-                        ImportField numberPaymentField = new ImportField(zReportLM.findProperty("ZReport.numberPayment"));
+                        ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
+                        ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
+                        ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
+                        ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
 
-                        ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumberDiscountCard"));
-                        ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("idSection"));
+                        ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
+                        ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("id[Section]"));
 
                         List<ImportProperty<?>> saleProperties = new ArrayList<>();
                         List<ImportProperty<?>> returnProperties = new ArrayList<>();
                         List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
                         List<ImportProperty<?>> paymentProperties = new ArrayList<>();
 
-                        ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReportId").getMapping(idZReportField));
-                        ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField));
+                        ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
+                        ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
                         cashRegisterKey.skipKey = true;
-                        ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receiptId").getMapping(idReceiptField));
-                        ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcodeIdDate").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
-                        ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employeeId").getMapping(idEmployeeField));
+                        ImportKey<?> receiptKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptField));
+                        ImportKey<?> skuKey = new ImportKey((CustomClass) zReportLM.findClass("Sku"), zReportLM.findProperty("skuBarcode[STRING[15],DATE]").getMapping(idBarcodeReceiptDetailField, dateReceiptField));
+                        ImportKey<?> employeeKey = new ImportKey((CustomClass) zReportLM.findClass("Employee"), zReportLM.findProperty("employee[VARSTRING[100]]").getMapping(idEmployeeField));
 
-                        ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountCardSeriesNumber").getMapping(seriesNumberDiscountCardField, dateReceiptField));
-                        ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCardId").getMapping(idGiftCardField));
-                        ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("sectionId").getMapping(idSectionField));
+                        ImportKey<?> discountCardKey = discountCardLM == null ? null : new ImportKey((ConcreteCustomClass) discountCardLM.findClass("DiscountCard"), discountCardLM.findProperty("discountSeriesNumber[STRING[18]]").getMapping(seriesNumberDiscountCardField, dateReceiptField));
+                        ImportKey<?> giftCardKey = giftCardLM == null ? null : new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+                        ImportKey<?> sectionKey = zReportSectionLM == null ? null : new ImportKey((ConcreteCustomClass) zReportSectionLM.findClass("Section"), zReportSectionLM.findProperty("section[VARSTRING[100]]").getMapping(idSectionField));
 
                         //sale 2
-                        saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("idZReport").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("numberZReport").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegisterZReport").getMapping(zReportKey),
+                        saleProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                        saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                        saleProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
                                 zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                        saleProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("dateZReport").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("timeZReport").getMapping(zReportKey)));
-                        saleProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPostedZReport").getMapping(zReportKey)));
+                        saleProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                        saleProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                        saleProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
 
-                        saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("idReceipt").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("numberReceipt").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("dateReceipt").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("timeReceipt").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSaleReceipt").getMapping(receiptKey)));
-                        saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReportReceipt").getMapping(receiptKey),
+                        saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                        saleProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                        saleProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                        saleProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
+                        saleProperties.add(new ImportProperty(discountSumSaleReceiptField, zReportLM.findProperty("discountSumSale[Receipt]").getMapping(receiptKey)));
+                        saleProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                                 zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
                         if (discountCardLM != null && zReportDiscountCardLM != null) {
-                            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("numberDiscountCard").getMapping(discountCardKey), true));
-                            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
+                            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+                            saleProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
                                     discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                         }
-                        saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("idEmployee").getMapping(employeeKey)));
-                        saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employeeReceipt").getMapping(receiptKey),
+                        saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("id[Employee]").getMapping(employeeKey)));
+                        saleProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                                 zReportLM.object(zReportLM.findClass("Employee")).getMapping(employeeKey)));
-                        saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstNameContact").getMapping(employeeKey), true));
-                        saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastNameContact").getMapping(employeeKey), true));
+                        saleProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
+                        saleProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-                        ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
-                        saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("idReceiptDetail").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("numberReceiptDetail").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcodeReceiptDetail").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, zReportLM.findProperty("quantityReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, zReportLM.findProperty("priceReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, zReportLM.findProperty("sumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
-                        saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportLM.findProperty("discountSumReceiptSaleDetail").getMapping(receiptSaleDetailKey)));
+                        ImportKey<?> receiptSaleDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                        saleProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+                        saleProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+                        saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptSaleDetailKey)));
+                        saleProperties.add(new ImportProperty(quantityReceiptSaleDetailField, zReportLM.findProperty("quantity[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                        saleProperties.add(new ImportProperty(priceReceiptSaleDetailField, zReportLM.findProperty("price[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                        saleProperties.add(new ImportProperty(sumReceiptSaleDetailField, zReportLM.findProperty("sum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
+                        saleProperties.add(new ImportProperty(discountSumReceiptSaleDetailField, zReportLM.findProperty("discountSum[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey)));
 
-                        saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receiptReceiptDetail").getMapping(receiptSaleDetailKey),
+                        saleProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptSaleDetailKey),
                                 zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
 
-                        saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("skuReceiptSaleDetail").getMapping(receiptSaleDetailKey),
+                        saleProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptSaleDetail]").getMapping(receiptSaleDetailKey),
                                 zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
 
                         if(zReportSectionLM != null) {
-                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("idSection").getMapping(sectionKey), true));
-                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("sectionReceiptDetail").getMapping(receiptSaleDetailKey),
+                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
+                            saleProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptSaleDetailKey),
                                     zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
                         }
 
                         //return 2
-                        returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("idZReport").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("numberZReport").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegisterZReport").getMapping(zReportKey),
+                        returnProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                        returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                        returnProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
                                 zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                        returnProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("dateZReport").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("timeZReport").getMapping(zReportKey)));
-                        returnProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPostedZReport").getMapping(zReportKey)));
+                        returnProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                        returnProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                        returnProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
 
-                        returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("idReceipt").getMapping(receiptKey)));
-                        returnProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("numberReceipt").getMapping(receiptKey)));
-                        returnProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("dateReceipt").getMapping(receiptKey)));
-                        returnProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("timeReceipt").getMapping(receiptKey)));
+                        returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                        returnProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                        returnProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                        returnProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
                         if (discountCardLM != null) {
-                            returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturnReceipt").getMapping(receiptKey)));
+                            returnProperties.add(new ImportProperty(discountSumReturnReceiptField, zReportLM.findProperty("discountSumReturn[Receipt]").getMapping(receiptKey)));
                         }
-                        returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReportReceipt").getMapping(receiptKey),
+                        returnProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                                 zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
                         if (discountCardLM != null && zReportDiscountCardLM != null) {
-                            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("numberDiscountCard").getMapping(discountCardKey), true));
-                            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCardReceipt").getMapping(receiptKey),
+                            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, discountCardLM.findProperty("number[DiscountCard]").getMapping(discountCardKey), true));
+                            returnProperties.add(new ImportProperty(seriesNumberDiscountCardField, zReportDiscountCardLM.findProperty("discountCard[Receipt]").getMapping(receiptKey),
                                     discountCardLM.object(discountCardLM.findClass("DiscountCard")).getMapping(discountCardKey)));
                         }
-                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("loginCustomUser").getMapping(employeeKey), true));
-                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employeeReceipt").getMapping(receiptKey),
+                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("login[CustomUser]").getMapping(employeeKey), true));
+                        returnProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                                 zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
-                        returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstNameContact").getMapping(employeeKey), true));
-                        returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastNameContact").getMapping(employeeKey), true));
+                        returnProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
+                        returnProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-                        ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
-                        returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("idReceiptDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("numberReceiptDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcodeReceiptDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, zReportLM.findProperty("quantityReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, zReportLM.findProperty("priceReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, zReportLM.findProperty("sumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, zReportLM.findProperty("discountSumReceiptReturnDetail").getMapping(receiptReturnDetailKey)));
-                        returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receiptReceiptDetail").getMapping(receiptReturnDetailKey),
+                        ImportKey<?> receiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ReceiptReturnDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                        returnProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("idBarcode[ReceiptDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(quantityReceiptReturnDetailField, zReportLM.findProperty("quantity[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(priceReceiptReturnDetailField, zReportLM.findProperty("price[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(retailSumReceiptReturnDetailField, zReportLM.findProperty("sum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(discountSumReceiptReturnDetailField, zReportLM.findProperty("discountSum[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey)));
+                        returnProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptReturnDetailKey),
                                 zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
 
-                        returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("skuReceiptReturnDetail").getMapping(receiptReturnDetailKey),
+                        returnProperties.add(new ImportProperty(idBarcodeReceiptDetailField, zReportLM.findProperty("sku[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
                                 zReportLM.object(zReportLM.findClass("Sku")).getMapping(skuKey)));
 
-                        ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receiptId").getMapping(idSaleReceiptReceiptReturnDetailField));
+                        ImportKey<?> receiptSaleDetailReceiptReturnDetailKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("Receipt"), zReportLM.findProperty("receipt[VARSTRING[100]]").getMapping(idSaleReceiptReceiptReturnDetailField));
                         receiptSaleDetailReceiptReturnDetailKey.skipKey = true;
-                        returnProperties.add(new ImportProperty(idSaleReceiptReceiptReturnDetailField, zReportLM.findProperty("saleReceiptReceiptReturnDetail").getMapping(receiptReturnDetailKey),
+                        returnProperties.add(new ImportProperty(idSaleReceiptReceiptReturnDetailField, zReportLM.findProperty("saleReceipt[ReceiptReturnDetail]").getMapping(receiptReturnDetailKey),
                                 zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptSaleDetailReceiptReturnDetailKey)));
 
                         if(zReportSectionLM != null) {
-                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("idSection").getMapping(sectionKey), true));
-                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("sectionReceiptDetail").getMapping(receiptReturnDetailKey),
+                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
+                            returnProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptReturnDetailKey),
                                     zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
                         }
 
                         //giftCard 2
                         ImportKey<?> receiptGiftCardSaleDetailKey = null;
                         if (giftCardLM != null) {
-                            giftCardProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("idZReport").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("numberZReport").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegisterZReport").getMapping(zReportKey),
+                            giftCardProperties.add(new ImportProperty(idZReportField, zReportLM.findProperty("id[ZReport]").getMapping(zReportKey)));
+                            giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("number[ZReport]").getMapping(zReportKey)));
+                            giftCardProperties.add(new ImportProperty(nppMachineryField, zReportLM.findProperty("cashRegister[ZReport]").getMapping(zReportKey),
                                     zReportLM.object(zReportLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
-                            giftCardProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("dateZReport").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("timeZReport").getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPostedZReport").getMapping(zReportKey)));
+                            giftCardProperties.add(new ImportProperty(dateZReportField, zReportLM.findProperty("date[ZReport]").getMapping(zReportKey)));
+                            giftCardProperties.add(new ImportProperty(timeZReportField, zReportLM.findProperty("time[ZReport]").getMapping(zReportKey)));
+                            giftCardProperties.add(new ImportProperty(isPostedZReportField, zReportLM.findProperty("isPosted[ZReport]").getMapping(zReportKey)));
 
-                            giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("idReceipt").getMapping(receiptKey)));
-                            giftCardProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("numberReceipt").getMapping(receiptKey)));
-                            giftCardProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("dateReceipt").getMapping(receiptKey)));
-                            giftCardProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("timeReceipt").getMapping(receiptKey)));
+                            giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("id[Receipt]").getMapping(receiptKey)));
+                            giftCardProperties.add(new ImportProperty(numberReceiptField, zReportLM.findProperty("number[Receipt]").getMapping(receiptKey)));
+                            giftCardProperties.add(new ImportProperty(dateReceiptField, zReportLM.findProperty("date[Receipt]").getMapping(receiptKey)));
+                            giftCardProperties.add(new ImportProperty(timeReceiptField, zReportLM.findProperty("time[Receipt]").getMapping(receiptKey)));
 
-                            giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReportReceipt").getMapping(receiptKey),
+                            giftCardProperties.add(new ImportProperty(numberZReportField, zReportLM.findProperty("zReport[Receipt]").getMapping(receiptKey),
                                     zReportLM.object(zReportLM.findClass("ZReport")).getMapping(zReportKey)));
-                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("loginCustomUser").getMapping(employeeKey), true));
-                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employeeReceipt").getMapping(receiptKey),
+                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("login[CustomUser]").getMapping(employeeKey), true));
+                            giftCardProperties.add(new ImportProperty(idEmployeeField, zReportLM.findProperty("employee[Receipt]").getMapping(receiptKey),
                                     zReportLM.object(zReportLM.findClass("CustomUser")).getMapping(employeeKey)));
-                            giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstNameContact").getMapping(employeeKey), true));
-                            giftCardProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastNameContact").getMapping(employeeKey), true));
+                            giftCardProperties.add(new ImportProperty(firstNameContactField, zReportLM.findProperty("firstName[Contact]").getMapping(employeeKey), true));
+                            giftCardProperties.add(new ImportProperty(lastNameContactField, zReportLM.findProperty("lastName[Contact]").getMapping(employeeKey), true));
 
-                            receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetailId").getMapping(idReceiptDetailField));
-                            giftCardProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("idReceiptDetail").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("numberReceiptDetail").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(priceReceiptGiftCardSaleDetailField, giftCardLM.findProperty("priceReceiptGiftCardSaleDetail").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(sumReceiptGiftCardSaleDetailField, giftCardLM.findProperty("sumReceiptGiftCardSaleDetail").getMapping(receiptGiftCardSaleDetailKey)));
-                            giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receiptReceiptDetail").getMapping(receiptGiftCardSaleDetailKey),
+                            receiptGiftCardSaleDetailKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("ReceiptGiftCardSaleDetail"), zReportLM.findProperty("receiptDetail[VARSTRING[100]]").getMapping(idReceiptDetailField));
+                            giftCardProperties.add(new ImportProperty(idReceiptDetailField, zReportLM.findProperty("id[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                            giftCardProperties.add(new ImportProperty(numberReceiptDetailField, zReportLM.findProperty("number[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                            giftCardProperties.add(new ImportProperty(priceReceiptGiftCardSaleDetailField, giftCardLM.findProperty("price[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                            giftCardProperties.add(new ImportProperty(sumReceiptGiftCardSaleDetailField, giftCardLM.findProperty("sum[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey)));
+                            giftCardProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey),
                                     zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
 
-                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("idGiftCard").getMapping(giftCardKey)));
-                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("numberGiftCard").getMapping(giftCardKey)));
-                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCardReceiptGiftCardSaleDetail").getMapping(receiptGiftCardSaleDetailKey),
+                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
+                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
+                            giftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[ReceiptGiftCardSaleDetail]").getMapping(receiptGiftCardSaleDetailKey),
                                     zReportLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
                         }
 
@@ -2016,11 +2016,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
                                     (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
                             if (barcode == null && sale.itemObject != null) {
-                                barcode = trim((String) itemLM.findProperty("idBarcodeSku").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
+                                barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
                                 barcodeMap.put(sale.itemObject, barcode);
                             }
                             if (barcode == null && sale.idItem != null) {
-                                barcode = trim((String) itemLM.findProperty("idBarcodeIdSku").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                                barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
                                 barcodeMap.put(sale.idItem, barcode);
                             }
 
@@ -2143,14 +2143,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                             new IntegrationService(session, new ImportTable(giftCardImportFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                         }
 
-                        ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("ZReport.paymentId").getMapping(idPaymentField));
-                        ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID").getMapping(sidTypePaymentField));
-                        paymentProperties.add(new ImportProperty(idPaymentField, zReportLM.findProperty("ZReport.idPayment").getMapping(paymentKey)));
-                        paymentProperties.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("ZReport.sumPayment").getMapping(paymentKey)));
-                        paymentProperties.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("ZReport.numberPayment").getMapping(paymentKey)));
-                        paymentProperties.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentTypePayment").getMapping(paymentKey),
+                        ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentField));
+                        ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
+                        paymentProperties.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
+                        paymentProperties.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
+                        paymentProperties.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
+                        paymentProperties.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
                                 zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
-                        paymentProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receiptPayment").getMapping(paymentKey),
+                        paymentProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
                                 zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
 
                         List<ImportField> paymentImportFields = Arrays.asList(idPaymentField, idReceiptField, sidTypePaymentField,
@@ -2178,11 +2178,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         String message = formatCompleteMessage(data, dataSize, timeStart);
         
         try (DataSession session = getDbManager().createSession()) {
-            ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(sidEquipmentServer));
+            ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
             DataObject logObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerLog"));
-            equLM.findProperty("equipmentServerEquipmentServerLog").change(equipmentServerObject.getValue(), session, logObject);
-            equLM.findProperty("dataEquipmentServerLog").change(message, session, logObject);
-            equLM.findProperty("dateEquipmentServerLog").change(getCurrentTimestamp(), session, logObject);
+            equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject.getValue(), session, logObject);
+            equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
+            equLM.findProperty("date[EquipmentServerLog]").change(getCurrentTimestamp(), session, logObject);
             return session.applyMessage(getBusinessLogics());
         }
     }
@@ -2240,8 +2240,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                query.addProperty("idCashDocument", collectionLM.findProperty("idCashDocument").getExpr(cashDocumentExpr));
-                query.and(collectionLM.findProperty("idCashDocument").getExpr(cashDocumentExpr).getWhere());
+                query.addProperty("idCashDocument", collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
+                query.and(collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
 
                 for (ImMap<Object, Object> row : result.values()) {
@@ -2273,69 +2273,69 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 List<List<Object>> dataIncome = new ArrayList<>();
                 List<List<Object>> dataOutcome = new ArrayList<>();
 
-                ImportField idCashDocumentField = new ImportField(collectionLM.findProperty("idCashDocument"));               
+                ImportField idCashDocumentField = new ImportField(collectionLM.findProperty("id[CashDocument]"));
                 
                 ImportKey<?> incomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("IncomeCashOperation"),
-                        collectionLM.findProperty("cashDocumentId").getMapping(idCashDocumentField));
+                        collectionLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
                 keysIncome.add(incomeCashOperationKey);
-                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("idCashDocument").getMapping(incomeCashOperationKey)));
+                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("id[CashDocument]").getMapping(incomeCashOperationKey)));
                 //propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(idCashDocumentField);
 
                 ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("OutcomeCashOperation"),
-                        collectionLM.findProperty("cashDocumentId").getMapping(idCashDocumentField));
+                        collectionLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
                 keysOutcome.add(outcomeCashOperationKey);
-                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("idCashDocument").getMapping(outcomeCashOperationKey)));
+                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("id[CashDocument]").getMapping(outcomeCashOperationKey)));
                 //propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));                
                 fieldsOutcome.add(idCashDocumentField);
 
-                ImportField numberIncomeCashOperationField = new ImportField(collectionLM.findProperty("numberIncomeCashOperation"));
-                propsIncome.add(new ImportProperty(numberIncomeCashOperationField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                ImportField numberIncomeCashOperationField = new ImportField(collectionLM.findProperty("number[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(numberIncomeCashOperationField, collectionLM.findProperty("number[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(numberIncomeCashOperationField);
 
-                ImportField numberOutcomeCashOperationField = new ImportField(collectionLM.findProperty("numberOutcomeCashOperation"));
-                propsOutcome.add(new ImportProperty(numberOutcomeCashOperationField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                ImportField numberOutcomeCashOperationField = new ImportField(collectionLM.findProperty("number[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(numberOutcomeCashOperationField, collectionLM.findProperty("number[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(numberOutcomeCashOperationField);
                 
-                ImportField dateIncomeCashOperationField = new ImportField(collectionLM.findProperty("dateIncomeCashOperation"));
-                propsIncome.add(new ImportProperty(dateIncomeCashOperationField, collectionLM.findProperty("dateIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                ImportField dateIncomeCashOperationField = new ImportField(collectionLM.findProperty("date[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(dateIncomeCashOperationField, collectionLM.findProperty("date[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(dateIncomeCashOperationField);
 
-                ImportField dateOutcomeCashOperationField = new ImportField(collectionLM.findProperty("dateOutcomeCashOperation"));
-                propsOutcome.add(new ImportProperty(dateOutcomeCashOperationField, collectionLM.findProperty("dateOutcomeCashOperation").getMapping(outcomeCashOperationKey)));                
+                ImportField dateOutcomeCashOperationField = new ImportField(collectionLM.findProperty("date[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(dateOutcomeCashOperationField, collectionLM.findProperty("date[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(dateOutcomeCashOperationField);
 
-                ImportField timeIncomeCashOperationField = new ImportField(collectionLM.findProperty("timeIncomeCashOperation"));
-                propsIncome.add(new ImportProperty(timeIncomeCashOperationField, collectionLM.findProperty("timeIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                ImportField timeIncomeCashOperationField = new ImportField(collectionLM.findProperty("time[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(timeIncomeCashOperationField, collectionLM.findProperty("time[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(timeIncomeCashOperationField);
                 
-                ImportField timeOutcomeCashOperationField = new ImportField(collectionLM.findProperty("timeOutcomeCashOperation"));
-                propsOutcome.add(new ImportProperty(timeOutcomeCashOperationField, collectionLM.findProperty("timeOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                ImportField timeOutcomeCashOperationField = new ImportField(collectionLM.findProperty("time[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(timeOutcomeCashOperationField, collectionLM.findProperty("time[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(timeOutcomeCashOperationField);
 
-                ImportField nppGroupMachineryField = new ImportField(collectionLM.findProperty("nppGroupMachinery"));
-                ImportField nppMachineryField = new ImportField(collectionLM.findProperty("nppMachinery"));
+                ImportField nppGroupMachineryField = new ImportField(collectionLM.findProperty("npp[GroupMachinery]"));
+                ImportField nppMachineryField = new ImportField(collectionLM.findProperty("npp[Machinery]"));
                 ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) collectionLM.findClass("CashRegister"),
-                        zReportLM.findProperty("cashRegisterNppGroupCashRegisterNpp").getMapping(nppGroupMachineryField, nppMachineryField/*, sidEquipmentServerField*/));
+                        zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField/*, sidEquipmentServerField*/));
                 
                 keysIncome.add(cashRegisterKey);
-                propsIncome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegisterIncomeCashOperation").getMapping(incomeCashOperationKey),
+                propsIncome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegister[IncomeCashOperation]").getMapping(incomeCashOperationKey),
                         collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
                 fieldsIncome.add(nppGroupMachineryField);
                 fieldsIncome.add(nppMachineryField);
                 
                 keysOutcome.add(cashRegisterKey);
-                propsOutcome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegisterOutcomeCashOperation").getMapping(outcomeCashOperationKey),
+                propsOutcome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegister[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
                         collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));             
                 fieldsOutcome.add(nppGroupMachineryField);
                 fieldsOutcome.add(nppMachineryField);
                 
-                ImportField sumCashIncomeCashOperationField = new ImportField(collectionLM.findProperty("sumCashIncomeCashOperation"));
-                propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, collectionLM.findProperty("sumCashIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                ImportField sumCashIncomeCashOperationField = new ImportField(collectionLM.findProperty("sumCash[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, collectionLM.findProperty("sumCash[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
                 fieldsIncome.add(sumCashIncomeCashOperationField);
 
-                ImportField sumCashOutcomeCashOperationField = new ImportField(collectionLM.findProperty("sumCashOutcomeCashOperation"));
-                propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, collectionLM.findProperty("sumCashOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                ImportField sumCashOutcomeCashOperationField = new ImportField(collectionLM.findProperty("sumCash[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, collectionLM.findProperty("sumCash[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
                 fieldsOutcome.add(sumCashOutcomeCashOperationField);
 
                 for (CashDocument cashDocument : cashDocumentList) {
@@ -2384,8 +2384,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public void succeedTransaction(Integer transactionId, Timestamp dateTime) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
-            equLM.findProperty("succeededMachineryPriceTransaction").change(true, session, transactionObject);
-            equLM.findProperty("dateTimeSucceededMachineryPriceTransaction").change(dateTime, session, transactionObject);
+            equLM.findProperty("succeeded[MachineryPriceTransaction]").change(true, session, transactionObject);
+            equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
             session.apply(getBusinessLogics());
         } catch (Exception e) {
             throw Throwables.propagate(e);
@@ -2397,7 +2397,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         if (machineryPriceTransactionLM != null) {
             try (DataSession session = getDbManager().createSession()) {
                 DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
-                machineryPriceTransactionLM.findProperty("dateTimeProcessingMachineryPriceTransaction").change(dateTime, session, transactionObject);
+                machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
                 session.apply(getBusinessLogics());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
@@ -2413,11 +2413,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (MachineryInfo machineryInfo : machineryInfoList) {
                     ObjectValue machineryObject = null;
                     if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
-                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
                     else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
-                        machineryObject = scalesLM.findProperty("scalesNppGroupScalesNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
                     if (machineryObject != null && !machineryInfo.cleared)
-                        machineryPriceTransactionLM.findProperty("clearedMachineryMachineryPriceTransaction").change(true, session, (DataObject) machineryObject, transactionObject);
+                        machineryPriceTransactionLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").change(true, session, (DataObject) machineryObject, transactionObject);
                 }
                 session.apply(getBusinessLogics());
             } catch (Exception e) {
@@ -2434,15 +2434,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (MachineryInfo machineryInfo : machineryInfoList) {
                     ObjectValue machineryObject = null;
                     if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
-                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegisterNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
                     else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
-                        machineryObject = scalesLM.findProperty("scalesNppGroupScalesNpp").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
                     if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
-                        boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").read(session, machineryObject, transactionObject) != null;
+                        boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").read(session, machineryObject, transactionObject) != null;
                         if(!alreadySucceeded) {
-                            machineryPriceTransactionLM.findProperty("succeededMachineryMachineryPriceTransaction").change(true, session,
+                            machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
                                     (DataObject) machineryObject, transactionObject);
-                            machineryPriceTransactionLM.findProperty("dateTimeSucceededMachineryMachineryPriceTransaction").change(dateTime, session,
+                            machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(dateTime, session,
                                     (DataObject) machineryObject, transactionObject);
                         }
                     }
@@ -2464,15 +2464,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 for (String scalesModel : scalesModelsList) {
 
-                    ObjectValue scalesModelObject = scalesLM.findProperty("scalesModelName").readClasses(session, new DataObject(scalesModel));
+                    ObjectValue scalesModelObject = scalesLM.findProperty("scalesName[VARISTRING[110]]").readClasses(session, new DataObject(scalesModel));
 
                     KeyExpr labelFormatExpr = new KeyExpr("labelFormat");
                     ImRevMap<Object, KeyExpr> labelFormatKeys = MapFact.singletonRev((Object) "labelFormat", labelFormatExpr);
                     QueryBuilder<Object, Object> labelFormatQuery = new QueryBuilder<>(labelFormatKeys);
                     
-                    labelFormatQuery.addProperty("fileLabelFormat", scalesLM.findProperty("fileLabelFormat").getExpr(labelFormatExpr));
-                    labelFormatQuery.addProperty("fileMessageLabelFormat", scalesLM.findProperty("fileMessageLabelFormat").getExpr(labelFormatExpr));
-                    labelFormatQuery.and(scalesLM.findProperty("scalesModelLabelFormat").getExpr(labelFormatExpr).compare(scalesModelObject.getExpr(), Compare.EQUALS));
+                    labelFormatQuery.addProperty("fileLabelFormat", scalesLM.findProperty("file[LabelFormat]").getExpr(labelFormatExpr));
+                    labelFormatQuery.addProperty("fileMessageLabelFormat", scalesLM.findProperty("fileMessage[LabelFormat]").getExpr(labelFormatExpr));
+                    labelFormatQuery.and(scalesLM.findProperty("scalesModel[LabelFormat]").getExpr(labelFormatExpr).compare(scalesModelObject.getExpr(), Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> labelFormatResult = labelFormatQuery.execute(session);
 
@@ -2493,12 +2493,12 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     public void errorTransactionReport(Integer transactionID, Throwable e) throws RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("MachineryPriceTransactionError"));
-            equLM.findProperty("machineryPriceTransactionMachineryPriceTransactionError").change(transactionID, session, errorObject);
-            equLM.findProperty("dataMachineryPriceTransactionError").change(e.toString(), session, errorObject);
-            equLM.findProperty("dateMachineryPriceTransactionError").change(getCurrentTimestamp(), session, errorObject);
+            equLM.findProperty("machineryPriceTransaction[MachineryPriceTransactionError]").change(transactionID, session, errorObject);
+            equLM.findProperty("data[MachineryPriceTransactionError]").change(e.toString(), session, errorObject);
+            equLM.findProperty("date[MachineryPriceTransactionError]").change(getCurrentTimestamp(), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             e.printStackTrace(new PrintStream(os));
-            equLM.findProperty("errorTraceMachineryPriceTransactionError").change(os.toString(), session, errorObject);
+            equLM.findProperty("errorTrace[MachineryPriceTransactionError]").change(os.toString(), session, errorObject);
 
             session.apply(getBusinessLogics());
         } catch (Exception e2) {
@@ -2511,14 +2511,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             RemoteException, SQLException {
         try (DataSession session = getDbManager().createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) equLM.findClass("EquipmentServerError"));
-            Object equipmentServerObject = equLM.findProperty("sidToEquipmentServer").read(session, new DataObject(equipmentServer, StringClass.get(20)));
-            equLM.findProperty("equipmentServerEquipmentServerError").change(equipmentServerObject, session, errorObject);
-            equLM.findProperty("dataEquipmentServerError").change(exception.toString(), session, errorObject);
+            Object equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").read(session, new DataObject(equipmentServer, StringClass.get(20)));
+            equLM.findProperty("equipmentServer[EquipmentServerError]").change(equipmentServerObject, session, errorObject);
+            equLM.findProperty("data[EquipmentServerError]").change(exception.toString(), session, errorObject);
             OutputStream os = new ByteArrayOutputStream();
             exception.printStackTrace(new PrintStream(os));
-            equLM.findProperty("erTraceEquipmentServerError").change(os.toString(), session, errorObject);
+            equLM.findProperty("erTrace[EquipmentServerError]").change(os.toString(), session, errorObject);
 
-            equLM.findProperty("dateEquipmentServerError").change(getCurrentTimestamp(), session, errorObject);
+            equLM.findProperty("date[EquipmentServerError]").change(getCurrentTimestamp(), session, errorObject);
 
             session.apply(getBusinessLogics());
         } catch (Exception e) {
@@ -2531,11 +2531,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         try {
             ThreadLocalContext.set(logicsInstance.getContext());
             try (DataSession session = getDbManager().createSession()) {
-                ObjectValue equipmentServerObject = equLM.findProperty("sidToEquipmentServer").readClasses(session, new DataObject(equipmentServer));
+                ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(equipmentServer));
                 if (equipmentServerObject instanceof DataObject) {
-                    Integer delay = (Integer) equLM.findProperty("delayEquipmentServer").read(session, equipmentServerObject);
-                    Integer numberAtATime = (Integer) equLM.findProperty("numberAtATimeEquipmentServer").read(session, equipmentServerObject);
-                    Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelayEquipmentServer").read(session, equipmentServerObject);
+                    Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
+                    Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
+                    Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
                     return new EquipmentServerSettings(delay, numberAtATime, sendSalesDelay);
                 } else return null;
             }

@@ -8,77 +8,77 @@ NAMESPACE Stock;
 
 META defineDocumentSkuPriceListTypeAgreement(object, stockProp, prefix)
     @defineDocumentSku(object, sku, stock, stockProp);
-    priceListType###object###sku(object, sku) = OVERRIDE priceListType###object(object) IF sku IS Sku, prefix###priceListTypeAgreementSku(agreement###object(object), sku);
+    priceListType(###object object, Sku sku) = OVERRIDE priceListType(object) IF sku IS Sku, prefix###priceListType(agreement(object), sku);
 
 //    priceSku###object 'Цена' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(priceListType###object###sku(object, sku), sku, stockProp###object(object), dateTime###object(object));
-    ledgerPriceSku###object 'Цена (базовая)' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###sku(object, sku)), sku, stockProp###stock###object(object), dateTime###object(object));
+    ledgerPrice 'Цена (базовая)' (Sku sku, ###object object) = prevPriceB[PriceListType,Sku,Stock,DATETIME](ledgerPriceListType(priceListType(object, sku)), sku, stockProp##Stock(object), dateTime(object));
 
-    viewPriceSku###object 'Цена' (sku, object) = DATA LOCAL NUMERIC[14,2] (Sku, ###object);
+    viewPrice 'Цена' (sku, object) = DATA LOCAL NUMERIC[14,2] (Sku, ###object);
 
-    priceSku###object 'Цена' (sku, object) = viewPriceSku###object(sku, object);
+    price 'Цена' (Sku sku, ###object object) = viewPrice(sku, object);
 
-    updateViewPriceSku###object (sku, object) = ACTION {
-        FOR pt == priceListType###object###sku(object, sku) NOINLINE (pt) DO
-            viewPriceSku###object(sku, object) <- prevPriceBPriceListTypeSkuStockDateTime(pt, sku, stockProp###stock###object(object), dateTime###object(object));
+    updateViewPrice (Sku sku, ###object object) = ACTION {
+        FOR PriceListType pt == priceListType(object, sku) NOINLINE (pt) DO
+            viewPrice(sku, object) <- prevPriceB(pt, sku, stockProp##Stock(object), dateTime(object));
     }
 END
 META defineDocumentSkuPriceListTypeSystemLedger(object, priceListTypeProp, stockClass, stockProp)
     @defineDocumentSku(object, sku, stockClass, stockProp);
-    priceSku###object 'Цена' (sku, object) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###stockClass###object(object), dateTime###object(object));
+    price 'Цена' (Sku sku, ###object object) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###stockClass(object), dateTime(object));
 END
 
 META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
-    detail###Sku###object###stockProp###stockClass (sku, object, stock) =  GROUP MAX (detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###stockClass###detail(detail);
-    detail###Sku###object (sku, object) = detail###Sku###object###stockProp###stockClass(sku, object, stockProp###stockClass###object(object));
+    detail###stockProp (sku, object, stock) =  GROUP MAX (###detail detail)
+        BY skuProp(detail), object(detail), stockProp###stockClass(detail);
+    detail (###skuProp sku, ###object object) = detail###stockProp(sku, object, stockProp###stockClass(object));
 
-    currentBalanceSku###object 'Остаток' (sku, object) = currentBalanceSkuStock(sku, stockProp###stockClass###object(object));
-    prevCurrentBalanceSku###object 'Остаток' (sku, object) = prevCurrentBalanceSkuStock(sku, stockProp###stockClass###object(object));
+    currentBalance 'Остаток' (###skuProp sku, ###object object) = currentBalance(sku, stockProp###stockClass(object));
+    prevCurrentBalance 'Остаток' (###skuProp sku, ###object object) = prevCurrentBalance(sku, stockProp###stockClass(object));
 //    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
 //        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
-    backgroundQuantitySku###object 'Цвет' (sku, object) = ABSTRACT CASE COLOR (Sku, ###object);  
+    backgroundQuantity 'Цвет' (sku, object) = ABSTRACT CASE COLOR (Sku, ###object);  
 
-    overChangeQuantityValueSku###object##Detail = ABSTRACT ACTION LIST (###detail);
+    overChangeQuantityValue###skuProp = ABSTRACT ACTION LIST (###detail);
 
-    changeQuantityValueSku###object = ACTION (sku, object) {
-        IF detail###Sku###object(sku, object) THEN {
+    changeQuantityValue = ACTION (###skuProp sku, ###object object) {
+        IF detail(sku, object) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object(sku, object);
-                overChangeQuantityValueSku###object##Detail(detail###Sku###object(sku, object));
+                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
+                overChangeQuantityValue###skuProp(detail(sku, object));
             } ELSE {
-                FOR detail###Sku###object(sku, object) == d DO
+                FOR detail(sku, object) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
-                    object###detail(d) <- object;
-                    skuProp###detail(d) <- sku;
-                    quantity###detail (d) <- requestedNumeric();
-                    overChangeQuantityValueSku###object##Detail(d);
+                    object(d) <- object;
+                    skuProp(d) <- sku;
+                    quantity (d) <- requestedNumeric();
+                    overChangeQuantityValue###skuProp(d);
                 }
             }
         }
     }
 
-    changeQuantitySku###object = ACTION (sku, object) {
+    changeQuantity = ACTION (###skuProp sku, ###object object) {
         REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValueSku###object(sku, object);
+        EXEC changeQuantityValue(sku, object);
     }
 
     // Выбор всего остатка
-    allQuantitySku###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);
-    changeAllQuantitySku###object = ACTION (sku, object) {
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);
+    changeAllQuantity = ACTION (###skuProp sku, ###object object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
-            allQuantitySku###object (sku,object) <- TRUE;
-            requestedNumeric() <- prevCurrentBalanceSku###object(sku,object);
-            changeQuantityValueSku###object(sku, object);
+            allQuantity (sku,object) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(sku,object);
+            changeQuantityValue(sku, object);
         } ELSE {
-            allQuantitySku###object (sku,object) <- NULL;
+            allQuantity (sku,object) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueSku###object(sku, object);
+            changeQuantityValue(sku, object);
         }
     }
 
@@ -89,52 +89,52 @@ END
 
 META extendFormDocumentSku(object, detail, form, concrete, skuProp)
 
-    backgroundPickNameSku###object 'Цвет в подборе' = ABSTRACT CASE COLOR (Sku, ###object);
-    hideQuantitySkuDocument###object = ABSTRACT BOOLEAN (###object);
-    showQuantitySkuDocument###object = NOT hideQuantitySkuDocument###object(o); 
+    backgroundPickName 'Цвет в подборе' = ABSTRACT CASE COLOR (Sku, ###object);
+    hideQuantity###skuProp##Document = ABSTRACT BOOLEAN (###object);
+    showQuantity###skuProp##Document = NOT hideQuantity###skuProp##Document(###object o); 
     
     EXTEND FORM form
 
-        TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-        PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-        ORDER BY orderSkuGroup(sk), skuTreeName
-        FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER BY order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS ks=Sku
-        PROPERTIES READONLY      inputName = nameSku(ks) BACKGROUND backgroundPickNameSku###object(ks, concrete)
-        PROPERTIES(ks) READONLY  idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
-        PROPERTIES(ks, concrete) quantity###detail###skuProp###object ON CHANGE changeQuantitySku###object(ks, concrete) 
-                                    BACKGROUND backgroundQuantitySku###object(ks, concrete) SHOWIF showQuantitySkuDocument###object(concrete)
+        PROPERTIES READONLY      inputName = name(ks) BACKGROUND backgroundPickName(ks, concrete)
+        PROPERTIES(ks) READONLY  idBarcode, id SHOWIF showIDs(), shortNameUOM
+        PROPERTIES(ks, concrete) quantity###detail ON CHANGE changeQuantity(ks, concrete) 
+                                    BACKGROUND backgroundQuantity(ks, concrete) SHOWIF showQuantity###skuProp##Document(concrete)
                                     QUICKFILTER inputName,
-                                 prevCurrentBalanceSku###object READONLY,
-                                 allQuantitySku###object ON CHANGE changeAllQuantitySku###object(ks, concrete),
-                                 priceSku###object READONLY
-        PROPERTIES               addSku() TODRAW ks, editSku(ks), copySku(ks)
+                                 prevCurrentBalance READONLY,
+                                 allQuantity ON CHANGE changeAllQuantity(ks, concrete),
+                                 price READONLY
+        PROPERTIES               add###skuProp() TODRAW ks, edit(ks), copy(ks)
 
-        FILTERS                isParentSkuGroupSku(sk, ks)
-        FILTERGROUP activeSku FILTER 'Активные' activeSku(ks) DEFAULT
+        FILTERS                isParent(sk, ks)
+        FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
 
         ORDER BY inputName
     ;
 
-    seekSku###object###barcode = ACTION (object, barcode) { 
-        IF skuBarcodeIdDate(barcode, date###object(object)) THEN {
-            SEEK form.ks skuBarcodeIdDate(barcode, date###object(object));     
+    seek###skuProp##Barcode = ACTION (###object object, STRING[15] barcode) { 
+        IF skuProp##Barcode(barcode, date(object)) THEN {
+            SEEK form.ks skuProp##Barcode(barcode, date(object));     
         } ELSE {
             MESSAGE 'Штрихкод не найден.';
         }
     }
     
-    seekOverSku###object = ACTION (object) {
+    seekOver###skuProp = ACTION (###object object) {
         REQUEST STRING[15] INPUT;
         IF requestedString() THEN {
-            seekSku###object###barcode(object, requestedString());
+            seek###skuProp##Barcode(object, requestedString());
         }        
     };
-    seekSku###object 'Поиск по штрихкоду:' (###object object) = DATA LOCAL STRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
-                                                                            ON CHANGE seekOverSku###object(object);       
+    seek###skuProp 'Поиск по штрихкоду:' (###object object) = DATA LOCAL STRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+                                                                            ON CHANGE seekOver###skuProp(object);       
     EXTEND FORM form
-        PROPERTIES(concrete) TODRAW ks seekSku###object    
+        PROPERTIES(concrete) TODRAW ks seek###skuProp    
     ;
     DESIGN form {
         specification.box {
@@ -156,7 +156,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
                             fill = 1;
                             NEW skuTopPane {
                                 caption = 'Поиск товара';
-                                MOVE PROPERTY(seekSku###object(concrete));
+                                MOVE PROPERTY(seek###skuProp(concrete));
                             }
                             MOVE ks.box;               
                         }
@@ -164,27 +164,27 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
                 }
             }
         }
-        PROPERTY(prevCurrentBalanceSku###object(ks, concrete)) { background = #FFEEEE; }
-        PROPERTY(quantity###detail###skuProp###object(ks, concrete)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(ks, concrete)) { background = #FFEEEE; }
+        PROPERTY(quantity###detail(ks, concrete)) { background = #D4FFD4; }
     }
 END
 
 META extendFormDocumentSkuPriceListTypeAgreement(eobj, detail, form, concrete, skuProp, stockProp)
     @extendFormDocumentSku(eobj, detail, form, concrete, skuProp);
 
-    current###form###eobj() = DATA LOCAL Object ();
-    setCurrent###form###eobj(concrete) = ACTION current###form###eobj() <- concrete;
+    current###eobj###eobj() = DATA LOCAL Object ();
+    setCurrent###eobj###eobj(Object concrete) = ACTION current###eobj###eobj() <- concrete;
 
     EXTEND FORM form
-        EVENTS ON CHANGE concrete setCurrent###form###eobj(concrete)
+        EVENTS ON CHANGE concrete setCurrent###eobj###eobj(concrete)
     ;
 
-    WHEN SESSION FORMS form (SET([= VIEW form.ks](sku)) AND (concrete) == current###form###eobj()) OR 
-                            ((CHANGED(stockProp###eobj(concrete)) OR 
-                              CHANGED(dateTime###eobj(concrete)) OR
-                              CHANGED(priceListType###eobj(concrete)) OR
-                              CHANGED(agreement###eobj(concrete))) AND [= VIEW form.ks](sku)) DO
-        updateViewPriceSku###eobj(sku, concrete);
+    WHEN SESSION FORMS form (SET([= VIEW form.ks](###skuProp sku)) AND (Object concrete) == current###eobj###eobj()) OR 
+                            ((CHANGED(stockProp[###eobj](concrete)) OR 
+                              CHANGED(dateT##concrete##me[###eobj](concrete)) OR
+                              CHANGED(pr##concrete##ceL##concrete##stType[###eobj](concrete)) OR
+                              CHANGED(agreement[###eobj](concrete))) AND [= VIEW form.ks](sku)) DO
+        updateV##concrete##ewPr##concrete##ce(sku, concrete);
 END
 
 META extendFormDocumentSku(object, form, concrete)
@@ -199,84 +199,84 @@ END
 
 META defineDocumentBatchPriceListTypeAgreement(object, stockProp, prefix)
     @defineDocumentBatch(object, batch, sku, stock, stockProp);
-    priceListType###object###batch(object, batch) = OVERRIDE priceListType###object(object) IF batch IS Batch, prefix###priceListTypeAgreementSku(agreement###object(object), skuBatch(batch));
+    priceListType(###object object, Batch batch) = OVERRIDE priceListType(object) IF batch IS Batch, prefix###priceListType(agreement(object), sku(batch));
 
 //    priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stockProp###object(object), dateTime###object(object));
-    ledgerPriceBatch###object 'Цена (базовая)' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###batch(object, batch)), batch, stockProp###stock###object(object), dateTime###object(object));
+    ledgerPrice 'Цена (базовая)' (Batch batch, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](ledgerPriceListType(priceListType(object, batch)), batch, stockProp##Stock(object), dateTime(object));
 
-    viewPriceBatch###object 'Цена' (batch, object) = DATA LOCAL NUMERIC[14,2] (Batch, ###object);
+    viewPrice 'Цена' (batch, object) = DATA LOCAL NUMERIC[14,2] (Batch, ###object);
 
-    priceBatch###object 'Цена' (batch, object) = viewPriceBatch###object(batch, object);
+    price 'Цена' (Batch batch, ###object object) = viewPrice(batch, object);
 
-    updateViewPriceBatch###object (batch, object) = ACTION {
-        FOR pt == priceListType###object###batch(object, batch) NOINLINE (pt) DO
-            viewPriceBatch###object(batch, object) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, stockProp###stock###object(object), dateTime###object(object));
+    updateViewPrice (Batch batch, ###object object) = ACTION {
+        FOR PriceListType pt == priceListType(object, batch) NOINLINE (pt) DO
+            viewPrice(batch, object) <- prevPriceB(pt, batch, stockProp##Stock(object), dateTime(object));
     }
 END
 
 META defineDocumentBatchPriceListTypeSystemLedger(object, priceListTypeProp, stockClass, stockProp)
     @defineDocumentBatch(object, batch, sku, stockClass, stockProp);
-    priceBatch###object 'Цена' (batch, object) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###stockClass###object(object), dateTime###object(object));
+    price 'Цена' (Batch batch, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###stockClass(object), dateTime(object));
 END
 
 META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockProp)
-    detail###batch###object###stockProp###stockClass (batch, object, stock) =  GROUP MAX (detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###stockClass###detail(detail);
-    detail###batch###object (batch, object) = detail###batch###object###stockProp###stockClass(batch, object, stockProp###stockClass###object(object));
+    detail###stockProp (batch, object, stock) =  GROUP MAX (###detail detail)
+        BY batchProp(detail), object(detail), stockProp###stockClass(detail);
+    detail (###batchProp batch, ###object object) = detail###stockProp(batch, object, stockProp###stockClass(object));
 
-    currentBalanceBatch###object 'Остаток' (batch, object) = currentBalanceBatchStock(batch, stockProp###stockClass###object(object));
-    prevCurrentBalanceBatch###object 'Остаток' (batch, object) = prevCurrentBalanceBatchStock(batch, stockProp###stockClass###object(object));
+    currentBalance 'Остаток' (###batchProp batch, ###object object) = currentBalance(batch, stockProp###stockClass(object));
+    prevCurrentBalance 'Остаток' (###batchProp batch, ###object object) = prevCurrentBalance(batch, stockProp###stockClass(object));
 
-    quantity###detail###batchProp###object 'Кол-во товара в документе' (batch, object) = GROUP SUM quantity###detail(detail)
-        BY batchProp###detail(detail), object###detail(detail);
+    quantity###detail 'Кол-во товара в документе' (batch, object) = GROUP SUM quantity(###detail detail)
+        BY batchProp(detail), object(detail);
 
 //    backgroundQuantityBatch###object 'Цвет' (batch, object) = RGB(255,128,128) IF quantity###detail###batchProp###object(batch, object) AND NOT
 //        (quantity###detail###batchProp###object(batch, object) <= currentBalanceBatch###object(batch, object));
-    backgroundQuantityBatch###object 'Цвет' (batch, object) = ABSTRACT CASE COLOR (Batch, ###object);  
+    backgroundQuantity 'Цвет' (batch, object) = ABSTRACT CASE COLOR (Batch, ###object);  
 
-    overChangeQuantityValueBatch###object##Detail = ABSTRACT ACTION LIST (###detail);
+    overChangeQuantityValue###batchProp = ABSTRACT ACTION LIST (###detail);
 
-    changeQuantityValueBatch###object = ACTION (batch, object) {
-        IF detail###batch###object(batch, object) THEN {
+    changeQuantityValue = ACTION (###batchProp batch, ###object object) {
+        IF detail(batch, object) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object(batch, object);
-                overChangeQuantityValueBatch###object##Detail(detail###batch###object(batch, object));
+                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail(batch, object);
+                overChangeQuantityValue###batchProp(detail(batch, object));
             } ELSE {
-                FOR detail###batch###object(batch, object) == d DO
+                FOR detail(batch, object) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
-                    object###detail(d) <- object;
-                    stockProp###stockClass###detail (d) <- stockProp###stockClass###object(object);
-                    skuProp###detail(d) <- skuBatch(batch);
-                    batchProp###detail(d) <- batch;
-                    quantity###detail (d) <- requestedNumeric();
-                    overChangeQuantityValueBatch###object##Detail(d);
+                    object(d) <- object;
+                    stockProp###stockClass (d) <- stockProp###stockClass(object);
+                    skuProp(d) <- skuProp(batch);
+                    batchProp(d) <- batch;
+                    quantity (d) <- requestedNumeric();
+                    overChangeQuantityValue###batchProp(d);
                 }
             }
         }
     }
 
-    changeQuantityBatch###object = ACTION (batch, object) {
+    changeQuantity = ACTION (###batchProp batch, ###object object) {
         REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValueBatch###object(batch, object);
+        changeQuantityValue(batch, object);
     }
 
     // Выбор всего остатка
-    allQuantityBatch###object 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);
-    changeAllQuantityBatch###object= ACTION (batch, object) {
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);
+    changeAllQuantity= ACTION (###batchProp batch, ###object object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
-            allQuantityBatch###object (batch,object) <- TRUE;
-            requestedNumeric() <- prevCurrentBalanceBatch###object(batch,object);
-            changeQuantityValueBatch###object(batch, object);
+            allQuantity (batch,object) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(batch,object);
+            changeQuantityValue(batch, object);
         } ELSE {
-            allQuantityBatch###object (batch,object) <- NULL;
+            allQuantity (batch,object) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueBatch###object(batch, object);
+            changeQuantityValue(batch, object);
         }
     }
 
@@ -291,19 +291,19 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
     EXTEND FORM form
 
         OBJECTS b=Batch FIXED GRID
-        PROPERTIES READONLY SHOWIF showBatch###object(concrete) nameSkuBatch(b), idBarcodeSkuBatch(b), shortNameUOMBatch(b), idBatch(b), nameBatch(b)
-        PROPERTIES(b, concrete) SHOWIF showBatch###object(concrete) quantity###detail###batchProp###object ON CHANGE changeQuantityBatch###object(b, concrete) 
-                                BACKGROUND backgroundQuantityBatch###object(b, concrete)
-                                QUICKFILTER nameSkuBatch(b),
-                                prevCurrentBalanceBatch###object READONLY,
-                                allQuantityBatch###object ON CHANGE changeAllQuantityBatch###object(b, concrete),
-                                priceBatch###object READONLY
+        PROPERTIES READONLY SHOWIF show###batchProp(concrete) nameSku(b), idBarcodeSku(b), shortNameUOM(b), id(b), name(b)
+        PROPERTIES(b, concrete) SHOWIF show###batchProp(concrete) quantity###detail ON CHANGE changeQuantity(b, concrete) 
+                                BACKGROUND backgroundQuantity(b, concrete)
+                                QUICKFILTER nameSku(b),
+                                prevCurrentBalance READONLY,
+                                allQuantity ON CHANGE changeAllQuantity(b, concrete),
+                                price READONLY
 //                                viewPriceBatch###object READONLY
 
-        FILTERS                isParentSkuGroupBatch(sk, b),
-                               activeSkuBatch(b)
+        FILTERS                isParent(sk, b),
+                               activeSku(b)
 
-        ORDER BY nameSkuBatch(b)
+        ORDER BY nameSku(b)
     ;                                        
 
     DESIGN form {
@@ -314,8 +314,8 @@ META extendFormDocumentBatch(object, detail, form, concrete, batchProp)
                 caption = 'Партии';
             }
         }
-        PROPERTY(prevCurrentBalanceBatch###object(b, concrete)) { background = #FFEEEE; }
-        PROPERTY(quantity###detail###batchProp###object(b, concrete)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(b, concrete)) { background = #FFEEEE; }
+        PROPERTY(quantity###detail(b, concrete)) { background = #D4FFD4; }
     }
 END
 META extendFormDocumentBatch(object, form, concrete)
@@ -325,12 +325,12 @@ END
 META extendFormDocumentBatchPriceListTypeAgreement(eobj, detail, form, concrete, batchProp, stockProp)
     @extendFormDocumentBatch(eobj, detail, form, concrete, batchProp);
     
-    WHEN SESSION FORMS form (SET([= VIEW form.b](batch)) AND (concrete) == current###form###eobj()) OR
-                            ((CHANGED(stockProp###eobj(concrete)) OR 
-                              CHANGED(dateTime###eobj(concrete)) OR
-                              CHANGED(priceListType###eobj(concrete)) OR
-                              CHANGED(agreement###eobj(concrete))) AND [= VIEW form.b](batch)) DO
-        updateViewPriceBatch###eobj(batch, concrete);
+    WHEN SESSION FORMS form (SET([= VIEW form.b](###batchProp batch)) AND (Object concrete) == current###eobj###eobj()) OR
+                            ((CHANGED(stockProp[###eobj](concrete)) OR 
+                              CHANGED(dateT##concrete##me[###eobj](concrete)) OR
+                              CHANGED(pr##concrete##ceL##concrete##stType[###eobj](concrete)) OR
+                              CHANGED(agreement[###eobj](concrete))) AND [= VIEW form.b](batch)) DO
+        updateV##concrete##ewPr##concrete##ce(batch, concrete);
 END
 
 META extendFormDocumentBatchPriceListTypeAgreement(object, form, concrete, stockProp)
@@ -340,18 +340,18 @@ END
 //задание цены для подбора
 
 META extendFormDocumentPriceSku (object, priceListTypeProp, stockProp, caption, form, char, showif)
-    price###priceListTypeProp###Sku###object 'Цена'##caption (sku, object) = prevPriceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp###object(object), dateTime###object(object));
+    price###priceListTypeProp 'Цена'##caption (Sku sku, ###form object) = prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, sku, stockProp(object), dateTime(object));
 
     EXTEND FORM form
-        PROPERTIES(ks, char) READONLY price###priceListTypeProp###Sku###object SHOWIF showif###object(char)
+        PROPERTIES(ks, char) READONLY price###priceListTypeProp SHOWIF showif(char)
     ;
 END
 
 META extendFormDocumentPriceBatch (object, priceListTypeProp, stockProp, caption, form, char, showif)
-    price###priceListTypeProp###Batch###object 'Цена'##caption (batch, object) = prevPriceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp###object(object), dateTime###object(object));
+    price###priceListTypeProp 'Цена'##caption (Batch batch, ###form object) = prevPriceB(SystemLedgerPriceListType.##priceListTypeProp, batch, stockProp(object), dateTime(object));
 
     EXTEND FORM form
-        PROPERTIES(b, char) READONLY price###priceListTypeProp###Batch###object SHOWIF showif###object(char)
+        PROPERTIES(b, char) READONLY price###priceListTypeProp SHOWIF showif(char)
     ;
 END
 
@@ -369,79 +369,79 @@ DESIGN options {
 
 META defineDocumentSkuStockPriceListTypeAgreement(object, stockProp)
     @defineDocumentSkuStock(object, sku, stockProp);
-    priceListType###object###sku(object, sku) = OVERRIDE priceListType###object(object) IF sku IS Sku, priceListTypeAgreementSku(agreement###object(object), sku);
+    priceListType(###object object, Sku sku) = OVERRIDE priceListType(object) IF sku IS Sku, priceListType(agreement(object), sku);
 
 //    priceSkuStock###object 'Цена' (sku, stock, object) = prevPriceBPriceListTypeSkuStockDateTime(priceListType###object###sku(object, sku), sku, stock, dateTime###object(object));
-    ledgerPriceSkuStock###object 'Цена (базовая)' (sku, stock, object) = prevPriceBPriceListTypeSkuStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###sku(object, sku)), sku, stock, dateTime###object(object));
+    ledgerPrice 'Цена (базовая)' (Sku sku, Stock stock, ###object object) = prevPriceB[PriceListType,Sku,Stock,DATETIME](ledgerPriceListType(priceListType(object, sku)), sku, stock, dateTime(object));
                                       
-    viewPriceSkuStock###object 'Цена' (sku, stock, object) = DATA LOCAL NUMERIC[14,2] (Sku, Stock, ###object);
+    viewPrice 'Цена' (sku, stock, object) = DATA LOCAL NUMERIC[14,2] (Sku, Stock, ###object);
 
-    priceSkuStock###object 'Цена' (sku, stock, object) = viewPriceSkuStock###object(sku, stock, object);
+    price 'Цена' (Sku sku, Stock stock, ###object object) = viewPrice(sku, stock, object);
 
-    updateViewPriceSkuStock###object (sku, stock, object) = ACTION {
-        FOR pt == priceListType###object###sku(object, sku) AND stock IS Stock NOINLINE (pt) DO
-            viewPriceSkuStock###object(sku, stock, object) <- prevPriceBPriceListTypeSkuStockDateTime(pt, sku, IF overPriceStock###object(object) THEN overPriceStock###object(object) ELSE stock, dateTime###object(object));
+    updateViewPrice (Sku sku, Stock stock, ###object object) = ACTION {
+        FOR PriceListType pt == priceListType(object, sku) AND stock IS Stock NOINLINE (pt) DO
+            viewPrice(sku, stock, object) <- prevPriceB(pt, sku, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
     }
 END
 META defineDocumentSkuStockPriceListTypeSystemLedger(object, priceListTypeProp, stockProp)
     @defineDocumentSkuStock(object, sku, stockProp);
-    priceSkuStock###object 'Цена' (sku, stock, object) = prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, sku, stock, dateTime###object(object));
+    price 'Цена' (Sku sku, Stock stock, ###object object) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, sku, stock, dateTime(object));
 END
 
 META defineDocumentSkuStock(object, detail, skuProp, stockProp)
-    detail###Sku###object###stockProp###stock (sku, object, stock) =  GROUP MAX (detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
+    detail###stockProp (sku, object, stock) =  GROUP MAX (###detail detail)
+        BY skuProp(detail), object(detail), stockProp###stock(detail);
 
-    quantitySku###object###stockProp###stock 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
+    quantity###stockProp 'Кол-во товара в документе' (sku, object, stock) = GROUP SUM quantity(###detail detail)
+        BY skuProp(detail), object(detail), stockProp###stock(detail);
 
 //    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
-    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);    
-    backgroundSku###object###Stock 'Цвет' (sku, object, stock) = ABSTRACT COLOR (Sku, ###object, Stock);   
+    backgroundQuantity 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);    
+    background 'Цвет' (sku, object, stock) = ABSTRACT COLOR (Sku, ###object, Stock);   
 
-    overChangeQuantityValueSku###object##Detail = ABSTRACT ACTION LIST (###detail);
+    overChangeQuantityValue###skuProp = ABSTRACT ACTION LIST (###detail);
 
-    changeQuantityValueSku###object###Stock = ACTION (sku, object, stock) {
-        IF detail###Sku###object###stockProp###stock(sku, object, stock) THEN {
+    changeQuantityValue = ACTION (###skuProp sku, ###object object, Stock stock) {
+        IF detail###stockProp(sku, object, stock) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stock(sku, object, stock);
-                overChangeQuantityValueSku###object##Detail(detail###Sku###object###stockProp###stock(sku, object, stock));
+                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
+                overChangeQuantityValue###skuProp(detail###stockProp(sku, object, stock));
             } ELSE {
-                FOR detail###Sku###object###stockProp###stock(sku, object, stock) == d DO
+                FOR detail###stockProp(sku, object, stock) == ###detail d DO
                     DELETE d;
             }
 
         } ELSE {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   object###detail(d) <- object;
+                   object(d) <- object;
 //                  Пока работаем с одним складом                   
 //                   stockProp###stock###detail (d) <- stock;
-                   skuProp###detail(d) <- sku;
-                   quantity###detail (d) <- requestedNumeric();
-                   overChangeQuantityValueSku###object##Detail(d);
+                   skuProp(d) <- sku;
+                   quantity (d) <- requestedNumeric();
+                   overChangeQuantityValue###skuProp(d);
                 }
             }
         }
     }
-    changeQuantitySku###object###Stock = ACTION (sku, object, stock) {
+    changeQuantity = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValueSku###object###Stock(sku, object, stock);
+        changeQuantityValue(sku, object, stock);
     }
 
-    allQuantitySku###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
-    changeAllQuantitySku###object = ACTION (sku, object, stock) {
+    allQuantity###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
+    changeAllQuantity = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
-            allQuantitySku###object (sku,stock) <- TRUE;
-            requestedNumeric() <- prevCurrentBalanceSkuStock(sku,stock);
-            changeQuantityValueSku###object###Stock(sku, object, stock);
+            allQuantity###object (sku,stock) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(sku,stock);
+            changeQuantityValue(sku, object, stock);
         } ELSE {
-            allQuantitySku###object (sku,stock) <- NULL;
+            allQuantity###object (sku,stock) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueSku###object###Stock(sku, object, stock);
+            changeQuantityValue(sku, object, stock);
         }
     }
 
@@ -451,43 +451,43 @@ META defineDocumentSkuStock(object, skuProp, stockProp)
 END
 
 META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp)
-    not###stockProp###stock###object (o) = NOT stockProp###stock###object(o);
+    not###stockProp##Stock (###form o) = NOT stockProp###stock(o);
     EXTEND FORM form
 
-        TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
-        PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
+        TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
+        PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
         ORDER BY sgTreeName
         FILTERS stringEqualsAll(a),
-                stockGroupStock(ts) == sg
-        FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
-        TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-        PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-        ORDER BY orderSkuGroup(sk), skuTreeName
-        FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+                stockGroup(ts) == sg
+        FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER BY order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS           sst=Stock
         OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
-        PROPERTIES        READONLY BACKGROUND backgroundSku###object###Stock(ks, concrete, st) nameSku(ks) ON SHORTCUT showMovementSkuSkuStock(ks, st) ON SHORTCUT showMovementPriceSkuSkuStock(ks, st), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks)
-        PROPERTIES        READONLY stockName = nameStock(st) SHOWIF not###stockProp###stock###object(concrete)
-        PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
+        PROPERTIES        READONLY BACKGROUND background(ks, concrete, st) name(ks) ON SHORTCUT showMovementSku(ks, st) ON SHORTCUT showMovementPriceSku(ks, st), idBarcode(ks), id(ks) SHOWIF showIDs(), shortNameUOM(ks)
+        PROPERTIES        READONLY stockName = name(st) SHOWIF not###stockProp##Stock(concrete)
+        PROPERTIES        addSku() TODRAW sts, edit(ks), copy(ks)
 
-        FILTERS           isParentSkuGroupSku(sk, ks),
+        FILTERS           isParent(sk, ks),
                           // пока отключаем работу по многим складам, а то люди путаются
 //                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
 //                          st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
 //                          legalEntityStock(st) == legalEntityProp###object(concrete),
 //                          activeStock(st)
-                          st == stockProp###stock###object(concrete)
+                          st == stockProp###stock(concrete)
 
-        FILTERS           nameSku(ks)
-        ORDER BY          nameSku(ks)
+        FILTERS           name(ks)
+        ORDER BY          name(ks)
 
-        PROPERTIES        quantitySku###object###stockProp###stock(ks, concrete, st) ON CHANGE changeQuantitySku###object###stock(ks, concrete, st) 
-                                BACKGROUND backgroundQuantitySku###object###Stock(ks, concrete, st)
-                                QUICKFILTER nameSku(ks),
-                          prevCurrentBalanceSkuStock(ks, st) READONLY,
-                          allQuantitySku###object(ks, st) ON CHANGE changeAllQuantitySku###object(ks, concrete, st),
-                          priceSkuStock###object(ks, st, concrete) READONLY
+        PROPERTIES        quantity###stockProp(ks, concrete, st) ON CHANGE changeQuantity(ks, concrete, st) 
+                                BACKGROUND backgroundQuantity(ks, concrete, st)
+                                QUICKFILTER name(ks),
+                          prevCurrentBalance(ks, st) READONLY,
+                          allQuantity###form(ks, st) ON CHANGE changeAllQuantity(ks, concrete, st),
+                          price(ks, st, concrete) READONLY
     ;
 
     DESIGN form {
@@ -513,31 +513,31 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                         MOVE sts.box {
                             caption = 'Товары';
                         }
-                        PROPERTY(copySku(ks)) { focusable = FALSE; }
+                        PROPERTY(copy(ks)) { focusable = FALSE; }
                     }
                 }
             }
         }
-        PROPERTY(prevCurrentBalanceSkuStock(ks, st)) { background = #FFEEEE; }
-        PROPERTY(quantitySku###object###stockProp###stock(ks, concrete, st)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(ks, st)) { background = #FFEEEE; }
+        PROPERTY(quantity###stockProp(ks, concrete, st)) { background = #D4FFD4; }
     }
 END
 
 META extendFormDocumentSkuStockPriceListTypeAgreement(object, form, concrete, legalEntityProp, stockProp)
     @extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp);
     
-    current###form###object() = DATA LOCAL Object ();
-    setCurrent###form###object(concrete) = ACTION current###form###object() <- concrete;
+    current###form###form() = DATA LOCAL Object ();
+    setCurrent###form###form(###concrete##bject concrete) = ACTION current###form###form() <- concrete;
     
     EXTEND FORM form
-        EVENTS ON CHANGE concrete setCurrent###form###object(concrete)
+        EVENTS ON CHANGE concrete setCurrent###form###form(concrete)
     ;
 
-    WHEN SESSION FORMS form (SET([= VIEW form.sts](stock, sku)) AND current###form###object() == concrete) OR 
-                            ((CHANGED(dateTime###object(concrete)) OR
-                              CHANGED(priceListType###object(concrete)) OR
-                              CHANGED(agreement###object(concrete))) AND [= VIEW form.sts](stock, sku)) DO 
-        updateViewPriceSkuStock###object(sku, stock, concrete);
+    WHEN SESSION FORMS form (SET([= VIEW form.sts](St##concrete##ck stock, Sku sku)) AND current###form###form() == ###concrete##bject concrete) OR 
+                            ((CHANGED(dateTime[###form](concrete)) OR
+                              CHANGED(priceListType[###form](concrete)) OR
+                              CHANGED(agreement[###form](concrete))) AND [= VIEW form.sts](stock, sku)) DO 
+        updateViewPrice(sku, stock, concrete);
     ;
 END
 
@@ -545,79 +545,79 @@ END
 
 META defineDocumentBatchStockPriceListTypeAgreement(object, stockProp)
     @defineDocumentBatchStock(object, batch, sku, stockProp);
-    priceListType###object###batch(object, batch) = OVERRIDE priceListType###object(object) IF batch IS Batch, priceListTypeAgreementSku(agreement###object(object), skuBatch(batch));
+    priceListType(###object object, Batch batch) = OVERRIDE priceListType(object) IF batch IS Batch, priceListType(agreement(object), sku(batch));
 
 //    priceBatchStock###object 'Цена' (batch, stock, object) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###batch(object, batch), batch, stock, dateTime###object(object));
-    ledgerPriceBatchStock###object 'Цена (базовая)' (batch, stock, object) = prevPriceBPriceListTypeBatchStockDateTime(ledgerPriceListTypePriceListType(priceListType###object###batch(object, batch)), batch, stock, dateTime###object(object));
+    ledgerPrice 'Цена (базовая)' (Batch batch, Stock stock, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](ledgerPriceListType(priceListType(object, batch)), batch, stock, dateTime(object));
 
-    viewPriceBatchStock###object 'Цена' (batch, stock, object) = DATA LOCAL NUMERIC[14,2] (Batch, Stock, ###object);
+    viewPrice 'Цена' (batch, stock, object) = DATA LOCAL NUMERIC[14,2] (Batch, Stock, ###object);
 
-    priceBatchStock###object 'Цена' (batch, stock, object) = viewPriceBatchStock###object(batch, stock, object);
+    price 'Цена' (Batch batch, Stock stock, ###object object) = viewPrice(batch, stock, object);
 
-    updateViewPriceBatchStock###object (batch, stock, object) = ACTION {
-        FOR pt == priceListType###object###batch(object, batch) AND stock IS Stock NOINLINE (pt) DO
-            viewPriceBatchStock###object(batch, stock, object) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, IF overPriceStock###object(object) THEN overPriceStock###object(object) ELSE stock, dateTime###object(object));
+    updateViewPrice (Batch batch, Stock stock, ###object object) = ACTION {
+        FOR PriceListType pt == priceListType(object, batch) AND stock IS Stock NOINLINE (pt) DO
+            viewPrice(batch, stock, object) <- prevPriceB(pt, batch, IF overPriceStockUser(object) THEN overPriceStockUser(object) ELSE stock, dateTime(object));
     }
 END
 META defineDocumentBatchStockPriceListTypeSystemLedger(object, priceListTypeProp, stockProp)
     @defineDocumentBatchStock(object, batch, sku, stockProp);
-    priceBatchStock###object 'Цена' (batch, stock, object) = prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.##priceListTypeProp, batch, stock, dateTime###object(object));
+    price 'Цена' (Batch batch, Stock stock, ###object object) = prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.##priceListTypeProp, batch, stock, dateTime(object));
 END
 
 META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
-    detail###batch###object###stockProp###stock (batch, object, stock) =  GROUP MAX (detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
+    detail###stockProp (batch, object, stock) =  GROUP MAX (###detail detail)
+        BY batchProp(detail), object(detail), stockProp###stock(detail);
 
-    quantityBatch###object###stockProp###stock 'Кол-во товара в документе' (batch, object, stockProp###stock) = GROUP SUM quantity###detail(detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###stock###detail(detail);
+    quantity###stockProp 'Кол-во товара в документе' (batch, object, stockProp###stock) = GROUP SUM quantity(###detail detail)
+        BY batchProp(detail), object(detail), stockProp###stock(detail);
 
 //    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
 //        quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock);
-    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);
+    backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);
 
-    overChangeQuantityValueBatch###object##Detail = ABSTRACT ACTION LIST (###detail);
-    backgroundName###object###batch 'Цвет'  (d)= ABSTRACT CASE COLOR (Batch);
+    overChangeQuantityValue###batchProp = ABSTRACT ACTION LIST (###detail);
+    backgroundName###object 'Цвет'  (d)= ABSTRACT CASE COLOR (Batch);
 
-    changeQuantityValueBatch###object###Stock = ACTION (batch, object, stock) {
-        IF detail###batch###object###stockProp###stock(batch, object, stock) THEN {
+    changeQuantityValue = ACTION (###batchProp batch, ###object object, Stock stock) {
+        IF detail###stockProp(batch, object, stock) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###batch###object###stockProp###stock(batch, object, stock);
-                overChangeQuantityValueBatch###object##Detail(detail###batch###object###stockProp###stock(batch, object, stock));
+                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(batch, object, stock);
+                overChangeQuantityValue###batchProp(detail###stockProp(batch, object, stock));
             } ELSE {
-                FOR detail###batch###object###stockProp###stock(batch, object, stock) == d DO
+                FOR detail###stockProp(batch, object, stock) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
-                    object###detail(d) <- object;
+                    object(d) <- object;
 //                    stockProp###stock###detail (d) <- stock;
-                    skuProp###detail(d) <- skuBatch(batch);
-                    batchProp###detail(d) <- batch;
-                    quantity###detail (d) <- requestedNumeric();
-                    overChangeQuantityValueBatch###object##Detail(d);
+                    skuProp(d) <- skuProp(batch);
+                    batchProp(d) <- batch;
+                    quantity (d) <- requestedNumeric();
+                    overChangeQuantityValue###batchProp(d);
                 }
             }
         }
     }
 
-    changeQuantityBatch###object###stock = ACTION (batch, object, stock) {
+    changeQuantity = ACTION (###batchProp batch, ###object object, Stock stock) {
         REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValueBatch###object###Stock(batch, object, stock);
+        changeQuantityValue(batch, object, stock);
     }
 
-    allQuantityBatch###object 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);
-    changeAllQuantityBatch###object = ACTION (batch, object, stock) {
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);
+    changeAllQuantity = ACTION (###batchProp batch, ###object object, Stock stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
-            allQuantityBatch###object (batch, object, stock) <- TRUE;
-            requestedNumeric() <- prevCurrentBalanceBatchStock(batch, stock);
-            changeQuantityValueBatch###object###Stock(batch, object, stock);
+            allQuantity (batch, object, stock) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(batch, stock);
+            changeQuantityValue(batch, object, stock);
         } ELSE {
-            allQuantityBatch###object (batch, object, stock) <- NULL;
+            allQuantity (batch, object, stock) <- NULL;
             requestedNumeric() <- NULL;
-            changeQuantityValueBatch###object###Stock(batch, object, stock);
+            changeQuantityValue(batch, object, stock);
         }
     }
 END
@@ -631,24 +631,24 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
     EXTEND FORM form
 
         OBJECTS           stb=(sto=Stock, b=Batch) FIXED GRID
-        PROPERTIES(b) READONLY SHOWIF showBatch###object(concrete)  prevNameSkuBatch BACKGROUND backgroundName###object###batch(b), idBarcodeSkuBatch, shortNameUOMBatch, idBatch, nameBatch
-        PROPERTIES(sto) READONLY SHOWIF showBatch###object(concrete) stockNameB = nameStock SHOWIF not###stockProp###stock###object(concrete)
+        PROPERTIES(b) READONLY SHOWIF showBatch(concrete)  prevNameSku BACKGROUND backgroundName###form(b), idBarcodeSku, shortNameUOM, id, name
+        PROPERTIES(sto) READONLY SHOWIF showBatch(concrete) stockNameB = name SHOWIF not###stockProp##Stock(concrete)
 
-        FILTERS           isParentSkuGroupBatch(sk, b),
+        FILTERS           isParent(sk, b),
                           // пока отключаем работу по многим складам, а то люди путаются
 //                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
 //                          sto == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
 //                          legalEntityStock(sto) == legalEntityProp###object(concrete),
 //                          activeStock(sto)
-                          sto == stockProp###stock###object(concrete)
-        ORDER BY          prevNameSkuBatch(b)
+                          sto == stockProp###stock(concrete)
+        ORDER BY          prevNameSku(b)
 
-        PROPERTIES        SHOWIF showBatch###object(concrete) quantityBatch###object###stockProp###stock(b, concrete, sto) ON CHANGE changeQuantityBatch###object###stock(b, concrete, sto) 
-                                    BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto)
-                                    QUICKFILTER prevNameSkuBatch(b),
-                          prevCurrentBalanceBatchStock(b, sto) READONLY,
-                          allQuantityBatch###object(b, concrete, sto) ON CHANGE changeAllQuantityBatch###object(b, concrete, sto),
-                          priceBatchStock###object(b, sto, concrete) READONLY
+        PROPERTIES        SHOWIF showBatch(concrete) quantity###stockProp(b, concrete, sto) ON CHANGE changeQuantity(b, concrete, sto) 
+                                    BACKGROUND backgroundQuantity(b, concrete, sto)
+                                    QUICKFILTER prevNameSku(b),
+                          prevCurrentBalance(b, sto) READONLY,
+                          allQuantity(b, concrete, sto) ON CHANGE changeAllQuantity(b, concrete, sto),
+                          price(b, sto, concrete) READONLY
     ;
 
     DESIGN form {
@@ -658,19 +658,19 @@ META extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stock
                 caption = 'Партии';
             }
         }
-        PROPERTY(prevCurrentBalanceBatchStock(b, sto)) { background = #FFEEEE; }
-        PROPERTY(quantityBatch###object###stockProp###stock(b, concrete, sto)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(b, sto)) { background = #FFEEEE; }
+        PROPERTY(quantity###stockProp(b, concrete, sto)) { background = #D4FFD4; }
     }
 END
 
 META extendFormDocumentBatchStockPriceListTypeAgreement(object, form, concrete, legalEntityProp, stockProp)
     @extendFormDocumentBatchStock(object, form, concrete, legalEntityProp, stockProp);
     
-    WHEN SESSION FORMS form (SET([= VIEW form.stb](stock, batch)) AND current###form###object() == concrete) OR
-                            ((CHANGED(dateTime###object(concrete)) OR
-                              CHANGED(priceListType###object(concrete)) OR
-                              CHANGED(agreement###object(concrete))) AND [= VIEW form.stb](stock, batch)) DO
-        updateViewPriceBatchStock###object(batch, stock, concrete);
+    WHEN SESSION FORMS form (SET([= VIEW form.stb](St##concrete##ck stock, Batch batch)) AND current###form###form() == ###concrete##bject concrete) OR
+                            ((CHANGED(dateTime[###form](concrete)) OR
+                              CHANGED(priceListType[###form](concrete)) OR
+                              CHANGED(agreement[###form](concrete))) AND [= VIEW form.stb](stock, batch)) DO
+        updateViewPrice(batch, stock, concrete);
     ;
 END
 
@@ -678,47 +678,47 @@ END
 
 META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
 
-    viewPriceSkuStock###object###stockExtra 'Цена' (sku, stockProp, object, stockExtra) = DATA LOCAL NUMERIC[14,2] (Sku, Stock, ###object, Stock);
+    viewPriceCustomer 'Цена' (sku, stockProp, object, stockExtra) = DATA LOCAL NUMERIC[14,2] (Sku, Stock, ###object, Stock);
 
-    priceSkuStock###object###stockExtra 'Цена' (sku, stockProp, object, stockExtra) = viewPriceSkuStock###object###stockExtra(sku, stockProp, object, stockExtra);
+    priceCustomer 'Цена' (###skuProp sku, Stock stockProp, ###object object, Stock stockExtra) = viewPriceCustomer(sku, stockProp, object, stockExtra);
 
-    updateViewPriceSkuStock###object###stockExtra (sku, stockProp, object, stockExtra) = ACTION {
-        FOR pt == priceListType###object###stock###sku(object, stockExtra, sku) AND stockProp IS Stock NOINLINE (pt) DO
-            viewPriceSkuStock###object###stockExtra(sku, stockProp, object, stockExtra) <- prevPriceBPriceListTypeSkuStockDateTime(pt, sku, stockProp, dateTime###object(object));
+    updateViewPriceCustomer (###skuProp sku, Stock stockProp, ###object object, Stock stockExtra) = ACTION {
+        FOR PriceListType pt == priceListType(object, stockExtra, sku) AND stockProp IS Stock NOINLINE (pt) DO
+            viewPriceCustomer(sku, stockProp, object, stockExtra) <- prevPriceB(pt, sku, stockProp, dateTime(object));
     }
 
-    detail###Sku###object###stockProp###stockExtra (sku, object, stockProp, stockExtra) =  GROUP MAX (detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
+    detail##SupplierCustomer (sku, object, stockProp, stockExtra) =  GROUP MAX (###detail detail)
+        BY skuProp(detail), object(detail), stockProp(detail), stockExtra(detail);
 
-    quantitySku###object###stockProp###stockExtra 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
+    quantitySupplierCustomer 'Кол-во товара в документе' (sku, object, stockProp, stockExtra) = GROUP SUM quantity(###detail detail)
+        BY skuProp(detail), object(detail), stockProp(detail), stockExtra(detail);
 
-    quantitySku###object###stockProp 'Итого' (sku, object, stockProp) = GROUP SUM quantity###detail(detail)
-        BY skuProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    quantitySupplier 'Итого' (sku, object, stockProp) = GROUP SUM quantity(###detail detail)
+        BY skuProp(detail), object(detail), stockProp(detail);
 
 //    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
-    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);  
+    backgroundQuantity 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);  
     
-    changeQuantitySku###object###Stock###stockExtra = ACTION (sku, object, stockProp, stockExtra) {
+    changeQuantityCustomer = ACTION (###skuProp sku, ###object object, Stock stockProp, Stock stockExtra) {
         REQUEST NUMERIC[16,5] INPUT;
-        IF detail###Sku###object###stockProp###stockExtra(sku, object, stockProp, stockExtra) THEN {
+        IF detail##SupplierCustomer(sku, object, stockProp, stockExtra) THEN {
             IF requestedNumeric() THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Sku###object###stockProp###stockExtra(sku, object, stockProp, stockExtra);
+                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail##SupplierCustomer(sku, object, stockProp, stockExtra);
             } ELSE {
-                FOR detail###Sku###object###stockProp###stockExtra(sku, object, stockProp, stockExtra) == detail DO
+                FOR detail##SupplierCustomer(sku, object, stockProp, stockExtra) == ###detail detail DO
                     DELETE detail;
             }
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   object###detail(d) <- object;
-                   data###stockProp###detail (d) <- stockProp;
-                   skuProp###detail(d) <- sku;
-                   stockExtra###detail(d) <- stockExtra;
-                   quantity###detail (d) <- requestedNumeric();
-                   shipmentDataDate###detail (d) <- shipmentDate###object(object);
-                   shipmentDataTime###detail (d) <- shipmentTime###object(object);
+                   object(d) <- object;
+                   data###stockProp (d) <- stockProp;
+                   skuProp(d) <- sku;
+                   stockExtra(d) <- stockExtra;
+                   quantity (d) <- requestedNumeric();
+                   shipmentDataDate (d) <- shipmentDate(object);
+                   shipmentDataTime (d) <- shipmentTime(object);
                 }
             }
         }
@@ -730,49 +730,49 @@ END
 
 META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityProp, stockProp, stockExtra)
 
-    nameQuantity###stockExtra (stock)= nameStock(stock) + ' (кол-во)' MINCHARWIDTH 15 PREFCHARWIDTH 20;
-    namePrice###stockExtra (stock)= nameStock(stock) + ' (цена)' MINCHARWIDTH 15 PREFCHARWIDTH 20;
-    nameBalance###stockExtra (stock)= nameStock(stock) + ' (остаток)' MINCHARWIDTH 15 PREFCHARWIDTH 20;    
+    nameQuantityCust##concrete##mer (St##concrete##ck stock)= name(stock) + ' (кол-во)' MINCHARWIDTH 15 PREFCHARWIDTH 20;
+    namePriceCust##concrete##mer (St##concrete##ck stock)= name(stock) + ' (цена)' MINCHARWIDTH 15 PREFCHARWIDTH 20;
+    nameBalanceCust##concrete##mer (St##concrete##ck stock)= name(stock) + ' (остаток)' MINCHARWIDTH 15 PREFCHARWIDTH 20;    
     
     
-    not###stockProp###object (o) = NOT stockProp###object(o);
+    n##concrete##t###stockProp (###form o) = NOT stockProp(o);
     EXTEND FORM form
 
-        TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup, ts = Stock
-        PROPERTIES READONLY SHOWIF notSupplierStockBlanketOrder(o) OBJVALUE(a), sgTreeName = nameStockGroup(sg), tsTreeName = nameStock(ts)
+        TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
+        PROPERTIES READONLY SHOWIF n##concrete##t###stockProp(o) OBJVALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
         ORDER BY sgTreeName
         FILTERS stringEqualsAll(a),
-                stockGroupStock(ts) == sg
-        FILTERGROUP object##inactiveStock1 FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
-        TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-        PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-        ORDER BY orderSkuGroup(sk), skuTreeName
-        FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+                st##concrete##ckGr##concrete##up(ts) == sg
+        FILTERGROUP object##inactiveStock1 FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY concrete##rder(sk), skuTreeName = name(sk)
+        ORDER BY concrete##rder(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS cc = Stock FIXED GRID
-        FILTERGROUP object##inactiveStock2 FILTER 'Активный' activeStock(cc) 'ctrl F10' DEFAULT
+        FILTERGROUP object##inactiveStock2 FILTER 'Активный' active(cc) 'ctrl F10' DEFAULT
         
         OBJECTS           sts=(st=Stock, ks=Sku)
-        PROPERTIES        READONLY nameSku(ks) ON SHORTCUT showMovementSkuSkuStock(ks, st) ON SHORTCUT showMovementPriceSkuSkuStock(ks, st), idBarcodeSku(ks), idSku(ks) SHOWIF showIDs(), shortNameUOMSku(ks), nameStock(st) SHOWIF not###stockProp###object(concrete) 
-        PROPERTIES        addSku() TODRAW sts, editSku(ks), copySku(ks)
-        FILTERS           isParentSkuGroupSku(sk, ks),
-                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
-                          st == stockProp###object(concrete) AND NOT sg AND NOT ts,
-                          legalEntityStock(st) == legalEntityProp###object(concrete),
-                          activeStock(st)
+        PROPERTIES        READONLY name(ks) ON SHORTCUT sh##concrete##wM##concrete##vementSku(ks, st) ON SHORTCUT sh##concrete##wM##concrete##vementPriceSku(ks, st), idBarc##concrete##de(ks), id(ks) SHOWIF sh##concrete##wIDs(), sh##concrete##rtNameU###concrete##M(ks), name(st) SHOWIF n##concrete##t###stockProp(concrete) 
+        PROPERTIES        addSku() TODRAW sts, edit(ks), c##concrete##py(ks)
+        FILTERS           isParent(sk, ks),
+                          (st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp(concrete) OR
+                          st == stockProp(concrete) AND NOT sg AND NOT ts,
+                          legalEntity(st) == legalEntityProp(concrete),
+                          active(st)
 
-        ORDER BY          nameSku(ks), nameStock(st)
+        ORDER BY          name(ks), name(st)
 
-        PROPERTIES quantitySku###object###stockProp(ks, concrete, st) READONLY BACKGROUND backgroundQuantitySku###object###Stock(ks, concrete, st)
-        PROPERTIES quantitySku###object###stockProp###stockExtra(ks, concrete, st, cc)  COLUMNS (cc) HEADER nameQuantity###stockExtra(cc) ON CHANGE changeQuantitySku###object###Stock###stockExtra(ks, concrete, st, cc)
-        PROPERTIES READONLY prevCurrentBalanceSkuStock(ks,st)
-        PROPERTIES READONLY  priceSkuStock###object###stockExtra(ks, st, concrete, cc)  COLUMNS (cc) HEADER namePrice###stockExtra(cc)
+        PROPERTIES quantity###legalEntityProp(ks, concrete, st) READONLY BACKGROUND backgr##concrete##undQuantity(ks, concrete, st)
+        PROPERTIES quantity###legalEntityProp##Cust##concrete##mer(ks, concrete, st, cc)  COLUMNS (cc) HEADER nameQuantityCust##concrete##mer(cc) ON CHANGE changeQuantityCust##concrete##mer(ks, concrete, st, cc)
+        PROPERTIES READONLY prevCurrentBalance(ks,st)
+        PROPERTIES READONLY  priceCust##concrete##mer(ks, st, concrete, cc)  COLUMNS (cc) HEADER namePriceCust##concrete##mer(cc)
 
-        FILTERS in###object###stock(concrete,cc)
+        FILTERS in(concrete,cc)
 
         FILTERGROUP object##filter1
-            FILTER 'С остатком' prevCurrentBalanceSkuStock(ks, st) 'F10' DEFAULT
-            FILTER 'В заказе' quantitySku###object###stockProp(ks, concrete, st) 'F9'
+            FILTER 'С остатком' prevCurrentBalance(ks, st) 'F10' DEFAULT
+            FILTER 'В заказе' quantity###legalEntityProp(ks, concrete, st) 'F9'
 
 
     ;
@@ -799,13 +799,13 @@ META extendFormDocumentSkuStockExtraCustom(object, form, concrete, legalEntityPr
                         M###concrete##VE sts.box {
                             caption = 'Товары';
                         }
-                        PROPERTY(copySku(ks)) { focusable = FALSE; }
+                        PROPERTY(c##concrete##py(ks)) { focusable = FALSE; }
                     }
                 }
             }
         }
-        PROPERTY(prevCurrentBalanceSkuStock(ks, st)) { background = #FFEEEE; } 
-        PROPERTY(quantitySku###object###stockProp###stockExtra(ks, concrete, st, cc)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(ks, st)) { background = #FFEEEE; } 
+        PROPERTY(quantity###legalEntityProp##Cust##concrete##mer(ks, concrete, st, cc)) { background = #D4FFD4; }
     }    
     
 END
@@ -815,17 +815,17 @@ END
 META defineDocumentBatchStockExtraPriceListTypeAgreement(object, stockProp, stockExtra)
     @defineDocumentBatchStockExtra(object, batch, sku, stockProp, stockExtra);
         
-    priceListType###object###stock###batch 'Вид цен для склада пок-ля' (object, stockExtra, batch) = priceListType###object###stock###sku(object, stockExtra, skuBatch(batch));
+    priceListType 'Вид цен для склада пок-ля' (###object object, Stock stockExtra, Batch batch) = priceListType(object, stockExtra, sku(batch));
 
-    ledgerPriceBatchStock###object###stockExtra 'Цена (базовая)' (batch, stockProp, object, stockExtra) = prevPriceBPriceListTypeBatchStockDateTime(priceListType###object###stock###batch(object, stockExtra, batch), batch, stockProp, dateTime###object(object));
+    ledgerPriceCustomer 'Цена (базовая)' (Batch batch, Stock stockProp, ###object object, Stock stockExtra) = prevPriceB(priceListType(object, stockExtra, batch), batch, stockProp, dateTime(object));
 
-    viewPriceBatchStock###object###stockExtra 'Цена' (batch, stockProp, object, stockExtra) = DATA LOCAL NUMERIC[14,2] (Batch, Stock, ###object, Stock);
+    viewPriceCustomer 'Цена' (batch, stockProp, object, stockExtra) = DATA LOCAL NUMERIC[14,2] (Batch, Stock, ###object, Stock);
 
-    priceBatchStock###object###stockExtra 'Цена' (batch, stockProp, object, stockExtra) = viewPriceBatchStock###object###stockExtra(batch, stockProp, object, stockExtra);
+    priceCustomer 'Цена' (Batch batch, Stock stockProp, ###object object, Stock stockExtra) = viewPriceCustomer(batch, stockProp, object, stockExtra);
 
-    updateViewPriceBatchStock###object###stockExtra (batch, stockProp, object, stockExtra) = ACTION {
-        FOR pt == priceListType###object###stock###batch(object, stockExtra, batch) AND stockProp IS Stock NOINLINE (pt) DO
-            viewPriceBatchStock###object###stockExtra(batch, stockProp, object, stockExtra) <- prevPriceBPriceListTypeBatchStockDateTime(pt, batch, stockProp, dateTime###object(object));
+    updateViewPriceCustomer (Batch batch, Stock stockProp, ###object object, Stock stockExtra) = ACTION {
+        FOR PriceListType pt == priceListType(object, stockExtra, batch) AND stockProp IS Stock NOINLINE (pt) DO
+            viewPriceCustomer(batch, stockProp, object, stockExtra) <- prevPriceB(pt, batch, stockProp, dateTime(object));
     }
 END
 META defineDocumentBatchStockExtraPriceListTypeSystemLedger(object, priceListTypeProp, stockProp, stockExtra)
@@ -835,45 +835,45 @@ END
 
 META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp, stockExtra)
 
-    detail###Batch###object###stockProp###stockExtra (batch, object, stockProp, stockExtra) =  GROUP MAX (detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
+    detail##SupplierCustomer (batch, object, stockProp, stockExtra) =  GROUP MAX (###detail detail)
+        BY batchProp(detail), object(detail), stockProp(detail), stockExtra(detail);
 
-    quantityBatch###object###stockProp###stockExtra 'Кол-во товара в документе' (batch, object, stockProp, stockExtra) = GROUP SUM quantity###detail(detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail), stockExtra###detail(detail);
+    quantitySupplierCustomer 'Кол-во товара в документе' (batch, object, stockProp, stockExtra) = GROUP SUM quantity(###detail detail)
+        BY batchProp(detail), object(detail), stockProp(detail), stockExtra(detail);
 
-    quantityBatch###object###stockProp 'Итого' (batch, object, stockProp) = GROUP SUM quantity###detail(detail)
-        BY batchProp###detail(detail), object###detail(detail), stockProp###detail(detail);
+    quantitySupplier 'Итого' (batch, object, stockProp) = GROUP SUM quantity(###detail detail)
+        BY batchProp(detail), object(detail), stockProp(detail);
 
 //    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
 //        (quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock));
-    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
+    backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
 
-    changeQuantityValueBatch###object###Stock###stockExtra = ACTION (batch, object, stockProp, stockExtra) {
-        IF detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra) THEN {
+    changeQuantityValueCustomer = ACTION (###batchProp batch, ###object object, Stock stockProp, Stock stockExtra) {
+        IF detail##SupplierCustomer(batch, object, stockProp, stockExtra) THEN {
             IF requestedNumeric() THEN {
-                quantity###detail(detail) <- requestedNumeric() WHERE detail == detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra);
+                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail##SupplierCustomer(batch, object, stockProp, stockExtra);
             } ELSE {
-                FOR detail###Batch###object###stockProp###stockExtra(batch, object, stockProp, stockExtra) == detail DO
+                FOR detail##SupplierCustomer(batch, object, stockProp, stockExtra) == ###detail detail DO
                     DELETE detail;
             }
         } ELSE {
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   object###detail(d) <- object;
-                   data###stockProp###detail (d) <- stockProp;
-                   skuProp###detail(d) <- skuBatch(batch);
-                   batchProp###detail(d) <- batch;
-                   stockExtra###detail(d) <- stockExtra;
-                   quantity###detail (d) <- requestedNumeric();
-                   shipmentDataDate###detail (d) <- shipmentDate###object(object);
-                   shipmentDataTime###detail (d) <- shipmentTime###object(object);
+                   object(d) <- object;
+                   data###stockProp (d) <- stockProp;
+                   skuProp(d) <- skuProp(batch);
+                   batchProp(d) <- batch;
+                   stockExtra(d) <- stockExtra;
+                   quantity (d) <- requestedNumeric();
+                   shipmentDataDate (d) <- shipmentDate(object);
+                   shipmentDataTime (d) <- shipmentTime(object);
                 }
             }
         }
     }
-    changeQuantityBatch###object###Stock###stockExtra = ACTION (batch, object, stockProp, stockExtra) {
+    changeQuantityCustomer = ACTION (###batchProp batch, ###object object, Stock stockProp, Stock stockExtra) {
         REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValueBatch###object###Stock###stockExtra(batch, object, stockProp, stockExtra);
+        changeQuantityValueCustomer(batch, object, stockProp, stockExtra);
     }
 END
 META defineDocumentBatchStockExtra(object, batchProp, skuProp, stockProp, stockExtra)
@@ -884,28 +884,28 @@ META extendFormDocumentBatchStockExtraCustom(object, form, concrete, legalEntity
 
     EXTEND FORM form
         OBJECTS ccc = Stock FIXED GRID
-        FILTERGROUP object##inactiveStock FILTER 'Активный' activeStock(ccc) 'ctrl F10' DEFAULT
+        FILTERGROUP object##inactiveStock FILTER 'Активный' active(ccc) 'ctrl F10' DEFAULT
 
         OBJECTS           stb=(sto=Stock, b=Batch)
-        PROPERTIES(b) READONLY   nameSkuBatch, idBarcodeSkuBatch, shortNameUOMBatch, idBatch SHOWIF showIDs(), nameBatch 
-        PROPERTIES(sto) READONLY stockName = nameStock SHOWIF not###stockProp###object(concrete)
+        PROPERTIES(b) READONLY   nameSku, idBarc##concrete##deSku, sh##concrete##rtNameU###concrete##M, id SHOWIF sh##concrete##wIDs(), name 
+        PROPERTIES(sto) READONLY stockName = name SHOWIF n##concrete##t###stockProp(concrete)
 
-        FILTERS           isParentSkuGroupBatch(sk, b),
-                          (sto == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###object(concrete) OR
-                          sto == stockProp###object(concrete) AND NOT sg AND NOT ts,
-                          legalEntityStock(sto) == supplierBlanketOrder(o)
-        ORDER BY          nameSkuBatch(b)
+        FILTERS           isParent(sk, b),
+                          (sto == ts AND sg IS StockGroup OR isParent(sg, sto) AND NOT ts OR sto IS Stock AND NOT sg AND NOT ts) AND NOT stockProp(concrete) OR
+                          sto == stockProp(concrete) AND NOT sg AND NOT ts,
+                          legalEntity(sto) == legalEntityProp(o)
+        ORDER BY          nameSku(b)
 
-        PROPERTIES quantityBatch###object###stockProp(b, concrete, sto) READONLY BACKGROUND backgroundQuantityBatch###object###Stock(b, concrete, sto)
-        PROPERTIES quantityBatch###object###stockProp###stockExtra(b, concrete, sto, ccc)  COLUMNS (ccc) HEADER nameQuantity###stockExtra(ccc) ON CHANGE changeQuantityBatch###object###Stock###stockExtra(b, concrete, sto, ccc)
-        PROPERTIES READONLY prevCurrentBalanceBatchStock(b,sto)
-        PROPERTIES READONLY  priceBatchStock###object###stockExtra(b, sto, concrete, ccc)  COLUMNS (ccc) HEADER namePrice###stockExtra(ccc)
+        PROPERTIES quantity###legalEntityProp(b, concrete, sto) READONLY BACKGROUND backgr##concrete##undQuantity(b, concrete, sto)
+        PROPERTIES quantity###legalEntityProp##Cust##concrete##mer(b, concrete, sto, ccc)  COLUMNS (ccc) HEADER nameQuantityCust##concrete##mer(ccc) ON CHANGE changeQuantityCust##concrete##mer(b, concrete, sto, ccc)
+        PROPERTIES READONLY prevCurrentBalance(b,sto)
+        PROPERTIES READONLY  priceCust##concrete##mer(b, sto, concrete, ccc)  COLUMNS (ccc) HEADER namePriceCust##concrete##mer(ccc)
 
-        FILTERS in###object###stock(concrete,ccc)
+        FILTERS in(concrete,ccc)
 
         FILTERGROUP object##filter2
-            FILTER 'С остатком' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-            FILTER 'В заказе' quantityBatch###object###stockProp(b, concrete, sto) 'F9'
+            FILTER 'С остатком' prevCurrentBalance(b, sto) 'F10' DEFAULT
+            FILTER 'В заказе' quantity###legalEntityProp(b, concrete, sto) 'F9'
 
 
     ;
@@ -917,8 +917,8 @@ META extendFormDocumentBatchStockExtraCustom(object, form, concrete, legalEntity
                 caption = 'Партии';
             }
         }
-        PROPERTY(prevCurrentBalanceBatchStock(b, sto)) { background = #FFEEEE; }
-        PROPERTY(quantityBatch###object###stockProp###stockExtra(b, concrete, sto, ccc)) { background = #D4FFD4; }
+        PROPERTY(prevCurrentBalance(b, sto)) { background = #FFEEEE; }
+        PROPERTY(quantity###legalEntityProp##Cust##concrete##mer(b, concrete, sto, ccc)) { background = #D4FFD4; }
     }
 END
 
@@ -926,26 +926,26 @@ END
 
 META defineDocumentSkuStockIn(object, detail, skuProp, stockProp)
 
-    currentBalanceSku###object 'Остаток' (sku, object) = currentBalanceSkuStock(sku, stockProp###object(object));
-    prevCurrentBalanceSku###object 'Остаток' (sku, object) = prevCurrentBalanceSkuStock(sku, stockProp###object(object));
-    detail###sku###object(sku, object) = GROUP SUM 1 BY skuProp###detail(detail), object###detail(detail);
+    currentBalance 'Остаток' (###skuProp sku, ###object object) = currentBalance(sku, stockProp(object));
+    prevCurrentBalance 'Остаток' (###skuProp sku, ###object object) = prevCurrentBalance(sku, stockProp(object));
+    detail(sku, object) = GROUP SUM 1 BY skuProp(###detail detail), object(detail);
 
-    inSku###object 'Отм.' (sku, object) = TRUE IF detail###sku###object(sku, object);
+    in 'Отм.' (###skuProp sku, ###object object) = TRUE IF detail(sku, object);
 
-    changeInSku###object = ACTION (sku, object) {
+    changeIn = ACTION (###skuProp sku, ###object object) {
         REQUEST BOOLEAN INPUT;
         IF NOT requestedLogical() THEN {
-            IF detail###sku###object(sku, object) THEN {
+            IF detail(sku, object) THEN {
                 //FOR sku == skuProp###detail(detail) AND object == object###detail(detail) DO {
-                FOR sku == skuProp###detail(detail) AND object == object###detail(detail) DO 
+                FOR sku == skuProp(###detail detail) AND object == object(detail) DO 
                     DELETE detail;
                 //}
             }
         } ELSE {
             IF requestedLogical() THEN {
                 FOR ADDOBJ d = ###detail DO {
-                   ASSIGN object###detail(d) <- object;
-                   ASSIGN skuProp###detail(d) <- sku;
+                   ASSIGN object(d) <- object;
+                   ASSIGN skuProp(d) <- sku;
                 }
             }
         }
@@ -960,23 +960,23 @@ META extendFormDocumentSkuStockIn(object, form, concrete, contBox)
 
     EXTEND FORM form
 
-        TREE treeGroup gg=Group PARENT parentGroup
-        PROPERTIES READONLY orderGroup(gg), nameGroup(gg)
-        FILTERS groupTypeGroup(gg) == groupType###object(concrete)
-        FILTERGROUP object##inactive FILTER 'Активные' activeGroup(gg) 'F5' DEFAULT
-        ORDER BY orderGroup(gg), nameGroup(gg) 
+        TREE treeGroup gg=Group PARENT parent
+        PROPERTIES READONLY order(gg), na##concrete##e(gg)
+        FILTERS groupType(gg) == groupType(concrete)
+        FILTERGROUP object##inactive FILTER 'Активные' active(gg) 'F5' DEFAULT
+        ORDER BY order(gg), na##concrete##e(gg) 
         OBJECTS ks=Sku
-        PROPERTIES             inSku###object(ks,concrete) ON CHANGE changeInSku###object(ks, concrete), inputName = nameSku(ks) READONLY
-        PROPERTIES(ks)          READONLY idBarcodeSku, idSku SHOWIF showIDs(), shortNameUOMSku
-        PROPERTIES(ks, concrete)currentBalanceSku###object READONLY
-        PROPERTIES             addSku() TODRAW ks, editSku(ks), copySku(ks)
+        PROPERTIES             in(ks,concrete) ON CHANGE changeIn(ks, concrete), inputName = na##concrete##e(ks) READONLY
+        PROPERTIES(ks)          READONLY idBarcode, id SHOWIF showIDs(), shortNa##concrete##eUO###concrete
+        PROPERTIES(ks, concrete)currentBalance READONLY
+        PROPERTIES             addSku() TODRAW ks, edit(ks), copy(ks)
 
-        FILTERS                isParentGroupSku(gg, ks) OR ks IS Sku AND NOT gg
+        FILTERS                isParent(gg, ks) OR ks IS Sku AND NOT gg
 
         ORDER BY inputName
 
         FILTERGROUP object##filterBalance
-            FILTER 'С остатком' prevCurrentBalanceSku###object(ks, concrete) 'F11'
+            FILTER 'С остатком' prevCurrentBalance(ks, concrete) 'F11'
 
     ;
 
@@ -992,7 +992,7 @@ META extendFormDocumentSkuStockIn(object, form, concrete, contBox)
                 NEW skuSelectPane {
                     fill = 2;
                     ###concrete##OVE ks.box;
-                    PROPERTY(copySku(ks)) { focusable = FALSE; }
+                    PROPERTY(copy(ks)) { focusable = FALSE; }
                 }
             }
         }
@@ -1002,14 +1002,14 @@ END
 //----------- Подбор (товар / один склад - расширение фильтра поставщиком) -----------//
 
 META defineDocumentSkuStockSupplier (object, form, concrete)
-    filterSupplier###object = DATA LOCAL LegalEntity (###object);
-    nameFilterSupplier###object 'Поставщик' (object) = nameLegalEntity(filterSupplier###object(object));
-    filterSupplier###object###sku (object, sku) = prevInSupplierSku(filterSupplier###object(object), sku) OR
-                                                  (sku IS Sku AND NOT filterSupplier###object(object));
+    filterSupplier = DATA LOCAL LegalEntity (###object);
+    nameFilterSupplier 'Поставщик' (###form object) = name(filterSupplier(object));
+    filterSupplier (###form object, Sku sku) = prevInSupplier(filterSupplier(object), sku) OR
+                                                  (sku IS Sku AND NOT filterSupplier(object));
 
     EXTEND FORM form
-        PROPERTIES nameFilterSupplier###object(concrete) FORCE PANEL
-        FILTERS    filterSupplier###object###sku(concrete, ks)
+        PROPERTIES nameFilterSupplier(concrete) FORCE PANEL
+        FILTERS    filterSupplier(concrete, ks)
     ;
     DESIGN form {
         skuMainPane {
@@ -1022,11 +1022,11 @@ END
 
 META defineDocumentBatchStockSupplier (object, form, concrete)
 
-    filterSupplier###object###batch (object, batch) = filterSupplier###object(object) == prevSupplierBatch(batch) OR
-                                                  (batch IS Batch AND NOT filterSupplier###object(object));
+    filterSupplier (###form object, Batch batch) = filterSupplier(object) == prevSupplier(batch) OR
+                                                  (batch IS Batch AND NOT filterSupplier(object));
 
     EXTEND FORM form
-        FILTERS    filterSupplier###object###batch(concrete, b)
+        FILTERS    filterSupplier(concrete, b)
     ;
 
 END
@@ -1035,26 +1035,26 @@ END
 
 META defineDialogSku (form)
 
-    form###quantity 'Кол-во' = DATA LOCAL NUMERIC[14,3] (Sku);
+    dialogQuantity 'Кол-во' = DATA LOCAL NUMERIC[14,3] (Sku);
 
     FORM form 'Подбор SKU'
-        TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-        PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-        ORDER BY orderSkuGroup(sk), skuTreeName
-        FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER BY order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS s=Sku                                 //form###nameSku 'Наименование' (sku) = IF form###stock() THEN nameSkuStock(sku, form###stock()) ELSE nameSku(sku);
-        PROPERTIES READONLY    idBarcodeSku(s), idSku(s) SHOWIF showIDs(), inputName = nameSku(s) //form###nameSku(s)
-        PROPERTIES(s)          form###quantity
-        PROPERTIES             editSku(s)
+        PROPERTIES READONLY    idBarcode(s), id(s) SHOWIF showIDs(), inputName = name(s) //form###nameSku(s)
+        PROPERTIES(s)          dialogQuantity
+        PROPERTIES             edit(s)
 
-        FILTERS                isParentSkuGroupSku(sk, s)
+        FILTERS                isParent(sk, s)
         ORDER BY inputName
 
         OBJECTS si=Sku
-        PROPERTIES READONLY     idBarcodeSku(si), selectedName = nameSku(si)
-        PROPERTIES(si)          form###quantity
-        FILTERS                 form###quantity(si)
+        PROPERTIES READONLY     idBarcode(si), selectedName = name(si)
+        PROPERTIES(si)          dialogQuantity
+        FILTERS                 dialogQuantity(si)
         ORDER BY selectedName
     ;
 
@@ -1096,29 +1096,29 @@ META defineDialogStockSku (form)
 
     @defineDialogSku (form);
 
-    form###stock = DATA LOCAL Stock ();
-    form###all 'Весь остаток' = DATA LOCAL BOOLEAN (Sku);
-    form###nameStock 'Склад' () = nameStock(form###stock()) PREFCHARWIDTH 30;
+    form##Stock = DATA LOCAL Stock ();
+    dialogAll 'Весь остаток' = DATA LOCAL BOOLEAN (Sku);
+    form##NameStock 'Склад' () = name(form##Stock()) PREFCHARWIDTH 30;
 
-    form###balance 'Остаток' (sku) = currentBalanceSkuStock(sku, form###stock());
-    form###balanceFilter (sku) = form###balance(sku) OR (sku IS Sku AND NOT form###stock());
+    dialogBalance 'Остаток' (Sku sku) = currentBalance(sku, form##Stock());
+    dialogBalanceFilter (Sku sku) = dialogBalance(sku) OR (sku IS Sku AND NOT form##Stock());
 
-    form###quantity(sku) <- form###balance(sku) WHEN SET(form###all(sku));
+    dialogQuantity(Sku sku) <- dialogBalance(sku) WHEN SET(dialogAll(sku));
 
     EXTEND FORM form
-        PROPERTIES() form###nameStock
+        PROPERTIES() form##NameStock
 
-        PROPERTIES(s) READONLY form###balance SHOWIF form###stock()
-        PROPERTIES(s)          form###all SHOWIF form###stock()
-        FILTERS                form###balanceFilter(s)
+        PROPERTIES(s) READONLY dialogBalance SHOWIF form##Stock()
+        PROPERTIES(s)          dialogAll SHOWIF form##Stock()
+        FILTERS                dialogBalanceFilter(s)
 
-        PROPERTIES(si) READONLY form###balance SHOWIF form###stock()
-        PROPERTIES(si)          form###all SHOWIF form###stock()
+        PROPERTIES(si) READONLY dialogBalance SHOWIF form##Stock()
+        PROPERTIES(si)          dialogAll SHOWIF form##Stock()
     ;
 
     DESIGN form {
         filterContainer {
-            MOVE PROPERTY(form###nameStock());
+            MOVE PROPERTY(form##NameStock());
         }
     }
 END
@@ -1133,11 +1133,11 @@ END
 
 META defineAddDetailDialogSkuStockCustomInner (object, class, detail, caption, skuProp, stockProp, form)
     @defineAddDetailDialogSkuCustom(object, detail, caption, skuProp, form);
-    addDetailDialogSkuStock###detail###object 'Подбор товаров'###caption = ACTION (object) {
-        ASSIGN form###stock() <- stockProp###object(object);
-        ASSIGN form###all(sku) <- NULL;
+    addDetail###form##Stock###detail 'Подбор товаров'###caption = ACTION (class object) {
+        ASSIGN form##Stock() <- stockProp(object);
+        ASSIGN dialogAll(###skuProp sku) <- NULL;
 
-        EXEC addDetailDialogSku###detail###object(object);
+        EXEC addDetail###form###detail(object);
     } TOOLBAR;
 END
 
@@ -1150,47 +1150,47 @@ META defineAddDetailDialogSkuCustom (object, detail, caption, skuProp, form)
 END
 
 META defineAddDetailDialogSkuCustomInner (object, class, detail, detailClass, caption, skuProp, form)
-    addDetailDialogSku###detail###object 'Подбор товаров'###caption = ACTION (object) {
+    addDetail###form###detail 'Подбор товаров'###caption = ACTION (class object) {
         FORM form MODAL;
         IF formResult() == FormResult.ok THEN {
-            FOR form###quantity(sku) INLINE ADDOBJ w = detailClass DO {
-                ASSIGN object###detail(w) <- object;
-                ASSIGN skuProp###detail(w) <- sku;
-                ASSIGN quantity###detail(w) <- form###quantity(sku);
+            FOR dialogQuantity(###skuProp sku) INLINE ADDOBJ w = detailClass DO {
+                ASSIGN object(w) <- object;
+                ASSIGN skuProp(w) <- sku;
+                ASSIGN quantity(w) <- dialogQuantity(sku);
             }
         }
-        ASSIGN form###quantity(sku) <- NULL;
+        ASSIGN dialogQuantity(###skuProp sku) <- NULL;
     } TOOLBAR;
 END
 
 @defineDialogStockSku(dialogSku);
 
-dataInSessionGroup 'Отм.' = DATA LOCAL BOOLEAN (Group);
+dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
 
-levelParentGroup (group) = GROUP MIN levelGroupGroup(group, parent) IF dataInSessionGroup(parent)
+levelParent (group) = GROUP MIN level(Group group, Group parent) IF dataInSession(parent)
     BY group;
 
-inParentGroup (group) = TRUE IF levelParentGroup(group);
+inParent (Group group) = TRUE IF levelParent(group);
 
-inSessionGroup 'Отм.' (group) = OVERRIDE
-    inParentGroup(group),
-    dataInSessionGroup(group);
+inSession 'Отм.' (Group group) = OVERRIDE
+    inParent(group),
+    dataInSession(group);
     
-includeSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
-includeGroupTypeSku 'Отм.' (groupType, sku) =  OVERRIDE inSessionGroup(groupGroupTypeSku(groupType, sku)), includeSku(sku);
+include 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+include 'Отм.' (GroupType groupType, Sku sku) =  OVERRIDE inSession(group(groupType, sku)), include(sku);
 
 FORM dialogSkuGroup 'Подбор товарных групп'
-    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-    PROPERTIES inSessionGroup(sk)
-    PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-    ORDER BY orderSkuGroup(sk), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES inSession(sk)
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
     OBJECTS skg = SkuGroup
-    PROPERTIES(skg)         inSessionGroup    
-    PROPERTIES READONLY     nameSkuGroup(skg)
-    FILTERS                 inSessionGroup(skg)
-    ORDER BY nameSkuGroup(skg)
+    PROPERTIES(skg)         inSession    
+    PROPERTIES READONLY     name(skg)
+    FILTERS                 inSession(skg)
+    ORDER BY name(skg)
 ;
 
 DESIGN dialogSkuGroup {
@@ -1211,47 +1211,47 @@ DESIGN dialogSkuGroup {
 CLASS ABSTRACT Document 'Документ с товарами';
 CLASS ABSTRACT DocumentDetail 'Строка документа';
 
-isClosedDocument 'Закрыт' = ABSTRACT BOOLEAN  (Document);
-isPostedDocument 'Проведен' = ABSTRACT BOOLEAN (Document);
+isClosed 'Закрыт' = ABSTRACT BOOLEAN  (Document);
+isPosted 'Проведен' = ABSTRACT BOOLEAN (Document);
 
-numberDocument 'Номер' = ABSTRACT STRING[18] (Document);
-seriesDocument 'Серия' = ABSTRACT STRING[2] (Document);
-dateDocument 'Дата' = ABSTRACT DATE(Document);
+number 'Номер' = ABSTRACT STRING[18] (Document);
+series 'Серия' = ABSTRACT STRING[2] (Document);
+date 'Дата' = ABSTRACT DATE(Document);
 
-supplierDocument = ABSTRACT LegalEntity(Document);
-nameSupplierDocument 'Поставщик' (document) = nameLegalEntity(supplierDocument(document));
-supplierStockDocument = ABSTRACT Stock(Document);
-nameSupplierStockDocument 'Склад поставщика' (document) = nameStock(supplierStockDocument(document));
+supplier = ABSTRACT LegalEntity(Document);
+nameSupplier 'Поставщик' (Document document) = name(supplier(document));
+supplierStock = ABSTRACT Stock(Document);
+nameSupplierStock 'Склад поставщика' (Document document) = name(supplierStock(document));
 
-customerDocument = ABSTRACT LegalEntity(Document);
-nameCustomerDocument 'Покупатель' (document) = nameLegalEntity(customerDocument(document));
-customerStockDocument = ABSTRACT Stock(Document);
-nameCustomerStockDocument 'Склад покупателя'(document) = nameStock(customerStockDocument(document));
+customer = ABSTRACT LegalEntity(Document);
+nameCustomer 'Покупатель' (Document document) = name(customer(document));
+customerStock = ABSTRACT Stock(Document);
+nameCustomerStock 'Склад покупателя'(Document document) = name(customerStock(document));
 
-documentDocumentDetail = ABSTRACT Document(DocumentDetail);
+document = ABSTRACT Document(DocumentDetail);
 
-skuDocumentDetail = ABSTRACT Sku(DocumentDetail);
-idBarcodeSkuDocumentDetail 'Штрих-код' (documentDetail) = idBarcodeSku(skuDocumentDetail(documentDetail));
-nameSkuDocumentDetail 'Товар' (d) = nameSku(skuDocumentDetail(d));
-quantityDocumentDetail 'Кол-во' = ABSTRACT NUMERIC[16,5] (DocumentDetail);
-priceDocumentDetail 'Цена' = ABSTRACT NUMERIC[14,2] (DocumentDetail);
-indexDocumentDetail 'Номер' = ABSTRACT INTEGER(DocumentDetail);
+sku = ABSTRACT Sku(DocumentDetail);
+idBarcodeSku 'Штрих-код' (DocumentDetail documentDetail) = idBarcode(sku(documentDetail));
+nameSku 'Товар' (DocumentDetail d) = name(sku(d));
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (DocumentDetail);
+price 'Цена' = ABSTRACT NUMERIC[14,2] (DocumentDetail);
+index 'Номер' = ABSTRACT INTEGER(DocumentDetail);
 
-countDocumentDetailDocument 'Кол-во строк' (o) = GROUP SUM 1 BY documentDocumentDetail(d);
-quantityDocumentDetailSkuDocument 'Кол-во товара' (sku, o) = GROUP SUM quantityDocumentDetail(d) BY skuDocumentDetail(d), documentDocumentDetail(d);
-countDocumentDetailSkuDocument 'Кол-во строк товара' (sku, o) = GROUP SUM 1 IF documentDocumentDetail(d)==o BY skuDocumentDetail(d), documentDocumentDetail(d);
+countDocumentDetail 'Кол-во строк' (o) = GROUP SUM 1 BY document(DocumentDetail d);
+quantityDocumentDetail 'Кол-во товара' (sku, o) = GROUP SUM quantity(DocumentDetail d) BY sku(d), document(d);
+countDocumentDetail 'Кол-во строк товара' (sku, o) = GROUP SUM 1 IF document(DocumentDetail d)==Document o BY sku(d), document(d);
 
 fillPriceDocuments 'Использовать цены' = DATA LOCAL BOOLEAN ();
 
 FORM documents 'Документы с товарами'
     OBJECTS d=Document LAST
-    PROPERTIES(d) READONLY numberDocument, seriesDocument, dateDocument, nameSupplierDocument, nameSupplierStockDocument,
-                  nameCustomerDocument, nameCustomerStockDocument, objectClassName
+    PROPERTIES(d) READONLY number, series, date, nameSupplier, nameSupplierStock,
+                  nameCustomer, nameCustomerStock, objectClassName
     PROPERTIES()  FORCE PANEL TOOLBAR fillPriceDocuments TODRAW d
     OBJECTS dd=DocumentDetail
-    PROPERTIES(dd) READONLY indexDocumentDetail, idBarcodeSkuDocumentDetail, nameSkuDocumentDetail, quantityDocumentDetail, priceDocumentDetail SHOWIF fillPriceDocuments()
+    PROPERTIES(dd) READONLY index, idBarcodeSku, nameSku, quantity, price SHOWIF fillPriceDocuments()
 
-    FILTERS documentDocumentDetail(dd)==d
+    FILTERS document(dd)==d
 ;
 
 DESIGN documents {
@@ -1261,31 +1261,31 @@ DESIGN documents {
 }
 
 META implementDocumentPrefix(object, prefixP, prefixQ)
-    isClosedDocument(object) += isClosed###object(object);
-    isPostedDocument(object) += isPosted###object(object);
-    numberDocument(object) += number###object(object);
-    seriesDocument(object) += series###object(object);
-    dateDocument(object) += date###object(object);
+    isClosed[Document](###object object) += isClosed(object);
+    isPosted[Document](###object object) += isPosted(object);
+    number[Document](###object object) += number(object);
+    series[Document](###object object) += series(object);
+    date[Document](###object object) += date(object);
 
-    indexDocumentDetail(detail) += indexUser###object##Detail(detail);
-    skuDocumentDetail(detail) += sku###object##Detail(detail);
-    quantityDocumentDetail(detail) += prefixQ###quantity###object##Detail(detail);
-    priceDocumentDetail(detail) += prefixP###price###object##Detail(detail);
+    index[DocumentDetail](User###object##Detail detail) += index(detail);
+    sku[DocumentDetail](###object##Detail detail) += sku(detail);
+    quantity[DocumentDetail](###object##Detail detail) += quantity(detail);
+    price[DocumentDetail](###object##Detail detail) += prefixP###price(detail);
 
-    documentDocumentDetail(detail) += object###object##Detail(detail);
+    document[DocumentDetail](###object##Detail detail) += object(detail);
 
-    overFillDocument###object##DetailDocumentDetail = ABSTRACT ACTION (###object##Detail, DocumentDetail); 
-    fillDocument###object 'Подбор документа' = ACTION (user###object) {
+    overFillDocument = ABSTRACT ACTION (###object##Detail, DocumentDetail); 
+    fillDocument 'Подбор документа' = ACTION (User###object user###object) {
         FORM documents MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL chosenDocument = Document();
             chosenDocument() <- chosenObject('d');
-            FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = User###object##Detail DO {
-                user###object##User###object##Detail(i) <- user###object;
-                skuUser###object##Detail(i) <- skuDocumentDetail(documentDetail);
-                quantityUser###object##Detail(i) <- quantityDocumentDetail(documentDetail);
-                priceUser###object##Detail(i) <- priceDocumentDetail(documentDetail) WHERE fillPriceDocuments();
-                overFillDocument###object##DetailDocumentDetail(i, documentDetail);
+            FOR document(DocumentDetail documentDetail) == chosenDocument() ADDOBJ i = User###object##Detail DO {
+                user###object(i) <- user###object;
+                sku(i) <- sku(documentDetail);
+                quantity(i) <- quantity(documentDetail);
+                price(i) <- price(documentDetail) WHERE fillPriceDocuments();
+                overFillDocument(i, documentDetail);
             }
         }
     } TOOLBAR;
@@ -1300,30 +1300,30 @@ META implementDocumentSupplierCustomer(object)
 
     @implementDocument(object);
 
-    supplierDocument(object) += supplier###object(object);
-    supplierStockDocument(object) += supplierStock###object(object);
-    customerDocument(object) += customer###object(object);
-    customerStockDocument(object) += customerStock###object(object);
+    supplier[Document](###object object) += supplier(object);
+    supplierStock[Document](###object object) += supplierStock(object);
+    customer[Document](###object object) += customer(object);
+    customerStock[Document](###object object) += customerStock(object);
 END
 
 // ------------------------- Партии ---------------------------- //
-batchDocumentDetail = ABSTRACT Batch(DocumentDetail);
-nameBatchDocumentDetail 'Партия' (d) = nameBatch(batchDocumentDetail(d));
+batch = ABSTRACT Batch(DocumentDetail);
+nameBatch 'Партия' (DocumentDetail d) = name(batch(d));
 
 META implementDocumentBatch(object)
     @implementDocumentBatch(object, );
 END
 
 META implementDocumentBatch(object, prefix)
-    batchDocumentDetail(detail) += prefix###batch###object##Detail(detail);
+    batch[DocumentDetail](###object##Detail detail) += prefix###batch(detail);
     
-    overFillDocument###object##DetailDocumentDetail (i, d) += ACTION (i, d) {
-        batchUser###object##Detail(i) <- batchDocumentDetail(d);
+    overFillDocument (User###object##Detail i, DocumentDetail d) += ACTION (i, d) {
+        batch(i) <- batch(d);
     }
 END
 
 EXTEND FORM documents
-    PROPERTIES(dd) nameBatchDocumentDetail AFTER nameSkuDocumentDetail(dd) 
+    PROPERTIES(dd) nameBatch AFTER nameSku(dd) 
 ;
 
 //----------------- Логирование изменений в документах ------------------- //
@@ -1344,25 +1344,25 @@ DESIGN options {
     } 
 }
 
-documentDocumentLog = DATA Document (DocumentLog) INDEXED;
+document = DATA Document (DocumentLog) INDEXED;
 
-numberDocumentDocumentLog 'Номер документа' = DATA STRING[18] (DocumentLog) IN recognize;
-seriesDocumentDocumentLog 'Серия документа' = DATA STRING[2] (DocumentLog) IN recognize;
-dateDocumentDocumentLog 'Дата документа' = DATA DATE(DocumentLog) IN recognize;
-typeDocumentDocumentLog 'Тип документа' = DATA ISTRING[100] (DocumentLog) IN recognize; 
+numberDocument 'Номер документа' = DATA STRING[18] (DocumentLog) IN recognize;
+seriesDocument 'Серия документа' = DATA STRING[2] (DocumentLog) IN recognize;
+dateDocument 'Дата документа' = DATA DATE(DocumentLog) IN recognize;
+typeDocument 'Тип документа' = DATA ISTRING[100] (DocumentLog) IN recognize; 
 
-sessionDocumentLog = DATA Session (DocumentLog); 
-hostnameComputerDocumentLog 'Имя компьютера' = DATA VARISTRING[100] (DocumentLog); 
-userLoginDocumentLog 'Логин пользователя' = DATA STRING[30] (DocumentLog); 
-nameContactDocumentLog 'Имя пользователя' =  DATA VARSTRING[100] (DocumentLog) IN recognize;
-dateTimeSessionDocumentLog 'Время' = DATA DATETIME (DocumentLog) IN recognize;
-dateSessionDocumentLog 'Дата' (d) = DATE(dateTimeSessionDocumentLog(d));
+session = DATA Session (DocumentLog); 
+hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (DocumentLog); 
+userLogin 'Логин пользователя' = DATA STRING[30] (DocumentLog); 
+nameContact 'Имя пользователя' =  DATA VARSTRING[100] (DocumentLog) IN recognize;
+dateTimeSession 'Время' = DATA DATETIME (DocumentLog) IN recognize;
+dateSession 'Дата' (DocumentLog d) = DATE(dateTimeSession(d));
 
-supplierStockDocumentLog = DATA Stock(DocumentLog);
-nameSupplierStockDocumentLog 'Склад поставщика'(d) = nameStock(supplierStockDocumentLog(d));
+supplierStock = DATA Stock(DocumentLog);
+nameSupplierStock 'Склад поставщика'(DocumentLog d) = name(supplierStock(d));
 
-customerStockDocumentLog = DATA Stock(DocumentLog);
-nameCustomerStockDocumentLog 'Склад покупателя'(d) = nameStock(customerStockDocumentLog(d));
+customerStock = DATA Stock(DocumentLog);
+nameCustomerStock 'Склад покупателя'(DocumentLog d) = name(customerStock(d));
 
 @defineLog (DocumentLog, 'изменений документов', log, dateSession);
 
@@ -1383,275 +1383,275 @@ CLASS TypeChange 'Тип изменения' {
     changeClosed 'Закрытие/Открытие'
 }
 
-typeChangeDocumentLog= DATA TypeChange (DocumentLog);
-nameTypeChangeDocumentLog 'Тип изменения' (l) = staticCaption(typeChangeDocumentLog(l)) IN recognize;
+typeChange= DATA TypeChange (DocumentLog);
+nameTypeChange 'Тип изменения' (DocumentLog l) = staticCaption(typeChange(l)) IN recognize;
 
-noteDocumentLog 'Примечание' = DATA VARSTRING[255] (DocumentLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+note 'Примечание' = DATA VARSTRING[255] (DocumentLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-fileDocumentLog 'Файл' = DATA CUSTOMFILE (DocumentLog);
-openFileDocumentLog 'Открыть Файл' (l) = ACTION OPENFILE (fileDocumentLog(l)) TOOLBAR;
-showFileDocumentLog = enableDocumentLog() AND fileDocumentLog(dLog);
+file 'Файл' = DATA CUSTOMFILE (DocumentLog);
+openFile 'Открыть Файл' (DocumentLog l) = ACTION OPENFILE (file(l)) TOOLBAR;
+showFile = enableDocumentLog() AND file(DocumentLog dLog);
 
-WHEN SET(o IS Document) IF NOT disableDocumentLog() DO {
+WHEN SET(Document o IS Document) IF NOT disableDocumentLog() DO {
     FOR ADDOBJ d = DocumentLog DO {        
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.add;
-        sessionDocumentLog(d) <- currentSession();
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());             
-        noteDocumentLog(d) <- VARSTRING[255]('Добавлен документ');              
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.add;
+        session(d) <- currentSession();
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());             
+        note(d) <- VARSTRING[255]('Добавлен документ');              
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
-WHEN DROPPED(o IS Document) IF NOT disableDocumentLog() DO {
+WHEN DROPPED(Document o IS Document) IF NOT disableDocumentLog() DO {
     FOR ADDOBJ d = DocumentLog DO {       
 
-        typeDocumentDocumentLog(d) <- PREV(objectClassName(o));
-        numberDocumentDocumentLog(d) <- PREV(numberDocument(o));  
-        seriesDocumentDocumentLog(d) <- PREV(seriesDocument(o)); 
-        dateDocumentDocumentLog(d) <- PREV(dateDocument(o));   
-        typeChangeDocumentLog(d) <- TypeChange.delete;
-        sessionDocumentLog(d) <- currentSession();
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());        
-        noteDocumentLog(d) <- VARSTRING[255]('Удален документ');         
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        typeDocument(d) <- PREV(objectClassName(o));
+        numberDocument(d) <- PREV(number(o));  
+        seriesDocument(d) <- PREV(series(o)); 
+        dateDocument(d) <- PREV(date(o));   
+        typeChange(d) <- TypeChange.delete;
+        session(d) <- currentSession();
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());        
+        note(d) <- VARSTRING[255]('Удален документ');         
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN ((SETCHANGED(numberDocument(o)) AND PREV(numberDocument(o))) OR (SETCHANGED(seriesDocument(o)) AND PREV(seriesDocument(o))) ) IF NOT disableDocumentLog()  DO {
+WHEN ((SETCHANGED(number(Document o)) AND PREV(number(o))) OR (SETCHANGED(series(o)) AND PREV(series(o))) ) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.changeSeriesNumber;
-        noteDocumentLog(d) <- VARSTRING[255]('Предыдущее значение серия/номер: '+(CONCAT '', PREV(seriesDocument(o)), PREV(numberDocument(o))));      
-        sessionDocumentLog(d) <- currentSession();  
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());                 
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changeSeriesNumber;
+        note(d) <- VARSTRING[255]('Предыдущее значение серия/номер: '+(CONCAT '', PREV(series(o)), PREV(number(o))));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());                 
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN (x== [ = GROUP SUM 1 IF SET(d IS DocumentDetail) BY documentDocumentDetail(d)](o)) IF NOT disableDocumentLog() DO {
+WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY document(d)](Document o)) IF NOT disableDocumentLog() DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.addRow;
-        noteDocumentLog(d) <- VARSTRING[255]('Количество добавленных строк: '+x);  
-        sessionDocumentLog(d) <- currentSession();      
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());                 
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.addRow;
+        note(d) <- VARSTRING[255]('Количество добавленных строк: '+x);  
+        session(d) <- currentSession();      
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());                 
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN x==[= GROUP SUM 1 IF DROPPED(d IS DocumentDetail) BY PREV(documentDocumentDetail(d))](o) AND NOT disableDocumentLog() NOINLINE DO {
+WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND NOT disableDocumentLog() NOINLINE DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.deleteRow;
-        noteDocumentLog(d) <- VARSTRING[255]('Количество удаленных строк: '+x);  
-        sessionDocumentLog(d) <- currentSession();   
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());                    
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.deleteRow;
+        note(d) <- VARSTRING[255]('Количество удаленных строк: '+x);  
+        session(d) <- currentSession();   
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());                    
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN (CHANGED(supplierStockDocument(o)) AND PREV(supplierStockDocument(o))) IF NOT disableDocumentLog()  DO {
+WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o))) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.changeSupplierStock;
-        noteDocumentLog(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameSupplierStockDocument(o)));      
-        sessionDocumentLog(d) <- currentSession();  
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());     
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changeSupplierStock;
+        note(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameSupplierStock(o)));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());     
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN (CHANGED(customerStockDocument(o)) AND PREV(customerStockDocument(o))) IF NOT disableDocumentLog()  DO {
+WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o))) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.changeCustomerStock;
-        noteDocumentLog(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameCustomerStockDocument(o)));      
-        sessionDocumentLog(d) <- currentSession();  
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());   
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changeCustomerStock;
+        note(d) <- VARSTRING[255](CONCAT '','Предыдущее значение : ', PREV(nameCustomerStock(o)));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN (DROPSET (isPostedDocument(o))) IF NOT disableDocumentLog()  DO {
+WHEN (DROPSET (isPosted(Document o))) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.changePosted;
-        noteDocumentLog(d) <- VARSTRING[255](IF isPostedDocument(o) THEN 'Проведен' ELSE 'Распроведен');      
-        sessionDocumentLog(d) <- currentSession();  
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());   
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changePosted;
+        note(d) <- VARSTRING[255](IF isPosted(o) THEN 'Проведен' ELSE 'Распроведен');      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
-WHEN (DROPSET (isClosedDocument(o))) IF NOT disableDocumentLog()  DO {
+WHEN (DROPSET (isClosed(Document o))) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
-        documentDocumentLog(d) <- o;
-        typeDocumentDocumentLog(d) <- objectClassName(o);
-        numberDocumentDocumentLog(d) <- numberDocument(o);  
-        seriesDocumentDocumentLog(d) <- seriesDocument(o); 
-        dateDocumentDocumentLog(d) <- dateDocument(o);   
-        typeChangeDocumentLog(d) <- TypeChange.changeClosed;
-        noteDocumentLog(d) <- VARSTRING[255](IF isClosedDocument(o) THEN 'Закрыт' ELSE 'Открыт');      
-        sessionDocumentLog(d) <- currentSession();  
-        hostnameComputerDocumentLog(d) <- hostnameComputerConnectionSession(currentSession());
-        userLoginDocumentLog(d) <- userLoginConnectionSession(currentSession()); 
-        nameContactDocumentLog(d) <- VARSTRING[100](nameContactSession(currentSession()));
-        dateTimeSessionDocumentLog(d) <- dateTimeSession(currentSession());   
-        supplierStockDocumentLog(d) <- supplierStockDocument(o);
-        customerStockDocumentLog(d) <- customerStockDocument(o);
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number(o);  
+        seriesDocument(d) <- series(o); 
+        dateDocument(d) <- date(o);   
+        typeChange(d) <- TypeChange.changeClosed;
+        note(d) <- VARSTRING[255](IF isClosed(o) THEN 'Закрыт' ELSE 'Открыт');      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+        supplierStock(d) <- supplierStock(o);
+        customerStock(d) <- customerStock(o);
     }
 }
 
 CLASS DocumentDetailLog 'Запись лога строк документов';
 TABLE DocumentDetailLog(DocumentDetailLog);
 
-documentDocumentDetailLog = DATA Document (DocumentDetailLog) INDEXED;
+document = DATA Document (DocumentDetailLog) INDEXED;
 
-indexDocumentDetailLog 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
+index 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
 
-numberDocumentDocumentDetailLog 'Номер документа' = DATA STRING[18] (DocumentDetailLog);
-seriesDocumentDocumentDetailLog 'Серия документа' = DATA STRING[2] (DocumentDetailLog);
-dateDocumentDocumentDetailLog 'Дата документа' = DATA DATE(DocumentDetailLog);
-typeDocumentDocumentDetailLog 'Тип документа' = DATA ISTRING[100] (DocumentDetailLog); 
+numberDocument 'Номер документа' = DATA STRING[18] (DocumentDetailLog);
+seriesDocument 'Серия документа' = DATA STRING[2] (DocumentDetailLog);
+dateDocument 'Дата документа' = DATA DATE(DocumentDetailLog);
+typeDocument 'Тип документа' = DATA ISTRING[100] (DocumentDetailLog); 
 
-skuDocumentDetailLog = DATA Sku (DocumentDetailLog) INDEXED ;
-idSkuDocumentDetailLog 'Код' (l) = idSku(skuDocumentDetailLog(l));
-nameSkuDocumentDetailLog 'Наименование' (l) = nameSku(skuDocumentDetailLog(l));
+sku = DATA Sku (DocumentDetailLog) INDEXED ;
+idSku 'Код' (DocumentDetailLog l) = id(sku(l));
+nameSku 'Наименование' (DocumentDetailLog l) = name(sku(l));
 
-quantityDocumentDetailLog 'Кол-во' = DATA NUMERIC[16,5] (DocumentDetailLog);
+quantity 'Кол-во' = DATA NUMERIC[16,5] (DocumentDetailLog);
 
-priceDocumentDetailLog 'Цена' = DATA NUMERIC[14,2] (DocumentDetailLog);
+price 'Цена' = DATA NUMERIC[14,2] (DocumentDetailLog);
 
-nameUserDocumentDetailLog 'Имя пользователя'  = DATA VARSTRING[100] (DocumentDetailLog);
+nameUser 'Имя пользователя'  = DATA VARSTRING[100] (DocumentDetailLog);
 
-dateTimeDocumentDetailLog 'Дата/время изменения' = DATA DATETIME (DocumentDetailLog);
-dateDocumentDetailLog 'Дата' (d) = DATE(dateTimeDocumentDetailLog(d));
+dateTime 'Дата/время изменения' = DATA DATETIME (DocumentDetailLog);
+date 'Дата' (DocumentDetailLog d) = DATE(dateTime(d));
 
-noteDocumentDetailLog 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
+note 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
 
 @defineLog (DocumentDetailLog, 'строк документов', log, date);
 
-WHEN  SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     FOR ADDOBJ l = DocumentDetailLog DO{
-        documentDocumentDetailLog(l) <- documentDocumentDetail(d);
-        indexDocumentDetailLog(l) <- indexDocumentDetail(d);
-        numberDocumentDocumentDetailLog(l) <- numberDocument(documentDocumentDetail(d));
-        seriesDocumentDocumentDetailLog(l) <- seriesDocument(documentDocumentDetail(d));
-        dateDocumentDocumentDetailLog(l) <- dateDocument(documentDocumentDetail(d));
-        typeDocumentDocumentDetailLog(l) <- objectClassName(documentDocumentDetail(d));
-        skuDocumentDetailLog(l) <- skuDocumentDetail(d);
-        quantityDocumentDetailLog(l) <- quantityDocumentDetail(d);
-        priceDocumentDetailLog(l) <- priceDocumentDetail(d);
-        nameUserDocumentDetailLog(l) <- nameUser(currentUser());
-        dateTimeDocumentDetailLog(l) <- currentDateTime();
-        noteDocumentDetailLog(l) <- 'Добавление';
+        document(l) <- document(d);
+        index(l) <- index(d);
+        numberDocument(l) <- number(document(d));
+        seriesDocument(l) <- series(document(d));
+        dateDocument(l) <- date(document(d));
+        typeDocument(l) <- objectClassName(document(d));
+        sku(l) <- sku(d);
+        quantity(l) <- quantity(d);
+        price(l) <- price(d);
+        nameUser(l) <- name(currentUser());
+        dateTime(l) <- currentDateTime();
+        note(l) <- 'Добавление';
     }
 
-WHEN (CHANGED(priceDocumentDetail(d)) OR CHANGED(quantityDocumentDetail(d)) OR CHANGED(skuDocumentDetail(d))) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d))) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     FOR ADDOBJ l = DocumentDetailLog DO{
-        documentDocumentDetailLog(l) <- documentDocumentDetail(d);
-        indexDocumentDetailLog(l) <- indexDocumentDetail(d);
-        numberDocumentDocumentDetailLog(l) <- numberDocument(documentDocumentDetail(d));
-        seriesDocumentDocumentDetailLog(l) <- seriesDocument(documentDocumentDetail(d));
-        dateDocumentDocumentDetailLog(l) <- dateDocument(documentDocumentDetail(d));
-        typeDocumentDocumentDetailLog(l) <- objectClassName(documentDocumentDetail(d));
-        skuDocumentDetailLog(l) <- skuDocumentDetail(d);
-        quantityDocumentDetailLog(l) <- quantityDocumentDetail(d);
-        priceDocumentDetailLog(l) <- priceDocumentDetail(d);
-        nameUserDocumentDetailLog(l) <- nameUser(currentUser());
-        dateTimeDocumentDetailLog(l) <- currentDateTime();
-        noteDocumentDetailLog(l) <- 'Изменение';
+        document(l) <- document(d);
+        index(l) <- index(d);
+        numberDocument(l) <- number(document(d));
+        seriesDocument(l) <- series(document(d));
+        dateDocument(l) <- date(document(d));
+        typeDocument(l) <- objectClassName(document(d));
+        sku(l) <- sku(d);
+        quantity(l) <- quantity(d);
+        price(l) <- price(d);
+        nameUser(l) <- name(currentUser());
+        dateTime(l) <- currentDateTime();
+        note(l) <- 'Изменение';
     }
     
-WHEN DROPPED(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     FOR ADDOBJ l = DocumentDetailLog DO{
-        documentDocumentDetailLog(l) <- PREV(documentDocumentDetail(d));
-        indexDocumentDetailLog(l) <- PREV(indexDocumentDetail(d));
-        numberDocumentDocumentDetailLog(l) <- PREV(numberDocument(documentDocumentDetail(d)));
-        seriesDocumentDocumentDetailLog(l) <- PREV(seriesDocument(documentDocumentDetail(d)));
-        dateDocumentDocumentDetailLog(l) <- PREV(dateDocument(documentDocumentDetail(d)));
-        typeDocumentDocumentDetailLog(l) <- PREV(objectClassName(documentDocumentDetail(d)));
-        skuDocumentDetailLog(l) <- PREV(skuDocumentDetail(d));
-        quantityDocumentDetailLog(l) <- PREV(quantityDocumentDetail(d));
-        priceDocumentDetailLog(l) <- PREV(priceDocumentDetail(d));
-        nameUserDocumentDetailLog(l) <- nameUser(currentUser());
-        dateTimeDocumentDetailLog(l) <- currentDateTime();
-        noteDocumentDetailLog(l) <- 'Удаление';
+        document(l) <- PREV(document(d));
+        index(l) <- PREV(index(d));
+        numberDocument(l) <- PREV(number(document(d)));
+        seriesDocument(l) <- PREV(series(document(d)));
+        dateDocument(l) <- PREV(date(document(d)));
+        typeDocument(l) <- PREV(objectClassName(document(d)));
+        sku(l) <- PREV(sku(d));
+        quantity(l) <- PREV(quantity(d));
+        price(l) <- PREV(price(d));
+        nameUser(l) <- name(currentUser());
+        dateTime(l) <- currentDateTime();
+        note(l) <- 'Удаление';
 }    
 
 META defineDocumentLogForm(form, concrete)
     EXTEND FORM form
         OBJECTS dLog=DocumentLog FIXED GRID
-        PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocumentDocumentLog, seriesDocumentDocumentLog, dateDocumentDocumentLog, nameSupplierStockDocumentLog, nameCustomerStockDocumentLog, typeDocumentDocumentLog,
-                      hostnameComputerDocumentLog, userLoginDocumentLog, nameContactDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
-                      noteDocumentLog
-        PROPERTIES (dLog) openFileDocumentLog SHOWIF showFileDocumentLog(dLog)
-        FILTERS documentDocumentLog(dLog) == concrete
+        PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
+                      hostnameComputer, userLogin, nameContact, dateTimeSession, nameTypeChange,
+                      note
+        PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
+        FILTERS document(dLog) == concrete
 
         OBJECTS ddLog = DocumentDetailLog FIXED GRID
-        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY indexDocumentDetailLog, idSkuDocumentDetailLog, nameSkuDocumentDetailLog, quantityDocumentDetailLog,
-                       priceDocumentDetailLog, nameUserDocumentDetailLog, dateTimeDocumentDetailLog, noteDocumentDetailLog
-        FILTERS documentDocumentDetailLog(ddLog) == concrete
+        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity,
+                       price, nameUser, dateTime, note
+        FILTERS document(ddLog) == concrete
     ;
     
     DESIGN form {
@@ -1675,17 +1675,17 @@ END
 
 FORM documentLogs 'Журнал изменения документов'
     OBJECTS d=DocumentLog
-    PROPERTIES(d) READONLY numberDocumentDocumentLog, seriesDocumentDocumentLog, dateDocumentDocumentLog, nameSupplierStockDocumentLog, nameCustomerStockDocumentLog, typeDocumentDocumentLog,
-                  hostnameComputerDocumentLog, userLoginDocumentLog, dateTimeSessionDocumentLog, nameTypeChangeDocumentLog,
-                  noteDocumentLog
+    PROPERTIES(d) READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
+                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange,
+                  note
                   
     OBJECTS l = DocumentDetailLog
-    PROPERTIES (l) READONLY seriesDocumentDocumentDetailLog, numberDocumentDocumentDetailLog, dateDocumentDocumentDetailLog,typeDocumentDocumentDetailLog, 
-                   indexDocumentDetailLog, idSkuDocumentDetailLog, nameSkuDocumentDetailLog, quantityDocumentDetailLog, priceDocumentDetailLog, 
-                   nameUserDocumentDetailLog, dateTimeDocumentDetailLog, noteDocumentDetailLog
+    PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument,typeDocument, 
+                   index, idSku, nameSku, quantity, price, 
+                   nameUser, dateTime, note
     FILTERGROUP documents
-        FILTER 'Фильтр по документу' documentDocumentLog(d) == documentDocumentDetailLog(l) 'F10' DEFAULT
-        FILTER 'Фильтр по номеру документа' numberDocumentDocumentLog(d) == numberDocumentDocumentDetailLog(l) 'F11'
+        FILTER 'Фильтр по документу' document(d) == document(l) 'F10' DEFAULT
+        FILTER 'Фильтр по номеру документа' numberDocument(d) == numberDocument(l) 'F11'
 ;
 
 DESIGN documentLogs {

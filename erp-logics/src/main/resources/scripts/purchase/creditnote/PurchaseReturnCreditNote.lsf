@@ -19,10 +19,10 @@ NAMESPACE PurchaseReturn;
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
-CONSTRAINT supplierUserCreditNote(userCreditNote) AND NOT isSupplierLegalEntity(supplierUserCreditNote(userCreditNote))
-    CHECKED BY supplierUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся поставщиком';
-CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(customerUserCreditNote(userCreditNote))
-    CHECKED BY customerUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве покупателя организация, не являющаяся компанией';
+CONSTRAINT supplier(UserCreditNote userCreditNote) AND NOT isSupplier(supplier(userCreditNote))
+    CHECKED BY supplier[UserCreditNote] MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT customer(UserCreditNote userCreditNote) AND NOT isCompany(customer(userCreditNote))
+    CHECKED BY customer[UserCreditNote] MESSAGE 'Для акта расхождения выбрано в качестве покупателя организация, не являющаяся компанией';
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
@@ -45,39 +45,39 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(c
 @defineDocumentOperationStock(userCreditNote, customer, 'Склад покупателя');
 @deriveDocumentOperationStock(userCreditNote, customer, userCreditNote);
 
-operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
+operation(InvoiceCreditNote creditNote) += operation(invoice(creditNote));
 
 // ------------------- Проведение по регистру задолженностей ----------------------- //
 
 @implementContractLedger(, CreditNote, contractSku);
-sumContractLedger(contractLedger) +=
-    IF currencyCreditNote(contractLedger) != currencyContract(contractSkuCreditNote(contractLedger)) THEN 
-        NUMERIC[16,2](invoiceSumCreditNoteDetailCreditNote(contractLedger) * 
-                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuCreditNote(contractLedger)), 
-                                                     currencyCreditNote(contractLedger),
-                                                     dateCreditNote(contractLedger)))
+sum[ContractLedger](CreditNote contractLedger) +=
+    IF currency(contractLedger) != currency(contractSku(contractLedger)) THEN 
+        NUMERIC[16,2](invoiceSumCreditNoteDetail(contractLedger) * 
+                      rateOn(typeExchange(contractSku(contractLedger)), 
+                                                     currency(contractLedger),
+                                                     date(contractLedger)))
     ELSE 
-        invoiceSumCreditNoteDetailCreditNote(contractLedger);
+        invoiceSumCreditNoteDetail(contractLedger);
 
 @implementContractLedger(a, CreditNote, contractSku);
-sumContractALedger(contractALedger) +=
-    IF currencyCreditNote(contractALedger) != currencyContract(contractSkuCreditNote(contractALedger)) THEN 
-        NUMERIC[16,2](invoiceSumCreditNoteDetailCreditNote(contractALedger) * 
-                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuCreditNote(contractALedger)), 
-                                                     currencyCreditNote(contractALedger),
-                                                     dateCreditNote(contractALedger)))
+sum[ContractALedger](CreditNote contractALedger) +=
+    IF currency(contractALedger) != currency(contractSku(contractALedger)) THEN 
+        NUMERIC[16,2](invoiceSumCreditNoteDetail(contractALedger) * 
+                      rateOn(typeExchange(contractSku(contractALedger)), 
+                                                     currency(contractALedger),
+                                                     date(contractALedger)))
     ELSE 
-        invoiceSumCreditNoteDetailCreditNote(contractALedger);
+        invoiceSumCreditNoteDetail(contractALedger);
 
 @implementInContractLedger(CreditNote, contractSku);
-sumInContractLedger(inContractLedger) += 
-    IF currencyCreditNote(inContractLedger) != currencyContract(contractSkuCreditNote(inContractLedger)) THEN 
-        NUMERIC[16,2](invoiceSumCreditNoteDetailCreditNote(inContractLedger) * 
-                      rateOnTypeExchangeCurrencyDate(typeExchangeContract(contractSkuCreditNote(inContractLedger)), 
-                                                     currencyCreditNote(inContractLedger),
-                                                     dateCreditNote(inContractLedger)))
+sum[InContractLedger](CreditNote inContractLedger) += 
+    IF currency(inContractLedger) != currency(contractSku(inContractLedger)) THEN 
+        NUMERIC[16,2](invoiceSumCreditNoteDetail(inContractLedger) * 
+                      rateOn(typeExchange(contractSku(inContractLedger)), 
+                                                     currency(inContractLedger),
+                                                     date(inContractLedger)))
     ELSE 
-        invoiceSumCreditNoteDetailCreditNote(inContractLedger);
+        invoiceSumCreditNoteDetail(inContractLedger);
 
 //------------------------------ Расширение формы -----------------------------//
 
@@ -85,16 +85,16 @@ sumInContractLedger(inContractLedger) +=
 EXTEND FORM userCreditNote
 
     FILTERGROUP filter
-        FILTER 'С остатком ' currentBalanceSkuStock(ks, st) 'F10' DEFAULT
-        FILTER 'В документе ' quantitySkuUserCreditNoteCustomerStock(ks, c, st) 'F9'
+        FILTER 'С остатком ' currentBalance(ks, st) 'F10' DEFAULT
+        FILTER 'В документе ' quantityCustomer(ks, c, st) 'F9'
 
 ;
 
 EXTEND FORM userCreditNote
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserCreditNoteCustomerStock(b, c, sto) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantityCustomer(b, c, sto) 'F9'
 ;
 
 NAVIGATOR {

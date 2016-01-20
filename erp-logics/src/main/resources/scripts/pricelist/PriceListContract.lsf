@@ -6,28 +6,28 @@ NAMESPACE PriceList;
 
 @defineDocumentAbstractContract (PriceList, contractSku, ContractSku);
 
-contractSkuUserPriceList = DATA ContractSku (UserPriceList);
-seriesNumberContractSkuUserPriceList 'Номер договора' (o) = seriesNumberContract(contractSkuUserPriceList(o)) IN documentPrm;
-dateFromContractSkuUserPriceList 'Дата договора' (o) = dateFromContract(contractSkuUserPriceList(o)) IN documentPrm;
+contractSku = DATA ContractSku (UserPriceList);
+seriesNumberContractSku 'Номер договора' (UserPriceList o) = seriesNumber[Contract](contractSku(o)) IN documentPrm;
+dateFromContractSku 'Дата договора' (UserPriceList o) = dateFrom(contractSku(o)) IN documentPrm;
 
-descriptionContractSkuUserPriceList 'Описание договора' (o)= CONCAT ' ', seriesNumberContractSkuUserPriceList(o), ' от ' + dateFromContractSkuUserPriceList(o);
+descriptionContractSku 'Описание договора' (UserPriceList o)= CONCAT ' ', seriesNumberContractSku(o), ' от ' + dateFromContractSku(o);
 
-isCommissionUserPriceList 'Продажа на комиссию' = DATA BOOLEAN (UserPriceList) IN documentPrm;
+isCommission 'Продажа на комиссию' = DATA BOOLEAN (UserPriceList) IN documentPrm;
 
-contractSkuPriceList(o) += contractSkuUserPriceList(o);
-isCommissionPriceList(o) += isCommissionUserPriceList(o);
+contractSku(UserPriceList o) += contractSku(o);
+isCommission(UserPriceList o) += isCommission(o);
 
-contractSkuPriceListDetail (d) = contractSkuPriceList(priceListPriceListDetail(d)) PERSISTENT INDEXED;
-seriesNumberContractSkuPriceListDetail 'Номер договора' (d) = seriesNumberContract(contractSkuPriceListDetail (d));
+contractSku (PriceListDetail d) = contractSku(priceList(d)) PERSISTENT INDEXED;
+seriesNumberContractSku 'Номер договора' (PriceListDetail d) = seriesNumber[Contract](contractSku (d));
 
-isCommissionUserPriceList(o) <- typeContractSku(contractSkuUserPriceList(o)) == ContractSkuType.commission
-    WHEN CHANGED(contractSkuUserPriceList(o));
+isCommission(UserPriceList o) <- type(contractSku(o)) == ContractSkuType.commission
+    WHEN CHANGED(contractSku(o));
 
 
-WHEN SESSION (CHANGED(companyUserPriceList(o)) OR CHANGED(companyStockUserPriceList(o)) OR CHANGED(fromDateUserPriceList(o))) AND NOT CHANGED(contractSkuUserPriceList(o)) DO {
+WHEN SESSION (CHANGED(company(UserPriceList o)) OR CHANGED(companyStock(o)) OR CHANGED(fromDate(o))) AND NOT CHANGED(contractSku(o)) DO {
             
-    contractSkuUserPriceList(o) <- defaultContractSkuSupplierStockDate(companyUserPriceList(o), companyStockUserPriceList(o), fromDateUserPriceList(o))
-                                    IF countContractSkuSupplierStockDate(companyUserPriceList(o), companyStockUserPriceList(o), fromDateUserPriceList(o)) == 1;
+    contractSku(o) <- defaultContractSkuSupplier(company(o), companyStock(o), fromDate(o))
+                                    IF countContractSkuSupplier(company(o), companyStock(o), fromDate(o)) == 1;
 
 }
 
@@ -43,40 +43,40 @@ DESIGN options {
     }
 }   
    
-CONSTRAINT contractSkuUserPriceList(o) 
-    AND NOT (dateFromContract(contractSkuUserPriceList(o)) <= fromDateUserPriceList(o) AND NOT (dateToContract(contractSkuUserPriceList(o)) < fromDateUserPriceList(o)))
-    AND NOT (dateFromConstraintContractUserPriceList() > fromDateUserPriceList(o))
-           CHECKED BY contractSkuUserPriceList
+CONSTRAINT contractSku(UserPriceList o) 
+    AND NOT (dateFrom(contractSku(o)) <= fromDate(o) AND NOT (dateTo(contractSku(o)) < fromDate(o)))
+    AND NOT (dateFromConstraintContractUserPriceList() > fromDate(o))
+           CHECKED BY contractSku[UserPriceList]
            MESSAGE 'Договор просрочен или еще не действует';   
 
-CONSTRAINT contractSkuUserPriceList(o) AND NOT companyUserPriceList(o) == partyAContract(contractSkuUserPriceList(o))
-    CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (поставщик) договора прайса не соответствует компании прайса';
+CONSTRAINT contractSku(UserPriceList o) AND NOT company(o) == partyA(contractSku(o))
+    CHECKED BY contractSku[UserPriceList] MESSAGE 'Организация (поставщик) договора прайса не соответствует компании прайса';
 
-CONSTRAINT contractSkuUserPriceList(o) AND NOT isSellerLegalEntity(partyAContract(contractSkuUserPriceList(o)))
-    CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (поставщик) договора прайса не является поставщиком или компанией';
+CONSTRAINT contractSku(UserPriceList o) AND NOT isSeller(partyA(contractSku(o)))
+    CHECKED BY contractSku[UserPriceList] MESSAGE 'Организация (поставщик) договора прайса не является поставщиком или компанией';
 
-CONSTRAINT contractSkuUserPriceList(o) AND NOT isBuyerLegalEntity(partyBContract(contractSkuUserPriceList(o)))
-    CHECKED BY contractSkuUserPriceList MESSAGE 'Организация (покупатель) договора прайса не является покупателем или компанией';
+CONSTRAINT contractSku(UserPriceList o) AND NOT isBuyer(partyB(contractSku(o)))
+    CHECKED BY contractSku[UserPriceList] MESSAGE 'Организация (покупатель) договора прайса не является покупателем или компанией';
                
-CONSTRAINT contractSkuUserPriceList(o) AND countSuppliersStockContractSku(contractSkuUserPriceList(o)) AND NOT inSupplierStockContractSku(companyStockUserPriceList(o),contractSkuUserPriceList(o))
-    CHECKED BY contractSkuUserPriceList MESSAGE 'Для прайса выбран склад организации, который не включен в договор';
+CONSTRAINT contractSku(UserPriceList o) AND countSuppliersStock(contractSku(o)) AND NOT inSupplier(companyStock(o),contractSku(o))
+    CHECKED BY contractSku[UserPriceList] MESSAGE 'Для прайса выбран склад организации, который не включен в договор';
 
 
 EXTEND FORM userPriceList
-    PROPERTIES (p) seriesNumberContractSkuUserPriceList, isCommissionUserPriceList
+    PROPERTIES (p) seriesNumberContractSku, isCommission
 ;
 DESIGN userPriceList {
     p.documentPrm{ 
-        MOVE PROPERTY (seriesNumberContractSkuUserPriceList(p)) AFTER PROPERTY(nameCompanyStockUserPriceList(p));
-        MOVE PROPERTY (isCommissionUserPriceList(p)) AFTER PROPERTY(seriesNumberContractSkuUserPriceList(p));
+        MOVE PROPERTY (seriesNumberContractSku(p)) AFTER PROPERTY(nameCompanyStock(p));
+        MOVE PROPERTY (isCommission(p)) AFTER PROPERTY(seriesNumberContractSku(p));
     }
 }
 
 EXTEND FORM priceLists
-    PROPERTIES (p) READONLY seriesNumberContractSkuPriceList AFTER nameCompanyStockPriceList(p)
+    PROPERTIES (p) READONLY seriesNumberContractSku AFTER nameCompanyStock(p)
 ;
 
 @defineOperationProperty(isContract, 'Должен быть задан договор', showContainer);
 
-CONSTRAINT isContractOperation(operationPriceList(p))AND NOT contractSkuPriceList(p)
+CONSTRAINT isContract(operation(PriceList p))AND NOT contractSku(p)
     MESSAGE 'Для прайса должен быть задан договор';

@@ -29,7 +29,7 @@ public class FiscalMercuryCancelReceiptActionProperty extends ScriptingActionPro
 
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(4));
                 if (result != null)

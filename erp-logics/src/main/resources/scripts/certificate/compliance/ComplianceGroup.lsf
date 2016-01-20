@@ -8,43 +8,43 @@ CLASS ComplianceGroup 'Группа сертификации';
 TABLE complianceGroup (ComplianceGroup);
 
 @defineExternalizable(complianceGroup, VARSTRING[100]);
-nameComplianceGroup 'Наименование' = DATA VARISTRING[200](ComplianceGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
+name 'Наименование' = DATA VARISTRING[200](ComplianceGroup) MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 TABLE complianceGroupComplianceGroup (ComplianceGroup, ComplianceGroup);
 @defineHierarchy(complianceGroup);
 
 FORM complianceGroup 'Группа сертификации'
     OBJECTS cg = ComplianceGroup FIXED PANEL
-    PROPERTIES(cg) idComplianceGroup SHOWIF showIDs(), nameComplianceGroup, nameParentComplianceGroup
+    PROPERTIES(cg) id SHOWIF showIDs(), name, nameParent
 
     EDIT ComplianceGroup OBJECT cg
 ;
 
-addComplianceGroup 'Добавить' = ACTION (complianceGroup) NEWSESSION {
+add 'Добавить' = ACTION (ComplianceGroup complianceGroup) NEWSESSION {
     FOR ADDOBJ cg = ComplianceGroup DO {
-        parentComplianceGroup(cg) <- complianceGroup;
+        parent(cg) <- complianceGroup;
         FORM complianceGroup OBJECTS cg=cg MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 FORM complianceGroups 'Группы сертификации'
 
-    TREE treeGroups a=STRING[3], gcg=ComplianceGroup PARENT parentComplianceGroup
-    PROPERTIES READONLY OBJVALUE(a), nameComplianceGroup(gcg)
-    PROPERTIES(gcg) addComplianceGroup, EDITFORM
-    ORDER BY nameComplianceGroup(gcg)
+    TREE treeGroups a=STRING[3], gcg=ComplianceGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), name(gcg)
+    PROPERTIES(gcg) add, EDITFORM
+    ORDER BY name(gcg)
 
     OBJECTS cg = ComplianceGroup
-    PROPERTIES(cg) READONLY idComplianceGroup SHOWIF showIDs(), nameComplianceGroup, canonicalNameComplianceGroup
+    PROPERTIES(cg) READONLY id SHOWIF showIDs(), name, canonicalName
     PROPERTIES(cg) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY nameComplianceGroup(gcg)
+    ORDER BY name(gcg)
 
     FILTERS stringEqualsAll(a)
 
     FILTERGROUP filters
-        FILTER 'Все листья' isParentLeafComplianceGroupComplianceGroup(cg, gcg) OR (cg IS ComplianceGroup AND isLeafComplianceGroup(cg) AND NOT gcg) 'F10'
-        FILTER 'Всех потомков' isParentComplianceGroupComplianceGroup(cg, gcg) OR (cg IS ComplianceGroup AND NOT gcg) 'F9' DEFAULT
-        FILTER 'Только непосредственных потомков' parentComplianceGroup(cg) == gcg OR (cg IS ComplianceGroup AND NOT parentComplianceGroup(cg) AND NOT gcg) 'F8'
+        FILTER 'Все листья' isParentLeaf(cg, gcg) OR (cg IS ComplianceGroup AND isLeaf(cg) AND NOT gcg) 'F10'
+        FILTER 'Всех потомков' isParent(cg, gcg) OR (cg IS ComplianceGroup AND NOT gcg) 'F9' DEFAULT
+        FILTER 'Только непосредственных потомков' parent(cg) == gcg OR (cg IS ComplianceGroup AND NOT parent(cg) AND NOT gcg) 'F8'
 
     DIALOG ComplianceGroup OBJECT cg
 ;
@@ -77,16 +77,16 @@ NAVIGATOR {
 // ---------------------- Расширение логики сертификатов ---------------------------------- //
 
 TABLE complianceGroupCompliance(ComplianceGroup, Compliance);
-inComplianceGroupCompliance 'Вкл.' = DATA BOOLEAN(ComplianceGroup, Compliance);
+in 'Вкл.' = DATA BOOLEAN(ComplianceGroup, Compliance);
 
-countComplianceGroupCompliance 'Кол-во' (compliance) =
-    GROUP SUM 1 IF inComplianceGroupCompliance(complianceGroup, compliance) BY compliance PERSISTENT;
+countComplianceGroup 'Кол-во' (compliance) =
+    GROUP SUM 1 IF in(ComplianceGroup complianceGroup, Compliance compliance) BY compliance PERSISTENT;
 
 EXTEND FORM compliance
     OBJECTS cg = ComplianceGroup
-    PROPERTIES(cg) READONLY idComplianceGroup SHOWIF showIDs(), nameComplianceGroup, nameParentComplianceGroup
+    PROPERTIES(cg) READONLY id SHOWIF showIDs(), name, nameParent
 
-    PROPERTIES(cg, c) inComplianceGroupCompliance
+    PROPERTIES(cg, c) in
 ;
 DESIGN compliance {
     firstTab{
@@ -96,12 +96,12 @@ DESIGN compliance {
 
 EXTEND FORM compliances
     OBJECTS cg = ComplianceGroup FIXED GRID
-    PROPERTIES(cg) READONLY nameComplianceGroup, nameParentComplianceGroup
-    PROPERTIES(cg, c) READONLY inComplianceGroupCompliance
+    PROPERTIES(cg) READONLY name, nameParent
+    PROPERTIES(cg, c) READONLY in
 
-    FILTERS inComplianceGroupCompliance(cg, c)
+    FILTERS in(cg, c)
     
-    FILTERGROUP countComplianceGroup FILTER 'С группами' countComplianceGroupCompliance(c) 'ctrl F10' DEFAULT     
+    FILTERGROUP countComplianceGroup FILTER 'С группами' countComplianceGroup(c) 'ctrl F10' DEFAULT     
 ;
 
 DESIGN compliances {
@@ -112,13 +112,13 @@ DESIGN compliances {
 
 EXTEND FORM complianceGroup
     OBJECTS c = Compliance
-    PROPERTIES(c) READONLY numberCompliance, seriesCompliance, dateCompliance, timeCompliance, fromDateCompliance,
-                            toDateCompliance, nameLegalEntityCompliance
-    PROPERTIES(cg, c) inComplianceGroupCompliance
+    PROPERTIES(c) READONLY number, series, date, time, fromDate,
+                            toDate, nameLegalEntity
+    PROPERTIES(cg, c) in
 ;
 
 // ------------------- По товарам --------------------- //
-complianceGroupCountrySku = ABSTRACT ComplianceGroup(Country, Sku);
+complianceGroup = ABSTRACT ComplianceGroup(Country, Sku);
 
 // Цвета по умолчанию
 backgroundCompliance 'Цвет' () = RGB(224, 224, 255);

@@ -14,10 +14,10 @@ NAMESPACE Purchase;
 @extendFormFilterAccessLegalEntity(CreditNote, c, creditNotes, supplier, supplier);
 @defineCreditNoteBatch(customer, customer);
 
-CONSTRAINT supplierUserCreditNote(userCreditNote) AND NOT isSupplierLegalEntity(supplierUserCreditNote(userCreditNote))
-    CHECKED BY supplierUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся поставщиком';
-CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(customerUserCreditNote(userCreditNote))
-    CHECKED BY customerUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве покупателя организация, не являющаяся компанией';
+CONSTRAINT supplier(UserCreditNote userCreditNote) AND NOT isSupplier(supplier(userCreditNote))
+    CHECKED BY supplier[UserCreditNote] MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся поставщиком';
+CONSTRAINT customer(UserCreditNote userCreditNote) AND NOT isCompany(customer(userCreditNote))
+    CHECKED BY customer[UserCreditNote] MESSAGE 'Для акта расхождения выбрано в качестве покупателя организация, не являющаяся компанией';
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
@@ -42,7 +42,7 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(c
 @deriveDocumentOperationStock(userCreditNote, customer, userCreditNote);
 
 
-operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
+operation(InvoiceCreditNote creditNote) += operation(invoice(creditNote));
 
 //------------------------------ Расширение формы -----------------------------//
 
@@ -50,16 +50,16 @@ operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(cre
 EXTEND FORM userCreditNote
 
     FILTERGROUP filter
-        FILTER 'С остатком ' currentBalanceSkuStock(ks, st) 'F10' 
-        FILTER 'В документе ' quantitySkuUserCreditNoteCustomerStock(ks, c, st) 'F9'
+        FILTER 'С остатком ' currentBalance(ks, st) 'F10' 
+        FILTER 'В документе ' quantityCustomer(ks, c, st) 'F9'
 
 ;
 
 EXTEND FORM userCreditNote
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserCreditNoteCustomerStock(b, c, sto) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantityCustomer(b, c, sto) 'F9'
 ;
 
 NAVIGATOR {
@@ -70,38 +70,38 @@ NAVIGATOR {
 
 //------------------- Печатные формы ----------------------//
 
-quantityInvoiceDetailCreditNoteDetail 'Кол-во по накладной' (detail) = quantityInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
-sumInvoiceDetailCreditNoteDetail 'Сумма по накладной' (detail) = invoiceSumInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
-shipmentQuantityInvoiceDetailCreditNoteDetail 'Поставленное кол-во' (detail) = shipmentQuantityInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
-shipmentSumInvoiceDetailCreditNoteDetail 'Поставленная сумма' (detail) = shipmentSumInvoiceDetail(invoiceDetailCreditNoteDetail(detail));
+quantityInvoiceDetail 'Кол-во по накладной' (CreditNoteDetail detail) = quantity(invoiceDetail(detail));
+sumInvoiceDetail 'Сумма по накладной' (CreditNoteDetail detail) = invoiceSum(invoiceDetail(detail));
+shipmentQuantityInvoiceDetail 'Поставленное кол-во' (CreditNoteDetail detail) = shipmentQuantity(invoiceDetail(detail));
+shipmentSumInvoiceDetail 'Поставленная сумма' (CreditNoteDetail detail) = shipmentSum(invoiceDetail(detail));
 
 FORM creditNotePrint 'Акт расхождений'
     OBJECTS c = CreditNote FIXED PANEL 
-    PROPERTIES (c) READONLY seriesNumberCreditNote, dateCreditNote, fullNameSupplierCreditNote, nameSupplierStockCreditNote, 
-                            fullNameCustomerCreditNote, addressCustomerCreditNote, nameCustomerStockCreditNote, addressCustomerStockCreditNote,
-                            seriesNumberContractSkuCreditNote, quantityCreditNoteDetailCreditNote, sumCreditNoteDetailCreditNote,
-                            VATSumCreditNoteDetailCreditNote, invoiceSumCreditNoteDetailCreditNote, noteCreditNote
+    PROPERTIES (c) READONLY seriesNumber, date, fullNameSupplier, nameSupplierStock, 
+                            fullNameCustomer, addressCustomer, nameCustomerStock, addressCustomerStock,
+                            seriesNumberContractSku, quantityCreditNoteDetail, sumCreditNoteDetail,
+                            VATSumCreditNoteDetail, invoiceSumCreditNoteDetail, note
 
     OBJECTS d = CreditNoteDetail
-    PROPERTIES (d) READONLY idBarcodeSkuCreditNoteDetail, nameSkuCreditNoteDetail, shortNameUOMSkuCreditNoteDetail,
-                            quantityCreditNoteDetail, priceCreditNoteDetail, sumCreditNoteDetail, numberVATCreditNoteDetail, 
-                            valueVATCreditNoteDetail, VATSumCreditNoteDetail, invoiceSumCreditNoteDetail,
-                            quantityInvoiceDetailCreditNoteDetail, sumInvoiceDetailCreditNoteDetail,
-                            shipmentQuantityInvoiceDetailCreditNoteDetail, shipmentSumInvoiceDetailCreditNoteDetail
-    FILTERS creditNoteCreditNoteDetail(d) == c
+    PROPERTIES (d) READONLY idBarcodeSku, nameSku, shortNameUOMSku,
+                            quantity, price, sum, numberVAT, 
+                            valueVAT, VATSum, invoiceSum,
+                            quantityInvoiceDetail, sumInvoiceDetail,
+                            shipmentQuantityInvoiceDetail, shipmentSumInvoiceDetail
+    FILTERS creditNote(d) == c
 ;        
 
-printCreditNote 'Акт расхождения' (creditNote) = ACTION FORM creditNotePrint OBJECTS c = creditNote PRINT IMAGE 'print.png';
+print 'Акт расхождения' (CreditNote creditNote) = ACTION FORM creditNotePrint OBJECTS c = creditNote PRINT IMAGE 'print.png';
 EXTEND FORM creditNotes 
-    PROPERTIES(c) printCreditNote FORCE PANEL 
+    PROPERTIES(c) print FORCE PANEL 
 ;
 DESIGN creditNotes {
     printContainer{
-        MOVE PROPERTY(printCreditNote(c));
+        MOVE PROPERTY(print(c));
     }    
 }
 
-printCreditNoteInvoice 'Акт расхождения' (invoice) = ACTION printCreditNote(invoiceCreditNoteInvoice(invoice)) IMAGE 'print.png' IN print; 
+printCreditNote 'Акт расхождения' (Invoice invoice) = ACTION print(invoiceCreditNote(invoice)) IMAGE 'print.png' IN print; 
 EXTEND FORM invoices
-    PROPERTIES(i) FORCE PANEL printCreditNoteInvoice SHOWIF invoiceCreditNoteInvoice(i)
+    PROPERTIES(i) FORCE PANEL printCreditNote SHOWIF invoiceCreditNote(i)
 ;

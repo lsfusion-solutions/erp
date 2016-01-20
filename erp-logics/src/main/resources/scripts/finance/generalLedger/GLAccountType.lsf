@@ -16,24 +16,24 @@ PRIORITY Utils;
 CLASS GLAccountType 'План счетов';
 TABLE GLAccountType(GLAccountType);
 
-nameGLAccountType 'Наименование' = DATA VARISTRING[150](GLAccountType);
+name 'Наименование' = DATA VARISTRING[150](GLAccountType);
 
-currencyGLAccountType = DATA Currency (GLAccountType);
-nameCurrencyGLAccountType 'Валюта' (GLAccountType)= nameCurrency(currencyGLAccountType(GLAccountType));
-idGLAccountType 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+currency = DATA Currency (GLAccountType);
+nameCurrency 'Валюта' (GLAccountType GLAccountType)= name(currency(GLAccountType));
+id 'Идентификатор' = DATA VARSTRING[20] (GLAccountType) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
-GLAccountTypeIdGLAccountType (string1) = GROUP AGGR GLAccountType
-    BY idGLAccountType(GLAccountType) WHERE GLAccountType IS GLAccountType;
+GLAccountTypeIdGLAccountType (string1) = GROUP AGGR GLAccountType GLAccountType
+    BY id(GLAccountType) WHERE GLAccountType IS GLAccountType;
 
 FORM GLAccountType 'План счетов'
     OBJECTS g = GLAccountType FIXED PANEL
-    PROPERTIES(g) nameGLAccountType, idGLAccountType, nameCurrencyGLAccountType
+    PROPERTIES(g) name, id, nameCurrency
     EDIT GLAccountType OBJECT g
 ;
 
 FORM GLAccountTypes 'Планы счетов'
     OBJECTS g = GLAccountType
-    PROPERTIES(g) READONLY nameGLAccountType, idGLAccountType, nameCurrencyGLAccountType
+    PROPERTIES(g) READONLY name, id, nameCurrency
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG GLAccountType OBJECT g
 ;
@@ -43,54 +43,54 @@ FORM GLAccountTypes 'Планы счетов'
 CLASS GLAccount 'Счет';
 TABLE GLAccount(GLAccount);
 
-nameGLAccount 'Наименование' = DATA VARSTRING[255] (GLAccount) MINCHARWIDTH 40 MAXCHARWIDTH 80 PREFCHARWIDTH 80;
-GLAccountTypeGLAccount = DATA GLAccountType (GLAccount) AUTOSET;
-nameGLAccountTypeGLAccount 'План счетов' (GLAccount)= nameGLAccountType(GLAccountTypeGLAccount(GLAccount));
-nameCurrencyGLAccount 'Валюта' (GLAccount) = nameCurrencyGLAccountType(GLAccountTypeGLAccount(GLAccount));
+name 'Наименование' = DATA VARSTRING[255] (GLAccount) MINCHARWIDTH 40 MAXCHARWIDTH 80 PREFCHARWIDTH 80;
+GLAccountType = DATA GLAccountType (GLAccount) AUTOSET;
+nameGLAccountType 'План счетов' (GLAccount GLAccount)= name(GLAccountType(GLAccount));
+nameCurrency 'Валюта' (GLAccount GLAccount) = nameCurrency(GLAccountType(GLAccount));
 
-idGLAccount 'Идентификатор' = DATA VARSTRING[20] (GLAccount) MINCHARWIDTH 5 MAXCHARWIDTH 10 PREFCHARWIDTH 10;
+id 'Идентификатор' = DATA VARSTRING[20] (GLAccount) MINCHARWIDTH 5 MAXCHARWIDTH 10 PREFCHARWIDTH 10;
 
 TABLE GLAccountGLAccount(GLAccount, GLAccount);
 @defineHierarchy(GLAccount);
 
-canonicalIdGLAccount 'Канонический код' (GLAccount) = VARSTRING[255](
-                           [= GROUP CONCAT idGLAccount(parent), ' / ' BY child ORDER DESC levelGLAccountGLAccount(child, parent)](GLAccount))
+canonicalId 'Канонический код' (GLAccount GLAccount) = VARSTRING[255](
+                           [= GROUP CONCAT id(GLAccount parent), ' / ' BY GLAccount child ORDER DESC level(child, parent)](GLAccount))
                            MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
-canonicalNamesGLAccount 'Каноническое имя' (GLAccount) = VARSTRING[255](
-                           [= GROUP CONCAT nameGLAccount(parent), ' / ' BY child ORDER DESC levelGLAccountGLAccount(child, parent)](GLAccount))
+canonicalNames 'Каноническое имя' (GLAccount GLAccount) = VARSTRING[255](
+                           [= GROUP CONCAT name(GLAccount parent), ' / ' BY GLAccount child ORDER DESC level(child, parent)](GLAccount))
                            MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
 
-nameAccountParentGLAccount 'Родительский объект' (GLAccount)= nameGLAccount(parentGLAccount(GLAccount));
-idGLAccountParentGLAccount 'Родительский объект' (GLAccount)= idGLAccount(parentGLAccount(GLAccount));
+nameAccountParent 'Родительский объект' (GLAccount GLAccount)= name(parent(GLAccount));
+idGLAccountParent 'Родительский объект' (GLAccount GLAccount)= id(parent(GLAccount));
 
-CONSTRAINT GLAccountTypeGLAccount(parentGLAccount(GLAccount)) != GLAccountTypeGLAccount(GLAccount)
-           CHECKED BY parentGLAccount MESSAGE 'План счетов родительской объекта должна совпадать с планом счетов объекта';
+CONSTRAINT GLAccountType(parent(GLAccount GLAccount)) != GLAccountType(GLAccount)
+           CHECKED BY parent[GLAccount] MESSAGE 'План счетов родительской объекта должна совпадать с планом счетов объекта';
 
-GLAccountIdTypeIdGLAccount (string1, string2) = GROUP AGGR GLAccount
-    BY idGLAccountType(GLAccountTypeGLAccount(GLAccount)), idGLAccount(GLAccount) WHERE GLAccount IS GLAccount;
+GLAccountIdTypeIdGLAccount (string1, string2) = GROUP AGGR GLAccount GLAccount
+    BY id(GLAccountType(GLAccount)), id(GLAccount) WHERE GLAccount IS GLAccount;
 
 FORM GLAccount 'Счет'
     OBJECTS g=GLAccount FIXED PANEL
-    PROPERTIES(g) nameGLAccountTypeGLAccount, nameGLAccount, idGLAccount, idGLAccountParentGLAccount
+    PROPERTIES(g) nameGLAccountType, name, id, idGLAccountParent
     EDIT GLAccount OBJECT g
 ;
 
 FORM GLAccounts 'Счета'
     OBJECTS t = GLAccountType FIXED PANEL
-    PROPERTIES(t) SELECTOR nameGLAccountType
+    PROPERTIES(t) SELECTOR name
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS l = LegalEntity FIXED PANEL
-    PROPERTIES(l) SELECTOR nameLegalEntity
+    PROPERTIES(l) SELECTOR name
 
-    TREE treeGroups g=GLAccount PARENT parentGLAccount
-    PROPERTIES(g) READONLY nameGLAccount, idGLAccount
-    PROPERTIES(g) READONLY canonicalIdGLAccount
+    TREE treeGroups g=GLAccount PARENT parent
+    PROPERTIES(g) READONLY name, id
+    PROPERTIES(g) READONLY canonicalId
     PROPERTIES(g) ADDFORM, EDITFORM, deletea=DELETE FORCE PANEL TOOLBAR
-    FILTERS GLAccountTypeGLAccount(g) == t
-    ORDER BY canonicalIdGLAccount(g)
+    FILTERS GLAccountType(g) == t
+    ORDER BY canonicalId(g)
 ;
 
 DESIGN GLAccounts {
@@ -123,32 +123,32 @@ DESIGN GLAccounts {
 
 FORM GLAccountDialog 'Счета'
     OBJECTS t = GLAccountType FIXED PANEL
-    PROPERTIES(t) SELECTOR nameGLAccountType
+    PROPERTIES(t) SELECTOR name
 
-    TREE treeGroups g=GLAccount PARENT parentGLAccount
-    PROPERTIES(g) READONLY nameGLAccount, idGLAccount
-    PROPERTIES(g) READONLY canonicalIdGLAccount
+    TREE treeGroups g=GLAccount PARENT parent
+    PROPERTIES(g) READONLY name, id
+    PROPERTIES(g) READONLY canonicalId
     PROPERTIES(g) ADDFORM, EDITFORM, deletea=DELETE FORCE PANEL TOOLBAR
-    FILTERS GLAccountTypeGLAccount(g) == t
-    ORDER BY canonicalIdGLAccount(g)
+    FILTERS GLAccountType(g) == t
+    ORDER BY canonicalId(g)
     DIALOG GLAccount OBJECT g
 ;
 
-overCopyGLAccount = ABSTRACT ACTION LIST (GLAccount, GLAccount);
-copyGLAccountType 'Копировать' = ACTION (GLAccountType) NEWSESSION {
+overCopy = ABSTRACT ACTION LIST (GLAccount, GLAccount);
+copy 'Копировать' = ACTION (GLAccountType GLAccountType) NEWSESSION {
     LOCAL mapping = GLAccount (GLAccount);
 
     FOR ADDOBJ t = GLAccountType DO {
-        ASSIGN currencyGLAccountType(t) <- currencyGLAccountType(GLAccountType);
+        ASSIGN currency(t) <- currency(GLAccountType);
 
-        FOR GLAccountTypeGLAccount(GLAccount) == GLAccountType DO {
+        FOR GLAccountType(GLAccount GLAccount) == GLAccountType DO {
             FOR ADDOBJ d=GLAccount DO {
-                ASSIGN GLAccountTypeGLAccount(d) <- t;
-                ASSIGN nameGLAccount(d) <- nameGLAccount(GLAccount);
-                ASSIGN idGLAccount(d) <- idGLAccount(GLAccount);
-                ASSIGN parentGLAccount(d) <- mapping(parentGLAccount(GLAccount));
+                ASSIGN GLAccountType(d) <- t;
+                ASSIGN name(d) <- name(GLAccount);
+                ASSIGN id(d) <- id(GLAccount);
+                ASSIGN parent(d) <- mapping(parent(GLAccount));
                 ASSIGN mapping(GLAccount) <- d;
-                EXEC overCopyGLAccount(GLAccount, d);
+                EXEC overCopy(GLAccount, d);
             }
         }
 
@@ -157,7 +157,7 @@ copyGLAccountType 'Копировать' = ACTION (GLAccountType) NEWSESSION {
 } TOOLBAR;
 
 EXTEND FORM GLAccountTypes
-    PROPERTIES(g) copyGLAccountType
+    PROPERTIES(g) copy
 ;
 
 NAVIGATOR {
@@ -171,19 +171,19 @@ NAVIGATOR {
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultGLAccountType 'Добавить значение плана счетов' = ACTION (iname, isid, isidCurrency) {
+loadDefaultGLAccountType 'Добавить значение плана счетов' = ACTION (VARISTRING[150] iname, VARSTRING[20] isid, STRING[3] isidCurrency) {
     FOR ADDOBJ t = GLAccountType DO {
-        ASSIGN nameGLAccountType(t) <- iname;
-        ASSIGN idGLAccountType (t) <- isid;
-        ASSIGN currencyGLAccountType(t) <- currencyShortName(isidCurrency);
+        ASSIGN name(t) <- iname;
+        ASSIGN id (t) <- isid;
+        ASSIGN currency(t) <- currencyShortName(isidCurrency);
     }
 }
-loadDefaultGLAccount 'Добавить значение счета' = ACTION (iname, isid, sidType, sidParent) {
+loadDefaultGLAccount 'Добавить значение счета' = ACTION (VARSTRING[255] iname, VARSTRING[20] isid, VARSTRING[20] sidType, VARSTRING[20] sidParent) {
     FOR ADDOBJ g = GLAccount DO {
-        ASSIGN nameGLAccount(g) <- iname;
-        ASSIGN idGLAccount(g) <- isid;
-        ASSIGN GLAccountTypeGLAccount(g) <- GLAccountTypeIdGLAccountType(sidType);
-        ASSIGN parentGLAccount (g) <- GLAccountIdTypeIdGLAccount(sidType, sidParent);
+        ASSIGN name(g) <- iname;
+        ASSIGN id(g) <- isid;
+        ASSIGN GLAccountType(g) <- GLAccountTypeIdGLAccountType(sidType);
+        ASSIGN parent (g) <- GLAccountIdTypeIdGLAccount(sidType, sidParent);
     }
 }
 loadDefaultGLAccounts 'Загрузить стандарный план счетов и счета' () = ABSTRACT ACTION LIST ()  IN loadDefault;

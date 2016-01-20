@@ -18,150 +18,150 @@ CLASS UserInvoiceArticleDetail 'Строка накладной/артикул (
 
 @defineDocumentRelation(userInvoice, UserInvoice, UserInvoiceArticleDetail, );
 
-articleUserInvoiceArticleDetail = DATA Article (UserInvoiceArticleDetail);
-idArticleUserInvoiceArticleDetail 'Код артикула' (d) = idArticle(articleUserInvoiceArticleDetail(d));
-originalCaptionArticleUserInvoiceArticleDetail 'Наименование (ориг.)' (d) = originalCaptionArticle(articleUserInvoiceArticleDetail(d));
-originalCompositionArticleUserInvoiceArticleDetail 'Состав (ориг.)' (d) = originalCompositionArticle(articleUserInvoiceArticleDetail(d));
-originalCustomsGroupArticleUserInvoiceArticleDetail 'Код ТНВЭД' (d) = originalCustomsGroupArticle(articleUserInvoiceArticleDetail(d));
-nameSizeGroupArticleUserInvoiceArticleDetail 'Размерная сетка' (d) = nameSizeGroupArticle(articleUserInvoiceArticleDetail(d));
-nameCountryArticleUserInvoiceArticleDetail 'Страна' (d) = nameCountryArticle(articleUserInvoiceArticleDetail(d));
-nameBrandArticleUserInvoiceArticleDetail 'Бренд' (d) = nameBrandArticle(articleUserInvoiceArticleDetail(d));
-canonicalNameItemGroupArticleUserInvoiceArticleDetail 'Группа' (d) = canonicalNameItemGroupArticle(articleUserInvoiceArticleDetail(d));
+article = DATA Article (UserInvoiceArticleDetail);
+idArticle 'Код артикула' (UserInvoiceArticleDetail d) = id(article(d));
+originalCaptionArticle 'Наименование (ориг.)' (UserInvoiceArticleDetail d) = originalCaption(article(d));
+originalCompositionArticle 'Состав (ориг.)' (UserInvoiceArticleDetail d) = originalComposition(article(d));
+originalCustomsGroupArticle 'Код ТНВЭД' (UserInvoiceArticleDetail d) = originalCustomsGroup(article(d));
+nameSizeGroupArticle 'Размерная сетка' (UserInvoiceArticleDetail d) = nameSizeGroup(article(d));
+nameCountryArticle 'Страна' (UserInvoiceArticleDetail d) = nameCountry(article(d));
+nameBrandArticle 'Бренд' (UserInvoiceArticleDetail d) = nameBrand(article(d));
+canonicalNameItemGroupArticle 'Группа' (UserInvoiceArticleDetail d) = canonicalNameItemGroup(article(d));
 
-priceUserInvoiceArticleDetail 'Цена' = DATA NUMERIC[14,2] (UserInvoiceArticleDetail);
+price 'Цена' = DATA NUMERIC[14,2] (UserInvoiceArticleDetail);
 
-userInvoiceArticleDetailUserInvoiceDetail = DATA UserInvoiceArticleDetail (UserInvoiceDetail);
+userInvoiceArticleDetail = DATA UserInvoiceArticleDetail (UserInvoiceDetail);
 
-replaceArticleArticle(a, article) += ACTION (a, article){ASSIGN articleUserInvoiceArticleDetail(d) <- article WHERE articleUserInvoiceArticleDetail(d) == a;}
+replace(Article a, Article article) += ACTION (a, article){ASSIGN article(UserInvoiceArticleDetail d) <- article WHERE article(d) == a;}
 
 //CONSTRAINT  d IS UserInvoiceDetail AND userInvoiceArticleDetailUserInvoiceDetail(d) 
 //    AND NOT articleUserInvoiceArticleDetail(userInvoiceArticleDetailUserInvoiceDetail(d)) == articleItem(skuUserInvoiceDetail(d))
 //        MESSAGE 'Артикул для строки накладной/артикул (польз.) (закупка) и артикл товара для строки накладной (польз.) (закупка) не соответствуют друг другу';
 
-changeIdArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeIdArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST VARSTRING[100] INPUT;
     IF requestedString() THEN {
-        IF articleId(requestedString()) THEN {
-            articleUserInvoiceArticleDetail(detail) <- articleId(requestedString());    
+        IF article(requestedString()) THEN {
+            article(detail) <- article(requestedString());    
         } ELSE {
             CONFIRM 'Артикула с таким кодом нет, хотите добавить?';
             IF (confirmed()) THEN {
                 FOR ADDOBJ a = Article DO {
-                    idArticle(a) <- requestedString();  
-                    articleUserInvoiceArticleDetail(detail) <- a;  
+                    id(a) <- requestedString();  
+                    article(detail) <- a;  
                 }
             }    
         }
     } 
 }
 
-changeOriginalCaptionArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeOriginalCaptionArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST VARISTRING[100] INPUT;
     IF requestedString() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            originalCaptionArticle(a) <- requestedString() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            originalCaption(Article a) <- requestedString() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
 
-changeOriginalCompositionArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeOriginalCompositionArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST VARSTRING[255] INPUT;
     IF requestedString() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            originalCompositionArticle(a) <- requestedString() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            originalComposition(Article a) <- requestedString() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
 
-changeOriginalCustomsGroupArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeOriginalCustomsGroupArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST STRING[10] INPUT;
     IF requestedString() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            originalCustomsGroupArticle(a) <- requestedString() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            originalCustomsGroup(Article a) <- requestedString() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
 
-changeSizeGroupArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeSizeGroupArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST OBJECT t FORM sizeGroups MODAL;
     IF requestedObject() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            sizeGroupArticle(a) <- requestedObject() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            sizeGroup(Article a) <- requestedObject() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
 
-changeCountryArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeCountryArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST OBJECT c FORM countries MODAL;
     IF requestedObject() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            countryArticle(a) <- requestedObject() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            country(Article a) <- requestedObject() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
-changeBrandArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeBrandArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST OBJECT t FORM brands MODAL;
     IF requestedObject() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            brandArticle(a) <- requestedObject() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            brand(Article a) <- requestedObject() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
-changeItemGroupArticleUserInvoiceArticleDetail = ACTION (detail) {
+changeItemGroupArticle = ACTION (UserInvoiceArticleDetail detail) {
     REQUEST OBJECT g FORM dialogItemGroups MODAL;
     IF requestedObject() THEN {
-        IF articleUserInvoiceArticleDetail(detail) THEN {
-            itemGroupArticle(a) <- requestedObject() WHERE  articleUserInvoiceArticleDetail(detail) == a;
+        IF article(detail) THEN {
+            itemGroup(Article a) <- requestedObject() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
     } 
 }
 
-quantityColorSizeUserInvoiceArticleDetailStock 'Кол-во товара в документе' (cod,sid,detail, stock)=  GROUP SUM  quantityUserInvoiceDetail(userInvoiceDetail)
-    BY  calcColorItem(skuUserInvoiceDetail(userInvoiceDetail)), calcSizeItem(skuUserInvoiceDetail(userInvoiceDetail)), 
-        userInvoiceArticleDetailUserInvoiceDetail(userInvoiceDetail), customerStockUserInvoiceDetail(userInvoiceDetail);
-quantityColorSizeUserInvoiceArticleDetail 'Кол-во товара в документе' (color, size, detail) = quantityColorSizeUserInvoiceArticleDetailStock(color, size, detail, customerStockUserInvoice(userInvoiceUserInvoiceArticleDetail(detail)));
-quantityColorUserInvoiceArticleDetail 'Итого по артиклу' (color, detail) = GROUP SUM quantityColorSizeUserInvoiceArticleDetail(color, size, detail)
+quantity 'Кол-во товара в документе' (cod,sid,detail, stock)=  GROUP SUM  quantity(UserInvoiceDetail userInvoiceDetail)
+    BY  calcColor(sku(userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
+        userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail);
+quantity 'Кол-во товара в документе' (Color color, Size size, UserInvoiceArticleDetail detail) = quantity(color, size, detail, customerStock(userInvoice(detail)));
+quantity 'Итого по артиклу' (color, detail) = GROUP SUM quantity(Color color, Size size, UserInvoiceArticleDetail detail)
     BY color, detail;
-quantityUserInvoiceArticleDetailsColor 'Итого' (color) = GROUP SUM quantityColorSizeUserInvoiceArticleDetail(color, size, detail)
+quantityUserInvoiceArticleDetails 'Итого' (color) = GROUP SUM quantity(Color color, Size size, UserInvoiceArticleDetail detail)
     BY color;
 
-userInvoiceDetailColorSizeUserInvoiceArticleDetailStock (color, size, detail, stock) = GROUP MAX userInvoiceDetail
-    BY  calcColorItem(skuUserInvoiceDetail(userInvoiceDetail)), calcSizeItem(skuUserInvoiceDetail(userInvoiceDetail)), 
-        userInvoiceArticleDetailUserInvoiceDetail(userInvoiceDetail), customerStockUserInvoiceDetail(userInvoiceDetail);
+userInvoiceDetail (color, size, detail, stock) = GROUP MAX UserInvoiceDetail userInvoiceDetail
+    BY  calcColor(sku(userInvoiceDetail)), calcSize(sku(userInvoiceDetail)), 
+        userInvoiceArticleDetail(userInvoiceDetail), customerStock(userInvoiceDetail);
 
-userInvoiceDetailColorSizeUserInvoiceArticleDetail (color, size, detail)= userInvoiceDetailColorSizeUserInvoiceArticleDetailStock(color, size, detail, customerStockUserInvoice(userInvoiceUserInvoiceArticleDetail(detail)));
+userInvoiceDetail (Color color, Size size, UserInvoiceArticleDetail detail)= userInvoiceDetail(color, size, detail, customerStock(userInvoice(detail)));
                        
-changeQuantityValueColorSizeUserInvoiceArticleDetail = ACTION (color, size, articleDetail) {
-    IF userInvoiceDetailColorSizeUserInvoiceArticleDetail(color, size, articleDetail) THEN {
+changeQuantityValue = ACTION (Color color, Size size, UserInvoiceArticleDetail articleDetail) {
+    IF userInvoiceDetail(color, size, articleDetail) THEN {
         IF requestedNumeric() THEN {
-            ASSIGN quantityUserInvoiceDetail(d) <- requestedNumeric() WHERE d == userInvoiceDetailColorSizeUserInvoiceArticleDetail(color, size, articleDetail);
+            ASSIGN quantity(UserInvoiceDetail d) <- requestedNumeric() WHERE d == userInvoiceDetail(color, size, articleDetail);
         } ELSE {
-            DELETE d WHERE d == userInvoiceDetailColorSizeUserInvoiceArticleDetail(color, size, articleDetail);
+            DELETE UserInvoiceDetail d WHERE d == userInvoiceDetail(color, size, articleDetail);
         }
 
     } ELSE {
-        IF maxSkuArticleColorSize(articleUserInvoiceArticleDetail(articleDetail), color, size) THEN {               
+        IF maxSku(article(articleDetail), color, size) THEN {               
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = UserInvoiceDetail DO {
-                   userInvoiceUserInvoiceDetail(d) <- userInvoiceUserInvoiceArticleDetail(articleDetail);
-                   userInvoiceArticleDetailUserInvoiceDetail(d) <- articleDetail;
-                   dataCustomerStockUserInvoiceDetail (d) <- customerStockUserInvoice(userInvoiceUserInvoiceArticleDetail(articleDetail));
-                   skuUserInvoiceDetail(d) <- maxSkuArticleColorSize(articleUserInvoiceArticleDetail(articleDetail), color, size);
-                   quantityUserInvoiceDetail (d) <- requestedNumeric();
+                   userInvoice(d) <- userInvoice(articleDetail);
+                   userInvoiceArticleDetail(d) <- articleDetail;
+                   dataCustomerStock (d) <- customerStock(userInvoice(articleDetail));
+                   sku(d) <- maxSku(article(articleDetail), color, size);
+                   quantity (d) <- requestedNumeric();
                 }
             }
         } ELSE {
@@ -169,16 +169,16 @@ changeQuantityValueColorSizeUserInvoiceArticleDetail = ACTION (color, size, arti
                 CONFIRM 'Товар с заданными характеристиками не найден, хотите добавить?';
                 IF (confirmed()) THEN {
                     FOR ADDOBJ i = Item DO { 
-                        articleItem(i) <- articleUserInvoiceArticleDetail(articleDetail);                      
-                        colorItem(i) <- color;
-                        sizeItem(i) <- size;                          
+                        article(i) <- article(articleDetail);                      
+                        color(i) <- color;
+                        size(i) <- size;                          
                         
                         FOR ADDOBJ d = UserInvoiceDetail DO {
-                           userInvoiceUserInvoiceDetail(d) <- userInvoiceUserInvoiceArticleDetail(articleDetail);
-                           userInvoiceArticleDetailUserInvoiceDetail(d) <- articleDetail;
-                           dataCustomerStockUserInvoiceDetail (d) <- customerStockUserInvoice(userInvoiceUserInvoiceArticleDetail(articleDetail));
-                           skuUserInvoiceDetail(d) <- i;
-                           quantityUserInvoiceDetail (d) <- requestedNumeric();
+                           userInvoice(d) <- userInvoice(articleDetail);
+                           userInvoiceArticleDetail(d) <- articleDetail;
+                           dataCustomerStock (d) <- customerStock(userInvoice(articleDetail));
+                           sku(d) <- i;
+                           quantity (d) <- requestedNumeric();
                         }                                               
                     }
                 }
@@ -187,56 +187,56 @@ changeQuantityValueColorSizeUserInvoiceArticleDetail = ACTION (color, size, arti
           
     }
 }
-changeQuantityColorSizeUserInvoiceArticleDetail = ACTION (color, size, articleDetail) {
+changeQuantity = ACTION (Color color, Size size, UserInvoiceArticleDetail articleDetail) {
     REQUEST NUMERIC[14,3] INPUT;
-    EXEC changeQuantityValueColorSizeUserInvoiceArticleDetail(color, size, articleDetail);
+    EXEC changeQuantityValue(color, size, articleDetail);
 }                                       
                                      
-orderUserInvoiceArticleDetailSize (detail, size) = orderSizeGroupSize(sizeGroupArticle(articleUserInvoiceArticleDetail(detail)), size);                                         
+order (UserInvoiceArticleDetail detail, Size size) = order(sizeGroup(article(detail)), size);                                         
    
-quantityUserInvoiceArticleDetail 'Кол-во' (articleDetail) = GROUP SUM quantityUserInvoiceDetail(d) BY userInvoiceArticleDetailUserInvoiceDetail(d);  
-sumUserInvoiceArticleDetail 'Сумма' (articleDetail) = quantityUserInvoiceArticleDetail(articleDetail) * priceUserInvoiceArticleDetail(articleDetail);  
-countUserInvoiceArticleDetail 'Кол-во строк' (articleDetail) = GROUP SUM 1 BY userInvoiceArticleDetailUserInvoiceDetail(d);  
+quantity 'Кол-во' (articleDetail) = GROUP SUM quantity(UserInvoiceDetail d) BY userInvoiceArticleDetail(d);  
+sum 'Сумма' (UserInvoiceArticleDetail articleDetail) = quantity(articleDetail) * price(articleDetail);  
+count 'Кол-во строк' (articleDetail) = GROUP SUM 1 BY userInvoiceArticleDetail(UserInvoiceDetail d);  
 
-WHEN SESSION FORMS userInvoice CHANGED(priceUserInvoiceArticleDetail(userInvoiceArticleDetailUserInvoiceDetail(d))) DO {
-    priceUserInvoiceDetail(d) <- priceUserInvoiceArticleDetail(userInvoiceArticleDetailUserInvoiceDetail(d));            
+WHEN SESSION FORMS userInvoice CHANGED(price(userInvoiceArticleDetail(UserInvoiceDetail d))) DO {
+    price(d) <- price(userInvoiceArticleDetail(d));            
 } 
 
-WHEN SESSION FORMS userInvoice DROPPED(userInvoiceArticleDetailUserInvoiceDetail(d)) DO {
+WHEN SESSION FORMS userInvoice DROPPED(userInvoiceArticleDetail(UserInvoiceDetail d)) DO {
     DELETE d;
 }        
                                        
 EXTEND FORM userInvoice
 
     OBJECTS ad=UserInvoiceArticleDetail
-    PROPERTIES(ad)  idArticleUserInvoiceArticleDetail SHOWIF showIDs() ON CHANGE changeIdArticleUserInvoiceArticleDetail(ad), 
-                    nameSizeGroupArticleUserInvoiceArticleDetail ON CHANGE changeSizeGroupArticleUserInvoiceArticleDetail(ad),
-                    nameCountryArticleUserInvoiceArticleDetail ON CHANGE changeCountryArticleUserInvoiceArticleDetail(ad),
-                    nameBrandArticleUserInvoiceArticleDetail ON CHANGE changeBrandArticleUserInvoiceArticleDetail(ad),
-                    canonicalNameItemGroupArticleUserInvoiceArticleDetail ON CHANGE changeItemGroupArticleUserInvoiceArticleDetail(ad),
-                    originalCaptionArticleUserInvoiceArticleDetail ON CHANGE changeOriginalCaptionArticleUserInvoiceArticleDetail(ad), 
-                    originalCompositionArticleUserInvoiceArticleDetail ON CHANGE changeOriginalCompositionArticleUserInvoiceArticleDetail(ad),
-                    originalCustomsGroupArticleUserInvoiceArticleDetail ON CHANGE changeOriginalCustomsGroupArticleUserInvoiceArticleDetail(ad),
-                    quantityUserInvoiceArticleDetail READONLY, priceUserInvoiceArticleDetail, sumUserInvoiceArticleDetail READONLY, 
+    PROPERTIES(ad)  idArticle SHOWIF showIDs() ON CHANGE changeIdArticle(ad), 
+                    nameSizeGroupArticle ON CHANGE changeSizeGroupArticle(ad),
+                    nameCountryArticle ON CHANGE changeCountryArticle(ad),
+                    nameBrandArticle ON CHANGE changeBrandArticle(ad),
+                    canonicalNameItemGroupArticle ON CHANGE changeItemGroupArticle(ad),
+                    originalCaptionArticle ON CHANGE changeOriginalCaptionArticle(ad), 
+                    originalCompositionArticle ON CHANGE changeOriginalCompositionArticle(ad),
+                    originalCustomsGroupArticle ON CHANGE changeOriginalCustomsGroupArticle(ad),
+                    quantity READONLY, price, sum READONLY, 
                     ADDOBJ, deletead=DELETESESSION                      
                         
-    FILTERS userInvoiceUserInvoiceArticleDetail(ad) == i
+    FILTERS userInvoice(ad) == i
     
         OBJECTS sid=Size
-        PROPERTIES(sid) nameSize          
-        PROPERTIES orderUserInvoiceArticleDetailSize(ad,sid)
-        FILTERS    inSizeGroupSize(sizeGroupArticle(articleUserInvoiceArticleDetail(ad)), sid)
+        PROPERTIES(sid) name          
+        PROPERTIES order(ad,sid)
+        FILTERS    in(sizeGroup(article(ad)), sid)
         
         OBJECTS cod=Color
-        PROPERTIES(cod) READONLY idColor SHOWIF showIDs(), nameColor
+        PROPERTIES(cod) READONLY id SHOWIF showIDs(), name
 
-        PROPERTIES(cod,sid,ad) quantityColorSizeUserInvoiceArticleDetail ON CHANGE changeQuantityColorSizeUserInvoiceArticleDetail(cod,sid,ad)
-                                    COLUMNS (sid) HEADER nameSize(sid)
+        PROPERTIES(cod,sid,ad) quantity ON CHANGE changeQuantity(cod,sid,ad)
+                                    COLUMNS (sid) HEADER name(sid)
                                     
-        PROPERTIES READONLY quantityColorUserInvoiceArticleDetail(cod, ad)  
+        PROPERTIES READONLY quantity(cod, ad)  
         PROPERTIES(cod)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-        ORDER BY nameColor(cod), 
-                 orderUserInvoiceArticleDetailSize(ad,sid)                                      
+        ORDER BY name(cod), 
+                 order(ad,sid)                                      
 ;
 
 DESIGN userInvoice {

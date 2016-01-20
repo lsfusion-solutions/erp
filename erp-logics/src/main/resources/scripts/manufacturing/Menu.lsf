@@ -47,99 +47,99 @@ CLASS UserMenuDetail 'Строка меню (польз.)' : MenuDetail;
 @defineDocumentInterfaceDetailPrice(menu); // объявляем цену
 
 @defineDocumentInterfacePriceListType(menu); // объявляем вид цены
-priceListTypeUserMenuDetail(detail) <- priceListTypeUserMenu(userMenuUserMenuDetail(detail)) WHEN CHANGED(priceListTypeUserMenu(userMenuUserMenuDetail(detail)));
+priceListType(UserMenuDetail detail) <- priceListType(userMenu(detail)) WHEN CHANGED(priceListType(userMenu(detail)));
 @deriveDocumentDetailPricePriceListTypeCustom (userMenuDetail, stock); // записываем цену
 
-compositionMenuDetail 'Состав' = ABSTRACT VARSTRING[255] (MenuDetail) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-compositionUserMenuDetail 'Состав' = DATA VARSTRING[255] (UserMenuDetail) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-compositionMenuDetail(detail)+= compositionUserMenuDetail(detail);
-compositionUserMenuDetail(detail) <-  compositionSku(skuUserMenuDetail(detail)) WHEN CHANGED(skuUserMenuDetail(detail));
+composition 'Состав' = ABSTRACT VARSTRING[255] (MenuDetail) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+composition 'Состав' = DATA VARSTRING[255] (UserMenuDetail) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+composition(UserMenuDetail detail)+= composition(detail);
+composition(UserMenuDetail detail) <-  composition(sku(detail)) WHEN CHANGED(sku(detail));
 
-groupTypeMenu = ABSTRACT GroupType (Menu);
-nameGroupTypeMenu 'Тип классификатора' (menu) = nameGroupType(groupTypeMenu(menu));
+groupType = ABSTRACT GroupType (Menu);
+nameGroupType 'Тип классификатора' (Menu menu) = name(groupType(menu));
 
-groupTypeUserMenu = DATA GroupType (UserMenu);
-nameGroupTypeUserMenu 'Тип классификатора' (userMenu) = nameGroupType(groupTypeUserMenu(userMenu)) IN documentPrm;
-groupTypeMenu(menu) += groupTypeUserMenu(menu);
+groupType = DATA GroupType (UserMenu);
+nameGroupType 'Тип классификатора' (UserMenu userMenu) = name(groupType(userMenu)) IN documentPrm;
+groupType(UserMenu menu) += groupType(menu);
 
-productYieldMenuDetail 'Выход' = ABSTRACT VARSTRING[100] (MenuDetail) MINCHARWIDTH 20 PREFCHARWIDTH 20;
-productYieldUserMenuDetail 'Выход' = DATA VARSTRING[100] (UserMenuDetail) MINCHARWIDTH 20 PREFCHARWIDTH 20;
-productYieldMenuDetail(detail)+= productYieldUserMenuDetail(detail);
+productYield 'Выход' = ABSTRACT VARSTRING[100] (MenuDetail) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+productYield 'Выход' = DATA VARSTRING[100] (UserMenuDetail) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+productYield(UserMenuDetail detail)+= productYield(detail);
 
 // --------------------------- Формы Меню ---------------------------------
-editMenu 'Редактировать' = ABSTRACT ACTION LIST (Menu) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (Menu) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-countUserMenuGroup 'Количество позиций в группе' (userMenu,group)= GROUP SUM 1
-    BY userMenuUserMenuDetail(detail), groupGroupTypeSku(groupTypeUserMenu(userMenuUserMenuDetail(detail)), skuUserMenuDetail(detail));
-countMenuGroup 'Количество позиций в группе' (menu,group)= GROUP SUM 1
-    BY menuMenuDetail(detail), groupGroupTypeSku(groupTypeMenu(menuMenuDetail(detail)), skuMenuDetail(detail));
+count 'Количество позиций в группе' (userMenu,group)= GROUP SUM 1
+    BY userMenu(UserMenuDetail detail), group(groupType(userMenu(detail)), sku(detail));
+count 'Количество позиций в группе' (menu,group)= GROUP SUM 1
+    BY menu(MenuDetail detail), group(groupType(menu(detail)), sku(detail));
 
-hasParentUserMenuGroup 'Количество позиций в группе' (userMenu, group)=  GROUP SUM countUserMenuGroup(userMenu,child)
-    IF isParentGroupGroup(child, group) BY userMenu, group;
-hasParentMenuGroup 'Количество позиций в группе' (menu, group)=  GROUP SUM countMenuGroup(menu,child)
-    IF isParentGroupGroup(child, group) BY menu, group;
+hasParent 'Количество позиций в группе' (userMenu, group)=  GROUP SUM count(UserMenu userMenu,Group child)
+    IF isParent(child, Group group) BY userMenu, group;
+hasParent 'Количество позиций в группе' (menu, group)=  GROUP SUM count(Menu menu,Group child)
+    IF isParent(child, Group group) BY menu, group;
 
-isUserMenuDetailGroup (detail, group)= groupGroupTypeSku(groupTypeUserMenu(userMenuUserMenuDetail(detail)), skuUserMenuDetail(detail))==group;
-isMenuDetailGroup (detail, group)= groupGroupTypeSku(groupTypeMenu(menuMenuDetail(detail)), skuMenuDetail(detail))==group;
+is (UserMenuDetail detail, Group group)= group(groupType(userMenu(detail)), sku(detail))==group;
+is (MenuDetail detail, Group group)= group(groupType(menu(detail)), sku(detail))==group;
 
 TABLE menuDetailGroup(MenuDetail, Group);
-positionNumberMenuDetailGroup 'Порядок' = ABSTRACT INTEGER (MenuDetail, Group);
-positionNumberUserMenuDetailGroup 'Порядок' = DATA INTEGER (UserMenuDetail, Group);
-positionNumberMenuDetailGroup(detail, group) += positionNumberUserMenuDetailGroup(detail, group);
+positionNumber 'Порядок' = ABSTRACT INTEGER (MenuDetail, Group);
+positionNumber 'Порядок' = DATA INTEGER (UserMenuDetail, Group);
+positionNumber(UserMenuDetail detail, Group group) += positionNumber(detail, group);
 
 TABLE menuGroup(Menu, Group);
-positionNumberMenuGroup 'Порядок' = ABSTRACT INTEGER (Menu, Group);
-positionNumberUserMenuGroup 'Порядок' = DATA INTEGER (UserMenu, Group);
-positionNumberMenuGroup(menu, group) += positionNumberUserMenuGroup(menu, group);
+positionNumber 'Порядок' = ABSTRACT INTEGER (Menu, Group);
+positionNumber 'Порядок' = DATA INTEGER (UserMenu, Group);
+positionNumber(UserMenu menu, Group group) += positionNumber(menu, group);
 //--
-hasParentUserChildGroup 'Количество позиций в группе' (child, group)=  GROUP SUM countUserMenuGroup(userMenu,child)
-    IF isParentGroupGroup(child, group) BY child, group;
-hasParentChildGroup 'Количество позиций в группе' (child, group)=  GROUP SUM countMenuGroup(menu,child)
-    IF isParentGroupGroup(child, group) BY child, group;
+hasParentUser 'Количество позиций в группе' (child, group)=  GROUP SUM count(UserMenu userMenu,Group child)
+    IF isParent(child, Group group) BY child, group;
+hasParent 'Количество позиций в группе' (child, group)=  GROUP SUM count(Menu menu,Group child)
+    IF isParent(child, Group group) BY child, group;
 
-hasParentUserDetailGroup (detail,group)= hasParentUserChildGroup(groupGroupTypeSku(groupTypeUserMenu(userMenuUserMenuDetail(detail)), skuUserMenuDetail(detail)), group);
-hasParentDetailGroup (detail,group)= hasParentChildGroup(groupGroupTypeSku(groupTypeMenu(menuMenuDetail(detail)), skuMenuDetail(detail)), group);
+hasParentUser (UserMenuDetail detail,Group group)= hasParentUser(group(groupType(userMenu(detail)), sku(detail)), group);
+hasParent (MenuDetail detail,Group group)= hasParent(group(groupType(menu(detail)), sku(detail)), group);
 
 //---------------------------Формы----------------------------//
 
 FORM userMenu 'Меню'
     OBJECTS m = UserMenu FIXED PANEL
-    PROPERTIES (m) isPostedUserMenu, nameGroupTypeUserMenu, nameStockUserMenu ON CHANGE changeStockCompanyUserMenu(m), nameNumeratorUserMenu, numberUserMenu, seriesUserMenu, dateUserMenu, timeUserMenu,
-                   nameCurrencyUserMenu, namePriceListTypeUserMenu, noteUserMenu, countUserMenuDetailUserMenu
+    PROPERTIES (m) isPosted, nameGroupType, nameStock ON CHANGE changeStockCompany(m), nameNumerator, number, series, date, time,
+                   nameCurrency, namePriceListType, note, countUserMenuDetail
 
 
     OBJECTS d = UserMenuDetail
-    PROPERTIES (d) indexUserMenuDetail, idBarcodeSkuUserMenuDetail, nameSkuUserMenuDetail, shortNameUOMSkuUserMenuDetail, namePriceListTypeUserMenuDetail,
-                   priceUserMenuDetail, compositionUserMenuDetail, productYieldUserMenuDetail, ADDOBJ, DELETESESSION
+    PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku, namePriceListType,
+                   price, composition, productYield, ADDOBJ, DELETESESSION
 
-    PROPERTIES(m) TODRAW d deleteUserMenuDetailUserMenu
+    PROPERTIES(m) TODRAW d deleteUserMenuDetail
 
-    FILTERS userMenuUserMenuDetail(d) == m
+    FILTERS userMenu(d) == m
 
 
-    TREE tGroup g=Group PARENT parentGroup
-    PROPERTIES READONLY nameGroup(g)
-    PROPERTIES(m,g) hasParentUserMenuGroup, positionNumberUserMenuGroup
-    FILTERS groupTypeGroup(g) == groupTypeUserMenu(m),
-            hasParentUserMenuGroup(m,g)
-    ORDER BY positionNumberUserMenuGroup(m,g)
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
+    TREE tGroup g=Group PARENT parent
+    PROPERTIES READONLY name(g)
+    PROPERTIES(m,g) hasParent, positionNumber
+    FILTERS groupType(g) == groupType(m),
+            hasParent(m,g)
+    ORDER BY positionNumber(m,g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS dd = UserMenuDetail
-    PROPERTIES (dd) idBarcodeSkuUserMenuDetail, nameSkuUserMenuDetail, priceUserMenuDetail, compositionUserMenuDetail,
-                    productYieldUserMenuDetail
+    PROPERTIES (dd) idBarcodeSku, nameSku, price, composition,
+                    productYield
 
-    PROPERTIES (dd,g) positionNumberUserMenuDetailGroup
-    FILTERS  isUserMenuDetailGroup(dd,g),
-             userMenuUserMenuDetail(dd) == m
-    ORDER BY positionNumberUserMenuDetailGroup(dd,g)
+    PROPERTIES (dd,g) positionNumber
+    FILTERS  is(dd,g),
+             userMenu(dd) == m
+    ORDER BY positionNumber(dd,g)
 
 
     EVENTS
-        ON OK prePostUserMenu(m)
+        ON OK prePost(m)
 
-    HINTTABLE LIST dateTimeUserMenuDetail, skuUserMenuDetail,stockUserMenuDetail,
-                   priceListTypeUserMenuDetail, currencyUserMenuDetail, priceUserMenuDetail
+    HINTTABLE LIST dateTime[UserMenuDetail], sku[UserMenuDetail],stock[UserMenuDetail],
+                   priceListType[UserMenuDetail], currency[UserMenuDetail], price[UserMenuDetail]
 
     EDIT UserMenu OBJECT m
 ;
@@ -174,16 +174,16 @@ DESIGN userMenu {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
-                        MOVE PROPERTY(isPostedUserMenu(m)) { preferredCharWidth = 30; }
-                        MOVE PROPERTY(nameStockUserMenu(m));
+                        MOVE PROPERTY(isPosted(m)) { preferredCharWidth = 30; }
+                        MOVE PROPERTY(nameStock(m));
                     }
                     NEW second { 
                         type = CONTAINERH;
-                        MOVE PROPERTY(nameNumeratorUserMenu(m));
-                        MOVE PROPERTY(numberUserMenu(m));
-                        MOVE PROPERTY(seriesUserMenu(m));
-                        MOVE PROPERTY(dateUserMenu(m));
-                        MOVE PROPERTY(timeUserMenu(m));
+                        MOVE PROPERTY(nameNumerator(m));
+                        MOVE PROPERTY(number(m));
+                        MOVE PROPERTY(series(m));
+                        MOVE PROPERTY(date(m));
+                        MOVE PROPERTY(time(m));
                     }                                                               
                 }
                 MOVE m.documentPrm {
@@ -206,30 +206,30 @@ DESIGN userMenu {
 @extendFormDocumentSkuStockIn(UserMenu, userMenu, m, treeContainer);
 
 addUserMenu 'Добавить' = ACTION ADDFORM UserMenu;
-editUserMenu 'Редактировать' (userMenu) = ACTION EDITFORM UserMenu;
-editMenu(menu) += ACTION editUserMenu(menu);
+edit 'Редактировать' (userMenu) = ACTION EDITFORM UserMenu;
+edit(UserMenu menu) += ACTION edit(menu);
 
-isUserOpenedMenu(m)=  isOpenedMenu(m) AND isUserMenu(m);
+isUserOpened(UserMenu m)=  isOpened[Menu](m) AND is(m);
 
-copyMenu 'Копировать' = ACTION (userMenu) NEWSESSION {
+copy 'Копировать' = ACTION (UserMenu userMenu) NEWSESSION {
     FOR ADDOBJ m = UserMenu DO {
-        ASSIGN stockUserMenu(m) <- stockUserMenu(userMenu);
-        ASSIGN currencyUserMenu(m) <- currencyUserMenu(userMenu);
-        ASSIGN priceListTypeUserMenu(m) <- priceListTypeUserMenu(userMenu);
-        ASSIGN noteUserMenu(m) <- noteUserMenu(userMenu);
-        ASSIGN groupTypeUserMenu(m) <- groupTypeUserMenu(userMenu);
-        FOR positionNumberUserMenuGroup(userMenu,group) DO {
-            ASSIGN positionNumberUserMenuGroup(m,group) <- positionNumberUserMenuGroup(userMenu,group);
+        ASSIGN stock(m) <- stock(userMenu);
+        ASSIGN currency(m) <- currency(userMenu);
+        ASSIGN priceListType(m) <- priceListType(userMenu);
+        ASSIGN note(m) <- note(userMenu);
+        ASSIGN groupType(m) <- groupType(userMenu);
+        FOR positionNumber(userMenu,Group group) DO {
+            ASSIGN positionNumber(m,group) <- positionNumber(userMenu,group);
         }
-        FOR userMenuUserMenuDetail(userMenuDetail) == userMenu DO {
+        FOR userMenu(UserMenuDetail userMenuDetail) == userMenu DO {
             FOR ADDOBJ d=UserMenuDetail DO {
-                ASSIGN userMenuUserMenuDetail(d) <- m;
-                ASSIGN skuUserMenuDetail(d) <- skuUserMenuDetail(userMenuDetail);
-                ASSIGN dataStockUserMenuDetail(d) <- dataStockUserMenuDetail(userMenuDetail);
-                ASSIGN compositionUserMenuDetail(d) <- compositionUserMenuDetail(userMenuDetail);
-                ASSIGN productYieldUserMenuDetail(d) <- productYieldUserMenuDetail(userMenuDetail);
-                FOR positionNumberUserMenuDetailGroup(userMenuDetail,group) DO {
-                    ASSIGN positionNumberUserMenuDetailGroup(d,group) <- positionNumberUserMenuDetailGroup(userMenuDetail,group);
+                ASSIGN userMenu(d) <- m;
+                ASSIGN sku(d) <- sku(userMenuDetail);
+                ASSIGN dataStock(d) <- dataStock(userMenuDetail);
+                ASSIGN composition(d) <- composition(userMenuDetail);
+                ASSIGN productYield(d) <- productYield(userMenuDetail);
+                FOR positionNumber(userMenuDetail,Group group) DO {
+                    ASSIGN positionNumber(d,group) <- positionNumber(userMenuDetail,group);
                 }
             }
 
@@ -245,23 +245,23 @@ copyMenu 'Копировать' = ACTION (userMenu) NEWSESSION {
 
 FORM menus 'Меню'
     OBJECTS m = Menu
-    PROPERTIES (m) READONLYIF isReadonly() isClosedMenu, isPostedMenu, numberMenu, seriesMenu, dateMenu, timeMenu,
-                   nameStockMenu, nameCurrencyMenu, namePriceListTypeMenu
-    PROPERTIES (m) READONLY countMenuDetailMenu
-    PROPERTIES (m) READONLYIF isReadonly() noteMenu
+    PROPERTIES (m) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
+                   nameStock, nameCurrency, namePriceListType
+    PROPERTIES (m) READONLY countMenuDetail
+    PROPERTIES (m) READONLYIF isReadonly() note
 
-    PROPERTIES (m) READONLY FORCE PANEL createdNameUserUserMenu, createdTimeUserMenu, createdHostnameComputerUserMenu, 
-                                        postedNameUserUserMenu, postedTimeUserMenu, postedHostnameComputerUserMenu
+    PROPERTIES (m) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES ()  addUserMenu TODRAW m
-    PROPERTIES (m) editMenu SHOWIF isOpenedMenu(m), copyMenu
-    PROPERTIES (m) closeUserMenu SHOWIF isOpenedUserMenu(m), openUserMenu SHOWIF isClosedUserMenu(m)    
-    PROPERTIES     deletem=DELETE(m) FORCE PANEL TOOLBAR  SHOWIF isUserOpenedMenu(m)
+    PROPERTIES (m) edit SHOWIF isOpened(m), copy
+    PROPERTIES (m) close[UserMenu] SHOWIF isOpened[UserMenu](m), open SHOWIF isClosed[UserMenu](m)    
+    PROPERTIES     deletem=DELETE(m) FORCE PANEL TOOLBAR  SHOWIF isUserOpened(m)
     OBJECTS d=MenuDetail
-    PROPERTIES (d) READONLY indexMenuDetail, idBarcodeSkuMenuDetail, nameSkuMenuDetail, shortNameUOMSkuMenuDetail
-    PROPERTIES (d) READONLY namePriceListTypeMenuDetail, priceMenuDetail, compositionMenuDetail, productYieldMenuDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY namePriceListType, price, composition, productYield
 
-    FILTERS menuMenuDetail(d) == m
+    FILTERS menu(d) == m
 
     DIALOG Menu OBJECT m
 ;
@@ -306,21 +306,21 @@ DESIGN menus {
 @defineFilterIsOpened (menu, menus, m);
 ////----------------------------------------------- Операции -----------------------------------------------------//
 
-groupTypeOperation = DATA GroupType (Operation);
-nameGroupTypeOperation 'Тип классификатора' (operation) = nameGroupType(groupTypeOperation(operation));
+groupType = DATA GroupType (Operation);
+nameGroupType 'Тип классификатора' (Operation operation) = name(groupType(operation));
 
-menuPriceListTypeOperation = DATA PriceListType (Operation);
-nameMenuPriceListTypeOperation 'Вид цен (меню)' (operation) = namePriceListType(menuPriceListTypeOperation(operation));
+menuPriceListType = DATA PriceListType (Operation);
+nameMenuPriceListType 'Вид цен (меню)' (Operation operation) = name(menuPriceListType(operation));
 
 EXTEND FORM operation
-    PROPERTIES(o) nameGroupTypeOperation, nameMenuPriceListTypeOperation
+    PROPERTIES(o) nameGroupType, nameMenuPriceListType
 ;
 DESIGN operation{
     showContainer {
         NEW menu {
             caption = 'Меню';
-            MOVE PROPERTY(nameGroupTypeOperation(o));
-            MOVE PROPERTY(nameMenuPriceListTypeOperation(o));
+            MOVE PROPERTY(nameGroupType(o));
+            MOVE PROPERTY(nameMenuPriceListType(o));
         }
     }
 }
@@ -328,8 +328,8 @@ DESIGN operation{
 @defineDocumentOperationContainer(menu, m);
 @defineDocumentOperationRole(userMenu);
 @deriveDocumentOperationProperty(userMenu, groupType);
-priceListTypeUserMenu (o) <- menuPriceListTypeOperation(operationUserMenu(o))
-    WHEN CHANGED(operationUserMenu(o));
+priceListType (UserMenu o) <- menuPriceListType(operation(o))
+    WHEN CHANGED(operation(o));
 
 NAVIGATOR {
     manufacturingDocuments 'Документы' {

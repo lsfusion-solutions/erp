@@ -57,11 +57,11 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         try {
 
-            boolean useTor = findProperty("importEurooptUseTor").read(context) != null;
-            boolean importItems = findProperty("importEurooptItems").read(context) != null;
-            boolean onlyImages = findProperty("importEurooptOnlyImages").read(context) != null;
-            boolean importUserPriceLists = findProperty("importEurooptUserPriceLists").read(context) != null;
-            boolean skipKeys = findProperty("importEurooptSkipKeys").read(context) != null;
+            boolean useTor = findProperty("importEurooptUseTor[]").read(context) != null;
+            boolean importItems = findProperty("importEurooptItems[]").read(context) != null;
+            boolean onlyImages = findProperty("importEurooptOnlyImages[]").read(context) != null;
+            boolean importUserPriceLists = findProperty("importEurooptUserPriceLists[]").read(context) != null;
+            boolean skipKeys = findProperty("importEurooptSkipKeys[]").read(context) != null;
 
             List<List<List<Object>>> data = importDataFromWeb(context, useTor, importItems, onlyImages, importUserPriceLists, skipKeys);
 
@@ -86,100 +86,100 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         List<ImportField> fields = new ArrayList<>();
         List<ImportKey<?>> keys = new ArrayList<>();
 
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
         ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                findProperty("skuBarcodeId").getMapping(idBarcodeSkuField));
+                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
         itemKey.skipKey = skipKeys;
         keys.add(itemKey);
         fields.add(idBarcodeSkuField);
 
         ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                findProperty("extBarcodeId").getMapping(idBarcodeSkuField));
+                findProperty("extBarcode[VARSTRING[100]]").getMapping(idBarcodeSkuField));
         barcodeKey.skipKey = skipKeys;
         keys.add(barcodeKey);
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("skuBarcode").getMapping(barcodeKey),
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                 object(findClass("Item")).getMapping(itemKey)));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("extIdBarcode").getMapping(barcodeKey), true));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("idBarcode").getMapping(barcodeKey), true));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("idItem").getMapping(itemKey), true));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("extId[Barcode]").getMapping(barcodeKey), true));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Barcode]").getMapping(barcodeKey), true));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Item]").getMapping(itemKey), true));
 
-        ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+        ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
         ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                findProperty("itemGroupId").getMapping(idItemGroupField));
+                findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
         itemGroupKey.skipKey = skipKeys;
         keys.add(itemGroupKey);
-        props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey), true));
-        props.add(new ImportProperty(idItemGroupField, findProperty("nameItemGroup").getMapping(itemGroupKey), true));
-        props.add(new ImportProperty(idItemGroupField, findProperty("itemGroupItem").getMapping(itemKey),
+        props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey), true));
+        props.add(new ImportProperty(idItemGroupField, findProperty("name[ItemGroup]").getMapping(itemGroupKey), true));
+        props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
                 LM.object(findClass("ItemGroup")).getMapping(itemGroupKey), true));
         fields.add(idItemGroupField);
 
-        ImportField captionItemField = new ImportField(findProperty("captionItem"));
-        props.add(new ImportProperty(captionItemField, findProperty("captionItem").getMapping(itemKey), true));
+        ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+        props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
         fields.add(captionItemField);
 
-        ImportField netWeightItemField = new ImportField(findProperty("netWeightItem"));
-        props.add(new ImportProperty(netWeightItemField, findProperty("netWeightItem").getMapping(itemKey), true));
+        ImportField netWeightItemField = new ImportField(findProperty("netWeight[Item]"));
+        props.add(new ImportProperty(netWeightItemField, findProperty("netWeight[Item]").getMapping(itemKey), true));
         fields.add(netWeightItemField);
 
-        ImportField descriptionItemField = new ImportField(findProperty("descriptionItem"));
-        props.add(new ImportProperty(descriptionItemField, findProperty("descriptionItem").getMapping(itemKey), true));
+        ImportField descriptionItemField = new ImportField(findProperty("description[Item]"));
+        props.add(new ImportProperty(descriptionItemField, findProperty("description[Item]").getMapping(itemKey), true));
         fields.add(descriptionItemField);
 
-        ImportField compositionItemField = new ImportField(findProperty("compositionItem"));
-        props.add(new ImportProperty(compositionItemField, findProperty("compositionItem").getMapping(itemKey), true));
+        ImportField compositionItemField = new ImportField(findProperty("composition[Item]"));
+        props.add(new ImportProperty(compositionItemField, findProperty("composition[Item]").getMapping(itemKey), true));
         fields.add(compositionItemField);
 
-        ImportField proteinsItemField = new ImportField(findProperty("proteinsItem"));
-        props.add(new ImportProperty(proteinsItemField, findProperty("proteinsItem").getMapping(itemKey), true));
+        ImportField proteinsItemField = new ImportField(findProperty("proteins[Item]"));
+        props.add(new ImportProperty(proteinsItemField, findProperty("proteins[Item]").getMapping(itemKey), true));
         fields.add(proteinsItemField);
 
-        ImportField fatsItemField = new ImportField(findProperty("fatsItem"));
-        props.add(new ImportProperty(fatsItemField, findProperty("fatsItem").getMapping(itemKey), true));
+        ImportField fatsItemField = new ImportField(findProperty("fats[Item]"));
+        props.add(new ImportProperty(fatsItemField, findProperty("fats[Item]").getMapping(itemKey), true));
         fields.add(fatsItemField);
 
-        ImportField carbohydratesItemField = new ImportField(findProperty("carbohydratesItem"));
-        props.add(new ImportProperty(carbohydratesItemField, findProperty("carbohydratesItem").getMapping(itemKey), true));
+        ImportField carbohydratesItemField = new ImportField(findProperty("carbohydrates[Item]"));
+        props.add(new ImportProperty(carbohydratesItemField, findProperty("carbohydrates[Item]").getMapping(itemKey), true));
         fields.add(carbohydratesItemField);
 
-        ImportField energyItemField = new ImportField(findProperty("energyItem"));
-        props.add(new ImportProperty(energyItemField, findProperty("energyItem").getMapping(itemKey), true));
+        ImportField energyItemField = new ImportField(findProperty("energy[Item]"));
+        props.add(new ImportProperty(energyItemField, findProperty("energy[Item]").getMapping(itemKey), true));
         fields.add(energyItemField);
 
-        ImportField dataImageItemField = new ImportField(findProperty("dataImageItem"));
-        props.add(new ImportProperty(dataImageItemField, findProperty("dataImageItem").getMapping(itemKey), true));
+        ImportField dataImageItemField = new ImportField(findProperty("dataImage[Item]"));
+        props.add(new ImportProperty(dataImageItemField, findProperty("dataImage[Item]").getMapping(itemKey), true));
         fields.add(dataImageItemField);
 
-        ImportField idManufacturerField = new ImportField(findProperty("idManufacturer"));
+        ImportField idManufacturerField = new ImportField(findProperty("id[Manufacturer]"));
         ImportKey<?> manufacturerKey = new ImportKey((CustomClass) findClass("Manufacturer"),
-                findProperty("manufacturerId").getMapping(idManufacturerField));
+                findProperty("manufacturer[VARSTRING[100]]").getMapping(idManufacturerField));
         manufacturerKey.skipKey = skipKeys;
         keys.add(manufacturerKey);
-        props.add(new ImportProperty(idManufacturerField, findProperty("idManufacturer").getMapping(manufacturerKey), true));
-        props.add(new ImportProperty(idManufacturerField, findProperty("nameManufacturer").getMapping(manufacturerKey), true));
-        props.add(new ImportProperty(idManufacturerField, findProperty("manufacturerItem").getMapping(itemKey),
+        props.add(new ImportProperty(idManufacturerField, findProperty("id[Manufacturer]").getMapping(manufacturerKey), true));
+        props.add(new ImportProperty(idManufacturerField, findProperty("name[Manufacturer]").getMapping(manufacturerKey), true));
+        props.add(new ImportProperty(idManufacturerField, findProperty("manufacturer[Item]").getMapping(itemKey),
                 LM.object(findClass("Manufacturer")).getMapping(manufacturerKey), true));
         fields.add(idManufacturerField);
         
-        ImportField idUOMField = new ImportField(findProperty("idUOM"));
+        ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
         ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                findProperty("UOMId").getMapping(idUOMField));
+                findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
         UOMKey.skipKey = true;
         keys.add(UOMKey);
-        props.add(new ImportProperty(idUOMField, findProperty("UOMItem").getMapping(itemKey),
+        props.add(new ImportProperty(idUOMField, findProperty("UOM[Item]").getMapping(itemKey),
                 object(findClass("UOM")).getMapping(UOMKey), true));
-        props.add(new ImportProperty(idUOMField, findProperty("UOMBarcode").getMapping(barcodeKey),
+        props.add(new ImportProperty(idUOMField, findProperty("UOM[Barcode]").getMapping(barcodeKey),
                 object(findClass("UOM")).getMapping(UOMKey), true));
         fields.add(idUOMField);
 
-        ImportField idBrandField = new ImportField(findProperty("idBrand"));
+        ImportField idBrandField = new ImportField(findProperty("id[Brand]"));
         ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
-                findProperty("brandId").getMapping(idBrandField));
+                findProperty("brand[VARSTRING[100]]").getMapping(idBrandField));
         brandKey.skipKey = true;
         keys.add(brandKey);
-        props.add(new ImportProperty(idBrandField, findProperty("idBrand").getMapping(brandKey), true));
-        props.add(new ImportProperty(idBrandField, findProperty("nameBrand").getMapping(brandKey), true));
-        props.add(new ImportProperty(idBrandField, findProperty("brandItem").getMapping(itemKey),
+        props.add(new ImportProperty(idBrandField, findProperty("id[Brand]").getMapping(brandKey), true));
+        props.add(new ImportProperty(idBrandField, findProperty("name[Brand]").getMapping(brandKey), true));
+        props.add(new ImportProperty(idBrandField, findProperty("brand[Item]").getMapping(itemKey),
                 object(findClass("Brand")).getMapping(brandKey), true));
         fields.add(idBrandField);
 
@@ -216,16 +216,16 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         List<ImportField> fields = new ArrayList<>();
         List<ImportKey<?>> keys = new ArrayList<>();
 
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
+        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
         ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                findProperty("skuBarcodeId").getMapping(idBarcodeSkuField));
+                findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
         itemKey.skipKey = skipKeys;
         keys.add(itemKey);
         fields.add(idBarcodeSkuField);
 
-        ImportField dataImageItemField = new ImportField(findProperty("dataImageItem"));
-        props.add(new ImportProperty(dataImageItemField, findProperty("dataImageItem").getMapping(itemKey), true));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("idItem").getMapping(itemKey), true));
+        ImportField dataImageItemField = new ImportField(findProperty("dataImage[Item]"));
+        props.add(new ImportProperty(dataImageItemField, findProperty("dataImage[Item]").getMapping(itemKey), true));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("id[Item]").getMapping(itemKey), true));
         fields.add(dataImageItemField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -245,57 +245,57 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         List<ImportField> fields = new ArrayList<>();
         List<ImportKey<?>> keys = new ArrayList<>();
 
-        ImportField idUserPriceListField = new ImportField(findProperty("idUserPriceList"));
+        ImportField idUserPriceListField = new ImportField(findProperty("id[UserPriceList]"));
         ImportKey<?> userPriceListKey = new ImportKey((CustomClass) findClass("UserPriceList"),
-                findProperty("userPriceListId").getMapping(idUserPriceListField));
+                findProperty("userPriceList[VARSTRING[100]]").getMapping(idUserPriceListField));
         keys.add(userPriceListKey);
-        props.add(new ImportProperty(idUserPriceListField, findProperty("idUserPriceList").getMapping(userPriceListKey)));
+        props.add(new ImportProperty(idUserPriceListField, findProperty("id[UserPriceList]").getMapping(userPriceListKey)));
         fields.add(idUserPriceListField);
 
-        ImportField idOperationField = new ImportField(findProperty("PriceList.idOperation"));
+        ImportField idOperationField = new ImportField(findProperty("id[PriceList.Operation]"));
         ImportKey<?> operationKey = new ImportKey((CustomClass) findClass("PriceList.Operation"),
-                findProperty("PriceList.operationId").getMapping(idOperationField));
+                findProperty("operation[VARISTRING[100]]").getMapping(idOperationField));
         keys.add(operationKey);
-        props.add(new ImportProperty(idOperationField, findProperty("operationPriceList").getMapping(userPriceListKey),
+        props.add(new ImportProperty(idOperationField, findProperty("operation[PriceList]").getMapping(userPriceListKey),
                 object(findClass("PriceList.Operation")).getMapping(operationKey)));
-        props.add(new ImportProperty(idOperationField, findProperty("PriceList.idOperation").getMapping(operationKey)));
+        props.add(new ImportProperty(idOperationField, findProperty("id[PriceList.Operation]").getMapping(operationKey)));
         fields.add(idOperationField);
 
-        ImportField idUserPriceListDetailField = new ImportField(findProperty("idUserPriceListDetail"));
+        ImportField idUserPriceListDetailField = new ImportField(findProperty("id[UserPriceListDetail]"));
         ImportKey<?> userPriceListDetailKey = new ImportKey((CustomClass) findClass("UserPriceListDetail"),
-                findProperty("userPriceListDetailIdIdUserPriceList").getMapping(idUserPriceListDetailField, idUserPriceListField));
+                findProperty("userPriceListDetail[VARSTRING[100],VARSTRING[100]]").getMapping(idUserPriceListDetailField, idUserPriceListField));
         keys.add(userPriceListDetailKey);
-        props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceListUserPriceListDetail").getMapping(userPriceListDetailKey),
+        props.add(new ImportProperty(idUserPriceListField, findProperty("userPriceList[UserPriceListDetail]").getMapping(userPriceListDetailKey),
                 object(findClass("UserPriceList")).getMapping(userPriceListKey)));
-        props.add(new ImportProperty(idUserPriceListDetailField, findProperty("idUserPriceListDetail").getMapping(userPriceListDetailKey)));
+        props.add(new ImportProperty(idUserPriceListDetailField, findProperty("id[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
         fields.add(idUserPriceListDetailField);
 
-        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcodeSku"));
-        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"), findProperty("skuBarcodeId").getMapping(idBarcodeSkuField));
+        ImportField idBarcodeSkuField = new ImportField(findProperty("idBarcode[Sku]"));
+        ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"), findProperty("skuBarcode[STRING[15]]").getMapping(idBarcodeSkuField));
         itemKey.skipKey = skipKeys;
         keys.add(itemKey);
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("originalIdBarcodeSkuUserPriceListDetail").getMapping(userPriceListDetailKey)));
-        props.add(new ImportProperty(idBarcodeSkuField, findProperty("skuUserPriceListDetail").getMapping(userPriceListDetailKey),
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("originalIdBarcodeSku[UserPriceListDetail]").getMapping(userPriceListDetailKey)));
+        props.add(new ImportProperty(idBarcodeSkuField, findProperty("sku[UserPriceListDetail]").getMapping(userPriceListDetailKey),
                 object(findClass("Item")).getMapping(itemKey)));
         fields.add(idBarcodeSkuField);
 
-        ImportField idDataPriceListTypeField = new ImportField(findProperty("idDataPriceListType"));
+        ImportField idDataPriceListTypeField = new ImportField(findProperty("id[DataPriceListType]"));
         ImportKey<?> dataPriceListTypeKey = new ImportKey((CustomClass) findClass("DataPriceListType"),
-                findProperty("dataPriceListTypeId").getMapping(idDataPriceListTypeField));
+                findProperty("dataPriceListType[VARSTRING[100]]").getMapping(idDataPriceListTypeField));
         keys.add(dataPriceListTypeKey);
-        props.add(new ImportProperty(idDataPriceListTypeField, findProperty("idPriceListType").getMapping(dataPriceListTypeKey)));
+        props.add(new ImportProperty(idDataPriceListTypeField, findProperty("id[PriceListType]").getMapping(dataPriceListTypeKey)));
         fields.add(idDataPriceListTypeField);
 
-        ImportField namePriceListTypeField = new ImportField(findProperty("namePriceListType"));
-        props.add(new ImportProperty(namePriceListTypeField, findProperty("namePriceListType").getMapping(dataPriceListTypeKey), true));
+        ImportField namePriceListTypeField = new ImportField(findProperty("name[PriceListType]"));
+        props.add(new ImportProperty(namePriceListTypeField, findProperty("name[PriceListType]").getMapping(dataPriceListTypeKey), true));
         fields.add(namePriceListTypeField);
         
-        ImportField pricePriceListDetailField = new ImportField(findProperty("pricePriceListDetailDataPriceListType"));
-        props.add(new ImportProperty(pricePriceListDetailField, findProperty("priceUserPriceListDetailDataPriceListType").getMapping(userPriceListDetailKey, dataPriceListTypeKey)));
+        ImportField pricePriceListDetailField = new ImportField(findProperty("price[PriceListDetail,DataPriceListType]"));
+        props.add(new ImportProperty(pricePriceListDetailField, findProperty("price[UserPriceListDetail,DataPriceListType]").getMapping(userPriceListDetailKey, dataPriceListTypeKey)));
         fields.add(pricePriceListDetailField);
 
-        ImportField inPriceListPriceListTypeField = new ImportField(findProperty("inUserPriceListDataPriceListType"));
-        props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("inUserPriceListDataPriceListType").getMapping(userPriceListKey, dataPriceListTypeKey), true));
+        ImportField inPriceListPriceListTypeField = new ImportField(findProperty("in[UserPriceList,DataPriceListType]"));
+        props.add(new ImportProperty(inPriceListPriceListTypeField, findProperty("in[UserPriceList,DataPriceListType]").getMapping(userPriceListKey, dataPriceListTypeKey), true));
         fields.add(inPriceListPriceListTypeField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -597,9 +597,9 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         KeyExpr barcodeExpr = new KeyExpr("barcode");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("idBarcode", findProperty("idBarcode").getExpr(context.getModifier(), barcodeExpr));
-        query.addProperty("idItemGroupBarcode", findProperty("idItemGroupBarcode").getExpr(context.getModifier(), barcodeExpr));
-        query.and(findProperty("idBarcode").getExpr(barcodeExpr).getWhere());
+        query.addProperty("idBarcode", findProperty("id[Barcode]").getExpr(context.getModifier(), barcodeExpr));
+        query.addProperty("idItemGroupBarcode", findProperty("idItemGroup[Barcode]").getExpr(context.getModifier(), barcodeExpr));
+        query.and(findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> itemResult = query.executeClasses(context);
         for (ImMap<Object, ObjectValue> entry : itemResult.values()) {
             String idBarcode = trim((String) entry.get("idBarcode").getValue());

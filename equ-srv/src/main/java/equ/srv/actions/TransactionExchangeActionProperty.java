@@ -60,10 +60,10 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             machineryPriceTransactionStockTaxLM = context.getBL().getModule("MachineryPriceTransactionStockTax");
             zReportDiscountCardLM = context.getBL().getModule("ZReportDiscountCard");
             
-            String sidEquipmentServer = (String) findProperty("sidEquipmentServerTransactionExchange").read(context);
-            String serverHost = (String) findProperty("hostTransactionExchange").read(context);
-            Integer connectPort = (Integer) findProperty("portTransactionExchange").read(context);
-            String serverDB = (String) findProperty("serverDBTransactionExchange").read(context);
+            String sidEquipmentServer = (String) findProperty("sidEquipmentServerTransactionExchange[]").read(context);
+            String serverHost = (String) findProperty("hostTransactionExchange[]").read(context);
+            Integer connectPort = (Integer) findProperty("portTransactionExchange[]").read(context);
+            String serverDB = (String) findProperty("serverDBTransactionExchange[]").read(context);
             EquipmentServerInterface remote = RMIUtils.rmiLookup(serverHost, connectPort, serverDB, "EquipmentServer");
             
             readTransactionInfo(context, remote, sidEquipmentServer);
@@ -132,41 +132,41 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             List<List<Object>> data = initData(discountCardList.size());
 
-            ImportField idDiscountCardField = new ImportField(retailCRMLM.findProperty("idDiscountCard"));
+            ImportField idDiscountCardField = new ImportField(retailCRMLM.findProperty("id[DiscountCard]"));
             ImportKey<?> discountCardKey = new ImportKey((CustomClass) retailCRMLM.findClass("DiscountCard"),
-                    retailCRMLM.findProperty("discountCardId").getMapping(idDiscountCardField));
-            props.add(new ImportProperty(idDiscountCardField, retailCRMLM.findProperty("idDiscountCard").getMapping(discountCardKey)));
+                    retailCRMLM.findProperty("discountCard[VARSTRING[100]]").getMapping(idDiscountCardField));
+            props.add(new ImportProperty(idDiscountCardField, retailCRMLM.findProperty("id[DiscountCard]").getMapping(discountCardKey)));
             keys.add(discountCardKey);
             fields.add(idDiscountCardField);
             for (int i = 0; i < discountCardList.size(); i++)
                 data.get(i).add(discountCardList.get(i).idDiscountCard);
 
-            ImportField numberDiscountCardField = new ImportField(retailCRMLM.findProperty("numberDiscountCard"));
-            props.add(new ImportProperty(numberDiscountCardField, retailCRMLM.findProperty("numberDiscountCard").getMapping(discountCardKey)));
+            ImportField numberDiscountCardField = new ImportField(retailCRMLM.findProperty("number[DiscountCard]"));
+            props.add(new ImportProperty(numberDiscountCardField, retailCRMLM.findProperty("number[DiscountCard]").getMapping(discountCardKey)));
             fields.add(numberDiscountCardField);
             for (int i = 0; i < discountCardList.size(); i++)
                 data.get(i).add(discountCardList.get(i).numberDiscountCard);
 
-            ImportField nameDiscountCardField = new ImportField(retailCRMLM.findProperty("nameDiscountCard"));
-            props.add(new ImportProperty(nameDiscountCardField, retailCRMLM.findProperty("nameDiscountCard").getMapping(discountCardKey)));
+            ImportField nameDiscountCardField = new ImportField(retailCRMLM.findProperty("name[DiscountCard]"));
+            props.add(new ImportProperty(nameDiscountCardField, retailCRMLM.findProperty("name[DiscountCard]").getMapping(discountCardKey)));
             fields.add(nameDiscountCardField);
             for (int i = 0; i < discountCardList.size(); i++)
                 data.get(i).add(discountCardList.get(i).nameDiscountCard);
 
-            ImportField percentDiscountCardField = new ImportField(retailCRMLM.findProperty("percentDiscountCard"));
-            props.add(new ImportProperty(percentDiscountCardField, retailCRMLM.findProperty("percentDiscountCard").getMapping(discountCardKey)));
+            ImportField percentDiscountCardField = new ImportField(retailCRMLM.findProperty("percent[DiscountCard]"));
+            props.add(new ImportProperty(percentDiscountCardField, retailCRMLM.findProperty("percent[DiscountCard]").getMapping(discountCardKey)));
             fields.add(percentDiscountCardField);
             for (int i = 0; i < discountCardList.size(); i++)
                 data.get(i).add(discountCardList.get(i).percentDiscountCard);
 
-            ImportField dateDiscountCardField = new ImportField(retailCRMLM.findProperty("dateDiscountCard"));
-            props.add(new ImportProperty(dateDiscountCardField, retailCRMLM.findProperty("dateDiscountCard").getMapping(discountCardKey)));
+            ImportField dateDiscountCardField = new ImportField(retailCRMLM.findProperty("date[DiscountCard]"));
+            props.add(new ImportProperty(dateDiscountCardField, retailCRMLM.findProperty("date[DiscountCard]").getMapping(discountCardKey)));
             fields.add(dateDiscountCardField);
             for (int i = 0; i < discountCardList.size(); i++)
                 data.get(i).add(discountCardList.get(i).dateFromDiscountCard);
 
-            ImportField dateToDiscountCardField = new ImportField(retailCRMLM.findProperty("dateToDiscountCard"));
-            props.add(new ImportProperty(dateToDiscountCardField, retailCRMLM.findProperty("dateToDiscountCard").getMapping(discountCardKey)));
+            ImportField dateToDiscountCardField = new ImportField(retailCRMLM.findProperty("dateTo[DiscountCard]"));
+            props.add(new ImportProperty(dateToDiscountCardField, retailCRMLM.findProperty("dateTo[DiscountCard]").getMapping(discountCardKey)));
             fields.add(dateToDiscountCardField);
             for (int i = 0; i < discountCardList.size(); i++)
                 data.get(i).add(discountCardList.get(i).dateToDiscountCard);
@@ -192,39 +192,39 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             List<List<Object>> data = initData(promotionQuantityList.size());
             
-            ImportField idHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionQuantity"));
+            ImportField idHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("id[HTCPromotionQuantity]"));
             ImportKey<?> htcPromotionQuantityKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("HTCPromotionQuantity"),
-                    HTCPromotionLM.findProperty("HTCPromotionQuantityId").getMapping(idHTCPromotionQuantityField));
+                    HTCPromotionLM.findProperty("HTCPromotionQuantity[VARSTRING[100]]").getMapping(idHTCPromotionQuantityField));
             keys.add(htcPromotionQuantityKey);
-            props.add(new ImportProperty(idHTCPromotionQuantityField, HTCPromotionLM.findProperty("idHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            props.add(new ImportProperty(idHTCPromotionQuantityField, HTCPromotionLM.findProperty("id[HTCPromotionQuantity]").getMapping(htcPromotionQuantityKey)));
             fields.add(idHTCPromotionQuantityField);
             for (int i = 0; i < promotionQuantityList.size(); i++)
                 data.get(i).add(promotionQuantityList.get(i).idPromotionQuantity);
 
-            ImportField isStopHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("isStopHTCPromotionQuantity"));
-            props.add(new ImportProperty(isStopHTCPromotionQuantityField, HTCPromotionLM.findProperty("isStopHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            ImportField isStopHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("isStop[HTCPromotionQuantity]"));
+            props.add(new ImportProperty(isStopHTCPromotionQuantityField, HTCPromotionLM.findProperty("isStop[HTCPromotionQuantity]").getMapping(htcPromotionQuantityKey)));
             fields.add(isStopHTCPromotionQuantityField);
             for (int i = 0; i < promotionQuantityList.size(); i++)
                 data.get(i).add(promotionQuantityList.get(i).isStop ? true : null);
 
-            ImportField quantityHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("quantityHTCPromotionQuantity"));
-            props.add(new ImportProperty(quantityHTCPromotionQuantityField, HTCPromotionLM.findProperty("quantityHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            ImportField quantityHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("quantity[HTCPromotionQuantity]"));
+            props.add(new ImportProperty(quantityHTCPromotionQuantityField, HTCPromotionLM.findProperty("quantity[HTCPromotionQuantity]").getMapping(htcPromotionQuantityKey)));
             fields.add(quantityHTCPromotionQuantityField);
             for (int i = 0; i < promotionQuantityList.size(); i++)
                 data.get(i).add(promotionQuantityList.get(i).quantity);
 
-            ImportField percentHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("percentHTCPromotionQuantity"));
-            props.add(new ImportProperty(percentHTCPromotionQuantityField, HTCPromotionLM.findProperty("percentHTCPromotionQuantity").getMapping(htcPromotionQuantityKey)));
+            ImportField percentHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("percent[HTCPromotionQuantity]"));
+            props.add(new ImportProperty(percentHTCPromotionQuantityField, HTCPromotionLM.findProperty("percent[HTCPromotionQuantity]").getMapping(htcPromotionQuantityKey)));
             fields.add(percentHTCPromotionQuantityField);
             for (int i = 0; i < promotionQuantityList.size(); i++)
                 data.get(i).add(promotionQuantityList.get(i).percent);
 
-            ImportField idItemHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("idItem"));
+            ImportField idItemHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("id[Item]"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("Item"),
-                    HTCPromotionLM.findProperty("itemId").getMapping(idItemHTCPromotionQuantityField));
+                    HTCPromotionLM.findProperty("item[VARSTRING[100]]").getMapping(idItemHTCPromotionQuantityField));
             itemKey.skipKey = true;
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemHTCPromotionQuantityField, HTCPromotionLM.findProperty("itemHTCPromotionQuantity").getMapping(htcPromotionQuantityKey),
+            props.add(new ImportProperty(idItemHTCPromotionQuantityField, HTCPromotionLM.findProperty("item[HTCPromotionQuantity]").getMapping(htcPromotionQuantityKey),
                     object(HTCPromotionLM.findClass("Item")).getMapping(itemKey)));
             fields.add(idItemHTCPromotionQuantityField);
             for (int i = 0; i < promotionQuantityList.size(); i++)
@@ -251,29 +251,29 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             List<List<Object>> data = initData(promotionSumList.size());
             
-            ImportField idHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionSum"));
+            ImportField idHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("id[HTCPromotionSum]"));
             ImportKey<?> htcPromotionSumKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("HTCPromotionSum"),
-                    HTCPromotionLM.findProperty("HTCPromotionSumId").getMapping(idHTCPromotionSumField));
+                    HTCPromotionLM.findProperty("HTCPromotionSum[VARSTRING[100]]").getMapping(idHTCPromotionSumField));
             keys.add(htcPromotionSumKey);
-            props.add(new ImportProperty(idHTCPromotionSumField, HTCPromotionLM.findProperty("idHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            props.add(new ImportProperty(idHTCPromotionSumField, HTCPromotionLM.findProperty("id[HTCPromotionSum]").getMapping(htcPromotionSumKey)));
             fields.add(idHTCPromotionSumField);
             for (int i = 0; i < promotionSumList.size(); i++)
                 data.get(i).add(promotionSumList.get(i).idPromotionSum);
 
-            ImportField isStopHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("isStopHTCPromotionSum"));
-            props.add(new ImportProperty(isStopHTCPromotionSumField, HTCPromotionLM.findProperty("isStopHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            ImportField isStopHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("isStop[HTCPromotionSum]"));
+            props.add(new ImportProperty(isStopHTCPromotionSumField, HTCPromotionLM.findProperty("isStop[HTCPromotionSum]").getMapping(htcPromotionSumKey)));
             fields.add(isStopHTCPromotionSumField);
             for (int i = 0; i < promotionSumList.size(); i++)
                 data.get(i).add(promotionSumList.get(i).isStop ? true : null);
 
-            ImportField sumHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("sumHTCPromotionSum"));
-            props.add(new ImportProperty(sumHTCPromotionSumField, HTCPromotionLM.findProperty("sumHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            ImportField sumHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("sum[HTCPromotionSum]"));
+            props.add(new ImportProperty(sumHTCPromotionSumField, HTCPromotionLM.findProperty("sum[HTCPromotionSum]").getMapping(htcPromotionSumKey)));
             fields.add(sumHTCPromotionSumField);
             for (int i = 0; i < promotionSumList.size(); i++)
                 data.get(i).add(promotionSumList.get(i).sum);
 
-            ImportField percentHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("percentHTCPromotionSum"));
-            props.add(new ImportProperty(percentHTCPromotionSumField, HTCPromotionLM.findProperty("percentHTCPromotionSum").getMapping(htcPromotionSumKey)));
+            ImportField percentHTCPromotionSumField = new ImportField(HTCPromotionLM.findProperty("percent[HTCPromotionSum]"));
+            props.add(new ImportProperty(percentHTCPromotionSumField, HTCPromotionLM.findProperty("percent[HTCPromotionSum]").getMapping(htcPromotionSumKey)));
             fields.add(percentHTCPromotionSumField);
             for (int i = 0; i < promotionSumList.size(); i++)
                 data.get(i).add(promotionSumList.get(i).percent);
@@ -299,44 +299,44 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
             List<List<Object>> data = initData(promotionTimeList.size());
             
-            ImportField idHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("idHTCPromotionTime"));
+            ImportField idHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("id[HTCPromotionTime]"));
             ImportKey<?> htcPromotionTimeKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("HTCPromotionTime"),
-                    HTCPromotionLM.findProperty("HTCPromotionTimeId").getMapping(idHTCPromotionTimeField));
+                    HTCPromotionLM.findProperty("HTCPromotionTime[VARSTRING[100]]").getMapping(idHTCPromotionTimeField));
             keys.add(htcPromotionTimeKey);
-            props.add(new ImportProperty(idHTCPromotionTimeField, HTCPromotionLM.findProperty("idHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            props.add(new ImportProperty(idHTCPromotionTimeField, HTCPromotionLM.findProperty("id[HTCPromotionTime]").getMapping(htcPromotionTimeKey)));
             fields.add(idHTCPromotionTimeField);
             for (int i = 0; i < promotionTimeList.size(); i++)
                 data.get(i).add(promotionTimeList.get(i).idPromotionTime);
 
-            ImportField isStopHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("isStopHTCPromotionTime"));
-            props.add(new ImportProperty(isStopHTCPromotionTimeField, HTCPromotionLM.findProperty("isStopHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            ImportField isStopHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("isStop[HTCPromotionTime]"));
+            props.add(new ImportProperty(isStopHTCPromotionTimeField, HTCPromotionLM.findProperty("isStop[HTCPromotionTime]").getMapping(htcPromotionTimeKey)));
             fields.add(isStopHTCPromotionTimeField);
             for (int i = 0; i < promotionTimeList.size(); i++)
                 data.get(i).add(promotionTimeList.get(i).isStop ? true : null);
 
-            ImportField beginTimeHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("beginTimeHTCPromotionTime"));
-            props.add(new ImportProperty(beginTimeHTCPromotionTimeField, HTCPromotionLM.findProperty("beginTimeHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            ImportField beginTimeHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("beginTime[HTCPromotionTime]"));
+            props.add(new ImportProperty(beginTimeHTCPromotionTimeField, HTCPromotionLM.findProperty("beginTime[HTCPromotionTime]").getMapping(htcPromotionTimeKey)));
             fields.add(beginTimeHTCPromotionTimeField);
             for (int i = 0; i < promotionTimeList.size(); i++)
                 data.get(i).add(promotionTimeList.get(i).beginTime);
 
-            ImportField endTimeHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("endTimeHTCPromotionTime"));
-            props.add(new ImportProperty(endTimeHTCPromotionTimeField, HTCPromotionLM.findProperty("endTimeHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            ImportField endTimeHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("endTime[HTCPromotionTime]"));
+            props.add(new ImportProperty(endTimeHTCPromotionTimeField, HTCPromotionLM.findProperty("endTime[HTCPromotionTime]").getMapping(htcPromotionTimeKey)));
             fields.add(endTimeHTCPromotionTimeField);
             for (int i = 0; i < promotionTimeList.size(); i++)
                 data.get(i).add(promotionTimeList.get(i).endTime);
 
-            ImportField percentHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("percentHTCPromotionTime"));
-            props.add(new ImportProperty(percentHTCPromotionTimeField, HTCPromotionLM.findProperty("percentHTCPromotionTime").getMapping(htcPromotionTimeKey)));
+            ImportField percentHTCPromotionTimeField = new ImportField(HTCPromotionLM.findProperty("percent[HTCPromotionTime]"));
+            props.add(new ImportProperty(percentHTCPromotionTimeField, HTCPromotionLM.findProperty("percent[HTCPromotionTime]").getMapping(htcPromotionTimeKey)));
             fields.add(percentHTCPromotionTimeField);
             for (int i = 0; i < promotionTimeList.size(); i++)
                 data.get(i).add(promotionTimeList.get(i).percent);
 
-            ImportField numberDayHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("numberDOW"));
+            ImportField numberDayHTCPromotionQuantityField = new ImportField(HTCPromotionLM.findProperty("number[DOW]"));
             ImportKey<?> dowKey = new ImportKey((CustomClass) HTCPromotionLM.findClass("DOW"),
-                    HTCPromotionLM.findProperty("DOWNumber").getMapping(numberDayHTCPromotionQuantityField));
+                    HTCPromotionLM.findProperty("DOW[INTEGER]").getMapping(numberDayHTCPromotionQuantityField));
             keys.add(dowKey);
-            props.add(new ImportProperty(numberDayHTCPromotionQuantityField, HTCPromotionLM.findProperty("dayHTCPromotionTime").getMapping(htcPromotionTimeKey),
+            props.add(new ImportProperty(numberDayHTCPromotionQuantityField, HTCPromotionLM.findProperty("day[HTCPromotionTime]").getMapping(htcPromotionTimeKey),
                     object(HTCPromotionLM.findClass("DOW")).getMapping(dowKey)));
             fields.add(numberDayHTCPromotionQuantityField);
             for (int i = 0; i < promotionTimeList.size(); i++)
@@ -365,25 +365,25 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         String[] receiptNames = new String[]{"numberZReportReceipt", "numberReceipt", "dateReceipt", "timeReceipt", "discountSumReceipt", "idEmployeeReceipt",
                 "firstNameEmployeeReceipt", "lastNameEmployeeReceipt", "numberGroupCashRegisterReceipt", "numberCashRegisterReceipt"};
-        LCP<?>[] receiptProperties = findProperties("numberZReportReceipt", "numberReceipt", "dateReceipt", "timeReceipt", "discountSumReceipt", "idEmployeeReceipt",
-                "firstNameEmployeeReceipt", "lastNameEmployeeReceipt", "numberGroupCashRegisterReceipt", "numberCashRegisterReceipt");
+        LCP<?>[] receiptProperties = findProperties("numberZReport[Receipt]", "number[Receipt]", "date[Receipt]", "time[Receipt]", "discountSum[Receipt]", "idEmployee[Receipt]",
+                "firstNameEmployee[Receipt]", "lastNameEmployee[Receipt]", "numberGroupCashRegister[Receipt]", "numberCashRegister[Receipt]");
         for (int j = 0; j < receiptProperties.length; j++) {
             receiptQuery.addProperty(receiptNames[j], receiptProperties[j].getExpr(receiptExpr));
         }
         if(zReportDiscountCardLM != null) {
-            receiptQuery.addProperty("seriesNumberDiscountCardReceipt", zReportDiscountCardLM.findProperty("seriesNumberDiscountCardReceipt").getExpr(receiptExpr));
+            receiptQuery.addProperty("seriesNumberDiscountCardReceipt", zReportDiscountCardLM.findProperty("seriesNumberDiscountCard[Receipt]").getExpr(receiptExpr));
         }
 
         String[] receiptDetailNames = new String[]{"idBarcodeReceiptDetail", "quantityReceiptDetail", "priceReceiptDetail", "sumReceiptDetail", 
                 "discountSumReceiptDetail", "typeReceiptDetail", "numberReceiptDetail", "idSkuReceiptDetail"};
-        LCP<?>[] receiptDetailProperties = findProperties("idBarcodeReceiptDetail", "quantityReceiptDetail", "priceReceiptDetail", "sumReceiptDetail", 
-                "discountSumReceiptDetail", "typeReceiptDetail", "numberReceiptDetail", "idSkuReceiptDetail");
+        LCP<?>[] receiptDetailProperties = findProperties("idBarcode[ReceiptDetail]", "quantity[ReceiptDetail]", "price[ReceiptDetail]", "sum[ReceiptDetail]",
+                "discountSum[ReceiptDetail]", "type[ReceiptDetail]", "number[ReceiptDetail]", "idSku[ReceiptDetail]");
         for (int j = 0; j < receiptDetailProperties.length; j++) {
             receiptQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(receiptDetailExpr));
         }
 
-        receiptQuery.and(findProperty("notExportedIncrementReceipt").getExpr(receiptExpr).getWhere());
-        receiptQuery.and(findProperty("receiptReceiptDetail").getExpr(receiptDetailExpr).compare(receiptExpr, Compare.EQUALS));
+        receiptQuery.and(findProperty("notExportedIncrement[Receipt]").getExpr(receiptExpr).getWhere());
+        receiptQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(receiptDetailExpr).compare(receiptExpr, Compare.EQUALS));
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> receiptResult = receiptQuery.executeClasses(context);
 
@@ -447,12 +447,12 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
 
         String[] paymentNames = new String[]{"sidPaymentTypePayment", "sumPayment"};
-        LCP<?>[] paymentProperties = findProperties("sidPaymentTypePayment", "sumPayment");
+        LCP<?>[] paymentProperties = findProperties("sidPaymentType[Payment]", "sum[Payment]");
         for (int j = 0; j < paymentProperties.length; j++) {
             paymentQuery.addProperty(paymentNames[j], paymentProperties[j].getExpr(paymentExpr));
         }
-        paymentQuery.and(findProperty("sumPayment").getExpr(paymentExpr).getWhere());
-        paymentQuery.and(findProperty("receiptPayment").getExpr(paymentExpr).compare(receiptExpr, Compare.EQUALS));
+        paymentQuery.and(findProperty("sum[Payment]").getExpr(paymentExpr).getWhere());
+        paymentQuery.and(findProperty("receipt[Payment]").getExpr(paymentExpr).compare(receiptExpr, Compare.EQUALS));
 
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> paymentResult = paymentQuery.executeClasses(context);
 
@@ -473,9 +473,9 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
     public void finishSendSalesInfo(ExecutionContext context, List<String> succeededReceiptList) throws IOException, SQLException {
         try (DataSession session = context.createSession()) {
             for (String idReceipt : succeededReceiptList) {
-                ObjectValue receiptObject = findProperty("receiptId").readClasses(session, new DataObject(idReceipt));
+                ObjectValue receiptObject = findProperty("receipt[VARSTRING[100]]").readClasses(session, new DataObject(idReceipt));
                 if (receiptObject instanceof DataObject)
-                    findProperty("exportedIncrementReceipt").change(true, session, (DataObject) receiptObject);
+                    findProperty("exportedIncrement[Receipt]").change(true, session, (DataObject) receiptObject);
             }
             session.apply(context.getBL());
         } catch (Exception e) {
@@ -555,15 +555,15 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+            ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroupId").getMapping(idItemGroupField));
+                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
-            props.add(new ImportProperty(idItemGroupField, findProperty("idItemGroup").getMapping(itemGroupKey)));
+            props.add(new ImportProperty(idItemGroupField, findProperty("id[ItemGroup]").getMapping(itemGroupKey)));
             fields.add(idItemGroupField);
 
-            ImportField itemGroupNameField = new ImportField(findProperty("nameItemGroup"));
-            props.add(new ImportProperty(itemGroupNameField, findProperty("nameItemGroup").getMapping(itemGroupKey)));
+            ImportField itemGroupNameField = new ImportField(findProperty("name[ItemGroup]"));
+            props.add(new ImportProperty(itemGroupNameField, findProperty("name[ItemGroup]").getMapping(itemGroupKey)));
             fields.add(itemGroupNameField);
 
             ImportTable table = new ImportTable(fields, data);
@@ -585,17 +585,17 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
             
-            ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+            ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroupId").getMapping(idItemGroupField));
+                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
             fields.add(idItemGroupField);
 
-            ImportField idParentGroupField = new ImportField(findProperty("idItemGroup"));
+            ImportField idParentGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> parentGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroupId").getMapping(idParentGroupField));
+                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idParentGroupField));
             keys.add(parentGroupKey);
-            props.add(new ImportProperty(idParentGroupField, findProperty("parentItemGroup").getMapping(itemGroupKey),
+            props.add(new ImportProperty(idParentGroupField, findProperty("parent[ItemGroup]").getMapping(itemGroupKey),
                     LM.object(findClass("ItemGroup")).getMapping(parentGroupKey)));
             fields.add(idParentGroupField);
 
@@ -621,158 +621,158 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
+            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("id[MachineryPriceTransaction]"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("CashRegisterPriceTransaction"),
-                    findProperty("machineryPriceTransactionId").getMapping(idMachineryPriceTransactionField));
+                    findProperty("machineryPriceTransaction[VARSTRING[100]]").getMapping(idMachineryPriceTransactionField));
             keys.add(machineryPriceTransactionKey);
-            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("idMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("id[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(idMachineryPriceTransactionField);
 
-            ImportField nppGroupMachineryField = new ImportField(findProperty("nppGroupMachinery"));
+            ImportField nppGroupMachineryField = new ImportField(findProperty("npp[GroupMachinery]"));
             ImportKey<?> groupCashRegisterKey = new ImportKey((CustomClass) findClass("GroupCashRegister"),
-                    findProperty("groupCashRegisterNpp").getMapping(nppGroupMachineryField));
+                    findProperty("groupCashRegister[INTEGER]").getMapping(nppGroupMachineryField));
             groupCashRegisterKey.skipKey = true;
             keys.add(groupCashRegisterKey);
-            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachineryMachineryPriceTransaction").getMapping(machineryPriceTransactionKey),
+            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachinery[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey),
                     object(findClass("GroupCashRegister")).getMapping(groupCashRegisterKey)));
             fields.add(nppGroupMachineryField);
 
-            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("dateMachineryPriceTransaction"));
-            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("dateMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("date[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("date[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(dateMachineryPriceTransactionField);
 
-            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("timeMachineryPriceTransaction"));
-            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("timeMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("time[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("time[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(timeMachineryPriceTransactionField);
 
-            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshotMachineryPriceTransaction"));
-            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshotMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshot[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshot[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(snapshotMachineryPriceTransactionField);
 
-            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("commentMachineryPriceTransaction"));
-            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("commentMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("comment[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("comment[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(commentMachineryPriceTransactionField);
 
-            ImportField idItemField = new ImportField(findProperty("idItem"));
+            ImportField idItemField = new ImportField(findProperty("id[Item]"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                    findProperty("itemId").getMapping(idItemField));
+                    findProperty("item[VARSTRING[100]]").getMapping(idItemField));
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+            props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
             fields.add(idItemField);
             
-            ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
+            ImportField extIdBarcodeField = new ImportField(findProperty("extId[Barcode]"));
             ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(extIdBarcodeField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(idItemField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("extIdBarcode").getMapping(barcodeKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("idBarcode").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("extId[Barcode]").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("id[Barcode]").getMapping(barcodeKey)));
             fields.add(extIdBarcodeField);
 
-            ImportField captionItemField = new ImportField(findProperty("captionItem"));
-            props.add(new ImportProperty(captionItemField, findProperty("captionItem").getMapping(itemKey), true));
-            props.add(new ImportProperty(captionItemField, findProperty("nameMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+            props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
+            props.add(new ImportProperty(captionItemField, findProperty("name[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(captionItemField);
 
-            ImportField idBrandField = new ImportField(findProperty("idBrand"));
+            ImportField idBrandField = new ImportField(findProperty("id[Brand]"));
             ImportKey<?> brandKey = new ImportKey((CustomClass) findClass("Brand"),
-                    findProperty("brandId").getMapping(idBrandField));
+                    findProperty("brand[VARSTRING[100]]").getMapping(idBrandField));
             keys.add(brandKey);
-            props.add(new ImportProperty(idBrandField, findProperty("idBrand").getMapping(brandKey)));
-            props.add(new ImportProperty(idBrandField, findProperty("brandItem").getMapping(itemKey),
+            props.add(new ImportProperty(idBrandField, findProperty("id[Brand]").getMapping(brandKey)));
+            props.add(new ImportProperty(idBrandField, findProperty("brand[Item]").getMapping(itemKey),
                     object(findClass("Brand")).getMapping(brandKey), true));
             fields.add(idBrandField);
 
-            ImportField nameBrandField = new ImportField(findProperty("nameBrand"));
-            props.add(new ImportProperty(nameBrandField, findProperty("nameBrand").getMapping(brandKey), true));
+            ImportField nameBrandField = new ImportField(findProperty("name[Brand]"));
+            props.add(new ImportProperty(nameBrandField, findProperty("name[Brand]").getMapping(brandKey), true));
             fields.add(nameBrandField);
 
             if(itemFashionLM != null) {
-                ImportField idSeasonField = new ImportField(itemFashionLM.findProperty("idSeason"));
+                ImportField idSeasonField = new ImportField(itemFashionLM.findProperty("id[Season]"));
                 ImportKey<?> seasonKey = new ImportKey((CustomClass) itemFashionLM.findClass("Season"),
-                        itemFashionLM.findProperty("seasonId").getMapping(idSeasonField));
-                props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("idSeason").getMapping(seasonKey)));
+                        itemFashionLM.findProperty("season[VARSTRING[100]]").getMapping(idSeasonField));
+                props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("id[Season]").getMapping(seasonKey)));
                 keys.add(seasonKey);
-                props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("seasonItem").getMapping(itemKey),
+                props.add(new ImportProperty(idSeasonField, itemFashionLM.findProperty("season[Item]").getMapping(itemKey),
                         object(itemFashionLM.findClass("Season")).getMapping(seasonKey), true));
                 fields.add(idSeasonField);
 
-                ImportField nameSeasonField = new ImportField(itemFashionLM.findProperty("nameSeason"));
-                props.add(new ImportProperty(nameSeasonField, itemFashionLM.findProperty("nameSeason").getMapping(seasonKey), true));
+                ImportField nameSeasonField = new ImportField(itemFashionLM.findProperty("name[Season]"));
+                props.add(new ImportProperty(nameSeasonField, itemFashionLM.findProperty("name[Season]").getMapping(seasonKey), true));
                 fields.add(nameSeasonField);
             }
             
-            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("priceMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("priceMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("price[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("price[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(priceMachineryPriceTransactionBarcodeField);
 
-            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("splitMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("splitMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("split[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("split[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(splitMachineryPriceTransactionBarcodeField);
 
-            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDaysMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDaysMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDays[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDays[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(expiryDaysMachineryPriceTransactionBarcodeField);
             
-            ImportField expiryDateMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDateMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(expiryDateMachineryPriceTransactionBarcodeField, findProperty("expiryDateMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField expiryDateMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDate[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(expiryDateMachineryPriceTransactionBarcodeField, findProperty("expiryDate[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(expiryDateMachineryPriceTransactionBarcodeField);
 
-            ImportField descriptionMachineryPriceTransactionBarcodeField = new ImportField(findProperty("descriptionMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(descriptionMachineryPriceTransactionBarcodeField, findProperty("descriptionMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField descriptionMachineryPriceTransactionBarcodeField = new ImportField(findProperty("description[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(descriptionMachineryPriceTransactionBarcodeField, findProperty("description[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(descriptionMachineryPriceTransactionBarcodeField);
 
-            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumberMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumberMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumber[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumber[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(pluNumberMachineryPriceTransactionBarcodeField);
 
-            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flagsMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flagsMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flags[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flags[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(flagsMachineryPriceTransactionBarcodeField);
 
-            ImportField idUOMField = new ImportField(findProperty("idUOM"));
+            ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
             ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                    findProperty("UOMId").getMapping(idUOMField));
+                    findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
             UOMKey.skipKey = true;
             keys.add(UOMKey);
-            props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey)));
-            props.add(new ImportProperty(idUOMField, findProperty("idUOMMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey)));
+            props.add(new ImportProperty(idUOMField, findProperty("idUOM[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(idUOMField);
 
-            ImportField shortNameUOMField = new ImportField(findProperty("shortNameUOM"));
-            props.add(new ImportProperty(shortNameUOMField, findProperty("shortNameUOM").getMapping(UOMKey), true));
-            props.add(new ImportProperty(shortNameUOMField, findProperty("shortNameUOMMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField shortNameUOMField = new ImportField(findProperty("shortName[UOM]"));
+            props.add(new ImportProperty(shortNameUOMField, findProperty("shortName[UOM]").getMapping(UOMKey), true));
+            props.add(new ImportProperty(shortNameUOMField, findProperty("shortNameUOM[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(shortNameUOMField);
 
-            ImportField passScalesMachineryPriceTransactionBarcodeField = new ImportField(findProperty("passScalesMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(passScalesMachineryPriceTransactionBarcodeField, findProperty("passScalesMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField passScalesMachineryPriceTransactionBarcodeField = new ImportField(findProperty("passScales[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(passScalesMachineryPriceTransactionBarcodeField, findProperty("passScales[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(passScalesMachineryPriceTransactionBarcodeField);
 
-            DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry").readClasses(context);
-            ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
+            DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry[]").readClasses(context);
+            ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVAT[Item,Country,DATE]"));
             ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"),
-                    findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
+                    findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(valueVATItemCountryDateField));
             VATKey.skipKey = true;
             keys.add(VATKey);
-            props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VATItemCountry").getMapping(itemKey, defaultCountryObject),
+            props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VAT[Item,Country]").getMapping(itemKey, defaultCountryObject),
                     object(findClass("Range")).getMapping(VATKey)));
             if(machineryPriceTransactionStockTaxLM != null)
-                props.add(new ImportProperty(valueVATItemCountryDateField, machineryPriceTransactionStockTaxLM.findProperty("VATMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+                props.add(new ImportProperty(valueVATItemCountryDateField, machineryPriceTransactionStockTaxLM.findProperty("VAT[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(valueVATItemCountryDateField);
 
-            ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+            ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroupId").getMapping(idItemGroupField));
+                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
-            props.add(new ImportProperty(idItemGroupField, findProperty("skuGroupMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey),
+            props.add(new ImportProperty(idItemGroupField, findProperty("skuGroup[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey),
                     object(findClass("ItemGroup")).getMapping(itemGroupKey)));
-            props.add(new ImportProperty(idItemGroupField, findProperty("itemGroupItem").getMapping(itemKey),
+            props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
                     object(findClass("ItemGroup")).getMapping(itemGroupKey)));
             fields.add(idItemGroupField);
                         
-            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("inMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("inMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("in[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("in[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(inMachineryPriceTransactionBarcodeField);
             
             ImportTable table = new ImportTable(fields, cashRegisterData);
@@ -796,138 +796,138 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportKey<?>> keys = new ArrayList<>();
 
             
-            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
+            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("id[MachineryPriceTransaction]"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("ScalesPriceTransaction"),
-                    findProperty("machineryPriceTransactionId").getMapping(idMachineryPriceTransactionField));
+                    findProperty("machineryPriceTransaction[VARSTRING[100]]").getMapping(idMachineryPriceTransactionField));
             keys.add(machineryPriceTransactionKey);
-            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("idMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("id[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(idMachineryPriceTransactionField);
 
-            ImportField nppGroupMachineryField = new ImportField(findProperty("nppGroupMachinery"));
+            ImportField nppGroupMachineryField = new ImportField(findProperty("npp[GroupMachinery]"));
             ImportKey<?> groupScalesKey = new ImportKey((CustomClass) findClass("GroupScales"),
-                    findProperty("groupScalesNpp").getMapping(nppGroupMachineryField));
+                    findProperty("groupScales[INTEGER]").getMapping(nppGroupMachineryField));
             groupScalesKey.skipKey = true;
             keys.add(groupScalesKey);
-            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachineryMachineryPriceTransaction").getMapping(machineryPriceTransactionKey),
+            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachinery[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey),
                     object(findClass("GroupScales")).getMapping(groupScalesKey)));
             fields.add(nppGroupMachineryField);
 
-            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("dateMachineryPriceTransaction"));
-            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("dateMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("date[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("date[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(dateMachineryPriceTransactionField);
 
-            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("timeMachineryPriceTransaction"));
-            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("timeMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("time[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("time[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(timeMachineryPriceTransactionField);
 
-            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshotMachineryPriceTransaction"));
-            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshotMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshot[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshot[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(snapshotMachineryPriceTransactionField);
 
-            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("commentMachineryPriceTransaction"));
-            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("commentMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("comment[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("comment[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(commentMachineryPriceTransactionField);
 
-            ImportField idItemField = new ImportField(findProperty("idItem"));
+            ImportField idItemField = new ImportField(findProperty("id[Item]"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                    findProperty("itemId").getMapping(idItemField));
+                    findProperty("item[VARSTRING[100]]").getMapping(idItemField));
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+            props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
             fields.add(idItemField);
 
-            ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
+            ImportField extIdBarcodeField = new ImportField(findProperty("extId[Barcode]"));
             ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(extIdBarcodeField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(idItemField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("extIdBarcode").getMapping(barcodeKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("idBarcode").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("extId[Barcode]").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("id[Barcode]").getMapping(barcodeKey)));
             fields.add(extIdBarcodeField);
             
-            ImportField captionItemField = new ImportField(findProperty("captionItem"));
-            props.add(new ImportProperty(captionItemField, findProperty("captionItem").getMapping(itemKey), true));
-            props.add(new ImportProperty(captionItemField, findProperty("nameMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+            props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
+            props.add(new ImportProperty(captionItemField, findProperty("name[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(captionItemField);
 
-            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("priceMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("priceMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("price[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("price[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(priceMachineryPriceTransactionBarcodeField);
             
-            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("splitMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("splitMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("split[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("split[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(splitMachineryPriceTransactionBarcodeField);
 
-            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDaysMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDaysMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDays[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDays[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(expiryDaysMachineryPriceTransactionBarcodeField);
 
-            ImportField hoursExpiryMachineryPriceTransactionBarcodeField = new ImportField(findProperty("hoursExpiryMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(hoursExpiryMachineryPriceTransactionBarcodeField, findProperty("hoursExpiryMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField hoursExpiryMachineryPriceTransactionBarcodeField = new ImportField(findProperty("hoursExpiry[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(hoursExpiryMachineryPriceTransactionBarcodeField, findProperty("hoursExpiry[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(hoursExpiryMachineryPriceTransactionBarcodeField);
 
-            ImportField expiryDateMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDateMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(expiryDateMachineryPriceTransactionBarcodeField, findProperty("expiryDateMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField expiryDateMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDate[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(expiryDateMachineryPriceTransactionBarcodeField, findProperty("expiryDate[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(expiryDateMachineryPriceTransactionBarcodeField);
             
-            ImportField descriptionMachineryPriceTransactionBarcodeField = new ImportField(findProperty("descriptionMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(descriptionMachineryPriceTransactionBarcodeField, findProperty("descriptionMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField descriptionMachineryPriceTransactionBarcodeField = new ImportField(findProperty("description[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(descriptionMachineryPriceTransactionBarcodeField, findProperty("description[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(descriptionMachineryPriceTransactionBarcodeField);
 
-            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumberMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumberMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumber[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumber[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(pluNumberMachineryPriceTransactionBarcodeField);
 
-            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flagsMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flagsMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flags[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flags[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(flagsMachineryPriceTransactionBarcodeField);
             
-            ImportField passScalesMachineryPriceTransactionBarcodeField = new ImportField(findProperty("passScalesMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(passScalesMachineryPriceTransactionBarcodeField, findProperty("passScalesMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField passScalesMachineryPriceTransactionBarcodeField = new ImportField(findProperty("passScales[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(passScalesMachineryPriceTransactionBarcodeField, findProperty("passScales[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(passScalesMachineryPriceTransactionBarcodeField);
 
-            DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry").readClasses(context);
-            ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVATItemCountryDate"));
+            DataObject defaultCountryObject = (DataObject) findProperty("defaultCountry[]").readClasses(context);
+            ImportField valueVATItemCountryDateField = new ImportField(findProperty("valueVAT[Item,Country,DATE]"));
             ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"),
-                    findProperty("valueCurrentVATDefaultValue").getMapping(valueVATItemCountryDateField));
+                    findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(valueVATItemCountryDateField));
             VATKey.skipKey = true;
             keys.add(VATKey);
-            props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VATItemCountry").getMapping(itemKey, defaultCountryObject),
+            props.add(new ImportProperty(valueVATItemCountryDateField, findProperty("VAT[Item,Country]").getMapping(itemKey, defaultCountryObject),
                     object(findClass("Range")).getMapping(VATKey)));
             if(machineryPriceTransactionStockTaxLM != null)
-                props.add(new ImportProperty(valueVATItemCountryDateField, machineryPriceTransactionStockTaxLM.findProperty("VATMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+                props.add(new ImportProperty(valueVATItemCountryDateField, machineryPriceTransactionStockTaxLM.findProperty("VAT[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(valueVATItemCountryDateField);
             
-            ImportField idUOMField = new ImportField(findProperty("idUOM"));
+            ImportField idUOMField = new ImportField(findProperty("id[UOM]"));
             ImportKey<?> UOMKey = new ImportKey((CustomClass) findClass("UOM"),
-                    findProperty("UOMId").getMapping(idUOMField));
+                    findProperty("UOM[VARSTRING[100]]").getMapping(idUOMField));
             UOMKey.skipKey = true;
             keys.add(UOMKey);
-            props.add(new ImportProperty(idUOMField, findProperty("idUOM").getMapping(UOMKey)));
-            props.add(new ImportProperty(idUOMField, findProperty("idUOMMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            props.add(new ImportProperty(idUOMField, findProperty("id[UOM]").getMapping(UOMKey)));
+            props.add(new ImportProperty(idUOMField, findProperty("idUOM[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(idUOMField);
 
-            ImportField shortNameUOMField = new ImportField(findProperty("shortNameUOM"));
-            props.add(new ImportProperty(shortNameUOMField, findProperty("shortNameUOM").getMapping(UOMKey), true));
-            props.add(new ImportProperty(shortNameUOMField, findProperty("shortNameUOMMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField shortNameUOMField = new ImportField(findProperty("shortName[UOM]"));
+            props.add(new ImportProperty(shortNameUOMField, findProperty("shortName[UOM]").getMapping(UOMKey), true));
+            props.add(new ImportProperty(shortNameUOMField, findProperty("shortNameUOM[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(shortNameUOMField);
             
-            ImportField labelFormatMachineryPriceTransactionBarcodeField = new ImportField(findProperty("labelFormatMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(labelFormatMachineryPriceTransactionBarcodeField, findProperty("labelFormatMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField labelFormatMachineryPriceTransactionBarcodeField = new ImportField(findProperty("labelFormat[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(labelFormatMachineryPriceTransactionBarcodeField, findProperty("labelFormat[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(labelFormatMachineryPriceTransactionBarcodeField);
 
-            ImportField idItemGroupField = new ImportField(findProperty("idItemGroup"));
+            ImportField idItemGroupField = new ImportField(findProperty("id[ItemGroup]"));
             ImportKey<?> itemGroupKey = new ImportKey((CustomClass) findClass("ItemGroup"),
-                    findProperty("itemGroupId").getMapping(idItemGroupField));
+                    findProperty("itemGroup[VARSTRING[100]]").getMapping(idItemGroupField));
             keys.add(itemGroupKey);
-            props.add(new ImportProperty(idItemGroupField, findProperty("skuGroupMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey),
+            props.add(new ImportProperty(idItemGroupField, findProperty("skuGroup[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey),
                     object(findClass("ItemGroup")).getMapping(itemGroupKey)));
-            props.add(new ImportProperty(idItemGroupField, findProperty("itemGroupItem").getMapping(itemKey),
+            props.add(new ImportProperty(idItemGroupField, findProperty("itemGroup[Item]").getMapping(itemKey),
                     object(findClass("ItemGroup")).getMapping(itemGroupKey)));
             fields.add(idItemGroupField);
             
-            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("inMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("inMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("in[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("in[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(inMachineryPriceTransactionBarcodeField);
 
             ImportTable table = new ImportTable(fields, scalesData);
@@ -950,82 +950,82 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
+            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("id[MachineryPriceTransaction]"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("TerminalPriceTransaction"),
-                    findProperty("machineryPriceTransactionId").getMapping(idMachineryPriceTransactionField));
+                    findProperty("machineryPriceTransaction[VARSTRING[100]]").getMapping(idMachineryPriceTransactionField));
             keys.add(machineryPriceTransactionKey);
-            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("idMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("id[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(idMachineryPriceTransactionField);
 
-            ImportField nppGroupMachineryField = new ImportField(findProperty("nppGroupMachinery"));
+            ImportField nppGroupMachineryField = new ImportField(findProperty("npp[GroupMachinery]"));
             ImportKey<?> groupTerminalKey = new ImportKey((CustomClass) findClass("GroupTerminal"),
-                    findProperty("groupTerminalNpp").getMapping(nppGroupMachineryField));
+                    findProperty("groupTerminal[INTEGER]").getMapping(nppGroupMachineryField));
             groupTerminalKey.skipKey = true;
             keys.add(groupTerminalKey);
-            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachineryMachineryPriceTransaction").getMapping(machineryPriceTransactionKey),
+            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachinery[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey),
                     object(findClass("GroupTerminal")).getMapping(groupTerminalKey)));
             fields.add(nppGroupMachineryField);
 
-            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("dateMachineryPriceTransaction"));
-            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("dateMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("date[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("date[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(dateMachineryPriceTransactionField);
 
-            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("timeMachineryPriceTransaction"));
-            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("timeMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("time[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("time[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(timeMachineryPriceTransactionField);
 
-            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshotMachineryPriceTransaction"));
-            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshotMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshot[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshot[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(snapshotMachineryPriceTransactionField);
 
-            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("commentMachineryPriceTransaction"));
-            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("commentMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("comment[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("comment[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(commentMachineryPriceTransactionField);
 
-            ImportField idItemField = new ImportField(findProperty("idItem"));
+            ImportField idItemField = new ImportField(findProperty("id[Item]"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                    findProperty("itemId").getMapping(idItemField));
+                    findProperty("item[VARSTRING[100]]").getMapping(idItemField));
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+            props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
             fields.add(idItemField);
             
-            ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
+            ImportField extIdBarcodeField = new ImportField(findProperty("extId[Barcode]"));
             ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(extIdBarcodeField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(idItemField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("extIdBarcode").getMapping(barcodeKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("idBarcode").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("extId[Barcode]").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("id[Barcode]").getMapping(barcodeKey)));
             fields.add(extIdBarcodeField);
 
-            ImportField captionItemField = new ImportField(findProperty("captionItem"));
-            props.add(new ImportProperty(captionItemField, findProperty("captionItem").getMapping(itemKey), true));
-            props.add(new ImportProperty(captionItemField, findProperty("nameMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+            props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
+            props.add(new ImportProperty(captionItemField, findProperty("name[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(captionItemField);
 
-            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("splitMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("splitMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("split[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("split[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(splitMachineryPriceTransactionBarcodeField);
 
-            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDaysMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDaysMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDays[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDays[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(expiryDaysMachineryPriceTransactionBarcodeField);
 
-            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumberMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumberMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumber[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumber[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(pluNumberMachineryPriceTransactionBarcodeField);
 
-            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flagsMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flagsMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flags[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flags[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(flagsMachineryPriceTransactionBarcodeField);
             
-            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("priceMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("priceMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("price[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("price[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(priceMachineryPriceTransactionBarcodeField);
             
-            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("inMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("inMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("in[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("in[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(inMachineryPriceTransactionBarcodeField);
 
             ImportTable table = new ImportTable(fields, terminalData);
@@ -1048,82 +1048,82 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
 
-            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("idMachineryPriceTransaction"));
+            ImportField idMachineryPriceTransactionField = new ImportField(findProperty("id[MachineryPriceTransaction]"));
             ImportKey<?> machineryPriceTransactionKey = new ImportKey((CustomClass) findClass("ScalesPriceTransaction"),
-                    findProperty("machineryPriceTransactionId").getMapping(idMachineryPriceTransactionField));
+                    findProperty("machineryPriceTransaction[VARSTRING[100]]").getMapping(idMachineryPriceTransactionField));
             keys.add(machineryPriceTransactionKey);
-            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("idMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            props.add(new ImportProperty(idMachineryPriceTransactionField, findProperty("id[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(idMachineryPriceTransactionField);
 
-            ImportField nppGroupMachineryField = new ImportField(findProperty("nppGroupMachinery"));
+            ImportField nppGroupMachineryField = new ImportField(findProperty("npp[GroupMachinery]"));
             ImportKey<?> groupPriceCheckerKey = new ImportKey((CustomClass) findClass("GroupPriceChecker"),
-                    findProperty("groupPriceCheckerNpp").getMapping(nppGroupMachineryField));
+                    findProperty("groupPriceChecker[INTEGER]").getMapping(nppGroupMachineryField));
             groupPriceCheckerKey.skipKey = true;
             keys.add(groupPriceCheckerKey);
-            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachineryMachineryPriceTransaction").getMapping(machineryPriceTransactionKey),
+            props.add(new ImportProperty(nppGroupMachineryField, findProperty("groupMachinery[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey),
                     object(findClass("GroupPriceChecker")).getMapping(groupPriceCheckerKey)));
             fields.add(nppGroupMachineryField);
 
-            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("dateMachineryPriceTransaction"));
-            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("dateMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField dateMachineryPriceTransactionField = new ImportField(findProperty("date[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(dateMachineryPriceTransactionField, findProperty("date[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(dateMachineryPriceTransactionField);
 
-            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("timeMachineryPriceTransaction"));
-            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("timeMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField timeMachineryPriceTransactionField = new ImportField(findProperty("time[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(timeMachineryPriceTransactionField, findProperty("time[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(timeMachineryPriceTransactionField);
 
-            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshotMachineryPriceTransaction"));
-            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshotMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField snapshotMachineryPriceTransactionField = new ImportField(findProperty("snapshot[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(snapshotMachineryPriceTransactionField, findProperty("snapshot[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(snapshotMachineryPriceTransactionField);
 
-            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("commentMachineryPriceTransaction"));
-            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("commentMachineryPriceTransaction").getMapping(machineryPriceTransactionKey)));
+            ImportField commentMachineryPriceTransactionField = new ImportField(findProperty("comment[MachineryPriceTransaction]"));
+            props.add(new ImportProperty(commentMachineryPriceTransactionField, findProperty("comment[MachineryPriceTransaction]").getMapping(machineryPriceTransactionKey)));
             fields.add(commentMachineryPriceTransactionField);
 
-            ImportField idItemField = new ImportField(findProperty("idItem"));
+            ImportField idItemField = new ImportField(findProperty("id[Item]"));
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
-                    findProperty("itemId").getMapping(idItemField));
+                    findProperty("item[VARSTRING[100]]").getMapping(idItemField));
             keys.add(itemKey);
-            props.add(new ImportProperty(idItemField, findProperty("idItem").getMapping(itemKey)));
+            props.add(new ImportProperty(idItemField, findProperty("id[Item]").getMapping(itemKey)));
             fields.add(idItemField);
             
-            ImportField extIdBarcodeField = new ImportField(findProperty("extIdBarcode"));
+            ImportField extIdBarcodeField = new ImportField(findProperty("extId[Barcode]"));
             ImportKey<?> barcodeKey = new ImportKey((CustomClass) findClass("Barcode"),
-                    findProperty("extBarcodeId").getMapping(extIdBarcodeField));
+                    findProperty("extBarcode[VARSTRING[100]]").getMapping(extIdBarcodeField));
             keys.add(barcodeKey);
-            props.add(new ImportProperty(idItemField, findProperty("skuBarcode").getMapping(barcodeKey),
+            props.add(new ImportProperty(idItemField, findProperty("sku[Barcode]").getMapping(barcodeKey),
                     object(findClass("Item")).getMapping(itemKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("extIdBarcode").getMapping(barcodeKey)));
-            props.add(new ImportProperty(extIdBarcodeField, findProperty("idBarcode").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("extId[Barcode]").getMapping(barcodeKey)));
+            props.add(new ImportProperty(extIdBarcodeField, findProperty("id[Barcode]").getMapping(barcodeKey)));
             fields.add(extIdBarcodeField);
 
-            ImportField captionItemField = new ImportField(findProperty("captionItem"));
-            props.add(new ImportProperty(captionItemField, findProperty("captionItem").getMapping(itemKey), true));
-            props.add(new ImportProperty(captionItemField, findProperty("nameMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField captionItemField = new ImportField(findProperty("caption[Item]"));
+            props.add(new ImportProperty(captionItemField, findProperty("caption[Item]").getMapping(itemKey), true));
+            props.add(new ImportProperty(captionItemField, findProperty("name[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(captionItemField);
 
-            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("splitMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("splitMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField splitMachineryPriceTransactionBarcodeField = new ImportField(findProperty("split[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(splitMachineryPriceTransactionBarcodeField, findProperty("split[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(splitMachineryPriceTransactionBarcodeField);
 
-            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDaysMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDaysMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField expiryDaysMachineryPriceTransactionBarcodeField = new ImportField(findProperty("expiryDays[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(expiryDaysMachineryPriceTransactionBarcodeField, findProperty("expiryDays[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(expiryDaysMachineryPriceTransactionBarcodeField);
 
-            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumberMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumberMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField pluNumberMachineryPriceTransactionBarcodeField = new ImportField(findProperty("pluNumber[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(pluNumberMachineryPriceTransactionBarcodeField, findProperty("pluNumber[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(pluNumberMachineryPriceTransactionBarcodeField);
 
-            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flagsMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flagsMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField flagsMachineryPriceTransactionBarcodeField = new ImportField(findProperty("flags[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(flagsMachineryPriceTransactionBarcodeField, findProperty("flags[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(flagsMachineryPriceTransactionBarcodeField);
             
-            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("priceMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("priceMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField priceMachineryPriceTransactionBarcodeField = new ImportField(findProperty("price[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(priceMachineryPriceTransactionBarcodeField, findProperty("price[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(priceMachineryPriceTransactionBarcodeField);
             
-            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("inMachineryPriceTransactionBarcode"));
-            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("inMachineryPriceTransactionBarcode").getMapping(machineryPriceTransactionKey, barcodeKey)));
+            ImportField inMachineryPriceTransactionBarcodeField = new ImportField(findProperty("in[MachineryPriceTransaction,Barcode]"));
+            props.add(new ImportProperty(inMachineryPriceTransactionBarcodeField, findProperty("in[MachineryPriceTransaction,Barcode]").getMapping(machineryPriceTransactionKey, barcodeKey)));
             fields.add(inMachineryPriceTransactionBarcodeField);
             
             ImportTable table = new ImportTable(fields, priceCheckerData);

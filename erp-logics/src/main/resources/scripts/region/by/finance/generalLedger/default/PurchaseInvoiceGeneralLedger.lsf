@@ -7,20 +7,20 @@ NAMESPACE Purchase;
 //------------------- Приход товара/тары от поставщ. --------------------//
 
 EXTEND CLASS Invoice : GeneralLedger.GLDocument;
-isPostedGLDocument(document) += isPostedInvoice(document);
-nameGLDocument(document) += descriptionInvoice(document);
+isPosted[GLDocument](Invoice document) += isPosted(document);
+name[GLDocument](Invoice document) += description(document);
 
-numberGLDocument(document) += numberInvoice(document);
-seriesGLDocument(document) += seriesInvoice(document);
+number[GLDocument](Invoice document) += number(document);
+series[GLDocument](Invoice document) += series(document);
 
-dateTimeGLDocument(document) += dateTimeInvoice(document);
-operationGLDocument(document) += operationInvoice(document);
+dateTime[GLDocument](Invoice document) += dateTime(document);
+operation[GLDocument](Invoice document) += operation(document);
 //editGLDocument (GLDocument)+= ACTION editInvoice(GLDocument);
 
-descriptionInvoiceRange(invoice, range) =  CONCAT ', ', descriptionInvoice(invoice),
-                                                       staticCaption(taxRange(range)),
-                                                       'шкала' + numberRange(range),
-                                                       'тек.ставка' + valueRateRangeDate(range, dateInvoice(invoice));    
+description(Invoice invoice, Range range) =  CONCAT ', ', description(invoice),
+                                                       staticCaption(tax(range)),
+                                                       'шкала' + number(range),
+                                                       'тек.ставка' + valueRate(range, date(invoice));    
 
 //-------------------------------- НДС поставщика с разбивкой по ставке----------------------------------//
 //-- Тара
@@ -35,12 +35,12 @@ descriptionInvoiceRange(invoice, range) =  CONCAT ', ', descriptionInvoice(invoi
                                           'by_default',                                 // идентификатор плана счетов
                                           'by_default_purchase_invoice'                         // идентификатор операции
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupVATCGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupVATCGeneralLedger(generalLedger);
+debit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
 
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupVATCGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSkuInvoice(invoiceInvSupVATCGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupVATCGeneralLedger;    
+credit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+credit(InvSupVATCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSku(invoice(generalLedger));
+idOperation(InvSupVATCGeneralLedger l) += '01' IF l IS InvSupVATCGeneralLedger;    
 
 //-- Услуги
 @defineGeneralLedgerAggregationOperation (invoice,
@@ -54,11 +54,11 @@ idOperationGeneralLedger(l) += '01' IF l IS InvSupVATCGeneralLedger;
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupVATCHGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupVATCHGeneralLedger(generalLedger);
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupVATCHGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATCHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSkuInvoice(invoiceInvSupVATCHGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupVATCHGeneralLedger;    
+debit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
+credit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+credit(InvSupVATCHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSku(invoice(generalLedger));
+idOperation(InvSupVATCHGeneralLedger l) += '01' IF l IS InvSupVATCHGeneralLedger;    
 
 //-- Товар
 @defineGeneralLedgerAggregationOperation (invoice,
@@ -72,11 +72,11 @@ idOperationGeneralLedger(l) += '01' IF l IS InvSupVATCHGeneralLedger;
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupVATIGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupVATIGeneralLedger(generalLedger);
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupVATIGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupVATIGeneralLedger(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSkuInvoice(invoiceInvSupVATIGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupVATIGeneralLedger;    
+debit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
+credit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+credit(InvSupVATIGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSku(invoice(generalLedger));
+idOperation(InvSupVATIGeneralLedger l) += '01' IF l IS InvSupVATIGeneralLedger;    
 
 //-------------------------------- Сумма поставщика с разбивкой по ставкам----------------------------------//
 //-- Тара
@@ -91,11 +91,11 @@ idOperationGeneralLedger(l) += '01' IF l IS InvSupVATIGeneralLedger;
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupCGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupCGeneralLedger(generalLedger);
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupCGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupCGeneralLedger(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSkuInvoice(invoiceInvSupCGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupCGeneralLedger;    
+debit(InvSupCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
+credit(InvSupCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+credit(InvSupCGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSku(invoice(generalLedger));
+idOperation(InvSupCGeneralLedger l) += '01' IF l IS InvSupCGeneralLedger;    
 
 //-- Товар
 @defineGeneralLedgerAggregationOperation (invoice,
@@ -109,11 +109,11 @@ idOperationGeneralLedger(l) += '01' IF l IS InvSupCGeneralLedger;
                                           'by_default',
                                           'by_default_purchase_invoice'
                                           );
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupIHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStockInvoice(invoiceInvSupIHGeneralLedger(generalLedger));
-debitGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupIHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.range THEN rangeInvSupIHGeneralLedger(generalLedger);
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupIHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.organization THEN supplierInvoice(invoiceInvSupIHGeneralLedger(generalLedger));
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(invoiceInvSupIHGeneralLedger(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSkuInvoice(invoiceInvSupIHGeneralLedger(generalLedger));
-idOperationGeneralLedger(l) += '01' IF l IS InvSupIHGeneralLedger;    
+debit(InvSupIHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.stock THEN customerStock(invoice(generalLedger));
+debit(InvSupIHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.range THEN range(generalLedger);
+credit(InvSupIHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.organization THEN supplier(invoice(generalLedger));
+credit(InvSupIHGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(invoice(generalLedger)) AND dimensionType == DimensionType.contract THEN contractSku(invoice(generalLedger));
+idOperation(InvSupIHGeneralLedger l) += '01' IF l IS InvSupIHGeneralLedger;    
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 

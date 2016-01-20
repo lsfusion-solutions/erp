@@ -4,24 +4,24 @@ REQUIRE Dashboard, PurchaseDeclarationDetail;
 
 NAMESPACE Purchase;
 
-selectedUserInvoice 'Отм.' = DATA LOCAL BOOLEAN (UserInvoice); 
-minSelectedUserInvoice = GROUP MIN i IF selectedUserInvoice(i); 
+selected 'Отм.' = DATA LOCAL BOOLEAN (UserInvoice); 
+minSelectedUserInvoice = GROUP MIN UserInvoice i IF selected(i); 
 
-countSelectedUserInvoice 'Кол-во отм.' = GROUP SUM 1 IF selectedUserInvoice(invoice);
+countSelectedUserInvoice 'Кол-во отм.' = GROUP SUM 1 IF selected(UserInvoice invoice);
 
-countSelectedCustomerUserInvoices 'Кол-во получателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedUserInvoice(invoice) BY customerUserInvoice(invoice)](invoice);
-countSelectedCurrencyUserInvoices 'Кол-во валют' = GROUP SUM 1 IF [= GROUP SUM 1 IF selectedUserInvoice(invoice) BY currencyUserInvoice(invoice)](invoice);
+countSelectedCustomerUserInvoices 'Кол-во получателей' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(UserInvoice invoice) BY customer(invoice)](LegalEntity invoice);
+countSelectedCurrencyUserInvoices 'Кол-во валют' = GROUP SUM 1 IF [= GROUP SUM 1 IF selected(UserInvoice invoice) BY currency(invoice)](Currency invoice);
 
-createMultiDeclaration 'Создать декларацию' = ACTION (invoice) {
+createMultiDeclaration 'Создать декларацию' = ACTION (UserInvoice invoice) {
     IF countSelectedUserInvoice() THEN {
         IF countSelectedCustomerUserInvoices()!=1 OR countSelectedCurrencyUserInvoices() != 1 THEN {
             MESSAGE 'Выбраны накладные с разными покупателями или валютами';               
         } ELSE {
             FOR ADDOBJ d = Declaration DO {
-                legalEntityDeclaration(d) <- customerUserInvoice(minSelectedUserInvoice());
-                currencyDeclaration(d) <- currencyUserInvoice(minSelectedUserInvoice());
-                FOR selectedUserInvoice(i) DO {
-                    declarationUserInvoice(i) <- d;
+                legalEntity(d) <- customer(minSelectedUserInvoice());
+                currency(d) <- currency(minSelectedUserInvoice());
+                FOR selected(UserInvoice i) DO {
+                    declaration(i) <- d;
                 }
                 FORM declaration OBJECTS d=d DOCKEDMODAL;
                 IF formResult() == FormResult.ok THEN {
@@ -33,9 +33,9 @@ createMultiDeclaration 'Создать декларацию' = ACTION (invoice) 
         }
     } ELSE {
         FOR ADDOBJ d = Declaration DO {
-            legalEntityDeclaration(d) <- customerUserInvoice(invoice);
-            currencyDeclaration(d) <- currencyUserInvoice(invoice);                
-            declarationUserInvoice(invoice) <- d;
+            legalEntity(d) <- customer(invoice);
+            currency(d) <- currency(invoice);                
+            declaration(invoice) <- d;
           
             FORM declaration OBJECTS d=d DOCKEDMODAL;  
             IF formResult() == FormResult.ok THEN {
@@ -54,26 +54,26 @@ FORM declarationDashboard 'Таможенное оформление'
     PROPERTIES(dt) date = OBJVALUE
 
     OBJECTS i=UserInvoice FIXED GRID
-    PROPERTIES (i) selectedUserInvoice
-    PROPERTIES (i) READONLY isPostedUserInvoice, numberUserInvoice, seriesUserInvoice, dateUserInvoice, timeUserInvoice,                                 
-                   nameSupplierUserInvoice, nameCustomerUserInvoice, 
-                   nameCurrencyUserInvoice, countUserInvoiceDetailUserInvoice, quantityUserInvoiceDetailUserInvoice, sumUserInvoiceDetailUserInvoice,
-                   VATSumUserInvoiceDetailUserInvoice, invoiceSumUserInvoiceDetailUserInvoice
+    PROPERTIES (i) selected
+    PROPERTIES (i) READONLY isPosted, number, series, date, time,                                 
+                   nameSupplier, nameCustomer, 
+                   nameCurrency, countUserInvoiceDetail, quantityUserInvoiceDetail, sumUserInvoiceDetail,
+                   VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail
 
     PROPERTIES (i) createMultiDeclaration FORCE PANEL TOOLBAR
-    FILTERS        showDeclarationUserInvoice(i), 
-                   TRUE AND NOT  declarationUserInvoice(i)
+    FILTERS        showDeclaration(i), 
+                   TRUE AND NOT  declaration(i)
     
     OBJECTS d = Declaration FIXED GRID
-    PROPERTIES(d)  READONLY isPostedDeclaration FORCE GRID, numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration,
-                   nameLegalEntityDeclaration, nameHomeCurrencyDeclaration, nameCurrencyDeclaration, 
-                   sumDeclarationDetailDeclaration, deliverySumDeclaration, chargeSumDeclaration,
-                   homeSumDeclarationDetailDeclaration, dutySumDeclarationDetailDeclaration, VATSumDeclarationDetailDeclaration, 
-                   registrationSumDeclaration
+    PROPERTIES(d)  READONLY isPosted FORCE GRID, number, series, date, time,
+                   nameLegalEntity, nameHomeCurrency, nameCurrency, 
+                   sumDeclarationDetail, deliverySum, chargeSum,
+                   homeSumDeclarationDetail, dutySumDeclarationDetail, VATSumDeclarationDetail, 
+                   registrationSum
     PROPERTIES(d)  ADDFORM, EDITFORM, deleted =DELETE FORCE PANEL TOOLBAR                       
                        
-    FILTERGROUP filters FILTER 'Накладные на дату' dateUserInvoice(i)<=dt 'F5' DEFAULT
-    FILTERGROUP filters1 FILTER 'Декларации на дату' dateDeclaration(d)==dt 'F5' DEFAULT
+    FILTERGROUP filters FILTER 'Накладные на дату' date(i)<=dt 'F5' DEFAULT
+    FILTERGROUP filters1 FILTER 'Декларации на дату' date(d)==dt 'F5' DEFAULT
                                
 ;
 

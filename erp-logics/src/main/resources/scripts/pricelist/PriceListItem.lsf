@@ -5,67 +5,67 @@ REQUIRE PriceList, Item;
 NAMESPACE PriceList;
 
 //Производитель
-filterManufacturerUserPriceList = DATA LOCAL Manufacturer (UserPriceList);
-nameFilterManufacturerUserPriceList 'Производитель' (userPriceList) = nameManufacturer(filterManufacturerUserPriceList(userPriceList)); 
+filterManufacturer = DATA LOCAL Manufacturer (UserPriceList);
+nameFilterManufacturer 'Производитель' (UserPriceList userPriceList) = name(filterManufacturer(userPriceList)); 
    
-filterManufacturerUserPriceListSku (userPriceList, sku) =
-    filterManufacturerUserPriceList(userPriceList) == manufacturerItem(sku) OR sku IS Item AND NOT filterManufacturerUserPriceList(userPriceList);    
+filterManufacturer (UserPriceList userPriceList, Item sku) =
+    filterManufacturer(userPriceList) == manufacturer(sku) OR sku IS Item AND NOT filterManufacturer(userPriceList);    
    
-filterManufacturerUserPriceListBatch (userPriceList, batch) =
-    filterManufacturerUserPriceList(userPriceList) == manufacturerBatch(batch) OR batch IS Batch AND NOT filterManufacturerUserPriceList(userPriceList);      
+filterManufacturer (UserPriceList userPriceList, Batch batch) =
+    filterManufacturer(userPriceList) == manufacturer(batch) OR batch IS Batch AND NOT filterManufacturer(userPriceList);      
 
 EXTEND FORM userPriceList
-    PROPERTIES(p) FORCE PANEL nameFilterManufacturerUserPriceList
-    FILTERS filterManufacturerUserPriceListSku(p, s2)
-    FILTERS filterManufacturerUserPriceListBatch(p, b)
+    PROPERTIES(p) FORCE PANEL nameFilterManufacturer
+    FILTERS filterManufacturer(p, s2)
+    FILTERS filterManufacturer(p, b)
 ;
 
 DESIGN userPriceList {
     filtersContainer {
-        MOVE PROPERTY(nameFilterManufacturerUserPriceList(p));
+        MOVE PROPERTY(nameFilterManufacturer(p));
     }
 }
                  
-currentPricePriceListTypeSkuStock 'Текущая цена' (type, sku, stock) = activePriceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime());
-activeLedgerPriceALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), stock,  dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE pricePriceListLedgerLedgerPriceListType(ledger, type) AND activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;                                   
-currentActiveLedgerPriceALedgerPriceListTypeSkuStock (type, sku, stock) = activeLedgerPriceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime());     
+currentPrice 'Текущая цена' (LedgerPriceListType type, Sku sku, Stock stock) = activePriceA(type, sku, stock, currentDateTime());
+activeLedgerPriceA (type, sku, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger), Stock stock,  DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE price(ledger, type) AND active(ledger, type, stock) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;                                   
+currentActiveLedgerPriceA (LedgerPriceListType type, Sku sku, Stock stock) = activeLedgerPriceA(type, sku, stock, currentDateTime());     
 
-changePricePriceListTypeSkuStock = ACTION (type, sku, stock) {   //-- todo: что делать если нет детейла?
+changePrice = ACTION (LedgerPriceListType type, Sku sku, Stock stock) {   //-- todo: что делать если нет детейла?
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
-        IF currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock) THEN {
-            pricePriceListLedgerLedgerPriceListType(ledger, type) <- requestedNumeric() WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock);
+        IF currentActiveLedgerPriceA(type, sku, stock) THEN {
+            price(PriceListLedger ledger, type) <- requestedNumeric() WHERE ledger == currentActiveLedgerPriceA(type, sku, stock);
         }    
     } ELSE {
-        DELETE ledger WHERE ledger == currentActiveLedgerPriceALedgerPriceListTypeSkuStock(type, sku, stock);
+        DELETE PriceListLedger ledger WHERE ledger == currentActiveLedgerPriceA(type, sku, stock);
     }
 };                
-notePriceLIstPriceListDetail 'Примечание' = notePriceList(priceListPriceListDetail(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+notePriceLIst 'Примечание' = note(priceList(PriceListDetail d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 EXTEND FORM item
     OBJECTS tc = DataPriceListType FIXED GRID
         FILTERGROUP filters
-            FILTER 'С текущей ценой' currentPricePriceListTypeSkuStock  (tc, i, st2) 'F10'
+            FILTER 'С текущей ценой' currentPrice  (tc, i, st2) 'F10'
             
-    PROPERTIES  READONLY nameDataPriceListType(tc), includeVATPriceListType(tc), nameCurrencyDataPriceListType(tc), nameRoundConditionPriceListType(tc) 
-    PROPERTIES(tc, i, st2)  currentPricePriceListTypeSkuStock ON CHANGE  changePricePriceListTypeSkuStock(tc, i, st2) 
+    PROPERTIES  READONLY name(tc), includeVAT[PriceListType](tc), nameCurrency(tc), nameRoundCondition(tc) 
+    PROPERTIES(tc, i, st2)  currentPrice ON CHANGE  changePrice(tc, i, st2) 
                               
     OBJECTS pd = PriceListDetail
     PROPERTIES(pd) READONLY 
-           isPostedPriceListDetail FORCE GRID, seriesNumberPriceListDetail, dateTimePriceListDetail, 
-           fromDatePriceListDetail, fromTimePriceListDetail, toDatePriceListDetail, toTimePriceListDetail, 
-           nameCompanyPriceListDetail, nameCompanyStockPriceListDetail, priceListTypesPriceListDetail, stocksPriceListDetail, notePriceLIstPriceListDetail
-    ORDER BY dateTimePriceListDetail(pd)
+           isPosted FORCE GRID, seriesNumber, dateTime, 
+           fromDate, fromTime, toDate, toTime, 
+           nameCompany, nameCompanyStock, priceListTypes, stocks, notePriceLIst
+    ORDER BY dateTime(pd)
            
-    FILTERS skuPriceListDetail(pd)==i
+    FILTERS sku(pd)==i
     FILTERGROUP inactivePriceList
-        FILTER 'Текущие' isActivePriceListDetail(pd) 'F11'            
-        FILTER 'Активные' isActivePriceListDetail(pd) OR (fromDateTimePriceListDetail(pd) > currentDateTime()) 'F10' DEFAULT                      
+        FILTER 'Текущие' isActive(pd) 'F11'            
+        FILTER 'Активные' isActive(pd) OR (fromDateTime(pd) > currentDateTime()) 'F10' DEFAULT                      
 ;
 DESIGN item {
     calcPriceListTypePrm {

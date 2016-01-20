@@ -11,79 +11,79 @@ CLASS Article 'Артикул';
 TABLE article(Article);
 
 @defineExternalizable(article, VARSTRING[100]);
-captionArticle 'Название' = DATA VARISTRING[255](Article) IN itemBase MINCHARWIDTH 20 PREFCHARWIDTH 40;
-originalCaptionArticle 'Наименование (ориг.)' = DATA VARISTRING[100] (Article) IN itemOriginal MINCHARWIDTH 20 PREFCHARWIDTH 40;
+caption 'Название' = DATA VARISTRING[255](Article) IN itemBase MINCHARWIDTH 20 PREFCHARWIDTH 40;
+originalCaption 'Наименование (ориг.)' = DATA VARISTRING[100] (Article) IN itemOriginal MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-itemGroupArticle 'Группа товара' = DATA ItemGroup(Article);
-nameItemGroupArticle 'Группа товара' (Article) = nameItemGroup(itemGroupArticle(Article));
-idItemGroupArticle 'Код группы' (Article) = idItemGroup(itemGroupArticle(Article));
+itemGroup 'Группа товара' = DATA ItemGroup(Article);
+nameItemGroup 'Группа товара' (Article Article) = name(itemGroup(Article));
+idItemGroup 'Код группы' (Article Article) = id(itemGroup(Article));
 
-skuGroup1Article 'Категория' (article) = skuGroup1SkuGroup(itemGroupArticle(article));
-nameSkuGroup1Article 'Категория' (article) = nameSkuGroup(skuGroup1Article(article));
+skuGroup1 'Категория' (Article article) = skuGroup1(itemGroup(article));
+nameSkuGroup1 'Категория' (Article article) = name(skuGroup1(article));
 
-skuGroup2Article 'Направление' (article) = skuGroup2SkuGroup(itemGroupArticle(article));
-nameSkuGroup2Article 'Направление' (article) = nameSkuGroup(skuGroup2Article(article));
+skuGroup2 'Направление' (Article article) = skuGroup2(itemGroup(article));
+nameSkuGroup2 'Направление' (Article article) = name(skuGroup2(article));
 
-skuGroup3Article 'Группа' (article) = skuGroup3SkuGroup(itemGroupArticle(article));
-nameSkuGroup3Article 'Группа' (article) = nameSkuGroup(skuGroup3Article(article));
+skuGroup3 'Группа' (Article article) = skuGroup3(itemGroup(article));
+nameSkuGroup3 'Группа' (Article article) = name(skuGroup3(article));
 
-skuGroup4Article 'Подгруппа' (article) = skuGroup4SkuGroup(itemGroupArticle(article));
-nameSkuGroup4Article 'Подгруппа' (article) = nameSkuGroup(skuGroup4Article(article));
+skuGroup4 'Подгруппа' (Article article) = skuGroup4(itemGroup(article));
+nameSkuGroup4 'Подгруппа' (Article article) = name(skuGroup4(article));
 
-skuGroup5Article 'Субгруппа' (article) = skuGroup5SkuGroup(itemGroupArticle(article));
-nameSkuGroup5Article 'Субгруппа' (article) = nameSkuGroup(skuGroup5Article(article));
+skuGroup5 'Субгруппа' (Article article) = skuGroup5(itemGroup(article));
+nameSkuGroup5 'Субгруппа' (Article article) = name(skuGroup5(article));
 
-WHEN SESSION CHANGED(itemGroupArticle(a)) AND NOT captionArticle(a) DO
-    captionArticle(a) <- captionItemGroup(itemGroupArticle(a));
+WHEN SESSION CHANGED(itemGroup(Article a)) AND NOT caption(a) DO
+    caption(a) <- caption(itemGroup(a));
 
 TABLE itemGroupArticle(ItemGroup, Article);
-isParentGroupArticle(group, article) = isParentItemGroupItemGroup(itemGroupArticle(article), group) PERSISTENT INDEXED;
-canonicalNameItemGroupArticle 'Группа товара' (article) = canonicalNameGroup(itemGroupArticle(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
+isParent(ItemGroup group, Article article) = isParent(itemGroup(article), group) PERSISTENT INDEXED;
+canonicalNameItemGroup 'Группа товара' (Article article) = canonicalName[Group](itemGroup(article)) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
 // --- Дополнительные группы
 TABLE customGroupTypeArticle(CustomGroupType, Article);
-customGroupCustomGroupTypeArticle = DATA CustomGroup (CustomGroupType, Article);
-nameCustomGroupCustomGroupTypeArticle 'Имя' (customGroupType, article) = nameCustomGroup(customGroupCustomGroupTypeArticle(customGroupType, article));
-canonicalNameCustomGroupCustomGroupTypeArticle 'Каноническое имя' (customGroupType, article) = canonicalNameCustomGroup(customGroupCustomGroupTypeArticle(customGroupType, article));
+customGroup = DATA CustomGroup (CustomGroupType, Article);
+nameCustomGroup 'Имя' (CustomGroupType customGroupType, Article article) = name(customGroup(customGroupType, article));
+canonicalNameCustomGroup 'Каноническое имя' (CustomGroupType customGroupType, Article article) = canonicalName(customGroup(customGroupType, article));
 
 // Бренд
-brandArticle 'Бренд' = DATA Brand (Article);
-nameBrandArticle 'Бренд' (a) = nameBrand(brandArticle(a)) IN itemBase;
-idBrandArticle 'Бренд' (a) = idBrand(brandArticle(a));
-siteBrandArticle 'Адрес сайта' (a) = siteBrand(brandArticle(a));
-overReplaceBrandBrand (new,o) += ACTION (new,o) {
-    brandArticle(article) <- new WHERE brandArticle(article) == o;
+brand 'Бренд' = DATA Brand (Article);
+nameBrand 'Бренд' (Article a) = name(brand(a)) IN itemBase;
+idBrand 'Бренд' (Article a) = id(brand(a));
+siteBrand 'Адрес сайта' (Article a) = site(brand(a));
+overReplace (Brand new,Brand o) += ACTION (new,o) {
+    brand(Article article) <- new WHERE brand(article) == o;
 }
 
-CONSTRAINT brandArticle(article) AND itemGroupArticle(article) AND countDataItemGroupBrand(brandArticle(article)) AND NOT countRecBrandItemGroup(brandArticle(article), itemGroupArticle(article))
-    CHECKED BY brandArticle, itemGroupArticle  
+CONSTRAINT brand(Article article) AND itemGroup(article) AND countDataItemGroup(brand(article)) AND NOT countRec(brand(article), itemGroup(article))
+    CHECKED BY brand[Article], itemGroup[Article]  
         MESSAGE 'Бренд должен быть доступен для товарной группы (артикул)';  
 
 // Производитель
-manufacturerArticle 'Производитель' = DATA Manufacturer (Article);
-nameManufacturerArticle 'Производитель' (a) = nameManufacturer(manufacturerArticle(a)) IN itemBase;
-overReplaceManufacturerManufacturer (new,o) += ACTION (new,o) {
-    manufacturerArticle(article) <- new WHERE manufacturerArticle(article) == o;
+manufacturer 'Производитель' = DATA Manufacturer (Article);
+nameManufacturer 'Производитель' (Article a) = name(manufacturer(a)) IN itemBase;
+overReplace (Manufacturer new,Manufacturer o) += ACTION (new,o) {
+    manufacturer(Article article) <- new WHERE manufacturer(article) == o;
 }
 // Производитель
-countryArticle = DATA Country (Article);
-nameCountryArticle 'Страна' (a) = nameCountry(countryArticle(a)) IN itemBase;
-overReplaceCountryCountry (new,o) += ACTION (new,o) {
-    countryArticle(article) <- new WHERE countryArticle(article) == o;
+country = DATA Country (Article);
+nameCountry 'Страна' (Article a) = name(country(a)) IN itemBase;
+overReplace (Country new,Country o) += ACTION (new,o) {
+    country(Article article) <- new WHERE country(article) == o;
 }
 // Изображение артикула
 TABLE imagesArticle (Article);
-imageArticle 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArticle;
+image 'Изображение' = DATA IMAGEFILE (Article) TABLE imagesArticle;
 
 FORM article 'Артикул'
     OBJECTS a=Article FIXED PANEL
-    PROPERTIES(a) captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, nameBrandArticle, 
-                  nameManufacturerArticle, nameCountryArticle, imageArticle
+    PROPERTIES(a) caption, originalCaption, id SHOWIF showIDs(), canonicalNameItemGroup, nameBrand, 
+                  nameManufacturer, nameCountry, image
 
     OBJECTS c = Country
-    PROPERTIES (c) READONLY nameCountry
+    PROPERTIES (c) READONLY name
     FILTERGROUP filters1
-            FILTER 'Страны, у которых есть НДС' countRangeTaxCountry (Tax.taxVAT, c) 'F11' DEFAULT
+            FILTER 'Страны, у которых есть НДС' countRange (Tax.taxVAT, c) 'F11' DEFAULT
 
     EDIT Article OBJECT a
 ;
@@ -91,8 +91,8 @@ DESIGN article {
     main {
         NEW articleHeader BEFORE functions.box {
             type = CONTAINERV;
-            MOVE PROPERTY(canonicalNameItemGroupArticle(a));
-            MOVE PROPERTY(idArticle(a));
+            MOVE PROPERTY(canonicalNameItemGroup(a));
+            MOVE PROPERTY(id(a));
         }
         NEW articleDetail BEFORE functions.box {
             fill = 1;
@@ -117,7 +117,7 @@ DESIGN article {
             }
             NEW imageBox {
                 caption = 'Изображение';
-                MOVE PROPERTY(imageArticle(a)) {
+                MOVE PROPERTY(image(a)) {
                     fill = 1;
                     caption = '';
                 }
@@ -129,19 +129,19 @@ DESIGN article {
 
 FORM articles 'Артикулы'
 
-    TREE groupTree g=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g)
-    ORDER BY orderItemGroup(g), nameItemGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(g) 'F5' DEFAULT
+    TREE groupTree g=ItemGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLYIF isReadonly() captionArticle, originalCaptionArticle, idArticle SHOWIF showIDs(), canonicalNameItemGroupArticle, 
-                  nameBrandArticle, nameManufacturerArticle, imageArticle FORCE PANEL 
+    PROPERTIES(a) READONLYIF isReadonly() caption, originalCaption, id SHOWIF showIDs(), canonicalNameItemGroup, 
+                  nameBrand, nameManufacturer, image FORCE PANEL 
     PROPERTIES(a) ADDFORM, EDITFORM, deletea=DELETE FORCE PANEL TOOLBAR
-    ORDER BY captionArticle(a)
+    ORDER BY caption(a)
     FILTERGROUP groupFilters
-        FILTER 'С группами' isParentGroupArticle(g, a) 'F9' DEFAULT
-        FILTER 'Без групп' captionArticle(a) IF NOT itemGroupArticle(a) 'F8'   
+        FILTER 'С группами' isParent(g, a) 'F9' DEFAULT
+        FILTER 'Без групп' caption(a) IF NOT itemGroup(a) 'F8'   
     
     DIALOG Article OBJECT a
 ;
@@ -156,7 +156,7 @@ DESIGN articles {
                 fill = 1;
                 type = SPLITV;
                 MOVE groupTree.tree.box;
-                MOVE PROPERTY (imageArticle(a)) {
+                MOVE PROPERTY (image(a)) {
                     fill = 1; 
                     caption = ''; 
                 }
@@ -174,21 +174,21 @@ DESIGN articles {
 }
 @extendFormEditable(articles);
 
-articleItem = DATA Article (Item) INDEXED;
-idArticleItem 'Артикул' (item) = idArticle(articleItem(item)) IN itemArticle;
+article = DATA Article (Item) INDEXED;
+idArticle 'Артикул' (Item item) = id(article(item)) IN itemArticle;
 @defineItemAttribute(article, id, 'Артикул', itemArticle);
 
 @defineObjectItemAttributeBatch (article, idArticle, 'Артикул');
-captionArticleBatch 'Артикул' (batch) = captionArticle(articleItem(skuBatch(batch)));
+captionArticle 'Артикул' (Batch batch) = caption(article(sku(batch)));
 
 @implementItemAttribute(idArticle, 'Артикул', String, itemArticle);
 
-captionArticleItem 'Aртикула' (item) = captionArticle(articleItem(item));
-imageArticleItem 'Изображение (артикул)' (item) = imageArticle(articleItem(item));
-overImageItem (item) += imageArticleItem (item);
+captionArticle 'Aртикула' (Item item) = caption(article(item));
+imageArticle 'Изображение (артикул)' (Item item) = image(article(item));
+overImage (Item item) += imageArticle (item);
 
-countItemArticle 'Кол-во товаров' (a) = GROUP SUM 1 BY articleItem(i);
-prevCountItemArticle (a) = PREV(countItemArticle(a));
+countItem 'Кол-во товаров' (a) = GROUP SUM 1 BY article(Item i);
+prevCountItem (Article a) = PREV(countItem(a));
 
 
 equalBrandItemArticle 'Бренд артикула должен соответствовать бренду товара' = DATA BOOLEAN ();        
@@ -201,8 +201,8 @@ DESIGN options {
         MOVE PROPERTY (equalBrandItemArticle());
     }
 }        
-CONSTRAINT brandArticle(articleItem(i)) AND brandItem(i) AND equalBrandItemArticle() AND NOT (brandArticle(articleItem(i)) == brandItem(i))
-    CHECKED BY brandArticle, brandItem  
+CONSTRAINT brand(article(Item i)) AND brand(i) AND equalBrandItemArticle() AND NOT (brand(article(i)) == brand(i))
+    CHECKED BY brand[Article], brand[Item]  
         MESSAGE 'Бренд артикула должен соответствовать бренду товара';  
 
 //nameCountryArticle 'Страна' (a) = GROUP MAX nameCountryItem(i) BY articleItem(i); 
@@ -211,20 +211,20 @@ CLASS Color 'Цвет товара';
 TABLE color (Color);
 
 @defineExternalizable(color, VARSTRING[100]);
-nameColor 'Наименование' = DATA VARISTRING[50](Color);
-colorName 'Цвет' = GROUP AGGR color BY nameColor(color);
+name 'Наименование' = DATA VARISTRING[50](Color);
+colorName 'Цвет' = GROUP AGGR Color color BY name(color);
 
 FORM color 'Цвет товара'
     OBJECTS t=Color FIXED PANEL
-    PROPERTIES(t) nameColor, idColor SHOWIF showIDs()
+    PROPERTIES(t) name, id SHOWIF showIDs()
     EDIT Color OBJECT t
 ;
 
 FORM colors 'Цвета товара'
     OBJECTS t=Color
-    PROPERTIES(t) nameColor READONLY, idColor SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameColor(t)
+    ORDER BY name(t)
     DIALOG Color OBJECT t
 ;
 DESIGN colors { main{ preferredSize = (600, 400); } }
@@ -238,60 +238,60 @@ DESIGN colors { main{ preferredSize = (600, 400); } }
 
 @defineUniteFilterAttributeItem(color, name, 'цвет товара', 'цвета товара', item);
 EXTEND FORM attributesItem
-    PROPERTIES READONLY AFTER nameColor(color) idColor(color) SHOWIF showIDs()
+    PROPERTIES READONLY AFTER name(color) id(color) SHOWIF showIDs()
 ;
 
-idColorItem (item) = idColor(colorItem(item));
+idColor (Item item) = id(color(item));
 
 TABLE colorArticle(Color, Article);
 EXTEND CLASS Color  {
     none 'None'
 }
-calcColorItem (item)= OVERRIDE (Color.none IF item IS Item), colorItem(item);
-countColorArticle 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColorItem(item), articleItem(item) PERSISTENT;
+calcColor (Item item)= OVERRIDE (Color.none IF item IS Item), color(item);
+count 'Кол-во цветов для артикля' (color,article) = GROUP SUM 1 BY calcColor(Item item), article(item) PERSISTENT;
 
-colorArticle  = DATA Color(Article);
-nameColorArticle 'Цвет' (Article) = nameColor(colorArticle(Article)) IN itemArticle;
-overReplaceColorColor (new,o) += ACTION (new,o) {
-    colorArticle(article) <- new WHERE colorArticle(article) == o;
+color  = DATA Color(Article);
+nameColor 'Цвет' (Article Article) = name(color(Article)) IN itemArticle;
+overReplace (Color new,Color o) += ACTION (new,o) {
+    color(Article article) <- new WHERE color(article) == o;
 }
-EXTEND FORM article PROPERTIES(a) nameColorArticle;
+EXTEND FORM article PROPERTIES(a) nameColor;
 DESIGN article  {
     articlePrimary {
         MOVE a.itemArticle { type = CONTAINERH; }
     }
 }
-EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameColorArticle;
+EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameColor;
 
 //  Ед. изм.
-UOMArticle  = DATA UOM (Article);
-idUOMArticle 'Единица измерения' (article) = idUOM(UOMArticle(article));
-nameUOMArticle 'Единица измерения' (article) = nameUOM(UOMArticle(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
-shortNameUOMArticle 'Краткое наименование' (article)=  shortNameUOM(UOMArticle(article)) IN itemBase MINCHARWIDTH 3 PREFCHARWIDTH 6;
+UOM  = DATA UOM (Article);
+idUOM 'Единица измерения' (Article article) = id(UOM(article));
+nameUOM 'Единица измерения' (Article article) = name(UOM(article)) IN itemBase MINCHARWIDTH 10 PREFCHARWIDTH 10;
+shortNameUOM 'Краткое наименование' (Article article)=  shortName(UOM(article)) IN itemBase MINCHARWIDTH 3 PREFCHARWIDTH 6;
 
-WHEN SESSION CHANGED(itemGroupArticle(a)) AND NOT UOMArticle(a) DO
-    UOMArticle(a) <- UOMItemGroup(itemGroupArticle(a));
-overReplaceUOMUOM (new,o) += ACTION (new,o) {
-    UOMArticle(article) <- new WHERE UOMArticle(article) == o;
+WHEN SESSION CHANGED(itemGroup(Article a)) AND NOT UOM(a) DO
+    UOM(a) <- UOM(itemGroup(a));
+overReplace (UOM new,UOM o) += ACTION (new,o) {
+    UOM(Article article) <- new WHERE UOM(article) == o;
 }
 //  Состав
-compositionArticle 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
-originalCompositionArticle 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal MINCHARWIDTH 30 PREFCHARWIDTH 40;
+composition 'Состав' = DATA VARSTRING[255] (Article) IN itemBase MINCHARWIDTH 30 PREFCHARWIDTH 40;
+originalComposition 'Состав (ориг.)' = DATA VARSTRING[255] (Article) IN itemOriginal MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
-EXTEND FORM article PROPERTIES(a) compositionArticle, originalCompositionArticle, nameUOMArticle;
-EXTEND FORM articles PROPERTIES(a) BEFORE nameColorArticle(a) READONLYIF isReadonly() nameUOMArticle, compositionArticle, originalCompositionArticle;
+EXTEND FORM article PROPERTIES(a) composition, originalComposition, nameUOM;
+EXTEND FORM articles PROPERTIES(a) BEFORE nameColor(a) READONLYIF isReadonly() nameUOM, composition, originalComposition;
 
 //  Габариты
-netWeightArticle 'Вес нетто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
-grossWeightArticle 'Вес брутто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+netWeight 'Вес нетто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
+grossWeight 'Вес брутто, кг' = DATA NUMERIC[11,5] (Article) IN itemSize;// MINCHARWIDTH 8 PREFCHARWIDTH 12;
 
-EXTEND FORM article PROPERTIES(a) netWeightArticle, grossWeightArticle;
+EXTEND FORM article PROPERTIES(a) netWeight, grossWeight;
 DESIGN article {
     articlePrimary {
         MOVE a.itemSize {type = CONTAINERH;}
     }
 }
-EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWeightArticle, grossWeightArticle;
+EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() netWeight, grossWeight;
 
 
 // Пол
@@ -299,46 +299,46 @@ CLASS Gender 'Пол';
 TABLE gender (Gender);
 
 @defineExternalizable(gender, VARSTRING[100]);
-nameGender 'Наименование' = DATA VARISTRING[50](Gender);
-shortNameGender 'Краткое наименование' = DATA VARISTRING[10] (Gender);
+name 'Наименование' = DATA VARISTRING[50](Gender);
+shortName 'Краткое наименование' = DATA VARISTRING[10] (Gender);
 
 FORM gender 'Пол'
     OBJECTS t=Gender FIXED PANEL
-    PROPERTIES(t) nameGender, shortNameGender, idGender SHOWIF showIDs()
+    PROPERTIES(t) name, shortName, id SHOWIF showIDs()
     EDIT Gender OBJECT t
 ;
 
 FORM genders 'Пол'
     OBJECTS t=Gender
-    PROPERTIES(t) nameGender READONLY, shortNameGender READONLY, idGender SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, shortName READONLY, id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameGender(t)
+    ORDER BY name(t)
     DIALOG Gender OBJECT t
 ;
 DESIGN genders { main{ preferredSize = (600, 400); } }
 
-genderBrand  = DATA Gender (Brand);
-nameGenderBrand 'Пол' (b) = nameGender(genderBrand(b)) IN itemArticle;
-shortNameGenderBrand 'Пол' (b) = shortNameGender(genderBrand(b)) IN itemArticle;
-EXTEND FORM brand PROPERTIES(t) nameGenderBrand, shortNameGenderBrand;
-EXTEND FORM brands PROPERTIES(t) BEFORE deleteb READONLYIF isReadonly() nameGenderBrand;
+gender  = DATA Gender (Brand);
+nameGender 'Пол' (Brand b) = name(gender(b)) IN itemArticle;
+shortNameGender 'Пол' (Brand b) = shortName(gender(b)) IN itemArticle;
+EXTEND FORM brand PROPERTIES(t) nameGender, shortNameGender;
+EXTEND FORM brands PROPERTIES(t) BEFORE deleteb READONLYIF isReadonly() nameGender;
 
-dataGenderArticle  = DATA Gender (Article);
-genderArticle (article) = OVERRIDE genderBrand(brandArticle(article)), dataGenderArticle(article) PERSISTENT;
+dataGender  = DATA Gender (Article);
+gender (Article article) = OVERRIDE gender(brand(article)), dataGender(article) PERSISTENT;
 
-nameGenderArticle 'Пол' (a) = nameGender(genderArticle(a));
-shortNameGenderArticle 'Пол' (a) = shortNameGender(genderArticle(a));
+nameGender 'Пол' (Article a) = name(gender(a));
+shortNameGender 'Пол' (Article a) = shortName(gender(a));
 
-genderItem (i) = genderArticle(articleItem(i));
-nameGenderItem 'Пол' (i) = nameGender(genderItem(i));
-shortNameGenderItem 'Пол' (i) = shortNameGender(genderItem(i));
+gender (Item i) = gender(article(i));
+nameGender 'Пол' (Item i) = name(gender(i));
+shortNameGender 'Пол' (Item i) = shortName(gender(i));
 
-genderBatch  (batch) = genderItem(skuBatch(batch));
-nameGenderBatch 'Пол' (batch) = nameGender(genderBatch(batch));
-shortNameGenderBatch 'Пол' (batch) = shortNameGender(genderBatch(batch));
+gender  (Batch batch) = gender(sku(batch));
+nameGender 'Пол' (Batch batch) = name(gender(batch));
+shortNameGender 'Пол' (Batch batch) = shortName(gender(batch));
 
-EXTEND FORM article PROPERTIES(a) nameGenderArticle;
-EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGenderArticle;
+EXTEND FORM article PROPERTIES(a) nameGender;
+EXTEND FORM articles PROPERTIES(a) BEFORE deletea READONLYIF isReadonly() nameGender;
 
 // Размер
 CLASS Size 'Размер товара';
@@ -346,33 +346,33 @@ TABLE size(Size);
 
 @defineExternalizable(size, VARSTRING[100]);
 
-nameSize 'Наименование' = DATA VARISTRING[50](Size);
-sizeName = GROUP MAX size BY nameSize(size);
-shortNameSize 'Краткое наименование' = DATA ISTRING[10](Size);
+name 'Наименование' = DATA VARISTRING[50](Size);
+sizeName = GROUP MAX Size size BY name(size);
+shortName 'Краткое наименование' = DATA ISTRING[10](Size);
 
-nameOriginalSize 'Наименование (оригинальное)' = DATA VARISTRING[50](Size);
-WHEN SESSION CHANGED(nameSize(s)) AND NOT nameOriginalSize(s) DO nameOriginalSize(s) <- nameSize(s);
+nameOriginal 'Наименование (оригинальное)' = DATA VARISTRING[50](Size);
+WHEN SESSION CHANGED(name(Size s)) AND NOT nameOriginal(s) DO nameOriginal(s) <- name(s);
 
 FORM size 'Размер товара'
     OBJECTS t=Size FIXED PANEL
-    PROPERTIES(t) nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize
+    PROPERTIES(t) name, id SHOWIF showIDs(), shortName, nameOriginal
     EDIT Size OBJECT t
 ;
 
 FORM sizes 'Размеры товара'
     OBJECTS t=Size
-    PROPERTIES(t) nameSize READONLY, idSize SHOWIF showIDs() READONLY, shortNameSize READONLY, nameOriginalSize READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, id SHOWIF showIDs() READONLY, shortName READONLY, nameOriginal READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameSize(t)
+    ORDER BY name(t)
     DIALOG Size OBJECT t
 ;
 DESIGN sizes { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(size, Size, name, 'Размер', itemArticle);
 
-nameOriginalSizeItem 'Размер (оригинальный)' (item) = nameOriginalSize(sizeItem(item)) IN itemArticle;
-dataOriginalSizeItem 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
-originalSizeItem 'Размер (оригинальный)' (i) = OVERRIDE nameOriginalSizeItem(i), dataOriginalSizeItem(i) MINCHARWIDTH 3 PREFCHARWIDTH 5;
+nameOriginalSize 'Размер (оригинальный)' (Item item) = nameOriginal(size(item)) IN itemArticle;
+dataOriginalSize 'Размер (оригинальный)' = DATA VARISTRING[50](Item);
+originalSize 'Размер (оригинальный)' (Item i) = OVERRIDE nameOriginalSize(i), dataOriginalSize(i) MINCHARWIDTH 3 PREFCHARWIDTH 5;
 @implementItemAttribute(originalSize, 'Размер (оригинальный)', String, itemOriginalSize);
 
 @defineObjectItemAttributeBatch (size, nameSize, 'Размер');
@@ -382,23 +382,23 @@ originalSizeItem 'Размер (оригинальный)' (i) = OVERRIDE nameOr
 
 @defineUniteFilterAttributeItem(size, name, 'размер товара', 'размеры товара', item);
 EXTEND FORM attributesItem
-    PROPERTIES(size) AFTER nameSize(size) READONLY nameOriginalSize, shortNameSize, idSize SHOWIF showIDs() 
+    PROPERTIES(size) AFTER name(size) READONLY nameOriginal, shortName, id SHOWIF showIDs() 
 ;
 
 TABLE sizeArticle(Size, Article);
 EXTEND CLASS Size  {
     none 'None'
 }
-calcSizeItem (item)= OVERRIDE (Size.none IF item IS Item), sizeItem(item);
-countSizeArticle 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSizeItem(item), articleItem(item) PERSISTENT;
+calcSize (Item item)= OVERRIDE (Size.none IF item IS Item), size(item);
+count 'Кол-во размеров для артикля' (size,article) = GROUP SUM 1 BY calcSize(Item item), article(item) PERSISTENT;
 
-maxSkuArticleColorSize (article, color, size) = GROUP MAX sku
-    BY articleItem(sku), calcColorItem(sku), calcSizeItem(sku);
+maxSku (article, color, size) = GROUP MAX Item sku
+    BY article(sku), calcColor(sku), calcSize(sku);
 
-overCopyItem(s, d) += ACTION (s, d) {
-    articleItem(d) <- articleItem(s);
-    colorItem(d) <- colorItem(s);
-    sizeItem(d) <- sizeItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    article(d) <- article(s);
+    color(d) <- color(s);
+    size(d) <- size(s);
 }
 
 DESIGN item {
@@ -454,67 +454,67 @@ TABLE sizeGroup(SizeGroup);
  
 @defineExternalizable(sizeGroup, VARSTRING[100]);
  
-nameSizeGroup 'Наименование' = DATA VARISTRING[50](SizeGroup);
-shortNameSizeGroup 'Краткое наименование' = DATA ISTRING[10](SizeGroup);
+name 'Наименование' = DATA VARISTRING[50](SizeGroup);
+shortName 'Краткое наименование' = DATA ISTRING[10](SizeGroup);
 
 TABLE sizeGroupSize(SizeGroup, Size);
-inSizeGroupSize 'Вкл.' = DATA BOOLEAN (SizeGroup, Size);
-orderSizeGroupSize 'Порядковый номер' = DATA INTEGER (SizeGroup, Size); 
+in 'Вкл.' = DATA BOOLEAN (SizeGroup, Size);
+order 'Порядковый номер' = DATA INTEGER (SizeGroup, Size); 
 FORM sizeGroup 'Размерная сетка'
     OBJECTS t=SizeGroup FIXED PANEL
-    PROPERTIES(t) nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
+    PROPERTIES(t) name, id SHOWIF showIDs(), shortName
     
     OBJECTS s=Size 
-    PROPERTIES(s) READONLY nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize  
-    PROPERTIES(t,s) inSizeGroupSize, orderSizeGroupSize   
+    PROPERTIES(s) READONLY name, id SHOWIF showIDs(), shortName, nameOriginal  
+    PROPERTIES(t,s) in, order   
     FILTERGROUP filters1
-            FILTER 'Только включенные' inSizeGroupSize(t,s) 'F11'
+            FILTER 'Только включенные' in(t,s) 'F11'
                  
     EDIT SizeGroup OBJECT t
 ;
 
 FORM sizeGroups 'Размерные сетки'
     OBJECTS t=SizeGroup 
-    PROPERTIES(t) READONLY nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
+    PROPERTIES(t) READONLY name, id SHOWIF showIDs(), shortName
     
     OBJECTS s=Size 
-    PROPERTIES(s) READONLY nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize  
-    PROPERTIES(t,s) READONLY inSizeGroupSize, orderSizeGroupSize
+    PROPERTIES(s) READONLY name, id SHOWIF showIDs(), shortName, nameOriginal  
+    PROPERTIES(t,s) READONLY in, order
     PROPERTIES(t) ADDFORM, EDITFORM
     
-    ORDER BY  nameSizeGroup(t), orderSizeGroupSize(t,s)       
-    FILTERS inSizeGroupSize(t,s)
+    ORDER BY  name(t), order(t,s)       
+    FILTERS in(t,s)
      
     DIALOG SizeGroup OBJECT t
 ;
 DESIGN sizes { main{ preferredSize = (600, 400); } }
 
-sizeGroupArticle = DATA SizeGroup (Article);
-nameSizeGroupArticle 'Размерная сетка' (a) = nameSizeGroup(sizeGroupArticle(a)) IN itemArticle;
+sizeGroup = DATA SizeGroup (Article);
+nameSizeGroup 'Размерная сетка' (Article a) = name(sizeGroup(a)) IN itemArticle;
 
 EXTEND FORM article
-    PROPERTIES(a) nameSizeGroupArticle
+    PROPERTIES(a) nameSizeGroup
 ;
 EXTEND FORM articles
-    PROPERTIES(a) READONLYIF isReadonly() nameSizeGroupArticle 
+    PROPERTIES(a) READONLYIF isReadonly() nameSizeGroup 
 ;
 
 @defineUniteAttributeItemWithoutExtendForm(sizeGroup, nameSizeGroup, 'размерная сетка', 'размерные сетки', article);
 
 EXTEND FORM attributesItem
     OBJECTS sizeGroup=SizeGroup 
-    PROPERTIES inSizeGroup(sizeGroup)    
-    PROPERTIES(sizeGroup) READONLY nameSizeGroup, idSizeGroup SHOWIF showIDs(), shortNameSizeGroup
+    PROPERTIES in(sizeGroup)    
+    PROPERTIES(sizeGroup) READONLY name, id SHOWIF showIDs(), shortName
     PROPERTIES(sizeGroup) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
-    ORDER BY nameSizeGroup(sizeGroup)
-    PROPERTIES replaceSizeGroup(sizeGroup) TODRAW sizeGroup FORCE PANEL TOOLBAR    
+    ORDER BY name(sizeGroup)
+    PROPERTIES replace(sizeGroup) TODRAW sizeGroup FORCE PANEL TOOLBAR    
     
     OBJECTS size2=Size 
-    PROPERTIES(size2) READONLY nameSize, idSize SHOWIF showIDs(), shortNameSize, nameOriginalSize  
-    PROPERTIES(sizeGroup,size2) READONLY inSizeGroupSize, orderSizeGroupSize
+    PROPERTIES(size2) READONLY name, id SHOWIF showIDs(), shortName, nameOriginal  
+    PROPERTIES(sizeGroup,size2) READONLY in, order
     
-    ORDER BY  nameSizeGroup(sizeGroup), orderSizeGroupSize(sizeGroup,size2)       
-    FILTERS inSizeGroupSize(sizeGroup,size2)
+    ORDER BY  name(sizeGroup), order(sizeGroup,size2)       
+    FILTERS in(sizeGroup,size2)
 ;
 
 DESIGN attributesItem{
@@ -531,11 +531,11 @@ DESIGN attributesItem{
 EXTEND FORM article
 
     OBJECTS i = Item
-    PROPERTIES (i) idBarcodeSku, idItem, captionItem, compositionItem, nameUOMItem, nameColorItem,                        
-                   nameSizeItem
+    PROPERTIES (i) idBarcode, id, caption, composition, nameUOM, nameColor,                        
+                   nameSize
     PROPERTIES (i) ADDOBJ, deletei = DELETESESSION   
                                                                     
-    FILTERS articleItem(i) == a      
+    FILTERS article(i) == a      
 ;
 DESIGN article {
     articleDetail{
@@ -546,10 +546,10 @@ DESIGN article {
 EXTEND FORM articles
 
     OBJECTS i = Item
-    PROPERTIES (i) READONLY captionItem, compositionItem, nameUOMItem, nameColorItem, 
-                   nameSizeItem       
+    PROPERTIES (i) READONLY caption, composition, nameUOM, nameColor, 
+                   nameSize       
     
-    FILTERS articleItem(i) == a      
+    FILTERS article(i) == a      
     
 ;
 
@@ -561,17 +561,17 @@ DESIGN articles {
 
 // ------------------------- Объединение артикулов ---------------------- //
 
-replaceArticleArticle = ABSTRACT ACTION LIST (Article, Article);
-inArticle 'Отм.' = DATA LOCAL BOOLEAN (Article);
+replace = ABSTRACT ACTION LIST (Article, Article);
+in 'Отм.' = DATA LOCAL BOOLEAN (Article);
 
-replaceArticle 'Объединить' = ACTION (article) {
-    FOR inArticle(a) DO{
+replace 'Объединить' = ACTION (Article article) {
+    FOR in(Article a) DO{
         IF a != article THEN {
-            articleItem(item) <- article WHERE articleItem(item) == a;
+            article(Item item) <- article WHERE article(item) == a;
             
-            replaceArticleArticle(a,article);
+            replace(a,article);
             
-            inArticle(a) <- NULL;
+            in(a) <- NULL;
             DELETE a;
         } ELSE {
             MESSAGE 'Выделенный артикул не может совпадать с объединяемым';
@@ -582,13 +582,13 @@ replaceArticle 'Объединить' = ACTION (article) {
 
 
 EXTEND FORM articles
-    PROPERTIES(a) inArticle BEFORE captionArticle(a), replaceArticle FORCE PANEL TOOLBAR
+    PROPERTIES(a) in BEFORE caption(a), replace FORCE PANEL TOOLBAR
 ;
 
 // ------------------------- Автоматическое проставление свойств товара для артикула ---------------------- //
 META defineEventChangedArticle(property)
-    WHEN SESSION CHANGED(property##Article(articleItem(i))) AND NOT CHANGED(property##Item(i)) DO         
-        property##Item(i) <- property##Article(articleItem(i));
+    WHEN SESSION CHANGED(property(article(Item i))) AND NOT CHANGED(property(i)) DO         
+        property(i) <- property(article(i));
 END
 
 @defineEventChangedArticle(caption);
@@ -596,8 +596,8 @@ END
 @defineEventChangedArticle(itemGroup);
 @defineEventChangedArticle(country);
       
-WHEN SESSION CHANGED(customGroupCustomGroupTypeArticle(type, articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
-    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeArticle(type, articleItem(i));
+WHEN SESSION CHANGED(customGroup(CustomGroupType type, article(Item i))) AND NOT CHANGED(customGroup(type, i)) DO         
+    customGroup(type, i) <- customGroup(type, article(i));
 
 //WHEN SESSION (CHANGED(customGroupCustomGroupTypeArticle(type, article)) OR CHANGED(articleItem(i))) AND NOT CHANGED(customGroupCustomGroupTypeItem(type, i)) DO         
 //    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeArticle(type, article) WHERE articleItem(i)==article;

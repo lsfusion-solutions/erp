@@ -4,36 +4,36 @@ REQUIRE Employee;
 
 NAMESPACE Employee;
 
-inManagerEmployee 'Вкл.' = DATA BOOLEAN (Employee, Employee);
-descriptionManagersEmployee 'Менеджеры' (e) = GROUP CONCAT shortNameContact(m) IF inManagerEmployee(m ,e), ',' BY e;
-countManagersEmployee = GROUP SUM 1 IF inManagerEmployee(m ,e) BY e;
+inManager 'Вкл.' = DATA BOOLEAN (Employee, Employee);
+descriptionManagers 'Менеджеры' (e) = GROUP CONCAT shortName(Employee m) IF inManager(m ,Employee e), ',' BY e;
+countManagers = GROUP SUM 1 IF inManager(Employee m ,Employee e) BY e;
 
-overCopyEmployee(e,employee) += ACTION {    
-    inManagerEmployee(l,e) <- inManagerEmployee(l,employee) WHERE inManagerEmployee(l,employee);
-    inManagerEmployee(e,l) <- inManagerEmployee(employee,l) WHERE inManagerEmployee(employee,l);        
+overCopy(Employee e,Employee employee) += ACTION {    
+    inManager(Employee l,e) <- inManager(l,employee) WHERE inManager(l,employee);
+    inManager(e,Employee l) <- inManager(employee,l) WHERE inManager(employee,l);        
 };
 
 FORM inManagerEmployee 'Менеджеры'
     OBJECTS e = Employee FIXED GRID
     OBJECTS m = Employee
-    PROPERTIES (m) READONLY lastNameContact, firstNameContact, shortNameContact, nameMainRoleUser
-    PROPERTIES (m, e) inManagerEmployee    
-    FILTERGROUP include FILTER 'Включены' inManagerEmployee (m, e) 'F9' 
+    PROPERTIES (m) READONLY lastName, firstName, shortName, nameMainRole
+    PROPERTIES (m, e) inManager    
+    FILTERGROUP include FILTER 'Включены' inManager (m, e) 'F9' 
 ;
 
-fillInManagerEmployee = ACTION (e) {
+fillInManager = ACTION (Employee e) {
     FORM inManagerEmployee OBJECTS e=e MODAL;
 }
 
 EXTEND FORM employee
-    PROPERTIES (e) descriptionManagersEmployee ON CHANGE fillInManagerEmployee(e)
+    PROPERTIES (e) descriptionManagers ON CHANGE fillInManager(e)
 ;
 
 DESIGN employee {
     pane { 
         NEW manager{
             caption = 'Менеджмент';
-            MOVE PROPERTY(descriptionManagersEmployee(e)); 
+            MOVE PROPERTY(descriptionManagers(e)); 
             NEW managerTabContainer {
                 type = TABBED;
                 fill = 1;

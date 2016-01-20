@@ -28,7 +28,7 @@ public class ParseCompositionItemActionProperty extends ParseCompositionActionPr
         try {
 
             DataObject itemObject = context.getDataKeyValue(itemInterface);
-            String compositionItem = trim((String) findProperty("compositionItem").read(context, itemObject));
+            String compositionItem = trim((String) findProperty("composition[Item]").read(context, itemObject));
             parseComposition(context, true, itemObject, compositionItem);
             
         } catch (ScriptingErrorLog.SemanticErrorException e) {

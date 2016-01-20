@@ -6,7 +6,7 @@ REQUIRE System, MasterData, Utils, Hierarchy, LegalEntity, I18n, Geo, Employee, 
 CLASS ABSTRACT StockGroup 'Группа складов';
 TABLE stockGroup (StockGroup);
 
-nameStockGroup 'Наименование' = ABSTRACT VARISTRING[100](StockGroup);
+name 'Наименование' = ABSTRACT VARISTRING[100](StockGroup);
 
 TABLE stockGroupStockGroup(StockGroup, StockGroup);
 @defineHierarchyAbstract(stockGroup);
@@ -15,15 +15,15 @@ TABLE stockGroupStockGroup(StockGroup, StockGroup);
 
 FORM stockGroups 'Группы складов'
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS g = StockGroup
-    PROPERTIES(g) READONLY nameStockGroup
-    ORDER BY nameStockGroup(g)
-    FILTERS isParentStockGroupStockGroup(g, sg) OR (g IS StockGroup AND NOT sg)
+    PROPERTIES(g) READONLY name
+    ORDER BY name(g)
+    FILTERS isParent(g, sg) OR (g IS StockGroup AND NOT sg)
 
     DIALOG StockGroup OBJECT g
 ;
@@ -45,7 +45,7 @@ DESIGN stockGroups {
                 g.grid {
                     defaultComponent = TRUE;
                 }
-                PROPERTY(nameStockGroup(g)){
+                PROPERTY(name(g)){
                     minimumCharWidth = 35;
                     preferredCharWidth = 35;
                 }
@@ -62,76 +62,76 @@ TABLE stockDate(Stock, DATE);
 
 @defineExternalizableAbstract(stock, VARSTRING[100]);
 
-nameStock 'Наименование' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-phoneStock 'Телефон' = ABSTRACT VARISTRING[100](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
-fullNameStock 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+phone 'Телефон' = ABSTRACT VARISTRING[100](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+fullName 'Наименование полное' = ABSTRACT VARISTRING[150](Stock) PERSISTENT INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-stockGroupStock (stock) = ABSTRACT StockGroup (Stock) PERSISTENT INDEXED;
-nameStockGroupStock 'Группа' (stock) = nameStockGroup(stockGroupStock (stock));
+stockGroup (stock) = ABSTRACT StockGroup (Stock) PERSISTENT INDEXED;
+nameStockGroup 'Группа' (Stock stock) = name(stockGroup (stock));
 
-legalEntityStock (stock) = ABSTRACT LegalEntity (Stock) PERSISTENT INDEXED;
-nameLegalEntityStock 'Компания' (stock) = nameLegalEntity(legalEntityStock(stock));
-fullNameLegalEntityStock 'Компания' (st)= fullNameLegalEntity(legalEntityStock(st));
+legalEntity (stock) = ABSTRACT LegalEntity (Stock) PERSISTENT INDEXED;
+nameLegalEntity 'Компания' (Stock stock) = name(legalEntity(stock));
+fullNameLegalEntity 'Компания' (Stock st)= fullName(legalEntity(st));
 
-idLegalEntityStock 'Компания' (stock) = idLegalEntity(legalEntityStock(stock));
+idLegalEntity 'Компания' (Stock stock) = id(legalEntity(stock));
 
-countStockLegalEntity 'Кол-во складов компании' = GROUP SUM 1 BY legalEntityStock(stock) PERSISTENT;
+countStock 'Кол-во складов компании' = GROUP SUM 1 BY legalEntity(Stock stock) PERSISTENT;
 
-quantityDaysCloseOrdersStock 'Срок автоматического закрытия заказов' = ABSTRACT INTEGER(Stock) PERSISTENT;
+quantityDaysCloseOrders 'Срок автоматического закрытия заказов' = ABSTRACT INTEGER(Stock) PERSISTENT;
 
-isCompanyStock(stock) = isCompanyLegalEntity(legalEntityStock(stock));
-isSupplierStock(stock) = isSupplierLegalEntity(legalEntityStock(stock));
-isCustomerStock(stock) = isCustomerLegalEntity(legalEntityStock(stock));
+isCompany(Stock stock) = isCompany(legalEntity(stock));
+isSupplier(Stock stock) = isSupplier(legalEntity(stock));
+isCustomer(Stock stock) = isCustomer(legalEntity(stock));
 
-notCompanyStock(stock) = NOT isCompanyStock(stock);
+notCompany(Stock stock) = NOT isCompany(stock);
 
-legalEntityStockId (stock)= legalEntityStock(stockId(stock));
+legalEntityId (VARSTRING[100] stock)= legalEntity(stock(stock));
 
-countCompanyStockStockGroup 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCompanyStock(stock)
-    AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
+countCompanyStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCompany(Stock stock)
+    AND isParent(stockGroup(stock), StockGroup stockGroup)
     BY stockGroup PERSISTENT;
 
-countSupplierStockStockGroup 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isSupplierStock(stock)
-    AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
+countSupplierStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isSupplier(Stock stock)
+    AND isParent(stockGroup(stock), StockGroup stockGroup)
     BY stockGroup PERSISTENT;
 
-countCustomerStockStockGroup 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCustomerStock(stock)
-    AND isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup)
+countCustomerStock 'Кол-во складов' (stockGroup) = GROUP SUM 1 IF isCustomer(Stock stock)
+    AND isParent(stockGroup(stock), StockGroup stockGroup)
     BY stockGroup PERSISTENT;
 
 TABLE userLegalEntityStock (LegalEntity, Stock);
-userLegalEntityStock 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) PERSISTENT;
-inLegalEntityStock 'Отм.' (legalEntity, stock) = (legalEntityStock(stock) == legalEntity) OR userLegalEntityStock(legalEntity, stock);
-isDefaultLegalEntityStock 'Свой склад' (legalEntity, stock) = legalEntityStock(stock) == legalEntity;
+user 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) PERSISTENT;
+in 'Отм.' (LegalEntity legalEntity, Stock stock) = (legalEntity(stock) == legalEntity) OR user(legalEntity, stock);
+isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 
-counStocksLegalEntity (legalEntity) = GROUP SUM 1 IF inLegalEntityStock(legalEntity, stock) BY legalEntity;
-defaultStockLegalEntity 'Склад по умолчанию' (legalEntity)= GROUP MIN stock IF inLegalEntityStock(legalEntity, stock) BY legalEntity;
+counStocks (legalEntity) = GROUP SUM 1 IF in(LegalEntity legalEntity, Stock stock) BY legalEntity;
+defaultStock 'Склад по умолчанию' (legalEntity)= GROUP MIN Stock stock IF in(LegalEntity legalEntity, stock) BY legalEntity;
 
-currencyStock (stock) = currencyLegalEntity(legalEntityStock(stock)) PERSISTENT;
-languageStock (stock) = languageLegalEntity(legalEntityStock(stock)) PERSISTENT;
+currency (Stock stock) = currency(legalEntity(stock)) PERSISTENT;
+language (Stock stock) = language(legalEntity(stock)) PERSISTENT;
 
 // ------------------------------------ объединение организаций -------------------------- //
 
-replaceLegalEntityLegalEntity(l, o) += ACTION (l, o){
-    legalEntityStock(stock) <- o WHERE legalEntityStock(stock) == l;
+replace(LegalEntity l, LegalEntity o) += ACTION (l, o){
+    legalEntity(Stock stock) <- o WHERE legalEntity(stock) == l;
 } 
 
 // ------------------------------------ объединение складов -------------------------- //
 
-inStock 'Отм.' = DATA LOCAL BOOLEAN (Stock);
-countInStock = GROUP SUM 1 IF inStock(Stock);
+in 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+countInStock = GROUP SUM 1 IF in(Stock Stock);
 
 FORM confirmReplaceStock 'Объединяемые склады'
     OBJECTS stock = Stock FIXED PANEL 
 
     OBJECTS s = Stock  
-    PROPERTIES(s) READONLY nameStock   
+    PROPERTIES(s) READONLY name   
     FILTERS s==stock
 
     OBJECTS s2 = Stock
-    PROPERTIES(s2) inStock
-    PROPERTIES(s2) READONLY nameStock
-    FILTERS inStock(s2)
+    PROPERTIES(s2) in
+    PROPERTIES(s2) READONLY name
+    FILTERS in(s2)
 ;
 
 DESIGN confirmReplaceStock {
@@ -149,34 +149,34 @@ DESIGN confirmReplaceStock {
     MOVE functions.box;
 }
 
-replaceStockStock = ABSTRACT ACTION LIST (Stock, Stock);
+replace = ABSTRACT ACTION LIST (Stock, Stock);
 
-replaceStock 'Объединить' = ACTION (stock) {   
+replace 'Объединить' = ACTION (Stock stock) {   
     FORM confirmReplaceStock OBJECTS s=stock MODAL;
     IF formResult() == FormResult.ok THEN {    
-        FOR inStock(s) AND stock IS Stock AND NOT isCompanyStock(s) AND NOT isCompanyStock(stock) DO {
+        FOR in(Stock s) AND stock IS Stock AND NOT isCompany(s) AND NOT isCompany(stock) DO {
             IF s != stock THEN {
-                replaceStockStock(s, stock);
-                inStock(s) <- NULL;
+                replace(s, stock);
+                in(s) <- NULL;
                 DELETE s;            
             } ELSE {
                 MESSAGE 'Выделенный склад не может совпадать с объединяемым и не должен являться складом собственной компанией';
             }
         }
     } ELSE {
-        inStock(s) <- NULL WHERE inStock(s);       
+        in(Stock s) <- NULL WHERE in(s);       
     }
     apply();
 } CONFIRM;
 
-dataStockLegalEntity = DATA Stock (LegalEntity);
-stockLegalEntity(legalEntity) = OVERRIDE [= GROUP MIN stock BY legalEntityStock(stock)](legalEntity), dataStockLegalEntity(legalEntity) IF activeLegalEntity(legalEntity) PERSISTENT;
+dataStock = DATA Stock (LegalEntity);
+stock(LegalEntity legalEntity) = OVERRIDE [= GROUP MIN Stock stock BY legalEntity(stock)](legalEntity), dataStock(legalEntity) IF active(legalEntity) PERSISTENT;
 
-primaryLegalEntityStock 'Основной' (stock) = stockLegalEntity(legalEntityStock(stock)) == stock;
-changePrimaryLegalEntityStock = ACTION (legalEntity, stock) {
+primaryLegalEntity 'Основной' (Stock stock) = stock(legalEntity(stock)) == stock;
+changePrimary = ACTION (LegalEntity legalEntity, Stock stock) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
-        dataStockLegalEntity(legalEntity) <- stock;
+        dataStock(legalEntity) <- stock;
     }
 }
 
@@ -185,15 +185,15 @@ FORM confirmReplaceStockLegalEntity 'Объединяемые склады'
     OBJECTS l2 = LegalEntity FIXED PANEL 
 
     OBJECTS s = Stock  
-    PROPERTIES(s) primaryLegalEntityStock ON CHANGE changePrimaryLegalEntityStock(l, s)   
-    PROPERTIES(s) READONLY nameStock    
-    FILTERS l==legalEntityStock(s)
+    PROPERTIES(s) primaryLegalEntity ON CHANGE changePrimary(l, s)   
+    PROPERTIES(s) READONLY name    
+    FILTERS l==legalEntity(s)
 
     OBJECTS s2 = Stock
-    PROPERTIES(s2) inStock
-    PROPERTIES(s2) READONLY nameStock
-    FILTERS inStock(s2), 
-            l2==legalEntityStock(s2)
+    PROPERTIES(s2) in
+    PROPERTIES(s2) READONLY name
+    FILTERS in(s2), 
+            l2==legalEntity(s2)
 ;
 
 DESIGN confirmReplaceStockLegalEntity {
@@ -212,38 +212,38 @@ DESIGN confirmReplaceStockLegalEntity {
     MOVE functions.box;
 }
 
-preReplaceLegalEntityLegalEntity(l, o) += ACTION(l, o) {
-    inStock(s) <- TRUE WHERE legalEntityStock(s) == l;
+preReplace(LegalEntity l, LegalEntity o) += ACTION(l, o) {
+    in(Stock s) <- TRUE WHERE legalEntity(s) == l;
     FORM confirmReplaceStockLegalEntity OBJECTS l=o, l2=l MODAL;
         IF formResult() == FormResult.ok THEN {        
-        FOR inStock(s) AND l==legalEntityStock(s) AND legalEntityStock(stock) == o AND primaryLegalEntityStock(stock) AND NOT isCompanyStock(s) AND NOT isCompanyStock(stock) DO {
+        FOR in(Stock s) AND l==legalEntity(s) AND legalEntity(Stock stock) == o AND primaryLegalEntity(stock) AND NOT isCompany(s) AND NOT isCompany(stock) DO {
             IF s != stock THEN {
-                replaceStockStock(s, stock);
-                inStock(s) <- NULL;
+                replace(s, stock);
+                in(s) <- NULL;
                 DELETE s;            
             } ELSE {
                 MESSAGE 'Выделенный склад не может совпадать с объединяемым и не должен являться складом собственной компанией';
             }
         }   
     } ELSE {
-        inStock(s) <- NULL WHERE inStock(s);       
+        in(Stock s) <- NULL WHERE in(s);       
     }         
 }
 
 EXTEND CLASS Stock : POI;
 
-namePOI(poi) += nameStock(poi) IF poi IS Stock;
+name[POI](Stock poi) += name(poi) IF poi IS Stock;
 
-countryStock (stock) = countryLegalEntity(legalEntityStock(stock)) PERSISTENT;
-nameCountryStock 'Страна' (stock) = nameCountry(countryStock(stock));
-nameCountryPOI (poi) += nameCountryStock(poi);
+country (Stock stock) = country(legalEntity(stock)) PERSISTENT;
+nameCountry 'Страна' (Stock stock) = name(country(stock));
+nameCountry (Stock poi) += nameCountry(poi);
 
-addressStock 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) PERSISTENT;
-mainAddressPOI (poi) += addressStock(poi);
+address 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) PERSISTENT;
+mainAddress (Stock poi) += address(poi);
 
-emailStock 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) PERSISTENT MINCHARWIDTH 30 PREFCHARWIDTH 50;
+email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) PERSISTENT MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
-dataDefaultCompanyStock 'По умолч.' = DATA BOOLEAN (Stock); 
+dataDefaultCompany 'По умолч.' = DATA BOOLEAN (Stock); 
 
 //latitudeStock 'Координата X' = DATA NUMERIC[10,5](Stock);
 //longitudeStock 'Координата Y' = DATA NUMERIC[10,5](Stock);
@@ -252,63 +252,63 @@ dataDefaultCompanyStock 'По умолч.' = DATA BOOLEAN (Stock);
 //longitudePOI(stock) += longitudeStock(stock);
 
 TABLE stockGroupStock (StockGroup, Stock);
-isParentStockGroupStock (stockGroup, stock) = isParentStockGroupStockGroup(stockGroupStock(stock), stockGroup) PERSISTENT;
+isParent (StockGroup stockGroup, Stock stock) = isParent(stockGroup(stock), stockGroup) PERSISTENT;
 
 GROUP committee 'Комиссии' : public;
 GROUP responsibility 'Ответственные лица' : public;
 GROUP bookkeeping 'Учет и цены' : public;
 
 // Неактивный
-inactiveStock 'Неактивный' = ABSTRACT BOOLEAN (Stock);
-activeStock 'Активный' (st) = st IS Stock AND NOT inactiveStock(st);
+inactive 'Неактивный' = ABSTRACT BOOLEAN (Stock);
+active 'Активный' (Stock st) = st IS Stock AND NOT inactive(st);
 
 // -------------------------------------- Регион ------------------------------- //
 
 CLASS Region 'Регион';
 TABLE region (Region);
 
-nameRegion 'Наименование' = DATA VARISTRING[100](Region);
+name 'Наименование' = DATA VARISTRING[100](Region);
 
-regionStock 'Регион' (stock) = ABSTRACT Region (Stock) PERSISTENT;
-nameRegionStock 'Регион' (stock)= nameRegion(regionStock(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+region 'Регион' (stock) = ABSTRACT Region (Stock) PERSISTENT;
+nameRegion 'Регион' (Stock stock)= name(region(stock)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-regionStockGroup 'Регион' (stockGroup) = ABSTRACT Region (StockGroup) PERSISTENT;
-nameRegionStockGroup 'Регион' (stockGroup)= nameRegion(regionStockGroup(stockGroup)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+region 'Регион' (stockGroup) = ABSTRACT Region (StockGroup) PERSISTENT;
+nameRegion 'Регион' (StockGroup stockGroup)= name(region(stockGroup)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 FORM region 'Регион'
     OBJECTS r=Region FIXED PANEL
-    PROPERTIES(r) nameRegion
+    PROPERTIES(r) name
     EDIT Region OBJECT r
 ;
 
 FORM regions 'Регионы'
     OBJECTS r=Region
-    PROPERTIES(r) READONLY nameRegion
+    PROPERTIES(r) READONLY name
     PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG Region OBJECT r
 ;
 DESIGN regions { main{ preferredSize = (600, 400); } }
 
 // ---------------------------- Действия по редактированию складов ---------------------- //
-editStock 'Редактировать' = ABSTRACT ACTION LIST (Stock) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editSessionStock 'Редактировать' = ABSTRACT ACTION LIST (Stock) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (Stock) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+editSession 'Редактировать' = ABSTRACT ACTION LIST (Stock) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 // ----------------------------------------- Формы --------------------------------- //
 
 FORM stocks 'Склады'
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock, emailStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address, email
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg)
 
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
 
     DIALOG Stock OBJECT s
 ;
@@ -349,21 +349,21 @@ META defineDocumentHeaderStock (object, stockClass, stockCaption, prefix)
 END
 
 META defineDocumentHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
-    prefix###stockClass###object = DATA stockClassUpper(###object);
-    name###prefix###stockClass###object stockCaption (object) = name###stockClass(prefix###stockClass###object(object)) IN documentHeader
+    prefix###stockClass = DATA stockClassUpper(###object);
+    name###prefix###stockClass stockCaption (###object object) = name(prefix###stockClass(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###prefix###stockClass###object stockCaption (object) = fullName###stockClass(prefix###stockClass###object(object)) IN documentHeader
+    fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    replaceStockStock(s, o) += ACTION (s, o){ASSIGN prefix###stockClass###object(object) <- o WHERE prefix###stockClass###object(object) == s;}             
+    replace(###stockClass s, ###stockClass o) += ACTION (s, o){ASSIGN prefix###stockClass(###object object) <- o WHERE prefix###stockClass(object) == s;}             
             
-    prefix###legalEntityStock###object (object) = legalEntity###stockClass(prefix###stockClass###object(object));
-    name###prefix###legalEntityStock###object 'Компания ('###stockCaption###')' (object) = nameLegalEntity(prefix###legalEntityStock###object (object));
-    fullName###prefix###legalEntityStock###object 'Компания ('###stockCaption###') полное наим-ие' (object) = fullNameLegalEntity(prefix###legalEntityStock###object (object));       
-    address###prefix###legalEntityStock###object 'Адрес компании ('###stockCaption###')' (object) = addressLegalEntity(prefix###legalEntityStock###object (object));
+    prefix###legalEntityStock (###object object) = legalEntity(prefix###stockClass(object));
+    name###prefix##LegalEntityStock 'Компания ('###stockCaption###')' (###object object) = name(prefix###legalEntityStock (object));
+    fullName###prefix##LegalEntityStock 'Компания ('###stockCaption###') полное наим-ие' (###object object) = fullName(prefix###legalEntityStock (object));       
+    address###prefix##LegalEntityStock 'Адрес компании ('###stockCaption###')' (###object object) = address(prefix###legalEntityStock (object));
 
-    address###prefix##Stock###object 'Адрес ('###stockCaption###')' (object) = address###stockClass(prefix###stockClass###object(object));
+    address###prefix##Stock 'Адрес ('###stockCaption###')' (###object object) = address(prefix###stockClass(object));
 
-    prefix###country###object (object) = countryStock(prefix###stockClass###object(object));
+    prefix###country (###object object) = country(prefix###stockClass(object));
 END
 
 META defineDocumentAbstractHeaderStock (object, stockClass, stockCaption, prefix)
@@ -371,24 +371,24 @@ META defineDocumentAbstractHeaderStock (object, stockClass, stockCaption, prefix
 END
 
 META defineDocumentAbstractHeaderStockInner (object, stockClass, stockClassUpper, stockCaption, prefix)
-    prefix###stockClass###object = ABSTRACT stockClassUpper(###object) PERSISTENT;
-    name###prefix###stockClass###object stockCaption (object) = name###stockClass(prefix###stockClass###object(object)) IN documentHeader
+    prefix###stockClass = ABSTRACT stockClassUpper(###object) PERSISTENT;
+    name###prefix###stockClass stockCaption (###object object) = name(prefix###stockClass(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    fullName###prefix###stockClass###object stockCaption (object) = fullName###stockClass(prefix###stockClass###object(object)) IN documentHeader
+    fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
             
-    prefix###legalEntityStock###object (object) = legalEntity###stockClass(prefix###stockClass###object(object));
-    name###prefix###legalEntityStock###object 'Компания ('###stockCaption###')' (object) = nameLegalEntity(prefix###legalEntityStock###object (object));
-    fullName###prefix###legalEntityStock###object 'Компания ('###stockCaption###') полное наим-ие' (object) = fullNameLegalEntity(prefix###legalEntityStock###object (object));
-    address###prefix###legalEntityStock###object 'Адрес компании ('###stockCaption###')' (object) = addressLegalEntity(prefix###legalEntityStock###object (object));
-    address###prefix##Stock###object 'Адрес ('###stockCaption###')' (object) = address###stockClass(prefix###stockClass###object(object));
+    prefix###legalEntityStock (###object object) = legalEntity(prefix###stockClass(object));
+    name###prefix##LegalEntityStock 'Компания ('###stockCaption###')' (###object object) = name(prefix###legalEntityStock (object));
+    fullName###prefix##LegalEntityStock 'Компания ('###stockCaption###') полное наим-ие' (###object object) = fullName(prefix###legalEntityStock (object));
+    address###prefix##LegalEntityStock 'Адрес компании ('###stockCaption###')' (###object object) = address(prefix###legalEntityStock (object));
+    address###prefix##Stock 'Адрес ('###stockCaption###')' (###object object) = address(prefix###stockClass(object));
 
-    prefix###country###object (object) = countryStock(prefix###stockClass###object(object));
+    prefix###country (###object object) = country(prefix###stockClass(object));
 END
 META defineDocumentInterfaceHeaderStock (object, stockClass, stockCaption, prefix)
     @defineDocumentAbstractHeaderStock (object, stockClass, stockCaption, prefix);
     @defineDocumentHeaderStock (user###object, stockClass, stockCaption, prefix);
-    prefix###stockClass###object (object) += prefix###stockClass###user###object(object);
+    prefix###stockClass (User###object object) += prefix###stockClass(object);
 END
 
 META defineDocumentHeaderStock (object, stockClass, stockCaption)
@@ -402,13 +402,13 @@ META defineDocumentInterfaceHeaderStock (object, stockClass, stockCaption)
 END
 
 META defineDocumentDetailStock (object, detail, stockClass, stockProp, stockCaption)
-    stockProp###detail (idetail) = stockProp###object(object###detail(idetail));
-    name###stockProp###detail stockCaption (idetail) = name###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullName###stockProp###detail stockCaption (idetail) = fullName###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;    
-    country###stockProp###detail (idetail) = countryStock(stockProp###detail(idetail));
-    legalEntity###stockProp###detail (idetail) = legalEntity###stockClass(stockProp###detail(idetail));
-    name###legalEntity###stockProp###detail 'Компания ('###stockCaption###')' (idetail) = nameLegalEntity(legalEntity###stockProp###detail (idetail));
-    fullName###legalEntity###stockProp###detail 'Компания ('###stockCaption###') полное наим-ие' (idetail) = fullNameLegalEntity(legalEntity###stockProp###detail (idetail));
+    stockProp (###detail idetail) = stockProp(object(idetail));
+    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;    
+    country###stockProp (###detail idetail) = country(stockProp(idetail));
+    legalEntity###stockProp (###detail idetail) = legalEntity(stockProp(idetail));
+    nameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = name(legalEntity###stockProp (idetail));
+    fullNameLegalEntity###stockProp 'Компания ('###stockCaption###') полное наим-ие' (###detail idetail) = fullName(legalEntity###stockProp (idetail));
 END
 META defineDocumentDetailStock (object, stockProp, stockCaption)
     @defineDocumentDetailStock (object, object##Detail, stock, stockProp, stockCaption);
@@ -419,14 +419,14 @@ META defineDocumentDetailDataStock (object, detail, stockClass, stockProp, stock
 END
 
 META defineDocumentDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
-    data###stockProp###detail = DATA stockClassUpper(###detail);
-    stockProp###detail (idetail) = OVERRIDE stockProp###object(object###detail(idetail)), data###stockProp###detail(idetail) PERSISTENT;
-    name###stockProp###detail stockCaption (idetail) = name###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullName###stockProp###detail stockCaption (idetail) = fullName###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;         
-    country###stockProp###detail (idetail) = countryStock(stockProp###detail(idetail));
-    legalEntity###stockProp###detail (idetail) = legalEntity###stockClass(stockProp###detail(idetail));
-    name###legalEntity###stockProp###detail 'Компания ('###stockCaption###')' (idetail) = nameLegalEntity(legalEntity###stockProp###detail (idetail));
-    fullName###legalEntity###stockProp###detail 'Компания ('###stockCaption###') полное наим-ие' (idetail) = fullNameLegalEntity(legalEntity###stockProp###detail (idetail));
+    data###stockProp = DATA stockClassUpper(###detail);
+    stockProp (###detail idetail) = OVERRIDE stockProp(object(idetail)), data###stockProp(idetail) PERSISTENT;
+    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;         
+    country###stockProp (###detail idetail) = country(stockProp(idetail));
+    legalEntity###stockProp (###detail idetail) = legalEntity(stockProp(idetail));
+    nameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = name(legalEntity###stockProp (idetail));
+    fullNameLegalEntity###stockProp 'Компания ('###stockCaption###') полное наим-ие' (###detail idetail) = fullName(legalEntity###stockProp (idetail));
     
 END
 
@@ -435,20 +435,20 @@ META defineDocumentAbstractDetailDataStock (object, detail, stockClass, stockPro
 END
 
 META defineDocumentAbstractDetailDataStockInner (object, detail, stockClass, stockClassUpper, stockProp, stockCaption)
-    data###stockProp###detail = ABSTRACT stockClassUpper(###detail) PERSISTENT;
-    stockProp###detail (idetail) = OVERRIDE stockProp###object(object###detail(idetail)), data###stockProp###detail(idetail) PERSISTENT INDEXED;
-    name###stockProp###detail stockCaption (idetail) = name###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
-    fullName###stockProp###detail stockCaption (idetail) = fullName###stockClass(stockProp###detail(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
-    country###stockProp###detail (idetail) = countryStock(stockProp###detail(idetail));
-    legalEntity###stockProp###detail (idetail) = legalEntity###stockClass(stockProp###detail(idetail));
-    name###legalEntity###stockProp###detail 'Компания ('###stockCaption###')' (idetail) = nameLegalEntity(legalEntity###stockProp###detail (idetail));
-    fullName###legalEntity###stockProp###detail 'Компания ('###stockCaption###')' (idetail) = fullNameLegalEntity(legalEntity###stockProp###detail (idetail));
+    data###stockProp = ABSTRACT stockClassUpper(###detail) PERSISTENT;
+    stockProp (###detail idetail) = OVERRIDE stockProp(object(idetail)), data###stockProp(idetail) PERSISTENT INDEXED;
+    name###stockProp stockCaption (###detail idetail) = name(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+    fullName###stockProp stockCaption (###detail idetail) = fullName(stockProp(idetail)) MINCHARWIDTH 10 PREFCHARWIDTH 20;      
+    country###stockProp (###detail idetail) = country(stockProp(idetail));
+    legalEntity###stockProp (###detail idetail) = legalEntity(stockProp(idetail));
+    nameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = name(legalEntity###stockProp (idetail));
+    fullNameLegalEntity###stockProp 'Компания ('###stockCaption###')' (###detail idetail) = fullName(legalEntity###stockProp (idetail));
     
 END
 META defineDocumentInterfaceDetailDataStock (object, detail, stockClass, stockProp, stockCaption)
     @defineDocumentAbstractDetailDataStock(object, detail, stockClass, stockProp, stockCaption);
     @defineDocumentDetailDataStock(user###object, user###detail, stockClass, stockProp, stockCaption);
-    data###stockProp###detail (detail) += data###stockProp###user###detail (detail);
+    data###stockProp (User###detail detail) += data###stockProp (detail);
 END
 
 META defineDocumentDetailDataStock (object, stockClass, stockProp, stockCaption)
@@ -512,16 +512,16 @@ END
 
 // Склады
 META defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, prefixP, prefixA)
-    prefixA###stockProp###stockClass###aggrObject (object) = prefixP###stockProp###stockClass###primObject(primObject###aggrObject(object)) PERSISTENT;
-    name###prefixA###stockProp###stockClass###aggrObject stockCaption (object) = name###stockClass(prefixA###stockProp###stockClass###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    fullName###prefixA###stockProp###stockClass###aggrObject stockCaption (object) = fullName###stockClass(prefixA###stockProp###stockClass###aggrObject(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;    
+    stockProp###stockClass (###aggrObject object) = stockProp###stockClass(primObject(object)) PERSISTENT;
+    name###stockProp###stockClass stockCaption (###aggrObject object) = name(stockProp###stockClass(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    fullName###stockProp###stockClass stockCaption (###aggrObject object) = fullName(stockProp###stockClass(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;    
 END
 META defineDocumentAggregationHeaderStock (primObject, aggrObject, stockClass, stockProp, stockCaption)
     @defineDocumentAggregationHeaderStockPrefix (primObject, aggrObject, stockClass, stockProp, stockCaption, , );
 END
 
 META defineDocumentAggregationDetailStockPrefix (primObject, aggrObject, stockProp, stockCaption, prefixP, prefixA)
-    prefixA###stockProp###aggrObject##Detail (detail) = prefixP###stockProp###primObject##Detail(primObject##Detail###aggrObject##Detail(detail)) PERSISTENT;
+    stockProp (###aggrObject##Detail detail) = stockProp(primObject##Detail(detail)) PERSISTENT;
 END
 META defineDocumentAggregationDetailStock (primObject, aggrObject, stockProp, stockCaption)
     @defineDocumentAggregationDetailStockPrefix(primObject, aggrObject, stockProp, stockCaption, , );
@@ -540,19 +540,19 @@ END
 FORM companyStocks 'Склады'
     OBJECTS l = LegalEntity FIXED PANEL
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            inLegalEntityStock(l,s),
-            isCompanyStock(s)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            in(l,s),
+            isCompany(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
 
 DESIGN companyStocks {
@@ -582,19 +582,19 @@ DESIGN companyStocks {
 FORM supplierStocks 'Склады'
     OBJECTS l = LegalEntity FIXED PANEL
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            inLegalEntityStock(l,s),
-            isSupplierStock(s)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            in(l,s),
+            isSupplier(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
 
 DESIGN supplierStocks {
@@ -624,19 +624,19 @@ DESIGN supplierStocks {
 FORM customerStocks 'Склады'
     OBJECTS l = LegalEntity FIXED PANEL
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            inLegalEntityStock(l,s),
-            isCustomerStock(s)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            in(l,s),
+            isCustomer(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
 
 DESIGN customerStocks {
@@ -668,34 +668,34 @@ DESIGN customerStocks {
 }
 
 META defineDocumentDialogStock(objectClass, filter, prefix, dataProp)
-    change###dataProp###prefix###stock###filter###objectClass = ACTION (o) {
+    change###dataProp###prefix##Stock###filter = ACTION (###objectClass o) {
         REQUEST OBJECT s
-        IF dataProp###prefix###stock###objectClass(o) THEN {            
-            FORM filter###stocks OBJECTS l = prefix###objectClass(o), s = dataProp###prefix###stock###objectClass(o) CONTEXTFILTER s = dataProp###prefix###stock###objectClass(o) DIALOG SHOWDROP;        
+        IF dataProp###prefix##Stock(o) THEN {            
+            FORM filter###stocks OBJECTS l = prefix(o), s = dataProp###prefix##Stock(o) CONTEXTFILTER s = dataProp###prefix##Stock(o) DIALOG SHOWDROP;        
         } ELSE {
-            FORM filter###stocks OBJECTS l = prefix###objectClass(o) CONTEXTFILTER s = dataProp###prefix###stock###objectClass(o) DIALOG SHOWDROP;        
+            FORM filter###stocks OBJECTS l = prefix(o) CONTEXTFILTER s = dataProp###prefix##Stock(o) DIALOG SHOWDROP;        
         }
         IF formResult() == FormResult.ok THEN {
-            dataProp###prefix###stock###objectClass(o) <- requestedObject();
+            dataProp###prefix##Stock(o) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
-            dataProp###prefix###stock###objectClass(o) <- NULL;
+            dataProp###prefix##Stock(o) <- NULL;
         }
     }
 END
 META defineDocumentDialogStock(objectClass, filter, prefixA, prefixB, dataProp)
-    change###dataProp###prefixA###stock###filter###objectClass = ACTION (o) {
+    change###prefixA##Stock###filter = ACTION (###objectClass o) {
         REQUEST OBJECT s
-        IF dataProp###prefixA###stock###objectClass(o) THEN {            
-            FORM filter###stocks OBJECTS l = prefixB###objectClass(o), s = dataProp###prefixA###stock###objectClass(o) CONTEXTFILTER s = dataProp###prefixA###stock###objectClass(o) DIALOG SHOWDROP;        
+        IF prefixA##Stock(o) THEN {            
+            FORM filter###stocks OBJECTS l = filter(o), s = prefixA##Stock(o) CONTEXTFILTER s = prefixA##Stock(o) DIALOG SHOWDROP;        
         } ELSE {
-            FORM filter###stocks OBJECTS l = prefixB###objectClass(o) CONTEXTFILTER s = dataProp###prefixA###stock###objectClass(o) DIALOG SHOWDROP;        
+            FORM filter###stocks OBJECTS l = filter(o) CONTEXTFILTER s = prefixA##Stock(o) DIALOG SHOWDROP;        
         }
         IF formResult() == FormResult.ok THEN {
-            dataProp###prefixA###stock###objectClass(o) <- requestedObject();
+            prefixA##Stock(o) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
-            dataProp###prefixA###stock###objectClass(o) <- NULL;
+            prefixA##Stock(o) <- NULL;
         }
     }
 END
@@ -713,19 +713,19 @@ END
 
 FORM companysStock 'Склады'
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            isCompanyStock(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s)
 
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
 
 DESIGN companysStock {
@@ -754,19 +754,19 @@ DESIGN companysStock {
 
 FORM suppliersStock 'Склады'
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            isSupplierStock(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isSupplier(s)
             
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
 
 DESIGN suppliersStock {
@@ -795,19 +795,19 @@ DESIGN suppliersStock {
 
 FORM customersStock 'Склады'
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, stockName = nameStock, nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(s)          editStock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
     ORDER BY stockName
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            isCustomerStock(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCustomer(s)
       
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT        
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
 ;
 
 DESIGN customersStock {
@@ -839,18 +839,18 @@ DESIGN customersStock {
 }
 
 META defineDocumentDialogStocks(objectClass, stockClass, filter, prefix, dataProp)
-    change###dataProp###prefix###stockClass###filter###objectClass = ACTION (o) {
+    change###stockClass###filter = ACTION (###objectClass o) {
         REQUEST OBJECT s
-        IF dataProp###prefix###stockClass###objectClass(o) THEN {            
-            FORM filter##s###stock OBJECTS s = dataProp###prefix###stockClass###objectClass(o) CONTEXTFILTER s = dataProp###prefix###stockClass###objectClass(o) DIALOG SHOWDROP;        
+        IF stockClass(o) THEN {            
+            FORM filter##s###stock OBJECTS s = stockClass(o) CONTEXTFILTER s = stockClass(o) DIALOG SHOWDROP;        
         } ELSE {
-            FORM filter##s###stock CONTEXTFILTER s = dataProp###prefix###stockClass###objectClass(o) DIALOG SHOWDROP;        
+            FORM filter##s###stock CONTEXTFILTER s = stockClass(o) DIALOG SHOWDROP;        
         }
         IF formResult() == FormResult.ok THEN {
-            dataProp###prefix###stockClass###objectClass(o) <- requestedObject();
+            stockClass(o) <- requestedObject();
 
         } ELSE IF formResult() == FormResult.drop THEN {
-            dataProp###prefix###stockClass###objectClass(o) <- NULL;
+            stockClass(o) <- NULL;
         }
     }
 END
@@ -861,17 +861,17 @@ FORM chooseStocks 'Выбор складов'
 
     OBJECTS l = LegalEntity FIXED PANEL
     
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), sgTreeName = nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
 
     OBJECTS s=Stock
-    PROPERTIES(s) READONLY nameStock, addressStock, nameLegalEntityStock
-    PROPERTIES userLegalEntityStock(l, s)
-    ORDER BY nameStock(s)
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND sg IS StockGroup AND NOT stockGroupStock(s)) OR (s IS Stock AND NOT sg)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT
+    PROPERTIES(s) READONLY name, address, nameLegalEntity
+    PROPERTIES user(l, s)
+    ORDER BY name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND sg IS StockGroup AND NOT stockGroup(s)) OR (s IS Stock AND NOT sg)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
 ;
 
 DESIGN chooseStocks {
@@ -885,32 +885,32 @@ DESIGN chooseStocks {
     MOVE functions.box;
 }
 
-chooseStocksLegalEntity 'Выбрать склады' = ACTION (legalEntity) {
+chooseStocks 'Выбрать склады' = ACTION (LegalEntity legalEntity) {
 
     FORM chooseStocks OBJECTS l = legalEntity MODAL;
 }
 
 EXTEND FORM legalEntity
-    TREE stockTree b=STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(b), sgTreeName = nameStockGroup(sg)
+    TREE stockTree b=STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(b), sgTreeName = name(sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(b)
 
     OBJECTS st=Stock
-    PROPERTIES(st) inStock
-    PROPERTIES(st) READONLY nameStock, idStock SHOWIF showIDs(), nameLegalEntityStock, nameCountryStock, addressStock
-    PROPERTIES(st) FORCE PANEL TOOLBAR SHOWIF isDefaultLegalEntityStock(l,st) editSessionStock, DELETESESSION, replaceStock SHOWIF notCompanyStock(st) 
-    PROPERTIES chooseStocksLegalEntity(l) TODRAW st FORCE PANEL TOOLBAR
-    FILTERS isParentStockGroupStock(sg, st) OR (st IS Stock AND NOT sg)
-    FILTERS inLegalEntityStock(l, st)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
+    PROPERTIES(st) in
+    PROPERTIES(st) READONLY name, id SHOWIF showIDs(), nameLegalEntity, nameCountry, address
+    PROPERTIES(st) FORCE PANEL TOOLBAR SHOWIF isDefault(l,st) editSession, DELETESESSION, replace SHOWIF notCompany(st) 
+    PROPERTIES chooseStocks(l) TODRAW st FORCE PANEL TOOLBAR
+    FILTERS isParent(sg, st) OR (st IS Stock AND NOT sg)
+    FILTERS in(l, st)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
     
     OBJECTS s=LegalEntity FIXED GRID
-    PROPERTIES(s) READONLY nameLegalEntity  SHOWIF isCustomerLegalEntity(l)
-    FILTERGROUP sinactiveLegalEntity FILTER 'Активная' activeLegalEntity(s) 'shift F10' DEFAULT
+    PROPERTIES(s) READONLY name  SHOWIF isCustomer(l)
+    FILTERGROUP sinactiveLegalEntity FILTER 'Активная' active(s) 'shift F10' DEFAULT
     OBJECTS c=LegalEntity FIXED GRID
-    PROPERTIES(c) READONLY nameLegalEntity SHOWIF isSupplierLegalEntity(l)
-    FILTERGROUP cinactiveLegalEntity FILTER 'Активная' activeLegalEntity(c) 'shift F10' DEFAULT
+    PROPERTIES(c) READONLY name SHOWIF isSupplier(l)
+    FILTERGROUP cinactiveLegalEntity FILTER 'Активная' active(c) 'shift F10' DEFAULT
 ;
 
 DESIGN legalEntity{
@@ -951,14 +951,14 @@ DESIGN legalEntity{
 }
 
 EXTEND FORM legalEntities
-    PROPERTIES(l) READONLY countStockLegalEntity
+    PROPERTIES(l) READONLY countStock
 ;
 
 
 //----------------------Отображать на формах списков документы, которые не закрыты---------------//
 META defineFilterIsOpened (object, form, obj)   
     EXTEND FORM form
-        FILTERGROUP object##filters6 FILTER 'Открыт' isOpened###object(obj) 'F6' DEFAULT
+        FILTERGROUP object##filters6 FILTER 'Открыт' isOpened(obj) 'F6' DEFAULT
     ;   
 END 
 
@@ -981,18 +981,18 @@ NAVIGATOR {
 
 EXTEND FORM options
 
-    TREE stockTree a = STRING[3], sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(a), nameStockGroup(sg)
-    ORDER BY nameStockGroup(sg)
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), name(sg)
+    ORDER BY name(sg)
     FILTERS stringEqualsAll(a)
 
     OBJECTS s = Stock
-    PROPERTIES(s) READONLY idStock, nameStock, nameLegalEntityStock
-    ORDER BY nameStock(s)
+    PROPERTIES(s) READONLY id, name, nameLegalEntity
+    ORDER BY name(s)
     
-    FILTERS isParentStockGroupStock(sg, s) OR (s IS Stock AND NOT sg),
-            isCompanyStock(s)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(s) 'ctrl F10' DEFAULT     
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT     
     
 ;
 
@@ -1032,15 +1032,15 @@ loadDefaultStockGroups 'Загрузить стандарные группы с�
 //-- С фильтром
 META defineBackgroundNearestBoolean(allProp, property, object1, object2, object2Class, nearestProp, filterProp)
 
-    background###allProp###object1 'Цвет' (o) = RGB(0,0,0) IF allProp###object1(o);
+    background###allProp 'Цвет' (###object1 o) = RGB(0,0,0) IF allProp(o);
     
-    background###property###object1###object2###group 'Цвет' (o, sg) = IF data###property###object1###object2###group(o, sg) THEN RGB(0,0,0)
+    background###property 'Цвет' (###object1 o, ###object2##Group sg) = IF data###property(o, sg) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 
-        IF (OVERRIDE allProp###object1(o) IF sg IS object2Class###group, nearestProp###object1###object2###group (o, sg));    
+        IF (OVERRIDE allProp(o) IF sg IS object2Class###group, nearestProp (o, sg));    
         
-    background###property###object1###object2 'Цвет' (o, st) = IF data###property###object1###object2(o, st) AND filterProp###object2(st) THEN RGB(0,0,0)
+    background###property 'Цвет' (###object1 o, ###object2 st) = IF data###property(o, st) AND filterProp(st) THEN RGB(0,0,0)
         ELSE RGB(230,248,250) 
-        IF property###object1###object2###group(o, object2###group###object2(st)) AND filterProp###object2(st);    
+        IF property(o, object2##Group(st)) AND filterProp(st);    
 END
 META defineBackgroundNearestBoolean(allProp, property, object1, object2, nearestProp, filterProp)
 

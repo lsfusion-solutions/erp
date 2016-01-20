@@ -10,107 +10,107 @@ REQUIRE System,
 
 //------------------------------------Отчет по таре-------------------------------------------//
 
-overMovementContainerBatchStockDateFromTo (batch, stock, dateFrom, dateTo) =
-    OVERRIDE balanceBBatchStockDate(batch, stock, dateFrom),
-             balanceABatchStockDate(batch, stock, dateTo),
-             costInBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo),
-             costOutBalanceBatchStockDateFromTo(batch, stock, dateFrom, dateTo);
+overMovementContainer (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) =
+    OVERRIDE balanceB(batch, stock, dateFrom),
+             balanceA(batch, stock, dateTo),
+             costInBalance(batch, stock, dateFrom, dateTo),
+             costOutBalance(batch, stock, dateFrom, dateTo);
 
-accountSumInBalanceBatchStockDateFromTo 'Сумма прихода' (batch, stock, dateFrom, dateTo) = GROUP SUM costSkuLedgerBatch (ledger, batch)* accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger))
-    IF ledger IS InSkuLedger AND isPostedSkuLedger(ledger)
-    AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
-    BY batch, stockSkuLedger(ledger), dateFrom, dateTo;
+accountSumInBalance 'Сумма прихода' (batch, stock, dateFrom, dateTo) = GROUP SUM cost (InSkuLedger ledger, Batch batch)* accountPriceA(batch, stock(ledger), dateTime(ledger))
+    IF ledger IS InSkuLedger AND isPosted(ledger)
+    AND date(ledger) >= DATE dateFrom AND date(ledger)<= DATE dateTo
+    BY batch, stock(ledger), dateFrom, dateTo;
     
-accountSumOutBalanceBatchStockDateFromTo 'Сумма расхода' (batch, stock, dateFrom, dateTo) = GROUP SUM costSkuLedgerBatch (ledger, batch)* accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger))
-    IF ledger IS OutSkuLedger AND isPostedSkuLedger(ledger)
-    AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
-    BY batch, stockSkuLedger(ledger), dateFrom, dateTo;
+accountSumOutBalance 'Сумма расхода' (batch, stock, dateFrom, dateTo) = GROUP SUM cost (OutSkuLedger ledger, Batch batch)* accountPriceA(batch, stock(ledger), dateTime(ledger))
+    IF ledger IS OutSkuLedger AND isPosted(ledger)
+    AND date(ledger) >= DATE dateFrom AND date(ledger)<= DATE dateTo
+    BY batch, stock(ledger), dateFrom, dateTo;
 
-inContainerMovementBatch = DATA LOCAL BOOLEAN (Batch);
+inContainerMovement = DATA LOCAL BOOLEAN (Batch);
 
-balanceInBatch 'Остаток на начало' =  DATA LOCAL NUMERIC[14,3] (Batch);
-sumInBatch 'Сумма на начало' =  DATA LOCAL NUMERIC[15,3] (Batch);
+balanceIn 'Остаток на начало' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumIn 'Сумма на начало' =  DATA LOCAL NUMERIC[15,3] (Batch);
 
-balanceOutBatch 'Остаток на конец' =  DATA LOCAL NUMERIC[14,3] (Batch);
-sumOutBatch 'Сумма на конец' =  DATA LOCAL NUMERIC[15,3] (Batch);
+balanceOut 'Остаток на конец' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumOut 'Сумма на конец' =  DATA LOCAL NUMERIC[15,3] (Batch);
 
-balanceMoveInBatch 'Приход' =  DATA LOCAL NUMERIC[14,3] (Batch);
-sumMoveInBatch 'Сумма прихода' =  DATA LOCAL NUMERIC[15,3] (Batch);
+balanceMoveIn 'Приход' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumMoveIn 'Сумма прихода' =  DATA LOCAL NUMERIC[15,3] (Batch);
 
-balanceMoveOutBatch 'Расход' =  DATA LOCAL NUMERIC[14,3] (Batch);
-sumMoveOutBatch 'Сумма Расхода' =  DATA LOCAL NUMERIC[15,3] (Batch);
+balanceMoveOut 'Расход' =  DATA LOCAL NUMERIC[14,3] (Batch);
+sumMoveOut 'Сумма Расхода' =  DATA LOCAL NUMERIC[15,3] (Batch);
 
-lastPriceBatch 'Цена'  = DATA LOCAL NUMERIC[15,3] (Batch);
+lastPrice 'Цена'  = DATA LOCAL NUMERIC[15,3] (Batch);
 
-accountSumContainerStockDateFrom 'Остаток на начало по складу'  = GROUP SUM sumInBatch (bt);
+accountSumContainerStockDateFrom 'Остаток на начало по складу'  = GROUP SUM sumIn (Batch bt);
 
-accountSumContainerStockDateTo 'Остаток на конец по складу' = GROUP SUM sumOutBatch(bt);
+accountSumContainerStockDateTo 'Остаток на конец по складу' = GROUP SUM sumOut(Batch bt);
 
-includeContainerMovementBatchStockDateFromTo 'Рассчитать' = ACTION (stock, dateFrom, dateTo){
+includeContainerMovementBatchFromTo 'Рассчитать' = ACTION (Stock stock, DATE dateFrom, DATE dateTo){
     
-    inContainerMovementBatch (bt) <- isPostedBatch(bt) AND isContainerBatch(bt);
+    inContainerMovement (Batch bt) <- isPosted(bt) AND isContainer(bt);
     
-    inContainerMovementBatch (bt) <- NULL WHERE inContainerMovementBatch (bt) AND NOT overMovementContainerBatchStockDateFromTo(bt, stock, dateFrom, dateTo); 
+    inContainerMovement (Batch bt) <- NULL WHERE inContainerMovement (bt) AND NOT overMovementContainer(bt, stock, dateFrom, dateTo); 
     
-    balanceInBatch(bt) <- NULL;
-    balanceInBatch(bt) <- balanceBBatchStockDate(bt, stock, dateFrom) WHERE inContainerMovementBatch (bt);
+    balanceIn(Batch bt) <- NULL;
+    balanceIn(Batch bt) <- balanceB(bt, stock, dateFrom) WHERE inContainerMovement (bt);
     
-    sumInBatch (bt) <- NULL;
-    sumInBatch (bt) <- balanceInBatch(bt) * accountPriceBBatchStockDate(bt, stock, dateFrom) WHERE inContainerMovementBatch (bt);
+    sumIn (Batch bt) <- NULL;
+    sumIn (Batch bt) <- balanceIn(bt) * accountPriceB(bt, stock, dateFrom) WHERE inContainerMovement (bt);
     
-    balanceOutBatch (bt) <- NULL;
-    balanceOutBatch (bt) <- balanceABatchStockDate(bt, stock, dateTo) WHERE inContainerMovementBatch (bt);
+    balanceOut (Batch bt) <- NULL;
+    balanceOut (Batch bt) <- balanceA(bt, stock, dateTo) WHERE inContainerMovement (bt);
     
-    lastPriceBatch(bt) <- NULL;
-    lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, dateTo) WHERE inContainerMovementBatch (bt);
+    lastPrice(Batch bt) <- NULL;
+    lastPrice(Batch bt) <- accountPriceA(bt, stock, dateTo) WHERE inContainerMovement (bt);
     
-    lastPriceBatch(bt) <- accountPriceABatchStockDate(bt, stock, 2030_01_01) WHERE inContainerMovementBatch (bt) AND NOT lastPriceBatch(bt);
+    lastPrice(Batch bt) <- accountPriceA(bt, stock, 2030_01_01) WHERE inContainerMovement (bt) AND NOT lastPrice(bt);
     
-    sumOutBatch (bt) <- NULL;
-    sumOutBatch (bt) <- balanceOutBatch(bt) * lastPriceBatch(bt) WHERE inContainerMovementBatch (bt);
+    sumOut (Batch bt) <- NULL;
+    sumOut (Batch bt) <- balanceOut(bt) * lastPrice(bt) WHERE inContainerMovement (bt);
     
-    balanceMoveInBatch (bt) <- NULL;
-    balanceMoveInBatch (bt) <- costInBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    balanceMoveIn (Batch bt) <- NULL;
+    balanceMoveIn (Batch bt) <- costInBalance(bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
     
-    sumMoveInBatch (bt) <- NULL;
-    sumMoveInBatch (bt) <- [= GROUP SUM costSkuLedgerBatch (ledger, batch) * (OVERRIDE lastPriceBatch(batch), accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger)))
-                               IF ledger IS InSkuLedger AND isPostedSkuLedger(ledger)
-                               AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
-                               BY batch, stockSkuLedger(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    sumMoveIn (Batch bt) <- NULL;
+    sumMoveIn (Batch bt) <- [= GROUP SUM cost (InSkuLedger ledger, Batch batch) * (OVERRIDE lastPrice(batch), accountPriceA(batch, stock(ledger), dateTime(ledger)))
+                               IF ledger IS InSkuLedger AND isPosted(ledger)
+                               AND date(ledger) >= DATE dateFrom AND date(ledger)<= DATE dateTo
+                               BY batch, stock(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
     
-    balanceMoveOutBatch (bt) <- NULL;
-    balanceMoveOutBatch (bt) <- costOutBalanceBatchStockDateFromTo(bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    balanceMoveOut (Batch bt) <- NULL;
+    balanceMoveOut (Batch bt) <- costOutBalance(bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
 
-    sumMoveOutBatch (bt) <- NULL;
-    sumMoveOutBatch (bt) <- [= GROUP SUM costSkuLedgerBatch (ledger, batch) * (OVERRIDE lastPriceBatch(batch), accountPriceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger)))
-                                IF ledger IS OutSkuLedger AND isPostedSkuLedger(ledger)
-                                AND dateSkuLedger(ledger) >= dateFrom AND dateSkuLedger(ledger)<= dateTo
-                                BY batch, stockSkuLedger(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovementBatch (bt);
+    sumMoveOut (Batch bt) <- NULL;
+    sumMoveOut (Batch bt) <- [= GROUP SUM cost (OutSkuLedger ledger, Batch batch) * (OVERRIDE lastPrice(batch), accountPriceA(batch, stock(ledger), dateTime(ledger)))
+                                IF ledger IS OutSkuLedger AND isPosted(ledger)
+                                AND date(ledger) >= DATE dateFrom AND date(ledger)<= DATE dateTo
+                                BY batch, stock(ledger), dateFrom, dateTo](bt, stock, dateFrom, dateTo) WHERE inContainerMovement (bt);
  
     formRefresh();
 }
 
-balanceInBatches = GROUP SUM balanceInBatch(bt) IF inContainerMovementBatch(bt);
-balanceOutBatches = GROUP SUM balanceOutBatch(bt) IF inContainerMovementBatch(bt);
+balanceInBatches = GROUP SUM balanceIn(Batch bt) IF inContainerMovement(bt);
+balanceOutBatches = GROUP SUM balanceOut(Batch bt) IF inContainerMovement(bt);
 
-balanceMoveInBatches = GROUP SUM balanceMoveInBatch(bt) IF inContainerMovementBatch(bt);
-sumMoveInBatches = GROUP SUM sumMoveInBatch(bt) IF inContainerMovementBatch(bt);
-balanceMoveOutBatches = GROUP SUM balanceMoveOutBatch(bt) IF inContainerMovementBatch(bt);
-sumMoveOutBatches = GROUP SUM sumMoveOutBatch(bt) IF inContainerMovementBatch(bt);
+balanceMoveInBatches = GROUP SUM balanceMoveIn(Batch bt) IF inContainerMovement(bt);
+sumMoveInBatches = GROUP SUM sumMoveIn(Batch bt) IF inContainerMovement(bt);
+balanceMoveOutBatches = GROUP SUM balanceMoveOut(Batch bt) IF inContainerMovement(bt);
+sumMoveOutBatches = GROUP SUM sumMoveOut(Batch bt) IF inContainerMovement(bt);
 
 //--
 
-balanceInSkuPrice = GROUP SUM balanceInBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
-sumInSkuPrice = GROUP SUM sumInBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
+balanceInPrice = GROUP SUM balanceIn(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
+sumInPrice = GROUP SUM sumIn(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
 
-balanceOutSkuPrice = GROUP SUM balanceOutBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
-sumOutSkuPrice = GROUP SUM sumOutBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
+balanceOutPrice = GROUP SUM balanceOut(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
+sumOutPrice = GROUP SUM sumOut(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
 
-balanceMoveInSkuPrice = GROUP SUM balanceMoveInBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
-sumMoveInSkuPrice = GROUP SUM sumMoveInBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
+balanceMoveInPrice = GROUP SUM balanceMoveIn(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
+sumMoveInPrice = GROUP SUM sumMoveIn(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
 
-balanceMoveOutSkuPrice = GROUP SUM balanceMoveOutBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
-sumMoveOutSkuPrice = GROUP SUM sumMoveOutBatch(bt) IF inContainerMovementBatch(bt) BY skuBatch(bt), lastPriceBatch(bt);
+balanceMoveOutPrice = GROUP SUM balanceMoveOut(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
+sumMoveOutPrice = GROUP SUM sumMoveOut(Batch bt) IF inContainerMovement(bt) BY sku(bt), lastPrice(bt);
 
 
 FORM containerMovement 'Отчет по таре'
@@ -119,24 +119,24 @@ FORM containerMovement 'Отчет по таре'
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
 
     OBJECTS dep = DepartmentStore  FIXED PANEL
-    PROPERTIES(dep) SELECTOR nameDepartmentStore, nameLegalEntityDepartmentStore  
+    PROPERTIES(dep) SELECTOR name, nameLegalEntity  
 
     OBJECTS bt=Batch
 
     PROPERTIES READONLY accountSumContainerStockDateFrom(), accountSumContainerStockDateTo()
-    PROPERTIES(bt) READONLY idBarcodeSkuBatch, nameSkuBatch, nameSupplierBatch, lastPriceBatch
-    PROPERTIES(bt) READONLY balanceInBatch, sumInBatch, balanceOutBatch, sumOutBatch, balanceMoveInBatch, sumMoveInBatch, balanceMoveOutBatch, sumMoveOutBatch
+    PROPERTIES(bt) READONLY idBarcodeSku, nameSku, nameSupplier, lastPrice
+    PROPERTIES(bt) READONLY balanceIn, sumIn, balanceOut, sumOut, balanceMoveIn, sumMoveIn, balanceMoveOut, sumMoveOut
                
-    FILTERS inContainerMovementBatch(bt)
+    FILTERS inContainerMovement(bt)
     
-    ORDER BY nameSkuBatch(bt)
+    ORDER BY nameSku(bt)
 
-    PROPERTIES includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo) TOOLBAR TODRAW bt
+    PROPERTIES includeContainerMovementBatchFromTo(dep, dFrom, dTo) TOOLBAR TODRAW bt
     
     EVENTS 
-        ON CHANGE dFrom includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo), 
-        ON CHANGE dTo includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo),
-        ON CHANGE dep includeContainerMovementBatchStockDateFromTo(dep, dFrom, dTo)
+        ON CHANGE dFrom includeContainerMovementBatchFromTo(dep, dFrom, dTo), 
+        ON CHANGE dTo includeContainerMovementBatchFromTo(dep, dFrom, dTo),
+        ON CHANGE dep includeContainerMovementBatchFromTo(dep, dFrom, dTo)
 ;
 
 DESIGN containerMovement {

@@ -5,19 +5,19 @@ REQUIRE MachineryPriceTransaction;
 NAMESPACE Machinery;
 
 
-inEmployeeDow 'Рабочий день' = DATA BOOLEAN (Employee, DOW);
+inDow 'Рабочий день' = DATA BOOLEAN (Employee, DOW);
 
 EXTEND FORM employee
     OBJECTS dow = DOW
-    PROPERTIES READONLY staticCaption(dow), numberDOW(dow), inEmployeeDow(e,dow) EDITABLE 
-    ORDER BY numberDOW(dow)
+    PROPERTIES READONLY staticCaption(dow), number(dow), inDow(e,dow) EDITABLE 
+    ORDER BY number(dow)
 ;
 DESIGN employee {
     MOVE dow.box BEFORE functions.box;
 }
 
 
-inEmployeeDowDateTime (employee, dateTime)=inEmployeeDow(employee, extractDOW(toDate(dateTime)));
+inDow (Employee employee, DATETIME dateTime)=inDow(employee, extractDOW(toDate(dateTime)));
 
 
 countMinutesMachineryPriceTransaction 'Количество минут для проверки незагруженных в оборудование документов' = DATA LONG ();
@@ -31,39 +31,39 @@ DESIGN options {
     }
 }
 
-subtractDateTimeMinutes(dateTime, mins) = [= FORMULA DATETIME PG '(($1)-($2)*CAST(\'1 minutes\' AS INTERVAL))', MS 'DATEADD(mm, $2, $1)'](dateTime AS DATETIME, mins AS LONG);
+subtractMinutes(DATETIME dateTime, LONG mins) = [= FORMULA DATETIME PG '(($1)-($2)*CAST(\'1 minutes\' AS INTERVAL))', MS 'DATEADD(mm, $2, $1)'](dateTime AS DATETIME, mins AS LONG);
 
-includeEmailMachineryPriceTransactionDateTime (tt, dateTime)  = subtractDateTimeMinutes(dateTime, countMinutesMachineryPriceTransaction())<= dateTimeMachineryPriceTransaction(tt) 
-    IF dateTime >= dateTimeMachineryPriceTransaction(tt)
-    AND  (NOT succeededMachineryPriceTransaction(tt) OR (countSucceededMachineriesMachineryPriceTransaction(tt) != countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(tt))));
+includeEmail (MachineryPriceTransaction tt, DATETIME dateTime)  = subtractMinutes(dateTime, countMinutesMachineryPriceTransaction())<= dateTime(tt) 
+    IF dateTime >= dateTime(tt)
+    AND  (NOT succeeded(tt) OR (countSucceededMachineries(tt) != countMachineries(groupMachinery(tt))));
 
     
-countIncludeEmailMachineryPriceTransactionsDateTime (dateTime) = GROUP SUM 1 IF includeEmailMachineryPriceTransactionDateTime (tt, dateTime) AND inEmployeeDowDateTime(user, dateTime) BY dateTime;
+countIncludeEmailMachineryPriceTransactions (dateTime) = GROUP SUM 1 IF includeEmail (MachineryPriceTransaction tt, DATETIME dateTime) AND inDow(Employee user, dateTime) BY dateTime;
 
 FORM emailMachineryPriceTransaction 'Загрузки в оборудование'
     
     OBJECTS dt = DATETIME FIXED PANEL 
 
     OBJECTS tt = MachineryPriceTransaction
-    PROPERTIES(tt) READONLY FORCE GRID snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
-                            timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, succeededMachineryPriceTransaction, 
-                            dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
-                            quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(tt),
-                            nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(tt)
-    PROPERTIES(tt) READONLY FORCE GRID createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+    PROPERTIES(tt) READONLY FORCE GRID snapshot, nameGroupMachinery, date, 
+                            time, description, succeeded, 
+                            dateTimeSucceeded, canceled, 
+                            quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(tt),
+                            npps FORCE PANEL SHOWIF snapshot(tt)
+    PROPERTIES(tt) READONLY FORCE GRID createdNameUser, createdHostnameComputer
 
-    FILTERS includeEmailMachineryPriceTransactionDateTime(tt,dt) 
+    FILTERS includeEmail(tt,dt) 
 ;
 
-emailNotSucceededMachineryPriceTransactionDateTimeUser 'Выслать уведомление о незагруженных документах в оборудование' (dateTime, user) = ACTION EMAIL
+emailNotSucceededMachineryPriceTransaction 'Выслать уведомление о незагруженных документах в оборудование' (DATETIME dateTime, Contact user) = ACTION EMAIL
     SUBJECT 'Уведомление о незагруженных документах в оборудование'
-    TO emailContact(user)
+    TO email(user)
     INLINE emailMachineryPriceTransaction OBJECTS dt = dateTime AS DATETIME
 ;
 
 emailNotSucceededMachineryPriceTransaction= ACTION () {
-    IF countIncludeEmailMachineryPriceTransactionsDateTime(currentDateTime()) THEN
-        FOR inEmployeeDowDateTime(user,currentDateTime()) DO {
-            emailNotSucceededMachineryPriceTransactionDateTimeUser(currentDateTime(), user); 
+    IF countIncludeEmailMachineryPriceTransactions(currentDateTime()) THEN
+        FOR inDow(Employee user,currentDateTime()) DO {
+            emailNotSucceededMachineryPriceTransaction(currentDateTime(), user); 
         }    
 }

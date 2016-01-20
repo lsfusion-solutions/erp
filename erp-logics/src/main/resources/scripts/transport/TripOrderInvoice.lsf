@@ -4,15 +4,15 @@ REQUIRE TripOrder, TripInvoice;
 
 NAMESPACE Trip;
 
-quantityTripInvoice (trip, invoice) = GROUP SUM quantityOrderInvoice(order, invoice) IF inTripOrder(trip, order) BY trip, invoice;
+quantity (trip, invoice) = GROUP SUM quantity(Order order, Invoice invoice) IF in(Trip trip, order) BY trip, invoice;
 
-diffCountOrderInvoiceTrip 'Кол-во заказов без накладных'(trip) = countOrderTrip(trip) (-) countInvoiceTrip(trip);
+diffCountOrderInvoice 'Кол-во заказов без накладных'(Trip trip) = countOrder(trip) (-) countInvoice(trip);
 
-createInvoicesOrderTrip 'Создать накладные по заказам' (trip) = ACTION (trip) {
-    FOR tripOrder(order) == trip DO {
-        createUserInvoicePostedOrder(order);
-        FOR createdUserInvoiceOrder (invoice, order) DO {
-            tripInvoice(invoice) <- trip; // IF quantityTripInvoice (trip, invoice)
+createInvoicesOrder 'Создать накладные по заказам' (Trip trip) = ACTION (trip) {
+    FOR trip(Order order) == trip DO {
+        createUserInvoicePosted(order);
+        FOR createdUser (Invoice invoice, order) DO {
+            trip(invoice) <- trip; // IF quantityTripInvoice (trip, invoice)
         }
 
         apply();
@@ -22,5 +22,5 @@ createInvoicesOrderTrip 'Создать накладные по заказам' 
 } TOOLBAR CONFIRM;
 
 EXTEND FORM trip
-    PROPERTIES createInvoicesOrderTrip(t) TODRAW i
+    PROPERTIES createInvoicesOrder(t) TODRAW i
 ;

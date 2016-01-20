@@ -9,40 +9,40 @@ NAMESPACE Ramp;
 CLASS  IntervalType 'Тип интервала';
 TABLE intervalType (IntervalType);
 
-nameIntervalType 'Наименование' = DATA VARISTRING[100](IntervalType);
+name 'Наименование' = DATA VARISTRING[100](IntervalType);
 @defineExternalizable(intervalType, VARSTRING[100]);
 
 CLASS  Interval 'Интервал';
 TABLE interval (Interval);
 
-nameInterval 'Наименование' = DATA VARISTRING[100](Interval);
+name 'Наименование' = DATA VARISTRING[100](Interval);
 @defineExternalizable(interval, VARSTRING[100]);
-timeInterval 'Время' = DATA TIME (Interval) IN recognize;
+time 'Время' = DATA TIME (Interval) IN recognize;
 
-intervalTypeInterval= DATA IntervalType (Interval) NOT NULL DELETE;
-nameIntervalTypeInterval 'Тип интервала' (i) = nameIntervalType(intervalTypeInterval(i));
+intervalType= DATA IntervalType (Interval) NOT NULL DELETE;
+nameIntervalType 'Тип интервала' (Interval i) = name(intervalType(i));
 
 FORM intervalType 'Тип интервала'
     OBJECTS t=IntervalType FIXED PANEL
-    PROPERTIES(t) nameIntervalType
+    PROPERTIES(t) name
     
     OBJECTS i= Interval
-    PROPERTIES(i) timeInterval, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR       
-    FILTERS intervalTypeInterval(i) == t
+    PROPERTIES(i) time, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR       
+    FILTERS intervalType(i) == t
     
     EDIT IntervalType OBJECT t
 ;
 
 FORM intervalTypes 'Типы интервала'
     OBJECTS t=IntervalType
-    PROPERTIES(t) nameIntervalType READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameIntervalType(t)
+    ORDER BY name(t)
     
     OBJECTS i= Interval
-    PROPERTIES(i) READONLY timeInterval
-    ORDER BY timeInterval(i)    
-    FILTERS intervalTypeInterval(i) == t
+    PROPERTIES(i) READONLY time
+    ORDER BY time(i)    
+    FILTERS intervalType(i) == t
         
     DIALOG IntervalType OBJECT t
 ;
@@ -53,22 +53,22 @@ DESIGN intervalTypes { main{ preferredSize = (600, 400); } }
 CLASS  RampGroup 'Группа рамп';
 TABLE rampGroup (RampGroup);
 
-nameRampGroup 'Наименование' = DATA VARISTRING[100](RampGroup);
+name 'Наименование' = DATA VARISTRING[100](RampGroup);
 
 TABLE rampGroupRampGroup(RampGroup, RampGroup);
 @defineHierarchy(rampGroup, RampGroup);
 
 FORM rampGroup 'Группа рамп'
     OBJECTS g=RampGroup FIXED PANEL
-    PROPERTIES(g) nameRampGroup, nameParentRampGroup
+    PROPERTIES(g) name, nameParent
     EDIT RampGroup OBJECT g
 ;
 
 FORM rampGroups 'Группы рамп'
-    TREE treeGroups g=RampGroup PARENT parentRampGroup
-    PROPERTIES READONLY nameRampGroup(g), canonicalNameRampGroup (g)
+    TREE treeGroups g=RampGroup PARENT parent
+    PROPERTIES READONLY name(g), canonicalName (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
-    ORDER BY canonicalNameRampGroup(g)
+    ORDER BY canonicalName(g)
     DIALOG RampGroup OBJECT g
 ;
 
@@ -77,76 +77,76 @@ FORM rampGroups 'Группы рамп'
 CLASS  Ramp 'Рампа';
 TABLE ramp (Ramp);
 
-nameRamp 'Наименование' = DATA VARISTRING[100](Ramp) IN recognize;
+name 'Наименование' = DATA VARISTRING[100](Ramp) IN recognize;
 @defineExternalizable(ramp, VARSTRING[100]);
 
-rampGroupRamp 'Группа рамп' = DATA RampGroup (Ramp) AUTOSET NOT NULL;
-nameRampGroupRamp 'Группа' (ramp) = nameRampGroup(rampGroupRamp(ramp));
+rampGroup 'Группа рамп' = DATA RampGroup (Ramp) AUTOSET NOT NULL;
+nameRampGroup 'Группа' (Ramp ramp) = name(rampGroup(ramp));
 
 TABLE rampGroupRamp(RampGroup, Ramp);
-isParentRampGroupRamp (rampGroup, ramp) = isParentRampGroupRampGroup(rampGroupRamp(ramp), rampGroup);
-canonicalNameRamp 'Каноническое имя' (ramp) = canonicalNameRampGroup(rampGroupRamp(ramp));
+isParent (RampGroup rampGroup, Ramp ramp) = isParent(rampGroup(ramp), rampGroup);
+canonicalName 'Каноническое имя' (Ramp ramp) = canonicalName(rampGroup(ramp));
 
-intervalTypeRamp= DATA IntervalType (Ramp);
-nameIntervalTypeRamp 'Тип интервала' (r) = nameIntervalType(intervalTypeRamp(r));
+intervalType= DATA IntervalType (Ramp);
+nameIntervalType 'Тип интервала' (Ramp r) = name(intervalType(r));
 
-inRampInterval 'Вкл.' (r,i)= intervalTypeRamp(r) == intervalTypeInterval(i);
-countIntervalRamp 'Кол-во интервалов' (r) = GROUP SUM 1 IF inRampInterval(r,i) BY r;
+in 'Вкл.' (Ramp r,Interval i)= intervalType(r) == intervalType(i);
+countInterval 'Кол-во интервалов' (r) = GROUP SUM 1 IF in(Ramp r,Interval i) BY r;
 
-stockRamp= DATA Stock (Ramp);
-nameStockRamp 'Склад' (r) = nameStock(stockRamp(r));
-countIntervalStock 'Кол-во интервалов' (st) = GROUP SUM 1 IF inRampInterval(r,i) BY stockRamp(r);
+stock= DATA Stock (Ramp);
+nameStock 'Склад' (Ramp r) = name(stock(r));
+countInterval 'Кол-во интервалов' (st) = GROUP SUM 1 IF in(Ramp r,Interval i) BY stock(r);
 
-CONSTRAINT stockRamp(r) AND NOT isCompanyStock(stockRamp(r))
-    CHECKED BY stockRamp MESSAGE 'Для рампы должен быть задан склад компании';    
+CONSTRAINT stock(Ramp r) AND NOT isCompany(stock(r))
+    CHECKED BY stock[Ramp] MESSAGE 'Для рампы должен быть задан склад компании';    
     
 //--
 TABLE rampSkuGroup(Ramp, SkuGroup);
-inDataRampSkuGroup 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
-levelParentRampSkuGroup (ramp, group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF inDataRampSkuGroup(ramp, parent)
+inData 'Вкл.' = DATA BOOLEAN (Ramp, SkuGroup);
+levelParent (ramp, group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF inData(Ramp ramp, parent)
                                                               BY ramp, group PERSISTENT;
 
-nearestParentRampSkuGroup (ramp, group) = skuGroupSkuGroupLevel(group, levelParentRampSkuGroup (ramp, group));
-nearestInRampSkuGroup  (ramp, group) =
-    inDataRampSkuGroup(ramp, nearestParentRampSkuGroup (ramp, group)) PERSISTENT;
+nearestParent (Ramp ramp, SkuGroup group) = skuGroup(group, levelParent (ramp, group));
+nearestIn  (Ramp ramp, SkuGroup group) =
+    inData(ramp, nearestParent (ramp, group)) PERSISTENT;
 
-inRampSkuGroup 'Вкл.' (ramp, group) = OVERRIDE nearestInRampSkuGroup(ramp, group), inDataRampSkuGroup(ramp, group) PERSISTENT;
+in 'Вкл.' (Ramp ramp, SkuGroup group) = OVERRIDE nearestIn(ramp, group), inData(ramp, group) PERSISTENT;
 
-inRampSku 'Вкл.' (ramp, sku) = inRampSkuGroup(ramp, skuGroupSku(sku));
+in 'Вкл.' (Ramp ramp, Sku sku) = in(ramp, skuGroup(sku));
 // Пока что простенькая логика привязки групп товаров к рампам, возможно надо будет переделать
 
-countSkuGroupsRamp (ramp) = GROUP SUM 1 IF inDataRampSkuGroup(ramp, skuGroup) BY ramp;
+countSkuGroups (ramp) = GROUP SUM 1 IF inData(Ramp ramp, SkuGroup skuGroup) BY ramp;
 
   
 FORM ramp 'Рампа'
     OBJECTS r=Ramp FIXED PANEL
-    PROPERTIES(r) nameRamp, idRamp SHOWIF showIDs(), nameIntervalTypeRamp, nameStockRamp, nameRampGroupRamp
+    PROPERTIES(r) name, id SHOWIF showIDs(), nameIntervalType, nameStock, nameRampGroup
     
     OBJECTS i= Interval
-    PROPERTIES(i) READONLY timeInterval
-    ORDER BY timeInterval(i)
-    FILTERS intervalTypeRamp(r) == intervalTypeInterval(i)
+    PROPERTIES(i) READONLY time
+    ORDER BY time(i)
+    FILTERS intervalType(r) == intervalType(i)
     
     EDIT Ramp OBJECT r
 ;
 FORM ramps 'Рампы'
-    TREE rampTree sg = RampGroup PARENT parentRampGroup
-    PROPERTIES READONLY nameRampGroup(sg)
+    TREE rampTree sg = RampGroup PARENT parent
+    PROPERTIES READONLY name(sg)
     
     OBJECTS r=Ramp 
-    PROPERTIES(r) READONLY nameRamp, idRamp SHOWIF showIDs(), nameIntervalTypeRamp, nameStockRamp
+    PROPERTIES(r) READONLY name, id SHOWIF showIDs(), nameIntervalType, nameStock
     PROPERTIES(r) ADDFORM, EDITFORM
-    ORDER BY      nameRamp(r)
-    FILTERS isParentRampGroupRamp(sg, r) 
+    ORDER BY      name(r)
+    FILTERS isParent(sg, r) 
     
-    TREE skuTree gg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(gg), nameSkuGroup(gg)         
-    PROPERTIES inRampSkuGroup(r,gg)      
-    ORDER BY orderSkuGroup(gg)    
+    TREE skuTree gg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(gg), name(gg)         
+    PROPERTIES in(r,gg)      
+    ORDER BY order(gg)    
     OBJECTS i= Interval
-    PROPERTIES(i) READONLY timeInterval
-    ORDER BY timeInterval(i)
-    FILTERS intervalTypeRamp(r) == intervalTypeInterval(i)
+    PROPERTIES(i) READONLY time
+    ORDER BY time(i)
+    FILTERS intervalType(r) == intervalType(i)
     
     DIALOG Ramp OBJECT r
 ;

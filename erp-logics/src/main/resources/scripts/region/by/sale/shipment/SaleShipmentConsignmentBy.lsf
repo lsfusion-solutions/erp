@@ -11,46 +11,46 @@ NAMESPACE Sale;
 @implementConsignmentHeaderData (Shipment);
 
 
-dataSupplierConsignment (consignment) += supplierShipment(consignment);
-supplierStockConsignment (consignment) += supplierStockShipment(consignment);
-dataCustomerConsignment (consignment) += customerShipment(consignment);
-customerStockConsignment (consignment) += customerStockShipment(consignment);
-dataCurrencyConsignment (consignment) += currencyShipment(consignment);
+dataSupplier (Shipment consignment) += supplier(consignment);
+supplierStock[Consignment] (Shipment consignment) += supplierStock(consignment);
+dataCustomer (Shipment consignment) += customer(consignment);
+customerStock[Consignment] (Shipment consignment) += customerStock(consignment);
+dataCurrency (Shipment consignment) += currency(consignment);
 
-consignmentTypeConsignment (consignment) += consignmentTypeOperation(operationShipment(consignment));
-dataShipmentBaseConsignment (consignment) += shipmentBaseOperation(operationShipment(consignment));
-ownerTrackTypeConsignment (consignment) += ownerTrackTypeOperation(operationShipment(consignment));
+consignmentType (Shipment consignment) += consignmentType(operation(consignment));
+dataShipmentBase (Shipment consignment) += shipmentBase(operation(consignment));
+ownerTrackType (Shipment consignment) += ownerTrackType(operation(consignment));
 
-notUseDriverTruckConsignment(c) += notUseDriverTruckOperation(operationShipment(c));
+notUseDriverTruck(Shipment c) += notUseDriverTruck(operation(c));
 
-notUseIssuanceAllowedConsignment(c) += notUseIssuanceAllowedOperation(operationShipment(c));
-notUseIssuanceExecutedConsignment(c) += notUseIssuanceExecutedOperation(operationShipment(c));
-useGoodsAcceptedConsignment(c) += useGoodsAcceptedOperation(operationShipment(c));
+notUseIssuanceAllowed(Shipment c) += notUseIssuanceAllowed(operation(c));
+notUseIssuanceExecuted(Shipment c) += notUseIssuanceExecuted(operation(c));
+useGoodsAccepted(Shipment c) += useGoodsAccepted(operation(c));
 
 EXTEND CLASS ShipmentDetail : ConsignmentDetail;
 
-consignmentConsignmentDetail (detail) += shipmentShipmentDetail (detail);
-skuConsignmentDetail (detail) += skuShipmentDetail (detail);
-indexConsignmentDetail (detail) += indexShipmentDetail (detail);
-batchConsignmentDetail (detail) += batchShipmentDetail (detail);
-quantityConsignmentDetail (detail) += quantityShipmentDetail (detail);
+consignment (ShipmentDetail detail) += shipment (detail);
+sku[ConsignmentDetail] (ShipmentDetail detail) += sku (detail);
+index[ConsignmentDetail] (ShipmentDetail detail) += index (detail);
+batch[ConsignmentDetail] (ShipmentDetail detail) += batch (detail);
+quantity[ConsignmentDetail] (ShipmentDetail detail) += quantity (detail);
 
-dataPackQuantityConsignmentDetail (detail) += quantityShipmentDetail (detail);
+dataPackQuantity (ShipmentDetail detail) += quantity (detail);
 @defineDocumentDetailGrossWeight (shipment, sku);
-dataGrossWeightConsignmentDetail (detail) += NUMERIC[16,5](grossWeightShipmentDetail (detail));
+dataGrossWeight (ShipmentDetail detail) += NUMERIC[16,5](grossWeight (detail));
 
-dataPriceConsignmentDetail (detail) += priceShipmentDetail(detail);
-dataSumConsignmentDetail (detail) += sumShipmentDetail(detail);
-dataSumInvoiceConsignmentDetail (detail) += sumShipmentDetail(detail);
+dataPrice (ShipmentDetail detail) += price(detail);
+dataSum (ShipmentDetail detail) += sum(detail);
+dataSumInvoice (ShipmentDetail detail) += sum(detail);
 
-showConsignmentShipment (shipment) = TRUE AND NOT relationInvoiceShipment(shipment);
+showConsignment (Shipment shipment) = TRUE AND NOT relationInvoice(shipment);
 
 EXTEND FORM  shipments
-    PROPERTIES (s)  FORCE PANEL printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
-                     printConsignmentVerticalB, printConsignmentHorizontalB,
-                     printConsignmentAttach, printConsignmentSimpleHorizontal, editAttributesConsignment,
-                     printConsignmentSimpleVertical, printConsignmentSimpleAttach,
-                     printConsignmentVertical, printConsignmentHorizontal, printConsignmentAttachXLS
+    PROPERTIES (s)  FORCE PANEL printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB,
+                     printAttach, printSimpleHorizontal, editAttributes,
+                     printSimpleVertical, printSimpleAttach,
+                     printVertical, printHorizontal, printAttachXLS
 ;
 
 DESIGN shipments {
@@ -63,7 +63,7 @@ DESIGN shipments {
                 alignment = STRETCH;
                 type = CONTAINERH;
                 caption = 'Накладная';
-                MOVE PROPERTY(editAttributesConsignment(s)) {
+                MOVE PROPERTY(editAttributes(s)) {
                     alignment = STRETCH;
                 }
             }
@@ -72,9 +72,9 @@ DESIGN shipments {
                 type = COLUMNS;
                 columns = 3;
                 caption = 'ТН-2';
-                MOVE PROPERTY(printConsignmentSimpleVertical(s));
-                MOVE PROPERTY(printConsignmentSimpleHorizontal(s));
-                MOVE PROPERTY(printConsignmentSimpleAttach(s));
+                MOVE PROPERTY(printSimpleVertical(s));
+                MOVE PROPERTY(printSimpleHorizontal(s));
+                MOVE PROPERTY(printSimpleAttach(s));
             }
         }
         NEW consignmentRow2 {
@@ -82,19 +82,19 @@ DESIGN shipments {
             type = COLUMNS;
             columns = 3;
             caption = 'ТТН-1';
-            MOVE PROPERTY(printConsignmentVerticalA(s));
-            MOVE PROPERTY(printConsignmentVerticalAB(s));
-            MOVE PROPERTY(printConsignmentHorizontalA(s));
-            MOVE PROPERTY(printConsignmentVerticalB(s));
-            MOVE PROPERTY(printConsignmentHorizontalB(s));
-            MOVE PROPERTY(printConsignmentAttach(s));
-            MOVE PROPERTY(printConsignmentVertical(s));
-            MOVE PROPERTY(printConsignmentHorizontal(s));
+            MOVE PROPERTY(printVerticalA(s));
+            MOVE PROPERTY(printVerticalAB(s));
+            MOVE PROPERTY(printHorizontalA(s));
+            MOVE PROPERTY(printVerticalB(s));
+            MOVE PROPERTY(printHorizontalB(s));
+            MOVE PROPERTY(printAttach(s));
+            MOVE PROPERTY(printVertical(s));
+            MOVE PROPERTY(printHorizontal(s));
         }
         NEW export {
             type = CONTAINERH;
             caption = 'Экспорт';  
-            MOVE PROPERTY(printConsignmentAttachXLS(s));
+            MOVE PROPERTY(printAttachXLS(s));
         }
     }
 }

@@ -22,87 +22,87 @@ DESIGN options {
 // По партиям
 
 //-- поставщика
-supplierPriceBBatchSkuStockDateTime 'Цена по товару' (batch, stock, dateTime)= priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, skuBatch(batch), stock, dateTime);
+supplierPriceBSku 'Цена по товару' (Batch batch, Stock stock, DATETIME dateTime)= priceB(SystemLedgerPriceListType.supplierPricingPriceListType, sku(batch), stock, dateTime);
 
 //-- розничная
-priceBBatchStockDateTime 'Цена партии' (batch, stock, dateTime)= priceBBatchLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
-priceBBatchSkuStockDateTime 'Цена по товару' (batch, stock, dateTime)= priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuBatch(batch), stock, dateTime);
+priceB 'Цена партии' (Batch batch, Stock stock, DATETIME dateTime)= priceBBatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, stock, dateTime);
+priceBSku 'Цена по товару' (Batch batch, Stock stock, DATETIME dateTime)= priceB(SystemLedgerPriceListType.retailPricingPriceListType, sku(batch), stock, dateTime);
 
-toRepricingBatchStockDateTime (batch, stock, dateTime) =  balanceBBatchStockDateTime(batch, stock, dateTime) 
-    IF NOT (priceBBatchStockDateTime(batch, stock, dateTime) == priceBBatchSkuStockDateTime(batch, stock, dateTime));
-toRepricingStockDateTime (stock, dateTime) = GROUP SUM 1 IF toRepricingBatchStockDateTime (batch, stock, dateTime) BY stock, dateTime;     
+toRepricing (Batch batch, Stock stock, DATETIME dateTime) =  balanceB(batch, stock, dateTime) 
+    IF NOT (priceB(batch, stock, dateTime) == priceBSku(batch, stock, dateTime));
+toRepricing (stock, dateTime) = GROUP SUM 1 IF toRepricing (Batch batch, Stock stock, DATETIME dateTime) BY stock, dateTime;     
 
-setUserRepricingStockDateTimeOperation 'Создать акт переоценки по партиям'  = ACTION (stock, dateTime, operation) NEWSESSION {
-    IF toRepricingStockDateTime (stock, dateTime) AND stock IS DepartmentStore THEN {
+setUserRepricingStock 'Создать акт переоценки по партиям'  = ACTION (DepartmentStore stock, DATETIME dateTime, Operation operation) NEWSESSION {
+    IF toRepricing (stock, dateTime) AND stock IS DepartmentStore THEN {
     
         FOR ADDOBJ p = UserRepricing DO {
-            departmentStoreUserRepricing(p) <- stock;
-            dateUserRepricing(p) <- toDate(dateTime);
-            timeUserRepricing(p) <- toTime(dateTime);
-            operationUserRepricing(p) <- operation;
+            departmentStore(p) <- stock;
+            date(p) <- toDate(dateTime);
+            time(p) <- toTime(dateTime);
+            operation(p) <- operation;
             
-            FOR toRepricingBatchStockDateTime(batch, stock, dateTime) INLINE ADDOBJ d = UserRepricingDetail DO {
-                userRepricingUserRepricingDetail(d) <- p;    
-                skuUserRepricingDetail(d) <- skuBatch(batch);
-                batchUserRepricingDetail(d) <- batch;
-                quantityUserRepricingDetail(d) <- balanceBBatchStockDateTime(batch, stock, dateTime);
-                curRetailPriceUserRepricingDetail(d) <- priceBBatchStockDateTime(batch, stock, dateTime);
-                retailPriceUserRepricingDetail(d) <- priceBBatchSkuStockDateTime(batch, stock, dateTime);
+            FOR toRepricing(Batch batch, stock, dateTime) INLINE ADDOBJ d = UserRepricingDetail DO {
+                userRepricing(d) <- p;    
+                sku(d) <- sku(batch);
+                batch(d) <- batch;
+                quantity(d) <- balanceB(batch, stock, dateTime);
+                curRetailPrice(d) <- priceB(batch, stock, dateTime);
+                retailPrice(d) <- priceBSku(batch, stock, dateTime);
                 
-                priceUserRepricingDetail(d) <- supplierPriceBBatchSkuStockDateTime(batch, stock, dateTime) WHERE isSupplierRepricing();
+                price(d) <- supplierPriceBSku(batch, stock, dateTime) WHERE isSupplierRepricing();
             }  
             FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL;
         }
     }     
 } TOOLBAR;
 
-documentNameSkuBatchRepricingDetail 'Наименование (для документов)' = documentNameSkuBatch(batchRepricingDetail(d));
-documentNameSkuBatchUserRepricingDetail 'Наименование (для документов)' = documentNameSkuBatch(batchUserRepricingDetail(d));
+documentNameSkuBatch 'Наименование (для документов)' = documentNameSku(batch(RepricingDetail d));
+documentNameSkuBatch 'Наименование (для документов)' = documentNameSku(batch(UserRepricingDetail d));
 
 EXTEND FORM userRepricing
-    PROPERTIES documentNameSkuBatchUserRepricingDetail(d) ON CHANGE changeBatchUserRepricingDetail(d) AFTER nameBatchUserRepricingDetail(d)
+    PROPERTIES documentNameSkuBatch(d) ON CHANGE changeBatch(d) AFTER nameBatch(d)
 ;
 EXTEND FORM repricings
-    PROPERTIES READONLY documentNameSkuBatchRepricingDetail(d) AFTER nameBatchRepricingDetail(d)
+    PROPERTIES READONLY documentNameSkuBatch(d) AFTER nameBatch(d)
 ;
 
 FORM repricingBatchDashboard 'Дооценка по партиям'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES (d) SELECTOR nameDepartmentStore
-    FILTERS isCompanyStock(d)
+    PROPERTIES (d) SELECTOR name
+    FILTERS isCompany(d)
         
     OBJECTS o = Repricing.Operation FIXED PANEL
-    PROPERTIES (o) SELECTOR Repricing.nameOperation
-    FILTERS inUserOperation(currentUser(), o)
+    PROPERTIES (o) SELECTOR name
+    FILTERS in(currentUser(), o)
 
     OBJECTS t=DATETIME FIXED PANEL
     PROPERTIES(t) OBJVALUE        
      
     OBJECTS bt = Batch
-    PROPERTIES (bt) READONLY dateBatch, nameBatch, nameSkuBatch, documentNameSkuBatch 
-    PROPERTIES (bt,d,t) READONLY balanceBBatchStockDateTime, priceBBatchStockDateTime, priceBBatchSkuStockDateTime
+    PROPERTIES (bt) READONLY date, name, nameSku, documentNameSku 
+    PROPERTIES (bt,d,t) READONLY balanceB, priceB, priceBSku
     
-    FILTERS toRepricingBatchStockDateTime(bt,d,t)       
-    PROPERTIES (d,t,o)  TODRAW bt FORCE PANEL setUserRepricingStockDateTimeOperation
+    FILTERS toRepricing(bt,d,t)       
+    PROPERTIES (d,t,o)  TODRAW bt FORCE PANEL setUserRepricingStock
                   
     OBJECTS p = Repricing
-    PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
-                   nameDepartmentStoreRepricing, countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
-                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
-                   diffRetailSumRepricingDetailRepricing, numberDisposalRepricing, skipChangeLedgerRepricing,
-                   statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransactionRepricing(p),
-                   statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotMachineryPriceTransactionRepricing(p) BACKGROUND backgroundCreateMachineryPriceTransactionRepricing(p), 
-                   noteRepricing                      
+    PROPERTIES (p) READONLY isPosted, number, series, date, time, beforeDate,
+                   nameDepartmentStore, countRepricingDetail, diffSumRepricingDetail,
+                   diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+                   diffRetailSumRepricingDetail, numberDisposal, skipChangeLedger,
+                   statusLabel BACKGROUND backgroundPrintLabelTransaction(p),
+                   statusMachinery ON SHORTCUT createSnapshotMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransaction(p), 
+                   note                      
                
-    PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
-                   createSnapshotRepricingLabelTransaction FORCE PANEL
+    PROPERTIES (p) createLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction(p), 
+                   createSnapshotLabelTransaction FORCE PANEL
                    
-    PROPERTIES(p)  createMachineryPriceTransactionRepricing FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
-    PROPERTIES (p) printRepricing FORCE PANEL TOOLBAR                                           
-    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
+    PROPERTIES(p)  createMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransaction(p)
+    PROPERTIES (p) print FORCE PANEL TOOLBAR                                           
+    PROPERTIES (p) edit SHOWIF isOpened(p), ADDFORM
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)    
                        
-    FILTERGROUP filters FILTER 'Переоценки на дату' dateRepricing(p)==toDate(t) 'F5' DEFAULT                
+    FILTERGROUP filters FILTER 'Переоценки на дату' date(p)==toDate(t) 'F5' DEFAULT                
                                                
 ;
 DESIGN repricingBatchDashboard {

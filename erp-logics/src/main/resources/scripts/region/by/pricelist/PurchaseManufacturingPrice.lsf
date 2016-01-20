@@ -12,69 +12,69 @@ NAMESPACE Purchase;
 @deriveDocumentOperationProperty(UserOrder, showManufacturingPrice);
 
 EXTEND FORM userOrder
-    PROPERTIES(o)  showManufacturingPriceUserOrder
+    PROPERTIES(o)  showManufacturingPrice
 
 ;
 DESIGN userOrder {
     headerExtraParams {
         NEW headerManufacturing {
             caption = 'Цена изготовителя';
-            MOVE PROPERTY(showManufacturingPriceUserOrder(o));
+            MOVE PROPERTY(showManufacturingPrice(o));
         }
     }
 }
 
 //накладная
-dateManufacturingRateExchangeInvoice 'Дата калькуляции' = ABSTRACT DATE(Invoice);
-dateManufacturingRateExchangeUserInvoice 'Дата калькуляции' = DATA DATE(UserInvoice);
-dateManufacturingRateExchangeInvoice(i) += dateManufacturingRateExchangeUserInvoice(i);
+dateManufacturingRateExchange 'Дата калькуляции' = ABSTRACT DATE(Invoice);
+dateManufacturingRateExchange 'Дата калькуляции' = DATA DATE(UserInvoice);
+dateManufacturingRateExchange(UserInvoice i) += dateManufacturingRateExchange(i);
 
-dateManufacturingRateExchangeUserInvoice(i) <- dateInvoice(i) WHEN CHANGED (dateInvoice(i));
+dateManufacturingRateExchange(UserInvoice i) <- date[Invoice](i) WHEN CHANGED (date[Invoice](i));
 
-rateManufacturingExchangeInvoice 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PERSISTENT;
-rateManufacturingExchangeUserInvoice 'Курс' = DATA NUMERIC[14,6](UserInvoice);
-rateManufacturingExchangeInvoice(i) += rateManufacturingExchangeUserInvoice(i);
+rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PERSISTENT;
+rateManufacturingExchange 'Курс' = DATA NUMERIC[14,6](UserInvoice);
+rateManufacturingExchange(UserInvoice i) += rateManufacturingExchange(i);
 
-rateManufacturingExchangeInvoiceDetail 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
+rateManufacturingExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
 
-dataRateManufacturingExchangeUserInvoiceDetail 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
-rateManufacturingExchangeUserInvoiceDetail 'Курс' (d) = OVERRIDE rateManufacturingExchangeUserInvoice(userInvoiceUserInvoiceDetail(d)),  dataRateManufacturingExchangeUserInvoiceDetail(d);
-rateManufacturingExchangeInvoiceDetail(d) += rateManufacturingExchangeUserInvoiceDetail(d);
+dataRateManufacturingExchange 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
+rateManufacturingExchange 'Курс' (UserInvoiceDetail d) = OVERRIDE rateManufacturingExchange(userInvoice(d)),  dataRateManufacturingExchange(d);
+rateManufacturingExchange(UserInvoiceDetail d) += rateManufacturingExchange(d);
 
 
-WHEN SESSION FORMS userInvoice CHANGED (dateManufacturingRateExchangeUserInvoice(i)) OR
-                               CHANGED (typeExchangeUserInvoice(i)) OR
-                               CHANGED (currencyUserInvoice(i)) DO {
-    rateManufacturingExchangeUserInvoice(i) <- rateOnTypeExchangeCurrencyDate(typeExchangeUserInvoice(i),
-                                                               currencyUserInvoice(i),
-                                                               dateManufacturingRateExchangeUserInvoice(i));
+WHEN SESSION FORMS userInvoice CHANGED (dateManufacturingRateExchange(UserInvoice i)) OR
+                               CHANGED (typeExchange(i)) OR
+                               CHANGED (currency(i)) DO {
+    rateManufacturingExchange(i) <- rateOn(typeExchange(i),
+                                                               currency(i),
+                                                               dateManufacturingRateExchange(i));
 }
 
-homeManufacturingPriceInvoiceDetail 'Цена (конв.)' (detail) =
-    roundPriceCurrency(priceInvoiceDetail(detail) *
-                       rateManufacturingExchangeInvoiceDetail(detail),
-                       homeCurrencyInvoice(invoiceInvoiceDetail(detail)));
+homeManufacturingPrice 'Цена (конв.)' (InvoiceDetail detail) =
+    round(price(detail) *
+                       rateManufacturingExchange(detail),
+                       homeCurrency(invoice(detail)));
 
-homeManufacturingPriceUserInvoiceDetail 'Цена (конв.)' (detail) =
-    roundPriceCurrency(priceUserInvoiceDetail(detail) *
-                       rateManufacturingExchangeUserInvoiceDetail(detail),
-                       homeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail)));
+homeManufacturingPrice 'Цена (конв.)' (UserInvoiceDetail detail) =
+    round(price(detail) *
+                       rateManufacturingExchange(detail),
+                       homeCurrency(userInvoice(detail)));
 
-incomeManufacturingPriceInvoiceDetail (detail) = IF isHomeCurrencyInvoice(invoiceInvoiceDetail(detail)) THEN
-                                                    homeManufacturingPriceInvoiceDetail(detail)
-                                                    ELSE priceInvoiceDetail(detail);
-incomeManufacturingSumInvoice(invoice) = GROUP SUM incomeManufacturingPriceInvoiceDetail(detail) * quantityInvoiceDetail(detail) BY invoiceInvoiceDetail(detail);
+incomeManufacturingPrice (InvoiceDetail detail) = IF isHomeCurrency(invoice(detail)) THEN
+                                                    homeManufacturingPrice(detail)
+                                                    ELSE price(detail);
+incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(InvoiceDetail detail) * quantity(detail) BY invoice(detail);
 
-incomeManufacturingPriceUserInvoiceDetail (detail) = IF isHomeCurrencyUserInvoice(userInvoiceUserInvoiceDetail(detail)) THEN
-                                                        homeManufacturingPriceUserInvoiceDetail(detail)
-                                                        ELSE priceUserInvoiceDetail(detail);
-incomeManufacturingSumUserInvoice(invoice) = GROUP SUM incomeManufacturingPriceUserInvoiceDetail(detail) * quantityUserInvoiceDetail(detail) BY userInvoiceUserInvoiceDetail(detail);
+incomeManufacturingPrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvoice(detail)) THEN
+                                                        homeManufacturingPrice(detail)
+                                                        ELSE price(detail);
+incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
-costManufacturingPriceInvoiceDetail(detail) = NUMERIC[14,2] (incomeManufacturingPriceInvoiceDetail(detail) (+) extraCostPriceInvoiceDetail(detail) (+)
-                                                            customCostPriceInvoiceDetail(detail) (+) certificateCostPriceInvoiceDetail(detail));
+costManufacturingPrice(InvoiceDetail detail) = NUMERIC[14,2] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
+                                                            customCostPrice(detail) (+) certificateCostPrice(detail));
 
-costManufacturingPriceUserInvoiceDetail(detail) = NUMERIC[14,2] (incomeManufacturingPriceUserInvoiceDetail(detail) (+) extraCostPriceUserInvoiceDetail(detail) (+)
-                                                                customCostPriceUserInvoiceDetail(detail) (+) certificateCostPriceUserInvoiceDetail(detail));
+costManufacturingPrice(UserInvoiceDetail detail) = NUMERIC[14,2] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
+                                                                customCostPrice(detail) (+) certificateCostPrice(detail));
 
 @defineDocumentInterfaceProperty (invoice, showManufacturingPrice, 'Цена изготовителя');
 @defineDocumentInterfaceProperty (invoice, reverseManufacturingPrice, 'Обратный расчет цены изг.');
@@ -86,21 +86,21 @@ costManufacturingPriceUserInvoiceDetail(detail) = NUMERIC[14,2] (incomeManufactu
 
 @defineDocumentInterfaceDetailPriceCustomPrefix(invoiceDetail, manufacturing, ' изготовителя');
 @defineDocumentInterfaceDetailInclVATCustomPrefix (invoiceDetail);
-includeVATUserInvoiceDetail(detail) <-  fixedPriceSku(skuUserInvoiceDetail(detail)) WHEN CHANGED (skuUserInvoiceDetail(detail));
+includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (sku(detail));
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
 EXTEND CLASS SystemLedgerPriceListType { manufacturingPriceStockPriceListType 'Изготовителя (последняя по складу)' }
-batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType AND isCompanyStock(stock)
-                                               THEN priceBatchLedgerStock(stock);
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN showManufacturingPriceInvoiceDetail(ledger) AND priceInvoiceDetail(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN showManufacturingPriceInvoiceDetail(ledger) AND priceInvoiceDetail(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN manufacturingPriceInvoiceDetail(ledger);
+batch (SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType AND isCompany(stock)
+                                               THEN priceBatchLedger(stock);
+in (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(ledger) AND price(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
+price (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN showManufacturingPrice(ledger) AND price(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN manufacturingPrice(ledger);
 
-addCostPriceToManufacturingPriceOperation 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Purchase.Operation);
+addCostPriceToManufacturingPrice 'Учитывать в цене изготовителя доп. расходы' = DATA BOOLEAN (Purchase.Operation);
 
 // -- Операция
-manufacturingCalcPriceListTypeOperation = DATA CalcPriceListType (Purchase.Operation);
-nameManufacturingCalcPriceListTypeOperation 'Вид цен (надбавка к цене изготовителя)' (operation) = nameCalcPriceListType(manufacturingCalcPriceListTypeOperation(operation));
+manufacturingCalcPriceListType = DATA CalcPriceListType (Purchase.Operation);
+nameManufacturingCalcPriceListType 'Вид цен (надбавка к цене изготовителя)' (Operation operation) = name(manufacturingCalcPriceListType(operation));
 
 // Вид цены (надбавка) для всего инвойса
 @defineDocumentInterfaceHeaderPriceListType (invoice, calcPriceListType, manufacturing, ' (надбавка)');
@@ -109,15 +109,15 @@ nameManufacturingCalcPriceListTypeOperation 'Вид цен (надбавка к 
 
 @defineDocumentInterfaceDetailMarkupCustomPrefix (invoiceDetail, manufacturing, ' (к цене изготовителя)');
 
-manufacturingCalcPriceListTypeUserInvoice (invoice) <- manufacturingCalcPriceListTypeOperation(operationUserInvoice(invoice))
-    WHEN CHANGED(operationUserInvoice(invoice));
+manufacturingCalcPriceListType (UserInvoice invoice) <- manufacturingCalcPriceListType(operation(invoice))
+    WHEN CHANGED(operation(invoice));
 
-manufacturingMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(manufacturingCalcPriceListTypeUserInvoiceDetail(detail), skuUserInvoiceDetail(detail))
-    WHEN CHANGED(manufacturingCalcPriceListTypeUserInvoiceDetail(detail)) OR
-         CHANGED(skuUserInvoiceDetail(detail));
+manufacturingMarkup(UserInvoiceDetail detail) <- markup(manufacturingCalcPriceListType(detail), sku(detail))
+    WHEN CHANGED(manufacturingCalcPriceListType(detail)) OR
+         CHANGED(sku(detail));
 
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) addCostPriceToManufacturingPriceOperation, nameManufacturingCalcPriceListTypeOperation
+    PROPERTIES(o) addCostPriceToManufacturingPrice, nameManufacturingCalcPriceListType
 ;
 
 DESIGN Purchase.operation{
@@ -126,88 +126,88 @@ DESIGN Purchase.operation{
             caption = 'Цена изготовителя';
             type = COLUMNS;
             columns = 1;
-            MOVE PROPERTY(showManufacturingPriceOperation(o));
-            MOVE PROPERTY(addCostPriceToManufacturingPriceOperation(o));
-            MOVE PROPERTY(nameManufacturingCalcPriceListTypeOperation(o));
-            MOVE PROPERTY(reverseManufacturingPriceOperation(o));
+            MOVE PROPERTY(showManufacturingPrice(o));
+            MOVE PROPERTY(addCostPriceToManufacturingPrice(o));
+            MOVE PROPERTY(nameManufacturingCalcPriceListType(o));
+            MOVE PROPERTY(reverseManufacturingPrice(o));
         }
     }
 }
 
-addCostPriceToManufacturingPriceUserInvoice 'Учитывать доп. расходы' (invoice) = DATA BOOLEAN (UserInvoice) IN documentPrm;
-addCostPriceToManufacturingPriceUserInvoice(invoice) <- addCostPriceToManufacturingPriceOperation(operationUserInvoice(invoice))
-    WHEN CHANGED(operationUserInvoice(invoice));
+addCostPriceToManufacturingPrice 'Учитывать доп. расходы' (invoice) = DATA BOOLEAN (UserInvoice) IN documentPrm;
+addCostPriceToManufacturingPrice(UserInvoice invoice) <- addCostPriceToManufacturingPrice(operation(invoice))
+    WHEN CHANGED(operation(invoice));
 
-calcBaseManufacturingPriceUserInvoiceDetail (detail) = IF addCostPriceToManufacturingPriceUserInvoice(userInvoiceUserInvoiceDetail(detail)) THEN costManufacturingPriceUserInvoiceDetail(detail)
-                                        ELSE incomeManufacturingPriceUserInvoiceDetail(detail);
+calcBaseManufacturingPrice (UserInvoiceDetail detail) = IF addCostPriceToManufacturingPrice(userInvoice(detail)) THEN costManufacturingPrice(detail)
+                                        ELSE incomeManufacturingPrice(detail);
 
-baseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))/100;
-baseReverseManufacturingPriceUserInvoiceDetail (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) / (100.0 (+) manufacturingMarkupUserInvoiceDetail(detail))*100;
+baseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) * (100.0 (+) manufacturingMarkup(detail))/100;
+baseReverseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) / (100.0 (+) manufacturingMarkup(detail))*100;
 
-skipChangeManufacturingPriceUserInvoiceDetail 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
-calcReversePriceUserInvoiceDetail(d) =     
-    roundPriceCurrency(NUMERIC[14,2](manufacturingPriceUserInvoiceDetail (d) * (100.0 (+) manufacturingMarkupUserInvoiceDetail(d))/100), currencyUserInvoiceDetail(d));  
+skipChangeManufacturingPrice 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
+calcReversePrice(UserInvoiceDetail d) =     
+    round(NUMERIC[14,2](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
 
-updateManufacturingPriceUserInvoiceDetail = ACTION (d) {
-    IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
-        priceUserInvoiceDetail(d) <- calcReversePriceUserInvoiceDetail(d);
+updateManufacturingPrice = ACTION (UserInvoiceDetail d) {
+    IF reverseManufacturingPrice(d) THEN {
+        price(d) <- calcReversePrice(d);
     } ELSE {
-        manufacturingPriceUserInvoiceDetail(d) <- 
-            IF roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)) THEN
-                round(baseManufacturingPriceUserInvoiceDetail(d), priceRoundRoundCondition(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d))))
+        manufacturingPrice(d) <- 
+            IF roundCondition(manufacturingCalcPriceListType[InvoiceDetail](d)) THEN
+                Utils.round(baseManufacturingPrice(d), priceRound(roundCondition(manufacturingCalcPriceListType[InvoiceDetail](d))))
             ELSE
-                baseManufacturingPriceUserInvoiceDetail(d);    
+                baseManufacturingPrice(d);    
     }
 }
-overChangePriceUserInvoiceDetail (d) += ACTION (d) {
-    IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
-        manufacturingPriceUserInvoiceDetail(d)<- baseReverseManufacturingPriceUserInvoiceDetail(d);    
+overChangePrice (UserInvoiceDetail d) += ACTION (d) {
+    IF reverseManufacturingPrice(d) THEN {
+        manufacturingPrice(d)<- baseReverseManufacturingPrice(d);    
     }
 }
 
 ON SESSION FORMS userInvoice {
-    FOR ((CHANGED(calcBaseManufacturingPriceUserInvoiceDetail(d)) AND NOT reverseManufacturingPriceUserInvoiceDetail(d)) OR CHANGED(manufacturingMarkupUserInvoiceDetail(d)) OR CHANGED(roundConditionPriceListType(manufacturingCalcPriceListTypeInvoiceDetail(d)))) 
-        AND NOT CHANGED(manufacturingPriceUserInvoiceDetail(d)) AND NOT skipChangeManufacturingPriceUserInvoiceDetail(d) DO {
+    FOR ((CHANGED(calcBaseManufacturingPrice(InvoiceDetail d)) AND NOT reverseManufacturingPrice[UserInvoiceDetail](d)) OR CHANGED(manufacturingMarkup[UserInvoiceDetail](d)) OR CHANGED(roundCondition(manufacturingCalcPriceListType(d)))) 
+        AND NOT CHANGED(manufacturingPrice[UserInvoiceDetail](d)) AND NOT skipChangeManufacturingPrice(d) DO {
         
-        updateManufacturingPriceUserInvoiceDetail(d);
+        updateManufacturingPrice(d);
     }   
 }    
  
-calcManufacturingMarkupUserInvoiceDetail(d) =     
-    NUMERIC[8,3]((manufacturingPriceUserInvoiceDetail(d) * 100.0 / calcBaseManufacturingPriceUserInvoiceDetail(d)) - 100.0);
+calcManufacturingMarkup(UserInvoiceDetail d) =     
+    NUMERIC[8,3]((manufacturingPrice(d) * 100.0 / calcBaseManufacturingPrice(d)) - 100.0);
 
-changeManufacturingPriceUserInvoiceDetail = ACTION (d) {
+changeManufacturingPrice = ACTION (UserInvoiceDetail d) {
     REQUEST NUMERIC[14,2] INPUT;
 
     IF requestedNumeric() THEN {
-        manufacturingPriceUserInvoiceDetail(d) <- requestedNumeric();      
-        IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
-            priceUserInvoiceDetail(d) <- calcReversePriceUserInvoiceDetail(d);  // пока не учитываем доп. расходы
+        manufacturingPrice(d) <- requestedNumeric();      
+        IF reverseManufacturingPrice(d) THEN {
+            price(d) <- calcReversePrice(d);  // пока не учитываем доп. расходы
         } ELSE {
-            manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);        
+            manufacturingMarkup(d) <- calcManufacturingMarkup(d);        
         } 
     } ELSE {
-        manufacturingPriceUserInvoiceDetail(d) <- NULL;
-        IF reverseManufacturingPriceUserInvoiceDetail(d) THEN {
-            priceUserInvoiceDetail(d) <- calcReversePriceUserInvoiceDetail(d); // пока не учитываем доп. расходы
+        manufacturingPrice(d) <- NULL;
+        IF reverseManufacturingPrice(d) THEN {
+            price(d) <- calcReversePrice(d); // пока не учитываем доп. расходы
         } ELSE {
-            manufacturingMarkupUserInvoiceDetail(d) <- calcManufacturingMarkupUserInvoiceDetail(d);     
+            manufacturingMarkup(d) <- calcManufacturingMarkup(d);     
         }
     }
 }
 
-toFillMarkupUserInvoiceDetail 'Проставить надбавку из вида цен' = ACTION (detail) {
-    manufacturingMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(manufacturingCalcPriceListTypeUserInvoiceDetail(detail), skuUserInvoiceDetail(detail));
-        EXEC updateManufacturingPriceUserInvoiceDetail(detail);
-} SHORTCUT manufacturingMarkupUserInvoiceDetail;
+toFillMarkup 'Проставить надбавку из вида цен' = ACTION (UserInvoiceDetail detail) {
+    manufacturingMarkup(detail) <- markup(manufacturingCalcPriceListType(detail), sku(detail));
+        EXEC updateManufacturingPrice(detail);
+} SHORTCUT manufacturingMarkup[UserInvoiceDetail];
 
-toFillMarkupUserInvoiceDetails 'Проставить надбавку из вида цен для всех' = ACTION (detail) {
-    FOR [= FILTER userInvoice.d](det) AND detail IS UserInvoiceDetail DO {
-        EXEC toFillMarkupUserInvoiceDetail(det);
+toFillMarkupDetails 'Проставить надбавку из вида цен для всех' = ACTION (UserInvoiceDetail detail) {
+    FOR [= FILTER userInvoice.d](UserInvoiceDetail det) AND detail IS UserInvoiceDetail DO {
+        EXEC toFillMarkup(det);
     }
-} SHORTCUT manufacturingMarkupUserInvoiceDetail;
+} SHORTCUT manufacturingMarkup[UserInvoiceDetail];
 
-baseManufacturingMarkupSumUserInvoiceDetail 'Сумма (надбавка)' (detail) = calcBaseManufacturingPriceUserInvoiceDetail (detail) * quantityUserInvoiceDetail(detail) * manufacturingMarkupUserInvoiceDetail(detail)/100;
+baseManufacturingMarkupSum 'Сумма (надбавка)' (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) * quantity(detail) * manufacturingMarkup(detail)/100;
 @defineDocumentHeaderSumCustomPrefix(userInvoice, userInvoiceDetail, baseManufacturingMarkup, ' (надбавка) всего');
 
 //overAdditionalValuation(rd, detail) += ACTION (rd, detail) {
@@ -230,33 +230,33 @@ baseManufacturingMarkupSumUserInvoiceDetail 'Сумма (надбавка)' (det
 @deriveDocumentDetailSumPrefix(userInvoice, manufacturing, currency, quantity); // записываем сумму изготовителя
 @defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, manufacturing, ' (изготовителя) всего');
 
-calcDiscountSumUserInvoiceDetail (detail) = manufacturingSumUserInvoiceDetail(detail) - sumUserInvoiceDetail(detail);
-discountSumUserInvoiceDetail 'Скидка от цены изг. (сумма)' (detail) = calcDiscountSumUserInvoiceDetail(detail) IF calcDiscountSumUserInvoiceDetail(detail) > 0.0;
+calcDiscountSum (UserInvoiceDetail detail) = manufacturingSum(detail) - sum(detail);
+discountSum 'Скидка от цены изг. (сумма)' (UserInvoiceDetail detail) = calcDiscountSum(detail) IF calcDiscountSum(detail) > 0.0;
 
-calcDiscountSumInvoiceDetail (detail) = manufacturingSumInvoiceDetail(detail) - sumInvoiceDetail(detail);
-discountSumInvoiceDetail 'Скидка от цены изг. (сумма)' (detail) = calcDiscountSumInvoiceDetail(detail) IF calcDiscountSumInvoiceDetail(detail) > 0.0;
+calcDiscountSum (InvoiceDetail detail) = manufacturingSum(detail) - sum(detail);
+discountSum 'Скидка от цены изг. (сумма)' (InvoiceDetail detail) = calcDiscountSum(detail) IF calcDiscountSum(detail) > 0.0;
 
 @defineDocumentInterfaceHeaderItemSum (invoice, discount, discount);
 @defineDocumentInterfaceHeaderItemSum (invoice, manufacturing, manufacturing);
 
 
-showManufacturingPriceHomeCurrencyUserInvoice(invoice) = showManufacturingPriceUserInvoice(invoice) AND isHomeCurrencyUserInvoice(invoice);
+showManufacturingPriceHomeCurrency(UserInvoice invoice) = showManufacturingPrice(invoice) AND isHomeCurrency(invoice);
 
-backgroundManufacturingInvoice 'Цвет' (invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
-overBackgroundManufacturingInvoiceDetail 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
-backgroundManufacturingInvoiceDetail (d) = OVERRIDE backgroundManufacturingInvoice(invoiceInvoiceDetail(d)), overBackgroundManufacturingInvoiceDetail(d);
+backgroundManufacturing 'Цвет' (Invoice invoice) = RGB(240, 240, 224) IF invoice IS Invoice;
+overBackgroundManufacturing 'Цвет'  (d)= ABSTRACT CASE COLOR (InvoiceDetail);
+backgroundManufacturing (InvoiceDetail d) = OVERRIDE backgroundManufacturing(invoice(d)), overBackgroundManufacturing(d);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showManufacturingPriceUserInvoice BACKGROUND backgroundManufacturingInvoice(i)
-    PROPERTIES(i) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) addCostPriceToManufacturingPriceUserInvoice,
-                  nameManufacturingCalcPriceListTypeUserInvoice, reverseManufacturingPriceUserInvoice
-    PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i) dateManufacturingRateExchangeUserInvoice, rateManufacturingExchangeUserInvoice
-    PROPERTIES(d) SHOWIF showManufacturingPriceUserInvoice(i) BACKGROUND backgroundManufacturingInvoiceDetail(d) AFTER invoiceSumUserInvoiceDetail(d) 
-                  manufacturingMarkupUserInvoiceDetail,
-                  manufacturingPriceUserInvoiceDetail ON CHANGE changeManufacturingPriceUserInvoiceDetail(d), includeVATUserInvoiceDetail, 
-                  manufacturingSumUserInvoiceDetail
-    PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoiceDetail(d)
-                  rateManufacturingExchangeUserInvoiceDetail BEFORE manufacturingMarkupUserInvoiceDetail(d)
+    PROPERTIES(i) showManufacturingPrice BACKGROUND backgroundManufacturing(i)
+    PROPERTIES(i) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(i) addCostPriceToManufacturingPrice,
+                  nameManufacturingCalcPriceListType, reverseManufacturingPrice
+    PROPERTIES(i) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(i) dateManufacturingRateExchange, rateManufacturingExchange
+    PROPERTIES(d) SHOWIF showManufacturingPrice(i) BACKGROUND backgroundManufacturing(d) AFTER invoiceSum(d) 
+                  manufacturingMarkup,
+                  manufacturingPrice ON CHANGE changeManufacturingPrice(d), includeVAT, 
+                  manufacturingSum
+    PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(d)
+                  rateManufacturingExchange BEFORE manufacturingMarkup(d)
              
                   
 //    PROPERTIES(d) BACKGROUND backgroundCurInvoice(i) SHOWIF toShowRepricingPriceInvoice(i) BEFORE curPriceUserInvoiceDetail
@@ -268,22 +268,22 @@ DESIGN userInvoice {
             caption = 'Цена изготовителя';
             type = COLUMNS;
             columns = 2;
-            MOVE PROPERTY(showManufacturingPriceUserInvoice(i));
-            MOVE PROPERTY(addCostPriceToManufacturingPriceUserInvoice(i));
-            MOVE PROPERTY(nameManufacturingCalcPriceListTypeUserInvoice(i));
-            MOVE PROPERTY(reverseManufacturingPriceUserInvoice(i));
-            MOVE PROPERTY(dateManufacturingRateExchangeUserInvoice(i));
-            MOVE PROPERTY(rateManufacturingExchangeUserInvoice(i));
+            MOVE PROPERTY(showManufacturingPrice(i));
+            MOVE PROPERTY(addCostPriceToManufacturingPrice(i));
+            MOVE PROPERTY(nameManufacturingCalcPriceListType(i));
+            MOVE PROPERTY(reverseManufacturingPrice(i));
+            MOVE PROPERTY(dateManufacturingRateExchange(i));
+            MOVE PROPERTY(rateManufacturingExchange(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY BACKGROUND backgroundManufacturingInvoice(i) SHOWIF showManufacturingPriceInvoice(i) AFTER invoiceSumInvoiceDetail(d)
-                  manufacturingMarkupInvoiceDetail, manufacturingPriceInvoiceDetail, includeVATInvoiceDetail, manufacturingSumInvoiceDetail
+    PROPERTIES(d) READONLY BACKGROUND backgroundManufacturing(i) SHOWIF showManufacturingPrice(i) AFTER invoiceSum(d)
+                  manufacturingMarkup, manufacturingPrice, includeVAT, manufacturingSum
                   
-    PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrencyUserInvoice(i) BACKGROUND backgroundManufacturingInvoice(i)
-                      rateManufacturingExchangeInvoiceDetail BEFORE manufacturingMarkupInvoiceDetail(d)                  
+    PROPERTIES(d) SHOWIF showManufacturingPriceHomeCurrency(i) BACKGROUND backgroundManufacturing(i)
+                      rateManufacturingExchange BEFORE manufacturingMarkup(d)                  
                   
 ;
 //--
@@ -312,4 +312,4 @@ EXTEND FORM invoices
 @defineDocumentInterfaceDetailMarkupCustomPrefix (orderDetail, manufacturing, ' (к цене изготовителя)');
 
 EXTEND FORM userOrder
-    PROPERTIES (d) SHOWIF showManufacturingPriceUserOrder(o) manufacturingMarkupUserOrderDetail, manufacturingPriceUserOrderDetail;
+    PROPERTIES (d) SHOWIF showManufacturingPrice(o) manufacturingMarkup, manufacturingPrice;

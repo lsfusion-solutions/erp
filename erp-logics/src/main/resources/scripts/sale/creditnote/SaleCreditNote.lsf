@@ -16,10 +16,10 @@ NAMESPACE Sale;
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
-CONSTRAINT supplierUserCreditNote(userCreditNote) AND NOT isCompanyLegalEntity(supplierUserCreditNote(userCreditNote))
-    CHECKED BY supplierUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCustomerLegalEntity(customerUserCreditNote(userCreditNote))
-    CHECKED BY customerUserCreditNote MESSAGE 'Для акта расхождения выбрано в качестве покупателя организация, не являющаяся покупателем';
+CONSTRAINT supplier(UserCreditNote userCreditNote) AND NOT isCompany(supplier(userCreditNote))
+    CHECKED BY supplier[UserCreditNote] MESSAGE 'Для акта расхождения выбрано в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT customer(UserCreditNote userCreditNote) AND NOT isCustomer(customer(userCreditNote))
+    CHECKED BY customer[UserCreditNote] MESSAGE 'Для акта расхождения выбрано в качестве покупателя организация, не являющаяся покупателем';
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 
@@ -42,7 +42,7 @@ CONSTRAINT customerUserCreditNote(userCreditNote) AND NOT isCustomerLegalEntity(
 @defineDocumentOperationStock(userCreditNote, customer, 'Склад покупателя');
 @deriveDocumentOperationStock(userCreditNote, customer, userCreditNote);
 
-operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(creditNote));
+operation(InvoiceCreditNote creditNote) += operation(invoice(creditNote));
 
 //------------------------------ Расширение формы -----------------------------//
 
@@ -50,16 +50,16 @@ operationCreditNote(creditNote) += operationInvoice(invoiceInvoiceCreditNote(cre
 EXTEND FORM userCreditNote
 
     FILTERGROUP filter
-        FILTER 'С остатком ' currentBalanceSkuStock(ks, st) 'F10' DEFAULT
-        FILTER 'В документе ' quantitySkuUserCreditNoteSupplierStock(ks, c, st) 'F9'
+        FILTER 'С остатком ' currentBalance(ks, st) 'F10' DEFAULT
+        FILTER 'В документе ' quantitySupplier(ks, c, st) 'F9'
 
 ;
 
 EXTEND FORM userCreditNote
 
     FILTERGROUP filter3
-        FILTER 'С остатком ' prevCurrentBalanceBatchStock(b, sto) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserCreditNoteSupplierStock(b, c, sto) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b, sto) 'F10' DEFAULT
+        FILTER 'В документе ' quantitySupplier(b, c, sto) 'F9'
 ;
 
 NAVIGATOR {

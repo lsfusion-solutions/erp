@@ -25,12 +25,12 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
         if (LM != null && userInvoiceDetailKey != null) {
 
             if (showField(userInvoiceDetailsList, "importCountryBatch")) {
-                ImportField nameImportCountryField = new ImportField(LM.findProperty("nameCountry"));
+                ImportField nameImportCountryField = new ImportField(LM.findProperty("name[Country]"));
                 ImportKey<?> importCountryKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
-                        LM.findProperty("countryName").getMapping(nameImportCountryField));
+                        LM.findProperty("countryName[VARISTRING[50]]").getMapping(nameImportCountryField));
                 keys.add(importCountryKey);
-                props.add(new ImportProperty(nameImportCountryField, LM.findProperty("nameCountry").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
-                props.add(new ImportProperty(nameImportCountryField, LM.findProperty("importCountryUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(nameImportCountryField, LM.findProperty("name[Country]").getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
+                props.add(new ImportProperty(nameImportCountryField, LM.findProperty("importCountry[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         object(LM.findClass("Country")).getMapping(importCountryKey), getReplaceOnlyNull(defaultColumns, "importCountryBatch")));
                 fields.add(nameImportCountryField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
@@ -38,13 +38,13 @@ public class ImportPurchaseInvoicePurchaseInvoicePharmacy extends ImportDefaultP
             }
 
             if (showField(userInvoiceDetailsList, "seriesPharmacy")) {
-                addDataField(props, fields, defaultColumns, LM.findProperty("Purchase.seriesPharmacyUserInvoiceDetail"), "seriesPharmacy", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, LM.findProperty("seriesPharmacy[UserInvoiceDetail]"), "seriesPharmacy", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("seriesPharmacy"));
             }
 
             if (showField(userInvoiceDetailsList, "contractPrice")) {
-                addDataField(props, fields, defaultColumns, LM.findProperty("contractPriceUserInvoiceDetail"), "contractPrice", userInvoiceDetailKey);
+                addDataField(props, fields, defaultColumns, LM.findProperty("contractPrice[UserInvoiceDetail]"), "contractPrice", userInvoiceDetailKey);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("contractPrice"));
             }

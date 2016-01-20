@@ -4,18 +4,18 @@ REQUIRE Dashboard, RepricingPurchaseInvoice, RepricingLabel, RepricingMachinery;
 
 NAMESPACE Repricing;
 
-createExtraValuationNewStockTimeOperation 'Создать дооценку' = ACTION (department, timeFrom, timeTo, operation) NEWSESSION {
-    createExtraValuationStockTimeOperation(department, timeFrom, timeTo, operation);   
+createExtraValuationNew 'Создать дооценку' = ACTION (Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) NEWSESSION {
+    createExtraValuation(department, timeFrom, timeTo, operation);   
 }
 
 FORM repricingInvoiceDashboard 'Дооценка'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES (d) SELECTOR nameDepartmentStore
-    FILTERS isCompanyStock(d)
+    PROPERTIES (d) SELECTOR name
+    FILTERS isCompany(d)
         
     OBJECTS o = Repricing.Operation FIXED PANEL
-    PROPERTIES (o) SELECTOR Repricing.nameOperation
-    FILTERS inUserOperation(currentUser(), o)
+    PROPERTIES (o) SELECTOR name
+    FILTERS in(currentUser(), o)
 
     OBJECTS t=DATETIME FIXED PANEL
     PROPERTIES(t) OBJVALUE        
@@ -24,34 +24,34 @@ FORM repricingInvoiceDashboard 'Дооценка'
     PROPERTIES(tt) OBJVALUE            
      
     OBJECTS i = Purchase.Invoice
-    PROPERTIES (i) READONLY Purchase.isClosedInvoice, Purchase.isPostedInvoice,
-                            Purchase.numberInvoice, Purchase.seriesInvoice, Purchase.dateInvoice, Purchase.timeInvoice,
-                            Purchase.nameSupplierInvoice, Purchase.nameSupplierStockInvoice, Purchase.nameCustomerInvoice, Purchase.nameCustomerStockInvoice,            
-                            Purchase.countInvoiceDetailInvoice, Purchase.quantityInvoiceDetailInvoice, Purchase.sumInvoiceDetailInvoice,
-                            Purchase.VATSumInvoiceDetailInvoice, Purchase.invoiceSumInvoiceDetailInvoice
-    PROPERTIES (i) Purchase.editInvoice SHOWIF Purchase.isOpenedInvoice(i)
-    FILTERGROUP filters FILTER 'Накладные, по которым не было дооценки' filterToRepricingInvoiceStockDateTimeFromTo(i,d,t,tt) 'F9' DEFAULT     
+    PROPERTIES (i) READONLY isClosed, isPosted,
+                            number, series, date, time,
+                            nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,            
+                            countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                            VATSumInvoiceDetail, invoiceSumInvoiceDetail
+    PROPERTIES (i) edit SHOWIF isOpened(i)
+    FILTERGROUP filters FILTER 'Накладные, по которым не было дооценки' filterToRepricingDate(i,d,t,tt) 'F9' DEFAULT     
     
     OBJECTS p = Repricing
-    PROPERTIES (p) READONLY isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
-                   nameDepartmentStoreRepricing, countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
-                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
-                   diffRetailSumRepricingDetailRepricing, numberDisposalRepricing, skipChangeLedgerRepricing,
-                   statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransactionRepricing(p),
-                   statusMachineryPriceTransactionDocument ON SHORTCUT createSnapshotMachineryPriceTransactionRepricing(p) BACKGROUND backgroundCreateMachineryPriceTransactionRepricing(p), 
-                   noteRepricing                      
+    PROPERTIES (p) READONLY isPosted, number, series, date, time, beforeDate,
+                   nameDepartmentStore, countRepricingDetail, diffSumRepricingDetail,
+                   diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+                   diffRetailSumRepricingDetail, numberDisposal, skipChangeLedger,
+                   statusLabel BACKGROUND backgroundPrintLabelTransaction(p),
+                   statusMachinery ON SHORTCUT createSnapshotMachineryPriceTransaction(p) BACKGROUND backgroundCreateMachineryPriceTransaction(p), 
+                   note                      
                
-    PROPERTIES (p) createRepricingLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransactionRepricing(p), 
-                   createSnapshotRepricingLabelTransaction FORCE PANEL
+    PROPERTIES (p) createLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction(p), 
+                   createSnapshotLabelTransaction FORCE PANEL
                    
-    PROPERTIES(p)  createMachineryPriceTransactionRepricing FORCE PANEL SHOWIF showCreateMachineryPriceTransactionRepricing(p)
-    PROPERTIES (p) printRepricing FORCE PANEL TOOLBAR                                           
-    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p), ADDFORM
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)    
+    PROPERTIES(p)  createMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransaction(p)
+    PROPERTIES (p) print FORCE PANEL TOOLBAR                                           
+    PROPERTIES (p) edit SHOWIF isOpened(p), ADDFORM
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)    
                
-    PROPERTIES (d,t,tt,o)  createExtraValuationNewStockTimeOperation TODRAW i FORCE PANEL TOOLBAR     
+    PROPERTIES (d,t,tt,o)  createExtraValuationNew TODRAW i FORCE PANEL TOOLBAR     
                      
-    FILTERGROUP filters2 FILTER 'Переоценки на текущую дату' dateRepricing(p)==currentDate() 'F5' DEFAULT                         
+    FILTERGROUP filters2 FILTER 'Переоценки на текущую дату' date(p)==currentDate() 'F5' DEFAULT                         
                                                
 ;
 DESIGN repricingInvoiceDashboard {
@@ -71,8 +71,8 @@ DESIGN repricingInvoiceDashboard {
     }
 }
 
-EXTEND FORM repricingInvoiceDashboard FILTERS (Purchase.inUserOperation(currentUser(), operationInvoice(i))) OR 
-                         (NOT operationInvoice(i));
+EXTEND FORM repricingInvoiceDashboard FILTERS (in(currentUser(), operation(i))) OR 
+                         (NOT operation(i));
 @extendFormFilterRoleAccess(repricing, p, repricingInvoiceDashboard); 
 
 NAVIGATOR {

@@ -7,31 +7,31 @@ REQUIRE LegalEntity;
 CLASS Account 'Наличный счет';
 TABLE account (Account);
 
-numberAccount 'Номер наличного счета'  = DATA VARSTRING[20] (Account) FIXEDCHARWIDTH 13;
+number 'Номер наличного счета'  = DATA VARSTRING[20] (Account) FIXEDCHARWIDTH 13;
 
-legalEntityAccount = DATA LegalEntity (Account);
-nameLegalEntityAccount 'Организация' = nameLegalEntity(legalEntityAccount(account));
-defaultAccountLegalEntity(legalEntity) = GROUP MAX account BY legalEntityAccount(account);
+legalEntity = DATA LegalEntity (Account);
+nameLegalEntity 'Организация' = name(legalEntity(Account account));
+defaultAccount(legalEntity) = GROUP MAX Account account BY legalEntity(account);
 
-currencyAccount = DATA Currency (Account) NOT NULL;
-currencyAccount(account) <- currencyLegalEntity(legalEntityAccount(account))
-    WHEN SET(legalEntityAccount(account));
-nameCurrencyAccount 'Валюта счета' = nameCurrency(currencyAccount(account));
+currency = DATA Currency (Account) NOT NULL;
+currency(Account account) <- currency(legalEntity(account))
+    WHEN SET(legalEntity(account));
+nameCurrency 'Валюта счета' = name(currency(Account account));
 
 FORM account 'Наличный счет'
     OBJECTS a = Account FIXED PANEL
-    PROPERTIES(a) numberAccount, nameCurrencyAccount, nameLegalEntityAccount
+    PROPERTIES(a) number, nameCurrency, nameLegalEntity
 
     EDIT Account OBJECT a
 ;
 
 addAccount 'Добавить' = ACTION ADDFORM Cash.Account;
-editAccount 'Редактировать' (account) = ACTION EDITFORM Cash.Account;
+edit 'Редактировать' (account) = ACTION EDITFORM Cash.Account;
 
 FORM accounts 'Наличные счета'
     OBJECTS a = Account
-    PROPERTIES(a) READONLY numberAccount, nameCurrencyAccount, nameLegalEntityAccount
-    PROPERTIES(a) editAccount FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(a) READONLY number, nameCurrency, nameLegalEntity
+    PROPERTIES(a) edit FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
     PROPERTIES() addAccount TODRAW a FORCE PANEL
 
     DIALOG Account OBJECT a
@@ -39,8 +39,8 @@ FORM accounts 'Наличные счета'
 
 EXTEND FORM legalEntity
     OBJECTS ca=Account
-    PROPERTIES(ca)  numberAccount, nameCurrencyAccount, ADDOBJ, DELETESESSION
-    FILTERS legalEntityAccount(ca) == l
+    PROPERTIES(ca)  number, nameCurrency, ADDOBJ, DELETESESSION
+    FILTERS legalEntity(ca) == l
 ;
 
 DESIGN legalEntity {

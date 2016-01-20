@@ -68,51 +68,51 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         List<ImportField> fields = new ArrayList<>();
         List<ImportKey<?>> keys = new ArrayList<>();
 
-        ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroup"));
+        ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
-                findProperty("customsGroupCode").getMapping(codeCustomsGroupField));
+                findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 
-        ImportField idCustomsRateField = new ImportField(findProperty("idRegistrationCustomsRate"));
+        ImportField idCustomsRateField = new ImportField(findProperty("id[RegistrationCustomsRate]"));
         fields.add(idCustomsRateField);
 
         ImportKey<?> registrationCustomsRateKey = new ImportKey((CustomClass) findClass("RegistrationCustomsRate"),
-                findProperty("registrationCustomsRateId").getMapping(idCustomsRateField));
+                findProperty("registrationCustomsRate[VARSTRING[100]]").getMapping(idCustomsRateField));
         keys.add(registrationCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, findProperty("idRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(idCustomsRateField, findProperty("id[RegistrationCustomsRate]").getMapping(registrationCustomsRateKey)));
 
         ImportKey<?> dutyCustomsRateKey = new ImportKey((CustomClass) findClass("DutyCustomsRate"),
-                findProperty("dutyCustomsRateId").getMapping(idCustomsRateField));
+                findProperty("dutyCustomsRate[VARSTRING[100]]").getMapping(idCustomsRateField));
         keys.add(dutyCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, findProperty("idDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(idCustomsRateField, findProperty("id[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
 
-        ImportField sumRegistrationCustomsRateField = new ImportField(findProperty("sumRegistrationCustomsRate"));
-        props.add(new ImportProperty(sumRegistrationCustomsRateField, findProperty("sumRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroupRegistrationCustomsRate").getMapping(registrationCustomsRateKey),
+        ImportField sumRegistrationCustomsRateField = new ImportField(findProperty("sum[RegistrationCustomsRate]"));
+        props.add(new ImportProperty(sumRegistrationCustomsRateField, findProperty("sum[RegistrationCustomsRate]").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroup[RegistrationCustomsRate]").getMapping(registrationCustomsRateKey),
                 object(findClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(sumRegistrationCustomsRateField);
 
-        ImportField percentDutyDutyCustomsRateField = new ImportField(findProperty("percentDutyDutyCustomsRate"));
-        props.add(new ImportProperty(percentDutyDutyCustomsRateField, findProperty("percentDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroupDutyCustomsRate").getMapping(dutyCustomsRateKey),
+        ImportField percentDutyDutyCustomsRateField = new ImportField(findProperty("percentDuty[DutyCustomsRate]"));
+        props.add(new ImportProperty(percentDutyDutyCustomsRateField, findProperty("percentDuty[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroup[DutyCustomsRate]").getMapping(dutyCustomsRateKey),
                 object(findClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(percentDutyDutyCustomsRateField);
 
-        ImportField weightDutyDutyCustomsRateField = new ImportField(findProperty("weightDutyDutyCustomsRate"));
-        props.add(new ImportProperty(weightDutyDutyCustomsRateField, findProperty("weightDutyDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        ImportField weightDutyDutyCustomsRateField = new ImportField(findProperty("weightDuty[DutyCustomsRate]"));
+        props.add(new ImportProperty(weightDutyDutyCustomsRateField, findProperty("weightDuty[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
         fields.add(weightDutyDutyCustomsRateField);
 
         ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFromCustomsGroup").getMapping(customsGroupKey)));
-        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFromRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFromDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFrom[CustomsGroup]").getMapping(customsGroupKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFrom[RegistrationCustomsRate]").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFrom[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
         fields.add(dateFromCustomsGroupField);
 
         ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateToCustomsGroup").getMapping(customsGroupKey)));
-        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateToRegistrationCustomsRate").getMapping(registrationCustomsRateKey)));
-        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateToDutyCustomsRate").getMapping(dutyCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[CustomsGroup]").getMapping(customsGroupKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[RegistrationCustomsRate]").getMapping(registrationCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[DutyCustomsRate]").getMapping(dutyCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -130,35 +130,35 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         List<ImportField> fields = new ArrayList<>();
         List<ImportKey<?>> keys = new ArrayList<>();
 
-        ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroup"));
+        ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
         ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"),
-                findProperty("customsGroupCode").getMapping(codeCustomsGroupField));
+                findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
         keys.add(customsGroupKey);
         fields.add(codeCustomsGroupField);
 
-        ImportField idCustomsRateField = new ImportField(findProperty("idRegistrationCustomsRate"));
+        ImportField idCustomsRateField = new ImportField(findProperty("id[RegistrationCustomsRate]"));
         fields.add(idCustomsRateField);
        
         ImportKey<?> VATCustomsRateKey = new ImportKey((CustomClass) findClass("VATCustomsRate"),
-                findProperty("VATCustomsRateId").getMapping(idCustomsRateField));
+                findProperty("VATCustomsRate[VARSTRING[100]]").getMapping(idCustomsRateField));
         keys.add(VATCustomsRateKey);
-        props.add(new ImportProperty(idCustomsRateField, findProperty("idVATCustomsRate").getMapping(VATCustomsRateKey)));
+        props.add(new ImportProperty(idCustomsRateField, findProperty("id[VATCustomsRate]").getMapping(VATCustomsRateKey)));
        
-        ImportField rangeField = new ImportField(findProperty("dataValueSupplierVATCustomsGroupDate"));
+        ImportField rangeField = new ImportField(findProperty("dataValueSupplierVAT[CustomsGroup,DATE]"));
         ImportKey<?> rangeKey = new ImportKey((CustomClass) findClass("Range"),
-                findProperty("valueCurrentVATDefaultValue").getMapping(rangeField));
-        props.add(new ImportProperty(rangeField, findProperty("rangeVATCustomsRate").getMapping(VATCustomsRateKey),
+                findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(rangeField));
+        props.add(new ImportProperty(rangeField, findProperty("range[VATCustomsRate]").getMapping(VATCustomsRateKey),
                 object(findClass("Range")).getMapping(rangeKey)));
-        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroupVATCustomsRate").getMapping(VATCustomsRateKey),
+        props.add(new ImportProperty(codeCustomsGroupField, findProperty("customsGroup[VATCustomsRate]").getMapping(VATCustomsRateKey),
                 object(findClass("CustomsGroup")).getMapping(customsGroupKey)));
         fields.add(rangeField);
 
         ImportField dateFromCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFromVATCustomsRate").getMapping(VATCustomsRateKey)));
+        props.add(new ImportProperty(dateFromCustomsGroupField, findProperty("dateFrom[VATCustomsRate]").getMapping(VATCustomsRateKey)));
         fields.add(dateFromCustomsGroupField);
 
         ImportField dateToCustomsGroupField = new ImportField(DateClass.instance);
-        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateToVATCustomsRate").getMapping(VATCustomsRateKey)));
+        props.add(new ImportProperty(dateToCustomsGroupField, findProperty("dateTo[VATCustomsRate]").getMapping(VATCustomsRateKey)));
         fields.add(dateToCustomsGroupField);
 
         ImportTable table = new ImportTable(fields, data);
@@ -237,7 +237,7 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isCustomsGroup.getMapKeys();
         KeyExpr key = keys.singleValue();
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("codeCustomsGroup", findProperty("codeCustomsGroup").getExpr(context.getModifier(), key));
+        query.addProperty("codeCustomsGroup", findProperty("code[CustomsGroup]").getExpr(context.getModifier(), key));
         query.and(isCustomsGroup.getExpr(key).getWhere());
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 

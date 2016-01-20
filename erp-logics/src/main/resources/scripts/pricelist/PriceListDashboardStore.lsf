@@ -5,71 +5,71 @@ REQUIRE PriceListDashboard, StoreSkuLedger, PriceListStore;
 // -------------------- В прайсе ----------------- //
 
 // по организациям
-countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime 'В прайсе' (type, sku, store, company, dateTime) =
-    GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockCompanyDateTime(type, sku, stock, company, dateTime)
-    BY type, sku, storeDepartmentStore(stock), company, dateTime;
+countDepartmentStoreA 'В прайсе' (type, sku, store, company, dateTime) =
+    GROUP SUM 1 IF priceA(LedgerPriceListType type, Sku sku, DepartmentStore stock, LegalEntity company, DATETIME dateTime)
+    BY type, sku, store(stock), company, dateTime;
 
-countStoreALedgerPriceListTypeSkuChainStoresCompanyDateTime 'В прайсе' (type, sku, chainStores, company, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime(type, sku, store, company, dateTime)
-    BY type, sku, chainStoresStore(store), company, dateTime;
+countStoreA 'В прайсе' (type, sku, chainStores, company, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, LegalEntity company, DATETIME dateTime)
+    BY type, sku, chainStores(store), company, dateTime;
 
-countStoreALedgerPriceListTypeSkuStoreTypeCompanyDateTime 'В прайсе' (type, sku, storeType, company, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime(type, sku, store, company, dateTime)
-    BY type, sku, storeTypeStore(store), company, dateTime;
+countStoreA 'В прайсе' (type, sku, storeType, company, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, LegalEntity company, DATETIME dateTime)
+    BY type, sku, storeType(store), company, dateTime;
 
-countStoreALedgerPriceListTypeSkuCompanyDateTime 'В прайсе' (type, sku, company, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreCompanyDateTime(type, sku, store, company, dateTime)
+countStoreA 'В прайсе' (type, sku, company, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, LegalEntity company, DATETIME dateTime)
     BY type, sku, company, dateTime;
 
 // по складам
-countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime 'В прайсе' (type, sku, store, dateTime) =
-    GROUP SUM 1 IF priceALedgerPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)
-    BY type, sku, storeDepartmentStore(stock), dateTime;
+countDepartmentStoreA 'В прайсе' (type, sku, store, dateTime) =
+    GROUP SUM 1 IF priceA(LedgerPriceListType type, Sku sku, DepartmentStore stock, DATETIME dateTime)
+    BY type, sku, store(stock), dateTime;
 
-countStoreALedgerPriceListTypeSkuChainStoresDateTime 'В прайсе' (type, sku, chainStores, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
-    BY type, sku, chainStoresStore(store), dateTime;
+countStoreA 'В прайсе' (type, sku, chainStores, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime)
+    BY type, sku, chainStores(store), dateTime;
 
-countStoreALedgerPriceListTypeSkuStoreTypeDateTime 'В прайсе' (type, sku, storeType, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
-    BY type, sku, storeTypeStore(store), dateTime;
+countStoreA 'В прайсе' (type, sku, storeType, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime)
+    BY type, sku, storeType(store), dateTime;
 
-countStoreALedgerPriceListTypeSkuDateTime 'В прайсе' (type, sku, dateTime) =
-    GROUP SUM 1 IF countDepartmentStoreALedgerPriceListTypeSkuStoreDateTime(type, sku, store, dateTime)
+countStoreA 'В прайсе' (type, sku, dateTime) =
+    GROUP SUM 1 IF countDepartmentStoreA(LedgerPriceListType type, Sku sku, Store store, DATETIME dateTime)
     BY type, sku, dateTime;
 
 // --------------------- В наличии ---------------- //
 
-countStoreASkuStoreTypeDateTime 'В наличии' (sku, storeType, dateTime) =
-    GROUP SUM 1 IF balanceASkuStoreDateTime(sku, store, dateTime)
-    BY sku, storeTypeStore(store), dateTime;
+countStoreA 'В наличии' (sku, storeType, dateTime) =
+    GROUP SUM 1 IF balanceA(Sku sku, Store store, DATETIME dateTime)
+    BY sku, storeType(store), dateTime;
 
-countStoreASkuChainStoresDateTime 'В наличии' (sku, chainStores, dateTime) =
-    GROUP SUM 1 IF balanceASkuStoreDateTime(sku, store, dateTime)
-    BY sku, chainStoresStore(store), dateTime;
+countStoreA 'В наличии' (sku, chainStores, dateTime) =
+    GROUP SUM 1 IF balanceA(Sku sku, Store store, DATETIME dateTime)
+    BY sku, chainStores(store), dateTime;
 
 EXTEND FORM priceListDashboard
     // --- По организациям
-    PROPERTIES READONLY countStoreALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) AFTER idBarcodeSku(csk)
+    PROPERTIES READONLY countStoreA(pt, csk, c, dt) AFTER idBarcode(csk)
 
     OBJECTS ccs = ChainStores
-    PROPERTIES READONLY nameChainStores(ccs), countStoreChainStores(ccs), countStoreALedgerPriceListTypeSkuChainStoresCompanyDateTime(pt, csk, ccs, c, dt), countStoreASkuChainStoresDateTime(csk, ccs, dt)
-    FILTERS countStoreALedgerPriceListTypeSkuChainStoresCompanyDateTime(pt, csk, ccs, c, dt)
+    PROPERTIES READONLY name(ccs), countStore(ccs), countStoreA(pt, csk, ccs, c, dt), countStoreA(csk, ccs, dt)
+    FILTERS countStoreA(pt, csk, ccs, c, dt)
 
     OBJECTS ctp=StoreType
-    PROPERTIES READONLY nameStoreType(ctp), countStoreStoreType(ctp), countStoreALedgerPriceListTypeSkuStoreTypeCompanyDateTime(pt, csk, ctp, c, dt), countStoreASkuStoreTypeDateTime(csk, ctp, dt)
-    FILTERS countStoreALedgerPriceListTypeSkuStoreTypeCompanyDateTime(pt, csk, ctp, c, dt)
+    PROPERTIES READONLY name(ctp), countStore(ctp), countStoreA(pt, csk, ctp, c, dt), countStoreA(csk, ctp, dt)
+    FILTERS countStoreA(pt, csk, ctp, c, dt)
 
     // --- По складам
-    PROPERTIES READONLY countStoreALedgerPriceListTypeSkuDateTime(pt, ssk, dt) AFTER idBarcodeSku(ssk)
+    PROPERTIES READONLY countStoreA(pt, ssk, dt) AFTER idBarcode(ssk)
 
     OBJECTS scs = ChainStores
-    PROPERTIES READONLY nameChainStores(scs), countStoreChainStores(scs), countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, ssk, scs, dt), countStoreASkuChainStoresDateTime(ssk, scs, dt)
-    FILTERS countStoreALedgerPriceListTypeSkuChainStoresDateTime(pt, ssk, scs, dt)
+    PROPERTIES READONLY name(scs), countStore(scs), countStoreA(pt, ssk, scs, dt), countStoreA(ssk, scs, dt)
+    FILTERS countStoreA(pt, ssk, scs, dt)
 
     OBJECTS stp=StoreType
-    PROPERTIES READONLY nameStoreType(stp), countStoreStoreType(stp), countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt), countStoreASkuStoreTypeDateTime(ssk, stp, dt)
-    FILTERS countStoreALedgerPriceListTypeSkuStoreTypeDateTime(pt, ssk, stp, dt)
+    PROPERTIES READONLY name(stp), countStore(stp), countStoreA(pt, ssk, stp, dt), countStoreA(ssk, stp, dt)
+    FILTERS countStoreA(pt, ssk, stp, dt)
 ;
 
 DESIGN priceListDashboard {
@@ -85,25 +85,25 @@ DESIGN priceListDashboard {
 
 // ------------------------------- Добавляем розничный вид цены ----------------------------------- //
 
-activeMarkupALedgerPriceListTypeSkuDepartmentStoreCompanyDateTime 'Надбавка, % (управленческая)' (pt, s, d, c, dt) =
-    retailPriceASkuDepartmentStoreDateTime (s, d, dt) * 10000.0 /
-    ((valueRateRangeDate(VATSkuStock(s, d), DATE(dt)) + 100.0) *
-     activePriceALedgerPriceListTypeSkuCompanyDateTime (pt, s, c, dt) IF activePriceALedgerPriceListTypeSkuCompanyDateTime (pt, s, c, dt) != 0)
+activeMarkupACompany 'Надбавка, % (управленческая)' (LedgerPriceListType pt, Sku s, DepartmentStore d, LegalEntity c, DATETIME dt) =
+    retailPriceA (s, d, dt) * 10000.0 /
+    ((valueRate(VAT(s, d), DATE(dt)) + 100.0) *
+     activePriceA (pt, s, c, dt) IF activePriceA (pt, s, c, dt) != 0)
     - 100.0;
 
-markupALedgerPriceListTypeSkuStockDateTime 'Надбавка, % (управленческая)' (pt, s, d, dt) =
-    retailPriceASkuDepartmentStoreDateTime (s, d, dt) * 10000.0 /
-    ((valueRateRangeDate(VATSkuStock(s, d), DATE(dt)) + 100.0) *
-     priceALedgerPriceListTypeSkuStockDateTime (pt, s, d, dt) IF priceALedgerPriceListTypeSkuStockDateTime (pt, s, d, dt) != 0)
+markupAStock 'Надбавка, % (управленческая)' (LedgerPriceListType pt, Sku s, DepartmentStore d, DATETIME dt) =
+    retailPriceA (s, d, dt) * 10000.0 /
+    ((valueRate(VAT(s, d), DATE(dt)) + 100.0) *
+     priceA (pt, s, d, dt) IF priceA (pt, s, d, dt) != 0)
     - 100.0;
 
 
 EXTEND FORM priceListDashboard
     PROPERTIES TODRAW ssk READONLY AFTER sPrice
-            markupALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt),
-            sRetailPrice = retailPriceASkuDepartmentStoreDateTime(ssk, s, dt),
-            markupSkuDepartmentStore(ssk, s),            
-            markupPriceABasePriceListTypeSkuDepartmentStoreDateTime(pt, ssk, s, dt)
+            markupAStock(pt, ssk, s, dt),
+            sRetailPrice = retailPriceA(ssk, s, dt),
+            markup(ssk, s),            
+            markupPriceA(pt, ssk, s, dt)
 ;
 
 DESIGN priceListDashboard {
@@ -113,57 +113,57 @@ DESIGN priceListDashboard {
 }
 
 // -------------------- Изменение согласованных и розничных цен одновременно --------------------------- //
-createRetailCompanyPriceListStock = ACTION (company, dateTime, dataPriceListType, departmentStore) {
-    NEWSESSION NESTED inSku {
+createRetailCompany = ACTION (LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, departmentStore);
+            fillCompanyPriceList(u, company, dateTime, dataPriceListType, departmentStore);
     
-            inUserPriceListDataPriceListType(u, t) <- TRUE WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
-            showUserPriceListPriceListType(u, t) <- TRUE WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
+            in(u, DataPriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
+            show(u, PriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
     
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
-createRetailPricesCompanyPriceListStock = ACTION (company, dateTime, dataPriceListType, departmentStore) {
-    NEWSESSION NESTED inSku {
+createRetailPricesCompany = ACTION (LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, departmentStore);
-            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-                priceALedgerPriceListTypeSkuStockDateTime(dataPriceListType, skuUserPriceListDetail(d), departmentStore, dateTime)
-                WHERE userPriceListUserPriceListDetail(d) == u;
+            fillCompanyPriceList(u, company, dateTime, dataPriceListType, departmentStore);
+            price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
+                priceA[LedgerPriceListType,Sku,Stock,DATETIME](dataPriceListType, sku(d), departmentStore, dateTime)
+                WHERE userPriceList(d) == u;
     
-            inUserPriceListDataPriceListType(u, t) <- TRUE WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
-            showUserPriceListPriceListType(u, t) <- TRUE WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
-            priceUserPriceListDetailDataPriceListType(d, t) <-
-                priceALedgerPriceListTypeSkuStockDateTime(t, skuUserPriceListDetail(d), departmentStore, dateTime)
-                WHERE userPriceListUserPriceListDetail(d) == u AND t == retailPriceListTypeDepartmentStore(departmentStore);
+            in(u, DataPriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
+            show(u, PriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
+            price(UserPriceListDetail d, DataPriceListType t) <-
+                priceA(t, sku(d), departmentStore, dateTime)
+                WHERE userPriceList(d) == u AND t == retailPriceListType(departmentStore);
     
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
 // Изменение цен
-modifyRetailPricesDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
-        createRetailPricesCompanyPriceListStock(company, dateTime, dataPriceListType, stock);
+modifyRetailPricesData 'Изменить' = ACTION (DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) {
+    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+        createRetailPricesCompany(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
-excludeRetailDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
-        createRetailCompanyPriceListStock(company, dateTime, dataPriceListType, stock);
+excludeRetailData 'Исключить' = ACTION (DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) {
+    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+        createRetailCompany(company, dateTime, dataPriceListType, stock);
     }
 }
 
 EXTEND FORM priceListDashboard
-    PROPERTIES TODRAW ssk FORCE PANEL modifyRetailPricesDateTimeDataPriceListTypeStock(dt, pt, s),
-                                      excludeRetailDateTimeDataPriceListTypeStock(dt, pt, s)
+    PROPERTIES TODRAW ssk FORCE PANEL modifyRetailPricesData(dt, pt, s),
+                                      excludeRetailData(dt, pt, s)
 ;
 
 DESIGN priceListDashboard {
@@ -171,50 +171,50 @@ DESIGN priceListDashboard {
         NEW primaryRetailStockActions {
             type = CONTAINERH;
             caption = 'Согласованные и розничные цены';
-            MOVE PROPERTY(modifyRetailPricesDateTimeDataPriceListTypeStock(dt, pt, s));
-            MOVE PROPERTY(excludeRetailDateTimeDataPriceListTypeStock(dt, pt, s));
+            MOVE PROPERTY(modifyRetailPricesData(dt, pt, s));
+            MOVE PROPERTY(excludeRetailData(dt, pt, s));
         }
     }
 }
 
 // ------------------------------- Изменение розничных цен по складу -------------------------- //
 
-modifyDateTimeRetailDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, departmentStore) {
+modifyRetailData 'Изменить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) {
 
-    NEWSESSION NESTED inSku {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fromDateUserPriceList(u) <- toDate(dateTime);
-            fromTimeUserPriceList(u) <- toTime(dateTime);
-            companyUserPriceList(u) <- legalEntityStock(departmentStore);
-            currencyUserPriceList(u) <- currencyPriceListType(retailPriceListTypeDepartmentStore(departmentStore));
-            inUserPriceListDataPriceListType(u, t) <- TRUE WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
-            showUserPriceListPriceListType(u, t) <- TRUE WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
-            showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
-            dataInUserPriceListStock(u, departmentStore) <- TRUE;
-            FOR inSku(sku)
+            fromDate(u) <- toDate(dateTime);
+            fromTime(u) <- toTime(dateTime);
+            company(u) <- legalEntity(departmentStore);
+            currency(u) <- currency(retailPriceListType(departmentStore));
+            in(u, DataPriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
+            show(u, PriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
+            show(u, dataPriceListType) <- TRUE;
+            dataIn(u, departmentStore) <- TRUE;
+            FOR in(Sku sku)
                 ADDOBJ d = UserPriceListDetail DO {
-                skuUserPriceListDetail(d) <- sku;
-                userPriceListUserPriceListDetail(d) <- u;
-                priceUserPriceListDetailDataPriceListType(d, t) <-
-                            priceALedgerPriceListTypeSkuStockDateTime(t, skuUserPriceListDetail(d), departmentStore, dateTime) WHERE t == retailPriceListTypeDepartmentStore(departmentStore);
+                sku(d) <- sku;
+                userPriceList(d) <- u;
+                price(d, DataPriceListType t) <-
+                            priceA(t, sku(d), departmentStore, dateTime) WHERE t == retailPriceListType(departmentStore);
             }
     
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
 EXTEND FORM priceListDashboard
     PROPERTIES TODRAW csk FORCE PANEL
-                                      modifyDateTimeRetailDataPriceListTypeStock(dt, pt, s)
+                                      modifyRetailData(dt, pt, s)
 ;
 
 DESIGN priceListDashboard {
     stockActionsContainer {
         NEW retailStockActions {
             caption = 'Розничные цены';
-            MOVE PROPERTY(modifyDateTimeRetailDataPriceListTypeStock(dt, pt, s));
+            MOVE PROPERTY(modifyRetailData(dt, pt, s));
         }
     }
 }

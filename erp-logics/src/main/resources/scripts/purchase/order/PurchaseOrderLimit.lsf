@@ -4,16 +4,16 @@ REQUIRE PurchaseOrder, Item;
 
 NAMESPACE Purchase;
 
-quantityLimitItemSupplier 'Минимальное количество заказа' = DATA NUMERIC[14,3] (Item, LegalEntity);
+quantityLimitSupplier 'Минимальное количество заказа' = DATA NUMERIC[14,3] (Item, LegalEntity);
 
 EXTEND FORM item 
 
     OBJECTS sup = LegalEntity FIXED GRID
-    PROPERTIES nameLegalEntity(sup) READONLY , quantityLimitItemSupplier(i,sup)
-    FILTERS isSupplierLegalEntity(sup)
+    PROPERTIES name(sup) READONLY , quantityLimitSupplier(i,sup)
+    FILTERS isSupplier(sup)
     
     FILTERGROUP filterLimit
-        FILTER 'С поступлением' inSupplierSku(sup, i) 'F8'
+        FILTER 'С поступлением' inSupplier(sup, i) 'F8'
     
 ;
 DESIGN item {
@@ -28,11 +28,11 @@ DESIGN item {
     }
 }
 
-quantityLimitSkuUserOrder 'Min к-во заказа' (sku, order) = quantityLimitItemSupplier(sku, supplierUserOrder(order));
+quantityLimit 'Min к-во заказа' (Item sku, UserOrder order) = quantityLimitSupplier(sku, supplier(order));
 
-backgroundQuantityLimitSkuUserOrder 'Цвет' = RGB(255,0,0) IF quantityUserOrderDetailSkuUserOrder(sku, userOrder) < quantityLimitSkuUserOrder(sku, userOrder);
+backgroundQuantityLimit 'Цвет' = RGB(255,0,0) IF quantityUserOrderDetail(Item sku, UserOrder userOrder) < quantityLimit(sku, userOrder);
 
 EXTEND FORM userOrder
-    PROPERTIES (ks,o) FORCE GRID quantityLimitSkuUserOrder READONLY AFTER quantitySkuUserOrderCustomerStock(ks,o,st) BACKGROUND backgroundQuantityLimitSkuUserOrder(ks,o)
+    PROPERTIES (ks,o) FORCE GRID quantityLimit READONLY AFTER quantityCustomer(ks,o,st) BACKGROUND backgroundQuantityLimit(ks,o)
 
 ;

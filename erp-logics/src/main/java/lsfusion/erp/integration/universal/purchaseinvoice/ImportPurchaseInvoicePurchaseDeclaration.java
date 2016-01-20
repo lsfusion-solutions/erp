@@ -25,13 +25,13 @@ public class ImportPurchaseInvoicePurchaseDeclaration extends ImportDefaultPurch
         if(LM != null && userInvoiceDetailKey != null) {
             
             if (showField(userInvoiceDetailsList, "declaration")) {
-                ImportField numberDeclarationField = new ImportField(LM.findProperty("numberDeclaration"));
+                ImportField numberDeclarationField = new ImportField(LM.findProperty("number[Declaration]"));
                 ImportKey<?> declarationKey = new ImportKey((ConcreteCustomClass) LM.findClass("Declaration"),
-                        LM.findProperty("declarationId").getMapping(numberDeclarationField));
+                        LM.findProperty("declaration[VARSTRING[100]]").getMapping(numberDeclarationField));
                 keys.add(declarationKey);
-                props.add(new ImportProperty(numberDeclarationField, LM.findProperty("numberDeclaration").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
-                props.add(new ImportProperty(numberDeclarationField, LM.findProperty("idDeclaration").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
-                props.add(new ImportProperty(numberDeclarationField, LM.findProperty("declarationUserInvoiceDetail").getMapping(userInvoiceDetailKey),
+                props.add(new ImportProperty(numberDeclarationField, LM.findProperty("number[Declaration]").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
+                props.add(new ImportProperty(numberDeclarationField, LM.findProperty("id[Declaration]").getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
+                props.add(new ImportProperty(numberDeclarationField, LM.findProperty("declaration[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
                         object(LM.findClass("Declaration")).getMapping(declarationKey), getReplaceOnlyNull(defaultColumns, "numberDeclaration")));
                 fields.add(numberDeclarationField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)

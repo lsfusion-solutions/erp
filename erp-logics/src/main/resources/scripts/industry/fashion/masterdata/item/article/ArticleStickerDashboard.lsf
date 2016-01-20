@@ -6,87 +6,87 @@ NAMESPACE Item;
 
 // Обработка статуса
 
-completedStickerItem 'Обработан' = DATA BOOLEAN (Item);
-notCompletedStickerArticle 'Не обработан' (article) = GROUP SUM 1 IF i IS Item AND NOT completedStickerItem(i) BY articleItem(i);
-completedStickerArticle 'Обработан' = a IS Article AND NOT notCompletedStickerArticle(a);
+completedSticker 'Обработан' = DATA BOOLEAN (Item);
+notCompletedSticker 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedSticker(i) BY article(i);
+completedSticker 'Обработан' = Article a IS Article AND NOT notCompletedSticker(a);
 
-changeCompletedStickerArticle (article) = ACTION (article) {
+changeCompletedSticker (Article article) = ACTION (article) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
-        FOR articleItem(item) == article DO {
-            completedStickerItem(item) <- TRUE;
+        FOR article(Item item) == article DO {
+            completedSticker(item) <- TRUE;
         }
     } ELSE {
-        FOR articleItem(item) == article DO {
-            completedStickerItem(item) <- NULL;
+        FOR article(Item item) == article DO {
+            completedSticker(item) <- NULL;
         }                
     }        
 }
 
 // Подсчет артикулов с незаполненными стикерами для групп
-countNotStickerArticlesItemGroup 'Не обработано (к-во)' (group) = GROUP SUM 1 IF completedTranslateArticle(article) AND NOT completedStickerArticle(article) AND ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailArticleUser(article, currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) BY itemGroupArticle(article);
-recCountNotStickerArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotStickerArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
+countNotStickerArticles 'Не обработано (к-во)' (group) = GROUP SUM 1 IF completedTranslate(Article article) AND NOT completedSticker(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
+recCountNotStickerArticles 'Не обработано (к-во)' (parent) = GROUP SUM countNotStickerArticles(ItemGroup child) IF isParent(child, ItemGroup parent) BY parent;
 
 // ----------------- Типы ценников ----------------- //
 
-defaultLabelTypeSku (sku) = GROUP MAX type IF dataInLabelTypeSku(type, sku) BY sku;
-nameLabelTypeSku 'Тип ценника' (sku)= nameLabelType(defaultLabelTypeSku(sku)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+defaultLabelType (sku) = GROUP MAX LabelType type IF dataIn(type, Sku sku) BY sku;
+nameLabelType 'Тип ценника' (Sku sku)= name(defaultLabelType(sku)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
-defaultLabelTypeArticle (article) = GROUP MAX type IF dataInLabelTypeSku(type, sku) BY articleItem(sku);
-nameLabelTypeArticle 'Тип ценника' (article)= nameLabelType(defaultLabelTypeArticle(article)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+defaultLabelType (article) = GROUP MAX LabelType type IF dataIn(type, Item sku) BY article(sku);
+nameLabelType 'Тип ценника' (Article article)= name(defaultLabelType(article)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
-changeDefaultLabelTypeArticle = ACTION (article) {
+changeDefaultLabelType = ACTION (Article article) {
     REQUEST OBJECT l
     FORM labelTypes  DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        FOR articleItem(sku) == article DO {
-            dataInLabelTypeSku(type, sku) <- NULL WHERE type IS LabelType;
-            dataInLabelTypeSku(t, sku) <- TRUE WHERE t == requestedObject();
+        FOR article(Item sku) == article DO {
+            dataIn(LabelType type, sku) <- NULL WHERE type IS LabelType;
+            dataIn(LabelType t, sku) <- TRUE WHERE t == requestedObject();
         }              
     }
 }
 
-changeDefaultLabelTypeSku = ACTION (sku) {
+changeDefaultLabelType = ACTION (Sku sku) {
     REQUEST OBJECT l
     FORM labelTypes  DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        dataInLabelTypeSku(type, sku) <- NULL WHERE type IS LabelType;
-        dataInLabelTypeSku(t, sku) <- TRUE WHERE t == requestedObject();             
+        dataIn(LabelType type, sku) <- NULL WHERE type IS LabelType;
+        dataIn(LabelType t, sku) <- TRUE WHERE t == requestedObject();             
     }
 }
 
 // Не заполнены атрибуты
-nullStickerItem 'Без атрибутов' (item) =  item IS Item AND NOT defaultLabelTypeSku(item) AND NOT completedStickerItem(item);
-nullStickerArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item IS Item AND NOT defaultLabelTypeSku(item) AND NOT completedStickerItem(item) BY articleItem(item);
+nullSticker 'Без атрибутов' (Item item) =  item IS Item AND NOT defaultLabelType(item) AND NOT completedSticker(item);
+nullSticker 'Без атрибутов' (article) = GROUP SUM 1 IF Item item IS Item AND NOT defaultLabelType(item) AND NOT completedSticker(item) BY article(item);
 
 filterStickerInvoice= DATA LOCAL Purchase.Invoice ();
-descriptionFilterStickerInvoice 'Накладная' = Purchase.descriptionInvoice(filterStickerInvoice());
+descriptionFilterStickerInvoice 'Накладная' = description(filterStickerInvoice());
 
 // отм. для групп товаров
 TABLE userItemGroup(User, ItemGroup);
-dataInUserItemGroup 'Отм' = DATA BOOLEAN (User, ItemGroup);
+dataIn 'Отм' = DATA BOOLEAN (User, ItemGroup);
 
-levelParentUserItemGroup (user, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF dataInUserItemGroup(user, parent)
+levelParent (user, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF dataIn(User user, parent)
                                                                BY user, itemGroup PERSISTENT;
 
-inParentUserItemGroup (user, itemGroup) = TRUE IF levelParentUserItemGroup (user, itemGroup) PERSISTENT;
+inParent (User user, ItemGroup itemGroup) = TRUE IF levelParent (user, itemGroup) PERSISTENT;
 
-inUserItemGroup 'Отм' (user, itemGroup) = OVERRIDE
-    inParentUserItemGroup (user, itemGroup),
-    dataInUserItemGroup(user, itemGroup);
+in 'Отм' (User user, ItemGroup itemGroup) = OVERRIDE
+    inParent (user, itemGroup),
+    dataIn(user, itemGroup);
 
-inUserArticle 'Отм' (user, article) = inParentUserItemGroup(user, itemGroupArticle(article));
+in 'Отм' (User user, Article article) = inParent(user, itemGroup(article));
 
-itemGroupsUser (user) = GROUP SUM 1 IF inUserItemGroup(user, itemGroup) BY user;
+itemGroups (user) = GROUP SUM 1 IF in(User user, ItemGroup itemGroup) BY user;
     
 //currentUser
-inCurrentUserItemGroup 'Отм.' (itemGroup) = inUserItemGroup(currentUser(), itemGroup);
-inCurrentUserArticle 'Отм.' (article) = inUserArticle(currentUser(), article); 
-itemGroupsCurrentUser () = itemGroupsUser(currentUser());
+inCurrentUser 'Отм.' (ItemGroup itemGroup) = in(currentUser(), itemGroup);
+inCurrentUser 'Отм.' (Article article) = in(currentUser(), article); 
+itemGroupsCurrentUser () = itemGroups(currentUser());
 
-checkInCurrentUserItemGroup = ACTION (itemGroup) {
+checkInCurrentUser = ACTION (ItemGroup itemGroup) {
     REQUEST BOOLEAN INPUT;   
-    dataInUserItemGroup(user, itemGroup) <- requestedLogical() WHERE user == currentUser();    
+    dataIn(User user, itemGroup) <- requestedLogical() WHERE user == currentUser();    
 }
 
 FORM articleStickerDashboard 'Стикеровка'
@@ -95,68 +95,68 @@ FORM articleStickerDashboard 'Стикеровка'
     
     PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
     
-    TREE groupTree g=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g), recCountNotStickerArticlesItemGroup(g)
-    PROPERTIES(u, g) inUserItemGroup      
-    ORDER BY orderItemGroup(g), nameItemGroup(g)
-    FILTERS activeItemGroup(g)
+    TREE groupTree g=ItemGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g), recCountNotStickerArticles(g)
+    PROPERTIES(u, g) in      
+    ORDER BY order(g), name(g)
+    FILTERS active(g)
     FILTERGROUP notCustomsFilters
-        FILTER 'Не обработан' recCountNotStickerArticlesItemGroup(g) 'F6'          
+        FILTER 'Не обработан' recCountNotStickerArticles(g) 'F6'          
     
     OBJECTS dep=DepartmentStore FIXED PANEL     
-    PROPERTIES(dep)  SELECTOR nameDepartmentStore
+    PROPERTIES(dep)  SELECTOR name
                   
     OBJECTS a=Article   
-    PROPERTIES(a) READONLY nameBrandArticle, idArticle, canonicalNameItemGroupArticle FORCE PANEL, captionArticle, 
-                   compositionArticle, nameUOMArticle
-    PROPERTIES(a) BACKGROUND hintEditableBackground() nameCollectionArticle, nameManufacturerArticle, nameLabelTypeArticle ON CHANGE changeDefaultLabelTypeArticle(a), compositionStickerArticle, 
-                   servicePeriodArticle, guaranteePeriodArticle, additionalDescriptionArticle, manualArticle,
-                   extraInformationArticle, safetyInformationArticle, warningInformationArticle, notRefundableArticle, washingRequiredArticle, isEACArticle
+    PROPERTIES(a) READONLY nameBrand, id, canonicalNameItemGroup FORCE PANEL, caption, 
+                   composition, nameUOM
+    PROPERTIES(a) BACKGROUND hintEditableBackground() nameCollection, nameManufacturer, nameLabelType ON CHANGE changeDefaultLabelType(a), compositionSticker, 
+                   servicePeriod, guaranteePeriod, additionalDescription, manual,
+                   extraInformation, safetyInformation, warningInformation, notRefundable, washingRequired, isEAC
                    
-    PROPERTIES(a) completedStickerArticle ON CHANGE changeCompletedStickerArticle(a)
+    PROPERTIES(a) completedSticker ON CHANGE changeCompletedSticker(a)
     PROPERTIES(a) EDITFORM
 
     FILTERGROUP attributesFilters
-        FILTER 'Без атрибутов' nullStickerArticle(a) 'F7'
-        FILTER 'С атрибутами' NOT nullStickerArticle(a) 'F6'
+        FILTER 'Без атрибутов' nullSticker(a) 'F7'
+        FILTER 'С атрибутами' NOT nullSticker(a) 'F6'
              
     FILTERGROUP groupFilters
-        FILTER 'Переведены' completedTranslateArticle(a) 'F10' DEFAULT
+        FILTER 'Переведены' completedTranslate(a) 'F10' DEFAULT
 
-    FILTERS isParentGroupArticle(g, a) AND NOT itemGroupsCurrentUser() OR
-            inCurrentUserArticle(a) AND itemGroupsCurrentUser()    
+    FILTERS isParent(g, a) AND NOT itemGroupsCurrentUser() OR
+            inCurrentUser(a) AND itemGroupsCurrentUser()    
 //    FILTERGROUP groupFilters
 //        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
 //        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)    
 
     FILTERGROUP translateFilters
-        FILTER 'Не обработан' notCompletedStickerArticle(a) 'F9' DEFAULT
-        FILTER 'Обработан' completedStickerArticle(a) 'F8'
+        FILTER 'Не обработан' notCompletedSticker(a) 'F9' DEFAULT
+        FILTER 'Обработан' completedSticker(a) 'F8'
 
     OBJECTS i=Item
-    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, 
-                           originalCaptionItem, originalCompositionItem, 
-                           captionItem, compositionItem, nameUOMItem, nameSizeItem,
-                           imageItem FORCE PANEL
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoice, idBarcode, id, 
+                           originalCaption, originalComposition, 
+                           caption, composition, nameUOM, nameSize,
+                           image FORCE PANEL
 
-    PROPERTIES(i) BACKGROUND hintEditableBackground() originalSizeItem, nameLabelTypeSku ON CHANGE changeDefaultLabelTypeSku(i), compositionStickerItem, 
-                   sizeHeightItem, sizeChestItem, sizeUnderChestItem, sizeCupBraItem,
-                   sizeHipsItem, sizeWaistItem, sizeNeckItem, sizeHeadItem, sizeHandItem, footLengthItem
-    ORDER BY idItem(i)
+    PROPERTIES(i) BACKGROUND hintEditableBackground() originalSize, nameLabelType ON CHANGE changeDefaultLabelType(i), compositionSticker, 
+                   sizeHeight, sizeChest, sizeUnderChest, sizeCupBra,
+                   sizeHips, sizeWaist, sizeNeck, sizeHead, sizeHand, footLength
+    ORDER BY id(i)
                    
-    PROPERTIES completedStickerItem(i)
-    PROPERTIES(i) EDITFORM SHOWIF enableEditingItem(i)
+    PROPERTIES completedSticker(i)
+    PROPERTIES(i) EDITFORM SHOWIF enableEditing(i)
     
     FILTERGROUP attributesFilters2
-        FILTER 'Без атрибутов' nullStickerItem(i) 'F7'
-        FILTER 'С атрибутами' NOT nullStickerItem(i) 'F6'
+        FILTER 'Без атрибутов' nullSticker(i) 'F7'
+        FILTER 'С атрибутами' NOT nullSticker(i) 'F6'
              
     FILTERGROUP itemFilters
-        FILTER 'По артикулам' articleItem(i) == a 'F4' DEFAULT
-        FILTER 'По группам (не обработан)' isParentItemGroupItem(g,i) AND completedTranslateItem(i) AND NOT completedStickerItem(i) 'shift F4'
-        FILTER 'По группам ' isParentItemGroupItem(g,i) 'ctrl F4' 
+        FILTER 'По артикулам' article(i) == a 'F4' DEFAULT
+        FILTER 'По группам (не обработан)' isParent(g,i) AND completedTranslate(i) AND NOT completedSticker(i) 'shift F4'
+        FILTER 'По группам ' isParent(g,i) 'ctrl F4' 
         
-    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))        
+    FILTERS quantityInvoiceDetail(a, currentUser()) OR (a IS Article AND NOT countInvoices(currentUser()))        
 ;
 
 DESIGN articleStickerDashboard {
@@ -181,7 +181,7 @@ DESIGN articleStickerDashboard {
             NEW imageBox3 {
                 fill = 3;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(imageItem(i)) {                           
+                MOVE PROPERTY(image(i)) {                           
                     caption = '';
                     fill = 1;
                 }
@@ -200,23 +200,23 @@ DESIGN articleStickerDashboard {
         }
     }
 
-    PROPERTY(idArticle(a)) { minimumCharWidth = 6; preferredCharWidth = 10;}
-    PROPERTY(servicePeriodArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
-    PROPERTY(guaranteePeriodArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
-    PROPERTY(additionalDescriptionArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
-    PROPERTY(manualArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
-    PROPERTY(extraInformationArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
-    PROPERTY(safetyInformationArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
-    PROPERTY(warningInformationArticle(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}            
-    PROPERTY(compositionStickerArticle(a)) {minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(id(a)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(servicePeriod(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
+    PROPERTY(guaranteePeriod(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
+    PROPERTY(additionalDescription(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
+    PROPERTY(manual(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
+    PROPERTY(extraInformation(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
+    PROPERTY(safetyInformation(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}
+    PROPERTY(warningInformation(a)) { minimumSize = ( 150, 40); preferredSize = ( 250, 40); maximumSize = ( 400, 40);}            
+    PROPERTY(compositionSticker(a)) {minimumCharWidth = 30; preferredCharWidth = 40;}
 
-    PROPERTY(compositionStickerItem(i)) {minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(compositionSticker(i)) {minimumCharWidth = 30; preferredCharWidth = 40;}
     
-    PROPERTY(idItem(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
-    PROPERTY(originalCaptionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
-    PROPERTY(captionItem(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
-    PROPERTY(originalCaptionItem(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
-    PROPERTY(nameSizeItem(i)) { minimumCharWidth = 10; preferredCharWidth = 15;}
+    PROPERTY(id(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(originalCaption(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(caption(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(originalCaption(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(nameSize(i)) { minimumCharWidth = 10; preferredCharWidth = 15;}
 
     MOVE functions.box;
 }
@@ -227,14 +227,14 @@ completeArticleStickerDashboard 'Подтвердить все' = ACTION () {
     LOCAL k = INTEGER ();
     k() <- 0;
     
-    FOR [= FILTER articleStickerDashboard.a](article) AND nullStickerArticle(article) DO{   
+    FOR [= FILTER articleStickerDashboard.a](Article article) AND nullSticker(article) DO{   
         k() <- k() + 1;              
     }    
     IF k() > 0 THEN {
         MESSAGE 'Для артикула не задан тип ценника ('+k()+' шт.)';
     } ELSE {
-        FOR [= FILTER articleStickerDashboard.a](article) DO {
-            completedStickerItem(item) <- TRUE WHERE articleItem(item) == article;
+        FOR [= FILTER articleStickerDashboard.a](Article article) DO {
+            completedSticker(Item item) <- TRUE WHERE article(item) == article;
         }
     }      
 } TOOLBAR CONFIRM;
@@ -246,59 +246,59 @@ EXTEND FORM  articleStickerDashboard
 // --------- Заполнение по матрице соответствия      
 
 mapAllSizeHeightStickerItem 'Заполнить рост для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeHeightItem(i) DO
-       mapSizeHeightItem(i);
-} SHORTCUT sizeHeightItem;
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHeight(i) DO
+       mapSizeHeight(i);
+} SHORTCUT sizeHeight[Item];
 
 mapAllSizeChestStickerItem 'Заполнить обхват груди для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeChestItem(i) DO
-       mapSizeChestItem(i);
-} SHORTCUT sizeChestItem;
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeChest(i) DO
+       mapSizeChest(i);
+} SHORTCUT sizeChest[Item];
 
 mapAllSizeUnderChestStickerItem 'Заполнить обхват под грудью для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeUnderChestItem(i) DO
-       mapSizeUnderChestItem(i);
-} SHORTCUT sizeUnderChestItem;
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeUnderChest(i) DO
+       mapSizeUnderChest(i);
+} SHORTCUT sizeUnderChest[Item];
 
 mapAllSizeCupBraStickerItem 'Заполнить размер чашечки для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeCupBraItem(i) DO
-       mapSizeCupBraItem(i);
-} SHORTCUT sizeCupBraItem;
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeCupBra(i) DO
+       mapSizeCupBra(i);
+} SHORTCUT sizeCupBra[Item];
 
 mapAllSizeHipsStickerItem 'Заполнить обхват бедер для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeHipsItem(i) DO
-       mapSizeHipsItem(i);
-} SHORTCUT sizeHipsItem;     
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHips(i) DO
+       mapSizeHips(i);
+} SHORTCUT sizeHips[Item];     
 
 mapAllSizeWaistStickerItem 'Заполнить обхват талии для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeWaistItem(i) DO
-       mapSizeWaistItem(i);
-} SHORTCUT sizeWaistItem;  
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeWaist(i) DO
+       mapSizeWaist(i);
+} SHORTCUT sizeWaist[Item];  
   
 mapAllSizeNeckStickerItem 'Заполнить обхват шеи для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeNeckItem(i) DO
-       mapSizeNeckItem(i);
-} SHORTCUT sizeNeckItem;      
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeNeck(i) DO
+       mapSizeNeck(i);
+} SHORTCUT sizeNeck[Item];      
 
 mapAllSizeHeadStickerItem 'Заполнить обхват головы для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeHeadItem(i) DO
-       mapSizeHeadItem(i);
-} SHORTCUT sizeHeadItem;  
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHead(i) DO
+       mapSizeHead(i);
+} SHORTCUT sizeHead[Item];  
 
 mapAllSizeHandStickerItem 'Заполнить обхват кисти для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT sizeHandItem(i) DO
-       mapSizeHandItem(i);
-} SHORTCUT sizeHandItem;  
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHand(i) DO
+       mapSizeHand(i);
+} SHORTCUT sizeHand[Item];  
                             
 mapAllFootLengthStickerItem 'Заполнить длину стопы для всех по соответствию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.i](i)  AND NOT footLengthItem(i) DO
-       mapFootLengthItem(i);
-} SHORTCUT footLengthItem;  
+   FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT footLength(i) DO
+       mapFootLength(i);
+} SHORTCUT footLength[Item];  
 
 mapAllIsEACArticle 'Заполнить "EAC" для всех по наименованию' = ACTION () {
-   FOR [= FILTER articleStickerDashboard.a](a)  DO 
-       mapIsEACArticle(a);
-} SHORTCUT isEACArticle; 
+   FOR [= FILTER articleStickerDashboard.a](Article a)  DO 
+       mapIsEAC(a);
+} SHORTCUT isEAC[Article]; 
                             
 NAVIGATOR {
     customsDashboardNavigator {
@@ -308,34 +308,34 @@ NAVIGATOR {
 
 // ------------------------------------- Печать примера ценника --------------------------- //
      
-inLabelArticle 'Отм.' = DATA LOCAL BOOLEAN (Article); 
+inLabel 'Отм.' = DATA LOCAL BOOLEAN (Article); 
 EXTEND FORM articleStickerDashboard
-    PROPERTIES(a) inLabelArticle BEFORE idArticle(a)
+    PROPERTIES(a) inLabel BEFORE id(a)
 ;
 
-countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabelArticle(a);
-countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabelArticle(a) BY defaultLabelTypeArticle(a)](type);
+countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabel(Article a);
+countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabel(Article a) BY defaultLabelType(a)](LabelType type);
 
-dataLastBatchSku = ABSTRACT Batch (Sku);
+dataLastBatch = ABSTRACT Batch (Sku);
 
-createSnapshotPricingArticleDepartment 'Пример ценника' = ACTION (article, department) {
+createSnapshotPricing 'Пример ценника' = ACTION (Article article, DepartmentStore department) {
     IF countInLabelArticles() THEN {
         IF countLabelTypeArticles() == 1 THEN {
             FOR ADDOBJ t = LabelTransaction DO {          
-                departmentStoreLabelTransaction(t) <- department;
-                labelTypeLabelTransaction(t) <-  [=GROUP MAX defaultLabelTypeArticle(a) IF inLabelArticle(a)]();
-                FOR articleItem (item) == a AND inLabelArticle(a)  ADDOBJ d = LabelTransactionDetail DO {
-                        labelTransactionLabelTransactionDetail(d) <- t;
-                        skuLabelTransactionDetail(d) <- item;
-                        batchLabelTransactionDetail(d) <- OVERRIDE dataLastBatchSku(item), dataLastBatchSku(item);
+                departmentStore(t) <- department;
+                labelType(t) <-  [=GROUP MAX defaultLabelType(Article a) IF inLabel(a)]();
+                FOR article (Item item) == Article a AND inLabel(a)  ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransaction(d) <- t;
+                        sku(d) <- item;
+                        batch(d) <- OVERRIDE dataLastBatch(item), dataLastBatch(item);
         
-                        nameLabelTransactionDetail(d) <- nameSku(item);
-                        documentQuantityLabelTransactionDetail(d) <- 1.0; 
-                        createAttributeLabelTransactionDetail(d);
+                        name(d) <- name(item);
+                        documentQuantity(d) <- 1.0; 
+                        createAttribute(d);
                 }
                 FORM customLabelTransaction OBJECTS l = t MODAL;
                 IF formResult() == FormResult.ok THEN {
-                    printLabelTransaction(t);
+                    print(t);
                 }
                 DELETE t;                
             }
@@ -344,20 +344,20 @@ createSnapshotPricingArticleDepartment 'Пример ценника' = ACTION (a
         }
     } ELSE {
         FOR ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
-            departmentStoreLabelTransaction(t) <- department;
-            labelTypeLabelTransaction(t) <- defaultLabelTypeArticle(article);
-            FOR articleItem (item) ==article  ADDOBJ d = LabelTransactionDetail DO {
-                    labelTransactionLabelTransactionDetail(d) <- t;
-                    skuLabelTransactionDetail(d) <- item;
-                    batchLabelTransactionDetail(d) <- OVERRIDE dataLastBatchSku(item), dataLastBatchSku(item);
+            departmentStore(t) <- department;
+            labelType(t) <- defaultLabelType(article);
+            FOR article (Item item) ==article  ADDOBJ d = LabelTransactionDetail DO {
+                    labelTransaction(d) <- t;
+                    sku(d) <- item;
+                    batch(d) <- OVERRIDE dataLastBatch(item), dataLastBatch(item);
         
-                    nameLabelTransactionDetail(d) <- nameSku(item);
-                    documentQuantityLabelTransactionDetail(d) <- 1.0; 
-                    createAttributeLabelTransactionDetail(d);
+                    name(d) <- name(item);
+                    documentQuantity(d) <- 1.0; 
+                    createAttribute(d);
             }
             FORM customLabelTransaction OBJECTS l = t MODAL;
             IF formResult() == FormResult.ok THEN {
-                printLabelTransaction(t);
+                print(t);
             }
             DELETE t;            
         }  
@@ -365,7 +365,7 @@ createSnapshotPricingArticleDepartment 'Пример ценника' = ACTION (a
 } TOOLBAR;
 
 EXTEND FORM articleStickerDashboard
-    PROPERTIES(a, dep) createSnapshotPricingArticleDepartment FORCE PANEL TOOLBAR
-    PROPERTIES(a) READONLY AFTER idArticle(a) idItemGroupArticle
-    PROPERTIES(i) READONLY AFTER idItem(i) idItemGroupItem
+    PROPERTIES(a, dep) createSnapshotPricing FORCE PANEL TOOLBAR
+    PROPERTIES(a) READONLY AFTER id(a) idItemGroup
+    PROPERTIES(i) READONLY AFTER id(i) idItemGroup
 ;

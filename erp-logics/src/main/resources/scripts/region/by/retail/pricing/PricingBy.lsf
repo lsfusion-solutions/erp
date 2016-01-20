@@ -5,7 +5,7 @@ REQUIRE Pricing;
 NAMESPACE Pricing;
 
 roundConditionMarkupPrice = DATA RoundCondition();
-nameRoundConditionMarkupPrice 'Условие округления розничной цены (надбавка руб.)' = nameRoundCondition(roundConditionMarkupPrice());
+nameRoundConditionMarkupPrice 'Условие округления розничной цены (надбавка руб.)' = name(roundConditionMarkupPrice());
 
 EXTEND FORM options
     PROPERTIES() nameRoundConditionMarkupPrice
@@ -19,34 +19,34 @@ DESIGN options {
 
     // Цена надбавки   
     @defineDocumentInterfaceDetailPriceCustomPrefix (pricingDetail, markup, ' надбавки');
-markupPriceUserPricingDetail(detail) <- retailMarkupSumUserPricingDetail(detail)/(quantityUserPricingDetail(detail) IF quantityUserPricingDetail(detail)!=0)
-                WHEN CHANGED(retailMarkupSumUserPricingDetail(detail)) OR CHANGED (quantityUserPricingDetail(detail));
+markupPrice(UserPricingDetail detail) <- retailMarkupSum(detail)/(quantity(detail) IF quantity(detail)!=0)
+                WHEN CHANGED(retailMarkupSum(detail)) OR CHANGED (quantity(detail));
 
-calcRetailMarkupPriceUserPricingDetail(userPricingDetail, markupPrice)  = roundPriceRoundCondition(NUMERIC[14,2]([= (X (+) Y)*(Z+100)/100](
-    pricingPriceUserPricingDetail(userPricingDetail) IF markupPrice IS NUMERIC[20,7],
+calcRetailUserPricingDetail(UserPricingDetail userPricingDetail, NUMERIC[20,7] markupPrice)  = round(NUMERIC[14,2]([= (X (+) Y)*(Z+100)/100](
+    pricingPrice(userPricingDetail) IF markupPrice IS NUMERIC[20,7],
     markupPrice AS NUMERIC[20,7] IF userPricingDetail IS UserPricingDetail,
-    valueRetailVATUserPricingDetail(userPricingDetail))), roundConditionMarkupPrice());                    
+    valueRetailVAT(userPricingDetail))), roundConditionMarkupPrice());                    
                 
-changeMarkupPriceUserPricingDetail = ACTION (userPricingDetail) {
+changeMarkupPrice = ACTION (UserPricingDetail userPricingDetail) {
     REQUEST NUMERIC[14,2] INPUT;
 
     IF requestedNumeric() THEN {
-        retailPriceUserPricingDetail(userPricingDetail) <- calcRetailMarkupPriceUserPricingDetail(userPricingDetail, requestedNumeric());
-        retailMarkupUserPricingDetail(userPricingDetail) <- calcRetailMarkupUserPricingDetail(userPricingDetail) WHERE calcRetailMarkupUserPricingDetail(userPricingDetail);
+        retailPrice(userPricingDetail) <- calcRetailUserPricingDetail(userPricingDetail, requestedNumeric());
+        retailMarkup(userPricingDetail) <- calcRetailMarkup(userPricingDetail) WHERE calcRetailMarkup(userPricingDetail);
     } 
 }
 
 @defineDocumentInterfaceProperty (pricing, showMarkupPrice, 'Надбавка (руб.)');
 
 EXTEND FORM userPricing
-    PROPERTIES(p) showMarkupPriceUserPricing
-    PROPERTIES(d) BEFORE retailMarkupSumUserPricingDetail(d) SHOWIF showMarkupPriceUserPricing(p) BACKGROUND backgroundRetailPricing(p)
-                  markupPriceUserPricingDetail ON CHANGE changeMarkupPriceUserPricingDetail(d)         
+    PROPERTIES(p) showMarkupPrice
+    PROPERTIES(d) BEFORE retailMarkupSum(d) SHOWIF showMarkupPrice(p) BACKGROUND backgroundRetail(p)
+                  markupPrice ON CHANGE changeMarkupPrice(d)         
 ;
 
 EXTEND FORM pricings
-    PROPERTIES(d) READONLY BEFORE retailMarkupSumPricingDetail(d) SHOWIF showMarkupPriceUserPricing(p) BACKGROUND backgroundRetailPricing(p)
-                  markupPricePricingDetail
+    PROPERTIES(d) READONLY BEFORE retailMarkupSum(d) SHOWIF showMarkupPrice[UserPricing](p) BACKGROUND backgroundRetail(p)
+                  markupPrice
 ;
 
 //----------------------------------------------- Операции -----------------------------------------------------//
@@ -55,15 +55,15 @@ EXTEND FORM pricings
 @defineDocumentHeaderProperty (operation, showMarkupPrice, 'Надбавка (руб.)');
 
 // Записываем необходимо ли показывать надбавку в рублях по умолчанию из операции
-showMarkupPriceUserPricing (pricing) <- showMarkupPriceOperation(operationUserPricing(pricing))
-    WHEN CHANGED(operationUserPricing(pricing));
+showMarkupPrice (UserPricing pricing) <- showMarkupPrice(operation(pricing))
+    WHEN CHANGED(operation(pricing));
 
 EXTEND FORM Pricing.operation
-    PROPERTIES(o) showMarkupPriceOperation
+    PROPERTIES(o) showMarkupPrice
 ;
 
 DESIGN Pricing.operation {
     showContainer {
-        MOVE PROPERTY(showMarkupPriceOperation(o));
+        MOVE PROPERTY(showMarkupPrice(o));
     }
 }

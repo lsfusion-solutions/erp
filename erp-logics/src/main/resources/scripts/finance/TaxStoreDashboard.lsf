@@ -4,20 +4,20 @@ REQUIRE TaxReverse, Store;
 
 NAMESPACE Tax;
 
-addVATRangeTaxUnit 'Добавить ставку' = ACTION (taxUnit) {
-    IF rangeTaxTaxUnit(Tax.taxVAT, taxUnit) THEN {
+addVATRange 'Добавить ставку' = ACTION (TaxUnit taxUnit) {
+    IF range(Tax.taxVAT, taxUnit) THEN {
         FOR ADDOBJ rt = Rate DO {
-            rangeRate (rt) <- rangeTaxTaxUnit(Tax.taxVAT, taxUnit);
+            range (rt) <- range(Tax.taxVAT, taxUnit);
         }    
     } ELSE {    
         FOR ADDOBJ r = Range DO {
-            taxRange(r) <- Tax.taxVAT;
-            rangeTypeRange(r) <- RangeType.units;
-            reverseRange(r) <- TRUE;
-            inRangeTaxUnit(r, taxUnit) <- TRUE;
-            countryRange(r) <- defaultCountry();
+            tax(r) <- Tax.taxVAT;
+            rangeType(r) <- RangeType.units;
+            reverse(r) <- TRUE;
+            in(r, taxUnit) <- TRUE;
+            country(r) <- defaultCountry();
             FOR ADDOBJ rt = Rate DO {
-                rangeRate (rt) <- r;
+                range (rt) <- r;
             }
         }    
     }
@@ -25,25 +25,25 @@ addVATRangeTaxUnit 'Добавить ставку' = ACTION (taxUnit) {
 
 FORM storeTaxUnit 'Налоговые субъекты'
     OBJECTS u = TaxUnit
-    PROPERTIES (u) READONLY descriptionTaxUnit
+    PROPERTIES (u) READONLY description
     FILTERGROUP store FILTER 'Магазины' u IS Store 'F9' DEFAULT
     DIALOG TaxUnit OBJECT u
 ;
 
 FORM VATUnitDashboard 'Ввод расчетной ставки'
     OBJECTS u = TaxUnit FIXED PANEL 
-    PROPERTIES (u) descriptionTaxUnit SELECTOR
+    PROPERTIES (u) description SELECTOR
     FILTERS u IS Store
         
     OBJECTS rt = Rate
-    PROPERTIES (rt) valueRate, dateFromRate, DELETESESSION TOOLBAR
-    PROPERTIES (u) addVATRangeTaxUnit TODRAW rt
-    FILTERS inRateTaxUnit(rt, u)
-    ORDER BY dateFromRate(rt)
+    PROPERTIES (rt) value, dateFrom, DELETESESSION TOOLBAR
+    PROPERTIES (u) addVATRange TODRAW rt
+    FILTERS in(rt, u)
+    ORDER BY dateFrom(rt)
 ;
 
 DESIGN VATUnitDashboard {
-    PROPERTY (descriptionTaxUnit(u)) {
+    PROPERTY (description(u)) {
         caption = 'Магазин';
     }
     rt.box {

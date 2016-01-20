@@ -2,28 +2,28 @@ MODULE SalePurchaseShipmentTrip;
 
 REQUIRE SalePurchaseInvoiceShipment, PurchaseSaleReturnInvoiceShipment, Trip;
 
-isTransitShipment 'В пути' = ABSTRACT BOOLEAN (Shipment.Shipment) PERSISTENT;
-quantityShippedShipment 'Поставлено (кол-во)' = ABSTRACT NUMERIC[14,3] (Shipment.Shipment) PERSISTENT;
+isTransit 'В пути' = ABSTRACT BOOLEAN (Shipment.Shipment) PERSISTENT;
+quantityShipped 'Поставлено (кол-во)' = ABSTRACT NUMERIC[14,3] (Shipment.Shipment) PERSISTENT;
 
 ////-- Расчет документов, которые в пути
 
 //// продажа
-isTransitShipment(s) += isTransitSaleShipment(s);
-quantityShippedShipment(s) +=  NUMERIC[14,3](quantityShippedSaleShipment(s));
+isTransit(Sale.Shipment s) += isTransitSale(s);
+quantityShipped(Sale.Shipment s) +=  NUMERIC[14,3](quantityShippedSale(s));
 
 ////-- возврат поставщику
-isTransitShipment(s) += isTransitPurchaseReturnShipment(s);
-quantityShippedShipment(s) += NUMERIC[14,3](quantityShippedPurchaseReturnShipment(s));
+isTransit(PurchaseReturn.Shipment s) += isTransitPurchaseReturn(s);
+quantityShipped(PurchaseReturn.Shipment s) += NUMERIC[14,3](quantityShippedPurchaseReturn(s));
 
 FORM transitOrder 'Поставки в пути'
     
     OBJECTS s = Shipment.Shipment
-    PROPERTIES (s) READONLY Shipment.isPostedShipment, Shipment.numberShipment, Shipment.seriesShipment, Shipment.dateShipment, Shipment.timeShipment
-    PROPERTIES (s) READONLY Shipment.nameSupplierShipment, Shipment.nameSupplierStockShipment, Shipment.nameCustomerShipment,
-                   Shipment.nameCustomerStockShipment
-    PROPERTIES (s) READONLY Shipment.countShipmentDetailShipment, Shipment.quantityShipmentDetailShipment, Shipment.sumShipmentDetailShipment
-    PROPERTIES (s) READONLY Shipment.noteShipment, quantityShippedShipment, objectClassName
-    FILTERS isTransitShipment(s)
+    PROPERTIES (s) READONLY isPosted, number, series, date, time
+    PROPERTIES (s) READONLY nameSupplier, nameSupplierStock, nameCustomer,
+                   nameCustomerStock
+    PROPERTIES (s) READONLY countShipmentDetail, quantityShipmentDetail, sumShipmentDetail
+    PROPERTIES (s) READONLY note, quantityShipped, objectClassName
+    FILTERS isTransit(s)
 ;
 
 NAVIGATOR {

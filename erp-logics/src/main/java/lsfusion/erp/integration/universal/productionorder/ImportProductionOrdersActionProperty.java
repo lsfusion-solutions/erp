@@ -42,16 +42,16 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("startRowImportType", findProperty("startRowImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("isPostedImportType", findProperty("isPostedImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("separatorImportType", findProperty("separatorImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", findProperty("captionPrimaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", findProperty("captionSecondaryKeyTypeImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectory[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("startRowImportType", findProperty("startRow[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("isPostedImportType", findProperty("isPosted[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("separatorImportType", findProperty("separator[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionPrimaryKeyTypeImportType", findProperty("captionPrimaryKeyType[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("captionSecondaryKeyTypeImportType", findProperty("captionSecondaryKeyType[ImportType]").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImport[ImportType]").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportDirectory[ImportType]").getExpr(importTypeKey).getWhere());
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
@@ -61,7 +61,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
                 
-                ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);

@@ -35,8 +35,8 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
 
         try {
 
-            Object countryBelarus = findProperty("countrySID").read(context, new DataObject("112", StringClass.get(3)));
-            findProperty("defaultCountry").change(countryBelarus, context);
+            Object countryBelarus = findProperty("country[STRING[3]]").read(context, new DataObject("112", StringClass.get(3)));
+            findProperty("defaultCountry[]").change(countryBelarus, context);
             context.getSession().apply(context);
 
             CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "DBF");
@@ -93,26 +93,26 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
             tempFile.delete();
         }
         
-        ImportField codeCustomsGroupField = new ImportField(findProperty("codeCustomsGroup"));
-        ImportField nameCustomsGroupField = new ImportField(findProperty("nameCustomsGroup"));
-        ImportField numberCustomsGroupField = new ImportField(findProperty("numberCustomsGroup"));
-        ImportField nameCustomsZoneField = new ImportField(findProperty("nameCustomsZone"));
-        ImportField hasCodeCustomsGroupField = new ImportField(findProperty("hasCodeCustomsGroup"));
-        ImportField vatField = new ImportField(findProperty("dataValueSupplierVATCustomsGroupDate"));
+        ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
+        ImportField nameCustomsGroupField = new ImportField(findProperty("name[CustomsGroup]"));
+        ImportField numberCustomsGroupField = new ImportField(findProperty("number[CustomsGroup]"));
+        ImportField nameCustomsZoneField = new ImportField(findProperty("name[CustomsZone]"));
+        ImportField hasCodeCustomsGroupField = new ImportField(findProperty("hasCode[CustomsGroup]"));
+        ImportField vatField = new ImportField(findProperty("dataValueSupplierVAT[CustomsGroup,DATE]"));
         ImportField dateField = new ImportField(DateClass.instance);
 
-        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroupCode").getMapping(codeCustomsGroupField));
-        ImportKey<?> customsZoneKey = new ImportKey((CustomClass) findClass("CustomsZone"), findProperty("customsZoneName").getMapping(nameCustomsZoneField));
-        ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"), findProperty("valueCurrentVATDefaultValue").getMapping(vatField));
+        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
+        ImportKey<?> customsZoneKey = new ImportKey((CustomClass) findClass("CustomsZone"), findProperty("customsZone[VARISTRING[50]]").getMapping(nameCustomsZoneField));
+        ImportKey<?> VATKey = new ImportKey((CustomClass) findClass("Range"), findProperty("valueCurrentVATDefault[NUMERIC[10,5]]").getMapping(vatField));
 
         List<ImportProperty<?>> properties = new ArrayList<>();
-        properties.add(new ImportProperty(codeCustomsGroupField, findProperty("codeCustomsGroup").getMapping(customsGroupKey)));
-        properties.add(new ImportProperty(nameCustomsGroupField, findProperty("nameCustomsGroup").getMapping(customsGroupKey)));
-        properties.add(new ImportProperty(numberCustomsGroupField, findProperty("numberCustomsGroup").getMapping(customsGroupKey)));
-        properties.add(new ImportProperty(nameCustomsZoneField, findProperty("nameCustomsZone").getMapping(customsZoneKey)));
-        properties.add(new ImportProperty(nameCustomsZoneField, findProperty("customsZoneCustomsGroup").getMapping(customsGroupKey),
+        properties.add(new ImportProperty(codeCustomsGroupField, findProperty("code[CustomsGroup]").getMapping(customsGroupKey)));
+        properties.add(new ImportProperty(nameCustomsGroupField, findProperty("name[CustomsGroup]").getMapping(customsGroupKey)));
+        properties.add(new ImportProperty(numberCustomsGroupField, findProperty("number[CustomsGroup]").getMapping(customsGroupKey)));
+        properties.add(new ImportProperty(nameCustomsZoneField, findProperty("name[CustomsZone]").getMapping(customsZoneKey)));
+        properties.add(new ImportProperty(nameCustomsZoneField, findProperty("customsZone[CustomsGroup]").getMapping(customsGroupKey),
                 object(findClass("CustomsZone")).getMapping(customsZoneKey)));
-        properties.add(new ImportProperty(hasCodeCustomsGroupField, findProperty("hasCodeCustomsGroup").getMapping(customsGroupKey)));
+        properties.add(new ImportProperty(hasCodeCustomsGroupField, findProperty("hasCode[CustomsGroup]").getMapping(customsGroupKey)));
 
         ImportTable table = new ImportTable(Arrays.asList(codeCustomsGroupField, nameCustomsGroupField,
                 numberCustomsGroupField, nameCustomsZoneField, hasCodeCustomsGroupField, vatField, dateField), data);
@@ -158,14 +158,14 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         file.close();
         tempFile.delete();
         
-        ImportField groupIDField = new ImportField(findProperty("codeCustomsGroup"));
-        ImportField parentIDField = new ImportField(findProperty("codeCustomsGroup"));
+        ImportField groupIDField = new ImportField(findProperty("code[CustomsGroup]"));
+        ImportField parentIDField = new ImportField(findProperty("code[CustomsGroup]"));
 
-        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroupCode").getMapping(groupIDField));
-        ImportKey<?> parentCustomsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroupCode").getMapping(parentIDField));
+        ImportKey<?> customsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroup[STRING[10]]").getMapping(groupIDField));
+        ImportKey<?> parentCustomsGroupKey = new ImportKey((CustomClass) findClass("CustomsGroup"), findProperty("customsGroup[STRING[10]]").getMapping(parentIDField));
 
         List<ImportProperty<?>> properties = new ArrayList<>();
-        properties.add(new ImportProperty(parentIDField, findProperty("parentCustomsGroup").getMapping(customsGroupKey),
+        properties.add(new ImportProperty(parentIDField, findProperty("parent[CustomsGroup]").getMapping(customsGroupKey),
                 object(findClass("CustomsGroup")).getMapping(parentCustomsGroupKey)));
 
         ImportTable table = new ImportTable(Arrays.asList(groupIDField, parentIDField), data);

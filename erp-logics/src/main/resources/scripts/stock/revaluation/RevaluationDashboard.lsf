@@ -5,62 +5,62 @@ REQUIRE Revaluation, Dashboard, PriceListDashboard, RevaluationPurchaseInvoice, 
 
 NAMESPACE Revaluation;
 
-dutyPriceInvoiceDetailBatch 'Пошлина (ед.)' (batch)= dutyPriceInvoiceDetail(invoiceDetailBatch(batch));
-registrationPriceInvoiceDetailBatch 'Таможенный сбор (ед.)' (batch)= registrationPriceInvoiceDetail(invoiceDetailBatch(batch));
-manufacturingMarkupInvoiceDetailBatch 'Надбавка,% (к цене изготовителя)' (batch)= manufacturingMarkupInvoiceDetail(invoiceDetailBatch(batch));
+dutyPriceInvoiceDetail 'Пошлина (ед.)' (Batch batch)= dutyPrice(invoiceDetail(batch));
+registrationPriceInvoiceDetail 'Таможенный сбор (ед.)' (Batch batch)= registrationPrice(invoiceDetail(batch));
+manufacturingMarkupInvoiceDetail 'Надбавка,% (к цене изготовителя)' (Batch batch)= manufacturingMarkup(invoiceDetail(batch));
 
-rateOperationCurrencyDateTime 'Курс' (operation,currency, dateTime)= rateOnTypeExchangeCurrencyDate(typeExchangeOperation(operation),currency,toDate(dateTime AS DATETIME));
-rateExchangeABatchStockDateTime 'Курс обмена' (batch, stock, dateTime) = prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.rateExchangeStockPriceListType, batch, stock, dateTime);
+rate 'Курс' (Operation operation,Currency currency, DATETIME dateTime)= rateOn(typeExchange(operation),currency,toDate(dateTime AS DATETIME));
+rateExchangeA 'Курс обмена' (Batch batch, Stock stock, DATETIME dateTime) = prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.rateExchangeStockPriceListType, batch, stock, dateTime);
     
-diffPercentBatchStockOperationCurrencyDateTime '% изменения курса' (batch, stock, operation,currency, dateTime)= round((rateOperationCurrencyDateTime(operation,currency, dateTime) / rateExchangeABatchStockDateTime(batch,stock,dateTime))*100 - 100.0, 2);
+diffPercent '% изменения курса' (Batch batch, Stock stock, Operation operation,Currency currency, DATETIME dateTime)= Utils.round((rate(operation,currency, dateTime) / rateExchangeA(batch,stock,dateTime))*100 - 100.0, 2);
 
-filterPercentBatchStockOperationCurrencyDateTime (nu,bt,st,o,c,t) = (diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) > (nu AS NUMERIC[8,2]) AND nu >0.0) OR (diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) < (nu AS NUMERIC[8,2]) AND nu <0.0);
+filterPercent (NUMERIC[8,2] nu,Batch bt,Stock st,Operation o,Currency c,DATETIME t) = (diffPercent(bt,st,o,c,t) > (nu AS NUMERIC[8,2]) AND nu >0.0) OR (diffPercent(bt,st,o,c,t) < (nu AS NUMERIC[8,2]) AND nu <0.0);
 
-inRevaluationBatchStock 'Вкл.' (batch, stock) = DATA LOCAL BOOLEAN (Batch, Stock);
+inRevaluation 'Вкл.' (batch, stock) = DATA LOCAL BOOLEAN (Batch, Stock);
 
-createManagementRevaluation 'Создать переоценку' = ACTION (numeric, operation, currency, stock, time) {
+createManagementRevaluation 'Создать переоценку' = ACTION (NUMERIC[8,2] numeric, Operation operation, Currency currency, Stock stock, DATETIME time) {
     FOR ADDOBJ r = UserRevaluation DO {
-        stockUserRevaluation(r) <-  stock;
-        dateUserRevaluation(r) <-  toDate(time);
-        timeUserRevaluation(r) <- toTime(time);    
-        operationUserRevaluation(r) <- operation;          
+        stock(r) <-  stock;
+        date(r) <-  toDate(time);
+        time(r) <- toTime(time);    
+        operation(r) <- operation;          
         
-        FOR balanceBBatchStockDateTime(batch,stock,time) AND 
-            filterPercentBatchStockOperationCurrencyDateTime (numeric,batch,stock,operation,currency,time) AND
-            inRevaluationBatchStock(batch, stock) AND 
-            currencyInvoiceDetailBatch(batch)==currency ADDOBJ rd = UserRevaluationDetail DO {
-                userRevaluationUserRevaluationDetail(rd) <- r;
-                skuUserRevaluationDetail(rd) <- skuBatch(batch);
-                batchUserRevaluationDetail(rd) <- batch;
-                quantityUserRevaluationDetail(rd) <- balanceBBatchStockDateTime(batch,stock,time);
-                manufacturingMarkupUserRevaluationDetail(rd) <- manufacturingMarkupInvoiceDetailBatch(batch);
-                manufacturingPriceUserRevaluationDetail(rd) <- NUMERIC[14,2](calcManufacturingPriceRevaluationDetail(rd));
-                priceUserRevaluationDetail(rd) <-NUMERIC[14,2](round(calcBaseManufacturingPriceRevaluationDetail (rd) * (100.0 (+) manufacturingMarkupRevaluationDetail(rd))/100,2));
+        FOR balanceB(Batch batch,stock,time) AND 
+            filterPercent (numeric,batch,stock,operation,currency,time) AND
+            inRevaluation(batch, stock) AND 
+            currencyInvoiceDetail(batch)==currency ADDOBJ rd = UserRevaluationDetail DO {
+                userRevaluation(rd) <- r;
+                sku(rd) <- sku(batch);
+                batch(rd) <- batch;
+                quantity(rd) <- balanceB(batch,stock,time);
+                manufacturingMarkup(rd) <- manufacturingMarkupInvoiceDetail(batch);
+                manufacturingPrice(rd) <- NUMERIC[14,2](calcManufacturingPrice(rd));
+                price(rd) <-NUMERIC[14,2](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup[RevaluationDetail](rd))/100,2));
         }
         FORM userRevaluation  OBJECTS p = r MANAGESESSION DOCKEDMODAL;
     }
 };
 
-WHEN SESSION FORMS userRevaluation CHANGED(calcBaseManufacturingPriceRevaluationDetail(rd)) DO {
-    priceUserRevaluationDetail(rd) <-NUMERIC[14,2](round(calcBaseManufacturingPriceRevaluationDetail (rd) * (100.0 (+) manufacturingMarkupRevaluationDetail(rd))/100,2));
+WHEN SESSION FORMS userRevaluation CHANGED(calcBaseManufacturingPrice(RevaluationDetail rd)) DO {
+    price[UserRevaluationDetail](rd) <-NUMERIC[14,2](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup(rd))/100,2));
 }
 
 FORM revaluationDashboard 'Переоценка за счет изменения курса'  
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES (st) SELECTOR nameStock             
-    FILTERS isCompanyStock(st)
+    PROPERTIES (st) SELECTOR name             
+    FILTERS isCompany(st)
 
     OBJECTS t=DATETIME FIXED PANEL
     PROPERTIES(t) OBJVALUE
 
     OBJECTS c=Currency FIXED PANEL
-    PROPERTIES(c) SELECTOR nameCurrency     
+    PROPERTIES(c) SELECTOR name     
              
     OBJECTS o = Revaluation.Operation FIXED PANEL
-    PROPERTIES (o) SELECTOR Revaluation.nameOperation
-    FILTERS inUserOperation(currentUser(), o)             
-    PROPERTIES READONLY  nameTypeExchangeOperation(o), rateOperationCurrencyDateTime(o,c,t) 
+    PROPERTIES (o) SELECTOR name
+    FILTERS in(currentUser(), o)             
+    PROPERTIES READONLY  nameTypeExchange(o), rate(o,c,t) 
     
 
     OBJECTS nu=NUMERIC[8,2] FIXED PANEL
@@ -68,34 +68,34 @@ FORM revaluationDashboard 'Переоценка за счет изменения
       
     
     OBJECTS bt=Batch
-    PROPERTIES(bt, st) inRevaluationBatchStock
-    PROPERTIES(bt) READONLY nameSkuBatch 
-    PROPERTIES(bt,st,t) READONLY balanceBBatchStockDateTime
-    PROPERTIES(bt) READONLY numberBatch, seriesBatch, dateTimeBatch, nameSupplierBatch, nameBatch, idBatch, shippedQuantityBatch, 
-                   rateExchangeInvoiceDetailBatch FORCE GRID
-    PROPERTIES(bt,st,t) rateExchangeABatchStockDateTime FORCE GRID
+    PROPERTIES(bt, st) inRevaluation
+    PROPERTIES(bt) READONLY nameSku 
+    PROPERTIES(bt,st,t) READONLY balanceB
+    PROPERTIES(bt) READONLY number, series, dateTime, nameSupplier, name, id, shippedQuantity, 
+                   rateExchangeInvoiceDetail FORCE GRID
+    PROPERTIES(bt,st,t) rateExchangeA FORCE GRID
 
-    PROPERTIES     diffPercentBatchStockOperationCurrencyDateTime(bt,st,o,c,t) FORCE GRID
-    FILTERS        balanceBBatchStockDateTime(bt,st,t),
-                   currencyInvoiceDetailBatch(bt)==c
-    FILTERGROUP filters1 FILTER 'Превышают %' filterPercentBatchStockOperationCurrencyDateTime (nu,bt,st,o,c,t) 'F6' DEFAULT     
+    PROPERTIES     diffPercent(bt,st,o,c,t) FORCE GRID
+    FILTERS        balanceB(bt,st,t),
+                   currencyInvoiceDetail(bt)==c
+    FILTERGROUP filters1 FILTER 'Превышают %' filterPercent (nu,bt,st,o,c,t) 'F6' DEFAULT     
 
     OBJECTS p = Revaluation    
 
-    PROPERTIES (p) READONLY isPostedRevaluation, numberRevaluation, seriesRevaluation, 
-                   dateRevaluation, timeRevaluation, beforeDateRevaluation, nameStockRevaluation
-    PROPERTIES (p) READONLY countRevaluationDetailRevaluation, diffSumRevaluationDetailRevaluation
-    PROPERTIES (p) READONLY skipChangeLedgerRevaluation, noteRevaluation
+    PROPERTIES (p) READONLY isPosted, number, series, 
+                   date, time, beforeDate, nameStock
+    PROPERTIES (p) READONLY countRevaluationDetail, diffSumRevaluationDetail
+    PROPERTIES (p) READONLY skipChangeLedger, note
 
     PROPERTIES ()  addUserRevaluation TODRAW p
-    PROPERTIES (p) editRevaluation SHOWIF isOpenedRevaluation(p)
-    PROPERTIES (p) closeUserRevaluation SHOWIF isOpenedUserRevaluation(p), openUserRevaluation SHOWIF isClosedUserRevaluation(p)
+    PROPERTIES (p) edit SHOWIF isOpened(p)
+    PROPERTIES (p) close[UserRevaluation] SHOWIF isOpened[UserRevaluation](p), open SHOWIF isClosed[UserRevaluation](p)
 
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRevaluation(p)      
-    PROPERTIES (p) printRevaluation FORCE PANEL TOOLBAR
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)      
+    PROPERTIES (p) print FORCE PANEL TOOLBAR
     PROPERTIES (nu,o,c,st,t) createManagementRevaluation FORCE PANEL TOOLBAR TODRAW bt
     
-    FILTERGROUP filters2 FILTER 'Переоценки на дату' dateRevaluation(p)==toDate(t) 'F5' DEFAULT         
+    FILTERGROUP filters2 FILTER 'Переоценки на дату' date(p)==toDate(t) 'F5' DEFAULT         
 
 ;
 

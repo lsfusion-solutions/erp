@@ -14,14 +14,14 @@ EXTEND CLASS ImportTypeDetail {
     costPrice 'Себестоимость изделия'    
 }
 
-importProductionOrderDataAction 'Импортировать заказ' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrderActionProperty' (Production.Order);
+importProductionDataAction 'Импортировать заказ' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrderActionProperty' (Production.Order);
 importProductionOrdersDataAction 'Импортировать заказы из директорий' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrdersActionProperty' ();
 importProductionOrdersFileDataAction 'Импортировать заказы из файла' = ACTION CUSTOM 'lsfusion.erp.integration.universal.productionorder.ImportProductionOrdersFileActionProperty' ();
 importTypeOrders = DATA ImportType();
-nameImportTypeOrders 'Тип импорта' () = nameImportType(importTypeOrders());
+nameImportTypeOrders 'Тип импорта' () = name(importTypeOrders());
 
-importTypeOrder = DATA ImportType(Production.Order);
-nameImportTypeOrder 'Тип импорта' (order) = nameImportType(importTypeOrder(order));
+importType = DATA ImportType(Production.Order);
+nameImportType 'Тип импорта' (Order order) = name(importType(order));
 
 EXTEND FORM Production.orders
     PROPERTIES() TODRAW pd TOOLBAR importProductionOrdersDataAction, importProductionOrdersFileDataAction, nameImportTypeOrders
@@ -53,19 +53,19 @@ DESIGN integrationData {
 }
 
 EXTEND FORM Production.order
-PROPERTIES(o) nameImportTypeOrder
-PROPERTIES(o) importProductionOrderDataAction TODRAW pd TOOLBAR
+PROPERTIES(o) nameImportType
+PROPERTIES(o) importProductionDataAction TODRAW pd TOOLBAR
 ;
 
 DESIGN Production.order{
     specification.box {
         NEW headerImportContainer {
             caption = 'Импорт';
-            MOVE PROPERTY(nameImportTypeOrder(o));
-            MOVE PROPERTY(importProductionOrderDataAction(o));
+            MOVE PROPERTY(nameImportType(o));
+            MOVE PROPERTY(importProductionDataAction(o));
         }
     }
 }
 
-CONSTRAINT importTypeOrder(order) AND  (Production.operationOrder(order) != autoImportOperationImportType(importTypeOrder(order)))
-   CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают операции';  
+CONSTRAINT importType(Order order) AND  (operation(order) != autoImportOperation(importType(order)))
+   CHECKED BY importType[Order] MESSAGE 'У заказа и типа импорта не совпадают операции';  

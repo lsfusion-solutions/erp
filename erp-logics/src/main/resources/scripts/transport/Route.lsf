@@ -9,19 +9,19 @@ TABLE route(Route);
 @defineNumbered(Route);
 @defineNumeratedDefault(Route, 'Маршруты', 'МР');
 
-truckRoute = DATA Truck(Route);
-sidTruckRoute 'Машина' (route) = sidTruck(truckRoute(route));
+truck = DATA Truck(Route);
+sidTruck 'Машина' (Route route) = sid(truck(route));
 
 FORM route 'Маршрут'
     OBJECTS r=Route FIXED PANEL
-    PROPERTIES(r) nameNumeratorRoute, numberRoute, seriesRoute, sidTruckRoute
+    PROPERTIES(r) nameNumerator, number, series, sidTruck
 
     EDIT Route OBJECT r
 ;
 
 FORM routes 'Маршруты'
     OBJECTS r=Route
-    PROPERTIES(r) READONLY nameNumeratorRoute, numberRoute, seriesRoute, sidTruckRoute
+    PROPERTIES(r) READONLY nameNumerator, number, series, sidTruck
     PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 ;
 
@@ -29,24 +29,24 @@ FORM routes 'Маршруты'
 // ------------------------------- Node ------------------------------------ //
 CLASS ABSTRACT Node 'Пункт';
 
-nameNode 'Наименование' = ABSTRACT VARISTRING[150](Node);
-addressNode 'Адрес' = ABSTRACT VARISTRING[100](Node);
-legalEntityNode = ABSTRACT LegalEntity(Node);
+name 'Наименование' = ABSTRACT VARISTRING[150](Node);
+address 'Адрес' = ABSTRACT VARISTRING[100](Node);
+legalEntity = ABSTRACT LegalEntity(Node);
 
-nameLegalEntityNode 'Юр. лицо' (node) = nameLegalEntity(legalEntityNode(node));
+nameLegalEntity 'Юр. лицо' (Node node) = name(legalEntity(node));
 
 TABLE nodeRoute(Node, Route);
-inNodeRoute 'Вкючен' = DATA BOOLEAN(Node, Route);
-numberNodeRoute 'Порядковый номер' = DATA INTEGER(Node, Route);
+in 'Вкючен' = DATA BOOLEAN(Node, Route);
+number 'Порядковый номер' = DATA INTEGER(Node, Route);
 
 EXTEND CLASS Stock : Node;
 //EXTEND CLASS supplier : node;
 
-nameNode(stock) += nameStock(stock) IF stock IS Stock;
+name(Stock stock) += Stock.name(stock) IF stock IS Stock;
 
-addressNode(stock) += addressStock(stock) IF stock IS Stock;
+address(Stock stock) += Stock.address(stock) IF stock IS Stock;
 
-legalEntityNode(stock) += legalEntityStock(stock);
+legalEntity(Stock stock) += Stock.legalEntity(stock);
 
 
 //nameNode(supplier) += name(supplier) IF supplier IS Supplier;
@@ -54,15 +54,15 @@ legalEntityNode(stock) += legalEntityStock(stock);
 EXTEND FORM route
 
     OBJECTS n=Node
-    PROPERTIES (n) READONLY nameNode, addressNode
-    PROPERTIES (n, r) inNodeRoute, numberNodeRoute
+    PROPERTIES (n) READONLY name, address
+    PROPERTIES (n, r) in, number
 ;
 
 EXTEND FORM routes
     OBJECTS n=Node
-    PROPERTIES (n) READONLY nameNode, addressNode
-    PROPERTIES(n, r) READONLY numberNodeRoute
-    FILTERS inNodeRoute(n, r)
+    PROPERTIES (n) READONLY name, address
+    PROPERTIES(n, r) READONLY number
+    FILTERS in(n, r)
 ;
 
 NAVIGATOR {

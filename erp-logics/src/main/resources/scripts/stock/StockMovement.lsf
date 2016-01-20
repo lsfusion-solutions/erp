@@ -6,45 +6,45 @@ NAMESPACE Stock;
 
 // -------------------------------- Движение товара -------------------------- //
 
-currentAccountPriceASkuStock 'Цена учетная' (sku, stock) = prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, currentDateTime());
-accountPriceASkuStockSkuLedger 'Цена учетная' (sku, stock, ledger) = prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTimeSkuLedger(ledger));
-accountPriceASkuSkuLedger 'Цена учетная' (sku, ledger)= prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+currentAccountPriceA 'Цена учетная' (Sku sku, Stock stock) = prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock, currentDateTime());
+accountPriceA 'Цена учетная' (Sku sku, Stock stock, SkuLedger ledger) = prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTime(ledger));
+accountPriceA 'Цена учетная' (Sku sku, SkuLedger ledger)= prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock(ledger), dateTime(ledger));
 
 FORM movementSku 'Движение товара'
     OBJECTS s = Sku FIXED PANEL
-    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s) READONLY name
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameOperationDocumentSkuLedger, nameStockSkuLedger,
-                             nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, 
-                             signedSumSkuLedger, balanceASkuLedger
-    PROPERTIES(s,bil) READONLY accountPriceASkuSkuLedger   
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)                    
-    ORDER BY dateTimeSkuLedger(bil)
-    FILTERS skuSkuLedger(bil) == s,
-            isPostedSkuLedger(bil),
-            isCompanyStockSkuLedger(bil)
+    PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument, nameStock,
+                             nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, 
+                             signedSum, balanceA
+    PROPERTIES(s,bil) READONLY accountPriceA   
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)                    
+    ORDER BY dateTime(bil)
+    FILTERS sku(bil) == s,
+            isPosted(bil),
+            isCompanyStock(bil)
 ;
 @extendFormFilterAccessStock(SkuLedger, bil, movementSku, stock, company);
 
 FORM movementSkuStock 'Движение товара по складу'
     OBJECTS s = Sku FIXED PANEL
-    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s) READONLY name
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
+    PROPERTIES(st) SELECTOR name
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameOperationDocumentSkuLedger,
-                             nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger,
-                             signedSumSkuLedger , balanceASkuLedger
-    PROPERTIES(s,st,bil) READONLY accountPriceASkuStockSkuLedger                           
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)
-    ORDER BY dateTimeSkuLedger(bil)
-    FILTERS skuSkuLedger(bil) == s,
-            isPostedSkuLedger(bil),
-            stockSkuLedger(bil)==st,
-            isCompanyStock(st)
+    PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
+                             nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice,
+                             signedSum , balanceA
+    PROPERTIES(s,st,bil) READONLY accountPriceA                           
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)
+    ORDER BY dateTime(bil)
+    FILTERS sku(bil) == s,
+            isPosted(bil),
+            stock(bil)==st,
+            isCompany(st)
 ;
 DESIGN movementSkuStock {
     NEW topContainer{
@@ -58,81 +58,81 @@ DESIGN movementSkuStock {
 @extendFormFilterStockAccess(st, movementSkuStock);
 
 META defineMovementSku(detail, stockProp)
-    showMovementSkuStock###detail 'Показать движение товара по складу' (detail) = ACTION FORM movementSkuStock OBJECTS s = sku###detail(detail), st = stockProp###detail(detail) NEWSESSION MODAL SHORTCUT nameSku###detail;
-    showMovementSku###detail 'Показать движение товара' (detail) = ACTION FORM movementSku OBJECTS s = sku###detail(detail) NEWSESSION MODAL SHORTCUT nameSku###detail;
+    showMovementSkuStock 'Показать движение товара по складу' (###detail detail) = ACTION FORM movementSkuStock OBJECTS s = sku(detail), st = stockProp(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
+    showMovementSku 'Показать движение товара' (###detail detail) = ACTION FORM movementSku OBJECTS s = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
 END
 META defineMovementSku(detail)
-    showMovementSkuStock###detail 'Показать движение товара по складу' (detail) = ACTION FORM movementSkuStock OBJECTS s = sku###detail(detail) NEWSESSION MODAL SHORTCUT nameSku###detail;
-    showMovementSku###detail 'Показать движение товара' (detail) = ACTION FORM movementSku OBJECTS s = sku###detail(detail) NEWSESSION MODAL SHORTCUT nameSku###detail;
+    showMovementSkuStock 'Показать движение товара по складу' (###detail detail) = ACTION FORM movementSkuStock OBJECTS s = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
+    showMovementSku 'Показать движение товара' (###detail detail) = ACTION FORM movementSku OBJECTS s = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
 END
 
 
 FORM balancesSkuStock 'Остатки'
     OBJECTS s = Sku FIXED PANEL
-    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s) READONLY name
 
     OBJECTS st = Stock
-    PROPERTIES(st) READONLY idStock, nameStock
-    PROPERTIES READONLY currentBalanceSkuStock(s,st), currentAccountPriceASkuStock(s,st)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
-    ORDER BY idStock(st)
-    FILTERS currentBalanceSkuStock(s,st),
-            isCompanyStock(st)
+    PROPERTIES(st) READONLY id, name
+    PROPERTIES READONLY currentBalance(s,st), currentAccountPriceA(s,st)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
+    ORDER BY id(st)
+    FILTERS currentBalance(s,st),
+            isCompany(st)
 ;
 @extendFormFilterStockAccess(st, balancesSkuStock);
 
 META defineBalancesSku(detail)
-    showBalancesSkuStock###detail 'Показать остатки товара' (detail) = ACTION FORM balancesSkuStock OBJECTS s = sku###detail(detail) NEWSESSION MODAL SHORTCUT nameSku###detail;
+    showBalancesSkuStock 'Показать остатки товара' (###detail detail) = ACTION FORM balancesSkuStock OBJECTS s = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
 END
 
-showMovementSkuSku'Показать движение товара' (sku) = ACTION FORM movementSku OBJECTS s = sku NEWSESSION MODAL SHORTCUT nameSku;
-showBalancesSkuSku 'Показать остатки товара' (sku) = ACTION FORM balancesSkuStock OBJECTS s = sku NEWSESSION MODAL SHORTCUT nameSku;
+showMovementSku'Показать движение товара' (Sku sku) = ACTION FORM movementSku OBJECTS s = sku NEWSESSION MODAL SHORTCUT name[Sku];
+showBalancesSku 'Показать остатки товара' (Sku sku) = ACTION FORM balancesSkuStock OBJECTS s = sku NEWSESSION MODAL SHORTCUT name[Sku];
 //showBalancesSkuStock'Показать остатки товара' (sku, stock) = ACTION FORM balancesSkuStock OBJECTS s = sku MODAL;
 
 // История по правой кнопке (два объекта)
-showMovementSkuSkuStock 'Показать движение товара по складу' (sku, stock) = ACTION FORM movementSkuStock OBJECTS s = sku, st = stock NEWSESSION MODAL;
-showBalanceMovementSkuSkuStock(sku, stock) += ACTION showMovementSkuSkuStock(sku, stock); 
-showMovementSkuSkuStocks 'Показать движение товара по складу' (sku) = ACTION FORM movementSkuStock OBJECTS s = sku NEWSESSION MODAL;
+showMovementSku 'Показать движение товара по складу' (Sku sku, Stock stock) = ACTION FORM movementSkuStock OBJECTS s = sku, st = stock NEWSESSION MODAL;
+showBalanceMovementSku(Sku sku, Stock stock) += ACTION showMovementSku(sku, stock); 
+showMovementSkuStocks 'Показать движение товара по складу' (Sku sku) = ACTION FORM movementSkuStock OBJECTS s = sku NEWSESSION MODAL;
 
 // -------------------------------- Движение по партии -------------------------- //
-balanceABatchLedger 'Остаток (после)' (batch, ledger) = balanceABatchStockDateTime(batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
-accountPriceABatchStockSkuLedger 'Цена учетная' (batch, stock, ledger)= prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTimeSkuLedger(ledger));
-accountPriceABatchSkuLedger 'Цена учетная' (batch, ledger)= prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batch, stockSkuLedger(ledger), dateTimeSkuLedger(ledger));
+balanceA 'Остаток (после)' (Batch batch, SkuLedger ledger) = balanceA(batch, stock(ledger), dateTime(ledger));
+accountPriceA 'Цена учетная' (Batch batch, Stock stock, SkuLedger ledger)= prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock, dateTime(ledger));
+accountPriceA 'Цена учетная' (Batch batch, SkuLedger ledger)= prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, batch, stock(ledger), dateTime(ledger));
 
 FORM movementBatch 'Движение по партии'
     OBJECTS bt = Batch FIXED PANEL
-    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+    PROPERTIES(bt) READONLY name, nameSku
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateTimeSkuLedger, descriptionSkuLedger, nameStockSkuLedger,
-                             nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger, signedSumSkuLedger
+    PROPERTIES(bil) READONLY numberDocument, seriesDocument, dateTime, description, nameStock,
+                             nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, signedSum
 
-    PROPERTIES      READONLY balanceABatchLedger(bt,bil), accountPriceABatchSkuLedger(bt,bil)
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)        
-    ORDER BY dateTimeSkuLedger(bil)
-    FILTERS costSkuLedgerBatch(bil, bt) OR batchSkuLedger(bil)==bt,
-            isPostedSkuLedger(bil),
-            isCompanyStockSkuLedger(bil)
+    PROPERTIES      READONLY balanceA(bt,bil), accountPriceA(bt,bil)
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)        
+    ORDER BY dateTime(bil)
+    FILTERS cost(bil, bt) OR batch(bil)==bt,
+            isPosted(bil),
+            isCompanyStock(bil)
 
 ;
 FORM movementBatchStock 'Движение по партии'
     OBJECTS bt = Batch FIXED PANEL
-    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+    PROPERTIES(bt) READONLY name, nameSku
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
+    PROPERTIES(st) SELECTOR name
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
-                             nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger, signedQuantitySkuLedger,
-                             signedPriceSkuLedger, signedSumSkuLedger
-    PROPERTIES      READONLY balanceABatchLedger(bt,bil), accountPriceABatchStockSkuLedger(bt,st,bil)
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil) 
-    ORDER BY dateTimeSkuLedger(bil)
-    FILTERS costSkuLedgerBatch(bil, bt) OR batchSkuLedger(bil)==bt,
-            isPostedSkuLedger(bil),
-            stockSkuLedger(bil)==st,
-            isCompanyStock(st)
+    PROPERTIES(bil) READONLY numberDocument, seriesDocument, dateTime, description,
+                             nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity,
+                             signedPrice, signedSum
+    PROPERTIES      READONLY balanceA(bt,bil), accountPriceA(bt,st,bil)
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil) 
+    ORDER BY dateTime(bil)
+    FILTERS cost(bil, bt) OR batch(bil)==bt,
+            isPosted(bil),
+            stock(bil)==st,
+            isCompany(st)
 ;
 DESIGN movementBatchStock {
     NEW topContainer{
@@ -146,16 +146,16 @@ DESIGN movementBatchStock {
 
 
 META defineMovementBatch(detail, batchProp, stockProp)
-    showMovementBatchStock###detail 'Показать движение по партии и складу' (detail) = ACTION FORM movementBatchStock OBJECTS bt = batchProp###detail(detail), st = stockProp###detail(detail) NEWSESSION MODAL SHORTCUT nameBatch###detail;
-    showMovementBatch###detail 'Показать движение по партии' (detail) = ACTION FORM movementBatch OBJECTS bt = batchProp###detail(detail) NEWSESSION MODAL SHORTCUT nameBatch###detail;
+    showMovement###batchProp##Stock 'Показать движение по партии и складу' (###detail detail) = ACTION FORM movementBatchStock OBJECTS bt = batchProp(detail), st = stockProp(detail) NEWSESSION MODAL SHORTCUT name###batchProp[###detail];
+    showMovement###batchProp 'Показать движение по партии' (###detail detail) = ACTION FORM movementBatch OBJECTS bt = batchProp(detail) NEWSESSION MODAL SHORTCUT name###batchProp[###detail];
 END
 META defineMovementBatch(detail, stockProp)
     @defineMovementBatch(detail, batch, stockProp);
 END
 
 META defineMovementIdBatch(detail, batchProp, stockProp)
-    showMovementIdBatchStock###detail 'Показать движение по партии и складу' (detail) = ACTION FORM movementBatchStock OBJECTS bt = batchProp###detail(detail), st = stockProp###detail(detail) NEWSESSION MODAL SHORTCUT idBatch###detail;
-    showMovementIdBatch###detail 'Показать движение по партии' (detail) = ACTION FORM movementBatch OBJECTS bt = batchProp###detail(detail) NEWSESSION MODAL SHORTCUT idBatch###detail;
+    showMovementId###batchProp##Stock 'Показать движение по партии и складу' (###detail detail) = ACTION FORM movementBatchStock OBJECTS bt = batchProp(detail), st = stockProp(detail) NEWSESSION MODAL SHORTCUT id###batchProp[###detail];
+    showMovementId###batchProp 'Показать движение по партии' (###detail detail) = ACTION FORM movementBatch OBJECTS bt = batchProp(detail) NEWSESSION MODAL SHORTCUT id###batchProp[###detail];
 END
 META defineMovementIdBatch(detail, stockProp)
     @defineMovementIdBatch(detail, batch, stockProp);
@@ -163,47 +163,47 @@ END
 
 FORM balancesBatchStock 'Остатки'
     OBJECTS bt = Batch FIXED PANEL
-    PROPERTIES(bt) READONLY nameBatch, nameSkuBatch
+    PROPERTIES(bt) READONLY name, nameSku
 
     OBJECTS st = Stock
-    PROPERTIES(st) READONLY idStock, nameStock
-    PROPERTIES READONLY currentBalanceBatchStock(bt,st), accountPriceABatchStock(bt,st)
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
-    ORDER BY idStock(st)
-    FILTERS currentBalanceBatchStock(bt,st),
-            isCompanyStock(st)
+    PROPERTIES(st) READONLY id, name
+    PROPERTIES READONLY currentBalance(bt,st), accountPriceA(bt,st)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
+    ORDER BY id(st)
+    FILTERS currentBalance(bt,st),
+            isCompany(st)
 ;
 META defineBalancesBatch(detail, batchProp)
-    showBalancesBatchStock###detail 'Показать остатки по партии' (detail) = ACTION FORM balancesBatchStock OBJECTS bt = batchProp###detail(detail) NEWSESSION MODAL SHORTCUT nameBatch###detail;
+    showBalances###batchProp##Stock 'Показать остатки по партии' (###detail detail) = ACTION FORM balancesBatchStock OBJECTS bt = batchProp(detail) NEWSESSION MODAL SHORTCUT name###batchProp[###detail];
 END
 META defineBalancesBatch(detail)
     @defineBalancesBatch(detail, batch);
 END
 
 META defineBalancesIdBatch(detail, batchProp)
-    showBalancesIdBatchStock###detail 'Показать остатки по партии' (detail) = ACTION FORM balancesBatchStock OBJECTS bt = batchProp###detail(detail) NEWSESSION MODAL SHORTCUT idBatch###detail;
+    showBalancesId###batchProp##Stock 'Показать остатки по партии' (###detail detail) = ACTION FORM balancesBatchStock OBJECTS bt = batchProp(detail) NEWSESSION MODAL SHORTCUT id###batchProp[###detail];
 END
 META defineBalancesIdBatch(detail)
     @defineBalancesIdBatch(detail, batch);
 END
 
-showMovementBatchStockBatch 'Показать движение по партии и складу возникновения партии' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) NEWSESSION MODAL SHORTCUT nameBatch;
-showMovementBatchStocksBatch 'Показать движение по партии и складу' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT nameBatch;
-showMovementBatchBatch 'Показать движение по партии' (batch) = ACTION FORM movementBatch OBJECTS bt = batch NEWSESSION MODAL SHORTCUT nameBatch;
-showBalancesBatchStockBatch 'Показать остатки по партии' (batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT nameBatch;
+showMovementBatchStock 'Показать движение по партии и складу возникновения партии' (Batch batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stock(batch) NEWSESSION MODAL SHORTCUT name[Batch];
+showMovementBatchStocks 'Показать движение по партии и складу' (Batch batch) = ACTION FORM movementBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT name[Batch];
+showMovementBatch 'Показать движение по партии' (Batch batch) = ACTION FORM movementBatch OBJECTS bt = batch NEWSESSION MODAL SHORTCUT name[Batch];
+showBalancesBatchStock 'Показать остатки по партии' (Batch batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT name[Batch];
 
-showMovementBatchBatchStock 'Показать движение по партии и складу' (batch, stock) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stock NEWSESSION MODAL;
+showMovementBatch 'Показать движение по партии и складу' (Batch batch, Stock stock) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stock NEWSESSION MODAL;
 
-showMovementBatchStockIdBatch 'Показать движение по партии и складу возникновения партии' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stockBatch(batch) NEWSESSION MODAL SHORTCUT idBatch;
-showMovementBatchStocksIdBatch 'Показать движение по партии и складу' (batch) = ACTION FORM movementBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT idBatch;
-showMovementBatchIdBatch 'Показать движение по партии' (batch) = ACTION FORM movementBatch OBJECTS bt = batch NEWSESSION MODAL SHORTCUT idBatch;
-showBalancesBatchIdStockBatch 'Показать остатки по партии' (batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT idBatch;
+showMovementBatchStockId 'Показать движение по партии и складу возникновения партии' (Batch batch) = ACTION FORM movementBatchStock OBJECTS bt = batch, st = stock(batch) NEWSESSION MODAL SHORTCUT id[Batch];
+showMovementBatchStocksId 'Показать движение по партии и складу' (Batch batch) = ACTION FORM movementBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT id[Batch];
+showMovementBatchId 'Показать движение по партии' (Batch batch) = ACTION FORM movementBatch OBJECTS bt = batch NEWSESSION MODAL SHORTCUT id[Batch];
+showBalancesBatchIdStock 'Показать остатки по партии' (Batch batch) = ACTION FORM balancesBatchStock OBJECTS bt = batch NEWSESSION MODAL SHORTCUT id[Batch];
 
-showMovementSkuStockBatch 'Показать движение товара по складу возникновения партии' (batch) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) NEWSESSION MODAL SHORTCUT nameSkuBatch;
-showMovementSkuStocksBatch 'Показать движение товара по складу' (batch) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch) NEWSESSION MODAL SHORTCUT nameSkuBatch;
-showMovementSkuBatch 'Показать движение товара' (batch) = ACTION FORM movementSku OBJECTS s = skuBatch(batch) NEWSESSION MODAL SHORTCUT nameSkuBatch;
+showMovementSkuStock 'Показать движение товара по складу возникновения партии' (Batch batch) = ACTION FORM movementSkuStock OBJECTS s = sku(batch), st = stock(batch) NEWSESSION MODAL SHORTCUT nameSku[Batch];
+showMovementSkuStocks 'Показать движение товара по складу' (Batch batch) = ACTION FORM movementSkuStock OBJECTS s = sku(batch) NEWSESSION MODAL SHORTCUT nameSku[Batch];
+showMovementSku 'Показать движение товара' (Batch batch) = ACTION FORM movementSku OBJECTS s = sku(batch) NEWSESSION MODAL SHORTCUT nameSku[Batch];
 
-showMovementSkuBatchStock 'Показать движение товара по складу' (batch, stock) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch), st = stock NEWSESSION MODAL;
+showMovementSku 'Показать движение товара по складу' (Batch batch, Stock stock) = ACTION FORM movementSkuStock OBJECTS s = sku(batch), st = stock NEWSESSION MODAL;
 
 //@defineMovementSku(batch, stock){
 //    showMovementSkuStockBatch 'Показать движение товара по складу' (batch) = ACTION FORM movementSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MODAL SHORTCUT nameSkuBatch;
@@ -212,16 +212,16 @@ showMovementSkuBatchStock 'Показать движение товара по �
 @defineBalancesSku(batch); //-- показываем по нажатию правой клавиши остатки товара
 
 EXTEND FORM currentBalanceSkuStock 
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)  
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)  
 ;
 EXTEND FORM balanceSkuStock 
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)
 ;
 EXTEND FORM currentBalanceBatchStock 
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)
 ;
 EXTEND FORM balanceBatchStock 
-    PROPERTIES(bil) editSkuLedger SHOWIF allowedEditSkuLedger(bil)
+    PROPERTIES(bil) edit SHOWIF allowedEdit(bil)
 ;
 //-- печатная форма
 FORM movementSkuStockPrint 'Движение товара по складу'
@@ -229,24 +229,24 @@ FORM movementSkuStockPrint 'Движение товара по складу'
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
     OBJECTS s = Sku FIXED PANEL
-    PROPERTIES(s) READONLY nameSku
+    PROPERTIES(s) READONLY name
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES(st) SELECTOR nameStock
+    PROPERTIES(st) SELECTOR name
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocumentSkuLedger, seriesDocumentSkuLedger, dateSkuLedger, dateTimeSkuLedger, descriptionSkuLedger,
-                             nameLegalEntityDocumentSkuLedger, nameLegalEntityStockDocumentSkuLedger, signedQuantitySkuLedger, signedPriceSkuLedger,
-                             signedSumSkuLedger , balanceASkuLedger, balanceBSkuLedger
-    PROPERTIES(s,st,bil) READONLY accountPriceASkuStockSkuLedger                           
+    PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description,
+                             nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice,
+                             signedSum , balanceA, balanceB
+    PROPERTIES(s,st,bil) READONLY accountPriceA                           
 
-    ORDER BY dateTimeSkuLedger(bil)
-    FILTERS skuSkuLedger(bil) == s,
-            isPostedSkuLedger(bil),
-            stockSkuLedger(bil)==st,
-            isCompanyStock(st),
-            dateSkuLedger(bil) >=dFrom,
-            dateSkuLedger(bil) <=dTo
+    ORDER BY dateTime(bil)
+    FILTERS sku(bil) == s,
+            isPosted(bil),
+            stock(bil)==st,
+            isCompany(st),
+            date(bil) >=dFrom,
+            date(bil) <=dTo
 ;
 
 FORM dialogPeriod 'Выбор периода'
@@ -263,7 +263,7 @@ DESIGN dialogPeriod {
     MOVE functions.box;
 }
 
-movementSkuStockPrint 'Движение товара' (s,st) = ACTION {
+movementPrint 'Движение товара' (Sku s,Stock st) = ACTION {
     FORM dialogPeriod MODAL;
     IF formResult() == FormResult.ok THEN { 
         FORM movementSkuStockPrint OBJECTS dFrom = chosenDate('dFrom'), dTo = chosenDate('dTo'), s = s, st = st PRINT;
@@ -272,7 +272,7 @@ movementSkuStockPrint 'Движение товара' (s,st) = ACTION {
 }IMAGE 'print.png' IN print;
 
 EXTEND FORM  currentBalanceSkuStock
-    PROPERTIES(s,st) movementSkuStockPrint FORCE PANEL TOOLBAR TODRAW bil
+    PROPERTIES(s,st) movementPrint FORCE PANEL TOOLBAR TODRAW bil
 ;
 
 

@@ -8,137 +8,137 @@ CLASS CalcPriceListType 'Расчетный вид цены' : PriceListType;
 TABLE calcPriceListType (CalcPriceListType);
 
 @defineExternalizable(calcPriceListType, VARSTRING[100]);
-idPriceListType (p) += idCalcPriceListType(p);
+id (CalcPriceListType p) += id(p);
 
-nameCalcPriceListType 'Наименование' = DATA VARISTRING[50](CalcPriceListType);
-namePriceListType(type) += nameCalcPriceListType(type) IF type IS CalcPriceListType;
+name 'Наименование' = DATA VARISTRING[50](CalcPriceListType);
+name(CalcPriceListType type) += name(type) IF type IS CalcPriceListType;
 
-basePriceListTypeCalcPriceListType(type) = DATA BasePriceListType (CalcPriceListType);
-nameBasePriceListTypeCalcPriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypeCalcPriceListType(type));
+basePriceListType(type) = DATA BasePriceListType (CalcPriceListType);
+nameBasePriceListType 'Базовый вид цены' (CalcPriceListType type) = name(basePriceListType(type));
 
-ledgerPriceListTypePriceListType(type) += basePriceListTypeCalcPriceListType(type) AS LedgerPriceListType;
+ledgerPriceListType(CalcPriceListType type) += basePriceListType(type) AS LedgerPriceListType;
 
-includeVATCalcPriceListType 'Цена с НДС' = DATA BOOLEAN (CalcPriceListType);
-includeVATPriceListType(type) += includeVATCalcPriceListType(type);
+includeVAT 'Цена с НДС' = DATA BOOLEAN (CalcPriceListType);
+includeVAT(CalcPriceListType type) += includeVAT(type);
 
-countryCalcPriceListType 'Страна' = DATA Country(CalcPriceListType);
-nameCountryCalcPriceListType 'Страна' (t) = nameCountry(countryCalcPriceListType(t));
+country 'Страна' = DATA Country(CalcPriceListType);
+nameCountry 'Страна' (CalcPriceListType t) = name(country(t));
 
-addVATCalcPriceListType 'Добавлять НДС' (t) = includeVATCalcPriceListType(t) AND NOT includeVATPriceListType(basePriceListTypeCalcPriceListType(t)) PERSISTENT;  
+addVAT 'Добавлять НДС' (CalcPriceListType t) = includeVAT(t) AND NOT includeVAT[PriceListType](basePriceListType(t)) PERSISTENT;  
 
 @defineDocumentHeaderCurrency(calcPriceListType);
-currencyPriceListType(calcPriceListType) += currencyCalcPriceListType(calcPriceListType);
+currency(CalcPriceListType calcPriceListType) += currency(calcPriceListType);
 
-parentCalcPriceListType = DATA CalcPriceListType (CalcPriceListType);
-nameParentCalcPriceListType 'Родительский вид цены' = nameCalcPriceListType(parentCalcPriceListType(t));
+parent = DATA CalcPriceListType (CalcPriceListType);
+nameParent 'Родительский вид цены' = name(parent(CalcPriceListType t));
 
 // ---------------- Надбавка по классификатору ------------------- //
 
-groupTypeCalcPriceListType = DATA GroupType (CalcPriceListType);
-nameGroupTypeCalcPriceListType 'Тип классификатора' (type) = nameGroupType(groupTypeCalcPriceListType(type));
+groupType = DATA GroupType (CalcPriceListType);
+nameGroupType 'Тип классификатора' (CalcPriceListType type) = name(groupType(type));
 
 TABLE calcPriceListTypeGroup (CalcPriceListType, Group);
 TABLE sessionCalcPriceListTypeGroup (Session, CalcPriceListType, Group);
-dataMarkupCalcPriceListTypeGroup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Group);
+dataMarkup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Group);
 
 TABLE calcPriceListTypeSku (CalcPriceListType, Sku);
 TABLE sessionCalcPriceListTypeSku (Session, CalcPriceListType, Sku);
-dataMarkupCalcPriceListTypeSku 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Sku);
+dataMarkup 'Надбавка, %' = DATA NUMERIC[8,2] (CalcPriceListType, Sku);
 
-levelParentMarkupGroup (calcPriceListType, group) = GROUP MIN levelGroupGroup(group, parent) IF dataMarkupCalcPriceListTypeGroup(calcPriceListType, parent)
+levelParentMarkup (calcPriceListType, group) = GROUP MIN level(Group group, Group parent) IF dataMarkup(CalcPriceListType calcPriceListType, parent)
                                                               BY calcPriceListType, group PERSISTENT;
-nearestParentGroup (calcPriceListType, group) = groupGroupLevel(group, levelParentMarkupGroup(calcPriceListType, group));
-nearestMarkupCalcPriceListTypeGroup 'Расчетная надбавка, %' (calcPriceListType, group) =
-    dataMarkupCalcPriceListTypeGroup(calcPriceListType, nearestParentGroup(calcPriceListType, group)) PERSISTENT;
+nearestParent (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentMarkup(calcPriceListType, group));
+nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPriceListType, Group group) =
+    dataMarkup(calcPriceListType, nearestParent(calcPriceListType, group)) PERSISTENT;
 
-markupCalcPriceListTypeGroup 'Надбавка, %' (type, group) =
-    OVERRIDE nearestMarkupCalcPriceListTypeGroup(type, group), dataMarkupCalcPriceListTypeGroup(type, group) PERSISTENT;
+markup 'Надбавка, %' (CalcPriceListType type, Group group) =
+    OVERRIDE nearestMarkup(type, group), dataMarkup(type, group) PERSISTENT;
     
-extraMarkupCalcPriceListTypeSku = ABSTRACT NUMERIC[8,2] (CalcPriceListType, Sku);  
+extraMarkup = ABSTRACT NUMERIC[8,2] (CalcPriceListType, Sku);  
     
-overMarkupCalcPriceListTypeSku 'Надбавка, % (перегруженная)' = OVERRIDE 
-    markupCalcPriceListTypeGroup(type, groupGroupTypeSku(groupTypeCalcPriceListType(type), sku)),
-    extraMarkupCalcPriceListTypeSku(type, sku),
-    dataMarkupCalcPriceListTypeSku(type, sku) PERSISTENT;
+overMarkup 'Надбавка, % (перегруженная)' = OVERRIDE 
+    markup(CalcPriceListType type, group(groupType(type), Sku sku)),
+    extraMarkup(type, sku),
+    dataMarkup(type, sku) PERSISTENT;
 
-markupCalcPriceListTypeSku 'Надбавка, %' (type, sku) = OVERRIDE
-    overMarkupCalcPriceListTypeSku(parentCalcPriceListType(type), sku),
-    overMarkupCalcPriceListTypeSku(type, sku) PERSISTENT;
+markup 'Надбавка, %' (CalcPriceListType type, Sku sku) = OVERRIDE
+    overMarkup(parent(type), sku),
+    overMarkup(type, sku) PERSISTENT;
     
-multiplierCalcPriceListTypeSku (type, sku) = NUMERIC[10,4]((100.0 + markupCalcPriceListTypeSku(type, sku)) / 100.0) PERSISTENT;
+multiplier (CalcPriceListType type, Sku sku) = NUMERIC[10,4]((100.0 + markup(type, sku)) / 100.0) PERSISTENT;
 
-VATCalcPriceListTypeSkuDate(type, sku, date) = IF addVATCalcPriceListType(type) THEN (100.0 + valueVATSkuCountryDate(sku, countryCalcPriceListType(type), date)) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType AND date IS DATE;
+VAT(CalcPriceListType type, Sku sku, DATE date) = IF addVAT(type) THEN (100.0 + valueVAT(sku, country(type), date)) / 100.0 ELSE 1.0 IF sku IS Sku AND type IS CalcPriceListType AND date IS DATE;
 
 
 //-- Условие округления
-dataRoundConditionCalcPriceListTypeGroup = DATA RoundCondition (CalcPriceListType, Group);
-nameDataRoundConditionCalcPriceListTypeGroup 'Условие округления' (type, group) = nameRoundCondition(dataRoundConditionCalcPriceListTypeGroup(type, group));
-CONSTRAINT currencyRoundCondition(dataRoundConditionCalcPriceListTypeGroup(type, group)) != currencyPriceListType(type)
-           CHECKED BY dataRoundConditionCalcPriceListTypeGroup
+dataRoundCondition = DATA RoundCondition (CalcPriceListType, Group);
+nameDataRoundCondition 'Условие округления' (CalcPriceListType type, Group group) = name(dataRoundCondition(type, group));
+CONSTRAINT currency(dataRoundCondition(CalcPriceListType type, Group group)) != currency[PriceListType](type)
+           CHECKED BY dataRoundCondition[CalcPriceListType,Group]
            MESSAGE 'Валюта документа должна совпадать с валютой условия округления цены';
            
-levelParentRoundConditionCalcPriceListTypeGroup (calcPriceListType, group) = GROUP MIN levelGroupGroup(group, parent) IF dataRoundConditionCalcPriceListTypeGroup(calcPriceListType, parent)
+levelParentRoundCondition (calcPriceListType, group) = GROUP MIN level(Group group, Group parent) IF dataRoundCondition(CalcPriceListType calcPriceListType, parent)
                                                               BY calcPriceListType, group PERSISTENT;
-nearestParentRoundConditionCalcPriceListTypeGroup (calcPriceListType, group) = groupGroupLevel(group, levelParentRoundConditionCalcPriceListTypeGroup(calcPriceListType, group));
-nearestRoundConditionCalcPriceListTypeGroup  (calcPriceListType, group) =
-    dataRoundConditionCalcPriceListTypeGroup(calcPriceListType, nearestParentRoundConditionCalcPriceListTypeGroup(calcPriceListType, group)) PERSISTENT;
+nearestParentRoundCondition (CalcPriceListType calcPriceListType, Group group) = group(group, levelParentRoundCondition(calcPriceListType, group));
+nearestRoundCondition  (CalcPriceListType calcPriceListType, Group group) =
+    dataRoundCondition(calcPriceListType, nearestParentRoundCondition(calcPriceListType, group)) PERSISTENT;
     
-nameNearestRoundConditionCalcPriceListTypeGroup 'Расчетное условие округления' (type, group) = nameRoundCondition(OVERRIDE roundConditionPriceListType(type) IF group IS Group,
-                                                                                                                nearestRoundConditionCalcPriceListTypeGroup(type, group));
+nameNearestRoundConditionCalc 'Расчетное условие округления' (PriceListType type, Group group) = name(OVERRIDE roundCondition(type) IF group IS Group,
+                                                                                                                nearestRoundCondition(type, group));
 
-roundConditionCalcPriceListTypeGroup 'Условие округления' (type, group) =
-    OVERRIDE nearestRoundConditionCalcPriceListTypeGroup(type, group), 
-             dataRoundConditionCalcPriceListTypeGroup(type, group) PERSISTENT;
+roundCondition 'Условие округления' (CalcPriceListType type, Group group) =
+    OVERRIDE nearestRoundCondition(type, group), 
+             dataRoundCondition(type, group) PERSISTENT;
             
-groupRoundConditionCalcPriceListTypeGroup (type, sku) = roundConditionCalcPriceListTypeGroup(type, groupGroupTypeSku(groupTypeCalcPriceListType(type), sku)) PERSISTENT;
-roundConditionCalcPriceListTypeSku (type, sku) = OVERRIDE roundConditionPriceListType(type) IF type IS CalcPriceListType AND sku IS Sku, groupRoundConditionCalcPriceListTypeGroup(type, sku);            
-nameRoundConditionCalcPriceListTypeSku 'Условие округления' (type, sku)= nameRoundCondition(roundConditionCalcPriceListTypeSku(type, sku));    
+groupRoundConditionGroup (CalcPriceListType type, Sku sku) = roundCondition(type, group(groupType(type), sku)) PERSISTENT;
+roundCondition (CalcPriceListType type, Sku sku) = OVERRIDE roundCondition(type) IF type IS CalcPriceListType AND sku IS Sku, groupRoundConditionGroup(type, sku);            
+nameRoundCondition 'Условие округления' (CalcPriceListType type, Sku sku)= name(roundCondition(type, sku));    
         
 // --------------- Расчет значения цены --------------- //
 
-priceBBasePriceListTypeCalcPriceListTypeSkuStockDateTime(base, type, sku, stock, dateTime) =
-    roundPriceRoundCondition(priceBBasePriceListTypeSkuStockDateTime(base, sku, stock, dateTime) * multiplierCalcPriceListTypeSku(type, sku) * VATCalcPriceListTypeSkuDate(type, sku, DATE(dateTime)), roundConditionCalcPriceListTypeSku(type, sku)) COMPLEX;
-priceABasePriceListTypeCalcPriceListTypeSkuStockDateTime(base, type, sku, stock, dateTime) =
-    roundPriceRoundCondition(priceABasePriceListTypeSkuStockDateTime(base, sku, stock, dateTime) * multiplierCalcPriceListTypeSku(type, sku) * VATCalcPriceListTypeSkuDate(type, sku, DATE(dateTime)), roundConditionCalcPriceListTypeSku(type, sku)) COMPLEX;
+priceB(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    round(priceB(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX;
+priceA(BasePriceListType base, CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    round(priceA(base, sku, stock, dateTime) * multiplier(type, sku) * VAT(type, sku, DATE(dateTime)), roundCondition(type, sku)) COMPLEX;
 
-priceBCalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    priceBBasePriceListTypeCalcPriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), type, sku, stock, dateTime) COMPLEX;
-priceACalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    priceABasePriceListTypeCalcPriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), type, sku, stock, dateTime) COMPLEX;
+priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    priceB(basePriceListType(type), type, sku, stock, dateTime) COMPLEX;
+priceA(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    priceA(basePriceListType(type), type, sku, stock, dateTime) COMPLEX;
 
-priceBCalcPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    roundPriceRoundCondition(priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeCalcPriceListType(type), batch, stock, dateTime) * multiplierCalcPriceListTypeSku(type, skuBatch(batch)) * VATCalcPriceListTypeSkuDate(type, skuBatch(batch), DATE(dateTime)), roundConditionCalcPriceListTypeSku(type, skuBatch(batch))) COMPLEX;
-priceACalcPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    roundPriceRoundCondition(priceABasePriceListTypeBatchStockDateTime(basePriceListTypeCalcPriceListType(type), batch, stock, dateTime) * multiplierCalcPriceListTypeSku(type, skuBatch(batch)) * VATCalcPriceListTypeSkuDate(type, skuBatch(batch), DATE(dateTime)) , roundConditionCalcPriceListTypeSku(type, skuBatch(batch))) COMPLEX;
+priceB(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    round(priceB(basePriceListType(type), batch, stock, dateTime) * multiplier(type, sku(batch)) * VAT(type, sku(batch), DATE(dateTime)), roundCondition(type, sku(batch))) COMPLEX;
+priceA(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    round(priceA(basePriceListType(type), batch, stock, dateTime) * multiplier(type, sku(batch)) * VAT(type, sku(batch), DATE(dateTime)) , roundCondition(type, sku(batch))) COMPLEX;
 
-priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBCalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceACalcPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+priceB(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
+priceA(CalcPriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
 
-priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceBCalcPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceACalcPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+priceB(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceB(type, batch, stock, dateTime);
+priceA(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceA(type, batch, stock, dateTime);
 
 // ------------------------------------- Формы ---------------------------------- //
 
-backgroundMarkup 'Цвет' (calcPriceListType, group) = RGB(255,160,160) IF dataMarkupCalcPriceListTypeGroup(calcPriceListType, group);
+backgroundMarkup 'Цвет' (CalcPriceListType calcPriceListType, Group group) = RGB(255,160,160) IF dataMarkup(calcPriceListType, group);
 
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType FIXED PANEL
-    PROPERTIES(c) nameCalcPriceListType, idCalcPriceListType SHOWIF showIDs(), includeVATPriceListType, nameCurrencyCalcPriceListType, nameCountryCalcPriceListType, nameBasePriceListTypeCalcPriceListType,
-                  nameRoundConditionPriceListType, nameGroupTypeCalcPriceListType, nameParentCalcPriceListType
+    PROPERTIES(c) name, id SHOWIF showIDs(), includeVAT[PriceListType], nameCurrency, nameCountry, nameBasePriceListType,
+                  nameRoundCondition, nameGroupType, nameParent
 
-    TREE treeGroup g=Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), nameGroup(g)
-    FILTERS groupTypeGroup(g) == groupTypeCalcPriceListType(c)
-    ORDER BY orderGroup(g), nameGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
-    PROPERTIES(c, g) dataMarkupCalcPriceListTypeGroup , nearestMarkupCalcPriceListTypeGroup, nameDataRoundConditionCalcPriceListTypeGroup, nameNearestRoundConditionCalcPriceListTypeGroup READONLY 
+    TREE treeGroup g=Group PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(c)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
+    PROPERTIES(c, g) dataMarkup , nearestMarkup, nameDataRoundCondition, nameNearestRoundConditionCalc READONLY 
 
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY nameSku, idBarcodeSku
-    FILTERS isParentGroupSku(g, s) OR s IS Sku AND NOT g
-    PROPERTIES(c, s) dataMarkupCalcPriceListTypeSku, overMarkupCalcPriceListTypeSku, nameRoundConditionCalcPriceListTypeSku
+    PROPERTIES(s) READONLY name, idBarcode
+    FILTERS isParent(g, s) OR s IS Sku AND NOT g
+    PROPERTIES(c, s) dataMarkup, overMarkup, nameRoundCondition
     FILTERGROUP inactiveSku 
-        FILTER 'Активный' activeSku(s) 'F5' DEFAULT
+        FILTER 'Активный' active(s) 'F5' DEFAULT
 
     EDIT CalcPriceListType OBJECT c
 ;
@@ -146,12 +146,12 @@ FORM calcPriceListType 'Расчетный вид цен'
 DESIGN calcPriceListType {
     MOVE c.box{
         type = CONTAINERH;
-        MOVE PROPERTY(nameCurrencyCalcPriceListType(c));
-        MOVE PROPERTY(nameRoundConditionPriceListType(c));
+        MOVE PROPERTY(nameCurrency(c));
+        MOVE PROPERTY(nameRoundCondition(c));
     }
     NEW groupContainer {
         fill = 1;
-        MOVE PROPERTY(nameGroupTypeCalcPriceListType(c));
+        MOVE PROPERTY(nameGroupType(c));
         NEW treeContainer{
             fill = 1;
             type = SPLITH;
@@ -166,31 +166,31 @@ DESIGN calcPriceListType {
 
 FORM calcPriceListTypes 'Расчетный вид цены'
     OBJECTS p = CalcPriceListType
-    PROPERTIES(p) READONLY nameCalcPriceListType, nameCurrencyCalcPriceListType, nameRoundConditionPriceListType
-    PROPERTIES(p) READONLY includeVATCalcPriceListType
+    PROPERTIES(p) READONLY name, nameCurrency, nameRoundCondition
+    PROPERTIES(p) READONLY includeVAT
 
     DIALOG CalcPriceListType OBJECT p
 ;
 
 addCalcPriceListType 'Добавить расчетную цену' = ACTION ADDFORM CalcPriceListType;
-editCalcPriceListType 'Редактировать' = ACTION EDITFORM CalcPriceListType;
-editPriceListType(priceListType) += ACTION editCalcPriceListType(priceListType);
+edit 'Редактировать' = ACTION EDITFORM CalcPriceListType;
+edit(CalcPriceListType priceListType) += ACTION edit(priceListType);
 
-overCopyPriceListType (priceListType) += ACTION (priceListType) NEWSESSION {
+overCopy (CalcPriceListType priceListType) += ACTION (priceListType) NEWSESSION {
     IF priceListType IS CalcPriceListType THEN {
         FOR ADDOBJ p = CalcPriceListType DO {
-            includeVATCalcPriceListType(p) <- includeVATCalcPriceListType(priceListType);
-            countryCalcPriceListType(p) <- countryCalcPriceListType(priceListType);            
-            currencyCalcPriceListType(p) <- currencyCalcPriceListType(priceListType);            
-            roundConditionPriceListType(p) <- roundConditionPriceListType(priceListType);            
-            basePriceListTypeCalcPriceListType(p) <- basePriceListTypeCalcPriceListType(priceListType);
-            parentCalcPriceListType(p) <- parentCalcPriceListType(priceListType);
+            includeVAT(p) <- includeVAT(priceListType);
+            country(p) <- country(priceListType);            
+            currency(p) <- currency(priceListType);            
+            roundCondition(p) <- roundCondition(priceListType);            
+            basePriceListType(p) <- basePriceListType(priceListType);
+            parent(p) <- parent(priceListType);
            // pricingBaseCalcPriceListType(p) <- pricingBaseCalcPriceListType(p);
-            groupTypeCalcPriceListType(p) <- groupTypeCalcPriceListType(priceListType);
+            groupType(p) <- groupType(priceListType);
             
-            dataMarkupCalcPriceListTypeGroup(p, group) <- dataMarkupCalcPriceListTypeGroup(priceListType, group) WHERE dataMarkupCalcPriceListTypeGroup(priceListType, group);    
-            dataRoundConditionCalcPriceListTypeGroup(p, group) <- dataRoundConditionCalcPriceListTypeGroup(priceListType, group) WHERE dataRoundConditionCalcPriceListTypeGroup(priceListType, group);    
-            dataMarkupCalcPriceListTypeSku(p, sku) <- dataMarkupCalcPriceListTypeSku(priceListType, sku) WHERE dataMarkupCalcPriceListTypeSku(priceListType, sku);    
+            dataMarkup(p, Group group) <- dataMarkup(priceListType, group) WHERE dataMarkup(priceListType, group);    
+            dataRoundCondition(p, Group group) <- dataRoundCondition(priceListType, group) WHERE dataRoundCondition(priceListType, group);    
+            dataMarkup(p, Sku sku) <- dataMarkup(priceListType, sku) WHERE dataMarkup(priceListType, sku);    
             
             FORM calcPriceListType OBJECTS c=p MANAGESESSION DOCKEDMODAL; 
         }

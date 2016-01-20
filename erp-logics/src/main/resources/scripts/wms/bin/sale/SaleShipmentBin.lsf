@@ -7,47 +7,47 @@ NAMESPACE Sale;
 //---------------------------------Ячейка ----------------------------------//
 
 @defineDocumentInterfaceDetailBin(shipment);
-overCopyUserShipmentDetail(d, detail) += ACTION (d, detail) {      
-    binUserShipmentDetail(d) <- binUserShipmentDetail(detail);
+overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION (d, detail) {      
+    bin(d) <- bin(detail);
 }
 @extendFormInterfaceDetailBin(shipment, s, , quantity);
 @deriveDocumentOperationProperty(UserShipment, showBin);
-binUserShipmentDetail(detail) <- binStockSku(supplierStockUserShipmentDetail(detail), skuUserShipmentDetail(detail))
-    WHEN CHANGED(supplierStockUserShipmentDetail(detail)) OR
-         CHANGED(skuUserShipmentDetail(detail));
+bin(UserShipmentDetail detail) <- bin(supplierStock(detail), sku(detail))
+    WHEN CHANGED(supplierStock(detail)) OR
+         CHANGED(sku(detail));
 
 //-- invoice
 @defineInvoiceShipmentBin(supplierStock);
 @deriveDocumentOperationProperty(UserInvoice, showBin);
 
 WHEN SESSION FORMS userInvoice
-    CHANGED(supplierStockUserInvoiceDetail(detail)) OR CHANGED(skuUserInvoiceDetail(detail)) DO {
-        binUserInvoiceDetail(detail) <- binStockSku(supplierStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail));    
+    CHANGED(supplierStock(UserInvoiceDetail detail)) OR CHANGED(sku(detail)) DO {
+        bin(detail) <- bin(supplierStock(detail), sku(detail));    
     }
 
 //-- Проводим по регистру (ячейка)
-binDataSkuLedger(ledger) += binShipmentDetail(ledger);
+bin[DataSkuLedger](ShipmentDetail ledger) += bin(ledger);
 
 //---------------------------------Новый функционал ----------------------------------//
 
 @defineDocumentDetailBinCustom(userShipment, current, ' текущая');
-currentBinUserShipmentDetail (detail) = currentBinUserShipment(userShipmentUserShipmentDetail(detail));
+currentBin (UserShipmentDetail detail) = currentBin(userShipment(detail));
 
 EXTEND FORM userShipment
-    PROPERTIES(s) SHOWIF showBinUserShipment(s) nameCurrentBinUserShipment
+    PROPERTIES(s) SHOWIF showBin(s) nameCurrentBin
 ;
 
 DESIGN userShipment {
     headerBin {
-        MOVE PROPERTY(nameCurrentBinUserShipment(s)) AFTER PROPERTY(showBinUserShipment(s));
+        MOVE PROPERTY(nameCurrentBin(s)) AFTER PROPERTY(showBin(s));
     }
 }
 
 
 WHEN SESSION FORMS userShipment
-    SET(detail IS UserShipmentDetail) AND currentBinUserShipmentDetail(detail)
-        DO ASSIGN binUserShipmentDetail(detail) <- currentBinUserShipmentDetail(detail) WHERE currentBinUserShipmentDetail(detail);
+    SET(UserShipmentDetail detail IS UserShipmentDetail) AND currentBin(detail)
+        DO ASSIGN bin(detail) <- currentBin(detail) WHERE currentBin(detail);
 
 WHEN SESSION FORMS userShipment
-    CHANGED(invoiceDetailUserShipmentDetail(detail))
-        DO ASSIGN binUserShipmentDetail(detail) <- binInvoiceDetail(invoiceDetailUserShipmentDetail(detail));
+    CHANGED(invoiceDetail(UserShipmentDetail detail))
+        DO ASSIGN bin(detail) <- bin(invoiceDetail(detail));

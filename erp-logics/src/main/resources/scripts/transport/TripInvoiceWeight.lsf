@@ -4,30 +4,30 @@ REQUIRE Invoice, TripInvoice;
 
 NAMESPACE  Trip;
 
-grossWeightTrip 'Вес брутто, кг' = DATA NUMERIC[16,3] (Trip) PREFCHARWIDTH 15;
+grossWeight 'Вес брутто, кг' = DATA NUMERIC[16,3] (Trip) PREFCHARWIDTH 15;
 
-coeffNetWeightTripInvoiceDetail 'Удельный вес' (d) =
-    NUMERIC[22,8](sumNetWeightInvoiceDetail(d)) / netWeightInvoicedTrip(tripInvoice(invoiceInvoiceDetail(d)));
+coeffNetWeightTrip 'Удельный вес' (InvoiceDetail d) =
+    NUMERIC[22,8](sumNetWeight(d)) / netWeightInvoiced(trip(invoice(d)));
 
-signGrossWeightInvoicesTrip 'Расписать вес брутто' = ACTION (trip) {
+signGrossWeightInvoices 'Расписать вес брутто' = ACTION (Trip trip) {
     REQUEST NUMERIC[16,3] INPUT;
     IF requestedNumeric() THEN {
-        grossWeightTrip(trip) <- requestedNumeric();
-        sumGrossWeightInvoiceDetail(d) <- NUMERIC[9,3](coeffNetWeightTripInvoiceDetail(d)* grossWeightTrip(trip))
-            WHERE d IS InvoiceDetail AND tripInvoice(invoiceInvoiceDetail(d)) == trip;
+        grossWeight(trip) <- requestedNumeric();
+        sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](coeffNetWeightTrip(d)* grossWeight(trip))
+            WHERE d IS InvoiceDetail AND trip(invoice(d)) == trip;
 
     } ELSE {
-        grossWeightTrip(trip) <- NULL;
-        sumGrossWeightInvoiceDetail(d) <- NULL WHERE d IS InvoiceDetail AND tripInvoice(invoiceInvoiceDetail(d)) == trip;    
+        grossWeight(trip) <- NULL;
+        sumGrossWeight(InvoiceDetail d) <- NULL WHERE d IS InvoiceDetail AND trip(invoice(d)) == trip;    
     }        
 }
 
 EXTEND FORM trip
-    PROPERTIES(t) grossWeightTrip ON CHANGE signGrossWeightInvoicesTrip(t)
+    PROPERTIES(t) grossWeight ON CHANGE signGrossWeightInvoices(t)
 ;
 
 DESIGN trip {
     invoiceSum1 {       
-        MOVE PROPERTY(grossWeightTrip(t));
+        MOVE PROPERTY(grossWeight(t));
     }
 }

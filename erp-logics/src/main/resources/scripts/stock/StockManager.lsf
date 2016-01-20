@@ -4,23 +4,23 @@ REQUIRE Stock, LegalEntityManager;
 
 NAMESPACE Stock;
 
-managerLegalEntityStock = DATA Employee (LegalEntity, Stock);
-nameManagerLegalEntityStock 'Менеджер' (l, s) = shortNameContact(managerLegalEntityStock(l, s));
-overManagerLegalEntityStock(l, s) = OVERRIDE managerLegalEntity(l) IF s IS Stock, managerLegalEntityStock(l, s);
+manager = DATA Employee (LegalEntity, Stock);
+nameManager 'Менеджер' (LegalEntity l, Stock s) = shortName(manager(l, s));
+overManager(LegalEntity l, Stock s) = OVERRIDE manager(l) IF s IS Stock, manager(l, s);
 
-inManagerEmployeeLegalEntityStock 'Отм' (e, l, s) = e ==  managerLegalEntityStock(l, s);
+inManager 'Отм' (Employee e, LegalEntity l, Stock s) = e ==  manager(l, s);
 
 EXTEND FORM legalEntity 
-    TREE stockTreeM bm=STRING[3], sgm = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY OBJVALUE(bm), sgmTreeName = nameStockGroup(sgm)
+    TREE stockTreeM bm=STRING[3], sgm = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(bm), sgmTreeName = name(sgm)
     ORDER BY sgmTreeName
     FILTERS stringEqualsAll(bm)
 
     OBJECTS stm=Stock
-    PROPERTIES(stm) READONLY nameStock
-    PROPERTIES nameManagerLegalEntityStock(l, stm)
-    FILTERS isParentStockGroupStock(sgm, stm) OR (stm IS Stock AND NOT sgm),
-            isCompanyStock(stm)
+    PROPERTIES(stm) READONLY name
+    PROPERTIES nameManager(l, stm)
+    FILTERS isParent(sgm, stm) OR (stm IS Stock AND NOT sgm),
+            isCompany(stm)
 ;
 
 DESIGN legalEntity {
@@ -41,18 +41,18 @@ DESIGN legalEntity {
 
 EXTEND FORM employee
     OBJECTS stm=Stock FIXED PANEL 
-    PROPERTIES READONLY nameStock(stm) SELECTOR
-    FILTERS isCompanyStock(stm)
+    PROPERTIES READONLY name(stm) SELECTOR
+    FILTERS isCompany(stm)
     
-    TREE legalEntityTreeMS lgms = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY  lgmsTreeName = nameLegalEntityGroup(lgms)
+    TREE legalEntityTreeMS lgms = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY  lgmsTreeName = name(lgms)
     ORDER BY lgmsTreeName
 
     OBJECTS lms = LegalEntity FIXED GRID
-    PROPERTIES READONLY nameLegalEntity(lms), nameManagerLegalEntityStock(lms, stm)
-    PROPERTIES inManagerEmployeeLegalEntityStock(e, lms, stm)
-    ORDER BY nameLegalEntity(lms)
-    FILTERS isParentLegalEntityGroupLegalEntity(lgms, lms) OR (lms IS LegalEntity AND NOT lgms)
+    PROPERTIES READONLY name(lms), nameManager(lms, stm)
+    PROPERTIES inManager(e, lms, stm)
+    ORDER BY name(lms)
+    FILTERS isParent(lgms, lms) OR (lms IS LegalEntity AND NOT lgms)
 ;
 
 DESIGN employee {

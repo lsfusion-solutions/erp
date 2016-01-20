@@ -8,36 +8,36 @@ NAMESPACE WriteOff;
 
 //------- Подсчет сумм для проводок при списании технологических отходов на приходе товаров ----------//
 
-writeOffRetailMarkupSumInvoiceDetail= roundPriceCurrency(retailMarkupInvoiceDetail(d) * writeOffSumInvoiceDetail(d)/100.0, currencyUserInvoiceDetail(d));
-writeOffRetailVATSumInvoiceDetail= roundPriceCurrency(
-    writeOffSumInvoiceDetail(d) * ( 100.0 (+) retailMarkupInvoiceDetail (d))*valueRetailVATInvoiceDetail(d)/10000.0, 
-    currencyUserInvoiceDetail(d));
-writeOffRetailSumInvoiceDetail= OVERRIDE roundPriceCurrency(retailPriceInvoiceDetail(d) * writeOffQuantityInvoiceDetail(d), currencyInvoiceDetail(d)),
-    roundPriceRoundCondition(retailPriceInvoiceDetail(d) * writeOffQuantityInvoiceDetail(d), roundConditionCalcPriceListTypeSku(retailPriceListTypeInvoiceDetail(d), skuInvoiceDetail(d)));
+writeOffRetailMarkupSum= round(retailMarkup[InvoiceDetail](UserInvoiceDetail d) * writeOffSum[InvoiceDetail](d)/100.0, currency(d));
+writeOffRetailVATSum= round(
+    writeOffSum[InvoiceDetail](UserInvoiceDetail d) * ( 100.0 (+) retailMarkup[InvoiceDetail] (d))*valueRetailVAT[InvoiceDetail](d)/10000.0, 
+    currency(d));
+writeOffRetailSum= OVERRIDE round(retailPrice(InvoiceDetail d) * writeOffQuantity(d), currency(d)),
+    round(retailPrice(d) * writeOffQuantity(d), roundCondition(retailPriceListType(d), sku(d)));
 
 
-roundWriteOffInvoiceDetail 'Округления' (d) = writeOffRetailSumInvoiceDetail(d) (-) 
-                                              writeOffRetailVATSumInvoiceDetail(d) (-) 
-                                              writeOffRetailMarkupSumInvoiceDetail(d) (-)
-                                              writeOffSumInvoiceDetail(d);
+roundWriteOff 'Округления' (InvoiceDetail d) = writeOffRetailSum(d) (-) 
+                                              writeOffRetailVATSum(d) (-) 
+                                              writeOffRetailMarkupSum(d) (-)
+                                              writeOffSum(d);
 
-sumWriteOffInvoiceDetailInvoicePercent 'Сумма поставщика' (i) = GROUP SUM sumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
-writeOffQuantityInvoiceDetailInvoice 'Списано' (i) = GROUP SUM writeOffQuantityInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
+sumWriteOffInvoiceDetailPercent 'Сумма поставщика' (i) = GROUP SUM sum(InvoiceDetail d) IF percentWriteOffRate(d)
+    BY invoice(d);
+writeOffQuantityInvoiceDetail 'Списано' (i) = GROUP SUM writeOffQuantity(InvoiceDetail d) IF percentWriteOffRate(d)
+    BY invoice(d);
     
-writeOffSumInvoiceDetailInvoicePercent 'Сумма списания' (i) = GROUP SUM writeOffSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
+writeOffSumInvoiceDetailPercent 'Сумма списания' (i) = GROUP SUM writeOffSum(InvoiceDetail d) IF percentWriteOffRate(d)
+    BY invoice(d);
 
-writeOffRetailMarkupSumInvoiceDetailInvoicePercent 'Сумма надбавки' (i) = GROUP SUM writeOffRetailMarkupSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
+writeOffRetailMarkupSumInvoiceDetailPercent 'Сумма надбавки' (i) = GROUP SUM writeOffRetailMarkupSum(UserInvoiceDetail d) IF percentWriteOffRate[InvoiceDetail](d)
+    BY invoice(d);
     
-writeOffRetailVATSumInvoiceDetailInvoicePercent 'Сумма НДС' (i) = GROUP SUM writeOffRetailVATSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
+writeOffRetailVATSumInvoiceDetailPercent 'Сумма НДС' (i) = GROUP SUM writeOffRetailVATSum(UserInvoiceDetail d) IF percentWriteOffRate[InvoiceDetail](d)
+    BY invoice(d);
     
-writeOffRetailSumInvoiceDetailInvoicePercent 'Сумма розничная' (i) = GROUP SUM writeOffRetailSumInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
+writeOffRetailSumInvoiceDetailPercent 'Сумма розничная' (i) = GROUP SUM writeOffRetailSum(InvoiceDetail d) IF percentWriteOffRate(d)
+    BY invoice(d);
 
-roundWriteOffInvoiceDetailInvoicePercent 'Сумма округления' (i) = GROUP SUM roundWriteOffInvoiceDetail(d) IF percentWriteOffRateInvoiceDetail(d)
-    BY invoiceInvoiceDetail(d);
+roundWriteOffInvoiceDetailPercent 'Сумма округления' (i) = GROUP SUM roundWriteOff(InvoiceDetail d) IF percentWriteOffRate(d)
+    BY invoice(d);
     

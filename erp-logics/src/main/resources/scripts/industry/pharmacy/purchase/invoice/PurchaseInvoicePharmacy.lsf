@@ -5,14 +5,14 @@ REQUIRE System, PurchaseInvoice, StockPharmacy;
 NAMESPACE Purchase;
 
 // серия лекарства
-seriesPharmacyInvoiceDetail 'Серия лекарственного средства' = ABSTRACT VARSTRING[20] (InvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
-seriesPharmacyUserInvoiceDetail 'Серия лекарственного средства' = DATA VARSTRING[20] (UserInvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
-seriesPharmacyInvoiceDetail(detail) += seriesPharmacyUserInvoiceDetail(detail);
+seriesPharmacy 'Серия лекарственного средства' = ABSTRACT VARSTRING[20] (InvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+seriesPharmacy 'Серия лекарственного средства' = DATA VARSTRING[20] (UserInvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+seriesPharmacy(UserInvoiceDetail detail) += seriesPharmacy(detail);
 
 // контрактная цена и валюта
-contractPriceInvoiceDetail 'Контрактная цена' = ABSTRACT VARSTRING[20] (InvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
-contractPriceUserInvoiceDetail 'Контрактная цена' = DATA VARSTRING[20] (UserInvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
-contractPriceInvoiceDetail(detail) += contractPriceUserInvoiceDetail(detail);
+contractPrice 'Контрактная цена' = ABSTRACT VARSTRING[20] (InvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+contractPrice 'Контрактная цена' = DATA VARSTRING[20] (UserInvoiceDetail) MINCHARWIDTH 7 PREFCHARWIDTH 7;
+contractPrice(UserInvoiceDetail detail) += contractPrice(detail);
 
 @defineDocumentInterfaceHeaderProperty (invoice, showContractPrice, 'Контрактная цена');
 
@@ -21,43 +21,43 @@ contractPriceInvoiceDetail(detail) += contractPriceUserInvoiceDetail(detail);
 @deriveDocumentOperationProperty(UserInvoice, showContractPrice);
 
 // страна ввоза
-importCountryInvoiceDetail 'Страна ввоза' = ABSTRACT Country (InvoiceDetail);
-nameImportCountryInvoiceDetail 'Страна ввоза' = nameCountry(importCountryInvoiceDetail(invoiceDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+importCountry 'Страна ввоза' = ABSTRACT Country (InvoiceDetail);
+nameImportCountry 'Страна ввоза' = name(importCountry(InvoiceDetail invoiceDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
-importCountryUserInvoiceDetail 'Страна ввоза' = DATA Country (UserInvoiceDetail);
-nameImportCountryUserInvoiceDetail 'Страна ввоза' = nameCountry(importCountryUserInvoiceDetail(invoiceDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+importCountry 'Страна ввоза' = DATA Country (UserInvoiceDetail);
+nameImportCountry 'Страна ввоза' = name(importCountry(UserInvoiceDetail invoiceDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
-importCountryInvoiceDetail(detail) += importCountryUserInvoiceDetail(detail);
+importCountry(UserInvoiceDetail detail) += importCountry(detail);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showContractPriceUserInvoice
-    PROPERTIES(d) BACKGROUND backgroundSkuUserInvoiceDetail(d) seriesPharmacyUserInvoiceDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchUserInvoiceDetail(d) ,
-                  contractPriceUserInvoiceDetail SHOWIF showContractPriceInvoice(i) BEFORE nameBatchUserInvoiceDetail(d),
-                  nameImportCountryUserInvoiceDetail SHOWIF showImportCountry() BEFORE nameBatchUserInvoiceDetail(d)
+    PROPERTIES(i) showContractPrice
+    PROPERTIES(d) BACKGROUND backgroundSku(d) seriesPharmacy SHOWIF showSeriesPharmacy() BEFORE nameBatch(d) ,
+                  contractPrice SHOWIF showContractPrice[Invoice](i) BEFORE nameBatch(d),
+                  nameImportCountry SHOWIF showImportCountry() BEFORE nameBatch(d)
 ;
 
 DESIGN userInvoice {
     headerExtraParams {
         NEW headerContractPrice {
             caption = 'Контрактная цена';
-            MOVE PROPERTY(showContractPriceUserInvoice(i));
+            MOVE PROPERTY(showContractPrice(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY seriesPharmacyInvoiceDetail SHOWIF showSeriesPharmacy() BEFORE nameBatchInvoiceDetail(d),
-                           contractPriceInvoiceDetail SHOWIF showContractPriceUserInvoice(i) BEFORE nameBatchInvoiceDetail(d),
-                           nameImportCountryInvoiceDetail SHOWIF showImportCountry() BEFORE nameBatchInvoiceDetail(d)
+    PROPERTIES(d) READONLY seriesPharmacy SHOWIF showSeriesPharmacy() BEFORE nameBatch(d),
+                           contractPrice SHOWIF showContractPrice[UserInvoice](i) BEFORE nameBatch(d),
+                           nameImportCountry SHOWIF showImportCountry() BEFORE nameBatch(d)
 ;
 
 
-WHEN SESSION FORMS userInvoice (CHANGED (batchUserInvoiceDetail(detail)) OR
-                               CHANGED (customerStockUserInvoiceDetail(detail))) AND batchUserInvoiceDetail(detail) AND NOT CHANGED(seriesPharmacyUserInvoiceDetail(detail)) DO {
-    seriesPharmacyUserInvoiceDetail(detail) <- seriesPharmacyBatch(batchUserInvoiceDetail(detail));
+WHEN SESSION FORMS userInvoice (CHANGED (batch(UserInvoiceDetail detail)) OR
+                               CHANGED (customerStock(detail))) AND batch(detail) AND NOT CHANGED(seriesPharmacy(detail)) DO {
+    seriesPharmacy(detail) <- seriesPharmacy(batch(detail));
 }
 
-WHEN SESSION FORMS userInvoice (CHANGED (batchUserInvoiceDetail(detail)) OR
-                               CHANGED (customerStockUserInvoiceDetail(detail))) AND batchUserInvoiceDetail(detail) AND NOT CHANGED(contractPriceUserInvoiceDetail(detail)) DO {
-    contractPriceUserInvoiceDetail(detail) <- contractPriceBatch(batchUserInvoiceDetail(detail));
+WHEN SESSION FORMS userInvoice (CHANGED (batch(UserInvoiceDetail detail)) OR
+                               CHANGED (customerStock(detail))) AND batch(detail) AND NOT CHANGED(contractPrice(detail)) DO {
+    contractPrice(detail) <- contractPrice(batch(detail));
 }

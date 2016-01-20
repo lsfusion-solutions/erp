@@ -9,28 +9,28 @@ CLASS InvoicePriceListLedger : PriceListLedger;
 
 @defineAggregation(invoiceDetail, invoicePriceListLedger, is);
 
-fromDateTimePriceListLedger (ledger) += dateTimeInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
+fromDateTime (InvoicePriceListLedger ledger) += dateTime(invoiceDetail(ledger));
 
-isPostedPriceListLedger(ledger) += isPostedInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
+isPosted(InvoicePriceListLedger ledger) += isPosted(invoiceDetail(ledger));
 
-skuPriceListLedger (ledger) += skuInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
+sku (InvoicePriceListLedger ledger) += sku(invoiceDetail(ledger));
 
-descriptionPriceListLedger (ledger) += descriptionInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
+description (InvoicePriceListLedger ledger) += description(invoiceDetail(ledger));
 
-companyPriceListLedger (ledger) += supplierInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
+company (InvoicePriceListLedger ledger) += supplier(invoiceDetail(ledger));
 
-inPriceListLedgerStock (ledger, stock) += isCompanyStock(stock) AND priceStockGroupStock(customerStockInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger))) == priceStockGroupStock(stock);
+in (InvoicePriceListLedger ledger, Stock stock) += isCompany(stock) AND priceStockGroup(customerStock(invoiceDetail(ledger))) == priceStockGroup(stock);
 
 EXTEND CLASS SystemLedgerPriceListType { purchaseInvoicePriceListType 'Закупки (последняя по ценовой группе)' }
-batchLedgerPriceListTypeStock (type, stock) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType AND isCompanyStock(stock)
+batch (SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType AND isCompany(stock)
                                                THEN TRUE; //priceBatchLedgerStock(stock); для закупки последняя по складу, всегда свои цены для складов
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN priceInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger));
-editPriceListLedger(d) += ACTION editInvoiceDetail(invoiceDetailInvoicePriceListLedger(d));      
-differentOrganizationsLedgerPriceListType(type) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;   
+in (InvoicePriceListLedger ledger, SystemLedgerPriceListType type) += WHEN price(invoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;
+price (InvoicePriceListLedger ledger, SystemLedgerPriceListType type) += WHEN price(invoiceDetail(ledger)) AND type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN price(invoiceDetail(ledger));
+edit(InvoicePriceListLedger d) += ACTION edit(invoiceDetail(d));      
+differentOrganizations(SystemLedgerPriceListType type) += WHEN type == SystemLedgerPriceListType.purchaseInvoicePriceListType THEN TRUE;   
         
 EXTEND CLASS SystemLedgerPriceListType { rateExchangePriceListType 'Курс обмена (последний по ценовой группе)' }
-batchLedgerPriceListTypeStock(type, stock) += WHEN type == SystemLedgerPriceListType.rateExchangePriceListType AND isCompanyStock(stock)
-                                              THEN priceBatchLedgerStock(stock);
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN isHomeCurrencyInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger)) AND type == SystemLedgerPriceListType.rateExchangePriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN isHomeCurrencyInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger)) AND type == SystemLedgerPriceListType.rateExchangePriceListType THEN NUMERIC[14,2](rateExchangeInvoiceDetail(invoiceDetailInvoicePriceListLedger(ledger)));
+batch(SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.rateExchangePriceListType AND isCompany(stock)
+                                              THEN priceBatchLedger(stock);
+in (InvoicePriceListLedger ledger, SystemLedgerPriceListType type) += WHEN isHomeCurrency(invoiceDetail(ledger)) AND type == SystemLedgerPriceListType.rateExchangePriceListType THEN TRUE;
+price (InvoicePriceListLedger ledger, SystemLedgerPriceListType type) += WHEN isHomeCurrency(invoiceDetail(ledger)) AND type == SystemLedgerPriceListType.rateExchangePriceListType THEN NUMERIC[14,2](rateExchange(invoiceDetail(ledger)));

@@ -65,17 +65,17 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                         File file = readImage(thumbnailUrl);
                         if (file != null && imageUrl != null) {
                             DataObject currentObject = new DataObject(start * pageSize + i);
-                            findProperty("thumbnailImage").change(IOUtils.getFileBytes(file), context, currentObject);
-                            findProperty("urlImage").change(imageUrl, context, currentObject);
-                            findProperty("sizeImage").change(width + "x" + height, context, currentObject);
+                            findProperty("thumbnailImage[INTEGER]").change(IOUtils.getFileBytes(file), context, currentObject);
+                            findProperty("urlImage[INTEGER]").change(imageUrl, context, currentObject);
+                            findProperty("sizeImage[INTEGER]").change(width + "x" + height, context, currentObject);
                             file.delete();
                         }
                     }
-                    findProperty("startImage").change(start + 1, context);
-                    findProperty("articleImage").change(articleObject, context);
+                    findProperty("startImage[]").change(start + 1, context);
+                    findProperty("articleImage[]").change(articleObject, context);
 
                     if (start == 0)
-                        findAction("chooseImageAction").execute(context, articleObject);
+                        findAction("chooseImageAction[Article]").execute(context, articleObject);
                 }
             }
         } catch (Exception e) {
@@ -100,7 +100,7 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
                         JSONObject jsonObject = objectCollection.getJSONObject(i);
                         File file = readImage(jsonObject.getString("url"));
                         if (file != null) {
-                            findProperty("imageArticle").change(IOUtils.getFileBytes(file), context, articleObject);
+                            findProperty("image[Article]").change(IOUtils.getFileBytes(file), context, articleObject);
                             file.delete();
                             break;
                         }
@@ -133,10 +133,10 @@ public class DefaultImageArticleActionProperty extends DefaultIntegrationActionP
     }
 
     private String formatURL(ExecutionContext context, DataObject articleObject, int pageSize, int start) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String patternImageArticle = trim((String) findProperty("patternImageArticle").read(context, articleObject));
-        String idArticle = trim((String) findProperty("idArticle").read(context, articleObject), "");
-        String idBrandArticle = trim((String) findProperty("idBrandArticle").read(context, articleObject), "");
-        String siteBrandArticle = trim((String) findProperty("siteBrandArticle").read(context, articleObject));
+        String patternImageArticle = trim((String) findProperty("patternImage[Article]").read(context, articleObject));
+        String idArticle = trim((String) findProperty("id[Article]").read(context, articleObject), "");
+        String idBrandArticle = trim((String) findProperty("idBrand[Article]").read(context, articleObject), "");
+        String siteBrandArticle = trim((String) findProperty("siteBrand[Article]").read(context, articleObject));
         if (patternImageArticle != null && idArticle.matches(patternImageArticle + ".*")) {
             Pattern p = Pattern.compile(patternImageArticle);
             Matcher m = p.matcher(idArticle);

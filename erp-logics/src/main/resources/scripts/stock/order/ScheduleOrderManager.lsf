@@ -2,37 +2,37 @@ MODULE ScheduleOrderManager;
 
 META defineScheduleOrderManager(managed, filter)
 
-managerScheduleOrder = DATA Employee (ScheduleOrder);
-nameManagerScheduleOrder 'Менеджер' (scheduleOrder) = shortNameContact(managerScheduleOrder(scheduleOrder));
+manager = DATA Employee (ScheduleOrder);
+nameManager 'Менеджер' (ScheduleOrder scheduleOrder) = shortName(manager(scheduleOrder));
 
-managerScheduleOrderDetail (scheduleOrderDetail) = managerScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
+manager (ScheduleOrderDetail scheduleOrderDetail) = manager(scheduleOrder(scheduleOrderDetail));
 
-countInManagersEmployeeScheduleOrder (e, s) = GROUP SUM 1 IF inManagerEmployee(m, e) AND m == managerScheduleOrder(s) BY e, s;
-inManagerEmployeeScheduleOrder (e, s) = TRUE IF countInManagersEmployeeScheduleOrder (e, s) OR e==managerScheduleOrder(s);
+countInManagers (e, s) = GROUP SUM 1 IF inManager(Employee m, Employee e) AND m == manager(ScheduleOrder s) BY e, s;
+inManager (Employee e, ScheduleOrder s) = TRUE IF countInManagers (e, s) OR e==manager(s);
 
-countInManagersEmployeeOrder (e, o) = GROUP SUM 1 IF inManagerEmployee(m, e) AND m == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o)) BY e, s;
-inManagerEmployeeOrder (e, o) = TRUE IF countInManagersEmployeeOrder (e, o) OR e == overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o));
+countInManagersOrder (e, o) = GROUP SUM 1 IF inManager(Employee m, Employee e) AND m == overManager(managed(Order o), filter##Stock(o)) BY e, s;
+inManager (Employee e, Order o) = TRUE IF countInManagersOrder (e, o) OR e == overManager(managed(o), filter##Stock(o));
 
-EXTEND FORM scheduleOrder PROPERTIES (s) nameManagerScheduleOrder;
+EXTEND FORM scheduleOrder PROPERTIES (s) nameManager;
 
 DESIGN scheduleOrder {
     header {
         NEW managerContainer {
             caption = 'Менеджмент';
-            MOVE PROPERTY (nameManagerScheduleOrder(s));
+            MOVE PROPERTY (nameManager(s));
         }
     }
 }
 
-WHEN SETCHANGED (managed##ScheduleOrder(s)) DO managerScheduleOrder(s) <- managerLegalEntity(managed##ScheduleOrder(s));
+WHEN SETCHANGED (managed(ScheduleOrder s)) DO manager(s) <- manager(managed(s));
 
 EXTEND FORM scheduleOrderDashboard
-    FILTERS inManagerEmployeeScheduleOrder(currentUser(), s) OR NOT managerScheduleOrder(s)
-    FILTERS inManagerEmployeeScheduleOrder(currentUser(), ss) OR NOT managerScheduleOrder(ss);
+    FILTERS inManager(currentUser(), s) OR NOT manager(s)
+    FILTERS inManager(currentUser(), ss) OR NOT manager(ss);
 
 EXTEND FORM scheduleOrderDetails
-    FILTERS inManagerEmployeeScheduleOrder(currentUser(), scheduleOrderScheduleOrderDetail(sd)) OR NOT managerScheduleOrderDetail(sd)
-    FILTERS inManagerEmployeeOrder(currentUser(),o) OR NOT overManagerLegalEntityStock(managed##Order(o), filter##StockOrder(o));
+    FILTERS inManager(currentUser(), scheduleOrder(sd)) OR NOT manager(sd)
+    FILTERS inManager(currentUser(),o) OR NOT overManager(managed(o), filter##Stock(o));
     
 
 END

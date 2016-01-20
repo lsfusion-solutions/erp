@@ -5,46 +5,46 @@ REQUIRE System, Machinery, Store, LegalEntity;
 // Группы
 CLASS GroupCashRegister 'Группы касс' : GroupMachinery;
 
-departmentStoreGroupCashRegister = DATA DepartmentStore (GroupCashRegister);
-stockGroupMachinery (groupMachinery) += departmentStoreGroupCashRegister(groupMachinery);
-idDepartmentStoreGroupCashRegister(groupCashRegister) = idDepartmentStore(departmentStoreGroupCashRegister(groupCashRegister));
+departmentStore = DATA DepartmentStore (GroupCashRegister);
+stock (GroupCashRegister groupMachinery) += departmentStore(groupMachinery);
+idDepartmentStore(GroupCashRegister groupCashRegister) = id(departmentStore(groupCashRegister));
 
-groupCashRegisterDepartmentStore (departmentStore) = GROUP MAX groupCashRegister BY departmentStoreGroupCashRegister(groupCashRegister); 
+groupCashRegister (departmentStore) = GROUP MAX GroupCashRegister groupCashRegister BY departmentStore(groupCashRegister); 
 
 TABLE groupCashRegisterCustomUser(GroupCashRegister, CustomUser);
-operatorNumberGroupCashRegisterCustomUser 'Номер в группе касс' = DATA INTEGER (GroupCashRegister, CustomUser);
+operatorNumber 'Номер в группе касс' = DATA INTEGER (GroupCashRegister, CustomUser);
 
-inactiveGroupCashRegister 'Неактивный' = DATA BOOLEAN (GroupCashRegister);
-activeGroupCashRegister 'Активный' (group) = group IS GroupCashRegister AND NOT inactiveGroupCashRegister(group);
-inactiveGroupMachinery(g) += inactiveGroupCashRegister(g);
+inactive 'Неактивный' = DATA BOOLEAN (GroupCashRegister);
+active 'Активный' (GroupCashRegister group) = group IS GroupCashRegister AND NOT inactive(group);
+inactive(GroupCashRegister g) += inactive(g);
 
-pieceCodeGroupCashRegister 'Код для штучных товаров' = DATA STRING[2] (GroupCashRegister) IN base;
-weightCodeGroupCashRegister 'Код для весовых товаров' = DATA STRING[2] (GroupCashRegister) IN base;
+pieceCode 'Код для штучных товаров' = DATA STRING[2] (GroupCashRegister) IN base;
+weightCode 'Код для весовых товаров' = DATA STRING[2] (GroupCashRegister) IN base;
 
 // Модели
 CLASS CashRegisterModel 'Модель касс' : Model;
 
-nameCashRegisterModel 'Наименование' = DATA VARISTRING[110](CashRegisterModel);
+name 'Наименование' = DATA VARISTRING[110](CashRegisterModel);
 
-nameModel(model) += nameCashRegisterModel(model) IF model IS CashRegisterModel;
+name(CashRegisterModel model) += name(model) IF model IS CashRegisterModel;
 
-dateToCashRegisterModel 'Дата, до которой модель внесена в реестр' = DATA DATE (CashRegisterModel) IN base;
+dateTo 'Дата, до которой модель внесена в реестр' = DATA DATE (CashRegisterModel) IN base;
 
-maxSumCashRegisterModel 'Максимальная сумма чека' = DATA NUMERIC[16,2] (CashRegisterModel) IN base;
+maxSum 'Максимальная сумма чека' = DATA NUMERIC[16,2] (CashRegisterModel) IN base;
 
-ignoreCashRegisterServerCashRegisterModel 'Не работать с кассовым сервером' = DATA BOOLEAN (CashRegisterModel) IN base;
+ignoreCashRegisterServer 'Не работать с кассовым сервером' = DATA BOOLEAN (CashRegisterModel) IN base;
 
-allUserSnapshotCashRegisterModel 'Разрешить загрузку целиком всем пользователям' = DATA BOOLEAN(CashRegisterModel);
+allUserSnapshot 'Разрешить загрузку целиком всем пользователям' = DATA BOOLEAN(CashRegisterModel);
 
 FORM cashRegisterModel 'Модель касс'
     OBJECTS c=CashRegisterModel FIXED PANEL
-    PROPERTIES(c) nameCashRegisterModel, sidModel, noteModel, handlerModel, dateToCashRegisterModel, maxSumCashRegisterModel, ignoreCashRegisterServerCashRegisterModel, allUserSnapshotCashRegisterModel
+    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot
     EDIT CashRegisterModel OBJECT c
 ;
 
 FORM cashRegistersModels 'Модели касс'
     OBJECTS c=CashRegisterModel
-    PROPERTIES(c) READONLY nameCashRegisterModel, sidModel, handlerModel, noteModel, maxSumCashRegisterModel, ignoreCashRegisterServerCashRegisterModel, allUserSnapshotCashRegisterModel
+    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG CashRegisterModel OBJECT c
 ;
@@ -59,136 +59,136 @@ NAVIGATOR {
 
 // Кассы
 CLASS CashRegister 'Касса' : Machinery;
-isGroupCashRegister (machinery) = machinery IS GroupCashRegister;
+is (GroupCashRegister machinery) = machinery IS GroupCashRegister;
 
-groupCashRegisterCashRegister = DATA GroupCashRegister (CashRegister) NOT NULL DELETE;
-groupMachineryMachinery(machinery) += groupCashRegisterCashRegister(machinery);
+groupCashRegister = DATA GroupCashRegister (CashRegister) NOT NULL DELETE;
+groupMachinery(CashRegister machinery) += groupCashRegister(machinery);
 
-directoryGroupCashRegister 'Директория обмена с кассами' = DATA VARSTRING[100] (GroupCashRegister) IN base;
-directoryGroupMachinery (groupMachinery) += directoryGroupCashRegister(groupMachinery);
-dataDirectoryCashRegister 'Директория обмена с кассой' = DATA VARSTRING[100] (CashRegister);
-dataDirectoryMachinery (machinery) += dataDirectoryCashRegister(machinery);
+directory 'Директория обмена с кассами' = DATA VARSTRING[100] (GroupCashRegister) IN base;
+directory (GroupCashRegister groupMachinery) += directory(groupMachinery);
+dataDirectory 'Директория обмена с кассой' = DATA VARSTRING[100] (CashRegister);
+dataDirectory (CashRegister machinery) += dataDirectory(machinery);
 
-startDateGroupCashRegister 'Дата начала продаж' = DATA DATE (GroupCashRegister) IN base;
-startDateCashRegister 'Дата начала продаж' = startDateGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
-startDateGroupCashRegisterDepartmentStore 'Дата начала продаж' = GROUP MIN startDateGroupCashRegister(c) BY departmentStoreGroupCashRegister(c) PERSISTENT; 
+startDate 'Дата начала продаж' = DATA DATE (GroupCashRegister) IN base;
+startDate 'Дата начала продаж' = startDate(groupCashRegister(CashRegister cashRegister));
+startDateGroupCashRegister 'Дата начала продаж' = GROUP MIN startDate(GroupCashRegister c) BY departmentStore(c) PERSISTENT; 
 
-notDetailedGroupCashRegister 'Не детализировать по чекам' = DATA BOOLEAN (GroupCashRegister) IN base; 
-activeCashRegister 'Активный' (cashRegister) = activeGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
+notDetailed 'Не детализировать по чекам' = DATA BOOLEAN (GroupCashRegister) IN base; 
+active 'Активный' (CashRegister cashRegister) = active(groupCashRegister(cashRegister));
 
-departmentNumberGroupCashRegister 'Номер группы касс' = DATA INTEGER (GroupCashRegister) IN recognize;
-overDepartmentNumberGroupCashRegister 'Номер группы касс' (gcr) = OVERRIDE nppGroupMachinery(gcr), departmentNumberGroupCashRegister(gcr);
-groupCashRegisterNpp (npp) = GROUP AGGR groupCashRegister BY nppGroupMachinery(groupCashRegister) WHERE groupCashRegister IS GroupCashRegister;  
-cashRegisterNppGroupCashRegisterNpp (g, npp) = GROUP AGGR cashRegister BY nppGroupMachinery(groupCashRegisterCashRegister(cashRegister)), nppMachinery(cashRegister);  
+departmentNumber 'Номер группы касс' = DATA INTEGER (GroupCashRegister) IN recognize;
+overDepartmentNumberCashRegister 'Номер группы касс' (GroupMachinery gcr) = OVERRIDE npp(gcr), departmentNumber(gcr);
+groupCashRegister (npp) = GROUP AGGR GroupCashRegister groupCashRegister BY npp(groupCashRegister) WHERE groupCashRegister IS GroupCashRegister;  
+cashRegisterNppGroupCashRegister (g, npp) = GROUP AGGR CashRegister cashRegister BY npp(groupCashRegister(cashRegister)), npp(cashRegister);  
 
-cashRegisterModelGroupCashRegister = DATA CashRegisterModel (GroupCashRegister);
-modelGroupMachinery(groupMachinery) += cashRegisterModelGroupCashRegister(groupMachinery);
+cashRegisterModel = DATA CashRegisterModel (GroupCashRegister);
+model(GroupCashRegister groupMachinery) += cashRegisterModel(groupMachinery);
 
-departmentStoreCashRegister (cashRegister) = departmentStoreGroupCashRegister(groupCashRegisterCashRegister(cashRegister));
-nameDepartmentStoreCashRegister 'Склад' (cashRegister) = nameDepartmentStore(departmentStoreCashRegister(cashRegister));
+departmentStore (CashRegister cashRegister) = departmentStore(groupCashRegister(cashRegister));
+nameDepartmentStore 'Склад' (CashRegister cashRegister) = name(departmentStore(cashRegister));
 
-countCashRegisterDepartmentStore 'Кол-во касс' (departmentStore) = GROUP SUM 1 IF NOT inactiveMachinery(cashRegister) BY departmentStoreCashRegister(cashRegister);
+countCashRegister 'Кол-во касс' (departmentStore) = GROUP SUM 1 IF NOT inactive(CashRegister cashRegister) BY departmentStore(cashRegister);
     
-countCashRegisterStore 'Кол-во касс' (store) = GROUP SUM countCashRegisterDepartmentStore(d) BY storeDepartmentStore(d);   
-countDataCashRegisterStore 'Кол-во магазинов' = DATA INTEGER (Store);
-countStoreChainStoresOver 'Кол-во касс' (store) = OVERRIDE countCashRegisterStore(store), countDataCashRegisterStore(store); 
+countCashRegister 'Кол-во касс' (store) = GROUP SUM countCashRegister(DepartmentStore d) BY store(d);   
+countDataCashRegister 'Кол-во магазинов' = DATA INTEGER (Store);
+countChainStoresOver 'Кол-во касс' (Store store) = OVERRIDE countCashRegister(store), countDataCashRegister(store); 
 
-registrationNumberCashRegister 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
+registrationNumber 'Регистрационный номер кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 
-dateCashRegister 'Дата фискализации кассового аппарата' = DATA DATE (CashRegister) IN base;
+date 'Дата фискализации кассового аппарата' = DATA DATE (CashRegister) IN base;
 
-ipCashRegister 'IP кассы' = DATA VARSTRING[100] (CashRegister) IN base;
-comPortCashRegister 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
-baudRateCashRegister 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
+ip 'IP кассы' = DATA VARSTRING[100] (CashRegister) IN base;
+comPort 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
+baudRate 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
 
-disableSalesCashRegister 'Без реализации' = DATA BOOLEAN (CashRegister) IN base;
-countSalesCashRegisterDepartmentStore 'Кол-во касс (с реализацией)' = GROUP SUM 1 IF NOT disableSalesCashRegister(cashRegister) AND NOT inactiveMachinery(cashRegister) BY departmentStoreCashRegister(cashRegister);
+disableSales 'Без реализации' = DATA BOOLEAN (CashRegister) IN base;
+countSalesCashRegister 'Кол-во касс (с реализацией)' = GROUP SUM 1 IF NOT disableSales(CashRegister cashRegister) AND NOT inactive(cashRegister) BY departmentStore(cashRegister);
 
-countryCashRegister 'Страна кассы' (cashRegister) = countryStock(stockGroupMachinery(groupCashRegisterCashRegister(cashRegister)));
+country 'Страна кассы' (CashRegister cashRegister) = country(stock(groupCashRegister(cashRegister)));
 
-userLegalEntityCashRegister (cashRegister) = DATA LegalEntity (CashRegister);
-legalEntityCashRegister (cashRegister) =
-    OVERRIDE legalEntityDepartmentStore(departmentStoreCashRegister(cashRegister)), userLegalEntityCashRegister(cashRegister);
+userLegalEntity (cashRegister) = DATA LegalEntity (CashRegister);
+legalEntity (CashRegister cashRegister) =
+    OVERRIDE legalEntity(departmentStore(cashRegister)), userLegalEntity(cashRegister);
 
-nameLegalEntityCashRegister 'Владелец кассы' (cashRegister) = nameLegalEntity(legalEntityCashRegister(cashRegister));
+nameLegalEntity 'Владелец кассы' (CashRegister cashRegister) = name(legalEntity(cashRegister));
 
-computerCashRegister = DATA Computer (CashRegister);
-hostnameComputerCashRegister 'Компьютер' (cashRegister) = hostnameComputer(computerCashRegister(cashRegister)) IN base;
+computer = DATA Computer (CashRegister);
+hostnameComputer 'Компьютер' (CashRegister cashRegister) = hostname(computer(cashRegister)) IN base;
 
-cashRegisterComputer (computer) = GROUP AGGR cashRegister BY computerCashRegister(cashRegister) WHERE cashRegister IS CashRegister PERSISTENT;
+cashRegister (computer) = GROUP AGGR CashRegister cashRegister BY computer(cashRegister) WHERE cashRegister IS CashRegister PERSISTENT;
 
-currentCashRegister 'Текущая касса' = cashRegisterComputer(currentComputer());
+currentCashRegister 'Текущая касса' = cashRegister(currentComputer());
 
-departmentStoreCurrentCashRegister 'Подразделение' = departmentStoreCashRegister(currentCashRegister());
-numberCurrentCashRegister 'Номер кассы' = nppMachinery(currentCashRegister());
-sidModelCurrentCashRegister 'Код модели' = sidModelGroupMachinery(groupMachineryMachinery(currentCashRegister()));
-ipCurrentCashRegister 'IP кассы' = ipCashRegister(currentCashRegister());
-comPortCurrentCashRegister 'Порт кассы' = comPortCashRegister(currentCashRegister());
-baudRateCurrentCashRegister 'Скорость кассы' = baudRateCashRegister(currentCashRegister());
-nppMachineryCurrentCashRegister 'Номер кассового места' = nppMachinery(currentCashRegister());
-operatorNumberCurrentCashRegister (user) = operatorNumberGroupCashRegisterCustomUser(groupCashRegisterCashRegister(currentCashRegister()), user);
+departmentStoreCurrentCashRegister 'Подразделение' = departmentStore(currentCashRegister());
+numberCurrentCashRegister 'Номер кассы' = npp(currentCashRegister());
+sidModelCurrentCashRegister 'Код модели' = sidModel(groupMachinery(currentCashRegister()));
+ipCurrentCashRegister 'IP кассы' = ip(currentCashRegister());
+comPortCurrentCashRegister 'Порт кассы' = comPort(currentCashRegister());
+baudRateCurrentCashRegister 'Скорость кассы' = baudRate(currentCashRegister());
+nppMachineryCurrentCashRegister 'Номер кассового места' = npp(currentCashRegister());
+operatorNumberCurrentCashRegister (CustomUser user) = operatorNumber(groupCashRegister(currentCashRegister()), user);
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
-countryCurrentCashRegister 'Страна кассы' = countryCashRegister(currentCashRegister());
-maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSumCashRegisterModel(cashRegisterModelGroupCashRegister(groupCashRegisterCashRegister(currentCashRegister())));
+countryCurrentCashRegister 'Страна кассы' = country(currentCashRegister());
+maxSumCurrentCashRegister 'Максимальная сумма чека' = maxSum(cashRegisterModel(groupCashRegister(currentCashRegister())));
 
-ignoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr) = ignoreCashRegisterServerCashRegisterModel(cashRegisterModelGroupCashRegister(gcr));
-notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr) = gcr IS GroupCashRegister AND NOT ignoreCashRegisterServerCashRegisterModelGroupCashRegister(gcr);
+ignoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = ignoreCashRegisterServer(cashRegisterModel(gcr));
+notIgnoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = gcr IS GroupCashRegister AND NOT ignoreCashRegisterServerCashRegisterModel(gcr);
 
-overChangeDirectoryGroupCashRegister = ABSTRACT ACTION LIST (GroupCashRegister);
-changeDirectoryGroupCashRegister = ACTION (group) {     
+overChangeDirectory = ABSTRACT ACTION LIST (GroupCashRegister);
+changeDirectory = ACTION (GroupCashRegister group) {     
     REQUEST VARSTRING[100] INPUT;
-    directoryGroupCashRegister(group) <- requestedString();
-    overChangeDirectoryGroupCashRegister(group);       
+    directory(group) <- requestedString();
+    overChangeDirectory(group);       
 }
 
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
-    PROPERTIES(c) nameGroupMachineryMachinery, nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, 
-                  ipCashRegister, comPortCashRegister, baudRateCashRegister, disableSalesCashRegister, dataDirectoryCashRegister, 
-                  dateCashRegister, hostnameComputerCashRegister
+    PROPERTIES(c) nameGroupMachinery, npp, shortDescription, description, port, 
+                  ip, comPort, baudRate, disableSales, dataDirectory, 
+                  date, hostnameComputer
     EDIT CashRegister OBJECT c
 ;
 
 FORM groupCashRegister 'Группа касс'
     OBJECTS grc=GroupCashRegister FIXED PANEL
-    PROPERTIES(grc) nppGroupMachinery, departmentNumberGroupCashRegister, nameStockGroupMachinery, nameGroupMachinery,
-                    pieceCodeGroupCashRegister, weightCodeGroupCashRegister,
-                    filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grc),
-                    namePriceListTypeGroupMachinery, nameModelGroupMachinery, 
-                    directoryGroupCashRegister SHOWIF notIgnoreCashRegisterServerCashRegisterModelGroupCashRegister(grc) ON CHANGE changeDirectoryGroupCashRegister(grc),
-                    startDateGroupCashRegister, notDetailedGroupCashRegister, inactiveGroupCashRegister
+    PROPERTIES(grc) npp, departmentNumber, nameStock, name,
+                    pieceCode, weightCode,
+                    filterSku, showFilterSku SHOWIF filterSku(grc),
+                    namePriceListType, nameModel, 
+                    directory SHOWIF notIgnoreCashRegisterServerCashRegisterModel(grc) ON CHANGE changeDirectory(grc),
+                    startDate, notDetailed, inactive
 
     OBJECTS c=CashRegister
-    PROPERTIES(c)   nameGroupMachineryMachinery, nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
-                    ipCashRegister, comPortCashRegister SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc), 
-                    baudRateCashRegister SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
-                    disableSalesCashRegister,
-                    dataDirectoryCashRegister SHOWIF ignoreCashRegisterServerCashRegisterModelGroupCashRegister(grc),
-                    dateCashRegister, hostnameComputerCashRegister, nameLegalEntityCashRegister, ADDOBJ, DELETESESSION
+    PROPERTIES(c)   nameGroupMachinery, npp, shortDescription, description, port SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
+                    ip, comPort SHOWIF ignoreCashRegisterServerCashRegisterModel(grc), 
+                    baudRate SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
+                    disableSales,
+                    dataDirectory SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
+                    date, hostnameComputer, nameLegalEntity, ADDOBJ, DELETESESSION
 
     OBJECTS cu=CustomUser
-    PROPERTIES(cu) loginCustomUser, firstNameContact, lastNameContact, sidMainRoleCustomUser
-    PROPERTIES(grc, cu) operatorNumberGroupCashRegisterCustomUser
+    PROPERTIES(cu) login, firstName, lastName, sidMainRole
+    PROPERTIES(grc, cu) operatorNumber
 
     FILTERGROUP filters2
-        FILTER 'Показывать только для данной группы' groupCashRegisterCashRegister(c) == grc 'F10' DEFAULT
+        FILTER 'Показывать только для данной группы' groupCashRegister(c) == grc 'F10' DEFAULT
 
     EDIT GroupCashRegister OBJECT grc
 ;
 
 FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
-    PROPERTIES(grc)  READONLY activeGroupCashRegister, nppGroupMachinery, departmentNumberGroupCashRegister, nameStockGroupMachinery, nameGroupMachinery,
-                     filterSkuGroupMachinery, nameModelGroupMachinery, directoryGroupCashRegister,
-                     startDateGroupCashRegister, notDetailedGroupCashRegister,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister
+    PROPERTIES(grc)  READONLY active, npp, departmentNumber, nameStock, name,
+                     filterSku, nameModel, directory,
+                     startDate, notDetailed,  pieceCode, weightCode
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    PROPERTIES(c) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, ipCashRegister, comPortCashRegister, baudRateCashRegister,
-                           disableSalesCashRegister, dataDirectoryCashRegister, dateCashRegister, nameLegalEntityCashRegister
-    FILTERS groupCashRegisterCashRegister(c) == grc
+    PROPERTIES(c) READONLY npp, shortDescription, description, port, ip, comPort, baudRate,
+                           disableSales, dataDirectory, date, nameLegalEntity
+    FILTERS groupCashRegister(c) == grc
     
     FILTERGROUP active1
-        FILTER 'Активные' activeGroupCashRegister(grc) 'F5' DEFAULT
+        FILTER 'Активные' active(grc) 'F5' DEFAULT
 ;
 @extendFormFilterAccessStock(GroupMachinery, grc, groupsCashRegister, stock, company);
 
@@ -211,37 +211,37 @@ NAVIGATOR {
 }
 
 EXTEND FORM departmentStore
-    PROPERTIES(d) READONLY countCashRegisterDepartmentStore
+    PROPERTIES(d) READONLY countCashRegister
 ;
 
 DESIGN departmentStore{
     headerExtraParams{
-        MOVE PROPERTY(countCashRegisterDepartmentStore(d));
+        MOVE PROPERTY(countCashRegister(d));
     }
 }
     
 EXTEND FORM store
-    PROPERTIES(s) countStoreChainStoresOver
-    PROPERTIES(d) READONLY countCashRegisterDepartmentStore BEFORE deleteD
+    PROPERTIES(s) countChainStoresOver
+    PROPERTIES(d) READONLY countCashRegister BEFORE deleteD
 ;
     
 DESIGN store{
     headerExtraParams{
-        MOVE PROPERTY(countStoreChainStoresOver(s));
+        MOVE PROPERTY(countChainStoresOver(s));
     }    
 }  
 
 EXTEND FORM stores
-    PROPERTIES(s) READONLY countStoreChainStoresOver
+    PROPERTIES(s) READONLY countChainStoresOver
 ;
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
-loadDefaultCashRegisterModel 'Добавить модель касс' = ACTION (iname, isid, ihandler)  {
+loadDefaultCashRegisterModel 'Добавить модель касс' = ACTION (VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler)  {
     FOR ADDOBJ crm = CashRegisterModel DO {
-         ASSIGN nameCashRegisterModel(crm) <- iname;
-         ASSIGN sidModel(crm) <- isid;
-         ASSIGN handlerModel(crm) <- ihandler;
+         ASSIGN name(crm) <- iname;
+         ASSIGN sid(crm) <- isid;
+         ASSIGN handler(crm) <- ihandler;
     }
 }
 
@@ -263,21 +263,21 @@ loadDefaultCashRegisterModels 'Загрузить стандартные мод�
 @implementLoadDefaultData(loadDefaultCashRegisterModels);
 
 // --------------------------------------- Генерация групп касс -------------------------------- //
-loadDefaultGroupCashRegister 'Сгенерировать группу касс' = ACTION(priceListType, stock, model, num) {
+loadDefaultGroup 'Сгенерировать группу касс' = ACTION(PriceListType priceListType, Stock stock, CashRegisterModel model, INTEGER num) {
     FOR ADDOBJ g = GroupCashRegister DO {
-        departmentStoreGroupCashRegister(g) <- stock;
-        priceListTypeGroupMachinery(g) <- priceListType;
-        nameGroupMachinery(g) <- 'Группа касс по умолчанию';
+        departmentStore(g) <- stock;
+        priceListType(g) <- priceListType;
+        name(g) <- 'Группа касс по умолчанию';
 
         LOCAL numCashRegister = INTEGER();
         numCashRegister() <- 0;
         WHILE numCashRegister() < num DO {
             FOR ADDOBJ c = CashRegister DO {
-                groupCashRegisterCashRegister(c) <- g;
+                groupCashRegister(c) <- g;
                 numCashRegister() <- numCashRegister() + 1;
-                nppMachinery(c) <- numCashRegister();
-                cashRegisterModelGroupCashRegister(g) <- model;
-                descriptionMachinery(c) <- CONCAT ' ', 'Касса', VARSTRING[255](numCashRegister()), '(', nameStock(stock), ')';
+                npp(c) <- numCashRegister();
+                cashRegisterModel(g) <- model;
+                description(c) <- CONCAT ' ', 'Касса', VARSTRING[255](numCashRegister()), '(', name(stock), ')';
             }
         }
     }
@@ -285,15 +285,15 @@ loadDefaultGroupCashRegister 'Сгенерировать группу касс' 
 
 EXTEND FORM defaultData
     OBJECTS         crm=CashRegisterModel FIXED PANEL
-    PROPERTIES(crm) SELECTOR nameCashRegisterModel
+    PROPERTIES(crm) SELECTOR name
 
     OBJECTS         cCashReg=INTEGER FIXED PANEL
     PROPERTIES(cCashReg)   intValueCashRegister = OBJVALUE
-    PROPERTIES (pt, s, crm, cCashReg) loadDefaultGroupCashRegister
+    PROPERTIES (pt, s, crm, cCashReg) loadDefaultGroup
 ;
 
 DESIGN defaultData {
-    PROPERTY(nameCashRegisterModel(crm)) {
+    PROPERTY(name(crm)) {
         caption = 'Модель касс';
     }
     PROPERTY(intValueCashRegister) {
@@ -302,9 +302,9 @@ DESIGN defaultData {
     machinery {
         NEW cashRegister {
             caption = 'Кассы';
-            MOVE PROPERTY(nameCashRegisterModel(crm));
+            MOVE PROPERTY(name(crm));
             MOVE PROPERTY(intValueCashRegister);
-            MOVE PROPERTY(loadDefaultGroupCashRegister(pt,s,crm,cCashReg));
+            MOVE PROPERTY(loadDefaultGroup(pt,s,crm,cCashReg));
         }
     }
 }

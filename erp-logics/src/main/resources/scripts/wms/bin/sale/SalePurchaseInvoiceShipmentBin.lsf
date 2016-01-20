@@ -7,20 +7,20 @@ PRIORITY Sale;
 
 @defineDocumentInterfaceDetailBinCustom(invoiceDetail, purchase, ' (закупка)');
 
-Purchase.binInvoiceDetail(detail) += purchaseBinInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
-showBinCreateUserInvoice (invoice) = showBinUserInvoice(invoice) AND createPurchaseShipmentUserInvoice(invoice);
-showBinCreateInvoice (invoice) = showBinInvoice(invoice) AND createPurchaseShipmentInvoice(invoice);
+bin(PurchaseInvoiceDetail detail) += purchaseBin(invoiceDetail(detail));
+showBinCreate (UserInvoice invoice) = showBin(invoice) AND createPurchaseShipment(invoice);
+showBinCreate (Invoice invoice) = showBin(invoice) AND createPurchaseShipment(invoice);
 
-purchaseBinUserInvoiceDetail(detail) <- binStockSku(customerStockUserInvoiceDetail(detail), skuUserInvoiceDetail(detail))
-    WHEN CHANGED(customerStockUserInvoiceDetail(detail)) OR
-         CHANGED(skuUserInvoiceDetail(detail));
+purchaseBin(UserInvoiceDetail detail) <- bin(customerStock(detail), sku(detail))
+    WHEN CHANGED(customerStock(detail)) OR
+         CHANGED(sku(detail));
 
 EXTEND FORM userInvoice
-    PROPERTIES(d) BEFORE nameCustomerStockUserInvoiceDetail(d) SHOWIF showBinCreateUserInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
-                  namePurchaseBinUserInvoiceDetail
+    PROPERTIES(d) BEFORE nameCustomerStock(d) SHOWIF showBinCreate(i) BACKGROUND backgroundPurchaseShipment(i)
+                  namePurchaseBin
 ;
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY BEFORE nameCustomerStockInvoiceDetail(d) SHOWIF showBinCreateInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
-                  namePurchaseBinInvoiceDetail
+    PROPERTIES(d) READONLY BEFORE nameCustomerStock(d) SHOWIF showBinCreate(i) BACKGROUND backgroundPurchaseShipment(i)
+                  namePurchaseBin
 ;

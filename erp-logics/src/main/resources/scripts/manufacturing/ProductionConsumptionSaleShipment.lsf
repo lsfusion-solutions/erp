@@ -4,20 +4,20 @@ REQUIRE ProductionConsumption, SalePurchaseShipment;
 
 NAMESPACE Production;
 
-createShipmentConsumption 'Создать поставку для Сырья' = ACTION (consumption)  {
+createShipment 'Создать поставку для Сырья' = ACTION (Consumption consumption)  {
 
     FOR ADDOBJ sh = Sale.UserShipment DO {
-        Sale.supplierUserShipment(sh) <- legalEntityStockConsumption(consumption);
-        Sale.customerUserShipment(sh) <- legalEntityStockConsumption(consumption);
-        Sale.customerStockUserShipment(sh) <- stockConsumption(consumption);
-        createPurchaseUserShipment(sh) <- TRUE;
-        Sale.noteUserShipment(sh) <- VARSTRING[100](descriptionConsumption(consumption));
+        supplier(sh) <- legalEntityStock(consumption);
+        customer(sh) <- legalEntityStock(consumption);
+        customerStock(sh) <- stock(consumption);
+        createPurchase(sh) <- TRUE;
+        note(sh) <- VARSTRING[100](description(consumption));
 
-        FOR consumptionConsumptionDetail(consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
-            Sale.userShipmentUserShipmentDetail(d) <- sh;
-            Sale.skuUserShipmentDetail(d) <- skuConsumptionDetail(consumptionDetail);
-            Sale.quantityUserShipmentDetail(d) <- quantityConsumptionDetail(consumptionDetail);
-            Sale.priceUserShipmentDetail(d) <- priceConsumptionDetail(consumptionDetail);
+        FOR consumption(ConsumptionDetail consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
+            userShipment(d) <- sh;
+            sku(d) <- sku(consumptionDetail);
+            quantity(d) <- quantity(consumptionDetail);
+            price(d) <- price(consumptionDetail);
         }
 
     FORM Sale.userShipment OBJECTS s=sh MODAL;
@@ -28,5 +28,5 @@ createShipmentConsumption 'Создать поставку для Сырья' = 
 } TOOLBAR;
 
 EXTEND FORM consumptions
-    PROPERTIES (o) createShipmentConsumption
+    PROPERTIES (o) createShipment
 ;

@@ -25,55 +25,55 @@ public class ImportPurchaseInvoiceItemFashion extends ImportDefaultPurchaseInvoi
         if (LM != null && itemKey != null && articleKey != null) {
 
             if (showField(userInvoiceDetailsList, "idSeason")) {
-                ImportField idSeasonField = new ImportField(LM.findProperty("idSeason"));
+                ImportField idSeasonField = new ImportField(LM.findProperty("id[Season]"));
                 ImportKey<?> seasonKey = new ImportKey((ConcreteCustomClass) LM.findClass("Season"),
-                        LM.findProperty("seasonId").getMapping(idSeasonField));
+                        LM.findProperty("season[VARSTRING[100]]").getMapping(idSeasonField));
                 keys.add(seasonKey);
-                props.add(new ImportProperty(idSeasonField, LM.findProperty("idSeason").getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
-                props.add(new ImportProperty(idSeasonField, LM.findProperty("seasonArticle").getMapping(articleKey),
+                props.add(new ImportProperty(idSeasonField, LM.findProperty("id[Season]").getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
+                props.add(new ImportProperty(idSeasonField, LM.findProperty("season[Article]").getMapping(articleKey),
                         object(LM.findClass("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
-                props.add(new ImportProperty(idSeasonField, LM.findProperty("seasonItem").getMapping(itemKey),
+                props.add(new ImportProperty(idSeasonField, LM.findProperty("season[Item]").getMapping(itemKey),
                         object(LM.findClass("Season")).getMapping(seasonKey), getReplaceOnlyNull(defaultColumns, "idSeason")));
                 fields.add(idSeasonField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idSeason"));
 
                 if (showField(userInvoiceDetailsList, "nameSeason")) {
-                    addDataField(props, fields, defaultColumns, LM.findProperty("nameSeason"), "nameSeason", seasonKey);
+                    addDataField(props, fields, defaultColumns, LM.findProperty("name[Season]"), "nameSeason", seasonKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameSeason"));
                 }
             }
 
             if (showField(userInvoiceDetailsList, "idCollection")) {
-                ImportField idCollectionField = new ImportField(LM.findProperty("idCollection"));
+                ImportField idCollectionField = new ImportField(LM.findProperty("id[Collection]"));
                 ImportKey<?> collectionKey = new ImportKey((ConcreteCustomClass) LM.findClass("Collection"),
-                        LM.findProperty("collectionId").getMapping(idCollectionField));
+                        LM.findProperty("collection[VARSTRING[100]]").getMapping(idCollectionField));
                 keys.add(collectionKey);
-                props.add(new ImportProperty(idCollectionField, LM.findProperty("idCollection").getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
-                props.add(new ImportProperty(idCollectionField, LM.findProperty("collectionArticle").getMapping(articleKey),
+                props.add(new ImportProperty(idCollectionField, LM.findProperty("id[Collection]").getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
+                props.add(new ImportProperty(idCollectionField, LM.findProperty("collection[Article]").getMapping(articleKey),
                         object(LM.findClass("Collection")).getMapping(collectionKey), getReplaceOnlyNull(defaultColumns, "idCollection")));
                 fields.add(idCollectionField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idCollection"));
 
                 if (showField(userInvoiceDetailsList, "nameCollection")) {
-                    addDataField(props, fields, defaultColumns, LM.findProperty("nameCollection"), "nameCollection", collectionKey);
+                    addDataField(props, fields, defaultColumns, LM.findProperty("name[Collection]"), "nameCollection", collectionKey);
                     for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                         data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("nameCollection"));
                 }
             }
 
             if (showField(userInvoiceDetailsList, "idSeasonYear")) {
-                ImportField idSeasonYearField = new ImportField(LM.findProperty("idSeasonYear"));
+                ImportField idSeasonYearField = new ImportField(LM.findProperty("id[SeasonYear]"));
                 ImportKey<?> seasonYearKey = new ImportKey((ConcreteCustomClass) LM.findClass("SeasonYear"),
-                        LM.findProperty("seasonYearId").getMapping(idSeasonYearField));
+                        LM.findProperty("seasonYear[VARSTRING[100]]").getMapping(idSeasonYearField));
                 keys.add(seasonYearKey);
-                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("idSeasonYear").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
-                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("nameSeasonYear").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
-                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("seasonYearArticle").getMapping(articleKey),
+                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("id[SeasonYear]").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
+                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("name[SeasonYear]").getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
+                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("seasonYear[Article]").getMapping(articleKey),
                         object(LM.findClass("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
-                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("seasonYearItem").getMapping(itemKey),
+                props.add(new ImportProperty(idSeasonYearField, LM.findProperty("seasonYear[Item]").getMapping(itemKey),
                         object(LM.findClass("SeasonYear")).getMapping(seasonYearKey), getReplaceOnlyNull(defaultColumns, "idSeasonYear")));
                 fields.add(idSeasonYearField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)

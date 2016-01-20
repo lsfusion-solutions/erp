@@ -4,147 +4,147 @@ REQUIRE OrderPickingOrder, OrderInvoice;
 
 NAMESPACE Invoice;
 
-inCreatePickingUserInvoicePostedOrder = DATA LOCAL BOOLEAN (Order);
-countInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF inCreatePickingUserInvoicePostedOrder(o);
+inCreatePickingUserInvoicePosted = DATA LOCAL BOOLEAN (Order);
+countInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF inCreatePickingUserInvoicePosted(Order o);
 
-countInCreatePickingUserInvoicePostedOrderParams = GROUP SUM 1 IF inCreatePickingUserInvoicePostedOrder(o)
-                                                         BY fromOrder(o), toOrder(o), fromStockOrder(o), toStockOrder(o);
-countParamsInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF countInCreatePickingUserInvoicePostedOrderParams(from, to, fromStock, toStock); 
+countInCreatePickingUserInvoicePostedOrderParams = GROUP SUM 1 IF inCreatePickingUserInvoicePosted(Order o)
+                                                         BY from(o), to(o), fromStock(o), toStock(o);
+countParamsInCreatePickingUserInvoicePostedOrder = GROUP SUM 1 IF countInCreatePickingUserInvoicePostedOrderParams(LegalEntity from, LegalEntity to, Stock fromStock, Stock toStock); 
 
-createPickingUserInvoicePostedOrder 'Создать проведенную накладную' = ABSTRACT ACTION (Order);
+createPickingUserInvoicePosted 'Создать проведенную накладную' = ABSTRACT ACTION (Order);
 
 META defineOrderInvoicePickingOrder (sign)
 
-    pickingBatchOrderDetail (batch, orderDetail) = PARTITION UNGROUP pickingQuantityOrderDetail
-                                                               LIMIT STRICT currentBalanceBatchStock(batch, supplierStockOrderDetail(orderDetail)) IF skuBatch(batch) == skuOrderDetail(orderDetail)
+    picking (Batch batch, OrderDetail orderDetail) = PARTITION UNGROUP pickingQuantity
+                                                               LIMIT STRICT currentBalance(batch, supplierStock(orderDetail)) IF sku(batch) == sku(orderDetail)
                                                                BY orderDetail
-                                                               ORDER orderBatch(batch);
+                                                               ORDER order(batch);
 
-    createPickingDetailUserInvoiceOrder = ACTION (userInvoice, order) {
-        IF useExplicitBatchDetailUserInvoiceOrder(order) AND explicitBatchLedgerStock(fromStockOrder(order)) THEN {
-            FOR orderOrderDetail(orderDetail) == order AND pickingBatchOrderDetail(batch, orderDetail) AND NOT batchOrderDetail(orderDetail)
-                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
+    createPickingDetail = ACTION (UserInvoice userInvoice, Order.Order order) {
+        IF useExplicitBatchDetailUserInvoice(order) AND explicitBatchLedger(fromStock(order)) THEN {
+            FOR order(OrderDetail orderDetail) == order AND picking(Batch batch, orderDetail) AND NOT batch(orderDetail)
+                ORDER orderCreateUserInvoice(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
-                userInvoiceUserInvoiceDetail(d) <- userInvoice;
-                orderUserInvoiceDetail(d) <- order;
-                skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-                batchUserInvoiceDetail(d) <- batch;
-                quantityUserInvoiceDetail (d) <- pickingBatchOrderDetail(batch, orderDetail);
+                userInvoice(d) <- userInvoice;
+                order(d) <- order;
+                sku(d) <- sku(orderDetail);
+                batch(d) <- batch;
+                quantity (d) <- picking(batch, orderDetail);
                 
-                fillUserInvoiceDetailOrderDetail(d, orderDetail);
-                overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+                fill(d, orderDetail);
+                overFill(d, orderDetail);
             }
-            FOR orderOrderDetail(orderDetail) == order AND PREV(pickingQuantityOrderDetail(orderDetail)) AND batchOrderDetail(orderDetail)
-                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
+            FOR order(OrderDetail orderDetail) == order AND PREV(pickingQuantity(orderDetail)) AND batch(orderDetail)
+                ORDER orderCreateUserInvoice(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
-                userInvoiceUserInvoiceDetail(d) <- userInvoice;
-                orderUserInvoiceDetail(d) <- order;
-                skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-                batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-                quantityUserInvoiceDetail (d) <- PREV(pickingQuantityOrderDetail(orderDetail));
+                userInvoice(d) <- userInvoice;
+                order(d) <- order;
+                sku(d) <- sku(orderDetail);
+                batch(d) <- batch(orderDetail);
+                quantity (d) <- PREV(pickingQuantity(orderDetail));
     
-                fillUserInvoiceDetailOrderDetail(d, orderDetail);
-                overFillUserInvoiceDetailOrderDetail(d, orderDetail);
+                fill(d, orderDetail);
+                overFill(d, orderDetail);
             }
         } ELSE {
-            FOR orderOrderDetail(orderDetail) == order AND
-                pickingQuantityOrderDetail(orderDetail) > 0 // возможно еще нужно фильтровать по складам
-                AND inOrderDetailUserInvoice(orderDetail, userInvoice)
-                ORDER orderCreateUserInvoiceOrderDetail(orderDetail) 
+            FOR order(OrderDetail orderDetail) == order AND
+                pickingQuantity(orderDetail) > 0 // возможно еще нужно фильтровать по складам
+                AND in(orderDetail, userInvoice)
+                ORDER orderCreateUserInvoice(orderDetail) 
                 ADDOBJ d = UserInvoiceDetail DO {
-                    userInvoiceUserInvoiceDetail(d) <- userInvoice;
-                    orderUserInvoiceDetail(d) <- order;
-                    skuUserInvoiceDetail(d) <- skuOrderDetail(orderDetail);
-                    batchUserInvoiceDetail(d) <- batchOrderDetail(orderDetail);
-                    quantityUserInvoiceDetail (d) <- pickingQuantityOrderDetail(orderDetail);
+                    userInvoice(d) <- userInvoice;
+                    order(d) <- order;
+                    sku(d) <- sku(orderDetail);
+                    batch(d) <- batch(orderDetail);
+                    quantity (d) <- pickingQuantity(orderDetail);
 
-                    fillUserInvoiceDetailOrderDetail(d, orderDetail);
-                    overFillUserInvoiceDetailOrderDetail(d, orderDetail);                    
+                    fill(d, orderDetail);
+                    overFill(d, orderDetail);                    
             }
         }
 
-        FOR excessQuantityPickingPickingDetailOrderSku(order, sku) > 0 ADDOBJ d = UserInvoiceDetail DO {
-            userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            orderUserInvoiceDetail(d) <- order;
-            skuUserInvoiceDetail(d) <- sku;
-            quantityUserInvoiceDetail (d) <- excessQuantityPickingPickingDetailOrderSku(order, sku);
+        FOR excessQuantityPickingPickingDetail(order, Sku sku) > 0 ADDOBJ d = UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            order(d) <- order;
+            sku(d) <- sku;
+            quantity (d) <- excessQuantityPickingPickingDetail(order, sku);
         }
     }
 
-    fillPickingUserInvoiceOrder = ACTION (userInvoice, order) {
-        fillHeaderUserInvoiceOrder(userInvoice, order);
-        createPickingDetailUserInvoiceOrder(userInvoice, order);
-        fillPriceUserInvoiceOrder(userInvoice, order);
+    fillPicking = ACTION (UserInvoice userInvoice, Order.Order order) {
+        fillHeader(userInvoice, order);
+        createPickingDetail(userInvoice, order);
+        fillPrice(userInvoice, order);
     }
 
-    packQuantityInvoice 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Invoice);
-    packQuantityUserInvoice 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
-    packQuantityInvoice(invoice) += packQuantityUserInvoice(invoice);
+    packQuantity 'Общее количество грузовых мест' = ABSTRACT NUMERIC[8,2] (Invoice);
+    packQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (UserInvoice);
+    packQuantity(UserInvoice invoice) += packQuantity(invoice);
 
-    createPickingUserInvoiceOrder 'Создать накладную по комплектации' = ACTION (order) {
+    createPickingUserInvoice 'Создать накладную по комплектации' = ACTION (Order order) {
         IF order IS Order THEN {
-            userInvoiceOrder(order) <- NULL;
+            userInvoice(order) <- NULL;
             FOR ADDOBJ i = UserInvoice DO {
-                fillPickingUserInvoiceOrder(i, order);
-                userInvoiceOrder(order) <- i;
-                packQuantityUserInvoice(i) <- packQuantityOrder(order);
-                createdUserInvoiceOrder(i, order) <- TRUE;
-                includeOrderUserInvoice(order,i) <- TRUE;
+                fillPicking(i, order);
+                userInvoice(order) <- i;
+                packQuantity(i) <- packQuantity(order);
+                createdUser(i, order) <- TRUE;
+                include(order,i) <- TRUE;
             }
         }
     }
 
-    createPickingUserInvoicePostedOrder 'Создать проведенную накладную по комплектации' = ACTION (order) {
+    createPickingUserInvoicePosted 'Создать проведенную накладную по комплектации' = ACTION (Order order) {
         IF order IS Order THEN {
-            userInvoiceOrder(order) <- NULL;
+            userInvoice(order) <- NULL;
             IF countInCreatePickingUserInvoicePostedOrder() THEN {
                 IF countParamsInCreatePickingUserInvoicePostedOrder() > 1 THEN {
                     MESSAGE 'По выбранным заказам не может быть создана одна накладная';
                 } ELSE {
                     FOR ADDOBJ i = UserInvoice DO {
-                        isPostedUserInvoice(i) <- TRUE;
-                        FOR inCreatePickingUserInvoicePostedOrder(o) DO {
-                            fillPickingUserInvoiceOrder(i, o);                        
-                            createdUserInvoiceOrder(i, o) <- TRUE;
-                            includeOrderUserInvoice(o,i) <- TRUE;
+                        isPosted(i) <- TRUE;
+                        FOR inCreatePickingUserInvoicePosted(Order.Order o) DO {
+                            fillPicking(i, o);                        
+                            createdUser(i, o) <- TRUE;
+                            include[Order,UserInvoice](o,i) <- TRUE;
                         }
-                        packQuantityUserInvoice(i) <- [=GROUP SUM packQuantityOrder(o) IF inCreatePickingUserInvoicePostedOrder(o)]();
+                        packQuantity(i) <- [=GROUP SUM packQuantity(Order.Order o) IF inCreatePickingUserInvoicePosted(o)]();
                     }
                 }
             } ELSE {
                 FOR ADDOBJ i = UserInvoice DO {
-                    isPostedUserInvoice(i) <- TRUE;
-                    fillPickingUserInvoiceOrder(i, order);
-                    packQuantityUserInvoice(i) <- packQuantityOrder(order);
-                    createdUserInvoiceOrder(i, order) <- TRUE;
-                    userInvoiceOrder(order) <- i;
-                    includeOrderUserInvoice(order,i) <- TRUE;
+                    isPosted(i) <- TRUE;
+                    fillPicking(i, order);
+                    packQuantity(i) <- packQuantity(order);
+                    createdUser(i, order) <- TRUE;
+                    userInvoice(order) <- i;
+                    include(order,i) <- TRUE;
                 }
             }
         }
     }
-    Invoice.createPickingUserInvoicePostedOrder(o) += ACTION createPickingUserInvoicePostedOrder(o); 
+    createPickingUserInvoicePosted(Order o) += ACTION createPickingUserInvoicePosted(o); 
 
-    addPickingUserInvoiceOrder 'Накладная по комплектации'###sign =  ACTION (order) NEWSESSION{
+    addPickingUserInvoice 'Накладная по комплектации'###sign =  ACTION (Order order) NEWSESSION{
         IF order IS Order THEN {
-            createPickingUserInvoiceOrder(order);
-            IF excessQuantityPickingPickingDetailOrder(order) THEN {
+            createPickingUserInvoice(order);
+            IF excessQuantityPickingPickingDetail(order) THEN {
                 MESSAGE 'В накладной присутствуют товары, не указанные в заказе';
             }
-            FORM userInvoice OBJECTS i = userInvoiceOrder(order) MANAGESESSION DOCKEDMODAL;
+            FORM userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKEDMODAL;
         }
     } TOOLBAR;
 
     EXTEND FORM orders
-        PROPERTIES(o) SHOWIF calcPartOrder(o) addPickingUserInvoiceOrder
+        PROPERTIES(o) SHOWIF calcPart(o) addPickingUserInvoice
     ;
     DESIGN orders {
         createdContainer{
-            MOVE PROPERTY(addPickingUserInvoiceOrder(o));
+            MOVE PROPERTY(addPickingUserInvoice(o));
         }
     }
 
 END
 
-toInvoicePickedOrderDetail 'Не выписано' (d) = pickingQuantityOrderDetail(d) (-) invoicedOrderDetail(d);
-toInvoicePickedOrder 'Не выписано' (o) = GROUP SUM 1 IF toInvoicePickedOrderDetail(d) > 0 BY orderOrderDetail(d) PERSISTENT;
+toInvoicePicked 'Не выписано' (OrderDetail d) = pickingQuantity(d) (-) invoiced(d);
+toInvoicePicked 'Не выписано' (o) = GROUP SUM 1 IF toInvoicePicked(OrderDetail d) > 0 BY order(d) PERSISTENT;

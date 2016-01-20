@@ -4,66 +4,66 @@ REQUIRE StockDocument, StockBy;
 
 NAMESPACE StockDocument;
 
-positionShortNameResponsiblePersonStock 'Материально ответственное лицо' (stock) = positionShortNameEmployee(responsiblePersonStock(stock));
-positionShortNameControllerStock 'Материально ответственное лицо' (stock) = positionShortNameEmployee(controllerStock(stock));
-positionShortNameBookerStock 'Материально ответственное лицо' (stock) = positionShortNameEmployee(bookerStock(stock));
+positionShortNameResponsiblePerson 'Материально ответственное лицо' (Stock stock) = positionShortName(responsiblePerson(stock));
+positionShortNameController 'Материально ответственное лицо' (Stock stock) = positionShortName(controller(stock));
+positionShortNameBooker 'Материально ответственное лицо' (Stock stock) = positionShortName(booker(stock));
 
-overNameStockDocumentLedger(l) = OVERRIDE objectClassName(l), typeStockDocumentLedger(l), nameOperationStockDocumentLedger(l);
+overNameStockDocumentLedger(Object l) = OVERRIDE objectClassName(l), type(l), nameOperation(l);
 
 FORM printStockDocumentBy 'Товарный отчет'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) FIXED PANEL,
             ds = Stock FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dtFrom), objTo = OBJVALUE(dtTo)
-    PROPERTIES(ds) SELECTOR fullNameStock, addressStock, nameLegalEntityStock, fullNameLegalEntityStock, nameCustomUserResponsiblePersonStock, namePositionResponsiblePersonStock, nameCustomUserBookerStock,
-                            namePositionBookerStock, nameCustomUserControllerStock, namePositionControllerStock, UNPStock, 
-                            shortNamePositionResponsibliesStock, positionShortNameResponsiblePersonStock, positionShortNameControllerStock,
-                            positionShortNameBookerStock
+    PROPERTIES(ds) SELECTOR fullName, address, nameLegalEntity, fullNameLegalEntity, nameCustomUserResponsiblePerson, namePositionResponsiblePerson, nameCustomUserBooker,
+                            namePositionBooker, nameCustomUserController, namePositionController, UNP, 
+                            shortNamePositionResponsiblies, positionShortNameResponsiblePerson, positionShortNameController,
+                            positionShortNameBooker
 
-    PROPERTIES sumAccountBDocumentLedgerDate(ds, dtFrom), sumItemAccountBDocumentLedgerDate(ds, dtFrom), sumContainerAccountBDocumentLedgerDate(ds, dtFrom),
-               sumItemAccountADocumentLedgerDate(ds, dtTo), sumContainerAccountADocumentLedgerDate(ds, dtTo), sumAccountADocumentLedgerDate(ds, dtTo)
-    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentStockDateInterval, countOutStockDocumentStockDateInterval,
-               sumItemIncStockDocumentStockDateInterval, sumContainerIncStockDocumentStockDateInterval,
-               subtotalItemIncStockDocumentStockDateInterval, subtotalContainerIncStockDocumentStockDateInterval,
-               sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval, countStockDocumentStockDateInterval
+    PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
+               sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
+    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentInterval, countOutStockDocumentInterval,
+               sumItemIncStockDocumentInterval, sumContainerIncStockDocumentInterval,
+               subtotalItemIncStockDocumentInterval, subtotalContainerIncStockDocumentInterval,
+               sumItemOutStockDocumentInterval, sumContainerOutStockDocumentInterval, countStockDocumentInterval
 
     OBJECTS il = IncStockDocumentLedger
-    PROPERTIES(il) SELECTOR iDateTime = dateTimeStockDocumentLedger, iObjName = objectClassName, iDescription = descriptionStockDocumentLedger,
-                   sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger, nameLegalEntityStockDocumentLedger,
-                   dateStockDocumentLedger, seriesNumberStockDocumentLedger, nameLegalEntityStockStockDocumentLedger,
+    PROPERTIES(il) SELECTOR iDateTime = dateTime, iObjName = objectClassName, iDescription = description,
+                   sumItem, sumContainer, sum, nameLegalEntity,
+                   date, seriesNumber, nameLegalEntityStock,
                    overNameStockDocumentLedger
-    FILTERS activeStockDocumentLedger(il),
-            stockStockDocumentLedger(il) == ds,
-            dateStockDocumentLedger(il) >= dtFrom,
-            dateStockDocumentLedger(il) <= dtTo
-    ORDER BY dateStockDocumentLedger(il), seriesNumberStockDocumentLedger(il) 
+    FILTERS active(il),
+            stock(il) == ds,
+            date(il) >= dtFrom,
+            date(il) <= dtTo
+    ORDER BY date(il), seriesNumber(il) 
 
     OBJECTS ol = OutStockDocumentLedger
-    PROPERTIES(ol) SELECTOR oDateTime = dateTimeStockDocumentLedger, oObjName = objectClassName, oDescription = descriptionStockDocumentLedger,
-                   sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger, nameLegalEntityStockDocumentLedger,
-                   dateStockDocumentLedger, seriesNumberStockDocumentLedger, nameLegalEntityStockStockDocumentLedger,
+    PROPERTIES(ol) SELECTOR oDateTime = dateTime, oObjName = objectClassName, oDescription = description,
+                   sumItem, sumContainer, sum, nameLegalEntity,
+                   date, seriesNumber, nameLegalEntityStock,
                    overNameStockDocumentLedger
-    FILTERS activeStockDocumentLedger(ol),
-            stockStockDocumentLedger(ol) == ds,
-            dateStockDocumentLedger(ol) >= dtFrom,
-            dateStockDocumentLedger(ol) <= dtTo
-    ORDER BY dateStockDocumentLedger(ol), seriesNumberStockDocumentLedger(ol) 
+    FILTERS active(ol),
+            stock(ol) == ds,
+            date(ol) >= dtFrom,
+            date(ol) <= dtTo
+    ORDER BY date(ol), seriesNumber(ol) 
     
     OBJECTS e=Employee 
-    PROPERTIES  positionShortNameEmployee(e), orderResponsiblePersonStockEmployee(ds,e)
-    FILTERS isResponsiblePersonStockEmployee(ds,e)
-    ORDER BY orderResponsiblePersonStockEmployee(ds,e)
+    PROPERTIES  positionShortName(e), orderResponsiblePerson(ds,e)
+    FILTERS isResponsiblePerson(ds,e)
+    ORDER BY orderResponsiblePerson(ds,e)
 ;
 
-printStockDocumentBy 'Распечатать' (dateFrom, dateTo, stock) =
+printDocumentBy 'Распечатать' (DATE dateFrom, DATE dateTo, Stock stock) =
     ACTION FORM printStockDocumentBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock PRINT  IMAGE 'print.png' IN print;
 
 EXTEND FORM sumStockDocumentLedger
 
-    PROPERTIES printStockDocumentBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
+    PROPERTIES printDocumentBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
 ;
 DESIGN sumStockDocumentLedger{
     print {
-        MOVE PROPERTY(printStockDocumentBy(dtFrom,dtTo,ds));
+        MOVE PROPERTY(printDocumentBy(dtFrom,dtTo,ds));
     }
 }
 
@@ -73,88 +73,88 @@ FORM printStockDocumentOperationBy 'Товарный отчет'
     OBJECTS params = (dtFrom = DATE, dtTo = DATE) FIXED PANEL,
             ds = Stock FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dtFrom), objTo = OBJVALUE(dtTo)
-    PROPERTIES(ds) SELECTOR fullNameStock, nameLegalEntityStock, nameCustomUserResponsiblePersonStock, namePositionResponsiblePersonStock, nameCustomUserBookerStock,
-                            namePositionBookerStock, nameCustomUserControllerStock, namePositionControllerStock, UNPStock
+    PROPERTIES(ds) SELECTOR fullName, nameLegalEntity, nameCustomUserResponsiblePerson, namePositionResponsiblePerson, nameCustomUserBooker,
+                            namePositionBooker, nameCustomUserController, namePositionController, UNP
 
-    PROPERTIES sumAccountBDocumentLedgerDate(ds, dtFrom), sumItemAccountBDocumentLedgerDate(ds, dtFrom), sumContainerAccountBDocumentLedgerDate(ds, dtFrom),
-               sumItemAccountADocumentLedgerDate(ds, dtTo), sumContainerAccountADocumentLedgerDate(ds, dtTo), sumAccountADocumentLedgerDate(ds, dtTo)
-    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentStockDateInterval, countOutStockDocumentStockDateInterval,
-               sumItemIncStockDocumentStockDateInterval, sumContainerIncStockDocumentStockDateInterval,
-               subtotalItemIncStockDocumentStockDateInterval, subtotalContainerIncStockDocumentStockDateInterval,
-               sumItemOutStockDocumentStockDateInterval, sumContainerOutStockDocumentStockDateInterval
+    PROPERTIES sumAccountBDocumentLedger(ds, dtFrom), sumItemAccountBDocumentLedger(ds, dtFrom), sumContainerAccountBDocumentLedger(ds, dtFrom),
+               sumItemAccountADocumentLedger(ds, dtTo), sumContainerAccountADocumentLedger(ds, dtTo), sumAccountADocumentLedger(ds, dtTo)
+    PROPERTIES(ds, dtFrom, dtTo) countIncStockDocumentInterval, countOutStockDocumentInterval,
+               sumItemIncStockDocumentInterval, sumContainerIncStockDocumentInterval,
+               subtotalItemIncStockDocumentInterval, subtotalContainerIncStockDocumentInterval,
+               sumItemOutStockDocumentInterval, sumContainerOutStockDocumentInterval
 //-- Приход                 
     OBJECTS o1 = Operation           
-    PROPERTIES(o1) nameOperation, idOperation
-    PROPERTIES(ds,dtFrom,dtTo,o1) countIncStockDocumentStockDateIntervalOperation, sumItemIncStockDocumentStockDateIntervalOperation,
-               sumContainerIncStockDocumentStockDateIntervalOperation            
+    PROPERTIES(o1) name, id
+    PROPERTIES(ds,dtFrom,dtTo,o1) countIncStockDocumentInterval, sumItemIncStockDocumentInterval,
+               sumContainerIncStockDocumentInterval            
     
-    FILTERS countIncStockDocumentStockDateIntervalOperation(ds,dtFrom,dtTo,o1)
+    FILTERS countIncStockDocumentInterval(ds,dtFrom,dtTo,o1)
     
     OBJECTS il = IncStockDocumentLedger
-    PROPERTIES(il) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
-                   sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
-    FILTERS isPostedStockDocumentLedger(il),
-            stockStockDocumentLedger(il) == ds,
-            dateStockDocumentLedger(il) >= dtFrom,
-            dateStockDocumentLedger(il) <= dtTo,
-            operationStockDocumentLedger(il) == o1              
-    ORDER BY dateTimeStockDocumentLedger(il)
+    PROPERTIES(il) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(il),
+            stock(il) == ds,
+            date(il) >= dtFrom,
+            date(il) <= dtTo,
+            operation(il) == o1              
+    ORDER BY dateTime(il)
     
     
-    PROPERTIES(ds,dtFrom,dtTo) countNotOperationIncStockDocumentStockDateInterval, sumItemNotOperationIncStockDocumentStockDateInterval,
-               sumContainerNotOperationIncStockDocumentStockDateInterval  
+    PROPERTIES(ds,dtFrom,dtTo) countNotOperationIncStockDocumentInterval, sumItemNotOperationIncStockDocumentInterval,
+               sumContainerNotOperationIncStockDocumentInterval  
 
     OBJECTS il1 = IncStockDocumentLedger
-    PROPERTIES(il1) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
-                   sumItemIncStockDocumentLedger, sumContainerIncStockDocumentLedger, sumIncStockDocumentLedger
-    FILTERS isPostedStockDocumentLedger(il1) AND NOT operationStockDocumentLedger(il1),
-            stockStockDocumentLedger(il1) == ds,
-            dateStockDocumentLedger(il1) >= dtFrom,
-            dateStockDocumentLedger(il1) <= dtTo
-    ORDER BY dateTimeStockDocumentLedger(il1)                       
+    PROPERTIES(il1) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(il1) AND NOT operation(il1),
+            stock(il1) == ds,
+            date(il1) >= dtFrom,
+            date(il1) <= dtTo
+    ORDER BY dateTime(il1)                       
 //-- Расход    
     OBJECTS o2 = Operation           
-    PROPERTIES(o2) nameOperation, idOperation
-    PROPERTIES(ds,dtFrom,dtTo,o2) countOutStockDocumentStockDateIntervalOperation, sumItemOutStockDocumentStockDateIntervalOperation,
-               sumContainerOutStockDocumentStockDateIntervalOperation                       
-    FILTERS countOutStockDocumentStockDateIntervalOperation(ds,dtFrom,dtTo,o2)
+    PROPERTIES(o2) name, id
+    PROPERTIES(ds,dtFrom,dtTo,o2) countOutStockDocumentInterval, sumItemOutStockDocumentInterval,
+               sumContainerOutStockDocumentInterval                       
+    FILTERS countOutStockDocumentInterval(ds,dtFrom,dtTo,o2)
         
     OBJECTS ol = OutStockDocumentLedger
-    PROPERTIES(ol) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
-                   sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
-    FILTERS isPostedStockDocumentLedger(ol),
-            stockStockDocumentLedger(ol) == ds,
-            dateStockDocumentLedger(ol) >= dtFrom,
-            dateStockDocumentLedger(ol) <= dtTo,
-            operationStockDocumentLedger(ol) == o2
-    ORDER BY dateTimeStockDocumentLedger(ol)
+    PROPERTIES(ol) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(ol),
+            stock(ol) == ds,
+            date(ol) >= dtFrom,
+            date(ol) <= dtTo,
+            operation(ol) == o2
+    ORDER BY dateTime(ol)
     
 
-    PROPERTIES(ds,dtFrom,dtTo) countNotOperationOutStockDocumentStockDateInterval, sumItemNotOperationOutStockDocumentStockDateInterval,
-               sumContainerNotOperationOutStockDocumentStockDateInterval     
+    PROPERTIES(ds,dtFrom,dtTo) countNotOperationOutStockDocumentInterval, sumItemNotOperationOutStockDocumentInterval,
+               sumContainerNotOperationOutStockDocumentInterval     
 
     OBJECTS ol2 = OutStockDocumentLedger
-    PROPERTIES(ol2) dateTimeStockDocumentLedger, objectClassName, descriptionStockDocumentLedger,
-                   sumItemOutStockDocumentLedger, sumContainerOutStockDocumentLedger, sumOutStockDocumentLedger
-    FILTERS isPostedStockDocumentLedger(ol2) AND NOT operationStockDocumentLedger(ol2),
-            stockStockDocumentLedger(ol2) == ds,
-            dateStockDocumentLedger(ol2) >= dtFrom,
-            dateStockDocumentLedger(ol2) <= dtTo
+    PROPERTIES(ol2) dateTime, objectClassName, description,
+                   sumItem, sumContainer, sum
+    FILTERS isPosted(ol2) AND NOT operation(ol2),
+            stock(ol2) == ds,
+            date(ol2) >= dtFrom,
+            date(ol2) <= dtTo
             
-    ORDER BY dateTimeStockDocumentLedger(ol2)
+    ORDER BY dateTime(ol2)
 ;
 
-printStockDocumentOperationBy 'По операциям' (dateFrom, dateTo, stock) =
+printDocumentOperationBy 'По операциям' (DATE dateFrom, DATE dateTo, Stock stock) =
     ACTION FORM printStockDocumentOperationBy OBJECTS dtFrom = dateFrom, dtTo = dateTo, ds = stock PRINT  IMAGE 'print.png' IN print;
 
 EXTEND FORM sumStockDocumentLedger
 
-    PROPERTIES printStockDocumentOperationBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
+    PROPERTIES printDocumentOperationBy(dtFrom, dtTo, ds) TODRAW params FORCE PANEL
 ;
 
 DESIGN sumStockDocumentLedger{
     print {
         type = CONTAINERH;
-        MOVE PROPERTY(printStockDocumentOperationBy(dtFrom,dtTo,ds));
+        MOVE PROPERTY(printDocumentOperationBy(dtFrom,dtTo,ds));
     }
 }

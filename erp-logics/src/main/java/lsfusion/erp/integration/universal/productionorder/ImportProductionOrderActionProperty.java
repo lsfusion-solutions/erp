@@ -60,11 +60,11 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
             DataObject orderObject = context.getDataKeyValue(orderInterface);
 
-            ObjectValue importTypeObject = findProperty("importTypeOrder").readClasses(session, orderObject);
+            ObjectValue importTypeObject = findProperty("importType[Order]").readClasses(session, orderObject);
 
             if (!(importTypeObject instanceof NullValue)) {
 
-                ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
 
                 Map<String, ImportColumnDetail> importColumns = readImportColumns(session, importTypeObject).get(0);
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
@@ -83,7 +83,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                             session.apply(context);
                             
-                            findAction("formRefresh").execute(context);
+                            findAction("formRefresh[]").execute(context);
                         }
                     }
                 }
@@ -112,7 +112,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
         boolean importResult = importOrders(orderDetailsList, BL, session, orderObject, importColumns, operationObject);
 
-        findAction("formRefresh").execute(session);
+        findAction("formRefresh[]").execute(session);
 
         return importResult;
     }
@@ -132,11 +132,11 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             ImportKey<?> orderKey = null;
             ImportField idOrderField = null;
             if (orderObject == null && showField(orderDetailsList, "idOrder")) {
-                idOrderField = new ImportField(findProperty("Production.idOrder"));
+                idOrderField = new ImportField(findProperty("id[Order]"));
                 orderKey = new ImportKey((CustomClass) findClass("Production.Order"),
-                        findProperty("Production.orderId").getMapping(idOrderField));
+                        findProperty("order[VARSTRING[100]]").getMapping(idOrderField));
                 keys.add(orderKey);
-                props.add(new ImportProperty(idOrderField, findProperty("Production.idOrder").getMapping(orderKey)));
+                props.add(new ImportProperty(idOrderField, findProperty("id[Order]").getMapping(orderKey)));
                 fields.add(idOrderField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).idOrder);
@@ -144,142 +144,142 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             
             if (showField(orderDetailsList, "isPosted")) {
                 if(orderObject == null)
-                    addDataField(props, fields, importColumns, findProperty("Production.isPostedOrder"), "isPosted", orderKey);
+                    addDataField(props, fields, importColumns, findProperty("isPosted[Order]"), "isPosted", orderKey);
                 else
-                    addDataField(props, fields, importColumns, findProperty("Production.isPostedOrder"), "isPosted", orderObject);
+                    addDataField(props, fields, importColumns, findProperty("isPosted[Order]"), "isPosted", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).isPosted);
             }
             
             if (showField(orderDetailsList, "numberOrder")) {
                 if(orderObject == null)
-                    addDataField(props, fields, importColumns, findProperty("Production.numberOrder"), "numberOrder", orderKey);
+                    addDataField(props, fields, importColumns, findProperty("number[Order]"), "numberOrder", orderKey);
                 else
-                    addDataField(props, fields, importColumns, findProperty("Production.numberOrder"), "numberOrder", orderObject);
+                    addDataField(props, fields, importColumns, findProperty("number[Order]"), "numberOrder", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).numberOrder);
             }
 
             if (showField(orderDetailsList, "dateDocument")) {
                 if(orderObject == null)
-                    addDataField(props, fields, importColumns, findProperty("Production.dateOrder"), "dateDocument", orderKey);
+                    addDataField(props, fields, importColumns, findProperty("date[Order]"), "dateDocument", orderKey);
                 else
-                    addDataField(props, fields, importColumns, findProperty("Production.dateOrder"), "dateDocument", orderObject);
+                    addDataField(props, fields, importColumns, findProperty("date[Order]"), "dateDocument", orderObject);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("dateDocument"));
             }
 
             if (showField(orderDetailsList, "idProductsStock")) {
-                ImportField idProductsStockOrderField = new ImportField(findProperty("idStock"));
+                ImportField idProductsStockOrderField = new ImportField(findProperty("id[Stock]"));
                 ImportKey<?> productsStockOrderKey = new ImportKey((CustomClass) findClass("Stock"),
-                        findProperty("stockId").getMapping(idProductsStockOrderField));
+                        findProperty("stock[VARSTRING[100]]").getMapping(idProductsStockOrderField));
                 productsStockOrderKey.skipKey = true;
                 keys.add(productsStockOrderKey);
-                props.add(new ImportProperty(idProductsStockOrderField, findProperty("Production.productsStockOrder").getMapping(orderObject == null ? orderKey : orderObject),
+                props.add(new ImportProperty(idProductsStockOrderField, findProperty("productsStock[Order]").getMapping(orderObject == null ? orderKey : orderObject),
                         object(findClass("Stock")).getMapping(productsStockOrderKey)));
                 fields.add(idProductsStockOrderField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("idProductsStock"));
             }
 
-            ImportField idSkuField = new ImportField(findProperty("idSku"));
+            ImportField idSkuField = new ImportField(findProperty("id[Sku]"));
             ImportKey<?> skuKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuId").getMapping(idSkuField));
+                    findProperty("sku[VARSTRING[100]]").getMapping(idSkuField));
             keys.add(skuKey);
             fields.add(idSkuField);
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).getFieldValue("idItem"));
 
-            ImportField idBOMField = new ImportField(findProperty("idBOM"));
+            ImportField idBOMField = new ImportField(findProperty("id[BOM]"));
             ImportKey<?> BOMKey = new ImportKey((ConcreteCustomClass) findClass("BOM"),
-                    findProperty("BOMId").getMapping(idBOMField));
+                    findProperty("BOM[VARSTRING[100]]").getMapping(idBOMField));
             keys.add(BOMKey);
-            props.add(new ImportProperty(idBOMField, findProperty("idBOM").getMapping(BOMKey)));
-            props.add(new ImportProperty(idBOMField, findProperty("numberBOM").getMapping(BOMKey)));
+            props.add(new ImportProperty(idBOMField, findProperty("id[BOM]").getMapping(BOMKey)));
+            props.add(new ImportProperty(idBOMField, findProperty("number[BOM]").getMapping(BOMKey)));
             fields.add(idBOMField);
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).getFieldValue("idItem"));
             
-            ImportField extIdProductField = new ImportField(findProperty("extIdProduct"));
+            ImportField extIdProductField = new ImportField(findProperty("extId[Product]"));
             ImportKey<?> productKey = new ImportKey((CustomClass) findClass("Product"),
-                    findProperty("extProductId").getMapping(extIdProductField));
+                    findProperty("extProduct[VARSTRING[100]]").getMapping(extIdProductField));
             keys.add(productKey);
-            props.add(new ImportProperty(extIdProductField, findProperty("extIdProduct").getMapping(productKey)));
-            props.add(new ImportProperty(idBOMField, findProperty("BOMProduct").getMapping(productKey),
+            props.add(new ImportProperty(extIdProductField, findProperty("extId[Product]").getMapping(productKey)));
+            props.add(new ImportProperty(idBOMField, findProperty("BOM[Product]").getMapping(productKey),
                     object(findClass("BOM")).getMapping(BOMKey)));
-            props.add(new ImportProperty(idSkuField, findProperty("skuProduct").getMapping(productKey), 
+            props.add(new ImportProperty(idSkuField, findProperty("sku[Product]").getMapping(productKey),
                     object(findClass("Sku")).getMapping(skuKey)));
             fields.add(extIdProductField);
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).getFieldValue("idProduct"));
 
-            ImportField idProductDetailField = new ImportField(findProperty("Production.idProductDetail"));
+            ImportField idProductDetailField = new ImportField(findProperty("id[ProductDetail]"));
             ImportKey<?> productDetailKey = new ImportKey((CustomClass) findClass("Production.ProductDetail"),
-                    findProperty("Production.productDetailId").getMapping(idProductDetailField));
+                    findProperty("productDetail[VARSTRING[100]]").getMapping(idProductDetailField));
             keys.add(productDetailKey);
-            props.add(new ImportProperty(idProductDetailField, findProperty("Production.idProductDetail").getMapping(productDetailKey)));
+            props.add(new ImportProperty(idProductDetailField, findProperty("id[ProductDetail]").getMapping(productDetailKey)));
             if(orderObject == null)
-                props.add(new ImportProperty(idOrderField, findProperty("Production.orderProductDetail").getMapping(productDetailKey),
+                props.add(new ImportProperty(idOrderField, findProperty("order[ProductDetail]").getMapping(productDetailKey),
                         object(findClass("Production.Order")).getMapping(orderKey)));
             else
-                props.add(new ImportProperty(orderObject, findProperty("Production.orderProductDetail").getMapping(productDetailKey)));
-            props.add(new ImportProperty(idSkuField, findProperty("Production.productProductDetail").getMapping(productDetailKey),
+                props.add(new ImportProperty(orderObject, findProperty("order[ProductDetail]").getMapping(productDetailKey)));
+            props.add(new ImportProperty(idSkuField, findProperty("product[ProductDetail]").getMapping(productDetailKey),
                     object(findClass("Product")).getMapping(productKey)));
-            props.add(new ImportProperty(idSkuField, findProperty("Production.skuProductDetail").getMapping(productDetailKey),
+            props.add(new ImportProperty(idSkuField, findProperty("sku[ProductDetail]").getMapping(productDetailKey),
                     object(findClass("Sku")).getMapping(skuKey)));
             fields.add(idProductDetailField);
             for (int i = 0; i < orderDetailsList.size(); i++)
                 data.get(i).add(orderDetailsList.get(i).idProductDetail);
 
             if (operationObject instanceof DataObject)
-                props.add(new ImportProperty((DataObject) operationObject, findProperty("Production.operationOrder").getMapping(orderObject == null ? orderKey : orderObject)));
+                props.add(new ImportProperty((DataObject) operationObject, findProperty("operation[Order]").getMapping(orderObject == null ? orderKey : orderObject)));
 
             if (showField(orderDetailsList, "dataIndex")) {
-                ImportField dataIndexOrderDetailField = new ImportField(findProperty("Production.dataIndexProductDetail"));
-                props.add(new ImportProperty(dataIndexOrderDetailField, findProperty("Production.dataIndexProductDetail").getMapping(productDetailKey)));
+                ImportField dataIndexOrderDetailField = new ImportField(findProperty("dataIndex[ProductDetail]"));
+                props.add(new ImportProperty(dataIndexOrderDetailField, findProperty("dataIndex[ProductDetail]").getMapping(productDetailKey)));
                 fields.add(dataIndexOrderDetailField);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("dataIndex"));
             }
             
             if (showField(orderDetailsList, "outputQuantity")) {
-                addDataField(props, fields, importColumns, findProperty("Production.outputQuantityProductDetail"), "outputQuantity", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("outputQuantity[ProductDetail]"), "outputQuantity", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("outputQuantity"));
             }
 
             if (showField(orderDetailsList, "price")) {
-                addDataField(props, fields, importColumns, findProperty("Production.priceProductDetail"), "price", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("price[ProductDetail]"), "price", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("price"));
             }
             
             if (showField(orderDetailsList, "componentsPrice")) {
-                addDataField(props, fields, importColumns, findProperty("Production.componentsPriceProductDetail"), "componentsPrice", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("componentsPrice[ProductDetail]"), "componentsPrice", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("componentsPrice"));
             }
 
             if (showField(orderDetailsList, "valueVAT")) {
-                addDataField(props, fields, importColumns, findProperty("Production.valueVATProductDetail"), "valueVAT", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("valueVAT[ProductDetail]"), "valueVAT", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("valueVAT"));
             }
 
             if (showField(orderDetailsList, "markup")) {
-                addDataField(props, fields, importColumns, findProperty("Production.markupProductDetail"), "markup", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("markup[ProductDetail]"), "markup", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("markup"));
             }
 
             if (showField(orderDetailsList, "sum")) {
-                addDataField(props, fields, importColumns, findProperty("Production.sumProductDetail"), "sum", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("sum[ProductDetail]"), "sum", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("sum"));
             }
 
             if (showField(orderDetailsList, "costPrice")) {
-                addDataField(props, fields, importColumns, findProperty("Production.costPriceProductDetail"), "costPrice", productDetailKey);
+                addDataField(props, fields, importColumns, findProperty("costPrice[ProductDetail]"), "costPrice", productDetailKey);
                 for (int i = 0; i < orderDetailsList.size(); i++)
                     data.get(i).add(orderDetailsList.get(i).getFieldValue("costPrice"));
             }

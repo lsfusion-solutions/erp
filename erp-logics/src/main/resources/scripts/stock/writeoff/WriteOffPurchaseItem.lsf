@@ -4,47 +4,47 @@ REQUIRE WriteOffPurchase, Item;
 
 NAMESPACE WriteOff;
 
-writeOffRateCountryItem 'Норма отходов' = DATA WriteOffRate (Country, Item);
-nameWriteOffRateCountryItem 'Норма отходов' = nameWriteOffRate(writeOffRateCountryItem(country, item)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
-percentWriteOffRateCountryItem 'Норма отходов,%' = percentWriteOffRate(writeOffRateCountryItem(country, item)) MINCHARWIDTH 6 PREFCHARWIDTH 10;
+writeOffRate 'Норма отходов' = DATA WriteOffRate (Country, Item);
+nameWriteOffRate 'Норма отходов' = name(writeOffRate(Country country, Item item)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+percentWriteOffRate 'Норма отходов,%' = percent(writeOffRate(Country country, Item item)) MINCHARWIDTH 6 PREFCHARWIDTH 10;
 
-nameWriteOffRateDefaultCountryItem 'Норма отходов' = nameWriteOffRate(writeOffRateCountryItem(defaultCountry(), item)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
-percentWriteOffRateDefaultCountryItem 'Норма отходов,%' = percentWriteOffRate(writeOffRateCountryItem(defaultCountry(), item)) MINCHARWIDTH 6 PREFCHARWIDTH 10;
+nameWriteOffRateDefaultCountry 'Норма отходов' = name(writeOffRate(defaultCountry(), Item item)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+percentWriteOffRateDefaultCountry 'Норма отходов,%' = percent(writeOffRate(defaultCountry(), Item item)) MINCHARWIDTH 6 PREFCHARWIDTH 10;
 
 FORM dialogWriteOffRate 'Нормы отходов'
     OBJECTS c=Country FIXED PANEL
 //    PROPERTIES(c) READONLY nameCountry
     OBJECTS r=WriteOffRate
-    PROPERTIES(r) READONLY nameWriteOffRate, percentWriteOffRate, nameCountryWriteOffRate
+    PROPERTIES(r) READONLY name, percent, nameCountry
     PROPERTIES(r) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
-    FILTERS countryWriteOffRate(r) == c
+    FILTERS country(r) == c
 ;
 
-changeWriteOffRateDefaultCountryItem = ACTION (item) {
+changeWriteOffRateDefaultCountry = ACTION (Item item) {
     REQUEST OBJECT r
     FORM dialogWriteOffRate OBJECTS c = defaultCountry() DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        writeOffRateCountryItem(country, item) <- requestedObject() WHERE country == defaultCountry();
+        writeOffRate(Country country, item) <- requestedObject() WHERE country == defaultCountry();
 
     } ELSE IF formResult() == FormResult.drop THEN {
-        writeOffRateCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+        writeOffRate(Country country, item) <- NULL WHERE country == defaultCountry();
     }
 }
 
-CONSTRAINT countryWriteOffRate(writeOffRateCountryItem(country, item)) != country
-    CHECKED BY writeOffRateCountryItem MESSAGE 'Страна нормы отходов не совпадает со страной';
+CONSTRAINT country(writeOffRate(Country country, Item item)) != country
+    CHECKED BY writeOffRate[Country,Item] MESSAGE 'Страна нормы отходов не совпадает со страной';
 
-writeOffRateCountrySku (country, sku) += writeOffRateCountryItem (country, sku);
+writeOffRate (Country country, Item sku) += writeOffRate (country, sku);
 
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN writeOffRateCountryItem(country, d) <- writeOffRateCountryItem(country, s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    ASSIGN writeOffRate(Country country, d) <- writeOffRate(country, s);
 }
 
 EXTEND FORM item
-    PROPERTIES(c,i) nameWriteOffRateCountryItem, percentWriteOffRateCountryItem
-    PROPERTIES(i) nameWriteOffRateDefaultCountryItem ON CHANGE changeWriteOffRateDefaultCountryItem(i), percentWriteOffRateDefaultCountryItem READONLY
+    PROPERTIES(c,i) nameWriteOffRate, percentWriteOffRate
+    PROPERTIES(i) nameWriteOffRateDefaultCountry ON CHANGE changeWriteOffRateDefaultCountry(i), percentWriteOffRateDefaultCountry READONLY
 ;
-DESIGN item { regionPrm  { MOVE PROPERTY(nameWriteOffRateDefaultCountryItem(i)); MOVE PROPERTY(percentWriteOffRateDefaultCountryItem(i));} }
+DESIGN item { regionPrm  { MOVE PROPERTY(nameWriteOffRateDefaultCountry(i)); MOVE PROPERTY(percentWriteOffRateDefaultCountry(i));} }
 
 
 

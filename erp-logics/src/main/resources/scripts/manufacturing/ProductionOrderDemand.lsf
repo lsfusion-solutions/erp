@@ -6,32 +6,32 @@ NAMESPACE Production;
 
 //-- Формирование заказа (продажа) для пополнения остатков на складе собственного производства
 
-demandStockOrder = DATA Stock(Order);
-nameDemandStockOrder 'Склад' = nameStock(demandStockOrder(order));
-currentBalanceDemandSkuOrder 'Текущий остаток' (sku,o) = currentBalanceSkuStock(sku, demandStockOrder(o));
+demandStock = DATA Stock(Order);
+nameDemandStock 'Склад' = name(demandStock(Order order));
+currentBalanceDemand 'Текущий остаток' (Sku sku,Order o) = currentBalance(sku, demandStock(o));
 
-CONSTRAINT  demandStockOrder(o) AND NOT isCompanyStock(demandStockOrder(o)) CHECKED BY demandStockOrder    
+CONSTRAINT  demandStock(Order o) AND NOT isCompany(demandStock(o)) CHECKED BY demandStock[Order]    
         MESSAGE 'Склад для заказа не является складом компании';
-demandStockOrder (order) <- productsStockOrder(order)
-    WHEN CHANGED(productsStockOrder(order));
+demandStock (Order order) <- productsStock(order)
+    WHEN CHANGED(productsStock(order));
 
 
-quantityDemandSkuOrder 'Количество' = DATA LOCAL NESTED NUMERIC[16,5] (Sku,Order);
-quantityDemandSkusOrder (o) = GROUP SUM quantityDemandSkuOrder(s,o) BY o;
+quantityDemand 'Количество' = DATA LOCAL NESTED NUMERIC[16,5] (Sku,Order);
+quantityDemandSkus (o) = GROUP SUM quantityDemand(Sku s,Order o) BY o;
 
-createUserOrderProductionOrder 'Создать заказ (продажа)'  = ACTION (order) {
-    IF quantityDemandSkusOrder(order) THEN {
-        NEWSESSION NESTED quantityDemandSkuOrder {
+createUserOrderProduction 'Создать заказ (продажа)'  = ACTION (Order order) {
+    IF quantityDemandSkus(order) THEN {
+        NEWSESSION NESTED quantityDemand[Sku,Order] {
             FOR ADDOBJ o = UserOrder DO {
-                supplierUserOrder(o) <- productsLegalEntityStockOrder(order);
-                customerUserOrder(o) <- productsLegalEntityStockOrder(order);
-                supplierStockUserOrder(o) <- productsStockOrder(order);
-                customerStockUserOrder(o) <- componentsStockOrder(order);
+                supplier(o) <- productsLegalEntityStock(order);
+                customer(o) <- productsLegalEntityStock(order);
+                supplierStock(o) <- productsStock(order);
+                customerStock(o) <- componentsStock(order);
                 
-                FOR quantityDemandSkuOrder(sku,order) ==q  ADDOBJ d = UserOrderDetail DO {
-                    userOrderUserOrderDetail(d) <- o;
-                    skuUserOrderDetail(d) <- sku;
-                    quantityUserOrderDetail(d) <- q;
+                FOR quantityDemand(Sku sku,order) ==NUMERIC[16,5] q  ADDOBJ d = UserOrderDetail DO {
+                    userOrder(d) <- o;
+                    sku(d) <- sku;
+                    quantity(d) <- q;
                 }
                 FORM userOrder OBJECTS o=o MANAGESESSION DOCKEDMODAL;
             }
@@ -40,21 +40,21 @@ createUserOrderProductionOrder 'Создать заказ (продажа)'  = A
 }
 
 EXTEND FORM order
-    PROPERTIES (o) nameDemandStockOrder
+    PROPERTIES (o) nameDemandStock
 
     OBJECTS sub = Sku 
-    PROPERTIES(sub) READONLY nameSku, idBarcodeSku, shortNameUOMSku
-    PROPERTIES currentBalanceDemandSkuOrder(sub,o) READONLY , quantityDemandSkuOrder(sub,o)    
-    FILTERS sk ==sub OR fromSkuSubstitute(uniqueSubstituteFromToSku(sk,sub))
+    PROPERTIES(sub) READONLY name, idBarcode, shortNameUOM
+    PROPERTIES currentBalanceDemand(sub,o) READONLY , quantityDemand(sub,o)    
+    FILTERS sk ==sub OR fromSku(uniqueSubstituteFromTo(sk,sub))
     FILTERGROUP substitute
-        FILTER 'Замены' fromSkuSubstitute(uniqueSubstituteFromToSku(sk,sub)) 'F10' DEFAULT 
+        FILTER 'Замены' fromSku(uniqueSubstituteFromTo(sk,sub)) 'F10' DEFAULT 
         
     OBJECTS dem = Sku 
-    PROPERTIES(dem) READONLY nameSku, idBarcodeSku, shortNameUOMSku  
-    PROPERTIES quantityDemandSkuOrder(dem,o) 
-    FILTERS quantityDemandSkuOrder(dem,o) 
+    PROPERTIES(dem) READONLY name, idBarcode, shortNameUOM  
+    PROPERTIES quantityDemand(dem,o) 
+    FILTERS quantityDemand(dem,o) 
      
-    PROPERTIES createUserOrderProductionOrder(o) FORCE PANEL TOOLBAR TODRAW dem
+    PROPERTIES createUserOrderProduction(o) FORCE PANEL TOOLBAR TODRAW dem
     
 ;
 DESIGN order {
@@ -67,7 +67,7 @@ DESIGN order {
             caption = 'Пополнение остатков';
             NEW price2b1{
                 caption = 'Фильтр складов для заказа';
-                MOVE PROPERTY(nameDemandStockOrder(o)); 
+                MOVE PROPERTY(nameDemandStock(o)); 
             }
             NEW price2b2{
                 fill = 1;
@@ -79,7 +79,7 @@ DESIGN order {
         }     
     }
 }
-WHEN SESSION FORMS order CHANGED(productsStockOrder(order)) DO {                                              
-    demandStockOrder (order) <- productsStockOrder(order);
+WHEN SESSION FORMS order CHANGED(productsStock(Order order)) DO {                                              
+    demandStock (order) <- productsStock(order);
 }
 

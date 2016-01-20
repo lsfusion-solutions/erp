@@ -6,17 +6,17 @@ NAMESPACE Stock;
 
 //------------------------- НДС -------------------------//
 
-VATSkuCountry 'НДС' = ABSTRACT Range (Sku, Country);
-valueVATSkuCountryDate 'НДС, %' (sku, country, date) = valueRateRangeDate(VATSkuCountry(sku, country), date);
+VAT 'НДС' = ABSTRACT Range (Sku, Country);
+valueVAT 'НДС, %' (Sku sku, Country country, DATE date) = valueRate(VAT(sku, country), date);
 
-VATSkuStock 'НДС' (s, st) = VATSkuCountry(s, countryStock(st));
-valueVATSkuStockDate 'НДС, %' (s, st, d) = valueVATSkuCountryDate(s, countryStock(st), d);
+VAT 'НДС' (Sku s, Stock st) = VAT(s, country(st));
+valueVAT 'НДС, %' (Sku s, Stock st, DATE d) = valueVAT(s, country(st), d);
 
-valueVATSkuStock 'НДС, %' (s, st) = valueVATSkuStockDate(s, st, currentDate()); 
+valueVAT 'НДС, %' (Sku s, Stock st) = valueVAT(s, st, currentDate()); 
 
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp,  skuProp, stockProp)
-    prefixP###VAT###concrete##Detail(detail) <- VATSkuCountry (skuProp###concrete##Detail(detail), countryStock(stockProp###concrete##Detail(detail)))
-        WHEN DO CHANGED(skuProp###concrete##Detail(detail)) OR CHANGED (stockProp###concrete##Detail(detail));
+    prefixP##VAT(###concrete##Detail detail) <- VAT (skuProp(detail), country(stockProp(detail)))
+        WHEN DO CHANGED(skuProp(detail)) OR CHANGED (stockProp(detail));
 END
 META deriveDocumentDetailVAT (concrete, prefixP, dateProp)
     @deriveDocumentDetailVAT (concrete, prefixP, dateProp,  sku, departmentStore);
@@ -27,19 +27,19 @@ END
 
 //НДС расчетный
 META defineDocumentHeaderTax (object, taxSID, taxCaption, prefix)
-    prefix###taxSID###object = DATA Range(###object);
-    number###prefix###taxSID###object taxCaption (object) = numberRange(prefix###taxSID###object(object)) IN documentPrm;
-    value###prefix###taxSID###object taxCaption (object) = valueRateRangeDate (prefix###taxSID###object(object),  date###object(object)) IN documentPrm;
+    taxSID = DATA Range(###object);
+    number##taxSID taxCaption (###object object) = number(taxSID(object)) IN documentPrm;
+    value##taxSID taxCaption (###object object) = valueRate (taxSID(object),  date(object)) IN documentPrm;
 END
 META defineDocumentAbstractHeaderTax (object, taxSID, taxCaption, prefix)
-    prefix###taxSID###object = ABSTRACT Range(###object);
-    number###prefix###taxSID###object taxCaption (object) = numberRange(prefix###taxSID###object(object)) IN documentPrm;
-    value###prefix###taxSID###object taxCaption (object) = valueRateRangeDate(prefix###taxSID###object(object), date###object(object)) IN documentPrm;
+    taxSID = ABSTRACT Range(###object);
+    number##taxSID taxCaption (###object object) = number(taxSID(object)) IN documentPrm;
+    value##taxSID taxCaption (###object object) = valueRate(taxSID(object), date(object)) IN documentPrm;
 END
 META defineDocumentInterfaceHeaderTAX (object, taxSID, taxCaption, prefix)
     @defineDocumentAbstractHeaderTax (object, taxSID, taxCaption, prefix);
     @defineDocumentHeaderTax (user###object, taxSID, taxCaption, prefix);
-    prefix###taxSID###object (object) += prefix###taxSID###user###object(object);
+    taxSID (User###object object) += taxSID(object);
 END
 
 META defineDocumentHeaderTAX(object, taxSID, taxCaption)

@@ -10,52 +10,52 @@ TABLE binGroup (BinGroup);
 
 @defineExternalizable(bin, VARSTRING[100]);
 
-nameBinGroup 'Наименование' = DATA VARISTRING[100](BinGroup);
+name 'Наименование' = DATA VARISTRING[100](BinGroup);
 
 TABLE binGroupBinGroup(BinGroup, BinGroup);
 @defineHierarchy(binGroup, BinGroup);
 
 FORM binGroup 'Группа ячеек'
     OBJECTS g=BinGroup FIXED PANEL
-    PROPERTIES(g) nameBinGroup, nameParentBinGroup
+    PROPERTIES(g) name, nameParent
     EDIT BinGroup OBJECT g
 ;
 
 FORM binGroups 'Группы ячеек'
-    TREE treeGroups g=BinGroup PARENT parentBinGroup
-    PROPERTIES READONLY nameBinGroup(g), canonicalNameBinGroup (g)
+    TREE treeGroups g=BinGroup PARENT parent
+    PROPERTIES READONLY name(g), canonicalName (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
-    ORDER BY canonicalNameBinGroup(g)
+    ORDER BY canonicalName(g)
     DIALOG BinGroup OBJECT g
 ;
 
 CLASS Bin 'Ячейка' ;
 TABLE bin (Bin);
 
-nameBin 'Наименование' = DATA VARISTRING[100](Bin);
-binGroupBin = DATA BinGroup (Bin) AUTOSET;
-nameBinGroupBin 'Группа' (bin) = nameBinGroup(binGroupBin(bin));
+name 'Наименование' = DATA VARISTRING[100](Bin);
+binGroup = DATA BinGroup (Bin) AUTOSET;
+nameBinGroup 'Группа' (Bin bin) = name(binGroup(bin));
 
 TABLE binGroupBin(BinGroup, Bin);
-isParentBinGroupBin (binGroup, bin) = isParentBinGroupBinGroup(binGroupBin(bin), binGroup);
-canonicalNameBin 'Каноническое имя' (bin) = canonicalNameBinGroup(binGroupBin(bin));
+isParent (BinGroup binGroup, Bin bin) = isParent(binGroup(bin), binGroup);
+canonicalName 'Каноническое имя' (Bin bin) = canonicalName(binGroup(bin));
 
 FORM bin 'Ячейка'
     OBJECTS s = Bin FIXED PANEL
-    PROPERTIES(s) nameBin, idBin SHOWIF showIDs(), nameBinGroupBin
+    PROPERTIES(s) name, id SHOWIF showIDs(), nameBinGroup
     EDIT Bin OBJECT s
 ;
 
 FORM bins 'Ячейки'
-    TREE binTree sg = BinGroup PARENT parentBinGroup
-    PROPERTIES READONLY nameBinGroup(sg)
+    TREE binTree sg = BinGroup PARENT parent
+    PROPERTIES READONLY name(sg)
 
     OBJECTS s = Bin
-    PROPERTIES(s) READONLY nameBin, idBin SHOWIF showIDs(), canonicalNameBin
+    PROPERTIES(s) READONLY name, id SHOWIF showIDs(), canonicalName
     PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    FILTERS isParentBinGroupBin(sg, s)
-    ORDER BY nameBin(s)
+    FILTERS isParent(sg, s)
+    ORDER BY name(s)
 
     DIALOG Bin OBJECT s
 ;
@@ -86,15 +86,15 @@ DESIGN bins {
 
 // ----------------------------------- Ledger ------------------------------------------ //
 
-binDataSkuLedger = ABSTRACT Bin(DataSkuLedger) PERSISTENT INDEXED;
-nameBinDataSkuLedger 'Ячейка' (ledger) = nameBin(binDataSkuLedger(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+bin = ABSTRACT Bin(DataSkuLedger) PERSISTENT INDEXED;
+nameBin 'Ячейка' (DataSkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-binBatch (batch) = ABSTRACT Bin (Batch) PERSISTENT INDEXED;
-prevBinBatch (batch) = PREV(binBatch(batch));
-nameBinBatch 'Ячейка' (batch) = nameBin(binBatch(batch)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+bin (batch) = ABSTRACT Bin (Batch) PERSISTENT INDEXED;
+prevBin (Batch batch) = PREV(bin(batch));
+nameBin 'Ячейка' (Batch batch) = name(bin(batch)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-binSkuLedger (ledger) = MULTI binDataSkuLedger (ledger), binBatch (ledger) PERSISTENT INDEXED;
-nameBinSkuLedger 'Ячейка' (ledger) = nameBin(binSkuLedger(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+bin (SkuLedger ledger) = MULTI bin[DataSkuLedger] (ledger), bin[Batch] (ledger) PERSISTENT INDEXED;
+nameBin 'Ячейка' (SkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
 TABLE skuBin(Sku, Bin);
 TABLE skuStockBin(Sku, Stock, Bin);
@@ -102,78 +102,78 @@ TABLE skuStockBinDate(Sku, Stock, Bin, DATE);
 
 META defineBinSkuLedgerBalanceProperties(postfix, caption)
 
-    currentBalance##postfix##SkuStockBin 'Текущий остаток'###caption (sku, stock, bin) =
-        GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger) PERSISTENT;
-    prevCurrentBalance##postfix##SkuStockBin 'Текущий остаток'###caption (sku, stock, bin) = PREV(currentBalance##postfix##SkuStockBin(sku, stock, bin));
-    countLedger##postfix##SkuStockBin 'Кол-во движений'###caption (sku, stock, bin) =
-        GROUP SUM 1 IF signedQuantityActive##postfix##SkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger) PERSISTENT;
+    currentBalance 'Текущий остаток'###caption (sku, stock, bin) =
+        GROUP SUM signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) PERSISTENT;
+    prevCurrentBalance 'Текущий остаток'###caption (Sku sku, Stock stock, Bin bin) = PREV(currentBalance(sku, stock, bin));
+    countLedger 'Кол-во движений'###caption (sku, stock, bin) =
+        GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) PERSISTENT;
 
-    quantityIn##postfix##SkuStockBinDate (sku, stock, bin, date) =
-        GROUP SUM quantityInActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT;
+    quantityIn (sku, stock, bin, date) =
+        GROUP SUM quantityInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) PERSISTENT;
 
-    quantityOut##postfix##SkuStockBinDate (sku, stock, bin, date) =
-        GROUP SUM quantityOutActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT;
+    quantityOut (sku, stock, bin, date) =
+        GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), bin[SkuLedger](ledger), date[SkuLedger](ledger) PERSISTENT;
 
-    quantity##postfix##SkuStockBinDate (sku, stock, bin, date) = quantityIn##postfix##SkuStockBinDate(sku, stock, bin, date)
+    quantity (Sku sku, Stock stock, Bin bin, DATE date) = quantityIn(sku, stock, bin, date)
                                                          (+)
-                                                         quantityOut##postfix##SkuStockBinDate(sku, stock, bin, date) PERSISTENT;
+                                                         quantityOut(sku, stock, bin, date) PERSISTENT;
 
-    signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, date) = quantityIn##postfix##SkuStockBinDate(sku, stock, bin, date)
+    signedQuantity (Sku sku, Stock stock, Bin bin, DATE date) = quantityIn(sku, stock, bin, date)
                                                                (-)
-                                                               quantityOut##postfix##SkuStockBinDate(sku, stock, bin, date) PERSISTENT;
+                                                               quantityOut(sku, stock, bin, date) PERSISTENT;
 
     // без учета текущей даты/времени
-    balanceB##postfix##SkuStockBinDate 'Остаток на начало дня'###caption (sku, stock, bin, date) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
-                                                                      (-) [= GROUP SUM signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn >= date
+    balanceB 'Остаток на начало дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentBalance(sku, stock, bin)
+                                                                      (-) [= GROUP SUM signedQuantity (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn >= DATE date
                                                                                  BY sku, stock, bin, date](sku, stock, bin, date);
 
     // с учетом текущей даты/времени
-    balanceA##postfix##SkuStockBinDate 'Остаток на конец дня'###caption (sku, stock, bin, date) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
-                                                                     (-) [= GROUP SUM signedQuantity##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn > date
+    balanceA 'Остаток на конец дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentBalance(sku, stock, bin)
+                                                                     (-) [= GROUP SUM signedQuantity (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn > DATE date
                                                                                 BY sku, stock, bin, date](sku, stock, bin, date);
 
     // без учета текущей даты/времени
-    balanceB##postfix##SkuStockBinDateTime 'Остаток (до)'###caption (sku, stock, bin, dateTime) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
-                                                                              (-) [= GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) >= dateTime
-                                                                                         BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateTime](sku, stock, bin, dateTime);
+    balanceB 'Остаток (до)'###caption (Sku sku, Stock stock, Bin bin, DATETIME dateTime) = currentBalance(sku, stock, bin)
+                                                                              (-) [= GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) >= DATETIME dateTime
+                                                                                         BY sku(ledger), stock(ledger), bin(ledger), dateTime](sku, stock, bin, dateTime);
 
     // с учетом текущей даты/времени
-    balanceA##postfix##SkuStockBinDateTime 'Остаток (после)'###caption (sku, stock, bin, dateTime) = currentBalance##postfix##SkuStockBin(sku, stock, bin)
-                                                                             (-) [= GROUP SUM signedQuantityActive##postfix##SkuLedger(ledger) IF dateTimeSkuLedger(ledger) > dateTime
-                                                                                        BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateTime](sku, stock, bin, dateTime);
+    balanceA 'Остаток (после)'###caption (Sku sku, Stock stock, Bin bin, DATETIME dateTime) = currentBalance(sku, stock, bin)
+                                                                             (-) [= GROUP SUM signedQuantityActive(SkuLedger ledger) IF dateTime(ledger) > DATETIME dateTime
+                                                                                        BY sku(ledger), stock(ledger), bin(ledger), dateTime](sku, stock, bin, dateTime);
 
-    currentBalance##postfix##SkuBin 'Остаток (всего)'###caption (sku, bin) = GROUP SUM currentBalance##postfix##SkuStockBin(sku, stock, bin) BY sku, bin PERSISTENT;
+    currentBalance 'Остаток (всего)'###caption (sku, bin) = GROUP SUM currentBalance(Sku sku, Stock stock, Bin bin) BY sku, bin PERSISTENT;
 
     // ---------------------------- Суммы по товару -------------------------------- //
 
-    currentSum##postfix##SkuStockBin 'Сумма остатка'###caption (sku, stock, bin) =
-        GROUP SUM signedSumActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger) PERSISTENT;
+    currentSum 'Сумма остатка'###caption (sku, stock, bin) =
+        GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger) PERSISTENT;
 
-    sumIn##postfix##SkuStockBinDate (sku, stock, bin, date) =
-        GROUP SUM sumInActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT;
+    sumIn (sku, stock, bin, date) =
+        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) PERSISTENT;
 
-    sumOut##postfix##SkuStockBinDate (sku, stock, bin, date) =
-        GROUP SUM sumOutActiveSkuLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), binSkuLedger(ledger), dateSkuLedger(ledger) PERSISTENT;
+    sumOut (sku, stock, bin, date) =
+        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), bin(ledger), date(ledger) PERSISTENT;
 
-    sum##postfix##SkuStockBinDate (sku, stock, bin, date) = sumIn##postfix##SkuStockBinDate(sku, stock, bin, date)
+    sum (Sku sku, Stock stock, Bin bin, DATE date) = sumIn(sku, stock, bin, date)
                                                          (+)
-                                                         sumOut##postfix##SkuStockBinDate(sku, stock, bin, date) PERSISTENT;
+                                                         sumOut(sku, stock, bin, date) PERSISTENT;
 
-    signedSum##postfix##SkuStockBinDate (sku, stock, bin, date) = sumIn##postfix##SkuStockBinDate(sku, stock, bin, date)
+    signedSum (Sku sku, Stock stock, Bin bin, DATE date) = sumIn(sku, stock, bin, date)
                                                                (-)
-                                                               sumOut##postfix##SkuStockBinDate(sku, stock, bin, date) PERSISTENT;
+                                                               sumOut(sku, stock, bin, date) PERSISTENT;
 
     // без учета текущей даты/времени
-    sumB##postfix##SkuStockBinDate 'Сумма на начало дня'###caption (sku, stock, bin, date) = currentSum##postfix##SkuStockBin(sku, stock, bin)
-                                                                      (-) [= GROUP SUM signedSum##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn >= date
+    sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentSum(sku, stock, bin)
+                                                                      (-) [= GROUP SUM signedSum (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn >= DATE date
                                                                                  BY sku, stock, bin, date](sku, stock, bin, date);
 
     // с учетом текущей даты/времени
-    sumA##postfix##SkuStockBinDate 'Сумма на конец дня'###caption (sku, stock, bin, date) = currentSum##postfix##SkuStockBin(sku, stock, bin)
-                                                                     (-) [= GROUP SUM signedSum##postfix##SkuStockBinDate (sku, stock, bin, dateIn) IF dateIn > date
+    sumA 'Сумма на конец дня'###caption (Sku sku, Stock stock, Bin bin, DATE date) = currentSum(sku, stock, bin)
+                                                                     (-) [= GROUP SUM signedSum (Sku sku, Stock stock, Bin bin, DATE dateIn) IF dateIn > DATE date
                                                                                 BY sku, stock, bin, date](sku, stock, bin, date);
 
-    averagePrice##postfix##SkuStockBin 'Цена (средневзв.)'###caption (sku, stock, bin) = currentSum##postfix##SkuStockBin(sku, stock, bin) / currentBalance##postfix##SkuStockBin(sku, stock, bin);
+    averagePrice 'Цена (средневзв.)'###caption (Sku sku, Stock stock, Bin bin) = currentSum(sku, stock, bin) / currentBalance(sku, stock, bin);
 
 END
 
@@ -181,12 +181,12 @@ END
 
 EXTEND FORM currentBalanceSkuStock
 
-    PROPERTIES(bil)   READONLY nameBinSkuLedger  BEFORE signedQuantitySkuLedger(bil)
-    PROPERTIES(bt)    READONLY nameBinBatch  BEFORE shippedQuantityBatch(bt)
+    PROPERTIES(bil)   READONLY nameBin  BEFORE signedQuantity(bil)
+    PROPERTIES(bt)    READONLY nameBin  BEFORE shippedQuantity(bt)
 
     OBJECTS           bin=Bin
-    PROPERTIES        READONLY nameBin(bin), currentBalanceSkuStockBin(s,st,bin)
-    FILTERS           currentBalanceSkuStockBin(s,st,bin)
+    PROPERTIES        READONLY name(bin), currentBalance(s,st,bin)
+    FILTERS           currentBalance(s,st,bin)
 ;
 DESIGN currentBalanceSkuStock {
     ledger.box {
@@ -196,12 +196,12 @@ DESIGN currentBalanceSkuStock {
 
 EXTEND FORM balanceSkuStock
 
-    PROPERTIES(bil)   READONLY nameBinSkuLedger  BEFORE signedQuantitySkuLedger(bil)
-    PROPERTIES(bt)    READONLY nameBinBatch  BEFORE shippedQuantityBatch(bt)
+    PROPERTIES(bil)   READONLY nameBin  BEFORE signedQuantity(bil)
+    PROPERTIES(bt)    READONLY nameBin  BEFORE shippedQuantity(bt)
 
     OBJECTS           bin=Bin
-    PROPERTIES        READONLY nameBin(bin), balanceASkuStockBinDateTime(s,st,bin,t)
-    FILTERS           balanceASkuStockBinDateTime(s,st,bin,t)
+    PROPERTIES        READONLY name(bin), balanceA(s,st,bin,t)
+    FILTERS           balanceA(s,st,bin,t)
 ;
 DESIGN balanceSkuStock {
     ledger.box {
@@ -210,99 +210,99 @@ DESIGN balanceSkuStock {
 }
 
 EXTEND FORM batches
-    PROPERTIES(bt) READONLY nameBinBatch AFTER nameStockBatch(bt)
+    PROPERTIES(bt) READONLY nameBin AFTER nameStock(bt)
 ;
 // ---------------------  Склады с указанием ячеек ----------------------- //
 
 TABLE stockBinGroup(Stock, BinGroup);
-dataInStockBinGroup 'Отм.' = DATA BOOLEAN (Stock, BinGroup);
+dataIn 'Отм.' = DATA BOOLEAN (Stock, BinGroup);
 
 TABLE stockBin(Stock, Bin);
-dataInStockBin 'Отм.' = DATA BOOLEAN (Stock, Bin);
+dataIn 'Отм.' = DATA BOOLEAN (Stock, Bin);
 
-levelParentStockBinGroup (stock, binGroup) = GROUP MIN levelBinGroupBinGroup(binGroup, parent) IF dataInStockBinGroup(stock, parent)
+levelParent (stock, binGroup) = GROUP MIN level(BinGroup binGroup, BinGroup parent) IF dataIn(Stock stock, parent)
                                                                BY stock, binGroup PERSISTENT;
-nearestParentStockBinGroup (stock, binGroup) =
-    binGroupBinGroupLevel(binGroup, levelParentStockBinGroup(stock, binGroup));
-nearestInStockBinGroup (stock, binGroup) =
-    dataInStockBinGroup(stock, nearestParentStockBinGroup(stock, binGroup));
+nearestParent (Stock stock, BinGroup binGroup) =
+    binGroup(binGroup, levelParent(stock, binGroup));
+nearestIn (Stock stock, BinGroup binGroup) =
+    dataIn(stock, nearestParent(stock, binGroup));
 
-inStockBinGroup 'Отм.' (stock, binGroup) = OVERRIDE nearestInStockBinGroup (stock, binGroup), dataInStockBinGroup(stock, binGroup) PERSISTENT;
+in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE nearestIn (stock, binGroup), dataIn(stock, binGroup) PERSISTENT;
 
-inStockBin 'Отм.' (stock, bin) = OVERRIDE inStockBinGroup(stock, binGroupBin(bin)), dataInStockBin(stock, bin) PERSISTENT;
+in 'Отм.' (Stock stock, Bin bin) = OVERRIDE in(stock, binGroup(bin)), dataIn(stock, bin) PERSISTENT;
 
-binsStock 'Ячейки' (stock) = GROUP CONCAT nameBin(bin) IF inStockBin(stock, bin) , ', '
+bins 'Ячейки' (stock) = GROUP CONCAT name(Bin bin) IF in(Stock stock, bin) , ', '
                                        BY stock
                                        ORDER bin MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
-stocksBin 'Склады' (bin) = GROUP CONCAT nameStock(stock) IF inStockBin(stock, bin) , ', '
+stocks 'Склады' (bin) = GROUP CONCAT name(Stock stock) IF in(stock, Bin bin) , ', '
                                        BY bin
                                        ORDER stock MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
 
 
 // ---------------- Ячейка по классификатору ------------------- //
 
-groupTypeStock = DATA GroupType (Stock);
-nameGroupTypeStock 'Тип классификатора' (stock) = nameGroupType(groupTypeStock(stock));
+groupType = DATA GroupType (Stock);
+nameGroupType 'Тип классификатора' (Stock stock) = name(groupType(stock));
 
-dataBinStockGroup = DATA Bin (Stock, Group);
-nameDataBinStockGroup 'Ячейка' (stock,group) = nameBin(dataBinStockGroup(stock,group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+dataBin = DATA Bin (Stock, Group);
+nameDataBin 'Ячейка' (Stock stock,Group group) = name(dataBin(stock,group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-dataBinStockSku = DATA Bin (Stock, Sku);
-nameDataBinStockSku 'Ячейка' (stock,sku) = nameBin(dataBinStockSku(stock,sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+dataBin = DATA Bin (Stock, Sku);
+nameDataBin 'Ячейка' (Stock stock,Sku sku) = name(dataBin(stock,sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-levelParentBinStockGroup (stock, group) = GROUP MIN levelGroupGroup(group, parent) IF dataBinStockGroup(stock, parent)
+levelParentBin (stock, group) = GROUP MIN level(Group group, Group parent) IF dataBin(Stock stock, parent)
                                                               BY stock, group PERSISTENT;
 
-nearestParentBinStockGroup (stock, group) = groupGroupLevel(group, levelParentBinStockGroup (stock, group));
-nearestInBinStockGroup  (stock, group) =
-    dataBinStockGroup(stock, nearestParentBinStockGroup (stock, group)) PERSISTENT;
+nearestParentBin (Stock stock, Group group) = group(group, levelParentBin (stock, group));
+nearestInBin  (Stock stock, Group group) =
+    dataBin(stock, nearestParentBin (stock, group)) PERSISTENT;
 
-binStockGroup (stock, group) = OVERRIDE nearestInBinStockGroup(stock, group), dataBinStockGroup(stock, group) PERSISTENT;
-nameBinStockGroup 'Ячейка'= nameBin(binStockGroup(stock, group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+bin (Stock stock, Group group) = OVERRIDE nearestInBin(stock, group), dataBin(stock, group) PERSISTENT;
+nameBin 'Ячейка'= name(bin(Stock stock, Group group)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-binStockSku (stock, sku) = OVERRIDE binStockGroup(stock, groupGroupTypeSku(groupTypeStock(stock), sku)), dataBinStockSku(stock, sku) PERSISTENT;
-nameBinStockSku 'Ячейка'= nameBin(binStockSku(stock, sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+bin (Stock stock, Sku sku) = OVERRIDE bin(stock, group(groupType(stock), sku)), dataBin(stock, sku) PERSISTENT;
+nameBin 'Ячейка'= name(bin(Stock stock, Sku sku)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 
-CONSTRAINT dataBinStockGroup(stock, group) AND NOT inStockBin(stock, dataBinStockGroup(stock, group))
-           CHECKED BY dataBinStockGroup MESSAGE 'Ячейка (для группы sku) не включена для склада';
+CONSTRAINT dataBin(Stock stock, Group group) AND NOT in(stock, dataBin(stock, group))
+           CHECKED BY dataBin[Stock,Group] MESSAGE 'Ячейка (для группы sku) не включена для склада';
 
-CONSTRAINT dataBinStockSku(stock, sku) AND NOT inStockBin(stock, dataBinStockSku(stock, sku))
-           CHECKED BY dataBinStockSku MESSAGE 'Ячейка (для sku) не включена для склада';
+CONSTRAINT dataBin(Stock stock, Sku sku) AND NOT in(stock, dataBin(stock, sku))
+           CHECKED BY dataBin[Stock,Sku] MESSAGE 'Ячейка (для sku) не включена для склада';
 // ------------------------------------- Формы ---------------------------------- //
 
 FORM binStocks 'Ячейки'
 
     OBJECTS ts = Stock FIXED PANEL
-    PROPERTIES(ts) SELECTOR nameStock
-    PROPERTIES(ts) nameGroupTypeStock
-    FILTERS isCompanyStock(ts)
+    PROPERTIES(ts) SELECTOR name
+    PROPERTIES(ts) nameGroupType
+    FILTERS isCompany(ts)
 
-    TREE binTree bg = BinGroup PARENT parentBinGroup
-    PROPERTIES READONLY nameBinGroup(bg)
-    PROPERTIES(ts, bg) inStockBinGroup
+    TREE binTree bg = BinGroup PARENT parent
+    PROPERTIES READONLY name(bg)
+    PROPERTIES(ts, bg) in
     PROPERTIES(bg) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS b = Bin
-    PROPERTIES(b) READONLY nameBin, canonicalNameBin
-    PROPERTIES(ts, b) inStockBin
-    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParentBinGroupBin(bg, b)
-    ORDER BY nameBin(b)
+    PROPERTIES(b) READONLY name, canonicalName
+    PROPERTIES(ts, b) in
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b)
+    ORDER BY name(b)
     PROPERTIES(b) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     FILTERGROUP filters1
-            FILTER 'Отмеченные ячейки' inStockBin(ts, b) 'F10'
+            FILTER 'Отмеченные ячейки' in(ts, b) 'F10'
 
-    TREE treeGroup g=Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), nameGroup(g)
-    FILTERS groupTypeGroup(g) == groupTypeStock(ts)
-    ORDER BY orderGroup(g), nameGroup(g)
-    PROPERTIES(ts, g) nameBinStockGroup
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
+    TREE treeGroup g=Group PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(ts)
+    ORDER BY order(g), name(g)
+    PROPERTIES(ts, g) nameBin
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY nameSku, idBarcodeSku
-    FILTERS isParentGroupSku(g, s) OR s IS Sku AND NOT g
-    PROPERTIES(ts, s) nameBinStockSku
+    PROPERTIES(s) READONLY name, idBarcode
+    FILTERS isParent(g, s) OR s IS Sku AND NOT g
+    PROPERTIES(ts, s) nameBin
 ;
 
 DESIGN binStocks {
@@ -352,17 +352,17 @@ DESIGN binStocks {
 //--------------------------------------------------Ячейка для Detail--------------------------------------//
 
 META defineDocumentDetailBinCustom(detail, prefix, caption)
-    prefix###bin###detail = DATA Bin (###detail);
-    name###prefix###bin###detail 'Ячейка'###caption (detail) = nameBin(prefix###bin###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    prefix###bin = DATA Bin (###detail);
+    name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentAbstractDetailBinCustom(detail, prefix, caption)
-    prefix###bin###detail = ABSTRACT Bin (###detail) PERSISTENT;
-    name###prefix###bin###detail 'Ячейка'###caption (detail) = nameBin(prefix###bin###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    prefix###bin = ABSTRACT Bin (###detail) PERSISTENT;
+    name###prefix##Bin 'Ячейка'###caption (###detail detail) = name(prefix###bin(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentInterfaceDetailBinCustom(detail, prefix, caption)
     @defineDocumentAbstractDetailBinCustom(detail, prefix, caption);
     @defineDocumentDetailBinCustom(user###detail, prefix, caption);
-    prefix###bin###detail(detail) += prefix###bin###user###detail(detail);
+    prefix###bin(User###detail detail) += prefix###bin(detail);
 END
 META defineDocumentInterfaceDetailBinCustom(detail)
     @defineDocumentInterfaceDetailBinCustom(detail, , );
@@ -383,20 +383,20 @@ META extendFormInterfaceDetailBin(object, concrete, prefix, befProp)
     @defineDocumentInterfaceProperty (object, showBin, 'Ячейка');
 
     EXTEND FORM user###object
-        PROPERTIES(concrete) showBin###user###object
-        PROPERTIES (d) SHOWIF showBin###user###object(concrete) name###prefix###bin###user###object###detail BEFORE befProp###user###object###detail(d)
+        PROPERTIES(concrete) showBin
+        PROPERTIES (d) SHOWIF showBin(concrete) nameBin BEFORE befProp(d)
     ;
     DESIGN user###object {
         headerExtraParams {
             NEW headerBin {
                 caption = 'Ячейка';
                 type = CONTAINERH;
-                MOVE PROPERTY(showBin###user###object(concrete));
+                MOVE PROPERTY(showBin(concrete));
             }
         }
     }
     EXTEND FORM object##s
-    PROPERTIES (d) READONLY SHOWIF showBin###object(concrete) name###prefix###bin###object###detail BEFORE befProp###object###detail(d)
+    PROPERTIES (d) READONLY SHOWIF showBin(concrete) nameBin BEFORE befProp(d)
     ;
 END
 
@@ -405,35 +405,35 @@ END
 META defineInvoiceShipmentBin(stockProp)
 
     @defineDocumentInterfaceDetailBin(invoice);
-    binShipmentDetail (detail) += binInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+    bin (InvoiceShipmentDetail detail) += bin(invoiceDetail(detail));
 
     @defineDocumentInterfaceProperty (invoice, showBin, 'Ячейка');
 
     EXTEND FORM userInvoice
-        PROPERTIES(i) showBinUserInvoice
-        PROPERTIES(d) BEFORE name###stockProp###userInvoiceDetail(d) SHOWIF showBinUserInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      nameBinUserInvoiceDetail
+        PROPERTIES(i) showBin
+        PROPERTIES(d) BEFORE name###stockProp(d) SHOWIF showBin(i) BACKGROUND backgroundShipped(i)
+                      nameBin
     ;
     DESIGN userInvoice {
         headerExtraParams {
             NEW headerBin {
                 caption = 'Ячейка';
-                MOVE PROPERTY(showBinUserInvoice(i));
+                MOVE PROPERTY(showBin(i));
             }
         }
     }
 
     EXTEND FORM invoices
-        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail(d) SHOWIF showBinInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      nameBinInvoiceDetail
+        PROPERTIES(d) READONLY BEFORE name###stockProp(d) SHOWIF showBin(i) BACKGROUND backgroundShipped(i)
+                      nameBin
     ;
     EXTEND FORM invoiceDetails
-        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail(d) SHOWIF showBinInvoiceDetail(d) BACKGROUND backgroundShippedInvoiceDetail(d)
-                      nameBinInvoiceDetail
+        PROPERTIES(d) READONLY BEFORE name###stockProp(d) SHOWIF showBin(d) BACKGROUND backgroundShipped(d)
+                      nameBin
     ;
     
-    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
-        binUserInvoiceDetail(d) <- binUserInvoiceDetail(detail);
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
+        bin(d) <- bin(detail);
     }     
 
 END

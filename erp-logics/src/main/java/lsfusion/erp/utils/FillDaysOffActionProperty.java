@@ -70,6 +70,6 @@ public class FillDaysOffActionProperty extends ScriptingActionProperty {
     }
 
     private void addDayOff(ExecutionContext<ClassPropertyInterface> context, DataSession session, DataObject countryObject, long timeInMillis) throws ClassNotFoundException, SQLException, IllegalAccessException, InstantiationException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
-        context.getBL().getModule("Country").findProperty("isDayOffCountryDate").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
+        context.getBL().getModule("Country").findProperty("isDayOff[Country,DATE]").change(true, session, countryObject, new DataObject(new java.sql.Date(timeInMillis), DateClass.instance));
     }
 }

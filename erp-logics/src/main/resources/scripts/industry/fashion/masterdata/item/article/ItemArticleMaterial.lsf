@@ -7,34 +7,34 @@ NAMESPACE Item;
 //-- Article
 
 TABLE materialArticle(Material, Article);
-percentMaterialArticle 'Процент' = DATA INTEGER (Material, Article);
+percent 'Процент' = DATA INTEGER (Material, Article);
 
-percentMaterialsArticle 'Процент' (i) = GROUP SUM percentMaterialArticle(m,i) BY i;
+percentMaterials 'Процент' (i) = GROUP SUM percent(Material m,Article i) BY i;
 
-calcCompositionArticle 'Состав' (i) = VARSTRING[255](
-                       [= GROUP CONCAT (percentMaterialArticle(m,i)+'% '+nameMaterial(m)) IF percentMaterialArticle(m,i), ', ' BY i ORDER DESC percentMaterialArticle(m,i)](i))
+calcComposition 'Состав' (Article i) = VARSTRING[255](
+                       [= GROUP CONCAT (percent(Material m,Article i)+'% '+name(m)) IF percent(m,i), ', ' BY i ORDER DESC percent(m,i)](i))
                        MINCHARWIDTH 50 MAXCHARWIDTH 100 PREFCHARWIDTH 100 PERSISTENT;
 
-WHEN SESSION FORMS article CHANGED(calcCompositionArticle(i)) DO {
-    compositionArticle(i) <- calcCompositionArticle(i);            
+WHEN SESSION FORMS article CHANGED(calcComposition(Article i)) DO {
+    composition(i) <- calcComposition(i);            
 } 
-backgroundMaterialsArticle (i) = RGB(255,0,0) IF i IS Article AND (percentMaterialsArticle(i) != 100.0);
+backgroundMaterials (Article i) = RGB(255,0,0) IF i IS Article AND (percentMaterials(i) != 100.0);
 
-parseCompositionArticle 'Разбить состав на материалы' = ACTION CUSTOM 'lsfusion.erp.ParseCompositionArticleActionProperty' (Article);
+parseComposition 'Разбить состав на материалы' = ACTION CUSTOM 'lsfusion.erp.ParseCompositionArticleActionProperty' (Article);
 
 FORM articleMaterial 'Материалы'
     OBJECTS i=Article FIXED PANEL 
-    PROPERTIES(i) READONLY percentMaterialsArticle BACKGROUND  backgroundMaterialsArticle(i)
+    PROPERTIES(i) READONLY percentMaterials BACKGROUND  backgroundMaterials(i)
     
     OBJECTS t=Material
-    PROPERTIES(t) nameMaterial READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t,i) percentMaterialArticle
+    PROPERTIES(t) name READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t,i) percent
     
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameMaterial(t)
+    ORDER BY name(t)
 ;
 DESIGN articleMaterial { main { preferredSize = (600, 400); } }     
 
-createCompositionArticle 'Выбрать состав' = ACTION (article) {          
+createComposition 'Выбрать состав' = ACTION (Article article) {          
     FORM articleMaterial OBJECTS i = article MODAL; 
-} SHORTCUT compositionArticle;  
+} SHORTCUT composition[Article];  

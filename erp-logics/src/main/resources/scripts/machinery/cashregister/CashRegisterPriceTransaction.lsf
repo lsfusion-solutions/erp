@@ -6,18 +6,18 @@ NAMESPACE CashRegister;
 
 // -------------------------- Загрузка прайса в оборудование --------------------- //
 CLASS CashRegisterPriceTransaction 'Загрузка прайса в кассы' : MachineryPriceTransaction;
-groupCashRegisterCashRegisterPriceTransaction 'Группа касс' = DATA GroupCashRegister (CashRegisterPriceTransaction);
-groupMachineryMachineryPriceTransaction (transaction) += groupCashRegisterCashRegisterPriceTransaction(transaction);
+groupCashRegister 'Группа касс' = DATA GroupCashRegister (CashRegisterPriceTransaction);
+groupMachinery (CashRegisterPriceTransaction transaction) += groupCashRegister(transaction);
 
 EXTEND FORM groupMachineryInput
-    PROPERTIES(m) READONLY FORCE GRID SHOWIF isGroupCashRegister(g) comPortCashRegister, baudRateCashRegister,
-                                                                    dataDirectoryCashRegister, dateCashRegister
-    PROPERTIES(g) READONLY FORCE GRID SHOWIF isGroupCashRegister(g) nameModelGroupMachinery                                                                   
+    PROPERTIES(m) READONLY FORCE GRID SHOWIF is(g) comPort, baudRate,
+                                                                    dataDirectory[CashRegister], date
+    PROPERTIES(g) READONLY FORCE GRID SHOWIF is(g) nameModel                                                                   
 ;
 
-createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupMachinery) {
+createMachineryPriceTransaction (GroupCashRegister groupMachinery) += ACTION (groupMachinery) {
     IF groupMachinery IS GroupCashRegister THEN
         ADDOBJ CashRegisterPriceTransaction;
 }
 
-skipSnapshotMachineryPriceTransaction(t) += (groupMachineryMachineryPriceTransaction(t) IS GroupCashRegister) AND skipSnapshotMachineryRole(mainRoleUser(currentUser())) AND NOT allUserSnapshotCashRegisterModel(modelGroupMachinery(groupMachineryMachineryPriceTransaction(t)));
+skipSnapshot(MachineryPriceTransaction t) += (groupMachinery(t) IS GroupCashRegister) AND skipSnapshotMachinery(mainRole(currentUser())) AND NOT allUserSnapshot(model(groupMachinery(t)));

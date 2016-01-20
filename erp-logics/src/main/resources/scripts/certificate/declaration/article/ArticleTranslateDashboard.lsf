@@ -6,67 +6,67 @@ NAMESPACE Item;
 
 // Обработка статуса
 
-completedTranslateItem 'Обработан' = DATA BOOLEAN (Item);
-notCompletedTranslateArticle 'Не обработан' (article) = GROUP SUM 1 IF i IS Item AND NOT completedTranslateItem(i) BY articleItem(i);
-completedTranslateArticle 'Обработан' = a IS Article AND NOT notCompletedTranslateArticle(a);
-prevCompletedTranslateArticle (article) = PREV(completedTranslateArticle(article));
+completedTranslate 'Обработан' = DATA BOOLEAN (Item);
+notCompletedTranslate 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedTranslate(i) BY article(i);
+completedTranslate 'Обработан' = Article a IS Article AND NOT notCompletedTranslate(a);
+prevCompletedTranslate (Article article) = PREV(completedTranslate(article));
 
-changeCompletedTranslateArticle (article) = ACTION (article) {
+changeCompletedTranslate (Article article) = ACTION (article) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
-        FOR articleItem(item) == article DO {
-            completedTranslateItem(item) <- TRUE;
+        FOR article(Item item) == article DO {
+            completedTranslate(item) <- TRUE;
         }
     } ELSE {
-        FOR articleItem(item) == article DO {
-            completedTranslateItem(item) <- NULL;
+        FOR article(Item item) == article DO {
+            completedTranslate(item) <- NULL;
         }                
     }        
 }
 
 // Не заполнены атрибуты
-nullTranslateItem 'Без атрибутов' (item) = item IS Item AND NOT (captionItem(item) AND compositionItem(item)) AND NOT completedTranslateItem(item);
-nullTranslateArticle 'Без атрибутов' (article) = GROUP SUM 1 IF item IS Item AND NOT (captionItem(item) AND compositionItem(item)) AND NOT completedTranslateItem(item) BY articleItem(item);
+nullTranslate 'Без атрибутов' (Item item) = item IS Item AND NOT (caption(item) AND composition(item)) AND NOT completedTranslate(item);
+nullTranslate 'Без атрибутов' (article) = GROUP SUM 1 IF Item item IS Item AND NOT (caption(item) AND composition(item)) AND NOT completedTranslate(item) BY article(item);
 
 hintEditableBackground = RGB(224, 224, 255) IF TRUE;
 
 TABLE invoiceUser (Purchase.Invoice, User);
-inPurchaseInvoiceUser 'Вкл.' = DATA BOOLEAN  (Purchase.Invoice, User);
-inPurchaseInvoicesUser (user) = GROUP SUM 1 IF inPurchaseInvoiceUser(invoice, user) BY user;
+inPurchase 'Вкл.' = DATA BOOLEAN  (Purchase.Invoice, User);
+inPurchaseInvoices (user) = GROUP SUM 1 IF inPurchase(Purchase.Invoice invoice, User user) BY user;
 
-seriesNumberDateInvoice 'Номер/дата накладной' (o) = 
-    CONCAT '', Purchase.seriesNumberInvoice(o), 
-               ' от ' +Purchase.dateInvoice(o) 
+seriesNumberDate 'Номер/дата накладной' (Purchase.Invoice o) = 
+    CONCAT '', seriesNumber(o), 
+               ' от ' +date(o) 
     ;  
 
-seriesNumberDateInvoicesUser 'Накладные' =  GROUP CONCAT seriesNumberDateInvoice(invoice) IF inPurchaseInvoiceUser(invoice, user), ', ' 
+seriesNumberDateInvoices 'Накладные' =  GROUP CONCAT seriesNumberDate(Purchase.Invoice invoice) IF inPurchase(invoice, User user), ', ' 
     BY user 
-    ORDER Purchase.dateInvoice(invoice) 
+    ORDER date(invoice) 
     MINCHARWIDTH 30 PREFCHARWIDTH 50;
-seriesNumberDateInvoicesCurrentUser 'Накладные' = seriesNumberDateInvoicesUser(currentUser()) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+seriesNumberDateInvoicesCurrentUser 'Накладные' = seriesNumberDateInvoices(currentUser()) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
-countInvoicesUser 'Кол-во накладных' (user)= GROUP SUM 1 IF inPurchaseInvoiceUser(invoice, user) BY user;
+countInvoices 'Кол-во накладных' (user)= GROUP SUM 1 IF inPurchase(Purchase.Invoice invoice, User user) BY user;
 
 FORM purchaseInvoices 'Выбрать накладные'
     OBJECTS u=User FIXED PANEL                           
 //    PROPERTIES(u) READONLY seriesNumberDeclaration, nameLegalEntityDeclaration, nameCurrencyDeclaration, dateTimeDeclaration
 
     OBJECTS i=Purchase.Invoice
-    PROPERTIES (i, u) inPurchaseInvoiceUser
-    PROPERTIES (i) READONLY Purchase.numberInvoice, Purchase.seriesInvoice, Purchase.dateInvoice, Purchase.timeInvoice, 
-                   Purchase.nameSupplierInvoice, Purchase.nameCustomerInvoice, Purchase.countInvoiceDetailInvoice,
-                   Purchase.quantityInvoiceDetailInvoice, Purchase.sumInvoiceDetailInvoice
-    FILTERS Purchase.isOpenedInvoice(i)
-    ORDER BY dateInvoice(i) DESC
+    PROPERTIES (i, u) inPurchase
+    PROPERTIES (i) READONLY number, series, date, time, 
+                   nameSupplier, nameCustomer, countInvoiceDetail,
+                   quantityInvoiceDetail, sumInvoiceDetail
+    FILTERS isOpened(i)
+    ORDER BY date(i) DESC
 //    FILTERS inDeclarationUserInvoice(d, i) OR d IS Declaration AND NOT declarationUserInvoice(i)
 
     OBJECTS id=Purchase.InvoiceDetail
-    PROPERTIES(id) READONLY Purchase.indexInvoiceDetail, Purchase.idBarcodeSkuInvoiceDetail, Purchase.nameSkuInvoiceDetail, Purchase.shortNameUOMSkuInvoiceDetail, 
-                            Purchase.quantityInvoiceDetail, Purchase.priceInvoiceDetail
-    FILTERS invoiceInvoiceDetail(id) == i
+    PROPERTIES(id) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, 
+                            quantity, price
+    FILTERS invoice(id) == i
 
     FILTERGROUP filtersInvoiceInclude
-        FILTER 'Только включенные' inPurchaseInvoiceUser(i, u) 'F10'
+        FILTER 'Только включенные' inPurchase(i, u) 'F10'
 
 ;
 
@@ -97,99 +97,99 @@ DESIGN purchaseInvoices {
     }
 }
 
-selectPurchaseInvoicesUser 'Выбрать накладные' = ACTION (user) {
+selectPurchaseInvoices 'Выбрать накладные' = ACTION (User user) {
     FORM purchaseInvoices OBJECTS u=user MODAL;
 } TOOLBAR;
-selectPurchaseInvoicesCurrentUser 'Выбрать накладные' = ACTION selectPurchaseInvoicesUser(currentUser());
+selectPurchaseInvoicesCurrentUser 'Выбрать накладные' = ACTION selectPurchaseInvoices(currentUser());
 
-quantityInvoiceDetailSkuUser 'Кол-во товара в документе' (sku, user) = 
-    GROUP SUM Purchase.quantityInvoiceDetailSkuInvoice(sku, invoice) IF inPurchaseInvoiceUser(invoice, user)
+quantityInvoiceDetail 'Кол-во товара в документе' (sku, user) = 
+    GROUP SUM quantityInvoiceDetail(Sku sku, Purchase.Invoice invoice) IF inPurchase(invoice, User user)
         BY sku, user;
 
-quantityInvoiceDetailArticleInvoice 'Кол-во товара в документе' (article, invoice) = 
-    GROUP SUM Purchase.quantityInvoiceDetail(idetail)
-          BY  articleItem(Purchase.skuInvoiceDetail(idetail)),
-              Purchase.invoiceInvoiceDetail(idetail);
-quantityInvoiceDetailArticleUser 'Кол-во товара в документе' (article, user) = 
-    GROUP SUM quantityInvoiceDetailArticleInvoice(article, invoice) IF inPurchaseInvoiceUser(invoice, user)
+quantityInvoiceDetail 'Кол-во товара в документе' (article, invoice) = 
+    GROUP SUM quantity(Purchase.InvoiceDetail idetail)
+          BY  article(sku(idetail)),
+              invoice(idetail);
+quantityInvoiceDetail 'Кол-во товара в документе' (article, user) = 
+    GROUP SUM quantityInvoiceDetail(Article article, Purchase.Invoice invoice) IF inPurchase(invoice, User user)
         BY article, user;
         
-defaultPurchaseInvoiceSku (sku) =
-    GROUP LAST Purchase.invoiceInvoiceDetail(detail)
-          BY Purchase.skuInvoiceDetail(detail)
-          ORDER Purchase.dateInvoiceDetail(detail), detail
-          WHERE Purchase.isPostedInvoiceDetail(detail) AND Purchase.quantityInvoiceDetail(detail) 
-                AND inPurchaseInvoiceUser(Purchase.invoiceInvoiceDetail(detail), currentUser())
-                AND NOT Purchase.isCompanySupplierInvoiceDetail(detail) COMPLEX;
+defaultPurchaseInvoice (sku) =
+    GROUP LAST invoice(Purchase.InvoiceDetail detail)
+          BY sku(detail)
+          ORDER date(detail), detail
+          WHERE isPosted(detail) AND quantity(detail) 
+                AND inPurchase(invoice(detail), currentUser())
+                AND NOT isCompanySupplier(detail) COMPLEX;
 
-descriptionDefaultPurchaseInvoiceSku 'Последний инвойс' (sku)= CONCAT ' ', Purchase.seriesNumberInvoice(defaultPurchaseInvoiceSku(sku)),
-                                                                          'от ' + Purchase.dateInvoice(defaultPurchaseInvoiceSku(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
+descriptionDefaultPurchaseInvoice 'Последний инвойс' (Sku sku)= CONCAT ' ', seriesNumber(defaultPurchaseInvoice(sku)),
+                                                                          'от ' + date(defaultPurchaseInvoice(sku)) MINCHARWIDTH 10 PREFCHARWIDTH 15 MAXCHARWIDTH 30;
 // Подсчет непереведенных артикулов для групп
-countNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (group) = 
-    GROUP SUM 1 IF notCompletedTranslateArticle(article)  AND ((inPurchaseInvoicesUser(currentUser()) AND quantityInvoiceDetailArticleUser(article, currentUser())) OR NOT inPurchaseInvoicesUser(currentUser())) BY itemGroupArticle(article);
-recCountNotCompletedTranslateArticlesItemGroup 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedTranslateArticlesItemGroup(child) IF isParentItemGroupItemGroup(child, parent) BY parent;
+countNotCompletedTranslateArticles 'Не обработано (к-во)' (group) = 
+    GROUP SUM 1 IF notCompletedTranslate(Article article)  AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
+recCountNotCompletedTranslateArticles 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedTranslateArticles(ItemGroup child) IF isParent(child, ItemGroup parent) BY parent;
         
 dictionaryComposition = DATA Dictionary ();   
-nameDictionaryComposition 'Словарь для состава' = nameDictionary(dictionaryComposition());
+nameDictionaryComposition 'Словарь для состава' = name(dictionaryComposition());
 
 dictionaryCaption = DATA Dictionary ();   
-nameDictionaryCaption 'Словарь для наименования' = nameDictionary(dictionaryCaption());   
+nameDictionaryCaption 'Словарь для наименования' = name(dictionaryCaption());   
                  
 FORM articleTranslateDashboard 'Перевод'
 
     PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser(), nameDictionaryCaption(),
                nameDictionaryComposition()
 
-    TREE groupTree g=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g), recCountNotCompletedTranslateArticlesItemGroup(g)
-    ORDER BY orderItemGroup(g), nameItemGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(g) 'F5' DEFAULT
+    TREE groupTree g=ItemGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g), recCountNotCompletedTranslateArticles(g)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
     FILTERGROUP notTranslateFilters
-        FILTER 'Не обработан' recCountNotCompletedTranslateArticlesItemGroup(g) 'F6'
+        FILTER 'Не обработан' recCountNotCompletedTranslateArticles(g) 'F6'
 
     OBJECTS a=Article
-    PROPERTIES(a) READONLY nameBrandArticle, idArticle, canonicalNameItemGroupArticle FORCE PANEL
-    PROPERTIES(a) originalCaptionArticle, originalCompositionArticle, originalCustomsGroupArticle 
-    PROPERTIES(a) BACKGROUND hintEditableBackground() nameUOMArticle, captionArticle, nameGenderArticle, compositionArticle,
-                                                      netWeightArticle, grossWeightArticle, nameCountryArticle
-    PROPERTIES(a) completedTranslateArticle ON CHANGE changeCompletedTranslateArticle(a)
+    PROPERTIES(a) READONLY nameBrand, id, canonicalNameItemGroup FORCE PANEL
+    PROPERTIES(a) originalCaption, originalComposition, originalCustomsGroup 
+    PROPERTIES(a) BACKGROUND hintEditableBackground() nameUOM, caption, nameGender, composition,
+                                                      netWeight, grossWeight, nameCountry
+    PROPERTIES(a) completedTranslate ON CHANGE changeCompletedTranslate(a)
     PROPERTIES(a) EDITFORM
-    PROPERTIES(a) FORCE PANEL searchImageArticle, urlImageArticle
+    PROPERTIES(a) FORCE PANEL searchImage, urlImage
     PROPERTIES uploadAllImagesArticle() TODRAW a FORCE PANEL        
 
     FILTERGROUP attributesFilters
-        FILTER 'Без атрибутов' nullTranslateArticle(a) 'F7' 
-        FILTER 'С атрибутами' NOT nullTranslateArticle(a) 'F6' 
+        FILTER 'Без атрибутов' nullTranslate(a) 'F7' 
+        FILTER 'С атрибутами' NOT nullTranslate(a) 'F6' 
 
-    FILTERS isParentGroupArticle(g, a) 
+    FILTERS isParent(g, a) 
 //    FILTERGROUP groupFilters
 //        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
 //        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)
 
     FILTERGROUP translateFilters
-        FILTER 'Не обработан' notCompletedTranslateArticle(a) 'F9' DEFAULT
-        FILTER 'Обработан' completedTranslateArticle(a) 'F8'
+        FILTER 'Не обработан' notCompletedTranslate(a) 'F9' DEFAULT
+        FILTER 'Обработан' completedTranslate(a) 'F8'
 
-    FILTERS quantityInvoiceDetailArticleUser(a, currentUser()) OR (a IS Article AND NOT countInvoicesUser(currentUser()))
+    FILTERS quantityInvoiceDetail(a, currentUser()) OR (a IS Article AND NOT countInvoices(currentUser()))
 
     OBJECTS i=Item
-    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoiceSku, idBarcodeSku, idItem, originalCaptionGrid = originalCaptionItem, originalCustomsGroupItem
-    PROPERTIES(i) BACKGROUND hintEditableBackground() nameUOMItem, captionItem, canonicalNameItemGroupItem, 
-                             compositionItem, netWeightItem, grossWeightItem, nameCountryItem,
-                             imageItem FORCE PANEL
-    PROPERTIES(i) completedTranslateItem
-    ORDER BY idItem(i)
-    PROPERTIES(i) EDITFORM SHOWIF enableEditingItem(i)
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoice, idBarcode, id, originalCaptionGrid = originalCaption, originalCustomsGroup
+    PROPERTIES(i) BACKGROUND hintEditableBackground() nameUOM, caption, canonicalNameItemGroup, 
+                             composition, netWeight, grossWeight, nameCountry,
+                             image FORCE PANEL
+    PROPERTIES(i) completedTranslate
+    ORDER BY id(i)
+    PROPERTIES(i) EDITFORM SHOWIF enableEditing(i)
     
     FILTERGROUP attributesFilters2
-        FILTER 'Без атрибутов' nullTranslateItem(i) 'F7'
-        FILTER 'С атрибутами' NOT nullTranslateItem(i) 'F6'
+        FILTER 'Без атрибутов' nullTranslate(i) 'F7'
+        FILTER 'С атрибутами' NOT nullTranslate(i) 'F6'
              
     FILTERGROUP itemFilters
-        FILTER 'По артикулам' articleItem(i) == a 'F4' DEFAULT
-        FILTER 'По группам (не обработан)' isParentItemGroupItem(g,i) AND NOT completedTranslateItem(i) 'shift F4'
-        FILTER 'По группам' isParentItemGroupItem(g,i) 'ctrl F4'
-        FILTER 'По артикулам/инвойсам' articleItem(i) == a AND (quantityInvoiceDetailSkuUser(i, currentUser()) OR (i IS Item AND NOT countInvoicesUser(currentUser()))) 'shift F5'
+        FILTER 'По артикулам' article(i) == a 'F4' DEFAULT
+        FILTER 'По группам (не обработан)' isParent(g,i) AND NOT completedTranslate(i) 'shift F4'
+        FILTER 'По группам' isParent(g,i) 'ctrl F4'
+        FILTER 'По артикулам/инвойсам' article(i) == a AND (quantityInvoiceDetail(i, currentUser()) OR (i IS Item AND NOT countInvoices(currentUser()))) 'shift F5'
 ;
                                                                                                          
 DESIGN articleTranslateDashboard {
@@ -218,7 +218,7 @@ DESIGN articleTranslateDashboard {
             NEW imageBox {
                 fill = 3;
                 caption = 'Изображение';                     
-                MOVE PROPERTY(imageItem(i)) {                           
+                MOVE PROPERTY(image(i)) {                           
                     caption = '';
                     fill = 1;
                 }
@@ -232,8 +232,8 @@ DESIGN articleTranslateDashboard {
                 fill = 2;
                 NEW imageContainer{
                     type = CONTAINERH;
-                    MOVE PROPERTY(searchImageArticle(a));
-                    MOVE PROPERTY(urlImageArticle(a));
+                    MOVE PROPERTY(searchImage(a));
+                    MOVE PROPERTY(urlImage(a));
                     MOVE PROPERTY(uploadAllImagesArticle());
                 }
             }
@@ -241,12 +241,12 @@ DESIGN articleTranslateDashboard {
         }
     }
 
-    PROPERTY(idArticle(a)) { minimumCharWidth = 6; preferredCharWidth = 10;}
-    PROPERTY(idItem(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
-    PROPERTY(compositionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
-    PROPERTY(originalCustomsGroupItem(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
-    PROPERTY(captionItem(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
-    PROPERTY(compositionItem(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(id(a)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(id(i)) { minimumCharWidth = 6; preferredCharWidth = 10;}
+    PROPERTY(composition(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(originalCustomsGroup(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
+    PROPERTY(caption(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(composition(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
 
     MOVE functions.box;
 }
@@ -255,14 +255,14 @@ completeArticleTranslateDashboard 'Подтвердить все' = ACTION () {
     LOCAL k = INTEGER ();
     k() <- 0;
     
-    FOR [= FILTER articleTranslateDashboard.a](article) AND nullTranslateArticle(article) DO{   
+    FOR [= FILTER articleTranslateDashboard.a](Article article) AND nullTranslate(article) DO{   
         k() <- k() + 1;              
     }    
     IF k() > 0 THEN {
         MESSAGE 'Для артикула не задано название или состав ('+k()+' шт.)';
     } ELSE {
-        FOR [= FILTER articleTranslateDashboard.a](article) DO {
-            completedTranslateItem(item) <- TRUE WHERE articleItem(item) == article;
+        FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
+            completedTranslate(Item item) <- TRUE WHERE article(item) == article;
         }
     }      
 } TOOLBAR CONFIRM;
@@ -272,63 +272,63 @@ EXTEND FORM  articleTranslateDashboard
 ;
 
 // ------------------------- Автоматическое заполнение свойств --------------------------- //
-countArticleCaptionOriginal (string, original) = GROUP SUM 1 BY captionArticle(article), originalCaptionArticle(article);
-defaultCaptionArticleOriginalCaption (composition) = GROUP LAST caption 
-                                                           BY original
-                                                           ORDER countArticleCaptionOriginal(caption, original), caption
-                                                           WHERE countArticleCaptionOriginal(caption, original);
+countArticleCaption (string, original) = GROUP SUM 1 BY caption(Article article), originalCaption(article);
+defaultCaptionArticleOriginalCaption (composition) = GROUP LAST VARISTRING[255] caption 
+                                                           BY VARISTRING[100] original
+                                                           ORDER countArticleCaption(caption, original), caption
+                                                           WHERE countArticleCaption(caption, original);
 
-fillDefaultCaptionArticle 'Перевести название' = ACTION (article) {
-    captionArticle(article) <- defaultCaptionArticleOriginalCaption(originalCaptionArticle(article))
-        WHERE defaultCaptionArticleOriginalCaption(originalCaptionArticle(article));
-} SHORTCUT captionArticle;
+fillDefaultCaption 'Перевести название' = ACTION (Article article) {
+    caption(article) <- defaultCaptionArticleOriginalCaption(originalCaption(article))
+        WHERE defaultCaptionArticleOriginalCaption(originalCaption(article));
+} SHORTCUT caption[Article];
 
 fillDefaultCaptionArticles 'Перевести для всех название' = ACTION () {
-    FOR [= FILTER articleTranslateDashboard.a](article) DO {
-        fillDefaultCaptionArticle(article);
+    FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
+        fillDefaultCaption(article);
     }
-} SHORTCUT captionArticle;
+} SHORTCUT caption[Article];
 
   
-translateCaptionArticle 'Перевести название по словарю' = ACTION (article) {
-    translateDictionary(dictionaryCaption(), originalCaptionArticle(article));
-    captionArticle(article) <- VARISTRING[100](translationResult());
-} SHORTCUT captionArticle;  
+translateCaption 'Перевести название по словарю' = ACTION (Article article) {
+    translate(dictionaryCaption(), originalCaption(article));
+    caption(article) <- VARISTRING[100](translationResult());
+} SHORTCUT caption[Article];  
 
 translateCaptionArticles 'Перевести для всех название по словарю' = ACTION () {
-    FOR [= FILTER articleTranslateDashboard.a](article) DO {
-        translateCaptionArticle(article);
+    FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
+        translateCaption(article);
     }
-} SHORTCUT captionArticle;
+} SHORTCUT caption[Article];
 //--
-translateCompositionArticle 'Перевести состав по словарю' = ACTION (article) {
-    translateDictionary(dictionaryComposition(), originalCompositionArticle(article));
-    compositionArticle(article) <- VARSTRING[255](translationResult());
-} SHORTCUT compositionArticle;  
+translateComposition 'Перевести состав по словарю' = ACTION (Article article) {
+    translate(dictionaryComposition(), originalComposition(article));
+    composition(article) <- VARSTRING[255](translationResult());
+} SHORTCUT composition[Article];  
 
 translateCompositionArticles 'Перевести для всех состав по словарю' = ACTION () {
-    FOR [= FILTER articleTranslateDashboard.a](article) DO {
-        translateCompositionArticle(article);
+    FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
+        translateComposition(article);
     }
-} SHORTCUT compositionArticle;
+} SHORTCUT composition[Article];
 
 //--
-countArticleCompositionOriginal (string, original) = GROUP SUM 1 BY compositionArticle(article), originalCompositionArticle(article);
-defaultCompositionArticleOriginalComposition (composition) = GROUP LAST composition 
-                                                                   BY original
-                                                                   ORDER countArticleCompositionOriginal(composition, original), composition
-                                                                   WHERE countArticleCompositionOriginal(composition, original);
+countArticleComposition (string, original) = GROUP SUM 1 BY composition(Article article), originalComposition(article);
+defaultCompositionArticleOriginal (composition) = GROUP LAST VARSTRING[255] composition 
+                                                                   BY VARSTRING[255] original
+                                                                   ORDER countArticleComposition(composition, original), composition
+                                                                   WHERE countArticleComposition(composition, original);
 
-fillDefaultCompositionArticle 'Перевести состав' = ACTION (article) {
-    compositionArticle(article) <- defaultCompositionArticleOriginalComposition(originalCompositionArticle(article))
-        WHERE defaultCompositionArticleOriginalComposition(originalCompositionArticle(article));
-} SHORTCUT compositionArticle;
+fillDefaultComposition 'Перевести состав' = ACTION (Article article) {
+    composition(article) <- defaultCompositionArticleOriginal(originalComposition(article))
+        WHERE defaultCompositionArticleOriginal(originalComposition(article));
+} SHORTCUT composition[Article];
 
 fillDefaultCompositionArticles 'Перевести для всех состав' = ACTION () {
-   FOR [= FILTER articleTranslateDashboard.a](article) DO {
-        fillDefaultCompositionArticle(article);
+   FOR [= FILTER articleTranslateDashboard.a](Article article) DO {
+        fillDefaultComposition(article);
    }
-} SHORTCUT compositionArticle;
+} SHORTCUT composition[Article];
 
 NAVIGATOR {
     customsDashboardNavigator {

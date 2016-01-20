@@ -30,9 +30,9 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
         DataSession session = context.getSession();
 
         try {
-            String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
+            String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
 
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -40,11 +40,11 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
             ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
 
             QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<>(operatorKeys);
-            operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
-            operatorQuery.addProperty("firstNameContact", findProperty("firstNameContact").getExpr(context.getModifier(), customUserExpr));
-            operatorQuery.addProperty("lastNameContact", findProperty("lastNameContact").getExpr(context.getModifier(), customUserExpr));
+            operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
+            operatorQuery.addProperty("firstNameContact", findProperty("firstName[Contact]").getExpr(context.getModifier(), customUserExpr));
+            operatorQuery.addProperty("lastNameContact", findProperty("lastName[Contact]").getExpr(context.getModifier(), customUserExpr));
 
-            operatorQuery.and(findProperty("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
+            operatorQuery.and(findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
 

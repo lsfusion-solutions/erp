@@ -4,20 +4,20 @@ REQUIRE ProductionOutput, SalePurchaseShipment;
 
 NAMESPACE Production;
 
-createShipmentOutput 'Создать поставку для ГП' = ACTION (output)  {
+createShipment 'Создать поставку для ГП' = ACTION (Output output)  {
 
     FOR ADDOBJ sh = Sale.UserShipment DO {
-        Sale.supplierUserShipment(sh) <- legalEntityStockOutput(output);
-        Sale.customerUserShipment(sh) <- legalEntityStockOutput(output);
-        Sale.supplierStockUserShipment(sh) <- stockOutput(output);
-        createPurchaseUserShipment(sh) <- TRUE;
-        Sale.noteUserShipment(sh) <- VARSTRING[100](descriptionOutput(output));
+        supplier(sh) <- legalEntityStock(output);
+        customer(sh) <- legalEntityStock(output);
+        supplierStock(sh) <- stock(output);
+        createPurchase(sh) <- TRUE;
+        note(sh) <- VARSTRING[100](description(output));
 
-        FOR outputOutputDetail(outputDetail)== output ADDOBJ d = Sale.UserShipmentDetail DO {
-            Sale.userShipmentUserShipmentDetail(d) <- sh;
-            Sale.skuUserShipmentDetail(d) <- skuOutputDetail(outputDetail);
-            Sale.quantityUserShipmentDetail(d) <- quantityOutputDetail(outputDetail);
-            Sale.priceUserShipmentDetail(d) <- priceOutputDetail(outputDetail);
+        FOR output(OutputDetail outputDetail)== output ADDOBJ d = Sale.UserShipmentDetail DO {
+            userShipment(d) <- sh;
+            sku(d) <- sku(outputDetail);
+            quantity(d) <- quantity(outputDetail);
+            price(d) <- price(outputDetail);
         }
 
     FORM Sale.userShipment OBJECTS s=sh MODAL;
@@ -28,5 +28,5 @@ createShipmentOutput 'Создать поставку для ГП' = ACTION (out
 } TOOLBAR;
 
 EXTEND FORM outputs
-    PROPERTIES (o) createShipmentOutput
+    PROPERTIES (o) createShipment
 ;

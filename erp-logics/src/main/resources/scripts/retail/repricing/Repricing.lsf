@@ -43,7 +43,7 @@ CLASS UserRepricingDetail 'Строка акта переоценки (поль�
 @defineDocumentInterfaceDetailQuantity(repricing);
 
 // Округление розничной цены
-roundConditionUserRepricingDetail(userRepricingDetail) = roundConditionDepartmentStore(departmentStoreUserRepricingDetail(userRepricingDetail));
+roundCondition(UserRepricingDetail userRepricingDetail) = roundCondition(departmentStore(userRepricingDetail));
 
 // -- До
 
@@ -51,12 +51,12 @@ roundConditionUserRepricingDetail(userRepricingDetail) = roundConditionDepartmen
 @defineDocumentInterfaceDetailPricePrefix(repricing, cur, ' поставщика до');
 
 // Цена от которой будет считаться надбавка
-overCurRepricingPriceRepricingDetail = ABSTRACT NUMERIC[14,2] (RepricingDetail) PERSISTENT;
-overCurRepricingPriceUserRepricingDetail = ABSTRACT NUMERIC[14,2] (UserRepricingDetail) PERSISTENT;
-overCurRepricingPriceRepricingDetail (detail) += overCurRepricingPriceUserRepricingDetail(detail);
+overCurRepricingPrice = ABSTRACT NUMERIC[14,2] (RepricingDetail) PERSISTENT;
+overCurRepricingPrice = ABSTRACT NUMERIC[14,2] (UserRepricingDetail) PERSISTENT;
+overCurRepricingPrice (UserRepricingDetail detail) += overCurRepricingPrice(detail);
 
-curRepricingPriceUserRepricingDetail (detail) = OVERRIDE curPriceUserRepricingDetail(detail), overCurRepricingPriceUserRepricingDetail(detail) PERSISTENT;
-curRepricingPriceRepricingDetail (detail) = OVERRIDE curPriceRepricingDetail(detail), overCurRepricingPriceRepricingDetail(detail) PERSISTENT;
+curRepricingPrice (UserRepricingDetail detail) = OVERRIDE curPrice(detail), overCurRepricingPrice(detail) PERSISTENT;
+curRepricingPrice (RepricingDetail detail) = OVERRIDE curPrice(detail), overCurRepricingPrice(detail) PERSISTENT;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, cur, ' до');
@@ -73,19 +73,19 @@ curRepricingPriceRepricingDetail (detail) = OVERRIDE curPriceRepricingDetail(det
 @showDocumentInterfaceDetailBatch(repricing);
 @defineDocumentInterfaceDetailBatch(repricing, batch);
 
-changeBatchUserRepricingDetail = ACTION (detail) {
-    FORM dialogBatchStockOut OBJECTS st = departmentStoreUserRepricingDetail(detail),
-                             t = dateTimeUserRepricingDetail(detail),
-                             sk = skuUserRepricingDetail(detail) DIALOG SHOWDROP;
+changeBatch = ACTION (UserRepricingDetail detail) {
+    FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
+                             t = dateTime(detail),
+                             sk = sku(detail) DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
-        ASSIGN batchUserRepricingDetail(detail) <- chosenObject('bt');
+        ASSIGN batch(detail) <- chosenObject('bt');
     } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batchUserRepricingDetail(detail) <- NULL;
+        ASSIGN batch(detail) <- NULL;
     }
 };
 
-replaceSkuBatch(s, b) += ACTION (s, b){ skuUserRepricingDetail(detail) <- s WHERE batchUserRepricingDetail(detail) == b;}
+replace(Sku s, Batch b) += ACTION (s, b){ sku(UserRepricingDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineBalancesBatch(repricingDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineBalancesBatch(userRepricingDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -108,13 +108,13 @@ replaceSkuBatch(s, b) += ACTION (s, b){ skuUserRepricingDetail(detail) <- s WHER
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
 // Автоматическое проставление надбавок
-curMarkupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    curRetailPriceUserRepricingDetail(userRepricingDetail),
-    valueCurVATUserRepricingDetail(userRepricingDetail),
-    curRepricingPriceUserRepricingDetail(userRepricingDetail) IF curRepricingPriceUserRepricingDetail(userRepricingDetail)!=0.0)
-    WHEN CHANGED(curRetailPriceUserRepricingDetail(userRepricingDetail)) OR
-         CHANGED(curVATUserRepricingDetail(userRepricingDetail)) OR
-         CHANGED(curRepricingPriceUserRepricingDetail(userRepricingDetail));
+curMarkup(UserRepricingDetail userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    curRetailPrice(userRepricingDetail),
+    valueCurVAT(userRepricingDetail),
+    curRepricingPrice(userRepricingDetail) IF curRepricingPrice(userRepricingDetail)!=0.0)
+    WHEN CHANGED(curRetailPrice(userRepricingDetail)) OR
+         CHANGED(curVAT(userRepricingDetail)) OR
+         CHANGED(curRepricingPrice(userRepricingDetail));
 
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
 @changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, curRetail, curRepricing, cur, cur);
@@ -125,19 +125,19 @@ curMarkupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+
 // Цена поставщика
 @defineDocumentInterfaceDetailPricePrefix(repricing, , ' поставщика после');
 
-priceUserRepricingDetail(d) <- curPriceUserRepricingDetail(d) WHEN 
-    CHANGED(skuUserRepricingDetail(d)) OR
-    CHANGED(departmentStoreUserRepricingDetail(d)) OR
-    CHANGED(dateTimeUserRepricingDetail(d)) OR
-    CHANGED(batchUserRepricingDetail(d));
+price(UserRepricingDetail d) <- curPrice(d) WHEN 
+    CHANGED(sku(d)) OR
+    CHANGED(departmentStore(d)) OR
+    CHANGED(dateTime(d)) OR
+    CHANGED(batch(d));
 
 // Цена от которой будет считаться надбавка
-overRepricingPriceRepricingDetail = ABSTRACT NUMERIC[14,2] (RepricingDetail) PERSISTENT;
-overRepricingPriceUserRepricingDetail = ABSTRACT NUMERIC[14,2] (UserRepricingDetail) PERSISTENT;
-overRepricingPriceRepricingDetail (detail) += overRepricingPriceUserRepricingDetail(detail);
+overRepricingPrice = ABSTRACT NUMERIC[14,2] (RepricingDetail) PERSISTENT;
+overRepricingPrice = ABSTRACT NUMERIC[14,2] (UserRepricingDetail) PERSISTENT;
+overRepricingPrice (UserRepricingDetail detail) += overRepricingPrice(detail);
 
-repricingPriceUserRepricingDetail (detail) = OVERRIDE priceUserRepricingDetail(detail), overRepricingPriceUserRepricingDetail(detail) PERSISTENT;
-repricingPriceRepricingDetail (detail) = OVERRIDE priceRepricingDetail(detail), overRepricingPriceRepricingDetail(detail) PERSISTENT;
+repricingPrice (UserRepricingDetail detail) = OVERRIDE price(detail), overRepricingPrice(detail) PERSISTENT;
+repricingPrice (RepricingDetail detail) = OVERRIDE price(detail), overRepricingPrice(detail) PERSISTENT;
 
 // Надбавка
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, , ' после');
@@ -151,13 +151,13 @@ repricingPriceRepricingDetail (detail) = OVERRIDE priceRepricingDetail(detail), 
 @defineDocumentInterfaceDetailPricePrefix(repricing, retail, ' розничная после');
 
 // Автоматическое проставление надбавок
-markupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    retailPriceUserRepricingDetail(userRepricingDetail),
-    valueVATUserRepricingDetail(userRepricingDetail),
-    repricingPriceUserRepricingDetail(userRepricingDetail) IF repricingPriceUserRepricingDetail(userRepricingDetail)!=0.0)
-    WHEN CHANGED(retailPriceUserRepricingDetail(userRepricingDetail)) OR
-         CHANGED (VATUserRepricingDetail(userRepricingDetail)) OR
-         CHANGED(repricingPriceUserRepricingDetail(userRepricingDetail));
+markup(UserRepricingDetail userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    retailPrice(userRepricingDetail),
+    valueVAT(userRepricingDetail),
+    repricingPrice(userRepricingDetail) IF repricingPrice(userRepricingDetail)!=0.0)
+    WHEN CHANGED(retailPrice(userRepricingDetail)) OR
+         CHANGED (VAT(userRepricingDetail)) OR
+         CHANGED(repricingPrice(userRepricingDetail));
 
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
 @changeDocumentDetailMarkupCustomPrefix(userRepricingDetail, retail, repricing, , );
@@ -243,10 +243,10 @@ markupUserRepricingDetail(userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y))
 // ---- Действия по проставлению новых надбавок и цен ------- //
 
 repricingRoundCondition = DATA RoundCondition ();
-nameRepricingRoundCondition 'Условие округления розничной цены' ()= nameRoundCondition(repricingRoundCondition());
+nameRepricingRoundCondition 'Условие округления розничной цены' ()= name(repricingRoundCondition());
 
-CONSTRAINT defaultCurrency() AND repricingRoundCondition() AND NOT defaultCurrency() == currencyRoundCondition(repricingRoundCondition())
-    CHECKED BY repricingRoundCondition MESSAGE 'Валюта округления должна совпадать с валютой по умолчанию';
+CONSTRAINT defaultCurrency() AND repricingRoundCondition() AND NOT defaultCurrency() == currency(repricingRoundCondition())
+    CHECKED BY repricingRoundCondition[] MESSAGE 'Валюта округления должна совпадать с валютой по умолчанию';
 
 EXTEND FORM options
     PROPERTIES() nameRepricingRoundCondition
@@ -271,48 +271,48 @@ FORM changePriceTypes 'Типы изменения цен'
     DIALOG ChangePriceType OBJECT t
 ;
 
-changePriceTypeUserRepricing = DATA ChangePriceType (UserRepricing);
-nameChangePriceTypeUserRepricing 'Тип изменения цены' (userRepricing) = staticCaption(changePriceTypeUserRepricing(userRepricing)) MINCHARWIDTH 20 PREFCHARWIDTH 20 MAXCHARWIDTH 20;
+changePriceType = DATA ChangePriceType (UserRepricing);
+nameChangePriceType 'Тип изменения цены' (UserRepricing userRepricing) = staticCaption(changePriceType(userRepricing)) MINCHARWIDTH 20 PREFCHARWIDTH 20 MAXCHARWIDTH 20;
 
-percentUserRepricing 'Процент' (userRepricing)= DATA NUMERIC[8,3](UserRepricing);
+percent 'Процент' (userRepricing)= DATA NUMERIC[8,3](UserRepricing);
 
-roundConditionUserRepricing = DATA RoundCondition (UserRepricing);
-nameRoundConditionUserRepricing 'Условие округления розничной цены' (d)= nameRoundCondition(roundConditionUserRepricing(d));
+roundCondition = DATA RoundCondition (UserRepricing);
+nameRoundCondition 'Условие округления розничной цены' (UserRepricing d)= name(roundCondition(d));
 
-CONSTRAINT currencyUserRepricing(r) AND roundConditionUserRepricing(r) AND NOT currencyUserRepricing(r) == currencyRoundCondition(roundConditionUserRepricing(r))
-    CHECKED BY roundConditionUserRepricing MESSAGE 'Валюта округления должна совпадать с валютой переоценки';
+CONSTRAINT currency(UserRepricing r) AND roundCondition(r) AND NOT currency(r) == currency(roundCondition(r))
+    CHECKED BY roundCondition[UserRepricing] MESSAGE 'Валюта округления должна совпадать с валютой переоценки';
 
-newDiscountRetailPriceUserRepricingDetail (d) =  roundPriceRoundCondition(NUMERIC[14,2]([= X+(X*Y)/100](
-    curRetailPriceUserRepricingDetail(d),
-    percentUserRepricing(userRepricingUserRepricingDetail(d)))), roundConditionUserRepricing(userRepricingUserRepricingDetail(d)));
+newDiscountRetailPrice (UserRepricingDetail d) =  round(NUMERIC[14,2]([= X+(X*Y)/100](
+    curRetailPrice(d),
+    percent(userRepricing(d)))), roundCondition(userRepricing(d)));
 
-newMarkupRetailPriceUserRepricingDetail (d) = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
-    curRepricingPriceUserRepricingDetail(d),
-    percentUserRepricing(userRepricingUserRepricingDetail(d)),
-    valueCurVATUserRepricingDetail(d))), roundConditionUserRepricing(userRepricingUserRepricingDetail(d)));
+newMarkupRetailPrice (UserRepricingDetail d) = round(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    curRepricingPrice(d),
+    percent(userRepricing(d)),
+    valueCurVAT(d))), roundCondition(userRepricing(d)));
 
 FORM addPercentUserRepricing 'Изменение цены'
     OBJECTS u=UserRepricing FIXED PANEL
-    PROPERTIES (u) nameChangePriceTypeUserRepricing, percentUserRepricing, nameRoundConditionUserRepricing
+    PROPERTIES (u) nameChangePriceType, percent, nameRoundCondition
 ;
 
 DESIGN addPercentUserRepricing {
     u.panel.props {
         fill = 1;
         type = CONTAINERV;
-        PROPERTY (nameChangePriceTypeUserRepricing(u)) {
+        PROPERTY (nameChangePriceType(u)) {
             alignment = STRETCH;
             caption = 'Выберите тип';
             font = 'bold 28';
             panelCaptionAbove = TRUE;
         }
-        PROPERTY (percentUserRepricing(u)) {
+        PROPERTY (percent(u)) {
             alignment = STRETCH;
             caption = 'Введите процент';
             font = 'bold 64';
             panelCaptionAbove = TRUE;
         }
-        PROPERTY (nameRoundConditionUserRepricing(u)) {
+        PROPERTY (nameRoundCondition(u)) {
             alignment = STRETCH;
             caption = 'Выберите тип округления';
             font = 'bold 28';
@@ -321,66 +321,66 @@ DESIGN addPercentUserRepricing {
     }
 }
 
-overChangePriceUserRepricing = ABSTRACT ACTION LIST (RepricingDetail);
+overChangePriceUser = ABSTRACT ACTION LIST (RepricingDetail);
 
-changePriceUserRepricing 'Изменить цену' (repricing) = ACTION (repricing) {
-        roundConditionUserRepricing(repricing) <- repricingRoundCondition() IF currencyUserRepricing(repricing) == currencyRoundCondition(repricingRoundCondition());
+changePrice 'Изменить цену' (UserRepricing repricing) = ACTION (repricing) {
+        roundCondition(repricing) <- repricingRoundCondition() IF currency(repricing) == currency(repricingRoundCondition());
         FORM addPercentUserRepricing OBJECTS u = repricing MODAL;
-        IF formResult() == FormResult.ok AND changePriceTypeUserRepricing(repricing) AND percentUserRepricing(repricing) THEN {
-            FOR userRepricingUserRepricingDetail(d) == repricing DO {
-                priceUserRepricingDetail(d) <- curPriceUserRepricingDetail(d);
-                overChangePriceUserRepricing(d);
-                VATUserRepricingDetail(d) <- curVATUserRepricingDetail(d);
-                valueVATUserRepricingDetail(d) <- valueCurVATUserRepricingDetail(d);
-                IF changePriceTypeUserRepricing(repricing) == ChangePriceType.markupChange THEN {
-                    retailPriceUserRepricingDetail(d) <- newMarkupRetailPriceUserRepricingDetail(d);
+        IF formResult() == FormResult.ok AND changePriceType(repricing) AND percent(repricing) THEN {
+            FOR userRepricing(UserRepricingDetail d) == repricing DO {
+                price(d) <- curPrice(d);
+                overChangePriceUser(d);
+                VAT(d) <- curVAT(d);
+                valueVAT(d) <- valueCurVAT(d);
+                IF changePriceType(repricing) == ChangePriceType.markupChange THEN {
+                    retailPrice(d) <- newMarkupRetailPrice(d);
                 } ELSE {
-                    IF changePriceTypeUserRepricing(repricing)== ChangePriceType.discountChange THEN {
-                        retailPriceUserRepricingDetail(d) <- newDiscountRetailPriceUserRepricingDetail(d);
+                    IF changePriceType(repricing)== ChangePriceType.discountChange THEN {
+                        retailPrice(d) <- newDiscountRetailPrice(d);
                     }
                 }
-                markupUserRepricingDetail(d) <- calcMarkupUserRepricingDetail(d) WHERE calcMarkupUserRepricingDetail(d);
+                markup(d) <- calcMarkup(d) WHERE calcMarkup(d);
             }
         }
 } TOOLBAR;
 
-overRecalculatePriceUserRepricingDetail = ABSTRACT ACTION LIST (UserRepricingDetail);
-overConfirmRecalculatePriceUserRepricingDetail = ABSTRACT ACTION LIST (UserRepricingDetail);
+overRecalculatePrice = ABSTRACT ACTION LIST (UserRepricingDetail);
+overConfirmRecalculatePrice = ABSTRACT ACTION LIST (UserRepricingDetail);
 
-recalculatePriceUserRepricing 'Пересчитать цены (до)' (repricing) = ACTION (repricing) {
+recalculatePrice 'Пересчитать цены (до)' (UserRepricing repricing) = ACTION (repricing) {
     CONFIRM 'Может, Вы, хотите пересчитать и цены (после)?';
     
-    FOR userRepricingUserRepricingDetail(d) == repricing DO {
-        curPriceUserRepricingDetail(d) <- IF batchUserRepricingDetail(d)                                          
-                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
-                            batchUserRepricingDetail(d),
-                            departmentStoreUserRepricingDetail(d),
-                            dateTimeUserRepricingDetail(d))
-                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
-                            skuUserRepricingDetail(d),
-                            departmentStoreUserRepricingDetail(d),
-                            dateTimeUserRepricingDetail(d));
+    FOR userRepricing(UserRepricingDetail d) == repricing DO {
+        curPrice(d) <- IF batch(d)                                          
+                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                            batch(d),
+                            departmentStore(d),
+                            dateTime(d))
+                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                            sku(d),
+                            departmentStore(d),
+                            dateTime(d));
                                                            
 //        curVATUserRepricingDetail(d) <- curVATUserRepricingDetail(d);
 //        valueCurVATUserRepricingDetail(d) <- valueCurVATUserRepricingDetail(d);
         
-        curRetailPriceUserRepricingDetail(d) <- IF batchUserRepricingDetail(d)                
-                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
-                            batchUserRepricingDetail(d),
-                            departmentStoreUserRepricingDetail(d),
-                            dateTimeUserRepricingDetail(d))
-                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
-                            skuUserRepricingDetail(d),
-                            departmentStoreUserRepricingDetail(d),
-                            dateTimeUserRepricingDetail(d));
+        curRetailPrice(d) <- IF batch(d)                
+                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                            batch(d),
+                            departmentStore(d),
+                            dateTime(d))
+                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                            sku(d),
+                            departmentStore(d),
+                            dateTime(d));
                             
                             
-        overRecalculatePriceUserRepricingDetail(d);
+        overRecalculatePrice(d);
     }    
     IF (confirmed()) THEN {
-        FOR userRepricingUserRepricingDetail(d) == repricing DO {
-            priceUserRepricingDetail(d) <- curPriceUserRepricingDetail(d);
-            overConfirmRecalculatePriceUserRepricingDetail(d);        
+        FOR userRepricing(UserRepricingDetail d) == repricing DO {
+            price(d) <- curPrice(d);
+            overConfirmRecalculatePrice(d);        
         }
 
         
@@ -390,53 +390,53 @@ recalculatePriceUserRepricing 'Пересчитать цены (до)' (repricin
         
 } TOOLBAR;
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
-nameStoreRepricing 'Магазин' (repricing) = nameStoreDepartmentStore(departmentStoreRepricing(repricing));
+nameStore 'Магазин' (Repricing repricing) = nameStore(departmentStore(repricing));
 
 FORM repricing 'Акт переоценки (печать)'
 
     OBJECTS p = Repricing FIXED PANEL
-    PROPERTIES (p)  SELECTOR isPostedRepricing
+    PROPERTIES (p)  SELECTOR isPosted
 
-    PROPERTIES (p) numberRepricing, seriesRepricing, dateRepricing, timeRepricing, nameStoreRepricing,
-               nameDepartmentStoreRepricing, countRepricingDetailRepricing, quantityRepricingDetailRepricing, nameLegalEntityStockRepricing,
-               curSumRepricingDetailRepricing, curMarkupSumRepricingDetailRepricing, curVATSumRepricingDetailRepricing,
-               curRetailSumRepricingDetailRepricing,
-               sumRepricingDetailRepricing, markupSumRepricingDetailRepricing, VATSumRepricingDetailRepricing,
-               retailSumRepricingDetailRepricing,
-               diffSumRepricingDetailRepricing, diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
-               diffRetailSumRepricingDetailRepricing,
-               noteRepricing, numberDisposalRepricing, repricingCommitteeRepricing, nameRepricingCommitteeRepricing,
-               nameChairmanRepricing, shortNameChairmanRepricing, namePositionChairmanRepricing, nameEmployeeCommitteeRepricing,
-               shortNameEmployeeCommitteeRepricing
+    PROPERTIES (p) number, series, date, time, nameStore,
+               nameDepartmentStore, countRepricingDetail, quantityRepricingDetail, nameLegalEntityStock,
+               curSumRepricingDetail, curMarkupSumRepricingDetail, curVATSumRepricingDetail,
+               curRetailSumRepricingDetail,
+               sumRepricingDetail, markupSumRepricingDetail, VATSumRepricingDetail,
+               retailSumRepricingDetail,
+               diffSumRepricingDetail, diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+               diffRetailSumRepricingDetail,
+               note, numberDisposal, repricingCommittee, nameRepricingCommittee,
+               nameChairman, shortNameChairman, namePositionChairman, nameEmployeeCommittee,
+               shortNameEmployeeCommittee
 
 
     OBJECTS d = RepricingDetail
-    PROPERTIES (d)  indexRepricingDetail, idBarcodeSkuRepricingDetail, nameSkuRepricingDetail, shortNameUOMSkuRepricingDetail, quantityRepricingDetail,
-               curPriceRepricingDetail, curSumRepricingDetail,
-               curMarkupRepricingDetail, curMarkupSumRepricingDetail,
-               numberCurVATRepricingDetail, valueCurVATRepricingDetail, curVATSumRepricingDetail,
-               curRetailPriceRepricingDetail, curRetailSumRepricingDetail,
-               priceRepricingDetail, sumRepricingDetail,
-               markupRepricingDetail, markupSumRepricingDetail,
-               numberVATRepricingDetail, valueVATRepricingDetail, VATSumRepricingDetail,
-               retailPriceRepricingDetail, retailSumRepricingDetail,
-               diffSumRepricingDetail, diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
-               diffRetailSumRepricingDetail
+    PROPERTIES (d)  index, idBarcodeSku, nameSku, shortNameUOMSku, quantity,
+               curPrice, curSum,
+               curMarkup, curMarkupSum,
+               numberCurVAT, valueCurVAT, curVATSum,
+               curRetailPrice, curRetailSum,
+               price, sum,
+               markup, markupSum,
+               numberVAT, valueVAT, VATSum,
+               retailPrice, retailSum,
+               diffSum, diffMarkupSum, diffVATSum,
+               diffRetailSum
 
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY   nameContact, namePositionEmployee, shortNameContact
+    PROPERTIES(e) READONLY   name[Contact], namePosition, shortName
 
-    FILTERS    repricingRepricingDetail(d) == p,
-               inCommitteeRepricingEmployee(p, e),
-               (diffSumRepricingDetail(d) AND diffSumRepricingDetail(d)!=0.0) OR
-               (diffMarkupSumRepricingDetail(d) AND diffMarkupSumRepricingDetail(d)!=0.0) OR
-               (diffVATSumRepricingDetail(d) AND diffVATSumRepricingDetail(d)!=0.0) OR
-               (diffRetailSumRepricingDetail(d) AND diffRetailSumRepricingDetail(d)!=0.0)
+    FILTERS    repricing(d) == p,
+               inCommittee(p, e),
+               (diffSum(d) AND diffSum(d)!=0.0) OR
+               (diffMarkupSum(d) AND diffMarkupSum(d)!=0.0) OR
+               (diffVATSum(d) AND diffVATSum(d)!=0.0) OR
+               (diffRetailSum(d) AND diffRetailSum(d)!=0.0)
 
 ;
 
-printRepricing 'Акт переоценки' (repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT  IMAGE 'print.png' IN print;
-printRepricingAuto 'Акт переоценки (авто)' (repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT AUTO IMAGE 'print.png' IN print;
+print 'Акт переоценки' (Repricing repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT  IMAGE 'print.png' IN print;
+printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT AUTO IMAGE 'print.png' IN print;
 //----------------------------------------------- Операции ------------------------+----------------------------//
 
 @defineDocumentInterfaceOperation (repricing, Repricing, );
@@ -445,64 +445,64 @@ printRepricingAuto 'Акт переоценки (авто)' (repricing) = ACTION
 
 @defineDocumentOperationRolePrefix(userRepricing, );
 
-toFillQuantityUserRepricingDetailUserRepricing 'Записать в кол-во остатки' = ACTION (repricing) {
-    quantityUserRepricingDetail(d) <- IF batchUserRepricingDetail(d) THEN balanceBBatchStockDateTime(batchUserRepricingDetail(d),   
-                                                                            departmentStoreUserRepricingDetail(d), 
-                                                                            dateTimeUserRepricingDetail(d)) 
-                                                                     ELSE balanceBSkuStockDateTime(skuUserRepricingDetail(d), 
-                                                                            departmentStoreUserRepricingDetail(d), 
-                                                                            dateTimeUserRepricingDetail(d))                                                                      
-                                                                     WHERE userRepricingUserRepricingDetail(d) == repricing;    
+toFillQuantityUserRepricingDetail 'Записать в кол-во остатки' = ACTION (UserRepricing repricing) {
+    quantity(UserRepricingDetail d) <- IF batch(d) THEN balanceB(batch(d),   
+                                                                            departmentStore(d), 
+                                                                            dateTime(d)) 
+                                                                     ELSE balanceB(sku(d), 
+                                                                            departmentStore(d), 
+                                                                            dateTime(d))                                                                      
+                                                                     WHERE userRepricing(d) == repricing;    
 }
 
 toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)' = ACTION () NEWSESSION {
-    FOR r IS UserRepricing AND balanceOperation(operationUserRepricing(r)) AND NOT isClosedUserRepricing(r) DO {
-        toFillQuantityUserRepricingDetailUserRepricing(r);    
+    FOR UserRepricing r IS UserRepricing AND balance(operation(r)) AND NOT isClosed(r) DO {
+        toFillQuantityUserRepricingDetail(r);    
     }
     apply();
 }
 
-allowRecalculatePriceUserRepricing (p) = NOT denyRecalculatePriceOperation(operationUserRepricing(p));
+allowRecalculatePrice (UserRepricing p) = NOT denyRecalculatePrice(operation(p));
 
 @implementDocumentPrefix(repricing, retail, );
 @implementDocumentBatch(repricing);
 
 // --------------------------- Формы --------------------------------- //
-editRepricing 'Редактировать' = ABSTRACT ACTION LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editSkuUserRepricingDetail 'Редактировать SKU' (d) = ACTION editSku(skuUserRepricingDetail(d));
+edit 'Редактировать' = ABSTRACT ACTION LIST (Repricing) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+editSku 'Редактировать SKU' (UserRepricingDetail d) = ACTION edit(sku(d));
 
 FORM userRepricing 'Акт переоценки'
     OBJECTS p=UserRepricing FIXED PANEL
-    PROPERTIES (p) isPostedUserRepricing, nameNumeratorUserRepricing, numberUserRepricing, seriesUserRepricing,
-                   dateUserRepricing, timeUserRepricing, beforeDateUserRepricing, nameDepartmentStoreUserRepricing ON CHANGE changeDepartmentStoreCompanyUserRepricing(p),
-                   diffSumUserRepricingDetailUserRepricing, diffMarkupSumUserRepricingDetailUserRepricing, diffVATSumUserRepricingDetailUserRepricing,
-                   diffRetailSumUserRepricingDetailUserRepricing,
-                   noteUserRepricing, numberDisposalUserRepricing ON CHANGE changeNumberDisposalUserRepricing(p), nameRepricingCommitteeUserRepricing, skipChangeLedgerUserRepricing
+    PROPERTIES (p) isPosted, nameNumerator, number, series,
+                   date, time, beforeDate, nameDepartmentStore ON CHANGE changeDepartmentStoreCompany(p),
+                   diffSumUserRepricingDetail, diffMarkupSumUserRepricingDetail, diffVATSumUserRepricingDetail,
+                   diffRetailSumUserRepricingDetail,
+                   note, numberDisposal ON CHANGE changeNumberDisposal(p), nameRepricingCommittee, skipChangeLedger
 
     OBJECTS d=UserRepricingDetail
-    PROPERTIES (d) indexUserRepricingDetail
-    PROPERTIES (d) ON EDIT editSkuUserRepricingDetail(d) idBarcodeSkuUserRepricingDetail, nameSkuUserRepricingDetail, shortNameUOMSkuUserRepricingDetail
-    PROPERTIES (d) nameBatchUserRepricingDetail ON CHANGE changeBatchUserRepricingDetail(d), quantityUserRepricingDetail,
+    PROPERTIES (d) index
+    PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) nameBatch ON CHANGE changeBatch(d), quantity,
 
-                   curPriceUserRepricingDetail, curSumUserRepricingDetail,                    
-                   curMarkupUserRepricingDetail ON CHANGE changeCurMarkupUserRepricingDetail(d), curMarkupSumUserRepricingDetail,
-                   numberCurVATUserRepricingDetail, valueCurVATUserRepricingDetail, curVATSumUserRepricingDetail,
-                   curRetailPriceUserRepricingDetail ON CHANGE changeCurRetailPriceUserRepricingDetail(d), curRetailSumUserRepricingDetail,
+                   curPrice, curSum,                    
+                   curMarkup ON CHANGE changeCurMarkup(d), curMarkupSum,
+                   numberCurVAT, valueCurVAT, curVATSum,
+                   curRetailPrice ON CHANGE changeCurRetailPrice(d), curRetailSum,
                    
-                   priceUserRepricingDetail, sumUserRepricingDetail,                    
-                   markupUserRepricingDetail ON CHANGE changeMarkupUserRepricingDetail(d), markupSumUserRepricingDetail,
-                   numberVATUserRepricingDetail, valueVATUserRepricingDetail, VATSumUserRepricingDetail,
-                   retailPriceUserRepricingDetail ON CHANGE changeRetailPriceUserRepricingDetail(d), retailSumUserRepricingDetail, ADDOBJ, DELETESESSION
+                   price, sum,                    
+                   markup ON CHANGE changeMarkup(d), markupSum,
+                   numberVAT, valueVAT, VATSum,
+                   retailPrice ON CHANGE changeRetailPrice(d), retailSum, ADDOBJ, DELETESESSION
 
-    PROPERTIES TODRAW d changePriceUserRepricing(p), recalculatePriceUserRepricing(p) SHOWIF allowRecalculatePriceUserRepricing(p)
+    PROPERTIES TODRAW d changePrice(p), recalculatePrice(p) SHOWIF allowRecalculatePrice(p)
 
-    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRepricingDetailUserRepricing,
-                           addDetailInputBarcodeUserRepricingDetailUserRepricing, deleteUserRepricingDetailUserRepricing
+    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRepricingDetail,
+                           addDetailInputBarcodeUserRepricingDetail, deleteUserRepricingDetail
 
-    FILTERS userRepricingUserRepricingDetail(d)==p
+    FILTERS userRepricing(d)==p
 
     EVENTS
-        ON OK prePostUserRepricing(p)
+        ON OK prePost(p)
 
     EDIT UserRepricing OBJECT p
 ;
@@ -530,27 +530,27 @@ DESIGN userRepricing {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
-                        MOVE PROPERTY(isPostedUserRepricing(p));
+                        MOVE PROPERTY(isPosted(p));
                     }
                     NEW second { 
                         type = CONTAINERH;
-                        MOVE PROPERTY(nameDepartmentStoreUserRepricing(p));
-                        MOVE PROPERTY(nameNumeratorUserRepricing(p));
-                        MOVE PROPERTY(numberUserRepricing(p));
-                        MOVE PROPERTY(seriesUserRepricing(p));
-                        MOVE PROPERTY(dateUserRepricing(p));
-                        MOVE PROPERTY(timeUserRepricing(p));
+                        MOVE PROPERTY(nameDepartmentStore(p));
+                        MOVE PROPERTY(nameNumerator(p));
+                        MOVE PROPERTY(number(p));
+                        MOVE PROPERTY(series(p));
+                        MOVE PROPERTY(date(p));
+                        MOVE PROPERTY(time(p));
                     }    
                 }                
                 
                 MOVE p.documentPrm {
                     type = COLUMNS;
                     columns = 2;
-                    MOVE PROPERTY(beforeDateUserRepricing(p));
-                    MOVE PROPERTY(noteUserRepricing(p));
-                    MOVE PROPERTY(numberDisposalUserRepricing(p));
-                    MOVE PROPERTY(nameRepricingCommitteeUserRepricing(p));
-                    MOVE PROPERTY(skipChangeLedgerUserRepricing(p));
+                    MOVE PROPERTY(beforeDate(p));
+                    MOVE PROPERTY(note(p));
+                    MOVE PROPERTY(numberDisposal(p));
+                    MOVE PROPERTY(nameRepricingCommittee(p));
+                    MOVE PROPERTY(skipChangeLedger(p));
                 }
             }
 
@@ -567,20 +567,20 @@ DESIGN userRepricing {
             }
         }
 
-        PROPERTY(priceUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(sumUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(markupUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(markupSumUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(numberVATUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(valueVATUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(VATSumUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(retailPriceUserRepricingDetail(d)) { background = #FFFFCC; }
-        PROPERTY(retailSumUserRepricingDetail(d)) { background = #FFFFCC; }
+        PROPERTY(price(d)) { background = #FFFFCC; }
+        PROPERTY(sum(d)) { background = #FFFFCC; }
+        PROPERTY(markup(d)) { background = #FFFFCC; }
+        PROPERTY(markupSum(d)) { background = #FFFFCC; }
+        PROPERTY(numberVAT(d)) { background = #FFFFCC; }
+        PROPERTY(valueVAT(d)) { background = #FFFFCC; }
+        PROPERTY(VATSum(d)) { background = #FFFFCC; }
+        PROPERTY(retailPrice(d)) { background = #FFFFCC; }
+        PROPERTY(retailSum(d)) { background = #FFFFCC; }
         
-        PROPERTY(diffSumUserRepricingDetailUserRepricing(p)) { preferredCharWidth = 13;}
-        PROPERTY(diffMarkupSumUserRepricingDetailUserRepricing(p)) { preferredCharWidth = 13;}
-        PROPERTY(diffVATSumUserRepricingDetailUserRepricing(p)) { preferredCharWidth = 13;}
-        PROPERTY(diffRetailSumUserRepricingDetailUserRepricing(p)) { preferredCharWidth = 13;}
+        PROPERTY(diffSumUserRepricingDetail(p)) { preferredCharWidth = 13;}
+        PROPERTY(diffMarkupSumUserRepricingDetail(p)) { preferredCharWidth = 13;}
+        PROPERTY(diffVATSumUserRepricingDetail(p)) { preferredCharWidth = 13;}
+        PROPERTY(diffRetailSumUserRepricingDetail(p)) { preferredCharWidth = 13;}
 
         MOVE functions.box;
 
@@ -591,22 +591,22 @@ DESIGN userRepricing {
 }
 
 EXTEND FORM userRepricing
-    PROPERTIES(p) nameOperationUserRepricing
-    PROPERTIES(p) TODRAW d toFillQuantityUserRepricingDetailUserRepricing FORCE PANEL TOOLBAR
+    PROPERTIES(p) nameOperation
+    PROPERTIES(p) TODRAW d toFillQuantityUserRepricingDetail FORCE PANEL TOOLBAR
 ;
 DESIGN userRepricing{
     first {
-        MOVE PROPERTY (nameOperationUserRepricing(p) ) {minimumCharWidth = 30; preferredCharWidth = 40;}
+        MOVE PROPERTY (nameOperation(p) ) {minimumCharWidth = 30; preferredCharWidth = 40;}
     }
 }
 
-editRepricingDetail 'Редактировать' = ABSTRACT ACTION LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editUserRepricingDetail(d) = ACTION (d) NEWSESSION {
-    FORM userRepricing OBJECTS p = userRepricingUserRepricingDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+edit 'Редактировать' = ABSTRACT ACTION LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit(UserRepricingDetail d) = ACTION (d) NEWSESSION {
+    FORM userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
-editRepricingDetail(d) += ACTION editUserRepricingDetail(d);    
-editSkuLedger(ledger) += ACTION editRepricingDetail(ledger);
+edit(UserRepricingDetail d) += ACTION edit(d);    
+edit[SkuLedger](RepricingDetail ledger) += ACTION edit(ledger);
 
 //-- SKU
 @defineDocumentSkuPriceListTypeSystemLedger(userRepricing, accountPriceListType, departmentStore, );
@@ -618,8 +618,8 @@ editSkuLedger(ledger) += ACTION editRepricingDetail(ledger);
 EXTEND FORM userRepricing
 
     FILTERGROUP filter
-        FILTER 'С остатком ' currentBalanceSkuUserRepricing(ks, p) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserRepricingDetailSkuUserRepricing(ks, p) 'F9'
+        FILTER 'С остатком ' currentBalance(ks, p) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserRepricingDetail(ks, p) 'F9'
 ;
 
 
@@ -637,82 +637,82 @@ DESIGN options {
     }
 }
 
-CONSTRAINT isPostedUserRepricing(i) AND NOT isStockRepricings() AND NOT  departmentStoreUserRepricing(i) 
+CONSTRAINT isPosted(UserRepricing i) AND NOT isStockRepricings() AND NOT  departmentStore(i) 
     MESSAGE 'Для акта переоценки должен быть задан склад'; 
 
 // Проведение по товарному отчету
 @implementStockDocumentLedgerInc(Repricing, departmentStore);
-typeStockDocumentLedger(l) += 'Переоценка' IF l IS Repricing;
-sumItemIncStockDocumentLedger (ledger) += sumItemRepricingDetailRepricing(ledger);
-sumContainerIncStockDocumentLedger (ledger) += sumContainerRepricingDetailRepricing(ledger);
+type(Repricing l) += 'Переоценка' IF l IS Repricing;
+sumItem (Repricing ledger) += sumItemRepricingDetail(ledger);
+sumContainer (Repricing ledger) += sumContainerRepricingDetail(ledger);
 
-operationStockDocumentLedger (ledger) += operationRepricing(ledger);
-editStockDocumentLedger(l) += ACTION editRepricing(l);
-closeStockDocumentLedger(l) += ACTION closeRepricing(l);
+operation[StockDocumentLedger] (Repricing ledger) += operation(ledger);
+edit[StockDocumentLedger](Repricing l) += ACTION edit(l);
+close[StockDocumentLedger](Repricing l) += ACTION close(l);
 
 // Проведение по регистру
 @implementSkuLedger(repricingDetail, sku, departmentStore);
-sumInSkuLedger (ledger) += diffRetailSumRepricingDetail(ledger);
-stockDocumentLedgerSkuLedger(ledger) += repricingRepricingDetail(ledger); 
+sum[InSkuLedger] (RepricingDetail ledger) += diffRetailSum(ledger);
+stockDocumentLedger(RepricingDetail ledger) += repricing(ledger); 
 
-batchSkuLedger(ledger) += batchRepricingDetail(ledger);
+batch[SkuLedger](RepricingDetail ledger) += batch(ledger);
 
 addUserRepricing 'Добавить' = ACTION ADDFORM UserRepricing;
-editUserRepricing 'Редактировать' (userRepricing) = ACTION EDITFORM UserRepricing;
-editRepricing(p) += ACTION editUserRepricing(p);
+edit 'Редактировать' (userRepricing) = ACTION EDITFORM UserRepricing;
+edit(UserRepricing p) += ACTION edit(p);
 
-isUserOpenedRepricing(p)=  isOpenedRepricing(p) AND isUserRepricing(p);
+isUserOpened(UserRepricing p)=  isOpened[Repricing](p) AND is(p);
 
 filterRepricingDateFrom 'Дата с' = DATA LOCAL DATE ();
-filterDateFromRepricing (i) = dateRepricing(i) >= filterRepricingDateFrom() OR (i IS Repricing AND NOT filterRepricingDateFrom());      
+filterDateFrom (Repricing i) = date(i) >= filterRepricingDateFrom() OR (i IS Repricing AND NOT filterRepricingDateFrom());      
 
 filterRepricingDateTo 'Дата по' = DATA LOCAL DATE ();
-filterDateToRepricing (i) = dateRepricing(i) <= filterRepricingDateTo() OR (i IS Repricing AND NOT filterRepricingDateTo());      
+filterDateTo (Repricing i) = date(i) <= filterRepricingDateTo() OR (i IS Repricing AND NOT filterRepricingDateTo());      
 
 filterRepricingStore = DATA LOCAL Store ();
-nameFilterRepricingStore 'Магазин' = nameStore(filterRepricingStore()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
-filterStoreRepricing (i) = storeDepartmentStore(departmentStoreRepricing(i)) == filterRepricingStore() OR (i IS Repricing AND NOT filterRepricingStore());      
+nameFilterRepricingStore 'Магазин' = name(filterRepricingStore()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterStore (Repricing i) = store(departmentStore(i)) == filterRepricingStore() OR (i IS Repricing AND NOT filterRepricingStore());      
 
 FORM repricings 'Акты переоценки' 
     PROPERTIES() filterRepricingDateFrom, filterRepricingDateTo, nameFilterRepricingStore
 
     OBJECTS p = Repricing LAST
-    PROPERTIES (p) READONLYIF isReadonly() isClosedRepricing, isPostedRepricing, numberRepricing, seriesRepricing, dateRepricing, timeRepricing, beforeDateRepricing,
-               nameDepartmentStoreRepricing
-    PROPERTIES (p) READONLY countRepricingDetailRepricing, diffSumRepricingDetailRepricing,
-                   diffMarkupSumRepricingDetailRepricing, diffVATSumRepricingDetailRepricing,
-                   diffRetailSumRepricingDetailRepricing
-    PROPERTIES (p) READONLYIF isReadonly() numberDisposalRepricing, skipChangeLedgerRepricing,
-                   noteRepricing
+    PROPERTIES (p) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time, beforeDate,
+               nameDepartmentStore
+    PROPERTIES (p) READONLY countRepricingDetail, diffSumRepricingDetail,
+                   diffMarkupSumRepricingDetail, diffVATSumRepricingDetail,
+                   diffRetailSumRepricingDetail
+    PROPERTIES (p) READONLYIF isReadonly() numberDisposal, skipChangeLedger,
+                   note
 
-    PROPERTIES (p) READONLY FORCE PANEL createdNameUserUserRepricing, createdTimeUserRepricing, createdHostnameComputerUserRepricing, 
-                                        postedNameUserUserRepricing, postedTimeUserRepricing, postedHostnameComputerUserRepricing
+    PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES ()  addUserRepricing TODRAW p
-    PROPERTIES (p) editRepricing SHOWIF isOpenedRepricing(p)
-    PROPERTIES(p)  closeUserRepricing SHOWIF isOpenedUserRepricing(p), openUserRepricing SHOWIF isClosedUserRepricing(p)     
+    PROPERTIES (p) edit SHOWIF isOpened(p)
+    PROPERTIES(p)  close[UserRepricing] SHOWIF isOpened[UserRepricing](p), open SHOWIF isClosed[UserRepricing](p)     
 
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRepricing(p)
-    PROPERTIES (p) printRepricing FORCE PANEL
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)
+    PROPERTIES (p) print FORCE PANEL
     PROPERTIES () toFillQuantityUserRepricingDetailAllUserRepricings FORCE PANEL TODRAW p
     OBJECTS d = RepricingDetail
-    PROPERTIES (d) READONLY indexRepricingDetail, idBarcodeSkuRepricingDetail, nameSkuRepricingDetail, shortNameUOMSkuRepricingDetail,
-               nameBatchRepricingDetail, quantityRepricingDetail,
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+               nameBatch, quantity,
 
-               curPriceRepricingDetail, curSumRepricingDetail,
-               curMarkupRepricingDetail, curMarkupSumRepricingDetail,
-               numberCurVATRepricingDetail, valueCurVATRepricingDetail, curVATSumRepricingDetail,
-               curRetailPriceRepricingDetail, curRetailSumRepricingDetail,
+               curPrice, curSum,
+               curMarkup, curMarkupSum,
+               numberCurVAT, valueCurVAT, curVATSum,
+               curRetailPrice, curRetailSum,
 
-               priceRepricingDetail, sumRepricingDetail,
-               markupRepricingDetail, markupSumRepricingDetail,
-               numberVATRepricingDetail, valueVATRepricingDetail, VATSumRepricingDetail,
-               retailPriceRepricingDetail, retailSumRepricingDetail
+               price, sum,
+               markup, markupSum,
+               numberVAT, valueVAT, VATSum,
+               retailPrice, retailSum
 
-    FILTERS repricingRepricingDetail(d) == p
-    FILTERS filterDateFromRepricing(p), 
-            filterDateToRepricing(p),
-            filterStoreRepricing(p)
+    FILTERS repricing(d) == p
+    FILTERS filterDateFrom(p), 
+            filterDateTo(p),
+            filterStore(p)
 
     DIALOG Repricing OBJECT p
 ;
@@ -776,7 +776,7 @@ DESIGN repricings {
 @defineFilterIsOpened (repricing, repricings, p);
 
 EXTEND FORM repricings
-    PROPERTIES(p) READONLY nameOperationRepricing BEFORE countRepricingDetailRepricing(p)
+    PROPERTIES(p) READONLY nameOperation BEFORE countRepricingDetail(p)
 ;
 
 NAVIGATOR {
@@ -788,53 +788,53 @@ NAVIGATOR {
 
 // ---------------------------- Создание PriceList ----------------------------------- //
 
-changeSupplierPriceOperation 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (Operation);
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (Operation);
 EXTEND FORM operation
-    PROPERTIES(o) changeSupplierPriceOperation
+    PROPERTIES(o) changeSupplierPrice
 ;
 DESIGN operation {
     showContainer {
-        MOVE PROPERTY(changeSupplierPriceOperation(o));
+        MOVE PROPERTY(changeSupplierPrice(o));
     }
 } 
 
-changeSupplierPriceRepricing 'Проводить по регистру изменение цены поставщика' = ABSTRACT BOOLEAN (Repricing) PERSISTENT;
-changeSupplierPriceUserRepricing 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (UserRepricing) IN documentPrm;
-changeSupplierPriceRepricing(r) += changeSupplierPriceUserRepricing(r);
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = ABSTRACT BOOLEAN (Repricing) PERSISTENT;
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = DATA BOOLEAN (UserRepricing) IN documentPrm;
+changeSupplierPrice(UserRepricing r) += changeSupplierPrice(r);
 
-changeSupplierPriceRepricingDetail 'Проводить по регистру изменение цены поставщика' = changeSupplierPriceRepricing(repricingRepricingDetail(d)) PERSISTENT;
-changeSupplierPriceUserRepricingDetail 'Проводить по регистру изменение цены поставщика' = changeSupplierPriceUserRepricing(userRepricingUserRepricingDetail(d)) PERSISTENT;
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = changeSupplierPrice(repricing(RepricingDetail d)) PERSISTENT;
+changeSupplierPrice 'Проводить по регистру изменение цены поставщика' = changeSupplierPrice(userRepricing(UserRepricingDetail d)) PERSISTENT;
 
 @deriveDocumentOperationProperty(UserRepricing, changeSupplierPrice);
 
-showChangeSupplierPriceUserRepricing (r) = r IS UserRepricing AND NOT skipChangeLedgerUserRepricing(r);
+showChangeSupplierPrice (UserRepricing r) = r IS UserRepricing AND NOT skipChangeLedger(r);
 EXTEND FORM userRepricing
-    PROPERTIES (p) changeSupplierPriceUserRepricing SHOWIF showChangeSupplierPriceUserRepricing(p) AFTER skipChangeLedgerUserRepricing(p)
+    PROPERTIES (p) changeSupplierPrice SHOWIF showChangeSupplierPrice(p) AFTER skipChangeLedger(p)
 ; 
 
 EXTEND CLASS RepricingDetail : PriceListLedger;
 
-fromDateTimePriceListLedger (ledger) += dateTimeRepricingDetail(ledger);
+fromDateTime (RepricingDetail ledger) += dateTime(ledger);
 
-isPostedPriceListLedger(ledger) += isPostedRepricingDetail(ledger);
-skipPriceListLedger(ledger) += skipChangeLedgerRepricingDetail(ledger);
+isPosted[PriceListLedger](RepricingDetail ledger) += isPosted(ledger);
+skip[PriceListLedger](RepricingDetail ledger) += skipChangeLedger(ledger);
 
-skuPriceListLedger (ledger) += skuRepricingDetail(ledger);
-inPriceListLedgerBatch (ledger, batch) += batchRepricingDetail(ledger) == batch; 
+sku[PriceListLedger] (RepricingDetail ledger) += sku(ledger);
+in (RepricingDetail ledger, Batch batch) += batch(ledger) == batch; 
 
-descriptionPriceListLedger (ledger) += descriptionRepricingDetail(ledger);
+description[PriceListLedger] (RepricingDetail ledger) += description(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN changeSupplierPriceRepricingDetail(ledger);
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType AND changeSupplierPriceRepricingDetail(ledger) THEN priceRepricingDetail(ledger);
+in (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType THEN changeSupplierPrice(ledger);
+price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.supplierPricingPriceListType AND changeSupplierPrice(ledger) THEN price(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPriceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPriceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPriceRepricingDetail(ledger);
+in (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN TRUE;
+price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.retailPricingPriceListType THEN retailPrice(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPriceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN retailPriceRepricingDetail(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPriceRepricingDetail(ledger);
+in (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
+price (RepricingDetail ledger, SystemLedgerPriceListType type) += WHEN retailPrice(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN retailPrice(ledger);
 
-inPriceListLedgerStock (ledger, stock) += departmentStoreRepricingDetail(ledger) == stock;
+in (RepricingDetail ledger, DepartmentStore stock) += departmentStore(ledger) == stock;
 
-editPriceListLedger(d) += ACTION editRepricingDetail(d);
+edit[PriceListLedger](RepricingDetail d) += ACTION edit(d);
 
 @defineDocumentLogForm(repricings, p);

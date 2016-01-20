@@ -16,95 +16,95 @@ NAMESPACE Sale;
 
 @defineOrderBlanketOrder(' (продажа)');
     
-indexOrderDetail(d) += indexBlanketOrderOrderDetail(d);     
+index(BlanketOrderOrderDetail d) += index(d);     
      
-editOrderDetail(ledger) += ACTION EXEC editBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(ledger));
+edit(BlanketOrderOrderDetail ledger) += ACTION EXEC edit(blanketOrderDetail(ledger));
 
-descriptionBlanketOrderOrder 'Название документа' (o) =
-    'Заказ на основе множественного (продажа)' + ' № ' + seriesNumberBlanketOrder(blanketOrderBlanketOrderOrder(o)) + ' от ' + dateBlanketOrder(blanketOrderBlanketOrderOrder(o)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-descriptionOrder (order) += descriptionBlanketOrderOrder(order);
+description 'Название документа' (BlanketOrderOrder o) =
+    'Заказ на основе множественного (продажа)' + ' № ' + seriesNumber(blanketOrder(o)) + ' от ' + date(blanketOrder(o)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+description (BlanketOrderOrder order) += description(order);
 
-numeratorBlanketOrderStock(order, stock) <- defaultNumeratorUserOrder() WHEN SET(inBlanketOrderStock(order, stock));
+numerator(BlanketOrder order, Stock stock) <- defaultNumeratorUserOrder() WHEN SET(in(order, stock));
     
-batchOrderDetail(detail)+= batchBlanketOrderDetail(blanketOrderDetailBlanketOrderOrderDetail(detail));
+batch(BlanketOrderOrderDetail detail)+= batch(blanketOrderDetail(detail));
 //----------------------------------------------- Операции -----------------------------------------------------//
 
-operationBlanketOrder = DATA Operation (BlanketOrder);
-nameOperationBlanketOrder 'Операция' = nameOperation(operationBlanketOrder(blanketOrder));
+operation = DATA Operation (BlanketOrder);
+nameOperation 'Операция' = name(operation(BlanketOrder blanketOrder));
 
-overCopyBlanketOrder(o, order) += ACTION(o, order) {
-    operationBlanketOrder(o) <- operationBlanketOrder(order);
+overCopy(BlanketOrder o, BlanketOrder order) += ACTION(o, order) {
+    operation(o) <- operation(order);
 }
 
-dataOperationBlanketOrderStock = DATA Operation (BlanketOrder, Stock);
-operationBlanketOrderStock (blanketOrder, stock) = OVERRIDE (operationBlanketOrder(blanketOrder) IF stock IS Stock), dataOperationBlanketOrderStock(blanketOrder, stock);
-nameOperationBlanketOrderStock 'Операция' (blanketOrder, stock)= nameOperation(operationBlanketOrderStock (blanketOrder, stock));
+dataOperation = DATA Operation (BlanketOrder, Stock);
+operation (BlanketOrder blanketOrder, Stock stock) = OVERRIDE (operation(blanketOrder) IF stock IS Stock), dataOperation(blanketOrder, stock);
+nameOperation 'Операция' (BlanketOrder blanketOrder, Stock stock)= name(operation (blanketOrder, stock));
 
 WHEN SESSION FORMS blanketOrder
-    CHANGED(operationBlanketOrderStock(order, stock)) DO {
-        priceListTypeBlanketOrderStock(order, stock) <- defaultPriceListTypeOperation(operationBlanketOrderStock(order, stock));
+    CHANGED(operation(BlanketOrder order, Stock stock)) DO {
+        priceListType(order, stock) <- defaultPriceListType(operation(order, stock));
     }  
 
-overCopyBlanketOrder(o, order) += ACTION(o, order) {
-    dataOperationBlanketOrderStock(o,stock) <- dataOperationBlanketOrderStock(order,stock) WHERE stock IS Stock;
+overCopy(BlanketOrder o, BlanketOrder order) += ACTION(o, order) {
+    dataOperation(o,Stock stock) <- dataOperation(order,stock) WHERE stock IS Stock;
 }
-operationBlanketOrderDetail 'Операция' (detail) = operationBlanketOrderStock(blanketOrderBlanketOrderDetail(detail), customerStockBlanketOrderDetail(detail));
+operation 'Операция' (BlanketOrderDetail detail) = operation(blanketOrder(detail), customerStock(detail));
 
-operationOrder(order) += operationBlanketOrderStock(blanketOrderBlanketOrderOrder(order), stockBlanketOrderOrder(order));
+operation(BlanketOrderOrder order) += operation(blanketOrder(order), stock(order));
 
-CONSTRAINT operationBlanketOrderDetail(blanketOrderDetail) AND priceListTypeBlanketOrderDetail(blanketOrderDetail)
-           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderDetail(blanketOrderDetail), operationBlanketOrderDetail(blanketOrderDetail))
-    CHECKED BY priceListTypeBlanketOrderDetail
+CONSTRAINT operation(BlanketOrderDetail blanketOrderDetail) AND priceListType(blanketOrderDetail)
+           AND NOT in(priceListType(blanketOrderDetail), operation(blanketOrderDetail))
+    CHECKED BY priceListType[BlanketOrderDetail]
     MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
-CONSTRAINT operationBlanketOrder(blanketOrder) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
-           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), operationBlanketOrder(blanketOrder))
-    CHECKED BY priceListTypeBlanketOrderStock
+CONSTRAINT operation(BlanketOrder blanketOrder) AND priceListType(blanketOrder, Stock stock)
+           AND NOT in(priceListType(blanketOrder, stock), operation(blanketOrder))
+    CHECKED BY priceListType[BlanketOrder,Stock]
     MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
-CONSTRAINT dataOperationBlanketOrderStock(blanketOrder, stock) AND priceListTypeBlanketOrderStock(blanketOrder, stock)
-           AND NOT inPriceListTypeOperation(priceListTypeBlanketOrderStock(blanketOrder, stock), dataOperationBlanketOrderStock(blanketOrder, stock))
-    CHECKED BY priceListTypeBlanketOrderStock
+CONSTRAINT dataOperation(BlanketOrder blanketOrder, Stock stock) AND priceListType(blanketOrder, stock)
+           AND NOT in(priceListType(blanketOrder, stock), dataOperation(blanketOrder, stock))
+    CHECKED BY priceListType[BlanketOrder,Stock]
     MESSAGE 'Вид цены должен совпадать с отмеченными в операции';
 
-CONSTRAINT operationBlanketOrder(blanketOrder)
-           AND NOT inSupplierOperation(supplierBlanketOrder(blanketOrder), operationBlanketOrder(blanketOrder))
-    CHECKED BY supplierBlanketOrder
+CONSTRAINT operation(BlanketOrder blanketOrder)
+           AND NOT inSupplier(supplier(blanketOrder), operation(blanketOrder))
+    CHECKED BY supplier[BlanketOrder]
     MESSAGE 'Поставщик должен совпадать с отмеченными в операции';
 
-CONSTRAINT operationBlanketOrder(blanketOrder)
-           AND NOT inCustomerOperation(customerBlanketOrder(blanketOrder), operationBlanketOrder(blanketOrder))
-    CHECKED BY customerBlanketOrder
+CONSTRAINT operation(BlanketOrder blanketOrder)
+           AND NOT inCustomer(customer(blanketOrder), operation(blanketOrder))
+    CHECKED BY customer[BlanketOrder]
     MESSAGE 'Покупатель должен совпадать с отмеченными в операции';
 
 //--
-CONSTRAINT dataOperationBlanketOrderStock(order,stock)
-           AND NOT inSupplierOperation(supplierBlanketOrder(order), dataOperationBlanketOrderStock(order,stock))
-    CHECKED BY dataOperationBlanketOrderStock       
+CONSTRAINT dataOperation(BlanketOrder order,Stock stock)
+           AND NOT inSupplier(supplier(order), dataOperation(order,stock))
+    CHECKED BY dataOperation[BlanketOrder,Stock]       
     MESSAGE 'Поставщик должен совпадать с отмеченными в операции (для склада)';
 
-CONSTRAINT dataOperationBlanketOrderStock(order,stock)
-           AND NOT inCustomerOperation(customerBlanketOrder(order), dataOperationBlanketOrderStock(order,stock))
-    CHECKED BY dataOperationBlanketOrderStock
+CONSTRAINT dataOperation(BlanketOrder order,Stock stock)
+           AND NOT inCustomer(customer(order), dataOperation(order,stock))
+    CHECKED BY dataOperation[BlanketOrder,Stock]
     MESSAGE 'Покупатель должен совпадать с отмеченными в операции (для склада)';
     
-CONSTRAINT dataOperationBlanketOrderStock(order,stock)
-           AND NOT inSupplierStockOperation(supplierStockBlanketOrder(order), dataOperationBlanketOrderStock(order,stock))
-    CHECKED BY dataOperationBlanketOrderStock
+CONSTRAINT dataOperation(BlanketOrder order,Stock stock)
+           AND NOT inSupplier(supplierStock(order), dataOperation(order,stock))
+    CHECKED BY dataOperation[BlanketOrder,Stock]
     MESSAGE 'Склад поставщика должен совпадать с отмеченными в операции для склада';
-CONSTRAINT dataOperationBlanketOrderStock(order,stock)
-           AND NOT inCustomerStockOperation(stock, dataOperationBlanketOrderStock(order,stock))
-    CHECKED BY dataOperationBlanketOrderStock
+CONSTRAINT dataOperation(BlanketOrder order,Stock stock)
+           AND NOT inCustomer(stock, dataOperation(order,stock))
+    CHECKED BY dataOperation[BlanketOrder,Stock]
     MESSAGE 'Склад покупателя должен совпадать с отмеченными в операции для склада';
     
 EXTEND FORM blanketOrder
-    PROPERTIES(o) nameOperationBlanketOrder
-    PROPERTIES(o,c) nameOperationBlanketOrderStock BEFORE namePriceListTypeBlanketOrderStock(o,c)
+    PROPERTIES(o) nameOperation
+    PROPERTIES(o,c) nameOperation BEFORE namePriceListType(o,c)
 ;
 
 DESIGN blanketOrder{
     o.documentPrm{
-        MOVE PROPERTY(nameOperationBlanketOrder(o)) BEFORE PROPERTY(nameCurrencyBlanketOrder(o));
+        MOVE PROPERTY(nameOperation(o)) BEFORE PROPERTY(nameCurrency(o));
     }
 }
 
@@ -114,10 +114,10 @@ DESIGN blanketOrder{
 
 //------------------------------ Ограничение на выбор контрагентов -----------------------------//
 
-CONSTRAINT supplierBlanketOrder(blanketOrder) AND NOT isCompanyLegalEntity(supplierBlanketOrder(blanketOrder))
-    CHECKED BY supplierBlanketOrder MESSAGE 'Для множественного заказа выбрано в качестве поставщика организация, не являющаяся компанией';
-CONSTRAINT customerBlanketOrder(blanketOrder) AND NOT isCustomerLegalEntity(customerBlanketOrder(blanketOrder))
-    CHECKED BY customerBlanketOrder MESSAGE 'Для множественного заказа выбрано в качестве покупателя организация, не являющаяся покупателем';
+CONSTRAINT supplier(BlanketOrder blanketOrder) AND NOT isCompany(supplier(blanketOrder))
+    CHECKED BY supplier[BlanketOrder] MESSAGE 'Для множественного заказа выбрано в качестве поставщика организация, не являющаяся компанией';
+CONSTRAINT customer(BlanketOrder blanketOrder) AND NOT isCustomer(customer(blanketOrder))
+    CHECKED BY customer[BlanketOrder] MESSAGE 'Для множественного заказа выбрано в качестве покупателя организация, не являющаяся покупателем';
 
 //------------------------------ Автоматическое проставление свойств -----------------------------//
 

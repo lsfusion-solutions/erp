@@ -10,18 +10,18 @@ REQUIRE System,
 CLASS TruckModel 'Модель';
 TABLE truckModel (TruckModel);
 
-nameTruckModel 'Наименование' = DATA VARISTRING[50](TruckModel);
+name 'Наименование' = DATA VARISTRING[50](TruckModel);
 
 FORM truckModel 'Модель машины'
     OBJECTS m=TruckModel FIXED PANEL
-    PROPERTIES (m) nameTruckModel
+    PROPERTIES (m) name
 
     EDIT TruckModel OBJECT m
 ;
 
 FORM truckModels 'Модели машин'
     OBJECTS m=TruckModel
-    PROPERTIES(m) READONLY nameTruckModel
+    PROPERTIES(m) READONLY name
     PROPERTIES(m) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     DIALOG TruckModel OBJECT m
@@ -31,23 +31,23 @@ FORM truckModels 'Модели машин'
 CLASS Truck 'Машина';
 TABLE truck(Truck);
 
-sidTruck 'Номер' = DATA VARSTRING[20](Truck);
-truckModelTruck = DATA TruckModel(Truck);
-nameTruckModelTruck 'Марка' (truck) = nameTruckModel(truckModelTruck(truck));
+sid 'Номер' = DATA VARSTRING[20](Truck);
+truckModel = DATA TruckModel(Truck);
+nameTruckModel 'Марка' (Truck truck) = name(truckModel(truck));
 
-nameTruck 'Наименование' (truck) = VARSTRING[70](CONCAT ',', nameTruckModelTruck(truck), 'г.н. '+sidTruck(truck));
+name 'Наименование' (Truck truck) = VARSTRING[70](CONCAT ',', nameTruckModel(truck), 'г.н. '+sid(truck));
 
-trailerTruck 'Прицеп' = DATA VARSTRING[100](Truck);
-weightTruck 'Грузоподъёмность (кг)' = DATA NUMERIC[14,2](Truck);
-ownerTruck 'Владелец' = DATA VARSTRING[200](Truck);
-notOwnertruck = NOT ownerTruck(truck);
-legalEntityTruck = DATA LegalEntity (Truck);
-nameLegalEntityTruck 'Владелец(Организация)' = fullNameLegalEntity(legalEntityTruck(truck)); 
+trailer 'Прицеп' = DATA VARSTRING[100](Truck);
+weight 'Грузоподъёмность (кг)' = DATA NUMERIC[14,2](Truck);
+owner 'Владелец' = DATA VARSTRING[200](Truck);
+notOwnertruck = NOT owner(Truck truck);
+legalEntity = DATA LegalEntity (Truck);
+nameLegalEntity 'Владелец(Организация)' = fullName(legalEntity(Truck truck)); 
 
 FORM truck 'Машина'
     OBJECTS t=Truck FIXED PANEL
-    PROPERTIES (t) sidTruck, nameTruckModelTruck, nameTruck, trailerTruck, ownerTruck, weightTruck, 
-                   nameLegalEntityTruck SHOWIF notOwnertruck(t)
+    PROPERTIES (t) sid, nameTruckModel, name, trailer, owner, weight, 
+                   nameLegalEntity SHOWIF notOwnertruck(t)
 
     EDIT Truck OBJECT t
 ;
@@ -60,8 +60,8 @@ DESIGN truck {
 
 FORM trucks 'Машины'
     OBJECTS t=Truck
-    PROPERTIES(t) READONLY sidTruck, nameTruckModelTruck, nameTruck, trailerTruck, ownerTruck, 
-                           nameLegalEntityTruck, weightTruck
+    PROPERTIES(t) READONLY sid, nameTruckModel, name, trailer, owner, 
+                           nameLegalEntity, weight
     PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Truck OBJECT t
@@ -71,17 +71,17 @@ FORM trucks 'Машины'
 
 CLASS Driver 'Водитель': Employee;
 
-sidDriver 'Табельный номер' = DATA STRING[10](Driver);
-typeDriver 'Класс' = DATA STRING[10](Driver);
+sid 'Табельный номер' = DATA STRING[10](Driver);
+type 'Класс' = DATA STRING[10](Driver);
 
-defaultTruckDriver = DATA Truck(Driver);
-nameDefaultTruckDriver 'Машина по умолчанию' = nameTruck(defaultTruckDriver(driver));
+defaultTruck = DATA Truck(Driver);
+nameDefaultTruck 'Машина по умолчанию' = name(defaultTruck(Driver driver));
 
 
 FORM driver 'Водитель'
     OBJECTS e=Driver FIXED PANEL
-    PROPERTIES(e)      lastNameContact, firstNameContact, initialsEmployee, idEmployee SHOWIF showIDs(), namePositionEmployee,
-                       sidDriver, typeDriver, nameDefaultTruckDriver//nameMainRoleUser
+    PROPERTIES(e)      lastName, firstName, initialsEmployee, id SHOWIF showIDs(), namePosition,
+                       sid, type, nameDefaultTruck//nameMainRoleUser
 
     EDIT Driver OBJECT e
 ;
@@ -94,18 +94,18 @@ DESIGN driver {
             NEW personal {
                 caption = 'Личные данные';
                 type = CONTAINERH;                
-                MOVE PROPERTY(lastNameContact(e));
-                MOVE PROPERTY(firstNameContact(e));   
+                MOVE PROPERTY(lastName(e));
+                MOVE PROPERTY(firstName(e));   
                 MOVE PROPERTY(initialsEmployee(e));                  
-                MOVE PROPERTY(idEmployee(e));
-                MOVE PROPERTY(namePositionEmployee(e));
+                MOVE PROPERTY(id(e));
+                MOVE PROPERTY(namePosition(e));
             }
             NEW driver {
                 caption = 'Данные водителя';
                 type = CONTAINERH;
-                MOVE PROPERTY(nameDefaultTruckDriver(e));
-                MOVE PROPERTY(sidDriver(e));
-                MOVE PROPERTY(typeDriver(e));
+                MOVE PROPERTY(nameDefaultTruck(e));
+                MOVE PROPERTY(sid(e));
+                MOVE PROPERTY(type(e));
             }
         }
         MOVE functions.box;
@@ -114,8 +114,8 @@ DESIGN driver {
 FORM drivers 'Водители'
     PROPERTIES isEditable()
     OBJECTS e=Driver
-    PROPERTIES(e) READONLYIF isReadonly() lastNameContact, firstNameContact, initialsEmployee, idEmployee SHOWIF showIDs(), 
-                  namePositionEmployee, shortNameContact, sidDriver, typeDriver, nameDefaultTruckDriver//nameMainRoleUser
+    PROPERTIES(e) READONLYIF isReadonly() lastName, firstName, initialsEmployee, id SHOWIF showIDs(), 
+                  namePosition, shortName, sid, type, nameDefaultTruck//nameMainRoleUser
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG Driver OBJECT e
 ;

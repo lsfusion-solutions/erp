@@ -9,16 +9,16 @@ REQUIRE Menu,
 FORM menuOrders 'Производственные заказы'
 
     OBJECTS o = Order
-    PROPERTIES(o) READONLY isPostedOrder, numberOrder, seriesOrder, dateOrder, timeOrder,
-                  nameComponentsStockOrder, nameProductsStockOrder, fromDateOrder, toDateOrder, quantityProductDetailOrder,
-                  sumProductDetailOrder, 
-                  nameCalcPriceListTypeOrder, namePriceListTypeOrder, noteOrder
-    FILTERS isPostedOrder(o)
+    PROPERTIES(o) READONLY isPosted, number, series, date, time,
+                  nameComponentsStock, nameProductsStock, fromDate, toDate, quantityProductDetail,
+                  sumProductDetail, 
+                  nameCalcPriceListType, namePriceListType, note
+    FILTERS isPosted(o)
 
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) READONLY indexProductDetail, nameSkuProductDetail, nameProductProductDetail, shortNameUOMProductDetail, quantityProductDetail,
-                   priceProductDetail, sumProductDetail
-    FILTERS orderProductDetail(pd)==o
+    PROPERTIES(pd) READONLY index, nameSku, nameProduct, shortNameUOM, quantity,
+                   price, sum
+    FILTERS order(pd)==o
 ;
 
 DESIGN menuOrders {
@@ -35,24 +35,24 @@ DESIGN menuOrders {
     }
 }
 
-fillOrderUserMenu 'Заполнить на основе производственного заказа' =  ACTION (userMenu) {
+fillOrder 'Заполнить на основе производственного заказа' =  ACTION (UserMenu userMenu) {
     FORM menuOrders MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL productionOrder = Order();
         ASSIGN productionOrder() <- chosenObject('o');
-        ASSIGN noteUserMenu(userMenu) <- 'Основание: ' + descriptionOrder(productionOrder());
-        FOR orderProductDetail(productDetail) == productionOrder() ADDOBJ d = UserMenuDetail DO {
-            ASSIGN userMenuUserMenuDetail(d) <- userMenu;
-            ASSIGN priceUserMenuDetail(d) <- priceProductDetail(productDetail);
-            ASSIGN skuUserMenuDetail(d) <- skuProductDetail(productDetail);
-            ASSIGN productYieldUserMenuDetail(d) <- productYieldProduct(productProductDetail(productDetail));
-            ASSIGN compositionUserMenuDetail(d) <- compositionProduct(productProductDetail(productDetail));
+        ASSIGN note(userMenu) <- 'Основание: ' + description(productionOrder());
+        FOR order(ProductDetail productDetail) == productionOrder() ADDOBJ d = UserMenuDetail DO {
+            ASSIGN userMenu(d) <- userMenu;
+            ASSIGN price(d) <- price(productDetail);
+            ASSIGN sku(d) <- sku(productDetail);
+            ASSIGN productYield(d) <- productYield(product(productDetail));
+            ASSIGN composition(d) <- composition(product(productDetail));
         }
     }
 }
 
 EXTEND FORM userMenu
-    PROPERTIES(m) fillOrderUserMenu
+    PROPERTIES(m) fillOrder
 ;
 DESIGN userMenu {
     headerRow1 {
@@ -60,7 +60,7 @@ DESIGN userMenu {
             caption = 'Производственный заказ';
             type = CONTAINERH;
 
-            MOVE PROPERTY(fillOrderUserMenu(m));
+            MOVE PROPERTY(fillOrder(m));
         }
     }
 }

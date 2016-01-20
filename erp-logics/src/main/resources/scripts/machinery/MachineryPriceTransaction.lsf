@@ -8,73 +8,73 @@ NAMESPACE Machinery;
 CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий загрузки в оборудование';
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
-isDraftPriceTransactionDocument 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
-isPostedPriceTransactionDocument 'Проведен' (document) = NOT isDraftPriceTransactionDocument(document);
-descriptionPriceTransactionDocument 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
-skipPriceTransactionDocument 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+isPosted 'Проведен' (PriceTransactionDocument document) = NOT isDraft(document);
+description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
+skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
 
-sentPriceTransactionDocument 'Принят к загрузке в оборудование' = DATA BOOLEAN (PriceTransactionDocument);
-sentPriceTransactionDocument(document) <- NULL WHEN SET(isDraftPriceTransactionDocument(document));
+sent 'Принят к загрузке в оборудование' = DATA BOOLEAN (PriceTransactionDocument);
+sent(PriceTransactionDocument document) <- NULL WHEN SET(isDraft(document));
 
-isClosedPriceTransactionDocument 'Закрыт' = ABSTRACT BOOLEAN (PriceTransactionDocument);
-datePriceTransactionDocument 'Дата' = ABSTRACT DATE (PriceTransactionDocument);
-timePriceTransactionDocument 'Время' = ABSTRACT TIME (PriceTransactionDocument);
-seriesPriceTransactionDocument 'Серия' = ABSTRACT STRING[2] (PriceTransactionDocument);
-numberPriceTransactionDocument 'Номер' = ABSTRACT STRING[18] (PriceTransactionDocument);
-stockPriceTransactionDocument 'Склад' = ABSTRACT Stock (PriceTransactionDocument);
-legalEntityPriceTransactionDocument 'Организация' = ABSTRACT LegalEntity (PriceTransactionDocument);
-nameLegalEntityPriceTransactionDocument 'Организация' (document) = nameLegalEntity(legalEntityPriceTransactionDocument(document));
-operationPriceTransactionDocument = ABSTRACT Operation(PriceTransactionDocument);
-nameOperationPriceTransactionDocument 'Операция' (document) = nameOperation(operationPriceTransactionDocument(document));
+isClosed 'Закрыт' = ABSTRACT BOOLEAN (PriceTransactionDocument);
+date 'Дата' = ABSTRACT DATE (PriceTransactionDocument);
+time 'Время' = ABSTRACT TIME (PriceTransactionDocument);
+series 'Серия' = ABSTRACT STRING[2] (PriceTransactionDocument);
+number 'Номер' = ABSTRACT STRING[18] (PriceTransactionDocument);
+stock 'Склад' = ABSTRACT Stock (PriceTransactionDocument);
+legalEntity 'Организация' = ABSTRACT LegalEntity (PriceTransactionDocument);
+nameLegalEntity 'Организация' (PriceTransactionDocument document) = name(legalEntity(document));
+operation = ABSTRACT Operation(PriceTransactionDocument);
+nameOperation 'Операция' (PriceTransactionDocument document) = name(operation(document));
 
 META implementPriceTransactionDocument(concrete)
     EXTEND CLASS concrete : Machinery.PriceTransactionDocument;
-    Machinery.isDraftPriceTransactionDocument (document) += isDraft###concrete(document);
-    Machinery.descriptionPriceTransactionDocument (document) += description###concrete(document);
-    Machinery.datePriceTransactionDocument (document) += date###concrete(document);
-    Machinery.timePriceTransactionDocument (document) += time###concrete(document);
-    Machinery.seriesPriceTransactionDocument (document) += series###concrete(document);
-    Machinery.numberPriceTransactionDocument (document) += number###concrete(document);
-    Machinery.operationPriceTransactionDocument (document) += operation###concrete(document);
+    isDraft[PriceTransactionDocument] (concrete document) += isDraft(document);
+    description[PriceTransactionDocument] (concrete document) += description(document);
+    date[PriceTransactionDocument] (concrete document) += date(document);
+    time[PriceTransactionDocument] (concrete document) += time(document);
+    series[PriceTransactionDocument] (concrete document) += series(document);
+    number[PriceTransactionDocument] (concrete document) += number(document);
+    operation[PriceTransactionDocument] (concrete document) += operation(document);
 END
 
 META implementPriceTransactionDocument(concrete, le)
     @implementPriceTransactionDocument(concrete);
-    Machinery.legalEntityPriceTransactionDocument (document) += le###concrete(document);
+    legalEntity[PriceTransactionDocument] (concrete document) += le(document);
 END
 
 META implementPriceTransactionDocumentStock(concrete, st)
     @implementPriceTransactionDocument(concrete);
-    Machinery.stockPriceTransactionDocument (document) += st###concrete(document);
-    Machinery.isClosedPriceTransactionDocument (document) += isClosed###concrete(document);
+    stock[PriceTransactionDocument] (concrete document) += st(document);
+    isClosed[PriceTransactionDocument] (concrete document) += isClosed(document);
 END
 
 META implementPriceTransactionDocumentStock(concrete, st, legalEntity)
     @implementPriceTransactionDocument(concrete, legalEntity);
-    Machinery.stockPriceTransactionDocument (document) += st###concrete(document);
-    Machinery.isClosedPriceTransactionDocument (document) += isClosed###concrete(document);
+    stock[PriceTransactionDocument] (concrete document) += st(document);
+    isClosed[PriceTransactionDocument] (concrete document) += isClosed(document);
 END
 
-createMachineryPriceTransactionPriceTransactionDocument 'Загрузить в оборудование' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
-createSnapshotMachineryPriceTransactionPriceTransactionDocument 'Перегрузить все позиции' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
+createMachineryPriceTransaction 'Загрузить в оборудование' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
+createSnapshotMachineryPriceTransaction 'Перегрузить все позиции' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
 
-showCreateMachineryPriceTransactionPriceTransactionDocument = ABSTRACT BOOLEAN (PriceTransactionDocument);
+showCreateMachineryPriceTransaction = ABSTRACT BOOLEAN (PriceTransactionDocument);
 
 CLASS ABSTRACT PriceTransactionDocumentDetail 'Строка документа, требующиего загрузки в оборудование';
 TABLE priceTransactionDocumentDetail (PriceTransactionDocumentDetail);
 
-priceTransactionDocumentPriceTransactionDocumentDetail = ABSTRACT PriceTransactionDocument(PriceTransactionDocumentDetail);
-skuPriceTransactionDocumentDetail = ABSTRACT Sku (PriceTransactionDocumentDetail);
-idBarcodeSkuPriceTransactionDocumentDetail 'Штрих-код'(detail) = idBarcodeSku(skuPriceTransactionDocumentDetail(detail));
-nameSkuPriceTransactionDocumentDetail 'Наименование' (detail) = nameSku(skuPriceTransactionDocumentDetail(detail));
-quantityPriceTransactionDocumentDetail 'Кол-во' = ABSTRACT NUMERIC[16,5](PriceTransactionDocumentDetail);
-pricePriceTransactionDocumentDetail 'Цена' = ABSTRACT NUMERIC[14,2](PriceTransactionDocumentDetail);
+priceTransactionDocument = ABSTRACT PriceTransactionDocument(PriceTransactionDocumentDetail);
+sku = ABSTRACT Sku (PriceTransactionDocumentDetail);
+idBarcodeSku 'Штрих-код'(PriceTransactionDocumentDetail detail) = idBarcode(sku(detail));
+nameSku 'Наименование' (PriceTransactionDocumentDetail detail) = name(sku(detail));
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5](PriceTransactionDocumentDetail);
+price 'Цена' = ABSTRACT NUMERIC[14,2](PriceTransactionDocumentDetail);
 
 META implementPriceTransactionDocumentDetail(object, class)
     EXTEND CLASS class##Detail : Machinery.PriceTransactionDocumentDetail;
-    Machinery.priceTransactionDocumentPriceTransactionDocumentDetail (detail) += object##class##Detail(detail);
-    Machinery.skuPriceTransactionDocumentDetail (detail) += sku##class##Detail(detail);
-    Machinery.quantityPriceTransactionDocumentDetail(detail) += quantity##class##Detail(detail);
+    priceTransactionDocument (class##Detail detail) += object(detail);
+    sku[PriceTransactionDocumentDetail] (class##Detail detail) += sku(detail);
+    quantity[PriceTransactionDocumentDetail](class##Detail detail) += quantity(detail);
 END
 
 META implementPriceTransactionDocumentDetail(object)
@@ -89,144 +89,144 @@ TABLE machineryPriceTransaction (MachineryPriceTransaction);
 
 @defineCreated(MachineryPriceTransaction);
 
-groupMachineryMachineryPriceTransaction (transaction) = ABSTRACT GroupMachinery (MachineryPriceTransaction);
-nameGroupMachineryMachineryPriceTransaction 'Группа оборудования' (transaction) = nameGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
-nppGroupMachineryMachineryPriceTransaction 'Номер группы оборудования' (transaction) = nppGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
+groupMachinery (transaction) = ABSTRACT GroupMachinery (MachineryPriceTransaction);
+nameGroupMachinery 'Группа оборудования' (MachineryPriceTransaction transaction) = name(groupMachinery(transaction));
+nppGroupMachinery 'Номер группы оборудования' (MachineryPriceTransaction transaction) = npp(groupMachinery(transaction));
 
-stockMachineryPriceTransaction (transaction) = stockGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
-nameStockMachineryPriceTransaction 'Склад' (transaction) = nameStock(stockMachineryPriceTransaction(transaction));
-idStockMachineryPriceTransaction (transaction) = idStock(stockMachineryPriceTransaction(transaction));
+stock (MachineryPriceTransaction transaction) = stock(groupMachinery(transaction));
+nameStock 'Склад' (MachineryPriceTransaction transaction) = name(stock(transaction));
+idStock (MachineryPriceTransaction transaction) = id(stock(transaction));
 
 // Дата/время
-dateMachineryPriceTransaction 'Дата' = DATA DATE (MachineryPriceTransaction);
-dateMachineryPriceTransaction (transaction) <- currentDate() WHEN SET(transaction IS MachineryPriceTransaction);
+date 'Дата' = DATA DATE (MachineryPriceTransaction);
+date (MachineryPriceTransaction transaction) <- currentDate() WHEN SET(transaction IS MachineryPriceTransaction);
 
-timeMachineryPriceTransaction 'Время' = DATA TIME (MachineryPriceTransaction);
-timeMachineryPriceTransaction (transaction) <- currentTime() WHEN SET(transaction IS MachineryPriceTransaction);
+time 'Время' = DATA TIME (MachineryPriceTransaction);
+time (MachineryPriceTransaction transaction) <- currentTime() WHEN SET(transaction IS MachineryPriceTransaction);
 
-dateTimeMachineryPriceTransaction 'Дата/время' (transaction) = dateTimeToDateTime(dateMachineryPriceTransaction(transaction), timeMachineryPriceTransaction(transaction));
+dateTime 'Дата/время' (MachineryPriceTransaction transaction) = dateTimeToDateTime(date(transaction), time(transaction));
 
-orderMachineryPriceTransaction (transaction) = STRUCT(dateTimeMachineryPriceTransaction(transaction), transaction) PERSISTENT;
+order (MachineryPriceTransaction transaction) = STRUCT(dateTime(transaction), transaction) PERSISTENT;
 
 // Статус
-snapshotMachineryPriceTransaction 'Целиком' = DATA BOOLEAN (MachineryPriceTransaction);
-skipSnapshotMachineryPriceTransaction = ABSTRACT BOOLEAN (MachineryPriceTransaction);
+snapshot 'Целиком' = DATA BOOLEAN (MachineryPriceTransaction);
+skipSnapshot = ABSTRACT BOOLEAN (MachineryPriceTransaction);
 
-skipSnapshotMachineryRole 'Запрещено загружать в оборудование целиком' = DATA BOOLEAN (UserRole); 
+skipSnapshotMachinery 'Запрещено загружать в оборудование целиком' = DATA BOOLEAN (UserRole); 
 
 EXTEND FORM userRole
-    PROPERTIES(ur) skipSnapshotMachineryRole
+    PROPERTIES(ur) skipSnapshotMachinery
 ;
 
-dateTimeProcessingMachineryPriceTransaction 'Принята в обработку' = DATA DATETIME (MachineryPriceTransaction);
-succeededMachineryPriceTransaction 'Загружена' = DATA BOOLEAN (MachineryPriceTransaction);
-notSucceededMachineryPriceTransaction 'Не загружена' (machineryPriceTransaction) = NOT succeededMachineryPriceTransaction(machineryPriceTransaction);
-dateTimeSucceededMachineryPriceTransaction 'Время загрузки' = DATA DATETIME (MachineryPriceTransaction);
-canceledMachineryPriceTransaction 'Отменена' = DATA BOOLEAN (MachineryPriceTransaction);
-processMachineryPriceTransaction 'Требуется загрузка' (machineryPriceTransaction) =
+dateTimeProcessing 'Принята в обработку' = DATA DATETIME (MachineryPriceTransaction);
+succeeded 'Загружена' = DATA BOOLEAN (MachineryPriceTransaction);
+notSucceeded 'Не загружена' (MachineryPriceTransaction machineryPriceTransaction) = NOT succeeded(machineryPriceTransaction);
+dateTimeSucceeded 'Время загрузки' = DATA DATETIME (MachineryPriceTransaction);
+canceled 'Отменена' = DATA BOOLEAN (MachineryPriceTransaction);
+process 'Требуется загрузка' (MachineryPriceTransaction machineryPriceTransaction) =
     machineryPriceTransaction IS MachineryPriceTransaction AND NOT
-    succeededMachineryPriceTransaction(machineryPriceTransaction) AND NOT
-    canceledMachineryPriceTransaction(machineryPriceTransaction);
+    succeeded(machineryPriceTransaction) AND NOT
+    canceled(machineryPriceTransaction);
 
 // Основание
-commentMachineryPriceTransaction 'Примечание' = DATA VARSTRING[100] (MachineryPriceTransaction);
+comment 'Примечание' = DATA VARSTRING[100] (MachineryPriceTransaction);
 
-priceTransactionDocumentMachineryPriceTransaction = DATA PriceTransactionDocument (MachineryPriceTransaction);
-descriptionPriceTransactionDocumentMachineryPriceTransaction 'Основание загрузки' (transaction) =
-    descriptionPriceTransactionDocument(priceTransactionDocumentMachineryPriceTransaction(transaction));
+priceTransactionDocument = DATA PriceTransactionDocument (MachineryPriceTransaction);
+descriptionPriceTransactionDocument 'Основание загрузки' (MachineryPriceTransaction transaction) =
+    description(priceTransactionDocument(transaction));
 
 // todo : persistent почему-то не работает
-descriptionMachineryPriceTransaction 'Основание' (document) =
-    OVERRIDE descriptionPriceTransactionDocumentMachineryPriceTransaction(document), commentMachineryPriceTransaction(document);
+description 'Основание' (MachineryPriceTransaction document) =
+    OVERRIDE descriptionPriceTransactionDocument(document), comment(document);
 
-countProcessPriceTransactionDocument 'Кол-во ожидающих транзакций' (document) = GROUP SUM 1 IF processMachineryPriceTransaction(transaction)
-                                                                                 BY priceTransactionDocumentMachineryPriceTransaction(transaction) PERSISTENT;
+countProcess 'Кол-во ожидающих транзакций' (document) = GROUP SUM 1 IF process(MachineryPriceTransaction transaction)
+                                                                                 BY priceTransactionDocument(transaction) PERSISTENT;
 
-succeededPriceTransactionDocument 'Загружен в оборудование' (document) = sentPriceTransactionDocument (document) IF NOT countProcessPriceTransactionDocument(document);
+succeeded 'Загружен в оборудование' (PriceTransactionDocument document) = sent (document) IF NOT countProcess(document);
 
 //-- Частичная загрузка
-clearedMachineryMachineryPriceTransaction 'Выполнена очистка' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
-succeededMachineryMachineryPriceTransaction 'Загружено' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
-dateTimeSucceededMachineryMachineryPriceTransaction 'Время загрузки' = DATA DATETIME(Machinery, MachineryPriceTransaction);
+cleared 'Выполнена очистка' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
+succeeded 'Загружено' = DATA BOOLEAN(Machinery, MachineryPriceTransaction);
+dateTimeSucceeded 'Время загрузки' = DATA DATETIME(Machinery, MachineryPriceTransaction);
 
-countSucceededMachineriesPriceTransactionDocument'Кол-во загруженного оборудования' (t) = 
-    GROUP SUM 1 IF succeededMachineryMachineryPriceTransaction(m, t) OR 
-                   (succeededMachineryPriceTransaction(t) AND groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t)) 
-          BY priceTransactionDocumentMachineryPriceTransaction(t) PERSISTENT;
+countSucceededMachineries'Кол-во загруженного оборудования' (t) = 
+    GROUP SUM 1 IF succeeded(Machinery m, MachineryPriceTransaction t) OR 
+                   (succeeded(t) AND groupMachinery(m) == groupMachinery(t)) 
+          BY priceTransactionDocument(t) PERSISTENT;
     
-countSucceededMachineriesMachineryPriceTransaction'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
-    IF succeededMachineryMachineryPriceTransaction(m,t) BY t PERSISTENT;
+countSucceededMachineries'Кол-во загруженного оборудования' (machineryPriceTransaction) = GROUP SUM 1 
+    IF succeeded(Machinery m,MachineryPriceTransaction t) BY t PERSISTENT;
 
-countMachineriesGroupMachinery 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachineryMachinery(m);
-countMachineriesPriceTransactionDocument 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(t)) BY priceTransactionDocumentMachineryPriceTransaction(t);
-concatSucceededMachineriesPriceTransactionDocument 'Кол-во оборудования' (t)  = CONCAT '/', countSucceededMachineriesPriceTransactionDocument(t), countMachineriesPriceTransactionDocument(t); 
+countMachineries 'Кол-во оборудования в группе' (gm) =GROUP SUM 1 BY groupMachinery(Machinery m);
+countMachineries 'Кол-во оборудования в группе' (priceTransactionDocument) = GROUP SUM countMachineries(groupMachinery(MachineryPriceTransaction t)) BY priceTransactionDocument(t);
+concatSucceededMachineries 'Кол-во оборудования' (PriceTransactionDocument t)  = CONCAT '/', countSucceededMachineries(t), countMachineries(t); 
 
-statusMachineryPriceTransactionDocument 'Статус загрузки в оборудование' (document) =
+statusMachinery 'Статус загрузки в оборудование' (PriceTransactionDocument document) =
     CASE
-        WHEN skipPriceTransactionDocument(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument        
-        WHEN countSucceededMachineriesPriceTransactionDocument(document) != countMachineriesPriceTransactionDocument(document) THEN (CONCAT ' ', 'Частично загружен', concatSucceededMachineriesPriceTransactionDocument(document))
-        WHEN succeededPriceTransactionDocument(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument        
-        WHEN sentPriceTransactionDocument(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
+        WHEN skip(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument        
+        WHEN countSucceededMachineries(document) != countMachineries(document) THEN (CONCAT ' ', 'Частично загружен', concatSucceededMachineries(document))
+        WHEN succeeded(document) THEN 'Успешно загружен' IF document IS PriceTransactionDocument        
+        WHEN sent(document) THEN 'Принят к загрузке' IF document IS PriceTransactionDocument
         ELSE 'Не загружен' IF document IS PriceTransactionDocument
     PERSISTENT;
 
 // Загруженные штрихкоды
 TABLE machineryPriceTransactionBarcode (MachineryPriceTransaction, Barcode);
 
-inMachineryPriceTransactionBarcode 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode);
+in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode);
 
-nameMachineryPriceTransactionBarcode 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
-nameMachineryPriceTransactionBarcode(t, barcode)  => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
+name 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
+name(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE RIGHT;
 
-priceMachineryPriceTransactionBarcode 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode);
-priceMachineryPriceTransactionBarcode(t, barcode)  => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
+price 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode);
+price(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE RIGHT;
 
 // Текущие загруженные штрихкоды
 TABLE barcodeGroupMachinery (Barcode, GroupMachinery);
 
-skipLastTransactionGroupMachinery 'Не учитывать для определения текущих цен в оборудовании' = ABSTRACT BOOLEAN (GroupMachinery);
+skipLastTransaction 'Не учитывать для определения текущих цен в оборудовании' = ABSTRACT BOOLEAN (GroupMachinery);
 
 // INDEX groupInMachineryPriceTransactionBarcode + barcode 
-groupInMachineryPriceTransactionBarcode = groupMachineryMachineryPriceTransaction(transaction) IF inMachineryPriceTransactionBarcode(transaction, barcode) 
-    AND NOT skipLastTransactionGroupMachinery(groupMachineryMachineryPriceTransaction(transaction)) PERSISTENT;
+groupIn = groupMachinery(MachineryPriceTransaction transaction) IF in(transaction, Barcode barcode) 
+    AND NOT skipLastTransaction(groupMachinery(transaction)) PERSISTENT;
     
-lastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
-    GROUP LAST transaction 
-          BY barcode, groupInMachineryPriceTransactionBarcode(transaction, barcode)
-          ORDER orderMachineryPriceTransaction(transaction)
-          WHERE NOT canceledMachineryPriceTransaction(transaction) PERSISTENT;
+lastTransaction (barcode, groupMachinery) = 
+    GROUP LAST MachineryPriceTransaction transaction 
+          BY Barcode barcode, groupIn(transaction, barcode)
+          ORDER order(transaction)
+          WHERE NOT canceled(transaction) PERSISTENT;
 
-lastTransactionSkuStock (sku, stock) =
-    GROUP LAST lastTransactionBarcodeGroupMachinery(b, g) 
-          BY skuBarcode(b), stockGroupMachinery(g)
-          ORDER orderMachineryPriceTransaction(lastTransactionBarcodeGroupMachinery(b, g))
-          WHERE lastTransactionBarcodeGroupMachinery(b, g);
+lastTransaction (sku, stock) =
+    GROUP LAST lastTransaction(Barcode b, GroupMachinery g) 
+          BY sku(b), stock(g)
+          ORDER order(lastTransaction(b, g))
+          WHERE lastTransaction(b, g);
           
-lastFullTransactionBarcodeGroupMachinery (barcode, groupMachinery) = 
-    GROUP LAST transaction 
-          BY barcode, groupMachineryMachineryPriceTransaction(transaction)
-          ORDER orderMachineryPriceTransaction(transaction)
-          WHERE inMachineryPriceTransactionBarcode(transaction, barcode) AND NOT canceledMachineryPriceTransaction(transaction);
+lastFullTransaction (barcode, groupMachinery) = 
+    GROUP LAST MachineryPriceTransaction transaction 
+          BY Barcode barcode, groupMachinery(transaction)
+          ORDER order(transaction)
+          WHERE in(transaction, barcode) AND NOT canceled(transaction);
           
-prevLastTransactionBarcodeGroupMachinery (barcode, groupMachinery) = PREV(lastFullTransactionBarcodeGroupMachinery (barcode, groupMachinery));
+prevLastTransaction (Barcode barcode, GroupMachinery groupMachinery) = PREV(lastFullTransaction (barcode, groupMachinery));
 
-transactionNameBarcodeGroupMachinery 'Текущее наименование в оборудовании' (barcode, groupMachinery)  =
-    nameMachineryPriceTransactionBarcode(lastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode);
-prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery) = nameMachineryPriceTransactionBarcode(prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode);
+transactionName 'Текущее наименование в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
+    name(lastTransaction(barcode, groupMachinery), barcode);
+prevTransactionName(Barcode barcode, GroupMachinery groupMachinery) = name(prevLastTransaction(barcode, groupMachinery), barcode);
 
-transactionPriceBarcodeGroupMachinery 'Текущая цена в оборудовании' (barcode, groupMachinery)  =
-    priceMachineryPriceTransactionBarcode(lastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode) PERSISTENT;
-prevTransactionPriceBarcodeGroupMachinery (barcode, groupMachinery) = priceMachineryPriceTransactionBarcode(prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery),barcode);
+transactionPrice 'Текущая цена в оборудовании' (Barcode barcode, GroupMachinery groupMachinery)  =
+    price(lastTransaction(barcode, groupMachinery), barcode) PERSISTENT;
+prevTransactionPrice (Barcode barcode, GroupMachinery groupMachinery) = price(prevLastTransaction(barcode, groupMachinery),barcode);
 
-transactionPriceBarcodeStock 'Текущая цена в оборудовании' (barcode, stock) =
-    GROUP LAST transactionPriceBarcodeGroupMachinery(b, g) 
-          BY b, stockGroupMachinery(g)
-          ORDER orderMachineryPriceTransaction(lastTransactionBarcodeGroupMachinery(b, g))
-          WHERE lastTransactionBarcodeGroupMachinery(b, g);
+transactionPrice 'Текущая цена в оборудовании' (barcode, stock) =
+    GROUP LAST transactionPrice(Barcode b, GroupMachinery g) 
+          BY b, stock(g)
+          ORDER order(lastTransaction(b, g))
+          WHERE lastTransaction(b, g);
 
-transactionPriceSkuStock 'Текущая цена в оборудовании' (sku, stock) =
-    transactionPriceBarcodeStock(barcodeSku(sku), stock) PERSISTENT TABLE extraSkuStock;
-transactionPriceIdBarcodeSkuIdStock 'Текущая цена в оборудовании' (sku, stock) = transactionPriceSkuStock(skuBarcodeId(sku), stockId(stock));
+transactionPrice 'Текущая цена в оборудовании' (Sku sku, Stock stock) =
+    transactionPrice(barcode(sku), stock) PERSISTENT TABLE extraSkuStock;
+transactionPriceIdBarcodeId 'Текущая цена в оборудовании' (STRING[15] sku, VARSTRING[100] stock) = transactionPrice(skuBarcode(sku), stock(stock));
 
 countDaysClearMachineryPriceTransaction 'За сколько дней хранить загрузки прайсов в оборудование' = DATA INTEGER (); 
 
@@ -235,10 +235,10 @@ DESIGN options { log { MOVE PROPERTY(countDaysClearMachineryPriceTransaction());
 
 clearApplicationLog () += ACTION () NEWSESSION {
     IF countDaysClearMachineryPriceTransaction() THEN {
-    inMachineryPriceTransactionBarcode(t, b) <- NULL WHERE NOT t == lastTransactionBarcodeGroupMachinery(b, groupMachineryMachineryPriceTransaction(t)) AND dateMachineryPriceTransaction(t) <= subtractDate(currentDate(), countDaysClearMachineryPriceTransaction());
+    in(MachineryPriceTransaction t, Barcode b) <- NULL WHERE NOT t == lastTransaction(b, groupMachinery(t)) AND date(t) <= subtract(currentDate(), countDaysClearMachineryPriceTransaction());
     apply();
     
-    DELETE t WHERE  t IS MachineryPriceTransaction AND NOT [= GROUP SUM 1 IF inMachineryPriceTransactionBarcode(t, b) BY t](t);
+    DELETE MachineryPriceTransaction t WHERE  t IS MachineryPriceTransaction AND NOT [= GROUP SUM 1 IF in(MachineryPriceTransaction t, Barcode b) BY t](t);
     apply();
     }
 }   
@@ -247,58 +247,58 @@ clearApplicationLog () += ACTION () NEWSESSION {
 CLASS MachineryPriceTransactionError 'Ошибка';
 TABLE machineryPriceTransactionError (MachineryPriceTransactionError);
 
-dataMachineryPriceTransactionError 'Сообщение об ошибке' = DATA VARSTRING[200] (MachineryPriceTransactionError) IN base;
-dateMachineryPriceTransactionError 'Время возникновения' = DATA DATETIME (MachineryPriceTransactionError) IN base;
-toDateMachineryPriceTransactionError 'Дата возникновения' (d) = DATE(dateMachineryPriceTransactionError(d));
-errorTraceMachineryPriceTransactionError 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
-machineryPriceTransactionMachineryPriceTransactionError 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NOT NULL DELETE IN base INDEXED;
-quantityMachineryPriceTransactionErrorMachineryPriceTransaction 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransactionMachineryPriceTransactionError (machineryPriceTransactionError) IN base;
-lastDateMachineryPriceTransactionErrorMachineryPriceTransaction 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX dateMachineryPriceTransactionError(machineryPriceTransactionError) BY machineryPriceTransactionMachineryPriceTransactionError (machineryPriceTransactionError);
+data 'Сообщение об ошибке' = DATA VARSTRING[200] (MachineryPriceTransactionError) IN base;
+date 'Время возникновения' = DATA DATETIME (MachineryPriceTransactionError) IN base;
+toDate 'Дата возникновения' (MachineryPriceTransactionError d) = DATE(date(d));
+errorTrace 'След исключения' = DATA TEXT (MachineryPriceTransactionError) IN base;
+machineryPriceTransaction 'Транзакция (ID)' = DATA MachineryPriceTransaction(MachineryPriceTransactionError) NOT NULL DELETE IN base INDEXED;
+quantityMachineryPriceTransactionError 'Количество ошибок' (MachineryPriceTransaction) = GROUP SUM 1 BY machineryPriceTransaction (MachineryPriceTransactionError machineryPriceTransactionError) IN base;
+lastDateMachineryPriceTransactionError 'Время последней ошибки' (MachineryPriceTransaction) = GROUP MAX date(MachineryPriceTransactionError machineryPriceTransactionError) BY machineryPriceTransaction (machineryPriceTransactionError);
 
-lastTransactionBarcodeStock (barcode, stock) =
-    GROUP LAST lastTransactionBarcodeGroupMachinery(b, g)
-          BY b, stockGroupMachinery(g)
-          ORDER orderMachineryPriceTransaction(lastTransactionBarcodeGroupMachinery(b, g))
-          WHERE lastTransactionBarcodeGroupMachinery(b, g);
+lastTransaction (barcode, stock) =
+    GROUP LAST lastTransaction(Barcode b, GroupMachinery g)
+          BY b, stock(g)
+          ORDER order(lastTransaction(b, g))
+          WHERE lastTransaction(b, g);
 
-backgroundLastTransactionSkuStock (sku, stock) = RGB (255,0,0) IF quantityMachineryPriceTransactionErrorMachineryPriceTransaction(lastTransactionBarcodeStock(barcodeSku(sku), stock)) AND NOT
-    succeededMachineryPriceTransaction(lastTransactionBarcodeStock (barcodeSku(sku), stock));  
+backgroundLastTransaction (Sku sku, Stock stock) = RGB (255,0,0) IF quantityMachineryPriceTransactionError(lastTransaction(barcode(sku), stock)) AND NOT
+    succeeded(lastTransaction (barcode(sku), stock));  
 
 @defineLog (MachineryPriceTransactionError, 'ошибок загрузки прайсов', log, toDate);
 
 // Загрузка в конкретные устройства
 TABLE machineryPriceTransactionMachinery (MachineryPriceTransaction, Machinery);
-inMachineryPriceTransactionMachinery 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
-nppsMachineryPriceTransaction 'Номера устройств' (transaction) =
-    GROUP CONCAT STRING[3](nppMachinery(machinery)) IF inMachineryPriceTransactionMachinery(transaction, machinery), ','
+in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Machinery);
+npps 'Номера устройств' (transaction) =
+    GROUP CONCAT STRING[3](npp(Machinery machinery)) IF in(MachineryPriceTransaction transaction, machinery), ','
           BY transaction
           ORDER machinery MINCHARWIDTH 10 PREFCHARWIDTH 20 PERSISTENT;
 
 // перезагрузка прайса целиком
-selectedGroupMachinery 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
-selectedMachinery 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
+selected 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
+selected 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
 
 GROUP snapshotMachineryPrice 'Перезагрузка прайса' : public;
 
 FORM groupMachineryInput 'Выбор оборудования для перезагрузки прайса'
 
     OBJECTS s = Stock FIXED PANEL
-    PROPERTIES(s) READONLY sname = nameStock
+    PROPERTIES(s) READONLY sname = name
 
     OBJECTS g = GroupMachinery
-    PROPERTIES(g) selectedGroupMachinery
-    PROPERTIES(g) READONLY nppGroupMachinery, nameGroupMachinery, nameStockGroupMachinery
-    FILTERS stockGroupMachinery(g) == s,
-            activeGroupMachinery(g)
+    PROPERTIES(g) selected
+    PROPERTIES(g) READONLY npp, name, nameStock
+    FILTERS stock(g) == s,
+            active(g)
         
     OBJECTS m = Machinery
-    PROPERTIES(m)          selectedMachinery
-    PROPERTIES(m) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery
+    PROPERTIES(m)          selected
+    PROPERTIES(m) READONLY npp, shortDescription, description, port
 
-    FILTERS groupMachineryMachinery(m) == g
+    FILTERS groupMachinery(m) == g
     
     FILTERGROUP mActive
-        FILTER 'Активные' NOT inactiveMachinery(m) DEFAULT 
+        FILTER 'Активные' NOT inactive(m) DEFAULT 
 ;
 
 DESIGN groupMachineryInput {
@@ -314,14 +314,14 @@ DESIGN groupMachineryInput {
 
 FORM machineryPriceTransaction 'Загрузка прайса в оборудование'
     OBJECTS t = MachineryPriceTransaction FIXED PANEL
-    PROPERTIES(t) nppGroupMachineryMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, timeMachineryPriceTransaction,
-                  snapshotMachineryPriceTransaction, dateTimeProcessingMachineryPriceTransaction SHOWIF notSucceededMachineryPriceTransaction(t), succeededMachineryPriceTransaction, 
-                  dateTimeSucceededMachineryPriceTransaction SHOWIF succeededMachineryPriceTransaction(t), canceledMachineryPriceTransaction
+    PROPERTIES(t) nppGroupMachinery, nameGroupMachinery, date, time,
+                  snapshot, dateTimeProcessing SHOWIF notSucceeded(t), succeeded, 
+                  dateTimeSucceeded SHOWIF succeeded(t), canceled
 
     OBJECTS b = Barcode
-    PROPERTIES(b) READONLY idBarcode
-    PROPERTIES(t, b)       inMachineryPriceTransactionBarcode, nameMachineryPriceTransactionBarcode, priceMachineryPriceTransactionBarcode
-    FILTERS inMachineryPriceTransactionBarcode(t, b)
+    PROPERTIES(b) READONLY id
+    PROPERTIES(t, b)       in, name, price
+    FILTERS in(t, b)
 
     EDIT MachineryPriceTransaction OBJECT t;
 ;
@@ -337,29 +337,29 @@ DESIGN machineryPriceTransaction {
 
 FORM machineryPriceTransactions 'Загрузки прайса в оборудование'
     OBJECTS s = Stock FIXED PANEL
-    PROPERTIES nameStock(s) SELECTOR
-    FILTERS isCompanyStock(s)
+    PROPERTIES name(s) SELECTOR
+    FILTERS isCompany(s)
 
     OBJECTS t = MachineryPriceTransaction LAST
-    PROPERTIES(t) READONLY OBJVALUE, snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, nameStockMachineryPriceTransaction, dateMachineryPriceTransaction, 
-                           timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, dateTimeProcessingMachineryPriceTransaction, 
-                           succeededMachineryPriceTransaction, dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
-                           quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(t),
-                           nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(t)
-    PROPERTIES(t) READONLY createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+    PROPERTIES(t) READONLY OBJVALUE, snapshot, nameGroupMachinery, nameStock, date, 
+                           time, description, dateTimeProcessing, 
+                           succeeded, dateTimeSucceeded, canceled, 
+                           quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(t),
+                           npps FORCE PANEL SHOWIF snapshot(t)
+    PROPERTIES(t) READONLY createdNameUser, createdHostnameComputer
     PROPERTIES(t)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    FILTERS stockMachineryPriceTransaction(t) == s
+    FILTERS stock(t) == s
 
     OBJECTS b = Barcode
-    PROPERTIES(b)    READONLY idBarcode
-    PROPERTIES(t, b) READONLY nameMachineryPriceTransactionBarcode, priceMachineryPriceTransactionBarcode
+    PROPERTIES(b)    READONLY id
+    PROPERTIES(t, b) READONLY name, price
 
-    FILTERS inMachineryPriceTransactionBarcode(t, b)
+    FILTERS in(t, b)
 
     OBJECTS e = MachineryPriceTransactionError LAST
-    PROPERTIES(e)  READONLY dataMachineryPriceTransactionError, dateMachineryPriceTransactionError
-    PROPERTIES(e)  FORCE PANEL  errorTraceMachineryPriceTransactionError
-    FILTERS machineryPriceTransactionMachineryPriceTransactionError(e) == t
+    PROPERTIES(e)  READONLY data, date
+    PROPERTIES(e)  FORCE PANEL  errorTrace
+    FILTERS machineryPriceTransaction(e) == t
 ;
 @extendFormFilterStockAccess(s, machineryPriceTransactions);
 
@@ -367,7 +367,7 @@ DESIGN machineryPriceTransactions {
     NEW header {
         type = CONTAINERH;
         MOVE s.box {
-            PROPERTY(nameStock(s)) {
+            PROPERTY(name(s)) {
                 alignment = STRETCH;
             }
         }
@@ -384,7 +384,7 @@ DESIGN machineryPriceTransactions {
                 fill = 1;
                 caption = 'Сообщения об ошибках';
                 MOVE e.box;
-                MOVE PROPERTY(errorTraceMachineryPriceTransactionError(e)) {
+                MOVE PROPERTY(errorTrace(e)) {
                     fill = 1;
                     panelCaptionAbove = TRUE;
                 }
@@ -413,67 +413,67 @@ FORM requestExchangeTypes 'Типы запросов'
 CLASS RequestExchange 'Запрос обмена данными';
 TABLE requestExchange (RequestExchange);
 
-stockRequestExchange 'Склад' = DATA Stock (RequestExchange) AUTOSET NOT NULL;
-nameStockRequestExchange 'Склад' (requestExchange) = nameStock(stockRequestExchange(requestExchange));
+stock 'Склад' = DATA Stock (RequestExchange) AUTOSET NOT NULL;
+nameStock 'Склад' (RequestExchange requestExchange) = name(stock(requestExchange));
 
 TABLE stockRequestExchange(Stock, RequestExchange);
-inStockRequestExchange 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
-extraStocksRequestExchange = GROUP CONCAT nameStock(stock) IF inStockRequestExchange(stock, requestExchange), ', ' 
+in 'Вкл' = DATA BOOLEAN (Stock, RequestExchange);  
+extraStocks = GROUP CONCAT name(Stock stock) IF in(stock, RequestExchange requestExchange), ', ' 
                                                 BY requestExchange
-                                                ORDER nameStock(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;                                                                         
-dateFromRequestExchange 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
-dateToRequestExchange 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
-startDateRequestExchange 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
-idDiscountCardFromRequestExchange 'Код дисконтной карты (с)' = DATA VARSTRING[100] (RequestExchange);
-idDiscountCardToRequestExchange 'Код дисконтной карты (по)' = DATA VARSTRING[100] (RequestExchange);
-requestExchangeTypeRequestExchange 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
-nameRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticName(requestExchangeTypeRequestExchange(requestExchange));
-captionRequestExchangeTypeRequestExchange 'Тип запроса' (requestExchange) = staticCaption(requestExchangeTypeRequestExchange(requestExchange));
-succeededRequestExchange 'Обработан' = DATA BOOLEAN (RequestExchange);
-notSucceededRequestExchange 'Не обработан' (requestExchange) = requestExchange IS RequestExchange AND NOT succeededRequestExchange(requestExchange);
-dateTimeSucceededRequestExchange 'Время обработки' = DATA DATETIME (RequestExchange);
-showExtraStocks(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.checkZReport OR 
-                                   requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.salesInfo OR 
-                                   requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.cashierInfo;
-showStartDate(requestExchange) = requestExchangeTypeRequestExchange(requestExchange) == RequestExchangeType.discountCard;
+                                                ORDER name(stock) MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT;                                                                         
+dateFrom 'Дата с' = DATA DATE (RequestExchange) NOT NULL;
+dateTo 'Дата по' = DATA DATE (RequestExchange) NOT NULL;
+startDate 'Загружать дисконтные карты начиная с даты' = DATA DATE (RequestExchange);
+idDiscountCardFrom 'Код дисконтной карты (с)' = DATA VARSTRING[100] (RequestExchange);
+idDiscountCardTo 'Код дисконтной карты (по)' = DATA VARSTRING[100] (RequestExchange);
+requestExchangeType 'Тип запроса' = DATA RequestExchangeType (RequestExchange) NOT NULL;
+nameRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticName(requestExchangeType(requestExchange));
+captionRequestExchangeType 'Тип запроса' (RequestExchange requestExchange) = staticCaption(requestExchangeType(requestExchange));
+succeeded 'Обработан' = DATA BOOLEAN (RequestExchange);
+notSucceeded 'Не обработан' (RequestExchange requestExchange) = requestExchange IS RequestExchange AND NOT succeeded(requestExchange);
+dateTimeSucceeded 'Время обработки' = DATA DATETIME (RequestExchange);
+showExtraStocks(RequestExchange requestExchange) = requestExchangeType(requestExchange) == RequestExchangeType.checkZReport OR 
+                                   requestExchangeType(requestExchange) == RequestExchangeType.salesInfo OR 
+                                   requestExchangeType(requestExchange) == RequestExchangeType.cashierInfo;
+showStartDate(RequestExchange requestExchange) = requestExchangeType(requestExchange) == RequestExchangeType.discountCard;
 
 TABLE machineryRequestExchange(Machinery, RequestExchange);
-dataInMachineryRequestExchange 'Вкл' = DATA BOOLEAN (Machinery, RequestExchange); 
-machineriesRequestExchange 'Оборудование' (requestExchange) = GROUP SUM 1 IF dataInMachineryRequestExchange(m, requestExchange) BY requestExchange;  
-inMachineryRequestExchange (machinery, requestExchange) = dataInMachineryRequestExchange(machinery, requestExchange) OR NOT machineriesRequestExchange(requestExchange);     
+dataIn 'Вкл' = DATA BOOLEAN (Machinery, RequestExchange); 
+machineries 'Оборудование' (requestExchange) = GROUP SUM 1 IF dataIn(Machinery m, RequestExchange requestExchange) BY requestExchange;  
+in (Machinery machinery, RequestExchange requestExchange) = dataIn(machinery, requestExchange) OR NOT machineries(requestExchange);     
      
 CLASS RequestExchangeLog 'Лог обмена данными';
 TABLE requestExchangeLog (RequestExchangeLog);
 
-machineryRequestExchangeLog 'Касса' = DATA Machinery (RequestExchangeLog);
-nppMachineryRequestExchangeLog 'Касса' (requestExchangeLog) = nppMachinery(machineryRequestExchangeLog(requestExchangeLog));
-messageRequestExchangeLog 'Сообщение' = DATA TEXT (RequestExchangeLog);
-dateRequestExchangeLog 'Время' = DATA DATETIME (RequestExchangeLog);
-requestExchangeRequestExchangeLog = DATA RequestExchange (RequestExchangeLog);
+machinery 'Касса' = DATA Machinery (RequestExchangeLog);
+nppMachinery 'Касса' (RequestExchangeLog requestExchangeLog) = npp(machinery(requestExchangeLog));
+message 'Сообщение' = DATA TEXT (RequestExchangeLog);
+date 'Время' = DATA DATETIME (RequestExchangeLog);
+requestExchange = DATA RequestExchange (RequestExchangeLog);
 
 CLASS RequestExchangeError 'Ошибки обмена данными';
 TABLE requestExchangeError (RequestExchangeError);
 
-messageRequestExchangeError 'Сообщение' = DATA TEXT (RequestExchangeError);
-dateRequestExchangeError 'Время' = DATA DATETIME (RequestExchangeError);
-requestExchangeRequestExchangeError = DATA RequestExchange (RequestExchangeError);
+message 'Сообщение' = DATA TEXT (RequestExchangeError);
+date 'Время' = DATA DATETIME (RequestExchangeError);
+requestExchange = DATA RequestExchange (RequestExchangeError);
 
 FORM requestExchange 'Запрос обмена данными'
     OBJECTS r = RequestExchange FIXED PANEL
-    PROPERTIES(r) nameStockRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
-                  captionRequestExchangeTypeRequestExchange, succeededRequestExchange, 
-                  startDateRequestExchange SHOWIF showStartDate(r), idDiscountCardFromRequestExchange SHOWIF showStartDate(r), idDiscountCardToRequestExchange SHOWIF showStartDate(r)
+    PROPERTIES(r) nameStock, dateFrom, dateTo, 
+                  captionRequestExchangeType, succeeded, 
+                  startDate SHOWIF showStartDate(r), idDiscountCardFrom SHOWIF showStartDate(r), idDiscountCardTo SHOWIF showStartDate(r)
  
     OBJECTS s = Stock FIXED GRID
-    PROPERTIES(s, r) SHOWIF showExtraStocks(r) inStockRequestExchange
-    PROPERTIES(s) SHOWIF showExtraStocks(r) idStock, nameStock, nameLegalEntityStock
-    ORDER BY nameLegalEntityStock(s)
-    FILTERS isCompanyStock(s)
+    PROPERTIES(s, r) SHOWIF showExtraStocks(r) in
+    PROPERTIES(s) SHOWIF showExtraStocks(r) id, name, nameLegalEntity
+    ORDER BY nameLegalEntity(s)
+    FILTERS isCompany(s)
     
     OBJECTS m = Machinery 
-    PROPERTIES(m, r) dataInMachineryRequestExchange
-    PROPERTIES(m) nppMachinery, shortDescriptionMachinery, descriptionMachinery, objectClassName  
-    FILTERS stockMachinery(m) == stockRequestExchange(r)  
+    PROPERTIES(m, r) dataIn
+    PROPERTIES(m) npp, shortDescription, description, objectClassName  
+    FILTERS stock(m) == stock(r)  
     
     EDIT RequestExchange OBJECT r
 ;
@@ -484,20 +484,20 @@ DESIGN requestExchange {
             caption = 'Запрос обмена данными';
             NEW firstRow {
                 type = CONTAINERH;
-                MOVE PROPERTY(nameStockRequestExchange(r));
-                MOVE PROPERTY(dateFromRequestExchange(r));
-                MOVE PROPERTY(dateToRequestExchange(r));
-                MOVE PROPERTY(captionRequestExchangeTypeRequestExchange(r));                
+                MOVE PROPERTY(nameStock(r));
+                MOVE PROPERTY(dateFrom(r));
+                MOVE PROPERTY(dateTo(r));
+                MOVE PROPERTY(captionRequestExchangeType(r));                
             }
             NEW secondRow {
                 type = CONTAINERH;
-                MOVE PROPERTY(succeededRequestExchange(r));
+                MOVE PROPERTY(succeeded(r));
             }            
             NEW thirdRow {
                 type = CONTAINERH;
-                MOVE PROPERTY(startDateRequestExchange(r));
-                MOVE PROPERTY(idDiscountCardFromRequestExchange(r));
-                MOVE PROPERTY(idDiscountCardToRequestExchange(r));                
+                MOVE PROPERTY(startDate(r));
+                MOVE PROPERTY(idDiscountCardFrom(r));
+                MOVE PROPERTY(idDiscountCardTo(r));                
             }
         }
         NEW tabbedPanel {
@@ -510,48 +510,48 @@ DESIGN requestExchange {
     }
 }
 
-copyRequestExchange 'Копировать' = ACTION (request) NEWSESSION {
+copy 'Копировать' = ACTION (RequestExchange request) NEWSESSION {
     FOR ADDOBJ r = RequestExchange DO {
-        stockRequestExchange(r) <- stockRequestExchange(request);
-        dateFromRequestExchange(r) <- dateFromRequestExchange(request);
-        dateToRequestExchange(r) <- dateToRequestExchange(request);
-        requestExchangeTypeRequestExchange(r) <- requestExchangeTypeRequestExchange(request);
-        startDateRequestExchange(r) <- startDateRequestExchange(request);
-        idDiscountCardFromRequestExchange(r) <- idDiscountCardFromRequestExchange(request);
-        idDiscountCardToRequestExchange(r) <- idDiscountCardToRequestExchange(request);
+        stock(r) <- stock(request);
+        dateFrom(r) <- dateFrom(request);
+        dateTo(r) <- dateTo(request);
+        requestExchangeType(r) <- requestExchangeType(request);
+        startDate(r) <- startDate(request);
+        idDiscountCardFrom(r) <- idDiscountCardFrom(request);
+        idDiscountCardTo(r) <- idDiscountCardTo(request);
         
-        FOR inStockRequestExchange(stock, request) DO {
-            inStockRequestExchange(stock, r) <- inStockRequestExchange(stock, request);
+        FOR in(Stock stock, request) DO {
+            in(stock, r) <- in(stock, request);
         }
         
-        FOR dataInMachineryRequestExchange(machinery, request) DO {
-            dataInMachineryRequestExchange(machinery, r) <- dataInMachineryRequestExchange(machinery, request);
+        FOR dataIn(Machinery machinery, request) DO {
+            dataIn(machinery, r) <- dataIn(machinery, request);
         }
         
         FORM requestExchange OBJECTS r = r MANAGESESSION DOCKEDMODAL;
     }   
 } TOOLBAR;
 
-allStocksRequestExchange 'Склады' (requestExchange)= 
-    CONCAT ',', nameStockRequestExchange(requestExchange), extraStocksRequestExchange(requestExchange) 
+allStocks 'Склады' (RequestExchange requestExchange)= 
+    CONCAT ',', nameStock(requestExchange), extraStocks(requestExchange) 
     MINCHARWIDTH 30 PREFCHARWIDTH 30 PERSISTENT; 
 
 FORM requestExchanges 'Запросы обмена данными'
     
     OBJECTS r = RequestExchange LAST
-    PROPERTIES(r) READONLY allStocksRequestExchange, dateFromRequestExchange, dateToRequestExchange, 
-                           captionRequestExchangeTypeRequestExchange, succeededRequestExchange, dateTimeSucceededRequestExchange,
-                           startDateRequestExchange SHOWIF showStartDate(r) FORCE PANEL, idDiscountCardFromRequestExchange SHOWIF showStartDate(r) FORCE PANEL, 
-                           idDiscountCardToRequestExchange SHOWIF showStartDate(r) FORCE PANEL
-    PROPERTIES(r)          copyRequestExchange, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(r) READONLY allStocks, dateFrom, dateTo, 
+                           captionRequestExchangeType, succeeded, dateTimeSucceeded,
+                           startDate SHOWIF showStartDate(r) FORCE PANEL, idDiscountCardFrom SHOWIF showStartDate(r) FORCE PANEL, 
+                           idDiscountCardTo SHOWIF showStartDate(r) FORCE PANEL
+    PROPERTIES(r)          copy, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     
     OBJECTS rl = RequestExchangeLog
-    PROPERTIES(rl) READONLY nppMachineryRequestExchangeLog, messageRequestExchangeLog, dateRequestExchangeLog
-    FILTERS requestExchangeRequestExchangeLog(rl) == r    
+    PROPERTIES(rl) READONLY nppMachinery, message, date
+    FILTERS requestExchange(rl) == r    
     
     OBJECTS re = RequestExchangeError
-    PROPERTIES(re) READONLY messageRequestExchangeError, dateRequestExchangeError
-    FILTERS requestExchangeRequestExchangeError(re) == r    
+    PROPERTIES(re) READONLY message, date
+    FILTERS requestExchange(re) == r    
 ;
 
 DESIGN requestExchanges {
@@ -579,51 +579,51 @@ DESIGN requestExchanges {
     }
 }
 
-createMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (GroupMachinery);
+createMachineryPriceTransaction = ABSTRACT ACTION LIST (GroupMachinery);
 
-skipInGroupMachinerySku = ABSTRACT CASE BOOLEAN (GroupMachinery, Sku);
-inGroupMachinerySku 'Вкл' (groupMachinery, sku) = groupMachinery IS GroupMachinery
+skipIn = ABSTRACT CASE BOOLEAN (GroupMachinery, Sku);
+in 'Вкл' (GroupMachinery groupMachinery, Sku sku) = groupMachinery IS GroupMachinery
                                                     AND sku IS Sku
-                                                         AND NOT (filterSkuGroupMachinery(groupMachinery) AND NOT inGroupMachinerySkuGroup(groupMachinery, skuGroupSku(sku)))
-                                                         AND NOT skipInGroupMachinerySku(groupMachinery, sku);
+                                                         AND NOT (filterSku(groupMachinery) AND NOT in(groupMachinery, skuGroup(sku)))
+                                                         AND NOT skipIn(groupMachinery, sku);
                                                          
-skipGroupMachineryBarcode = ABSTRACT CASE BOOLEAN (GroupMachinery, Barcode);
-skipMachineryPriceTransactionSkuStockDateTime 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
+skip = ABSTRACT CASE BOOLEAN (GroupMachinery, Barcode);
+skipMachineryPriceTransaction 'Запретить загрузку в оборудование' = ABSTRACT BOOLEAN (Sku, Stock, DATETIME);
 
 // Перезагрузка целиком
-snapshotAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
+snapshotAttribute = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
-snapshotGroupMachineryStock 'Ранее загруженные' = ACTION (stock) NEWSESSION {
+snapshotGroupMachinery 'Ранее загруженные' = ACTION (Stock stock) NEWSESSION {
     FORM groupMachineryInput OBJECTS s = stock MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR selectedGroupMachinery(groupMachinery) DO {
-            createMachineryPriceTransactionGroupMachinery(groupMachinery);
-            FOR t == addedObject() DO {
-                groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
-                commentMachineryPriceTransaction(t) <- 'Перезагрузка прайса целиком';
-                IF NOT skipSnapshotMachineryPriceTransaction(t) THEN {
-                    snapshotMachineryPriceTransaction(t) <- TRUE;
+        FOR selected(GroupMachinery groupMachinery) DO {
+            createMachineryPriceTransaction(groupMachinery);
+            FOR Object t == addedObject() DO {
+                groupMachinery[MachineryPriceTransaction](t) <- groupMachinery;
+                comment(t) <- 'Перезагрузка прайса целиком';
+                IF NOT skipSnapshot(t) THEN {
+                    snapshot(t) <- TRUE;
                 }
-                inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery) WHERE groupMachineryMachinery(machinery) == groupMachinery;
+                in(t, Machinery machinery) <- selected(machinery) WHERE groupMachinery(machinery) == groupMachinery;
 
-                LOCAL inBarcode = BOOLEAN (Barcode);
+                LOCAL in = BOOLEAN (Barcode);
 
-                inBarcode(barcode) <- TRUE IF prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery);
+                in(Barcode barcode) <- TRUE IF prevLastTransaction(barcode, groupMachinery);
 
                 // делаем разными запросами, чтобы было проще PostgreSQL
-                inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если активный штрихкод
+                in(Barcode barcode) <- active(barcode) WHERE in(barcode); // если активный штрихкод
 
-                inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
+                in(Barcode barcode) <- in(groupMachinery, sku(barcode)) WHERE in(barcode); // если на эту группу оборудования должна закачиваться
                 
-                inBarcode(barcode) <- NOT skuTypeSku(skuBarcode(barcode)) != SkuType.skuTypeItem WHERE inBarcode(barcode); // если это не товар
+                in(Barcode barcode) <- NOT skuType(sku(barcode)) != SkuType.skuTypeItem WHERE in(barcode); // если это не товар
                 
-                inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipGroupMachineryBarcode(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
-                inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND (skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()) OR inactiveSku(skuBarcode(barcode))); // если есть запрет на загрузку
+                in(Barcode barcode) <- NULL WHERE in(barcode) AND skip(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
+                in(Barcode barcode) <- NULL WHERE in(barcode) AND (skipMachineryPriceTransaction(sku(barcode), stock, currentDateTime()) OR inactive(sku(barcode))); // если есть запрет на загрузку
 
-                inMachineryPriceTransactionBarcode(t, barcode) <- inBarcode(barcode); // важно, что товар должен быть активным на текущий момент
-                nameMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionNameBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
-                snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery);
-                priceMachineryPriceTransactionBarcode(t, barcode) <- prevTransactionPriceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
+                in(t, Barcode barcode) <- in(barcode); // важно, что товар должен быть активным на текущий момент
+                name(t, Barcode barcode) <- prevTransactionName(barcode, groupMachinery) WHERE in(t, barcode);
+                snapshotAttribute(t, groupMachinery);
+                price(t, Barcode barcode) <- prevTransactionPrice(barcode, groupMachinery) WHERE in(t, barcode);
             }
         }
         apply();
@@ -635,78 +635,78 @@ GROUP incrementMachineryPrice 'Инкрементная загрузка' : publ
 
 // ------------------------------- Определение цены, по которой загружать ------------------------------- //
 
-priceBarcodeGroupMachinery 'Цена' (barcode, groupMachinery) = priceAPriceListTypeSkuStockDateTime(priceListTypeGroupMachinery(groupMachinery),
-                                                                                                  skuBarcode(barcode),
-                                                                                                  stockGroupMachinery(groupMachinery),
+price 'Цена' (Barcode barcode, GroupMachinery groupMachinery) = priceA(priceListType(groupMachinery),
+                                                                                                  sku(barcode),
+                                                                                                  stock(groupMachinery),
                                                                                                   currentDateTime());
 
 createMachineryPriceTransactionAll = DATA LOCAL BOOLEAN(); // установка флага на полное удаление старых товаров из кассы
 createMachineryPriceTransactionSnapshot = DATA LOCAL BOOLEAN (); // загрузка не только изменившихся цен
 
-createMachineryPriceTransactionSku = DATA LOCAL BOOLEAN (Sku);
+createMachineryPriceTransaction = DATA LOCAL BOOLEAN (Sku);
 
 createMachineryPriceTransactionDocument = DATA LOCAL PriceTransactionDocument();
 createMachineryPriceTransactionComment = DATA LOCAL VARSTRING[100] ();
 
-createAttributeMachineryPriceTransaction = ABSTRACT ACTION LIST (MachineryPriceTransaction);
-createAttributeMachineryPriceTransactionStock = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
-createAttributeMachineryPriceTransactionGroupMachinery = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
+createAttribute = ABSTRACT ACTION LIST (MachineryPriceTransaction);
+createAttribute = ABSTRACT ACTION LIST (MachineryPriceTransaction, Stock);
+createAttribute = ABSTRACT ACTION LIST (MachineryPriceTransaction, GroupMachinery);
 
 
-excludeGroupMachinery = DATA LOCAL BOOLEAN (GroupMachinery);
+exclude = DATA LOCAL BOOLEAN (GroupMachinery);
 
 supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать сообщение если загрузка не требуется
 
-createMachineryPriceTransaction 'Создать транзакцию' = ACTION (stock) {
+createMachineryPriceTransaction 'Создать транзакцию' = ACTION (Stock stock) {
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
     message() <- TEXT('Принято к загрузке в оборудование : \n');
 
-    FOR stockGroupMachinery(groupMachinery) == stock AND activeGroupMachinery(groupMachinery) AND NOT excludeGroupMachinery(groupMachinery) DO {
-        LOCAL inBarcode = BOOLEAN (Barcode);
+    FOR stock(GroupMachinery groupMachinery) == stock AND active(groupMachinery) AND NOT exclude(groupMachinery) DO {
+        LOCAL in = BOOLEAN (Barcode);
 
-        inBarcode(barcode) <- createMachineryPriceTransactionSku(skuBarcode(barcode));
+        in(Barcode barcode) <- createMachineryPriceTransaction(sku(barcode));
 
         // делаем разными запросами, чтобы было проще PostgreSQL
-        inBarcode(barcode) <- activeBarcode(barcode) WHERE inBarcode(barcode); // если активный штрихкод
+        in(Barcode barcode) <- active(barcode) WHERE in(barcode); // если активный штрихкод
 
-        inBarcode(barcode) <- inGroupMachinerySku(groupMachinery, skuBarcode(barcode)) WHERE inBarcode(barcode); // если на эту группу оборудования должна закачиваться
+        in(Barcode barcode) <- in(groupMachinery, sku(barcode)) WHERE in(barcode); // если на эту группу оборудования должна закачиваться
 
-        inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND skipGroupMachineryBarcode(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
+        in(Barcode barcode) <- NULL WHERE in(barcode) AND skip(groupMachinery, barcode); // если на эту группу оборудования должна закачиваться
 
-        inBarcode(barcode) <- NOT skuTypeSku(skuBarcode(barcode)) != SkuType.skuTypeItem WHERE inBarcode(barcode); // если это не товар
+        in(Barcode barcode) <- NOT skuType(sku(barcode)) != SkuType.skuTypeItem WHERE in(barcode); // если это не товар
 
-        inBarcode(barcode) <- TRUE IF priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inBarcode(barcode); // если есть цена
+        in(Barcode barcode) <- TRUE IF price(barcode, groupMachinery) WHERE in(barcode); // если есть цена
 
         IF NOT createMachineryPriceTransactionAll() AND NOT createMachineryPriceTransactionSnapshot() THEN
-            inBarcode(barcode) <- TRUE IF NOT (priceBarcodeGroupMachinery(barcode, groupMachinery) == transactionPriceBarcodeGroupMachinery(barcode, groupMachinery)) WHERE inBarcode(barcode);
+            in(Barcode barcode) <- TRUE IF NOT (price(barcode, groupMachinery) == transactionPrice(barcode, groupMachinery)) WHERE in(barcode);
             
-        inBarcode(barcode) <- NULL WHERE inBarcode(barcode) AND (skipMachineryPriceTransactionSkuStockDateTime(skuBarcode(barcode), stock, currentDateTime()) OR inactiveSku(skuBarcode(barcode))); // если есть запрет на загрузку
+        in(Barcode barcode) <- NULL WHERE in(barcode) AND (skipMachineryPriceTransaction(sku(barcode), stock, currentDateTime()) OR inactive(sku(barcode))); // если есть запрет на загрузку
         
         LOCAL countBarcode = INTEGER();
-        countBarcode() <- [= GROUP SUM 1 IF inBarcode(barcode)]();
+        countBarcode() <- [= GROUP SUM 1 IF in(Barcode barcode)]();
         LOCAL countSku = INTEGER();
-        countSku() <- [ = GROUP SUM 1 IF [= GROUP SUM 1 IF inBarcode(barcode) BY skuBarcode(barcode)](sku)]();        
+        countSku() <- [ = GROUP SUM 1 IF [= GROUP SUM 1 IF in(Barcode barcode) BY sku(barcode)](Sku sku)]();        
         
         IF countBarcode() THEN {
-            createMachineryPriceTransactionGroupMachinery(groupMachinery);
-            FOR t == addedObject() DO {
-                inMachineryPriceTransactionMachinery(t, machinery) <- selectedMachinery(machinery) WHERE groupMachineryMachinery(machinery) == groupMachinery;
-                groupMachineryMachineryPriceTransaction(t) <- groupMachinery;
-                priceTransactionDocumentMachineryPriceTransaction(t) <- createMachineryPriceTransactionDocument();
-                commentMachineryPriceTransaction(t) <- createMachineryPriceTransactionComment();
-                inMachineryPriceTransactionBarcode(t, barcode) <- inBarcode(barcode);
-                createAttributeMachineryPriceTransaction(t);
-                createAttributeMachineryPriceTransactionStock(t, stock);
-                createAttributeMachineryPriceTransactionGroupMachinery(t, groupMachineryMachineryPriceTransaction(t));
-                priceMachineryPriceTransactionBarcode(t, barcode) <- priceBarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
+            createMachineryPriceTransaction(groupMachinery);
+            FOR Object t == addedObject() DO {
+                in(t, Machinery machinery) <- selected(machinery) WHERE groupMachinery(machinery) == groupMachinery;
+                groupMachinery[MachineryPriceTransaction](t) <- groupMachinery;
+                priceTransactionDocument[MachineryPriceTransaction](t) <- createMachineryPriceTransactionDocument();
+                comment(t) <- createMachineryPriceTransactionComment();
+                in(t, Barcode barcode) <- in(barcode);
+                createAttribute(t);
+                createAttribute(t, stock);
+                createAttribute(t, groupMachinery[MachineryPriceTransaction](t));
+                price(t, Barcode barcode) <- price(barcode, groupMachinery) WHERE in(t, barcode);
                 
-                IF createMachineryPriceTransactionAll() AND NOT skipSnapshotMachineryPriceTransaction(t) THEN {
-                    snapshotMachineryPriceTransaction(t) <- TRUE;
+                IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {
+                    snapshot(t) <- TRUE;
                 }                    
             }
 
-            message() <- message() + nameGroupMachinery(groupMachinery) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих кодов).\n' ;
+            message() <- message() + name(groupMachinery) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих кодов).\n' ;
             sentSomething() <- TRUE;
         }
     }
@@ -718,57 +718,57 @@ createMachineryPriceTransaction 'Создать транзакцию' = ACTION (
             MESSAGE NO WAIT 'Загрузка прайса в оборудование не требуется.';
 };
 
-createBalanceMachineryPriceTransaction 'Остатки' = ACTION (stock) NEWSESSION {
-    createMachineryPriceTransactionSku(sku) <- TRUE IF currentBalanceSkuStock(sku, stock);
+createBalanceMachineryPriceTransaction 'Остатки' = ACTION (Stock stock) NEWSESSION {
+    createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
     createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
     createMachineryPriceTransaction(stock);
     apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createPriceMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION {
-    createMachineryPriceTransactionSku(sku) <- TRUE;
+createPriceMachineryPriceTransaction 'Все товары' = ACTION (Stock stock) NEWSESSION {
+    createMachineryPriceTransaction(Sku sku) <- TRUE;
     createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
     createMachineryPriceTransaction(stock);
     apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (stock) NEWSESSION {
-    createMachineryPriceTransactionSku(sku) <- TRUE;
+createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (Stock stock) NEWSESSION {
+    createMachineryPriceTransaction(Sku sku) <- TRUE;
     createMachineryPriceTransactionComment() <- 'Полная загрузка товаров';
     createMachineryPriceTransactionAll() <- TRUE;
     createMachineryPriceTransaction(stock);
     apply();
 } CONFIRM IN snapshotMachineryPrice;
 
-includeGroupMachinery 'Вкл.' = DATA LOCAL BOOLEAN (GroupMachinery);
+include 'Вкл.' = DATA LOCAL BOOLEAN (GroupMachinery);
 
 FORM selectGroupMachinery 'Выбор групп оборудования'
     OBJECTS st = Stock FIXED PANEL 
-    PROPERTIES(st) READONLY nameStock    
+    PROPERTIES(st) READONLY name    
     
     OBJECTS gm = GroupMachinery 
-    PROPERTIES(gm) includeGroupMachinery 
-    PROPERTIES(gm) READONLY nppGroupMachinery, nameGroupMachinery, portsGroupMachinery, objectClassName
-    FILTERS stockGroupMachinery(gm) == st,
-            activeGroupMachinery(gm)
+    PROPERTIES(gm) include 
+    PROPERTIES(gm) READONLY npp, name, ports, objectClassName
+    FILTERS stock(gm) == st,
+            active(gm)
             
     OBJECTS m = Machinery
-    PROPERTIES(m)          selectedMachinery
-    PROPERTIES(m) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery
+    PROPERTIES(m)          selected
+    PROPERTIES(m) READONLY npp, shortDescription, description, port
 
-    FILTERS groupMachineryMachinery(m) == gm
+    FILTERS groupMachinery(m) == gm
     
     FILTERGROUP mActive
-        FILTER 'Активные' NOT inactiveMachinery(m) DEFAULT 
+        FILTER 'Активные' NOT inactive(m) DEFAULT 
 ;
 DESIGN selectGroupMachinery { main{ preferredSize = (1024, 768); } }
 
-createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWSESSION {
+createSelectMachineryPriceTransaction 'Выборочно' = ACTION (Stock stock) NEWSESSION {
     FORM selectGroupMachinery OBJECTS st = stock MODAL;
-    IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF includeGroupMachinery(gm) BY stockGroupMachinery(gm)](stock) THEN {
-        excludeGroupMachinery(gm) <- TRUE WHERE stockGroupMachinery(gm) == stock AND NOT includeGroupMachinery(gm);
+    IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+        exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
         
-        createMachineryPriceTransactionSku(sku) <- TRUE;
+        createMachineryPriceTransaction(Sku sku) <- TRUE;
         createMachineryPriceTransactionComment() <- 'Выборочная загрузка товаров по группе оборудования';
         createMachineryPriceTransactionAll() <- TRUE;
         createMachineryPriceTransaction(stock);
@@ -779,10 +779,10 @@ createSelectMachineryPriceTransaction 'Выборочно' = ACTION (stock) NEWS
 
 
 GROUP documentMachineryPrice 'Из документа' : public;
-createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION (stock) NEWSESSION {
+createDocumentMachineryPriceTransaction 'Из документа' = ACTION (Stock stock) NEWSESSION {
     FORM documents DIALOG;
     IF formResult() == FormResult.ok THEN {
-        createMachineryPriceTransactionSku(sku) <- TRUE WHERE countDocumentDetailSkuDocument(sku, chosenObject('d'));        
+        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, chosenObject('d'));        
         createMachineryPriceTransactionDocument() <- chosenObject('d');
         createMachineryPriceTransactionSnapshot() <- TRUE ;
         createMachineryPriceTransaction(stock);
@@ -793,7 +793,7 @@ createDocumentMachineryPriceTransactionStock 'Из документа' = ACTION 
 EXTEND FORM machineryPriceTransactions
     PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, 
                   createSnapshotMachineryPriceTransaction, createSelectMachineryPriceTransaction, 
-                  snapshotGroupMachineryStock, createDocumentMachineryPriceTransactionStock
+                  snapshotGroupMachinery, createDocumentMachineryPriceTransaction
 ;
 
 DESIGN machineryPriceTransactions {
@@ -807,54 +807,54 @@ DESIGN machineryPriceTransactions {
 // -------------------- Создание новых атрибутов ----------------- //
 
 META defineMachineryPriceTransactionAttributeBase(object, caption, nameProp)
-    prevTransaction###object##BarcodeGroupMachinery caption###' (тек.)' (barcode, groupMachinery)  =
-        object##MachineryPriceTransactionBarcode(prevLastTransactionBarcodeGroupMachinery(barcode, groupMachinery), barcode);
+    prevTransaction###object caption###' (тек.)' (Barcode barcode, GroupMachinery groupMachinery)  =
+        object(prevLastTransaction(barcode, groupMachinery), barcode);
 
-    snapshotAttributeMachineryPriceTransactionGroupMachinery(t, groupMachinery) +=
-        ACTION ASSIGN object##MachineryPriceTransactionBarcode(t, barcode) <- prevTransaction###object##BarcodeGroupMachinery(barcode, groupMachinery) WHERE inMachineryPriceTransactionBarcode(t, barcode);
+    snapshotAttribute(MachineryPriceTransaction t, GroupMachinery groupMachinery) +=
+        ACTION ASSIGN object(t, Barcode barcode) <- prevTransaction###object(barcode, groupMachinery) WHERE in(t, barcode);
 
-    EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) nameProp###object##MachineryPriceTransactionBarcode;
-    EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY nameProp###object##MachineryPriceTransactionBarcode;
-    EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY FORCE GRID nameProp###object##MachineryPriceTransactionBarcode;
+    EXTEND FORM machineryPriceTransaction PROPERTIES(t, b) nameProp###object;
+    EXTEND FORM machineryPriceTransactions PROPERTIES(t, b) READONLY nameProp###object;
+    EXTEND FORM machineryPriceTransactions PROPERTIES(mt, bb) READONLY FORCE GRID nameProp###object;
 END
 
 META defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
-    over###object##MachineryPriceTransactionBarcode = ABSTRACT type (MachineryPriceTransaction, Barcode);
-    createAttributeMachineryPriceTransaction(t) += ACTION ASSIGN object##MachineryPriceTransactionBarcode(t, barcode) <- OVERRIDE object##Barcode(barcode), over###object##MachineryPriceTransactionBarcode(t, barcode)
-                                                          WHERE inMachineryPriceTransactionBarcode(t, barcode);
+    over###object = ABSTRACT type (MachineryPriceTransaction, Barcode);
+    createAttribute(MachineryPriceTransaction t) += ACTION ASSIGN object(t, Barcode barcode) <- OVERRIDE object(barcode), over###object(t, barcode)
+                                                          WHERE in(t, barcode);
 END
 
 META defineMachineryPriceTransactionAttribute(object, caption, type)
-    object###MachineryPriceTransactionBarcode caption = DATA type (MachineryPriceTransaction, Barcode);
-    object###MachineryPriceTransactionBarcode(t, barcode) => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
+    object caption = DATA type (MachineryPriceTransaction, Barcode);
+    object(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
     @defineMachineryPriceTransactionAttributeAction(object, caption, type, );
 END
 
 META defineMachineryPriceTransactionAttribute(object, caption, type, nameProp)
-    object###MachineryPriceTransactionBarcode = DATA type (MachineryPriceTransaction, Barcode);
-    object###MachineryPriceTransactionBarcode(t, barcode) => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
-    nameProp###object###MachineryPriceTransactionBarcode caption (transaction, barcode) =
-        nameProp###object(object###MachineryPriceTransactionBarcode(transaction, barcode));
+    object = DATA type (MachineryPriceTransaction, Barcode);
+    object(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+    nameProp##type caption (MachineryPriceTransaction transaction, Barcode barcode) =
+        nameProp(object(transaction, barcode));
     @defineMachineryPriceTransactionAttributeAction(object, caption, type, nameProp);
 END
 
 META defineMachineryPriceTransactionAttributeStockAction(object, caption, nameProp)
     @defineMachineryPriceTransactionAttributeBase(object, caption, nameProp);
-    createAttributeMachineryPriceTransactionStock(t, stock) += ACTION ASSIGN object##MachineryPriceTransactionBarcode(t, barcode) <- object##BarcodeStock(barcode, stock)
-                                                                      WHERE inMachineryPriceTransactionBarcode(t, barcode);
+    createAttribute(MachineryPriceTransaction t, Stock stock) += ACTION ASSIGN object(t, Barcode barcode) <- object(barcode, stock)
+                                                                      WHERE in(t, barcode);
 END
 META defineMachineryPriceTransactionAttributeStock(object, caption, type)
-    object###MachineryPriceTransactionBarcode caption = DATA type (MachineryPriceTransaction, Barcode);
-    object###MachineryPriceTransactionBarcode(t, barcode) => inMachineryPriceTransactionBarcode(t, barcode) RESOLVE RIGHT;
+    object caption = DATA type (MachineryPriceTransaction, Barcode);
+    object(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
     @defineMachineryPriceTransactionAttributeStockAction(object, caption, );
 END
 
 // Номер PLU
-pluNumberMachineryPriceTransactionBarcode 'Номер PLU' = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
+pluNumber 'Номер PLU' = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
 
 // Набор флагов
-flagsMachineryPriceTransactionBarcode 'Флаги' = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
+flags 'Флаги' = ABSTRACT INTEGER (MachineryPriceTransaction, Barcode);
 
 snapshotDocumentMachineryPriceTransaction 'Загружать в оборудование все позиции документа' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -871,48 +871,48 @@ DESIGN options {
 
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
-    createMachineryPriceTransaction###document 'Загрузить в оборудование' = ACTION (document) NEWSESSION {
+    createMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (###document document) NEWSESSION {
     
-        IF isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()) THEN {
+        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
         }
-        IF is###document(document) AND (confirmed() OR NOT (isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()))) THEN { 
+        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
             IF snapshotDocumentMachineryPriceTransaction() THEN
                 createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransactionSku(sku) <- TRUE IF count###detailProp##Detail###skuProp###document(sku, document);
+            createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
             createMachineryPriceTransactionDocument() <- document;
-            createMachineryPriceTransaction(stockProp###document(document));
-            sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+            createMachineryPriceTransaction(stockProp(document));
+            sent(document) <- TRUE WHERE isPosted(document);
         }
         apply();
     } TOOLBAR CONFIRM;
     
-    createMachineryPriceTransactionPriceTransactionDocument(document) += ACTION createMachineryPriceTransaction###document(document);
+    createMachineryPriceTransaction(###document document) += ACTION createMachineryPriceTransaction(document);
     
-    createSnapshotMachineryPriceTransaction###document 'Перегрузить все позиции' = ACTION (document) NEWSESSION {
-        IF isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()) THEN {
+    createSnapshotMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (###document document) NEWSESSION {
+        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
         }
-        IF is###document(document) AND (confirmed() OR NOT (isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()))) THEN { 
+        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
             createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransactionSku(sku) <- TRUE IF count###detailProp##Detail###skuProp###document(sku, document);
+            createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
             createMachineryPriceTransactionDocument() <- document;
-            createMachineryPriceTransaction(stockProp###document(document));
-            sentPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+            createMachineryPriceTransaction(stockProp(document));
+            sent(document) <- TRUE WHERE isPosted(document);
         }
         apply();
     } CONFIRM;
     
-    createSnapshotMachineryPriceTransactionPriceTransactionDocument(document) += ACTION createSnapshotMachineryPriceTransaction###document(document);
+    createSnapshotMachineryPriceTransaction(###document document) += ACTION createSnapshotMachineryPriceTransaction(document);
 
-    showCreateMachineryPriceTransaction###document 'Показывать' (document) = isPosted###document(document) AND NOT Machinery.skipPriceTransactionDocument(document)
-                                                                                                           AND NOT sentPriceTransactionDocument(document);
-    showCreateMachineryPriceTransactionPriceTransactionDocument (document) += showCreateMachineryPriceTransaction###document(document);
+    showCreateMachineryPriceTransaction 'Показывать' (###document document) = isPosted(document) AND NOT Machinery.skip(document)
+                                                                                                           AND NOT sent(document);
+    showCreateMachineryPriceTransaction (###document document) += showCreateMachineryPriceTransaction(document);
                                                                                                            
-    backgroundCreateMachineryPriceTransaction###document 'Цвет' (document) = IF countProcessPriceTransactionDocument(document) THEN
+    backgroundCreateMachineryPriceTransaction 'Цвет' (PriceTransactionDocument document) = IF countProcess(document) THEN
                                                                                 RGB(255,255,128)
                                                                              ELSE
-                                                                                RGB(212,255,212) IF showCreateMachineryPriceTransaction###document(document);
+                                                                                RGB(212,255,212) IF showCreateMachineryPriceTransaction[###document](document);
 END
 
 META defineDocumentMachineryPriceTransaction (document, skuProp, stockProp)
@@ -922,9 +922,9 @@ END
 
 META extendFormDocumentMachineryPriceTransaction(form, object, document, afterProp, propContainer)
     EXTEND FORM form
-        PROPERTIES(object) statusMachineryPriceTransactionDocument BACKGROUND backgroundCreateMachineryPriceTransaction###document(object) READONLY AFTER afterProp###document(object),        
-                           createMachineryPriceTransaction###document FORCE PANEL SHOWIF showCreateMachineryPriceTransaction###document(object),
-                           createSnapshotMachineryPriceTransaction###document FORCE PANEL SHOWIF isPosted###document(object)
+        PROPERTIES(object) statusMachinery BACKGROUND backgroundCreateMachineryPriceTransaction(object) READONLY AFTER afterProp(object),        
+                           createMachineryPriceTransaction FORCE PANEL SHOWIF showCreateMachineryPriceTransaction(object),
+                           createSnapshotMachineryPriceTransaction FORCE PANEL SHOWIF isPosted(object)
     ;
     DESIGN form {
         propContainer{
@@ -932,8 +932,8 @@ META extendFormDocumentMachineryPriceTransaction(form, object, document, afterPr
                 caption = 'Загрузки' ;
                 type = CONTAINERV;    
                         
-                MOVE PROPERTY (createMachineryPriceTransaction###document(object));
-                MOVE PROPERTY (createSnapshotMachineryPriceTransaction###document(object));
+                MOVE PROPERTY (createMachineryPriceTransaction(object));
+                MOVE PROPERTY (createSnapshotMachineryPriceTransaction(object));
             }
         }
     }
@@ -958,14 +958,14 @@ DESIGN options {
     }
 }
 
-createSelectedSkuPriceTransactionDocumentStock 'Загрузить в оборудование' = ACTION (stock) NEWSESSION NESTED selectSku {
-    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
+createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование' = ACTION (Stock stock) NEWSESSION NESTED select[Sku] {
+    IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
         createMachineryPriceTransactionSnapshot() <- TRUE;
-        createMachineryPriceTransactionSku(sku) <- TRUE IF selectSku(sku);
+        createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku);
         createMachineryPriceTransaction(stock);
         
         IF NOT notResetMachinerySelectSku() THEN {
-            selectSku(sku) <- NULL;
+            select(Sku sku) <- NULL;
         }
         APPLY NESTED LOCAL {};
         IF canceled() THEN {
@@ -976,22 +976,22 @@ createSelectedSkuPriceTransactionDocumentStock 'Загрузить в обору
     }
 } TOOLBAR ;
 
-createApplySelectedSkuPriceTransactionDocumentStock 'Загрузить в оборудование' = ACTION (stock) {
-    APPLY NESTED selectSku {};
+createApplySelectedSkuPriceTransactionDocument 'Загрузить в оборудование' = ACTION (Stock stock) {
+    APPLY NESTED select[Sku] {};
     IF NOT canceled() THEN {
-        createSelectedSkuPriceTransactionDocumentStock(stock);
+        createSelectedSkuPriceTransactionDocument(stock);
     }
 }
 
-createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION NESTED selectSkuStock, createMachineryPriceTransactionSnapshot, createMachineryPriceTransactionSku {
-    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) DO {
+createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION NESTED select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku] {
+    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+        FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
             createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransactionSku(sku) <- TRUE IF selectSkuStock(sku, stock);
+            createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku, stock);
             createMachineryPriceTransaction(stock);
         }
         IF NOT notResetMachinerySelectSku() THEN {
-            selectSkuStock(sku, stock) <- NULL;
+            select(Sku sku, Stock stock) <- NULL;
         }
         APPLY NESTED LOCAL {};
         IF canceled() THEN {
@@ -1013,16 +1013,16 @@ DESIGN currentBalanceSkuStock {
     }
 }
 //-- Частичная загрузка
-filterMachineryMachineryPriceTransaction (machinery, transaction)= IF nppsMachineryPriceTransaction(transaction) 
-                                                                        THEN inMachineryPriceTransactionMachinery(transaction, machinery) AND groupMachineryMachinery(machinery) == groupMachineryMachineryPriceTransaction(transaction)
-                                                                        ELSE groupMachineryMachinery(machinery) == groupMachineryMachineryPriceTransaction(transaction); 
+filter (Machinery machinery, MachineryPriceTransaction transaction)= IF npps(transaction) 
+                                                                        THEN in(transaction, machinery) AND groupMachinery(machinery) == groupMachinery(transaction)
+                                                                        ELSE groupMachinery(machinery) == groupMachinery(transaction); 
 EXTEND FORM machineryPriceTransaction
     OBJECTS m = Machinery FIXED GRID
-    PROPERTIES(m) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, objectClassName//, dataDirectoryCashRegister
-    PROPERTIES(t, m) inMachineryPriceTransactionMachinery
-    FILTERS groupMachineryMachinery(m) == groupMachineryMachineryPriceTransaction(t) 
-    PROPERTIES(m, t) clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t), 
-                     succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction                     
+    PROPERTIES(m) READONLY npp, shortDescription, description, objectClassName//, dataDirectoryCashRegister
+    PROPERTIES(t, m) in
+    FILTERS groupMachinery(m) == groupMachinery(t) 
+    PROPERTIES(m, t) cleared SHOWIF snapshot(t), 
+                     succeeded, dateTimeSucceeded                     
 ;
 
 DESIGN machineryPriceTransaction {
@@ -1036,68 +1036,68 @@ DESIGN machineryPriceTransaction {
 EXTEND FORM machineryPriceTransactions
 
     OBJECTS m = Machinery FIXED GRID
-    PROPERTIES(m) READONLY  nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, objectClassName//dataDirectoryCashRegister
-    PROPERTIES(t, m) READONLY inMachineryPriceTransactionMachinery
-    FILTERS filterMachineryMachineryPriceTransaction(m, t) 
-    PROPERTIES(m, t) READONLY clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t),
-                              succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
+    PROPERTIES(m) READONLY  npp, shortDescription, description, port, objectClassName//dataDirectoryCashRegister
+    PROPERTIES(t, m) READONLY in
+    FILTERS filter(m, t) 
+    PROPERTIES(m, t) READONLY cleared SHOWIF snapshot(t),
+                              succeeded, dateTimeSucceeded
     FILTERGROUP mActive
-        FILTER 'Активные' NOT inactiveMachinery(m) DEFAULT 
+        FILTER 'Активные' NOT inactive(m) DEFAULT 
 
     OBJECTS dt = DATE FIXED  PANEL
     PROPERTIES(dt) val = OBJVALUE 
 
     OBJECTS tt = MachineryPriceTransaction LAST
-    PROPERTIES(tt) READONLY FORCE GRID OBJVALUE, snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, nameStockMachineryPriceTransaction, dateMachineryPriceTransaction, 
-                            timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, dateTimeProcessingMachineryPriceTransaction, 
-                            succeededMachineryPriceTransaction, dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
-                            quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(tt),
-                            nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(tt)
-    PROPERTIES(tt) READONLY FORCE GRID createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+    PROPERTIES(tt) READONLY FORCE GRID OBJVALUE, snapshot, nameGroupMachinery, nameStock, date, 
+                            time, description, dateTimeProcessing, 
+                            succeeded, dateTimeSucceeded, canceled, 
+                            quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(tt),
+                            npps FORCE PANEL SHOWIF snapshot(tt)
+    PROPERTIES(tt) READONLY FORCE GRID createdNameUser, createdHostnameComputer
     PROPERTIES(tt)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    FILTERS NOT succeededMachineryPriceTransaction(tt) AND NOT canceledMachineryPriceTransaction(tt) //OR (countSucceededMachineriesMachineryPriceTransaction(tt) != countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(tt)))
+    FILTERS NOT succeeded(tt) AND NOT canceled(tt) //OR (countSucceededMachineriesMachineryPriceTransaction(tt) != countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(tt)))
     FILTERGROUP stockFilter
-        FILTER 'По складу' stockMachineryPriceTransaction(tt) == s 'F11'      
+        FILTER 'По складу' stock(tt) == s 'F11'      
     FILTERGROUP dateFilter
-        FILTER 'На дату' dateMachineryPriceTransaction(tt) == dt 'F10'  
+        FILTER 'На дату' date(tt) == dt 'F10'  
           
     OBJECTS bt = Barcode
-    PROPERTIES(bt)    READONLY idBarcode
-    PROPERTIES(tt, bt) READONLY nameMachineryPriceTransactionBarcode, priceMachineryPriceTransactionBarcode
+    PROPERTIES(bt)    READONLY id
+    PROPERTIES(tt, bt) READONLY name, price
     
-    FILTERS inMachineryPriceTransactionBarcode(tt, bt)
+    FILTERS in(tt, bt)
     
     OBJECTS et = MachineryPriceTransactionError LAST
-    PROPERTIES(et)  READONLY dataMachineryPriceTransactionError, dateMachineryPriceTransactionError
-    PROPERTIES(et)  FORCE PANEL  errorTraceMachineryPriceTransactionError
-    FILTERS machineryPriceTransactionMachineryPriceTransactionError(et) == tt    
+    PROPERTIES(et)  READONLY data, date
+    PROPERTIES(et)  FORCE PANEL  errorTrace
+    FILTERS machineryPriceTransaction(et) == tt    
       
     OBJECTS mtt = Machinery FIXED GRID
-    PROPERTIES(mtt) READONLY nppMachinery, shortDescriptionMachinery, descriptionMachinery, portMachinery, objectClassName//, dataDirectoryCashRegister
-    PROPERTIES(tt, mtt) inMachineryPriceTransactionMachinery
-    FILTERS groupMachineryMachinery(mtt) == groupMachineryMachineryPriceTransaction(tt) 
-    PROPERTIES(mtt, tt) clearedMachineryMachineryPriceTransaction SHOWIF snapshotMachineryPriceTransaction(t),
-                        succeededMachineryMachineryPriceTransaction, dateTimeSucceededMachineryMachineryPriceTransaction
+    PROPERTIES(mtt) READONLY npp, shortDescription, description, port, objectClassName//, dataDirectoryCashRegister
+    PROPERTIES(tt, mtt) in
+    FILTERS groupMachinery(mtt) == groupMachinery(tt) 
+    PROPERTIES(mtt, tt) cleared SHOWIF snapshot(t),
+                        succeeded, dateTimeSucceeded
     FILTERGROUP mttActive
-        FILTER 'Активные' NOT inactiveMachinery(mtt) DEFAULT 
+        FILTER 'Активные' NOT inactive(mtt) DEFAULT 
 //--
     OBJECTS bb = Barcode
-    PROPERTIES(bb)    READONLY idBarcode, nameSkuBarcode, idSkuBarcode
+    PROPERTIES(bb)    READONLY id, nameSku, idSku
     FILTERGROUP price
-        FILTER 'Ранее загруженные' transactionPriceBarcodeStock(bb,s) 'F8' DEFAULT
+        FILTER 'Ранее загруженные' transactionPrice(bb,s) 'F8' DEFAULT
 
     OBJECTS mt = MachineryPriceTransaction
-    PROPERTIES(mt) READONLY snapshotMachineryPriceTransaction, nameGroupMachineryMachineryPriceTransaction, dateMachineryPriceTransaction, 
-                           timeMachineryPriceTransaction, descriptionMachineryPriceTransaction, dateTimeProcessingMachineryPriceTransaction, 
-                           succeededMachineryPriceTransaction, dateTimeSucceededMachineryPriceTransaction, canceledMachineryPriceTransaction, 
-                           quantityMachineryPriceTransactionErrorMachineryPriceTransaction BACKGROUND quantityMachineryPriceTransactionErrorMachineryPriceTransaction(mt),
-                           nppsMachineryPriceTransaction FORCE PANEL SHOWIF snapshotMachineryPriceTransaction(mt)
-    PROPERTIES(mt) READONLY createdNameUserMachineryPriceTransaction, createdHostnameComputerMachineryPriceTransaction
+    PROPERTIES(mt) READONLY snapshot, nameGroupMachinery, date, 
+                           time, description, dateTimeProcessing, 
+                           succeeded, dateTimeSucceeded, canceled, 
+                           quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(mt),
+                           npps FORCE PANEL SHOWIF snapshot(mt)
+    PROPERTIES(mt) READONLY createdNameUser, createdHostnameComputer
     
-    PROPERTIES(mt, bb) READONLY nameMachineryPriceTransactionBarcode, priceMachineryPriceTransactionBarcode
-    ORDER BY dateMachineryPriceTransaction(mt) DESC, timeMachineryPriceTransaction(mt) DESC
-    FILTERS stockMachineryPriceTransaction(mt) == s
-    FILTERS inMachineryPriceTransactionBarcode(mt, bb)          
+    PROPERTIES(mt, bb) READONLY name, price
+    ORDER BY date(mt) DESC, time(mt) DESC
+    FILTERS stock(mt) == s
+    FILTERS in(mt, bb)          
 ;
 
 DESIGN machineryPriceTransactions{
@@ -1133,7 +1133,7 @@ DESIGN machineryPriceTransactions{
                     fill = 1;
                     caption = 'Сообщения об ошибках';
                     MOVE et.box;
-                    MOVE PROPERTY(errorTraceMachineryPriceTransactionError(et)) {
+                    MOVE PROPERTY(errorTrace(et)) {
                         fill = 1;
                         panelCaptionAbove = TRUE;
                     }
@@ -1162,10 +1162,10 @@ DESIGN machineryPriceTransactions{
 @defineMachineryPriceTransactionAttribute(idUOM, 'Код единицы измерения', VARSTRING[100]);
 @defineMachineryPriceTransactionAttributeStock(expiryDate, 'Срок годности (дата)', DATE);
 
-expiryDaysBarcode 'Срок годности в днях' = expiryDaysSku(skuBarcode(barcode));
+expiryDays 'Срок годности в днях' = expiryDays(sku(Barcode barcode));
 @defineMachineryPriceTransactionAttribute(expiryDays, 'Срок годности в днях', INTEGER);
 
-dataMinPriceBarcodeStock 'Минимальная цена' = ABSTRACT NUMERIC[14,2] (Barcode, Stock);
+dataMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[14,2] (Barcode, Stock);
 @defineMachineryPriceTransactionAttributeStock(dataMinPrice, 'Минимальная цена', NUMERIC[14,2]);
 
-minPriceMachineryPriceTransactionBarcode(m, b) =  MIN dataMinPriceMachineryPriceTransactionBarcode(m, b), priceMachineryPriceTransactionBarcode(m, b);
+minPrice(MachineryPriceTransaction m, Barcode b) =  MIN dataMinPrice(m, b), price(m, b);

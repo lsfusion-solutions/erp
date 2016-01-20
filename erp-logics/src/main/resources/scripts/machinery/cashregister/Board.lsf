@@ -4,20 +4,20 @@ REQUIRE System,
         POS;
         
 // Параметры табло
-comPortBoardCashRegister 'Порт табло' = DATA INTEGER (CashRegister) IN base;
-comPortBoardCurrentCashRegister 'Порт табло' = comPortBoardCashRegister(currentCashRegister());
+comPortBoard 'Порт табло' = DATA INTEGER (CashRegister) IN base;
+comPortBoardCurrentCashRegister 'Порт табло' = comPortBoard(currentCashRegister());
 
-baudRateBoardCashRegister 'Скорость табло' = DATA INTEGER (CashRegister) IN base;
-baudRateBoardCurrentCashRegister 'Скорость табло' = baudRateBoardCashRegister(currentCashRegister());
+baudRateBoard 'Скорость табло' = DATA INTEGER (CashRegister) IN base;
+baudRateBoardCurrentCashRegister 'Скорость табло' = baudRateBoard(currentCashRegister());
 
 EXTEND FORM groupCashRegister
-    PROPERTIES(c) comPortBoardCashRegister, baudRateBoardCashRegister
+    PROPERTIES(c) comPortBoard, baudRateBoard
 ;
 
 // Использование в POS
-fiscalBoardDisplayTextReceiptDetail 'Вывести текст на дисплей' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardDisplayTextActionProperty' (ReceiptDetail);
-fiscalDisplayTextReceiptDetail (receiptDetail) += ACTION IF comPortBoardCashRegister(cashRegisterReceipt(receiptReceiptDetail((receiptDetail)))) THEN fiscalBoardDisplayTextReceiptDetail(receiptDetail);
+fiscalBoardDisplayText 'Вывести текст на дисплей' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardDisplayTextActionProperty' (ReceiptDetail);
+fiscalDisplayText (ReceiptDetail receiptDetail) += ACTION IF comPortBoard(cashRegister(receipt((receiptDetail)))) THEN fiscalBoardDisplayText(receiptDetail);
 
-fiscalBoardResetTextReceipt 'Сбросить текст на дисплее' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardResetTextActionProperty' (Receipt);
-postPrintReceipt (receipt) += ACTION IF comPortBoardCashRegister(cashRegisterReceipt(receipt)) THEN fiscalBoardResetTextReceipt(receipt);
-resetBoardReceipt (receipt) += ACTION IF comPortBoardCashRegister(cashRegisterReceipt(receipt)) THEN fiscalBoardResetTextReceipt(receipt);
+fiscalBoardResetText 'Сбросить текст на дисплее' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.board.fiscalboard.FiscalBoardResetTextActionProperty' (Receipt);
+postPrint (Receipt receipt) += ACTION IF comPortBoard(cashRegister(receipt)) THEN fiscalBoardResetText(receipt);
+resetBoard (Receipt receipt) += ACTION IF comPortBoard(cashRegister(receipt)) THEN fiscalBoardResetText(receipt);

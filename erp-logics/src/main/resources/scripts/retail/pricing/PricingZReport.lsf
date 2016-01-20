@@ -16,18 +16,18 @@ TABLE zReportRepricing (ZReportRepricing);
 @defineDocumentAggregationHeaderTime(zReport, zReportRepricing);
 @defineDocumentAggregationHeaderStock(zReport, zReportRepricing, departmentStore, , 'Отдел магазина');
 @defineDocumentAggregationHeaderPosted(zReport, zReportRepricing);
-isClosedZReportRepricing 'Закрыт' (o) = isClosedZReport(zReportZReportRepricing(o));
-numberCashRegisterZReportRepricing (zReportRepricing) = overNumberCashRegisterZReport(zReportZReportRepricing(zReportRepricing));
+isClosed 'Закрыт' (ZReportRepricing o) = isClosed(zReport(o));
+numberCashRegister (ZReportRepricing zReportRepricing) = overNumberCashRegister(zReport(zReportRepricing));
 
-discountZReportRepricing (zReportRepricing) = discountSumReceiptDetailZReport(zReportZReportRepricing(zReportRepricing));
+discount (ZReportRepricing zReportRepricing) = discountSumReceiptDetail(zReport(zReportRepricing));
 
-descriptionZReportRepricing (zReportRepricing) =
-    VARSTRING[200]('Скидка по кассе ' + numberCashRegisterZReportRepricing(zReportRepricing) + ' отдела ' + nameDepartmentStoreZReportRepricing(zReportRepricing) + ' от ' + dateZReportRepricing(zReportRepricing));
+description (ZReportRepricing zReportRepricing) =
+    VARSTRING[200]('Скидка по кассе ' + numberCashRegister(zReportRepricing) + ' отдела ' + nameDepartmentStore(zReportRepricing) + ' от ' + date(zReportRepricing));
 
 @implementStockDocumentLedgerOut(ZReportRepricing, departmentStore);
-typeStockDocumentLedger(l) += 'Скидка по кассе' IF l IS ZReportRepricing;
-sumItemOutStockDocumentLedger (ledger) += discountZReportRepricing(ledger);
-sumContainerOutStockDocumentLedger (ledger) += 0.0 IF ledger IS ZReportRepricing;
-skipStockDocumentLedger (ledger) += dateZReportRepricing(ledger) < startDateGroupCashRegisterDepartmentStore(departmentStoreZReportRepricing(ledger));
-editStockDocumentLedger(l) += ACTION editZReport(zReportZReportRepricing(l));
-closeStockDocumentLedger(l) += ACTION closeZReport(zReportZReportRepricing(l));
+type(ZReportRepricing l) += 'Скидка по кассе' IF l IS ZReportRepricing;
+sumItem (ZReportRepricing ledger) += discount(ledger);
+sumContainer (ZReportRepricing ledger) += 0.0 IF ledger IS ZReportRepricing;
+skip (ZReportRepricing ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
+edit(ZReportRepricing l) += ACTION edit(zReport(l));
+close(ZReportRepricing l) += ACTION close(zReport(l));

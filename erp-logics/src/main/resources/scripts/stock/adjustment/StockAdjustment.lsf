@@ -46,16 +46,16 @@ CLASS UserAdjustmentDetail 'Строка изменения остатков (п
 @defineDocumentInterfaceDetailQuantity(adjustment);
 @defineDocumentInterfaceDetailPrice(adjustment);
 
-idUserAdjustmentDetail = DATA VARSTRING[100] (UserAdjustmentDetail);
-userAdjustmentDetailIdUserAdjustment (id, userAdjustment) = GROUP AGGR userAdjustmentDetail BY idUserAdjustmentDetail(userAdjustmentDetail), userAdjustmentUserAdjustmentDetail(userAdjustmentDetail) WHERE userAdjustmentDetail IS UserAdjustmentDetail;
+id = DATA VARSTRING[100] (UserAdjustmentDetail);
+userAdjustmentDetail (id, userAdjustment) = GROUP AGGR UserAdjustmentDetail userAdjustmentDetail BY id(userAdjustmentDetail), userAdjustment(userAdjustmentDetail) WHERE userAdjustmentDetail IS UserAdjustmentDetail;
 
-priceUserAdjustmentDetail (detail)  <- IF batchUserAdjustmentDetail(detail)
-                THEN priceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.accountPriceListType, batchUserAdjustmentDetail(detail), stockUserAdjustmentDetail(detail), dateTimeUserAdjustmentDetail(detail))
-                ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserAdjustmentDetail(detail), stockUserAdjustmentDetail(detail), dateTimeUserAdjustmentDetail(detail))
-                WHEN CHANGED(skuUserAdjustmentDetail(detail)) OR CHANGED(batchUserAdjustmentDetail(detail)) OR CHANGED(stockUserAdjustmentDetail(detail)) OR CHANGED (dateTimeUserAdjustmentDetail(detail));
+price (UserAdjustmentDetail detail)  <- IF batch(detail)
+                THEN priceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
+                ELSE priceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail))
+                WHEN CHANGED(sku(detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail));
 
-skuUserAdjustmentDetail (detail) <- skuBatch(batchUserAdjustmentDetail(detail)) IF batchUserAdjustmentDetail(detail)
-                               WHEN CHANGED(batchUserAdjustmentDetail(detail));
+sku (UserAdjustmentDetail detail) <- sku(batch(detail)) IF batch(detail)
+                               WHEN CHANGED(batch(detail));
 
 @defineDocumentInterfaceDetailDataSum(adjustment);
 @deriveDocumentDetailSum(userAdjustment, quantity);
@@ -71,7 +71,7 @@ skuUserAdjustmentDetail (detail) <- skuBatch(batchUserAdjustmentDetail(detail)) 
 @implementDocument(adjustment);
 @implementDocumentBatch(adjustment);
 
-supplierStockDocument(adjustment) += stockAdjustment(adjustment);
+supplierStock(Adjustment adjustment) += stock(adjustment);
 
 @defineMovementSku(adjustmentDetail, stock); //-- показываем по нажатию правой клавиши движение товара
 @defineMovementSku(userAdjustmentDetail, stock); //-- показываем по нажатию правой клавиши движение товара
@@ -84,36 +84,36 @@ supplierStockDocument(adjustment) += stockAdjustment(adjustment);
 @defineMovementPriceSku(userAdjustmentDetail, stock); //-- показываем по нажатию правой клавиши  изменение цены товара
 // --------------------------- Формы ---------------------------------- //
 
-batchDialogUserAdjustmentDetail = ACTION (userAdjustmentDetail) {
-    FORM dialogBatchStockOut OBJECTS st = stockUserAdjustmentDetail(userAdjustmentDetail), t = dateTimeUserAdjustmentDetail(userAdjustmentDetail),
-    sk = skuUserAdjustmentDetail(userAdjustmentDetail) MODAL;
+batchDialog = ACTION (UserAdjustmentDetail userAdjustmentDetail) {
+    FORM dialogBatchStockOut OBJECTS st = stock(userAdjustmentDetail), t = dateTime(userAdjustmentDetail),
+    sk = sku(userAdjustmentDetail) MODAL;
 
     IF formResult() == FormResult.ok THEN {
-        ASSIGN batchUserAdjustmentDetail(userAdjustmentDetail) <- chosenObject('bt');
+        ASSIGN batch(userAdjustmentDetail) <- chosenObject('bt');
     }
 };
 
-editAdjustment 'Редактировать' = ABSTRACT ACTION LIST (Adjustment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (Adjustment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 
 FORM userAdjustment 'Изменение остатков'
     OBJECTS i = UserAdjustment FIXED PANEL
-    PROPERTIES (i) isPostedUserAdjustment, nameStockUserAdjustment ON CHANGE changeStockCompanyUserAdjustment(i),
-                   nameNumeratorUserAdjustment, numberUserAdjustment, seriesUserAdjustment, dateUserAdjustment, timeUserAdjustment,
-                   nameCurrencyUserAdjustment,  noteUserAdjustment,
-                   countUserAdjustmentDetailUserAdjustment, quantityUserAdjustmentDetailUserAdjustment, sumUserAdjustmentDetailUserAdjustment
+    PROPERTIES (i) isPosted, nameStock ON CHANGE changeStockCompany(i),
+                   nameNumerator, number, series, date, time,
+                   nameCurrency,  note,
+                   countUserAdjustmentDetail, quantityUserAdjustmentDetail, sumUserAdjustmentDetail
 
     OBJECTS d = UserAdjustmentDetail
-    PROPERTIES (d) indexUserAdjustmentDetail, idBarcodeSkuUserAdjustmentDetail, nameSkuUserAdjustmentDetail, shortNameUOMSkuUserAdjustmentDetail,
-                   nameBatchUserAdjustmentDetail ON CHANGE batchDialogUserAdjustmentDetail(d), quantityUserAdjustmentDetail, priceUserAdjustmentDetail, sumUserAdjustmentDetail,
-                   nameStockUserAdjustmentDetail, ADDOBJ, DELETESESSION
+    PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch ON CHANGE batchDialog(d), quantity, price, sum,
+                   nameStock, ADDOBJ, DELETESESSION
 
-    PROPERTIES(i) TODRAW d fillDocumentAdjustment, addDetailDialogSkuStockUserAdjustmentDetailUserAdjustment,
-                           addDetailInputBarcodeUserAdjustmentDetailUserAdjustment, deleteUserAdjustmentDetailUserAdjustment
-    FILTERS userAdjustmentUserAdjustmentDetail(d) == i
+    PROPERTIES(i) TODRAW d fillDocument, addDetailDialogSkuStockUserAdjustmentDetail,
+                           addDetailInputBarcodeUserAdjustmentDetail, deleteUserAdjustmentDetail
+    FILTERS userAdjustment(d) == i
 
     EVENTS
-        ON OK prePostUserAdjustment(i)
+        ON OK prePost(i)
 
     EDIT UserAdjustment OBJECT i
 ;
@@ -133,16 +133,16 @@ DESIGN userAdjustment {
                     type = CONTAINERV;
                     NEW first {
                         type = CONTAINERH;
-                        MOVE PROPERTY(isPostedUserAdjustment(i)) { preferredCharWidth = 10; }
-                        MOVE PROPERTY(nameStockUserAdjustment(i));
+                        MOVE PROPERTY(isPosted(i)) { preferredCharWidth = 10; }
+                        MOVE PROPERTY(nameStock(i));
                     }
                     NEW second { 
                         type = CONTAINERH;
-                        MOVE PROPERTY(nameNumeratorUserAdjustment(i));
-                        MOVE PROPERTY(numberUserAdjustment(i));
-                        MOVE PROPERTY(seriesUserAdjustment(i));
-                        MOVE PROPERTY(dateUserAdjustment(i));
-                        MOVE PROPERTY(timeUserAdjustment(i));
+                        MOVE PROPERTY(nameNumerator(i));
+                        MOVE PROPERTY(number(i));
+                        MOVE PROPERTY(series(i));
+                        MOVE PROPERTY(date(i));
+                        MOVE PROPERTY(time(i));
                     }                                                                                
                 }
 
@@ -170,7 +170,7 @@ DESIGN userAdjustment {
         PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(sumUserAdjustmentDetailUserAdjustment(i)) { preferredCharWidth = 13;}
+        PROPERTY(sumUserAdjustmentDetail(i)) { preferredCharWidth = 13;}
     }
 }
 
@@ -184,71 +184,71 @@ DESIGN userAdjustment {
 EXTEND FORM userAdjustment
 
     FILTERGROUP filter
-        FILTER 'С остатком ' currentBalanceSkuStock(ks,st) 'F10' DEFAULT
-        FILTER 'В документе ' quantitySkuUserAdjustmentStock(ks, i, st) 'F9'
+        FILTER 'С остатком ' currentBalance(ks,st) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(ks, i, st) 'F9'
 
 ;
 
 EXTEND FORM userAdjustment
 
     FILTERGROUP filter1
-        FILTER 'С остатком ' currentBalanceBatchStock(b,st) 'F10' DEFAULT
-        FILTER 'В документе ' quantityBatchUserAdjustmentStock(b, i, st) 'F9'
+        FILTER 'С остатком ' currentBalance(b,st) 'F10' DEFAULT
+        FILTER 'В документе ' quantity(b, i, st) 'F9'
 ;
 
 addUserAdjustment 'Добавить' = ACTION ADDFORM UserAdjustment;
-editUserAdjustment 'Редактировать' (userAdjustment) = ACTION EDITFORM UserAdjustment;
-editAdjustment (adjustment) += ACTION editUserAdjustment(adjustment);
+edit 'Редактировать' (userAdjustment) = ACTION EDITFORM UserAdjustment;
+edit (UserAdjustment adjustment) += ACTION edit(adjustment);
 
-isUserOpenedAdjustment(a)=  isOpenedAdjustment(a) AND isUserAdjustment(a);
+isUserOpened(UserAdjustment a)=  isOpened[Adjustment](a) AND is(a);
 
-actualBalanceSkuUserAdjustmentStock 'Остаток фактический' (sku, userAdjustment, stock)= currentBalanceSkuStock(sku, stock) (+) quantitySkuUserAdjustmentStock(sku, userAdjustment, stock);
+actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
 
-changeActualQuantitySkuUserAdjustmentStock = ACTION (sku, userAdjustment, stock) {
+changeActualQuantity = ACTION (Sku sku, UserAdjustment userAdjustment, Stock stock) {
     REQUEST NUMERIC[16,5] INPUT;
-    ASSIGN requestedNumeric() <- (requestedNumeric() IF sku IS Sku AND stock IS Stock) (-) currentBalanceSkuStock(sku, stock);
+    ASSIGN requestedNumeric() <- (requestedNumeric() IF sku IS Sku AND stock IS Stock) (-) currentBalance(sku, stock);
 
-    EXEC changeQuantityValueSkuUserAdjustmentStock(sku, userAdjustment, stock);
+    EXEC changeQuantityValue(sku, userAdjustment, stock);
 }
 
 EXTEND FORM userAdjustment
-    PROPERTIES actualBalanceSkuUserAdjustmentStock(ks,i,st) ON CHANGE changeActualQuantitySkuUserAdjustmentStock(ks,i,st) BEFORE prevCurrentBalanceSkuStock(ks,st)
+    PROPERTIES actualBalance(ks,i,st) ON CHANGE changeActualQuantity(ks,i,st) BEFORE prevCurrentBalance(ks,st)
 ;
-actualBalanceBatchUserAdjustmentStock 'Остаток фактический' (batch, userAdjustment, stock)= currentBalanceBatchStock(batch, stock) (+) quantityBatchUserAdjustmentStock(batch, userAdjustment, stock);
+actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock)= currentBalance(batch, stock) (+) quantity(batch, userAdjustment, stock);
 
-changeActualQuantityBatchUserAdjustmentStock = ACTION (batch, userAdjustment, stock) {
+changeActualQuantity = ACTION (Batch batch, UserAdjustment userAdjustment, Stock stock) {
     REQUEST NUMERIC[16,5] INPUT;
-    ASSIGN requestedNumeric() <- (requestedNumeric() IF batch IS Batch AND stock IS Stock) (-) currentBalanceBatchStock(batch, stock);
+    ASSIGN requestedNumeric() <- (requestedNumeric() IF batch IS Batch AND stock IS Stock) (-) currentBalance(batch, stock);
 
-    EXEC changeQuantityValueBatchUserAdjustmentStock(batch, userAdjustment, stock);
+    EXEC changeQuantityValue(batch, userAdjustment, stock);
 }
 
 EXTEND FORM userAdjustment
-    PROPERTIES actualBalanceBatchUserAdjustmentStock(b,i,sto) ON CHANGE changeActualQuantityBatchUserAdjustmentStock(b,i,sto) BEFORE prevCurrentBalanceBatchStock(b,sto)
+    PROPERTIES actualBalance(b,i,sto) ON CHANGE changeActualQuantity(b,i,sto) BEFORE prevCurrentBalance(b,sto)
 ;
 
 FORM adjustments 'Изменения остатков'
     OBJECTS i = Adjustment
-    PROPERTIES (i) READONLYIF isReadonly() isClosedAdjustment, isPostedAdjustment, numberAdjustment, seriesAdjustment, dateAdjustment, timeAdjustment,
-                            nameStockAdjustment, nameCurrencyAdjustment
-    PROPERTIES (i) READONLY countAdjustmentDetailAdjustment, quantityAdjustmentDetailAdjustment,
-                            sumAdjustmentDetailAdjustment
-    PROPERTIES (i) READONLYIF isReadonly() noteAdjustment
+    PROPERTIES (i) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
+                            nameStock, nameCurrency
+    PROPERTIES (i) READONLY countAdjustmentDetail, quantityAdjustmentDetail,
+                            sumAdjustmentDetail
+    PROPERTIES (i) READONLYIF isReadonly() note
 
-    PROPERTIES (i) READONLY FORCE PANEL createdNameUserUserAdjustment, createdTimeUserAdjustment, createdHostnameComputerUserAdjustment, 
-                                        postedNameUserUserAdjustment, postedTimeUserAdjustment, postedHostnameComputerUserAdjustment
+    PROPERTIES (i) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES ()  addUserAdjustment TODRAW i
-    PROPERTIES (i) editAdjustment SHOWIF isOpenedAdjustment(i)
-    PROPERTIES(i)  closeUserAdjustment SHOWIF isOpenedUserAdjustment(i), openUserAdjustment SHOWIF isClosedUserAdjustment(i)     
+    PROPERTIES (i) edit SHOWIF isOpened(i)
+    PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
 
-    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpenedAdjustment(i)
+    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpened(i)
 
     OBJECTS d = AdjustmentDetail
-    PROPERTIES (d) READONLY indexAdjustmentDetail, idBarcodeSkuAdjustmentDetail, nameSkuAdjustmentDetail, shortNameUOMSkuAdjustmentDetail,
-                   nameBatchAdjustmentDetail, quantityAdjustmentDetail, priceAdjustmentDetail, sumAdjustmentDetail, nameStockAdjustmentDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch, quantity, price, sum, nameStock
 
-    FILTERS adjustmentAdjustmentDetail(d) == i
+    FILTERS adjustment(d) == i
 
     DIALOG Adjustment OBJECT i
 ;
@@ -319,60 +319,60 @@ TABLE adjustmentSkuDetail (AdjustmentSkuDetail);
 CLASS OutAdjustmentSkuDetail 'Изменение остатка (-)' : AdjustmentSkuDetail;
 CLASS InAdjustmentSkuDetail 'Изменение остатка (+)' : AdjustmentSkuDetail;
 
-needToOutLedgerAdjustmentDetail (adjustmentDetail) = ((quantityAdjustmentDetail(adjustmentDetail) < 0 ) OR batchAdjustmentDetail(adjustmentDetail))
-    AND isPostedAdjustmentDetail(adjustmentDetail);
-needToOutLedgerAdjustment (adjustment) = GROUP SUM 1 IF needToOutLedgerAdjustmentDetail(adjustmentDetail)
-    BY adjustmentAdjustmentDetail(adjustmentDetail);
+needToOutLedger (AdjustmentDetail adjustmentDetail) = ((quantity(adjustmentDetail) < 0 ) OR batch(adjustmentDetail))
+    AND isPosted(adjustmentDetail);
+needToOutLedger (adjustment) = GROUP SUM 1 IF needToOutLedger(AdjustmentDetail adjustmentDetail)
+    BY adjustment(adjustmentDetail);
 
 // Все партии проводим по OutLedger
-needToInLedgerAdjustmentDetail (adjustmentDetail) = isPostedAdjustmentDetail(adjustmentDetail) AND NOT (quantityAdjustmentDetail(adjustmentDetail) < 0) AND NOT batchAdjustmentDetail(adjustmentDetail);
-needToInLedgerAdjustment (adjustment) = GROUP SUM 1 IF needToInLedgerAdjustmentDetail(adjustmentDetail)
-    BY adjustmentAdjustmentDetail(adjustmentDetail);
+needToInLedger (AdjustmentDetail adjustmentDetail) = isPosted(adjustmentDetail) AND NOT (quantity(adjustmentDetail) < 0) AND NOT batch(adjustmentDetail);
+needToInLedger (adjustment) = GROUP SUM 1 IF needToInLedger(AdjustmentDetail adjustmentDetail)
+    BY adjustment(adjustmentDetail);
 
 @defineAggregation(adjustmentDetail, outAdjustmentSkuDetail, needToOutLedger);
 @defineAggregation(adjustmentDetail, inAdjustmentSkuDetail, needToInLedger);
 
-adjustmentDetailAdjustmentSkuDetail(adjustmentSkuDetail) = MULTI adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                                 adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail);
+adjustmentDetail(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI adjustmentDetail[OutAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                                 adjustmentDetail[InAdjustmentSkuDetail](adjustmentSkuDetail);
 
 @defineDocumentDetailTime(adjustmentDetail, AdjustmentSkuDetail);
 @defineDocumentDetailPosted(adjustmentDetail, AdjustmentSkuDetail);
 @defineDocumentDetailClosed(adjustmentDetail, AdjustmentSkuDetail);
 
-stockInAdjustmentSkuDetail(adjustmentSkuDetail) = stockAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));
-stockOutAdjustmentSkuDetail(adjustmentSkuDetail) = stockAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));
-stockAdjustmentSkuDetail(adjustmentSkuDetail) = MULTI stockInAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                      stockOutAdjustmentSkuDetail(adjustmentSkuDetail) PERSISTENT;
+stock(InAdjustmentSkuDetail adjustmentSkuDetail) = stock(adjustmentDetail(adjustmentSkuDetail));
+stock(OutAdjustmentSkuDetail adjustmentSkuDetail) = stock(adjustmentDetail(adjustmentSkuDetail));
+stock(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI stock[InAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                      stock[OutAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
 
-batchInAdjustmentSkuDetail(adjustmentSkuDetail) = batchAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));
-batchOutAdjustmentSkuDetail(adjustmentSkuDetail) = batchAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));
-batchAdjustmentSkuDetail(adjustmentSkuDetail) = MULTI batchInAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                      batchOutAdjustmentSkuDetail(adjustmentSkuDetail) PERSISTENT;
+batch(InAdjustmentSkuDetail adjustmentSkuDetail) = batch(adjustmentDetail(adjustmentSkuDetail));
+batch(OutAdjustmentSkuDetail adjustmentSkuDetail) = batch(adjustmentDetail(adjustmentSkuDetail));
+batch(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI batch[InAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                      batch[OutAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
 
-quantityOutAdjustmentSkuDetail (adjustmentSkuDetail) = quantityAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));
-quantityInAdjustmentSkuDetail (adjustmentSkuDetail) = quantityAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));   // -
-quantityAdjustmentSkuDetail 'Кол-во изменения' (adjustmentSkuDetail) = MULTI quantityOutAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                                             quantityInAdjustmentSkuDetail(adjustmentSkuDetail) PERSISTENT;
+quantity (OutAdjustmentSkuDetail adjustmentSkuDetail) = quantity(adjustmentDetail(adjustmentSkuDetail));
+quantity (InAdjustmentSkuDetail adjustmentSkuDetail) = quantity(adjustmentDetail(adjustmentSkuDetail));   // -
+quantity 'Кол-во изменения' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI quantity[OutAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                                             quantity[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
 
-sumOutAdjustmentSkuDetail (adjustmentSkuDetail) = sumAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));
-sumInAdjustmentSkuDetail (adjustmentSkuDetail) = sumAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));        // -
-sumAdjustmentSkuDetail 'Сумма изменения' (adjustmentSkuDetail) = MULTI sumOutAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                                       sumInAdjustmentSkuDetail(adjustmentSkuDetail) PERSISTENT;
+sum (OutAdjustmentSkuDetail adjustmentSkuDetail) = sum(adjustmentDetail(adjustmentSkuDetail));
+sum (InAdjustmentSkuDetail adjustmentSkuDetail) = sum(adjustmentDetail(adjustmentSkuDetail));        // -
+sum 'Сумма изменения' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI sum[OutAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                                       sum[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
 
-skuOutAdjustmentSkuDetail (adjustmentSkuDetail) = skuAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));
-skuInAdjustmentSkuDetail (adjustmentSkuDetail) = skuAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));
-skuAdjustmentSkuDetail(adjustmentSkuDetail) = MULTI skuOutAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                    skuInAdjustmentSkuDetail(adjustmentSkuDetail) PERSISTENT;
-nameSkuAdjustmentSkuDetail 'Товар' (adjustmentSkuDetail) = nameSku(skuAdjustmentSkuDetail(adjustmentSkuDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
-idBarcodeAdjustmentSkuDetail 'Штрихкод' (adjustmentSkuDetail) =  idBarcodeSku(skuAdjustmentSkuDetail(adjustmentSkuDetail));
+sku (OutAdjustmentSkuDetail adjustmentSkuDetail) = sku(adjustmentDetail(adjustmentSkuDetail));
+sku (InAdjustmentSkuDetail adjustmentSkuDetail) = sku(adjustmentDetail(adjustmentSkuDetail));
+sku(AdjustmentSkuDetail adjustmentSkuDetail) = MULTI sku[OutAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                    sku[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
+nameSku 'Товар' (AdjustmentSkuDetail adjustmentSkuDetail) = name(sku(adjustmentSkuDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+idBarcode 'Штрихкод' (AdjustmentSkuDetail adjustmentSkuDetail) =  idBarcode(sku(adjustmentSkuDetail));
 
-descriptionOutAdjustmentSkuDetail 'Название документа' (adjustmentSkuDetail) = descriptionAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail));
-descriptionInAdjustmentSkuDetail 'Название документа' (adjustmentSkuDetail) = descriptionAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail));
-descriptionAdjustmentSkuDetail 'Название документа' (adjustmentSkuDetail) = MULTI descriptionOutAdjustmentSkuDetail(adjustmentSkuDetail),
-                                                                                  descriptionInAdjustmentSkuDetail(adjustmentSkuDetail) PERSISTENT;
+description 'Название документа' (OutAdjustmentSkuDetail adjustmentSkuDetail) = description(adjustmentDetail(adjustmentSkuDetail));
+description 'Название документа' (InAdjustmentSkuDetail adjustmentSkuDetail) = description(adjustmentDetail(adjustmentSkuDetail));
+description 'Название документа' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI description[OutAdjustmentSkuDetail](adjustmentSkuDetail),
+                                                                                  description[InAdjustmentSkuDetail](adjustmentSkuDetail) PERSISTENT;
 
-adjustmentAdjustmentSkuDetail 'Название документа' (adjustmentSkuDetail) = MULTI adjustmentAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(adjustmentSkuDetail)),
-                                                                                 adjustmentAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(adjustmentSkuDetail)) PERSISTENT;
+adjustment 'Название документа' (AdjustmentSkuDetail adjustmentSkuDetail) = MULTI adjustment(adjustmentDetail[OutAdjustmentSkuDetail](adjustmentSkuDetail)),
+                                                                                 adjustment(adjustmentDetail[InAdjustmentSkuDetail](adjustmentSkuDetail)) PERSISTENT;
 
 @implementSkuLedger(adjustmentSkuDetail, sku, stock);
 
@@ -384,72 +384,72 @@ adjustmentAdjustmentSkuDetail 'Название документа' (adjustmentS
 //
 //stockDocumentLedgerSkuLedger(ledger) += adjustmentAdjustmentSkuDetail(ledger);
 
-batchSkuLedger(ledger) += batchAdjustmentSkuDetail(ledger);
+batch(AdjustmentSkuDetail ledger) += batch(ledger);
 
 EXTEND CLASS OutAdjustmentSkuDetail : OutFIFOSkuLedger;
-quantityOutFIFOSkuLedger (ledger) += -quantityOutAdjustmentSkuDetail(ledger);
+quantity (OutAdjustmentSkuDetail ledger) += -quantity(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(outAdjustmentSkuDetail, stock);
-sumOutSkuLedger (ledger) += -sumOutAdjustmentSkuDetail(ledger);
+sum (OutAdjustmentSkuDetail ledger) += -sum(ledger);
 
 EXTEND CLASS InAdjustmentSkuDetail : InLIFOSkuLedger;
-quantityInLIFOSkuLedger (ledger) += quantityInAdjustmentSkuDetail(ledger);
+quantity (InAdjustmentSkuDetail ledger) += quantity(ledger);
 @implementSkuLedgerInLIFOBatchBalance(inAdjustmentSkuDetail, stock);
-sumInSkuLedger (ledger) += sumInAdjustmentSkuDetail(ledger);
+sum (InAdjustmentSkuDetail ledger) += sum(ledger);
 
-editAdjustmentDetail 'Редактировать' = ABSTRACT ACTION LIST  (AdjustmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editUserAdjustmentDetail(d) = ACTION (d) NEWSESSION {
-    FORM userAdjustment OBJECTS i = userAdjustmentUserAdjustmentDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+edit 'Редактировать' = ABSTRACT ACTION LIST  (AdjustmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit(UserAdjustmentDetail d) = ACTION (d) NEWSESSION {
+    FORM userAdjustment OBJECTS i = userAdjustment(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
-editAdjustmentDetail(d) += ACTION editUserAdjustmentDetail(d);    
-editSkuLedger(d) += ACTION editAdjustmentDetail(adjustmentDetailInAdjustmentSkuDetail(d));
-editSkuLedger(d) += ACTION editAdjustmentDetail(adjustmentDetailOutAdjustmentSkuDetail(d));
+edit(UserAdjustmentDetail d) += ACTION edit(d);    
+edit(InAdjustmentSkuDetail d) += ACTION edit(adjustmentDetail(d));
+edit(OutAdjustmentSkuDetail d) += ACTION edit(adjustmentDetail(d));
 
-quantityPositiveAdjustmentDetailAdjustment 'Кол-во приход (всего)' (adjustment) = GROUP SUM quantityAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) >=0
-    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
-quantityNegativeAdjustmentDetailAdjustment 'Кол-во расход (всего)' (adjustment) = GROUP SUM -quantityAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) <0
-    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
+quantityPositiveAdjustmentDetail 'Кол-во приход (всего)' (adjustment) = GROUP SUM quantity(AdjustmentDetail idetail) IF quantity(idetail) >=0
+    BY adjustment(idetail) IN documentSum PERSISTENT;
+quantityNegativeAdjustmentDetail 'Кол-во расход (всего)' (adjustment) = GROUP SUM -quantity(AdjustmentDetail idetail) IF quantity(idetail) <0
+    BY adjustment(idetail) IN documentSum PERSISTENT;
 
-sumPositiveAdjustmentDetailAdjustment 'Сумма приход (всего)' (adjustment) = GROUP SUM sumAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) >=0
-    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
-sumNegativeAdjustmentDetailAdjustment 'Сумма расход (всего)' (adjustment) = GROUP SUM -sumAdjustmentDetail(idetail) IF quantityAdjustmentDetail(idetail) <0
-    BY adjustmentAdjustmentDetail(idetail) IN documentSum PERSISTENT;
+sumPositiveAdjustmentDetail 'Сумма приход (всего)' (adjustment) = GROUP SUM sum(AdjustmentDetail idetail) IF quantity(idetail) >=0
+    BY adjustment(idetail) IN documentSum PERSISTENT;
+sumNegativeAdjustmentDetail 'Сумма расход (всего)' (adjustment) = GROUP SUM -sum(AdjustmentDetail idetail) IF quantity(idetail) <0
+    BY adjustment(idetail) IN documentSum PERSISTENT;
     
-sumNegativeAdjustmentDetail = -sumAdjustmentDetail(idetail);
-quantityNegativeAdjustmentDetail = -quantityAdjustmentDetail(idetail);
+sumNegative = -sum(AdjustmentDetail idetail);
+quantityNegative = -quantity(AdjustmentDetail idetail);
 
 @defineDocumentStockAccess(UserAdjustment, stock, company);
     
 FORM printAdjustment 'Изменения остатков'
     OBJECTS i = Adjustment FIXED PANEL 
-    PROPERTIES (i) READONLY isClosedAdjustment, isPostedAdjustment, seriesNumberAdjustment, numberAdjustment, seriesAdjustment, dateAdjustment, timeAdjustment,
-                            nameStockAdjustment, addressStockAdjustment, nameCurrencyAdjustment
-    PROPERTIES (i) READONLY countAdjustmentDetailAdjustment, quantityAdjustmentDetailAdjustment,
-                            sumAdjustmentDetailAdjustment, noteAdjustment,
-                            quantityPositiveAdjustmentDetailAdjustment, quantityNegativeAdjustmentDetailAdjustment, sumPositiveAdjustmentDetailAdjustment,
-                            sumNegativeAdjustmentDetailAdjustment 
+    PROPERTIES (i) READONLY isClosed, isPosted, seriesNumber, number, series, date, time,
+                            nameStock, addressStock, nameCurrency
+    PROPERTIES (i) READONLY countAdjustmentDetail, quantityAdjustmentDetail,
+                            sumAdjustmentDetail, note,
+                            quantityPositiveAdjustmentDetail, quantityNegativeAdjustmentDetail, sumPositiveAdjustmentDetail,
+                            sumNegativeAdjustmentDetail 
 
     OBJECTS d = AdjustmentDetail
-    PROPERTIES (d) READONLY indexAdjustmentDetail, idBarcodeSkuAdjustmentDetail, nameSkuAdjustmentDetail, shortNameUOMSkuAdjustmentDetail,
-                   nameBatchAdjustmentDetail, quantityAdjustmentDetail, priceAdjustmentDetail, sumAdjustmentDetail, nameStockAdjustmentDetail
-    FILTERS adjustmentAdjustmentDetail(d) == i,
-            quantityAdjustmentDetail(d)>=0
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch, quantity, price, sum, nameStock
+    FILTERS adjustment(d) == i,
+            quantity(d)>=0
     
     OBJECTS dd = AdjustmentDetail
-    PROPERTIES (dd) READONLY indexAdjustmentDetail, idBarcodeSkuAdjustmentDetail, nameSkuAdjustmentDetail, shortNameUOMSkuAdjustmentDetail,
-                   nameBatchAdjustmentDetail, quantityNegativeAdjustmentDetail, priceAdjustmentDetail, sumNegativeAdjustmentDetail, nameStockAdjustmentDetail
-    FILTERS adjustmentAdjustmentDetail(dd) == i,
-            quantityAdjustmentDetail(dd)<0
+    PROPERTIES (dd) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch, quantityNegative, price, sumNegative, nameStock
+    FILTERS adjustment(dd) == i,
+            quantity(dd)<0
 
 ;
-printAdjustment 'Изменение остатков' (adjustment) =
+print 'Изменение остатков' (Adjustment adjustment) =
     ACTION FORM printAdjustment OBJECTS i = adjustment PRINT  IMAGE 'print.png' IN print;
     
-notPrintAdjustment = ABSTRACT BOOLEAN (Adjustment);
-toShowPrintAdjustment (a) = a IS Adjustment AND NOT notPrintAdjustment(a);  
+notPrint = ABSTRACT BOOLEAN (Adjustment);
+toShowPrint (Adjustment a) = a IS Adjustment AND NOT notPrint(a);  
     
 EXTEND FORM adjustments
-    PROPERTIES (i) printAdjustment FORCE PANEL SHOWIF toShowPrintAdjustment(i)
+    PROPERTIES (i) print FORCE PANEL SHOWIF toShowPrint(i)
 ;
 DESIGN adjustments{
     printContainer {
@@ -457,12 +457,12 @@ DESIGN adjustments{
     }
 }
 
-activeAdjustment 'Провести по товарному отчету' = ABSTRACT BOOLEAN (Adjustment);
-activeUserAdjustment 'Провести по товарному отчету' = DATA BOOLEAN (UserAdjustment) IN documentPrm;
-activeAdjustment(i) += activeUserAdjustment(i);
+active 'Провести по товарному отчету' = ABSTRACT BOOLEAN (Adjustment);
+active 'Провести по товарному отчету' = DATA BOOLEAN (UserAdjustment) IN documentPrm;
+active(UserAdjustment i) += active(i);
 
 EXTEND FORM userAdjustment
-    PROPERTIES (i) activeUserAdjustment
+    PROPERTIES (i) active
 ;
 
 // ------------ Проведение по товарному отчету ----------------- //
@@ -473,54 +473,54 @@ CLASS OutAdjustment 'Изменение остатков расход' : OutStoc
 CLASS InAdjustment 'Изменение остатков приход' : IncStockDocumentLedger;
 
 //-- Расход
-needToOutStockLedgerAdjustment = sumAdjustmentDetailAdjustment(l) < 0; //activeAdjustment(l) AND  
+needToOutStockLedger = sumAdjustmentDetail(Adjustment l) < 0; //activeAdjustment(l) AND  
 @defineAggregation(adjustment, OutAdjustment, needToOutStockLedger);
 
-isPostedStockDocumentLedger (ledger) += isPostedAdjustment(adjustmentOutAdjustment(ledger));  
-isClosedStockDocumentLedger (ledger) += isClosedAdjustment(adjustmentOutAdjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-seriesStockDocumentLedger (ledger) += seriesAdjustment(adjustmentOutAdjustment(ledger));
-numberStockDocumentLedger (ledger) += numberAdjustment(adjustmentOutAdjustment(ledger));
-dateTimeStockDocumentLedger (ledger) += dateTimeAdjustment(adjustmentOutAdjustment(ledger));
-stockStockDocumentLedger (ledger) += stockAdjustment(adjustmentOutAdjustment(ledger));
-descriptionStockDocumentLedger (ledger) += descriptionAdjustment(adjustmentOutAdjustment(ledger));                                                                                                                                                                                                                                   
-sumContainerOutStockDocumentLedger(ledger) += -sumContainerAdjustmentDetailAdjustment(adjustmentOutAdjustment(ledger));
-sumItemOutStockDocumentLedger(ledger) += -sumItemAdjustmentDetailAdjustment(adjustmentOutAdjustment(ledger));
-editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustmentOutAdjustment(ledger) MANAGESESSION DOCKEDMODAL;}
-closeStockDocumentLedger(ledger) += ACTION closeAdjustment(adjustmentOutAdjustment(ledger));
-typeStockDocumentLedger(ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
-skipStockDocumentLedger(ledger) += ledger IS OutAdjustment AND NOT activeAdjustment(adjustmentOutAdjustment(ledger));
+isPosted (OutAdjustment ledger) += isPosted(adjustment(ledger));  
+isClosed (OutAdjustment ledger) += isClosed(adjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+series (OutAdjustment ledger) += series(adjustment(ledger));
+number (OutAdjustment ledger) += number(adjustment(ledger));
+dateTime (OutAdjustment ledger) += dateTime(adjustment(ledger));
+stock (OutAdjustment ledger) += stock(adjustment(ledger));
+description (OutAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
+sumContainer(OutAdjustment ledger) += -sumContainerAdjustmentDetail(adjustment(ledger));
+sumItem(OutAdjustment ledger) += -sumItemAdjustmentDetail(adjustment(ledger));
+edit(OutAdjustment ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKEDMODAL;}
+close(OutAdjustment ledger) += ACTION close(adjustment(ledger));
+type(OutAdjustment ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
+skip(OutAdjustment ledger) += ledger IS OutAdjustment AND NOT active(adjustment(ledger));
 
 //-- Приход
-needToInStockLedgerAdjustment = sumAdjustmentDetailAdjustment(l) > 0; //activeAdjustment(l) AND  
+needToInStockLedger = sumAdjustmentDetail(Adjustment l) > 0; //activeAdjustment(l) AND  
 @defineAggregation(adjustment, InAdjustment, needToInStockLedger);
 
-isPostedStockDocumentLedger (ledger) += isPostedAdjustment(adjustmentInAdjustment(ledger));  
-isClosedStockDocumentLedger (ledger) += isClosedAdjustment(adjustmentInAdjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
-seriesStockDocumentLedger (ledger) += seriesAdjustment(adjustmentInAdjustment(ledger));
-numberStockDocumentLedger (ledger) += numberAdjustment(adjustmentInAdjustment(ledger));
-dateTimeStockDocumentLedger (ledger) += dateTimeAdjustment(adjustmentInAdjustment(ledger));
-stockStockDocumentLedger (ledger) += stockAdjustment(adjustmentInAdjustment(ledger));
-descriptionStockDocumentLedger (ledger) += descriptionAdjustment(adjustmentInAdjustment(ledger));                                                                                                                                                                                                                                   
-sumContainerIncStockDocumentLedger(ledger) += sumContainerAdjustmentDetailAdjustment(adjustmentInAdjustment(ledger));
-sumItemIncStockDocumentLedger(ledger) += sumItemAdjustmentDetailAdjustment(adjustmentInAdjustment(ledger));
-editStockDocumentLedger(ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustmentInAdjustment(ledger) MANAGESESSION DOCKEDMODAL;}
-closeStockDocumentLedger(ledger) += ACTION closeAdjustment(adjustmentInAdjustment(ledger));
-typeStockDocumentLedger(ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
-skipStockDocumentLedger(ledger) += ledger IS InAdjustment AND NOT activeAdjustment(adjustmentInAdjustment(ledger));
+isPosted (InAdjustment ledger) += isPosted(adjustment(ledger));  
+isClosed (InAdjustment ledger) += isClosed(adjustment(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+series (InAdjustment ledger) += series(adjustment(ledger));
+number (InAdjustment ledger) += number(adjustment(ledger));
+dateTime (InAdjustment ledger) += dateTime(adjustment(ledger));
+stock (InAdjustment ledger) += stock(adjustment(ledger));
+description (InAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
+sumContainer(InAdjustment ledger) += sumContainerAdjustmentDetail(adjustment(ledger));
+sumItem(InAdjustment ledger) += sumItemAdjustmentDetail(adjustment(ledger));
+edit(InAdjustment ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKEDMODAL;}
+close(InAdjustment ledger) += ACTION close(adjustment(ledger));
+type(InAdjustment ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
+skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));
 
-calcSumBSkuStockDateTime (sku,st,dateTime) = balanceBSkuStockDateTime(sku,st,dateTime)*priceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
-needCreateAdjustmentSkuStockDateTime = (calcSumBSkuStockDateTime (sku,st,dateTime) OR  sumBSkuStockDateTime (sku,st,dateTime)) AND NOT (calcSumBSkuStockDateTime (sku,st,dateTime) ==  sumBSkuStockDateTime (sku,st,dateTime));  
+calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime)*priceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
+needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
-createUserAdjustmentDateTime = ACTION (dateTime) {
-    FOR [ = GROUP SUM 1 IF needCreateAdjustmentSkuStockDateTime(sku,st,dateTime) BY st,dateTime](st,dateTime) AND isCompanyStock(st) DO {
+createUserAdjustment = ACTION (DATETIME dateTime) {
+    FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,DATETIME dateTime) BY st,dateTime](Stock st,dateTime) AND isCompany(st) DO {
         NEWSESSION {
             FOR ADDOBJ a = UserAdjustment DO {
-                stockUserAdjustment(a) <- st;
-                isPostedUserAdjustment(a) <- TRUE;
-                FOR needCreateAdjustmentSkuStockDateTime(sku,st,dateTime) ADDOBJ  d = UserAdjustmentDetail DO {
-                    userAdjustmentUserAdjustmentDetail(d) <- a;
-                    skuUserAdjustmentDetail(d) <- sku;
-                    sumUserAdjustmentDetail(d) <- NUMERIC[16,2](sumBSkuStockDateTime(sku,st,dateTime) (-) calcSumBSkuStockDateTime(sku,st,dateTime));    
+                stock(a) <- st;
+                isPosted(a) <- TRUE;
+                FOR needCreateAdjustment(Sku sku,st,dateTime) ADDOBJ  d = UserAdjustmentDetail DO {
+                    userAdjustment(d) <- a;
+                    sku(d) <- sku;
+                    sum(d) <- NUMERIC[16,2](sumB(sku,st,dateTime) (-) calcSumB(sku,st,dateTime));    
                 }
             }
             apply();
@@ -529,52 +529,52 @@ createUserAdjustmentDateTime = ACTION (dateTime) {
 } 
 
 
-dataInSessionSkuGroup 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
+dataInSession 'Отм.' = DATA LOCAL BOOLEAN (SkuGroup);
 
-levelParentSkuGroup (group) = GROUP MIN levelSkuGroupSkuGroup(group, parent) IF dataInSessionSkuGroup(parent)
+levelParent (group) = GROUP MIN level(SkuGroup group, SkuGroup parent) IF dataInSession(parent)
     BY group;
 
-inParentSkuGroup (group) = TRUE IF levelParentSkuGroup(group);
+inParent (SkuGroup group) = TRUE IF levelParent(group);
 
-inSessionSkuGroup 'Отм.' (group) = OVERRIDE
-    inParentSkuGroup(group),
-    dataInSessionSkuGroup(group);
+inSession 'Отм.' (SkuGroup group) = OVERRIDE
+    inParent(group),
+    dataInSession(group);
 
 sessionConcatSkuGroups 'Группы' () =
-    GROUP CONCAT nameSkuGroup(group) IF inSessionSkuGroup(group) AND NOT inSessionSkuGroup(parentSkuGroup(group)),'; ' PREFCHARWIDTH 30;
+    GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' PREFCHARWIDTH 30;
 
-countInSessionSkuGroups  = GROUP SUM 1 IF dataInSessionSkuGroup(g);
+countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(SkuGroup g);
 resetSelectedGroups  'Сбросить отмеченные' = ACTION () {
-    dataInSessionSkuGroup(g) <- NULL WHERE g IS SkuGroup ;    
+    dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
-toAdjustmentSkuStockDateTime (s,st,dt) = GROUP SUM 1 IF 
-    balanceBBatchStockDateTime(b,st,dt) >0 AND balanceBBatchStockDateTime(b1,st,dt) <0 AND b !=b1 AND skuBatch(b) == skuBatch(b1)
-        BY skuBatch(b),st,dt;
-toAdjustmentStockDateTime = GROUP SUM 1 IF toAdjustmentSkuStockDateTime (s,st,dt) BY st,dt;
+toAdjustment (s,st,dt) = GROUP SUM 1 IF 
+    balanceB(Batch b,Stock st,DATETIME dt) >0 AND balanceB(Batch b1,st,dt) <0 AND b !=b1 AND sku(b) == sku(b1)
+        BY sku(b),st,dt;
+toAdjustment = GROUP SUM 1 IF toAdjustment (Sku s,Stock st,DATETIME dt) BY st,dt;
 //abs
 
-toPositiveAdjustmentSkuStockDateTime (s,st,dt) = GROUP SUM balanceBBatchStockDateTime(b,st,dt) IF 
-    balanceBBatchStockDateTime(b,st,dt) >0 
-        BY skuBatch(b),st,dt;
-toNegativeAdjustmentSkuStockDateTime (s,st,dt) = GROUP SUM balanceBBatchStockDateTime(b,st,dt) IF 
-    balanceBBatchStockDateTime(b,st,dt) <0 
-        BY skuBatch(b),st,dt;
+toPositiveAdjustment (s,st,dt) = GROUP SUM balanceB(Batch b,Stock st,DATETIME dt) IF 
+    balanceB(b,st,dt) >0 
+        BY sku(b),st,dt;
+toNegativeAdjustment (s,st,dt) = GROUP SUM balanceB(Batch b,Stock st,DATETIME dt) IF 
+    balanceB(b,st,dt) <0 
+        BY sku(b),st,dt;
         
 FORM selectParamsAdjustment 'Параметры пересорта'
     OBJECTS st = Stock FIXED PANEL 
-    PROPERTIES SELECTOR nameStock(st)
-    FILTERS isCompanyStock(st)
+    PROPERTIES SELECTOR name(st)
+    FILTERS isCompany(st)
     
     OBJECTS dt = DATETIME FIXED PANEL 
     PROPERTIES val = OBJVALUE (dt)
     
-    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sk), skuTreeName = nameSkuGroup(sk)
-    ORDER BY orderSkuGroup(sk), skuTreeName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
     
-    PROPERTIES inSessionSkuGroup(sk)         
+    PROPERTIES inSession(sk)         
 ;
 DESIGN selectParamsAdjustment {
     main {
@@ -589,34 +589,34 @@ DESIGN selectParamsAdjustment {
     MOVE functions.box;
 }
 
-inAdjustmentSku = DATA LOCAL BOOLEAN (Sku);
+inAdjustment = DATA LOCAL BOOLEAN (Sku);
 
-createBatchUserAdjustmentDetailUserAdjustment = ACTION (adjustment) {
-    FOR inAdjustmentSku(sku) DO {
+createBatchUserAdjustmentDetail = ACTION (UserAdjustment adjustment) {
+    FOR inAdjustment(Sku sku) DO {
         LOCAL quantity = NUMERIC[16,5] (Sku);
         quantity(sku) <- NULL;
-        quantity(sku) <- min(toPositiveAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)), abs(toNegativeAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));        
-        FOR balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)) <0 AND quantity(sku) AND skuBatch(batch) == sku 
-            ORDER DESC balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))
+        quantity(sku) <- min(toPositiveAdjustment(sku,stock(adjustment),dateTime(adjustment)), abs(toNegativeAdjustment(sku,stock(adjustment),dateTime(adjustment))));        
+        FOR balanceB(Batch batch,stock(adjustment),dateTime(adjustment)) <0 AND quantity(sku) AND sku(batch) == sku 
+            ORDER DESC balanceB(batch,stock(adjustment),dateTime(adjustment))
             ADDOBJ d = UserAdjustmentDetail DO {            
-            userAdjustmentUserAdjustmentDetail(d) <- adjustment;
-            skuUserAdjustmentDetail(d) <- sku;
-            batchUserAdjustmentDetail(d) <- batch;
-            quantityUserAdjustmentDetail(d) <- min(quantity(sku),abs(balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));
-            quantity(sku) <- quantity(sku) (-) quantityUserAdjustmentDetail(d);
+            userAdjustment(d) <- adjustment;
+            sku(d) <- sku;
+            batch(d) <- batch;
+            quantity(d) <- min(quantity(sku),abs(balanceB(batch,stock(adjustment),dateTime(adjustment))));
+            quantity(sku) <- quantity(sku) (-) quantity(d);
             IF NOT quantity(sku) >0 THEN {
                 BREAK;
             }        
         }
-        quantity(sku) <- min(toPositiveAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)), abs(toNegativeAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));        
-        FOR balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment)) >0 AND quantity(sku) AND skuBatch(batch) == sku 
-            ORDER balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))
+        quantity(sku) <- min(toPositiveAdjustment(sku,stock(adjustment),dateTime(adjustment)), abs(toNegativeAdjustment(sku,stock(adjustment),dateTime(adjustment))));        
+        FOR balanceB(Batch batch,stock(adjustment),dateTime(adjustment)) >0 AND quantity(sku) AND sku(batch) == sku 
+            ORDER balanceB(batch,stock(adjustment),dateTime(adjustment))
             ADDOBJ d = UserAdjustmentDetail DO {            
-            userAdjustmentUserAdjustmentDetail(d) <- adjustment;
-            skuUserAdjustmentDetail(d) <- sku;
-            batchUserAdjustmentDetail(d) <- batch;
-            quantityUserAdjustmentDetail(d) <- (-min(quantity(sku),balanceBBatchStockDateTime(batch,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment))));
-            quantity(sku) <- quantity(sku) (+) quantityUserAdjustmentDetail(d);
+            userAdjustment(d) <- adjustment;
+            sku(d) <- sku;
+            batch(d) <- batch;
+            quantity(d) <- (-min(quantity(sku),balanceB(batch,stock(adjustment),dateTime(adjustment))));
+            quantity(sku) <- quantity(sku) (+) quantity(d);
             IF NOT quantity(sku) >0 THEN {
                 BREAK;
             }                   
@@ -626,22 +626,22 @@ createBatchUserAdjustmentDetailUserAdjustment = ACTION (adjustment) {
 
 createBatchUserAdjustment 'Документ пересорта' = ACTION () {
     FORM selectParamsAdjustment MODAL;
-    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN NEWSESSION NESTED dataInSessionSkuGroup, chosenObject, chosenDateTime {
+    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]] {
         FOR ADDOBJ adjustment = UserAdjustment DO {  
-            stockUserAdjustment(adjustment) <- chosenObject('st');
-            dateUserAdjustment(adjustment) <- DATE(chosenDateTime('dt'));
-            timeUserAdjustment(adjustment) <- TIME(chosenDateTime('dt'));          
+            stock(adjustment) <- chosenObject('st');
+            date(adjustment) <- DATE(chosenDateTime('dt'));
+            time(adjustment) <- TIME(chosenDateTime('dt'));          
 
-            inAdjustmentSku(sku) <- NULL;
-            inAdjustmentSku(sku) <-  inSessionSkuGroup(skuGroupSku(sku));
-            inAdjustmentSku(sku) <- NULL WHERE inAdjustmentSku(sku)  AND NOT toAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment));
+            inAdjustment(Sku sku) <- NULL;
+            inAdjustment(Sku sku) <-  inSession(skuGroup(sku));
+            inAdjustment(Sku sku) <- NULL WHERE inAdjustment(sku)  AND NOT toAdjustment(sku,stock(adjustment),dateTime(adjustment));
             
-            createBatchUserAdjustmentDetailUserAdjustment(adjustment);
+            createBatchUserAdjustmentDetail(adjustment);
             FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKEDMODAL ;          
         }
-        dataInSessionSkuGroup(d) <- NULL;
-        chosenObject(d) <- NULL;
-        chosenDateTime(d) <- NULL;
+        dataInSession(SkuGroup d) <- NULL;
+        chosenObject(STRING[100] d) <- NULL;
+        chosenDateTime(STRING[100] d) <- NULL;
     }
 }
 
@@ -654,19 +654,19 @@ DESIGN adjustments {
     }    
 }
 
-createBatchUserAdjustmentStock 'Документ пересорта' = ACTION (stock) {
+createBatchUserAdjustment 'Документ пересорта' = ACTION (Stock stock) {
 
-    IF toAdjustmentStockDateTime(stock,currentDateTime()) THEN NEWSESSION {
+    IF toAdjustment(stock,currentDateTime()) THEN NEWSESSION {
         FOR ADDOBJ adjustment = UserAdjustment DO {  
-            stockUserAdjustment(adjustment) <- stock;
-            dateUserAdjustment(adjustment) <- currentDate();
-            timeUserAdjustment(adjustment) <- currentTime();  
-            isPostedUserAdjustment(adjustment) <- TRUE;
+            stock(adjustment) <- stock;
+            date(adjustment) <- currentDate();
+            time(adjustment) <- currentTime();  
+            isPosted(adjustment) <- TRUE;
 
-            inAdjustmentSku(sku) <- NULL;
-            inAdjustmentSku(sku) <- TRUE WHERE toAdjustmentSkuStockDateTime(sku,stockUserAdjustment(adjustment),dateTimeUserAdjustment(adjustment));
+            inAdjustment(Sku sku) <- NULL;
+            inAdjustment(Sku sku) <- TRUE WHERE toAdjustment(sku,stock(adjustment),dateTime(adjustment));
             
-            createBatchUserAdjustmentDetailUserAdjustment(adjustment);      
+            createBatchUserAdjustmentDetail(adjustment);      
         }
         apply();
     }

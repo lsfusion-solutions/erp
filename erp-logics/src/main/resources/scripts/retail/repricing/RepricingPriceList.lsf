@@ -16,67 +16,67 @@ DESIGN options {
     }
 }
 
-overPriceListUserRepricingDetail = ABSTRACT ACTION LIST (RepricingDetail);
+overPriceListUser = ABSTRACT ACTION LIST (RepricingDetail);
 
-skipRepricingSku = ABSTRACT BOOLEAN (Sku, Stock);
+skipRepricing = ABSTRACT BOOLEAN (Sku, Stock);
 
 onStockPriceListRepricing 'Переоценивать товары без остатка' = DATA BOOLEAN ();
 
-managementRetailPriceSku 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[14,2] (Sku);
-managementPriceListPriceSku = DATA LOCAL NESTED NUMERIC[14,2] (Sku); 
-inDashboardRepricingSku 'Вкл' = DATA LOCAL NESTED BOOLEAN (Sku); 
+managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[14,2] (Sku);
+managementPriceListPrice = DATA LOCAL NESTED NUMERIC[14,2] (Sku); 
+inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Sku); 
 assignAttributeSku = ABSTRACT ACTION (Stock, Operation, DATETIME);
 
-skipManagementPriceListPriceSku = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
+skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
-overSetManagementRetailPriceDepartmentStoreDateTime = ABSTRACT ACTION LIST (DepartmentStore, DATETIME);
+overSetManagementRetailPrice = ABSTRACT ACTION LIST (DepartmentStore, DATETIME);
 
-includeExtraDashboardRepricingStockDateTime = ABSTRACT ACTION (Stock, DATETIME);
-calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION (d, o, dt) {
+includeExtraDashboardRepricing = ABSTRACT ACTION (Stock, DATETIME);
+calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION (Stock d, Operation o, DATETIME dt) {
     FORM dialogSkuGroup MODAL;
     IF formResult() == FormResult.ok THEN {              
         IF onStockPriceListRepricing() THEN {
-            managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
-                                                                                      sku, d, dt) IF inSessionGroup(skuGroupSku(sku));
-            managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
-                IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) AND inSessionGroup(skuGroupSku(sku));
-            managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)),
+                                                                                      sku, d, dt) IF inSession(skuGroup(sku));
+            managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
+                IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
+            managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
-            managementRetailPriceSku (sku) <- priceACalcPriceListTypeSkuStockDateTime((OVERRIDE retailCalcPriceListTypeDepartmentStore(d), calcPriceListTypeOperation(o)),
-                                                                                      sku, d, dt) IF currentBalanceSkuStock(sku, d) > 0 AND inSessionGroup(skuGroupSku(sku));
-            managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
-                IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) AND inSessionGroup(skuGroupSku(sku));
-            managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)),
+                                                                                      sku, d, dt) IF currentBalance(sku, d) > 0 AND inSession(skuGroup(sku));
+            managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
+            managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         }
         
-        overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
+        overSetManagementRetailPrice(d, dt);
         
-        inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt) AND NOT skipRepricingSku(sku, d);
+        inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
         
-        includeExtraDashboardRepricingStockDateTime(d, dt);
+        includeExtraDashboardRepricing(d, dt);
         
         assignAttributeSku(d, o, dt);
         formRefresh();
     }
 } TOOLBAR;
 
-calculateDashboardManagementRepricing 'По прайсам' = ACTION (d, o, dt) {
-    managementRetailPriceSku(sku) <- NULL;
+calculateDashboardManagementRepricing 'По прайсам' = ACTION (Stock d, Operation o, DATETIME dt) {
+    managementRetailPrice(Sku sku) <- NULL;
     IF onStockPriceListRepricing() THEN {
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt)
-            IF NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
-        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+        managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
+            IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt);
+        managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
     } ELSE {
-        managementPriceListPriceSku (sku) <- prevPriceAPriceListTypeSkuStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt) 
-            IF currentBalanceSkuStock(sku, d) > 0 AND NOT skipManagementPriceListPriceSku((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),sku, d, dt);
-        managementRetailPriceSku(sku) <- managementPriceListPriceSku(sku) WHERE managementPriceListPriceSku(sku);
+        managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) 
+            IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt);
+        managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
     }
     
-    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
+    overSetManagementRetailPrice(d, dt);
     
-    inDashboardRepricingSku(sku) <- managementRetailPriceSku(sku) != prevRetailPricingPriceASkuStockDateTime(sku, d, dt);
+    inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt);
     
-    includeExtraDashboardRepricingStockDateTime(d, dt);
+    includeExtraDashboardRepricing(d, dt);
     
     assignAttributeSku(d, o, dt);    
     formRefresh();
@@ -84,38 +84,38 @@ calculateDashboardManagementRepricing 'По прайсам' = ACTION (d, o, dt) 
 
 repForm =  DATA LOCAL UserRepricing();  
 
-overCreateDashboardRepricingNotFormUserRepricing= ABSTRACT ACTION LIST (UserRepricing);
+overCreateDashboardRepricingNotForm= ABSTRACT ACTION LIST (UserRepricing);
 
-createDashboardRepricingNotForm 'Создать переоценку' = ACTION (d, o, dt) {
-    IF [ = GROUP SUM 1 IF inDashboardRepricingSku(sku)]() THEN {
+createDashboardRepricingNotForm 'Создать переоценку' = ACTION (Stock d, Operation o, DATETIME dt) {
+    IF [ = GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
         FOR ADDOBJ r = UserRepricing DO {
-            departmentStoreUserRepricing(r) <- d;
-            operationUserRepricing(r) <- o;
-            dateUserRepricing(r) <- toDate(dt);
-            timeUserRepricing(r) <- toTime(dt);  
-            isPostedUserRepricing(r) <- TRUE;
+            departmentStore(r) <- d;
+            operation(r) <- o;
+            date(r) <- toDate(dt);
+            time(r) <- toTime(dt);  
+            isPosted(r) <- TRUE;
     
-            FOR inDashboardRepricingSku(sku) ADDOBJ rd = UserRepricingDetail DO { //AND NOT skipRepricingSku(sku, d)
-                userRepricingUserRepricingDetail(rd) <- r;
-                skuUserRepricingDetail(rd) <- sku;
-                quantityUserRepricingDetail(rd) <- currentBalanceSkuStock(sku, d) IF currentBalanceSkuStock(sku, d) > 0;
-                quantityUserRepricingDetail(rd) <- NULL  WHERE quantityUserRepricingDetail(rd) < minManagementQuantityToRepricing();
-                retailPriceUserRepricingDetail(rd) <- managementRetailPriceSku(sku);
-                curRetailPriceUserRepricingDetail(rd) <- prevRetailPricingPriceBSkuStockDateTime(sku, d, dt);
-                priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, sku, d, dt);
-                overPriceListUserRepricingDetail(rd);
+            FOR inDashboardRepricing(Sku sku) ADDOBJ rd = UserRepricingDetail DO { //AND NOT skipRepricingSku(sku, d)
+                userRepricing(rd) <- r;
+                sku(rd) <- sku;
+                quantity(rd) <- currentBalance(sku, d) IF currentBalance(sku, d) > 0;
+                quantity(rd) <- NULL  WHERE quantity(rd) < minManagementQuantityToRepricing();
+                retailPrice(rd) <- managementRetailPrice(sku);
+                curRetailPrice(rd) <- prevRetailPricingPriceB(sku, d, dt);
+                price(rd) <- prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, sku, d, dt);
+                overPriceListUser(rd);
             }
-            overCreateDashboardRepricingNotFormUserRepricing(r);            
+            overCreateDashboardRepricingNotForm(r);            
             repForm() <- r;
         }
     }
 } TOOLBAR;
 
-createDashboardRepricing 'Создать переоценку' = ACTION  (d, o, dt) NEWSESSION NESTED LOCAL  {
+createDashboardRepricing 'Создать переоценку' = ACTION  (Stock d, Operation o, DATETIME dt) NEWSESSION NESTED LOCAL  {
     createDashboardRepricingNotForm(d, o, dt);
     FORM userRepricing OBJECTS p = repForm() MANAGESESSION DOCKEDMODAL;
     IF formResult() == FormResult.ok THEN
-        inDashboardRepricingSku(sku) <- NULL;
+        inDashboardRepricing(Sku sku) <- NULL;
     repForm() <- NULL;      
 }  
 
@@ -131,21 +131,21 @@ DESIGN options {
 
 createOverManagementRepricingAllStocks = ABSTRACT ACTION LIST ();
 isOverManagementRepricingAllStocks = ABSTRACT BOOLEAN ();
-skipManagementRepricingDepartmentStore = ABSTRACT BOOLEAN (DepartmentStore);
+skipManagementRepricing = ABSTRACT BOOLEAN (DepartmentStore);
 
 toManagementRepricingOperation  = DATA Repricing.Operation ();
-nameToManagementRepricingOperation 'Операция для переоценки упр.' = nameOperation(toManagementRepricingOperation());
+nameToManagementRepricingOperation 'Операция для переоценки упр.' = name(toManagementRepricingOperation());
 
-createOverManagementRepricingStock = ABSTRACT ACTION LIST (Stock);
+createOverManagementRepricing = ABSTRACT ACTION LIST (Stock);
 
 createManagementRepricingAllStocks 'Создать автоматическую переоценку упр.' = ACTION () NEWSESSION {
     IF isOverManagementRepricingAllStocks() THEN {
         createOverManagementRepricingAllStocks();
     } ELSE {   
-        FOR department IS DepartmentStore AND isCompanyStock(department) AND NOT skipManagementRepricingDepartmentStore(department)  DO {
+        FOR DepartmentStore department IS DepartmentStore AND isCompany(department) AND NOT skipManagementRepricing(department)  DO {
             calculateDashboardManagementRepricing(department, toManagementRepricingOperation(), currentDateTime());
             createDashboardRepricingNotForm(department, toManagementRepricingOperation(), currentDateTime()); 
-            createOverManagementRepricingStock(department);
+            createOverManagementRepricing(department);
         } 
     }
     apply();

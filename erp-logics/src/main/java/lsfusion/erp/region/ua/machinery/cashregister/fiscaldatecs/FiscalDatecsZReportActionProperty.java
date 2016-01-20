@@ -22,8 +22,8 @@ public class FiscalDatecsZReportActionProperty extends ScriptingActionProperty {
         try {
             DataSession session = context.getSession();
 
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
             if (context.checkApply()) {
                 Object VATSumReceipt = context.requestUserInteraction(new FiscalDatecsCustomOperationClientAction(2, baudRate, comPort));
@@ -34,7 +34,7 @@ public class FiscalDatecsZReportActionProperty extends ScriptingActionProperty {
 //                        findProperty("VATSumReturnZReport").change(((Object[]) VATSumReceipt)[1], session, (DataObject) zReportObject);
 //                    }
                     context.apply();
-                    findAction("closeCurrentZReport").execute(session);
+                    findAction("closeCurrentZReport[]").execute(session);
                 } else if (VATSumReceipt != null)
                     context.requestUserInteraction(new MessageClientAction((String) VATSumReceipt, "Ошибка"));
             }

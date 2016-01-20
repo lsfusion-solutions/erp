@@ -10,11 +10,11 @@ FORM priceListDashboard 'Управление ценами'
     PROPERTIES(dt) objValue = OBJVALUE
 
     OBJECTS pt = DataPriceListType FIXED PANEL
-    PROPERTIES(pt) SELECTOR namePriceListType
+    PROPERTIES(pt) SELECTOR name[PriceListType]
 ;
 
 defaultPriceListType = DATA DataPriceListType();
-nameDefaultPriceListType 'Вид цены для управления ценами по умолчанию' = namePriceListType(defaultPriceListType());
+nameDefaultPriceListType 'Вид цены для управления ценами по умолчанию' = name[PriceListType](defaultPriceListType());
 EXTEND FORM options
     PROPERTIES() nameDefaultPriceListType
 ;
@@ -55,19 +55,19 @@ NAVIGATOR {
     }
 }
 
-inSku 'Отм.' = DATA LOCAL BOOLEAN (Sku);
+in 'Отм.' = DATA LOCAL BOOLEAN (Sku);
 
 // ---------------------------- По организациям ----------------------- //
 // c
-editActiveLedgerALedgerPriceListTypeSkuCompanyDateTime'Редактировать' (type, sku, company, dateTime) = ACTION editPriceListLedger(activeLedgerALedgerPriceListTypeSkuCompanyDateTime(type, sku, company, dateTime)) IMAGE 'edit.png';                                            
+editActiveLedgerA'Редактировать' (LedgerPriceListType type, Sku sku, LegalEntity company, DATETIME dateTime) = ACTION edit(activeLedgerA(type, sku, company, dateTime)) IMAGE 'edit.png';                                            
 
 // workaround, что объект не может быть null
 currentLegalEntity 'Организация' = DATA LOCAL NESTED LegalEntity ();
-nameCurrentLegalEntity 'Организация' = nameLegalEntity(currentLegalEntity());
+nameCurrentLegalEntity 'Организация' = name(currentLegalEntity());
 
 EXTEND FORM priceListDashboard
     OBJECTS o = PriceList.Operation FIXED PANEL
-    PROPERTIES(o) SELECTOR PriceList.nameOperation
+    PROPERTIES(o) SELECTOR name
         
     PROPERTIES() nameCurrentLegalEntity
     
@@ -75,40 +75,40 @@ EXTEND FORM priceListDashboard
 //    PROPERTIES(c) nameLegalEntity SELECTOR
     FILTERS c == currentLegalEntity()
 
-    TREE cskg cskg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(cskg), cskgName = nameSkuGroup(cskg)
-    ORDER BY orderSkuGroup(cskg), cskgName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(cskg) 'F5' DEFAULT
+    TREE cskg cskg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(cskg), cskgName = name(cskg)
+    ORDER BY order(cskg), cskgName
+    FILTERGROUP inactive FILTER 'Активные' active(cskg) 'F5' DEFAULT
 
     OBJECTS csk = Sku
-    PROPERTIES(csk)          inSku
-    PROPERTIES(csk) READONLY nameSku, idSku, idBarcodeSku
-    ORDER BY nameSku(csk)
-    FILTERS isParentSkuGroupSku(cskg, csk)
+    PROPERTIES(csk)          in
+    PROPERTIES(csk) READONLY name, id, idBarcode
+    ORDER BY name(csk)
+    FILTERS isParent(cskg, csk)
 
-    PROPERTIES READONLY cPrice = activePriceALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) // последний прайс, в котором есть цена
-    PROPERTIES READONLY activeDescriptionALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) ON SHORTCUT editActiveLedgerALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt)
-    PROPERTIES editActiveLedgerALedgerPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) TOOLBAR 
+    PROPERTIES READONLY cPrice = activePriceA(pt, csk, c, dt) // последний прайс, в котором есть цена
+    PROPERTIES READONLY activeDescriptionA(pt, csk, c, dt) ON SHORTCUT editActiveLedgerA(pt, csk, c, dt)
+    PROPERTIES editActiveLedgerA(pt, csk, c, dt) TOOLBAR 
     // на больших объемах возможно будет тормозить
-    FILTERS countStockAPriceListTypeSkuCompanyDateTime(pt, csk, c, dt) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
+    FILTERS countStockA(pt, csk, c, dt) // фильтруем все товары, которые входят в ассортимент хотя бы одного склада
 
     OBJECTS cst = Stock
-    PROPERTIES(cst)          READONLY nameStock
-    PROPERTIES(csk, cst, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES               READONLY cPriceStock = priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, csk, cst, c, dt)
-    ORDER BY nameStock(cst)
-    FILTERS priceALedgerPriceListTypeSkuStockCompanyDateTime(pt, csk, cst, c, dt)
-    FILTERGROUP inactiveStock2 FILTER 'Активный' activeStock(cst) 'ctrl F10' DEFAULT 
+    PROPERTIES(cst)          READONLY name
+    PROPERTIES(csk, cst, dt) READONLY balanceA
+    PROPERTIES               READONLY cPriceStock = priceA(pt, csk, cst, c, dt)
+    ORDER BY name(cst)
+    FILTERS priceA(pt, csk, cst, c, dt)
+    FILTERGROUP inactiveStock2 FILTER 'Активный' active(cst) 'ctrl F10' DEFAULT 
        
     OBJECTS cpl = PriceListLedger
-    PROPERTIES(cpl) READONLY isPostedPriceListLedger, fromDateTimePriceListLedger, toDateTimePriceListLedger, descriptionPriceListLedger, 
-                             nameCompanyPriceListLedger, priceListTypesPriceListLedger, stocksPriceListLedger, 
-                             createdTimePriceListLedger, createdNameUserPriceListLedger, createdHostnameComputerPriceListLedger
-    PROPERTIES(cpl) editPriceListLedger                         
-    PROPERTIES      READONLY pricePriceListLedgerLedgerPriceListType(cpl, pt)
-    FILTERS inPriceListLedgerLedgerPriceListType(cpl, pt),
-            skuPriceListLedger(cpl) == csk,
-            companyPriceListLedger(cpl) == c
+    PROPERTIES(cpl) READONLY isPosted, fromDateTime, toDateTime, description, 
+                             nameCompany, priceListTypes, stocks, 
+                             createdTime, createdNameUser, createdHostnameComputer
+    PROPERTIES(cpl) edit                         
+    PROPERTIES      READONLY price(cpl, pt)
+    FILTERS in(cpl, pt),
+            sku(cpl) == csk,
+            company(cpl) == c
 ;
 
 DESIGN priceListDashboard {
@@ -161,71 +161,71 @@ DESIGN priceListDashboard {
 
 // Создание прайс-листов
 
-fillCompanyPriceList = ACTION (userPriceList, dateTime, dataPriceListType, company) {
-    fromDateUserPriceList(userPriceList) <- toDate(dateTime);
-    fromTimeUserPriceList(userPriceList) <- toTime(dateTime);
-    companyUserPriceList(userPriceList) <- company;
-    currencyUserPriceList(userPriceList) <- currencyDataPriceListType(dataPriceListType);
-    inUserPriceListDataPriceListType(userPriceList, dataPriceListType) <- TRUE;
-    showUserPriceListPriceListType(userPriceList, dataPriceListType) <- TRUE;
-    FOR inSku(sku) ADDOBJ d = UserPriceListDetail DO {
-        skuUserPriceListDetail(d) <- sku;
-        userPriceListUserPriceListDetail(d) <- userPriceList;
+fillCompany = ACTION (UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company) {
+    fromDate(userPriceList) <- toDate(dateTime);
+    fromTime(userPriceList) <- toTime(dateTime);
+    company(userPriceList) <- company;
+    currency(userPriceList) <- currency[DataPriceListType](dataPriceListType);
+    in[UserPriceList,DataPriceListType](userPriceList, dataPriceListType) <- TRUE;
+    show(userPriceList, dataPriceListType) <- TRUE;
+    FOR in(Sku sku) ADDOBJ d = UserPriceListDetail DO {
+        sku(d) <- sku;
+        userPriceList(d) <- userPriceList;
     }
 }
 
 // Добавление в ассортимент
-includeDateTimeDataPriceListTypeCompany 'Включить' = ACTION (dateTime, dataPriceListType, company, operation) {
-    NEWSESSION NESTED inSku {
+includeDataCompany 'Включить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-                activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
-                WHERE userPriceListUserPriceListDetail(d) == u;
-            operationUserPriceList(u) <- operation;     
+            fillCompany(u, dateTime, dataPriceListType, company);
+            price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
+                activePriceA(dataPriceListType, sku(d), company, dateTime)
+                WHERE userPriceList(d) == u;
+            operation(u) <- operation;     
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
 // Изменение цен
-modifyDateTimeDataPriceListTypeCompany 'Изменить' = ACTION (dateTime, dataPriceListType, company, operation) {
-    NEWSESSION NESTED inSku {
+modifyDataCompany 'Изменить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-                activePriceALedgerPriceListTypeSkuCompanyDateTime(dataPriceListType, skuUserPriceListDetail(d), company, dateTime)
-                WHERE userPriceListUserPriceListDetail(d) == u;
-            FOR [= GROUP SUM 1 IF inSku(sku) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
-                dataInUserPriceListStock(u, stock) <- TRUE;
+            fillCompany(u, dateTime, dataPriceListType, company);
+            price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
+                activePriceA(dataPriceListType, sku(d), company, dateTime)
+                WHERE userPriceList(d) == u;
+            FOR [= GROUP SUM 1 IF in(Sku sku) AND priceA(LedgerPriceListType t, sku, Stock st, LegalEntity c, DATETIME d) BY t, st, c, d] (dataPriceListType, Stock stock, company, dateTime) DO {
+                dataIn(u, stock) <- TRUE;
             }
-            operationUserPriceList(u) <- operation;  
+            operation(u) <- operation;  
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
 // Исключение из ассортимента
-excludeDateTimeDataPriceListTypeCompany 'Исключить' = ACTION (dateTime, dataPriceListType, company, operation) {
-    NEWSESSION NESTED inSku {
+excludeDataCompany 'Исключить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyPriceList(u, dateTime, dataPriceListType, company);
-            FOR [= GROUP SUM 1 IF inSku(sku) AND priceALedgerPriceListTypeSkuStockCompanyDateTime(t, sku, st, c, d) BY t, st, c, d] (dataPriceListType, stock, company, dateTime) DO {
-                dataInUserPriceListStock(u, stock) <- TRUE;
+            fillCompany(u, dateTime, dataPriceListType, company);
+            FOR [= GROUP SUM 1 IF in(Sku sku) AND priceA(LedgerPriceListType t, sku, Stock st, LegalEntity c, DATETIME d) BY t, st, c, d] (dataPriceListType, Stock stock, company, dateTime) DO {
+                dataIn(u, stock) <- TRUE;
             }
-            operationUserPriceList(u) <- operation;  
+            operation(u) <- operation;  
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
 EXTEND FORM priceListDashboard
-    PROPERTIES TODRAW csk FORCE PANEL includeDateTimeDataPriceListTypeCompany(dt, pt, c, o),
-                                      modifyDateTimeDataPriceListTypeCompany(dt, pt, c, o),
-                                      excludeDateTimeDataPriceListTypeCompany(dt, pt, c, o)
+    PROPERTIES TODRAW csk FORCE PANEL includeDataCompany(dt, pt, c, o),
+                                      modifyDataCompany(dt, pt, c, o),
+                                      excludeDataCompany(dt, pt, c, o)
 ;
 
 DESIGN priceListDashboard {
@@ -233,67 +233,67 @@ DESIGN priceListDashboard {
         NEW primaryCompanyActions {
             type = CONTAINERH;
             caption = 'Согласованные цены';
-            MOVE PROPERTY(includeDateTimeDataPriceListTypeCompany(dt,pt,c,o));
-            MOVE PROPERTY(modifyDateTimeDataPriceListTypeCompany(dt,pt,c,o));
-            MOVE PROPERTY(excludeDateTimeDataPriceListTypeCompany(dt,pt,c,o));
+            MOVE PROPERTY(includeDataCompany(dt,pt,c,o));
+            MOVE PROPERTY(modifyDataCompany(dt,pt,c,o));
+            MOVE PROPERTY(excludeDataCompany(dt,pt,c,o));
         }
     }
 }
 
 // ---------------------------- По складам ---------------------------- //
 // s
-ledgerALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime) =
-    GROUP LAST ledger
-          BY type, skuPriceListLedger(ledger), stock, dateTimeIn
-          ORDER fromDateTimePriceListLedger(ledger), ledger
-          WHERE activePriceListLedgerLedgerPriceListTypeStock(ledger, type, stock) AND
-                fromDateTimePriceListLedger(ledger) <= dateTimeIn AND NOT toDateTimePriceListLedger(ledger) < dateTimeIn COMPLEX;
-editLedgerALedgerPriceListTypeSkuStockDateTime 'Редактировать' (type, sku, stock, dateTime) = ACTION editPriceListLedger(ledgerALedgerPriceListTypeSkuStockDateTime (type, sku, stock, dateTime)) IMAGE 'edit.png';                
+ledgerA (type, sku, stock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger), Stock stock, DATETIME dateTimeIn
+          ORDER fromDateTime(ledger), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
+editLedgerA 'Редактировать' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = ACTION edit(ledgerA (type, sku, stock, dateTime)) IMAGE 'edit.png';                
 
 
 EXTEND FORM priceListDashboard
     OBJECTS s = Stock FIXED PANEL
-    PROPERTIES(s) nameStock SELECTOR
-    FILTERS isCompanyStock(s)
+    PROPERTIES(s) name SELECTOR
+    FILTERS isCompany(s)
 
-    TREE sskg sskg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sskg), sskgName = nameSkuGroup(sskg)
-    ORDER BY orderSkuGroup(sskg), sskgName
-    FILTERGROUP inactive2 FILTER 'Активные' activeSkuGroup(sskg) 'F5' DEFAULT
+    TREE sskg sskg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sskg), sskgName = name(sskg)
+    ORDER BY order(sskg), sskgName
+    FILTERGROUP inactive2 FILTER 'Активные' active(sskg) 'F5' DEFAULT
 
     OBJECTS ssk = Sku
-    PROPERTIES(ssk)          inSku
-    PROPERTIES(ssk) READONLY nameSku, idBarcodeSku
-    PROPERTIES      READONLY balanceASkuStockDateTime(ssk, s, dt)
-    ORDER BY nameSku(ssk)
-    FILTERS isParentSkuGroupSku(sskg, ssk)
+    PROPERTIES(ssk)          in
+    PROPERTIES(ssk) READONLY name, idBarcode
+    PROPERTIES      READONLY balanceA(ssk, s, dt)
+    ORDER BY name(ssk)
+    FILTERS isParent(sskg, ssk)
 
-    PROPERTIES(pt, ssk, s, dt) READONLY sPrice = priceALedgerPriceListTypeSkuStockDateTime,
-                                        nameCompanyALedgerPriceListTypeSkuStockDateTime
-    PROPERTIES(pt, ssk, s, dt) READONLY descriptionALedgerPriceListTypeSkuStockDateTime ON SHORTCUT editLedgerALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt) 
-    PROPERTIES editLedgerALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt) TOOLBAR
-    FILTERS priceALedgerPriceListTypeSkuStockDateTime(pt, ssk, s, dt)
+    PROPERTIES(pt, ssk, s, dt) READONLY sPrice = priceA,
+                                        nameCompanyA
+    PROPERTIES(pt, ssk, s, dt) READONLY descriptionA ON SHORTCUT editLedgerA(pt, ssk, s, dt) 
+    PROPERTIES editLedgerA(pt, ssk, s, dt) TOOLBAR
+    FILTERS priceA(pt, ssk, s, dt)
 
     OBJECTS sst = Stock
-    PROPERTIES(sst)          READONLY nameStock
-    PROPERTIES(ssk, sst, dt) READONLY balanceASkuStockDateTime
-    PROPERTIES(pt, ssk, sst, dt) READONLY sPriceStock = priceALedgerPriceListTypeSkuStockDateTime,
-                                          nameCompanyALedgerPriceListTypeSkuStockDateTime,
-                                          descriptionALedgerPriceListTypeSkuStockDateTime
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(sst) 'ctrl F10' DEFAULT    
-    ORDER BY nameStock(cst)
-    FILTERS priceALedgerPriceListTypeSkuStockDateTime(pt, ssk, sst, dt)
+    PROPERTIES(sst)          READONLY name
+    PROPERTIES(ssk, sst, dt) READONLY balanceA
+    PROPERTIES(pt, ssk, sst, dt) READONLY sPriceStock = priceA,
+                                          nameCompanyA,
+                                          descriptionA
+    FILTERGROUP inactiveStock FILTER 'Активный' active(sst) 'ctrl F10' DEFAULT    
+    ORDER BY name(cst)
+    FILTERS priceA(pt, ssk, sst, dt)
 
     OBJECTS spl = PriceListLedger
-    PROPERTIES(spl) READONLY isPostedPriceListLedger, fromDateTimePriceListLedger, toDateTimePriceListLedger, descriptionPriceListLedger, 
-                             nameCompanyPriceListLedger, priceListTypesPriceListLedger, stocksPriceListLedger, 
-                             createdTimePriceListLedger, createdNameUserPriceListLedger, createdHostnameComputerPriceListLedger
-    PROPERTIES(spl) editPriceListLedger                     
+    PROPERTIES(spl) READONLY isPosted, fromDateTime, toDateTime, description, 
+                             nameCompany, priceListTypes, stocks, 
+                             createdTime, createdNameUser, createdHostnameComputer
+    PROPERTIES(spl) edit                     
                              
-    PROPERTIES      READONLY pricePriceListLedgerLedgerPriceListType(spl, pt)
-    FILTERS inPriceListLedgerLedgerPriceListType(spl, pt),
-            skuPriceListLedger(spl) == ssk,
-            inPriceListLedgerStock(spl, s)
+    PROPERTIES      READONLY price(spl, pt)
+    FILTERS in(spl, pt),
+            sku(spl) == ssk,
+            in(spl, s)
 ;
 
 DESIGN priceListDashboard {
@@ -341,61 +341,61 @@ DESIGN priceListDashboard {
     }
 }
 
-fillCompanyStockPriceList = ACTION (u, company, dateTime, dataPriceListType, stock) {
-    fromDateUserPriceList(u) <- toDate(dateTime);
-    fromTimeUserPriceList(u) <- toTime(dateTime);
-    companyUserPriceList(u) <- company;
-    currencyUserPriceList(u) <- currencyDataPriceListType(dataPriceListType);
-    inUserPriceListDataPriceListType(u, dataPriceListType) <- TRUE;
-    showUserPriceListPriceListType(u, dataPriceListType) <- TRUE;
-    dataInUserPriceListStock(u, stock) <- TRUE;
-    FOR inSku(sku) AND companyALedgerPriceListTypeSkuStockDateTime(dataPriceListType, sku, stock, dateTime) == company
+fillCompanyPriceList = ACTION (UserPriceList u, LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) {
+    fromDate(u) <- toDate(dateTime);
+    fromTime(u) <- toTime(dateTime);
+    company(u) <- company;
+    currency(u) <- currency[DataPriceListType](dataPriceListType);
+    in[UserPriceList,DataPriceListType](u, dataPriceListType) <- TRUE;
+    show(u, dataPriceListType) <- TRUE;
+    dataIn(u, stock) <- TRUE;
+    FOR in(Sku sku) AND companyA(dataPriceListType, sku, stock, dateTime) == company
         ADDOBJ d = UserPriceListDetail DO {
-        skuUserPriceListDetail(d) <- sku;
-        userPriceListUserPriceListDetail(d) <- u;
+        sku(d) <- sku;
+        userPriceList(d) <- u;
     }
 }
 
-createCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) {
-    NEWSESSION NESTED inSku {
+createCompanyPriceList = ACTION (LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
+            fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
-createWPricesCompanyStockPriceList = ACTION (company, dateTime, dataPriceListType, stock) {
-    NEWSESSION NESTED inSku {
+createWPricesCompanyPriceList = ACTION (LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) {
+    NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
-            fillCompanyStockPriceList(u, company, dateTime, dataPriceListType, stock);
-            priceUserPriceListDetailDataPriceListType(d, dataPriceListType) <-
-                priceALedgerPriceListTypeSkuStockDateTime(dataPriceListType, skuUserPriceListDetail(d), stock, dateTime)
-                WHERE userPriceListUserPriceListDetail(d) == u;
+            fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
+            price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
+                priceA[LedgerPriceListType,Sku,Stock,DATETIME](dataPriceListType, sku(d), stock, dateTime)
+                WHERE userPriceList(d) == u;
             FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
-            inSku(s) <- NULL;
+            in(Sku s) <- NULL;
         }
     }
 }
 
 // Изменение цен
-modifyDateTimeDataPriceListTypeStock 'Изменить' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
-        createWPricesCompanyStockPriceList(company, dateTime, dataPriceListType, stock);
+modifyData 'Изменить' = ACTION (DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) {
+    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+        createWPricesCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
-excludeDateTimeDataPriceListTypeStock 'Исключить' = ACTION (dateTime, dataPriceListType, stock) {
-    FOR [= GROUP SUM 1 IF inSku(s) BY companyALedgerPriceListTypeSkuStockDateTime(t, s, st, d), t, st, d] (company, dataPriceListType, stock, dateTime) DO {
-        createCompanyStockPriceList(company, dateTime, dataPriceListType, stock);
+excludeData 'Исключить' = ACTION (DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) {
+    FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
+        createCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
 }
 
 EXTEND FORM priceListDashboard
-    PROPERTIES TODRAW ssk FORCE PANEL modifyDateTimeDataPriceListTypeStock(dt, pt, s),
-                                      excludeDateTimeDataPriceListTypeStock(dt, pt, s)
+    PROPERTIES TODRAW ssk FORCE PANEL modifyData(dt, pt, s),
+                                      excludeData(dt, pt, s)
 ;
 
 DESIGN priceListDashboard {
@@ -403,8 +403,8 @@ DESIGN priceListDashboard {
         NEW primaryStockActions {
             type = CONTAINERH;
             caption = 'Согласованные цены';
-            MOVE PROPERTY(modifyDateTimeDataPriceListTypeStock(dt,pt,s));
-            MOVE PROPERTY(excludeDateTimeDataPriceListTypeStock(dt,pt,s));
+            MOVE PROPERTY(modifyData(dt,pt,s));
+            MOVE PROPERTY(excludeData(dt,pt,s));
         }
     }
 }
@@ -412,14 +412,14 @@ DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceListLegalEntityPriceListTypeDateTime 'Добавить' = ACTION (legalEntity, type, dateTime) NEWSESSION {
+addUserPriceList 'Добавить' = ACTION (LegalEntity legalEntity, PriceListType type, DATETIME dateTime) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
-        companyUserPriceList(p) <- legalEntity;
-        fromDateUserPriceList(p) <- toDate(dateTime);
-        fromTimeUserPriceList(p) <- toTime(dateTime);
-        inUserPriceListDataPriceListType(p, type) <- TRUE;
-        showPriceListPriceListType(p, type) <- TRUE;
-        EXEC overAddUserPriceList(p); 
+        company(p) <- legalEntity;
+        fromDate(p) <- toDate(dateTime);
+        fromTime(p) <- toTime(dateTime);
+        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
+        show[PriceList,PriceListType](p, type) <- TRUE;
+        EXEC overAdd(p); 
         FORM userPriceList OBJECTS p=p MANAGESESSION DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN
             EXEC apply();
@@ -430,18 +430,18 @@ EXTEND FORM priceListDashboard
     PROPERTIES() pCurrentLegalEntity = nameCurrentLegalEntity
 
     OBJECTS p = UserPriceList
-    PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p) isPostedUserPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
-                           fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
-                           nameCurrencyUserPriceList, nameCompanyUserPriceList, priceListTypesPriceList, stocksPriceList,
-                           noteUserPriceList
-    PROPERTIES(p) EDITFORM, DELETE FORCE PANEL TOOLBAR, updatePriceList FORCE PANEL TOOLBAR
-    ORDER BY fromDateUserPriceList(p), fromTimeUserPriceList(p)
-    FILTERS inUserPriceListDataPriceListType(p, pt),
-            companyUserPriceList(p) == c
-    PROPERTIES(c, pt, dt) addUserPriceListLegalEntityPriceListTypeDateTime FORCE PANEL TODRAW p       
+    PROPERTIES(p) READONLY BACKGROUND background(p) isPosted, number, series, date, time,
+                           fromDate, fromTime, toDate, toTime,
+                           nameCurrency, nameCompany, priceListTypes, stocks,
+                           note
+    PROPERTIES(p) EDITFORM, DELETE FORCE PANEL TOOLBAR, update FORCE PANEL TOOLBAR
+    ORDER BY fromDate(p), fromTime(p)
+    FILTERS in(p, pt),
+            company(p) == c
+    PROPERTIES(c, pt, dt) addUserPriceList FORCE PANEL TODRAW p       
     FILTERGROUP inactivePriceList
-        FILTER 'Текущие' isActivePriceListDateTime(p,dt) 'F11'            
-        FILTER 'Активные' isActivePriceListDateTime(p,dt) OR (fromDateTimePriceList(p) > dt) 'F10' DEFAULT   
+        FILTER 'Текущие' isActive(p,dt) 'F11'            
+        FILTER 'Активные' isActive(p,dt) OR (fromDateTime[PriceList](p) > dt) 'F10' DEFAULT   
             
 ;
 DESIGN priceListDashboard {
@@ -459,32 +459,32 @@ DESIGN priceListDashboard {
 }
 
 // ------------------- Импорт прайсов --------------------------- //
-importTimeUserPriceList = ABSTRACT BOOLEAN (UserPriceList);
-importUserPriceListLegalEntityPriceListTypeDateTime 'Импортировать' = ACTION (c, t, dt) NEWSESSION {
+importTime = ABSTRACT BOOLEAN (UserPriceList);
+importUserPriceList 'Импортировать' = ACTION (LegalEntity c, ImportUserPriceListType t, DATETIME dt) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
-        importUserPriceListTypeUserPriceList(p) <- t;
-        companyUserPriceList(p) <- c;
-        fromDateUserPriceList(p) <- toDate(dt);
-        IF NOT importTimeUserPriceList(p) THEN {
-            fromTimeUserPriceList(p) <- toTime(dt);
+        importUserPriceListType(p) <- t;
+        company(p) <- c;
+        fromDate(p) <- toDate(dt);
+        IF NOT importTime(p) THEN {
+            fromTime(p) <- toTime(dt);
         } ELSE {
-            fromTimeUserPriceList(p) <- 00:00;
+            fromTime(p) <- 00:00;
         }
         
-        importUserPriceListAction(p);
+        importAction(p);
         FORM userPriceList OBJECTS p = p MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
 
 EXTEND FORM priceListDashboard
     OBJECTS t = ImportUserPriceListType FIXED PANEL
-    PROPERTIES(t) nameImportUserPriceListType SELECTOR
-    PROPERTIES(c, t, dt) importUserPriceListLegalEntityPriceListTypeDateTime FORCE PANEL TODRAW p
-    FILTERS companyImportUserPriceListType(t)== c OR (c IS LegalEntity AND NOT companyImportUserPriceListType(t))    
+    PROPERTIES(t) name SELECTOR
+    PROPERTIES(c, t, dt) importUserPriceList FORCE PANEL TODRAW p
+    FILTERS company(t)== c OR (c IS LegalEntity AND NOT company(t))    
 ;
 
 DESIGN priceListDashboard{
     rowContainer{
-        MOVE PROPERTY(nameImportUserPriceListType(t));
+        MOVE PROPERTY(name(t));
     }
 }

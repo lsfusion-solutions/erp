@@ -4,33 +4,33 @@ REQUIRE LegalEntity, EmployeeManager;
 
 NAMESPACE LegalEntity;
 
-managerLegalEntity = DATA Employee (LegalEntity);
-nameManagerLegalEntity 'Менеджер' (l) = shortNameContact(managerLegalEntity(l));
-inManagerEmployeeLegalEntity 'Отм' (e, l) = e == managerLegalEntity(l);
+manager = DATA Employee (LegalEntity);
+nameManager 'Менеджер' (LegalEntity l) = shortName(manager(l));
+inManager 'Отм' (Employee e, LegalEntity l) = e == manager(l);
 
 EXTEND FORM legalEntity
-    PROPERTIES (l) nameManagerLegalEntity
+    PROPERTIES (l) nameManager
 ;
 
 DESIGN legalEntity {
     extendContainer {
         NEW managerContainer {
             caption = 'Менеджмент';
-            MOVE PROPERTY(nameManagerLegalEntity(l));
+            MOVE PROPERTY(nameManager(l));
         }
     } 
 }
 
 EXTEND FORM employee
-    TREE legalEntityTreeM lgm = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY  lgmTreeName = nameLegalEntityGroup(lgm)
+    TREE legalEntityTreeM lgm = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY  lgmTreeName = name(lgm)
     ORDER BY lgmTreeName
 
     OBJECTS lm = LegalEntity FIXED GRID
-    PROPERTIES(lm) READONLY nameLegalEntity, nameManagerLegalEntity
-    PROPERTIES (e, lm) inManagerEmployeeLegalEntity
-    ORDER BY nameLegalEntity(lm)
-    FILTERS isParentLegalEntityGroupLegalEntity(lgm, lm) OR (lm IS LegalEntity AND NOT lgm)
+    PROPERTIES(lm) READONLY name, nameManager
+    PROPERTIES (e, lm) inManager
+    ORDER BY name(lm)
+    FILTERS isParent(lgm, lm) OR (lm IS LegalEntity AND NOT lgm)
 ;
 
 DESIGN employee {

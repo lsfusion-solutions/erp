@@ -19,16 +19,16 @@ TABLE wareGroup (WareGroup);
 
 @defineExternalizable(wareGroup, VARSTRING[100]);
 
-idSkuGroup(group) += idWareGroup(group) IF group IS WareGroup;
+id(WareGroup group) += id(group) IF group IS WareGroup;
 
-nameWareGroup 'Наименование' = DATA VARISTRING[100](WareGroup);
+name 'Наименование' = DATA VARISTRING[100](WareGroup);
 
-nameSkuGroup(group) += nameWareGroup(group) IF group IS WareGroup;
+name(WareGroup group) += name(group) IF group IS WareGroup;
 
 TABLE wareGroupWareGroup(WareGroup, WareGroup);
 @defineHierarchy(wareGroup);
 
-parentSkuGroup (wareGroup) += parentWareGroup(wareGroup);
+parent (WareGroup wareGroup) += parent(wareGroup);
 
 // ------------------------------------------ Посуда ----------------------------------------------- //
 CLASS Ware 'Посуда' : Sku;
@@ -36,83 +36,83 @@ TABLE ware(Ware);
 
 @defineExternalizable(ware, VARSTRING[100]);
 
-idSku(sku) += idWare(sku);
+id(Ware sku) += id(sku);
 
-nameWare 'Наименование' = DATA VARISTRING[100](Ware);
-wareName = GROUP AGGR ware BY nameWare(ware); 
+name 'Наименование' = DATA VARISTRING[100](Ware);
+wareName = GROUP AGGR Ware ware BY name(ware); 
 
-wareGroupWare = DATA WareGroup(Ware) AUTOSET;
-skuGroupSku(ware) += wareGroupWare(ware);
+wareGroup = DATA WareGroup(Ware) AUTOSET;
+skuGroup(Ware ware) += wareGroup(ware);
 
-nameSku(ware) += nameWare(ware) IF ware IS Ware;
+name(Ware ware) += name(ware) IF ware IS Ware;
 
-nameWareGroupWare 'Группа посуды' (ware) = nameWareGroup(wareGroupWare(ware));
-canonicalNameWareGroupWare 'Группа посуды' (ware) = canonicalNameWareGroup(wareGroupWare(ware)) IN base;
+nameWareGroup 'Группа посуды' (Ware ware) = name(wareGroup(ware));
+canonicalNameWareGroup 'Группа посуды' (Ware ware) = canonicalName(wareGroup(ware)) IN base;
 
 // Товар
-skuTypeSku (sku) += SkuType.skuTypeItem IF sku IS Ware;
+skuType (Ware sku) += SkuType.skuTypeItem IF sku IS Ware;
 
 TABLE wareGroupWare (WareGroup, Ware);
 
-isParentWareGroupWare (wareGroup, ware) = isParentWareGroupWareGroup(wareGroupWare(ware), wareGroup);   //PERSISTENT
+isParent (WareGroup wareGroup, Ware ware) = isParent(wareGroup(ware), wareGroup);   //PERSISTENT
 
 TABLE wareDate(Ware, DATE);
 
 @defineHistorizable(price, , 'Цена', NUMERIC[14,2], ware, nameWare, base);
 
-VATWareCountry 'НДС' = DATA Range (Ware, Country);
-numberVATWareCountry 'НДС, номер' (w, c) = numberRange(VATWareCountry(w, c));
+VAT 'НДС' = DATA Range (Ware, Country);
+numberVAT 'НДС, номер' (Ware w, Country c) = number(VAT(w, c));
 
-VATSkuCountry (sku, country) += VATWareCountry (sku, country);
+VAT (Ware sku, Country country) += VAT (sku, country);
 
-CONSTRAINT taxRange(VATWareCountry(ware, country)) != Tax.taxVAT OR
-           countryRange(VATWareCountry(ware, country)) != country AS Country
-           CHECKED BY VATWareCountry
+CONSTRAINT tax(VAT(Ware ware, Country country)) != Tax.taxVAT OR
+           country(VAT(ware, country)) != country AS Country
+           CHECKED BY VAT[Ware,Country]
            MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС : Ware';
 
-valueVATWareCountryDate 'НДС, %' (ware, country, date) = valueRateRangeDate(VATWareCountry(ware, country), date);
-valueVATWareCountry 'НДС, %' (ware, country) = valueVATWareCountryDate(ware, country, currentDate());
+valueVAT 'НДС, %' (Ware ware, Country country, DATE date) = valueRate(VAT(ware, country), date);
+valueVAT 'НДС, %' (Ware ware, Country country) = valueVAT(ware, country, currentDate());
 
-VATWare 'НДС' (ware) = VATWareCountry(ware, defaultCountry()) PERSISTENT;
-numberVATWare 'НДС' (ware) = numberRange(VATWare(ware));
+VAT 'НДС' (Ware ware) = VAT(ware, defaultCountry()) PERSISTENT;
+numberVAT 'НДС' (Ware ware) = number(VAT(ware));
 
-valueVATWareDate 'НДС, %' (ware, date) = valueRateRangeDate(VATWare(ware), date);
-valueVATWare 'НДС, %' (ware) = valueVATWareDate(ware, currentDate());
+valueVAT 'НДС, %' (Ware ware, DATE date) = valueRate(VAT(ware), date);
+valueVAT 'НДС, %' (Ware ware) = valueVAT(ware, currentDate());
 
-changeNumberVATWare = ACTION (ware) {
+changeNumberVAT = ACTION (Ware ware) {
     REQUEST OBJECT r
         FORM rangeDialog OBJECTS c = defaultCountry() DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        VATWareCountry(ware, country) <- requestedObject() WHERE country == defaultCountry();
+        VAT(ware, Country country) <- requestedObject() WHERE country == defaultCountry();
 
     } ELSE IF formResult() == FormResult.drop THEN {
-        VATWareCountry(ware, country) <- NULL WHERE country == defaultCountry();
+        VAT(ware, Country country) <- NULL WHERE country == defaultCountry();
     }
 }
-changeValueVATWare = ACTION (ware) {
+changeValueVAT = ACTION (Ware ware) {
     REQUEST NUMERIC[10,5] INPUT;
-    VATWareCountry(ware, country) <- valueCurrentVATCountryValue(country, requestedNumeric()) WHERE country == defaultCountry();
+    VAT(ware, Country country) <- valueCurrentVAT(country, requestedNumeric()) WHERE country == defaultCountry();
 }
 
 // ------------------ Формы  --------------------- //
 
 FORM wareGroup 'Группа посуды'
     OBJECTS g=WareGroup FIXED PANEL
-    PROPERTIES(g) idWareGroup SHOWIF showIDs(), nameWareGroup, nameParentWareGroup
+    PROPERTIES(g) id SHOWIF showIDs(), name, nameParent
     EDIT WareGroup OBJECT g
 ;
 
 FORM wareGroups 'Группы посуды'
-    TREE treeGroups tg=WareGroup PARENT parentWareGroup
-    PROPERTIES READONLY nameWareGroup(tg)
-    ORDER BY nameWareGroup(tg)
+    TREE treeGroups tg=WareGroup PARENT parent
+    PROPERTIES READONLY name(tg)
+    ORDER BY name(tg)
 
     OBJECTS g=WareGroup
-    PROPERTIES(g) READONLY nameWareGroup, canonicalNameWareGroup
+    PROPERTIES(g) READONLY name, canonicalName
     PROPERTIES(g) DELETE FORCE PANEL TOOLBAR, ADDFORM, EDITFORM
-    ORDER BY canonicalNameWareGroup(g)
+    ORDER BY canonicalName(g)
 
-    FILTERS isParentWareGroupWareGroup(g, tg)
+    FILTERS isParent(g, tg)
 
     DIALOG WareGroup OBJECT g
 ;
@@ -135,10 +135,10 @@ DESIGN wareGroups {
 
 FORM ware 'Посуда'
     OBJECTS w=Ware FIXED PANEL
-    PROPERTIES(w) nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, priceWare
+    PROPERTIES(w) name, id SHOWIF showIDs(), canonicalNameWareGroup, price
 
-    PROPERTIES (w)         numberVATWare ON CHANGE changeNumberVATWare(w) 
-    PROPERTIES (w)         valueVATWare ON CHANGE changeValueVATWare(w)
+    PROPERTIES (w)         numberVAT ON CHANGE changeNumberVAT(w) 
+    PROPERTIES (w)         valueVAT ON CHANGE changeValueVAT(w)
 
     EDIT Ware OBJECT w
 ;
@@ -150,14 +150,14 @@ DESIGN ware {
 
 FORM wares 'Посуда'
 
-    TREE treeGroups tg=WareGroup PARENT parentWareGroup
-    PROPERTIES READONLY nameWareGroup(tg)
-    ORDER BY nameWareGroup(tg)
+    TREE treeGroups tg=WareGroup PARENT parent
+    PROPERTIES READONLY name(tg)
+    ORDER BY name(tg)
 
     OBJECTS w=Ware
-    PROPERTIES(w) READONLY nameWare, idWare SHOWIF showIDs(), canonicalNameWareGroupWare, priceWare, numberVATWare, valueVATWare
+    PROPERTIES(w) READONLY name, id SHOWIF showIDs(), canonicalNameWareGroup, price, numberVAT, valueVAT
     PROPERTIES(w) ADDFORM, EDITFORM, deletew=DELETE FORCE PANEL TOOLBAR
-    FILTERS isParentWareGroupWare(tg, w)
+    FILTERS isParent(tg, w)
 
     DIALOG Ware OBJECT w
 ;
@@ -190,35 +190,35 @@ NAVIGATOR {
 }
 // ------------------ Дополнительные группы --------------- //
 TABLE customGroupTypeWare(CustomGroupType, Ware);
-customGroupCustomGroupTypeWare = DATA CustomGroup (CustomGroupType, Ware);
-customGroupCustomGroupTypeSku(type, item) += customGroupCustomGroupTypeWare(type, item);
+customGroup = DATA CustomGroup (CustomGroupType, Ware);
+customGroup(CustomGroupType type, Ware item) += customGroup(type, item);
 
-nameCustomGroupCustomGroupTypeWare 'Имя' (type, ware) = nameCustomGroup(customGroupCustomGroupTypeWare(type, ware));
-canonicalNameCustomGroupCustomGroupTypeWare'Каноническое имя' (type, ware) = canonicalNameCustomGroup(customGroupCustomGroupTypeWare(type, ware));
-idCustomGroupCustomGroupTypeWare'Код' (type, ware) = idCustomGroup(customGroupCustomGroupTypeWare(type, ware));
+nameCustomGroup 'Имя' (CustomGroupType type, Ware ware) = name(customGroup(type, ware));
+canonicalNameCustomGroup'Каноническое имя' (CustomGroupType type, Ware ware) = canonicalName(customGroup(type, ware));
+idCustomGroup'Код' (CustomGroupType type, Ware ware) = id(customGroup(type, ware));
 
-CONSTRAINT customGroupTypeCustomGroup(customGroupCustomGroupTypeWare(type, ware)) != type
-           CHECKED BY customGroupCustomGroupTypeWare
+CONSTRAINT customGroupType(customGroup(CustomGroupType type, Ware ware)) != type
+           CHECKED BY customGroup[CustomGroupType,Ware]
            MESSAGE 'Выбранный объект классификатора SKU имеет неправильный тип';
            
 TABLE customGroupTypeWareGroup(CustomGroupType, WareGroup);
-dataCustomGroupCustomGroupTypeWareGroup 'Дополнительная группа (по умолчанию)' = DATA CustomGroup (CustomGroupType, WareGroup);
-dataNameCustomGroupCustomGroupCustomGroupTypeWareGroup 'Дополнительная группа (по умолчанию)' (customGroupType, wareGroup) = nameCustomGroup(dataCustomGroupCustomGroupTypeWareGroup(customGroupType, wareGroup));
+dataCustomGroup 'Дополнительная группа (по умолчанию)' = DATA CustomGroup (CustomGroupType, WareGroup);
+dataNameCustomGroupCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(dataCustomGroup(customGroupType, wareGroup));
 
-levelParentCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) = GROUP MIN levelWareGroupWareGroup(wareGroup, parent) IF dataCustomGroupCustomGroupTypeWareGroup(customGroupType, parent)
+levelParentCustomGroup (customGroupType, wareGroup) = GROUP MIN level(WareGroup wareGroup, WareGroup parent) IF dataCustomGroup(CustomGroupType customGroupType, parent)
                                                               BY customGroupType, wareGroup PERSISTENT;    
-nearestParentCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) = wareGroupWareGroupLevel(wareGroup, levelParentCustomGroupCustomGroupTypeWareGroup(customGroupType, wareGroup));
-nearestCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) = dataCustomGroupCustomGroupTypeWareGroup(customGroupType, nearestParentCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup));
+nearestParentCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = wareGroup(wareGroup, levelParentCustomGroup(customGroupType, wareGroup));
+nearestCustomGroup (CustomGroupType customGroupType, WareGroup wareGroup) = dataCustomGroup(customGroupType, nearestParentCustomGroup (customGroupType, wareGroup));
 
-customGroupCustomGroupTypeWareGroup (customGroupType, wareGroup) =
-    OVERRIDE nearestCustomGroupCustomGroupTypeWareGroup (customGroupType, wareGroup), 
-             dataCustomGroupCustomGroupTypeWareGroup(customGroupType, wareGroup) PERSISTENT;    
+customGroup (CustomGroupType customGroupType, WareGroup wareGroup) =
+    OVERRIDE nearestCustomGroup (customGroupType, wareGroup), 
+             dataCustomGroup(customGroupType, wareGroup) PERSISTENT;    
 
-nameCustomGroupCustomGroupTypeWareGroup 'Дополнительная группа (по умолчанию)' (customGroupType, wareGroup) = nameCustomGroup(customGroupCustomGroupTypeWareGroup(customGroupType, wareGroup));
+nameCustomGroup 'Дополнительная группа (по умолчанию)' (CustomGroupType customGroupType, WareGroup wareGroup) = name(customGroup(customGroupType, wareGroup));
 
 EXTEND FORM ware
     OBJECTS cgt = CustomGroupType
-    PROPERTIES nameCustomGroupType(cgt) READONLY, canonicalNameCustomGroupCustomGroupTypeWare(cgt, w)
+    PROPERTIES name(cgt) READONLY, canonicalNameCustomGroup(cgt, w)
 ;
 DESIGN ware {
     tabContainer{
@@ -231,12 +231,12 @@ DESIGN ware {
 
 EXTEND FORM wareGroup
     OBJECTS dc=CustomGroupType 
-    PROPERTIES(dc)   READONLY nameCustomGroupType, idCustomGroupType
-    PROPERTIES(dc, g) nameCustomGroupCustomGroupTypeWareGroup    
+    PROPERTIES(dc)   READONLY name, id
+    PROPERTIES(dc, g) nameCustomGroup    
 ;    
 DESIGN wareGroup {
     MOVE dc.box BEFORE functions.box;
 }
 
-WHEN SESSION CHANGED(wareGroupWare(w)) AND dc IS CustomGroupType AND NOT customGroupCustomGroupTypeWare(dc, w) DO
-    customGroupCustomGroupTypeWare(dc, w) <- customGroupCustomGroupTypeWareGroup(dc, wareGroupWare(w));
+WHEN SESSION CHANGED(wareGroup(Ware w)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, w) DO
+    customGroup(dc, w) <- customGroup(dc, wareGroup(w));

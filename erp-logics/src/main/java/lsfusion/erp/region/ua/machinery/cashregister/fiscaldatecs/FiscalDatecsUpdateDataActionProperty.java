@@ -34,8 +34,8 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
         DataSession session = context.getSession();
 
         try {
-            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(session);
-            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(session);
+            Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
+            Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(session);
 
 
             KeyExpr customUserExpr = new KeyExpr("customUser");
@@ -43,11 +43,11 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
             ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
 
             QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<Object, Object>(operatorKeys);
-            operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
-            operatorQuery.addProperty("firstNameContact", findProperty("firstNameContact").getExpr(context.getModifier(), customUserExpr));
-            operatorQuery.addProperty("lastNameContact", findProperty("lastNameContact").getExpr(context.getModifier(), customUserExpr));
+            operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
+            operatorQuery.addProperty("firstNameContact", findProperty("firstName[Contact]").getExpr(context.getModifier(), customUserExpr));
+            operatorQuery.addProperty("lastNameContact", findProperty("lastName[Contact]").getExpr(context.getModifier(), customUserExpr));
 
-            operatorQuery.and(findProperty("operatorNumberGroupCashRegisterCustomUser").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
+            operatorQuery.and(findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
             List<UpdateDataOperator> operatorList = new ArrayList<UpdateDataOperator>();
@@ -60,20 +60,20 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
             }
 
             List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
-            ObjectValue countryObject = findProperty("countryCurrentCashRegister").readClasses(session);
+            ObjectValue countryObject = findProperty("countryCurrentCashRegister[]").readClasses(session);
             DataObject taxVATObject = ((ConcreteCustomClass) findClass("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
             ImRevMap<Object, KeyExpr> rangeKeys = MapFact.toRevMap((Object) "range", rangeExpr, "tax", taxExpr);
 
             QueryBuilder<Object, Object> rangeQuery = new QueryBuilder<Object, Object>(rangeKeys);
-            rangeQuery.addProperty("numberRange", findProperty("numberRange").getExpr(context.getModifier(), rangeExpr));
-            rangeQuery.addProperty("valueCurrentRateRange", findProperty("valueCurrentRateRange").getExpr(context.getModifier(), rangeExpr));
-            rangeQuery.addProperty("countryRange", findProperty("countryRange").getExpr(context.getModifier(), rangeExpr));
+            rangeQuery.addProperty("numberRange", findProperty("number[Range]").getExpr(context.getModifier(), rangeExpr));
+            rangeQuery.addProperty("valueCurrentRateRange", findProperty("valueCurrentRate[Range]").getExpr(context.getModifier(), rangeExpr));
+            rangeQuery.addProperty("countryRange", findProperty("country[Range]").getExpr(context.getModifier(), rangeExpr));
 
-            rangeQuery.and(findProperty("countryRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).compare(countryObject.getExpr(), Compare.EQUALS));
-            rangeQuery.and(findProperty("taxRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("tax")).compare(taxVATObject.getExpr(), Compare.EQUALS));
-            rangeQuery.and(findProperty("numberRange").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
+            rangeQuery.and(findProperty("country[Range]").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).compare(countryObject.getExpr(), Compare.EQUALS));
+            rangeQuery.and(findProperty("tax[Range]").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("tax")).compare(taxVATObject.getExpr(), Compare.EQUALS));
+            rangeQuery.and(findProperty("number[Range]").getExpr(context.getModifier(), rangeQuery.getMapExprs().get("range")).getWhere());
 
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> rangeResult = rangeQuery.execute(session);

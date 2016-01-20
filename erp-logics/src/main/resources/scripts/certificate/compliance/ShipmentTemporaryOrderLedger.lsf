@@ -7,29 +7,29 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceProperty (invoice, createTemporaryOrderLedger, 'Только временные сертификаты');
 
 EXTEND FORM userInvoice 
-    PROPERTIES(i) BACKGROUND backgroundShippedInvoice(i) SHOWIF createOrderLedgerUserInvoice(i) createTemporaryOrderLedgerUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundShipped(i) SHOWIF createOrderLedger(i) createTemporaryOrderLedger
 ;
 
 DESIGN userInvoice {
     headerCreateShipment {
-        MOVE PROPERTY(createTemporaryOrderLedgerUserInvoice(i));
+        MOVE PROPERTY(createTemporaryOrderLedger(i));
     }
 }
 
 @defineDocumentInterfaceProperty (shipment, createTemporaryOrderLedger, 'Только временные сертификаты');
 
 EXTEND FORM userShipment 
-    PROPERTIES(s)  createTemporaryOrderLedgerUserShipment SHOWIF createOrderLedgerUserShipment(s)
+    PROPERTIES(s)  createTemporaryOrderLedger SHOWIF createOrderLedger(s)
 ;
 
 DESIGN userShipment {
     headerCreateDocuments {
         headerCreateOrderLedger {
-            MOVE PROPERTY(createTemporaryOrderLedgerUserShipment(s));
+            MOVE PROPERTY(createTemporaryOrderLedger(s));
         }            
     }          
 }
 
-createTemporaryOrderLedgerShipment(s) += createTemporaryOrderLedgerInvoice(invoiceInvoiceShipment(s));
+createTemporaryOrderLedger(InvoiceShipment s) += createTemporaryOrderLedger(invoice(s));
 
-excludeOrderLedgerShipmentDetail(d) += WHEN createTemporaryOrderLedgerShipmentDetail(d) AND NOT (complianceTypeCompliance(complianceShipmentDetail(d)) == ComplianceType.temporary) THEN TRUE ;
+excludeOrderLedger(ShipmentDetail d) += WHEN createTemporaryOrderLedger(d) AND NOT (complianceType(compliance(d)) == ComplianceType.temporary) THEN TRUE ;

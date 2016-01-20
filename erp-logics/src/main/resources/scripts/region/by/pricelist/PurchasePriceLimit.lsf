@@ -10,67 +10,67 @@ NAMESPACE Purchase;
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, limit, ' предельная');
 
 WHEN SESSION FORMS userInvoice 
-             (CHANGED(customerStockUserInvoiceDetail(detail)) OR
-              CHANGED(skuUserInvoiceDetail(detail)) OR 
-              SET(showLimitPriceUserInvoiceDetail(detail)))
-             AND showLimitPriceUserInvoiceDetail(detail) DO {
-    limitMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail));
+             (CHANGED(customerStock(UserInvoiceDetail detail)) OR
+              CHANGED(sku(detail)) OR 
+              SET(showLimitPrice(detail)))
+             AND showLimitPrice(detail) DO {
+    limitMarkup(detail) <- markup(priceLimitPriceListType(customerStock(detail)), sku(detail));
 }
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 // Записываем необходимо ли показывать предельную надбавку по умолчанию из операции расценки, заданной для операции закупка
-showLimitPriceUserInvoice (invoice) <- showLimitPriceOperation(pricingOperationOperation(operationUserInvoice(invoice)))
-    WHEN CHANGED(operationUserInvoice(invoice));
+showLimitPrice (UserInvoice invoice) <- showLimitPrice(pricingOperation(operation(invoice)))
+    WHEN CHANGED(operation(invoice));
 
-showIfLimitPriceUserInvoice = showLimitPriceUserInvoice (invoice) AND createPricingUserInvoice(invoice);
+showIfLimitPrice = showLimitPrice (UserInvoice invoice) AND createPricing(invoice);
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showLimitPriceUserInvoice SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-    PROPERTIES(pd) SHOWIF showIfLimitPriceUserInvoice(i) BEFORE retailMarkupUserInvoiceDetail(pd) limitMarkupUserInvoiceDetail BACKGROUND backgroundRetailInvoice(i)
+    PROPERTIES(i) showLimitPrice SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
+    PROPERTIES(pd) SHOWIF showIfLimitPrice(i) BEFORE retailMarkup(pd) limitMarkup BACKGROUND backgroundRetail(i)
 ;
 DESIGN userInvoice{
     headerCreatePricing {
-        MOVE PROPERTY (showLimitPriceUserInvoice(i));
+        MOVE PROPERTY (showLimitPrice(i));
 
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showLimitPriceInvoice(i) BEFORE retailMarkupInvoiceDetail(d) limitMarkupInvoiceDetail BACKGROUND backgroundRetailInvoice(i)
+    PROPERTIES(d) READONLY SHOWIF showLimitPrice(i) BEFORE retailMarkup(d) limitMarkup BACKGROUND backgroundRetail(i)
 ;
 
 // Имплементим для расчета оптимальной розничной цены
 
-overLimitBasePriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
-limitBasePriceUserInvoiceDetail(d) = OVERRIDE priceUserInvoiceDetail(d), overLimitBasePriceUserInvoiceDetail(d);
+overLimitBasePrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
+limitBasePrice(UserInvoiceDetail d) = OVERRIDE price(d), overLimitBasePrice(d);
  
-limitPriceUserInvoiceDetail (detail) =
-                                       IF limitMarkupUserInvoiceDetail(detail) > 3000 THEN
-                                           limitMarkupUserInvoiceDetail(detail)
+limitPrice (UserInvoiceDetail detail) =
+                                       IF limitMarkup(detail) > 3000 THEN
+                                           limitMarkup(detail)
                                        ELSE
-                                           roundPriceRoundCondition(
-                                           IF limitMarkupUserInvoiceDetail(detail) > 100 THEN
+                                           round(
+                                           IF limitMarkup(detail) > 100 THEN
                                                 [= (X+Y)*(Z+100)/100](
-                                                    limitBasePriceUserInvoiceDetail(detail),
-                                                    limitMarkupUserInvoiceDetail(detail),
-                                                    valueRetailVATUserInvoiceDetail(detail))
+                                                    limitBasePrice(detail),
+                                                    limitMarkup(detail),
+                                                    valueRetailVAT(detail))
                                            ELSE [= X*(Y+100)*(Z+100)/10000](
-                                                    limitBasePriceUserInvoiceDetail(detail),
-                                                    limitMarkupUserInvoiceDetail(detail),
-                                                    valueRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)));
+                                                    limitBasePrice(detail),
+                                                    limitMarkup(detail),
+                                                    valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)));
 
-WHEN SESSION FORMS userInvoice GOAFTER retailPriceUserInvoiceDetail 
-            (SETCHANGED(retailPriceUserInvoiceDetail(d)) OR CHANGED(limitBasePriceUserInvoiceDetail(d)) OR CHANGED(limitMarkupUserInvoiceDetail(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPriceUserInvoiceDetail(d) AND limitPriceUserInvoiceDetail(d) < retailPriceUserInvoiceDetail(d) DO {
-    retailPriceUserInvoiceDetail(d) <- limitPriceUserInvoiceDetail(d);
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPrice(d) AND limitPrice(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitPrice(d);
      
-    retailMarkupUserInvoiceDetail(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                       retailPriceUserInvoiceDetail(d),
-                                                       pricingPriceUserInvoiceDetail(d) IF pricingPriceUserInvoiceDetail(d)!= 0.0,
-                                                       valueRetailVATUserInvoiceDetail(d));
+    retailMarkup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPrice(d),
+                                                       pricingPrice(d) IF pricingPrice(d)!= 0.0,
+                                                       valueRetailVAT(d));
 }
 
-showLimitPricePricing(pricing) += showLimitPriceInvoice(invoiceInvoicePricing(pricing));
-limitMarkupPricingDetail(detail) += limitMarkupInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
+showLimitPrice(InvoicePricing pricing) += showLimitPrice(invoice(pricing));
+limitMarkup(InvoicePricingDetail detail) += limitMarkup(invoiceDetail(detail));
 

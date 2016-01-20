@@ -6,11 +6,11 @@ NAMESPACE Item;
 
 GROUP itemNutrition 'Энергетическая ценность' : public;
 
-energyItem 'Энергетическая ценность на 100г, ккал' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
-fatsItem 'Жиры на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
-carbohydratesItem 'Углеводы на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
-proteinsItem 'Белки на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
-containsGMOItem 'Содержит ГМО' = DATA BOOLEAN (Item) IN itemNutrition;
+energy 'Энергетическая ценность на 100г, ккал' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
+fats 'Жиры на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
+carbohydrates 'Углеводы на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
+proteins 'Белки на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
+containsGMO 'Содержит ГМО' = DATA BOOLEAN (Item) IN itemNutrition;
 
 //energyItem 'Энергетическая ценность на 100г, ккал' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
 //fatsItem 'Жиры на 100г, г' = DATA NUMERIC[8,2] (Item) IN itemNutrition;
@@ -19,24 +19,24 @@ containsGMOItem 'Содержит ГМО' = DATA BOOLEAN (Item) IN itemNutrition
 
 @defineItemAttribute(energy, 'Энергетическая ценность', itemNutrition);
 
-EXTEND FORM itemGroup PROPERTIES(g) userShowEnergyItemGroup;
-EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showEnergyItemGroup BACKGROUND backgroundShowEnergyItemGroup(g) BEFORE deleteg;
+EXTEND FORM itemGroup PROPERTIES(g) userShowEnergy;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showEnergy BACKGROUND backgroundShowEnergy(g) BEFORE deleteg;
 DESIGN itemGroup {
     itemGroupDetail1 {
         MOVE g.itemNutrition;
     }
 }
 
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN energyItem(d) <- energyItem(s);
-    ASSIGN fatsItem(d) <- fatsItem(s);
-    ASSIGN carbohydratesItem(d) <- carbohydratesItem(s);
-    ASSIGN proteinsItem(d) <- proteinsItem(s);
-    ASSIGN containsGMOItem(d) <- containsGMOItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    ASSIGN energy(d) <- energy(s);
+    ASSIGN fats(d) <- fats(s);
+    ASSIGN carbohydrates(d) <- carbohydrates(s);
+    ASSIGN proteins(d) <- proteins(s);
+    ASSIGN containsGMO(d) <- containsGMO(s);
 }
 
 EXTEND FORM item 
-    PROPERTIES(i) SHOWIF showEnergyItem(i) energyItem, fatsItem, carbohydratesItem, proteinsItem, containsGMOItem
+    PROPERTIES(i) SHOWIF showEnergy(i) energy, fats, carbohydrates, proteins, containsGMO
 ;
 DESIGN item {
     itemPrimaryColumn2 {
@@ -46,6 +46,6 @@ DESIGN item {
     }
 }
 EXTEND FORM items 
-    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showEnergyItemGroup(g)
-                  energyItem, fatsItem, carbohydratesItem, proteinsItem, containsGMOItem
+    PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showEnergy(g)
+                  energy, fats, carbohydrates, proteins, containsGMO
 ;

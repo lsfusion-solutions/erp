@@ -158,23 +158,23 @@ public class FiscalBoardDaemon extends LifecycleAdapter implements InitializingB
                 int textLength = 44;
                 int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
                 Date date = new Date(Calendar.getInstance().getTime().getTime());
-                ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcodeIdDate").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
+                ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcode[STRING[15],DATE]").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
                 if (skuObject instanceof NullValue) {
                     String notFound = "Штрихкод не найден";
                     while (notFound.length() < textLength)
                         notFound += " ";
                     return notFound.getBytes("cp1251");
                 } else {
-                    ObjectValue priceListTypeObject = BL.getModule("PriceListType").findProperty("priceListTypeId").readClasses(session, new DataObject(idPriceListType));
-                    ObjectValue stockObject = BL.getModule("Stock").findProperty("stockId").readClasses(session, new DataObject(idStock));
-                    String captionItem = (String) BL.getModule("Item").findProperty("captionItem").read(session, skuObject);
+                    ObjectValue priceListTypeObject = BL.getModule("PriceListType").findProperty("priceListType[VARSTRING[100]]").readClasses(session, new DataObject(idPriceListType));
+                    ObjectValue stockObject = BL.getModule("Stock").findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
+                    String captionItem = (String) BL.getModule("Item").findProperty("caption[Item]").read(session, skuObject);
                     if (priceListTypeObject instanceof NullValue || stockObject instanceof NullValue) {
                         String notFound = "Неверные параметры сервера";
                         while (notFound.length() < textLength)
                             notFound += " ";
                         return notFound.getBytes("cp1251");
                     } else {
-                        BigDecimal price = (BigDecimal) BL.getModule("PriceListType").findProperty("priceAPriceListTypeSkuStockDateTime").read(session,
+                        BigDecimal price = (BigDecimal) BL.getModule("PriceListType").findProperty("priceA[PriceListType,Sku,Stock,DATETIME]").read(session,
                                 priceListTypeObject, skuObject, stockObject, new DataObject(new Timestamp(date.getTime()), DateTimeClass.instance));
                         String priceMessage = new DecimalFormat("###,###.#").format(price.doubleValue());
                         while (captionItem.length() + priceMessage.length() < (textLength - 1)) {

@@ -24,9 +24,9 @@ public class ImportPurchaseInvoiceCustomsGroupArticle extends ImportDefaultPurch
         if (LM != null && itemKey != null && articleKey != null) {
 
             if (showField(userInvoiceDetailsList, "originalCustomsGroupItem")) {
-                ImportField originalCustomsGroupItemField = new ImportField(LM.findProperty("originalCustomsGroupItem"));
-                props.add(new ImportProperty(originalCustomsGroupItemField, LM.findProperty("originalCustomsGroupItem").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
-                props.add(new ImportProperty(originalCustomsGroupItemField, LM.findProperty("originalCustomsGroupArticle").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
+                ImportField originalCustomsGroupItemField = new ImportField(LM.findProperty("originalCustomsGroup[Item]"));
+                props.add(new ImportProperty(originalCustomsGroupItemField, LM.findProperty("originalCustomsGroup[Item]").getMapping(itemKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
+                props.add(new ImportProperty(originalCustomsGroupItemField, LM.findProperty("originalCustomsGroup[Article]").getMapping(articleKey), getReplaceOnlyNull(defaultColumns, "originalCustomsGroupItem")));
                 fields.add(originalCustomsGroupItemField);
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("originalCustomsGroupItem"));

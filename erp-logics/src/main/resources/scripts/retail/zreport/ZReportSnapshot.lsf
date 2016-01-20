@@ -7,94 +7,94 @@ NAMESPACE Stock;
 //discountSumSaleLedger 'Сумма скидки' (d) = MULTI discountSumReceiptSaleDetail(d), -discountSumReceiptReturnDetail(d);
 
 //-- Sku
-discountSumSkuStockSnapshot 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
+discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot);
 
 //-- Batch
-discountSumBatchStockSnapshot 'Сумма скидки' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
+discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Batch, Stock, Snapshot);
 
 
 //-- группа/склад       
-discountSumSkuGroupStockSnapshot 'Сумма скидки' (group, stock, snapshot) =
-    GROUP SUM discountSumSkuStockSnapshot (sku, stock, snapshot) IF isParentSkuGroupSku(group, sku)
+discountSum 'Сумма скидки' (group, stock, snapshot) =
+    GROUP SUM discountSum (Sku sku, Stock stock, Snapshot snapshot) IF isParent(SkuGroup group, sku)
         BY group, stock, snapshot PERSISTENT;  
         
 //-- группа         
-discountSumSkuGroupSnapshot 'Сумма скидки' (group, snapshot) =
-    GROUP SUM discountSumSkuGroupStockSnapshot (group, stock, snapshot)  BY group, snapshot;    
+discountSum 'Сумма скидки' (group, snapshot) =
+    GROUP SUM discountSum (SkuGroup group, Stock stock, Snapshot snapshot)  BY group, snapshot;    
                 
 //--По складам
-discountSumStockSnapshot 'Сумма скидки' (stock, snapshot) =
-    GROUP SUM discountSumSkuGroupStockSnapshot (group, stock, snapshot)  BY stock, snapshot;  
+discountSum 'Сумма скидки' (stock, snapshot) =
+    GROUP SUM discountSum (SkuGroup group, Stock stock, Snapshot snapshot)  BY stock, snapshot;  
                      
 //-- Sku на дату
-discountSumSkuStockSnapshotDate 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);        
+discountSum 'Сумма скидки' = DATA NUMERIC[16,2] (Sku, Stock, Snapshot, DATE);        
              
 //--По складам на дату     
 
-discountSumStockSnapshotDate 'Сумма скидки' (stock, snapshot, date) =
-    GROUP SUM discountSumSkuStockSnapshotDate (sku, stock, snapshot, date)  BY stock, snapshot, date;    
+discountSum 'Сумма скидки' (stock, snapshot, date) =
+    GROUP SUM discountSum (Sku sku, Stock stock, Snapshot snapshot, DATE date)  BY stock, snapshot, date;    
            
-nameDiscountSumStock (st) = CONCAT ' ', nameStock(st), ' (сумма скидки)';    
+nameDiscountSum (Stock st) = CONCAT ' ', name(st), ' (сумма скидки)';    
        
-isDiscountSnapshot 'Скидка' = DATA BOOLEAN (Snapshot) IN evidence;
+isDiscount 'Скидка' = DATA BOOLEAN (Snapshot) IN evidence;
 hintDiscountBackground  = RGB(0, 214, 161) IF TRUE;  
       
-isDiscountSnapshotType 'Скидка' = DATA BOOLEAN (SnapshotType);
+isDiscount 'Скидка' = DATA BOOLEAN (SnapshotType);
 
 EXTEND FORM snapshotType
-    PROPERTIES (t) isDiscountSnapshotType
+    PROPERTIES (t) isDiscount
 ;
 DESIGN snapshotType {
     row3 {
-        MOVE PROPERTY (isDiscountSnapshotType(t));
+        MOVE PROPERTY (isDiscount(t));
     }
 }
 EXTEND FORM snapshotTypes
-    PROPERTIES (t) READONLY  isDiscountSnapshotType
+    PROPERTIES (t) READONLY  isDiscount
 ;
 @deriveDocumentSnapshotProperty(isDiscount);      
        
 //-- Расширяем ACTION    
-discountSumSkuStockDate 'Скидка (сумма)' (sku, stock, date) =  GROUP SUM discountSumSaleLedger(ledger) BY skuSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
+discountSum 'Скидка (сумма)' (sku, stock, date) =  GROUP SUM discountSum(SaleLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger);
   
-discountSumSkuStockDateFromTo 'Скидка за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
-        discountSumSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
+discountSum 'Скидка за интервал (сумма)' (sku, stock, dateFrom, dateTo) = GROUP SUM
+        discountSum(Sku sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY sku, stock, dateFrom, dateTo;  
 
                     
-overTakeSkuSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
-    IF isDiscountSnapshot(snapshot) THEN {
-        IF isDateSnapshot(snapshot) THEN {
-            IF isSumSnapshot(snapshot) THEN {
-                discountSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NULL;
-                discountSumSkuStockSnapshotDate(sku, stock, snapshot, date) <- NUMERIC[16,2](discountSumSkuStockDate(sku, stock, date)) 
-                    WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
-                        AND date <= (dateTo AS DATE) AND discountSumSkuStockDate(sku, stock, date);  
+overTakeSkuFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION (snapshot, dateFrom, dateTo) {
+    IF isDiscount(snapshot) THEN {
+        IF isDate(snapshot) THEN {
+            IF isSum(snapshot) THEN {
+                discountSum(Sku sku, Stock stock, snapshot, DATE date) <- NULL;
+                discountSum(Sku sku, Stock stock, snapshot, DATE date) <- NUMERIC[16,2](discountSum(sku, stock, date)) 
+                    WHERE include(snapshot, stock) AND include(snapshot, sku) AND date AS DATE AND date >= (dateFrom AS DATE) 
+                        AND date <= (dateTo AS DATE) AND discountSum(sku, stock, date);  
                      
             }                               
         }  
-        IF isSumSnapshot(snapshot) THEN {  
-            discountSumSkuStockSnapshot(sku, stock, snapshot) <- NULL;
-            discountSumSkuStockSnapshot(sku, stock, snapshot) <- NUMERIC[16,2](discountSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, sku) AND discountSumSkuStockDateFromTo(sku, stock, dateFrom, dateTo);    
+        IF isSum(snapshot) THEN {  
+            discountSum(Sku sku, Stock stock, snapshot) <- NULL;
+            discountSum(Sku sku, Stock stock, snapshot) <- NUMERIC[16,2](discountSum(sku, stock, dateFrom, dateTo)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku) AND discountSum(sku, stock, dateFrom, dateTo);    
  
         }              
     }            
 };                                                                                                
                
 //-- Batch      
-discountSumBatchStockDate 'Скидка (сумма)' (batch, stock, date) =  GROUP SUM discountSumSaleLedger(ledger) BY batchSkuLedger(ledger), stockSkuLedger(ledger), dateSkuLedger(ledger);
+discountSum 'Скидка (сумма)' (batch, stock, date) =  GROUP SUM discountSum(SaleLedger ledger) BY batch[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger);
   
-discountSumBatchStockDateFromTo 'Скидка за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
-        discountSumBatchStockDate(batch, stock, date) IF date >= dateFrom AND date <= dateTo
+discountSum 'Скидка за интервал (сумма)' (batch, stock, dateFrom, dateTo) = GROUP SUM
+        discountSum(Batch batch, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
         BY batch, stock, dateFrom, dateTo;  
 
-overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot, dateFrom, dateTo) {
-    IF isDiscountSnapshot(snapshot) THEN {
-        IF isSumSnapshot(snapshot) THEN { 
-            discountSumBatchStockSnapshot(batch, stock, snapshot) <- NULL;
-            discountSumBatchStockSnapshot(batch, stock, snapshot) <- NUMERIC[16,2](discountSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo)) 
-                WHERE includeSnapshotStock(snapshot, stock) AND includeSnapshotSku(snapshot, skuBatch(batch)) AND discountSumBatchStockDateFromTo(batch, stock, dateFrom, dateTo);   
+overTakeBatchFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo) += ACTION (snapshot, dateFrom, dateTo) {
+    IF isDiscount(snapshot) THEN {
+        IF isSum(snapshot) THEN { 
+            discountSum(Batch batch, Stock stock, snapshot) <- NULL;
+            discountSum(Batch batch, Stock stock, snapshot) <- NUMERIC[16,2](discountSum(batch, stock, dateFrom, dateTo)) 
+                WHERE include(snapshot, stock) AND include(snapshot, sku(batch)) AND discountSum(batch, stock, dateFrom, dateTo);   
        
         }          
     }      
@@ -102,47 +102,47 @@ overTakeBatchSnapshotDateFromTo(snapshot, dateFrom, dateTo) += ACTION (snapshot,
        
 //-- SHOWIF
 
-isSumDiscountSnapshot= isSumSnapshot(snapshot) AND isDiscountSnapshot(snapshot);
+isSumDiscount= isSum(Snapshot snapshot) AND isDiscount(snapshot);
 
-isSumDiscountDateSnapshot= isSumSnapshot(snapshot) AND isDiscountSnapshot(snapshot) AND isDateSnapshot(snapshot);
+isSumDiscountDate= isSum(Snapshot snapshot) AND isDiscount(snapshot) AND isDate(snapshot);
 
-isSumDiscountBatchSnapshot= isSumSnapshot(snapshot) AND isDiscountSnapshot(snapshot) AND isBatchSnapshot(snapshot);
+isSumDiscountBatch= isSum(Snapshot snapshot) AND isDiscount(snapshot) AND isBatch(snapshot);
                                                     
                                                          
 EXTEND FORM snapshot
-    PROPERTIES(r)      BACKGROUND hintDiscountBackground() isDiscountSnapshot
+    PROPERTIES(r)      BACKGROUND hintDiscountBackground() isDiscount
 //--sku  
-    PROPERTIES(s,st,r) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantitySkuStockSnapshot(s,st,r)                      
-                       discountSumSkuStockSnapshot SHOWIF isSumDiscountSnapshot(r)
+    PROPERTIES(s,st,r) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(s,st,r)                      
+                       discountSum SHOWIF isSumDiscount(r)
 
 //--sku на дату  
-    PROPERTIES(s3,st3,r,d3) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantitySkuStockSnapshotDate(s3,st3,r,d3)
-                       discountSumSkuStockSnapshotDate SHOWIF isSumDiscountDateSnapshot(r)
+    PROPERTIES(s3,st3,r,d3) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(s3,st3,r,d3)
+                       discountSum SHOWIF isSumDiscountDate(r)
 
 //--По складам на дату 
-    PROPERTIES(st4,r,d4) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantityStockSnapshotDate(st4,r,d4)
-                       discountSumStockSnapshotDate COLUMNS 'g' (st4) HEADER nameDiscountSumStock(st4) SHOWIF isSumDiscountDateSnapshot(r)
+    PROPERTIES(st4,r,d4) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(st4,r,d4)
+                       discountSum COLUMNS 'g' (st4) HEADER nameDiscountSum(st4) SHOWIF isSumDiscountDate(r)
                                                                  
 //-- batch
-    PROPERTIES(bt,ss,r) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantityBatchStockSnapshot(bt,ss,r) 
-                       discountSumBatchStockSnapshot SHOWIF isSumDiscountBatchSnapshot(r)
+    PROPERTIES(bt,ss,r) READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(bt,ss,r) 
+                       discountSum SHOWIF isSumDiscountBatch(r)
         
 //-- По группам                           
-    PROPERTIES(sk1,r)  READONLY BACKGROUND hintDiscountBackground() BEFORE balanceASkuGroupSnapshot(sk1,r)         
-                       discountSumSkuGroupSnapshot SHOWIF isSumDiscountSnapshot(r)
+    PROPERTIES(sk1,r)  READONLY BACKGROUND hintDiscountBackground() BEFORE balanceA(sk1,r)         
+                       discountSum SHOWIF isSumDiscount(r)
 
 //-- По складам                           
-    PROPERTIES(ts1,r)  READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantityStockSnapshot(ts1,r)                               
-                       discountSumStockSnapshot SHOWIF isSumDiscountSnapshot(r)
+    PROPERTIES(ts1,r)  READONLY BACKGROUND hintDiscountBackground() BEFORE inQuantity(ts1,r)                               
+                       discountSum SHOWIF isSumDiscount(r)
 
 ;  
 DESIGN snapshot {
     row3 {
-        MOVE PROPERTY (isDiscountSnapshot(r));
+        MOVE PROPERTY (isDiscount(r));
     }
 }
 
 
 EXTEND FORM snapshots
-    PROPERTIES(r)      READONLY  BACKGROUND hintDiscountBackground() isDiscountSnapshot     
+    PROPERTIES(r)      READONLY  BACKGROUND hintDiscountBackground() isDiscount     
 ; 

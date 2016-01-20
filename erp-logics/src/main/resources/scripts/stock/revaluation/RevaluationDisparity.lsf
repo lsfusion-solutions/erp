@@ -8,15 +8,15 @@ REQUIRE Disparity,
 NAMESPACE Disparity;
 
 //-- Расширяем операцию
-createRevaluationOperation 'Создать акт переоценки (опт.)' = DATA BOOLEAN (Operation);
+createRevaluation 'Создать акт переоценки (опт.)' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-    PROPERTIES(o) createRevaluationOperation
+    PROPERTIES(o) createRevaluation
 ;
 
 DESIGN operation {
     createContainer {
-        MOVE PROPERTY(createRevaluationOperation(o));
+        MOVE PROPERTY(createRevaluation(o));
     }
 }
 
@@ -28,19 +28,19 @@ DESIGN operation {
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
-createRevaluationDisparity (disparity) <- createRevaluationOperation(operationDisparity(disparity))
-    WHEN CHANGED(operationDisparity(disparity));
+createRevaluation (Disparity disparity) <- createRevaluation(operation(disparity))
+    WHEN CHANGED(operation(disparity));
 
-revaluationOperationOperation  = DATA Revaluation.Operation (Operation);
-nameRevaluationOperationOperation 'Операция переоценки (опт.)' (operation)= Revaluation.nameOperation(revaluationOperationOperation(operation));
+revaluationOperation  = DATA Revaluation.Operation (Operation);
+nameRevaluationOperation 'Операция переоценки (опт.)' (Operation operation)= name(revaluationOperation(operation));
 
 
 EXTEND FORM operation
-    PROPERTIES(o) nameRevaluationOperationOperation
+    PROPERTIES(o) nameRevaluationOperation
 ;
 DESIGN operation {
     createContainer {
-        MOVE PROPERTY(nameRevaluationOperationOperation(o)) AFTER PROPERTY(createRevaluationOperation(o));
+        MOVE PROPERTY(nameRevaluationOperation(o)) AFTER PROPERTY(createRevaluation(o));
     }
 }
 
@@ -48,41 +48,41 @@ DESIGN operation {
 @defineDocumentOperationHeaderPrefix(disparity, revaluation, Revaluation, ' (переоценка)');
 @defineDocumentOperationDetailPrefix(disparity, disparityDetail, revaluation, Revaluation, 'переоценка');
 
-revaluationOperationDisparity(o) <- revaluationOperationOperation(operationDisparity(o))
-    WHEN CHANGED(operationDisparity(o));
+revaluationOperation(Disparity o) <- revaluationOperation(operation(o))
+    WHEN CHANGED(operation(o));
 
 
 //-- агр.объект
 
 // Комиссия
-revaluationNumberDisposalDisparity '№ распоряжения на переоценку' (disparity) = DATA VARSTRING[30] (Disparity) IN documentPrm;
+revaluationNumberDisposal '№ распоряжения на переоценку' (disparity) = DATA VARSTRING[30] (Disparity) IN documentPrm;
 
-revaluationCommitteeDisparity (disparity) = DATA RepricingCommittee(Disparity);
-nameRevaluationCommitteeDisparity 'Комиссия для переоценки' (disparity) = nameRepricingCommittee(revaluationCommitteeDisparity(disparity)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
-revaluationCommitteeDisparity (disparity) <- repricingCommitteeStock(stockDisparity(disparity))
-    WHEN CHANGED(stockDisparity(disparity));
+revaluationCommittee (disparity) = DATA RepricingCommittee(Disparity);
+nameRevaluationCommittee 'Комиссия для переоценки' (Disparity disparity) = name(revaluationCommittee(disparity)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+revaluationCommittee (Disparity disparity) <- repricingCommittee(stock(disparity))
+    WHEN CHANGED(stock(disparity));
 
-CONSTRAINT revaluationCommitteeDisparity (disparity) AND NOT inCommitteeStock(revaluationCommitteeDisparity (disparity), stockDisparity(disparity))
-    CHECKED BY revaluationCommitteeDisparity MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
+CONSTRAINT revaluationCommittee (Disparity disparity) AND NOT in(revaluationCommittee (disparity), stock(disparity))
+    CHECKED BY revaluationCommittee[Disparity] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
-inRevaluationCommitteeDisparityEmployee (disparity, employee) = inCommitteeEmployee(revaluationCommitteeDisparity (disparity), employee);
-nameEmployeeRevaluationCommitteeDisparity 'Члены комиссии' (disparity) = namePositionEmployeeCommittee(revaluationCommitteeDisparity (disparity));
-nameChairmanRevaluationCommitteeDisparity 'Председатель комиссии' (disparity) = nameChairmanCommittee(revaluationCommitteeDisparity(disparity));
-namePositionChairmanRevaluationCommitteeDisparity 'Должность' (disparity) = namePositionChairmanCommittee(revaluationCommitteeDisparity(disparity));
+inRevaluationCommittee (Disparity disparity, Employee employee) = in(revaluationCommittee (disparity), employee);
+nameEmployeeRevaluationCommittee 'Члены комиссии' (Disparity disparity) = namePositionEmployee(revaluationCommittee (disparity));
+nameChairmanRevaluationCommittee 'Председатель комиссии' (Disparity disparity) = nameChairman(revaluationCommittee(disparity));
+namePositionChairmanRevaluationCommittee 'Должность' (Disparity disparity) = namePositionChairman(revaluationCommittee(disparity));
     
-diffInputSumDisparityDetail 'Сумма  дооценки (учетная)' (disparityDetail) =  inputSumDisparityDetail(disparityDetail) (-) sumDisparityDetail(disparityDetail);
+diffInputSum 'Сумма  дооценки (учетная)' (DisparityDetail disparityDetail) =  inputSum(disparityDetail) (-) sum(disparityDetail);
 
 @defineDocumentHeaderSumPrefix(disparity, diffInput, ' дооценки (учетная)');  
-backgroundRevaluationDisparity 'Цвет' (disparity) = RGB(250, 218, 221) IF disparity IS Disparity;
-backgroundRevaluationDisparityDetail (detail) = backgroundRevaluationDisparity(disparityDisparityDetail(detail));  
+backgroundRevaluation 'Цвет' (Disparity disparity) = RGB(250, 218, 221) IF disparity IS Disparity;
+backgroundRevaluation (DisparityDetail detail) = backgroundRevaluation(disparity(detail));  
    
 EXTEND FORM disparity
-    PROPERTIES(dis) BACKGROUND backgroundRevaluationDisparity(dis) createRevaluationDisparity
-    PROPERTIES(dis) BACKGROUND backgroundRevaluationDisparity(dis) SHOWIF createRevaluationDisparity(dis) 
-                    nameRevaluationCommitteeDisparity, revaluationNumberDisposalDisparity
-    PROPERTIES(dis) BACKGROUND backgroundRevaluationDisparity(dis) SHOWIF createRevaluationDisparity(dis)
-                    diffInputSumDisparityDetailDisparity
-    PROPERTIES(dis) BACKGROUND backgroundRevaluationDisparity(dis) SHOWIF createRevaluationDisparity(dis) nameRevaluationOperationDisparity
+    PROPERTIES(dis) BACKGROUND backgroundRevaluation(dis) createRevaluation
+    PROPERTIES(dis) BACKGROUND backgroundRevaluation(dis) SHOWIF createRevaluation(dis) 
+                    nameRevaluationCommittee, revaluationNumberDisposal
+    PROPERTIES(dis) BACKGROUND backgroundRevaluation(dis) SHOWIF createRevaluation(dis)
+                    diffInputSumDisparityDetail
+    PROPERTIES(dis) BACKGROUND backgroundRevaluation(dis) SHOWIF createRevaluation(dis) nameRevaluationOperation
 ;
 DESIGN disparity {
     headerCreateDocuments {
@@ -90,26 +90,26 @@ DESIGN disparity {
             caption = 'Переоценка (склад)';
             type = COLUMNS;
             columns = 2;            
-            MOVE PROPERTY(createRevaluationDisparity(dis));
-            MOVE PROPERTY(nameRevaluationOperationDisparity(dis));
-            MOVE PROPERTY(nameRevaluationCommitteeDisparity(dis));
-            MOVE PROPERTY(revaluationNumberDisposalDisparity(dis));
+            MOVE PROPERTY(createRevaluation(dis));
+            MOVE PROPERTY(nameRevaluationOperation(dis));
+            MOVE PROPERTY(nameRevaluationCommittee(dis));
+            MOVE PROPERTY(revaluationNumberDisposal(dis));
         }
     }
 }
 
 EXTEND FORM disparities
-    PROPERTIES(dis) BACKGROUND backgroundRevaluationDisparity(dis) createRevaluationDisparity READONLYIF isReadonly(),
-                  diffInputSumDisparityDetailDisparity READONLY BEFORE noteDisparity(dis)
+    PROPERTIES(dis) BACKGROUND backgroundRevaluation(dis) createRevaluation READONLYIF isReadonly(),
+                  diffInputSumDisparityDetail READONLY BEFORE note(dis)
 
 ;
-needToRevaluationDisparityDetail (detail) = priceDisparityDetail(detail) != inputPriceDisparityDetail(detail)
-                                               AND inputQuantityDisparityDetail(detail) 
-                                               AND createRevaluationDisparityDetail(detail)
-                                               AND isStockSku(inputSkuDisparityDetail(detail)) PERSISTENT;
+needToRevaluation (DisparityDetail detail) = price(detail) != inputPrice(detail)
+                                               AND inputQuantity(detail) 
+                                               AND createRevaluation(detail)
+                                               AND isStock(inputSku(detail)) PERSISTENT;
 
-needToRevaluationDisparity (disparity)= GROUP SUM 1 IF needToRevaluationDisparityDetail(detail)
-    BY disparityDisparityDetail(detail) PERSISTENT;
+needToRevaluation (disparity)= GROUP SUM 1 IF needToRevaluation(DisparityDetail detail)
+    BY disparity(detail) PERSISTENT;
 
 CLASS DisparityRevaluation 'Переоценка (сортность)' : Revaluation;
 CLASS DisparityRevaluationDetail 'Строка переоценки (сортность)' : RevaluationDetail;
@@ -117,60 +117,60 @@ CLASS DisparityRevaluationDetail 'Строка переоценки (сортн�
 @defineDocumentTables(disparityRevaluation);
 
 @defineDocumentAggregation(disparity, disparityRevaluation, needToRevaluation);
-revaluationRevaluationDetail(detail) += disparityRevaluationDisparityRevaluationDetail(detail);
+revaluation(DisparityRevaluationDetail detail) += disparityRevaluation(detail);
 
-indexRevaluationDetail(detail) += indexDisparityRevaluationDetail(detail);
+index(DisparityRevaluationDetail detail) += index(detail);
 
-dateRevaluation(revaluation) += dateDisparityRevaluation(revaluation);
-timeRevaluation(revaluation) += timeDisparityRevaluation(revaluation);
+date(DisparityRevaluation revaluation) += date(revaluation);
+time(DisparityRevaluation revaluation) += time(revaluation);
 
-repricingCommitteeRevaluation(revaluation) += revaluationCommitteeDisparity(disparityDisparityRevaluation(revaluation));
-numberDisposalRevaluation(revaluation) += revaluationNumberDisposalDisparity(disparityDisparityRevaluation(revaluation));
+repricingCommittee(DisparityRevaluation revaluation) += revaluationCommittee(disparity(revaluation));
+numberDisposal(DisparityRevaluation revaluation) += revaluationNumberDisposal(disparity(revaluation));
 
-stockRevaluation(revaluation) += stockDisparity(disparityDisparityRevaluation(revaluation));
-dataStockRevaluationDetail(revaluationDetail) += dataStockDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
+stock(DisparityRevaluation revaluation) += stock(disparity(revaluation));
+dataStock(DisparityRevaluationDetail revaluationDetail) += dataStock(disparityDetail(revaluationDetail));
 
 @defineDocumentAggregationPosted(disparity, disparityRevaluation);
-isPostedRevaluation(revaluation) += isPostedDisparityRevaluation(revaluation);
+isPosted(DisparityRevaluation revaluation) += isPosted(revaluation);
 
 @defineDocumentAggregationClosed(disparity, disparityRevaluation);
-isClosedRevaluation(revaluation) += isClosedDisparityRevaluation(revaluation);
+isClosed(DisparityRevaluation revaluation) += isClosed(revaluation);
 
-numberDisparityRevaluation 'Номер документа' (disparityRevaluation) = numberDisparity(disparityDisparityRevaluation(disparityRevaluation));
-numberRevaluation(revaluation) += numberDisparityRevaluation(revaluation);
+number 'Номер документа' (DisparityRevaluation disparityRevaluation) = number(disparity(disparityRevaluation));
+number(DisparityRevaluation revaluation) += number(revaluation);
 
-seriesDisparityRevaluation 'Серия документа' (disparityRevaluation) = seriesDisparity(disparityDisparityRevaluation(disparityRevaluation));
-seriesRevaluation(revaluation) += seriesDisparityRevaluation(revaluation);
+series 'Серия документа' (DisparityRevaluation disparityRevaluation) = series(disparity(disparityRevaluation));
+series(DisparityRevaluation revaluation) += series(revaluation);
 
-seriesNumberDisparityRevaluation 'Серия/номер документа' (disparityRevaluation) = seriesNumberDisparity(disparityDisparityRevaluation(disparityRevaluation));
+seriesNumber 'Серия/номер документа' (DisparityRevaluation disparityRevaluation) = seriesNumber(disparity(disparityRevaluation));
 
-noteDisparityDisparityRevaluation 'Примечание' (disparityRevaluation) = noteDisparity(disparityDisparityRevaluation(disparityRevaluation));
-noteRevaluation(revaluation) += noteDisparityDisparityRevaluation(revaluation);
+noteDisparity 'Примечание' (DisparityRevaluation disparityRevaluation) = note(disparity(disparityRevaluation));
+note(DisparityRevaluation revaluation) += noteDisparity(revaluation);
 
-currencyDisparityRevaluation  (disparityRevaluation) = currencyDisparity(disparityDisparityRevaluation(disparityRevaluation));
-currencyRevaluation (revaluation) += currencyDisparityRevaluation(revaluation);
+currency  (DisparityRevaluation disparityRevaluation) = currency(disparity(disparityRevaluation));
+currency (DisparityRevaluation revaluation) += currency(revaluation);
 
 //    skipChangeLedgerRevaluation (revaluation) += revaluation IS DisparityRevaluation;
-operationRevaluation(revaluation) += revaluationOperationDisparity(disparityDisparityRevaluation(revaluation));
+operation(DisparityRevaluation revaluation) += revaluationOperation(disparity(revaluation));
 
 @defineDocumentDescription(disparityRevaluation, DisparityRevaluationDetail, 'Переоценка (сортность)');
-descriptionRevaluation (revaluation) += descriptionDisparityRevaluation(revaluation);
+description (DisparityRevaluation revaluation) += description(revaluation);
 
 @defineDocumentAggregationDetailSku(disparity, disparityRevaluation, inputSku);
-skuRevaluationDetail(revaluationDetail) +=  inputSkuDisparityRevaluationDetail(revaluationDetail);
+sku(DisparityRevaluationDetail revaluationDetail) +=  inputSku(revaluationDetail);
 
-quantityRevaluationDetail(revaluationDetail) += inputQuantityDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
-batchRevaluationDetail(revaluationDetail) += inputDisparityDetailDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
+quantity(DisparityRevaluationDetail revaluationDetail) += inputQuantity(disparityDetail(revaluationDetail));
+batch(DisparityRevaluationDetail revaluationDetail) += inputDisparityDetail(disparityDetail(revaluationDetail));
 
-curPriceRevaluationDetail(revaluationDetail) += priceDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
-curSumRevaluationDetail(revaluationDetail) += sumDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
+curPrice(DisparityRevaluationDetail revaluationDetail) += price(disparityDetail(revaluationDetail));
+curSum(DisparityRevaluationDetail revaluationDetail) += sum(disparityDetail(revaluationDetail));
 
-priceRevaluationDetail(revaluationDetail) += inputPriceDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
-sumRevaluationDetail(revaluationDetail) += inputSumDisparityDetail(disparityDetailDisparityRevaluationDetail(revaluationDetail));
+price(DisparityRevaluationDetail revaluationDetail) += inputPrice(disparityDetail(revaluationDetail));
+sum(DisparityRevaluationDetail revaluationDetail) += inputSum(disparityDetail(revaluationDetail));
 
-editRevaluation(revaluation) += ACTION EXEC editDisparity(disparityDisparityRevaluation(revaluation));
-closeRevaluation(revaluation) += ACTION EXEC closeDisparity(disparityDisparityRevaluation(revaluation));
-editRevaluationDetail(d) += ACTION editDisparityDetail(disparityDetailDisparityRevaluationDetail(d));
+edit(DisparityRevaluation revaluation) += ACTION EXEC edit(disparity(revaluation));
+close(DisparityRevaluation revaluation) += ACTION EXEC close(disparity(revaluation));
+edit(DisparityRevaluationDetail d) += ACTION edit(disparityDetail(d));
 
-skipSkuLedger(d) += TRUE IF disparityDetailDisparityRevaluationDetail(d);
+skip[SkuLedger](DisparityRevaluationDetail d) += TRUE IF disparityDetail(d);
         

@@ -4,20 +4,20 @@ REQUIRE Disparity, PurchaseShipment;
 
 NAMESPACE Disparity;
 
-invoiceDetailDisparityDetail = DATA Purchase.InvoiceDetail (DisparityDetail);
-descriptionIndexInvoiceDetailDisparityDetail 'Строка приходной накладной' = Purchase.descriptionIndexInvoiceDetail(invoiceDetailDisparityDetail(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+invoiceDetail = DATA Purchase.InvoiceDetail (DisparityDetail);
+descriptionIndexInvoiceDetail 'Строка приходной накладной' = descriptionIndex(invoiceDetail(DisparityDetail d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-WHEN SESSION FORMS disparity CHANGED (batchDisparityDetail(d)) DO {
-    invoiceDetailDisparityDetail(d) <- invoiceDetailBatch(batchDisparityDetail(d));        
+WHEN SESSION FORMS disparity CHANGED (batch(DisparityDetail d)) DO {
+    invoiceDetail(d) <- invoiceDetail(batch(d));        
 }
 
-CONSTRAINT invoiceDetailBatch(batchDisparityDetail(disparityDetail)) != invoiceDetailDisparityDetail(disparityDetail) CHECKED BY invoiceDetailDisparityDetail
+CONSTRAINT invoiceDetail(batch(DisparityDetail disparityDetail)) != invoiceDetail(disparityDetail) CHECKED BY invoiceDetail[DisparityDetail]
     MESSAGE 'Строка накладной для строки изменения сортности должна соответствовать строке накладной для партии строки изменения сортности';
 
 EXTEND FORM disparity 
-    PROPERTIES(d) descriptionIndexInvoiceDetailDisparityDetail AFTER nameBatchDisparityDetail(d)
+    PROPERTIES(d) descriptionIndexInvoiceDetail AFTER nameBatch(d)
 ;
 EXTEND FORM disparities 
-    PROPERTIES(d) READONLY descriptionIndexInvoiceDetailDisparityDetail AFTER nameBatchDisparityDetail(d)
+    PROPERTIES(d) READONLY descriptionIndexInvoiceDetail AFTER nameBatch(d)
 ;
-invoiceDetailBatch(b) += invoiceDetailDisparityDetail(disparityDetailInputDisparityDetail(b));
+invoiceDetail(InputDisparityDetail b) += invoiceDetail(disparityDetail(b));

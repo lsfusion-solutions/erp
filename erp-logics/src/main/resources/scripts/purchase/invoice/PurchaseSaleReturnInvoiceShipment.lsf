@@ -12,38 +12,38 @@ GROUP shipment 'Информация о поставке' : base;
 @defineDocumentInterfaceProperty (invoice, createSaleReturnShipment, 'Создать поставку (продажа-возврат)');
 
 // -- Операция
-createSaleReturnShipmentOperation 'Поставка (продажа-возврат)' = DATA BOOLEAN (Purchase.Operation);
+createSaleReturnShipment 'Поставка (продажа-возврат)' = DATA BOOLEAN (Purchase.Operation);
 
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) createSaleReturnShipmentOperation
+    PROPERTIES(o) createSaleReturnShipment
 ;
 DESIGN Purchase.operation {
     saleReturnContainer {
-        MOVE PROPERTY(createSaleReturnShipmentOperation(o));
+        MOVE PROPERTY(createSaleReturnShipment(o));
     }
 }
 @deriveDocumentOperationProperty(UserInvoice, createSaleReturnShipment);
 
-backgroundSaleReturnShipmentInvoice 'Цвет' (invoice) = RGB(238, 250, 200) IF invoice IS Invoice;
+backgroundSaleReturnShipment 'Цвет' (Invoice invoice) = RGB(238, 250, 200) IF invoice IS Invoice;
 //--
-SaleReturn.createShipmentInvoice(invoice) += createSaleReturnShipmentInvoice(invoiceSaleReturnInvoice(invoice));
+createShipment(SaleReturnInvoice invoice) += createSaleReturnShipment(invoice(invoice));
 
 @defineDocumentInterfaceDetailPricePrefix(invoice, saleReturnShipment, ' учетная (продажа-возврат)');
 @defineDocumentInterfaceDetailQuantityPrefix (invoice, saleReturnShipment, ' поставлено (продажа-возврат)');
-saleReturnShipmentQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) WHEN CHANGED(quantityUserInvoiceDetail(detail));
+saleReturnShipmentQuantity(UserInvoiceDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
 
 @defineDocumentInterfaceDetailExpiryDatePrefix(invoice, saleReturn);
-saleReturnExpiryDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
-SaleReturn.expiryDateInvoiceDetail(detail) += saleReturnExpiryDateUserInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+saleReturnExpiryDate(UserInvoiceDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));
+expiryDate(SaleReturnInvoiceDetail detail) += saleReturnExpiryDate[UserInvoiceDetail](invoiceDetail(detail));
 
 @defineDocumentInterfaceDetailManufactureDatePrefix(invoice, saleReturn);
-saleReturnManufactureDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
-SaleReturn.manufactureDateInvoiceDetail(detail) += saleReturnManufactureDateUserInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+saleReturnManufactureDate(UserInvoiceDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));
+manufactureDate(SaleReturnInvoiceDetail detail) += saleReturnManufactureDate[UserInvoiceDetail](invoiceDetail(detail));
 
 @defineDocumentInterfaceHeaderTimePrefix(Invoice, saleReturnShipment, ' поставки (продажа-возврат)');
 
-saleReturnShipmentDateUserInvoice(i) <- dateUserInvoice(i) WHEN CHANGED(dateUserInvoice(i));
-saleReturnShipmentTimeUserInvoice(i) <- timeUserInvoice(i) WHEN CHANGED(timeUserInvoice(i));
+saleReturnShipmentDate(UserInvoice i) <- date(i) WHEN CHANGED(date(i));
+saleReturnShipmentTime(UserInvoice i) <- time(i) WHEN CHANGED(time(i));
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, saleReturnShipment, ' учетная (продажа-возврат)');
 @deriveDocumentDetailSumPrefix(userInvoice, saleReturnShipment, currency, saleReturnShipmentQuantity);
@@ -51,69 +51,69 @@ saleReturnShipmentTimeUserInvoice(i) <- timeUserInvoice(i) WHEN CHANGED(timeUser
 @defineDocumentInterfaceHeaderCreateShipment (invoice);
 @defineDocumentInterfaceHeaderSumPrefix (invoice, saleReturnShipment, ' учетная (продажа-возврат)');
 
-SaleReturn.shipmentDateInvoice(invoice) += saleReturnShipmentDateInvoice(invoiceSaleReturnInvoice(invoice));
-SaleReturn.shipmentTimeInvoice(invoice) += saleReturnShipmentTimeInvoice(invoiceSaleReturnInvoice(invoice));
+shipmentDate(SaleReturnInvoice invoice) += saleReturnShipmentDate(invoice(invoice));
+shipmentTime(SaleReturnInvoice invoice) += saleReturnShipmentTime(invoice(invoice));
 
-SaleReturn.shipmentQuantityInvoiceDetail(detail) += saleReturnShipmentQuantityInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
-SaleReturn.shipmentPriceInvoiceDetail(detail) += saleReturnShipmentPriceInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
-SaleReturn.shipmentSumInvoiceDetail (detail) += saleReturnShipmentSumInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
-SaleReturn.editInvoiceDetail (detail) += ACTION editInvoiceDetail(invoiceDetailSaleReturnInvoiceDetail(detail));
+shipmentQuantity(SaleReturnInvoiceDetail detail) += saleReturnShipmentQuantity(invoiceDetail(detail));
+shipmentPrice(SaleReturnInvoiceDetail detail) += saleReturnShipmentPrice(invoiceDetail(detail));
+shipmentSum (SaleReturnInvoiceDetail detail) += saleReturnShipmentSum(invoiceDetail(detail));
+edit (SaleReturnInvoiceDetail detail) += ACTION edit(invoiceDetail(detail));
 
-showSaleReturnShipmentUserInvoice(i) = createSaleReturnShipmentUserInvoice(i) OR createSaleReturnInvoiceUserInvoice(i); 
-showSaleReturnShipmentUserInvoiceDetail(d) = showSaleReturnShipmentUserInvoice(userInvoiceUserInvoiceDetail(d)); 
+showSaleReturnShipment(UserInvoice i) = createSaleReturnShipment(i) OR createSaleReturnInvoice(i); 
+showSaleReturnShipment(UserInvoiceDetail d) = showSaleReturnShipment(userInvoice(d)); 
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i) SHOWIF createSaleReturnInvoiceUserInvoice(i) createSaleReturnShipmentUserInvoice
-    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i) SHOWIF createSaleReturnShipmentUserInvoice(i) saleReturnShipmentSumUserInvoiceDetailUserInvoice,
-                  saleReturnShipmentDateUserInvoice, saleReturnShipmentTimeUserInvoice
-    PROPERTIES(d) BEFORE deleteid SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
-                  saleReturnExpiryDateUserInvoiceDetail, saleReturnShipmentSumUserInvoiceDetail
-    PROPERTIES(d) BEFORE saleReturnShipmentSumUserInvoiceDetail(d) SHOWIF showSaleReturnShipmentUserInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
-                  saleReturnShipmentPriceUserInvoiceDetail  
-    PROPERTIES(d) saleReturnShipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipment(i) SHOWIF createSaleReturnInvoice(i) createSaleReturnShipment
+    PROPERTIES(i) BACKGROUND backgroundSaleReturnShipment(i) SHOWIF createSaleReturnShipment(i) saleReturnShipmentSumUserInvoiceDetail,
+                  saleReturnShipmentDate, saleReturnShipmentTime
+    PROPERTIES(d) BEFORE deleteid SHOWIF createSaleReturnShipment[Invoice](i) BACKGROUND backgroundSaleReturnShipment(i)
+                  saleReturnExpiryDate, saleReturnShipmentSum
+    PROPERTIES(d) BEFORE saleReturnShipmentSum(d) SHOWIF showSaleReturnShipment(i) BACKGROUND backgroundSaleReturnShipment(i)
+                  saleReturnShipmentPrice  
+    PROPERTIES(d) saleReturnShipmentQuantity AFTER quantity(d) SHOWIF createSaleReturnShipment[Invoice](i) BACKGROUND backgroundSaleReturnShipment(i)
 ;
 DESIGN userInvoice {
     headerCreateDocuments{
         NEW headerCreateSaleReturnShipment {
             caption = 'Поставка (продажа-возврат)';
             type = CONTAINERH;
-            MOVE PROPERTY(createSaleReturnShipmentUserInvoice(i));
-            MOVE PROPERTY(saleReturnShipmentDateUserInvoice(i));
-            MOVE PROPERTY(saleReturnShipmentTimeUserInvoice(i));
+            MOVE PROPERTY(createSaleReturnShipment(i));
+            MOVE PROPERTY(saleReturnShipmentDate(i));
+            MOVE PROPERTY(saleReturnShipmentTime(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND backgroundSaleReturnShipmentInvoice(i) saleReturnShipmentSumInvoiceDetailInvoice BEFORE ordersInvoice(i)
-    PROPERTIES(d) READONLY SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
-                  saleReturnExpiryDateInvoiceDetail, saleReturnShipmentPriceInvoiceDetail, saleReturnShipmentSumInvoiceDetail
-    PROPERTIES(d) READONLY saleReturnShipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail(d) SHOWIF createSaleReturnShipmentInvoice(i) BACKGROUND backgroundSaleReturnShipmentInvoice(i)
+    PROPERTIES(i) READONLY BACKGROUND backgroundSaleReturnShipment(i) saleReturnShipmentSumInvoiceDetail BEFORE orders(i)
+    PROPERTIES(d) READONLY SHOWIF createSaleReturnShipment(i) BACKGROUND backgroundSaleReturnShipment(i)
+                  saleReturnExpiryDate, saleReturnShipmentPrice, saleReturnShipmentSum
+    PROPERTIES(d) READONLY saleReturnShipmentQuantity AFTER quantity(d) SHOWIF createSaleReturnShipment(i) BACKGROUND backgroundSaleReturnShipment(i)
 ;
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
 
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, saleReturnShipment, , sku, supplierStock);
 
-receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
+receiveShipment (SaleReturnInvoice invoice)+= ACTION (invoice)  {
     IF invoice IS SaleReturnInvoice THEN {
-        createSaleReturnShipmentInvoice(i) <- TRUE WHERE i == invoiceSaleReturnInvoice(invoice);
-        saleReturnShipmentDateInvoice(i) <- currentDate() WHERE i == invoiceSaleReturnInvoice(invoice);
-        saleReturnShipmentTimeInvoice(i) <- currentTime() WHERE i == invoiceSaleReturnInvoice(invoice);
+        createSaleReturnShipment(Invoice i) <- TRUE WHERE i == invoice(invoice);
+        saleReturnShipmentDate(Invoice i) <- currentDate() WHERE i == invoice(invoice);
+        saleReturnShipmentTime(Invoice i) <- currentTime() WHERE i == invoice(invoice);
     } 
 };
 
-deleteCreateShipment (shipment)+= WHEN SaleReturn.invoiceInvoiceShipment(shipment) IS SaleReturnInvoice THEN  ACTION (shipment)  {
-    createSaleReturnShipmentInvoice(invoice) <- NULL WHERE invoice == invoiceSaleReturnInvoice(SaleReturn.invoiceInvoiceShipment(shipment));          
+deleteCreate (SaleReturn.InvoiceShipment shipment)+= WHEN invoice(shipment) IS SaleReturnInvoice THEN  ACTION (shipment)  {
+    createSaleReturnShipment(Invoice invoice) <- NULL WHERE invoice == invoice(invoice(shipment));          
 };
 
 //-- возврат поставщику
-quantitySaleReturnShipmentDetailInvoiceDetail 'Поставлено' (purchaseReturnInvoiceDetail) = GROUP SUM SaleReturn.quantityShipmentDetail(d) BY PurchaseSaleReturnInvoice.invoiceDetailInvoiceDetail(SaleReturn.invoiceDetailShipmentDetail(d));
+quantitySaleReturnShipmentDetail 'Поставлено' (purchaseReturnInvoiceDetail) = GROUP SUM quantity(SaleReturn.ShipmentDetail d) BY PurchaseSaleReturnInvoice.invoiceDetail(invoiceDetail(d));
 
-quantitySaleReturnShipmentDetail 'Поставлено' (d) = quantitySaleReturnShipmentDetailInvoiceDetail(PurchaseReturn.invoiceDetailShipmentDetail(d));
-quantitySaleReturnShipmentDetailShipmentDetail 'Поставлено' (d) = GROUP SUM SaleReturn.quantityShipmentDetail(d) BY PurchaseSaleReturnShipment.shipmentDetailShipmentDetail(d);
+quantitySaleReturn 'Поставлено' (ShipmentDetail d) = quantitySaleReturnShipmentDetail(invoiceDetail(d));
+quantitySaleReturnShipmentDetail 'Поставлено' (d) = GROUP SUM quantity(SaleReturn.ShipmentDetail d) BY shipmentDetail(d);
 
-quantityShippedPurchaseReturnShipment 'Поставлено (кол-во)' (s) = GROUP SUM (quantitySaleReturnShipmentDetailShipmentDetail(d) (+) quantitySaleReturnShipmentDetail(d)) BY PurchaseReturn.shipmentShipmentDetail(d);
+quantityShippedPurchaseReturn 'Поставлено (кол-во)' (s) = GROUP SUM (quantitySaleReturnShipmentDetail(ShipmentDetail d) (+) quantitySaleReturn(d)) BY shipment(d);
 
-isTransitPurchaseReturnShipment 'В пути' (s) = isCompanyLegalEntity(PurchaseReturn.supplierShipment(s)) AND isCompanyLegalEntity(PurchaseReturn.customerShipment(s)) AND PurchaseReturn.supplierShipment(s) == PurchaseReturn.customerShipment(s) AND NOT quantityShippedPurchaseReturnShipment(s);
+isTransitPurchaseReturn 'В пути' (Shipment s) = isCompany(supplier(s)) AND isCompany(customer(s)) AND supplier(s) == customer(s) AND NOT quantityShippedPurchaseReturn(s);
 

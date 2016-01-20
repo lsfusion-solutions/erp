@@ -10,39 +10,39 @@ PRIORITY Sale;
 
 FORM invoiceInvoices 'Накладные'
     OBJECTS s = LegalEntity FIXED PANEL
-    PROPERTIES (s) READONLY nameLegalEntity
+    PROPERTIES (s) READONLY name
     OBJECTS c = LegalEntity FIXED PANEL
-    PROPERTIES (c) READONLY nameLegalEntity
+    PROPERTIES (c) READONLY name
 
     OBJECTS ss = Stock FIXED PANEL
-    PROPERTIES (ss) READONLY nameStock
+    PROPERTIES (ss) READONLY name
     OBJECTS cs = Stock FIXED PANEL
-    PROPERTIES (cs) READONLY nameStock
+    PROPERTIES (cs) READONLY name
 
     OBJECTS t=DATE FIXED PANEL
     PROPERTIES(t) OBJVALUE
 
     OBJECTS o = Invoice
-    PROPERTIES (o) READONLY isPostedInvoice, numberInvoice, seriesInvoice, dateInvoice, timeInvoice, nameCurrencyInvoice,
-                            countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
-                            noteInvoice
-    FILTERS supplierInvoice(o) == s,
-            customerInvoice(o) == c,
-            supplierStockInvoice(o) == ss,
-            customerStockInvoice(o) == cs,
-            isPostedInvoice(o)
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameCurrency,
+                            countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                            note
+    FILTERS supplier(o) == s,
+            customer(o) == c,
+            supplierStock(o) == ss,
+            customerStock(o) == cs,
+            isPosted(o)
 
     FILTERGROUP filters1
-        FILTER 'Только этой даты' dateInvoice(o) == t 'F11' DEFAULT
+        FILTER 'Только этой даты' date(o) == t 'F11' DEFAULT
 
     OBJECTS d = InvoiceDetail
 
-    PROPERTIES (d) READONLY indexInvoiceDetail, idBarcodeSkuInvoiceDetail, nameSkuInvoiceDetail, shortNameUOMSkuInvoiceDetail
-    PROPERTIES (d) READONLY SHOWIF showPackInvoice(o) idBarcodePackInvoiceDetail, shortNameUOMPackInvoiceDetail, amountPackInvoiceDetail, packQuantityInvoiceDetail
-    PROPERTIES (d) READONLY quantityInvoiceDetail, priceInvoiceDetail, sumInvoiceDetail, numberVATInvoiceDetail, valueVATInvoiceDetail,
-                            VATSumInvoiceDetail, invoiceSumInvoiceDetail, nameSupplierStockInvoiceDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY SHOWIF showPack(o) idBarcodePack, shortNameUOMPack, amountPack, packQuantity
+    PROPERTIES (d) READONLY quantity, price, sum, numberVAT, valueVAT,
+                            VATSum, invoiceSum, nameSupplierStock
 
-    FILTERS invoiceInvoiceDetail(d) == o
+    FILTERS invoice(d) == o
 ;
 
 DESIGN invoiceInvoices {
@@ -99,124 +99,124 @@ DESIGN invoiceInvoices {
     }
 }
 
-notUseBatchPurchaseInvoiceOperation 'Не проставлять партии при выполнении действия "Накладная (закупка)"' = DATA BOOLEAN (Operation); 
+notUseBatchPurchaseInvoice 'Не проставлять партии при выполнении действия "Накладная (закупка)"' = DATA BOOLEAN (Operation); 
 EXTEND FORM operation
-    PROPERTIES notUseBatchPurchaseInvoiceOperation(o)
+    PROPERTIES notUseBatchPurchaseInvoice(o)
 ;
 DESIGN operation {
     purchaseContainer {
-        MOVE PROPERTY (notUseBatchPurchaseInvoiceOperation(o));
+        MOVE PROPERTY (notUseBatchPurchaseInvoice(o));
     }
 }
 
-invoiceDetailInvoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT INDEXED;
-invoiceDetailUserInvoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
-invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailUserInvoiceDetail(invoiceDetail);
+invoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT INDEXED;
+invoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
+invoiceDetail(Purchase.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail = ABSTRACT ACTION LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
+setPropertiesPurchaseSale = ABSTRACT ACTION LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
 
-fillInvoiceUserInvoice 'Заполнить на основе накладной' =  ACTION (userInvoice) {
-    FORM invoiceInvoices OBJECTS s = Purchase.supplierUserInvoice(userInvoice), c = Purchase.customerUserInvoice(userInvoice),
-                                   ss = Purchase.supplierStockUserInvoice(userInvoice), cs = Purchase.customerStockUserInvoice(userInvoice),
-                                   t = Purchase.dateUserInvoice(userInvoice) MODAL;
+fillInvoice 'Заполнить на основе накладной' =  ACTION (Purchase.UserInvoice userInvoice) {
+    FORM invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
+                                   ss = supplierStock(userInvoice), cs = customerStock(userInvoice),
+                                   t = date(userInvoice) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL saleInvoice = Invoice();
         ASSIGN saleInvoice() <- chosenObject('o');
 
-        FOR invoiceInvoiceDetail(invoiceDetail) == saleInvoice() ADDOBJ d = Purchase.UserInvoiceDetail DO {
-            Purchase.userInvoiceUserInvoiceDetail(d) <- userInvoice;
-            invoiceDetailUserInvoiceDetail(d) <- invoiceDetail;
-            setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail(d, invoiceDetail); 
+        FOR invoice(InvoiceDetail invoiceDetail) == saleInvoice() ADDOBJ d = Purchase.UserInvoiceDetail DO {
+            userInvoice(d) <- userInvoice;
+            invoiceDetail(d) <- invoiceDetail;
+            setPropertiesPurchaseSale(d, invoiceDetail); 
         }
     }
 } IN Purchase.invoice;
 
-setPropertiesPurchaseInvoiceDetailSaleInvoiceDetail(d, invoiceDetail) += ACTION (d, invoiceDetail) {
-            Purchase.skuUserInvoiceDetail(d) <- skuInvoiceDetail(invoiceDetail);
-            Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(invoiceDetail)  WHERE NOT notUseBatchPurchaseInvoiceOperation(operationInvoice(invoiceInvoiceDetail(invoiceDetail)));
-            Purchase.barcodePackUserInvoiceDetail(d) <- barcodePackInvoiceDetail(invoiceDetail);
-            Purchase.amountPackUserInvoiceDetail(d) <- amountPackInvoiceDetail(invoiceDetail);
-            Purchase.packQuantityUserInvoiceDetail(d) <- packQuantityInvoiceDetail(invoiceDetail);
-            Purchase.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(invoiceDetail);
-            Purchase.VATUserInvoiceDetail(d) <- VATInvoiceDetail(invoiceDetail);
-            Purchase.valueVATUserInvoiceDetail(d) <- valueVATInvoiceDetail(invoiceDetail);
-            Purchase.priceUserInvoiceDetail(d) <- priceInvoiceDetail(invoiceDetail);
-            Purchase.invoicePriceUserInvoiceDetail(d) <- invoicePriceInvoiceDetail(invoiceDetail);    
+setPropertiesPurchaseSale(Purchase.UserInvoiceDetail d, InvoiceDetail invoiceDetail) += ACTION (d, invoiceDetail) {
+            sku(d) <- sku(invoiceDetail);
+            batch(d) <- batch(invoiceDetail)  WHERE NOT notUseBatchPurchaseInvoice(operation(invoice(invoiceDetail)));
+            barcodePack(d) <- barcodePack(invoiceDetail);
+            amountPack(d) <- amountPack(invoiceDetail);
+            packQuantity(d) <- packQuantity(invoiceDetail);
+            quantity (d) <- quantity(invoiceDetail);
+            VAT(d) <- VAT(invoiceDetail);
+            valueVAT(d) <- valueVAT(invoiceDetail);
+            price(d) <- price(invoiceDetail);
+            invoicePrice(d) <- invoicePrice(invoiceDetail);    
 }
 //----------------------------------------------------------------------------//
 
 GROUP invoice 'Информация о накладной' : base;
 
-createPurchaseInvoiceInvoice 'Создать накладную (закупка)' = ABSTRACT BOOLEAN (Invoice) PERSISTENT;
-createPurchaseInvoiceUserInvoice 'Создать накладную (закупка)' = DATA BOOLEAN (UserInvoice) PERSISTENT;
-createPurchaseInvoiceInvoice(invoice) += createPurchaseInvoiceUserInvoice(invoice);
+createPurchaseInvoice 'Создать накладную (закупка)' = ABSTRACT BOOLEAN (Invoice) PERSISTENT;
+createPurchaseInvoice 'Создать накладную (закупка)' = DATA BOOLEAN (UserInvoice) PERSISTENT;
+createPurchaseInvoice(UserInvoice invoice) += createPurchaseInvoice(invoice);
 
-createPurchaseInvoiceInvoiceDetail 'Создать накладную (закупка)' (invoiceDetail) = createPurchaseInvoiceInvoice(invoiceInvoiceDetail(invoiceDetail))PERSISTENT;
-createPurchaseInvoiceUserInvoiceDetail 'Создать накладную (закупка)' (userInvoiceDetail) = createPurchaseInvoiceUserInvoice(userInvoiceUserInvoiceDetail(userInvoiceDetail));
-backgroundPurchaseInvoice 'Цвет' (invoice) = RGB(255, 255, 190) IF invoice IS Invoice;
+createPurchaseInvoice 'Создать накладную (закупка)' (InvoiceDetail invoiceDetail) = createPurchaseInvoice(invoice(invoiceDetail))PERSISTENT;
+createPurchaseInvoice 'Создать накладную (закупка)' (UserInvoiceDetail userInvoiceDetail) = createPurchaseInvoice(userInvoice(userInvoiceDetail));
+backgroundPurchase 'Цвет' (Invoice invoice) = RGB(255, 255, 190) IF invoice IS Invoice;
 
-isCompanyCustomerUserInvoice (userInvoice) =  isCompanyLegalEntity(customerUserInvoice(userInvoice));
+isCompanyCustomer (UserInvoice userInvoice) =  isCompany(customer(userInvoice));
 EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundPurchaseInvoice(i) SHOWIF isCompanyCustomerUserInvoice(i) createPurchaseInvoiceUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundPurchase(i) SHOWIF isCompanyCustomer(i) createPurchaseInvoice
 ;
 DESIGN userInvoice {
     headerCreateDocuments {
         NEW headerCreatePurchase {
             caption = 'Накладная (закупка)';
-            MOVE PROPERTY(createPurchaseInvoiceUserInvoice(i));
+            MOVE PROPERTY(createPurchaseInvoice(i));
         }
     }
 }
 
 //--  Связь поставки с поставкой
 
-notNullSaleReferenceOperation 'Должна быть ссылка на расходную накладную' = DATA BOOLEAN (Purchase.Operation);
+notNullSaleReference 'Должна быть ссылка на расходную накладную' = DATA BOOLEAN (Purchase.Operation);
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) notNullSaleReferenceOperation
+    PROPERTIES(o) notNullSaleReference
 ;
 
 DESIGN Purchase.operation {
     createContainer {
-        MOVE PROPERTY(notNullSaleReferenceOperation(o));
+        MOVE PROPERTY(notNullSaleReference(o));
     }
 }
 
-CONSTRAINT notNullSaleReferenceOperation(Purchase.operationUserInvoiceDetail(d)) AND NOT invoiceDetailUserInvoiceDetail(d)
+CONSTRAINT notNullSaleReference(operation(Purchase.UserInvoiceDetail d)) AND NOT invoiceDetail(d)
     MESSAGE 'Для строки накладной (закупка) должна быть задана ссылка на строку накладной (продажа)'; 
 
-CONSTRAINT Purchase.supplierInvoiceDetail(detail) != supplierInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
-           Purchase.supplierStockInvoiceDetail(detail) != supplierStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
-           Purchase.customerInvoiceDetail(detail) != customerInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) OR
-           Purchase.customerStockInvoiceDetail(detail) != customerStockInvoiceDetail(invoiceDetailUserInvoiceDetail(detail))
+CONSTRAINT supplier[Purchase.InvoiceDetail](Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
+           supplierStock[Purchase.InvoiceDetail](detail) != supplierStock(invoiceDetail(detail)) OR
+           customer[Purchase.InvoiceDetail](detail) != customer(invoiceDetail(detail)) OR
+           customerStock[Purchase.InvoiceDetail](detail) != customerStock(invoiceDetail(detail))
 //           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
-    CHECKED BY invoiceDetailUserInvoiceDetail
+    CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
 
 
-descriptionIndexInvoiceDetailInvoiceDetail 'Строка накладной (продажа)' (detail) = descriptionIndexInvoiceDetail(invoiceDetailInvoiceDetail(detail));
-descriptionIndexInvoiceDetailUserInvoiceDetail 'Строка накладной (продажа)' (detail) = descriptionIndexInvoiceDetail(invoiceDetailUserInvoiceDetail(detail));
+descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
+descriptionIndexInvoiceDetail 'Строка накладной (продажа)' (Purchase.UserInvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
 
-quantityInvoiceDetailInvoiceInvoice (sale, purchase) = GROUP SUM Purchase.quantityInvoiceDetail(detail) BY invoiceInvoiceDetail(invoiceDetailInvoiceDetail(detail)), Purchase.invoiceInvoiceDetail(detail);
+quantityInvoiceDetail (sale, purchase) = GROUP SUM quantity(Purchase.InvoiceDetail detail) BY invoice(invoiceDetail(detail)), invoice(detail);
 
-saleInvoicesInvoice 'Накладные (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](descriptionInvoice(sale)) IF quantityInvoiceDetailInvoiceInvoice(sale, purchase) , ', '
+saleInvoices 'Накладные (продажа)' (purchase) = GROUP CONCAT VARSTRING[255](description(Invoice sale)) IF quantityInvoiceDetail(sale, Purchase.Invoice purchase) , ', '
                                                         BY purchase
                                                         ORDER sale IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-relationPurchaseInvoice 'Связь' (purchase) = GROUP SUM quantityInvoiceDetailInvoiceInvoice (sale, purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
+relationPurchase 'Связь' (purchase) = GROUP SUM quantityInvoiceDetail (Invoice sale, Purchase.Invoice purchase) BY purchase PERSISTENT INDEXED; // для NOT NULL фильтров
 
-invoicedInvoiceDetail 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM Purchase.quantityInvoiceDetail(detail) IF Purchase.isPostedInvoiceDetail(detail)
-                                                                   BY invoiceDetailInvoiceDetail(detail) PERSISTENT;
+invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(Purchase.InvoiceDetail detail) IF isPosted(detail)
+                                                                   BY invoiceDetail(detail) PERSISTENT;
 
-invoicedInvoice 'Кол-во (выписано)' = GROUP SUM invoicedInvoiceDetail(detail) BY invoiceInvoiceDetail(detail);
+invoiced 'Кол-во (выписано)' = GROUP SUM invoiced(InvoiceDetail detail) BY invoice(detail);
 
-statusInvoiceInvoice 'Статус' = CASE
-                                                        WHEN invoicedInvoice(i) THEN 'Создано поступление'
+statusInvoice 'Статус' = CASE
+                                                        WHEN invoiced(Invoice i) THEN 'Создано поступление'
                                                                                 ELSE 'Не создано поступление';
 
-toInvoicedInvoiceDetail 'Не выписано' (invoiceDetail) = quantityInvoiceDetail (invoiceDetail) (-) invoicedInvoiceDetail(invoiceDetail);
+toInvoiced 'Не выписано' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) invoiced(invoiceDetail);
 
 EXTEND FORM Purchase.userInvoice
-    PROPERTIES(i) fillInvoiceUserInvoice, saleInvoicesInvoice READONLY
+    PROPERTIES(i) fillInvoice, saleInvoices READONLY
 ;
 DESIGN Purchase.userInvoice { headerCreateDetail{ MOVE i.invoice { type = CONTAINERV; }}}
 
@@ -228,94 +228,94 @@ CLASS PurchaseInvoiceDetail 'Строка накладной на основе �
 @defineDocumentTables(purchaseInvoice);
 
 @defineDocumentAggregation(invoice, purchaseInvoice, createPurchaseInvoice);
-Purchase.invoiceInvoiceDetail(d) += purchaseInvoicePurchaseInvoiceDetail(d);
+invoice(PurchaseInvoiceDetail d) += purchaseInvoice(d);
 
-Purchase.indexInvoiceDetail(d) += indexPurchaseInvoiceDetail(d);
+index(PurchaseInvoiceDetail d) += index(d);
 
-Purchase.dateInvoice(invoice) += datePurchaseInvoice(invoice);
-Purchase.timeInvoice(invoice) += timePurchaseInvoice(invoice);
+date(PurchaseInvoice invoice) += date(invoice);
+time(PurchaseInvoice invoice) += time(invoice);
 
 @defineDocumentAggregationStockPrefix(invoice, purchaseInvoice, supplier, 'Склад поставщика', , );
-Purchase.supplierStockInvoice(invoice) += supplierStockPurchaseInvoice(invoice);
-Purchase.dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
+supplierStock(PurchaseInvoice invoice) += supplierStock(invoice);
+dataSupplierStock(PurchaseInvoiceDetail invoiceDetail) += dataSupplierStock(invoiceDetail(invoiceDetail));
 @defineDocumentAggregationStockPrefix(invoice, purchaseInvoice, customer, 'Склад покупателя', , );
-Purchase.customerStockInvoice(invoice) += customerStockPurchaseInvoice(invoice);
-Purchase.dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
+customerStock(PurchaseInvoice invoice) += customerStock(invoice);
+dataCustomerStock(PurchaseInvoiceDetail invoiceDetail) += dataCustomerStock(invoiceDetail(invoiceDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(invoice, purchaseInvoice, supplier, 'Поставщик', , );
-Purchase.supplierInvoice(invoice) += supplierPurchaseInvoice(invoice);
+supplier(PurchaseInvoice invoice) += supplier(invoice);
 @defineDocumentAggregationLegalEntityPrefix(invoice, purchaseInvoice, customer, 'Покупатель', , );
-Purchase.customerInvoice(invoice) += customerPurchaseInvoice(invoice);
+customer(PurchaseInvoice invoice) += customer(invoice);
 
 @defineDocumentAggregationPosted(invoice, purchaseInvoice);
-Purchase.isPostedInvoice(invoice) += isPostedPurchaseInvoice(invoice);
+isPosted(PurchaseInvoice invoice) += isPosted(invoice);
 
 @defineDocumentAggregationClosed(invoice, purchaseInvoice);
-Purchase.isClosedInvoice(invoice) += isClosedPurchaseInvoice(invoice);
+isClosed(PurchaseInvoice invoice) += isClosed(invoice);
 
-Purchase.numberInvoice(invoice) += numberInvoice(invoicePurchaseInvoice(invoice));
-Purchase.seriesInvoice(invoice) += seriesInvoice(invoicePurchaseInvoice(invoice));
-seriesNumberPurchaseInvoice 'Серия/номер документа' (purchaseInvoice) = seriesNumberInvoice(invoicePurchaseInvoice(purchaseInvoice));
+number(PurchaseInvoice invoice) += number(invoice(invoice));
+series(PurchaseInvoice invoice) += series(invoice(invoice));
+seriesNumber 'Серия/номер документа' (PurchaseInvoice purchaseInvoice) = seriesNumber(invoice(purchaseInvoice));
 
-noteInvoicePurchaseInvoice 'Примечание' (purchaseInvoice) = noteInvoice(invoicePurchaseInvoice(purchaseInvoice));
-Purchase.noteInvoice(invoice) += noteInvoicePurchaseInvoice(invoice);
+noteInvoice 'Примечание' (PurchaseInvoice purchaseInvoice) = note(invoice(purchaseInvoice));
+note(PurchaseInvoice invoice) += noteInvoice(invoice);
 
-currencyPurchaseInvoice  (purchaseInvoice) = currencyInvoice(invoicePurchaseInvoice(purchaseInvoice));
-Purchase.currencyInvoice (invoice) += currencyPurchaseInvoice(invoice);
+currency  (PurchaseInvoice purchaseInvoice) = currency(invoice(purchaseInvoice));
+currency (PurchaseInvoice invoice) += currency(invoice);
 
-agreementPurchaseInvoice  (purchaseInvoice) = agreementInvoice(invoicePurchaseInvoice(purchaseInvoice));
-Purchase.agreementInvoice (invoice) += agreementPurchaseInvoice(invoice);
+agreement  (PurchaseInvoice purchaseInvoice) = agreement(invoice(purchaseInvoice));
+agreement (PurchaseInvoice invoice) += agreement(invoice);
 
-priceListTypePurchaseInvoice  (purchaseInvoice) = priceListTypeInvoice(invoicePurchaseInvoice(purchaseInvoice));
-Purchase.priceListTypeInvoice (invoice) += priceListTypePurchaseInvoice(invoice);
+priceListType  (PurchaseInvoice purchaseInvoice) = priceListType(invoice(purchaseInvoice));
+priceListType (PurchaseInvoice invoice) += priceListType(invoice);
 
 @defineDocumentDescription(purchaseInvoice, PurchaseInvoiceDetail, 'Накладная на основе накладной');
-Purchase.descriptionInvoice (invoice) += descriptionPurchaseInvoice(invoice);
+description (PurchaseInvoice invoice) += description(invoice);
 
-Purchase.contractSkuInvoice (invoice) += contractSkuInvoice(invoicePurchaseInvoice(invoice));
-Purchase.isCommissionInvoice (invoice) += isCommissionInvoice(invoicePurchaseInvoice(invoice));
+contractSku (PurchaseInvoice invoice) += contractSku(invoice(invoice));
+isCommission (PurchaseInvoice invoice) += isCommission(invoice(invoice));
 
 @defineDocumentAggregationDetailSku(invoice, purchaseInvoice, sku);
-Purchase.skuInvoiceDetail(invoiceDetail) +=  skuPurchaseInvoiceDetail(invoiceDetail);
+sku(PurchaseInvoiceDetail invoiceDetail) +=  sku(invoiceDetail);
 
 @defineDocumentAggregationDetailBatch(invoice, purchaseInvoice);
-Purchase.batchInvoiceDetail(invoiceDetail) += batchPurchaseInvoiceDetail(invoiceDetail);
+batch(PurchaseInvoiceDetail invoiceDetail) += batch(invoiceDetail);
 
-Purchase.quantityInvoiceDetail(invoiceDetail) += quantityInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.priceListTypeInvoiceDetail(invoiceDetail) += priceListTypeInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
+quantity(PurchaseInvoiceDetail invoiceDetail) += quantity(invoiceDetail(invoiceDetail));
+priceListType(PurchaseInvoiceDetail invoiceDetail) += priceListType(invoiceDetail(invoiceDetail));
 
-Purchase.priceInvoiceDetail(invoiceDetail) += priceInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.sumInvoiceDetail(invoiceDetail) += sumInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.VATInvoiceDetail(invoiceDetail) += VATInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.valueVATInvoiceDetail(invoiceDetail) += valueVATInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.VATSumInvoiceDetail(invoiceDetail) += VATSumInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
+price(PurchaseInvoiceDetail invoiceDetail) += price(invoiceDetail(invoiceDetail));
+sum(PurchaseInvoiceDetail invoiceDetail) += sum(invoiceDetail(invoiceDetail));
+VAT(PurchaseInvoiceDetail invoiceDetail) += VAT(invoiceDetail(invoiceDetail));
+valueVAT(PurchaseInvoiceDetail invoiceDetail) += valueVAT(invoiceDetail(invoiceDetail));
+invoicePrice(PurchaseInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail(invoiceDetail));
+VATSum(PurchaseInvoiceDetail invoiceDetail) += VATSum(invoiceDetail(invoiceDetail));
+invoiceSum(PurchaseInvoiceDetail invoiceDetail) += invoiceSum(invoiceDetail(invoiceDetail));
 
-Purchase.editInvoice(invoice) += ACTION EXEC editInvoice(invoicePurchaseInvoice(invoice));
-Purchase.closeInvoice(invoice) += ACTION EXEC closeInvoice(invoicePurchaseInvoice(invoice));
-Purchase.createdUserInvoice(invoice) += createdUserInvoice(invoicePurchaseInvoice(invoice));
+edit(PurchaseInvoice invoice) += ACTION EXEC edit(invoice(invoice));
+close(PurchaseInvoice invoice) += ACTION EXEC close(invoice(invoice));
+createdUser(PurchaseInvoice invoice) += createdUser(invoice(invoice));
 
-Purchase.showPackInvoice(invoice) +=  showPackInvoice(invoicePurchaseInvoice(invoice));
-Purchase.barcodePackInvoiceDetail(invoiceDetail) += barcodePackInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.amountPackInvoiceDetail(invoiceDetail) +=  amountPackInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
-Purchase.packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(invoiceDetail));
+showPack(PurchaseInvoice invoice) +=  showPack(invoice(invoice));
+barcodePack(PurchaseInvoiceDetail invoiceDetail) += barcodePack(invoiceDetail(invoiceDetail));
+amountPack(PurchaseInvoiceDetail invoiceDetail) +=  amountPack(invoiceDetail(invoiceDetail));
+packQuantity(PurchaseInvoiceDetail invoiceDetail) +=  packQuantity(invoiceDetail(invoiceDetail));
 
-invoiceDetailInvoiceDetail(invoiceDetail) += invoiceDetailPurchaseInvoiceDetail(invoiceDetail);
+invoiceDetail(PurchaseInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
-Purchase.editInvoiceDetail(d) += ACTION editInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(d));
+edit(PurchaseInvoiceDetail d) += ACTION edit(invoiceDetail(d));
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
 
 // -- Операция
-createPurchaseInvoiceOperation 'Накладная (закупка) ' = DATA BOOLEAN (Operation);
+createPurchaseInvoice 'Накладная (закупка) ' = DATA BOOLEAN (Operation);
 
 EXTEND FORM operation
-    PROPERTIES(o) createPurchaseInvoiceOperation
+    PROPERTIES(o) createPurchaseInvoice
 ;
 DESIGN operation {
     purchaseContainer {
-        MOVE PROPERTY(createPurchaseInvoiceOperation(o)) BEFORE PROPERTY(namePurchaseOperationOperation(o));
+        MOVE PROPERTY(createPurchaseInvoice(o)) BEFORE PROPERTY(namePurchaseOperation(o));
     }
 }
 
@@ -324,67 +324,67 @@ DESIGN operation {
 @defineDocumentInterfaceOperationPrefix (invoice, purchase, Purchase, ' (закупка)');
 
 // Записываем операцию для закупки по умолчанию из операции
-purchaseOperationUserInvoice (invoice) <- purchaseOperationOperation(operationUserInvoice(invoice))
-    WHEN CHANGED(operationUserInvoice(invoice));
+purchaseOperation (UserInvoice invoice) <- purchaseOperation(operation(invoice))
+    WHEN CHANGED(operation(invoice));
 
-Purchase.operationInvoice(invoice) += purchaseOperationInvoice(invoicePurchaseInvoice(invoice));
+operation(PurchaseInvoice invoice) += purchaseOperation(invoice(invoice));
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundPurchaseInvoice(i) SHOWIF createPurchaseInvoiceUserInvoice(i) namePurchaseOperationUserInvoice
+    PROPERTIES(i) BACKGROUND backgroundPurchase(i) SHOWIF createPurchaseInvoice(i) namePurchaseOperation
 
 ;
 DESIGN userInvoice {
     headerCreatePurchase {
-        MOVE PROPERTY(namePurchaseOperationUserInvoice(i)) AFTER PROPERTY(createPurchaseInvoiceUserInvoice(i));
+        MOVE PROPERTY(namePurchaseOperation(i)) AFTER PROPERTY(createPurchaseInvoice(i));
     }
 }
 
 //-- Действие
 
-overFillInvoiceUserInvoiceInvoice = ABSTRACT ACTION LIST (Purchase.UserInvoice, Invoice);
-overFillInvoiceUserInvoiceDetailInvoiceDetail = ABSTRACT ACTION LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
+overFillInvoice = ABSTRACT ACTION LIST (Purchase.UserInvoice, Invoice);
+overFillInvoice = ABSTRACT ACTION LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
 
-moveUserInvoiceInvoice 'Накладная (закупка)' =  ACTION (invoice) NEWSESSION{
+moveUserInvoice 'Накладная (закупка)' =  ACTION (Invoice invoice) NEWSESSION{
 
     FOR ADDOBJ i = Purchase.UserInvoice DO {
 
-        ASSIGN Purchase.agreementUserInvoice(i) <- agreementInvoice(invoice);
-        ASSIGN Purchase.priceListTypeUserInvoice(i) <- priceListTypeInvoice(invoice);
-        ASSIGN Purchase.supplierUserInvoice(i) <- supplierInvoice(invoice);
-        ASSIGN Purchase.customerUserInvoice(i) <- customerInvoice(invoice);
-        ASSIGN Purchase.supplierStockUserInvoice(i) <- supplierStockInvoice(invoice);
-        ASSIGN Purchase.customerStockUserInvoice(i) <- customerStockInvoice(invoice);
-        ASSIGN numberUserInvoice(i) <- numberInvoice(invoice);
-        ASSIGN seriesUserInvoice(i) <- seriesInvoice(invoice);
-        ASSIGN Purchase.noteUserInvoice(i) <- noteInvoice(invoice);
-        ASSIGN Purchase.currencyUserInvoice(i) <- currencyInvoice(invoice);
-        ASSIGN Purchase.contractSkuUserInvoice(i) <- contractSkuInvoice(invoice);
-        ASSIGN Purchase.isCommissionUserInvoice(i) <- isCommissionInvoice(invoice);
-        ASSIGN Purchase.showPackUserInvoice(i) <- showPackInvoice(invoice);
-        ASSIGN Purchase.operationUserInvoice(i) <- operationInvoice(invoice); // todo: может так надо purchaseOperationInvoice(invoice)
-        EXEC overFillInvoiceUserInvoiceInvoice(i, invoice);
+        ASSIGN agreement(i) <- agreement(invoice);
+        ASSIGN priceListType(i) <- priceListType(invoice);
+        ASSIGN supplier(i) <- supplier(invoice);
+        ASSIGN customer(i) <- customer(invoice);
+        ASSIGN supplierStock(i) <- supplierStock(invoice);
+        ASSIGN customerStock(i) <- customerStock(invoice);
+        ASSIGN number(i) <- number(invoice);
+        ASSIGN series(i) <- series(invoice);
+        ASSIGN note(i) <- note(invoice);
+        ASSIGN currency(i) <- currency(invoice);
+        ASSIGN contractSku(i) <- contractSku(invoice);
+        ASSIGN isCommission(i) <- isCommission(invoice);
+        ASSIGN showPack(i) <- showPack(invoice);
+        ASSIGN operation(i) <- operation(invoice); // todo: может так надо purchaseOperationInvoice(invoice)
+        EXEC overFillInvoice(i, invoice);
 
-        FOR invoiceInvoiceDetail(detail)==invoice ADDOBJ d = Purchase.UserInvoiceDetail DO {
+        FOR invoice(InvoiceDetail detail)==invoice ADDOBJ d = Purchase.UserInvoiceDetail DO {
 
-            ASSIGN Purchase.userInvoiceUserInvoiceDetail(d) <- i;
-            ASSIGN invoiceDetailUserInvoiceDetail(d) <- detail;
+            ASSIGN userInvoice(d) <- i;
+            ASSIGN invoiceDetail(d) <- detail;
 
-            ASSIGN Purchase.priceListTypeUserInvoiceDetail(d) <- priceListTypeInvoiceDetail(detail);
-            ASSIGN Purchase.dataSupplierStockUserInvoiceDetail(d) <- dataSupplierStockInvoiceDetail(detail);
-            ASSIGN Purchase.dataCustomerStockUserInvoiceDetail(d) <- dataCustomerStockInvoiceDetail(detail);
+            ASSIGN priceListType(d) <- priceListType(detail);
+            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
+            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
 
-            ASSIGN Purchase.skuUserInvoiceDetail(d) <- skuInvoiceDetail(detail);
-            ASSIGN Purchase.quantityUserInvoiceDetail (d) <- quantityInvoiceDetail(detail);
-            ASSIGN Purchase.VATUserInvoiceDetail (d) <- VATInvoiceDetail(detail);
-            ASSIGN Purchase.priceUserInvoiceDetail (d) <- priceInvoiceDetail(detail);
-            ASSIGN Purchase.invoicePriceUserInvoiceDetail (d) <- invoicePriceInvoiceDetail(detail);
+            ASSIGN sku(d) <- sku(detail);
+            ASSIGN quantity (d) <- quantity(detail);
+            ASSIGN VAT (d) <- VAT(detail);
+            ASSIGN price (d) <- price(detail);
+            ASSIGN invoicePrice (d) <- invoicePrice(detail);
 
-            ASSIGN Purchase.barcodePackUserInvoiceDetail (d) <- barcodePackInvoiceDetail(detail);
-            ASSIGN Purchase.amountPackUserInvoiceDetail (d) <- amountPackInvoiceDetail(detail);
-            ASSIGN Purchase.packQuantityUserInvoiceDetail (d) <- packQuantityInvoiceDetail(detail);
+            ASSIGN barcodePack (d) <- barcodePack(detail);
+            ASSIGN amountPack (d) <- amountPack(detail);
+            ASSIGN packQuantity (d) <- packQuantity(detail);
 
-            ASSIGN Purchase.batchUserInvoiceDetail(d) <- batchInvoiceDetail(detail) WHERE NOT notUseBatchPurchaseInvoiceOperation(operationInvoice(invoice));
-            EXEC overFillInvoiceUserInvoiceDetailInvoiceDetail(d,detail);
+            ASSIGN batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
+            EXEC overFillInvoice(d,detail);
         }
 
     FORM Purchase.userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL;
@@ -392,11 +392,11 @@ moveUserInvoiceInvoice 'Накладная (закупка)' =  ACTION (invoice)
 } TOOLBAR;
 
 EXTEND FORM invoices
-    PROPERTIES(i) moveUserInvoiceInvoice
+    PROPERTIES(i) moveUserInvoice
 ;
 DESIGN invoices {
     createdContainer{
-        MOVE PROPERTY(moveUserInvoiceInvoice(i));
+        MOVE PROPERTY(moveUserInvoice(i));
     }
 }
 

@@ -4,10 +4,10 @@ REQUIRE UpdatePriceDashboard, StopList;
 
 NAMESPACE Pricing;
 
-statusStopListSkuStock 'Запрет продаж' (sku, stock)= IF inStopListSkuStockDateTime(sku, stock, currentDateTime())
+statusStopList 'Запрет продаж' (Sku sku, Stock stock)= IF inStopList(sku, stock, currentDateTime())
     THEN 'В стоп-листе'
     ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
-backgroundStopListSkuStock 'Цвет' (sku, stock) = RGB (255,0,0) IF inStopListSkuStockDateTime(sku, stock, currentDateTime());
+backgroundStopList 'Цвет' (Sku sku, Stock stock) = RGB (255,0,0) IF inStopList(sku, stock, currentDateTime());
 
 notResetStoplistSelectSku 'Не сбрасывать отмеченные товары при включении/исключении из стоп-листа' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -23,20 +23,20 @@ createReversStopListStock 'Исключить из стоп-листа'  = ACTIO
     IF countSelectSkus() THEN {
         NEWSESSION {   
             FOR ADDOBJ sl = StopList DO {    
-                inStockStopList(st, sl) <- TRUE WHERE st == department;  
-                excludeStopList(sl) <-TRUE;
-                isPostedStopList(sl) <-TRUE;
+                in(Stock st, sl) <- TRUE WHERE st == department;  
+                exclude(sl) <-TRUE;
+                isPosted(sl) <-TRUE;
                        
-                FOR selectSku(sku) ADDOBJ d = StopListDetail DO {
+                FOR select(Sku sku) ADDOBJ d = StopListDetail DO {
                     
-                    stopListStopListDetail(d) <- sl;
-                    skuStopListDetail(d) <- sku;            
+                    stopList(d) <- sl;
+                    sku(d) <- sku;            
                 }   
                 FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
             }        
         }
         IF NOT notResetStoplistSelectSku() THEN {
-            selectSku(sku) <- NULL;
+            select(Sku sku) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары.';
@@ -46,20 +46,20 @@ createStopListStock 'Включить в стоп-лист'  = ACTION (departmen
     IF countSelectSkus() THEN {
         NEWSESSION {   
             FOR ADDOBJ sl = StopList DO {    
-                inStockStopList(st, sl) <- TRUE WHERE st == department;  
-                excludeStopList(sl) <-NULL;
-                isPostedStopList(sl) <-TRUE;
+                in(Stock st, sl) <- TRUE WHERE st == department;  
+                exclude(sl) <-NULL;
+                isPosted(sl) <-TRUE;
                        
-                FOR selectSku(sku) ADDOBJ d = StopListDetail DO {
+                FOR select(Sku sku) ADDOBJ d = StopListDetail DO {
                     
-                    stopListStopListDetail(d) <- sl;
-                    skuStopListDetail(d) <- sku;            
+                    stopList(d) <- sl;
+                    sku(d) <- sku;            
                 }   
                 FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
             }        
         }
         IF NOT notResetStoplistSelectSku() THEN {
-            selectSku(sku) <- NULL;
+            select(Sku sku) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары.';
@@ -69,9 +69,9 @@ createStopListStock 'Включить в стоп-лист'  = ACTION (departmen
 
 EXTEND FORM updatePriceDashboard
     PROPERTIES (d) FORCE PANEL TOOLBAR SHOWIF countSelectSkus()  TODRAW sk  createReversStopListStock, createStopListStock
-    PROPERTIES (sk,d) READONLY statusStopListSkuStock BACKGROUND backgroundStopListSkuStock(sk,d)
+    PROPERTIES (sk,d) READONLY statusStopList BACKGROUND backgroundStopList(sk,d)
     FILTERGROUP stop
-        FILTER 'Разрешен к продаже' NOT inStopListSkuStockDateTime(sk, d, currentDateTime()) 'F8' DEFAULT
+        FILTER 'Разрешен к продаже' NOT inStopList(sk, d, currentDateTime()) 'F8' DEFAULT
 ;
 
 DESIGN updatePriceDashboard {

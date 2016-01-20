@@ -4,117 +4,117 @@ REQUIRE Trip, Order;
 
 NAMESPACE Trip;
 
-tripOrder = DATA Trip(Order);
-inTripOrder 'Включен' (trip, order) = tripOrder(order) == trip;
-countOrderTrip 'Кол-во заказов в рейсе' (trip) = GROUP SUM 1 IF inTripOrder(trip, order) BY trip PERSISTENT; 
+trip = DATA Trip(Order);
+in 'Включен' (Trip trip, Order order) = trip(order) == trip;
+countOrder 'Кол-во заказов в рейсе' (trip) = GROUP SUM 1 IF in(Trip trip, Order order) BY trip PERSISTENT; 
 
-driverTripOrder = driverTrip(tripOrder(order));
-nameDriverTripOrder 'Водитель' (order) = nameContact(driverTripOrder(order));
+driverTrip = driver(trip(Order order));
+nameDriverTrip 'Водитель' (Order order) = name[Contact](driverTrip(order));
 
-dateTripOrder 'Дата вывоза' = dateTrip(tripOrder(order));
-numberTripOrder 'Номер рейса' = numberTrip(tripOrder(order));
+dateTrip 'Дата вывоза' = date(trip(Order order));
+numberTrip 'Номер рейса' = number(trip(Order order));
 
-filterTripOrder(trip, order) = tripOrder(order)==trip OR (trip IS Trip AND order IS Order AND NOT tripOrder(order));
+filter(Trip trip, Order order) = trip(order)==trip OR (trip IS Trip AND order IS Order AND NOT trip(order));
 
-quantityFromTripStock (trip, stock) = GROUP SUM 1 IF quantityFromOrderStock(order, stock) BY tripOrder(order), stock;
-quantityToTripStock (trip, stock) = GROUP SUM 1 IF quantityToOrderStock(order, stock) BY tripOrder(order), stock;
-quantityTripStock(trip, stock) = quantityFromTripStock(trip, stock) (+) quantityToTripStock(trip, stock);
+quantityFrom (trip, stock) = GROUP SUM 1 IF quantityFrom(Order order, Stock stock) BY trip(order), stock;
+quantityTo (trip, stock) = GROUP SUM 1 IF quantityTo(Order order, Stock stock) BY trip(order), stock;
+quantity(Trip trip, Stock stock) = quantityFrom(trip, stock) (+) quantityTo(trip, stock);
 
 TABLE tripStock(Trip, Stock);
-numberStockTrip 'Порядковый номер' = DATA INTEGER(Stock, Trip);
-numberStockTrip(stock, trip) => quantityTripStock(trip, stock)>0 RESOLVE RIGHT;
+number 'Порядковый номер' = DATA INTEGER(Stock, Trip);
+number(Stock stock, Trip trip) => quantity(trip, stock)>0 RESOLVE RIGHT;
 
-firstStockTrip = DATA Stock(Trip);
-isFirstStockTrip 'Начальный пункт' (stock, trip) = firstStockTrip(trip)==stock;
-addressFirstStockTrip 'Начальный пункт' (trip) = addressStock(firstStockTrip(trip));
+firstStock = DATA Stock(Trip);
+isFirst 'Начальный пункт' (Stock stock, Trip trip) = firstStock(trip)==stock;
+addressFirstStock 'Начальный пункт' (Trip trip) = address(firstStock(trip));
 
-stockPrevTripStock (trip, stock) = PARTITION PREV stock IF quantityTripStock(trip, stock) BY trip ORDER numberStockTrip(stock, trip);
-addressStockPrevTripStock 'Адрес' (trip, stock) = addressStock(stockPrevTripStock (trip, stock));
+stockPrev (Trip trip, Stock stock) = PARTITION PREV stock IF quantity(trip, stock) BY trip ORDER number(stock, trip);
+addressStockPrev 'Адрес' (Trip trip, Stock stock) = address(stockPrev (trip, stock));
 
-maxNumberTrip(trip) = GROUP MAX numberStockTrip(stock, trip) BY trip;
-indexTripOrder 'Номер' (trip, order) = maxNumberTrip(trip) - numberStockTrip(toStockOrder(order), trip) + 1 IF inTripOrder(trip, order);
+maxNumber(trip) = GROUP MAX number(Stock stock, Trip trip) BY trip;
+index 'Номер' (Trip trip, Order order) = maxNumber(trip) - number(toStock(order), trip) + 1 IF in(trip, order);
 
-CONSTRAINT numberStockTrip(stock1, tripOrder(order)) >= numberStockTrip(stock2, tripOrder(order)) IF quantityFromOrderStock(order, stock1)>0 AND quantityToOrderStock(order, stock2)>0
+CONSTRAINT number(Stock stock1, trip(Order order)) >= number(Stock stock2, trip(order)) IF quantityFrom(order, stock1)>0 AND quantityTo(order, stock2)>0
     MESSAGE 'Номер не соответствует направлению заказа';
 
-grossWeightOrderedTrip 'Суммарный вес заказов' (trip) = GROUP SUM grossWeightOrderDetailOrder(order) BY tripOrder(order);
+grossWeightOrdered 'Суммарный вес заказов' (trip) = GROUP SUM grossWeightOrderDetail(Order order) BY trip(order);
 
-grossWeightTripToStock 'Вес' = GROUP SUM round3(grossWeightOrderDetailOrder(order)/1000) BY tripOrder(order), toStockOrder(order);
+grossWeightTo 'Вес' = GROUP SUM round3(grossWeightOrderDetail(Order order)/1000) BY trip(order), toStock(order);
 
-quantityOrderedTripSku 'Кол-во в заказах' (trip, sku) = GROUP SUM quantityOrderDetail(orderDetail) BY tripOrder(orderOrderDetail(orderDetail)), skuOrderDetail(orderDetail);
+quantityOrdered 'Кол-во в заказах' (trip, sku) = GROUP SUM quantity(OrderDetail orderDetail) BY trip(order(orderDetail)), sku(orderDetail);
 
 // отображение на карте
-showPointsTrip 'Показать путь на карте' (trip) = ACTION (trip) {
-    ASSIGN numberPathPOI(stock) <- OVERRIDE 1 IF quantityTripStock(trip, stock) > 0, numberStockTrip(stock, trip);
-    EXEC showOnMapPath(showMapProvider());
+showPoints 'Показать путь на карте' (Trip trip) = ACTION (trip) {
+    ASSIGN numberPath(POI stock) <- OVERRIDE 1 IF quantity(trip, stock) > 0, number(stock, trip);
+    EXEC showOnPath(showMapProvider());
 
 } TOOLBAR;
 
-createPathTrip 'Рассчитать путь' (trip) = ACTION (trip) {
-    ASSIGN startPathPOI() <- firstStockTrip(trip);
-    ASSIGN inPathPOI(stock) <- TRUE IF quantityTripStock(trip, stock);
+createPath 'Рассчитать путь' (Trip trip) = ACTION (trip) {
+    ASSIGN startPathPOI() <- firstStock(trip);
+    ASSIGN inPath(POI stock) <- TRUE IF quantity(trip, stock);
     EXEC calculatePath();
-    ASSIGN numberStockTrip(stock, trip) <- numberPathPOI(stock);
+    ASSIGN number(Stock stock, trip) <- numberPath(stock);
 } TOOLBAR;
 
 FORM ordersTrip
 
     OBJECTS t=Trip FIXED PANEL
-    PROPERTIES (t) nameNumeratorTrip, numberTrip, seriesTrip, dateTrip, timeTrip, nameDriverTrip, sidTruckTrip, nameTruckModelTruckTrip, trailerTruckTrip
+    PROPERTIES (t) nameNumerator, number, series, date, time, nameDriver, sidTruck, nameTruckModelTruck, trailerTruck
 
     OBJECTS o=Order FIXED GRID
-    FILTERS isPostedOrder(o), inTripOrder(t, o)
+    FILTERS isPosted(o), in(t, o)
 
     OBJECTS s=Sku
-    PROPERTIES READONLY idBarcodeSku(s), nameSku(s), shortNameUOMSku(s)
-    PROPERTIES READONLY quantityOrderedTripSku(t, s)
-    PROPERTIES READONLY quantityOrderDetailSkuOrder(s, o) COLUMNS (o) HEADER seriesNumberOrder(o)
-    FILTERS quantityOrderedTripSku(t, s) > 0
+    PROPERTIES READONLY idBarcode(s), name(s), shortNameUOM(s)
+    PROPERTIES READONLY quantityOrdered(t, s)
+    PROPERTIES READONLY quantityOrderDetail(s, o) COLUMNS (o) HEADER seriesNumber(o)
+    FILTERS quantityOrdered(t, s) > 0
 ;
 
-printOrdersTrip 'Печать заказов' (trip) = ACTION (trip) {
+printOrders 'Печать заказов' (Trip trip) = ACTION (trip) {
     FORM ordersTrip OBJECTS t = trip PRINT;
 } TOOLBAR;
 
 EXTEND FORM trip
-    PROPERTIES (t) READONLY grossWeightOrderedTrip
+    PROPERTIES (t) READONLY grossWeightOrdered
 
     OBJECTS o=Order
-    PROPERTIES(t, o) inTripOrder
-    PROPERTIES(o) READONLY numberOrder, seriesOrder, dateOrder, nameSupplierOrder, nameFromStockOrder, nameCustomerOrder, nameToStockOrder, grossWeightOrderDetailOrder
-    PROPERTIES(o) editOrder
-    PROPERTIES printOrdersTrip(t) TODRAW o FORCE PANEL
+    PROPERTIES(t, o) in
+    PROPERTIES(o) READONLY number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightOrderDetail
+    PROPERTIES(o) edit
+    PROPERTIES printOrders(t) TODRAW o FORCE PANEL
 
-    FILTERS isPostedOrder(o)
+    FILTERS isPosted(o)
 
-    FILTERS customerOrder(o) == customerTrip(t) OR (o IS Order AND NOT customerTrip(t)),
-            supplierOrder(o) == supplierTrip(t) OR (o IS Order AND NOT supplierTrip(t))
+    FILTERS customer(o) == customer(t) OR (o IS Order AND NOT customer(t)),
+            supplier(o) == supplier(t) OR (o IS Order AND NOT supplier(t))
 
     FILTERGROUP filterDateOrder
-        FILTER 'Текущие' dateOrder(o) <= dateTrip(t) 'F9' DEFAULT
+        FILTER 'Текущие' date(o) <= date(t) 'F9' DEFAULT
     FILTERGROUP filterOrder
-        FILTER 'Не расписанные или в текущем рейсе' filterTripOrder(t, o) 'F11'
-        FILTER 'В текущем рейсе' inTripOrder(t, o) 'F10' DEFAULT
+        FILTER 'Не расписанные или в текущем рейсе' filter(t, o) 'F11'
+        FILTER 'В текущем рейсе' in(t, o) 'F10' DEFAULT
 
     OBJECTS od=OrderDetail
-    PROPERTIES(od) READONLY idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail, quantityOrderDetail, grossWeightOrderDetail, nameFromStockOrderDetail, nameToStockOrderDetail
-    FILTERS orderOrderDetail(od)==o
+    PROPERTIES(od) READONLY idBarcodeSku, nameSku, shortNameUOMSku, quantity, grossWeight, nameFromStock, nameToStock
+    FILTERS order(od)==o
 
     OBJECTS st=Stock
-    PROPERTIES(st) READONLY nameStock, addressStock, nameLegalEntityStock
-    PROPERTIES(t, st) grossWeightTripToStock
-    PROPERTIES(st, t) numberStockTrip, isFirstStockTrip
-    PROPERTIES (t) showPointsTrip TODRAW st
-    PROPERTIES (t) createPathTrip TODRAW st
+    PROPERTIES(st) READONLY name, address, nameLegalEntity
+    PROPERTIES(t, st) grossWeightTo
+    PROPERTIES(st, t) number, isFirst
+    PROPERTIES (t) showPoints TODRAW st
+    PROPERTIES (t) createPath TODRAW st
 
-    FILTERS quantityTripStock (t, st) > 0
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(st) 'ctrl F10' DEFAULT
+    FILTERS quantity (t, st) > 0
+    FILTERGROUP inactiveStock FILTER 'Активный' active(st) 'ctrl F10' DEFAULT
     EDIT Trip OBJECT t
 ;
 
 DESIGN trip {
     headerSum {
-        MOVE PROPERTY(grossWeightOrderedTrip(t));
+        MOVE PROPERTY(grossWeightOrdered(t));
     }
     
     pane {
@@ -131,11 +131,11 @@ DESIGN trip {
 }
 
 EXTEND FORM trips
-    PROPERTIES(t) READONLY grossWeightOrderedTrip
+    PROPERTIES(t) READONLY grossWeightOrdered
     
     OBJECTS o=Order
-    PROPERTIES(o) READONLY numberOrder, seriesOrder, dateOrder, nameSupplierOrder, nameFromStockOrder, nameCustomerOrder, nameToStockOrder, grossWeightOrderDetailOrder
-    FILTERS inTripOrder(t, o)
+    PROPERTIES(o) READONLY number, series, date, nameSupplier, nameFromStock, nameCustomer, nameToStock, grossWeightOrderDetail
+    FILTERS in(t, o)
 ;
 
 DESIGN trips {
@@ -147,13 +147,13 @@ DESIGN trips {
 }
 
 // Показываем отмеченные заказы на карте
-filteredFromTripStock (stock) = GROUP SUM 1 IF [= FILTER trip.o](order) BY fromStockOrder(order);
-filteredToTripStock (stock) = GROUP SUM 1 IF [= FILTER trip.o](order) BY toStockOrder(order);
-filteredTripStock(stock) = filteredFromTripStock(stock) (+) filteredToTripStock(stock);
+filteredFromTrip (stock) = GROUP SUM 1 IF [= FILTER trip.o](Order order) BY fromStock(order);
+filteredToTrip (stock) = GROUP SUM 1 IF [= FILTER trip.o](Order order) BY toStock(order);
+filteredTrip(Stock stock) = filteredFromTrip(stock) (+) filteredToTrip(stock);
 
 showPointOrders 'Показать отобранные заказы' () = ACTION () {
-    numberPathPOI(stock) <- 1 IF filteredTripStock(stock);
-    showOnMapPath(showMapProvider());
+    numberPath(POI stock) <- 1 IF filteredTrip(stock);
+    showOnPath(showMapProvider());
 } TOOLBAR;
 
 EXTEND FORM trip

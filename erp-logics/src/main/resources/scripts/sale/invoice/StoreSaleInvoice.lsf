@@ -8,34 +8,34 @@ NAMESPACE Sale;
 
 @defineDocumentInterfaceHeaderTAX(invoice, VAT, 'НДС расч.');
 
-CONSTRAINT taxRange(VATUserInvoice(userInvoice)) != Tax.taxVAT OR
-           countryRange(VATUserInvoice(userInvoice)) != countryStock(supplierStockInvoice(userInvoice)) OR
-           rangeTypeRange(VATUserInvoice(userInvoice)) != RangeType.units
-           CHECKED BY VATUserInvoice
+CONSTRAINT tax(VAT(UserInvoice userInvoice)) != Tax.taxVAT OR
+           country(VAT(userInvoice)) != country(supplierStock[Invoice](userInvoice)) OR
+           rangeType(VAT(userInvoice)) != RangeType.units
+           CHECKED BY VAT[UserInvoice]
            MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: продажа';
 
-useCountVATOperationUserInvoice = useCountVATOperation(operationUserInvoice(invoice));
+useCountVATOperation = useCountVAT(operation(UserInvoice invoice));
 
-VATUserInvoice (userInvoice) <- rangeTaxTaxUnit(Tax.taxVAT, storeDepartmentStore(supplierStockUserInvoice(userInvoice)))
-        IF useCountVATOperationUserInvoice(userInvoice)
-        WHEN CHANGED(supplierStockUserInvoice(userInvoice));
+VAT (UserInvoice userInvoice) <- range(Tax.taxVAT, store(supplierStock(userInvoice)))
+        IF useCountVATOperation(userInvoice)
+        WHEN CHANGED(supplierStock(userInvoice));
 
 //@deriveDocumentDetailVATHeader(userInvoice, VAT, supplierStock);
 
-overVATUserInvoiceDetail (d) += VATUserInvoice(userInvoiceUserInvoiceDetail(d));
-WHEN SESSION CHANGED(VATUserInvoice(userInvoiceUserInvoiceDetail(d))) DO {
-    VATUserInvoiceDetail(d) <- overVATUserInvoiceDetail (d); 
+overVAT (UserInvoiceDetail d) += VAT(userInvoice(d));
+WHEN SESSION CHANGED(VAT(userInvoice(UserInvoiceDetail d))) DO {
+    VAT(d) <- overVAT (d); 
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) numberVATUserInvoice SHOWIF useCountVATOperationUserInvoice(i), valueVATUserInvoice SHOWIF useCountVATOperationUserInvoice(i);
+    PROPERTIES(i) numberVAT SHOWIF useCountVATOperation(i), valueVAT SHOWIF useCountVATOperation(i);
 ;
 
-WHEN SESSION FORMS userInvoice (CHANGED(quantityUserInvoiceDetail(d)) OR CHANGED(invoicePriceUserInvoiceDetail(d)) OR CHANGED(valueVATUserInvoiceDetail(d)))
-                               AND VATUserInvoice(userInvoiceUserInvoiceDetail(d)) AND includeVATPriceListType(priceListTypeUserInvoiceDetail(d)) DO {
-    invoiceSumUserInvoiceDetail(d) <- IF individualLegalEntitySaleOperation(operationUserInvoiceDetail(d)) THEN
-            roundPriceRoundCondition(quantityUserInvoiceDetail(d) * invoicePriceUserInvoiceDetail(d), roundConditionDepartmentStore(supplierStockUserInvoiceDetail(d)))
-        ELSE roundPriceCurrency(quantityUserInvoiceDetail(d) * invoicePriceUserInvoiceDetail(d), currencyUserInvoiceDetail(d));
-    VATSumUserInvoiceDetail(d) <- roundPriceCurrency(invoiceSumUserInvoiceDetail(d) * calcValueVATUserInvoiceDetail(d) / (100.0 + calcValueVATUserInvoiceDetail(d)), currencyUserInvoiceDetail(d));
-    sumUserInvoiceDetail(d) <- invoiceSumUserInvoiceDetail(d) (-) VATSumUserInvoiceDetail(d); 
+WHEN SESSION FORMS userInvoice (CHANGED(quantity(UserInvoiceDetail d)) OR CHANGED(invoicePrice(d)) OR CHANGED(valueVAT(d)))
+                               AND VAT(userInvoice(d)) AND includeVAT(priceListType(d)) DO {
+    invoiceSum(d) <- IF individualLegalEntitySale(operation(d)) THEN
+            round(quantity(d) * invoicePrice(d), roundCondition(supplierStock(d)))
+        ELSE round(quantity(d) * invoicePrice(d), currency(d));
+    VATSum(d) <- round(invoiceSum(d) * calcValueVAT(d) / (100.0 + calcValueVAT(d)), currency(d));
+    sum(d) <- invoiceSum(d) (-) VATSum(d); 
 }

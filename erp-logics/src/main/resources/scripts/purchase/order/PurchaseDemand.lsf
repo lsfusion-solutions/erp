@@ -6,67 +6,67 @@ NAMESPACE Purchase;
 
 //-----------------------------------------------------------------------------------------------------------//
 
-dateFromSoldPeriodUserOrder 'Дата с' = DATA DATE (UserOrder);
-dateToSoldPeriodUserOrder 'Дата по' = DATA DATE (UserOrder);
+dateFromSoldPeriod 'Дата с' = DATA DATE (UserOrder);
+dateToSoldPeriod 'Дата по' = DATA DATE (UserOrder);
 
-WHEN SESSION CHANGED (fromShipmentDateUserOrder(o)) AND NOT CHANGED(dateFromSoldPeriodUserOrder(o)) DO {
-    dateFromSoldPeriodUserOrder(o) <- fromShipmentDateUserOrder(o);   
+WHEN SESSION CHANGED (fromShipmentDate(UserOrder o)) AND NOT CHANGED(dateFromSoldPeriod(o)) DO {
+    dateFromSoldPeriod(o) <- fromShipmentDate(o);   
 }
-WHEN SESSION CHANGED (dateUserOrder(o)) AND NOT CHANGED(dateToSoldPeriodUserOrder(o)) DO {
-    dateToSoldPeriodUserOrder(o) <- subtractDate(dateUserOrder(o),1);   
+WHEN SESSION CHANGED (date(UserOrder o)) AND NOT CHANGED(dateToSoldPeriod(o)) DO {
+    dateToSoldPeriod(o) <- subtract(date(o),1);   
 }
 
-quantitySoldSkuStockUserOrder 'Продано' (sku, stock, userOrder) = quantitySoldSkuStockDateFromTo(sku, stock, dateFromSoldPeriodUserOrder(userOrder), dateToSoldPeriodUserOrder(userOrder));
+quantitySold 'Продано' (Sku sku, Stock stock, UserOrder userOrder) = quantitySold(sku, stock, dateFromSoldPeriod(userOrder), dateToSoldPeriod(userOrder));
 
-purchaseReserveStockSkuDate 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE);
+purchaseReserve 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Stock, Sku, DATE);
 
-recQuantitySkuStockUserOrder  (sku, stock, userOrder) =    purchaseReserveStockSkuDate(stock, sku, dateUserOrder(userOrder)) (+) 
-                                                                            quantitySoldSkuStockUserOrder(sku, stock, userOrder) (-)
-                                                                            currentReservePurchaseSkuStock(sku, stock) (-) 
-                                                                            (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) > 0.0) ; 
+recQuantity  (Sku sku, Stock stock, UserOrder userOrder) =    purchaseReserve(stock, sku, date(userOrder)) (+) 
+                                                                            quantitySold(sku, stock, userOrder) (-)
+                                                                            currentReservePurchase(sku, stock) (-) 
+                                                                            (currentBalance(sku, stock) IF currentBalance(sku, stock) > 0.0) ; 
 
-recommendedQuantitySkuStockUserOrder 'Рекомендуемое к закупке кол-во' (sku, stock, userOrder) = (recQuantitySkuStockUserOrder(sku, stock, userOrder)) IF recQuantitySkuStockUserOrder(sku, stock, userOrder) > 0;
-purchaseReserveSkuStockUserOrder 'Страховой запас (кол-во)' (sku, stock, userOrder) = purchaseReserveStockSkuDate(stock, sku, dateUserOrder(userOrder));
+recommendedQuantity 'Рекомендуемое к закупке кол-во' (Sku sku, Stock stock, UserOrder userOrder) = (recQuantity(sku, stock, userOrder)) IF recQuantity(sku, stock, userOrder) > 0;
+purchaseReserve 'Страховой запас (кол-во)' (Sku sku, Stock stock, UserOrder userOrder) = purchaseReserve(stock, sku, date(userOrder));
 
-calcDiffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) =
-    averageSoldSkuStock(sku, stock) * (int AS INTEGER) (+) purchaseReserveStockSkuDate(stock, sku, date) (-) currentReservePurchaseSkuStock(sku, stock) (-) (currentBalanceSkuStock(sku, stock) IF currentBalanceSkuStock(sku, stock) > 0.0);
-calcDiffPurchaseReserveStockSkuIntegerDateTime 'Потребность' (stock, sku, int, dateTime) = calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, toDate(dateTime));
+calcDiffPurchaseReserve 'Потребность' (Stock stock, Sku sku, INTEGER int, DATE date) =
+    averageSold(sku, stock) * (int AS INTEGER) (+) purchaseReserve(stock, sku, date) (-) currentReservePurchase(sku, stock) (-) (currentBalance(sku, stock) IF currentBalance(sku, stock) > 0.0);
+calcDiffPurchaseReserve 'Потребность' (Stock stock, Sku sku, INTEGER int, DATETIME dateTime) = calcDiffPurchaseReserve(stock, sku, int, toDate(dateTime));
 
 //diffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) = calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) IF calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) > 0; 
-diffPurchaseReserveStockSkuIntegerDate 'Потребность' (stock, sku, int, date) = 
-    calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) IF calcDiffPurchaseReserveStockSkuIntegerDate(stock, sku, int, date) > 0; 
-diffPurchaseReserveStockSkuIntegerDateTime 'Потребность' (stock, sku, int, dateTime) = diffPurchaseReserveStockSkuIntegerDate(stock, sku, int, toDate(dateTime));
+diffPurchaseReserve 'Потребность' (Stock stock, Sku sku, INTEGER int, DATE date) = 
+    calcDiffPurchaseReserve(stock, sku, int, date) IF calcDiffPurchaseReserve(stock, sku, int, date) > 0; 
+diffPurchaseReserve 'Потребность' (Stock stock, Sku sku, INTEGER int, DATETIME dateTime) = diffPurchaseReserve(stock, sku, int, toDate(dateTime));
 
-overPurchaseReserveStockSkuDateTime 'Страховой запас (кол-во)'(stock, sku, dateTime) = purchaseReserveStockSkuDate(stock, sku, toDate(dateTime));
+overPurchaseReserve 'Страховой запас (кол-во)'(Stock stock, Sku sku, DATETIME dateTime) = purchaseReserve(stock, sku, toDate(dateTime));
 
-numberSkuPurchaseReserveSupplierStockPriceListTypeIntegerDateTime 'Кол-во товаров' (supplier, stock, priceListType, int, dateTime) =
-    GROUP SUM 1 IF calcDiffPurchaseReserveStockSkuIntegerDateTime(stock, sku, int, dateTime) > 0
-          BY companyALedgerPriceListTypeSkuStockDateTime(priceListType, sku, stock, dateTime), stock, priceListType, int, dateTime;
+numberSkuPurchaseReserve 'Кол-во товаров' (supplier, stock, priceListType, int, dateTime) =
+    GROUP SUM 1 IF calcDiffPurchaseReserve(Stock stock, Sku sku, INTEGER int, DATETIME dateTime) > 0
+          BY companyA(LedgerPriceListType priceListType, sku, stock, dateTime), stock, priceListType, int, dateTime;
 
-limitRecommendedQuantitySkuUserOrder = ABSTRACT BOOLEAN (Sku, UserOrder);
+limitRecommendedQuantity = ABSTRACT BOOLEAN (Sku, UserOrder);
 
-overRecommendedQuantityUserOrderDetailSku = ABSTRACT ACTION LIST (UserOrderDetail,Sku); 
-fillRecommendedQuantityStockUserOrder 'Заполнить рекомендуемым' = ACTION (userOrder) {
-    LOCAL inSku = BOOLEAN (Sku);
-    inSku(sku) <- priceALedgerPriceListTypeSkuStockCompanyDateTime(
-                              ledgerPriceListTypePriceListType(priceListTypeUserOrderSku(userOrder, sku)),
-                              sku, customerStockUserOrder(userOrder), supplierUserOrder(userOrder), dateTimeUserOrder(userOrder))
-                          AND NOT limitRecommendedQuantitySkuUserOrder(sku, userOrder); 
-    FOR inSku(sku) AND r == recommendedQuantitySkuStockUserOrder (sku, customerStockUserOrder(userOrder), userOrder)
+overRecommendedQuantity = ABSTRACT ACTION LIST (UserOrderDetail,Sku); 
+fillRecommendedQuantityStock 'Заполнить рекомендуемым' = ACTION (UserOrder userOrder) {
+    LOCAL in = BOOLEAN (Sku);
+    in(Sku sku) <- priceA(
+                              ledgerPriceListType(priceListType(userOrder, sku)),
+                              sku, customerStock(userOrder), supplier(userOrder), dateTime(userOrder))
+                          AND NOT limitRecommendedQuantity(sku, userOrder); 
+    FOR in(Sku sku) AND NUMERIC[16,5] r == recommendedQuantity (sku, customerStock(userOrder), userOrder)
         ADDOBJ d = UserOrderDetail DO {
-            userOrderUserOrderDetail(d) <- userOrder;
-            skuUserOrderDetail(d) <- sku;
-            quantityUserOrderDetail (d) <- IF amountPackSku(sku) > 0 THEN ceil(r, amountPackSku(sku)) ELSE r;
-            overRecommendedQuantityUserOrderDetailSku(d,sku);
+            userOrder(d) <- userOrder;
+            sku(d) <- sku;
+            quantity (d) <- IF amountPack(sku) > 0 THEN ceil(r, amountPack(sku)) ELSE r;
+            overRecommendedQuantity(d,sku);
         }
 } TOOLBAR CONFIRM;
                               
 EXTEND FORM userOrder
-    PROPERTIES(o) TODRAW sts FORCE PANEL dateFromSoldPeriodUserOrder, dateToSoldPeriodUserOrder
+    PROPERTIES(o) TODRAW sts FORCE PANEL dateFromSoldPeriod, dateToSoldPeriod
 
-    PROPERTIES READONLY AFTER prevCurrentBalanceSkuStock(ks,st) purchaseReserveSkuStockUserOrder(ks,st,o), quantitySoldSkuStockUserOrder(ks,st,o)
-    PROPERTIES READONLY AFTER quantitySkuUserOrderCustomerStock(ks, o, st)
-        recommendedQuantitySkuStockUserOrder(ks,st,o) ON SHORTCUT fillRecommendedQuantityStockUserOrder(o)
+    PROPERTIES READONLY AFTER prevCurrentBalance(ks,st) purchaseReserve(ks,st,o), quantitySold(ks,st,o)
+    PROPERTIES READONLY AFTER quantityCustomer(ks, o, st)
+        recommendedQuantity(ks,st,o) ON SHORTCUT fillRecommendedQuantityStock(o)
 ;
 
 DESIGN userOrder {
@@ -74,8 +74,8 @@ DESIGN userOrder {
         NEW filterDate FIRST {
             caption= 'Период для расчета продаж';
             type = CONTAINERH;
-            MOVE PROPERTY (dateFromSoldPeriodUserOrder(o));
-            MOVE PROPERTY (dateToSoldPeriodUserOrder(o));
+            MOVE PROPERTY (dateFromSoldPeriod(o));
+            MOVE PROPERTY (dateToSoldPeriod(o));
       
         }
     }

@@ -18,15 +18,15 @@ NAMESPACE Purchase;
 
 @defineDocumentInterfaceDetailPriceListType (invoice, priceListType, retail, ' (розничная)');
 
-CONSTRAINT currencyUserInvoice(invoice) != currencyPriceListType(calcRetailCalcPriceListTypeUserInvoice(invoice))
-           CHECKED BY calcRetailCalcPriceListTypeUserInvoice
+CONSTRAINT currency(UserInvoice invoice) != currency[PriceListType](calcRetailCalcPriceListType(invoice))
+           CHECKED BY calcRetailCalcPriceListType[UserInvoice]
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
-CONSTRAINT currencyUserInvoice(invoice) != currencyPriceListType(calcRetailPriceListTypeUserInvoice(invoice))
-           CHECKED BY calcRetailPriceListTypeUserInvoice
+CONSTRAINT currency(UserInvoice invoice) != currency(calcRetailPriceListType(invoice))
+           CHECKED BY calcRetailPriceListType[UserInvoice]
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
-CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(retailPriceListTypeUserInvoiceDetail(detail))
-           CHECKED BY retailPriceListTypeUserInvoiceDetail
+CONSTRAINT currency(UserInvoiceDetail detail) != currency(retailPriceListType(detail))
+           CHECKED BY retailPriceListType[UserInvoiceDetail]
            MESSAGE 'Валюта документа должна совпадать с валютой вида цены';
 
     
@@ -48,51 +48,51 @@ CONSTRAINT currencyUserInvoiceDetail(detail) != currencyPriceListType(retailPric
 //        THEN roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(userInvoiceDetail))
 //        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(userInvoiceDetail));             
 
-overRoundConditionUserInvoiceDetail (d) = IF retailPriceListTypeUserInvoiceDetail(d) IS CalcPriceListType 
-    THEN roundConditionCalcPriceListTypeSku(retailPriceListTypeUserInvoiceDetail(d), skuUserInvoiceDetail(d)) 
-    ELSE roundConditionPriceListType(retailPriceListTypeUserInvoiceDetail(d));
+overRoundCondition (UserInvoiceDetail d) = IF retailPriceListType(d) IS CalcPriceListType 
+    THEN roundCondition(retailPriceListType(d), sku(d)) 
+    ELSE roundCondition(retailPriceListType(d));
 
-roundConditionUserInvoiceDetail(d) =  IF overRoundConditionUserInvoiceDetail(d)
-        THEN overRoundConditionUserInvoiceDetail(d)              
-        ELSE roundConditionDepartmentStore(customerStockUserInvoiceDetail(d));
+roundCondition(UserInvoiceDetail d) =  IF overRoundCondition(d)
+        THEN overRoundCondition(d)              
+        ELSE roundCondition(customerStock(d));
 
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка)', 'Акт расценки на основе накладной', 'Проведенный акт расценки на основе накладной', customer, );
 
 // Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
-extraCalcRetailCalcPriceListTypeUserInvoiceDetail= ABSTRACT CalcPriceListType(UserInvoiceDetail);
+extraCalcRetailCalcPriceListType= ABSTRACT CalcPriceListType(UserInvoiceDetail);
 
-skipSetRetailPriceListTypeUserInvoiceDetail = ABSTRACT BOOLEAN (UserInvoiceDetail);
+skipSetRetailPriceListType = ABSTRACT BOOLEAN (UserInvoiceDetail);
 WHEN SESSION FORMS userInvoice
-    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(skuUserInvoiceDetail(detail)) OR
-     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-     (CHANGED(pricingDateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
-     AND pt == calcRetailPriceListTypeUserInvoiceDetail(detail)
-     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) NOINLINE (pt) DO
-     retailPriceListTypeUserInvoiceDetail(detail) <- IF prevPriceBPriceListTypeSkuStockDateTime(pt,
-                                                                                                skuUserInvoiceDetail(detail),
-                                                                                                customerStockUserInvoiceDetail(detail),
-                                                                                                pricingDateTimeUserInvoiceDetail(detail))
+    (CHANGED(calcRetailPriceListType(UserInvoiceDetail detail)) OR
+     CHANGED(calcRetailCalcPriceListType(detail)) OR
+     CHANGED(sku(detail)) OR
+     CHANGED(customerStock(detail)) OR
+     (CHANGED(pricingDateTime(detail)) AND NOT isPosted(detail))) 
+     AND PriceListType pt == calcRetailPriceListType(detail)
+     AND NOT skipSetRetailPriceListType(detail) NOINLINE (pt) DO
+     retailPriceListType(detail) <- IF prevPriceB(pt,
+                                                                                                sku(detail),
+                                                                                                customerStock(detail),
+                                                                                                pricingDateTime(detail))
                                                         THEN pt
-                                                        ELSE OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);
+                                                        ELSE OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);
 
 WHEN SESSION FORMS userInvoice
-    (CHANGED(calcRetailPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(calcRetailCalcPriceListTypeUserInvoiceDetail(detail)) OR
-     CHANGED(skuUserInvoiceDetail(detail)) OR
-     CHANGED(customerStockUserInvoiceDetail(detail)) OR
-     (CHANGED(pricingDateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail))) 
-     AND NOT calcRetailPriceListTypeUserInvoiceDetail(detail)
-     AND NOT skipSetRetailPriceListTypeUserInvoiceDetail(detail) DO
-     retailPriceListTypeUserInvoiceDetail(detail) <- OVERRIDE calcRetailCalcPriceListTypeUserInvoiceDetail(detail), extraCalcRetailCalcPriceListTypeUserInvoiceDetail(detail);     
+    (CHANGED(calcRetailPriceListType(UserInvoiceDetail detail)) OR
+     CHANGED(calcRetailCalcPriceListType(detail)) OR
+     CHANGED(sku(detail)) OR
+     CHANGED(customerStock(detail)) OR
+     (CHANGED(pricingDateTime(detail)) AND NOT isPosted(detail))) 
+     AND NOT calcRetailPriceListType(detail)
+     AND NOT skipSetRetailPriceListType(detail) DO
+     retailPriceListType(detail) <- OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);     
 
-batchPricingDetail(detail) += OVERRIDE shipmentBatchShipmentDetail(invoiceShipmentDetailInvoiceDetail(invoiceDetailInvoicePricingDetail(detail))), batchInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
-editPricingDetail (d)+= ACTION editInvoiceDetail(invoiceDetailInvoicePricingDetail(d));
+batch(InvoicePricingDetail detail) += OVERRIDE shipmentBatch(invoiceShipmentDetail(invoiceDetail(detail))), batch(invoiceDetail(detail));
+edit (InvoicePricingDetail d)+= ACTION edit(invoiceDetail(d));
 
 
 @defineInvoicePricingRelation(' (закупка)', customerStock);
-retailPriceListTypePricingDetail(pricingDetail) += retailPriceListTypeInvoiceDetail(invoiceDetailInvoicePricingDetail(pricingDetail));
+retailPriceListType(InvoicePricingDetail pricingDetail) += retailPriceListType(invoiceDetail(pricingDetail));
 
 // -- Операция
 @defineOperationProperty(createPricing, 'Акт расценки', createContainer);
@@ -100,101 +100,101 @@ retailPriceListTypePricingDetail(pricingDetail) += retailPriceListTypeInvoiceDet
 // Операция расценки
 @defineDocumentInterfaceOperationPrefix (invoice, pricing, Pricing, ' ( расценка)');
 
-pricingOperationOperation  = DATA Pricing.Operation (Operation);
-namePricingOperationOperation 'Операция (расценка)' (operation)= Pricing.nameOperation(pricingOperationOperation(operation));
+pricingOperation  = DATA Pricing.Operation (Operation);
+namePricingOperation 'Операция (расценка)' (Operation operation)= name(pricingOperation(operation));
 
-pricingOperationUserInvoice (invoice) <- pricingOperationOperation(operationUserInvoice(invoice))
-    WHEN CHANGED(operationUserInvoice(invoice));
+pricingOperation (UserInvoice invoice) <- pricingOperation(operation(invoice))
+    WHEN CHANGED(operation(invoice));
 
-operationPricing(pricing) += pricingOperationInvoice(invoiceInvoicePricing(pricing));
+operation(InvoicePricing pricing) += pricingOperation(invoice(pricing));
 
-useShipmentQuantityUserInvoice (invoice) <- useShipmentQuantityOperation(pricingOperationOperation(operationUserInvoice(invoice)))
-                                                        WHEN CHANGED(operationUserInvoice(invoice));
+useShipmentQuantity (UserInvoice invoice) <- useShipmentQuantity(pricingOperation(operation(invoice)))
+                                                        WHEN CHANGED(operation(invoice));
                                                             
 // Записываем тип цены по умолчанию из операции
-skipSetPriceListTypesDepartmentStoreOperation 'Не подставлять виды цен магазина' = DATA BOOLEAN (Pricing.Operation);
+skipSetPriceListTypesDepartmentStore 'Не подставлять виды цен магазина' = DATA BOOLEAN (Pricing.Operation);
 
 EXTEND FORM Pricing.operation
-    PROPERTIES (o) skipSetPriceListTypesDepartmentStoreOperation
+    PROPERTIES (o) skipSetPriceListTypesDepartmentStore
 ;
 
 DESIGN Pricing.operation {
     createContainer{
-        MOVE PROPERTY(skipSetPriceListTypesDepartmentStoreOperation(o));
+        MOVE PROPERTY(skipSetPriceListTypesDepartmentStore(o));
     }    
 }
 
-calcRetailPriceListTypeUserInvoice (invoice) <- IF pricingPriceListTypeOperation(pricingOperationUserInvoice(invoice)) 
-                THEN pricingPriceListTypeOperation(pricingOperationUserInvoice(invoice))
-                ELSE (retailPriceListTypeDepartmentStore(customerStockUserInvoice(invoice)) IF NOT skipSetPriceListTypesDepartmentStoreOperation(pricingOperationUserInvoice(invoice)))
-                    WHEN (CHANGED(pricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice))) AND pricingOperationUserInvoice(invoice);
+calcRetailPriceListType (UserInvoice invoice) <- IF pricingPriceListType(pricingOperation(invoice)) 
+                THEN pricingPriceListType(pricingOperation(invoice))
+                ELSE (retailPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(pricingOperation(invoice)))
+                    WHEN (CHANGED(pricingOperation(invoice)) OR CHANGED(customerStock(invoice))) AND pricingOperation(invoice);
 
-calcRetailCalcPriceListTypeUserInvoice (invoice) <- IF pricingCalcPriceListTypeOperation(pricingOperationUserInvoice(invoice)) 
-                THEN pricingCalcPriceListTypeOperation(pricingOperationUserInvoice(invoice))
-                ELSE (retailCalcPriceListTypeDepartmentStore(customerStockUserInvoice(invoice)) IF NOT skipSetPriceListTypesDepartmentStoreOperation(pricingOperationUserInvoice(invoice)))
-                    WHEN (CHANGED(pricingOperationUserInvoice(invoice)) OR CHANGED(customerStockUserInvoice(invoice))) AND pricingOperationUserInvoice(invoice);
+calcRetailCalcPriceListType (UserInvoice invoice) <- IF pricingCalcPriceListType(pricingOperation(invoice)) 
+                THEN pricingCalcPriceListType(pricingOperation(invoice))
+                ELSE (retailCalcPriceListType(customerStock(invoice)) IF NOT skipSetPriceListTypesDepartmentStore(pricingOperation(invoice)))
+                    WHEN (CHANGED(pricingOperation(invoice)) OR CHANGED(customerStock(invoice))) AND pricingOperation(invoice);
 
 EXTEND FORM operation
-    PROPERTIES(o) namePricingOperationOperation
+    PROPERTIES(o) namePricingOperation
 ;
 DESIGN operation {
     createContainer {
-        MOVE PROPERTY(namePricingOperationOperation(o)) AFTER PROPERTY(createPricingOperation(o));
+        MOVE PROPERTY(namePricingOperation(o)) AFTER PROPERTY(createPricing(o));
     }
 }
 
 // Добавляем вид цены на форму
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-                  namePricingOperationUserInvoice, nameCalcRetailPriceListTypeUserInvoice, nameCalcRetailCalcPriceListTypeUserInvoice, useShipmentQuantityUserInvoice
-    PROPERTIES(pd) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) nameRetailPriceListTypeUserInvoiceDetail BEFORE retailMarkupUserInvoiceDetail(pd)
+    PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
+                  namePricingOperation, nameCalcRetailPriceListType, nameCalcRetailCalcPriceListType, useShipmentQuantity
+    PROPERTIES(pd) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) nameRetailPriceListType BEFORE retailMarkup(pd)
 ;
 DESIGN userInvoice {
     headerCreatePricing {
-        MOVE PROPERTY(namePricingOperationUserInvoice(i));
-        MOVE PROPERTY(nameCalcRetailPriceListTypeUserInvoice(i)) AFTER PROPERTY(namePricingOperationUserInvoice(i));
-        MOVE PROPERTY(nameCalcRetailCalcPriceListTypeUserInvoice(i)) AFTER PROPERTY(nameCalcRetailPriceListTypeUserInvoice(i));
-        MOVE PROPERTY(useShipmentQuantityUserInvoice(i)) AFTER PROPERTY(nameCalcRetailCalcPriceListTypeUserInvoice(i));
+        MOVE PROPERTY(namePricingOperation(i));
+        MOVE PROPERTY(nameCalcRetailPriceListType(i)) AFTER PROPERTY(namePricingOperation(i));
+        MOVE PROPERTY(nameCalcRetailCalcPriceListType(i)) AFTER PROPERTY(nameCalcRetailPriceListType(i));
+        MOVE PROPERTY(useShipmentQuantity(i)) AFTER PROPERTY(nameCalcRetailCalcPriceListType(i));
     }
 }
 
-EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) READONLY nameRetailPriceListTypeInvoiceDetail BEFORE retailMarkupInvoiceDetail(d);
+EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricing[UserInvoice](i) BACKGROUND backgroundRetail(i) READONLY nameRetailPriceListType BEFORE retailMarkup(d);
 
 // расчет надбавок и цены при изменении priceListType
 @deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, customerStock, userInvoice, pricing);
 // Изменяем учетную цену
-calcShipmentPriceUserInvoiceDetail(detail) += WHEN customerStockUserInvoiceDetail(detail) IS DepartmentStore AND NOT costLedgerDepartmentStore(customerStockUserInvoiceDetail(detail))
-                                                THEN retailPriceUserInvoiceDetail(detail);
-overCostPriceShipmentDetail(detail) += costPriceInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail)) IF customerStockShipmentDetail(detail) IS DepartmentStore AND NOT costLedgerDepartmentStore(customerStockShipmentDetail(detail)); 
+calcShipmentPrice(UserInvoiceDetail detail) += WHEN customerStock(detail) IS DepartmentStore AND NOT costLedger(customerStock(detail))
+                                                THEN retailPrice(detail);
+overCostPrice(InvoiceShipmentDetail detail) += costPrice(invoiceDetail(detail)) IF customerStock[ShipmentDetail](detail) IS DepartmentStore AND NOT costLedger(customerStock[ShipmentDetail](detail)); 
 
 // Проставляем НДС розничный, равный НДС входному
-WHEN SESSION CHANGED(VATUserInvoiceDetail(detail)) OR CHANGED(valueVATUserInvoiceDetail(detail)) DO {
-    retailVATUserInvoiceDetail(detail) <- IF valueVATUserInvoiceDetail(detail) == 0 THEN
-                                               VATSkuCountry (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail)))
-                                          ELSE VATUserInvoiceDetail(detail);
+WHEN SESSION CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail)) DO {
+    retailVAT(detail) <- IF valueVAT(detail) == 0 THEN
+                                               VAT (sku(detail), country(supplierStock(detail)))
+                                          ELSE VAT(detail);
 }
 
 // Добавляем на форму цену розничную (до)
-retailPriceBUserInvoiceDetail 'Розничная цена (до)' (d) = prevRetailPricingPriceBSkuStockDateTime(skuUserInvoiceDetail(d), customerStockUserInvoiceDetail(d), dateTimeUserInvoiceDetail(d));
-backgroundRetailPriceBUserInvoiceDetail (d) = CASE 
-    WHEN retailPriceBUserInvoiceDetail(d) > retailExtraPriceInvoiceDetail(d) THEN RGB(250,150,150)
-    WHEN retailPriceBUserInvoiceDetail(d) < retailExtraPriceInvoiceDetail(d) THEN RGB(150,250,200);
+retailPriceB 'Розничная цена (до)' (UserInvoiceDetail d) = prevRetailPricingPriceB(sku(d), customerStock(d), dateTime(d));
+backgroundRetailPriceB (UserInvoiceDetail d) = CASE 
+    WHEN retailPriceB(d) > retailExtraPrice(d) THEN RGB(250,150,150)
+    WHEN retailPriceB(d) < retailExtraPrice(d) THEN RGB(150,250,200);
 
 EXTEND FORM userInvoice
-    PROPERTIES(pd) READONLY SHOWIF createPricingUserInvoice(i) retailExtraPriceInvoiceDetail, balanceBUserInvoiceDetail, retailPriceBUserInvoiceDetail BACKGROUND backgroundRetailPriceBUserInvoiceDetail(pd)
+    PROPERTIES(pd) READONLY SHOWIF createPricing(i) retailExtraPrice, balanceB, retailPriceB BACKGROUND backgroundRetailPriceB(pd)
 
     FILTERGROUP prices 
-        FILTER 'Цена (до) больше' retailPriceBUserInvoiceDetail(pd) > retailExtraPriceInvoiceDetail(pd)
-        FILTER 'Цена (до) меньше' retailPriceBUserInvoiceDetail(pd) < retailExtraPriceInvoiceDetail(pd)
-        FILTER 'Разные цены' retailPriceBUserInvoiceDetail(pd) != retailExtraPriceInvoiceDetail(pd)
+        FILTER 'Цена (до) больше' retailPriceB(pd) > retailExtraPrice(pd)
+        FILTER 'Цена (до) меньше' retailPriceB(pd) < retailExtraPrice(pd)
+        FILTER 'Разные цены' retailPriceB(pd) != retailExtraPrice(pd)
 ;
 
 // Копирование документа
-overCopyInvoice(s, d) += ACTION (s, d) {
-    ASSIGN createPricingUserInvoice(d) <- createPricingUserInvoice(s);
-    ASSIGN pricingCommitteeUserInvoice(d) <- pricingCommitteeUserInvoice(s);
-    ASSIGN pricingOperationUserInvoice(d) <- pricingOperationUserInvoice(s);
-    ASSIGN calcRetailPriceListTypeUserInvoice(d) <- calcRetailPriceListTypeUserInvoice(s);
-    ASSIGN calcRetailCalcPriceListTypeUserInvoice(d) <- calcRetailCalcPriceListTypeUserInvoice(s);
+overCopy(UserInvoice s, UserInvoice d) += ACTION (s, d) {
+    ASSIGN createPricing(d) <- createPricing(s);
+    ASSIGN pricingCommittee(d) <- pricingCommittee(s);
+    ASSIGN pricingOperation(d) <- pricingOperation(s);
+    ASSIGN calcRetailPriceListType(d) <- calcRetailPriceListType(s);
+    ASSIGN calcRetailCalcPriceListType(d) <- calcRetailCalcPriceListType(s);
 }
 

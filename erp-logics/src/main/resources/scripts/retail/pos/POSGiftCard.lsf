@@ -4,24 +4,24 @@ REQUIRE GiftCard, POS;
 
 NAMESPACE POS;
 
-giftCardAsDiscountGroupCashRegister 'Пробивать сертификат как скидку' = DATA BOOLEAN (GroupCashRegister) IN base;
-giftCardAsDiscountCurrentCashRegister 'Пробивать сертификат как скидку' = giftCardAsDiscountGroupCashRegister(groupCashRegisterCashRegister(currentCashRegister()));
+giftCardAsDiscount 'Пробивать сертификат как скидку' = DATA BOOLEAN (GroupCashRegister) IN base;
+giftCardAsDiscountCurrentCashRegister 'Пробивать сертификат как скидку' = giftCardAsDiscount(groupCashRegister(currentCashRegister()));
 
 //продажа подарочных сертификатов
-overChangeBarcodeGiftCard = ACTION (string, receipt) {
+overChangeBarcodeGiftCard = ACTION (STRING[15] string, Receipt receipt) {
     IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
         LOCAL giftCard = GiftCard();
         giftCard() <- giftCardSeriesNumber(string);
 
-        IF soldGiftCard(giftCard()) THEN {
-            MESSAGE 'Сертификат ' + seriesNumberGiftCard(giftCard()) +' был использован';
+        IF sold(giftCard()) THEN {
+            MESSAGE 'Сертификат ' + seriesNumber(giftCard()) +' был использован';
         } ELSE {
             FOR ADDOBJ d = ReceiptGiftCardSaleDetail DO {
-                receiptReceiptGiftCardSaleDetail(d) <- receipt;
-                giftCardReceiptGiftCardSaleDetail(d) <- giftCard();
-                idBarcodeReceiptDetail(d) <- string;
-                priceReceiptGiftCardSaleDetail(d) <- priceGiftCard(giftCard());
-                sumReceiptGiftCardSaleDetail(d) <- priceGiftCard(giftCard());
+                receipt(d) <- receipt;
+                giftCard(d) <- giftCard();
+                idBarcode(d) <- string;
+                price(d) <- price(giftCard());
+                sum(d) <- price(giftCard());
                 seek(d);
             }
         }
@@ -29,21 +29,21 @@ overChangeBarcodeGiftCard = ACTION (string, receipt) {
     }
 } TOOLBAR;
 
-overChangeBarcodeSaleReceipt(string, receipt) += ACTION overChangeBarcodeGiftCard(string, receipt);
+overChangeBarcodeSale(STRING[15] string, Receipt receipt) += ACTION overChangeBarcodeGiftCard(string, receipt);
 
 // Оплата сертификатом
 
-addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt) {
+addPaymentGiftCard 'Оплатить сертификатом' = ACTION (Receipt receipt) {
     FOR ADDOBJ pg = PaymentGiftCard DO {
         FORM barcodeInput MODAL;
-        IF formResult() == FormResult.ok AND isSoldGiftCard(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS STRING[15] AND 
-           NOT isExpiredDateGiftCard(giftCardSeriesNumber(barcodeInput())) THEN {
+        IF formResult() == FormResult.ok AND isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS STRING[15] AND 
+           NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) THEN {
             LOCAL giftCard = GiftCard();
             giftCard() <- giftCardSeriesNumber(barcodeInput());
-            giftCardPaymentGiftCard(pg) <- giftCard();
-            receiptPayment(pg) <- receipt;
-            paymentTypePayment(pg) <- minGiftCardPaymentType();
-            sumPayment(pg) <- priceGiftCard(giftCard());
+            giftCard(pg) <- giftCard();
+            receipt(pg) <- receipt;
+            paymentType(pg) <- minGiftCardPaymentType();
+            sum[Payment](pg) <- price(giftCard());
         } ELSE {
             DELETE pg;
             MESSAGE 'Сертификат не найден или истек';
@@ -51,9 +51,9 @@ addPaymentGiftCard 'Оплатить сертификатом' = ACTION (receipt
     }
 }
 
-EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsDiscountGroupCashRegister;
+EXTEND FORM groupCashRegister PROPERTIES(grc) giftCardAsDiscount;
 
-EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY giftCardAsDiscountGroupCashRegister;
+EXTEND FORM groupsCashRegister PROPERTIES(grc) READONLY giftCardAsDiscount;
 
 EXTEND FORM postReceiptPayment
     PROPERTIES addPaymentGiftCard(r) TODRAW p FORCE PANEL SHOWIF allowPaymentGiftCard()

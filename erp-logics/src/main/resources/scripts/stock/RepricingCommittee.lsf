@@ -2,54 +2,54 @@ MODULE RepricingCommittee;
 
 REQUIRE EmployeeStock;
 
-numberDisposalStock '№ распоряжения на переоценку' = DATA VARSTRING[30] (Stock);
+numberDisposal '№ распоряжения на переоценку' = DATA VARSTRING[30] (Stock);
 
 //--------------------------------Комиссия для переоценки----------------------------------//
 CLASS RepricingCommittee 'Комиссия для переоценки' : Committee;
 
-nameRepricingCommittee 'Наименование' = DATA VARISTRING[150](RepricingCommittee);
+name 'Наименование' = DATA VARISTRING[150](RepricingCommittee);
 
-nameCommittee(committee) += nameRepricingCommittee(committee) IF committee IS RepricingCommittee;
+name(RepricingCommittee committee) += name(committee) IF committee IS RepricingCommittee;
 
-repricingCommitteeStock 'Комиссия для переоценки' = DATA RepricingCommittee (Stock);
-nameRepricingCommitteeStock 'Комиссия для переоценки' (stock) = nameRepricingCommittee(repricingCommitteeStock(stock)) IN committee;
-isRepricingCommitteeStock 'По умолчанию' (repricingCommittee, stock) = repricingCommitteeStock(stock) == repricingCommittee;
-inCommitteeStockEmployee (stock, employee) = inCommitteeEmployee(repricingCommitteeStock (stock), employee);
-nameEmployeeCommitteeStock 'Члены комиссии' (stock) = namePositionEmployeeCommittee(repricingCommitteeStock (stock));
-shortNameEmployeeCommitteeStock 'Члены комиссии' (stock) = shortNamePositionEmployeeCommittee(repricingCommitteeStock (stock));
-nameChairmanStock 'Председатель комиссии' (stock) = nameChairmanCommittee(repricingCommitteeStock(stock));
-shortNameChairmanStock 'Председатель комиссии' (stock) = shortNameChairmanCommittee(repricingCommitteeStock(stock));
-namePositionChairmanStock 'Должность' (stock) = namePositionChairmanCommittee(repricingCommitteeStock(stock));
-CONSTRAINT repricingCommitteeStock(stock) AND NOT inCommitteeStock(repricingCommitteeStock(stock), stock)
-    CHECKED BY repricingCommitteeStock MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
+repricingCommittee 'Комиссия для переоценки' = DATA RepricingCommittee (Stock);
+nameRepricingCommittee 'Комиссия для переоценки' (Stock stock) = name(repricingCommittee(stock)) IN committee;
+is 'По умолчанию' (RepricingCommittee repricingCommittee, Stock stock) = repricingCommittee(stock) == repricingCommittee;
+inCommittee (Stock stock, Employee employee) = in(repricingCommittee (stock), employee);
+nameEmployeeCommittee 'Члены комиссии' (Stock stock) = namePositionEmployee(repricingCommittee (stock));
+shortNameEmployeeCommittee 'Члены комиссии' (Stock stock) = shortNamePositionEmployee(repricingCommittee (stock));
+nameChairman 'Председатель комиссии' (Stock stock) = nameChairman(repricingCommittee(stock));
+shortNameChairman 'Председатель комиссии' (Stock stock) = shortNameChairman(repricingCommittee(stock));
+namePositionChairman 'Должность' (Stock stock) = namePositionChairman(repricingCommittee(stock));
+CONSTRAINT repricingCommittee(Stock stock) AND NOT in(repricingCommittee(stock), stock)
+    CHECKED BY repricingCommittee[Stock] MESSAGE 'Для отдела выбрана комиссия, которая для него не действует';
 
 FORM repricingCommittee 'Комиссия для переоценки'
     OBJECTS c=RepricingCommittee FIXED PANEL
-    PROPERTIES(c)      nameRepricingCommittee, nameChairmanCommittee
+    PROPERTIES(c)      name, nameChairman
 
-    TREE stockTree sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY sgTreeName = nameStockGroup(sg)
+    TREE stockTree sg = StockGroup PARENT parent
+    PROPERTIES READONLY sgTreeName = name(sg)
 
     OBJECTS ts=Stock
-    PROPERTIES    READONLY tsTreeName = nameStock(ts)
-    PROPERTIES(c, ts) inCommitteeStock FORCE GRID, isRepricingCommitteeStock
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
+    PROPERTIES    READONLY tsTreeName = name(ts)
+    PROPERTIES(c, ts) in FORCE GRID, is
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     
-    FILTERS isParentStockGroupStock(sg, ts)
+    FILTERS isParent(sg, ts)
     ORDER BY tsTreeName
 
 
     OBJECTS e=Employee
-    PROPERTIES(e)      READONLY nameContact, firstNameContact, lastNameContact, namePositionEmployee
+    PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
     PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
-    PROPERTIES(c, e)   inCommitteeEmployee
-    FILTERS            (countStockEmployeeCommittee (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    PROPERTIES(c, e)   in
+    FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
     FILTERGROUP filters6
-        FILTER 'Показывать только членов комиссии' inCommitteeEmployee(c, e) 'F10'
+        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
 
     FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' inCommitteeStock(c, ts) 'F9'
+        FILTER 'Показывать отделы только для данной комиссии' in(c, ts) 'F9'
 
     EDIT RepricingCommittee OBJECT c
 ;
@@ -61,7 +61,7 @@ DESIGN repricingCommittee {
         preferredSize = (1024, 768);
         NEW managers BEFORE e.box {
             caption = 'Состав комиссии';
-            MOVE PROPERTY (nameChairmanCommittee(c));
+            MOVE PROPERTY (nameChairman(c));
         }
 
         NEW stocks BEFORE managers {
@@ -78,7 +78,7 @@ DESIGN repricingCommittee {
 
 FORM repricingCommitteeDialog 'Комиссии для переоценки'
     OBJECTS w=RepricingCommittee
-    PROPERTIES(w)      READONLY nameRepricingCommittee, nameStocksCommittee, nameEmployeeCommittee, nameChairmanCommittee
+    PROPERTIES(w)      READONLY name, nameStocks, nameEmployee, nameChairman
     PROPERTIES(w)      ADDFORM, EDITFORM, DELETE
 
     DIALOG RepricingCommittee OBJECT w
@@ -86,47 +86,47 @@ FORM repricingCommitteeDialog 'Комиссии для переоценки'
 // ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
 
 META defineDocumentHeaderRepricingCommittee(object, stockProp)
-    dataNumberDisposal###object '№ распоряжения на переоценку' (object) = DATA VARSTRING[30] (###object) IN documentPrm;
+    dataNumberDisposal '№ распоряжения на переоценку' (object) = DATA VARSTRING[30] (###object) IN documentPrm;
 
-    repricingCommittee###object (object) = DATA RepricingCommittee(###object);
-    nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
-    repricingCommittee###object (object) <- repricingCommitteeStock(stockProp###object(object))
-        WHEN CHANGED(stockProp###object(object));
+    repricingCommittee (object) = DATA RepricingCommittee(###object);
+    nameRepricingCommittee 'Комиссия для переоценки' (###object object) = name(repricingCommittee(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    repricingCommittee (###object object) <- repricingCommittee(stockProp(object))
+        WHEN CHANGED(stockProp(object));
 
-    CONSTRAINT repricingCommittee###object (object) AND NOT inCommitteeStock(repricingCommittee###object (object), stockProp###object(object))
-        CHECKED BY repricingCommittee###object MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
+    CONSTRAINT repricingCommittee (###object object) AND NOT in(repricingCommittee (object), stockProp(object))
+        CHECKED BY repricingCommittee[###object] MESSAGE 'Для документа выбрана комиссия, которая не действует для склада документа';
 
-    inCommittee###object##Employee (object, employee) = inCommitteeEmployee(repricingCommittee###object (object), employee);
-    nameEmployeeCommittee###object 'Члены комиссии' (object) = namePositionEmployeeCommittee(repricingCommittee###object (object));
-    nameChairman###object 'Председатель комиссии' (object) = nameChairmanCommittee(repricingCommittee###object(object));
-    namePositionChairman###object 'Должность' (object) = namePositionChairmanCommittee(repricingCommittee###object(object));
+    inCommittee (###object object, Employee employee) = in(repricingCommittee (object), employee);
+    nameEmployeeCommittee 'Члены комиссии' (###object object) = namePositionEmployee(repricingCommittee (object));
+    nameChairman 'Председатель комиссии' (###object object) = nameChairman(repricingCommittee(object));
+    namePositionChairman 'Должность' (###object object) = namePositionChairman(repricingCommittee(object));
 END
 META defineDocumentHeaderAbstractRepricingCommittee(object)
-    numberDisposal###object '№ распоряжения на переоценку' (object) = ABSTRACT VARSTRING[30] (###object) IN documentPrm;
+    numberDisposal '№ распоряжения на переоценку' (object) = ABSTRACT VARSTRING[30] (###object) IN documentPrm;
 
-    repricingCommittee###object (object) = ABSTRACT RepricingCommittee(###object);
-    nameRepricingCommittee###object 'Комиссия для переоценки' (object) = nameRepricingCommittee(repricingCommittee###object(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    repricingCommittee (object) = ABSTRACT RepricingCommittee(###object);
+    nameRepricingCommittee 'Комиссия для переоценки' (###object object) = name(repricingCommittee(object)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-    inCommittee###object##Employee (object, employee) = inCommitteeEmployee(repricingCommittee###object (object), employee);
-    nameEmployeeCommittee###object 'Члены комиссии' (object) = namePositionEmployeeCommittee(repricingCommittee###object (object));
-    shortNameEmployeeCommittee###object 'Члены комиссии' (object) = shortNameEmployeeCommittee(repricingCommittee###object (object));
-    nameChairman###object 'Председатель комиссии' (object) = nameChairmanCommittee(repricingCommittee###object(object));
-    shortNameChairman###object 'Председатель комиссии' (object) = shortNameChairmanCommittee(repricingCommittee###object(object));
-    namePositionChairman###object 'Должность' (object) = namePositionChairmanCommittee(repricingCommittee###object(object));
+    inCommittee (###object object, Employee employee) = in(repricingCommittee (object), employee);
+    nameEmployeeCommittee 'Члены комиссии' (###object object) = namePositionEmployee(repricingCommittee (object));
+    shortNameEmployeeCommittee 'Члены комиссии' (###object object) = shortNameEmployee(repricingCommittee (object));
+    nameChairman 'Председатель комиссии' (###object object) = nameChairman(repricingCommittee(object));
+    shortNameChairman 'Председатель комиссии' (###object object) = shortNameChairman(repricingCommittee(object));
+    namePositionChairman 'Должность' (###object object) = namePositionChairman(repricingCommittee(object));
 END
 
 META defineDocumentInterfaceHeaderRepricingCommittee (object, stockProp)
     @defineDocumentHeaderAbstractRepricingCommittee (object);
     @defineDocumentHeaderRepricingCommittee (user###object, stockProp);
 
-    numberDisposal###user###object '№ распоряжения на переоценку' (object) = OVERRIDE numberDisposalStock(stockProp###user###object(object)), dataNumberDisposal###user###object(object) IN documentPrm;
-    changeNumberDisposal###user###object = ACTION (object) {
+    numberDisposal '№ распоряжения на переоценку' (User###object object) = OVERRIDE numberDisposal(stockProp(object)), dataNumberDisposal(object) IN documentPrm;
+    changeNumberDisposal = ACTION (User###object object) {
         REQUEST VARSTRING[30] INPUT;
-        dataNumberDisposal###user###object(object) <- requestedString();        
+        dataNumberDisposal(object) <- requestedString();        
     }
     
-    repricingCommittee###object (object) += repricingCommittee###user###object(object);
-    numberDisposal###object (object) += numberDisposal###user###object(object);    
+    repricingCommittee (User###object object) += repricingCommittee(object);
+    numberDisposal (User###object object) += numberDisposal(object);    
 END
 
 NAVIGATOR {

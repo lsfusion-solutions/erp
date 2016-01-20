@@ -9,46 +9,46 @@ NAMESPACE Sale;
 @defineDocumentInterfaceProperty (invoice, showPurchaseLimitPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (invoice, purchaseLimit, ' (закупка) предельная');
 
-purchaseLimitMarkupUserInvoiceDetail(detail) <- markupCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail))
-    WHEN CHANGED (customerStockUserInvoiceDetail(detail)) OR
-         CHANGED (skuUserInvoiceDetail(detail));
+purchaseLimitMarkup(UserInvoiceDetail detail) <- markup(priceLimitPriceListType(customerStock(detail)), sku(detail))
+    WHEN CHANGED (customerStock(detail)) OR
+         CHANGED (sku(detail));
 
-changePurchaseLimitMarkupUserInvoiceDetail = ACTION(detail) {
+changePurchaseLimitMarkup = ACTION(UserInvoiceDetail detail) {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN {
-        ASSIGN dataMarkupCalcPriceListTypeSku(t, s) <- requestedNumeric() WHERE t == priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)) AND s == skuUserInvoiceDetail(detail);
+        ASSIGN dataMarkup(CalcPriceListType t, Sku s) <- requestedNumeric() WHERE t == priceLimitPriceListType(customerStock(detail)) AND s == sku(detail);
     }
 }
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
 // Записываем необходимо ли показывать предельную надбавку по умолчанию из операции
-showPurchaseLimitPriceUserInvoice (invoice) <- showLimitPriceOperation(purchasePricingOperationUserInvoice(invoice))
-    WHEN CHANGED(purchasePricingOperationUserInvoice(invoice));
+showPurchaseLimitPrice (UserInvoice invoice) <- showLimitPrice(purchasePricingOperation(invoice))
+    WHEN CHANGED(purchasePricingOperation(invoice));
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) showPurchaseLimitPriceUserInvoice SHOWIF createPurchasePricingUserInvoice(i)
-    PROPERTIES(d) SHOWIF showPurchaseLimitPriceUserInvoice(i) BEFORE purchaseRetailMarkupUserInvoiceDetail(d) purchaseLimitMarkupUserInvoiceDetail ON CHANGE changePurchaseLimitMarkupUserInvoiceDetail(d)
+    PROPERTIES(i) showPurchaseLimitPrice SHOWIF createPurchasePricing(i)
+    PROPERTIES(d) SHOWIF showPurchaseLimitPrice(i) BEFORE purchaseRetailMarkup(d) purchaseLimitMarkup ON CHANGE changePurchaseLimitMarkup(d)
 ;
 DESIGN userInvoice{
     headerCreateSalePricing {
-        MOVE PROPERTY (showPurchaseLimitPriceUserInvoice(i));
+        MOVE PROPERTY (showPurchaseLimitPrice(i));
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY SHOWIF showPurchaseLimitPriceInvoice(i) BEFORE purchaseRetailMarkupInvoiceDetail(d) purchaseLimitMarkupInvoiceDetail//, overLimitPriceUserInvoiceDetail
+    PROPERTIES(d) READONLY SHOWIF showPurchaseLimitPrice(i) BEFORE purchaseRetailMarkup(d) purchaseLimitMarkup//, overLimitPriceUserInvoiceDetail
 ;
 
 // Имплементим для расчета оптимальной розничной цены
 
-overLimitPriceUserInvoiceDetail (detail) += roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
-                                                purchasePricingPriceUserInvoiceDetail(detail),
-                                                purchaseLimitMarkupUserInvoiceDetail(detail),
-                                                valuePurchaseRetailVATUserInvoiceDetail(detail)), roundConditionCalcPriceListTypeSku(priceLimitPriceListTypeDepartmentStore(customerStockUserInvoiceDetail(detail)), skuUserInvoiceDetail(detail)))
-                                            IF showPurchaseLimitPriceUserInvoiceDetail(detail);
+overLimitPrice (UserInvoiceDetail detail) += round([= X*(Y+100)*(Z+100)/10000](
+                                                purchasePricingPrice(detail),
+                                                purchaseLimitMarkup(detail),
+                                                valuePurchaseRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)))
+                                            IF showPurchaseLimitPrice(detail);
 
-Purchase.showLimitPriceInvoice(invoice) += showPurchaseLimitPriceInvoice(invoicePurchaseInvoice(invoice));
-Purchase.limitMarkupInvoiceDetail(detail) += purchaseLimitMarkupInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
+showLimitPrice(PurchaseInvoice invoice) += showPurchaseLimitPrice(invoice(invoice));
+limitMarkup(PurchaseInvoiceDetail detail) += purchaseLimitMarkup(invoiceDetail(detail));
 
 

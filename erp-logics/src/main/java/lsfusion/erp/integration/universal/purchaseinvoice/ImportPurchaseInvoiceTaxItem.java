@@ -27,11 +27,11 @@ public class ImportPurchaseInvoiceTaxItem extends ImportDefaultPurchaseInvoiceAc
 
         if (LM != null && valueVATUserInvoiceDetailField != null && itemKey != null && VATKey != null) {
 
-            ImportField countryVATField = new ImportField(LM.findProperty("nameCountry"));
+            ImportField countryVATField = new ImportField(LM.findProperty("name[Country]"));
             ImportKey<?> countryVATKey = new ImportKey((ConcreteCustomClass) LM.findClass("Country"),
-                    LM.findProperty("countryName").getMapping(countryVATField));
+                    LM.findProperty("countryName[VARISTRING[50]]").getMapping(countryVATField));
             keys.add(countryVATKey);
-            props.add(new ImportProperty(valueVATUserInvoiceDetailField, LM.findProperty("VATItemCountry").getMapping(itemKey, countryVATKey),
+            props.add(new ImportProperty(valueVATUserInvoiceDetailField, LM.findProperty("VAT[Item,Country]").getMapping(itemKey, countryVATKey),
                     object(LM.findClass("Range")).getMapping(VATKey), getReplaceOnlyNull(defaultColumns, "valueVAT")));
             fields.add(countryVATField);
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)

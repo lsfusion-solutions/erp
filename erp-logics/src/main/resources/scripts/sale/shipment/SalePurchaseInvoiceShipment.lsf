@@ -14,30 +14,30 @@ GROUP shipment 'Информация о поставке' : base;
 // -- Операция
 @defineOperationProperty(createPurchaseShipment, 'Поставка (закупка)', purchaseContainer);
 @deriveDocumentOperationProperty(UserInvoice, createPurchaseShipment);
-createPurchaseUserShipment (o) <- createPurchaseShipmentOperation(operationUserShipment(o))
-    WHEN CHANGED(operationUserShipment(o));
+createPurchase (UserShipment o) <- createPurchaseShipment(operation(o))
+    WHEN CHANGED(operation(o));
 
-backgroundPurchaseShipmentInvoice 'Цвет' (invoice) = RGB(238, 250, 200) IF invoice IS Invoice;
+backgroundPurchaseShipment 'Цвет' (Invoice invoice) = RGB(238, 250, 200) IF invoice IS Invoice;
 //--
-Purchase.createShipmentInvoice(invoice) += createPurchaseShipmentInvoice(invoicePurchaseInvoice(invoice));
+createShipment(PurchaseInvoice invoice) += createPurchaseShipment(invoice(invoice));
 
 @defineDocumentInterfaceDetailPricePrefix(invoice, purchaseShipment, ' учетная (закупка)');
 @defineDocumentInterfaceDetailQuantityPrefix (invoice, purchaseShipment, ' поставлено (закупка)');
-purchaseShipmentQuantityUserInvoiceDetail(detail) <- quantityUserInvoiceDetail(detail) WHEN CHANGED(quantityUserInvoiceDetail(detail));
+purchaseShipmentQuantity(UserInvoiceDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
 
 @defineDocumentInterfaceDetailExpiryDatePrefix(invoice, purchase);
-purchaseExpiryDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
-Purchase.expiryDateInvoiceDetail(detail) += purchaseExpiryDateUserInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
+purchaseExpiryDate(UserInvoiceDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));
+expiryDate(PurchaseInvoiceDetail detail) += purchaseExpiryDate[UserInvoiceDetail](invoiceDetail(detail));
 
 @defineDocumentInterfaceDetailManufactureDatePrefix(invoice, purchase);
-purchaseManufactureDateUserInvoiceDetail(detail) <- prevExpiryDateBatch(batchUserInvoiceDetail(detail)) WHEN CHANGED (batchUserInvoiceDetail(detail));
-Purchase.manufactureDateInvoiceDetail(detail) += purchaseManufactureDateUserInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
+purchaseManufactureDate(UserInvoiceDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHANGED (batch(detail));
+manufactureDate(PurchaseInvoiceDetail detail) += purchaseManufactureDate[UserInvoiceDetail](invoiceDetail(detail));
 
 @defineDocumentInterfaceHeaderTimePrefix(Invoice, purchaseShipment, ' поставки (закупка)');
-WHEN SESSION (CHANGED(shipmentDateUserInvoice(i)) OR CHANGED(shipmentTimeUserInvoice(i)) AND createPurchaseShipmentUserInvoice(i)) OR  
-              SET(createPurchaseShipmentUserInvoice(i)) DO {
-    purchaseShipmentDateUserInvoice(i) <- shipmentDateUserInvoice(i);    
-    purchaseShipmentTimeUserInvoice(i) <- shipmentTimeUserInvoice(i);    
+WHEN SESSION (CHANGED(shipmentDate(UserInvoice i)) OR CHANGED(shipmentTime(i)) AND createPurchaseShipment(i)) OR  
+              SET(createPurchaseShipment(i)) DO {
+    purchaseShipmentDate(i) <- shipmentDate(i);    
+    purchaseShipmentTime(i) <- shipmentTime(i);    
 }
 
 @defineDocumentInterfaceDetailDataSumPrefix (invoice, purchaseShipment, ' учетная (закупка)');
@@ -46,79 +46,79 @@ WHEN SESSION (CHANGED(shipmentDateUserInvoice(i)) OR CHANGED(shipmentTimeUserInv
 @defineDocumentInterfaceHeaderCreateShipment (invoice);
 @defineDocumentInterfaceHeaderSumPrefix (invoice, purchaseShipment, ' учетная (закупка)');
 
-Purchase.shipmentDateInvoice(invoice) += purchaseShipmentDateInvoice(invoicePurchaseInvoice(invoice));
-Purchase.shipmentTimeInvoice(invoice) += purchaseShipmentTimeInvoice(invoicePurchaseInvoice(invoice));
+shipmentDate(PurchaseInvoice invoice) += purchaseShipmentDate(invoice(invoice));
+shipmentTime(PurchaseInvoice invoice) += purchaseShipmentTime(invoice(invoice));
 
-Purchase.shipmentQuantityInvoiceDetail(detail) += purchaseShipmentQuantityInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
-Purchase.shipmentPriceInvoiceDetail(detail) += purchaseShipmentPriceInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
-Purchase.shipmentSumInvoiceDetail (detail) += purchaseShipmentSumInvoiceDetail(invoiceDetailPurchaseInvoiceDetail(detail));
+shipmentQuantity(PurchaseInvoiceDetail detail) += purchaseShipmentQuantity(invoiceDetail(detail));
+shipmentPrice(PurchaseInvoiceDetail detail) += purchaseShipmentPrice(invoiceDetail(detail));
+shipmentSum (PurchaseInvoiceDetail detail) += purchaseShipmentSum(invoiceDetail(detail));
 
-showPurchaseShipmentUserInvoice(i) = createPurchaseShipmentUserInvoice(i) OR createPurchaseInvoiceUserInvoice(i); 
-showPurchaseShipmentUserInvoiceDetail(d) = showPurchaseShipmentUserInvoice(userInvoiceUserInvoiceDetail(d)); 
+showPurchaseShipment(UserInvoice i) = createPurchaseShipment(i) OR createPurchaseInvoice(i); 
+showPurchaseShipment(UserInvoiceDetail d) = showPurchaseShipment(userInvoice(d)); 
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundPurchaseShipmentInvoice(i) SHOWIF createPurchaseInvoiceUserInvoice(i) createPurchaseShipmentUserInvoice
-    PROPERTIES(i) BACKGROUND backgroundPurchaseShipmentInvoice(i) SHOWIF createPurchaseShipmentUserInvoice(i) purchaseShipmentSumUserInvoiceDetailUserInvoice,
-                  purchaseShipmentDateUserInvoice, purchaseShipmentTimeUserInvoice
-    PROPERTIES(d) BEFORE deleteid SHOWIF createPurchaseShipmentInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
-                  purchaseExpiryDateUserInvoiceDetail, nameCustomerStockUserInvoiceDetail, purchaseShipmentSumUserInvoiceDetail
-    PROPERTIES(d) BEFORE purchaseShipmentSumUserInvoiceDetail(d) SHOWIF showPurchaseShipmentUserInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
-                  purchaseShipmentPriceUserInvoiceDetail  
-    PROPERTIES(d) purchaseShipmentQuantityUserInvoiceDetail AFTER quantityUserInvoiceDetail(d) SHOWIF createPurchaseShipmentInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
+    PROPERTIES(i) BACKGROUND backgroundPurchaseShipment(i) SHOWIF createPurchaseInvoice(i) createPurchaseShipment
+    PROPERTIES(i) BACKGROUND backgroundPurchaseShipment(i) SHOWIF createPurchaseShipment(i) purchaseShipmentSumUserInvoiceDetail,
+                  purchaseShipmentDate, purchaseShipmentTime
+    PROPERTIES(d) BEFORE deleteid SHOWIF createPurchaseShipment[Invoice](i) BACKGROUND backgroundPurchaseShipment(i)
+                  purchaseExpiryDate, nameCustomerStock, purchaseShipmentSum
+    PROPERTIES(d) BEFORE purchaseShipmentSum(d) SHOWIF showPurchaseShipment(i) BACKGROUND backgroundPurchaseShipment(i)
+                  purchaseShipmentPrice  
+    PROPERTIES(d) purchaseShipmentQuantity AFTER quantity(d) SHOWIF createPurchaseShipment[Invoice](i) BACKGROUND backgroundPurchaseShipment(i)
 ;
 DESIGN userInvoice {
     headerCreateDocuments{
         NEW headerCreatePurchaseShipment {
             caption = 'Поставка (закупка)';
             type = CONTAINERH;
-            MOVE PROPERTY(createPurchaseShipmentUserInvoice(i));
-            MOVE PROPERTY(purchaseShipmentDateUserInvoice(i));
-            MOVE PROPERTY(purchaseShipmentTimeUserInvoice(i));
+            MOVE PROPERTY(createPurchaseShipment(i));
+            MOVE PROPERTY(purchaseShipmentDate(i));
+            MOVE PROPERTY(purchaseShipmentTime(i));
         }
     }
 }
 
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND backgroundPurchaseShipmentInvoice(i) purchaseShipmentSumInvoiceDetailInvoice BEFORE ordersInvoice(i)
-    PROPERTIES(d) READONLY SHOWIF createPurchaseShipmentInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
-                  purchaseExpiryDateInvoiceDetail, nameCustomerStockInvoiceDetail, purchaseShipmentPriceInvoiceDetail, purchaseShipmentSumInvoiceDetail
-    PROPERTIES(d) READONLY purchaseShipmentQuantityInvoiceDetail AFTER quantityInvoiceDetail(d) SHOWIF createPurchaseShipmentInvoice(i) BACKGROUND backgroundPurchaseShipmentInvoice(i)
+    PROPERTIES(i) READONLY BACKGROUND backgroundPurchaseShipment(i) purchaseShipmentSumInvoiceDetail BEFORE orders(i)
+    PROPERTIES(d) READONLY SHOWIF createPurchaseShipment(i) BACKGROUND backgroundPurchaseShipment(i)
+                  purchaseExpiryDate, nameCustomerStock, purchaseShipmentPrice, purchaseShipmentSum
+    PROPERTIES(d) READONLY purchaseShipmentQuantity AFTER quantity(d) SHOWIF createPurchaseShipment(i) BACKGROUND backgroundPurchaseShipment(i)
 ;
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
-overPurchaseShipmentPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
-calcPurchaseShipmentPriceUserInvoiceDetail (detail) = OVERRIDE priceUserInvoiceDetail(detail), overPurchaseShipmentPriceUserInvoiceDetail(detail) PERSISTENT;
+overPurchaseShipmentPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
+calcPurchaseShipmentPrice (UserInvoiceDetail detail) = OVERRIDE price(detail), overPurchaseShipmentPrice(detail) PERSISTENT;
 
-extraPurchaseShipmentPriceUserInvoiceDetail = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;    // на всякий случай
+extraPurchaseShipmentPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;    // на всякий случай
 
 // Цены учетные
 
-purchaseShipmentPriceUserInvoiceDetail(detail) <- calcPurchaseShipmentPriceUserInvoiceDetail(detail) (+) extraPurchaseShipmentPriceUserInvoiceDetail(detail) WHEN
-    (CHANGED(calcPurchaseShipmentPriceUserInvoiceDetail(detail)) OR
-     CHANGED(extraPurchaseShipmentPriceUserInvoiceDetail(detail)) OR
-     CHANGED(showPurchaseShipmentUserInvoiceDetail(detail)))
-        AND showPurchaseShipmentUserInvoiceDetail(detail);
+purchaseShipmentPrice(UserInvoiceDetail detail) <- calcPurchaseShipmentPrice(detail) (+) extraPurchaseShipmentPrice(detail) WHEN
+    (CHANGED(calcPurchaseShipmentPrice(detail)) OR
+     CHANGED(extraPurchaseShipmentPrice(detail)) OR
+     CHANGED(showPurchaseShipment(detail)))
+        AND showPurchaseShipment(detail);
 
-receiveShipmentInvoice (invoice)+= ACTION (invoice)  {
+receiveShipment (PurchaseInvoice invoice)+= ACTION (invoice)  {
     IF invoice IS PurchaseInvoice THEN {
-        createPurchaseShipmentInvoice(i) <- TRUE WHERE i == invoicePurchaseInvoice(invoice);
-        purchaseShipmentDateInvoice(i) <- currentDate() WHERE i == invoicePurchaseInvoice(invoice);
-        purchaseShipmentTimeInvoice(i) <- currentTime() WHERE i == invoicePurchaseInvoice(invoice);
+        createPurchaseShipment(Invoice i) <- TRUE WHERE i == invoice(invoice);
+        purchaseShipmentDate(Invoice i) <- currentDate() WHERE i == invoice(invoice);
+        purchaseShipmentTime(Invoice i) <- currentTime() WHERE i == invoice(invoice);
     } 
 };
 
-deleteCreateShipment (shipment)+= WHEN Purchase.invoiceInvoiceShipment(shipment) IS PurchaseInvoice THEN  ACTION (shipment)  {
-    createPurchaseShipmentInvoice(invoice) <- NULL WHERE invoice == invoicePurchaseInvoice(Purchase.invoiceInvoiceShipment(shipment));          
+deleteCreate (Purchase.InvoiceShipment shipment)+= WHEN invoice(shipment) IS PurchaseInvoice THEN  ACTION (shipment)  {
+    createPurchaseShipment(Invoice invoice) <- NULL WHERE invoice == invoice(invoice(shipment));          
 };
 
 //-- Расчет документов, которые в пути
 
 // продажа
-quantityPurchaseShipmentDetailInvoiceDetail 'Поставлено' (saleInvoiceDetail) = GROUP SUM Purchase.quantityShipmentDetail(d) BY SalePurchaseInvoice.invoiceDetailInvoiceDetail(Purchase.invoiceDetailShipmentDetail(d));
+quantityPurchaseShipmentDetail 'Поставлено' (saleInvoiceDetail) = GROUP SUM quantity(Purchase.ShipmentDetail d) BY invoiceDetail(invoiceDetail(d));
 
-quantityPurchaseShipmentDetail 'Поставлено' (d) = quantityPurchaseShipmentDetailInvoiceDetail(Sale.invoiceDetailShipmentDetail(d));
-quantityPurchaseShipmentDetailShipmentDetail 'Поставлено' (d) = GROUP SUM Purchase.quantityShipmentDetail(d) BY SalePurchaseShipment.shipmentDetailShipmentDetail(d);
+quantityPurchase 'Поставлено' (ShipmentDetail d) = quantityPurchaseShipmentDetail(invoiceDetail(d));
+quantityPurchaseShipmentDetail 'Поставлено' (d) = GROUP SUM quantity(Purchase.ShipmentDetail d) BY shipmentDetail(d);
 
-quantityShippedSaleShipment 'Поставлено (кол-во)' (s) = GROUP SUM (quantityPurchaseShipmentDetailShipmentDetail(d) (+) quantityPurchaseShipmentDetail(d)) BY Sale.shipmentShipmentDetail(d);
+quantityShippedSale 'Поставлено (кол-во)' (s) = GROUP SUM (quantityPurchaseShipmentDetail(ShipmentDetail d) (+) quantityPurchase(d)) BY shipment(d);
 
-isTransitSaleShipment 'В пути' (s) = isCompanyLegalEntity(Sale.supplierShipment(s)) AND isCompanyLegalEntity(Sale.customerShipment(s)) AND Sale.customerShipment(s) == Sale.supplierShipment(s) AND NOT quantityShippedSaleShipment(s);
+isTransitSale 'В пути' (Shipment s) = isCompany(supplier(s)) AND isCompany(customer(s)) AND customer(s) == supplier(s) AND NOT quantityShippedSale(s);

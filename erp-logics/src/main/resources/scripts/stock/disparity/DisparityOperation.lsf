@@ -25,38 +25,38 @@ NAVIGATOR {
 
 //------------------------------------------ Опеределение операции для disparity ------------------------------------//
 
-operationDisparity = DATA Operation (Disparity) PERSISTENT;
-nameOperationDisparity 'Операция' = nameOperation(operationDisparity(disparity));
+operation = DATA Operation (Disparity) PERSISTENT;
+nameOperation 'Операция' = name(operation(Disparity disparity));
 
-operationDisparityDetail 'Операция' (disparityDetail) = operationDisparity(disparityDisparityDetail(disparityDetail));
+operation 'Операция' (DisparityDetail disparityDetail) = operation(disparity(disparityDetail));
 
 EXTEND FORM disparity
-    PROPERTIES(dis) nameOperationDisparity
+    PROPERTIES(dis) nameOperation
 ;
 
 DESIGN disparity{
     dis.documentPrm{
-        MOVE PROPERTY(nameOperationDisparity(dis)) BEFORE PROPERTY(noteDisparity(dis));
+        MOVE PROPERTY(nameOperation(dis)) BEFORE PROPERTY(note(dis));
     }
 }
 EXTEND FORM disparities
-    PROPERTIES(dis) READONLY nameOperationDisparity AFTER nameStockDisparity(dis)
+    PROPERTIES(dis) READONLY nameOperation AFTER nameStock(dis)
 ;
 
-useDisparityItemDisparityOperation 'Частичная уценка' = DATA BOOLEAN (Operation);
+useDisparityItemDisparity 'Частичная уценка' = DATA BOOLEAN (Operation);
 
-CONSTRAINT useDisparityItemDisparityOperation(operationDisparityDetail(detail))  
-    AND inputSkuDisparityDetail(detail) AND skuDisparityDetail(detail) 
-    AND NOT (disparityItemItem(inputSkuDisparityDetail(detail))==skuDisparityDetail(detail))
-    CHECKED BY inputSkuDisparityDetail MESSAGE 'Выбран не уцененный товар';   
+CONSTRAINT useDisparityItemDisparity(operation(DisparityDetail detail))  
+    AND inputSku(detail) AND sku(detail) 
+    AND NOT (disparityItem(inputSku(detail))==sku(detail))
+    CHECKED BY inputSku[DisparityDetail] MESSAGE 'Выбран не уцененный товар';   
     
 EXTEND FORM operation
-    PROPERTIES (o) useDisparityItemDisparityOperation 
+    PROPERTIES (o) useDisparityItemDisparity 
 ;
 
 DESIGN operation {
     propertyContainer {
-        MOVE PROPERTY(useDisparityItemDisparityOperation(o));
+        MOVE PROPERTY(useDisparityItemDisparity(o));
     }
 }
 

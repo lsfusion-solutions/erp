@@ -5,69 +5,69 @@ REQUIRE PurchaseInvoiceCharge;
 NAMESPACE Purchase;
 
 TABLE invoiceUserInvoice (Invoice, UserInvoice);
-inExtraChargeInvoiceInvoiceDetail 'Вкл.' = ABSTRACT BOOLEAN (Invoice, InvoiceDetail);
-inExtraChargeInvoiceUserInvoice 'Вкл.' = DATA BOOLEAN (Invoice, UserInvoice);
+inExtraCharge 'Вкл.' = ABSTRACT BOOLEAN (Invoice, InvoiceDetail);
+inExtraCharge 'Вкл.' = DATA BOOLEAN (Invoice, UserInvoice);
 
-inDataExtraChargeInvoiceUserInvoiceDetail = DATA BOOLEAN  (Invoice, UserInvoiceDetail);
+inDataExtraCharge = DATA BOOLEAN  (Invoice, UserInvoiceDetail);
 
-inExtraChargeInvoiceUserInvoiceDetail 'Вкл.' (invoice, detail) =
-    OVERRIDE inExtraChargeInvoiceUserInvoice(invoice, userInvoiceUserInvoiceDetail(detail)), inDataExtraChargeInvoiceUserInvoiceDetail(invoice, detail);
-inExtraChargeInvoiceInvoiceDetail(invoice, detail) += inExtraChargeInvoiceUserInvoiceDetail(invoice, detail);
+inExtraCharge 'Вкл.' (Invoice invoice, UserInvoiceDetail detail) =
+    OVERRIDE inExtraCharge(invoice, userInvoice(detail)), inDataExtraCharge(invoice, detail);
+inExtraCharge(Invoice invoice, UserInvoiceDetail detail) += inExtraCharge(invoice, detail);
 
-overCopyInvoiceDetail(d, detail) += ACTION (d, detail) {      
-    inDataExtraChargeInvoiceUserInvoiceDetail(i,d) <- inDataExtraChargeInvoiceUserInvoiceDetail(i,detail);
+overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
+    inDataExtraCharge(Invoice i,d) <- inDataExtraCharge(i,detail);
 } 
 
-backgroupExtraChargeInvoiceUserInvoiceDetail = ABSTRACT COLOR (InvoiceDetail);
+backgroupExtraChargeInvoiceUser = ABSTRACT COLOR (InvoiceDetail);
 
 TABLE invoiceUserInvoiceDetail(Invoice, UserInvoiceDetail);
-extraChargePriceInvoiceInvoiceDetail 'Цена доп. услуг за ед.' = ABSTRACT NUMERIC[14,2] (Invoice,InvoiceDetail);
-extraChargePriceInvoiceUserInvoiceDetail 'Цена доп. услуг за ед.' = DATA NUMERIC[14,2] (Invoice,UserInvoiceDetail);
-extraChargePriceInvoiceInvoiceDetail (i,d) += extraChargePriceInvoiceUserInvoiceDetail(i,d);
+extraChargePrice 'Цена доп. услуг за ед.' = ABSTRACT NUMERIC[14,2] (Invoice,InvoiceDetail);
+extraChargePrice 'Цена доп. услуг за ед.' = DATA NUMERIC[14,2] (Invoice,UserInvoiceDetail);
+extraChargePrice (Invoice i,UserInvoiceDetail d) += extraChargePrice(i,d);
 
-extraChargeSumInvoiceInvoiceDetail 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice,InvoiceDetail);
-extraChargeSumInvoiceUserInvoiceDetail 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice,UserInvoiceDetail);
-extraChargeSumInvoiceInvoiceDetail (i,d) += extraChargeSumInvoiceUserInvoiceDetail(i,d);
+extraChargeSum 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice,InvoiceDetail);
+extraChargeSum 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice,UserInvoiceDetail);
+extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 
-calcExtraChargeSumInvoiceUserInvoiceDetail = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (Invoice,UserInvoiceDetail);
-calcExtraChargeSumInvoiceUserInvoiceDetail(i,d) += NUMERIC[16,2](roundPriceCurrency(quantityUserInvoiceDetail(d) * extraChargePriceInvoiceUserInvoiceDetail(i,d), currencyInvoice(i))); 
-extraChargeSumInvoiceUserInvoiceDetail (i,d) <- calcExtraChargeSumInvoiceUserInvoiceDetail(i,d)
-                WHEN DO CHANGED(quantityUserInvoiceDetail(d)) OR CHANGED (extraChargePriceInvoiceUserInvoiceDetail(i,d)) OR CHANGED(currencyInvoice(i));
+calcExtraChargeSum = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (Invoice,UserInvoiceDetail);
+calcExtraChargeSum(Invoice i,UserInvoiceDetail d) += NUMERIC[16,2](round(quantity(d) * extraChargePrice(i,d), currency(i))); 
+extraChargeSum (Invoice i,UserInvoiceDetail d) <- calcExtraChargeSum(i,d)
+                WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
-extraChargeSumInvoiceDetailInvoice 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSumInvoiceInvoiceDetail(i,d) BY i;
-extraChargeSumUserInvoiceDetailInvoice 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSumInvoiceUserInvoiceDetail(i,d) BY i;
+extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,InvoiceDetail d) BY i;
+extraChargeSumUserInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) BY i;
 
-extraChargePriceOperationUserInvoiceDetail  (o, d) = GROUP SUM extraChargePriceInvoiceUserInvoiceDetail(i,d) BY operationInvoice(i),d;
-extraChargeSumOperationUserInvoiceDetail  (o, d) = GROUP SUM extraChargeSumInvoiceUserInvoiceDetail(i,d) BY operationInvoice(i),d;
+extraChargePrice  (o, d) = GROUP SUM extraChargePrice(Invoice i,UserInvoiceDetail d) BY operation(i),d;
+extraChargeSum  (o, d) = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) BY operation(i),d;
 
 @defineOperationProperty(showExtraCharge, 'Доп. услуги', commonContainer);
 @defineDocumentInterfaceProperty (invoice, showExtraCharge, 'Доп. услуги');
 @deriveDocumentOperationProperty(UserInvoice, showExtraCharge);
 
-filterOperationExtraChargeUserInvoice= DATA LOCAL Operation (UserInvoice);
-nameFilterOperationExtraChargeUserInvoice 'Операция' = nameOperation(filterOperationExtraChargeUserInvoice(i));
+filterOperationExtraCharge= DATA LOCAL Operation (UserInvoice);
+nameFilterOperationExtraCharge 'Операция' = name(filterOperationExtraCharge(UserInvoice i));
    
 FORM extraChargeInvoices 'Выбрать накладные'
     OBJECTS i=UserInvoice FIXED PANEL                          
-    PROPERTIES nameFilterOperationExtraChargeUserInvoice(i)
+    PROPERTIES nameFilterOperationExtraCharge(i)
     OBJECTS ui=UserInvoice
-    PROPERTIES (i, ui) inExtraChargeInvoiceUserInvoice
-    PROPERTIES (ui) READONLY isPostedInvoice, isClosedInvoice, numberUserInvoice, seriesUserInvoice, dateUserInvoice, timeUserInvoice, 
-                    nameSupplierUserInvoice, nameCustomerUserInvoice, nameCurrencyUserInvoice
-    FILTERS filterOperationExtraChargeUserInvoice(i) == operationUserInvoice(ui) OR TRUE AND NOT filterOperationExtraChargeUserInvoice(i)
+    PROPERTIES (i, ui) inExtraCharge
+    PROPERTIES (ui) READONLY isPosted[Invoice], isClosed[Invoice], number, series, date, time, 
+                    nameSupplier, nameCustomer, nameCurrency
+    FILTERS filterOperationExtraCharge(i) == operation(ui) OR TRUE AND NOT filterOperationExtraCharge(i)
     
     OBJECTS uid=UserInvoiceDetail
-    PROPERTIES(i, uid) inExtraChargeInvoiceUserInvoiceDetail
-    PROPERTIES(uid) READONLY indexUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail, 
-                            quantityUserInvoiceDetail, priceUserInvoiceDetail, sumGrossWeightUserInvoiceDetail
-    FILTERS filterOperationExtraChargeUserInvoice(i) == operationUserInvoiceDetail(uid) OR TRUE AND NOT filterOperationExtraChargeUserInvoice(i)
+    PROPERTIES(i, uid) inExtraCharge
+    PROPERTIES(uid) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, 
+                            quantity, price, sumGrossWeight
+    FILTERS filterOperationExtraCharge(i) == operation(uid) OR TRUE AND NOT filterOperationExtraCharge(i)
             
     FILTERGROUP filters1
-        FILTER 'Отмеченные' inExtraChargeInvoiceUserInvoice(i, ui) 'F10' 
+        FILTER 'Отмеченные' inExtraCharge(i, ui) 'F10' 
     FILTERGROUP filters2
-        FILTER 'По инвойсу' userInvoiceUserInvoiceDetail(uid) == ui 'F11' DEFAULT 
+        FILTER 'По инвойсу' userInvoice(uid) == ui 'F11' DEFAULT 
     FILTERGROUP filters3
-        FILTER 'Отмеченные' inExtraChargeInvoiceUserInvoiceDetail(i, uid) 'F10'         
+        FILTER 'Отмеченные' inExtraCharge(i, uid) 'F10'         
 ;
 
 DESIGN extraChargeInvoices {
@@ -81,7 +81,7 @@ DESIGN extraChargeInvoices {
                 NEW header1 {                    
                     caption = 'Фильтры';
                     type = CONTAINERH;
-                    MOVE PROPERTY (nameFilterOperationExtraChargeUserInvoice(i));
+                    MOVE PROPERTY (nameFilterOperationExtraCharge(i));
                 }
                 MOVE i.box;
                 MOVE ui.box;
@@ -92,8 +92,8 @@ DESIGN extraChargeInvoices {
     }
 }
 
-selectExtraChargeInvoice 'Выбрать накладные' = ACTION (i) {   
-    filterOperationExtraChargeUserInvoice(i) <- operationId('purchase_external'); // todo: пока пишем явно операцию
+selectExtraCharge 'Выбрать накладные' = ACTION (UserInvoice i) {   
+    filterOperationExtraCharge(i) <- operation('purchase_external'); // todo: пока пишем явно операцию
     FORM extraChargeInvoices OBJECTS i=i MODAL;
 } TOOLBAR;
 
@@ -102,18 +102,18 @@ selectExtraChargeInvoice 'Выбрать накладные' = ACTION (i) {
 @deriveDocumentOperationProperty(UserInvoice, toWeightExtraCharge);
 backgroundExtraChargeInvoice 'Цвет' = RGB(224, 255, 128);
 EXTEND FORM userInvoice
-    PROPERTIES(i) showExtraChargeUserInvoice          
+    PROPERTIES(i) showExtraCharge          
     OBJECTS uid = UserInvoiceDetail FIXED GRID
-    PROPERTIES (uid) READONLY SHOWIF showExtraChargeUserInvoice(i) indexUserInvoiceDetail, seriesNumberInvoiceDetail, dateUserInvoiceDetail, idBarcodeSkuUserInvoiceDetail, 
-                   idSkuUserInvoiceDetail, nameSkuUserInvoiceDetail, shortNameUOMSkuUserInvoiceDetail
-    PROPERTIES (uid) READONLY SHOWIF showExtraChargeUserInvoice(i) quantityUserInvoiceDetail, 
-                   priceUserInvoiceDetail, sumUserInvoiceDetail, numberVATUserInvoiceDetail, valueVATUserInvoiceDetail, invoicePriceUserInvoiceDetail,
-                   VATSumUserInvoiceDetail, invoiceSumUserInvoiceDetail, sumNetWeightUserInvoiceDetail, 
-                   sumGrossWeightUserInvoiceDetail
-    PROPERTIES(i,uid) SHOWIF showExtraChargeUserInvoice(i) extraChargePriceInvoiceUserInvoiceDetail BACKGROUND backgroundExtraChargeInvoice(), extraChargeSumInvoiceUserInvoiceDetail BACKGROUND backgroundExtraChargeInvoice()                               
-    FILTERS inExtraChargeInvoiceUserInvoiceDetail(i,uid)   
+    PROPERTIES (uid) READONLY SHOWIF showExtraCharge(i) index, seriesNumber[InvoiceDetail], date, idBarcodeSku, 
+                   idSku, nameSku, shortNameUOMSku
+    PROPERTIES (uid) READONLY SHOWIF showExtraCharge(i) quantity, 
+                   price, sum, numberVAT, valueVAT, invoicePrice,
+                   VATSum, invoiceSum, sumNetWeight, 
+                   sumGrossWeight
+    PROPERTIES(i,uid) SHOWIF showExtraCharge(i) extraChargePrice BACKGROUND backgroundExtraChargeInvoice(), extraChargeSum BACKGROUND backgroundExtraChargeInvoice()                               
+    FILTERS inExtraCharge(i,uid)   
                                         
-    PROPERTIES SHOWIF showExtraChargeUserInvoice(i) toWeightExtraChargeUserInvoice(i), extraChargeSumUserInvoiceDetailInvoice(i) BACKGROUND backgroundExtraChargeInvoice()
+    PROPERTIES SHOWIF showExtraCharge(i) toWeightExtraCharge(i), extraChargeSumUserInvoiceDetail(i) BACKGROUND backgroundExtraChargeInvoice()
 ;
 DESIGN userInvoice {
     specification.box {        
@@ -123,8 +123,8 @@ DESIGN userInvoice {
             type = CONTAINERV;
             NEW paneExtra {
                 type = CONTAINERH;
-                MOVE PROPERTY (toWeightExtraChargeUserInvoice(i));
-                MOVE PROPERTY (extraChargeSumUserInvoiceDetailInvoice(i)) {minimumCharWidth = 15; preferredCharWidth = 20;}
+                MOVE PROPERTY (toWeightExtraCharge(i));
+                MOVE PROPERTY (extraChargeSumUserInvoiceDetail(i)) {minimumCharWidth = 15; preferredCharWidth = 20;}
             }
             MOVE uid.box;
         }        
@@ -132,22 +132,22 @@ DESIGN userInvoice {
 }
 
 
-totalGrossWeightInvoiceDetailInvoice = GROUP SUM sumGrossWeightInvoiceDetail(d) IF inExtraChargeInvoiceInvoiceDetail(i,d) BY i;
-coeffGrossWeightInvoiceDetailInvoice 'Удельный вес по весу брутто' (d,i) = NUMERIC[22,8](sumGrossWeightInvoiceDetail(d)) / totalGrossWeightInvoiceDetailInvoice(i);
+totalGrossWeightInvoiceDetail = GROUP SUM sumGrossWeight(InvoiceDetail d) IF inExtraCharge(Invoice i,d) BY i;
+coeffGrossWeight 'Удельный вес по весу брутто' (InvoiceDetail d,Invoice i) = NUMERIC[22,8](sumGrossWeight(d)) / totalGrossWeightInvoiceDetail(i);
 
-totalSumInvoiceDetailInvoice = GROUP SUM sumInvoiceDetail(d) IF inExtraChargeInvoiceInvoiceDetail(i,d) AND isNotChargeSku(skuInvoiceDetail(d)) AND quantityInvoiceDetail(d)>0 BY i;
-coeffSumInvoiceDetailInvoice 'Удельный вес по весу брутто' (d,i) = NUMERIC[22,8](sumInvoiceDetail(d)) / totalSumInvoiceDetailInvoice(i);
+totalSumInvoiceDetail = GROUP SUM sum(InvoiceDetail d) IF inExtraCharge(Invoice i,d) AND isNotCharge(sku(d)) AND quantity(d)>0 BY i;
+coeffSum 'Удельный вес по весу брутто' (InvoiceDetail d,Invoice i) = NUMERIC[22,8](sum(d)) / totalSumInvoiceDetail(i);
 
-fillExtraChargePriceUserInvoice 'Расписать услуги' = ACTION (i) {
-    IF currencyInvoice(i) THEN {    
-        IF toWeightExtraChargeInvoice(i) THEN {
-            extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrencyInvoice(i) THEN homeSumInvoiceDetailInvoice(i) ELSE sumInvoiceDetailInvoice(i), coeffGrossWeightInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
-                WHERE inExtraChargeInvoiceInvoiceDetail(i,d);
+fillExtraChargePriceUser 'Расписать услуги' = ACTION (Invoice i) {
+    IF currency(i) THEN {    
+        IF toWeightExtraCharge(i) THEN {
+            extraChargePrice(i,UserInvoiceDetail d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i), coeffGrossWeight(d,i), quantity[InvoiceDetail](d) IF quantity[InvoiceDetail](d)!=0.0 ))
+                WHERE inExtraCharge[Invoice,InvoiceDetail](i,d);
         
         } ELSE {
-            IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraChargeInvoiceInvoiceDetail(i,d) BY i, currencyInvoiceDetail(d)](i,c) BY i](i) >1 THEN {
-                extraChargePriceInvoiceUserInvoiceDetail(i,d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrencyInvoice(i) THEN homeSumInvoiceDetailInvoice(i) ELSE sumInvoiceDetailInvoice(i), coeffSumInvoiceDetailInvoice(d,i), quantityInvoiceDetail(d) IF quantityInvoiceDetail(d)!=0.0 ))
-                    WHERE inExtraChargeInvoiceInvoiceDetail(i,d) AND isNotChargeSku(skuInvoiceDetail(d)); 
+            IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraCharge(Invoice i,InvoiceDetail d) BY i, currency(d)](Invoice i,Currency c) BY i](i) >1 THEN {
+                extraChargePrice(i,UserInvoiceDetail d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i), coeffSum(d,i), quantity[InvoiceDetail](d) IF quantity[InvoiceDetail](d)!=0.0 ))
+                    WHERE inExtraCharge[Invoice,InvoiceDetail](i,d) AND isNotCharge(sku[InvoiceDetail](d)); 
             } ELSE {
                 MESSAGE 'Для расписывания доп. услуг пропорционально сумме выбраны накладные с разными валютами.';
             }
@@ -158,28 +158,28 @@ fillExtraChargePriceUserInvoice 'Расписать услуги' = ACTION (i) {
 }
 
 EXTEND FORM userInvoice 
-    PROPERTIES FORCE PANEL TOOLBAR TODRAW uid SHOWIF showExtraChargeUserInvoice(i)  selectExtraChargeInvoice(i), fillExtraChargePriceUserInvoice(i)
+    PROPERTIES FORCE PANEL TOOLBAR TODRAW uid SHOWIF showExtraCharge(i)  selectExtraCharge(i), fillExtraChargePriceUser(i)
 ;
 
-calcExtraChargePriceUserInvoiceDetail (d) = GROUP SUM extraChargePriceInvoiceUserInvoiceDetail(i,d) IF isPostedUserInvoice(i) BY d; //IF isPostedUserInvoiceDetail(d)
+calcExtraChargePrice (d) = GROUP SUM extraChargePrice(UserInvoice i,UserInvoiceDetail d) IF isPosted(i) BY d; //IF isPostedUserInvoiceDetail(d)
 
-chargePriceUserInvoiceDetail (d) <- calcExtraChargePriceUserInvoiceDetail(d)
-    WHEN CHANGED(calcExtraChargePriceUserInvoiceDetail(d));
+chargePrice (UserInvoiceDetail d) <- calcExtraChargePrice(d)
+    WHEN CHANGED(calcExtraChargePrice(d));
     
 FORM extraChargeParams 'Параметры'
     OBJECTS o = Operation FIXED PANEL 
-    PROPERTIES SELECTOR nameOperation(o)
-    FILTERS showExtraChargeOperation(o)
+    PROPERTIES SELECTOR name(o)
+    FILTERS showExtraCharge(o)
 
     OBJECTS s = LegalEntity FIXED PANEL 
-    PROPERTIES SELECTOR nameLegalEntity(s)
+    PROPERTIES SELECTOR name(s)
     
     OBJECTS sk = Sku FIXED PANEL 
-    PROPERTIES SELECTOR nameSku(sk)    
-    FILTERS isChargeSku(sk)
+    PROPERTIES SELECTOR name(sk)    
+    FILTERS isCharge(sk)
     
     OBJECTS c = Currency FIXED PANEL 
-    PROPERTIES SELECTOR shortNameCurrency(c)    
+    PROPERTIES SELECTOR shortName(c)    
     
     OBJECTS nu = NUMERIC[16,2] FIXED PANEL 
     PROPERTIES val = OBJVALUE (nu)    
@@ -193,13 +193,13 @@ DESIGN extraChargeParams {
             MOVE s.box { caption = 'Поставщик услуг';}
             MOVE sk.box { 
                 caption = 'Услуга'; 
-                PROPERTY (nameSku(sk)) {minimumCharWidth = 20; preferredCharWidth = 20;}
+                PROPERTY (name(sk)) {minimumCharWidth = 20; preferredCharWidth = 20;}
             }
 //            MOVE c.box{PROPERTY (nameCurrency(c)) {minimumCharWidth = 10; preferredCharWidth = 20;}}
             MOVE nu.box { 
                 caption = 'Сумма';
                 type = CONTAINERH;
-                MOVE PROPERTY (shortNameCurrency(c)) {caption = 'Валюта'; minimumCharWidth = 5; preferredCharWidth = 10;}
+                MOVE PROPERTY (shortName(c)) {caption = 'Валюта'; minimumCharWidth = 5; preferredCharWidth = 10;}
                 MOVE PROPERTY (val) {
                     caption = 'Сумма услуг';
                     minimumCharWidth = 15; preferredCharWidth = 15;
@@ -211,10 +211,10 @@ DESIGN extraChargeParams {
 }
 
 seekDefaultOperatioParams = ACTION () {
-    SEEK extraChargeParams.o  operationId('purchase_charge');
+    SEEK extraChargeParams.o  operation('purchase_charge');
 }
-changeDefaultCurrencyParams = ACTION (s) {
-    SEEK extraChargeParams.c  currencyLegalEntity(s);
+changeDefaultCurrencyParams = ACTION (LegalEntity s) {
+    SEEK extraChargeParams.c  currency(s);
 }    
 
 EXTEND FORM extraChargeParams
@@ -222,7 +222,7 @@ EXTEND FORM extraChargeParams
     EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
     
-createExtraChargeUserInvoice 'Накладная (закупка) доп. услуги' (invoice) = ACTION (invoice) {   
+createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = ACTION (invoice) {   
     FORM extraChargeParams MODAL;    
     LOCAL o = Operation();
     LOCAL s = LegalEntity(); 
@@ -243,39 +243,39 @@ createExtraChargeUserInvoice 'Накладная (закупка) доп. усл
     c() <- chosenObject('c');    
     
     IF formResult() == FormResult.ok THEN {
-        NEWSESSION NESTED o,s,sk,nu,c {
+        NEWSESSION NESTED o[],s[],sk[],nu[],c[] {
             FOR ADDOBJ i = UserInvoice DO {
-                operationUserInvoice(i) <- o();
-                supplierUserInvoice(i) <- s();
-                customerUserInvoice(i) <- customerInvoice(invoice);
-                currencyUserInvoice(i) <- c();
-                isHomeCurrencyUserInvoice(i) <- TRUE WHERE (OVERRIDE currencyInvoice(invoice), homeCurrencyInvoice(invoice) IF isHomeCurrencyInvoice(invoice)) != currencyUserInvoice(i);
-                dateRateExchangeUserInvoice(i) <- currentDate() WHERE isHomeCurrencyInvoice(i);
-                rateExchangeUserInvoice(i) <- rateOnTypeExchangeCurrencyDate(typeExchangeUserInvoice(i),
-                                                                                   currencyUserInvoice(i),
-                                                                                   dateRateExchangeUserInvoice(i)) WHERE isHomeCurrencyInvoice(i);
+                operation(i) <- o();
+                supplier(i) <- s();
+                customer(i) <- customer(invoice);
+                currency(i) <- c();
+                isHomeCurrency(i) <- TRUE WHERE (OVERRIDE currency(invoice), homeCurrency(invoice) IF isHomeCurrency(invoice)) != currency(i);
+                dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
+                rateExchange(i) <- rateOn(typeExchange(i),
+                                                                                   currency(i),
+                                                                                   dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);
                                                                                    
                 
                 FOR ADDOBJ d = UserInvoiceDetail DO {
-                    userInvoiceUserInvoiceDetail(d) <- i;   
-                    skuUserInvoiceDetail(d) <- sk();
-                    quantityUserInvoiceDetail(d) <- 1.0; 
-                    priceUserInvoiceDetail(d) <- nu();                    
+                    userInvoice(d) <- i;   
+                    sku(d) <- sk();
+                    quantity(d) <- 1.0; 
+                    price(d) <- nu();                    
                     
                 }
-                inExtraChargeInvoiceUserInvoice(i,invoice) <- TRUE;
-                fillExtraChargePriceUserInvoice(i);
+                inExtraCharge(i,invoice) <- TRUE;
+                fillExtraChargePriceUser(i);
                 FORM userInvoice OBJECTS i=i MANAGESESSION DOCKEDMODAL;
             }
         }
     }
 }
 EXTEND FORM invoices
-    PROPERTIES (i) createExtraChargeUserInvoice FORCE PANEL TOOLBAR 
+    PROPERTIES (i) createExtraChargeUser FORCE PANEL TOOLBAR 
 ;
 DESIGN invoices {
     createdContainer {
-        MOVE PROPERTY (createExtraChargeUserInvoice(i));
+        MOVE PROPERTY (createExtraChargeUser(i));
     }    
 }
 

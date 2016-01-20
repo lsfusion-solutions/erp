@@ -13,95 +13,95 @@ TABLE paymentRequest(PaymentRequest);
 
 @defineNumeratedDefault(PaymentRequest, 'Платежные требования', 'ПТ');
 
-datePaymentRequest 'Дата' (paymentRequest) = DATA DATE (PaymentRequest);
-datePaymentRequest(paymentRequest) <- currentDate() WHEN SET(paymentRequest IS PaymentRequest);
-timePaymentRequest 'Время' (paymentRequest) = DATA TIME (PaymentRequest);
-timePaymentRequest(paymentRequest) <- currentTime() WHEN SET(paymentRequest IS PaymentRequest);
-dateTimePaymentRequest 'Дата время' (paymentRequest) = dateTimeToDateTime(datePaymentRequest(paymentRequest), timePaymentRequest(paymentRequest));
+date 'Дата' (paymentRequest) = DATA DATE (PaymentRequest);
+date(PaymentRequest paymentRequest) <- currentDate() WHEN SET(paymentRequest IS PaymentRequest);
+time 'Время' (paymentRequest) = DATA TIME (PaymentRequest);
+time(PaymentRequest paymentRequest) <- currentTime() WHEN SET(paymentRequest IS PaymentRequest);
+dateTime 'Дата время' (PaymentRequest paymentRequest) = dateTimeToDateTime(date(paymentRequest), time(paymentRequest));
 
-contractPaymentRequest 'Контракт' (paymentRequest) = DATA Contract (PaymentRequest) AUTOSET;
-seriesNumberContractPaymentRequest 'Номер контракта' (paymentRequest) = seriesNumberContract(contractPaymentRequest(paymentRequest));
-dateContractPaymentRequest 'Дата контракта' (paymentRequest)= dateFromContract(contractPaymentRequest(paymentRequest));
+contract 'Контракт' (paymentRequest) = DATA Contract (PaymentRequest) AUTOSET;
+seriesNumberContract 'Номер контракта' (PaymentRequest paymentRequest) = seriesNumber(contract(paymentRequest));
+dateContract 'Дата контракта' (PaymentRequest paymentRequest)= dateFrom(contract(paymentRequest));
 
-notePaymentRequest 'Примечание' (paymentRequest) = DATA VARSTRING[200] (PaymentRequest);
+note 'Примечание' (paymentRequest) = DATA VARSTRING[200] (PaymentRequest);
 
-payerPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
-namePayerPaymentRequest 'Плательщик' (paymentRequest) = nameLegalEntity(payerPaymentRequest(paymentRequest));
+payer(paymentRequest) = DATA LegalEntity (PaymentRequest);
+namePayer 'Плательщик' (PaymentRequest paymentRequest) = name(payer(paymentRequest));
 
-accountFromPaymentRequest(paymentRequest) = DATA Bank.Account (PaymentRequest);
-accountFromPaymentRequest(paymentRequest) <- accountLegalEntity(payerPaymentRequest(paymentRequest))
-    WHEN CHANGED(payerPaymentRequest(paymentRequest));
-nameAccountFromPaymentRequest 'Счет (плательщик)' (paymentRequest) = Bank.numberAccount(accountFromPaymentRequest(paymentRequest));
-currencyAccountFromPaymentRequest (paymentRequest) = Bank.currencyAccount(accountFromPaymentRequest(paymentRequest));
-nameCurrencyAccountFromPaymentRequest 'Валюта счета' (paymentRequest) = Bank.nameCurrencyAccount(accountFromPaymentRequest(paymentRequest));
+accountFrom(paymentRequest) = DATA Bank.Account (PaymentRequest);
+accountFrom(PaymentRequest paymentRequest) <- account(payer(paymentRequest))
+    WHEN CHANGED(payer(paymentRequest));
+nameAccountFrom 'Счет (плательщик)' (PaymentRequest paymentRequest) = number(accountFrom(paymentRequest));
+currencyAccountFrom (PaymentRequest paymentRequest) = currency(accountFrom(paymentRequest));
+nameCurrencyAccountFrom 'Валюта счета' (PaymentRequest paymentRequest) = nameCurrency(accountFrom(paymentRequest));
 
-CONSTRAINT payerPaymentRequest(paymentRequest) != Bank.legalEntityAccount(accountFromPaymentRequest(paymentRequest))
-    CHECKED BY accountFromPaymentRequest MESSAGE 'Организация счета должна совпадать с плательщиком';
+CONSTRAINT payer(PaymentRequest paymentRequest) != legalEntity(accountFrom(paymentRequest))
+    CHECKED BY accountFrom[PaymentRequest] MESSAGE 'Организация счета должна совпадать с плательщиком';
 
-beneficiaryPaymentRequest(paymentRequest) = DATA LegalEntity (PaymentRequest);
-nameBeneficiaryPaymentRequest 'Бенефициар' (paymentRequest) = nameLegalEntity(beneficiaryPaymentRequest(paymentRequest));
+beneficiary(paymentRequest) = DATA LegalEntity (PaymentRequest);
+nameBeneficiary 'Бенефициар' (PaymentRequest paymentRequest) = name(beneficiary(paymentRequest));
 
-accountToPaymentRequest(paymentRequest) = DATA Bank.Account (PaymentRequest);
-accountToPaymentRequest(paymentRequest) <- accountLegalEntity(beneficiaryPaymentRequest(paymentRequest))
-    WHEN CHANGED(beneficiaryPaymentRequest(paymentRequest));
-nameAccountToPaymentRequest 'Счет (бенефициар)' (paymentRequest) = Bank.numberAccount(accountToPaymentRequest(paymentRequest));
-currencyAccountToPaymentRequest(paymentRequest) = Bank.currencyAccount(accountToPaymentRequest(paymentRequest));
-nameCurrencyAccountToPaymentRequest 'Валюта счета' (paymentRequest) = Bank.nameCurrencyAccount(accountToPaymentRequest(paymentRequest));
+accountTo(paymentRequest) = DATA Bank.Account (PaymentRequest);
+accountTo(PaymentRequest paymentRequest) <- account(beneficiary(paymentRequest))
+    WHEN CHANGED(beneficiary(paymentRequest));
+nameAccountTo 'Счет (бенефициар)' (PaymentRequest paymentRequest) = number(accountTo(paymentRequest));
+currencyAccountTo(PaymentRequest paymentRequest) = currency(accountTo(paymentRequest));
+nameCurrencyAccountTo 'Валюта счета' (PaymentRequest paymentRequest) = nameCurrency(accountTo(paymentRequest));
 
-CONSTRAINT beneficiaryPaymentRequest(paymentRequest) != Bank.legalEntityAccount(accountToPaymentRequest(paymentRequest))
-    CHECKED BY accountToPaymentRequest MESSAGE 'Организация счета должна совпадать с бенефициаром';
+CONSTRAINT beneficiary(PaymentRequest paymentRequest) != legalEntity(accountTo(paymentRequest))
+    CHECKED BY accountTo[PaymentRequest] MESSAGE 'Организация счета должна совпадать с бенефициаром';
 
-sumPaymentRequest 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest) PREFCHARWIDTH 16;
+sum 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest) PREFCHARWIDTH 16;
 
-descriptionPaymentRequest 'Название документа' = 'Платежное требование ' + seriesNumberPaymentRequest(paymentRequest) + ' от ' + datePaymentRequest(paymentRequest) + ' ' + nameBeneficiaryPaymentRequest(paymentRequest) PERSISTENT;
+description 'Название документа' = 'Платежное требование ' + seriesNumber(PaymentRequest paymentRequest) + ' от ' + date(paymentRequest) + ' ' + nameBeneficiary(paymentRequest) PERSISTENT;
 
 TABLE paymentRequestInContractLedger (PaymentRequest, InContractLedger);
-costPaymentRequestInContractLedger 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
-requestedInContractLedger 'Выставлено требований' (inContractLedger) =
-    GROUP SUM costPaymentRequestInContractLedger(paymentRequest, inContractLedger) IF isPostedPaymentRequest(paymentRequest)
+cost 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
+requested 'Выставлено требований' (inContractLedger) =
+    GROUP SUM cost(PaymentRequest paymentRequest, InContractLedger inContractLedger) IF isPosted(paymentRequest)
     BY inContractLedger PERSISTENT;
 
-requestedDebtInContractLedger 'Неоплаченных требований' (inContractLedger) =
-    (MIN requestedInContractLedger(inContractLedger), debtInContractLedger(inContractLedger)) IF requestedInContractLedger(inContractLedger) AND debtInContractLedger(inContractLedger);
+requestedDebt 'Неоплаченных требований' (InContractLedger inContractLedger) =
+    (MIN requested(inContractLedger), debt(inContractLedger)) IF requested(inContractLedger) AND debt(inContractLedger);
 
-toRequestInContractLedger 'Не выставлено требований' (inContractLedger) =
-    debtInContractLedger(inContractLedger) (-) requestedInContractLedger(inContractLedger);
+toRequest 'Не выставлено требований' (InContractLedger inContractLedger) =
+    debt(inContractLedger) (-) requested(inContractLedger);
 
-CONSTRAINT partyAContract(contractPaymentRequest(paymentRequest)) != beneficiaryPaymentRequest(paymentRequest)
-    CHECKED BY contractPaymentRequest MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
+CONSTRAINT partyA(contract(PaymentRequest paymentRequest)) != beneficiary(paymentRequest)
+    CHECKED BY contract[PaymentRequest] MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
 
-CONSTRAINT partyBContract(contractPaymentRequest(paymentRequest)) != payerPaymentRequest(paymentRequest)
-    CHECKED BY contractPaymentRequest MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
+CONSTRAINT partyB(contract(PaymentRequest paymentRequest)) != payer(paymentRequest)
+    CHECKED BY contract[PaymentRequest] MESSAGE 'Договор должен соответствовать организациям покупателю и поставщику';
 
-sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
-    PARTITION UNGROUP sumPaymentRequest
-              LIMIT toRequestInContractLedger(inContractLedger) IF toRequestInContractLedger(inContractLedger) > 0 AND
-                    contractPaymentRequest(paymentRequest) == contractInContractLedger(inContractLedger) AND
-                    activeInContractLedger(inContractLedger)
+sumInFIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
+    PARTITION UNGROUP sum
+              LIMIT toRequest(inContractLedger) IF toRequest(inContractLedger) > 0 AND
+                    contract(paymentRequest) == contract(inContractLedger) AND
+                    active(inContractLedger)
               BY paymentRequest
-              ORDER dateInContractLedger(inContractLedger), numberInContractLedger(inContractLedger), inContractLedger;
+              ORDER date(inContractLedger), number(inContractLedger), inContractLedger;
 
-sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger) =
-    PARTITION UNGROUP sumPaymentRequest
-              LIMIT toRequestInContractLedger(inContractLedger) IF toRequestInContractLedger(inContractLedger) > 0 AND
-                    contractPaymentRequest(paymentRequest) == contractInContractLedger(inContractLedger) AND
-                    activeInContractLedger(inContractLedger)
+sumInLIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
+    PARTITION UNGROUP sum
+              LIMIT toRequest(inContractLedger) IF toRequest(inContractLedger) > 0 AND
+                    contract(paymentRequest) == contract(inContractLedger) AND
+                    active(inContractLedger)
               BY paymentRequest
-              ORDER DESC dateInContractLedger(inContractLedger), numberInContractLedger(inContractLedger), inContractLedger;
+              ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
 
-writePaymentRequestFIFO 'Расписать по FIFO' = ACTION (paymentRequest) {
-    costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
+writeFIFO 'Расписать по FIFO' = ACTION (PaymentRequest paymentRequest) {
+    cost(paymentRequest, InContractLedger inContractLedger) <- sumInFIFO(paymentRequest, inContractLedger);
 }
 
-writePaymentRequestLIFO 'Расписать по LIFO' = ACTION (paymentRequest) {
-    costPaymentRequestInContractLedger(paymentRequest, inContractLedger) <- sumInLIFOPaymentRequestInContractLedger(paymentRequest, inContractLedger);
+writeLIFO 'Расписать по LIFO' = ACTION (PaymentRequest paymentRequest) {
+    cost(paymentRequest, InContractLedger inContractLedger) <- sumInLIFO(paymentRequest, inContractLedger);
 }
 
 
 //Операции
-operationPaymentRequest = DATA PaymentOperation.Operation (PaymentRequest);
-nameOperationPaymentRequest 'Операция' = PaymentOperation.nameOperation(operationPaymentRequest(PaymentRequest));
-idOperationPaymentRequest 'ID операции' = PaymentOperation.idOperation(operationPaymentRequest(PaymentRequest));
+operation = DATA PaymentOperation.Operation (PaymentRequest);
+nameOperation 'Операция' = name(operation(PaymentRequest PaymentRequest));
+idOperation 'ID операции' = id(operation(PaymentRequest PaymentRequest));
 
 @defineDocumentOperationLegalEntity(paymentRequest, payer, 'Плательщик');
 @defineDocumentOperationLegalEntity(paymentRequest, beneficiary, 'Бенефициар');
@@ -110,31 +110,31 @@ idOperationPaymentRequest 'ID операции' = PaymentOperation.idOperation(o
 
 
 partyA = DATA LOCAL LegalEntity();
-namePartyA 'Организация (поставщик)' = nameLegalEntity(partyA());
+namePartyA 'Организация (поставщик)' = name(partyA());
 partyB = DATA LOCAL LegalEntity();
-namePartyB 'Организация (покупатель)' = nameLegalEntity(partyB());
+namePartyB 'Организация (покупатель)' = name(partyB());
 
 FORM paymentRequest 'Платежное требование'
 
     OBJECTS p = PaymentRequest FIXED PANEL
-    PROPERTIES(p) isPostedPaymentRequest, nameNumeratorPaymentRequest, numberPaymentRequest, seriesPaymentRequest, datePaymentRequest, timePaymentRequest,
-                  seriesNumberContractPaymentRequest, notePaymentRequest
-    PROPERTIES(p) namePayerPaymentRequest, nameAccountFromPaymentRequest, nameCurrencyAccountFromPaymentRequest,
-                  nameBeneficiaryPaymentRequest, nameAccountToPaymentRequest, nameCurrencyAccountToPaymentRequest
-    PROPERTIES(p) sumPaymentRequest, nameOperationPaymentRequest
+    PROPERTIES(p) isPosted, nameNumerator, number, series, date, time,
+                  seriesNumberContract, note
+    PROPERTIES(p) namePayer, nameAccountFrom, nameCurrencyAccountFrom,
+                  nameBeneficiary, nameAccountTo, nameCurrencyAccountTo
+    PROPERTIES(p) sum, nameOperation
 
     OBJECTS i = InContractLedger
-    PROPERTIES(i) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, requestedInContractLedger
-    PROPERTIES(p, i) costPaymentRequestInContractLedger
-    PROPERTIES(p) writePaymentRequestFIFO TODRAW i FORCE PANEL TOOLBAR,
-                  writePaymentRequestLIFO TODRAW i FORCE PANEL TOOLBAR
-    ORDER BY dateInContractLedger(i)
+    PROPERTIES(i) READONLY date, description, debt, requested
+    PROPERTIES(p, i) cost
+    PROPERTIES(p) writeFIFO TODRAW i FORCE PANEL TOOLBAR,
+                  writeLIFO TODRAW i FORCE PANEL TOOLBAR
+    ORDER BY date(i)
 
-    FILTERS activeInContractLedger(i),
-            contractPaymentRequest(p) == contractInContractLedger(i)
+    FILTERS active(i),
+            contract(p) == contract(i)
 
     EVENTS
-        ON OK prePostPaymentRequest(p)
+        ON OK prePost(p)
 
     EDIT PaymentRequest OBJECT p
 ;
@@ -145,12 +145,12 @@ DESIGN paymentRequest {
         NEW headerContainer{
             caption = 'Шапка документа';
             type = CONTAINERH;
-            MOVE PROPERTY(isPostedPaymentRequest(p));
-            MOVE PROPERTY(nameNumeratorPaymentRequest(p));
-            MOVE PROPERTY(numberPaymentRequest(p));
-            MOVE PROPERTY(seriesPaymentRequest(p));
-            MOVE PROPERTY(datePaymentRequest(p));
-            MOVE PROPERTY(timePaymentRequest(p));
+            MOVE PROPERTY(isPosted(p));
+            MOVE PROPERTY(nameNumerator(p));
+            MOVE PROPERTY(number(p));
+            MOVE PROPERTY(series(p));
+            MOVE PROPERTY(date(p));
+            MOVE PROPERTY(time(p));
         }
         NEW columnContainer{
             type = CONTAINERH;
@@ -159,33 +159,33 @@ DESIGN paymentRequest {
                 columns = 1;
                 fill = 1;
                 caption = 'Сторона (с)';
-                MOVE PROPERTY(namePayerPaymentRequest(p));
-                MOVE PROPERTY(nameAccountFromPaymentRequest(p));
-                MOVE PROPERTY(nameCurrencyAccountFromPaymentRequest(p));
+                MOVE PROPERTY(namePayer(p));
+                MOVE PROPERTY(nameAccountFrom(p));
+                MOVE PROPERTY(nameCurrencyAccountFrom(p));
             }
             NEW secondColumn{
                 type = COLUMNS;
                 columns = 1;
                 fill = 1;
                 caption = 'Сторона (на)';
-                MOVE PROPERTY(nameBeneficiaryPaymentRequest(p));
-                MOVE PROPERTY(nameAccountToPaymentRequest(p));
-                MOVE PROPERTY(nameCurrencyAccountToPaymentRequest(p));
+                MOVE PROPERTY(nameBeneficiary(p));
+                MOVE PROPERTY(nameAccountTo(p));
+                MOVE PROPERTY(nameCurrencyAccountTo(p));
             }
             NEW thirdColumn{
                 type = COLUMNS;
                 columns = 1;
                 fill = 1;
                 caption = 'Контракт';
-                MOVE PROPERTY(seriesNumberContractPaymentRequest(p));
+                MOVE PROPERTY(seriesNumberContract(p));
             }
         }
         NEW paramContainer {
             type = CONTAINERH;
             caption = 'Параметры документа';
-            MOVE PROPERTY(nameOperationPaymentRequest(p));
-            MOVE PROPERTY(sumPaymentRequest(p));
-            MOVE PROPERTY(notePaymentRequest(p));
+            MOVE PROPERTY(nameOperation(p));
+            MOVE PROPERTY(sum(p));
+            MOVE PROPERTY(note(p));
         }
     }
     MOVE i.box;
@@ -199,50 +199,50 @@ DESIGN paymentRequest {
 
 // ------------------------ Требования по договору -------------------------- //
 
-toRequestContract 'Не выставлено требований' (contract) =
-    GROUP SUM toRequestInContractLedger(ledger) IF activeInContractLedger(ledger) BY contractInContractLedger(ledger);
+toRequest 'Не выставлено требований' (contract) =
+    GROUP SUM toRequest(InContractLedger ledger) IF active(ledger) BY contract(ledger);
 
-requestedDebtContract 'Неоплаченных требований' (contract) =
-    GROUP SUM requestedDebtInContractLedger (ledger) IF activeInContractLedger(ledger) BY contractInContractLedger(ledger);
+requestedDebt 'Неоплаченных требований' (contract) =
+    GROUP SUM requestedDebt (InContractLedger ledger) IF active(ledger) BY contract(ledger);
 
-toRequestContractDate 'Необходимо выставить требований' (contract, date) = balanceAContractDate(contract, date) (-) requestedDebtContract(contract);
+toRequest 'Необходимо выставить требований' (Contract contract, DATE date) = balanceA(contract, date) (-) requestedDebt(contract);
 
-overCreatePaymentRequests = ABSTRACT ACTION LIST (PaymentRequest);
-createPaymentRequestContractDate 'Выставить платежное требование' = ACTION (contract, date) NEWSESSION {
+overCreateRequests = ABSTRACT ACTION LIST (PaymentRequest);
+createPaymentRequest 'Выставить платежное требование' = ACTION (Contract contract, DATE date) NEWSESSION {
     FOR ADDOBJ pr = PaymentRequest DO {
-        datePaymentRequest(pr) <- date;
-        payerPaymentRequest(pr) <- partyBContract(contract);
-        beneficiaryPaymentRequest(pr) <- partyAContract(contract);
-        contractPaymentRequest(pr) <- contract;
-        sumPaymentRequest(pr) <- toRequestContractDate(contract, date);
-        costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
-            WHERE contractPaymentRequest(pr) == contractInContractLedger(inContractLedger);
-        overCreatePaymentRequests(pr);
+        date(pr) <- date;
+        payer(pr) <- partyB(contract);
+        beneficiary(pr) <- partyA(contract);
+        contract(pr) <- contract;
+        sum(pr) <- toRequest(contract, date);
+        cost(pr, InContractLedger inContractLedger) <- sumInFIFO(pr, inContractLedger)
+            WHERE contract(pr) == contract(inContractLedger);
+        overCreateRequests(pr);
         FORM paymentRequest OBJECTS p = pr MANAGESESSION DOCKEDMODAL;
     }
 }
 
 EXTEND FORM contractLedger
-    PROPERTIES(c, d) FORCE PANEL TOOLBAR createPaymentRequestContractDate
+    PROPERTIES(c, d) FORCE PANEL TOOLBAR createPaymentRequest
 ;
 
 // ------------------------- Расширяем управление задолженностями ------------------------ //
 
-backgroundPaymentRequestDate 'Цвет' (paymentRequest, date) = CASE WHEN datePaymentRequest(paymentRequest) > date THEN RGB(224,255,224)
-                                                                  WHEN datePaymentRequest(paymentRequest) < date THEN RGB(255,224,224);
+background 'Цвет' (PaymentRequest paymentRequest, DATE date) = CASE WHEN date(paymentRequest) > date THEN RGB(224,255,224)
+                                                                  WHEN date(paymentRequest) < date THEN RGB(255,224,224);
 
 EXTEND FORM contractLedger
     OBJECTS pr = PaymentRequest
-    PROPERTIES(pr) READONLY numberPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            seriesPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            isPostedPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d)
+    PROPERTIES(pr) READONLY number BACKGROUND background(pr, d),
+                            series BACKGROUND background(pr, d),
+                            date BACKGROUND background(pr, d),
+                            time BACKGROUND background(pr, d),
+                            sum BACKGROUND background(pr, d),
+                            note BACKGROUND background(pr, d),
+                            isPosted BACKGROUND background(pr, d)
     PROPERTIES(pr) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY datePaymentRequest(pr), timePaymentRequest(pr)
-    FILTERS contractPaymentRequest(pr) == c
+    ORDER BY date(pr), time(pr)
+    FILTERS contract(pr) == c
 ;
 
 DESIGN contractLedger {
@@ -251,21 +251,21 @@ DESIGN contractLedger {
     }
 }
 
-createPaymentRequests 'Выставить платежные требования' = ACTION (date) {
+createPaymentRequests 'Выставить платежные требования' = ACTION (DATE date) {
     LOCAL count = INTEGER();
     count() <- 0;
-    FOR toRequestContractDate(contract, date) > 0 AND (partyAContract(contract) == partyA() OR (isCompanyLegalEntity(partyAContract(contract)) AND NOT partyA()))
-                                                  AND (partyBContract(contract) == partyB() OR NOT partyB())
+    FOR toRequest(Contract contract, date) > 0 AND (partyA(contract) == partyA() OR (isCompany(partyA(contract)) AND NOT partyA()))
+                                                  AND (partyB(contract) == partyB() OR NOT partyB())
         ADDOBJ pr = PaymentRequest DO {
-        isPostedPaymentRequest(pr) <- TRUE;
-        datePaymentRequest(pr) <- date;
-        payerPaymentRequest(pr) <- partyBContract(contract);
-        beneficiaryPaymentRequest(pr) <- partyAContract(contract);
-        contractPaymentRequest(pr) <- contract;
-        sumPaymentRequest(pr) <- toRequestContractDate(contract, date);
-        costPaymentRequestInContractLedger(pr, inContractLedger) <- sumInFIFOPaymentRequestInContractLedger(pr, inContractLedger)
-            WHERE contractPaymentRequest(pr) == contractInContractLedger(inContractLedger);
-        overCreatePaymentRequests(pr);
+        isPosted(pr) <- TRUE;
+        date(pr) <- date;
+        payer(pr) <- partyB(contract);
+        beneficiary(pr) <- partyA(contract);
+        contract(pr) <- contract;
+        sum(pr) <- toRequest(contract, date);
+        cost(pr, InContractLedger inContractLedger) <- sumInFIFO(pr, inContractLedger)
+            WHERE contract(pr) == contract(inContractLedger);
+        overCreateRequests(pr);
         count() <- count() + 1;
     }
 
@@ -280,38 +280,38 @@ FORM paymentRequests 'Платежные требования'
     PROPERTIES() namePartyA, namePartyB
 
     OBJECTS pr = PaymentRequest
-    PROPERTIES(pr) READONLY isPostedPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            numberPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            seriesPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            datePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            timePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            nameBeneficiaryPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            nameAccountToPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            nameCurrencyAccountToPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            namePayerPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            nameAccountFromPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),                            
-                            sumPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            notePaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d),
-                            nameOperationPaymentRequest BACKGROUND backgroundPaymentRequestDate(pr, d)                            
+    PROPERTIES(pr) READONLY isPosted BACKGROUND background(pr, d),
+                            number BACKGROUND background(pr, d),
+                            series BACKGROUND background(pr, d),
+                            date BACKGROUND background(pr, d),
+                            time BACKGROUND background(pr, d),
+                            nameBeneficiary BACKGROUND background(pr, d),
+                            nameAccountTo BACKGROUND background(pr, d),
+                            nameCurrencyAccountTo BACKGROUND background(pr, d),
+                            namePayer BACKGROUND background(pr, d),
+                            nameAccountFrom BACKGROUND background(pr, d),                            
+                            sum BACKGROUND background(pr, d),
+                            note BACKGROUND background(pr, d),
+                            nameOperation BACKGROUND background(pr, d)                            
     PROPERTIES(d) createPaymentRequests TODRAW pr TOOLBAR
     PROPERTIES(pr) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    ORDER BY datePaymentRequest(pr), timePaymentRequest(pr)
-    FILTERS partyAContract(contractPaymentRequest(pr)) == partyA() OR pr IS PaymentRequest AND NOT partyA(),
-            partyBContract(contractPaymentRequest(pr)) == partyB() OR pr IS PaymentRequest AND NOT partyB()
+    ORDER BY date(pr), time(pr)
+    FILTERS partyA(contract(pr)) == partyA() OR pr IS PaymentRequest AND NOT partyA(),
+            partyB(contract(pr)) == partyB() OR pr IS PaymentRequest AND NOT partyB()
 
     OBJECTS i = InContractLedger
-    PROPERTIES(i) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, requestedInContractLedger
-    PROPERTIES(pr, i) costPaymentRequestInContractLedger
-    FILTERS costPaymentRequestInContractLedger(pr, i)
-    ORDER BY dateInContractLedger(i)
+    PROPERTIES(i) READONLY date, description, debt, requested
+    PROPERTIES(pr, i) cost
+    FILTERS cost(pr, i)
+    ORDER BY date(i)
 
     OBJECTS ic = InContractLedger
-    PROPERTIES(ic) READONLY dateInContractLedger, descriptionInContractLedger, debtInContractLedger, requestedInContractLedger
-    FILTERS activeInContractLedger(ic),
-            toRequestInContractLedger(ic),
-            partyAContract(contractInContractLedger(ic)) == partyA() OR ic IS InContractLedger AND NOT partyA(),
-            partyBContract(contractInContractLedger(ic)) == partyB() OR ic IS InContractLedger AND NOT partyB()
-    ORDER BY dateInContractLedger(i)
+    PROPERTIES(ic) READONLY date, description, debt, requested
+    FILTERS active(ic),
+            toRequest(ic),
+            partyA(contract(ic)) == partyA() OR ic IS InContractLedger AND NOT partyA(),
+            partyB(contract(ic)) == partyB() OR ic IS InContractLedger AND NOT partyB()
+    ORDER BY date(i)
 ;
 
 DESIGN paymentRequests {

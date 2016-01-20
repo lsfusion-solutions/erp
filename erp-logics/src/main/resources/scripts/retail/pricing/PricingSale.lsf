@@ -11,58 +11,58 @@ NAMESPACE Sale;
 @defineDocumentInterfaceHeaderSumPrefix (invoice, supplier, ' поставщика');
 
 // Создаем акт расценки
-roundConditionUserInvoiceDetail(userInvoiceDetail) = roundConditionDepartmentStore(supplierStockUserInvoiceDetail(userInvoiceDetail));
+roundCondition(UserInvoiceDetail userInvoiceDetail) = roundCondition(supplierStock(userInvoiceDetail));
 @defineInvoicePricingAggregation(invoice, Invoice, ' (продажа)', 'Акт расценки при продаже', 'Проведенный акт расценки при продаже', supplier, supplier);
-batchPricingDetail(detail) += batchInvoiceDetail(invoiceDetailInvoicePricingDetail(detail));
-editPricingDetail (d)+= ACTION editInvoiceDetail(invoiceDetailInvoicePricingDetail(d));
+batch(InvoicePricingDetail detail) += batch(invoiceDetail(detail));
+edit (InvoicePricingDetail d)+= ACTION edit(invoiceDetail(d));
 
 
 // Автоматически проставляем цены поставщика и розничные
-WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
-              CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-              (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail)) OR
-              CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(supplierPriceUserInvoiceDetail (detail)) DO {
-    supplierPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail) 
-                                                    THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
-                                                                                                   batchUserInvoiceDetail(detail),
-                                                                                                   supplierStockUserInvoiceDetail(detail),
-                                                                                                   dateTimeUserInvoiceDetail(detail))
-                                                    ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType,
-                                                                                                 skuUserInvoiceDetail(detail),
-                                                                                                 supplierStockUserInvoiceDetail(detail),
-                                                                                                 dateTimeUserInvoiceDetail(detail));
+WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
+              CHANGED(supplierStock(detail)) OR
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+              CHANGED(batch(detail))) AND NOT CHANGED(supplierPrice (detail)) DO {
+    supplierPrice (detail)  <- IF batch(detail) AND NOT notUseBatchPrice(detail) 
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   supplierStock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 supplierStock(detail),
+                                                                                                 dateTime(detail));
 }
  
-WHEN SESSION (CHANGED(skuUserInvoiceDetail(detail)) OR
-              CHANGED(supplierStockUserInvoiceDetail(detail)) OR
-              (CHANGED(dateTimeUserInvoiceDetail(detail)) AND NOT isPostedUserInvoiceDetail(detail)) OR
-              CHANGED(batchUserInvoiceDetail(detail))) AND NOT CHANGED(retailPriceUserInvoiceDetail (detail)) DO {
-retailPriceUserInvoiceDetail (detail)  <- IF batchUserInvoiceDetail(detail) AND NOT notUseBatchPriceUserInvoiceDetail(detail)
-                                                THEN prevPriceBPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
-                                                                                               batchUserInvoiceDetail(detail),
-                                                                                               supplierStockUserInvoiceDetail(detail),
-                                                                                               dateTimeUserInvoiceDetail(detail))
-                                                ELSE prevPriceBPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType,
-                                                                                             skuUserInvoiceDetail(detail),
-                                                                                             supplierStockUserInvoiceDetail(detail),
-                                                                                             dateTimeUserInvoiceDetail(detail));
+WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
+              CHANGED(supplierStock(detail)) OR
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+              CHANGED(batch(detail))) AND NOT CHANGED(retailPrice (detail)) DO {
+retailPrice (detail)  <- IF batch(detail) AND NOT notUseBatchPrice(detail)
+                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                               batch(detail),
+                                                                                               supplierStock(detail),
+                                                                                               dateTime(detail))
+                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                             sku(detail),
+                                                                                             supplierStock(detail),
+                                                                                             dateTime(detail));
 }
 
 // Автоматический расчет розничной надбавки
-retailMarkupUserInvoiceDetail(userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
-    retailPriceUserInvoiceDetail(userInvoiceDetail),
-    valueRetailVATUserInvoiceDetail(userInvoiceDetail),
-    pricingPriceUserInvoiceDetail(userInvoiceDetail))
-    WHEN CHANGED(retailPriceUserInvoiceDetail(userInvoiceDetail)) OR
-         CHANGED (valueRetailVATUserInvoiceDetail(userInvoiceDetail)) OR
-         CHANGED(supplierPriceUserInvoiceDetail(userInvoiceDetail));
+retailMarkup(UserInvoiceDetail userInvoiceDetail)  <- [= round2((((X - X*Y/(100+Y))/Z)-1)*100)](
+    retailPrice(userInvoiceDetail),
+    valueRetailVAT(userInvoiceDetail),
+    pricingPrice(userInvoiceDetail))
+    WHEN CHANGED(retailPrice(userInvoiceDetail)) OR
+         CHANGED (valueRetailVAT(userInvoiceDetail)) OR
+         CHANGED(supplierPrice(userInvoiceDetail));
 
-overRetailVATUserInvoiceDetail = ABSTRACT OVERRIDE FIRST Range (UserInvoiceDetail);
+overRetailVAT = ABSTRACT OVERRIDE FIRST Range (UserInvoiceDetail);
 WHEN SESSION FORMS userInvoice
-    (CHANGED(skuUserInvoiceDetail(detail)) OR CHANGED (supplierStockUserInvoiceDetail(detail)) OR 
-     CHANGED(overRetailVATUserInvoiceDetail(detail))) AND NOT CHANGED(retailVATUserInvoiceDetail(detail)) DO {
-        retailVATUserInvoiceDetail(detail) <- OVERRIDE VATSkuCountry (skuUserInvoiceDetail(detail), countryStock(supplierStockUserInvoiceDetail(detail))),
-                                                       overRetailVATUserInvoiceDetail(detail);
+    (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED (supplierStock(detail)) OR 
+     CHANGED(overRetailVAT(detail))) AND NOT CHANGED(retailVAT(detail)) DO {
+        retailVAT(detail) <- OVERRIDE VAT (sku(detail), country(supplierStock(detail))),
+                                                       overRetailVAT(detail);
     } // записываем шкалу
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
@@ -73,47 +73,47 @@ WHEN SESSION FORMS userInvoice
 
 // Добавление цены поставщика на форму
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF createPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i)
-                     supplierSumUserInvoiceDetailUserInvoice
-    PROPERTIES(pd) SHOWIF createPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i) BEFORE retailMarkupUserInvoiceDetail(pd)
-                     supplierPriceUserInvoiceDetail, supplierSumUserInvoiceDetail
+    PROPERTIES(i) SHOWIF createPricing[Invoice](i) BACKGROUND backgroundRetail(i)
+                     supplierSumUserInvoiceDetail
+    PROPERTIES(pd) SHOWIF createPricing[Invoice](i) BACKGROUND backgroundRetail(i) BEFORE retailMarkup(pd)
+                     supplierPrice, supplierSum
 ;
 EXTEND FORM invoices
-    PROPERTIES(i) READONLY BACKGROUND backgroundRetailInvoice(i) BEFORE retailSumInvoiceDetailInvoice(i)
-                           supplierSumInvoiceDetailInvoice
-    PROPERTIES(d) SHOWIF createPricingInvoice(i) BACKGROUND backgroundRetailInvoice(i) BEFORE retailMarkupInvoiceDetail(d)
-                           supplierPriceInvoiceDetail, supplierSumInvoiceDetail
+    PROPERTIES(i) READONLY BACKGROUND backgroundRetail(i) BEFORE retailSumInvoiceDetail(i)
+                           supplierSumInvoiceDetail
+    PROPERTIES(d) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) BEFORE retailMarkup(d)
+                           supplierPrice, supplierSum
 ;
 
 // Помечаем, что этот акт расценки не меняет текущие цены и является обратным
-skipChangeLedgerPricingDetail(d) += d IS InvoicePricingDetail;
-isReturnPricing(pricing) += pricing IS InvoicePricing;
+skipChangeLedger(InvoicePricingDetail d) += d IS InvoicePricingDetail;
+isReturn(InvoicePricing pricing) += pricing IS InvoicePricing;
 
 // Операция расценки
 
-pricingOperationOperation  = DATA Pricing.Operation (Operation);
-namePricingOperationOperation 'Операция (расценка)' (operation)= Pricing.nameOperation(pricingOperationOperation(operation));
+pricingOperation  = DATA Pricing.Operation (Operation);
+namePricingOperation 'Операция (расценка)' (Operation operation)= name(pricingOperation(operation));
 
 EXTEND FORM operation
-    PROPERTIES(o) namePricingOperationOperation
+    PROPERTIES(o) namePricingOperation
 ;
 DESIGN operation {
     saleContainer {
-        MOVE PROPERTY(namePricingOperationOperation(o)) AFTER PROPERTY(createPricingOperation(o));
+        MOVE PROPERTY(namePricingOperation(o)) AFTER PROPERTY(createPricing(o));
     }
 }
 
 @defineDocumentInterfaceOperationPrefix (invoice, pricing, Pricing, ' ( расценка)');
-pricingOperationUserInvoice (invoice) <- pricingOperationOperation(operationUserInvoice(invoice))
-    WHEN CHANGED(operationUserInvoice(invoice));
-operationPricing(pricing) += pricingOperationInvoice(invoiceInvoicePricing(pricing));
+pricingOperation (UserInvoice invoice) <- pricingOperation(operation(invoice))
+    WHEN CHANGED(operation(invoice));
+operation(InvoicePricing pricing) += pricingOperation(invoice(pricing));
 
 // Добавляем операцию расценки на форму
 EXTEND FORM userInvoice
-    PROPERTIES(i) SHOWIF createPricingUserInvoice(i) BACKGROUND backgroundRetailInvoice(i) namePricingOperationUserInvoice
+    PROPERTIES(i) SHOWIF createPricing(i) BACKGROUND backgroundRetail(i) namePricingOperation
 ;
 DESIGN userInvoice {
     headerCreatePricing {
-        MOVE PROPERTY(namePricingOperationUserInvoice(i));// BEFORE PROPERTY(namePricingCommitteeUserInvoice(i));
+        MOVE PROPERTY(namePricingOperation(i));// BEFORE PROPERTY(namePricingCommitteeUserInvoice(i));
     }
 }

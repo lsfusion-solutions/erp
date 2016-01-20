@@ -2,14 +2,14 @@ MODULE CashRegisterItem;
 
 REQUIRE Item, CashRegisterPriceTransaction;
 
-idSkuGroupMachineryPriceTransactionBarcode (machineryPriceTransaction, barcode) = idItemGroup(skuGroupMachineryPriceTransactionBarcode(machineryPriceTransaction, barcode));
-overIdSkuGroupMachineryPriceTransactionBarcode (machineryPriceTransaction, barcode) = overIdItemGroup(skuGroupMachineryPriceTransactionBarcode(machineryPriceTransaction, barcode));
+idSkuGroup (MachineryPriceTransaction machineryPriceTransaction, Barcode barcode) = id[ItemGroup](skuGroup(machineryPriceTransaction, barcode));
+overIdSkuGroup (MachineryPriceTransaction machineryPriceTransaction, Barcode barcode) = overId(skuGroup(machineryPriceTransaction, barcode));
 
-overTitleCashRegisterMachineryPriceTransactionBarcode = ABSTRACT VARISTRING[255] (MachineryPriceTransaction, Barcode);
+overTitleCashRegister = ABSTRACT VARISTRING[255] (MachineryPriceTransaction, Barcode);
 
-createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += ACTION (transaction, groupMachinery) {
+createAttribute(MachineryPriceTransaction transaction, GroupCashRegister groupMachinery) += ACTION (transaction, groupMachinery) {
     IF groupMachinery IS GroupCashRegister THEN
-        nameMachineryPriceTransactionBarcode(transaction, barcode) <- (OVERRIDE titleCashRegisterBarcode(barcode) IF transaction IS MachineryPriceTransaction, overTitleCashRegisterMachineryPriceTransactionBarcode(transaction, barcode)) WHERE inMachineryPriceTransactionBarcode(transaction, barcode);
+        name(transaction, Barcode barcode) <- (OVERRIDE titleCashRegister(barcode) IF transaction IS MachineryPriceTransaction, overTitleCashRegister(transaction, barcode)) WHERE in(transaction, barcode);
 }
 
 maxCharactersNameCashRegisterItem 'Максимальное количество знаков в наименовании для касс' = DATA INTEGER ();
@@ -23,5 +23,5 @@ DESIGN options {
     }
 }
 
-CONSTRAINT charLength(titleCashRegisterBarcode(barcodeSku(item))) > maxCharactersNameCashRegisterItem() 
+CONSTRAINT charLength(titleCashRegister(barcode(Sku item))) > maxCharactersNameCashRegisterItem() 
     MESSAGE 'Максимальное количество знаков в наименовании для касс больше предельного значения';

@@ -76,40 +76,40 @@ CLASS UserPickingOrderDetail 'Строка заказа на комплекта�
 //    @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, supplierFilter, customerFilter);
 //    @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
 
-changeBatchUserPickingOrderDetail = ACTION (detail) {
-    FORM dialogBatchStockOut OBJECTS st = stockUserPickingOrderDetail(detail),
-                                  t = dateTimeUserPickingOrderDetail(detail),
-                                  sk = skuUserPickingOrderDetail(detail) DIALOG SHOWDROP;
+changeBatch = ACTION (UserPickingOrderDetail detail) {
+    FORM dialogBatchStockOut OBJECTS st = stock(detail),
+                                  t = dateTime(detail),
+                                  sk = sku(detail) DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
-        ASSIGN batchUserPickingOrderDetail(detail) <- chosenObject('bt');
+        ASSIGN batch(detail) <- chosenObject('bt');
     } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batchUserPickingOrderDetail(detail) <- NULL;
+        ASSIGN batch(detail) <- NULL;
     }
 };
 
 
 // --------------------------- Формы Заказа ---------------------------------
 
-editPickingOrder 'Редактировать' = ABSTRACT ACTION LIST (PickingOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (PickingOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-editSkuUserPickingOrderDetail 'Редактировать SKU' (d) = ACTION editSku(skuUserPickingOrderDetail(d));
+editSku 'Редактировать SKU' (UserPickingOrderDetail d) = ACTION edit(sku(d));
 FORM userPickingOrder 'Заказ на комплектацию'
     OBJECTS o = UserPickingOrder FIXED PANEL
-    PROPERTIES (o) isPostedUserPickingOrder, nameStockUserPickingOrder,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
-                   nameNumeratorUserPickingOrder, numberUserPickingOrder, seriesUserPickingOrder, dateUserPickingOrder, timeUserPickingOrder,
-                   noteUserPickingOrder, countUserPickingOrderDetailUserPickingOrder, quantityUserPickingOrderDetailUserPickingOrder
+    PROPERTIES (o) isPosted, nameStock,// ON CHANGE changeCustomerStock###customerFilter###userOrder(o),
+                   nameNumerator, number, series, date, time,
+                   note, countUserPickingOrderDetail, quantityUserPickingOrderDetail
 
 
     OBJECTS d = UserPickingOrderDetail
-    PROPERTIES (d) indexUserPickingOrderDetail
-    PROPERTIES (d) ON EDIT editSkuUserPickingOrderDetail(d) idBarcodeSkuUserPickingOrderDetail, nameSkuUserPickingOrderDetail, shortNameUOMSkuUserPickingOrderDetail,
-                   nameBatchUserPickingOrderDetail ON CHANGE changeBatchUserPickingOrderDetail(d), nameBinUserPickingOrderDetail
-    PROPERTIES (d) quantityUserPickingOrderDetail, ADDOBJ, DELETESESSION
+    PROPERTIES (d) index
+    PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch ON CHANGE changeBatch(d), nameBin
+    PROPERTIES (d) quantity, ADDOBJ, DELETESESSION
 
-    PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingOrderDetailUserPickingOrder,
-                           addDetailInputBarcodeUserPickingOrderDetailUserPickingOrder, deleteUserPickingOrderDetailUserPickingOrder
-    FILTERS userPickingOrderUserPickingOrderDetail(d) == o
+    PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingOrderDetail,
+                           addDetailInputBarcodeUserPickingOrderDetail, deleteUserPickingOrderDetail
+    FILTERS userPickingOrder(d) == o
 
     EDIT UserPickingOrder OBJECT o
 ;
@@ -133,16 +133,16 @@ DESIGN userPickingOrder {
                     type = CONTAINERV;
                     NEW row1 {
                         type = CONTAINERH;
-                        MOVE PROPERTY(isPostedUserPickingOrder(o));
-                        MOVE PROPERTY(nameStockUserPickingOrder(o));
+                        MOVE PROPERTY(isPosted(o));
+                        MOVE PROPERTY(nameStock(o));
                     }
                     NEW row2 {
                         type = CONTAINERH;
-                        MOVE PROPERTY(nameNumeratorUserPickingOrder(o));
-                        MOVE PROPERTY(numberUserPickingOrder(o));
-                        MOVE PROPERTY(seriesUserPickingOrder(o));
-                        MOVE PROPERTY(dateUserPickingOrder(o));
-                        MOVE PROPERTY(timeUserPickingOrder(o));
+                        MOVE PROPERTY(nameNumerator(o));
+                        MOVE PROPERTY(number(o));
+                        MOVE PROPERTY(series(o));
+                        MOVE PROPERTY(date(o));
+                        MOVE PROPERTY(time(o));
                     }
 
                 }
@@ -160,23 +160,23 @@ DESIGN userPickingOrder {
 
 
 addUserPickingOrder 'Добавить' = ACTION ADDFORM UserPickingOrder;
-editUserPickingOrder 'Редактировать' (userOrder) = ACTION EDITFORM UserPickingOrder;
-editPickingOrder(order) += ACTION editUserPickingOrder(order);
+edit 'Редактировать' (userOrder) = ACTION EDITFORM UserPickingOrder;
+edit(UserPickingOrder order) += ACTION edit(order);
 
 
-copyPickingOrder 'Копировать' = ACTION (order) NEWSESSION {
+copy 'Копировать' = ACTION (PickingOrder order) NEWSESSION {
     FOR ADDOBJ o = UserPickingOrder DO {
 
-        ASSIGN stockUserPickingOrder(o) <- stockPickingOrder(order);
-        ASSIGN noteUserPickingOrder(o) <- notePickingOrder(order);
+        ASSIGN stock(o) <- stock(order);
+        ASSIGN note(o) <- note(order);
 
-        FOR pickingOrderPickingOrderDetail(orderDetail) == order DO {
+        FOR pickingOrder(PickingOrderDetail orderDetail) == order DO {
             FOR ADDOBJ d=UserPickingOrderDetail DO {
-                ASSIGN userPickingOrderUserPickingOrderDetail(d) <- o;
-                ASSIGN skuUserPickingOrderDetail(d) <- skuPickingOrderDetail(orderDetail);
-                ASSIGN quantityUserPickingOrderDetail(d) <- quantityPickingOrderDetail(orderDetail);
-                ASSIGN batchUserPickingOrderDetail(d) <- batchPickingOrderDetail(orderDetail);
-                ASSIGN binUserPickingOrderDetail(d) <- binPickingOrderDetail(orderDetail);
+                ASSIGN userPickingOrder(d) <- o;
+                ASSIGN sku(d) <- sku(orderDetail);
+                ASSIGN quantity(d) <- quantity(orderDetail);
+                ASSIGN batch(d) <- batch(orderDetail);
+                ASSIGN bin(d) <- bin(orderDetail);
             }
         }
 
@@ -187,21 +187,21 @@ copyPickingOrder 'Копировать' = ACTION (order) NEWSESSION {
 
 FORM pickingOrders 'Заказы на комплектацию'
     OBJECTS o = PickingOrder
-    PROPERTIES (o) READONLYIF isReadonly() isClosedPickingOrder, isPostedPickingOrder, numberPickingOrder, seriesPickingOrder, 
-                   datePickingOrder, timePickingOrder, nameStockPickingOrder
+    PROPERTIES (o) READONLYIF isReadonly() isClosed, isPosted, number, series, 
+                   date, time, nameStock
 
-    PROPERTIES (o) READONLY countPickingOrderDetailPickingOrder, quantityPickingOrderDetailPickingOrder
+    PROPERTIES (o) READONLY countPickingOrderDetail, quantityPickingOrderDetail
 
-    PROPERTIES (o) READONLY FORCE PANEL createdNameUserUserPickingOrder, createdTimeUserPickingOrder, createdHostnameComputerUserPickingOrder
+    PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
 
     PROPERTIES ()  addUserPickingOrder TODRAW o
-    PROPERTIES (o) editPickingOrder, copyPickingOrder
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserPickingOrder(o)
+    PROPERTIES (o) edit, copy
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF is[UserPickingOrder](o)
 
     OBJECTS d=PickingOrderDetail
-    PROPERTIES (d) READONLY indexPickingOrderDetail, nameSkuPickingOrderDetail, shortNameUOMSkuPickingOrderDetail,
-                   nameBatchPickingOrderDetail, nameBinPickingOrderDetail, quantityPickingOrderDetail
-    FILTERS pickingOrderPickingOrderDetail(d) == o
+    PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
+                   nameBatch, nameBin, quantity
+    FILTERS pickingOrder(d) == o
     DIALOG PickingOrder OBJECT o
 ;
 
@@ -239,7 +239,7 @@ DESIGN pickingOrders {
                 type = CONTAINERH;
                 NEW createdContainer {
                     caption = 'Создание на основе';
-                    MOVE PROPERTY(copyPickingOrder(o)) { caption = 'Заказ на комплектацию';}
+                    MOVE PROPERTY(copy(o)) { caption = 'Заказ на комплектацию';}
                 }
             }
         }

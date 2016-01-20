@@ -31,20 +31,20 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
         DataObject receiptDetailObject = context.getDataKeyValue(receiptDetailInterface);
 
         try {
-            ObjectValue receiptObject = findProperty("receiptReceiptDetail").readClasses(session, receiptDetailObject);
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(session, receiptDetailObject);
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister").read(context);
-                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister").read(context);
+                Integer comPortBoard = (Integer) findProperty("comPortBoardCurrentCashRegister[]").read(context);
+                Integer baudRateBoard = (Integer) findProperty("baudRateBoardCurrentCashRegister[]").read(context);
 
-                String name = (String) findProperty("boardNameSkuReceiptDetail").read(session, receiptDetailObject);
-                name = trim(name == null ? (String) findProperty("nameSkuReceiptDetail").read(session, receiptDetailObject) : name);
+                String name = (String) findProperty("boardNameSku[ReceiptDetail]").read(session, receiptDetailObject);
+                name = trim(name == null ? (String) findProperty("nameSku[ReceiptDetail]").read(session, receiptDetailObject) : name);
                 name = name == null ? "" : name;
-                BigDecimal quantityValue = (BigDecimal) findProperty("quantityReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal priceValue = (BigDecimal) findProperty("priceReceiptDetail").read(session, receiptDetailObject);
+                BigDecimal priceValue = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
                 long price = priceValue == null ? 0 : priceValue.longValue();
-                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetailReceipt").read(session, (DataObject) receiptObject);
+                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
                 long sum = sumValue == null ? 0 : sumValue.longValue();
 
                 String[] lines = generateText(price, quantity, sum, name, 20);

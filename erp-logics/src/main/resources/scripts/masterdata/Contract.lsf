@@ -10,82 +10,82 @@ TABLE contractDate (Contract, DATE);
 
 GROUP contract 'Реквизиты' : recognize;
 
-idContract 'Код' = ABSTRACT VARSTRING[100] (Contract) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15 PERSISTENT ;
+id 'Код' = ABSTRACT VARSTRING[100] (Contract) IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15 PERSISTENT ;
 
 @defineDocumentAbstractHeaderNumber(Contract);
 
-wordContract 'Файл договора'  = ABSTRACT WORDFILE (Contract);
-saveWordContract 'Загрузить файл договора' (contract) = ACTION LOADFILE wordContract(contract);
-openWordContract 'Просмотреть файл договора' (contract) = ACTION OPENFILE wordContract(contract);
+word 'Файл договора'  = ABSTRACT WORDFILE (Contract);
+saveWord 'Загрузить файл договора' (Contract contract) = ACTION LOADFILE word(contract);
+openWord 'Просмотреть файл договора' (Contract contract) = ACTION OPENFILE word(contract);
 
 
 //numberContract 'Номер договора' = DATA STRING[30] (Contract) IN contract;
-dateFromContract 'Действует (с)' = DATA DATE (Contract) IN contract;
-dateToContract 'Действует (по)' = DATA DATE (Contract) IN contract;
-activeContract 'Действуюший' (contract, date) =
-    dateFromContract(contract) <= date AND NOT dateToContract(contract) < date;
+dateFrom 'Действует (с)' = DATA DATE (Contract) IN contract;
+dateTo 'Действует (по)' = DATA DATE (Contract) IN contract;
+active 'Действуюший' (Contract contract, DATE date) =
+    dateFrom(contract) <= date AND NOT dateTo(contract) < date;
 
-descriptionContract 'Описание' (contract) = CONCAT '', seriesNumberContract(contract),
-                                                       ' от '+ toDateDDMMYYYY(dateFromContract(contract));
+description 'Описание' (Contract contract) = CONCAT '', seriesNumber(contract),
+                                                       ' от '+ toDateDDMMYYYY(dateFrom(contract));
 
 GROUP party 'Контрагенты' : recognize;
 
-partyAContract = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
-namePartyAContract 'Организация (поставщик)' (contract) = nameLegalEntity(partyAContract(contract)) IN party;
+partyA = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
+namePartyA 'Организация (поставщик)' (Contract contract) = name(partyA(contract)) IN party;
 
-partyBContract = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
-namePartyBContract 'Организация (покупатель)' (contract) = nameLegalEntity(partyBContract(contract)) IN party;
+partyB = ABSTRACT LegalEntity (Contract) PERSISTENT INDEXED;
+namePartyB 'Организация (покупатель)' (Contract contract) = name(partyB(contract)) IN party;
 
-countContractPartyAPartyB 'Кол-во договоров' (partyA, partyB) =
-    GROUP SUM 1 IF partyAContract(contract) == partyA AND partyBContract(contract) == partyB BY partyA, partyB;
+countContract 'Кол-во договоров' (partyA, partyB) =
+    GROUP SUM 1 IF partyA(Contract contract) == LegalEntity partyA AND partyB(contract) == LegalEntity partyB BY partyA, partyB;
 
 TABLE stockContract (Stock, Contract);
 
-inPartyAStockContract 'Вкл.'  = ABSTRACT BOOLEAN (Stock, Contract) PERSISTENT INDEXED;
-inPartyBStockContract 'Вкл.' = ABSTRACT BOOLEAN (Stock, Contract) PERSISTENT INDEXED;
+inPartyA 'Вкл.'  = ABSTRACT BOOLEAN (Stock, Contract) PERSISTENT INDEXED;
+inPartyB 'Вкл.' = ABSTRACT BOOLEAN (Stock, Contract) PERSISTENT INDEXED;
 
-namePartyAStocksContract 'Склады поставщика' (contract) = GROUP CONCAT nameStock(stock) IF inPartyAStockContract(stock, contract) , ', '
+namePartyAStocks 'Склады поставщика' (contract) = GROUP CONCAT name(Stock stock) IF inPartyA(stock, Contract contract) , ', '
                                                  BY contract
                                                  ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
-namePartyBStocksContract 'Склады покупателя' (contract) = GROUP CONCAT nameStock(stock) IF inPartyBStockContract(stock, contract) , ', '
+namePartyBStocks 'Склады покупателя' (contract) = GROUP CONCAT name(Stock stock) IF inPartyB(stock, Contract contract) , ', '
                                                  BY contract
                                                  ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-countContractPartyAStockAPartyBStockB 'Кол-во договоров' (partyA, stockA, partyB, stockB) =
-    GROUP SUM 1 IF inPartyAStockContract(stockA, contract) AND inPartyBStockContract(stockB, contract) BY partyAContract(contract), stockA, partyBContract(contract), stockB;
+countContract 'Кол-во договоров' (partyA, stockA, partyB, stockB) =
+    GROUP SUM 1 IF inPartyA(Stock stockA, Contract contract) AND inPartyB(Stock stockB, contract) BY partyA(contract), stockA, partyB(contract), stockB;
 
 GROUP payment 'Оплата' : public;
 
 //договор по умолчанию
-isDefaultContract 'По умолчанию' = ABSTRACT BOOLEAN (Contract) IN party;
+isDefault 'По умолчанию' = ABSTRACT BOOLEAN (Contract) IN party;
   
 // Валюты
-currencyContract = DATA Currency (Contract);
-nameCurrencyContract 'Валюта взаиморасчетов' (contract) = nameCurrency(currencyContract(contract)) IN payment;
-shortNameCurrencyContract 'Валюта взаиморасчетов' (contract) = shortNameCurrency(currencyContract(contract)) IN payment;
-symbolCurrencyContract 'Символ' (contract) = symbolCurrency(currencyContract(contract)) IN payment;
+currency = DATA Currency (Contract);
+nameCurrency 'Валюта взаиморасчетов' (Contract contract) = name(currency(contract)) IN payment;
+shortNameCurrency 'Валюта взаиморасчетов' (Contract contract) = shortName(currency(contract)) IN payment;
+symbolCurrency 'Символ' (Contract contract) = symbol(currency(contract)) IN payment;
 
-typeExchangeContract (contract) = DATA TypeExchange (Contract);
-nameTypeExchangeContract 'Тип обмена' (contract) = nameTypeExchange(typeExchangeContract(contract)) IN payment;
+typeExchange (contract) = DATA TypeExchange (Contract);
+nameTypeExchange 'Тип обмена' (Contract contract) = name(typeExchange(contract)) IN payment;
 
-CONSTRAINT currencyContract(contract) != currencyTypeExchange(typeExchangeContract(contract))
-    CHECKED BY typeExchangeContract MESSAGE 'Валюта типа обмена должна соответствовать валюте договора';
+CONSTRAINT currency(Contract contract) != currency(typeExchange(contract))
+    CHECKED BY typeExchange[Contract] MESSAGE 'Валюта типа обмена должна соответствовать валюте договора';
 
 // Условия оплаты
-paymentConditionContract 'Условия оплаты' =  DATA PaymentCondition (Contract);
-typePaymentContract 'Тип оплаты' (contract) = typePaymentCondition(paymentConditionContract(contract));
-descriptionPaymentConditionContract 'Условия оплаты' (contract) = descriptionPaymentCondition(paymentConditionContract(contract)) IN payment;
+paymentCondition 'Условия оплаты' =  DATA PaymentCondition (Contract);
+typePayment 'Тип оплаты' (Contract contract) = type(paymentCondition(contract));
+descriptionPaymentCondition 'Условия оплаты' (Contract contract) = description(paymentCondition(contract)) IN payment;
 
-noteContract 'Примечание' = DATA VARSTRING[100] (Contract) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+note 'Примечание' = DATA VARSTRING[100] (Contract) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-editContract 'Редактировать' (contract) = ABSTRACT ACTION LIST (Contract) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' (contract) = ABSTRACT ACTION LIST (Contract) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM contracts 'Договоры'
     OBJECTS c = Contract
-    PROPERTIES(c) READONLY namePartyAContract, namePartyAStocksContract, namePartyBContract, namePartyBStocksContract, 
-                           seriesNumberContract, dateFromContract, dateToContract, isDefaultContract, nameCurrencyContract, 
-                           nameTypeExchangeContract, descriptionPaymentConditionContract, noteContract
-    PROPERTIES(c) editContract, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(c) READONLY namePartyA, namePartyAStocks, namePartyB, namePartyBStocks, 
+                           seriesNumber, dateFrom, dateTo, isDefault, nameCurrency, 
+                           nameTypeExchange, descriptionPaymentCondition, note
+    PROPERTIES(c) edit, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Contract OBJECT c
 ;
@@ -99,10 +99,10 @@ DESIGN options {
 }
 
 contractSupplier= DATA LOCAL LegalEntity();
-nameContractSupplier 'Поставщик' = nameLegalEntity(contractSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+nameContractSupplier 'Поставщик' = name(contractSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 contractCustomer= DATA LOCAL LegalEntity();
-nameContractCustomer 'Покупатель' = nameLegalEntity(contractCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+nameContractCustomer 'Покупатель' = name(contractCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 FORM contractDialog 'Договоры'
     OBJECTS dt = DATE FIXED PANEL 
@@ -110,13 +110,13 @@ FORM contractDialog 'Договоры'
     PROPERTIES nameContractSupplier(), nameContractCustomer() 
     
     OBJECTS c = Contract
-    PROPERTIES(c) READONLY namePartyAContract, namePartyAStocksContract, namePartyBContract, namePartyBStocksContract, 
-                           seriesNumberContract, dateFromContract, dateToContract, isDefaultContract, nameCurrencyContract, 
-                           nameTypeExchangeContract, descriptionPaymentConditionContract, noteContract
-    FILTERS partyAContract(c) == contractSupplier() OR c IS Contract AND NOT contractSupplier(),
-            partyBContract(c) == contractCustomer() OR c IS Contract AND NOT contractCustomer()
+    PROPERTIES(c) READONLY namePartyA, namePartyAStocks, namePartyB, namePartyBStocks, 
+                           seriesNumber, dateFrom, dateTo, isDefault, nameCurrency, 
+                           nameTypeExchange, descriptionPaymentCondition, note
+    FILTERS partyA(c) == contractSupplier() OR c IS Contract AND NOT contractSupplier(),
+            partyB(c) == contractCustomer() OR c IS Contract AND NOT contractCustomer()
     FILTERGROUP active 
-        FILTER 'Активные' dateFromContract(c) <= dt AND NOT dateToContract(c) < dt 'F5' DEFAULT      
+        FILTER 'Активные' dateFrom(c) <= dt AND NOT dateTo(c) < dt 'F5' DEFAULT      
 ;
 DESIGN contractDialog {
     main {
@@ -145,50 +145,50 @@ END
 
 META defineContractDefault (contract, contractClass, partyAClass, stockAClass, partyBClass, stockBClass, prefixA, prefixB)
 
-    isDataDefault###contract 'По умолчанию' = DATA BOOLEAN (###contract);
-    isDefaultContract(contract) += isDataDefault###contract(contract);
+    isDataDefault 'По умолчанию' = DATA BOOLEAN (###contract);
+    isDefault(###contract contract) += isDataDefault(contract);
     
-    count###contract###prefixA###prefixB###date (pA, pB, dateIn)= GROUP SUM 1 
-        IF dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), prefixB###contract(contract), dateIn;
+    count###contract###prefixA###prefixB (pA, pB, dateIn)= GROUP SUM 1 
+        IF dateFrom(###contract contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), prefixB(contract), dateIn;
 
-    single###contract###prefixA###prefixB###Date (pA, pB, dateIn) = GROUP MAX (contract) 
-        IF dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), prefixB###contract(contract), dateIn;
+    single###contract###prefixA###prefixB (pA, pB, dateIn) = GROUP MAX (###contract contract) 
+        IF dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), prefixB(contract), dateIn;
 
-    default###contract###prefixA###prefixB###Date (pA, pB, dateIn) = GROUP MAX (contract) IF isDataDefault###contract(contract) 
-        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), prefixB###contract(contract), dateIn;
+    default###contract###prefixA###prefixB (pA, pB, dateIn) = GROUP MAX (###contract contract) IF isDataDefault(contract) 
+        AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), prefixB(contract), dateIn;
         
-    default###contract###prefixA###stock###prefixB###stock###date (pA, sA, pB, sB, dateIn) = GROUP MAX (contract) 
-        IF inSupplierStockContractSku(sA,contract) AND inCustomerStockContractSku(sB,contract)
-        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), sA, prefixB###contract(contract), sB, dateIn;
+    default###contract###prefixA###prefixB (pA, sA, pB, sB, dateIn) = GROUP MAX (###contract contract) 
+        IF in###prefixA(stockAClass sA,contract) AND in###prefixB(stockAClass sB,contract)
+        AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), sA, prefixB(contract), sB, dateIn;
             
-    default###contract###prefixA###stock###date (pA, sA, dateIn) = GROUP MAX (contract) 
-        IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), sA, dateIn;      
+    default###contract###prefixA (pA, sA, dateIn) = GROUP MAX (###contract contract) 
+        IF in###prefixA(stockAClass sA,contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), sA, dateIn;      
                   
-    count###contract###prefixA###stock###date (pA, sA, dateIn) = GROUP SUM 1 
-        IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), sA, dateIn;  
+    count###contract###prefixA (pA, sA, dateIn) = GROUP SUM 1 
+        IF in###prefixA(stockAClass sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), sA, dateIn;  
                                 
-    default###contract###prefixA###stock###prefixB###date (pA, sA, pB, dateIn) = GROUP MAX (contract) 
-        IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), sA, prefixB###contract(contract), dateIn;      
+    default###contract###prefixA###prefixB (pA, sA, pB, dateIn) = GROUP MAX (###contract contract) 
+        IF in###prefixA(stockAClass sA,contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), sA, prefixB(contract), dateIn;      
                   
-    count###contract###prefixA###stock###prefixB###date (pA, sA, pB, dateIn) = GROUP SUM 1 
-        IF inSupplierStockContractSku(sA,contract) //AND inCustomerStockContractSku(sB,contract)
-        AND dateFromContract(contract) <= dateIn AND NOT dateToContract(contract) < dateIn
-            BY prefixA###contract(contract), sA, prefixB###contract(contract), dateIn;
+    count###contract###prefixA###prefixB (pA, sA, pB, dateIn) = GROUP SUM 1 
+        IF in###prefixA(stockAClass sA,###contract contract) //AND inCustomerStockContractSku(sB,contract)
+        AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
+            BY prefixA(contract), sA, prefixB(contract), dateIn;
             
-    defaultContractSkuSupplierCustomerStockDate (pA, sB, dateIn) = GROUP MAX (contractSku) 
-        IF inCustomerStockContractSku(sB,contract)
-        AND dateFromContract(contractSku) <= dateIn AND NOT dateToContract(contractSku) < dateIn
-            BY supplierContractSku(contractSku), sB, dateIn;    
+    default###contract###prefixA###prefixB (pA, sB, dateIn) = GROUP MAX (###contract contractSku) 
+        IF in###prefixB(stockAClass sB,contract)
+        AND dateFrom(contractSku) <= DATE dateIn AND NOT dateTo(contractSku) < dateIn
+            BY prefixA(contractSku), sB, dateIn;    
                   
 END
 
@@ -201,36 +201,36 @@ META defineDocumentContract (objectClass, contractType, prefixA, prefixB, defaul
 END
 
 META defineDocumentContract (objectClass, contractType, contractTypeClass, prefixA, prefixB, defaultContractProp, partyAMessage, partyBMessage, caption, NS)
-    contractType##objectClass = DATA contractTypeClass (objectClass);
-    number###contractType##objectClass 'Договор (номер)' (o) = numberContract(contractType##objectClass(o)) IN documentPrm;
-    seriesNumber###contractType##objectClass 'Договор (серия/номер)' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrm;
-    dateFrom###contractType##objectClass 'Дата договора' (o) = dateFromContract(contractType##objectClass(o)) IN documentPrm;
+    contractType = DATA contractTypeClass (objectClass);
+    number###contractType 'Договор (номер)' (objectClass o) = number[Contract](contractType(o)) IN documentPrm;
+    seriesNumber###contractType 'Договор (серия/номер)' (objectClass o) = seriesNumber[Contract](contractType(o)) IN documentPrm;
+    dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
 
-    description###contractType##objectClass 'Описание договора' (o)= CONCAT ' ', seriesNumber###contractType##objectClass(o), ' от ' + dateFrom###contractType##objectClass(o);
+    description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + dateFrom###contractType(o);
 
-    isCommission###objectClass 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
-    isCommission###objectClass(o) <- typeContractSku(contractType###objectClass(o)) == ContractSkuType.commission
-        WHEN CHANGED(contractType##objectClass(o));
+    isCommission 'Продажа на комиссию' = DATA BOOLEAN (objectClass) IN documentPrm;
+    isCommission(objectClass o) <- type(contractType(o)) == ContractSkuType.commission
+        WHEN CHANGED(contractType(o));
 
-    skipSet###contractType##objectClass = ABSTRACT BOOLEAN (###objectClass);
-    WHEN SESSION (CHANGED(prefixA##objectClass(o)) OR CHANGED(prefixB###objectClass(o)) OR CHANGED(prefixA###stock###objectClass(o))
-                OR CHANGED(prefixB###stock###objectClass(o)) OR CHANGED(date###objectClass(o))) AND NOT CHANGED(contractType##objectClass(o)) AND NOT skipSet###contractType##objectClass(o) DO {
+    skipSet###contractType = ABSTRACT BOOLEAN (###objectClass);
+    WHEN SESSION (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
+                OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) DO {
                 
-        contractType##objectClass(o) <- OVERRIDE single###contractType###prefixA###prefixB###date(prefixA##objectClass(o), prefixB##objectClass(o), date###objectClass(o)) IF count###contractType###prefixA###prefixB###date(prefixA##objectClass(o), prefixB##objectClass(o), date###objectClass(o)) == 1,
-                                                 default###contractType###prefixA###prefixB###date(prefixA##objectClass(o), prefixB##objectClass(o), date###objectClass(o)),
-                                                 default###contractType###prefixA###stock###prefixB###stock###date(prefixA##objectClass(o), prefixA###stock###objectClass(o), prefixB##objectClass(o), prefixB###stock###objectClass(o), date###objectClass(o)); 
+        contractType(o) <- OVERRIDE single###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) IF count###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) == 1,
+                                                 defaultContractProp(prefixA(o), prefixB(o), date(o)),
+                                                 defaultContractProp(prefixA(o), prefixA##Stock(o), prefixB(o), prefixB##Stock(o), date(o)); 
     }
 
-    CONSTRAINT contractType##objectClass(o) AND NOT prefixA##objectClass(o) == partyAContract(contractType##objectClass(o))
-        CHECKED BY contractType##objectClass MESSAGE partyAMessage;
+    CONSTRAINT contractType(objectClass o) AND NOT prefixA(o) == partyA(contractType(o))
+        CHECKED BY contractType[objectClass] MESSAGE partyAMessage;
 
-    CONSTRAINT contractType##objectClass(o) AND NOT prefixB##objectClass(o) == partyBContract(contractType##objectClass(o))
-        CHECKED BY contractType##objectClass MESSAGE partyBMessage;
+    CONSTRAINT contractType(objectClass o) AND NOT prefixB(o) == partyB(contractType(o))
+        CHECKED BY contractType[objectClass] MESSAGE partyBMessage;
     
     dateFromConstraintContract##objectClass 'Дата начала контроля сроков договора '##caption = DATA DATE ();  
     
     EXTEND FORM options 
-        PROPERTIES NS###dateFromConstraintContract##objectClass = NS.dateFromConstraintContract##objectClass()    
+        PROPERTIES NS###dateFromConstraintContract##objectClass = dateFromConstraintContract##objectClass()    
     ;
         
     DESIGN options {
@@ -239,16 +239,16 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
         }
     }      
         
-    CONSTRAINT contractType##objectClass(o) AND NOT (dateFromContract(contractType##objectClass(o)) <= date###objectClass(o) 
-               AND NOT (dateToContract(contractType##objectClass(o)) < date###objectClass(o))) AND NOT (dateFromConstraintContract##objectClass() > date###objectClass(o))
-               CHECKED BY contractType##objectClass
+    CONSTRAINT contractType(objectClass o) AND NOT (dateFrom(contractType(o)) <= date(o) 
+               AND NOT (dateTo(contractType(o)) < date(o))) AND NOT (dateFromConstraintContract##objectClass() > date(o))
+               CHECKED BY contractType[objectClass]
                MESSAGE 'Договор просрочен или еще не действует';
                   
-    CONSTRAINT contractType##objectClass(o) AND count###prefixA##sStock###contractType(contractType##objectClass(o)) AND NOT in###prefixA###stock###contractType(prefixA###stock##objectClass(o),contractType##objectClass(o))
-        CHECKED BY contractType##objectClass MESSAGE 'Для документа выбран склад поставщика, который не включен в договор';        
+    CONSTRAINT contractType(objectClass o) AND count###prefixA##sStock(contractType(o)) AND NOT in###prefixA(prefixA##Stock(o),contractType(o))
+        CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад поставщика, который не включен в договор';        
                   
-    CONSTRAINT contractType##objectClass(o) AND count###prefixB##sStock###contractType(contractType##objectClass(o)) AND NOT in###prefixB###stock###contractType(prefixB###stock##objectClass(o),contractType##objectClass(o))
-        CHECKED BY contractType##objectClass MESSAGE 'Для документа выбран склад покупателя, который не включен в договор';                    
+    CONSTRAINT contractType(objectClass o) AND count###prefixB##sStock(contractType(o)) AND NOT in###prefixB(prefixB##Stock(o),contractType(o))
+        CHECKED BY contractType[objectClass] MESSAGE 'Для документа выбран склад покупателя, который не включен в договор';                    
                   
 END
 
@@ -257,17 +257,17 @@ META defineDocumentAbstractContract (objectClass, contractType)
 END
 
 META defineDocumentAbstractContract (objectClass, contractType, contractTypeClass)
-    contractType##objectClass = ABSTRACT contractTypeClass (objectClass) PERSISTENT INDEXED;
-    seriesNumber###contractType##objectClass 'Номер договора' (o) = seriesNumberContract(contractType##objectClass(o)) IN documentPrm;
-    dateFrom###contractType##objectClass 'Дата договора' (o) = dateFromContract(contractType##objectClass(o)) IN documentPrm;
+    contractType = ABSTRACT contractTypeClass (objectClass) PERSISTENT INDEXED;
+    seriesNumber###contractType 'Номер договора' (objectClass o) = seriesNumber[Contract](contractType(o)) IN documentPrm;
+    dateFrom###contractType 'Дата договора' (objectClass o) = dateFrom(contractType(o)) IN documentPrm;
     
-    description###contractType##objectClass 'Описание договора' (o)= CONCAT ' ', seriesNumber###contractType##objectClass(o), ' от ' + dateFrom###contractType##objectClass(o);
+    description###contractType 'Описание договора' (objectClass o)= CONCAT ' ', seriesNumber###contractType(o), ' от ' + dateFrom###contractType(o);
 
-    isCommission##objectClass 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) PERSISTENT IN documentPrm;
+    isCommission 'Продажа на комиссию' = ABSTRACT BOOLEAN (objectClass) PERSISTENT IN documentPrm;
 END
 META defineDocumentInterfaceContract (objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS)
     @defineDocumentAbstractContract(objectClass, contractType);
     @defineDocumentContract(User###objectClass, contractType, prefixA, prefixB, partyAMessage, partyBMessage, caption, NS);
-    contractType###objectClass(o) += contractType###user###objectClass(o);
-    isCommission###objectClass(o) += isCommissionUser###objectClass(o);
+    contractType(User##objectClass o) += contractType(o);
+    isCommission(User##objectClass o) += isCommission(o);
 END

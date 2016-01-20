@@ -7,77 +7,77 @@ REQUIRE System, Utils, DefaultData, Stock, Sku;
 CLASS RoundCondition 'Условие округления';
 TABLE roundCondition (RoundCondition);
 
-nameRoundCondition 'Наименование' = DATA VARISTRING[50](RoundCondition);
+name 'Наименование' = DATA VARISTRING[50](RoundCondition);
 
-currencyRoundCondition = DATA Currency(RoundCondition) NOT NULL DELETE;
-nameCurrencyRoundCondition 'Валюта' (roundCondition)= nameCurrency(currencyRoundCondition(roundCondition));
+currency = DATA Currency(RoundCondition) NOT NULL DELETE;
+nameCurrency 'Валюта' (RoundCondition roundCondition)= name(currency(roundCondition));
 
-denominatorPriceRoundCondition 'Делитель' =  DATA NUMERIC[14,2](RoundCondition);
-minPriceRoundCondition 'Нижний порог' =  DATA NUMERIC[14,2](RoundCondition);
-priceRoundRoundCondition 'Количество знаков после запятой' (roundCondition)=  DATA INTEGER (RoundCondition);
+denominatorPrice 'Делитель' =  DATA NUMERIC[14,2](RoundCondition);
+minPrice 'Нижний порог' =  DATA NUMERIC[14,2](RoundCondition);
+priceRound 'Количество знаков после запятой' (roundCondition)=  DATA INTEGER (RoundCondition);
 
-defaultRoundConditionCurrency = DATA RoundCondition(Currency);
-defaultRoundCurrency 'Округление' (currency) = priceRoundRoundCondition(defaultRoundConditionCurrency(currency)) PERSISTENT;
-isDefaultRoundConditionCurrency 'По умолчанию' (roundCondition, currency) = defaultRoundConditionCurrency(currency) == roundCondition;
+defaultRoundCondition = DATA RoundCondition(Currency);
+defaultRound 'Округление' (Currency currency) = priceRound(defaultRoundCondition(currency)) PERSISTENT;
+isDefault 'По умолчанию' (RoundCondition roundCondition, Currency currency) = defaultRoundCondition(currency) == roundCondition;
 
-priceRoundCurrency 'Округление по умолчанию' (currency) = priceRoundRoundCondition(defaultRoundConditionCurrency(currency)) PERSISTENT;
+priceRound 'Округление по умолчанию' (Currency currency) = priceRound(defaultRoundCondition(currency)) PERSISTENT;
 
 CLASS PriceInterval 'Диапазон цен';
 TABLE priceInterval (PriceInterval);
 
-roundConditionPriceInterval = DATA RoundCondition(PriceInterval) NOT NULL DELETE;
+roundCondition = DATA RoundCondition(PriceInterval) NOT NULL DELETE;
 
-fromPriceInterval 'от' = DATA NUMERIC[14,3](PriceInterval) IN base;
-toPriceInterval 'до' = DATA NUMERIC[14,3](PriceInterval) IN base;
-modifierPriceInterval 'Округлённая цена интервала' = DATA NUMERIC[14,2](PriceInterval) IN base;
+from 'от' = DATA NUMERIC[14,3](PriceInterval) IN base;
+to 'до' = DATA NUMERIC[14,3](PriceInterval) IN base;
+modifier 'Округлённая цена интервала' = DATA NUMERIC[14,2](PriceInterval) IN base;
 
-integerPriceRoundCondition 'Целое' (price, roundCondition) = divideInteger(price, denominatorPriceRoundCondition(roundCondition));
+integer 'Целое' (price, RoundCondition roundCondition) = divideInteger(price, denominatorPrice(roundCondition));
 
-fractionPriceRoundCondition 'Дробное' (price, roundCondition) = price -
-    integerPriceRoundCondition(price, roundCondition) * denominatorPriceRoundCondition(roundCondition);
+fraction 'Дробное' (price, RoundCondition roundCondition) = price -
+    integer(price, roundCondition) * denominatorPrice(roundCondition);
 
-modifierPriceIntervalPriceRoundCondition (price, roundCondition) =
-    GROUP LAST modifierPriceInterval(interval)
-          BY price AS NUMERIC[14,3], roundConditionPriceInterval(interval)
+modifierPriceInterval (price, roundCondition) =
+    GROUP LAST modifier(PriceInterval interval)
+          BY NUMERIC[14,3] price AS NUMERIC[14,3], roundCondition(interval)
           ORDER interval
-          WHERE fractionPriceRoundCondition(price, roundConditionPriceInterval(interval)) >= fromPriceInterval(interval) AND
-                fractionPriceRoundCondition(price, roundConditionPriceInterval(interval)) < toPriceInterval(interval);
+          WHERE fraction(price, roundCondition(interval)) >= from(interval) AND
+                fraction(price, roundCondition(interval)) < to(interval);
 
 
-roundPriceRoundCondition (price, roundCondition) = NUMERIC[14,2](
-    IF (price AS NUMERIC[14,2]) > minPriceRoundCondition(roundCondition) AND modifierPriceIntervalPriceRoundCondition(price, roundCondition)
+round (NUMERIC[14,2] price, RoundCondition roundCondition) = NUMERIC[14,2](
+    IF (price AS NUMERIC[14,2]) > minPrice(roundCondition) AND modifierPriceInterval(price, roundCondition)
         THEN
-            integerPriceRoundCondition(price, roundCondition) * denominatorPriceRoundCondition(roundCondition) +
-            modifierPriceIntervalPriceRoundCondition(price, roundCondition)
+            integer(price, roundCondition) * denominatorPrice(roundCondition) +
+            modifierPriceInterval(price, roundCondition)
         ELSE
-            round(price AS NUMERIC[14,2], priceRoundRoundCondition(roundCondition))
+            Utils.round(price AS NUMERIC[14,2], priceRound(roundCondition))
     ) COMPLEX; // для COMPLEX
 
-roundPriceCurrency(price, currency) = round(price, defaultRoundCurrency(currency));
+round(price, Currency currency) = Utils.round(price, defaultRound(currency));
 
 FORM priceIntervals 'Округления цен'
 
     OBJECTS c=Currency FIXED PANEL
-    PROPERTIES (c)  SELECTOR nameCurrency
+    PROPERTIES (c)  SELECTOR name
 
     OBJECTS rc=RoundCondition
-    PROPERTIES(rc) nameRoundCondition, denominatorPriceRoundCondition, minPriceRoundCondition, priceRoundRoundCondition, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR
-    PROPERTIES(rc, c) isDefaultRoundConditionCurrency
+    PROPERTIES(rc) name, denominatorPrice, minPrice, priceRound, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR
+    PROPERTIES(rc, c) isDefault
     
     OBJECTS p=PriceInterval
-    PROPERTIES(p) fromPriceInterval, toPriceInterval, modifierPriceInterval, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR
+    PROPERTIES(p) from, to, modifier, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR
 
     OBJECTS nu=NUMERIC[14,3] FIXED PANEL
     PROPERTIES val = OBJVALUE(nu)
-    PROPERTIES(nu, rc) READONLY roundPriceRoundCondition
+    PROPERTIES(nu, rc) READONLY round
 
-    FILTERS currencyRoundCondition(rc) == c,
-            roundConditionPriceInterval(p) == rc
+    FILTERS currency(rc) == c,
+            roundCondition(p) == rc
 ;
 
 DESIGN priceIntervals {
     MOVE c.box {
-        PROPERTY (nameCurrency(c)) {
+        PROPERTY (name(c)) {
             preferredCharWidth = 30;
             panelCaptionAbove = TRUE;
             font = 'bold 24';
@@ -97,7 +97,7 @@ DESIGN priceIntervals {
                 panelCaptionAbove = TRUE;
                 font = 'bold 36';
             }
-            MOVE PROPERTY (roundPriceRoundCondition(nu, rc)) {
+            MOVE PROPERTY (round(nu, rc)) {
                 caption = 'Результат';
                 panelCaptionAbove = TRUE;
                 font = 'bold 36';
@@ -110,11 +110,11 @@ DESIGN priceIntervals {
 FORM dialogPriceIntervals 'Округления цен'
 
     OBJECTS rc=RoundCondition
-    PROPERTIES(rc) READONLY nameRoundCondition, denominatorPriceRoundCondition, minPriceRoundCondition, priceRoundRoundCondition, nameCurrencyRoundCondition
+    PROPERTIES(rc) READONLY name, denominatorPrice, minPrice, priceRound, nameCurrency
     OBJECTS p=PriceInterval
-    PROPERTIES(p) READONLY fromPriceInterval, toPriceInterval, modifierPriceInterval
+    PROPERTIES(p) READONLY from, to, modifier
 
-    FILTERS roundConditionPriceInterval(p) == rc
+    FILTERS roundCondition(p) == rc
 
     DIALOG RoundCondition OBJECT rc
 ;
@@ -126,14 +126,14 @@ DESIGN dialogPriceIntervals {
 
 // --------------------------------------------------- Стандартные значения ------------------------------------ //
 
-loadDefaultPriceInterval  = ACTION (value, shortName, name) {
+loadDefaultPriceInterval  = ACTION (INTEGER value, STRING[3] shortName, VARISTRING[50] name) {
     LOCAL currency = Currency();
     ASSIGN currency() <- currencyShortName(shortName);
     FOR ADDOBJ p = RoundCondition DO {
-        ASSIGN currencyRoundCondition(p) <- currency();
-        ASSIGN priceRoundRoundCondition(p)  <- value;
-        ASSIGN defaultRoundConditionCurrency(c) <- p WHERE c == currency();
-        ASSIGN nameRoundCondition(p) <- name;
+        ASSIGN currency(p) <- currency();
+        ASSIGN priceRound(p)  <- value;
+        ASSIGN defaultRoundCondition(Currency c) <- p WHERE c == currency();
+        ASSIGN name(p) <- name;
     }
 }
 
@@ -161,36 +161,36 @@ loadDefaultPriceIntervals 'Загрузить стандартные округ�
 //        }
 //    }
     FOR ADDOBJ p = RoundCondition DO {
-        ASSIGN currencyRoundCondition(p) <- currencyShortName('BLR');
-        ASSIGN minPriceRoundCondition(p) <- 50.0;
-        ASSIGN priceRoundRoundCondition(p) <- -2;
-        ASSIGN nameRoundCondition(p) <- 'До 100 рублей';
-        denominatorPriceRoundCondition(p) <- 100.0;
+        ASSIGN currency(p) <- currencyShortName('BLR');
+        ASSIGN minPrice(p) <- 50.0;
+        ASSIGN priceRound(p) <- -2;
+        ASSIGN name(p) <- 'До 100 рублей';
+        denominatorPrice(p) <- 100.0;
         FOR ADDOBJ i1 = PriceInterval DO {
-            roundConditionPriceInterval(i1) <- p;
-            modifierPriceInterval(i1) <- 0.0;
-            fromPriceInterval(i1) <- 0.0;
-            toPriceInterval(i1) <- 50.0;
+            roundCondition(i1) <- p;
+            modifier(i1) <- 0.0;
+            from(i1) <- 0.0;
+            to(i1) <- 50.0;
         }
         FOR ADDOBJ i2 = PriceInterval DO {
-            roundConditionPriceInterval(i2) <- p;
-            modifierPriceInterval(i2) <- 100.0;
-            fromPriceInterval(i2) <- 50.0;
-            toPriceInterval(i2) <- 100.0;
+            roundCondition(i2) <- p;
+            modifier(i2) <- 100.0;
+            from(i2) <- 50.0;
+            to(i2) <- 100.0;
         }
     }
     FOR ADDOBJ p = RoundCondition DO {
-        ASSIGN currencyRoundCondition(p) <- currencyShortName('BLR');
-        ASSIGN minPriceRoundCondition(p) <- 100.0;
-        ASSIGN priceRoundRoundCondition(p) <- 0;
-        ASSIGN nameRoundCondition(p) <- 'До 100 рублей (вниз)';
-        denominatorPriceRoundCondition(p) <- 100.0;
+        ASSIGN currency(p) <- currencyShortName('BLR');
+        ASSIGN minPrice(p) <- 100.0;
+        ASSIGN priceRound(p) <- 0;
+        ASSIGN name(p) <- 'До 100 рублей (вниз)';
+        denominatorPrice(p) <- 100.0;
 
         FOR ADDOBJ i1 = PriceInterval DO {
-            roundConditionPriceInterval(i1) <- p;
-            modifierPriceInterval(i1) <- 0.0;
-            fromPriceInterval(i1) <- 0.0;
-            toPriceInterval(i1) <- 100.0;
+            roundCondition(i1) <- p;
+            modifier(i1) <- 0.0;
+            from(i1) <- 0.0;
+            to(i1) <- 100.0;
         }
     }    
     EXEC loadDefaultPriceInterval(2, 'RUB', 'До копеек');

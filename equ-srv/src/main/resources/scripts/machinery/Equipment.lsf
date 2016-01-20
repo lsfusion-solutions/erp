@@ -9,25 +9,25 @@ NAMESPACE Machinery;
 CLASS EquipmentServer 'Сервер оборудования';
 TABLE equipmentServer (EquipmentServer);
 
-nameEquipmentServer 'Наименование' = DATA VARISTRING[50](EquipmentServer) IN recognize;
-startDateEquipmentServer 'Дата для обратной совместимости' = DATA DATE(EquipmentServer);
+name 'Наименование' = DATA VARISTRING[50](EquipmentServer) IN recognize;
+startDate 'Дата для обратной совместимости' = DATA DATE(EquipmentServer);
 
-sidEquipmentServer 'Идентификатор' = DATA VARSTRING[20] (EquipmentServer) IN recognize;
-sidToEquipmentServer(equipmentServer) = GROUP AGGR equipmentServer BY sidEquipmentServer (equipmentServer) WHERE equipmentServer IS EquipmentServer;
-delayEquipmentServer 'Период обновления (в миллисекундах)' = DATA INTEGER (EquipmentServer) IN base;
-numberAtATimeEquipmentServer 'Макс. кол-во строк чеков за раз' = DATA INTEGER (EquipmentServer) IN base;
-sendSalesDelayEquipmentServer 'Запуск приёма реализации каждые X раз' = DATA INTEGER (EquipmentServer) IN base;
+sid 'Идентификатор' = DATA VARSTRING[20] (EquipmentServer) IN recognize;
+sidTo(equipmentServer) = GROUP AGGR EquipmentServer equipmentServer BY sid (equipmentServer) WHERE equipmentServer IS EquipmentServer;
+delay 'Период обновления (в миллисекундах)' = DATA INTEGER (EquipmentServer) IN base;
+numberAtATime 'Макс. кол-во строк чеков за раз' = DATA INTEGER (EquipmentServer) IN base;
+sendSalesDelay 'Запуск приёма реализации каждые X раз' = DATA INTEGER (EquipmentServer) IN base;
  
 //---------------------------- Ошибки сервера оборудования ----------------------------//
 
 CLASS EquipmentServerError 'Ошибки';
 TABLE equipmentServerError (EquipmentServerError);
 
-dataEquipmentServerError 'Сообщение об ошибке' = DATA VARSTRING[200] (EquipmentServerError) IN base;
-erTraceEquipmentServerError 'След ошибки' = DATA TEXT (EquipmentServerError) IN base;
-dateEquipmentServerError 'Время возникновения' = DATA DATETIME (EquipmentServerError) IN base;
-toDateEquipmentServerError 'Дата возникновения' = DATE(dateEquipmentServerError(e));
-equipmentServerEquipmentServerError 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerError) IN base;
+data 'Сообщение об ошибке' = DATA VARSTRING[200] (EquipmentServerError) IN base;
+erTrace 'След ошибки' = DATA TEXT (EquipmentServerError) IN base;
+date 'Время возникновения' = DATA DATETIME (EquipmentServerError) IN base;
+toDate 'Дата возникновения' = DATE(date(EquipmentServerError e));
+equipmentServer 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerError) IN base;
 
 @defineLog (EquipmentServerError, 'ошибок сервера оборудования', log, toDate);
 
@@ -36,10 +36,10 @@ equipmentServerEquipmentServerError 'Сервер оборудования (ID)'
 CLASS EquipmentServerLog 'Лог';
 TABLE equipmentServerLog (EquipmentServerLog);
 
-dataEquipmentServerLog 'Сообщение' = DATA TEXT (EquipmentServerLog) IN base;
-dateEquipmentServerLog 'Время' = DATA DATETIME (EquipmentServerLog) IN base;
-toDateEquipmentServerLog 'Дата' = DATE(dateEquipmentServerLog(l));
-equipmentServerEquipmentServerLog 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerLog) IN base;
+data 'Сообщение' = DATA TEXT (EquipmentServerLog) IN base;
+date 'Время' = DATA DATETIME (EquipmentServerLog) IN base;
+toDate 'Дата' = DATE(date(EquipmentServerLog l));
+equipmentServer 'Сервер оборудования (ID)' = DATA EquipmentServer(EquipmentServerLog) IN base;
 
 @defineLog (EquipmentServerLog, 'сервера оборудования', log, toDate);
 
@@ -47,27 +47,27 @@ equipmentServerEquipmentServerLog 'Сервер оборудования (ID)' =
 
 FORM equipmentServer 'Сервер оборудования'
     OBJECTS es = EquipmentServer FIXED PANEL
-    PROPERTIES(es) nameEquipmentServer, startDateEquipmentServer, sidEquipmentServer, delayEquipmentServer, numberAtATimeEquipmentServer,
-                   sendSalesDelayEquipmentServer
+    PROPERTIES(es) name, startDate, sid, delay, numberAtATime,
+                   sendSalesDelay
     
     EDIT EquipmentServer OBJECT es
 ;
 
 FORM equipmentServers 'Серверы оборудования'
     OBJECTS es = EquipmentServer
-    PROPERTIES(es)  READONLY nameEquipmentServer, startDateEquipmentServer, sidEquipmentServer, delayEquipmentServer, numberAtATimeEquipmentServer,
-                             sendSalesDelayEquipmentServer
+    PROPERTIES(es)  READONLY name, startDate, sid, delay, numberAtATime,
+                             sendSalesDelay
     PROPERTIES(es)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS e = EquipmentServerError LAST 
-    PROPERTIES(e) READONLY dataEquipmentServerError, dateEquipmentServerError
-    PROPERTIES(e) READONLY FORCE PANEL erTraceEquipmentServerError
+    PROPERTIES(e) READONLY data, date
+    PROPERTIES(e) READONLY FORCE PANEL erTrace
 
     OBJECTS l = EquipmentServerLog LAST 
-    PROPERTIES(l) READONLY dataEquipmentServerLog, dateEquipmentServerLog
+    PROPERTIES(l) READONLY data, date
 
-    FILTERS equipmentServerEquipmentServerError (e) == es
-    FILTERS equipmentServerEquipmentServerLog (l) == es
+    FILTERS equipmentServer (e) == es
+    FILTERS equipmentServer (l) == es
 ;
 
 DESIGN equipmentServers {
@@ -85,13 +85,13 @@ DESIGN equipmentServers {
                     fill = 1;
                     caption = 'Ошибки';
                     MOVE e.box;
-                    MOVE PROPERTY(erTraceEquipmentServerError(e)) {
+                    MOVE PROPERTY(erTrace(e)) {
                         fill = 1;
                         panelCaptionAbove = TRUE;
                     }
                 }
                 MOVE l.box {
-                   PROPERTY(dataEquipmentServerLog(l)) {preferredSize = (-1, 75);
+                   PROPERTY(data(l)) {preferredSize = (-1, 75);
                    } 
                 };
             }
@@ -108,14 +108,14 @@ NAVIGATOR {
 
 // ------------------ Ссылка на сервер оборудования для группы оборудования --------------- //
 
-equipmentServerGroupMachinery = DATA EquipmentServer (GroupMachinery);
-nameEquipmentServerGroupMachinery 'Сервер оборудования' (groupMachinery) = nameEquipmentServer(equipmentServerGroupMachinery(groupMachinery));
-sidEquipmentServerGroupMachinery 'ИД сервера оборудования' (groupMachinery) = sidEquipmentServer(equipmentServerGroupMachinery(groupMachinery));
+equipmentServer = DATA EquipmentServer (GroupMachinery);
+nameEquipmentServer 'Сервер оборудования' (GroupMachinery groupMachinery) = name(equipmentServer(groupMachinery));
+sidEquipmentServer 'ИД сервера оборудования' (GroupMachinery groupMachinery) = sid(equipmentServer(groupMachinery));
 
 // ------------------ Подключение к загрузке прайса в оборудование ------------------- //
 
-equipmentServerMachineryPriceTransaction (transaction) = equipmentServerGroupMachinery(groupMachineryMachineryPriceTransaction(transaction));
-sidEquipmentServerMachineryPriceTransaction (transaction) = sidEquipmentServer(equipmentServerMachineryPriceTransaction (transaction));
+equipmentServer (MachineryPriceTransaction transaction) = equipmentServer(groupMachinery(transaction));
+sidEquipmentServer (MachineryPriceTransaction transaction) = sid(equipmentServer (transaction));
 
-cashRegisterNppEquipmentServer (npp, equipmentServer) = GROUP NAGGR cashRegister BY nppMachinery (cashRegister), sidEquipmentServer(equipmentServerGroupMachinery(groupMachineryMachinery(cashRegister))); 
+cashRegister (npp, equipmentServer) = GROUP NAGGR Machinery cashRegister BY npp (cashRegister), sid(equipmentServer(groupMachinery(cashRegister))); 
 

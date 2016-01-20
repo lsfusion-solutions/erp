@@ -11,20 +11,20 @@ FORM selectDepartmentStore 'Выбор отделов магазина для п
     OBJECTS p = PriceList FIXED PANEL 
     
     OBJECTS d = DepartmentStore 
-    PROPERTIES READONLY idStock(d) SHOWIF showIDs(), nameDepartmentStore(d) 
-    FILTERS inPriceListStock(p,d)
+    PROPERTIES READONLY id[Stock](d) SHOWIF showIDs(), name(d) 
+    FILTERS in(p,d)
     FILTERGROUP inactiveStock 
-        FILTER 'Активный' activeStock(d) 'F10' DEFAULT    
+        FILTER 'Активный' active(d) 'F10' DEFAULT    
 ;
 
-createPriceListLabelPriceTransaction 'Распечатать ценники' = ACTION (priceList) NEWSESSION {
+createPriceListLabel 'Распечатать ценники' = ACTION (PriceTransactionDocument priceList) NEWSESSION {
     FORM selectDepartmentStore OBJECTS p = priceList DIALOG;
     IF formResult() == FormResult.ok THEN {
-        selectSkuLabelTypeDepartmentStore(sku, labelType, department) <- countPriceListDetailSkuPriceList(sku,priceList) AND inLabelTypeSkuDepartmentStore(labelType, sku, chosenObject('d')) AND department == chosenObject('d');   
+        select(Sku sku, LabelType labelType, DepartmentStore department) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, chosenObject('d')) AND department == chosenObject('d');   
     
-        createLabelTransactionDepartmentStore(chosenObject('d'));  
-        FOR t == addedObject() DO { 
-            priceTransactionDocumentLabelTransaction(t) <- priceList;
+        createLabelTransaction[DepartmentStore](chosenObject('d'));  
+        FOR Object t == addedObject() DO { 
+            priceTransactionDocument(t) <- priceList;
         }
     }
     apply();
@@ -43,34 +43,34 @@ createPriceListLabelPriceTransaction 'Распечатать ценники' = A
 //    apply();
 //    
 //} TOOLBAR;
-selectTypeDepartmentStore 'Вкл.' = DATA LOCAL BOOLEAN (LabelType, DepartmentStore);
+select 'Вкл.' = DATA LOCAL BOOLEAN (LabelType, DepartmentStore);
 FORM selectDepartmentStoreLabelType 'Выбор магазина и ценника для печати'
     OBJECTS p = PriceList FIXED PANEL 
     
     OBJECTS d = DepartmentStore 
-    PROPERTIES READONLY idStock(d) SHOWIF showIDs(), nameDepartmentStore(d) 
-    FILTERS inPriceListStock(p,d)
-    PROPERTIES changeDepartmentStore(d)
+    PROPERTIES READONLY id[Stock](d) SHOWIF showIDs(), name(d) 
+    FILTERS in(p,d)
+    PROPERTIES change(d)
     FILTERGROUP inactiveStock 
-        FILTER 'Активный' activeStock(d) 'F10' DEFAULT    
+        FILTER 'Активный' active(d) 'F10' DEFAULT    
         
     
     OBJECTS l = LabelType FIXED GRID
-    PROPERTIES(l,d) selectTypeDepartmentStore
-    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
-                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType, notPrintRetailPriceLabelType
-    FILTERS inLabelTypeDepartmentStore(l,d)        
+    PROPERTIES(l,d) select
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate,
+                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice
+    FILTERS in(l,d)        
 ;
 
-createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION (priceList) {    
+createSelectedSkuStockSnapshotLabel 'Перепечатать ценники' = ACTION (PriceTransactionDocument priceList) {    
     FORM selectDepartmentStoreLabelType OBJECTS p = priceList MODAL;
     IF formResult() == FormResult.ok THEN {
 
-        selectSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku,priceList);   
-        FOR selectTypeDepartmentStore(type, chosenObject('d')) DO {
-            createSnapshotLabelTransactionDepartmentStoreLabelType(chosenObject('d'), type);   
-            FOR t == addedObject() DO { 
-                priceTransactionDocumentLabelTransaction(t) <- priceList;
+        select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);   
+        FOR select(LabelType type, chosenObject('d')) DO {
+            createSnapshotLabelTransactionDepartmentStore(chosenObject('d'), type);   
+            FOR Object t == addedObject() DO { 
+                priceTransactionDocument(t) <- priceList;
             }  
         } 
     }
@@ -79,40 +79,40 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
 } TOOLBAR;
 
 EXTEND FORM priceLists
-    PROPERTIES(p)   createPriceListLabelPriceTransaction, createSelectedSkuStockSnapshotLabelTransaction 
+    PROPERTIES(p)   createPriceListLabel, createSelectedSkuStockSnapshotLabel 
 ;
 DESIGN priceLists {
     actionContainer {
         NEW priceContainer {
             caption = 'Ценники';                     
             type = CONTAINERV;
-            MOVE PROPERTY (createPriceListLabelPriceTransaction(p));
-            MOVE PROPERTY (createSelectedSkuStockSnapshotLabelTransaction(p));
+            MOVE PROPERTY (createPriceListLabel(p));
+            MOVE PROPERTY (createSelectedSkuStockSnapshotLabel(p));
         }
     }
 }
 
-overFillDocumentLabelTransactionDetailDocumentDetail = ABSTRACT ACTION (LabelTransactionDetail, DocumentDetail); 
-fillDocumentLabelTransaction 'Подбор документа' = ACTION (labelTransaction) {
+overFillDocument = ABSTRACT ACTION (LabelTransactionDetail, DocumentDetail); 
+fillDocument 'Подбор документа' = ACTION (LabelTransaction labelTransaction) {
     FORM documents MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL chosenDocument = Document();
         chosenDocument() <- chosenObject('d');
-        FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = LabelTransactionDetail DO {
-            labelTransactionLabelTransactionDetail(i) <- labelTransaction;
-            skuLabelTransactionDetail(i) <- skuDocumentDetail(documentDetail);
-            nameLabelTransactionDetail(i) <- nameSku(skuLabelTransactionDetail(i));
-            createAttributeLabelTransactionDetail(i);        
-            overFillDocumentLabelTransactionDetailDocumentDetail(i, documentDetail);
+        FOR document(DocumentDetail documentDetail) == chosenDocument() ADDOBJ i = LabelTransactionDetail DO {
+            labelTransaction(i) <- labelTransaction;
+            sku(i) <- sku(documentDetail);
+            name(i) <- name(sku(i));
+            createAttribute(i);        
+            overFillDocument(i, documentDetail);
         }
     }
 } TOOLBAR;
 
-overFillDocumentLabelTransactionDetailDocumentDetail (i, d) += ACTION (i, d) {
-    batchLabelTransactionDetail(i) <- batchDocumentDetail(d);
+overFillDocument (LabelTransactionDetail i, DocumentDetail d) += ACTION (i, d) {
+    batch(i) <- batch(d);
 }
 
 EXTEND FORM customLabelTransaction
-    PROPERTIES (l) TODRAW d fillDocumentLabelTransaction FORCE PANEL TOOLBAR 
+    PROPERTIES (l) TODRAW d fillDocument FORCE PANEL TOOLBAR 
 ;
 

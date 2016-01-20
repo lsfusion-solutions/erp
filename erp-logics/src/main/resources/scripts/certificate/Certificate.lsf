@@ -9,14 +9,14 @@ TABLE certificate(Certificate);
 @defineDocumentAbstractHeaderTimePrefix(Certificate, from, ' с');
 @defineDocumentAbstractHeaderTimePrefix(Certificate, to, ' по');
 
-numberCertificate 'Номер' = ABSTRACT STRING[100] (Certificate) IN numbered PERSISTENT MINCHARWIDTH 10;
-seriesCertificate 'Серия' = ABSTRACT STRING[2] (Certificate) IN numbered PERSISTENT FIXEDCHARWIDTH 3; 
+number 'Номер' = ABSTRACT STRING[100] (Certificate) IN numbered PERSISTENT MINCHARWIDTH 10;
+series 'Серия' = ABSTRACT STRING[2] (Certificate) IN numbered PERSISTENT FIXEDCHARWIDTH 3; 
 
-seriesNumberCertificate 'Серия/Номер' (o) = 
-    CONCAT '', seriesCertificate(o), numberCertificate(o) 
+seriesNumber 'Серия/Номер' (Certificate o) = 
+    CONCAT '', series(o), number(o) 
     MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
 
-descriptionCertificate 'Документ качества' (certificate) = CONCAT ' ', seriesNumberCertificate(certificate), 'от ' + fromDateCertificate(certificate), 'по ' + toDateCertificate(certificate);
+description 'Документ качества' (Certificate certificate) = CONCAT ' ', seriesNumber(certificate), 'от ' + fromDate(certificate), 'по ' + toDate(certificate);
 
 // -------------------------- Подготовка документов под расширение сертификатами -------------------- //
 
@@ -24,9 +24,9 @@ META defineDocumentCertificate(document, object, prefix)
 
     EXTEND FORM user###document
         OBJECTS dc = User###document##Detail
-        PROPERTIES (dc) indexUser###document##Detail, idBarcodeSkuUser###document##Detail, nameSkuUser###document##Detail,
-                        nameBatchUser###document##Detail ON CHANGE changeBatchUser###document##Detail(dc), DELETESESSION
-        FILTERS user###document##User###document##Detail(dc) == object
+        PROPERTIES (dc) index, idBarcodeSku, nameSku,
+                        nameBatch ON CHANGE changeBatch(dc), DELETESESSION
+        FILTERS user###document(dc) == object
     ;
 
     DESIGN user###document{
@@ -41,9 +41,9 @@ META defineDocumentCertificate(document, object, prefix)
 
     EXTEND FORM document##s
         OBJECTS dc = ###document##Detail
-        PROPERTIES(dc) READONLY index###document##Detail, idBarcodeSku###document##Detail, nameSku###document##Detail,
-                                nameBatch###document##Detail
-        FILTERS document###document##Detail(dc) == object
+        PROPERTIES(dc) READONLY index, idBarcodeSku, nameSku,
+                                nameBatch
+        FILTERS document(dc) == object
     ;
 
     DESIGN document##s{
@@ -62,32 +62,32 @@ END
 
 META defineDocumentTextBatchPrefix(prefix, caption)
 
-    prefix###text###batch  caption = ABSTRACT TEXT (Batch) PERSISTENT;
-    prev###prefix###text###batch (batch) = PREV(prefix###text###batch(batch));
+    prefix##Text  caption = ABSTRACT TEXT (Batch) PERSISTENT;
+    prev###prefix##Text (Batch batch) = PREV(prefix##Text(batch));
 END
 
 META defineDocumentCertificateTextPrefix(document, prefix, caption)
 
-    prefix###text###document##Detail caption = ABSTRACT TEXT (###document##Detail);
-    prefix###textUser###document##Detail caption = DATA TEXT (User###document##Detail);
-    prefix###text###document##Detail(detail) += prefix###textUser###document##Detail(detail);
+    prefix##Text caption = ABSTRACT TEXT (###document##Detail);
+    prefix##Text caption = DATA TEXT (User###document##Detail);
+    prefix##Text(User###document##Detail detail) += prefix##Text(detail);
     
-    overCopy###document##Detail(d, detail) += ACTION (d, detail) {      
-        prefix###textUser###document##Detail(d) <- prefix###textUser###document##Detail(detail);
+    overCopy(User###document##Detail d, User###document##Detail detail) += ACTION (d, detail) {      
+        prefix##Text(d) <- prefix##Text(detail);
     } 
 
-    EXTEND FORM user###document PROPERTIES(dc) prefix###textUser###document##Detail;
+    EXTEND FORM user###document PROPERTIES(dc) prefix##Text;
     DESIGN user###document {
-        PROPERTY(prefix###textUser###document##Detail(dc)){
+        PROPERTY(prefix##Text(dc)){
             minimumSize = (200, 36);
             preferredSize = (300, 36);
             maximumSize = (300, 36);
         }
     }
 
-    EXTEND FORM document##s PROPERTIES(dc) READONLY prefix###text###document##Detail;
+    EXTEND FORM document##s PROPERTIES(dc) READONLY prefix##Text;
     DESIGN document##s {
-        PROPERTY(prefix###text###document##Detail(dc)){
+        PROPERTY(prefix##Text(dc)){
             minimumSize = (200, 36);
             preferredSize = (300, 36);
             maximumSize = (300, 36);
@@ -102,59 +102,59 @@ END
 
 META defineDocumentCertificate(prop, propClass, document, object, caption)
 
-    prop###document##Detail = ABSTRACT propClass (###document##Detail);
-    description###prop###document##Detail caption (detail) = description###prop(prop###document##Detail(detail));
+    prop = ABSTRACT propClass (###document##Detail);
+    description###prop caption (###document##Detail detail) = description(prop(detail));
 
-    prop###user###document = DATA propClass (User###document);
-    description###prop###user###document caption (document) = description###prop(prop###user###document(document));
+    prop = DATA propClass (User###document);
+    description###prop caption (User###document document) = description(prop(document));
 
-    data###prop###user###document##Detail = DATA propClass (User###document##Detail);
-    prop###user###document##Detail (detail) =
-        OVERRIDE prop###user###document(user###document##User###document##Detail(detail)), data###prop###user###document##Detail(detail) PERSISTENT INDEXED;
-    prop###document##Detail(detail) += prop###user###document##Detail(detail);
+    data###prop = DATA propClass (User###document##Detail);
+    prop (User###document##Detail detail) =
+        OVERRIDE prop(user###document(detail)), data###prop(detail) PERSISTENT INDEXED;
+    prop(User###document##Detail detail) += prop(detail);
 
-    description###prop###user###document##Detail caption (detail) = description###prop(prop###user###document##Detail(detail));
+    description###prop caption (User###document##Detail detail) = description(prop(detail));
 
-    overCopy###document##Detail(d, detail) += ACTION (d, detail) {      
-        data###prop###user###document##Detail(d) <- data###prop###user###document##Detail(detail);
+    overCopy(User###document##Detail d, User###document##Detail detail) += ACTION (d, detail) {      
+        data###prop(d) <- data###prop(detail);
     } 
     
-    backgroup###prop###user###document##Detail = ABSTRACT COLOR (###document##Detail);
+    backgroup###prop##User = ABSTRACT COLOR (###document##Detail);
 
     EXTEND FORM user###document
-        PROPERTIES(object) description###prop###user###document
-        PROPERTIES(d) BACKGROUND backgroup###prop###user###document##Detail(d) description###prop###user###document##Detail
-        PROPERTIES(dc) BACKGROUND backgroup###prop###user###document##Detail(dc) description###prop###user###document##Detail
+        PROPERTIES(object) description###prop
+        PROPERTIES(d) BACKGROUND backgroup###prop##User(d) description###prop
+        PROPERTIES(dc) BACKGROUND backgroup###prop##User(dc) description###prop
     ;
 
     DESIGN user###document {
         headerCertificateContainer {
-            MOVE PROPERTY(description###prop###user###document(object));
+            MOVE PROPERTY(description###prop(object));
         }
     }
 
     EXTEND FORM document##s
-        PROPERTIES(d) READONLY description###prop###document##Detail
-        PROPERTIES(dc) READONLY description###prop###document##Detail
+        PROPERTIES(d) READONLY description###prop
+        PROPERTIES(dc) READONLY description###prop
     ;
 END
 
 // ------------------------------------ Сертификаты для партий ----------------------------------- //
 
 META defineBatchCertificate(prop, propClass, caption)
-    prop###batch = ABSTRACT propClass (Batch) PERSISTENT;
-    prev###prop###batch (batch) = PREV(prop###batch(batch));
-    number###prop###batch caption (batch) = number###prop(prop###batch(batch));
-    series###prop###batch caption (batch) = series###prop(prop###batch(batch));
-    seriesNumber###prop###batch caption (batch) = seriesNumber###prop(prop###batch(batch));
+    prop = ABSTRACT propClass (Batch) PERSISTENT;
+    prev###prop (Batch batch) = PREV(prop(batch));
+    number###prop caption (Batch batch) = number(prop(batch));
+    series###prop caption (Batch batch) = series(prop(batch));
+    seriesNumber###prop caption (Batch batch) = seriesNumber(prop(batch));
 
-    description###prop###batch caption (batch) = description###prop(prop###batch(batch));
-    batchCount###prop##Sku(prop, sku) = GROUP SUM 1 BY prop##Batch(batch), skuBatch(batch);
+    description###prop caption (Batch batch) = description(prop(batch));
+    batchCount(prop, sku) = GROUP SUM 1 BY prop(Batch batch), sku(batch);
 
-    EXTEND FORM currentBalanceSkuStock PROPERTIES READONLY description###prop###batch(bt);
-    EXTEND FORM balanceSkuStock PROPERTIES READONLY description###prop###batch(bt);
-    EXTEND FORM currentBalanceBatchStock PROPERTIES READONLY description###prop###batch(bt);
-    EXTEND FORM balanceBatchStock PROPERTIES READONLY description###prop###batch(bt);
+    EXTEND FORM currentBalanceSkuStock PROPERTIES READONLY description###prop(bt);
+    EXTEND FORM balanceSkuStock PROPERTIES READONLY description###prop(bt);
+    EXTEND FORM currentBalanceBatchStock PROPERTIES READONLY description###prop(bt);
+    EXTEND FORM balanceBatchStock PROPERTIES READONLY description###prop(bt);
 END
 
 @defineDocumentTextBatchPrefix(certificate, 'Дополнительные сертификаты');
@@ -180,9 +180,9 @@ DESIGN options {
 }
 
 META defineDocumentCertificateConstraint(prop, document, caption)
-    CONSTRAINT prop###user###document##Detail(detail) AND NOT batchCount###prop##Sku(prop###user###document##Detail(detail), skuUser###document##Detail(detail)) 
+    CONSTRAINT prop(User###document##Detail detail) AND NOT batchCount(prop(detail), sku(detail)) 
                AND banNotShippedCompliance() 
-        CHECKED BY description###prop###user###document##Detail
+        CHECKED BY description###prop[User###document##Detail]
         MESSAGE 'Выберите '##caption##', по которой есть поставка';
 END
 
@@ -198,21 +198,21 @@ DESIGN options {
 }
 
 META deriveDocumentPurchaseCertificate(prop, document, stockProp, prefix)
-    prefix###prop###user###document##Detail(detail)  <- IF batchUser###document##Detail(detail) 
-                                                            THEN prev###prop###batch(batchUser###document##Detail(detail))
-                                                            ELSE prev###prop###batch(prevLastOrderBatchSkuStock(skuUser###document##Detail(detail), stockProp##User###document##Detail(detail)))
-        WHEN (CHANGED (batchUser###document##Detail(detail)) OR
-              CHANGED (skuUser###document##Detail(detail)) OR
-              CHANGED (stockProp##User###document##Detail(detail))) AND NOT autoDeriveLastCertificate();
+    prefix###prop(User###document##Detail detail)  <- IF batch(detail) 
+                                                            THEN prev###prop(batch(detail))
+                                                            ELSE prev###prop(prevLastOrderBatch(sku(detail), stockProp(detail)))
+        WHEN (CHANGED (batch(detail)) OR
+              CHANGED (sku(detail)) OR
+              CHANGED (stockProp(detail))) AND NOT autoDeriveLastCertificate();
 END
 
 META deriveDocumentSaleCertificate(prop, document, stockProp, prefix)
-    prefix###prop###user###document##Detail(detail)  <- IF batchUser###document##Detail(detail) 
-                                                            THEN prev###prop###batch(batchUser###document##Detail(detail))
-                                                            ELSE prev###prop###batch(prevLastOrderBatchSkuStock(skuUser###document##Detail(detail), stockProp##User###document##Detail(detail)))
-        WHEN (CHANGED (batchUser###document##Detail(detail)) OR
-              CHANGED (skuUser###document##Detail(detail)) OR
-              CHANGED (stockProp##User###document##Detail(detail)));
+    prefix###prop(User###document##Detail detail)  <- IF batch(detail) 
+                                                            THEN prev###prop(batch(detail))
+                                                            ELSE prev###prop(prevLastOrderBatch(sku(detail), stockProp(detail)))
+        WHEN (CHANGED (batch(detail)) OR
+              CHANGED (sku(detail)) OR
+              CHANGED (stockProp(detail)));
 END
 
 META deriveDocumentCertificate(prop, document, prefix)

@@ -74,14 +74,14 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
 
             String[] userInvoiceNames = new String[]{"seriesUserInvoice", "numberUserInvoice",
                     "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice"};
-            LCP[] userInvoiceProperties = findProperties("seriesUserInvoice", "numberUserInvoice",
-                    "Purchase.dateUserInvoice", "supplierUserInvoice", "Purchase.customerStockInvoice", "Purchase.supplierStockInvoice");
+            LCP[] userInvoiceProperties = findProperties("series[UserInvoice]", "number[UserInvoice]",
+                    "date[UserInvoice]", "supplier[UserInvoice]", "customerStock[Purchase.Invoice]", "supplierStock[Purchase.Invoice]");
             QueryBuilder<Object, Object> userInvoiceQuery = new QueryBuilder<>(userInvoiceKeys);
             for (int j = 0; j < userInvoiceProperties.length; j++) {
                 userInvoiceQuery.addProperty(userInvoiceNames[j], userInvoiceProperties[j].getExpr(context.getModifier(), userInvoiceExpr));
             }
-            userInvoiceQuery.and(findProperty("numberUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
-            userInvoiceQuery.and(findProperty("Purchase.dateUserInvoice").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
+            userInvoiceQuery.and(findProperty("number[UserInvoice]").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
+            userInvoiceQuery.and(findProperty("date[UserInvoice]").getExpr(context.getModifier(), userInvoiceQuery.getMapExprs().get("UserInvoice")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceResult = userInvoiceQuery.execute(session);
 
@@ -107,8 +107,8 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     QueryBuilder<Object, Object> userInvoiceDetailQuery = new QueryBuilder<>(userInvoiceDetailKeys);
                     String[] userInvoiceDetailNames = new String[]{"Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
                             "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail"};
-                    LCP<?>[] userInvoiceDetailProperties = findProperties("Purchase.idBarcodeSkuInvoiceDetail", "quantityUserInvoiceDetail",
-                            "priceUserInvoiceDetail", "Purchase.chargePriceUserInvoiceDetail", "certificateTextInvoiceDetail");
+                    LCP<?>[] userInvoiceDetailProperties = findProperties("idBarcodeSku[Purchase.InvoiceDetail]", "quantity[UserInvoiceDetail]",
+                            "price[UserInvoiceDetail]", "chargePrice[UserInvoiceDetail]", "certificateText[Purchase.InvoiceDetail]");
                     for (int j = 0; j < userInvoiceDetailProperties.length; j++) {
                         userInvoiceDetailQuery.addProperty(userInvoiceDetailNames[j], userInvoiceDetailProperties[j].getExpr(context.getModifier(), userInvoiceDetailExpr));
                     }
@@ -116,7 +116,7 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     if (purchaseInvoiceWholesaleLM != null) {
                         String[] purchaseInvoiceWholesaleUserInvoiceDetailNames = new String[]{"Purchase.wholesalePriceUserInvoiceDetail", "Purchase.wholesaleMarkupUserInvoiceDetail"};
                         LCP[] purchaseInvoiceWholesaleUserInvoiceDetailProperties = new LCP[] {
-                                purchaseInvoiceWholesaleLM.findProperty("Purchase.wholesalePriceUserInvoiceDetail"), purchaseInvoiceWholesaleLM.findProperty("Purchase.wholesaleMarkupUserInvoiceDetail")
+                                purchaseInvoiceWholesaleLM.findProperty("wholesalePrice[UserInvoiceDetail]"), purchaseInvoiceWholesaleLM.findProperty("wholesaleMarkup[UserInvoiceDetail]")
                         };
                         for (int j = 0; j < purchaseInvoiceWholesaleUserInvoiceDetailProperties.length; j++) {
                             userInvoiceDetailQuery.addProperty(purchaseInvoiceWholesaleUserInvoiceDetailNames[j], purchaseInvoiceWholesaleUserInvoiceDetailProperties[j].getExpr(context.getModifier(), userInvoiceDetailExpr));
@@ -126,14 +126,14 @@ public class ExportExcelUserInvoicesActionProperty extends ExportExcelActionProp
                     if (pricingPurchaseLM != null) {
                         String[] pricingPurchaseUserInvoiceDetailNames = new String[]{"Purchase.retailPriceUserInvoiceDetail", "Purchase.retailMarkupUserInvoiceDetail"};
                         LCP[] pricingPurchaseUserInvoiceDetailProperties = new LCP[]{
-                                pricingPurchaseLM.findProperty("Purchase.retailPriceUserInvoiceDetail"),
-                                pricingPurchaseLM.findProperty("Purchase.retailMarkupUserInvoiceDetail")};
+                                pricingPurchaseLM.findProperty("retailPrice[UserInvoiceDetail]"),
+                                pricingPurchaseLM.findProperty("retailMarkup[UserInvoiceDetail]")};
                         for (int j = 0; j < pricingPurchaseUserInvoiceDetailProperties.length; j++) {
                             userInvoiceDetailQuery.addProperty(pricingPurchaseUserInvoiceDetailNames[j], pricingPurchaseUserInvoiceDetailProperties[j].getExpr(context.getModifier(), userInvoiceDetailExpr));
                         }
                     }
 
-                    userInvoiceDetailQuery.and(findProperty("userInvoiceUserInvoiceDetail").getExpr(context.getModifier(), userInvoiceDetailQuery.getMapExprs().get("UserInvoiceDetail")).compare(userInvoiceObject.getExpr(), Compare.EQUALS));
+                    userInvoiceDetailQuery.and(findProperty("userInvoice[UserInvoiceDetail]").getExpr(context.getModifier(), userInvoiceDetailQuery.getMapExprs().get("UserInvoiceDetail")).compare(userInvoiceObject.getExpr(), Compare.EQUALS));
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> userInvoiceDetailResult = userInvoiceDetailQuery.execute(context);
 

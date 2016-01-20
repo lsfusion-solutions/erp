@@ -11,55 +11,55 @@ REQUIRE EmployeeStock,
         Integration,
         StockSkuDocument;
 
-dataComponentSkuGroup 'Сырье' = DATA BOOLEAN (SkuGroup);
-countDataComponentSkuGroup () = GROUP SUM 1 IF dataComponentSkuGroup(g);
+dataComponent 'Сырье' = DATA BOOLEAN (SkuGroup);
+countDataComponentSkuGroup () = GROUP SUM 1 IF dataComponent(SkuGroup g);
 
-levelParentComponentSkuGroup (skuGroup) = GROUP MIN levelSkuGroupSkuGroup(skuGroup, parent) IF dataComponentSkuGroup(parent)
+levelParentComponent (skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataComponent(parent)
                                                               BY skuGroup PERSISTENT;    
-nearestParentComponentSkuGroup (skuGroup) = skuGroupSkuGroupLevel(skuGroup, levelParentComponentSkuGroup(skuGroup));
-nearestComponentSkuGroup (skuGroup) = dataComponentSkuGroup( nearestParentComponentSkuGroup (skuGroup));
-componentSkuGroup 'Сырье' (skuGroup) =
-    OVERRIDE nearestComponentSkuGroup (skuGroup), 
-             dataComponentSkuGroup(skuGroup) PERSISTENT;    
-filterComponentSkuGroup = GROUP SUM 1 IF componentSkuGroup(group) AND isParentSkuGroupSkuGroup(group, parent) BY parent;
+nearestParentComponent (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentComponent(skuGroup));
+nearestComponent (SkuGroup skuGroup) = dataComponent( nearestParentComponent (skuGroup));
+component 'Сырье' (SkuGroup skuGroup) =
+    OVERRIDE nearestComponent (skuGroup), 
+             dataComponent(skuGroup) PERSISTENT;    
+filterComponent = GROUP SUM 1 IF component(SkuGroup group) AND isParent(group, SkuGroup parent) BY parent;
                
-quantityChildWithComponentSkuGroup (group) = GROUP SUM 1 IF dataComponentSkuGroup(childGroup) AND isParentSkuGroupSkuGroup(childGroup, group) BY group PERSISTENT;
-quantityParentWithComponentSkuGroup (group) = GROUP SUM 1 IF dataComponentSkuGroup(parentGroup) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group PERSISTENT;          
+quantityChildWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group PERSISTENT;
+quantityParentWithComponent (group) = GROUP SUM 1 IF dataComponent(SkuGroup parentGroup) AND isParent(SkuGroup group, parentGroup) BY group PERSISTENT;          
       
-backgroundComponentSkuGroup 'Цвет' (group) = CASE
-    WHEN dataComponentSkuGroup(group) THEN RGB(0,0,0)
-    WHEN nearestComponentSkuGroup(group) THEN RGB(230,248,250) 
-    WHEN quantityChildWithComponentSkuGroup(group) != descendantNumberSkuGroup(group) AND NOT quantityParentWithComponentSkuGroup(group) THEN RGB(203,203,203);                                          
+backgroundComponent 'Цвет' (SkuGroup group) = CASE
+    WHEN dataComponent(group) THEN RGB(0,0,0)
+    WHEN nearestComponent(group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithComponent(group) != descendantNumber(group) AND NOT quantityParentWithComponent(group) THEN RGB(203,203,203);                                          
              
 //--
 
-dataProductSkuGroup 'Готовые изделия' = DATA BOOLEAN (SkuGroup);
-countDataProductSkuGroup () = GROUP SUM 1 IF dataProductSkuGroup(g);
+dataProduct 'Готовые изделия' = DATA BOOLEAN (SkuGroup);
+countDataProductSkuGroup () = GROUP SUM 1 IF dataProduct(SkuGroup g);
 
-levelParentProductSkuGroup (skuGroup) = GROUP MIN levelSkuGroupSkuGroup(skuGroup, parent) IF dataProductSkuGroup(parent)
+levelParentProduct (skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataProduct(parent)
                                                               BY skuGroup PERSISTENT;    
-nearestParentProductSkuGroup (skuGroup) = skuGroupSkuGroupLevel(skuGroup, levelParentProductSkuGroup(skuGroup));
-nearestProductSkuGroup (skuGroup) = dataProductSkuGroup( nearestParentProductSkuGroup (skuGroup));
-productSkuGroup 'Готовые изделия' (skuGroup) =
-    OVERRIDE nearestProductSkuGroup (skuGroup), 
-             dataProductSkuGroup(skuGroup) PERSISTENT; 
+nearestParentProduct (SkuGroup skuGroup) = skuGroup(skuGroup, levelParentProduct(skuGroup));
+nearestProduct (SkuGroup skuGroup) = dataProduct( nearestParentProduct (skuGroup));
+product 'Готовые изделия' (SkuGroup skuGroup) =
+    OVERRIDE nearestProduct (skuGroup), 
+             dataProduct(skuGroup) PERSISTENT; 
 
-filterProductSkuGroup = GROUP SUM 1 IF productSkuGroup(group) AND isParentSkuGroupSkuGroup(group, parent) BY parent;
+filterProduct = GROUP SUM 1 IF product(SkuGroup group) AND isParent(group, SkuGroup parent) BY parent;
 
-quantityChildWithProductSkuGroup (group) = GROUP SUM 1 IF dataProductSkuGroup(childGroup) AND isParentSkuGroupSkuGroup(childGroup, group) BY group PERSISTENT;
-quantityParentWithProductSkuGroup (group) = GROUP SUM 1 IF dataProductSkuGroup(parentGroup) AND isParentSkuGroupSkuGroup(group, parentGroup) BY group PERSISTENT;          
+quantityChildWithProduct (group) = GROUP SUM 1 IF dataProduct(SkuGroup childGroup) AND isParent(childGroup, SkuGroup group) BY group PERSISTENT;
+quantityParentWithProduct (group) = GROUP SUM 1 IF dataProduct(SkuGroup parentGroup) AND isParent(SkuGroup group, parentGroup) BY group PERSISTENT;          
       
-backgroundProductSkuGroup 'Цвет' (group) = CASE
-    WHEN dataProductSkuGroup(group) THEN RGB(0,0,0)
-    WHEN nearestProductSkuGroup(group) THEN RGB(230,248,250) 
-    WHEN quantityChildWithProductSkuGroup(group) != descendantNumberSkuGroup(group) AND NOT quantityParentWithProductSkuGroup(group) THEN RGB(203,203,203);    
+backgroundProduct 'Цвет' (SkuGroup group) = CASE
+    WHEN dataProduct(group) THEN RGB(0,0,0)
+    WHEN nearestProduct(group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithProduct(group) != descendantNumber(group) AND NOT quantityParentWithProduct(group) THEN RGB(203,203,203);    
 
 EXTEND FORM options 
-    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-    PROPERTIES(sk) READONLY orderSkuGroup, nameSkuGroup
-    PROPERTIES(sk) componentSkuGroup BACKGROUND backgroundComponentSkuGroup(sk), productSkuGroup BACKGROUND backgroundProductSkuGroup(sk)
-    ORDER BY orderSkuGroup(sk), nameSkuGroup(sk)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sk) 'F5' DEFAULT    
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES(sk) READONLY order, name
+    PROPERTIES(sk) component BACKGROUND backgroundComponent(sk), product BACKGROUND backgroundProduct(sk)
+    ORDER BY order(sk), name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
 ;
 DESIGN options {
     pane {
@@ -70,47 +70,47 @@ DESIGN options {
     }
 }
 
-isComponentGroupSku 'Фильтр сырье (группа)' (sku) = componentSkuGroup(skuGroupSku(sku)) OR (sku IS Sku AND NOT countDataComponentSkuGroup ());
-isProductGroupSku 'Фильтр готовые изделия (группа)' (sku) = productSkuGroup(skuGroupSku(sku))  OR (sku IS Sku AND NOT countDataProductSkuGroup ());
+isComponentGroup 'Фильтр сырье (группа)' (Sku sku) = component(Stock.skuGroup(sku)) OR (sku IS Sku AND NOT countDataComponentSkuGroup ());
+isProductGroup 'Фильтр готовые изделия (группа)' (Sku sku) = product(Stock.skuGroup(sku))  OR (sku IS Sku AND NOT countDataProductSkuGroup ());
 
 // ---------------- Материалы ------------------- //
 CLASS ABSTRACT Material 'Материал';
 TABLE material(Material);
 
-idMaterial 'Код' = ABSTRACT VARSTRING[100] (Material) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = ABSTRACT VARSTRING[100] (Material) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-nameMaterial 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) PERSISTENT INDEXED MINCHARWIDTH 40 PREFCHARWIDTH 80;
+name 'Наименование' (material) = ABSTRACT VARISTRING[255] (Material) PERSISTENT INDEXED MINCHARWIDTH 40 PREFCHARWIDTH 80;
 
-UOMMaterial (material) = ABSTRACT UOM (Material) PERSISTENT;
-shortNameUOMMaterial 'Ед. изм.' (material) = shortNameUOM(UOMMaterial(material)) IN base;
+UOM (material) = ABSTRACT UOM (Material) PERSISTENT;
+shortNameUOM 'Ед. изм.' (Material material) = shortName(UOM(material)) IN base;
 
-countryMaterial (material) = ABSTRACT Country (Material) PERSISTENT;
-nameCountryMaterial 'Страна' (material) = nameCountry(countryMaterial(material)) IN base;
+country (material) = ABSTRACT Country (Material) PERSISTENT;
+nameCountry 'Страна' (Material material) = name(country(material)) IN base;
 
-editMaterial 'Редактировать' = ABSTRACT ACTION LIST (Material) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (Material) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 addMaterial 'Добавить' = ABSTRACT ACTION LIST () IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
-copyMaterial 'Копировать' = ABSTRACT ACTION LIST (Material) EDITKEY 'F5' TOOLBAR;
+copy 'Копировать' = ABSTRACT ACTION LIST (Material) EDITKEY 'F5' TOOLBAR;
 
-skuMaterial (material) = ABSTRACT Sku (Material) PERSISTENT;
+sku (material) = ABSTRACT Sku (Material) PERSISTENT;
 
-skuGroupMaterial (material) = skuGroupSku(skuMaterial(material)) PERSISTENT;
-isParentSkuGroupMaterial (skuGroup, material) = isParentSkuGroupSkuGroup(skuGroupMaterial(material), skuGroup);
+skuGroup (Material material) = Stock.skuGroup(sku(material)) PERSISTENT;
+isParent (SkuGroup skuGroup, Material material) = isParent(skuGroup(material), skuGroup);
 
 FORM materials 'Материалы'
 
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(sg), skuGroupName
-    FILTERS filterComponentSkuGroup(sg)
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    ORDER BY order(sg), skuGroupName
+    FILTERS filterComponent(sg)
     
     OBJECTS m = Material
-    PROPERTIES(m) READONLY idMaterial SHOWIF showIDs(), nameMaterial, shortNameUOMMaterial, objectClassName    
+    PROPERTIES(m) READONLY id SHOWIF showIDs(), name, shortNameUOM, objectClassName    
     PROPERTIES() addMaterial TODRAW m
-    PROPERTIES(m) editMaterial, copyMaterial
-    FILTERS isParentSkuGroupMaterial(sg, m)
-    ORDER BY nameMaterial(m)
+    PROPERTIES(m) edit, copy
+    FILTERS isParent(sg, m)
+    ORDER BY name(m)
 
     DIALOG Material OBJECT m
 ;
@@ -132,7 +132,7 @@ DESIGN materials {
                 m.grid {
                     defaultComponent = TRUE;
                 }
-                PROPERTY(copyMaterial(m)) { focusable = TRUE; }
+                PROPERTY(copy(m)) { focusable = TRUE; }
             }
         }
 
@@ -144,23 +144,23 @@ DESIGN materials {
 // --------------- Товары ----------------- //
 EXTEND CLASS Sku : Material;
 
-nameMaterial(material) += nameSku(material);
-UOMMaterial(material) += UOMSku(material);
-countryMaterial(material) += countrySku(material);
+name(Sku material) += Stock.name(material);
+UOM(Sku material) += Stock.UOM(material);
+country(Sku material) += Stock.country(material);
 
-editMaterial(sku) += ACTION editSku(sku);
+edit(Sku sku) += ACTION Stock.edit(sku);
 addMaterial () += ACTION addSku();
-copyMaterial(sku) += ACTION copySku(sku);
+copy(Sku sku) += ACTION Stock.copy(sku);
 
-skuMaterial(material) += material AS Sku;
+sku(Sku material) += material AS Sku;
 
-idMaterial(sku) += idSku(sku);
+id(Sku sku) += Stock.id(sku);
 
 // -----------  Технологии -------------- //
 CLASS Technology 'Технология';
 TABLE technology (Technology);
 
-nameTechnology 'Наименование' = DATA VARISTRING[50](Technology);
+name 'Наименование' = DATA VARISTRING[50](Technology);
 
 TABLE technologyMaterialDate (Technology, Material, DATE);
 @defineHistorizable(wastage, '% потерь', NUMERIC[8,3], technology, nameTechnology, material, nameMaterial, base);
@@ -171,29 +171,29 @@ FORM technology 'Технология'
     PROPERTIES valDt = OBJVALUE(dt) BACKGROUND dateDiffersCurrent(dt)
 
     OBJECTS t=Technology FIXED PANEL
-    PROPERTIES(t) nameTechnology
+    PROPERTIES(t) name
 
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
-    FILTERGROUP component FILTER 'Сырье' filterComponentSkuGroup(sg) 'F6' DEFAULT
-    ORDER BY orderSkuGroup(sg), skuGroupName
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
+    FILTERGROUP component FILTER 'Сырье' filterComponent(sg) 'F6' DEFAULT
+    ORDER BY order(sg), skuGroupName
     
     OBJECTS m = Material
-    PROPERTIES(m) READONLY nameMaterial, shortNameUOMMaterial
-    PROPERTIES overWastageTechnologyMaterialDate(t,m,dt)
+    PROPERTIES(m) READONLY name, shortNameUOM
+    PROPERTIES overWastage(t,m,dt)
     
-    FILTERS isComponentGroupSku(m)
+    FILTERS isComponentGroup(m)
 
-    FILTERS isParentSkuGroupMaterial(sg, m)
-    ORDER BY nameMaterial(m)
+    FILTERS isParent(sg, m)
+    ORDER BY name(m)
 
     FILTERGROUP filters
-        FILTER 'С % потерь' wastageTechnologyMaterialDate(t,m,dt) 'F9'
+        FILTER 'С % потерь' wastage(t,m,dt) 'F9'
 
     OBJECTS d=DATE
-    PROPERTIES  READONLY OBJVALUE(d), dataWastageTechnologyMaterialDate(t,m,d)
-    FILTERS dataWastageTechnologyMaterialDate(t,m,d)
+    PROPERTIES  READONLY OBJVALUE(d), dataWastage(t,m,d)
+    FILTERS dataWastage(t,m,d)
 
     EDIT Technology OBJECT t
 ;
@@ -242,7 +242,7 @@ DESIGN yearFromTo {
 }
 
 
-fillWastageTechnology 'Заполнить технологии на другой год' = ACTION (technology) {
+fillWastage 'Заполнить технологии на другой год' = ACTION (Technology technology) {
 
     FORM yearFromTo MODAL;
     IF formResult() == FormResult.ok THEN {
@@ -250,13 +250,13 @@ fillWastageTechnology 'Заполнить технологии на другой
         LOCAL newYear = INTEGER();
         newYear() <- chosenInteger('y');
 
-        FOR dataWastageTechnologyMaterialDate(technology, material, dateFrom) DO {
+        FOR dataWastage(technology, Material material, DATE dateFrom) DO {
 
             IF 1 == 2 THEN
                 BREAK;
 
             IF extractYear(dateFrom) == (newYear() - 1) THEN {
-                dataWastageTechnologyMaterialDate(technology, material, dateTo) <- dataWastageTechnologyMaterialDate(technology, material, dateFrom) WHERE dateTo == sumDateYear(dateFrom, 1);
+                dataWastage(technology, material, DATE dateTo) <- dataWastage(technology, material, dateFrom) WHERE dateTo == sumYear(dateFrom, 1);
             }
 
         }
@@ -267,16 +267,16 @@ fillWastageTechnology 'Заполнить технологии на другой
 FORM technologies 'Технологии'
 
     OBJECTS t=Technology
-    PROPERTIES(t)  READONLY nameTechnology
+    PROPERTIES(t)  READONLY name
 
     PROPERTIES (t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES (t) fillWastageTechnology
+    PROPERTIES (t) fillWastage
 
     OBJECTS m=Material
-    PROPERTIES     READONLY nameMaterial(m), shortNameUOMMaterial(m), wastageTechnologyMaterial(t,m)
-    ORDER BY nameMaterial(m)
+    PROPERTIES     READONLY name(m), shortNameUOM(m), wastage(t,m)
+    ORDER BY name(m)
 
-    FILTERS        wastageTechnologyMaterial(t,m)
+    FILTERS        wastage(t,m)
 
     DIALOG Technology OBJECT t
 ;
@@ -303,7 +303,7 @@ TABLE employeeBOM(Employee, BOM);
 @defineDocumentHeaderTimePrefix(BOM, , ' документа');
 @deriveDocumentHeaderTimePrefix(BOM, );
 
-nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
+name 'Наименование' = DATA VARISTRING[100](BOM);
 
 @defineDocumentHeaderCreated(BOM);
 @defineDocumentHeaderNote(BOM);
@@ -311,15 +311,15 @@ nameBOM 'Наименование' = DATA VARISTRING[100](BOM);
 @defineNumbered(BOM);
 @defineNumeratedDefault(BOM, 'Спецификации', 'СП');
   
-descriptionBOM 'Название спецификации' (BOM) = VARSTRING[200](CONCAT ' ', nameBOM(BOM), 
-                                                                          '№'+seriesNumberBOM(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50; 
+description 'Название спецификации' (BOM BOM) = VARSTRING[200](CONCAT ' ', name(BOM), 
+                                                                          '№'+seriesNumber(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50; 
     
 
-fromDateBOM 'Дата с' = DATA DATE (BOM) IN documentPrm;
-toDateBOM 'Дата по' = DATA DATE (BOM) IN documentPrm;
+fromDate 'Дата с' = DATA DATE (BOM) IN documentPrm;
+toDate 'Дата по' = DATA DATE (BOM) IN documentPrm;
 
-inactiveBOM 'Неактивная' = DATA BOOLEAN (BOM) IN documentPrm;
-activeBOM 'Активная' = b IS BOM AND NOT inactiveBOM(b);
+inactive 'Неактивная' = DATA BOOLEAN (BOM) IN documentPrm;
+active 'Активная' = BOM b IS BOM AND NOT inactive(b);
 
 // ------------- Изделия ----------- //
 CLASS Product 'Изделие' : Material, DocumentDetail;
@@ -341,88 +341,88 @@ EXTEND FORM technology
         FILTER 'Sku' m IS Sku 'F10'
 ;
 
-skuProduct = DATA Sku (Product);
-nameSkuProduct 'SKU' (product) = nameSku(skuProduct(product)) IN recognize;
-idBarcodeSkuProduct 'Штрихкод' (product)= idBarcodeSku(skuProduct(product));
-idSkuProduct 'Код' (product)= idSku(skuProduct(product));
+sku = DATA Sku (Product);
+nameSku 'SKU' (Product product) = Stock.name(sku(product)) IN recognize;
+idBarcodeSku 'Штрихкод' (Product product)= idBarcode(sku(product));
+idSku 'Код' (Product product)= Stock.id(sku(product));
 
-idProduct 'Код изделия' (product) = idSku(skuProduct(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
-idMaterial(p) += idProduct(p);
+id 'Код изделия' (Product product) = Stock.id(sku(product))IN recognize MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id(Product p) += id(p);
 
-editSkuProduct 'Редактировать SKU' (p) = ACTION editSku(skuProduct(p));
+editSku 'Редактировать SKU' (Product p) = ACTION Stock.edit(sku(p));
 
-UOMProduct = DATA UOM (Product);
-shortNameUOMProduct 'Ед.изм.' (product) = shortNameUOM(UOMProduct(product)) IN recognize;
-UOMProduct(product) <- UOMSku(skuProduct(product)) WHEN CHANGED (skuProduct(product));
+UOM = DATA UOM (Product);
+shortNameUOM 'Ед.изм.' (Product product) = shortName(UOM(product)) IN recognize;
+UOM(Product product) <- Stock.UOM(sku(product)) WHEN CHANGED (sku(product));
 
 
 @defineDocumentRelation (BOM, Product, ' (изделие)');
 @defineDocumentDetailTimePrefix(BOM, Product, , ' документа');
 
-inactiveProduct 'Неактивный' (product) = inactiveBOM(BOMProduct(product));
-descriptionProduct 'Название документа' (product) = descriptionBOM(BOMProduct(product));
+inactive 'Неактивный' (Product product) = inactive(BOM(product));
+description 'Название документа' (Product product) = description(BOM(product));
 
 @defineDocumentDetailIndexPersistent (BOM, Product);
 @defineDocumentDetailActionsCustom (BOM, Product);
 
-productsBOM 'Изделия' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameSkuProduct(p), ' ('+idSkuProduct(p)+')'), ', '
-                                       BY BOMProduct(p)
-                                       ORDER indexProduct(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+products 'Изделия' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameSku(Product p), ' ('+idSku(p)+')'), ', '
+                                       BY BOM(p)
+                                       ORDER index(p) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-idProductsBOM 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idSkuProduct(p)), ', '
-                                      BY BOMProduct(p)
-                                      ORDER indexProduct(p) MINCHARWIDTH 13 PREFCHARWIDTH 13 PERSISTENT; 
+idProducts 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idSku(Product p)), ', '
+                                      BY BOM(p)
+                                      ORDER index(p) MINCHARWIDTH 13 PREFCHARWIDTH 13 PERSISTENT; 
                                                                               
-fullNameBOM 'Полное название' (BOM) = VARISTRING[2000] (CONCAT '/',
-                                                              productsBOM(BOM),                                                                  
-                                                              nameBOM(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+fullName 'Полное название' (BOM BOM) = VARISTRING[2000] (CONCAT '/',
+                                                              products(BOM),                                                                  
+                                                              name(BOM)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
                                        
 @defineDocumentDetailQuantityCustomPrefix (product, , );
 
 @defineDocumentHeaderQuantityCustomPrefix (BOM, product, , ' (изделие)');
 
-pricePercentProduct 'Удельный вес цены,%' = DATA NUMERIC[10,5] (Product);
-pricePercentProduct(product) <- 100.000 WHEN SET (product IS Product);
-priceCoeffProduct (product) = pricePercentProduct(product) / 100 PERSISTENT;
+pricePercent 'Удельный вес цены,%' = DATA NUMERIC[10,5] (Product);
+pricePercent(Product product) <- 100.000 WHEN SET (product IS Product);
+priceCoeff (Product product) = pricePercent(product) / 100 PERSISTENT;
 
-pricePercentBOM 'Удельный вес цен, %' = GROUP SUM pricePercentProduct(product) BY BOMProduct(product) PERSISTENT IN documentSum;
+pricePercent 'Удельный вес цен, %' = GROUP SUM pricePercent(Product product) BY BOM(product) PERSISTENT IN documentSum;
 
-nameMaterial(material) += VARISTRING[255] (CONCAT '/',
-                                              descriptionBOM(BOMProduct(material)),
-                                              nameSkuProduct(material));
+name(Product material) += VARISTRING[255] (CONCAT '/',
+                                              description(BOM(material)),
+                                              nameSku(material));
 
-UOMMaterial(material) += UOMSku(skuProduct(material));
-countryMaterial(material) += countrySku(skuProduct(material));
-skuMaterial (material) += skuProduct(material);
+UOM(Product material) += Stock.UOM(sku(material));
+country(Product material) += Stock.country(sku(material));
+sku (Product material) += sku(material);
 
-calcPriceCoeffProduct 'Коэффициент цены' (product) = NUMERIC[20,5](quantityProductBOM(BOMProduct(product)) * pricePercentProduct(product) 
-    / (quantityProduct(product) * 100));  
+calcPriceCoeff 'Коэффициент цены' (Product product) = NUMERIC[20,5](quantityProduct(BOM(product)) * pricePercent(product) 
+    / (quantity(product) * 100));  
 
-calcPricePercentProductNumeric '%' (product, num) = (num AS NUMERIC[8,5]) * quantityProduct(product)*100 
-    /(quantityProductBOM(BOMProduct(product)) IF quantityProductBOM(BOMProduct(product))!= 0); 
+calcPricePercentNumeric '%' (Product product, NUMERIC[8,5] num) = (num AS NUMERIC[8,5]) * quantity(product)*100 
+    /(quantityProduct(BOM(product)) IF quantityProduct(BOM(product))!= 0); 
     
-changePriceCoeffProduct = ACTION (product) {
+changePriceCoeff = ACTION (Product product) {
     REQUEST NUMERIC[8,5] INPUT;
     IF requestedNumeric() THEN {        
-        pricePercentProduct(product) <- NUMERIC[16,5](calcPricePercentProductNumeric(product, requestedNumeric()));
+        pricePercent(product) <- NUMERIC[16,5](calcPricePercentNumeric(product, requestedNumeric()));
 
     }
 }
-seriesProduct 'Серия' = seriesBOM(BOMProduct(p)) FIXEDCHARWIDTH 3;
-numberProduct 'Номер' = numberBOM(BOMProduct(p)) MINCHARWIDTH 7;
+series 'Серия' = series(BOM(Product p)) FIXEDCHARWIDTH 3;
+number 'Номер' = number(BOM(Product p)) MINCHARWIDTH 7;
 
-fromDateProduct 'Дата с' = fromDateBOM(BOMProduct(p));
-toDateProduct 'Дата по' = toDateBOM(BOMProduct(p));
+fromDate 'Дата с' = fromDate(BOM(Product p));
+toDate 'Дата по' = toDate(BOM(Product p));
 
 FORM products 'Изделия'
     OBJECTS p=Product
-    PROPERTIES (p) READONLY numberProduct, seriesProduct, dateProduct
-    PROPERTIES(p) idProduct SHOWIF showIDs()
-    PROPERTIES(p) READONLY inactiveProduct, descriptionProduct, indexProduct, nameSkuProduct, shortNameUOMProduct, quantityProduct
-    PROPERTIES(p) READONLY fromDateProduct, toDateProduct
+    PROPERTIES (p) READONLY number, series, date
+    PROPERTIES(p) id SHOWIF showIDs()
+    PROPERTIES(p) READONLY inactive, description, index, nameSku, shortNameUOM, quantity
+    PROPERTIES(p) READONLY fromDate, toDate
 //    PROPERTIES (p) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
     FILTERGROUP active
-        FILTER 'Активные' NOT inactiveProduct(p) DEFAULT
+        FILTER 'Активные' NOT inactive(p) DEFAULT
 
     DIALOG Product OBJECT p
 ;
@@ -439,33 +439,33 @@ TABLE component (Component);
 @defineDocumentRelation (BOM, Component, ' (компонент)');
 @defineDocumentDetailTimePrefix(BOM, Component, , ' документа');
 
-descriptionComponent 'Спецификация' (component)= descriptionBOM(BOMComponent(component));
-productsBOMComponent 'Название' = productsBOM(BOMComponent(component));
+description 'Спецификация' (Component component)= description(BOM(component));
+productsBOM 'Название' = products(BOM(Component component));
 
 @defineDocumentDetailIndexPersistent (BOM, Component);
 @defineDocumentDetailActionsCustom (BOM, Component);
 
-materialComponent = DATA Material (Component);
-nameMaterialComponent 'Материал' (component) = nameMaterial(materialComponent(component));
-idBarcodeSkuComponent 'Штрихкод' (component)= idBarcodeSku(materialComponent(component));
-idComponent 'Код компонента' (component)= idMaterial(materialComponent(component));
-skuComponent 'Sku' (c) = skuMaterial(materialComponent(c)) PERSISTENT;
+material = DATA Material (Component);
+nameMaterial 'Материал' (Component component) = name(material(component));
+idBarcodeSku 'Штрихкод' (Component component)= idBarcode(material(component));
+id 'Код компонента' (Component component)= id(material(component));
+sku 'Sku' (Component c) = sku(material(c)) PERSISTENT;
 
 
-componentsBOM 'Компоненты' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameMaterialComponent(component), ' ('+idComponent(component)+')'), ', '
-                                       BY BOMComponent(component)
-                                       ORDER indexComponent(component) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
-idComponentsBOM 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](idComponent(component)), ', '
-                                       BY BOMComponent(component)
-                                       ORDER indexComponent(component) MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;                                       
+components 'Компоненты' (BOM) = GROUP CONCAT VARISTRING[2000](CONCAT '', nameMaterial(Component component), ' ('+id(component)+')'), ', '
+                                       BY BOM(component)
+                                       ORDER index(component) MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+idComponents 'Коды' (BOM) = GROUP CONCAT VARSTRING[255](id(Component component)), ', '
+                                       BY BOM(component)
+                                       ORDER index(component) MINCHARWIDTH 20 PREFCHARWIDTH 50 PERSISTENT;                                       
                                      
-nameComponent 'Компонент' (component) = VARSTRING[255](CONCAT '/', descriptionBOM(BOMComponent(component)), 
-                                                     nameMaterialComponent(component)) PERSISTENT;
+name 'Компонент' (Component component) = VARSTRING[255](CONCAT '/', description(BOM(component)), 
+                                                     nameMaterial(component)) PERSISTENT;
                                       
 
-UOMComponent = DATA UOM (Component);
-shortNameUOMComponent 'Ед. изм.' (component) = shortNameUOM(UOMComponent(component));
-UOMComponent(component) <- UOMMaterial(materialComponent(component)) WHEN CHANGED (materialComponent(component));
+UOM = DATA UOM (Component);
+shortNameUOM 'Ед. изм.' (Component component) = shortName(UOM(component));
+UOM(Component component) <- UOM(material(component)) WHEN CHANGED (material(component));
 
 // Кол-во нетто
 @defineDocumentDetailQuantityCustomPrefix (component, netto, ' (нетто)');
@@ -474,20 +474,20 @@ UOMComponent(component) <- UOMMaterial(materialComponent(component)) WHEN CHANGE
 // Технология
 TABLE  technologyComponent (Technology, Component);
 
-inTechnologyComponent 'Вкл.' = DATA BOOLEAN (Technology, Component);
-countTechnologiesComponent = GROUP SUM 1 IF inTechnologyComponent(technology, component) BY component PERSISTENT;
+in 'Вкл.' = DATA BOOLEAN (Technology, Component);
+countTechnologies = GROUP SUM 1 IF in(Technology technology, Component component) BY component PERSISTENT;
 
-technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](nameTechnology(technology)) IF inTechnologyComponent(technology, component) , ', '
+technologiesInvoice 'Технологии' (component) = GROUP CONCAT VARSTRING[255](name(Technology technology)) IF in(technology, Component component) , ', '
                                          BY component
                                          ORDER technology
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50;
                                          
-inTechnologyMaterial 'Связь' (technology, material) = GROUP SUM 1 IF dataWastageTechnologyMaterialDate(technology, material, date) BY technology, material;
+in 'Связь' (technology, material) = GROUP SUM 1 IF dataWastage(Technology technology, Material material, DATE date) BY technology, material;
 
-CONSTRAINT inTechnologyComponent(technology, component) AND NOT inTechnologyMaterial(technology, materialComponent(component))
+CONSTRAINT in(Technology technology, Component component) AND NOT in(technology, material(component))
     MESSAGE 'Для компонента выбрана технология, у которой нет значения % потерь для SKU';
 
-wastageTechnologyComponent '% потерь' (t,c) = wastageTechnologyMaterial(t,materialComponent(c));     
+wastage '% потерь' (Technology t,Component c) = wastage(t,material(c));     
                                          
 FORM componentTechnologies 'Технологии'
 
@@ -495,10 +495,10 @@ FORM componentTechnologies 'Технологии'
 //    PROPERTIES(c)  READONLY nameComponent
 
     OBJECTS t=Technology
-    PROPERTIES(t)  READONLY nameTechnology
-    PROPERTIES(t,c) inTechnologyComponent, wastageTechnologyComponent
+    PROPERTIES(t)  READONLY name
+    PROPERTIES(t,c) in, wastage
 
-    FILTERS        inTechnologyMaterial(t, materialComponent(c))
+    FILTERS        in(t, material(c))
                    //,materialComponent(c) == m    
 ;  
 DESIGN componentTechnologies {
@@ -508,22 +508,22 @@ DESIGN componentTechnologies {
 }                                                                                                                                                                                                                                    
 
 // % Потерь
-wastageComponent '% потерь'= DATA NUMERIC[8,3] (Component);
-backgroundWastageComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
+wastage '% потерь'= DATA NUMERIC[8,3] (Component);
+backgroundWastage 'Цвет' (Component component) = RGB(229,229,229) IF countTechnologies(component);
 
-coeffWastageTechnologiesComponentDate 'Коэффициент потерь (технология)' (component, date) =
+coeffWastageTechnologies 'Коэффициент потерь (технология)' (Component component, DATE date) =
     OVERRIDE NUMERIC[20,9](1.0) IF component IS Component AND date IS DATE,
-    round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastageTechnologyMaterialDate(t, materialComponent(c), d)) / 100.0) IF inTechnologyComponent(t, c)) BY c, d](component, date)), 9);
+    Utils.round(exp([= GROUP SUM NUMERIC[20,9](ln((100.0 - wastage(Technology t, material(Component c), DATE d)) / 100.0) IF in(t, c)) BY c, d](component, date)), 9);
 
-wastageTechnologiesComponentDate '% потерь (технология)' = (1.0 - coeffWastageTechnologiesComponentDate(component, date)) * 100.0;  
+wastageTechnologies '% потерь (технология)' = (1.0 - coeffWastageTechnologies(Component component, DATE date)) * 100.0;  
 
 //IF countTechnologiesComponent(component) THEN minMaxWastageTechnologyMaterialDate(component, date)
 //                                                    ELSE (0 IF component IS Component AND date IS DATE);   
-wastageTechnologiesComponent '% потерь (технология)' (component) = wastageTechnologiesComponentDate(component, currentDate());                                                                                                     
+wastageTechnologies '% потерь (технология)' (Component component) = wastageTechnologies(component, currentDate());                                                                                                     
                                                                                                      
-wastageComponentDate '% потерь' (component, date) = [= (1.0-(X*(100.0-Y)/100.0))*100.0](
-    coeffWastageTechnologiesComponentDate(component, date),
-    (OVERRIDE 0 IF component IS Component,  wastageComponent(component)));
+wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)/100.0))*100.0](
+    coeffWastageTechnologies(component, date),
+    (OVERRIDE 0 IF component IS Component,  wastage(component)));
 //wastageTechnologiesComponentDate(component, date) (+) wastageComponent(component);                                                 
 
 // Кол-во брутто
@@ -531,139 +531,139 @@ wastageComponentDate '% потерь' (component, date) = [= (1.0-(X*(100.0-Y)/1
 @defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
             
-selectTechnologiesComponent = ACTION (component) {
+selectTechnologies = ACTION (Component component) {
     FORM componentTechnologies OBJECTS c = component MODAL;
 }  
        
-changeNettoQuantityComponent = ACTION (component) {
+changeNettoQuantity = ACTION (Component component) {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {
-        nettoQuantityComponent(component) <- requestedNumeric();
-        bruttoQuantityComponent(component) <- NUMERIC[16,5](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
+        nettoQuantity(component) <- requestedNumeric();
+        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
     } ELSE {
-        nettoQuantityComponent(component) <- NULL;
+        nettoQuantity(component) <- NULL;
     }                
 }   
                                                                                                                                                                                                                                                                                                                                                       
-changeWastageComponent = ACTION (component) {
+changeWastage = ACTION (Component component) {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN {
-        wastageComponent(component) <- requestedNumeric();   
-        bruttoQuantityComponent(component) <- NUMERIC[16,5](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
+        wastage(component) <- requestedNumeric();   
+        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
     } ELSE {
-        wastageComponent(component) <- NULL;
-        bruttoQuantityComponent(component) <- NUMERIC[16,5](nettoQuantityComponent(component)/(1 - (OVERRIDE 0 IF component IS Component,wastageComponent(component)/100))); 
+        wastage(component) <- NULL;
+        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
                                                                                                                                                                                                                                                                                                                                                             
-changeBruttoQuantityComponent = ACTION (component) {
+changeBruttoQuantity = ACTION (Component component) {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {    
-        bruttoQuantityComponent(component) <- requestedNumeric();
-        wastageComponent(component) <- NUMERIC[8,3]((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100); 
+        bruttoQuantity(component) <- requestedNumeric();
+        wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100); 
                
     } ELSE {
-        bruttoQuantityComponent(component) <- NULL;
-        wastageComponent(component) <- NUMERIC[8,3]((1-(nettoQuantityComponent(component)/(bruttoQuantityComponent(component) IF bruttoQuantityComponent(component)!=0)))*100);          
+        bruttoQuantity(component) <- NULL;
+        wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100);          
     }                
 }
-backgroundBruttoQuantityComponent 'Цвет' (component) = RGB(229,229,229) IF countTechnologiesComponent(component);
-backgroundBruttoQuantityBOM 'Цвет' (b) = RGB(229,229,229) IF b IS BOM;
+backgroundBruttoQuantity 'Цвет' (Component component) = RGB(229,229,229) IF countTechnologies(component);
+backgroundBruttoQuantity 'Цвет' (BOM b) = RGB(229,229,229) IF b IS BOM;
 
-bruttoQuantityComponentDate 'Кол-во (брутто) с учетом технологий' (component, date) = NUMERIC[16,5](bruttoQuantityComponent(component)/coeffWastageTechnologiesComponentDate(component, date)) COMPLEX;
+bruttoQuantity 'Кол-во (брутто) с учетом технологий' (Component component, DATE date) = NUMERIC[16,5](bruttoQuantity(component)/coeffWastageTechnologies(component, date)) COMPLEX;
                                                                                 
-overCurBruttoQuantityComponent 'Кол-во (брутто) с уч. тех-ий' (component) = bruttoQuantityComponentDate(component, currentDate());
+overCurBruttoQuantity 'Кол-во (брутто) с уч. тех-ий' (Component component) = bruttoQuantity(component, currentDate());
 
 FORM components 'Компоненты'
     OBJECTS c=Component
-    PROPERTIES(c) READONLY descriptionComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent
+    PROPERTIES(c) READONLY description, id SHOWIF showIDs(), nameMaterial, shortNameUOM, nettoQuantity
 //    PROPERTIES (c) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
     DIALOG Component OBJECT c
 ;
 
-CONSTRAINT materialComponent(c) IS Sku AND NOT isComponentGroupSku(materialComponent(c)) CHECKED  BY materialComponent
+CONSTRAINT material(Component c) IS Sku AND NOT isComponentGroup(material(c)) CHECKED  BY material[Component]
     MESSAGE 'В качестве компонента выбран товар, который не входит в группу: Сырье';
-CONSTRAINT skuProduct(p) AND NOT isProductGroupSku(skuProduct(p)) CHECKED  BY skuProduct
+CONSTRAINT sku(Product p) AND NOT isProductGroup(sku(p)) CHECKED  BY sku[Product]
     MESSAGE 'В качестве изделия выбран товар, который не входит в группу: Готовые изделия';      
     
-overSkuComponent (c) = IF materialComponent(c) IS Product THEN skuProduct(materialComponent(c)) ELSE materialComponent(c);
+overSku (Component c) = IF material(c) IS Product THEN sku[Product](material(c)) ELSE material(c);
     
-overNetWeightComponent = OVERRIDE netWeightSku(overSkuComponent(c)); 
-overNettoNetWeightComponent 'Вес (нетто)' (c) = nettoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
-overBruttoNetWeightComponent 'Вес (брутто)' (c) = bruttoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
+overNetWeight = OVERRIDE netWeight(overSku(Component c)); 
+overNettoNetWeight 'Вес (нетто)' (Component c) = nettoQuantity(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
+overBruttoNetWeight 'Вес (брутто)' (Component c) = bruttoQuantity(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
 
-overNettoNetWeightProduct 'Вес (нетто)' (p) = quantityProduct(p) * (OVERRIDE 1.0 IF p IS Product, netWeightSku(skuProduct(p)));
+overNettoNetWeight 'Вес (нетто)' (Product p) = quantity(p) * (OVERRIDE 1.0 IF p IS Product, netWeight(sku(p)));
 
-overNettoNetWeightProductBOM 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeightProduct(idetail) BY BOMProduct(idetail) IN documentSum PERSISTENT;
-overNettoNetWeightComponentBOM 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeightComponent(idetail) BY BOMComponent(idetail) IN documentSum PERSISTENT;            
-overBruttoNetWeightyComponentBOM 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeightComponent(c) BY BOMComponent(c) IN documentSum PERSISTENT;
+overNettoNetWeightProduct 'Вес нетто изд. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Product idetail) BY BOM(idetail) IN documentSum PERSISTENT;
+overNettoNetWeightComponent 'Вес нетто ком. (всего)' (BOM) = GROUP SUM overNettoNetWeight(Component idetail) BY BOM(idetail) IN documentSum PERSISTENT;            
+overBruttoNetWeightyComponent 'Вес брутто ком. (всего)' (c)= GROUP SUM overBruttoNetWeight(Component c) BY BOM(c) IN documentSum PERSISTENT;
 
 
-overCurBruttoNetWeightComponent 'Вес (брутто) с уч. тех-ий' (c) = overCurBruttoQuantityComponent(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeightComponent(c));
-overCurBruttoNetWeightyComponentBOM 'Вес брутто комп. (всего) с уч. тех-ий' (BOM)= GROUP SUM overCurBruttoNetWeightComponent(c) BY BOMComponent(c) IN documentSum;      
+overCurBruttoNetWeight 'Вес (брутто) с уч. тех-ий' (Component c) = overCurBruttoQuantity(c) * (OVERRIDE 1.0 IF c IS Component, overNetWeight(c));
+overCurBruttoNetWeightyComponent 'Вес брутто комп. (всего) с уч. тех-ий' (BOM)= GROUP SUM overCurBruttoNetWeight(Component c) BY BOM(c) IN documentSum;      
         
 //CONSTRAINT overNettoNetWeightProductBOM(b) AND overNettoNetWeightComponentBOM(b) AND NOT (overNettoNetWeightProductBOM(b) == overNettoNetWeightComponentBOM(b))
 //    MESSAGE 'Вес нетто изделия не равен весу нетто компонентов в спецификации';   
                            
 //------------------------------- Формы -------------------------------------//
-backgroundComponent 'Цвет' (component) = RGB(255,255,229) IF materialComponent(component) IS Product;
+background 'Цвет' (Component component) = RGB(255,255,229) IF material(component) IS Product;
 
 TABLE stockBOM (Stock, BOM);
 TABLE stockGroupBOM (StockGroup, BOM);
 
-dataInStockBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, BOM);
-dataInStockGroupBOM 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, BOM);
+dataIn 'Доступ разрешен (компания)' = DATA BOOLEAN (Stock, BOM);
+dataIn 'Доступ разрешен (компания)' = DATA BOOLEAN (StockGroup, BOM);
 
-levelParentCompanyBOMStockGroup (BOM, stockGroup) = GROUP MIN levelStockGroupStockGroup(stockGroup, parent) IF dataInStockGroupBOM(parent, BOM)
+levelParentCompany (BOM, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataIn(parent, BOM BOM)
                                                                BY BOM, stockGroup PERSISTENT;
-nearestParentCompanyBOMStockGroup (BOM, stockGroup) = stockGroupStockGroupLevel(stockGroup, levelParentCompanyBOMStockGroup(BOM, stockGroup));
-nearestInCompanyBOMStockGroup (BOM, stockGroup) =
-    dataInStockGroupBOM(nearestParentCompanyBOMStockGroup (BOM, stockGroup), BOM) PERSISTENT;
+nearestParentCompany (BOM BOM, StockGroup stockGroup) = stockGroup(stockGroup, levelParentCompany(BOM, stockGroup));
+nearestInCompany (BOM BOM, StockGroup stockGroup) =
+    dataIn(nearestParentCompany (BOM, stockGroup), BOM) PERSISTENT;
 
-inBOMStockGroup 'Вкл.' (BOM, stockGroup) = OVERRIDE
-    nearestInCompanyBOMStockGroup(BOM, stockGroup),
-    dataInStockGroupBOM(stockGroup, BOM);
+in 'Вкл.' (BOM BOM, StockGroup stockGroup) = OVERRIDE
+    nearestInCompany(BOM, stockGroup),
+    dataIn(stockGroup, BOM);
 
-inBOMStock 'Вкл.' (BOM, stock) = OVERRIDE
-    nearestInCompanyBOMStockGroup(BOM, stockGroupStock(stock)) AND isCompanyStock(stock),
-    dataInStockBOM(stock, BOM) PERSISTENT;
+in 'Вкл.' (BOM BOM, Stock stock) = OVERRIDE
+    nearestInCompany(BOM, stockGroup(stock)) AND isCompany(stock),
+    dataIn(stock, BOM) PERSISTENT;
     
     
-countStocksBOM = GROUP SUM 1 IF inBOMStock(BOM, stock) BY BOM PERSISTENT;
+countStocks = GROUP SUM 1 IF in(BOM BOM, Stock stock) BY BOM PERSISTENT;
     
-quantityChildWithStockGroupBOM (stockGroup, BOM) = GROUP SUM 1 IF dataInStockGroupBOM(childstockGroup, BOM) AND isParentStockGroupStockGroup(childstockGroup, stockGroup) BY stockGroup, BOM PERSISTENT;
-quantityParentWithStockGroupBOM (stockGroup, BOM) = GROUP SUM 1 IF dataInStockGroupBOM(parentstockGroup, BOM) AND isParentStockGroupStockGroup(stockGroup, parentstockGroup) BY stockGroup, BOM PERSISTENT;     
+quantityChildWith (stockGroup, BOM) = GROUP SUM 1 IF dataIn(StockGroup childstockGroup, BOM BOM) AND isParent(childstockGroup, StockGroup stockGroup) BY stockGroup, BOM PERSISTENT;
+quantityParentWith (stockGroup, BOM) = GROUP SUM 1 IF dataIn(StockGroup parentstockGroup, BOM BOM) AND isParent(StockGroup stockGroup, parentstockGroup) BY stockGroup, BOM PERSISTENT;     
     
-backgroundInBOMStockGroup 'Цвет' (BOM, stockGroup) = CASE 
-    WHEN dataInStockGroupBOM(stockGroup, BOM) THEN RGB(0,0,0)
-    WHEN nearestInCompanyBOMStockGroup(stockGroup, BOM) THEN RGB(230,248,250) 
-    WHEN quantityChildWithStockGroupBOM (stockGroup, BOM) != descendantNumberStockGroup(stockGroup) AND NOT quantityParentWithStockGroupBOM (stockGroup, BOM) THEN RGB(203,203,203);    
+backgroundIn 'Цвет' (Object BOM, Object stockGroup) = CASE 
+    WHEN dataIn[StockGroup,BOM](stockGroup, BOM) THEN RGB(0,0,0)
+    WHEN nearestInCompany(stockGroup, BOM) THEN RGB(230,248,250) 
+    WHEN quantityChildWith (stockGroup, BOM) != descendantNumber[StockGroup](stockGroup) AND NOT quantityParentWith (stockGroup, BOM) THEN RGB(203,203,203);    
 
-editMaterialComponent 'Редактировать компонент' (d) = ACTION editMaterial(materialComponent(d));
+editMaterial 'Редактировать компонент' (Component d) = ACTION edit(material(d));
 
-stocksBOM 'Склады' (BOM) = GROUP CONCAT nameStock(stock) IF inBOMStock(BOM, stock) , ', '
+stocks 'Склады' (BOM) = GROUP CONCAT name(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
                                                  ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
-stocksIDBOM 'Склады' (BOM) = GROUP CONCAT idStock(stock) IF inBOMStock(BOM, stock) , ', '
+stocksIDBOM 'Склады' (BOM) = GROUP CONCAT id(Stock stock) IF in(BOM BOM, stock) , ', '
                                                  BY BOM
                                                  ORDER stock MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;          
                                                                                         
                                                                                         
 EXTEND FORM products
     OBJECTS c = Component
-    PROPERTIES(c) READONLY BACKGROUND backgroundComponent(c) indexComponent 
-    PROPERTIES(c) READONLY BACKGROUND backgroundComponent(c) idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent 
-    PROPERTIES(c) READONLY BACKGROUND backgroundComponent(c) 
-                  nettoQuantityComponent, overNettoNetWeightComponent,
-                  wastageComponent,
-                  bruttoQuantityComponent, overBruttoNetWeightComponent,
-                  technologiesInvoice BACKGROUND backgroundBruttoQuantityComponent(c),
-                  wastageTechnologiesComponent BACKGROUND backgroundBruttoQuantityComponent(c),                   
-                  overCurBruttoQuantityComponent BACKGROUND backgroundBruttoQuantityComponent(c),
-                  overCurBruttoNetWeightComponent BACKGROUND backgroundBruttoQuantityComponent(c)
-    ORDER BY indexComponent(c)
-    FILTERS       BOMComponent(c) == BOMProduct(p)                                                                                      
+    PROPERTIES(c) READONLY BACKGROUND background(c) index 
+    PROPERTIES(c) READONLY BACKGROUND background(c) idBarcodeSku, id SHOWIF showIDs(), nameMaterial, shortNameUOM 
+    PROPERTIES(c) READONLY BACKGROUND background(c) 
+                  nettoQuantity, overNettoNetWeight,
+                  wastage,
+                  bruttoQuantity, overBruttoNetWeight,
+                  technologiesInvoice BACKGROUND backgroundBruttoQuantity(c),
+                  wastageTechnologies BACKGROUND backgroundBruttoQuantity(c),                   
+                  overCurBruttoQuantity BACKGROUND backgroundBruttoQuantity(c),
+                  overCurBruttoNetWeight BACKGROUND backgroundBruttoQuantity(c)
+    ORDER BY index(c)
+    FILTERS       BOM(c) == BOM(p)                                                                                      
 ; 
 DESIGN products {
     main {
@@ -681,47 +681,47 @@ FORM BOM 'Спецификация'
 
     OBJECTS b=BOM FIXED PANEL
 
-    PROPERTIES(b) inactiveBOM, nameBOM, nameNumeratorBOM, numberBOM, seriesBOM, dateBOM, timeBOM, noteBOM, fromDateBOM, toDateBOM 
-    PROPERTIES(b) READONLY overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, 
-                  overCurBruttoNetWeightyComponentBOM BACKGROUND backgroundBruttoQuantityBOM(b), pricePercentBOM
+    PROPERTIES(b) inactive, name, nameNumerator, number, series, date, time, note, fromDate, toDate 
+    PROPERTIES(b) READONLY overNettoNetWeightProduct, overNettoNetWeightComponent, overBruttoNetWeightyComponent, 
+                  overCurBruttoNetWeightyComponent BACKGROUND backgroundBruttoQuantity(b), pricePercent
     OBJECTS p = Product
-    PROPERTIES(p) indexProduct 
-    PROPERTIES(p) ON EDIT editSkuProduct(p) idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct     
+    PROPERTIES(p) index 
+    PROPERTIES(p) ON EDIT editSku(p) idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM     
     
-    PROPERTIES(p) quantityProduct, overNettoNetWeightProduct READONLY, pricePercentProduct, calcPriceCoeffProduct ON CHANGE changePriceCoeffProduct(p)
+    PROPERTIES(p) quantity, overNettoNetWeight READONLY, pricePercent, calcPriceCoeff ON CHANGE changePriceCoeff(p)
 
     PROPERTIES(p) ADDOBJ, deletep=DELETESESSION
-    PROPERTIES(b) TODRAW p deleteProductBOM
-    FILTERS       BOMProduct(p) == b
+    PROPERTIES(b) TODRAW p deleteProduct
+    FILTERS       BOM(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) BACKGROUND backgroundComponent(c) indexComponent 
-    PROPERTIES(c) BACKGROUND backgroundComponent(c) ON EDIT editMaterialComponent(c) idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, shortNameUOMComponent 
-    PROPERTIES(c) BACKGROUND backgroundComponent(c) 
-                  nettoQuantityComponent ON CHANGE changeNettoQuantityComponent(c), overNettoNetWeightComponent READONLY,
-                  wastageComponent ON CHANGE changeWastageComponent(c),
-                  bruttoQuantityComponent ON CHANGE changeBruttoQuantityComponent(c), overBruttoNetWeightComponent READONLY,
-                  technologiesInvoice ON CHANGE selectTechnologiesComponent(c)   BACKGROUND backgroundBruttoQuantityComponent(c),
-                  wastageTechnologiesComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c),                   
-                  overCurBruttoQuantityComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c),
-                  overCurBruttoNetWeightComponent READONLY BACKGROUND backgroundBruttoQuantityComponent(c)
-    ORDER BY indexComponent(c)
+    PROPERTIES(c) BACKGROUND background(c) index 
+    PROPERTIES(c) BACKGROUND background(c) ON EDIT editMaterial(c) idBarcodeSku, id SHOWIF showIDs(), nameMaterial, shortNameUOM 
+    PROPERTIES(c) BACKGROUND background(c) 
+                  nettoQuantity ON CHANGE changeNettoQuantity(c), overNettoNetWeight READONLY,
+                  wastage ON CHANGE changeWastage(c),
+                  bruttoQuantity ON CHANGE changeBruttoQuantity(c), overBruttoNetWeight READONLY,
+                  technologiesInvoice ON CHANGE selectTechnologies(c)   BACKGROUND backgroundBruttoQuantity(c),
+                  wastageTechnologies READONLY BACKGROUND backgroundBruttoQuantity(c),                   
+                  overCurBruttoQuantity READONLY BACKGROUND backgroundBruttoQuantity(c),
+                  overCurBruttoNetWeight READONLY BACKGROUND backgroundBruttoQuantity(c)
+    ORDER BY index(c)
     PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
-    PROPERTIES(b) TODRAW c deleteComponentBOM
-    FILTERS       BOMComponent(c) == b
+    PROPERTIES(b) TODRAW c deleteComponent
+    FILTERS       BOM(c) == b
     
-    TREE stockTree sg = StockGroup PARENT parentStockGroup
-    PROPERTIES    nameStockGroup(sg) READONLY, inBOMStockGroup(b,sg) BACKGROUND backgroundInBOMStockGroup(b,sg)
-    ORDER BY      nameStockGroup(sg)
+    TREE stockTree sg = StockGroup PARENT parent
+    PROPERTIES    name(sg) READONLY, in(b,sg) BACKGROUND backgroundIn(b,sg)
+    ORDER BY      name(sg)
     
     OBJECTS ts=Stock
-    PROPERTIES    nameStock(ts) READONLY, idStock(ts) READONLY SHOWIF showIDs(), inBOMStock(b,ts)
+    PROPERTIES    name(ts) READONLY, id(ts) READONLY SHOWIF showIDs(), in(b,ts)
 
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
-    FILTERS isParentStockGroupStock(sg, ts)
-    ORDER BY nameStock(ts)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    FILTERS isParent(sg, ts)
+    ORDER BY name(ts)
     
-    FILTERGROUP BOM FILTER 'Отм.' inBOMStock(b,ts) 'ctrl F9'
+    FILTERGROUP BOM FILTER 'Отм.' in(b,ts) 'ctrl F9'
 
     EDIT BOM OBJECT b
 ;
@@ -735,7 +735,7 @@ DESIGN BOM {
             fill = 1;
             MOVE p.box {
                 caption = 'Изделие';
-                PROPERTY (idProduct(p)) { caption = 'Код изделия';}
+                PROPERTY (id(p)) { caption = 'Код изделия';}
             }
             MOVE c.box {caption = 'Компонент';}
             NEW inBOM {
@@ -755,13 +755,13 @@ DESIGN BOM {
                 NEW headerRow11 {
                     caption = 'Шапка';
                     type = CONTAINERH;
-                    MOVE PROPERTY(inactiveBOM(b));
-                    MOVE PROPERTY(nameBOM(b)) { preferredCharWidth = 20; }
-                    MOVE PROPERTY(nameNumeratorBOM(b));
-                    MOVE PROPERTY(numberBOM(b));
-                    MOVE PROPERTY(seriesBOM(b));
-                    MOVE PROPERTY(dateBOM(b));
-                    MOVE PROPERTY(timeBOM(b));                    
+                    MOVE PROPERTY(inactive(b));
+                    MOVE PROPERTY(name(b)) { preferredCharWidth = 20; }
+                    MOVE PROPERTY(nameNumerator(b));
+                    MOVE PROPERTY(number(b));
+                    MOVE PROPERTY(series(b));
+                    MOVE PROPERTY(date(b));
+                    MOVE PROPERTY(time(b));                    
                     
                 }
                 MOVE b.documentPrm {
@@ -781,65 +781,65 @@ DESIGN BOM {
     }
 }
 
-WHEN SESSION FORMS BOM SET(BOM IS BOM) DO {
-    dataInStockBOM(stock, BOM) <- TRUE WHERE dataAccessCompanyStockEmployee(stock, currentUser());
-    dataInStockGroupBOM(group, BOM) <- TRUE WHERE dataAccessCompanyStockGroupEmployee(group, currentUser());
+WHEN SESSION FORMS BOM SET(BOM BOM IS BOM) DO {
+    dataIn(Stock stock, BOM) <- TRUE WHERE dataAccessCompany(stock, currentUser());
+    dataIn(StockGroup group, BOM) <- TRUE WHERE dataAccessCompany(group, currentUser());
 };
 
-overCopyBOM = ABSTRACT ACTION LIST (BOM, BOM);
-overCopyComponent = ABSTRACT ACTION LIST (Component, Component);
+overCopy = ABSTRACT ACTION LIST (BOM, BOM);
+overCopy = ABSTRACT ACTION LIST (Component, Component);
 
-copyBOM 'Копировать' = ACTION (BOM) NEWSESSION {
+copy 'Копировать' = ACTION (BOM BOM) NEWSESSION {
     FOR ADDOBJ b = BOM DO {
 
-        noteBOM(b) <- noteBOM(BOM);
-        FOR BOMProduct(product) == BOM ADDOBJ p=Product DO {
-            BOMProduct(p) <- b;
-            skuProduct(p) <- skuProduct(product);
-            quantityProduct(p) <- quantityProduct(product);
-            pricePercentProduct(p) <- pricePercentProduct(product);
+        note(b) <- note(BOM);
+        FOR BOM(Product product) == BOM ADDOBJ p=Product DO {
+            BOM(p) <- b;
+            sku(p) <- sku(product);
+            quantity(p) <- quantity(product);
+            pricePercent(p) <- pricePercent(product);
         }
 
-        FOR BOMComponent(component) == BOM ADDOBJ c=Component DO {
-            BOMComponent(c) <- b;
-            materialComponent(c) <- materialComponent(component);
-            nettoQuantityComponent(c) <- nettoQuantityComponent(component);
+        FOR BOM(Component component) == BOM ADDOBJ c=Component DO {
+            BOM(c) <- b;
+            material(c) <- material(component);
+            nettoQuantity(c) <- nettoQuantity(component);
             
-            inTechnologyComponent(t,c) <- inTechnologyComponent(t,component) WHERE inTechnologyComponent(t,component);            
+            in(Technology t,c) <- in(t,component) WHERE in(t,component);            
             
-            bruttoQuantityComponent(c) <- bruttoQuantityComponent(component);
-            wastageComponent(c) <- wastageComponent(component);
-            overCopyComponent(c,component);
+            bruttoQuantity(c) <- bruttoQuantity(component);
+            wastage(c) <- wastage(component);
+            overCopy(c,component);
         }
-        dataInStockBOM(s, b) <- dataInStockBOM(s, BOM); 
-        dataInStockGroupBOM(g, b) <- dataInStockGroupBOM(g, BOM);
+        dataIn(Stock s, b) <- dataIn(s, BOM); 
+        dataIn(StockGroup g, b) <- dataIn(g, BOM);
 
-        EXEC overCopyBOM(BOM, b);
+        EXEC overCopy(BOM, b);
         
         FORM BOM OBJECTS b = b MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
 
-editMaterial(p) += ACTION [= ACTION EDITFORM BOM](BOMProduct(p));
+edit(Product p) += ACTION [= ACTION EDITFORM BOM](BOM(p));
 
-relationProductsSkuBOM (sku,BOM)= GROUP SUM 1 BY skuProduct(p), BOMProduct(p);
-relationComponentsSkuBOM (sku,BOM)= GROUP SUM 1 BY materialComponent(c), BOMComponent(c);
+relationProducts (sku,BOM)= GROUP SUM 1 BY sku(Product p), BOM(p);
+relationComponents (sku,BOM)= GROUP SUM 1 BY material(Component c), BOM(c);
 
-isActiveBOMDate(BOM, date) = BOM IS BOM AND date IS DATE
-                                        AND NOT inactiveBOM(BOM)
-                                        AND NOT fromDateBOM(BOM) > date
-                                        AND NOT toDateBOM(BOM) < date;
-isActiveBOM(BOM) = isActiveBOMDate(BOM, currentDate());
+isActive(BOM BOM, DATE date) = BOM IS BOM AND date IS DATE
+                                        AND NOT inactive(BOM)
+                                        AND NOT fromDate(BOM) > date
+                                        AND NOT toDate(BOM) < date;
+isActive(BOM BOM) = isActive(BOM, currentDate());
 
-backgroundBOM 'Цвет' (BOM) = CASE WHEN fromDateBOM(BOM) > currentDate() THEN RGB(224,255,224)
-                                  WHEN toDateBOM(BOM) < currentDate() THEN RGB(255,224,224);     
+background 'Цвет' (BOM BOM) = CASE WHEN fromDate(BOM) > currentDate() THEN RGB(224,255,224)
+                                  WHEN toDate(BOM) < currentDate() THEN RGB(255,224,224);     
 
-addBOMSku 'Добавить' = ACTION (sku) NEWSESSION {
+addBOM 'Добавить' = ACTION (Sku sku) NEWSESSION {
     FOR ADDOBJ b = BOM DO {
     
         FOR ADDOBJ p = Product DO {   
-            BOMProduct(p) <- b;
-            skuProduct(p) <- sku;
+            BOM(p) <- b;
+            sku(p) <- sku;
         } 
         FORM BOM OBJECTS  b = b MANAGESESSION  DOCKEDMODAL;
     }
@@ -849,62 +849,62 @@ FORM BOMs 'Спецификации'
 
     OBJECTS b=BOM
 
-    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) inactiveBOM, productsBOM, nameBOM, numberBOM, seriesBOM,  dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM,  
-                   overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
-    PROPERTIES (b) ADDFORM, EDITFORM, copyBOM, deleteb=DELETE FORCE PANEL TOOLBAR
-    PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
+    PROPERTIES(b)  READONLY BACKGROUND background(b) inactive, products, name, number, series,  date, time, fromDate, toDate, components,  
+                   overNettoNetWeightProduct, overNettoNetWeightComponent, overBruttoNetWeightyComponent, pricePercent, note, stocks
+    PROPERTIES (b) ADDFORM, EDITFORM, copy, deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (b) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
     FILTERGROUP inactiveBOM
-        FILTER 'Текущие' isActiveBOM(b) 'F11'            
-        FILTER 'Активные' isActiveBOM(b) OR (fromDateBOM(b) > currentDate()) 'F10' DEFAULT
+        FILTER 'Текущие' isActive(b) 'F11'            
+        FILTER 'Активные' isActive(b) OR (fromDate(b) > currentDate()) 'F10' DEFAULT
         
     OBJECTS p = Product
-    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct,
-                  quantityProduct, overNettoNetWeightProduct, pricePercentProduct
-    FILTERS       BOMProduct(p) == b
+    PROPERTIES(p) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM,
+                  quantity, overNettoNetWeight, pricePercent
+    FILTERS       BOM(p) == b
 
     OBJECTS c = Component
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), nameMaterialComponent, 
-                  shortNameUOMComponent, nettoQuantityComponent, overNettoNetWeightComponent, wastageComponent, bruttoQuantityComponent, overBruttoNetWeightComponent,
-                  technologiesInvoice, wastageTechnologiesComponent, overCurBruttoQuantityComponent, overCurBruttoNetWeightComponent                                                                                                                                                                    
+    PROPERTIES(c) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameMaterial, 
+                  shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight,
+                  technologiesInvoice, wastageTechnologies, overCurBruttoQuantity, overCurBruttoNetWeight                                                                                                                                                                    
                                                                                    
-    FILTERS       BOMComponent(c) == b
+    FILTERS       BOM(c) == b
     
     OBJECTS p1 = Sku
-    PROPERTIES(p1) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
-    PROPERTIES     TODRAW p1 addSku(), editSku(p1), DELETE(p1) FORCE PANEL TOOLBAR 
-    FILTERS        isProductGroupSku(p1)
-    ORDER BY nameSku(p1)
+    PROPERTIES(p1) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
+    PROPERTIES     TODRAW p1 addSku(), Stock.edit(p1), DELETE(p1) FORCE PANEL TOOLBAR 
+    FILTERS        isProductGroup(p1)
+    ORDER BY name(p1)
     
     OBJECTS b1=BOM    
-    PROPERTIES(b1) READONLY inactiveBOM, productsBOM, nameBOM, dateBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
-                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
+    PROPERTIES(b1) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
+                   overBruttoNetWeightyComponent, pricePercent, note, stocks
     PROPERTIES(b1) EDITFORM
-    PROPERTIES     addBOMSku(p1) TODRAW b1
-    FILTERS        relationProductsSkuBOM(p1,b1)
+    PROPERTIES     addBOM(p1) TODRAW b1
+    FILTERS        relationProducts(p1,b1)
           
     OBJECTS c1 = Component
-    PROPERTIES(c1) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), 
-                   nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent, overNettoNetWeightComponent, wastageComponent, bruttoQuantityComponent, overBruttoNetWeightComponent,
-                   technologiesInvoice, wastageTechnologiesComponent, overCurBruttoQuantityComponent, overCurBruttoNetWeightComponent 
-    FILTERS        BOMComponent(c1) == b1   
-    ORDER BY indexComponent(c1)
+    PROPERTIES(c1) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), 
+                   nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight,
+                   technologiesInvoice, wastageTechnologies, overCurBruttoQuantity, overCurBruttoNetWeight 
+    FILTERS        BOM(c1) == b1   
+    ORDER BY index(c1)
     
 
     OBJECTS c2 = Sku
-    PROPERTIES(c2) READONLY idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
-    PROPERTIES     TODRAW c2 addSku(), editSku(c2), DELETE(c2) FORCE PANEL TOOLBAR  
-    FILTERS        isComponentGroupSku(c2)                   
+    PROPERTIES(c2) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
+    PROPERTIES     TODRAW c2 addSku(), Stock.edit(c2), DELETE(c2) FORCE PANEL TOOLBAR  
+    FILTERS        isComponentGroup(c2)                   
     OBJECTS b2=BOM    
-    PROPERTIES(b2) READONLY inactiveBOM, productsBOM, nameBOM, dateBOM, numberBOM, seriesBOM, componentsBOM, overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, 
-                   overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM, stocksBOM
+    PROPERTIES(b2) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
+                   overBruttoNetWeightyComponent, pricePercent, note, stocks
     PROPERTIES(b2) EDITFORM                
-    FILTERS        relationComponentsSkuBOM(c2,b2)           
-    ORDER BY nameSku(c2)
+    FILTERS        relationComponents(c2,b2)           
+    ORDER BY name(c2)
     
     OBJECTS p2 = Product
-    PROPERTIES(p2) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, 
-                   quantityProduct, overNettoNetWeightProduct, pricePercentProduct
-    FILTERS        BOMProduct(p2) == b2    
+    PROPERTIES(p2) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM, 
+                   quantity, overNettoNetWeight, pricePercent
+    FILTERS        BOM(p2) == b2    
     
 ;
 
@@ -929,7 +929,7 @@ DESIGN BOMs {
     
                     MOVE p.box {
                         caption = 'Изделие';
-                        PROPERTY (idProduct(p)) { caption = 'Код изделия';}
+                        PROPERTY (id(p)) { caption = 'Код изделия';}
                     }
                     MOVE c.box {
                         caption = 'Компонент';
@@ -971,53 +971,53 @@ DESIGN BOMs {
                     type = SPLITH;
                     MOVE b2.box;
                     MOVE p2.box {
-                        PROPERTY (idProduct(p2)) { caption = 'Код изделия';}
+                        PROPERTY (id(p2)) { caption = 'Код изделия';}
                     };                    
                 } 
             }                      
         }
-        PROPERTY (idSku(p1)) { caption = 'Код изделия';}
-        PROPERTY (idSku(c2)) { caption = 'Код компонента';}
+        PROPERTY (id(p1)) { caption = 'Код изделия';}
+        PROPERTY (id(c2)) { caption = 'Код компонента';}
     }
 }
 
-copyBOMProductSku 'Копировать' = ACTION (sku) {
-    copySku(sku);
+copyBOMProduct 'Копировать' = ACTION (Sku sku) {
+    Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.p1 addedSku(); 
 } EDITKEY 'F5' TOOLBAR;
 
-EXTEND FORM BOMs PROPERTIES(p1) copyBOMProductSku;
+EXTEND FORM BOMs PROPERTIES(p1) copyBOMProduct;
 
-copyBOMComponentSku 'Копировать' = ACTION (sku) {
-    copySku(sku);
+copyBOMComponent 'Копировать' = ACTION (Sku sku) {
+    Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.c2 addedSku(); 
 } EDITKEY 'F5' TOOLBAR;
 
-EXTEND FORM BOMs PROPERTIES(c2) copyBOMComponentSku;
+EXTEND FORM BOMs PROPERTIES(c2) copyBOMComponent;
 
 FORM BOMsDialog 'Спецификации'
 
     OBJECTS b=BOM
-    PROPERTIES(b)  READONLY BACKGROUND backgroundBOM(b) productsBOM, nameBOM, numberBOM, seriesBOM, dateBOM, timeBOM, fromDateBOM, toDateBOM, componentsBOM, 
-                   overNettoNetWeightProductBOM, overNettoNetWeightComponentBOM, overBruttoNetWeightyComponentBOM, pricePercentBOM, noteBOM
-    PROPERTIES (b) READONLY FORCE PANEL createdNameUserBOM, createdTimeBOM, createdHostnameComputerBOM
+    PROPERTIES(b)  READONLY BACKGROUND background(b) products, name, number, series, date, time, fromDate, toDate, components, 
+                   overNettoNetWeightProduct, overNettoNetWeightComponent, overBruttoNetWeightyComponent, pricePercent, note
+    PROPERTIES (b) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
     FILTERGROUP inactiveBOM
-        FILTER 'Текущие' isActiveBOM(b) 'F11'            
-        FILTER 'Активные' isActiveBOM(b) OR (fromDateBOM(b) > currentDate()) 'F10' DEFAULT
+        FILTER 'Текущие' isActive(b) 'F11'            
+        FILTER 'Активные' isActive(b) OR (fromDate(b) > currentDate()) 'F10' DEFAULT
         
     OBJECTS p = Product
-    PROPERTIES(p) READONLY indexProduct, idBarcodeSkuProduct, idProduct SHOWIF showIDs(), nameSkuProduct, shortNameUOMProduct, 
-                  quantityProduct, overNettoNetWeightProduct, pricePercentProduct
-    FILTERS       BOMProduct(p) == b
+    PROPERTIES(p) READONLY index, idBarcodeSku, id SHOWIF showIDs(), nameSku, shortNameUOM, 
+                  quantity, overNettoNetWeight, pricePercent
+    FILTERS       BOM(p) == b
 
     OBJECTS c = Component                 
-    PROPERTIES(c) BACKGROUND  backgroundComponent(c) READONLY indexComponent, idBarcodeSkuComponent, idComponent SHOWIF showIDs(), 
-                   nameMaterialComponent, shortNameUOMComponent, nettoQuantityComponent, overNettoNetWeightComponent, wastageComponent, bruttoQuantityComponent, overBruttoNetWeightComponent,
-                   technologiesInvoice, wastageTechnologiesComponent, overCurBruttoQuantityComponent, overCurBruttoNetWeightComponent                                                      
+    PROPERTIES(c) BACKGROUND  background(c) READONLY index, idBarcodeSku, id SHOWIF showIDs(), 
+                   nameMaterial, shortNameUOM, nettoQuantity, overNettoNetWeight, wastage, bruttoQuantity, overBruttoNetWeight,
+                   technologiesInvoice, wastageTechnologies, overCurBruttoQuantity, overCurBruttoNetWeight                                                      
                   
-    FILTERS       BOMComponent(c) == b
+    FILTERS       BOM(c) == b
       
     DIALOG BOM OBJECT b
 ;
@@ -1036,7 +1036,7 @@ DESIGN BOMsDialog {
 
                 MOVE p.box {
                     caption = 'Изделие';
-                    PROPERTY (idProduct(p)) { caption = 'Код изделия';}
+                    PROPERTY (id(p)) { caption = 'Код изделия';}
                 }
                 MOVE c.box {
                     caption = 'Компонент';
@@ -1051,56 +1051,56 @@ DESIGN BOMsDialog {
     }
 }
 
-accessCurrentUserBOM = [ =GROUP SUM 1 IF accessCompanyEmployeeStock(currentUser(), s) AND inBOMStock(BOM,s) BY BOM](BOM) OR (BOM IS BOM AND NOT countStocksBOM(BOM)); 
+accessCurrentUser = [ =GROUP SUM 1 IF accessCompany(currentUser(), Stock s) AND in(BOM BOM,s) BY BOM](BOM BOM) OR (BOM IS BOM AND NOT countStocks(BOM)); 
 
 EXTEND FORM BOMs 
-    FILTERS accessCurrentUserBOM(b)
+    FILTERS accessCurrentUser(b)
 ;
 EXTEND FORM BOMsDialog 
-    FILTERS accessCurrentUserBOM(b)
+    FILTERS accessCurrentUser(b)
 ;
 
 EXTEND FORM products 
-    FILTERS accessCurrentUserBOM(BOMProduct(p))
+    FILTERS accessCurrentUser(BOM(p))
 ;
 
 EXTEND FORM components 
-    FILTERS accessCurrentUserBOM(BOMComponent(c))
+    FILTERS accessCurrentUser(BOM(c))
 
     FILTERGROUP active
-        FILTER 'Активные' isActiveBOM(BOMComponent(c)) DEFAULT 
+        FILTER 'Активные' isActive(BOM(c)) DEFAULT 
 ;
 //-------------------------------- Комиссия для акта контрольной проработки ----------------------------------//
 CLASS ManufacturingCommittee 'Комиссия производство' : Committee;
 
-nameManufacturingCommittee 'Наименование' = DATA VARISTRING[150](ManufacturingCommittee);
+name 'Наименование' = DATA VARISTRING[150](ManufacturingCommittee);
 
-nameCommittee(committee) += nameManufacturingCommittee(committee) IF committee IS ManufacturingCommittee;
+name(ManufacturingCommittee committee) += name(committee) IF committee IS ManufacturingCommittee;
 
 FORM manufacturingCommittee 'Комиссия производство'
     OBJECTS c=ManufacturingCommittee FIXED PANEL
-    PROPERTIES(c)      nameManufacturingCommittee
+    PROPERTIES(c)      name
 
-    TREE stockTree sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY sgTreeName = nameStockGroup(sg)
+    TREE stockTree sg = StockGroup PARENT parent
+    PROPERTIES READONLY sgTreeName = name(sg)
 
     OBJECTS ts=Stock
-    PROPERTIES    READONLY tsTreeName = nameStock(ts)
-    PROPERTIES(c, ts) inCommitteeStock FORCE GRID
-    FILTERGROUP inactiveStock FILTER 'Активный' activeStock(ts) 'ctrl F10' DEFAULT
-    FILTERS isParentStockGroupStock(sg, ts)
+    PROPERTIES    READONLY tsTreeName = name(ts)
+    PROPERTIES(c, ts) in FORCE GRID
+    FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+    FILTERS isParent(sg, ts)
     ORDER BY tsTreeName
 
     OBJECTS e=Employee
-    PROPERTIES(e)      READONLY nameContact, firstNameContact, lastNameContact, namePositionEmployee
+    PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
     PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
-    PROPERTIES(c, e)   inCommitteeEmployee
-    FILTERS            (countStockEmployeeCommittee (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
+    PROPERTIES(c, e)   in
+    FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
     FILTERGROUP filters6
-        FILTER 'Показывать только членов комиссии' inCommitteeEmployee(c, e) 'F10'
+        FILTER 'Показывать только членов комиссии' in(c, e) 'F10'
     FILTERGROUP filters5
-        FILTER 'Показывать отделы только для данной комиссии' inCommitteeStock(c, ts) 'F9'
+        FILTER 'Показывать отделы только для данной комиссии' in(c, ts) 'F9'
 
     EDIT ManufacturingCommittee OBJECT c
 ;
@@ -1126,7 +1126,7 @@ DESIGN manufacturingCommittee {
 
 FORM manufacturingCommitteeDialog 'Комиссии производство'
     OBJECTS a=ManufacturingCommittee
-    PROPERTIES(a)      READONLY nameManufacturingCommittee, nameEmployeeCommittee
+    PROPERTIES(a)      READONLY name, nameEmployee
     PROPERTIES(a)      ADDFORM, EDITFORM
 
     DIALOG ManufacturingCommittee OBJECT a
@@ -1134,33 +1134,33 @@ FORM manufacturingCommitteeDialog 'Комиссии производство'
 
 // ----------------- Акт контрольной проработки-------------------- //
 
-actStudyOfCulinaryCommitteeBOM (BOM) = DATA ManufacturingCommittee(BOM);
-nameActStudyOfCulinaryCommitteeBOM 'Комиссия для акта' (BOM) = nameManufacturingCommittee(actStudyOfCulinaryCommitteeBOM (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
-nameEmployeeCommitteeBOM 'Члены комиссии' (BOM)= nameEmployeeCommittee(actStudyOfCulinaryCommitteeBOM(BOM));
+actStudyOfCulinaryCommittee (BOM) = DATA ManufacturingCommittee(BOM);
+nameActStudyOfCulinaryCommittee 'Комиссия для акта' (BOM BOM) = name(actStudyOfCulinaryCommittee (BOM)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 40;
+nameEmployeeCommittee 'Члены комиссии' (BOM BOM)= nameEmployee(actStudyOfCulinaryCommittee(BOM));
 
-inCommitteeBOMEmployee (BOM, employee) = inCommitteeEmployee(actStudyOfCulinaryCommitteeBOM (BOM), employee);
-commonNameEmployeeCommitteeBOM 'Члены комиссии' (BOM) = namePositionEmployeeCommittee(actStudyOfCulinaryCommitteeBOM (BOM));
+inCommittee (BOM BOM, Employee employee) = in(actStudyOfCulinaryCommittee (BOM), employee);
+commonNameEmployeeCommittee 'Члены комиссии' (BOM BOM) = namePositionEmployee(actStudyOfCulinaryCommittee (BOM));
 
-companyBOM (BOM) = DATA LegalEntity(BOM);
-nameCompanyBOM 'Компания' (BOM) = nameLegalEntity(companyBOM(BOM)) IN documentPrm;
+company (BOM) = DATA LegalEntity(BOM);
+nameCompany 'Компания' (BOM BOM) = name(company(BOM)) IN documentPrm;
 
-actQuantityBOM 'Кол-во для акта' = DATA NUMERIC[16,5] (BOM);
-actStockBOM  = DATA Stock (BOM);
-nameActStockBOM 'Склад для акта' (b) = nameStock(actStockBOM(b));
+actQuantity 'Кол-во для акта' = DATA NUMERIC[16,5] (BOM);
+actStock  = DATA Stock (BOM);
+nameActStock 'Склад для акта' (BOM b) = name(actStock(b));
 
 
-CONSTRAINT  companyBOM(BOM) AND NOT isCompanyLegalEntity(companyBOM(BOM)) CHECKED BY companyBOM
+CONSTRAINT  company(BOM BOM) AND NOT isCompany(company(BOM)) CHECKED BY company[BOM]
     MESSAGE 'Для спецификации выбрана организация, которая не является компанией';
-CONSTRAINT  actStockBOM(BOM) AND NOT isCompanyStock(actStockBOM(BOM)) CHECKED BY actStockBOM
+CONSTRAINT  actStock(BOM BOM) AND NOT isCompany(actStock(BOM)) CHECKED BY actStock[BOM]
     MESSAGE 'Для спецификации выбран склад, который не является складом компании';        
      
 
 EXTEND FORM BOM
-    PROPERTIES(b) actQuantityBOM, nameActStockBOM, nameActStudyOfCulinaryCommitteeBOM, nameCompanyBOM
+    PROPERTIES(b) actQuantity, nameActStock, nameActStudyOfCulinaryCommittee, nameCompany
 
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY nameContact, namePositionEmployee
-    FILTERS       inCommitteeBOMEmployee(b,e)
+    PROPERTIES(e) READONLY name[Contact], namePosition
+    FILTERS       inCommittee(b,e)
 ;
 DESIGN BOM {
 
@@ -1171,9 +1171,9 @@ DESIGN BOM {
             NEW row1{
                 caption = 'Акт';
                 type = CONTAINERH;
-                MOVE PROPERTY(actQuantityBOM(b));
-                MOVE PROPERTY(nameActStockBOM(b));
-                MOVE PROPERTY(nameActStudyOfCulinaryCommitteeBOM(b));
+                MOVE PROPERTY(actQuantity(b));
+                MOVE PROPERTY(nameActStock(b));
+                MOVE PROPERTY(nameActStudyOfCulinaryCommittee(b));
             }
             MOVE e.box {caption = 'Сотрудники комиссии';}
         }
@@ -1184,111 +1184,111 @@ DESIGN BOM {
 
 // кол-во требуемых материалов материалов
 // без учета технологий
-bruttoQuantityBOMMaterial(BOM, material) = GROUP SUM bruttoQuantityComponent(component) BY BOMComponent(component), materialComponent(component);
+bruttoQuantity(BOM, material) = GROUP SUM bruttoQuantity(Component component) BY BOM(component), material(component);
 // с учетом технологий
-bruttoQuantityBOMMaterialDate (BOM, material, date) = GROUP SUM bruttoQuantityComponentDate(component, date) BY BOMComponent(component), materialComponent(component), date;
+bruttoQuantity (BOM, material, date) = GROUP SUM bruttoQuantity(Component component, DATE date) BY BOM(component), material(component), date;
 
-bruttoQuantityBOMSkuDate(BOM, sku, date) = bruttoQuantityBOMMaterialDate(BOM, sku, date) IF sku IS Sku;
+bruttoQuantity(BOM BOM, Sku sku, DATE date) = bruttoQuantity[BOM,Material,DATE](BOM, sku, date) IF sku IS Sku;
 
-bruttoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](bruttoQuantityBOMMaterial(BOM, material) / quantityProduct(material)) BY BOM, BOMProduct(material) PERSISTENT;
+bruttoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](bruttoQuantity(BOM BOM, Product material) / quantity(material)) BY BOM, BOM(material) PERSISTENT;
 
 TABLE BOMBOM(BOM, BOM);
 TABLE BOMBOMResult(BOM, BOM, NUMERIC[20,11]);
 
-recBruttoQuantityBOMBOMResult (parent, child, q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
-recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
+recBruttoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * bruttoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
+recBruttoQuantityBOMBOM (parent, child) = GROUP SUM recBruttoQuantityBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child PERSISTENT;
 //recBruttoQuantityBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
-recBruttoQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMSkuDate(childBOM, sku, date) BY BOM, sku, date; //](BOM, sku);
+recBruttoQuantity (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM BOM, BOM childBOM) * bruttoQuantity(childBOM, Sku sku, DATE date) BY BOM, sku, date; //](BOM, sku);
 
-recBruttoQuantityBOMComponentDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, BOMComponent(component)) * bruttoQuantityComponentDate(component, date) BY BOM, component, date; //](BOM, sku);
+recBruttoQuantity (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM BOM, BOM(Component component)) * bruttoQuantity(component, DATE date) BY BOM, component, date; //](BOM, sku);
 
-recBruttoNodeQuantityBOMSkuDate (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM, childBOM) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date; //](BOM, sku);
+recBruttoNodeQuantity (BOM, sku, date) = GROUP SUM recBruttoQuantityBOMBOM(BOM BOM, BOM childBOM) * bruttoQuantity(childBOM, Material material, DATE date) BY BOM, sku(material), date; //](BOM, sku);
 
 // Расчет цены
-priceCoeffBOMBOM(parent, child) = GROUP SUM NUMERIC[20,11](bruttoQuantityBOMMaterial(BOM, material) * priceCoeffProduct(material) / quantityProduct(material)) BY BOM, BOMProduct(material) PERSISTENT;
+priceCoeffBOMBOM(parent, child) = GROUP SUM NUMERIC[20,11](bruttoQuantity(BOM BOM, Product material) * priceCoeff(material) / quantity(material)) BY BOM, BOM(material) PERSISTENT;
 
-recPriceCoeffBOMBOMResult (parent, child, q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES NO) PERSISTENT;
-recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
+recPriceCoeffBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * priceCoeffBOMBOM($child, child) CYCLES NO) PERSISTENT;
+recPriceCoeffBOMBOM (parent, child) = GROUP SUM recPriceCoeffBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child PERSISTENT;
 //recPriceCoeffBOMBOMDate (parent, child, date) = 1.0 IF (parent AS BOM) == (child AS BOM) AND date IS DATE;
 
 //
-recPriceCoeffBOMSkuDate (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOM(BOM, childBOM) * bruttoQuantityBOMMaterialDate(childBOM, material, date) BY BOM, skuMaterial(material), date;
+recPriceCoeff (BOM, sku, date) = GROUP SUM recPriceCoeffBOMBOM(BOM BOM, BOM childBOM) * bruttoQuantity(childBOM, Material material, DATE date) BY BOM, sku(material), date;
 //recPricePercentProductSkuDate (product, sku, date) = recPriceCoeffBOMSkuDate (BOMProduct(product), sku, date) * pricePercentProduct(product);
 
 // ----- Рекурсивный расчет потребностей нетто ---------- //
 
-nettoQuantityBOMMaterial 'Кол-во нетто компонентов в документе' (BOM, material) = GROUP SUM nettoQuantityComponent(component) BY BOMComponent(component), materialComponent(component);
-nettoQuantityBOMSku(BOM, sku) = nettoQuantityBOMMaterial(BOM, sku) IF sku IS Sku;
+nettoQuantity 'Кол-во нетто компонентов в документе' (BOM, material) = GROUP SUM nettoQuantity(Component component) BY BOM(component), material(component);
+nettoQuantity(BOM BOM, Sku sku) = nettoQuantity[BOM,Material](BOM, sku) IF sku IS Sku;
 
-nettoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](nettoQuantityBOMMaterial(BOM, material) / quantityProduct(material)) BY BOM, BOMProduct(material) PERSISTENT;
+nettoQuantityBOMBOM (parent, child) = GROUP MAX NUMERIC[20,11](nettoQuantity(BOM BOM, Product material) / quantity(material)) BY BOM, BOM(material) PERSISTENT;
 
-recNettoQuantityBOMBOMResult (parent, child, q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
-recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOMResult(parent, child, q) * q BY parent, child PERSISTENT;
+recNettoQuantityBOMBOM (BOM parent, BOM child, NUMERIC[20,11] q) = (RECURSION NUMERIC[20,11](1.0) IF q == NUMERIC[20,11](1.0) AND child == (parent AS BOM) STEP NUMERIC[20,11](1.0) IF q == $q * nettoQuantityBOMBOM($child, child) CYCLES NO) PERSISTENT;
+recNettoQuantityBOMBOM (parent, child) = GROUP SUM recNettoQuantityBOMBOM(BOM parent, BOM child, NUMERIC[20,11] q) * q BY parent, child PERSISTENT;
 
-recNettoQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childBOM) * nettoQuantityBOMSku(childBOM, sku) BY BOM, sku; //](BOM, sku);
+recNettoQuantity (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM BOM, BOM childBOM) * nettoQuantity(childBOM, Sku sku) BY BOM, sku; //](BOM, sku);
 
-recNettoNodeQuantityBOMSku (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM, childBOM) * nettoQuantityBOMMaterial(childBOM, material) BY BOM, skuMaterial(material); //](BOM, sku);
+recNettoNodeQuantity (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM BOM, BOM childBOM) * nettoQuantity(childBOM, Material material) BY BOM, sku(material); //](BOM, sku);
 
 //recNettoNodeQuantityBOMSku (BOM, sku) =  DATA NUMERIC[16,5] (BOM, Sku);   // пока сделал так, потому что очень тормозит.
 
 //-------------------- Подбор компонентов -----------------//
-componentBOMMaterial (BOM,material) =  GROUP MAX component
-    BY BOMComponent(component), materialComponent(component);
+component (BOM,material) =  GROUP MAX Component component
+    BY BOM(component), material(component);
    
-changeQuantityBOMMaterial = ACTION (BOM,material) {
+changeQuantity = ACTION (BOM BOM,Material material) {
     REQUEST NUMERIC[14,3] INPUT;
-    IF componentBOMMaterial(BOM,material) THEN {
+    IF component(BOM,material) THEN {
         IF requestedNumeric() THEN {
-            nettoQuantityComponent(detail) <- requestedNumeric() WHERE detail == componentBOMMaterial(BOM,material);
-            bruttoQuantityComponent(detail) <- requestedNumeric() WHERE detail == componentBOMMaterial(BOM,material);
+            nettoQuantity(Component detail) <- requestedNumeric() WHERE detail == component(BOM,material);
+            bruttoQuantity(Component detail) <- requestedNumeric() WHERE detail == component(BOM,material);
         } ELSE {
-            DELETE detail WHERE detail == componentBOMMaterial(BOM,material);
+            DELETE Component detail WHERE detail == component(BOM,material);
         }
     } ELSE {
         IF requestedNumeric() THEN {
             FOR ADDOBJ d = Component DO {
-                BOMComponent(d) <- BOM;
-                materialComponent(d) <- material;
-                nettoQuantityComponent (d) <- requestedNumeric();
-                bruttoQuantityComponent (d) <- requestedNumeric();
+                BOM(d) <- BOM;
+                material(d) <- material;
+                nettoQuantity (d) <- requestedNumeric();
+                bruttoQuantity (d) <- requestedNumeric();
             }
         }
     }
 }
-componentsStockBOM = DATA LOCAL Stock(BOM);
-nameComponentsStockBOM 'Склад' = nameStock(componentsStockBOM(BOM));
-prevCurrentBalanceBOMMaterial 'Остаток' (BOM,material) = prevCurrentBalanceSkuStock(material, componentsStockBOM(BOM));
+componentsStock = DATA LOCAL Stock(BOM);
+nameComponentsStock 'Склад' = name(componentsStock(BOM BOM));
+prevCurrentBalance 'Остаток' (BOM BOM,Sku material) = prevCurrentBalance(material, componentsStock(BOM));
 
-CONSTRAINT componentsStockBOM(b) AND NOT isCompanyStock(componentsStockBOM(b))
-    CHECKED BY componentsStockBOM MESSAGE 'Выбран склад для Спецификации, которые не принадлежит компании';
+CONSTRAINT componentsStock(BOM b) AND NOT isCompany(componentsStock(b))
+    CHECKED BY componentsStock[BOM] MESSAGE 'Выбран склад для Спецификации, которые не принадлежит компании';
 
 EXTEND FORM BOM
 
-    PROPERTIES nameComponentsStockBOM(b)
+    PROPERTIES nameComponentsStock(b)
 
-    TREE skuTree g = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(g), nameSkuGroup(g)
-    ORDER BY nameSkuGroup(g)
-    FILTERGROUP inactive1 FILTER 'Активные' activeSkuGroup(g) 'F5' DEFAULT
-    ORDER BY orderSkuGroup(g)
+    TREE skuTree g = SkuGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    ORDER BY name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
+    ORDER BY order(g)
     
     OBJECTS m = Material
-    PROPERTIES(m) READONLY idMaterial SHOWIF showIDs(), nameMaterial, shortNameUOMMaterial 
-    PROPERTIES nettoQuantityBOMMaterial(b,m) ON CHANGE changeQuantityBOMMaterial(b,m)
+    PROPERTIES(m) READONLY id SHOWIF showIDs(), name, shortNameUOM 
+    PROPERTIES nettoQuantity(b,m) ON CHANGE changeQuantity(b,m)
     
-    PROPERTIES(b,m) READONLY FORCE GRID prevCurrentBalanceBOMMaterial     
+    PROPERTIES(b,m) READONLY FORCE GRID prevCurrentBalance     
 
-    FILTERS isParentSkuGroupMaterial(g, m)
-    ORDER BY nameMaterial(m)    
+    FILTERS isParent(g, m)
+    ORDER BY name(m)    
   
     FILTERGROUP filters
         FILTER 'Изделие' m IS Product 'F11'
         FILTER 'Sku' m IS Sku 'F10'
                     
     FILTERGROUP filter
-        FILTER 'С остатком (склад)' prevCurrentBalanceBOMMaterial(b,m) 'F10' DEFAULT 
-        FILTER 'В документе (нетто)' nettoQuantityBOMMaterial(b,m) 'F9'
+        FILTER 'С остатком (склад)' prevCurrentBalance(b,m) 'F10' DEFAULT 
+        FILTER 'В документе (нетто)' nettoQuantity(b,m) 'F9'
 ;
 
 DESIGN BOM{
@@ -1309,7 +1309,7 @@ DESIGN BOM{
                     type = CONTAINERV;
                     NEW selectPane1 {
                         caption = 'Выбор склада для отображения остатков';
-                        MOVE PROPERTY (nameComponentsStockBOM(b));
+                        MOVE PROPERTY (nameComponentsStock(b));
                     }
                     MOVE m.box;
                 }
@@ -1328,27 +1328,27 @@ NAVIGATOR {
     }
 }
 
-showBOMComponent'Показать спецификацию' (c) = ACTION FORM BOM OBJECTS b = BOMProduct(materialComponent(c)), p = materialComponent(c) NEWSESSION MODAL SHORTCUT nameMaterialComponent;
+showBOM'Показать спецификацию' (Component c) = ACTION FORM BOM OBJECTS b = BOM(material(c)), p = material(c) NEWSESSION MODAL SHORTCUT nameMaterial[Component];
 //showBOMComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d), c = componentComponentDetail(d) NEWSESSION MODAL SHORTCUT nameComponentComponentDetail;
 ////showBOMNameComponentDetail'Показать спецификацию' (d) = ACTION FORM BOM OBJECTS b = BOMComponentDetail(d) NEWSESSION MODAL SHORTCUT fullNameBOMComponentDetail;
 
-numberDocument(BOM) += numberBOM(BOM);
-seriesDocument(BOM) += seriesBOM(BOM);
-dateDocument(BOM) += dateBOM(BOM);
+number(BOM BOM) += number(BOM);
+series(BOM BOM) += series(BOM);
+date(BOM BOM) += date(BOM);
 
-indexDocumentDetail(detail) += indexProduct(detail);
-skuDocumentDetail(detail) += skuProduct(detail);
-quantityDocumentDetail(detail) += quantityProduct(detail);
-documentDocumentDetail(detail) += BOMProduct(detail);
+index(Product detail) += index(detail);
+sku[DocumentDetail](Product detail) += sku(detail);
+quantity(Product detail) += quantity(detail);
+document(Product detail) += BOM(detail);
 
-indexDocumentDetail(detail) += indexComponent(detail);
-skuDocumentDetail(detail) += skuComponent(detail);
-quantityDocumentDetail(detail) += bruttoQuantityComponent(detail);
-documentDocumentDetail(detail) += BOMComponent(detail);
+index(Component detail) += index(detail);
+sku(Component detail) += sku(detail);
+quantity(Component detail) += bruttoQuantity(detail);
+document(Component detail) += BOM(detail);
 
-supplierDocument(BOM) += companyBOM(BOM);
+supplier(BOM BOM) += company(BOM);
 //supplierStockDocument(BOM) +=supplierStockBOM(BOM);
-customerDocument(BOM) += companyBOM(BOM);
+customer(BOM BOM) += company(BOM);
 //customerStockDocument(BOM) += customerStockBOM(BOM);
 
 

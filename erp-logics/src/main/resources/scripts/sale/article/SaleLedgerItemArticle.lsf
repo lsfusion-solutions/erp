@@ -4,21 +4,21 @@ REQUIRE SaleLedger, ItemArticle;
 
 NAMESPACE SaleLedger;
 
-idArticleItemSaleLedger 'Артикул' (ledger) = idArticleItem(skuSaleLedger(ledger));
-nameColorItemSaleLedger 'Цвет' (ledger) = nameColorItem(skuSaleLedger(ledger));
-nameSizeItemSaleLedger 'Размер' (ledger) = nameSizeItem(skuSaleLedger(ledger));
+idArticleItem 'Артикул' (SaleLedger ledger) = idArticle(sku(ledger));
+nameColorItem 'Цвет' (SaleLedger ledger) = nameColor(sku(ledger));
+nameSizeItem 'Размер' (SaleLedger ledger) = nameSize(sku(ledger));
 
 EXTEND FORM saleLedger
-    PROPERTIES(s) READONLY BEFORE nameSkuSaleLedger(s) nameSizeItemSaleLedger, nameColorItemSaleLedger, idArticleItemSaleLedger 
+    PROPERTIES(s) READONLY BEFORE nameSku(s) nameSizeItem, nameColorItem, idArticleItem 
 ;
 
-quantitySoldArticleStockDateFromTo 'Продано за интервал (кол-во)' (article, stock, dateFrom, dateTo) = GROUP SUM
-        quantitySoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
-        BY articleItem(sku), stock, dateFrom, dateTo;
+quantitySold 'Продано за интервал (кол-во)' (article, stock, dateFrom, dateTo) = GROUP SUM
+        quantitySold(Item sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
+        BY article(sku), stock, dateFrom, dateTo;
 
-sumSoldArticleStockDateFromTo 'Продано за интервал (сумма)' (article, stock, dateFrom, dateTo) = GROUP SUM
-        sumSoldSkuStockDate(sku, stock, date) IF date >= dateFrom AND date <= dateTo
-        BY articleItem(sku), stock, dateFrom, dateTo;
+sumSold 'Продано за интервал (сумма)' (article, stock, dateFrom, dateTo) = GROUP SUM
+        sumSold(Item sku, Stock stock, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo
+        BY article(sku), stock, dateFrom, dateTo;
         
-sumBArticleStockDate 'Сумма на начало дня' (article, stock, date) = GROUP SUM sumBSkuStockDate(sku, stock, date) BY articleItem(sku), stock, date;   
-sumAArticleStockDate 'Сумма на конец дня' (article, stock, date) = GROUP SUM sumASkuStockDate(sku, stock, date) BY articleItem(sku), stock, date;   
+sumB 'Сумма на начало дня' (article, stock, date) = GROUP SUM sumB(Item sku, Stock stock, DATE date) BY article(sku), stock, date;   
+sumA 'Сумма на конец дня' (article, stock, date) = GROUP SUM sumA(Item sku, Stock stock, DATE date) BY article(sku), stock, date;   

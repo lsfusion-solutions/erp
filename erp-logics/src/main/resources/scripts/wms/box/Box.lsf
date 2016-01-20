@@ -8,22 +8,22 @@ CLASS Box 'Короб' ;
 TABLE box (Box);
 
 @defineExternalizable(box, VARSTRING[100]);
-nameBox 'Наименование' = DATA VARISTRING[20](Box);
+name 'Наименование' = DATA VARISTRING[20](Box);
 
 
 FORM box 'Короб'
     OBJECTS s = Box FIXED PANEL
-    PROPERTIES(s) nameBox, idBox SHOWIF showIDs()
+    PROPERTIES(s) name, id SHOWIF showIDs()
     EDIT Box OBJECT s
 ;
 
 FORM boxes 'Короба'
 
     OBJECTS s = Box
-    PROPERTIES(s) READONLY nameBox, idBox SHOWIF showIDs()
+    PROPERTIES(s) READONLY name, id SHOWIF showIDs()
     PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    ORDER BY nameBox(s)
+    ORDER BY name(s)
 
     DIALOG Box OBJECT s
 ;
@@ -34,17 +34,17 @@ DESIGN boxes { preferredSize = (1024, 768); }
 //--------------------------------------------------Короб для Detail--------------------------------------//
 
 META defineDocumentDetailBoxCustom(detail, prefix, caption)
-    prefix###box###detail = DATA Box (###detail);
-    name###prefix###box###detail 'Короб'###caption (detail) = nameBox(prefix###box###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    prefix###box = DATA Box (###detail);
+    name###prefix##Box 'Короб'###caption (###detail detail) = Box.name(prefix###box(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentAbstractDetailBoxCustom(detail, prefix, caption)
-    prefix###box###detail = ABSTRACT Box (###detail) PERSISTENT;
-    name###prefix###box###detail 'Короб'###caption (detail) = nameBox(prefix###box###detail(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+    prefix###box = ABSTRACT Box (###detail) PERSISTENT;
+    name###prefix##Box 'Короб'###caption (###detail detail) = Box.name(prefix###box(detail)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
 END
 META defineDocumentInterfaceDetailBoxCustom(detail, prefix, caption)
     @defineDocumentAbstractDetailBoxCustom(detail, prefix, caption);
     @defineDocumentDetailBoxCustom(user###detail, prefix, caption);
-    prefix###box###detail(detail) += prefix###box###user###detail(detail);
+    prefix###box(User###detail detail) += prefix###box(detail);
 END
 META defineDocumentInterfaceDetailBoxCustom(detail)
     @defineDocumentInterfaceDetailBoxCustom(detail, , );
@@ -65,20 +65,20 @@ META extendFormInterfaceDetailBox(object, concrete, prefix, befProp)
     @defineDocumentInterfaceProperty (object, showBox, 'Короб');
 
     EXTEND FORM user###object
-        PROPERTIES(concrete) showBox###user###object
-        PROPERTIES (d) SHOWIF showBox###user###object(concrete) name###prefix###box###user###object###detail BEFORE befProp###user###object###detail(d)
+        PROPERTIES(concrete) concrete##howBox
+        PROPERTIES (d) SHOWIF concrete##howBox(concrete) nameBox BEFORE befProp(d)
     ;
     DESIGN user###object {
         headerExtraParams {
             NEW headerBox {
                 caption = 'Короб';
                 type = CONTAINERH;
-                MOVE PROPERTY(showBox###user###object(concrete));
+                MOVE PROPERTY(concrete##howBox(concrete));
             }
         }
     }
     EXTEND FORM object##s
-    PROPERTIES (d) READONLY SHOWIF showBox###object(concrete) name###prefix###box###object###detail BEFORE befProp###object###detail(d)
+    PROPERTIES (d) READONLY SHOWIF concrete##howBox(concrete) nameBox BEFORE befProp(d)
     ;
 END
 
@@ -87,35 +87,35 @@ END
 META defineInvoiceShipmentBox(stockProp)
 
     @defineDocumentInterfaceDetailBox(invoice);
-    boxShipmentDetail (detail) += boxInvoiceDetail(invoiceDetailInvoiceShipmentDetail(detail));
+    box (InvoiceShipmentDetail detail) += box(invoiceDetail(detail));
 
     @defineDocumentInterfaceProperty (invoice, showBox, 'Короб');
 
     EXTEND FORM userInvoice
-        PROPERTIES(i) showBoxUserInvoice
-        PROPERTIES(d) BEFORE name###stockProp###userInvoiceDetail(d) SHOWIF showBoxUserInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      nameBoxUserInvoiceDetail
+        PROPERTIES(i) showBox
+        PROPERTIES(d) BEFORE name###stockProp(d) SHOWIF showBox(i) BACKGROUND backgroundShipped(i)
+                      nameBox
     ;
     DESIGN userInvoice {
         headerExtraParams {
             NEW headerBox {
                 caption = 'Короб';
-                MOVE PROPERTY(showBoxUserInvoice(i));
+                MOVE PROPERTY(showBox(i));
             }
         }
     }
 
     EXTEND FORM invoices
-        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail(d) SHOWIF showBoxInvoice(i) BACKGROUND backgroundShippedInvoice(i)
-                      nameBoxInvoiceDetail
+        PROPERTIES(d) READONLY BEFORE name###stockProp(d) SHOWIF showBox(i) BACKGROUND backgroundShipped(i)
+                      nameBox
     ;
     EXTEND FORM invoiceDetails
-        PROPERTIES(d) READONLY BEFORE name###stockProp###invoiceDetail(d) SHOWIF showBoxInvoiceDetail(d) BACKGROUND backgroundShippedInvoiceDetail(d)
-                      nameBoxInvoiceDetail
+        PROPERTIES(d) READONLY BEFORE name###stockProp(d) SHOWIF showBox(d) BACKGROUND backgroundShipped(d)
+                      nameBox
     ;
     
-    overCopyUserInvoiceDetail(d, detail) += ACTION (d, detail) {      
-        boxUserInvoiceDetail(d) <- boxUserInvoiceDetail(detail);
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
+        box(d) <- box(detail);
     }     
 
 END

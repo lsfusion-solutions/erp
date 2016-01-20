@@ -5,19 +5,19 @@ REQUIRE System, Machinery, Store, LegalEntity, CashRegister;
 // Модели
 CLASS PaymentTerminalModel 'Модель платёжных терминалов' : Model;
 
-namePaymentTerminalModel 'Наименование' = DATA VARISTRING[110](PaymentTerminalModel);
+name 'Наименование' = DATA VARISTRING[110](PaymentTerminalModel);
 
-nameModel(model) += namePaymentTerminalModel(model) IF model IS PaymentTerminalModel;
+name(PaymentTerminalModel model) += name(model) IF model IS PaymentTerminalModel;
 
 FORM paymentTerminalModel 'Модель платёжных терминалов'
     OBJECTS p=PaymentTerminalModel FIXED PANEL
-    PROPERTIES(p) namePaymentTerminalModel, sidModel, noteModel, handlerModel
+    PROPERTIES(p) name, sid, note, handler
     EDIT PaymentTerminalModel OBJECT p
 ;
 
 FORM paymentTerminalsModels 'Модели платёжных терминалов'
     OBJECTS p=PaymentTerminalModel
-    PROPERTIES(p) READONLY namePaymentTerminalModel, sidModel, handlerModel, noteModel
+    PROPERTIES(p) READONLY name, sid, handler, note
     PROPERTIES(p) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG PaymentTerminalModel OBJECT p
 ;
@@ -29,23 +29,23 @@ NAVIGATOR {
 }
 
 // Привязываем кассу к платежным терминалам 
-paymentTerminalModelCashRegister 'Модель платёжного терминала' = DATA PaymentTerminalModel(CashRegister) IN base;
-namePaymentTerminalModelCashRegister 'Модель платёжного терминала' (cashRegister) = nameModel(paymentTerminalModelCashRegister(cashRegister));
+paymentTerminalModel 'Модель платёжного терминала' = DATA PaymentTerminalModel(CashRegister) IN base;
+namePaymentTerminalModel 'Модель платёжного терминала' (CashRegister cashRegister) = name[Model](paymentTerminalModel(cashRegister));
 
-comPortPaymentTerminalModelCashRegister 'Порт платёжного терминала' = DATA INTEGER (CashRegister) IN base;
-comPortCurrentPaymentTerminalModelCashRegister 'Порт платёжного терминала' = comPortPaymentTerminalModelCashRegister(currentCashRegister());
+comPortPaymentTerminalModel 'Порт платёжного терминала' = DATA INTEGER (CashRegister) IN base;
+comPortCurrentPaymentTerminalModelCashRegister 'Порт платёжного терминала' = comPortPaymentTerminalModel(currentCashRegister());
 
 EXTEND FORM groupCashRegister 
-    PROPERTIES(c) namePaymentTerminalModelCashRegister, comPortPaymentTerminalModelCashRegister
+    PROPERTIES(c) namePaymentTerminalModel, comPortPaymentTerminalModel
 ;
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
-loadDefaultPaymentTerminalModel 'Добавить модель платёжных терминалов' = ACTION (iname, isid, ihandler)  {
+loadDefaultPaymentTerminalModel 'Добавить модель платёжных терминалов' = ACTION (VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler)  {
     FOR ADDOBJ ptm = PaymentTerminalModel DO {
-         ASSIGN namePaymentTerminalModel(ptm) <- iname;
-         ASSIGN sidModel(ptm) <- isid;
-         ASSIGN handlerModel(ptm) <- ihandler;
+         ASSIGN name(ptm) <- iname;
+         ASSIGN sid(ptm) <- isid;
+         ASSIGN handler(ptm) <- ihandler;
     }
 }
 

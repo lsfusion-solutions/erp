@@ -4,22 +4,22 @@ REQUIRE PurchaseLedger, PriceList;
 
 NAMESPACE PriceList;
 
-filterSupplierUserPriceList = DATA LOCAL LegalEntity (UserPriceList);
-nameFilterSupplierUserPriceList 'Поставщик' (userPriceList) = nameLegalEntity(filterSupplierUserPriceList(userPriceList));
-filterSupplierUserPriceListSku (userPriceList, sku) = prevInSupplierSku(filterSupplierUserPriceList(userPriceList), sku) OR
-                                              (sku IS Sku AND NOT filterSupplierUserPriceList(userPriceList));
+filterSupplier = DATA LOCAL LegalEntity (UserPriceList);
+nameFilterSupplier 'Поставщик' (UserPriceList userPriceList) = name(filterSupplier(userPriceList));
+filterSupplier (UserPriceList userPriceList, Sku sku) = prevInSupplier(filterSupplier(userPriceList), sku) OR
+                                              (sku IS Sku AND NOT filterSupplier(userPriceList));
                                               
-filterSupplierUserPriceListBatch (userPriceList, batch) = 
-    supplierBatch(batch) == filterSupplierUserPriceList(userPriceList) OR (batch IS Batch AND NOT filterSupplierUserPriceList(userPriceList));                                  
+filterSupplier (UserPriceList userPriceList, Batch batch) = 
+    supplier(batch) == filterSupplier(userPriceList) OR (batch IS Batch AND NOT filterSupplier(userPriceList));                                  
 
 EXTEND FORM userPriceList
-    PROPERTIES(p) FORCE PANEL nameFilterSupplierUserPriceList
-    FILTERS filterSupplierUserPriceListSku(p, s2),
-            filterSupplierUserPriceListBatch(p, b)
+    PROPERTIES(p) FORCE PANEL nameFilterSupplier
+    FILTERS filterSupplier(p, s2),
+            filterSupplier(p, b)
 ;
 
 DESIGN userPriceList {
     filtersContainer {
-        MOVE PROPERTY(nameFilterSupplierUserPriceList(p));
+        MOVE PROPERTY(nameFilterSupplier(p));
     }
 }

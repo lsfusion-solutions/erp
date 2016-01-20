@@ -8,19 +8,19 @@ TABLE position(Position);
 
 @defineExternalizable(position, VARSTRING[100]);
 
-namePosition 'Наименование' = DATA VARISTRING[200](Position);
+name 'Наименование' = DATA VARISTRING[200](Position);
 
-positionEmployee(employee) = DATA Position (Employee);
+position(employee) = DATA Position (Employee);
 
 FORM position 'Должность'
     OBJECTS of=Position FIXED PANEL
-    PROPERTIES(of) namePosition, idPosition
+    PROPERTIES(of) name, id
     EDIT Position OBJECT of
 ;
 
 FORM positions 'Должности'
     OBJECTS of=Position
-    PROPERTIES(of) READONLY namePosition, idPosition SHOWIF showIDs()
+    PROPERTIES(of) READONLY name, id SHOWIF showIDs()
     PROPERTIES(of) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG Position OBJECT of
 ;
@@ -36,28 +36,28 @@ TABLE employeeEmployee (Employee, Employee);
 @defineExternalizable(employee, VARSTRING[100]);
 
 initialsEmployee 'Инициалы (И.О.)' = DATA VARISTRING[10] (Contact) MINCHARWIDTH 5;
-shortNameContact 'Фамилия И.О.' (contact) = CONCAT ' ', lastNameContact(contact), 
-                                                        (OVERRIDE firstNameContact(contact), initialsEmployee(contact));
-firstShortNameContact 'И.О. Фамилия' (contact) = CONCAT ' ', (OVERRIDE firstNameContact(contact), initialsEmployee(contact)),
-                                                        lastNameContact(contact);
-idPositionEmployee 'Должность сотрудника' (employee) = idPosition(positionEmployee(employee));
-namePositionEmployee 'Должность сотрудника' (employee) = namePosition(positionEmployee(employee)) IN base MINCHARWIDTH 15 PREFCHARWIDTH 15;
+shortName 'Фамилия И.О.' (Contact contact) = CONCAT ' ', lastName(contact), 
+                                                        (OVERRIDE firstName(contact), initialsEmployee(contact));
+firstShortName 'И.О. Фамилия' (Contact contact) = CONCAT ' ', (OVERRIDE firstName(contact), initialsEmployee(contact)),
+                                                        lastName(contact);
+idPosition 'Должность сотрудника' (Employee employee) = id(position(employee));
+namePosition 'Должность сотрудника' (Employee employee) = name(position(employee)) IN base MINCHARWIDTH 15 PREFCHARWIDTH 15;
 
-positionNameEmployee 'Должность ФИО' (employee) =  CONCAT ' ', namePositionEmployee(employee), nameContact(employee) IF employee IS Employee;
-positionShortNameEmployee 'Должность ФИО (инициалы)' (employee) =  CONCAT ' ', namePositionEmployee(employee), shortNameContact(employee) IF employee IS Employee;
+positionName 'Должность ФИО' (Employee employee) =  CONCAT ' ', namePosition(employee), name[Contact](employee) IF employee IS Employee;
+positionShortName 'Должность ФИО (инициалы)' (Employee employee) =  CONCAT ' ', namePosition(employee), shortName(employee) IF employee IS Employee;
 
-limitAccessEmployee 'Ограничить доступ' = DATA BOOLEAN (Employee);
-showLimitAccessEmployee = limitAccessEmployee(e) AND showIDs();
+limitAccess 'Ограничить доступ' = DATA BOOLEAN (Employee);
+showLimitAccess = limitAccess(Employee e) AND showIDs();
 
 FORM employee 'Сотрудник'
     OBJECTS e=Employee FIXED PANEL
-    PROPERTIES(e)      objectClassName, lastNameContact, firstNameContact, initialsEmployee, idEmployee SHOWIF showIDs(), namePositionEmployee,
-                       loginCustomUser, 
-                       sha256PasswordCustomUser ON CHANGE changeSHA256PasswordCustomUser(e),
-                       emailContact, nameMainRoleUser, limitAccessEmployee
+    PROPERTIES(e)      objectClassName, lastName, firstName, initialsEmployee, id SHOWIF showIDs(), namePosition,
+                       login, 
+                       sha256Password ON CHANGE changeSHA256Password(e),
+                       email, nameMainRole, limitAccess
     OBJECTS r = UserRole
-    PROPERTIES (r) READONLY nameUserRole, sidUserRole
-    PROPERTIES inUserRole(e,r)
+    PROPERTIES (r) READONLY name, sid
+    PROPERTIES in(e,r)
     
     EDIT Employee OBJECT e
 ;
@@ -71,29 +71,29 @@ DESIGN employee {
                 caption = 'Личные данные';
                 type = COLUMNS;
                 columns = 1;
-                MOVE PROPERTY(lastNameContact(e));
-                MOVE PROPERTY(firstNameContact(e));   
+                MOVE PROPERTY(lastName(e));
+                MOVE PROPERTY(firstName(e));   
                 MOVE PROPERTY(initialsEmployee(e));                  
-                MOVE PROPERTY(idEmployee(e));
+                MOVE PROPERTY(id(e));
                 MOVE PROPERTY(objectClassName(e)) {
                     caption = 'Тип';
                 }
-                MOVE PROPERTY(namePositionEmployee(e));
+                MOVE PROPERTY(namePosition(e));
             }
             NEW authentication {
                 caption = 'Данные пользователя';
                 type = COLUMNS;
                 columns = 1;
-                MOVE PROPERTY(loginCustomUser(e));
-                MOVE PROPERTY(sha256PasswordCustomUser(e));
-                MOVE PROPERTY(emailContact(e));
-                MOVE PROPERTY(nameMainRoleUser(e));
+                MOVE PROPERTY(login(e));
+                MOVE PROPERTY(sha256Password(e));
+                MOVE PROPERTY(email(e));
+                MOVE PROPERTY(nameMainRole(e));
             }
             NEW access {
                 caption = 'Доступ';
                 type = COLUMNS;
                 columns = 1;
-                MOVE PROPERTY(limitAccessEmployee(e));
+                MOVE PROPERTY(limitAccess(e));
             }
         }
         NEW pane {
@@ -107,16 +107,16 @@ DESIGN employee {
         MOVE functions.box;
     }
 }
-overCopyEmployee = ABSTRACT ACTION LIST (Employee, Employee);
-copyEmployee 'Копировать' = ACTION (employee) NEWSESSION {
+overCopy = ABSTRACT ACTION LIST (Employee, Employee);
+copyEmployee 'Копировать' = ACTION (User employee) NEWSESSION {
     FOR ADDOBJ e = Employee DO {
 
-        positionEmployee(e) <- positionEmployee(employee);
-        mainRoleUser(e) <- mainRoleUser(employee);
-        limitAccessEmployee(e) <- limitAccessEmployee(employee);
-        inUserRole(e,r) <- inUserRole(employee,r) WHERE inUserRole(employee,r);
+        position(e) <- position(employee);
+        mainRole[User](e) <- mainRole(employee);
+        limitAccess(e) <- limitAccess(employee);
+        in(e,UserRole r) <- in(employee,r) WHERE in(employee,r);
 
-        overCopyEmployee(e, employee);
+        overCopy(e, employee);
 
         FORM employee OBJECTS e = e MANAGESESSION DOCKEDMODAL;
     }
@@ -126,7 +126,7 @@ copyEmployee 'Копировать' = ACTION (employee) NEWSESSION {
 FORM employees 'Сотрудники'
     PROPERTIES isEditable()
     OBJECTS e=Employee
-    PROPERTIES(e) READONLYIF isReadonly() lastNameContact, firstNameContact, initialsEmployee, idEmployee SHOWIF showIDs(), namePositionEmployee, shortNameContact, loginCustomUser, nameMainRoleUser
+    PROPERTIES(e) READONLYIF isReadonly() lastName, firstName, initialsEmployee, id SHOWIF showIDs(), namePosition, shortName, login, nameMainRole
     PROPERTIES(e) addE=ADDFORM, editE=EDITFORM, deleteE=DELETE FORCE PANEL TOOLBAR, copyEmployee
     DIALOG Employee OBJECT e
 ;
@@ -145,6 +145,6 @@ NAVIGATOR {
 
 // При создании пользователя автоматически делать его сотрудником
 
-WHEN SET(u IS CustomUser) AND NOT u IS Employee DO {
+WHEN SET(CustomUser u IS CustomUser) AND NOT u IS Employee DO {
     CHANGECLASS u TO Employee;
 }

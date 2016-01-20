@@ -4,47 +4,47 @@ REQUIRE PriceListCalc, Store;
 
 // ------------------------- Виды цен по умолчанию для формата -------------- //
 
-retailPriceListTypeStoreType 'Розничная цена (управленческая)' = DATA PriceListType(StoreType);
-nameRetailPriceListTypeStoreType 'Розничная цена (управленческая)' (t) = namePriceListType(retailPriceListTypeStoreType(t)); 
+retailPriceListType 'Розничная цена (управленческая)' = DATA PriceListType(StoreType);
+nameRetailPriceListType 'Розничная цена (управленческая)' (StoreType t) = name(retailPriceListType(t)); 
 
-dataRetailPriceListTypeStore 'Розничная цена (управленческая)' = DATA PriceListType(Store);
-nameDataRetailPriceListTypeStore 'Розничная цена (управленческая)' (s) = namePriceListType(dataRetailPriceListTypeStore(s));
+dataRetailPriceListType 'Розничная цена (управленческая)' = DATA PriceListType(Store);
+nameDataRetailPriceListType 'Розничная цена (управленческая)' (Store s) = name(dataRetailPriceListType(s));
 
-retailPriceListTypeStore (s) = OVERRIDE retailPriceListTypeStoreType(storeTypeStore(s)), dataRetailPriceListTypeStore(s) PERSISTENT;
-retailPriceListTypeDepartmentStore (d) = retailPriceListTypeStore(storeDepartmentStore(d)) PERSISTENT;
+retailPriceListType (Store s) = OVERRIDE retailPriceListType(storeType(s)), dataRetailPriceListType(s) PERSISTENT;
+retailPriceListType (DepartmentStore d) = retailPriceListType(store(d)) PERSISTENT;
 
-retailPriceASkuDepartmentStoreDateTime 'Розничная цена (управленческая)' (s, d, t) =  
-    priceALedgerPriceListTypeSkuStockDateTime(retailPriceListTypeDepartmentStore(d), s, d, t);
+retailPriceA 'Розничная цена (управленческая)' (Sku s, DepartmentStore d, DATETIME t) =  
+    priceA[LedgerPriceListType,Sku,Stock,DATETIME](retailPriceListType(d), s, d, t);
 
-retailCalcPriceListTypeStoreType 'Розничная цена (расчетная)' = DATA CalcPriceListType(StoreType);
-nameRetailCalcPriceListTypeStoreType 'Розничная цена (расчетная)' (t) = nameCalcPriceListType(retailCalcPriceListTypeStoreType(t)); 
+retailCalcPriceListType 'Розничная цена (расчетная)' = DATA CalcPriceListType(StoreType);
+nameRetailCalcPriceListType 'Розничная цена (расчетная)' (StoreType t) = name(retailCalcPriceListType(t)); 
 
-dataRetailCalcPriceListTypeStore 'Розничная цена (расчетная)' = DATA CalcPriceListType(Store);
-nameDataRetailCalcPriceListTypeStore 'Розничная цена (расчетная)' (s) = namePriceListType(dataRetailCalcPriceListTypeStore(s));
+dataRetailCalcPriceListType 'Розничная цена (расчетная)' = DATA CalcPriceListType(Store);
+nameDataRetailCalcPriceListType 'Розничная цена (расчетная)' (Store s) = name[PriceListType](dataRetailCalcPriceListType(s));
 
-retailCalcPriceListTypeStore (s) = OVERRIDE retailCalcPriceListTypeStoreType(storeTypeStore(s)), dataRetailCalcPriceListTypeStore(s) PERSISTENT;
-retailCalcPriceListTypeDepartmentStore (d) = retailCalcPriceListTypeStore(storeDepartmentStore(d)) PERSISTENT;
+retailCalcPriceListType (Store s) = OVERRIDE retailCalcPriceListType(storeType(s)), dataRetailCalcPriceListType(s) PERSISTENT;
+retailCalcPriceListType (DepartmentStore d) = retailCalcPriceListType(store(d)) PERSISTENT;
 
-markupSkuDepartmentStore 'Надбавка, % (расчетная)' (s, st) =
-    markupCalcPriceListTypeSku(retailCalcPriceListTypeDepartmentStore(st), s);
+markup 'Надбавка, % (расчетная)' (Sku s, DepartmentStore st) =
+    markup(retailCalcPriceListType(st), s);
 
-markupPriceASkuDepartmentStoreDateTime 'Розничная цена (расчетная)' (s, d, t) =  
-    priceACalcPriceListTypeSkuStockDateTime(retailCalcPriceListTypeDepartmentStore(d), s, d, t);
+markupPriceA 'Розничная цена (расчетная)' (Sku s, DepartmentStore d, DATETIME t) =  
+    priceA(retailCalcPriceListType(d), s, d, t);
 
-markupPriceABasePriceListTypeSkuDepartmentStoreDateTime 'Розничная цена (расчетная) ' (pt, s, d, t) =
-    priceABasePriceListTypeCalcPriceListTypeSkuStockDateTime(pt, retailCalcPriceListTypeDepartmentStore(d), s, d, t);
+markupPriceA 'Розничная цена (расчетная) ' (BasePriceListType pt, Sku s, DepartmentStore d, DATETIME t) =
+    priceA(pt, retailCalcPriceListType(d), s, d, t);
 
 EXTEND FORM chainStores
-    PROPERTIES(s) nameRetailPriceListTypeStoreType, nameRetailCalcPriceListTypeStoreType AFTER nameStoreType(s) 
+    PROPERTIES(s) nameRetailPriceListType, nameRetailCalcPriceListType AFTER name(s) 
 ;
 
 EXTEND FORM store
-    PROPERTIES(s) nameDataRetailPriceListTypeStore, nameDataRetailCalcPriceListTypeStore
+    PROPERTIES(s) nameDataRetailPriceListType, nameDataRetailCalcPriceListType
 ;
 
 DESIGN store {
     headerPriceParams {
-        MOVE PROPERTY(nameDataRetailPriceListTypeStore(s));
-        MOVE PROPERTY(nameDataRetailCalcPriceListTypeStore(s));
+        MOVE PROPERTY(nameDataRetailPriceListType(s));
+        MOVE PROPERTY(nameDataRetailCalcPriceListType(s));
     }
 }

@@ -4,18 +4,18 @@ REQUIRE SaleShipment;
 
 NAMESPACE Sale;
 
-skipSaleLedger(ledger) += WHEN ledger IS Sale.InvoiceDetail THEN TRUE;
+skip(InvoiceDetail ledger) += WHEN ledger IS Sale.InvoiceDetail THEN TRUE;
 
 @implementSaleLedger(Shipment, sku, supplierStock);
 
-editSaleLedger (ledger) += ACTION editShipmentDetail(ledger);
+edit[SaleLedger] (ShipmentDetail ledger) += ACTION edit(ledger);
 
-operationSaleLedger (ledger) += operationShipmentDetail(ledger);
-quantitySaleLedger (ledger) += quantityShipmentDetail(ledger);
-VATSaleLedger (ledger) += VATInvoiceDetail(invoiceDetailShipmentDetail(ledger));
-priceSaleLedger (ledger) += invoicePriceInvoiceDetail(invoiceDetailShipmentDetail(ledger));
-sumSaleLedger (ledger) += invoiceSumInvoiceDetail(invoiceDetailShipmentDetail(ledger));
-customerSaleLedger (ledger) += customerShipmentDetail(ledger);
-customerStockSaleLedger (ledger) += customerStockShipmentDetail(ledger);
-skipSaleLedger (ledger) += WHEN ledger IS Sale.ShipmentDetail THEN skipSaleLedgerOperation(operationShipmentDetail(ledger));
-numberDocumentSaleLedger (ledger) += numberShipmentDetail(ledger);
+operation (ShipmentDetail ledger) += operation(ledger);
+quantity[SaleLedger] (ShipmentDetail ledger) += quantity(ledger);
+VAT (ShipmentDetail ledger) += VAT(invoiceDetail(ledger));
+price[SaleLedger] (ShipmentDetail ledger) += invoicePrice(invoiceDetail(ledger));
+sum[SaleLedger] (ShipmentDetail ledger) += invoiceSum(invoiceDetail(ledger));
+customer (ShipmentDetail ledger) += customer(ledger);
+customerStock (ShipmentDetail ledger) += customerStock(ledger);
+skip[SaleLedger] (ShipmentDetail ledger) += WHEN ledger IS Sale.ShipmentDetail THEN skipSaleLedger(operation(ledger));
+numberDocument (ShipmentDetail ledger) += number(ledger);

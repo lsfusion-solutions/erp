@@ -7,7 +7,7 @@ EXTEND FORM userPriceList
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
     OBJECTS w = INTEGER FIXED GRID
-    FILTERS quantitySkuSoldWeekDateFromTo(w, dFrom, dTo)
+    FILTERS quantitySkuSold(w, dFrom, dTo)
 
 // todo : при добавлении этого свойства выскакивает внутрення ошибка сервера при открытии формы UserPriceList
 //    PROPERTIES quantitySoldSkuStockWeekDateFromTo(s2, ts2, w, dFrom, dTo)  COLUMNS (w) HEADER toString4 (w)
@@ -20,30 +20,30 @@ DESIGN userPriceList{
         }
     }
 }
-intervalPriceList 'Интервал' (p)= subtractInteger(toDatePriceList(p), fromDatePriceList(p));
-intervalPriceListDetail 'Интервал' (d)= subtractInteger(toDatePriceListDetail(d), fromDatePriceListDetail(d));
+interval 'Интервал' (PriceList p)= subtractInteger(toDate(p), fromDate(p));
+interval 'Интервал' (PriceListDetail d)= subtractInteger(toDate(d), fromDate(d));
 
-currentBalancePriceListDetailStock 'Текущий остаток (к-во)' (d, stock) = currentBalanceSkuStock(skuPriceListDetail(d), stock);
+currentBalance 'Текущий остаток (к-во)' (PriceListDetail d, Stock stock) = currentBalance(sku(d), stock);
 
 //-- Перед акцией
-quantitySoldBeforePromotionPriceListDetailStock 'Продано перед акцией (кол-во)' (d, stock) = quantitySoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
-sumSoldBeforePromotionPriceListDetailStock 'Продано перед акцией (сумма)' (d, stock) = sumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
-markupSumSoldBeforePromotionPriceListDetailStock 'Надбавка перед акцией (сумма)' (d, stock) = markupSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
-costSumSoldBeforePromotionPriceListDetailStock 'Себестоимость перед акцией (сумма)' (d, stock) = costSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, (subtractDate(fromDatePriceListDetail(d),intervalPriceListDetail(d)+1)), subtractDate(fromDatePriceListDetail(d),1));
-markupPercSoldBeforePromotionPriceListDetailStock 'Надбавка, %' (d, stock) = markupSumSoldBeforePromotionPriceListDetailStock(d, stock) * 100.00 / costSumSoldBeforePromotionPriceListDetailStock(d, stock);
+quantitySoldBeforePromotion 'Продано перед акцией (кол-во)' (PriceListDetail d, Stock stock) = quantitySold(sku(d), stock, (subtract(fromDate(d),interval(d)+1)), subtract(fromDate(d),1));
+sumSoldBeforePromotion 'Продано перед акцией (сумма)' (PriceListDetail d, Stock stock) = sumSold(sku(d), stock, (subtract(fromDate(d),interval(d)+1)), subtract(fromDate(d),1));
+markupSumSoldBeforePromotion 'Надбавка перед акцией (сумма)' (PriceListDetail d, Stock stock) = markupSumSold(sku(d), stock, (subtract(fromDate(d),interval(d)+1)), subtract(fromDate(d),1));
+costSumSoldBeforePromotion 'Себестоимость перед акцией (сумма)' (PriceListDetail d, Stock stock) = costSumSold(sku(d), stock, (subtract(fromDate(d),interval(d)+1)), subtract(fromDate(d),1));
+markupPercSoldBeforePromotion 'Надбавка, %' (PriceListDetail d, Stock stock) = markupSumSoldBeforePromotion(d, stock) * 100.00 / costSumSoldBeforePromotion(d, stock);
 //-- За время акции
-quantitySoldPromotionPriceListDetailStock 'Продано акция (кол-во)' (d, stock) = quantitySoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
-sumSoldPromotionPriceListDetailStock 'Продано акция (сумма)' (d, stock) = sumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
-markupSumSoldPromotionPriceListDetailStock 'Надбавка акция (сумма)' (d, stock) = markupSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
-costSumSoldPromotionPriceListDetailStock 'Себестоимость акция (сумма)' (d, stock) = costSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, fromDatePriceListDetail(d), toDatePriceListDetail(d));
-markupPercSoldPromotionPriceListDetailStock 'Надбавка, %' (d, stock) = markupSumSoldPromotionPriceListDetailStock(d, stock) * 100.00 / costSumSoldPromotionPriceListDetailStock(d, stock);
+quantitySoldPromotion 'Продано акция (кол-во)' (PriceListDetail d, Stock stock) = quantitySold(sku(d), stock, fromDate(d), toDate(d));
+sumSoldPromotion 'Продано акция (сумма)' (PriceListDetail d, Stock stock) = sumSold(sku(d), stock, fromDate(d), toDate(d));
+markupSumSoldPromotion 'Надбавка акция (сумма)' (PriceListDetail d, Stock stock) = markupSumSold(sku(d), stock, fromDate(d), toDate(d));
+costSumSoldPromotion 'Себестоимость акция (сумма)' (PriceListDetail d, Stock stock) = costSumSold(sku(d), stock, fromDate(d), toDate(d));
+markupPercSoldPromotion 'Надбавка, %' (PriceListDetail d, Stock stock) = markupSumSoldPromotion(d, stock) * 100.00 / costSumSoldPromotion(d, stock);
 
 //-- После акции
-quantitySoldAfterPromotionPriceListDetailStock 'Продано после акции (кол-во)' (d, stock) = quantitySoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
-sumSoldAfterPromotionPriceListDetailStock 'Продано после акции (сумма)' (d, stock) = sumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
-markupSumSoldAfterPromotionPriceListDetailStock 'Надбавка после акции (сумма)' (d, stock) = markupSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
-costSumSoldAfterPromotionPriceListDetailStock 'Себестоимость после акции (сумма)' (d, stock) = costSumSoldSkuStockDateFromTo(skuPriceListDetail(d), stock, sumDate(toDatePriceListDetail(d),1), (sumDate(toDatePriceListDetail(d),intervalPriceListDetail(d)+1)));
-markupPercSoldAfterPromotionPriceListDetailStock 'Надбавка, %' (d, stock) = markupSumSoldAfterPromotionPriceListDetailStock(d, stock) * 100.00 / costSumSoldAfterPromotionPriceListDetailStock(d, stock);
+quantitySoldAfterPromotion 'Продано после акции (кол-во)' (PriceListDetail d, Stock stock) = quantitySold(sku(d), stock, sum(toDate(d),1), (sum(toDate(d),interval(d)+1)));
+sumSoldAfterPromotion 'Продано после акции (сумма)' (PriceListDetail d, Stock stock) = sumSold(sku(d), stock, sum(toDate(d),1), (sum(toDate(d),interval(d)+1)));
+markupSumSoldAfterPromotion 'Надбавка после акции (сумма)' (PriceListDetail d, Stock stock) = markupSumSold(sku(d), stock, sum(toDate(d),1), (sum(toDate(d),interval(d)+1)));
+costSumSoldAfterPromotion 'Себестоимость после акции (сумма)' (PriceListDetail d, Stock stock) = costSumSold(sku(d), stock, sum(toDate(d),1), (sum(toDate(d),interval(d)+1)));
+markupPercSoldAfterPromotion 'Надбавка, %' (PriceListDetail d, Stock stock) = markupSumSoldAfterPromotion(d, stock) * 100.00 / costSumSoldAfterPromotion(d, stock);
 
 
 hintBeforePromotionBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
@@ -51,140 +51,140 @@ hintPromotionBackground 'Небесный'  = RGB(127,199,255) IF TRUE;
 hintAfterPromotionBackground 'Лимонный' = RGB(255, 250, 205) IF TRUE;    
                                                                                
 //---------------- По всем складам ------------------//
-currentBalancePriceListDetail 'Текущий остаток (к-во)' (d) = GROUP SUM currentBalancePriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
+currentBalance 'Текущий остаток (к-во)' (d) = GROUP SUM currentBalance(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
 //-- Перед акцией
-quantitySoldBeforePromotionPriceListDetail 'Продано перед акцией (кол-во)' (d) = GROUP SUM quantitySoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-sumSoldBeforePromotionPriceListDetail 'Продано перед акцией (сумма)' (d) = GROUP SUM sumSoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-markupSumSoldBeforePromotionPriceListDetail 'Надбавка перед акцией (сумма)' (d) = GROUP SUM markupSumSoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-costSumSoldBeforePromotionPriceListDetail 'Себестоимость перед акцией (сумма)' (d) = GROUP SUM costSumSoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-markupPercSoldBeforePromotionPriceListDetail 'Надбавка, %' (d) = markupSumSoldBeforePromotionPriceListDetail(d) * 100.00 / costSumSoldBeforePromotionPriceListDetail(d);
+quantitySoldBeforePromotion 'Продано перед акцией (кол-во)' (d) = GROUP SUM quantitySoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+sumSoldBeforePromotion 'Продано перед акцией (сумма)' (d) = GROUP SUM sumSoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+markupSumSoldBeforePromotion 'Надбавка перед акцией (сумма)' (d) = GROUP SUM markupSumSoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+costSumSoldBeforePromotion 'Себестоимость перед акцией (сумма)' (d) = GROUP SUM costSumSoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+markupPercSoldBeforePromotion 'Надбавка, %' (PriceListDetail d) = markupSumSoldBeforePromotion(d) * 100.00 / costSumSoldBeforePromotion(d);
 //-- За время акции
-quantitySoldPromotionPriceListDetail 'Продано акция (кол-во)' (d) = GROUP SUM quantitySoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-sumSoldPromotionPriceListDetail 'Продано акция (сумма)' (d) = GROUP SUM sumSoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-markupSumSoldPromotionPriceListDetail 'Надбавка акция (сумма)' (d) = GROUP SUM markupSumSoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-costSumSoldPromotionPriceListDetail 'Себестоимость акция (сумма)' (d) = GROUP SUM costSumSoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-markupPercSoldPromotionPriceListDetail 'Надбавка, %' (d) = markupSumSoldPromotionPriceListDetail(d) * 100.00 / costSumSoldPromotionPriceListDetail(d);
+quantitySoldPromotion 'Продано акция (кол-во)' (d) = GROUP SUM quantitySoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+sumSoldPromotion 'Продано акция (сумма)' (d) = GROUP SUM sumSoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+markupSumSoldPromotion 'Надбавка акция (сумма)' (d) = GROUP SUM markupSumSoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+costSumSoldPromotion 'Себестоимость акция (сумма)' (d) = GROUP SUM costSumSoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+markupPercSoldPromotion 'Надбавка, %' (PriceListDetail d) = markupSumSoldPromotion(d) * 100.00 / costSumSoldPromotion(d);
 
 //-- После акции
-quantitySoldAfterPromotionPriceListDetail 'Продано после акции (кол-во)' (d) = GROUP SUM quantitySoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-sumSoldAfterPromotionPriceListDetail 'Продано после акции (сумма)' (d) = GROUP SUM sumSoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-markupSumSoldAfterPromotionPriceListDetail 'Надбавка после акции (сумма)' (d) = GROUP SUM markupSumSoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-costSumSoldAfterPromotionPriceListDetail 'Себестоимость после акции (сумма)' (d) = GROUP SUM costSumSoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-markupPercSoldAfterPromotionPriceListDetail 'Надбавка, %' (d) = markupSumSoldAfterPromotionPriceListDetail(d) * 100.00 / costSumSoldAfterPromotionPriceListDetail(d);                                                                               
+quantitySoldAfterPromotion 'Продано после акции (кол-во)' (d) = GROUP SUM quantitySoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+sumSoldAfterPromotion 'Продано после акции (сумма)' (d) = GROUP SUM sumSoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+markupSumSoldAfterPromotion 'Надбавка после акции (сумма)' (d) = GROUP SUM markupSumSoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+costSumSoldAfterPromotion 'Себестоимость после акции (сумма)' (d) = GROUP SUM costSumSoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+markupPercSoldAfterPromotion 'Надбавка, %' (PriceListDetail d) = markupSumSoldAfterPromotion(d) * 100.00 / costSumSoldAfterPromotion(d);                                                                               
 
 //------------------- Таблица ------------//
 TABLE priceListDetailStock (PriceListDetail, Stock);
-dcurrentBalancePriceListDetailStock 'Текущий остаток (к-во)' (d, stock) = DATA NUMERIC[16,3] (PriceListDetail,Stock);
+dcurrentBalance 'Текущий остаток (к-во)' (d, stock) = DATA NUMERIC[16,3] (PriceListDetail,Stock);
 
 //-- Перед акцией
-dquantitySoldBeforePromotionPriceListDetailStock 'Продано перед акцией (кол-во)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dsumSoldBeforePromotionPriceListDetailStock 'Продано перед акцией (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dmarkupSumSoldBeforePromotionPriceListDetailStock 'Надбавка перед акцией (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dcostSumSoldBeforePromotionPriceListDetailStock 'Себестоимость перед акцией (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dmarkupPercSoldBeforePromotionPriceListDetailStock 'Надбавка, %' (d, stock) = dmarkupSumSoldBeforePromotionPriceListDetailStock(d, stock) * 100.00 / dcostSumSoldBeforePromotionPriceListDetailStock(d, stock);
+dquantitySoldBeforePromotion 'Продано перед акцией (кол-во)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dsumSoldBeforePromotion 'Продано перед акцией (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dmarkupSumSoldBeforePromotion 'Надбавка перед акцией (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dcostSumSoldBeforePromotion 'Себестоимость перед акцией (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dmarkupPercSoldBeforePromotion 'Надбавка, %' (PriceListDetail d, Stock stock) = dmarkupSumSoldBeforePromotion(d, stock) * 100.00 / dcostSumSoldBeforePromotion(d, stock);
 //-- За время акции
-dquantitySoldPromotionPriceListDetailStock 'Продано акция (кол-во)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dsumSoldPromotionPriceListDetailStock 'Продано акция (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dmarkupSumSoldPromotionPriceListDetailStock 'Надбавка акция (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dcostSumSoldPromotionPriceListDetailStock 'Себестоимость акция (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dmarkupPercSoldPromotionPriceListDetailStock 'Надбавка, %' (d, stock) = dmarkupSumSoldPromotionPriceListDetailStock(d, stock) * 100.00 / dcostSumSoldPromotionPriceListDetailStock(d, stock);
+dquantitySoldPromotion 'Продано акция (кол-во)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dsumSoldPromotion 'Продано акция (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dmarkupSumSoldPromotion 'Надбавка акция (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dcostSumSoldPromotion 'Себестоимость акция (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dmarkupPercSoldPromotion 'Надбавка, %' (PriceListDetail d, Stock stock) = dmarkupSumSoldPromotion(d, stock) * 100.00 / dcostSumSoldPromotion(d, stock);
 
 //-- После акции
-dquantitySoldAfterPromotionPriceListDetailStock 'Продано после акции (кол-во)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dsumSoldAfterPromotionPriceListDetailStock 'Продано после акции (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dmarkupSumSoldAfterPromotionPriceListDetailStock 'Надбавка после акции (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dcostSumSoldAfterPromotionPriceListDetailStock 'Себестоимость после акции (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
-dmarkupPercSoldAfterPromotionPriceListDetailStock 'Надбавка, %' (d, stock) = dmarkupSumSoldAfterPromotionPriceListDetailStock(d,stock) * 100.00 / dcostSumSoldAfterPromotionPriceListDetailStock(d,stock);                                                                                
+dquantitySoldAfterPromotion 'Продано после акции (кол-во)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dsumSoldAfterPromotion 'Продано после акции (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dmarkupSumSoldAfterPromotion 'Надбавка после акции (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dcostSumSoldAfterPromotion 'Себестоимость после акции (сумма)' (d, stock) = DATA NUMERIC[16,2] (PriceListDetail,Stock);
+dmarkupPercSoldAfterPromotion 'Надбавка, %' (PriceListDetail d, Stock stock) = dmarkupSumSoldAfterPromotion(d,stock) * 100.00 / dcostSumSoldAfterPromotion(d,stock);                                                                                
 
 //---------------- По всем складам ------------------//
-dcurrentBalancePriceListDetail 'Текущий остаток (к-во)' (d) = GROUP SUM dcurrentBalancePriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
+dcurrentBalance 'Текущий остаток (к-во)' (d) = GROUP SUM dcurrentBalance(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
 //-- Перед акцией
-dquantitySoldBeforePromotionPriceListDetail 'Продано перед акцией (кол-во)' (d) = GROUP SUM dquantitySoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dsumSoldBeforePromotionPriceListDetail 'Продано перед акцией (сумма)' (d) = GROUP SUM dsumSoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dmarkupSumSoldBeforePromotionPriceListDetail 'Надбавка перед акцией (сумма)' (d) = GROUP SUM dmarkupSumSoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dcostSumSoldBeforePromotionPriceListDetail 'Себестоимость перед акцией (сумма)' (d) = GROUP SUM dcostSumSoldBeforePromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dmarkupPercSoldBeforePromotionPriceListDetail 'Надбавка, %' (d) = dmarkupSumSoldBeforePromotionPriceListDetail(d) * 100.00 / dcostSumSoldBeforePromotionPriceListDetail(d);
+dquantitySoldBeforePromotion 'Продано перед акцией (кол-во)' (d) = GROUP SUM dquantitySoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dsumSoldBeforePromotion 'Продано перед акцией (сумма)' (d) = GROUP SUM dsumSoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dmarkupSumSoldBeforePromotion 'Надбавка перед акцией (сумма)' (d) = GROUP SUM dmarkupSumSoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dcostSumSoldBeforePromotion 'Себестоимость перед акцией (сумма)' (d) = GROUP SUM dcostSumSoldBeforePromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dmarkupPercSoldBeforePromotion 'Надбавка, %' (PriceListDetail d) = dmarkupSumSoldBeforePromotion(d) * 100.00 / dcostSumSoldBeforePromotion(d);
 //-- За время акции
-dquantitySoldPromotionPriceListDetail 'Продано акция (кол-во)' (d) = GROUP SUM dquantitySoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dsumSoldPromotionPriceListDetail 'Продано акция (сумма)' (d) = GROUP SUM dsumSoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dmarkupSumSoldPromotionPriceListDetail 'Надбавка акция (сумма)' (d) = GROUP SUM dmarkupSumSoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dcostSumSoldPromotionPriceListDetail 'Себестоимость акция (сумма)' (d) = GROUP SUM dcostSumSoldPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dmarkupPercSoldPromotionPriceListDetail 'Надбавка, %' (d) = dmarkupSumSoldPromotionPriceListDetail(d) * 100.00 / dcostSumSoldPromotionPriceListDetail(d);
+dquantitySoldPromotion 'Продано акция (кол-во)' (d) = GROUP SUM dquantitySoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dsumSoldPromotion 'Продано акция (сумма)' (d) = GROUP SUM dsumSoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dmarkupSumSoldPromotion 'Надбавка акция (сумма)' (d) = GROUP SUM dmarkupSumSoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dcostSumSoldPromotion 'Себестоимость акция (сумма)' (d) = GROUP SUM dcostSumSoldPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dmarkupPercSoldPromotion 'Надбавка, %' (PriceListDetail d) = dmarkupSumSoldPromotion(d) * 100.00 / dcostSumSoldPromotion(d);
 
 //-- После акции
-dquantitySoldAfterPromotionPriceListDetail 'Продано после акции (кол-во)' (d) = GROUP SUM dquantitySoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dsumSoldAfterPromotionPriceListDetail 'Продано после акции (сумма)' (d) = GROUP SUM dsumSoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dmarkupSumSoldAfterPromotionPriceListDetail 'Надбавка после акции (сумма)' (d) = GROUP SUM dmarkupSumSoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dcostSumSoldAfterPromotionPriceListDetail 'Себестоимость после акции (сумма)' (d) = GROUP SUM dcostSumSoldAfterPromotionPriceListDetailStock(d, stock) IF inPriceListStock(priceListPriceListDetail(d), stock) BY d;
-dmarkupPercSoldAfterPromotionPriceListDetail 'Надбавка, %' (d) = dmarkupSumSoldAfterPromotionPriceListDetail(d) * 100.00 / dcostSumSoldAfterPromotionPriceListDetail(d);                                                                        
+dquantitySoldAfterPromotion 'Продано после акции (кол-во)' (d) = GROUP SUM dquantitySoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dsumSoldAfterPromotion 'Продано после акции (сумма)' (d) = GROUP SUM dsumSoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dmarkupSumSoldAfterPromotion 'Надбавка после акции (сумма)' (d) = GROUP SUM dmarkupSumSoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dcostSumSoldAfterPromotion 'Себестоимость после акции (сумма)' (d) = GROUP SUM dcostSumSoldAfterPromotion(PriceListDetail d, Stock stock) IF in(priceList(d), stock) BY d;
+dmarkupPercSoldAfterPromotion 'Надбавка, %' (PriceListDetail d) = dmarkupSumSoldAfterPromotion(d) * 100.00 / dcostSumSoldAfterPromotion(d);                                                                        
 
-fillDataPriceListDetail= ABSTRACT ACTION LIST (PriceListDetail);
-overFillDataPriceList= ABSTRACT ACTION LIST (PriceList);
+fillData= ABSTRACT ACTION LIST (PriceListDetail);
+overFillData= ABSTRACT ACTION LIST (PriceList);
 
-fillDataPriceList 'Заполнить данные' (p) = ACTION (p) {
+fillData 'Заполнить данные' (PriceList p) = ACTION (p) {
 
-    dcurrentBalancePriceListDetailStock (d, stock) <- NUMERIC[16,3] (currentBalancePriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
+    dcurrentBalance (PriceListDetail d, Stock stock) <- NUMERIC[16,3] (currentBalance(d,stock)) WHERE priceList(d) == p AND in(p, stock);
     
     //-- Перед акцией
-    dquantitySoldBeforePromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (quantitySoldBeforePromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dsumSoldBeforePromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (sumSoldBeforePromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dmarkupSumSoldBeforePromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (markupSumSoldBeforePromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dcostSumSoldBeforePromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (costSumSoldBeforePromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
+    dquantitySoldBeforePromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (quantitySoldBeforePromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dsumSoldBeforePromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (sumSoldBeforePromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dmarkupSumSoldBeforePromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (markupSumSoldBeforePromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dcostSumSoldBeforePromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (costSumSoldBeforePromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
     
     //-- За время акции
-    dquantitySoldPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (quantitySoldPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dsumSoldPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (sumSoldPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dmarkupSumSoldPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (markupSumSoldPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dcostSumSoldPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (costSumSoldPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
+    dquantitySoldPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (quantitySoldPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dsumSoldPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (sumSoldPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dmarkupSumSoldPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (markupSumSoldPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dcostSumSoldPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (costSumSoldPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
     
     //-- После акции
-    dquantitySoldAfterPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (quantitySoldAfterPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dsumSoldAfterPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (sumSoldAfterPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dmarkupSumSoldAfterPromotionPriceListDetailStock(d, stock) <- NUMERIC[16,2] (markupSumSoldAfterPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
-    dcostSumSoldAfterPromotionPriceListDetailStock (d, stock) <- NUMERIC[16,2] (costSumSoldAfterPromotionPriceListDetailStock(d,stock)) WHERE priceListPriceListDetail(d) == p AND inPriceListStock(p, stock);
+    dquantitySoldAfterPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (quantitySoldAfterPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dsumSoldAfterPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (sumSoldAfterPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dmarkupSumSoldAfterPromotion(PriceListDetail d, Stock stock) <- NUMERIC[16,2] (markupSumSoldAfterPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
+    dcostSumSoldAfterPromotion (PriceListDetail d, Stock stock) <- NUMERIC[16,2] (costSumSoldAfterPromotion(d,stock)) WHERE priceList(d) == p AND in(p, stock);
     
-    FOR priceListPriceListDetail(d) == p DO {
-        fillDataPriceListDetail(d);
+    FOR priceList(PriceListDetail d) == p DO {
+        fillData(d);
     }
-    overFillDataPriceList(p);
+    overFillData(p);
     apply();
 }
 
 EXTEND FORM priceLists
 
     OBJECTS st = Stock FIXED PANEL
-    PROPERTIES SELECTOR nameStock(st)
-    FILTERS inPriceListStock(p,st)
+    PROPERTIES SELECTOR name(st)
+    FILTERS in(p,st)
 
     OBJECTS dd = PriceListDetail
-    PROPERTIES(dd) READONLY indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail, shortNameUOMSkuPriceListDetail
-    PROPERTIES READONLY dcurrentBalancePriceListDetailStock(dd,st)
-    PROPERTIES(dd,st) READONLY BACKGROUND hintBeforePromotionBackground() dquantitySoldBeforePromotionPriceListDetailStock, 
-                      dcostSumSoldBeforePromotionPriceListDetailStock, dmarkupSumSoldBeforePromotionPriceListDetailStock,
-                      dmarkupPercSoldBeforePromotionPriceListDetailStock, dsumSoldBeforePromotionPriceListDetailStock 
-    PROPERTIES(dd,st) READONLY BACKGROUND hintPromotionBackground() dquantitySoldPromotionPriceListDetailStock, 
-                      dcostSumSoldPromotionPriceListDetailStock, dmarkupSumSoldPromotionPriceListDetailStock,
-                      dmarkupPercSoldPromotionPriceListDetailStock, dsumSoldPromotionPriceListDetailStock 
-    PROPERTIES(dd,st) READONLY BACKGROUND hintAfterPromotionBackground() dquantitySoldAfterPromotionPriceListDetailStock, 
-                      dcostSumSoldAfterPromotionPriceListDetailStock, dmarkupSumSoldAfterPromotionPriceListDetailStock,
-                      dmarkupPercSoldAfterPromotionPriceListDetailStock, dsumSoldAfterPromotionPriceListDetailStock           
-    FILTERS priceListPriceListDetail(dd) == p     
+    PROPERTIES(dd) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES READONLY dcurrentBalance(dd,st)
+    PROPERTIES(dd,st) READONLY BACKGROUND hintBeforePromotionBackground() dquantitySoldBeforePromotion, 
+                      dcostSumSoldBeforePromotion, dmarkupSumSoldBeforePromotion,
+                      dmarkupPercSoldBeforePromotion, dsumSoldBeforePromotion 
+    PROPERTIES(dd,st) READONLY BACKGROUND hintPromotionBackground() dquantitySoldPromotion, 
+                      dcostSumSoldPromotion, dmarkupSumSoldPromotion,
+                      dmarkupPercSoldPromotion, dsumSoldPromotion 
+    PROPERTIES(dd,st) READONLY BACKGROUND hintAfterPromotionBackground() dquantitySoldAfterPromotion, 
+                      dcostSumSoldAfterPromotion, dmarkupSumSoldAfterPromotion,
+                      dmarkupPercSoldAfterPromotion, dsumSoldAfterPromotion           
+    FILTERS priceList(dd) == p     
         
-    PROPERTIES fillDataPriceList(p) FORCE PANEL TOOLBAR TODRAW dd
+    PROPERTIES fillData(p) FORCE PANEL TOOLBAR TODRAW dd
              
     OBJECTS ddd = PriceListDetail
-    PROPERTIES(ddd) READONLY indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail, shortNameUOMSkuPriceListDetail
-    PROPERTIES READONLY dcurrentBalancePriceListDetail(ddd)
-    PROPERTIES(ddd) READONLY BACKGROUND hintBeforePromotionBackground() dquantitySoldBeforePromotionPriceListDetail, 
-                      dcostSumSoldBeforePromotionPriceListDetail, dmarkupSumSoldBeforePromotionPriceListDetail,
-                      dmarkupPercSoldBeforePromotionPriceListDetail, dsumSoldBeforePromotionPriceListDetail 
-    PROPERTIES(ddd) READONLY BACKGROUND hintPromotionBackground() dquantitySoldPromotionPriceListDetail, 
-                      dcostSumSoldPromotionPriceListDetail, dmarkupSumSoldPromotionPriceListDetail,
-                      dmarkupPercSoldPromotionPriceListDetail, dsumSoldPromotionPriceListDetail 
-    PROPERTIES(ddd) READONLY BACKGROUND hintAfterPromotionBackground() dquantitySoldAfterPromotionPriceListDetail, 
-                      dcostSumSoldAfterPromotionPriceListDetail, dmarkupSumSoldAfterPromotionPriceListDetail,
-                      dmarkupPercSoldAfterPromotionPriceListDetail, dsumSoldAfterPromotionPriceListDetail           
-    FILTERS priceListPriceListDetail(ddd) == p               
+    PROPERTIES(ddd) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES READONLY dcurrentBalance(ddd)
+    PROPERTIES(ddd) READONLY BACKGROUND hintBeforePromotionBackground() dquantitySoldBeforePromotion, 
+                      dcostSumSoldBeforePromotion, dmarkupSumSoldBeforePromotion,
+                      dmarkupPercSoldBeforePromotion, dsumSoldBeforePromotion 
+    PROPERTIES(ddd) READONLY BACKGROUND hintPromotionBackground() dquantitySoldPromotion, 
+                      dcostSumSoldPromotion, dmarkupSumSoldPromotion,
+                      dmarkupPercSoldPromotion, dsumSoldPromotion 
+    PROPERTIES(ddd) READONLY BACKGROUND hintAfterPromotionBackground() dquantitySoldAfterPromotion, 
+                      dcostSumSoldAfterPromotion, dmarkupSumSoldAfterPromotion,
+                      dmarkupPercSoldAfterPromotion, dsumSoldAfterPromotion           
+    FILTERS priceList(ddd) == p               
              
 ;
 DESIGN priceLists{

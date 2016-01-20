@@ -15,12 +15,12 @@ NAMESPACE Revaluation;
 @defineDocumentInterfaceDetailDataSumPrefix (revaluation, manufacturing, ' изготовителя после');
 @deriveDocumentDetailSumPrefix(userRevaluation, manufacturing, currency, quantity);
 
-updatePriceManufacturingUserRevaluation 'Изменять цену учетную на изготовителя' = DATA BOOLEAN (UserRevaluation) IN documentPrm;
-EXTEND FORM userRevaluation PROPERTIES(p) updatePriceManufacturingUserRevaluation;
+updatePriceManufacturing 'Изменять цену учетную на изготовителя' = DATA BOOLEAN (UserRevaluation) IN documentPrm;
+EXTEND FORM userRevaluation PROPERTIES(p) updatePriceManufacturing;
 
-updatePriceManufacturingUserRevaluationDetail(d) = updatePriceManufacturingUserRevaluation(userRevaluationUserRevaluationDetail(d)); 
-priceUserRevaluationDetail(detail) <- manufacturingPriceUserRevaluationDetail(detail) 
-    WHEN (CHANGED(manufacturingPriceUserRevaluationDetail(detail)) OR CHANGED(updatePriceManufacturingUserRevaluationDetail(detail))) AND updatePriceManufacturingUserRevaluationDetail(detail);
+updatePriceManufacturing(UserRevaluationDetail d) = updatePriceManufacturing(userRevaluation(d)); 
+price(UserRevaluationDetail detail) <- manufacturingPrice(detail) 
+    WHEN (CHANGED(manufacturingPrice(detail)) OR CHANGED(updatePriceManufacturing(detail))) AND updatePriceManufacturing(detail);
 
 @defineOperationProperty(updatePriceManufacturing, 'Изменять цену учетную на изготовителя', showContainer);
 @deriveDocumentOperationProperty(UserRevaluation, updatePriceManufacturing);
@@ -32,19 +32,19 @@ priceUserRevaluationDetail(detail) <- manufacturingPriceUserRevaluationDetail(de
 
 
 EXTEND FORM userRevaluation
-    PROPERTIES(p) BEFORE diffSumUserRevaluationDetailUserRevaluation(p) diffManufacturingSumUserRevaluationDetailUserRevaluation
-    PROPERTIES(d) BEFORE curPriceUserRevaluationDetail(d) curManufacturingPriceUserRevaluationDetail, curManufacturingSumUserRevaluationDetail
-    PROPERTIES(d) BEFORE priceUserRevaluationDetail(d) manufacturingPriceUserRevaluationDetail, manufacturingSumUserRevaluationDetail
+    PROPERTIES(p) BEFORE diffSumUserRevaluationDetail(p) diffManufacturingSumUserRevaluationDetail
+    PROPERTIES(d) BEFORE curPrice(d) curManufacturingPrice, curManufacturingSum
+    PROPERTIES(d) BEFORE price(d) manufacturingPrice, manufacturingSum
 ;
 DESIGN userRevaluation {
-        PROPERTY(diffManufacturingSumUserRevaluationDetailUserRevaluation(p)) { preferredCharWidth = 13;}
+        PROPERTY(diffManufacturingSumUserRevaluationDetail(p)) { preferredCharWidth = 13;}
 }
 EXTEND FORM revaluations
-    PROPERTIES(p) READONLY BEFORE diffSumRevaluationDetailRevaluation(p) diffManufacturingSumRevaluationDetailRevaluation
-    PROPERTIES(d) READONLY BEFORE curPriceRevaluationDetail(d) curManufacturingPriceRevaluationDetail, curManufacturingSumRevaluationDetail
-    PROPERTIES(d) READONLY BEFORE priceRevaluationDetail(d) manufacturingPriceRevaluationDetail, manufacturingSumRevaluationDetail
+    PROPERTIES(p) READONLY BEFORE diffSumRevaluationDetail(p) diffManufacturingSumRevaluationDetail
+    PROPERTIES(d) READONLY BEFORE curPrice(d) curManufacturingPrice, curManufacturingSum
+    PROPERTIES(d) READONLY BEFORE price(d) manufacturingPrice, manufacturingSum
 ;
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN manufacturingPriceRevaluationDetail(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN manufacturingPriceRevaluationDetail(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN manufacturingPriceRevaluationDetail(ledger);
+in (RevaluationDetail ledger, SystemLedgerPriceListType type) += WHEN manufacturingPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN TRUE;
+price (RevaluationDetail ledger, SystemLedgerPriceListType type) += WHEN manufacturingPrice(ledger) AND type == SystemLedgerPriceListType.manufacturingPriceStockPriceListType THEN manufacturingPrice(ledger);
 

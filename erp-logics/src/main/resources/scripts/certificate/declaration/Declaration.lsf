@@ -8,32 +8,32 @@ TABLE declaration(Declaration);
 @defineExternalizable(declaration, VARSTRING[100]);
 
 // Номер
-numberDeclaration 'Номер' = DATA STRING[100] (Declaration) IN numbered MINCHARWIDTH 10;
-seriesDeclaration 'Серия' = DATA STRING[2] (Declaration) IN numbered FIXEDCHARWIDTH 3; 
+number 'Номер' = DATA STRING[100] (Declaration) IN numbered MINCHARWIDTH 10;
+series 'Серия' = DATA STRING[2] (Declaration) IN numbered FIXEDCHARWIDTH 3; 
 
-seriesNumberDeclaration 'Серия/Номер' (o) = 
-    CONCAT '', seriesDeclaration(o), numberDeclaration(o) 
+seriesNumber 'Серия/Номер' (Declaration o) = 
+    CONCAT '', series(o), number(o) 
     MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
     
-seriesCertificate(declaration) += seriesDeclaration(declaration);
-numberCertificate(declaration) += numberDeclaration(declaration);
+series(Declaration declaration) += series(declaration);
+number(Declaration declaration) += number(declaration);
 
 // Валюта
 @defineDocumentHeaderTimePrefix(Declaration, ,' документа');
 @deriveDocumentHeaderTimePrefix(Declaration, );
-dateCertificate(declaration) += dateDeclaration(declaration);
-timeCertificate(declaration) += timeDeclaration(declaration);
+date(Declaration declaration) += date(declaration);
+time(Declaration declaration) += time(declaration);
 
-customsHouseDeclaration = DATA LegalEntity (Declaration);
-nameCustomsHouseDeclaration 'Таможня' (declaration) = nameLegalEntity(customsHouseDeclaration(declaration));
+customsHouse = DATA LegalEntity (Declaration);
+nameCustomsHouse 'Таможня' (Declaration declaration) = name(customsHouse(declaration));
 
-descriptionDeclaration 'Таможенная декларация' (declaration) = CONCAT ' ', seriesNumberDeclaration(declaration), 'от ' + dateDeclaration(declaration);
+description 'Таможенная декларация' (Declaration declaration) = CONCAT ' ', seriesNumber(declaration), 'от ' + date(declaration);
 
 @defineBatchCertificate(declaration, Declaration, 'Таможенная декларация');
 
 FORM declaration 'Таможенная декларация'
     OBJECTS d = Declaration FIXED PANEL
-    PROPERTIES(d) numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration, nameCustomsHouseDeclaration
+    PROPERTIES(d) number, series, date, time, nameCustomsHouse
     EDIT Declaration OBJECT d
 ;
 DESIGN declaration {
@@ -41,11 +41,11 @@ DESIGN declaration {
         NEW header FIRST {
             type = CONTAINERH;
             caption = 'Шапка документа';
-            MOVE PROPERTY(numberDeclaration(d));
-            MOVE PROPERTY(seriesDeclaration(d));
-            MOVE PROPERTY(dateDeclaration(d));
-            MOVE PROPERTY(timeDeclaration(d));
-            MOVE PROPERTY(nameCustomsHouseDeclaration(d));
+            MOVE PROPERTY(number(d));
+            MOVE PROPERTY(series(d));
+            MOVE PROPERTY(date(d));
+            MOVE PROPERTY(time(d));
+            MOVE PROPERTY(nameCustomsHouse(d));
         }
         MOVE functions.box;
     }
@@ -53,7 +53,7 @@ DESIGN declaration {
 
 FORM declarations 'Таможенные декларации'
     OBJECTS d = Declaration
-    PROPERTIES(d) READONLY numberDeclaration, seriesDeclaration, dateDeclaration, timeDeclaration, nameCustomsHouseDeclaration
+    PROPERTIES(d) READONLY number, series, date, time, nameCustomsHouse
     PROPERTIES(d) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     DIALOG Declaration OBJECT d

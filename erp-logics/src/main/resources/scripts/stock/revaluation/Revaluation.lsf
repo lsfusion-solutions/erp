@@ -24,8 +24,8 @@ CLASS UserRevaluationDetail 'Строка переоценки (польз.)' : 
 @defineDocumentInterfaceDataStock(revaluation, stock, 'Склад');
 @defineDocumentDialogStocks(userRevaluation, stock, company, , );
 
-CONSTRAINT stockUserRevaluation(r) AND NOT  isCompanyStock(stockUserRevaluation(r))
-    CHECKED BY stockUserRevaluation
+CONSTRAINT stock(UserRevaluation r) AND NOT  isCompany(stock(r))
+    CHECKED BY stock[UserRevaluation]
     MESSAGE 'Выбран склад, который не принадлежит компании';
     
 @defineDocumentInterfacePosted(revaluation);
@@ -49,23 +49,23 @@ CONSTRAINT stockUserRevaluation(r) AND NOT  isCompanyStock(stockUserRevaluation(
 @showDocumentInterfaceDetailBatch(revaluation);
 @defineDocumentInterfaceDetailBatch(revaluation, batch);
 
-idBatchRevaluationDetail 'Код партии' (d) = idBatch(batchRevaluationDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
-idBatchUserRevaluationDetail 'Код партии' (d) = idBatch(batchUserRevaluationDetail(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatch 'Код партии' (RevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBatch 'Код партии' (UserRevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-changeBatchUserRevaluationDetail = ACTION (userRevaluationDetail) {
-    FORM dialogBatchStockOut OBJECTS st = stockUserRevaluationDetail(userRevaluationDetail),
-                             t = dateTimeUserRevaluationDetail(userRevaluationDetail),
-                             sk = skuUserRevaluationDetail(userRevaluationDetail) DIALOG SHOWDROP;
+changeBatch = ACTION (UserRevaluationDetail userRevaluationDetail) {
+    FORM dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
+                             t = dateTime(userRevaluationDetail),
+                             sk = sku(userRevaluationDetail) DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
-        ASSIGN batchUserRevaluationDetail(userRevaluationDetail) <- chosenObject('bt');
+        ASSIGN batch(userRevaluationDetail) <- chosenObject('bt');
     } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batchUserRevaluationDetail(userRevaluationDetail) <- NULL;
+        ASSIGN batch(userRevaluationDetail) <- NULL;
     }
 
 }
 
-replaceSkuBatch(s, b) += ACTION (s, b){ skuUserRevaluationDetail(detail) <- s WHERE batchUserRevaluationDetail(detail) == b;}
+replace(Sku s, Batch b) += ACTION (s, b){ sku(UserRevaluationDetail detail) <- s WHERE batch(detail) == b;}
 
 // -- До
 
@@ -123,62 +123,62 @@ replaceSkuBatch(s, b) += ACTION (s, b){ skuUserRevaluationDetail(detail) <- s WH
 @defineDocumentInterfaceHeaderSkip(Revaluation, changeLedger, 'Не изменять текущие цены');
 @defineDocumentInterfaceDetailSkip(revaluation, changeLedger, 'Не изменять текущие цены');
 
-editRevaluation 'Редактировать' = ABSTRACT ACTION LIST (Revaluation) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ABSTRACT ACTION LIST (Revaluation) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 //------------------------------------ Печатные формы акт расценки ------------------------------------------------ //
 
 FORM revaluation 'Переоценка (печать)'
 
     OBJECTS p = Revaluation FIXED PANEL
-    PROPERTIES (p) SELECTOR isPostedRevaluation
+    PROPERTIES (p) SELECTOR isPosted
 
-    PROPERTIES (p) numberRevaluation, seriesRevaluation, dateRevaluation, timeRevaluation, beforeDateRevaluation, fullNameStockRevaluation,
-                   diffSumRevaluationDetailRevaluation, curSumRevaluationDetailRevaluation, sumRevaluationDetailRevaluation,
-                   quantityRevaluationDetailRevaluation, countRevaluationDetailRevaluation,
-                   nameRepricingCommitteeRevaluation, skipChangeLedgerRevaluation,
-                   noteRevaluation, numberDisposalRevaluation, repricingCommitteeRevaluation, nameEmployeeCommitteeRevaluation,
-                   nameChairmanRevaluation, namePositionChairmanRevaluation
+    PROPERTIES (p) number, series, date, time, beforeDate, fullNameStock,
+                   diffSumRevaluationDetail, curSumRevaluationDetail, sumRevaluationDetail,
+                   quantityRevaluationDetail, countRevaluationDetail,
+                   nameRepricingCommittee, skipChangeLedger,
+                   note, numberDisposal, repricingCommittee, nameEmployeeCommittee,
+                   nameChairman, namePositionChairman
 
     OBJECTS d = RevaluationDetail
-    PROPERTIES (d) indexRevaluationDetail, idBarcodeSkuRevaluationDetail, nameSkuRevaluationDetail,
-                   shortNameUOMSkuRevaluationDetail, nameBatchRevaluationDetail, quantityRevaluationDetail,
-                   curPriceRevaluationDetail, curSumRevaluationDetail,
-                   priceRevaluationDetail, sumRevaluationDetail, diffSumRevaluationDetail
+    PROPERTIES (d) index, idBarcodeSku, nameSku,
+                   shortNameUOMSku, nameBatch, quantity,
+                   curPrice, curSum,
+                   price, sum, diffSum
 
     OBJECTS e=Employee
-    PROPERTIES(e) READONLY   nameContact, namePositionEmployee
+    PROPERTIES(e) READONLY   name[Contact], namePosition
 
-    FILTERS    revaluationRevaluationDetail(d) == p,
-               inCommitteeRevaluationEmployee(p, e)
+    FILTERS    revaluation(d) == p,
+               inCommittee(p, e)
 
 ;
 
-printRevaluation 'Переоценка' (revaluation) = ACTION FORM revaluation OBJECTS p = revaluation PRINT  IMAGE 'print.png' IN print;
+print 'Переоценка' (Revaluation revaluation) = ACTION FORM revaluation OBJECTS p = revaluation PRINT  IMAGE 'print.png' IN print;
 
 // --------------------------- Формы --------------------------------- //
 FORM userRevaluation 'Переоценка'
     OBJECTS p=UserRevaluation FIXED PANEL
-    PROPERTIES (p) isPostedUserRevaluation, nameNumeratorUserRevaluation, numberUserRevaluation, seriesUserRevaluation,
-                   dateUserRevaluation, timeUserRevaluation, beforeDateUserRevaluation, nameStockUserRevaluation ON CHANGE changeStockCompanyUserRevaluation(p),
-                   diffSumUserRevaluationDetailUserRevaluation, noteUserRevaluation, numberDisposalUserRevaluation ON CHANGE changeNumberDisposalUserRevaluation(p),
-                   nameRepricingCommitteeUserRevaluation, skipChangeLedgerUserRevaluation
+    PROPERTIES (p) isPosted, nameNumerator, number, series,
+                   date, time, beforeDate, nameStock ON CHANGE changeStockCompany(p),
+                   diffSumUserRevaluationDetail, note, numberDisposal ON CHANGE changeNumberDisposal(p),
+                   nameRepricingCommittee, skipChangeLedger
 
     OBJECTS d=UserRevaluationDetail
-    PROPERTIES (d) indexUserRevaluationDetail, idBarcodeSkuUserRevaluationDetail, nameSkuUserRevaluationDetail,
-                   shortNameUOMSkuUserRevaluationDetail, nameBatchUserRevaluationDetail ON CHANGE changeBatchUserRevaluationDetail(d), quantityUserRevaluationDetail,
-                   curPriceUserRevaluationDetail, curSumUserRevaluationDetail,
-                   priceUserRevaluationDetail, sumUserRevaluationDetail, ADDOBJ, deleted=DELETESESSION
+    PROPERTIES (d) index, idBarcodeSku, nameSku,
+                   shortNameUOMSku, nameBatch ON CHANGE changeBatch(d), quantity,
+                   curPrice, curSum,
+                   price, sum, ADDOBJ, deleted=DELETESESSION
 
-    PROPERTIES(d) READONLYIF batchUserRevaluationDetail(d) SHOWIF showIDs()
-                  idBatchUserRevaluationDetail ON CHANGE changeBatchUserRevaluationDetail(d) BEFORE nameBatchUserRevaluationDetail(d)
+    PROPERTIES(d) READONLYIF batch(d) SHOWIF showIDs()
+                  idBatch ON CHANGE changeBatch(d) BEFORE nameBatch(d)
                   
-    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRevaluationDetailUserRevaluation,
-                           addDetailInputBarcodeUserRevaluationDetailUserRevaluation, deleteUserRevaluationDetailUserRevaluation
+    PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserRevaluationDetail,
+                           addDetailInputBarcodeUserRevaluationDetail, deleteUserRevaluationDetail
 
-    FILTERS userRevaluationUserRevaluationDetail(d)==p
+    FILTERS userRevaluation(d)==p
 
     EVENTS
-        ON OK prePostUserRevaluation(p)
+        ON OK prePost(p)
 
     EDIT UserRevaluation OBJECT p
 ;
@@ -191,14 +191,14 @@ DESIGN userRevaluation {
 
             MOVE p.documentHeader {
                 type = CONTAINERH;
-                MOVE PROPERTY(isPostedUserRevaluation(p)) { preferredCharWidth = 10; }
-                MOVE PROPERTY(nameStockUserRevaluation(p));
-                MOVE PROPERTY(nameNumeratorUserRevaluation(p));
-                MOVE PROPERTY(numberUserRevaluation(p));
-                MOVE PROPERTY(seriesUserRevaluation(p));
-                MOVE PROPERTY(dateUserRevaluation(p));
-                MOVE PROPERTY(timeUserRevaluation(p));
-                MOVE PROPERTY(beforeDateUserRevaluation(p));
+                MOVE PROPERTY(isPosted(p)) { preferredCharWidth = 10; }
+                MOVE PROPERTY(nameStock(p));
+                MOVE PROPERTY(nameNumerator(p));
+                MOVE PROPERTY(number(p));
+                MOVE PROPERTY(series(p));
+                MOVE PROPERTY(date(p));
+                MOVE PROPERTY(time(p));
+                MOVE PROPERTY(beforeDate(p));
             }
 
             NEW headerCol1 {
@@ -224,17 +224,17 @@ DESIGN userRevaluation {
         PROPERTY(formOk()) {
             caption = 'Провести';
         }
-        PROPERTY(diffSumUserRevaluationDetailUserRevaluation(p)) { preferredCharWidth = 13;}
+        PROPERTY(diffSumUserRevaluationDetail(p)) { preferredCharWidth = 13;}
     }
 }
 
-editRevaluationDetail 'Редактировать' = ABSTRACT ACTION LIST  (RevaluationDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-editUserRevaluationDetail(d) = ACTION (d) NEWSESSION {
-    FORM userRevaluation OBJECTS p = userRevaluationUserRevaluationDetail(d), d = d MANAGESESSION DOCKEDMODAL;
+edit 'Редактировать' = ABSTRACT ACTION LIST  (RevaluationDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit(UserRevaluationDetail d) = ACTION (d) NEWSESSION {
+    FORM userRevaluation OBJECTS p = userRevaluation(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
-editRevaluationDetail(d) += ACTION editUserRevaluationDetail(d);    
-editSkuLedger(ledger) += ACTION editRevaluationDetail(ledger);
+edit(UserRevaluationDetail d) += ACTION edit(d);    
+edit[SkuLedger](RevaluationDetail ledger) += ACTION edit(ledger);
 
 @defineDocumentSkuPriceListTypeSystemLedger(userRevaluation, accountPriceListType, stock, );
 @extendFormDocumentSku(userRevaluation, userRevaluation, p);
@@ -245,50 +245,50 @@ editSkuLedger(ledger) += ACTION editRevaluationDetail(ledger);
 EXTEND FORM userRevaluation
 
     FILTERGROUP filter
-        FILTER 'С остатком ' currentBalanceSkuUserRevaluation(ks, p) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserRevaluationDetailSkuUserRevaluation(ks, p) 'F9'
+        FILTER 'С остатком ' currentBalance(ks, p) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserRevaluationDetail(ks, p) 'F9'
 ;
 
 EXTEND FORM userRevaluation
 
     FILTERGROUP filter1
-        FILTER 'С остатком ' prevCurrentBalanceBatchUserRevaluation(b, p) 'F10' DEFAULT
-        FILTER 'В документе ' quantityUserRevaluationDetailBatchUserRevaluation(b, p) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(b, p) 'F10' DEFAULT
+        FILTER 'В документе ' quantityUserRevaluationDetail(b, p) 'F9'
 ;
 
 addUserRevaluation 'Добавить' = ACTION ADDFORM UserRevaluation;
-editUserRevaluation 'Редактировать' (userRevaluation) = ACTION EDITFORM UserRevaluation;
+edit 'Редактировать' (userRevaluation) = ACTION EDITFORM UserRevaluation;
 
-editRevaluation (revaluation) += ACTION editUserRevaluation(revaluation);
-isUserOpenedRevaluation(r)=  isOpenedRevaluation(r) AND isUserRevaluation(r);
+edit (UserRevaluation revaluation) += ACTION edit(revaluation);
+isUserOpened(UserRevaluation r)=  isOpened[Revaluation](r) AND is(r);
 
 FORM revaluations 'Переоценки' 
     OBJECTS p = Revaluation    
 
-    PROPERTIES (p) READONLYIF isReadonly() isClosedRevaluation, isPostedRevaluation, numberRevaluation, seriesRevaluation, 
-                   dateRevaluation, timeRevaluation, beforeDateRevaluation, nameStockRevaluation
-    PROPERTIES (p) READONLY countRevaluationDetailRevaluation, diffSumRevaluationDetailRevaluation
-    PROPERTIES (p) READONLYIF isReadonly() numberDisposalRevaluation, skipChangeLedgerRevaluation, noteRevaluation
+    PROPERTIES (p) READONLYIF isReadonly() isClosed, isPosted, number, series, 
+                   date, time, beforeDate, nameStock
+    PROPERTIES (p) READONLY countRevaluationDetail, diffSumRevaluationDetail
+    PROPERTIES (p) READONLYIF isReadonly() numberDisposal, skipChangeLedger, note
 
-    PROPERTIES (p) READONLY FORCE PANEL createdNameUserUserRevaluation, createdTimeUserRevaluation, createdHostnameComputerUserRevaluation, 
-                                        postedNameUserUserRevaluation, postedTimeUserRevaluation, postedHostnameComputerUserRevaluation
+    PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES ()  addUserRevaluation TODRAW p
-    PROPERTIES (p) editRevaluation SHOWIF isOpenedRevaluation(p)
-    PROPERTIES (p) closeUserRevaluation SHOWIF isOpenedUserRevaluation(p), openUserRevaluation SHOWIF isClosedUserRevaluation(p)
+    PROPERTIES (p) edit SHOWIF isOpened(p)
+    PROPERTIES (p) close[UserRevaluation] SHOWIF isOpened[UserRevaluation](p), open SHOWIF isClosed[UserRevaluation](p)
 
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpenedRevaluation(p)      
-    PROPERTIES (p) printRevaluation FORCE PANEL
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)      
+    PROPERTIES (p) print FORCE PANEL
 
 
     OBJECTS d = RevaluationDetail
-    PROPERTIES (d) READONLY indexRevaluationDetail, idBarcodeSkuRevaluationDetail, nameSkuRevaluationDetail, shortNameUOMSkuRevaluationDetail, nameBatchRevaluationDetail,
-                   quantityRevaluationDetail, curPriceRevaluationDetail, curSumRevaluationDetail, priceRevaluationDetail, sumRevaluationDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
+                   quantity, curPrice, curSum, price, sum
 
     PROPERTIES(d) READONLY SHOWIF showIDs()
-                  idBatchRevaluationDetail BEFORE nameBatchRevaluationDetail(d)
+                  idBatch BEFORE nameBatch(d)
                       
-    FILTERS revaluationRevaluationDetail(d) == p
+    FILTERS revaluation(d) == p
 ;
 @extendFormFilterAccessStock(Revaluation, p, revaluations, stock, company);
 
@@ -343,15 +343,15 @@ DESIGN revaluations {
 @defineDocumentOperationRolePrefix(userRevaluation, );
 
 EXTEND FORM userRevaluation
-    PROPERTIES(p) nameOperationUserRevaluation
+    PROPERTIES(p) nameOperation
 ;
 DESIGN userRevaluation{
     p.documentPrm{
-        MOVE PROPERTY (nameOperationUserRevaluation(p)) BEFORE PROPERTY(noteUserRevaluation(p));
+        MOVE PROPERTY (nameOperation(p)) BEFORE PROPERTY(note(p));
     }
 }
 EXTEND FORM revaluations
-    PROPERTIES(p) READONLY nameOperationRevaluation AFTER nameStockRevaluation(p)
+    PROPERTIES(p) READONLY nameOperation AFTER nameStock(p)
 ;
 
 NAVIGATOR {
@@ -363,66 +363,66 @@ NAVIGATOR {
 
 // Проведение по товарному отчету
 @implementStockDocumentLedgerOut(Revaluation, stock);
-typeStockDocumentLedger(l) += 'Переоценка (склад)' IF l IS Revaluation;
-sumItemOutStockDocumentLedger (ledger) += -diffSumRevaluationDetailRevaluation(ledger);
-sumContainerOutStockDocumentLedger (ledger) += 0.0 IF ledger IS Revaluation;
+type(Revaluation l) += 'Переоценка (склад)' IF l IS Revaluation;
+sumItem (Revaluation ledger) += -diffSumRevaluationDetail(ledger);
+sumContainer (Revaluation ledger) += 0.0 IF ledger IS Revaluation;
 
-operationStockDocumentLedger(ledger) += operationRevaluation(ledger);
-editStockDocumentLedger(l) += ACTION editRevaluation(l);
-closeStockDocumentLedger(l) += ACTION closeRevaluation(l);
+operation[StockDocumentLedger](Revaluation ledger) += operation(ledger);
+edit[StockDocumentLedger](Revaluation l) += ACTION edit(l);
+close[StockDocumentLedger](Revaluation l) += ACTION close(l);
 // Проведение по регистру
 @implementSkuLedger(revaluationDetail, sku, stock);
-sumInSkuLedger (ledger) += diffSumRevaluationDetail(ledger);
+sum[InSkuLedger] (RevaluationDetail ledger) += diffSum(ledger);
 
-stockDocumentLedgerSkuLedger(ledger) += revaluationRevaluationDetail(ledger); 
+stockDocumentLedger(RevaluationDetail ledger) += revaluation(ledger); 
 
-batchSkuLedger(ledger) += batchRevaluationDetail(ledger);
+batch[SkuLedger](RevaluationDetail ledger) += batch(ledger);
 
 // ---------------------------- Создание PriceList ----------------------------------- //
 
 EXTEND CLASS RevaluationDetail : PriceListLedger;
 
-fromDateTimePriceListLedger (ledger) += dateTimeRevaluationDetail(ledger);
+fromDateTime (RevaluationDetail ledger) += dateTime(ledger);
 
-isPostedPriceListLedger(ledger) += isPostedRevaluationDetail(ledger);
-skipPriceListLedger(ledger) += skipChangeLedgerRevaluationDetail(ledger);
+isPosted[PriceListLedger](RevaluationDetail ledger) += isPosted(ledger);
+skip[PriceListLedger](RevaluationDetail ledger) += skipChangeLedger(ledger);
 
-skuPriceListLedger (ledger) += skuRevaluationDetail(ledger);
+sku[PriceListLedger] (RevaluationDetail ledger) += sku(ledger);
 
-descriptionPriceListLedger (ledger) += descriptionRevaluationDetail(ledger);
+description[PriceListLedger] (RevaluationDetail ledger) += description(ledger);
 
-inPriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRevaluationDetail(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
-pricePriceListLedgerSystemLedgerPriceListType (ledger, type) += WHEN priceRevaluationDetail(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN priceRevaluationDetail(ledger);
+in (RevaluationDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN TRUE;
+price (RevaluationDetail ledger, SystemLedgerPriceListType type) += WHEN price(ledger) AND type == SystemLedgerPriceListType.accountPriceListType THEN price(ledger);
 
-inPriceListLedgerStock (ledger, stock) += stockRevaluationDetail(ledger) == stock;
-inPriceListLedgerBatch (ledger, batch) += batchRevaluationDetail(ledger) == batch; 
+in (RevaluationDetail ledger, Stock stock) += stock(ledger) == stock;
+in (RevaluationDetail ledger, Batch batch) += batch(ledger) == batch; 
 
-editPriceListLedger(d) += ACTION editRevaluationDetail(d);
+edit[PriceListLedger](RevaluationDetail d) += ACTION edit(d);
 
 // ---------------------- Создание переоценки до учетной цены ----------------------- //
 
-addAdjustmentAccountSumDetailRevaluation 'Привести учетные суммы к ценам партий' = ACTION (revaluation) {
-    LOCAL sumBatch = NUMERIC[16,2] (Batch);
-    sumBatch(b) <- accountSumBBatchStockDateTime(b, stockRevaluation(revaluation), dateTimeRevaluation(revaluation));
+addAdjustmentAccountSumDetail 'Привести учетные суммы к ценам партий' = ACTION (Revaluation revaluation) {
+    LOCAL sum = NUMERIC[16,2] (Batch);
+    sum(Batch b) <- accountSumB(b, stock(revaluation), dateTime(revaluation));
     
-    LOCAL sumBatchSku = NUMERIC[16,2] (Sku);
-    sumBatchSku(s) <- [= GROUP SUM sumBatch(b) BY skuBatch(b)](s);
+    LOCAL sumBatch = NUMERIC[16,2] (Sku);
+    sumBatch(Sku s) <- [= GROUP SUM sum(Batch b) BY sku(b)](s);
     
-    LOCAL sumSku = NUMERIC[16,2] (Sku);
-    sumSku(s) <- sumBSkuStockDateTime(s, stockRevaluation(revaluation), dateTimeRevaluation(revaluation));
+    LOCAL sum = NUMERIC[16,2] (Sku);
+    sum(Sku s) <- sumB(s, stock(revaluation), dateTime(revaluation));
     
-    LOCAL diffSumSku = NUMERIC[16,2] (Sku);
-    diffSumSku(s) <- sumSku(s) (-) sumBatchSku(s);
+    LOCAL diffSum = NUMERIC[16,2] (Sku);
+    diffSum(Sku s) <- sum(s) (-) sumBatch(s);
     
-    FOR diffSumSku(s) IF diffSumSku(s) != 0.0 ADDOBJ d = UserRevaluationDetail DO {
-        userRevaluationUserRevaluationDetail(d) <- revaluation;
-        skuUserRevaluationDetail(d) <- s;
-        quantityUserRevaluationDetail(d) <- balanceBSkuStockDateTime(s, stockRevaluation(revaluation), dateTimeRevaluation(revaluation));
-        curSumUserRevaluationDetail(d) <- sumSku(s);
-        sumUserRevaluationDetail(d) <- sumBatchSku(s);
+    FOR diffSum(Sku s) IF diffSum(s) != 0.0 ADDOBJ d = UserRevaluationDetail DO {
+        userRevaluation(d) <- revaluation;
+        sku(d) <- s;
+        quantity(d) <- balanceB(s, stock(revaluation), dateTime(revaluation));
+        curSum(d) <- sum(s);
+        sum(d) <- sumBatch(s);
     }  
 } TOOLBAR;
 
 EXTEND FORM userRevaluation
-    PROPERTIES(p) addAdjustmentAccountSumDetailRevaluation TODRAW d
+    PROPERTIES(p) addAdjustmentAccountSumDetail TODRAW d
 ;

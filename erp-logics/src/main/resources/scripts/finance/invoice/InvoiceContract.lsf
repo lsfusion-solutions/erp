@@ -4,28 +4,28 @@ REQUIRE StockContract, Invoice;
 
 META defineInvoicePaymentCondition (sign)
 
-    paymentConditionInvoice 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice) PERSISTENT;
-    paymentConditionUserInvoice 'Условия оплаты' = DATA PaymentCondition (UserInvoice);
-    paymentConditionInvoice(prop) += paymentConditionUserInvoice(prop);
-    InvoiceContract.paymentConditionInvoice(prop) += paymentConditionInvoice(prop);
-    descriptionPaymentConditionInvoice 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionInvoice(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
-    descriptionPaymentConditionUserInvoice 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionUserInvoice(i)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice) PERSISTENT;
+    paymentCondition 'Условия оплаты' = DATA PaymentCondition (UserInvoice);
+    paymentCondition(UserInvoice prop) += paymentCondition(prop);
+    paymentCondition[Invoice.Invoice](Invoice prop) += paymentCondition(prop);
+    descriptionPaymentCondition 'Условия оплаты' (Invoice i) = description(paymentCondition(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    descriptionPaymentCondition 'Условия оплаты' (UserInvoice i) = description(paymentCondition(i)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-    paymentConditionUserInvoice(prop) <- OVERRIDE paymentConditionAgreement(agreementUserInvoice(prop)), paymentConditionContract(contractSkuUserInvoice(prop))
-        WHEN CHANGED(agreementUserInvoice(prop)) OR
-             CHANGED(contractSkuUserInvoice(prop));
+    paymentCondition(UserInvoice prop) <- OVERRIDE paymentCondition(agreement(prop)), paymentCondition(contractSku(prop))
+        WHEN CHANGED(agreement(prop)) OR
+             CHANGED(contractSku(prop));
 
     EXTEND FORM userInvoice
-        PROPERTIES(i) descriptionPaymentConditionUserInvoice
+        PROPERTIES(i) descriptionPaymentCondition
     ;
 
     DESIGN userInvoice{
         i.documentPrm{
-            MOVE PROPERTY(descriptionPaymentConditionUserInvoice(i));
+            MOVE PROPERTY(descriptionPaymentCondition(i));
         }
     }
 
 END
 
-paymentConditionInvoice 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice) PERSISTENT;
-descriptionPaymentConditionInvoice 'Условия оплаты' (i) = descriptionPaymentCondition(paymentConditionInvoice(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;
+paymentCondition 'Условия оплаты' = ABSTRACT PaymentCondition (Invoice) PERSISTENT;
+descriptionPaymentCondition 'Условия оплаты' (Invoice i) = description(paymentCondition(i)) IN base MINCHARWIDTH 10 PREFCHARWIDTH 15;

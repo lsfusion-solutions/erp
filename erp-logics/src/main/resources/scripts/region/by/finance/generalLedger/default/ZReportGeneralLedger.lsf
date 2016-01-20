@@ -5,18 +5,18 @@ REQUIRE GeneralLedger, ZReport, DimensionStock;
 NAMESPACE ZReport;
 
 EXTEND CLASS ZReport : GeneralLedger.GLDocument;
-isPostedGLDocument(document) += isPostedZReport(document);
-nameGLDocument(document) += descriptionZReport(document);
+isPosted[GLDocument](ZReport document) += isPosted(document);
+name(ZReport document) += description(document);
 
-numberGLDocument(document) += STRING[18](numberZReport(document));
+number[GLDocument](ZReport document) += STRING[18](number(document));
 
-dateTimeGLDocument(document) += dateTimeZReport(document);
+dateTime[GLDocument](ZReport document) += dateTime(document);
 
 //////////////////////////////// 3. Продажа/выручка (ПКО)  //////////////////////////////////
 
 //-- Оплачено налично         sumCashPaymentZReport
-shortDescriptionZReport 'Название документа' (zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStoreZReport(zReport),
-                                            ' от ' + dateZReport(zReport));
+shortDescription 'Название документа' (ZReport zReport) =  VARSTRING[200] (CONCAT '', 'Продажа по кассе ' + nameDepartmentStore(zReport),
+                                            ' от ' + date(zReport));
 
 @defineGeneralLedgerAggregation (zReport, 
                                     ZCash, 
@@ -28,8 +28,8 @@ shortDescriptionZReport 'Название документа' (zReport) =  VARST
                                     '50.2', 
                                     '90.1', 
                                     'by_default') ;
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(zReportZCashGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreZReport(zReportZCashGeneralLedger(generalLedger));
-idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('51') IF generalLedger IS ZCashGeneralLedger;
+credit(ZCashGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(zReport(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStore(zReport(generalLedger));
+idOperation(ZCashGeneralLedger generalLedger) +=  VARSTRING[3]('51') IF generalLedger IS ZCashGeneralLedger;
 
 
 //-- Оплачено карточкой         sumCardPaymentZReport
@@ -44,8 +44,8 @@ idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('51') IF generalLedger 
                                  '90.1', 
                                  'by_default'
                                  );
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(zReportZCardGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreZReport(zReportZCardGeneralLedger(generalLedger));
-idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('51') IF generalLedger IS ZCardGeneralLedger;
+credit(ZCardGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(zReport(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStore(zReport(generalLedger));
+idOperation(ZCardGeneralLedger generalLedger) +=  VARSTRING[3]('51') IF generalLedger IS ZCardGeneralLedger;
 
 //-- Сумма товара (сумма в чеке)
 @defineGeneralLedgerAggregation (zReport, 
@@ -57,15 +57,15 @@ idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('51') IF generalLedger 
                                  '41.2', 
                                  'by_default'
                                  ) ;
-creditGeneralLedgerDimensionType(generalLedger,dimensionType) += WHEN CLASS(zReportCostBatchGeneralLedger(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStoreZReport(zReportCostBatchGeneralLedger(generalLedger));
-idOperationGeneralLedger(generalLedger) +=  VARSTRING[3]('51') IF generalLedger IS CostBatchGeneralLedger;
+credit(CostBatchGeneralLedger generalLedger,DimensionType dimensionType) += WHEN CLASS(zReport(generalLedger)) AND dimensionType == DimensionType.stock THEN departmentStore(zReport(generalLedger));
+idOperation(CostBatchGeneralLedger generalLedger) +=  VARSTRING[3]('51') IF generalLedger IS CostBatchGeneralLedger;
 
 EXTEND FORM zReports
     OBJECTS g=GeneralLedger
-    PROPERTIES(g) READONLY descriptionGeneralLedger, idDebitGeneralLedger, idDimensionsDebitGeneralLedger, dimensionsDebitGeneralLedger, 
-                            idCreditGeneralLedger, idDimensionsCreditGeneralLedger, dimensionsCreditGeneralLedger, sumGeneralLedger
+    PROPERTIES(g) READONLY description, idDebit, idDimensionsDebit, dimensionsDebit, 
+                            idCredit, idDimensionsCredit, dimensionsCredit, sum
 
-    FILTERS GLDocumentGeneralLedger(g) == z
+    FILTERS GLDocument(g) == z
 ;
 
 DESIGN zReports {

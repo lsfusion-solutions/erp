@@ -5,63 +5,63 @@ REQUIRE System,
         Item,
         PurchaseInvoice;
 
-importPurchaseInvoiceDataAction 'Импортировать накладную' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceActionProperty' (Purchase.UserInvoice);
-importTypeUserInvoice = DATA ImportType(UserInvoice);
-nameImportTypeUserInvoice 'Тип импорта' (userInvoice) = nameImportType(importTypeUserInvoice(userInvoice));
+importPurchaseDataAction 'Импортировать накладную' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoiceActionProperty' (Purchase.UserInvoice);
+importType = DATA ImportType(UserInvoice);
+nameImportType 'Тип импорта' (UserInvoice userInvoice) = name(importType(userInvoice));
 
 importPurchaseInvoicesDataAction 'Импортировать накладные' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesActionProperty' ();
 importTypeUserInvoices = DATA ImportType();
-nameImportTypeUserInvoices 'Тип импорта' () = nameImportType(importTypeUserInvoices());
+nameImportTypeUserInvoices 'Тип импорта' () = name(importTypeUserInvoices());
 
 importPurchaseInvoicesDirectoryDataAction 'Импортировать накладные из папки' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesDirectoryActionProperty' ();
 importPurchaseInvoicesEmailDataAction 'Импортировать накладные из почты' = ACTION CUSTOM 'lsfusion.erp.integration.universal.purchaseinvoice.ImportPurchaseInvoicesEmailActionProperty' ();
 
-originalInvoice 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
+original 'Файл оригинала накладной'  = DATA CUSTOMFILE (Purchase.Invoice);
 
-saveOriginalInvoice 'Загрузить файл оригинала накладной' (i) = ACTION LOADFILE originalInvoice(i);
-openOriginalInvoice 'Просмотреть оригинал накладной' (i) = ACTION OPENFILE originalInvoice(i);
+saveOriginal 'Загрузить файл оригинала накладной' (Purchase.Invoice i) = ACTION LOADFILE original(i);
+openOriginal 'Просмотреть оригинал накладной' (Purchase.Invoice i) = ACTION OPENFILE original(i);
 
-autoImportEmailImportType 'E-mail поставщика' =  DATA VARSTRING[100](ImportType);
-autoImportAccountImportType 'E-mail аккаунт' =  DATA Account(ImportType);
-autoImportNameAccountImportType 'E-mail аккаунт' (importType) = nameAccount(autoImportAccountImportType(importType));
-autoImportCheckInvoiceExistenceImportType 'Проверять существование накладной' = DATA BOOLEAN (ImportType);
+autoImportEmail 'E-mail поставщика' =  DATA VARSTRING[100](ImportType);
+autoImportAccount 'E-mail аккаунт' =  DATA Account(ImportType);
+autoImportNameAccount 'E-mail аккаунт' (ImportType importType) = name(autoImportAccount(importType));
+autoImportCheckInvoiceExistence 'Проверять существование накладной' = DATA BOOLEAN (ImportType);
 
 EXTEND FORM importTypes
-PROPERTIES(i) READONLY SHOWIF autoImportImportType(i) autoImportEmailImportType, autoImportNameAccountImportType, 
-                              autoImportCheckInvoiceExistenceImportType
+PROPERTIES(i) READONLY SHOWIF autoImport(i) autoImportEmail, autoImportNameAccount, 
+                              autoImportCheckInvoiceExistence
 ;
 
 EXTEND FORM importType
-PROPERTIES(i) FORCE PANEL SHOWIF autoImportImportType(i) autoImportNameAccountImportType, autoImportEmailImportType,
-                                 autoImportCheckInvoiceExistenceImportType
+PROPERTIES(i) FORCE PANEL SHOWIF autoImport(i) autoImportNameAccount, autoImportEmail,
+                                 autoImportCheckInvoiceExistence
 
 ;
 
 DESIGN importType {
         autoImportContainer {
-            MOVE PROPERTY(autoImportNameAccountImportType(i));
-            MOVE PROPERTY(autoImportEmailImportType(i));
-            MOVE PROPERTY(autoImportCheckInvoiceExistenceImportType(i));
+            MOVE PROPERTY(autoImportNameAccount(i));
+            MOVE PROPERTY(autoImportEmail(i));
+            MOVE PROPERTY(autoImportCheckInvoiceExistence(i));
         }
 }
 
 EXTEND FORM userInvoice
-    PROPERTIES(i) importPurchaseInvoiceDataAction TODRAW d TOOLBAR
-    PROPERTIES(i) nameImportTypeUserInvoice
-    PROPERTIES(i) saveOriginalInvoice, openOriginalInvoice 
+    PROPERTIES(i) importPurchaseDataAction TODRAW d TOOLBAR
+    PROPERTIES(i) nameImportType
+    PROPERTIES(i) saveOriginal, openOriginal 
 ;
 
 DESIGN userInvoice{
     import {
         NEW universalImport {
             caption = 'Универсальный импорт';
-            MOVE PROPERTY(nameImportTypeUserInvoice(i));
-            MOVE PROPERTY(importPurchaseInvoiceDataAction(i));
+            MOVE PROPERTY(nameImportType(i));
+            MOVE PROPERTY(importPurchaseDataAction(i));
         }
         NEW origin {
             caption = 'Оригинал накладной';
-            MOVE PROPERTY(saveOriginalInvoice(i));
-            MOVE PROPERTY(openOriginalInvoice(i));
+            MOVE PROPERTY(saveOriginal(i));
+            MOVE PROPERTY(openOriginal(i));
         }
     }
 }
@@ -96,16 +96,16 @@ DESIGN integrationData {
     }
 }
 
-CONSTRAINT importTypeUserInvoice(invoice) AND (supplierUserInvoice(invoice) != autoImportSupplierImportType(importTypeUserInvoice(invoice)))
-    CHECKED BY importTypeUserInvoice MESSAGE 'У накладной и типа импорта не совпадают поставщики';
+CONSTRAINT importType(UserInvoice invoice) AND (supplier(invoice) != autoImportSupplier(importType(invoice)))
+    CHECKED BY importType[UserInvoice] MESSAGE 'У накладной и типа импорта не совпадают поставщики';
     
-CONSTRAINT importTypeUserInvoice(invoice) AND  (supplierStockUserInvoice(invoice) != autoImportSupplierStockImportType(importTypeUserInvoice(invoice)))
-    CHECKED BY importTypeUserInvoice MESSAGE 'У накладной и типа импорта не совпадают склады поставщиков';
+CONSTRAINT importType(UserInvoice invoice) AND  (supplierStock(invoice) != autoImportSupplierStock(importType(invoice)))
+    CHECKED BY importType[UserInvoice] MESSAGE 'У накладной и типа импорта не совпадают склады поставщиков';
 
-CONSTRAINT importTypeUserInvoice(invoice) AND  (customerUserInvoice(invoice) != autoImportCustomerImportType(importTypeUserInvoice(invoice)))
-    CHECKED BY importTypeUserInvoice MESSAGE 'У накладной и типа импорта не совпадают покупатели';
-CONSTRAINT importTypeUserInvoice(invoice) AND  (customerStockUserInvoice(invoice) != autoImportCustomerStockImportType(importTypeUserInvoice(invoice)))
-    CHECKED BY importTypeUserInvoice MESSAGE 'У накладной и типа импорта не совпадают склады покупателей';
+CONSTRAINT importType(UserInvoice invoice) AND  (customer(invoice) != autoImportCustomer(importType(invoice)))
+    CHECKED BY importType[UserInvoice] MESSAGE 'У накладной и типа импорта не совпадают покупатели';
+CONSTRAINT importType(UserInvoice invoice) AND  (customerStock(invoice) != autoImportCustomerStock(importType(invoice)))
+    CHECKED BY importType[UserInvoice] MESSAGE 'У накладной и типа импорта не совпадают склады покупателей';
     
-CONSTRAINT importTypeUserInvoice(invoice) AND  (operationUserInvoice(invoice) != autoImportOperationImportType(importTypeUserInvoice(invoice)))
-   CHECKED BY importTypeUserInvoice MESSAGE 'У накладной и типа импорта не совпадают операции';    
+CONSTRAINT importType(UserInvoice invoice) AND  (operation(invoice) != autoImportOperation(importType(invoice)))
+   CHECKED BY importType[UserInvoice] MESSAGE 'У накладной и типа импорта не совпадают операции';    

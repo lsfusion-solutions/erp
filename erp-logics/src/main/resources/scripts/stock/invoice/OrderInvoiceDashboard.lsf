@@ -4,9 +4,9 @@ REQUIRE Dashboard, OrderInvoice;
 
 NAMESPACE Invoice;
 
-excludeFilterInvoicedOrder = ABSTRACT BOOLEAN (Order);
-filterInvoiced = TRUE IF toInvoiceOrder(o) AND NOT excludeFilterInvoicedOrder(o);  
-backgroundOrder = ABSTRACT CASE COLOR (Order);
+excludeFilterInvoiced = ABSTRACT BOOLEAN (Order);
+filterInvoiced = TRUE IF toInvoice(Order o) AND NOT excludeFilterInvoiced(o);  
+background = ABSTRACT CASE COLOR (Order);
 
 FORM orderInvoiceDashboard 'Приемка по заказам' AUTOREFRESH 60
 
@@ -14,35 +14,35 @@ FORM orderInvoiceDashboard 'Приемка по заказам' AUTOREFRESH 60
     PROPERTIES(d) date = OBJVALUE
     
     OBJECTS o=Order FIXED GRID
-    PROPERTIES (o) selectedOrder
-    PROPERTIES (o) READONLY BACKGROUND backgroundOrder(o) isPostedOrder, numberOrder, seriesOrder, dateOrder, nameFromOrder, nameFromStockOrder, nameToOrder, nameToStockOrder, 
-                   nameOperationOrder, quantityOrderDetailOrder, sumOrderDetailOrder, VATSumOrderDetailOrder, invoiceSumOrderDetailOrder, noteOrder,
-                   shipmentDateOrder, shipmentTimeOrder, objectClassName    
-    FILTERS inOrder(o), isPostedOrder(o)
-    FILTERGROUP filters FILTER 'На дату' shipmentDateOrder(o) <= d 'F5' DEFAULT
+    PROPERTIES (o) selected
+    PROPERTIES (o) READONLY BACKGROUND background(o) isPosted, number, series, date, nameFrom, nameFromStock, nameTo, nameToStock, 
+                   nameOperation, quantityOrderDetail, sumOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail, note,
+                   shipmentDate, shipmentTime, objectClassName    
+    FILTERS in(o), isPosted(o)
+    FILTERGROUP filters FILTER 'На дату' shipmentDate(o) <= d 'F5' DEFAULT
     FILTERGROUP filterInvoiced 
         FILTER 'Не оприходованы' filterInvoiced(o) 'F7' DEFAULT
         FILTER 'Оприходованы' NOT filterInvoiced(o) 'F6'
     
     OBJECTS od=OrderDetail FIXED GRID
-    PROPERTIES (od) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, shortNameUOMSkuOrderDetail,
-                    packQuantityOrderDetail
-    PROPERTIES (od) READONLY quantityOrderDetail, priceOrderDetail, sumOrderDetail,
-                   valueVATOrderDetail, VATSumOrderDetail, invoiceSumOrderDetail,
-                   nameSupplierStockOrderDetail, shipmentDateOrderDetail, shipmentTimeOrderDetail, toInvoiceOrderDetail  
-    FILTERS orderOrderDetail(od)==o
-    ORDER BY indexOrderDetail(od)
+    PROPERTIES (od) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                    packQuantity
+    PROPERTIES (od) READONLY quantity, price, sum,
+                   valueVAT, VATSum, invoiceSum,
+                   nameSupplierStock, shipmentDate, shipmentTime, toInvoice  
+    FILTERS order(od)==o
+    ORDER BY index(od)
     
     OBJECTS i=Invoice FIXED GRID
-    PROPERTIES (i) READONLY isPostedInvoice, numberInvoice, seriesInvoice, dateInvoice, timeInvoice,                                 
-                   nameFromInvoice, nameFromStockInvoice, nameToInvoice, nameToStockInvoice,
-                   nameCurrencyInvoice, countInvoiceDetailInvoice, quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice,
-                   VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice
+    PROPERTIES (i) READONLY isPosted, number, series, date, time,                                 
+                   nameFrom, nameFromStock, nameTo, nameToStock,
+                   nameCurrency, countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                   VATSumInvoiceDetail, invoiceSumInvoiceDetail
 
-    PROPERTIES (i) editInvoice SHOWIF overShowEditInvoice(i)
-    PROPERTIES     deletei=DELETE(i) FORCE PANEL TOOLBAR SHOWIF overShowDeleteInvoice(i)  
-    FILTERS inInvoice(i)
-    FILTERGROUP filters1 FILTER 'На дату' dateInvoice(i) == d 'F5' DEFAULT
+    PROPERTIES (i) edit SHOWIF overShowEdit(i)
+    PROPERTIES     deletei=DELETE(i) FORCE PANEL TOOLBAR SHOWIF overShowDelete(i)  
+    FILTERS in(i)
+    FILTERGROUP filters1 FILTER 'На дату' date(i) == d 'F5' DEFAULT
     
     PROPERTIES(o) createMultiUserInvoice FORCE PANEL TOOLBAR 
 ;
@@ -76,9 +76,9 @@ DESIGN orderInvoiceDashboard {
             caption = 'Шапка';
             MOVE PROPERTY(date);
         }
-        PROPERTY(packQuantityOrderDetail(od)) { background = #D4FFD4; }
-        PROPERTY(quantityOrderDetail(od)) { background = #D4FFD4; }
-        PROPERTY(priceOrderDetail(od)) { background = #D4FFD4; }
+        PROPERTY(packQuantity(od)) { background = #D4FFD4; }
+        PROPERTY(quantity(od)) { background = #D4FFD4; }
+        PROPERTY(price(od)) { background = #D4FFD4; }
     }
 }
  

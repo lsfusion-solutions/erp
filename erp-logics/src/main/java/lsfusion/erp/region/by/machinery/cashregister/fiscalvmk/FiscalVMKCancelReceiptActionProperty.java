@@ -28,11 +28,11 @@ public class FiscalVMKCancelReceiptActionProperty extends ScriptingActionPropert
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
 
-            boolean skipReceipt = findProperty("fiscalSkipReceipt").read(context.getSession(), receiptObject) != null;
+            boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
             if (!skipReceipt) {
-                String ip = (String) findProperty("ipCurrentCashRegister").read(context.getSession());
-                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister").read(context.getSession());
-                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister").read(context.getSession());
+                String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
+                Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
+                Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 4));
                 if (result != null)

@@ -5,11 +5,11 @@ REQUIRE System,
         Item,
         SaleOrder;
 
-importSaleOrderDataAction 'Импортировать заказ' = ACTION CUSTOM 'lsfusion.erp.integration.universal.saleorder.ImportSaleOrderActionProperty' (Sale.Order);
+importSaleDataAction 'Импортировать заказ' = ACTION CUSTOM 'lsfusion.erp.integration.universal.saleorder.ImportSaleOrderActionProperty' (Sale.Order);
 importSaleOrdersDataAction 'Импортировать заказы' = ACTION CUSTOM 'lsfusion.erp.integration.universal.saleorder.ImportSaleOrdersActionProperty' ();
 
-importTypeOrder = DATA ImportType(Sale.Order);
-nameImportTypeOrder 'Тип импорта' (order) = nameImportType(importTypeOrder(order));
+importType = DATA ImportType(Sale.Order);
+nameImportType 'Тип импорта' (Sale.Order order) = name(importType(order));
 
 EXTEND FORM orders
     PROPERTIES() TODRAW d TOOLBAR importSaleOrdersDataAction
@@ -37,8 +37,8 @@ DESIGN integrationData {
 }
 
 EXTEND FORM Sale.userOrder
-PROPERTIES(o) nameImportTypeOrder
-PROPERTIES(o) importSaleOrderDataAction TODRAW d TOOLBAR
+PROPERTIES(o) nameImportType
+PROPERTIES(o) importSaleDataAction TODRAW d TOOLBAR
 ;
 
 DESIGN Sale.userOrder{
@@ -47,22 +47,22 @@ DESIGN Sale.userOrder{
             caption = 'Импорт';
             minimumSize = (700, -1);
             type = CONTAINERH;
-            MOVE PROPERTY(nameImportTypeOrder(o));
-            MOVE PROPERTY(importSaleOrderDataAction(o));
+            MOVE PROPERTY(nameImportType(o));
+            MOVE PROPERTY(importSaleDataAction(o));
         }
     }
 }
 
-CONSTRAINT importTypeOrder(order) AND (Sale.supplierUserOrder(order) != autoImportSupplierImportType(importTypeOrder(order)))
-    CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают поставщики';
+CONSTRAINT importType(UserOrder order) AND (supplier(order) != autoImportSupplier(importType(order)))
+    CHECKED BY importType[Sale.Order] MESSAGE 'У заказа и типа импорта не совпадают поставщики';
     
-CONSTRAINT importTypeOrder(order) AND  (Sale.supplierStockUserOrder(order) != autoImportSupplierStockImportType(importTypeOrder(order)))
-    CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают склады поставщиков';
+CONSTRAINT importType(UserOrder order) AND  (supplierStock(order) != autoImportSupplierStock(importType(order)))
+    CHECKED BY importType[Sale.Order] MESSAGE 'У заказа и типа импорта не совпадают склады поставщиков';
 
-CONSTRAINT importTypeOrder(order) AND  (Sale.customerUserOrder(order) != autoImportCustomerImportType(importTypeOrder(order)))
-    CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают покупатели';
-CONSTRAINT importTypeOrder(order) AND  (Sale.customerStockUserOrder(order) != autoImportCustomerStockImportType(importTypeOrder(order)))
-    CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают склады покупателей';
+CONSTRAINT importType(UserOrder order) AND  (customer(order) != autoImportCustomer(importType(order)))
+    CHECKED BY importType[Sale.Order] MESSAGE 'У заказа и типа импорта не совпадают покупатели';
+CONSTRAINT importType(UserOrder order) AND  (customerStock(order) != autoImportCustomerStock(importType(order)))
+    CHECKED BY importType[Sale.Order] MESSAGE 'У заказа и типа импорта не совпадают склады покупателей';
     
-CONSTRAINT importTypeOrder(order) AND  (Sale.operationUserOrder(order) != autoImportOperationImportType(importTypeOrder(order)))
-   CHECKED BY importTypeOrder MESSAGE 'У заказа и типа импорта не совпадают операции';  
+CONSTRAINT importType(UserOrder order) AND  (operation(order) != autoImportOperation(importType(order)))
+   CHECKED BY importType[Sale.Order] MESSAGE 'У заказа и типа импорта не совпадают операции';  

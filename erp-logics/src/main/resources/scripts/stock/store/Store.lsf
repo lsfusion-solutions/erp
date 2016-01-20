@@ -9,9 +9,9 @@ TABLE chainStores (ChainStores);
 
 @defineExternalizable(chainStores, VARSTRING[100]);
 
-nameChainStores 'Наименование' = DATA VARISTRING[100](ChainStores) IN recognize;
+name 'Наименование' = DATA VARISTRING[100](ChainStores) IN recognize;
 
-nameStockGroup(group) += nameChainStores(group) IF group IS ChainStores;
+name(ChainStores group) += name(group) IF group IS ChainStores;
 
 // -------------------------------------- Формат магазина ----------------------------- //
 
@@ -20,42 +20,42 @@ TABLE storeType (StoreType);
 
 @defineExternalizable(storeType, VARSTRING[100]);
 
-nameStoreType 'Наименование' = DATA VARISTRING[100](StoreType);
+name 'Наименование' = DATA VARISTRING[100](StoreType);
 
-nameStockGroup(group) += nameStoreType(group) IF group IS StoreType;
+name(StoreType group) += name(group) IF group IS StoreType;
 
-chainStoresStoreType = DATA ChainStores (StoreType) NOT NULL DELETE;
-nameChainStoresStoreType 'Торговая сеть' (storeType) = nameChainStores(chainStoresStoreType(storeType)) IN base;
+chainStores = DATA ChainStores (StoreType) NOT NULL DELETE;
+nameChainStores 'Торговая сеть' (StoreType storeType) = name(chainStores(storeType)) IN base;
 
-inChainStoresStoreType(chainStores, storeType) = chainStoresStoreType(storeType) == chainStores;
+in(ChainStores chainStores, StoreType storeType) = chainStores(storeType) == chainStores;
 
-parentStockGroup (storeType) += chainStoresStoreType(storeType);
+parent (StoreType storeType) += chainStores(storeType);
 
-storeTypeNameChainStores 'Формат магазина по имени и торговой сети' (name, chainStores) = GROUP AGGR storeType BY nameStoreType(storeType), idChainStores(chainStoresStoreType(storeType)) WHERE storeType IS StoreType;
+storeType 'Формат магазина по имени и торговой сети' (name, chainStores) = GROUP AGGR StoreType storeType BY name(storeType), id(chainStores(storeType)) WHERE storeType IS StoreType;
 
 FORM storeType 'Формат магазина'
     OBJECTS t=StoreType FIXED PANEL
-    PROPERTIES(t) nameChainStoresStoreType, nameStoreType
+    PROPERTIES(t) nameChainStores, name
     EDIT StoreType OBJECT t
 ;
 
 FORM storeTypes 'Форматы магазинов'
     OBJECTS t=StoreType
-    PROPERTIES(t) nameChainStoresStoreType READONLY, nameStoreType READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) nameChainStores READONLY, name READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameStoreType(t)
+    ORDER BY name(t)
     DIALOG StoreType OBJECT t
 ;
 DESIGN storeTypes { main{ preferredSize = (600, 400); } }
 
 FORM chainStores 'Торговая сеть'
     OBJECTS n=ChainStores FIXED PANEL
-    PROPERTIES(n) nameChainStores, idChainStores SHOWIF showIDs()
+    PROPERTIES(n) name, id SHOWIF showIDs()
 
     OBJECTS s=StoreType
-    PROPERTIES(s) nameStoreType
+    PROPERTIES(s) name
     PROPERTIES(s) ADDOBJ, DELETESESSION
-    FILTERS inChainStoresStoreType(n, s)
+    FILTERS in(n, s)
 
     EDIT ChainStores OBJECT n
 ;
@@ -67,82 +67,82 @@ TABLE store (Store);
 
 @defineExternalizable(store, VARSTRING[100]);
 
-nameStore 'Наименование' = DATA VARISTRING[100](Store) INDEXED;
+name 'Наименование' = DATA VARISTRING[100](Store) INDEXED;
 
-phoneStore 'Телефон магазина' = DATA VARSTRING[100] (Store);
+phone 'Телефон магазина' = DATA VARSTRING[100] (Store);
 
-nameStockGroup(group) += nameStore(group) IF group IS Store;
+name[StockGroup](Store group) += name(group) IF group IS Store;
 
-legalEntityStore 'Компания' = DATA LegalEntity (Store) INDEXED NOT NULL;
-nameLegalEntityStore 'Компания' (store) = nameLegalEntity(legalEntityStore(store)) IN base;
-fullNameLegalEntityStore 'Компания' (store) = fullNameLegalEntity(legalEntityStore(store));
+legalEntity 'Компания' = DATA LegalEntity (Store) INDEXED NOT NULL;
+nameLegalEntity 'Компания' (Store store) = name(legalEntity(store)) IN base;
+fullNameLegalEntity 'Компания' (Store store) = fullName(legalEntity(store));
 
-bankAccountStore = DATA Bank.Account (Store);
-bankAccountStore(store) <- accountLegalEntity(legalEntityStore(store))
-    WHEN CHANGED(legalEntityStore(store));
-numberBankAccountStore 'Номер счета для инкасаций' = Bank.numberAccount(bankAccountStore(store));
+bankAccount = DATA Bank.Account (Store);
+bankAccount(Store store) <- account(legalEntity(store))
+    WHEN CHANGED(legalEntity(store));
+numberBankAccount 'Номер счета для инкасаций' = number(bankAccount(Store store));
 
-CONSTRAINT Bank.legalEntityAccount(bankAccountStore(store)) != legalEntityStore(store)
-    CHECKED BY bankAccountStore MESSAGE 'Организация магазина должна совпадать с организацией расчетного счета';
+CONSTRAINT legalEntity(bankAccount(Store store)) != legalEntity(store)
+    CHECKED BY bankAccount[Store] MESSAGE 'Организация магазина должна совпадать с организацией расчетного счета';
 
-isCompanyStore(store) = isCompanyLegalEntity(legalEntityStore(store));
+isCompany(Store store) = isCompany(legalEntity(store));
 
-languageStore (store) = languageLegalEntity(legalEntityStore(store));
+language (Store store) = language(legalEntity(store));
 
-regionStore = DATA Region (Store);
-regionStockGroup(sg) += regionStore(sg);
-nameRegionStore 'Регион' (store) = nameRegion(regionStore(store));
+region = DATA Region (Store);
+region(Store sg) += region(sg);
+nameRegion 'Регион' (Store store) = name(region(store));
 
-addressStore 'Адрес' = DATA VARSTRING[100] (Store);
-mainAddressPOI (store) += addressStore(store);
+address 'Адрес' = DATA VARSTRING[100] (Store);
+mainAddress (Store store) += address(store);
 
-latitudeStore 'Координата X' = DATA NUMERIC[10,5](Store);
-longitudeStore 'Координата Y' = DATA NUMERIC[10,5](Store);
+latitude 'Координата X' = DATA NUMERIC[10,5](Store);
+longitude 'Координата Y' = DATA NUMERIC[10,5](Store);
 
-chairmanStore = DATA Employee (Store);
-nameChairmanStore 'Директор магазина' (store) = nameContact(chairmanStore(store));
+chairman = DATA Employee (Store);
+nameChairman 'Директор магазина' (Store store) = name[Contact](chairman(store));
 
-openDateStore 'Дата открытия' = DATA DATE (Store);
+openDate 'Дата открытия' = DATA DATE (Store);
 
-latitudePOI (store) += latitudeStore(store);
-longitudePOI (store) += longitudeStore(store);
+latitude (Store store) += latitude(store);
+longitude (Store store) += longitude(store);
 
-storeTypeStore = DATA StoreType (Store) INDEXED AUTOSET;
-nameStoreTypeStore 'Формат' (store) = nameStoreType(storeTypeStore(store)) IN base;
+storeType = DATA StoreType (Store) INDEXED AUTOSET;
+nameStoreType 'Формат' (Store store) = name(storeType(store)) IN base;
 
-countStoreStoreType 'Кол-во магазинов' (storeType) =
-    GROUP SUM 1 IF storeTypeStore(store) == storeType
+countStore 'Кол-во магазинов' (storeType) =
+    GROUP SUM 1 IF storeType(Store store) == StoreType storeType
     BY storeType;
 
-inStoreTypeStore (storeType, store) = storeTypeStore (store) == storeType;
+in (StoreType storeType, Store store) = storeType (store) == storeType;
 
-chainStoresStore (store) = chainStoresStoreType(storeTypeStore(store));
-nameChainStoresStore 'Торговая сеть' (store) = nameChainStores(chainStoresStore(store)) IN base;
+chainStores (Store store) = chainStores(storeType(store));
+nameChainStores 'Торговая сеть' (Store store) = name(chainStores(store)) IN base;
 
-countStoreChainStores 'Кол-во магазинов' (chainStores) =
-    GROUP SUM 1 IF chainStoresStore(store) == chainStores
+countStore 'Кол-во магазинов' (chainStores) =
+    GROUP SUM 1 IF chainStores(Store store) == ChainStores chainStores
     BY chainStores;
 
-inChainStoresStore (chainStores, store) = chainStoresStore(store) == chainStores;
+in (ChainStores chainStores, Store store) = chainStores(store) == chainStores;
 
-parentStockGroup (store) += storeTypeStore(store);
+parent (Store store) += storeType(store);
 
-taxUnitGroupTaxUnit(store) += legalEntityStore(store);
-descriptionTaxUnit(store) += CONCAT ' ', nameStore(store), addressStore(store);
+taxUnitGroup(Store store) += legalEntity(store);
+description(Store store) += CONCAT ' ', name(store), address(store);
 
 EXTEND FORM tax
     FILTERGROUP store 
         FILTER 'Магазины' u IS Store 'F9' DEFAULT 
 ;
 
-inChainStoresStoreTypeStore (chainStores, storeType, store) =
-    (storeTypeStore(store) == storeType AND chainStores IS ChainStores) OR
-    (chainStoresStore(store) == chainStores AND NOT storeType) OR
+in (ChainStores chainStores, StoreType storeType, Store store) =
+    (storeType(store) == storeType AND chainStores IS ChainStores) OR
+    (chainStores(store) == chainStores AND NOT storeType) OR
     (store IS Store AND NOT storeType AND NOT chainStores);
     
 // Неактивный
-inactiveStore 'Неактивный' = DATA BOOLEAN (Store);
-activeStore 'Активный' (s) = s IS Store AND NOT inactiveStore(s);
+inactive 'Неактивный' = DATA BOOLEAN (Store);
+active 'Активный' (Store s) = s IS Store AND NOT inactive(s);
 
 // -------------------------------------- Отдел магазина ------------------------------- //
 
@@ -151,104 +151,104 @@ TABLE departmentStore (DepartmentStore);
 TABLE departmentStoreDate (DepartmentStore, DATE);
 
 @defineExternalizable(departmentStore, VARSTRING[100]);
-idStock (s) += idDepartmentStore(s);
+id (DepartmentStore s) += id(s);
 
-nameDepartmentStore 'Наименование' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30 IN recognize;
-fullNameDepartmentStore 'Наименование полное' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
+name 'Наименование' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30 IN recognize;
+fullName 'Наименование полное' = DATA VARISTRING[150](DepartmentStore) INDEXED MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-nameStock(stock) += nameDepartmentStore(stock) IF stock IS DepartmentStore;
-fullNameStock(stock) += (OVERRIDE nameDepartmentStore(stock), fullNameDepartmentStore(stock)) IF stock IS DepartmentStore;
+name(DepartmentStore stock) += name(stock) IF stock IS DepartmentStore;
+fullName(DepartmentStore stock) += (OVERRIDE name(stock), fullName(stock)) IF stock IS DepartmentStore;
 
-storeDepartmentStore = DATA Store (DepartmentStore) INDEXED AUTOSET NOT NULL DELETE;
-nameStoreDepartmentStore 'Магазин' (departmentStore) = nameStore(storeDepartmentStore(departmentStore)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
-dataStockGroupDepartmentStore = DATA StockGroup (DepartmentStore);
-nameDataStockGroupDepartmentStore = nameStockGroup(dataStockGroupDepartmentStore(d));
-stockGroupDepartmentStore = OVERRIDE storeDepartmentStore(departmentStore), dataStockGroupDepartmentStore(departmentStore);
-nameStockGroupDepartmentStore 'Группа складов' = nameStockGroup(stockGroupDepartmentStore(d)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+store = DATA Store (DepartmentStore) INDEXED AUTOSET NOT NULL DELETE;
+nameStore 'Магазин' (DepartmentStore departmentStore) = name(store(departmentStore)) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
+dataStockGroup = DATA StockGroup (DepartmentStore);
+nameDataStockGroup = name(dataStockGroup(DepartmentStore d));
+stockGroup = OVERRIDE store(DepartmentStore departmentStore), dataStockGroup(departmentStore);
+nameStockGroup 'Группа складов' = name(stockGroup(DepartmentStore d)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-openDateDepartmentStore 'Дата открытия' (d) = openDateStore(storeDepartmentStore(d)); 
+openDate 'Дата открытия' (DepartmentStore d) = openDate(store(d)); 
 
-stockGroupStock (departmentStore) += OVERRIDE storeDepartmentStore(departmentStore), dataStockGroupDepartmentStore(departmentStore);
+stockGroup (DepartmentStore departmentStore) += OVERRIDE store(departmentStore), dataStockGroup(departmentStore);
 
-inStoreDepartment(store, departmentStore) = storeDepartmentStore(departmentStore) == store;
+in(Store store, DepartmentStore departmentStore) = store(departmentStore) == store;
 
-storeTypeDepartmentStore(departmentStore) = storeTypeStore(storeDepartmentStore(departmentStore)) PERSISTENT INDEXED;
-nameStoreTypeDepartmentStore 'Формат' (departmentStore) = nameStoreType(storeTypeDepartmentStore(departmentStore));
+storeType(DepartmentStore departmentStore) = storeType(store(departmentStore)) PERSISTENT INDEXED;
+nameStoreType 'Формат' (DepartmentStore departmentStore) = name(storeType(departmentStore));
 
-chainStoresDepartmentStore(departmentStore) = chainStoresStoreType(storeTypeDepartmentStore(departmentStore)) PERSISTENT INDEXED;
+chainStores(DepartmentStore departmentStore) = chainStores(storeType(departmentStore)) PERSISTENT INDEXED;
 
-legalEntityDepartmentStore (departmentStore) = legalEntityStore(storeDepartmentStore(departmentStore)) PERSISTENT INDEXED;
-legalEntityStock (stock) += legalEntityDepartmentStore(stock);
+legalEntity (DepartmentStore departmentStore) = legalEntity(store(departmentStore)) PERSISTENT INDEXED;
+legalEntity (DepartmentStore stock) += legalEntity(stock);
 
-quantityDaysCloseDepartmentStore 'Срок автоматического закрытия заказов' = DATA INTEGER(DepartmentStore);
-quantityDaysCloseOrdersStock(stock) += quantityDaysCloseDepartmentStore(stock);
+quantityDaysClose 'Срок автоматического закрытия заказов' = DATA INTEGER(DepartmentStore);
+quantityDaysCloseOrders(DepartmentStore stock) += quantityDaysClose(stock);
 
-userLegalEntityDepartmentStore 'Отм.' = DATA BOOLEAN (LegalEntity, DepartmentStore);
-userLegalEntityStock(legalEntity, stock) += userLegalEntityDepartmentStore(legalEntity, stock);
+user 'Отм.' = DATA BOOLEAN (LegalEntity, DepartmentStore);
+user(LegalEntity legalEntity, DepartmentStore stock) += user(legalEntity, stock);
 
-nameLegalEntityDepartmentStore 'Компания' (departmentStore) = nameLegalEntity(legalEntityDepartmentStore(departmentStore));
+nameLegalEntity 'Компания' (DepartmentStore departmentStore) = name(legalEntity(departmentStore));
 
-dataPhoneDepartmentStore 'Телефон' = DATA VARSTRING[100] (DepartmentStore); 
-phoneDepartmentStore 'Телефон магазина' (d) = OVERRIDE phoneStore(storeDepartmentStore(d)), dataPhoneDepartmentStore(d);
-phoneStock(st) += phoneDepartmentStore(st);
+dataPhone 'Телефон' = DATA VARSTRING[100] (DepartmentStore); 
+phone 'Телефон магазина' (DepartmentStore d) = OVERRIDE phone(store(d)), dataPhone(d);
+phone(DepartmentStore st) += phone(st);
 
-primaryDepartmentStoreStore 'Основной отдел' (store) =
-    GROUP MIN departmentStore BY storeDepartmentStore(departmentStore);
+primaryDepartmentStore 'Основной отдел' (store) =
+    GROUP MIN DepartmentStore departmentStore BY store(departmentStore);
 
-countDepartmentStoreStore 'Кол-во отделов' (store) = GROUP SUM 1 IF dep IS DepartmentStore BY storeDepartmentStore(dep);
+countDepartmentStore 'Кол-во отделов' (store) = GROUP SUM 1 IF DepartmentStore dep IS DepartmentStore BY store(dep);
 
-addressDepartmentStore 'Адрес' (departmentStore) = addressStore(storeDepartmentStore(departmentStore));
-addressStock (departmentStore) += addressDepartmentStore(departmentStore);
+address 'Адрес' (DepartmentStore departmentStore) = address(store(departmentStore));
+address (DepartmentStore departmentStore) += address(departmentStore);
 
-latitudeDepartmentStore 'Координата X' (departmentStore) = latitudeStore(storeDepartmentStore(departmentStore));
-longitudeDepartmentStore 'Координата Y' (departmentStore) = longitudeStore(storeDepartmentStore(departmentStore));
+latitude 'Координата X' (DepartmentStore departmentStore) = latitude(store(departmentStore));
+longitude 'Координата Y' (DepartmentStore departmentStore) = longitude(store(departmentStore));
 
-latitudePOI (departmentStore) += latitudeDepartmentStore(departmentStore);
-longitudePOI (departmentStore) += longitudeDepartmentStore(departmentStore);
+latitude (DepartmentStore departmentStore) += latitude(departmentStore);
+longitude (DepartmentStore departmentStore) += longitude(departmentStore);
 
-regionStock(stock) += regionStore(storeDepartmentStore(stock));
+region(DepartmentStore stock) += region(store(stock));
 
 @defineHistorizable(tradingSquare, , 'Торговая площадь', NUMERIC[10,2], departmentStore, nameDepartmentStore, public);
 
-tradingSquareStoreDate (store, date) = GROUP SUM tradingSquareDepartmentStoreDate(departmentStore, date) BY storeDepartmentStore(departmentStore), date;
-tradingSquareStore 'Торговая площадь' (store) = tradingSquareStoreDate(store, currentDate());
+tradingSquare (store, date) = GROUP SUM tradingSquare(DepartmentStore departmentStore, DATE date) BY store(departmentStore), date;
+tradingSquare 'Торговая площадь' (Store store) = tradingSquare(store, currentDate());
 
-cashAccountDepartmentStore 'Счет' = DATA Cash.Account (DepartmentStore);
-numberCashAccountDepartmentStore 'Номер счета' = Cash.numberAccount(cashAccountDepartmentStore(departmentStore));
+cashAccount 'Счет' = DATA Cash.Account (DepartmentStore);
+numberCashAccount 'Номер счета' = number(cashAccount(DepartmentStore departmentStore));
 
-CONSTRAINT legalEntityDepartmentStore(departmentStore) != Cash.legalEntityAccount(cashAccountDepartmentStore(departmentStore))
-    CHECKED BY cashAccountDepartmentStore MESSAGE 'Организация отдела магазина должна совпадать с организацией счета';
+CONSTRAINT legalEntity(DepartmentStore departmentStore) != legalEntity(cashAccount(departmentStore))
+    CHECKED BY cashAccount[DepartmentStore] MESSAGE 'Организация отдела магазина должна совпадать с организацией счета';
 
-inChainStoresStoreTypeStoreDepartmentStore (chainStores, storeType, store, department) =
-    (storeDepartmentStore(department) == store AND storeType IS StoreType AND chainStores IS ChainStores) OR
-    (storeTypeDepartmentStore(department) == storeType AND chainStores IS ChainStores AND NOT store) OR
-    (chainStoresDepartmentStore(department) == chainStores AND NOT store AND NOT storeType) OR
+in (ChainStores chainStores, StoreType storeType, Store store, DepartmentStore department) =
+    (store(department) == store AND storeType IS StoreType AND chainStores IS ChainStores) OR
+    (storeType(department) == storeType AND chainStores IS ChainStores AND NOT store) OR
+    (chainStores(department) == chainStores AND NOT store AND NOT storeType) OR
     (department IS DepartmentStore AND NOT store AND NOT storeType AND NOT chainStores);
 
-inChainStoresStoreTypeDepartmentStore (chainStores, storeType, departmentStore)= inChainStoresStoreTypeStore (chainStores, storeType, storeDepartmentStore(departmentStore));     
+in (ChainStores chainStores, StoreType storeType, DepartmentStore departmentStore)= in (chainStores, storeType, store(departmentStore));     
 
 // Неактивный
-inactiveDepartmentStore 'Неактивный' = DATA BOOLEAN (DepartmentStore);
-inactiveStock(st) += inactiveDepartmentStore(st);
+inactive 'Неактивный' = DATA BOOLEAN (DepartmentStore);
+inactive(DepartmentStore st) += inactive(st);
 
-inStoreEmployee 'Сотрудник магазина' (store, employee) = GROUP SUM 1 IF inStockEmployee(d, employee)
-    BY storeDepartmentStore(d), employee;
+in 'Сотрудник магазина' (store, employee) = GROUP SUM 1 IF in(DepartmentStore d, Employee employee)
+    BY store(d), employee;
     
-CONSTRAINT chairmanStore(store) AND NOT inStoreEmployee(store, chairmanStore(store))
-    CHECKED BY chairmanStore MESSAGE 'Работник должен быть сотрудником магазина';
+CONSTRAINT chairman(Store store) AND NOT in(store, chairman(store))
+    CHECKED BY chairman[Store] MESSAGE 'Работник должен быть сотрудником магазина';
 
 // -------------------------------------- Формы отдела магазинов ------------------------------------------ //
 
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES(d) nameDep=nameDepartmentStore, fullNameDepartmentStore, phoneDepartmentStore, nameStoreDepartmentStore, nameStockGroupDepartmentStore, tradingSquareDepartmentStore,
-                  numberCashAccountDepartmentStore SHOWIF isCompanyStock(d), quantityDaysCloseDepartmentStore SHOWIF isCompanyStock(d),
-                  idDepartmentStore SHOWIF showIDs(), inactiveDepartmentStore
+    PROPERTIES(d) nameDep=name, fullName, phone, nameStore, nameStockGroup, tradingSquare,
+                  numberCashAccount SHOWIF isCompany(d), quantityDaysClose SHOWIF isCompany(d),
+                  id SHOWIF showIDs(), inactive
 
     OBJECTS e = Employee FIXED GRID
-    PROPERTIES(e) SHOWIF isCompanyStock(d) READONLY firstNameContact, lastNameContact
-    PROPERTIES(e) SHOWIF isCompanyStock(d) ADDSESSIONFORM, EDITSESSIONFORM, deletee = DELETESESSION
-    FILTERS inStockEmployee(d, e)
+    PROPERTIES(e) SHOWIF isCompany(d) READONLY firstName, lastName
+    PROPERTIES(e) SHOWIF isCompany(d) ADDSESSIONFORM, EDITSESSIONFORM, deletee = DELETESESSION
+    FILTERS in(d, e)
 
     EDIT DepartmentStore OBJECT d
 ;
@@ -264,20 +264,20 @@ DESIGN departmentStore {
                     type = COLUMNS;
                     columns = 3;
                     MOVE PROPERTY(nameDep);
-                    MOVE PROPERTY(fullNameDepartmentStore(d));
-                    MOVE PROPERTY(phoneDepartmentStore(d));
-                    MOVE PROPERTY(idDepartmentStore(d));
-                    MOVE PROPERTY(nameStoreDepartmentStore(d));
-                    MOVE PROPERTY(nameStockGroupDepartmentStore(d));
-                    MOVE PROPERTY(tradingSquareDepartmentStore(d));
-                    MOVE PROPERTY(inactiveDepartmentStore(d)); 
+                    MOVE PROPERTY(fullName(d));
+                    MOVE PROPERTY(phone(d));
+                    MOVE PROPERTY(id(d));
+                    MOVE PROPERTY(nameStore(d));
+                    MOVE PROPERTY(nameStockGroup(d));
+                    MOVE PROPERTY(tradingSquare(d));
+                    MOVE PROPERTY(inactive(d)); 
                 }
                 NEW headerExtraParams {
                     type = COLUMNS;
                     columns = 2;
                     caption = 'Дополнительные параметры';
-                    MOVE PROPERTY(numberCashAccountDepartmentStore(d));
-                    MOVE PROPERTY(quantityDaysCloseDepartmentStore(d));
+                    MOVE PROPERTY(numberCashAccount(d));
+                    MOVE PROPERTY(quantityDaysClose(d));
                 }
             }
             NEW headerRight;
@@ -287,20 +287,20 @@ DESIGN departmentStore {
     }
 }
 
-editDepartmentStore 'Редактировать' = ACTION EDITFORM DepartmentStore;
-editStock(stock) += ACTION editDepartmentStore(stock);
+edit 'Редактировать' = ACTION EDITFORM DepartmentStore;
+edit(DepartmentStore stock) += ACTION edit(stock);
 
-editSessionDepartmentStore 'Редактировать' = ACTION EDITFORM SESSION DepartmentStore;
-editSessionStock(stock) += ACTION editSessionDepartmentStore(stock);
+editSession 'Редактировать' = ACTION EDITFORM SESSION DepartmentStore;
+editSession(DepartmentStore stock) += ACTION editSession(stock);
 
 FORM departmentStores 'Отделы магазинов'
     TREE treeStore a=STRING[3], t=ChainStores, st=StoreType, s=Store
-    PROPERTIES READONLY OBJVALUE(a), nameChainStores(t), nameStoreType(st), nameStore(s)
-    FILTERS stringEqualsAll(a), inChainStoresStoreType (t, st), inStoreTypeStore(st, s)
+    PROPERTIES READONLY OBJVALUE(a), name(t), name(st), name(s)
+    FILTERS stringEqualsAll(a), in (t, st), in(st, s)
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY idDepartmentStore SHOWIF showIDs(), depName = nameDepartmentStore, fullNameDepartmentStore
-    FILTERS inChainStoresStoreTypeStoreDepartmentStore(t, st, s, d)
+    PROPERTIES(d) READONLY id SHOWIF showIDs(), depName = name, fullName
+    FILTERS in(t, st, s, d)
     ORDER BY depName
 
     DIALOG DepartmentStore OBJECT d
@@ -330,27 +330,27 @@ DESIGN departmentStores {
     }
 }
 
-changeStore = ACTION (store) {
+change = ACTION (Store store) {
     REQUEST VARSTRING[110] INPUT;
     IF requestedString() THEN {
-        FOR storeDepartmentStore(dep) == store DO {
-            ASSIGN nameDepartmentStore(dep) <- replace(nameDepartmentStore(dep), nameStore(store), requestedString());
+        FOR store(DepartmentStore dep) == store DO {
+            ASSIGN name(dep) <- replace(name(dep), name(store), requestedString());
         }
     }
-    ASSIGN nameStore(store) <- requestedString();
+    ASSIGN name(store) <- requestedString();
 }
 
 
 FORM store 'Магазин'
     OBJECTS s=Store FIXED PANEL
-    PROPERTIES(s) nameStore ON CHANGE changeStore(s), addressStore, phoneStore, nameStoreTypeStore, tradingSquareStore READONLY, 
-                  nameChairmanStore, openDateStore, nameLegalEntityStore, numberBankAccountStore SHOWIF isCompanyStore(s),
-                  nameRegionStore, latitudeStore, longitudeStore, showOnMapPOI, calculateCoordinatesPOI, idStore SHOWIF showIDs(), inactiveStore
+    PROPERTIES(s) name ON CHANGE change(s), address, phone, nameStoreType, tradingSquare READONLY, 
+                  nameChairman, openDate, nameLegalEntity, numberBankAccount SHOWIF isCompany(s),
+                  nameRegion, latitude, longitude, showOnMap, calculateCoordinates, id SHOWIF showIDs(), inactive
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY nameDepartmentStore, idDepartmentStore SHOWIF showIDs(), nameStockGroupDepartmentStore, tradingSquareDepartmentStore
+    PROPERTIES(d) READONLY name, id SHOWIF showIDs(), nameStockGroup, tradingSquare
     PROPERTIES(d)          ADDNESTEDFORM, EDITNESTEDFORM, deleteD=DELETESESSION
-    FILTERS inStoreDepartment(s, d)
+    FILTERS in(s, d)
 
     EDIT Store OBJECT s
 ;
@@ -359,25 +359,25 @@ DESIGN store {
         NEW headerMainParams {
             caption = 'Основные параметры';
             type = CONTAINERH;
-            MOVE PROPERTY(nameStore(s));
-            MOVE PROPERTY(idStore(s));
-            MOVE PROPERTY(nameStoreTypeStore(s));
-            MOVE PROPERTY(nameLegalEntityStore(s));
-            MOVE PROPERTY(inactiveStore(s));
+            MOVE PROPERTY(name(s));
+            MOVE PROPERTY(id(s));
+            MOVE PROPERTY(nameStoreType(s));
+            MOVE PROPERTY(nameLegalEntity(s));
+            MOVE PROPERTY(inactive(s));
         }
         NEW headerLocationParams {
             caption = 'Координаты';
             NEW firstRow {
                 type = CONTAINERH;
-                MOVE PROPERTY(addressStore(s));
-                MOVE PROPERTY(phoneStore(s));            
+                MOVE PROPERTY(address(s));
+                MOVE PROPERTY(phone(s));            
             }
             NEW secondRow{
                 type = CONTAINERH;
-                MOVE PROPERTY(latitudeStore(s));
-                MOVE PROPERTY(longitudeStore(s));
-                MOVE PROPERTY(showOnMapPOI(s));
-                MOVE PROPERTY(calculateCoordinatesPOI(s));            
+                MOVE PROPERTY(latitude(s));
+                MOVE PROPERTY(longitude(s));
+                MOVE PROPERTY(showOnMap(s));
+                MOVE PROPERTY(calculateCoordinates(s));            
             }
         }
         NEW headerPriceParams {
@@ -389,11 +389,11 @@ DESIGN store {
             caption = 'Дополнительные параметры';
             type = COLUMNS;
             columns = 4;
-            MOVE PROPERTY(nameChairmanStore(s));            
-            MOVE PROPERTY(numberBankAccountStore(s));
-            MOVE PROPERTY(nameRegionStore(s));
-            MOVE PROPERTY(tradingSquareStore(s));
-            MOVE PROPERTY(openDateStore(s));
+            MOVE PROPERTY(nameChairman(s));            
+            MOVE PROPERTY(numberBankAccount(s));
+            MOVE PROPERTY(nameRegion(s));
+            MOVE PROPERTY(tradingSquare(s));
+            MOVE PROPERTY(openDate(s));
         }
     }
 
@@ -405,23 +405,23 @@ DESIGN store {
 
 FORM stores 'Магазины'
     TREE treeStore a=STRING[3], t=ChainStores, st=StoreType
-    PROPERTIES READONLY OBJVALUE(a), nameChainStores(t), nameStoreType(st)
+    PROPERTIES READONLY OBJVALUE(a), name(t), name(st)
 
     FILTERS stringEqualsAll(a)
-    FILTERS inChainStoresStoreType (t, st)
+    FILTERS in (t, st)
 
     PROPERTIES(t)          addT=ADDFORM FORCE PANEL, editT=EDITFORM FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS s=Store
-    PROPERTIES(s) READONLYIF isReadonly() nameStore, idStore SHOWIF showIDs(), addressStore, nameStoreTypeStore, nameLegalEntityStore, nameRegionStore
+    PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, nameStoreType, nameLegalEntity, nameRegion
     PROPERTIES(s)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    FILTERS inChainStoresStoreTypeStore(t, st, s)
+    FILTERS in(t, st, s)
     FILTERGROUP group1
-        FILTER 'Активные' activeStore(s) 'F10' DEFAULT
+        FILTER 'Активные' active(s) 'F10' DEFAULT
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY nameDepartmentStore, idDepartmentStore SHOWIF showIDs()
-    FILTERS inStoreDepartment(s, d)
+    PROPERTIES(d) READONLY name, id SHOWIF showIDs()
+    FILTERS in(s, d)
     DIALOG Store OBJECT s
 ;
 
@@ -468,8 +468,8 @@ END
 
 META defineDocumentDetailDepartmentStoreCustom (object, detail)
    @defineDocumentDetailStock (object, detail, departmentStore, departmentStore, 'Отдел магазина');
-   store###detail (detail) = storeDepartmentStore(departmentStore###detail(detail));
-   nameStore###detail 'Магазин' (detail) = nameStore(store###detail(detail));
+   store (###detail detail) = store(departmentStore(detail));
+   nameStore 'Магазин' (###detail detail) = name(store(detail));
 END
 META defineDocumentDetailDepartmentStore (object)
     @defineDocumentDetailDepartmentStoreCustom (object, object##Detail);
@@ -480,14 +480,14 @@ META defineDocumentDepartmentStore (object)
     @defineDocumentDetailDepartmentStore(object);
 END
 
-addStoreLegalEntity 'Добавить магазин' = ACTION (legalEntity) NESTEDSESSION{
+addStore 'Добавить магазин' = ACTION (LegalEntity legalEntity) NESTEDSESSION{
     FOR ADDOBJ st = Store DO {
-        ASSIGN legalEntityStore(st) <- legalEntity;
+        ASSIGN legalEntity(st) <- legalEntity;
         FORM store OBJECTS s = st MANAGESESSION DOCKEDMODAL;
     }
 }
 
 EXTEND FORM legalEntity
-    PROPERTIES addStoreLegalEntity(l) TODRAW st FORCE PANEL TOOLBAR
+    PROPERTIES addStore(l) TODRAW st FORCE PANEL TOOLBAR
 ;
 

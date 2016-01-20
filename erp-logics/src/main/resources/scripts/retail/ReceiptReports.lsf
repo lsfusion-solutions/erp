@@ -25,180 +25,180 @@ TABLE intervalReportDetail (IntervalReportDetail);
 
 //--
 
-sumIntervalReport 'Верхний порог суммы' = DATA NUMERIC[16,2] (IntervalReport) NOT NULL DELETE;
+sum 'Верхний порог суммы' = DATA NUMERIC[16,2] (IntervalReport) NOT NULL DELETE;
 
 @defineDocumentRelation (receiptReport, IntervalReport, '');
 
-intervalPrevIntervalReport (interval) = PARTITION PREV interval 
-    BY receiptReportIntervalReport(interval) ORDER sumIntervalReport(interval) PERSISTENT;
-fromSumIntervalReportReceiptReport 'Сумма с' (interval)= sumIntervalReport(intervalPrevIntervalReport (interval));   
+intervalPrev (IntervalReport interval) = PARTITION PREV interval 
+    BY receiptReport(interval) ORDER sum(interval) PERSISTENT;
+fromSumIntervalReportReceipt 'Сумма с' (IntervalReport interval)= sum(intervalPrev (interval));   
 
 @defineDocumentRelation (receiptReportDetail, IntervalReportDetail, '');
 @defineDocumentDetailActions(receiptReportDetail, IntervalReportDetail);
 
-intervalReportIntervalReportDetail  = DATA IntervalReport (IntervalReportDetail);
-sumIntervalReportDetail 'Верхний порог суммы'  = sumIntervalReport(intervalReportIntervalReportDetail(d));
+intervalReport  = DATA IntervalReport (IntervalReportDetail);
+sum 'Верхний порог суммы'  = sum(intervalReport(IntervalReportDetail d));
 
-fromDateReceiptReport 'Дата с' = DATA DATE (ReceiptReport) IN documentPrm;
-fromDateReceiptReportDetail 'Дата с' (d)= fromDateReceiptReport(receiptReportReceiptReportDetail(d));
+fromDate 'Дата с' = DATA DATE (ReceiptReport) IN documentPrm;
+fromDate 'Дата с' (ReceiptReportDetail d)= fromDate(receiptReport(d));
 
-toDateReceiptReport 'Дата по' = DATA DATE (ReceiptReport) IN documentPrm;
-toDateReceiptReportDetail 'Дата по' (d)= toDateReceiptReport(receiptReportReceiptReportDetail(d));
+toDate 'Дата по' = DATA DATE (ReceiptReport) IN documentPrm;
+toDate 'Дата по' (ReceiptReportDetail d)= toDate(receiptReport(d));
 
-fromTimeReceiptReport 'Время с' = DATA TIME (ReceiptReport) IN documentPrm;
-fromTimeReceiptReportDetail 'Время с' (d)= fromDateReceiptReport(receiptReportReceiptReportDetail(d));
+fromTime 'Время с' = DATA TIME (ReceiptReport) IN documentPrm;
+fromTime 'Время с' (ReceiptReportDetail d)= fromDate(receiptReport(d));
 
-toTimeReceiptReport 'Время по' = DATA TIME (ReceiptReport) IN documentPrm;
-toTimeReceiptReportDetail 'Время по' (d)= toDateReceiptReport(receiptReportReceiptReportDetail(d));
+toTime 'Время по' = DATA TIME (ReceiptReport) IN documentPrm;
+toTime 'Время по' (ReceiptReportDetail d)= toDate(receiptReport(d));
 
-fromDateReceiptReport (o) <- currentDate() WHEN SET(o IS ReceiptReport);
-toDateReceiptReport (o) <- currentDate() WHEN SET(o IS ReceiptReport);
-fromTimeReceiptReport (o) <- 00:00 WHEN SET(o IS ReceiptReport);
-toTimeReceiptReport (o) <- 23:59 WHEN SET(o IS ReceiptReport);
+fromDate (ReceiptReport o) <- currentDate() WHEN SET(o IS ReceiptReport);
+toDate (ReceiptReport o) <- currentDate() WHEN SET(o IS ReceiptReport);
+fromTime (ReceiptReport o) <- 00:00 WHEN SET(o IS ReceiptReport);
+toTime (ReceiptReport o) <- 23:59 WHEN SET(o IS ReceiptReport);
 
 
 TABLE storeReceiptReport (Store, ReceiptReport);
-inStoreReceiptReport 'Вкл.' = DATA BOOLEAN (Store, ReceiptReport);
+in 'Вкл.' = DATA BOOLEAN (Store, ReceiptReport);
 
 TABLE groupReceiptReport (Group, ReceiptReport);
-inDataGroupReceiptReport 'Вкл.' = DATA BOOLEAN (Group, ReceiptReport);
+inData 'Вкл.' = DATA BOOLEAN (Group, ReceiptReport);
 
-countInDataGroupReceiptReport (report)= GROUP SUM 1 IF inDataGroupReceiptReport(group, report) BY report;
+countInDataGroup (report)= GROUP SUM 1 IF inData(Group group, ReceiptReport report) BY report;
 
-levelParentGroupReceiptReport (group, report) = GROUP MIN levelGroupGroup(group, parent) IF inDataGroupReceiptReport(parent, report)
+levelParent (group, report) = GROUP MIN level(Group group, Group parent) IF inData(parent, ReceiptReport report)
     BY group, report;
 
-inParentGroupReceiptReport (group, report) = TRUE IF levelParentGroupReceiptReport(group, report);
+inParent (Group group, ReceiptReport report) = TRUE IF levelParent(group, report);
 
-inGroupReceiptReport 'Вкл.' (group, report) = OVERRIDE
-    inParentGroupReceiptReport(group, report),
-    inDataGroupReceiptReport(group, report);
+in 'Вкл.' (Group group, ReceiptReport report) = OVERRIDE
+    inParent(group, report),
+    inData(group, report);
     
 TABLE legalEntityGroupReceiptReport (LegalEntityGroup, ReceiptReport);
-inDataLegalEntityGroupReceiptReport 'Вкл.' = DATA BOOLEAN (LegalEntityGroup, ReceiptReport);
+inData 'Вкл.' = DATA BOOLEAN (LegalEntityGroup, ReceiptReport);
 
 TABLE legalEntityReceiptReport (LegalEntity, ReceiptReport);
-inDataLegalEntityReceiptReport 'Вкл.' = DATA BOOLEAN (LegalEntity, ReceiptReport);
+inData 'Вкл.' = DATA BOOLEAN (LegalEntity, ReceiptReport);
 
-levelParentLegalEntityGroupReceiptReport (group, report) = GROUP MIN levelLegalEntityGroupLegalEntityGroup(group, parent) IF inDataLegalEntityGroupReceiptReport(parent, report)
+levelParent (group, report) = GROUP MIN level(LegalEntityGroup group, LegalEntityGroup parent) IF inData(parent, ReceiptReport report)
     BY group, report;
-inParentLegalEntityGroupReceiptReport (group, report) = TRUE IF levelParentLegalEntityGroupReceiptReport(group, report);
+inParent (LegalEntityGroup group, ReceiptReport report) = TRUE IF levelParent(group, report);
 
-inLegalEntityGroupReceiptReport 'Вкл.' (legalEntityGroup, report) = OVERRIDE
-    inParentLegalEntityGroupReceiptReport(legalEntityGroup, report),
-    inDataLegalEntityGroupReceiptReport(legalEntityGroup, report);
+in 'Вкл.' (LegalEntityGroup legalEntityGroup, ReceiptReport report) = OVERRIDE
+    inParent(legalEntityGroup, report),
+    inData(legalEntityGroup, report);
 
-inLegalEntityReceiptReport 'Вкл.' (company, report) = OVERRIDE
-    inLegalEntityGroupReceiptReport(legalEntityGroupLegalEntity(company), report),    
-    inDataLegalEntityReceiptReport(company, report);
+in 'Вкл.' (LegalEntity company, ReceiptReport report) = OVERRIDE
+    in(legalEntityGroup(company), report),    
+    inData(company, report);
 
-countInLegalEntityReceiptReport (report)= GROUP SUM 1 IF inLegalEntityReceiptReport(company, report) BY report;
+countInLegalEntity (report)= GROUP SUM 1 IF in(LegalEntity company, ReceiptReport report) BY report;
 
-groupTypeReceiptReport = DATA GroupType (ReceiptReport);
-nameGroupTypeReceiptReport 'Классификатор' (g) =  nameGroupType(groupTypeReceiptReport(g));
+groupType = DATA GroupType (ReceiptReport);
+nameGroupType 'Классификатор' (ReceiptReport g) =  name(groupType(g));
 
-groupTypeReceiptReport (o) <- SystemGroupType.skuGroupType WHEN SET(o IS ReceiptReport);
+groupType (ReceiptReport o) <- SystemGroupType.skuGroupType WHEN SET(o IS ReceiptReport);
 
-countBonReceiptReport 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
-countBonDetailReceiptReport 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
-countSelectedBonDetailReceiptReport 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
-sumBonReceiptReport 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum;
-sumSelectedBonDetailReceiptReport 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum;
+countBon 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
+countBonDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
+countSelectedBonDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
+sumBon 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum;
+sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum;
 
-storeReceiptReportDetail = DATA Store (ReceiptReportDetail);
-nameStoreReceiptReportDetail 'Магазин' (d) = nameStore(storeReceiptReportDetail(d));
+store = DATA Store (ReceiptReportDetail);
+nameStore 'Магазин' (ReceiptReportDetail d) = name(store(d));
 
-countBonReceiptReportDetail 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReportDetail);
-countBonDetailReceiptReportDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
-countSelectedBonDetailReceiptReportDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
-sumBonReceiptReportDetail 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReportDetail);
-sumSelectedBonDetailReceiptReportDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReportDetail);
+countBon 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReportDetail);
+countBonDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
+countSelectedBonDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
+sumBon 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReportDetail);
+sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReportDetail);
 
-countBonIntervalReportDetail 'Кол-во чеков' = DATA NUMERIC[14,3] (IntervalReportDetail);
-countBonDetailIntervalReportDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
-countSelectedBonDetailIntervalReportDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
-sumBonIntervalReportDetail 'Ср. сумма чека' = DATA NUMERIC[16,2] (IntervalReportDetail);
-sumSelectedBonDetailIntervalReportDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (IntervalReportDetail);
+countBon 'Кол-во чеков' = DATA NUMERIC[14,3] (IntervalReportDetail);
+countBonDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
+countSelectedBonDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
+sumBon 'Ср. сумма чека' = DATA NUMERIC[16,2] (IntervalReportDetail);
+sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (IntervalReportDetail);
             
             
-inReceiptReportReceiptDetail (r, d) = 
-    dateReceiptDetail(d) >= fromDateReceiptReport(r) AND dateReceiptDetail(d) <= toDateReceiptReport(r)
-    AND toTime(dateTimeReceiptDetail(d)) >= fromTimeReceiptReport(r) AND toTime(dateTimeReceiptDetail(d)) <= toTimeReceiptReport(r)  
-    AND inStoreReceiptReport(storeReceiptDetail(d), r) AND skuReceiptDetail(d) AND isPostedReceiptDetail(d)
-    AND (inGroupReceiptReport(groupGroupTypeSku(groupTypeReceiptReport(r), skuReceiptDetail(d)), r) OR (skuReceiptDetail(d) AND NOT countInDataGroupReceiptReport(r)))
-    AND (inLegalEntityReceiptReport(supplierLastOrderBatchSkuStock(skuReceiptDetail(d), departmentStoreReceiptDetail(d)),r) OR (skuReceiptDetail(d) AND NOT countInLegalEntityReceiptReport(r)));
+in (ReceiptReport r, ReceiptDetail d) = 
+    date(d) >= fromDate(r) AND date(d) <= toDate(r)
+    AND toTime(dateTime(d)) >= fromTime(r) AND toTime(dateTime(d)) <= toTime(r)  
+    AND in(store(d), r) AND sku(d) AND isPosted(d)
+    AND (in(group(groupType(r), sku(d)), r) OR (sku(d) AND NOT countInDataGroup(r)))
+    AND (in(supplierLastOrderBatch(sku(d), departmentStore(d)),r) OR (sku(d) AND NOT countInLegalEntity(r)));
 
-inReceiptReportReceipt (report, receipt) = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY report, receiptReceiptDetail(d);
+in (report, receipt) = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY report, receipt(d);
 
-countBonStoreReceiptReport 'Кол-во чеков' = GROUP SUM 1 IF inReceiptReportReceipt(report, receipt) BY storeReceipt(receipt), report;
-countBonDetailStoreReceiptReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY storeReceipt(receipt), report;
-inReceiptReportStore 'Кол-во выбранных позиций' = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY report, storeReceiptDetail(d);
-sumBonDetailStoreReceiptReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY storeReceipt(receipt), report;
-sumSelectedBonDetailStoreReceiptReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF inReceiptReportReceiptDetail (report, d) BY storeReceiptDetail(d), report;
+countBon 'Кол-во чеков' = GROUP SUM 1 IF in(ReceiptReport report, Receipt receipt) BY store(receipt), report;
+countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY store(receipt), report;
+in 'Кол-во выбранных позиций' = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY report, store(d);
+sumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY store(receipt), report;
+sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF in (ReceiptReport report, d) BY store(d), report;
 
 //-- С диапазонами сумм
-inReceiptReportReceiptIntervalReport (report, receipt, interval) = inReceiptReportReceipt (report, receipt) IF
-    receiptReportIntervalReport(interval) == report AND sumReceiptDetailReceipt(receipt) <= sumIntervalReport(interval) AND 
-    ((fromSumIntervalReportReceiptReport(interval) < sumReceiptDetailReceipt(receipt)) OR  (NOT fromSumIntervalReportReceiptReport(interval)));
+in (ReceiptReport report, Receipt receipt, IntervalReport interval) = in (report, receipt) IF
+    receiptReport(interval) == report AND sumReceiptDetail(receipt) <= sum(interval) AND 
+    ((fromSumIntervalReportReceipt(interval) < sumReceiptDetail(receipt)) OR  (NOT fromSumIntervalReportReceipt(interval)));
 
-countBonStoreReceiptReportIntervalReport 'Кол-во чеков' = GROUP SUM 1 IF
-    inReceiptReportReceiptIntervalReport(report, receipt, interval) 
-        BY storeReceipt(receipt), report, interval;
-countBonDetailStoreReceiptReportIntervalReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF 
-    inReceiptReportReceiptIntervalReport(report, receipt, interval) 
-        BY storeReceipt(receipt), report, interval;        
+countBon 'Кол-во чеков' = GROUP SUM 1 IF
+    in(ReceiptReport report, Receipt receipt, IntervalReport interval) 
+        BY store(receipt), report, interval;
+countBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF 
+    in(ReceiptReport report, receipt, IntervalReport interval) 
+        BY store(receipt), report, interval;        
         
-inReceiptReportStoreIntervalReport 'Кол-во выбранных позиций' = GROUP SUM 1 IF 
-    inReceiptReportReceiptDetail (report, d) AND inReceiptReportReceiptIntervalReport(report, receiptReceiptDetail(d), interval)  
-        BY report, storeReceiptDetail(d), interval;
+in 'Кол-во выбранных позиций' = GROUP SUM 1 IF 
+    in (ReceiptReport report, ReceiptDetail d) AND in(report, receipt(d), IntervalReport interval)  
+        BY report, store(d), interval;
         
-sumBonDetailStoreReceiptReportIntervalReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF
-     inReceiptReportReceiptIntervalReport(report, receipt, interval) 
-        BY storeReceipt(receipt), report, interval;
-sumSelectedBonDetailStoreReceiptReportIntervalReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF
-    inReceiptReportReceiptDetail (report, d) AND inReceiptReportReceiptIntervalReport(report, receiptReceiptDetail(d), interval)  
-        BY storeReceiptDetail(d), report, interval;
+sumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF
+     in(ReceiptReport report, receipt, IntervalReport interval) 
+        BY store(receipt), report, interval;
+sumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF
+    in (ReceiptReport report, d) AND in(report, receipt(d), IntervalReport interval)  
+        BY store(d), report, interval;
 
 
 //--
-calcCountBonReceiptReport 'Кол-во чеков' = GROUP SUM 1 IF inReceiptReportReceipt(report, receipt) BY report;
-calcCountBonDetailReceiptReport 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY report;
-calcInReceiptReport 'Кол-во выбранных позиций' = GROUP SUM 1 IF inReceiptReportReceiptDetail (report, d) BY  report;
-calcSumBonDetailReceiptReport 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetailReceipt(receipt) IF inReceiptReportReceipt (report, receipt) BY report;
-calcSumSelectedBonDetailReceiptReport 'Сумма выбранных позиций' = GROUP SUM sumReceiptDetail(d) IF inReceiptReportReceiptDetail (report, d) BY report;
+calcCountBon 'Кол-во чеков' = GROUP SUM 1 IF in(ReceiptReport report, Receipt receipt) BY report;
+calcCountBonDetail 'Кол-во позиций в выбранных чеках' = GROUP SUM countReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY report;
+calcIn 'Кол-во выбранных позиций' = GROUP SUM 1 IF in (ReceiptReport report, ReceiptDetail d) BY  report;
+calcSumBonDetail 'Сумма выбранных чеков' = GROUP SUM sumReceiptDetail(Receipt receipt) IF in (ReceiptReport report, receipt) BY report;
+calcSumSelectedBonDetail 'Сумма выбранных позиций' = GROUP SUM sum(ReceiptDetail d) IF in (ReceiptReport report, d) BY report;
 
 
-fillDataReceiptReport 'Заполнить данные' = ACTION (report) {
-    DELETE d WHERE d IS ReceiptReportDetail AND receiptReportReceiptReportDetail(d)== report;
+fillData 'Заполнить данные' = ACTION (ReceiptReport report) {
+    DELETE ReceiptReportDetail d WHERE d IS ReceiptReportDetail AND receiptReport(d)== report;
 
     
-    countBonReceiptReport(report) <- NUMERIC[14,3](calcCountBonReceiptReport(report));
-    countBonDetailReceiptReport(report) <- NUMERIC[14,3](calcCountBonDetailReceiptReport(report) /(countBonReceiptReport(report)));        
-    countSelectedBonDetailReceiptReport(report) <- NUMERIC[14,3](calcInReceiptReport(report) /(countBonReceiptReport(report)));        
-    sumBonReceiptReport(report) <- NUMERIC[16,2](calcSumBonDetailReceiptReport(report)/(countBonReceiptReport(report)));        
-    sumSelectedBonDetailReceiptReport(report) <- NUMERIC[16,2](calcSumSelectedBonDetailReceiptReport(report)/(calcInReceiptReport(report)));    
+    countBon(report) <- NUMERIC[14,3](calcCountBon(report));
+    countBonDetail(report) <- NUMERIC[14,3](calcCountBonDetail(report) /(countBon(report)));        
+    countSelectedBonDetail(report) <- NUMERIC[14,3](calcIn(report) /(countBon(report)));        
+    sumBon(report) <- NUMERIC[16,2](calcSumBonDetail(report)/(countBon(report)));        
+    sumSelectedBonDetail(report) <- NUMERIC[16,2](calcSumSelectedBonDetail(report)/(calcIn(report)));    
     
     
-    FOR inStoreReceiptReport(store,report) ADDOBJ d = ReceiptReportDetail DO {
-        receiptReportReceiptReportDetail(d) <- report;
-        storeReceiptReportDetail(d) <- store;
+    FOR in(Store store,report) ADDOBJ d = ReceiptReportDetail DO {
+        receiptReport(d) <- report;
+        store(d) <- store;
         
-        countBonReceiptReportDetail(d) <- NUMERIC[14,3](countBonStoreReceiptReport(store, report));
-        countBonDetailReceiptReportDetail(d) <- NUMERIC[14,3](countBonDetailStoreReceiptReport(store, report) /(countBonReceiptReportDetail(d)));
-        countSelectedBonDetailReceiptReportDetail(d) <- NUMERIC[14,3](inReceiptReportStore(report, store) /(countBonReceiptReportDetail(d)));        
-        sumBonReceiptReportDetail(d) <- NUMERIC[16,2](sumBonDetailStoreReceiptReport(store, report)/(countBonReceiptReportDetail(d)));
-        sumSelectedBonDetailReceiptReportDetail(d) <- NUMERIC[16,2](sumSelectedBonDetailStoreReceiptReport(store, report)/(inReceiptReportStore(report, store)));
+        countBon(d) <- NUMERIC[14,3](countBon(store, report));
+        countBonDetail(d) <- NUMERIC[14,3](countBonDetail(store, report) /(countBon(d)));
+        countSelectedBonDetail(d) <- NUMERIC[14,3](in(report, store) /(countBon(d)));        
+        sumBon(d) <- NUMERIC[16,2](sumBonDetail(store, report)/(countBon(d)));
+        sumSelectedBonDetail(d) <- NUMERIC[16,2](sumSelectedBonDetail(store, report)/(in(report, store)));
         
-        FOR receiptReportIntervalReport(interval) == report ADDOBJ dd = IntervalReportDetail DO {
-            intervalReportIntervalReportDetail(dd) <- interval;
-            receiptReportDetailIntervalReportDetail(dd) <- d;
+        FOR receiptReport(IntervalReport interval) == report ADDOBJ dd = IntervalReportDetail DO {
+            intervalReport(dd) <- interval;
+            receiptReportDetail(dd) <- d;
 //            todo: Валится ассоршен, без -еа- работает. Разобраться. Начиная со свойства (countBonStoreReceiptReportIntervalReport(store, report, interval))
 
-            countBonIntervalReportDetail(dd) <- NUMERIC[14,3](countBonStoreReceiptReportIntervalReport(store, report, interval));
-            countBonDetailIntervalReportDetail(dd) <- NUMERIC[14,3](countBonDetailStoreReceiptReportIntervalReport(store, report, interval) /(countBonIntervalReportDetail(dd)));
-            countSelectedBonDetailIntervalReportDetail(dd) <- NUMERIC[14,3](inReceiptReportStoreIntervalReport(report, store,interval) /(countBonIntervalReportDetail(dd)));        
-            sumBonIntervalReportDetail(dd) <- NUMERIC[16,2](sumBonDetailStoreReceiptReportIntervalReport(store, report, interval)/(countBonIntervalReportDetail(dd)));
-            sumSelectedBonDetailIntervalReportDetail(dd) <- NUMERIC[16,2](sumSelectedBonDetailStoreReceiptReportIntervalReport(store, report,interval)/(inReceiptReportStoreIntervalReport(report, store,interval)));            
+            countBon(dd) <- NUMERIC[14,3](countBon(store, report, interval));
+            countBonDetail(dd) <- NUMERIC[14,3](countBonDetail(store, report, interval) /(countBon(dd)));
+            countSelectedBonDetail(dd) <- NUMERIC[14,3](in(report, store,interval) /(countBon(dd)));        
+            sumBon(dd) <- NUMERIC[16,2](sumBonDetail(store, report, interval)/(countBon(dd)));
+            sumSelectedBonDetail(dd) <- NUMERIC[16,2](sumSelectedBonDetail(store, report,interval)/(in(report, store,interval)));            
             
         }        
     }        
@@ -207,61 +207,61 @@ fillDataReceiptReport 'Заполнить данные' = ACTION (report) {
 FORM receiptReport 'Отчет по чекам'
 
     OBJECTS r = ReceiptReport FIXED PANEL
-    PROPERTIES (r) nameNumeratorReceiptReport, numberReceiptReport, seriesReceiptReport, dateReceiptReport, timeReceiptReport,
-                   fromDateReceiptReport, toDateReceiptReport, 
-                   fromTimeReceiptReport, toTimeReceiptReport, nameGroupTypeReceiptReport
-    PROPERTIES (r) READONLY countBonReceiptReport, countBonDetailReceiptReport, countSelectedBonDetailReceiptReport, 
-                   sumBonReceiptReport, sumSelectedBonDetailReceiptReport
+    PROPERTIES (r) nameNumerator, number, series, date, time,
+                   fromDate, toDate, 
+                   fromTime, toTime, nameGroupType
+    PROPERTIES (r) READONLY countBon, countBonDetail, countSelectedBonDetail, 
+                   sumBon, sumSelectedBonDetail
                    
     OBJECTS s = Store             
-    PROPERTIES  nameStore(s)READONLY, inStoreReceiptReport(s,r)  
+    PROPERTIES  name(s)READONLY, in(s,r)  
                  
-    TREE groupTree g=Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), idGroup(g), nameGroup(g), inGroupReceiptReport(g,r) EDITABLE 
-    FILTERS groupTypeGroup(g) == groupTypeReceiptReport(r)
-    ORDER BY orderGroup(g), nameGroup(g)
-    FILTERGROUP inactive1 FILTER 'Активные' activeGroup(g) 'F5' DEFAULT      
+    TREE groupTree g=Group PARENT parent
+    PROPERTIES READONLY order(g), id(g), name(g), in(g,r) EDITABLE 
+    FILTERS groupType(g) == groupType(r)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT      
                
-    TREE legalEntityTree lg = LegalEntityGroup PARENT parentLegalEntityGroup
-    PROPERTIES READONLY  nameLegalEntityGroup(lg)
-    ORDER BY nameLegalEntityGroup(lg)
-    PROPERTIES(lg,r) inLegalEntityGroupReceiptReport
+    TREE legalEntityTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY  name(lg)
+    ORDER BY name(lg)
+    PROPERTIES(lg,r) in
 
     OBJECTS l = LegalEntity
-    PROPERTIES(l) READONLY idLegalEntity SHOWIF showIDs(), legalEntityName = nameLegalEntity
+    PROPERTIES(l) READONLY id SHOWIF showIDs(), legalEntityName = name
     ORDER BY legalEntityName
-    FILTERS isParentLegalEntityGroupLegalEntity(lg, l) OR (l IS LegalEntity AND NOT lg)
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' activeLegalEntity(l) 'shift F10' DEFAULT
-    PROPERTIES(l,r) inLegalEntityReceiptReport
+    FILTERS isParent(lg, l) OR (l IS LegalEntity AND NOT lg)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    PROPERTIES(l,r) in
     
     OBJECTS i = IntervalReport
-    PROPERTIES(i) sumIntervalReport
+    PROPERTIES(i) sum
     PROPERTIES ADDOBJ(i), deletei = DELETESESSION(i)
-    FILTERS receiptReportIntervalReport(i) == r
+    FILTERS receiptReport(i) == r
 
     OBJECTS d = ReceiptReportDetail
-    PROPERTIES (d) indexReceiptReportDetail, nameStoreReceiptReportDetail, countBonReceiptReportDetail, countBonDetailReceiptReportDetail, countSelectedBonDetailReceiptReportDetail,
-                   sumBonReceiptReportDetail, sumSelectedBonDetailReceiptReportDetail
+    PROPERTIES (d) index, nameStore, countBon, countBonDetail, countSelectedBonDetail,
+                   sumBon, sumSelectedBonDetail
                   
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
     
-    PROPERTIES(r)  fillDataReceiptReport FORCE PANEL TOOLBAR TODRAW d  
+    PROPERTIES(r)  fillData FORCE PANEL TOOLBAR TODRAW d  
     
-    ORDER BY indexReceiptReportDetail(d)
+    ORDER BY index(d)
 
-    PROPERTIES(r) TODRAW d deleteReceiptReportDetailReceiptReport
+    PROPERTIES(r) TODRAW d deleteReceiptReportDetail
     
-    FILTERS receiptReportReceiptReportDetail(d) == r
+    FILTERS receiptReport(d) == r
     
     OBJECTS dd = IntervalReportDetail
-    PROPERTIES (dd) sumIntervalReportDetail, countBonIntervalReportDetail, countBonDetailIntervalReportDetail, countSelectedBonDetailIntervalReportDetail,
-                    sumBonIntervalReportDetail, sumSelectedBonDetailIntervalReportDetail    
+    PROPERTIES (dd) sum, countBon, countBonDetail, countSelectedBonDetail,
+                    sumBon, sumSelectedBonDetail    
     PROPERTIES (dd) ADDOBJ, deleteidd=DELETESESSION                    
-    PROPERTIES deleteIntervalReportDetailReceiptReportDetail(d) TODRAW dd 
+    PROPERTIES deleteIntervalReportDetail(d) TODRAW dd 
     
-    ORDER BY sumIntervalReportDetail(dd)  
+    ORDER BY sum(dd)  
                  
-    FILTERS receiptReportDetailIntervalReportDetail(dd) == d
+    FILTERS receiptReportDetail(dd) == d
             
 
     EDIT ReceiptReport OBJECT r
@@ -306,7 +306,7 @@ DESIGN receiptReport {
                     type = CONTAINERV;
                     NEW group1 {
                         caption = 'Классификатор';
-                        MOVE PROPERTY(nameGroupTypeReceiptReport(r));
+                        MOVE PROPERTY(nameGroupType(r));
                     }                    
                     MOVE groupTree.tree.box {fill = 1; caption = 'Группы товаров';}
                 } 
@@ -334,22 +334,22 @@ DESIGN receiptReport {
 FORM receiptReports 'Отчеты по чекам'
 
     OBJECTS r = ReceiptReport 
-    PROPERTIES (r) READONLY numberReceiptReport, seriesReceiptReport, dateReceiptReport, timeReceiptReport, fromDateReceiptReport, toDateReceiptReport, 
-                   fromTimeReceiptReport, toTimeReceiptReport, nameGroupTypeReceiptReport
-    PROPERTIES (r) READONLY countBonReceiptReport, countBonDetailReceiptReport, countSelectedBonDetailReceiptReport, 
-                   sumBonReceiptReport, sumSelectedBonDetailReceiptReport, countReceiptReportDetailReceiptReport
+    PROPERTIES (r) READONLY number, series, date, time, fromDate, toDate, 
+                   fromTime, toTime, nameGroupType
+    PROPERTIES (r) READONLY countBon, countBonDetail, countSelectedBonDetail, 
+                   sumBon, sumSelectedBonDetail, countReceiptReportDetail
 
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
-    PROPERTIES (r) READONLY FORCE PANEL createdNameUserReceiptReport, createdTimeReceiptReport, createdHostnameComputerReceiptReport 
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
         
     OBJECTS d = ReceiptReportDetail
-    PROPERTIES (d) READONLY indexReceiptReportDetail, nameStoreReceiptReportDetail, countBonReceiptReportDetail, 
-                   countBonDetailReceiptReportDetail, countSelectedBonDetailReceiptReportDetail,
-                   sumBonReceiptReportDetail, sumSelectedBonDetailReceiptReportDetail
+    PROPERTIES (d) READONLY index, nameStore, countBon, 
+                   countBonDetail, countSelectedBonDetail,
+                   sumBon, sumSelectedBonDetail
     
-    ORDER BY indexReceiptReportDetail(d)
+    ORDER BY index(d)
 
-    FILTERS receiptReportReceiptReportDetail(d) == r
+    FILTERS receiptReport(d) == r
                 
     DIALOG ReceiptReport OBJECT r
 ;

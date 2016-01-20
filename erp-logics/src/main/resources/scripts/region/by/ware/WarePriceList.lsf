@@ -6,64 +6,64 @@ NAMESPACE PriceList;
 
 CLASS WarePriceListType 'Цена cо стеклопосудой' : PriceListType;
 
-nameWarePriceListType 'Наименование' = DATA VARISTRING[50](WarePriceListType);
-namePriceListType(type) += nameWarePriceListType(type) IF type IS WarePriceListType;
+name 'Наименование' = DATA VARISTRING[50](WarePriceListType);
+name(WarePriceListType type) += name(type) IF type IS WarePriceListType;
 
-basePriceListTypeWarePriceListType(type) = DATA BasePriceListType (WarePriceListType);
-nameBasePriceListTypeWarePriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypeWarePriceListType(type));
+basePriceListType(type) = DATA BasePriceListType (WarePriceListType);
+nameBasePriceListType 'Базовый вид цены' (WarePriceListType type) = name(basePriceListType(type));
 
-ledgerPriceListTypePriceListType(type) += basePriceListTypeWarePriceListType(type) AS LedgerPriceListType;
+ledgerPriceListType(WarePriceListType type) += basePriceListType(type) AS LedgerPriceListType;
 
-includeVATPriceListType(type) += type IS WarePriceListType;
+includeVAT(WarePriceListType type) += type IS WarePriceListType;
 
 @defineDocumentHeaderCurrency(warePriceListType);
-currencyPriceListType(warePriceListType) += currencyWarePriceListType(warePriceListType);
+currency(WarePriceListType warePriceListType) += currency(warePriceListType);
 
-wareSku (sku) = ABSTRACT Ware (Sku);
-wareSku (sku) += wareItem(sku);
+ware (sku) = ABSTRACT Ware (Sku);
+ware (Item sku) += Item.ware(sku);
 
 // для товаров
-priceBWarePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeWarePriceListType(type), sku, stock, dateTime) (+)
-    (priceWareDate(wareSku(sku), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
-priceAWarePriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-    priceABasePriceListTypeSkuStockDateTime(basePriceListTypeWarePriceListType(type), sku, stock, dateTime) (+)
-    (priceWareDate(wareSku(sku), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
+priceB(WarePriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    priceB(basePriceListType(type), sku, stock, dateTime) (+)
+    (price(ware(sku), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
+priceA(WarePriceListType type, Sku sku, Stock stock, DATETIME dateTime) =
+    priceA(basePriceListType(type), sku, stock, dateTime) (+)
+    (price(ware(sku), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
 
-priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceBWarePriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceAWarePriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
+priceB(WarePriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceB(type, sku, stock, dateTime);
+priceA(WarePriceListType type, Sku sku, Stock stock, DATETIME dateTime) += priceA(type, sku, stock, dateTime);
 
 // для партий
 
-priceBWarePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeWarePriceListType(type), batch, stock, dateTime) (+)
-    (priceWareDate(wareSku(skuBatch(batch)), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
-priceAWarePriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-    priceABasePriceListTypeBatchStockDateTime(basePriceListTypeWarePriceListType(type), batch, stock, dateTime) (+)
-    (priceWareDate(wareSku(skuBatch(batch)), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
+priceB(WarePriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    priceB(basePriceListType(type), batch, stock, dateTime) (+)
+    (price(ware(sku(batch)), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
+priceA(WarePriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
+    priceA(basePriceListType(type), batch, stock, dateTime) (+)
+    (price(ware(sku(batch)), toDate(dateTime)) IF type IS WarePriceListType AND stock IS Stock);
 
-priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceBWarePriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceAWarePriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
+priceB(WarePriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceB(type, batch, stock, dateTime);
+priceA(WarePriceListType type, Batch batch, Stock stock, DATETIME dateTime) += priceA(type, batch, stock, dateTime);
 
 FORM warePriceListType 'Цена cо стеклопосудой'
     OBJECTS w = WarePriceListType FIXED PANEL
-    PROPERTIES(w) nameWarePriceListType, includeVATPriceListType, nameCurrencyWarePriceListType, nameBasePriceListTypeWarePriceListType
+    PROPERTIES(w) name, includeVAT, nameCurrency, nameBasePriceListType
 
     EDIT WarePriceListType OBJECT w
 ;
 
 DESIGN warePriceListType {
     w.box{
-        MOVE PROPERTY(nameWarePriceListType(w));
-        MOVE PROPERTY(includeVATPriceListType(w));
-        MOVE PROPERTY(nameCurrencyWarePriceListType(w));
-        MOVE PROPERTY(nameBasePriceListTypeWarePriceListType(w));
+        MOVE PROPERTY(name(w));
+        MOVE PROPERTY(includeVAT(w));
+        MOVE PROPERTY(nameCurrency(w));
+        MOVE PROPERTY(nameBasePriceListType(w));
     }
 }
 
 addWarePriceListType 'Добавить цену cо стеклопосудой' = ACTION ADDFORM WarePriceListType;
-editWarePriceListType 'Редактировать' = ACTION EDITFORM WarePriceListType;
-editPriceListType(priceListType) += ACTION editWarePriceListType(priceListType);
+edit 'Редактировать' = ACTION EDITFORM WarePriceListType;
+edit(WarePriceListType priceListType) += ACTION edit(priceListType);
 
 EXTEND FORM priceListTypes
     PROPERTIES() addWarePriceListType TODRAW pt FORCE PANEL

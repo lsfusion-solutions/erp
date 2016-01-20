@@ -5,25 +5,25 @@ REQUIRE PriceListDashboard, PriceListOperation, Store, PriceListBefore, PriceLis
 CLASS Promotion 'Акция';
 TABLE promotion(Promotion);
 
-namePromotion 'Наименование акции' = DATA VARISTRING[50](Promotion) IN recognize;
-promotionName = GROUP AGGR promotion BY namePromotion(promotion);
+name 'Наименование акции' = DATA VARISTRING[50](Promotion) IN recognize;
+promotionName = GROUP AGGR Promotion promotion BY name(promotion);
 
 FORM dialogPromotions 'Акции' 
     OBJECTS p = Promotion
-    PROPERTIES(p) READONLY namePromotion
+    PROPERTIES(p) READONLY name
     
     DIALOG Promotion OBJECT p
 ;
 
 FORM promotion 'Акция'
     OBJECTS p=Promotion FIXED PANEL
-    PROPERTIES(p) namePromotion
+    PROPERTIES(p) name
     EDIT Promotion OBJECT p
 ;
 
 FORM promotions 'Акции'
     OBJECTS p = Promotion
-    PROPERTIES(p) READONLY namePromotion
+    PROPERTIES(p) READONLY name
     PROPERTIES (p) ADDFORM, EDITFORM, DELETE 
 ;
 
@@ -33,56 +33,56 @@ NAVIGATOR {
     }
 }
     
-promotionPriceList = ABSTRACT Promotion (PriceList);
-promotionUserPriceList = DATA Promotion (UserPriceList);
+promotion = ABSTRACT Promotion (PriceList);
+promotion = DATA Promotion (UserPriceList);
 
-promotionPriceList(priceList) += promotionUserPriceList(priceList);
+promotion(UserPriceList priceList) += promotion(priceList);
 
-namePromotionPriceList 'Акция' = ABSTRACT VARISTRING[50](PriceList);
-namePromotionUserPriceList 'Акция' = namePromotion(promotionUserPriceList(priceList)); 
-namePromotionPriceList(priceList) += namePromotionUserPriceList(priceList);
+namePromotion 'Акция' = ABSTRACT VARISTRING[50](PriceList);
+namePromotion 'Акция' = name(promotion(UserPriceList priceList)); 
+namePromotion(UserPriceList priceList) += namePromotion(priceList);
 
-namePromotionPriceListDetail 'Акция' = namePromotionPriceList(priceListPriceListDetail(detail));
+namePromotion 'Акция' = namePromotion(priceList(PriceListDetail detail));
 
-showPromotionPriceOperation 'Акция' = DATA BOOLEAN (PriceList.Operation);
+showPromotionPrice 'Акция' = DATA BOOLEAN (PriceList.Operation);
 
-showPromotionPricePriceList 'Акция' = ABSTRACT BOOLEAN (PriceList);
-showPromotionPriceUserPriceList 'Акция' = DATA BOOLEAN (UserPriceList);
-showPromotionPricePriceList(p) += showPromotionPriceUserPriceList(p);
+showPromotionPrice 'Акция' = ABSTRACT BOOLEAN (PriceList);
+showPromotionPrice 'Акция' = DATA BOOLEAN (UserPriceList);
+showPromotionPrice(UserPriceList p) += showPromotionPrice(p);
 
 
 EXTEND FORM userPriceList
-    PROPERTIES (p) showPromotionPriceUserPriceList FORCE GRID 
+    PROPERTIES (p) showPromotionPrice FORCE GRID 
 ;
 
 DESIGN userPriceList {
     param{
-        MOVE PROPERTY (showPromotionPriceUserPriceList(p));
+        MOVE PROPERTY (showPromotionPrice(p));
     }
 }
 
 @deriveDocumentOperationProperty(UserPriceList, showPromotionPrice);
 
  
-EXTEND FORM operation PROPERTIES(o) showPromotionPriceOperation;
+EXTEND FORM operation PROPERTIES(o) showPromotionPrice;
 
 DESIGN operation {
     showContainer {
-        MOVE PROPERTY(showPromotionPriceOperation(o));
+        MOVE PROPERTY(showPromotionPrice(o));
     }
 }
 
 EXTEND FORM priceLists 
-    PROPERTIES (p) READONLY namePromotionPriceList AFTER nameOperationPriceList(p)
+    PROPERTIES (p) READONLY namePromotion AFTER nameOperation(p)
 ;
 
 EXTEND FORM userPriceList 
-    PROPERTIES (p) namePromotionUserPriceList SHOWIF showPromotionPriceUserPriceList(p)
+    PROPERTIES (p) namePromotion SHOWIF showPromotionPrice(p)
 ;
 
 DESIGN userPriceList{
     first {
-        MOVE PROPERTY(namePromotionUserPriceList(p))
+        MOVE PROPERTY(namePromotion(p))
         {minimumCharWidth = 30; preferredCharWidth = 40;} 
     }
 }
@@ -92,11 +92,11 @@ FORM promotionDashboard 'Управление акциями'
     PROPERTIES(dt) objValue = OBJVALUE
 
     OBJECTS o = PriceList.Operation FIXED PANEL
-    PROPERTIES(o) SELECTOR PriceList.nameOperation
+    PROPERTIES(o) SELECTOR name
 
     OBJECTS pt = DataPriceListType FIXED PANEL
-    PROPERTIES(pt) SELECTOR namePriceListType
-    FILTERS changeDataPriceListTypeOperation(pt,o)
+    PROPERTIES(pt) SELECTOR name[PriceListType]
+    FILTERS change(pt,o)
 ;
 DESIGN promotionDashboard {
     NEW params {
@@ -134,7 +134,7 @@ NAVIGATOR {
 
 
 filterPromotionStock  = DATA LOCAL NESTED DepartmentStore ();
-nameFilterPromotionStock 'Склад' = nameStock(filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
+nameFilterPromotionStock 'Склад' = name[Stock](filterPromotionStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;                                                     
 notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
 
 changeCompanyFilterPromotionStock = ACTION () {
@@ -165,39 +165,39 @@ changeCompanyFilterPromotionStock = ACTION () {
 //descriptionPriceListTypeSkuDateTimeOperation 'Описание' (type, sku, dateTime, operation) = descriptionPriceListDetail(overPriceListDetailAPriceListTypeSkuDateTimeOperation(type, sku, dateTime, operation));                                            
 //editActiveLedgerALedgerPriceListTypeSkuDateTimeOperation'Редактировать' (type, sku, dateTime, operation) = ACTION editPriceListDetail(overPriceListDetailAPriceListTypeSkuDateTimeOperation(type, sku, dateTime, operation)) IMAGE 'edit.png';     
 
-balanceBPriceListDetail 'Остаток (до акции)' (detail) = balanceBSkuStockDateTime(skuPriceListDetail(detail), filterPromotionStock(), fromDateTimePriceListDetail(detail));
-notePriceListDetail 'Примечание' = notePriceList(priceListPriceListDetail(d));
+balanceB 'Остаток (до акции)' (PriceListDetail detail) = balanceB(sku(detail), filterPromotionStock(), fromDateTime(detail));
+note 'Примечание' = note(priceList(PriceListDetail d));
 
 EXTEND FORM promotionDashboard   
     OBJECTS c = LegalEntity FIXED PANEL
-    PROPERTIES(c) nameLegalEntity SELECTOR
-    FILTERS isCompanyLegalEntity(c)
+    PROPERTIES(c) name SELECTOR
+    FILTERS isCompany(c)
     
     PROPERTIES nameFilterPromotionStock() ON CHANGE changeCompanyFilterPromotionStock()
 
-    TREE cskg cskg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(cskg), cskgName = nameSkuGroup(cskg)
-    ORDER BY orderSkuGroup(cskg), cskgName
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(cskg) 'F5' DEFAULT
+    TREE cskg cskg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(cskg), cskgName = name(cskg)
+    ORDER BY order(cskg), cskgName
+    FILTERGROUP inactive FILTER 'Активные' active(cskg) 'F5' DEFAULT
 
     OBJECTS csk = PriceListDetail
-    PROPERTIES(csk) READONLY nameSkuPriceListDetail, idBarcodeSkuPriceListDetail, fromDateTimePriceListDetail, toDateTimePriceListDetail, namePromotionPriceListDetail
-    ORDER BY nameSkuPriceListDetail(csk), fromDateTimePriceListDetail(csk)
-    FILTERS isParentSkuGroupSku(cskg, skuPriceListDetail(csk)),
-            fromDatePriceListDetail(csk) <= toDate(dt) AND NOT (toDatePriceListDetail(csk) < toDate(dt)),
-            inPriceListDetailDataPriceListType(csk,pt) AND pricePriceListDetailDataPriceListType(csk,pt),
-            companyPriceListDetail(csk) == c,
-            operationPriceListDetail(csk) == o,
-            inPriceListStock(priceListPriceListDetail(csk),filterPromotionStock()) OR (csk IS PriceListDetail AND NOT filterPromotionStock())
+    PROPERTIES(csk) READONLY nameSku, idBarcodeSku, fromDateTime, toDateTime, namePromotion
+    ORDER BY nameSku(csk), fromDateTime(csk)
+    FILTERS isParent(cskg, sku(csk)),
+            fromDate(csk) <= toDate(dt) AND NOT (toDate(csk) < toDate(dt)),
+            in(csk,pt) AND price(csk,pt),
+            company(csk) == c,
+            operation(csk) == o,
+            in(priceList(csk),filterPromotionStock()) OR (csk IS PriceListDetail AND NOT filterPromotionStock())
             
-    PROPERTIES READONLY  balanceBPriceListDetail(csk) SHOWIF filterPromotionStock(), 
-                         priceBeforePriceListDetail(csk), 
-                         pricePriceListDetailDataPriceListType(csk,pt), 
-                         fromDatePriceListDetail(csk), 
-                         toDatePriceListDetail(csk)
-    PROPERTIES READONLY  stocksPriceListDetail(csk), priceListTypesPriceListDetail(csk), notePriceListDetail(csk), 
-                         descriptionPriceListDetail(csk)
-    PROPERTIES editPriceListDetail(csk)           
+    PROPERTIES READONLY  balanceB(csk) SHOWIF filterPromotionStock(), 
+                         priceBefore(csk), 
+                         price(csk,pt), 
+                         fromDate(csk), 
+                         toDate(csk)
+    PROPERTIES READONLY  stocks(csk), priceListTypes(csk), note(csk), 
+                         description(csk)
+    PROPERTIES edit(csk)           
             
 ;
 
@@ -211,7 +211,7 @@ DESIGN promotionDashboard {
                 type = SPLITH;
                 NEW c.skuFilters {
                     fill = 1;
-                    MOVE PROPERTY(nameLegalEntity(c));
+                    MOVE PROPERTY(name(c));
                     MOVE cskg.tree.box {
                         caption = 'Товарные группы';
                     }
@@ -235,15 +235,15 @@ DESIGN promotionDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceListLegalEntityPriceListTypeDateTimeOperation 'Добавить' = ACTION (legalEntity, type, dateTime, operation) NEWSESSION {
+addUserPriceList 'Добавить' = ACTION (LegalEntity legalEntity, PriceListType type, DATETIME dateTime, PriceList.Operation operation) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
-        companyUserPriceList(p) <- legalEntity;
-        fromDateUserPriceList(p) <- toDate(dateTime);
-        fromTimeUserPriceList(p) <- toTime(dateTime);
-        operationUserPriceList(p) <- operation;
-        inUserPriceListDataPriceListType(p, type) <- TRUE;
-        showPriceListPriceListType(p, type) <- TRUE;
-        EXEC overAddUserPriceList(p); 
+        company(p) <- legalEntity;
+        fromDate(p) <- toDate(dateTime);
+        fromTime(p) <- toTime(dateTime);
+        operation(p) <- operation;
+        in[UserPriceList,DataPriceListType](p, type) <- TRUE;
+        show[PriceList,PriceListType](p, type) <- TRUE;
+        EXEC overAdd(p); 
         FORM userPriceList OBJECTS p=p MANAGESESSION DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN
             EXEC apply();
@@ -252,38 +252,38 @@ addUserPriceListLegalEntityPriceListTypeDateTimeOperation 'Добавить' = A
 
 EXTEND FORM promotionDashboard
     OBJECTS p = UserPriceList
-    PROPERTIES(p) READONLY BACKGROUND backgroundPriceList(p) isPostedUserPriceList, namePromotionPriceList, numberUserPriceList, seriesUserPriceList, dateUserPriceList, timeUserPriceList,
-                           fromDateUserPriceList, fromTimeUserPriceList, toDateUserPriceList, toTimeUserPriceList,
-                           nameCurrencyUserPriceList, nameCompanyUserPriceList, priceListTypesPriceList, stocksPriceList,
-                           noteUserPriceList
-    PROPERTIES(p) EDITFORM, DELETE FORCE PANEL TOOLBAR, updatePriceList FORCE PANEL TOOLBAR
-    ORDER BY fromDateUserPriceList(p), fromTimeUserPriceList(p)
-    FILTERS inUserPriceListDataPriceListType(p, pt),
-            companyUserPriceList(p) == c,
-            operationUserPriceList(p) ==o
-    PROPERTIES(c, pt, dt, o) addUserPriceListLegalEntityPriceListTypeDateTimeOperation FORCE PANEL TODRAW p       
+    PROPERTIES(p) READONLY BACKGROUND background(p) isPosted, namePromotion[PriceList], number, series, date, time,
+                           fromDate, fromTime, toDate, toTime,
+                           nameCurrency, nameCompany, priceListTypes, stocks,
+                           note
+    PROPERTIES(p) EDITFORM, DELETE FORCE PANEL TOOLBAR, update FORCE PANEL TOOLBAR
+    ORDER BY fromDate(p), fromTime(p)
+    FILTERS in(p, pt),
+            company(p) == c,
+            operation(p) ==o
+    PROPERTIES(c, pt, dt, o) addUserPriceList FORCE PANEL TODRAW p       
     FILTERGROUP inactivePriceList
-        FILTER 'Текущие' isActivePriceListDateTime(p,dt) 'F11'            
-        FILTER 'Активные' isActivePriceListDateTime(p,dt) OR (fromDateTimePriceList(p) > dt) 'F10' DEFAULT   
+        FILTER 'Текущие' isActive(p,dt) 'F11'            
+        FILTER 'Активные' isActive(p,dt) OR (fromDateTime[PriceList](p) > dt) 'F10' DEFAULT   
         
     OBJECTS t = DataPriceListType FIXED GRID
     FILTERS t == pt
     
     OBJECTS d = PriceListDetail
-    PROPERTIES(d) READONLY BACKGROUND backgroundPriceListDetail(d) indexPriceListDetail, idBarcodeSkuPriceListDetail, nameSkuPriceListDetail,
-                           shortNameUOMSkuPriceListDetail, nameBatchPriceListDetail, nameCompanyPriceListDetail
-    PROPERTIES(d) READONLY AFTER nameSkuPriceListDetail(d) originalIdBarcodeSkuPriceListDetail SHOWIF showOriginalIdBarcodeSkuPriceList(p), originalNameSkuPriceListDetail SHOWIF showOriginalNameSkuPriceList(p)
+    PROPERTIES(d) READONLY BACKGROUND background(d) index, idBarcodeSku, nameSku,
+                           shortNameUOMSku, nameBatch, nameCompany
+    PROPERTIES(d) READONLY AFTER nameSku(d) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku[PriceList](p), originalNameSku SHOWIF showOriginalNameSku[PriceList](p)
     
-    ORDER BY indexPriceListDetail(d)
+    ORDER BY index(d)
     
     OBJECTS ts = Stock
-    PROPERTIES(ts) READONLY nameStock
-    PROPERTIES(p, ts) READONLY inPriceListStock
+    PROPERTIES(ts) READONLY name
+    PROPERTIES(p, ts) READONLY in
 
-    PROPERTIES(d, t) READONLY BACKGROUND backgroundPriceListDetail(d) pricePriceListDetailDataPriceListType COLUMNS (t) HEADER nameDataPriceListType(t)
-    FILTERS priceListPriceListDetail(d) == p,
-            inPriceListStock(p, ts),
-            isCompanyStock(ts)
+    PROPERTIES(d, t) READONLY BACKGROUND background(d) price COLUMNS (t) HEADER name(t)
+    FILTERS priceList(d) == p,
+            in(p, ts),
+            isCompany(ts)
 ;
 DESIGN promotionDashboard {
     detail {

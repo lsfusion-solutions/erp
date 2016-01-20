@@ -15,196 +15,196 @@ TABLE rangeDocument(RangeDocument);
 @defineNumeratedDefault(RangeDocument, 'Исполнение ассортимента', 'ИА');
 @defineDocumentHeaderDescription (RangeDocument, 'Исполнение ассортимента');
 
-fromDateRangeDocument 'Дата с' = DATA DATE (RangeDocument) IN documentHeader;
-toDateRangeDocument 'Дата по' = DATA DATE (RangeDocument) IN documentHeader;
+fromDate 'Дата с' = DATA DATE (RangeDocument) IN documentHeader;
+toDate 'Дата по' = DATA DATE (RangeDocument) IN documentHeader;
 
-WHEN SESSION SET(o IS RangeDocument) DO {
-    IF o IS RangeDocument AND NOT fromDateRangeDocument(o) THEN fromDateRangeDocument(o) <- currentDate();
-    IF o IS RangeDocument AND NOT toDateRangeDocument(o) THEN toDateRangeDocument(o) <- currentDate();
+WHEN SESSION SET(RangeDocument o IS RangeDocument) DO {
+    IF o IS RangeDocument AND NOT fromDate(o) THEN fromDate(o) <- currentDate();
+    IF o IS RangeDocument AND NOT toDate(o) THEN toDate(o) <- currentDate();
 };
 
 
 TABLE RangeDocumentStoreDate(RangeDocument, Store, DATE);
 
 //--
-countSkuRangeDocumentStoreDate 'Кол-во позиций в ассортименте' = DATA INTEGER (RangeDocument, Store, DATE);     
-calcCountSkuStoreDate (st, d) =  GROUP SUM 1 IF countRangeSkuStoreDate(s, st, d) BY  st, d;
+countSku 'Кол-во позиций в ассортименте' = DATA INTEGER (RangeDocument, Store, DATE);     
+calcCountSku (st, d) =  GROUP SUM 1 IF countRange(Sku s, Store st, DATE d) BY  st, d;
 
-countAverageSkuRangeDocumentStoreDate 'Кол-во позиций с остатком меньше ср.дн. р-ии' = DATA INTEGER (RangeDocument, Store, DATE); 
-averageSoldSkuStore 'Продаж в день' (sku, store) = GROUP SUM averageSoldSkuStock(sku, stock) BY sku, storeDepartmentStore(stock);
-calcCountAverageSkuStoreDate= GROUP SUM 1 IF countRangeSkuStoreDate(s, st, d) AND NOT
-    (balanceBSkuStoreDate(s, st, d) >= averageSoldSkuStore(s, st)) AND averageSoldSkuStore(s, st)          
+countAverageSku 'Кол-во позиций с остатком меньше ср.дн. р-ии' = DATA INTEGER (RangeDocument, Store, DATE); 
+averageSold 'Продаж в день' (sku, store) = GROUP SUM averageSold(Sku sku, DepartmentStore stock) BY sku, store(stock);
+calcCountAverageSku= GROUP SUM 1 IF countRange(Sku s, Store st, DATE d) AND NOT
+    (balanceB(s, st, d) >= averageSold(s, st)) AND averageSold(s, st)          
         BY  st, d;  
         
-percAverageSkuRangeDocumentStoreDate '% в ассортименте с остатком меньше ср.дн. р-ии' (document, store, date)= 
-    NUMERIC[12,4](countAverageSkuRangeDocumentStoreDate(document, store, date)) / 
-    (countSkuRangeDocumentStoreDate(document, store, date) IF countSkuRangeDocumentStoreDate(document, store, date) != 0) *  
+percAverageSku '% в ассортименте с остатком меньше ср.дн. р-ии' (RangeDocument document, Store store, DATE date)= 
+    NUMERIC[12,4](countAverageSku(document, store, date)) / 
+    (countSku(document, store, date) IF countSku(document, store, date) != 0) *  
     100.00;       
         
-countLessSkuRangeDocumentStoreDate 'Кол-во позиций без остатка или  с остатком меньше либо равным 0' = DATA INTEGER (RangeDocument, Store, DATE); 
-calcLessAverageSkuStoreDate= GROUP SUM 1 IF countRangeSkuStoreDate(s, st, d) AND  NOT (balanceBSkuStoreDate(s, st, d) >0)          
+countLessSku 'Кол-во позиций без остатка или  с остатком меньше либо равным 0' = DATA INTEGER (RangeDocument, Store, DATE); 
+calcLessAverageSku= GROUP SUM 1 IF countRange(Sku s, Store st, DATE d) AND  NOT (balanceB(s, st, d) >0)          
         BY  st, d;   
-percLessSkuRangeDocumentStoreDate '% в ассортименте с остатком меньше либо равным 0' (document, store, date)= 
-    NUMERIC[12,4](countLessSkuRangeDocumentStoreDate(document, store, date)) / 
-    (countSkuRangeDocumentStoreDate(document, store, date) IF countSkuRangeDocumentStoreDate(document, store, date) != 0) * 
+percLessSku '% в ассортименте с остатком меньше либо равным 0' (RangeDocument document, Store store, DATE date)= 
+    NUMERIC[12,4](countLessSku(document, store, date)) / 
+    (countSku(document, store, date) IF countSku(document, store, date) != 0) * 
     100.00;    
        
-countNotSkuRangeDocumentStoreDate 'Кол-во позиций с остатком без ассортимента' = DATA INTEGER (RangeDocument, Store, DATE); 
-calcCountNotSkuStoreDate= GROUP SUM 1 IF balanceBSkuStoreDate(s, st, d) >0 AND NOT countRangeSkuStoreDate(s, st, d)        
+countNotSku 'Кол-во позиций с остатком без ассортимента' = DATA INTEGER (RangeDocument, Store, DATE); 
+calcCountNotSku= GROUP SUM 1 IF balanceB(Sku s, Store st, DATE d) >0 AND NOT countRange(s, st, d)        
         BY  st, d;       
              
-fillSkuRangeDocumentStoreDate 'Заполнить данные по ассортименту' = ACTION (document, store, date) {         
-    countSkuRangeDocumentStoreDate(document, store, date) <-  calcCountSkuStoreDate(store, date);  
-    countAverageSkuRangeDocumentStoreDate(document, store, date) <-  calcCountAverageSkuStoreDate(store, date);
-    countLessSkuRangeDocumentStoreDate(document, store, date) <-  calcLessAverageSkuStoreDate(store, date);
-    countNotSkuRangeDocumentStoreDate(document, store, date) <-  calcCountNotSkuStoreDate(store, date);              
+fillSku 'Заполнить данные по ассортименту' = ACTION (RangeDocument document, Store store, DATE date) {         
+    countSku(document, store, date) <-  calcCountSku(store, date);  
+    countAverageSku(document, store, date) <-  calcCountAverageSku(store, date);
+    countLessSku(document, store, date) <-  calcLessAverageSku(store, date);
+    countNotSku(document, store, date) <-  calcCountNotSku(store, date);              
 }  
 
-fillSkuRangeDocumentDateFromTo 'Заполнить данные по ассортименту' = ACTION (document, dateFrom, dateTo) {       
+fillSkuFromTo 'Заполнить данные по ассортименту' = ACTION (RangeDocument document, DATE dateFrom, DATE dateTo) {       
     LOCAL dateCur = DATE();               
       
-    FOR useRangeStore(store) AND isCompanyStore(store) DO {   
+    FOR useRange(Store store) AND isCompany(store) DO {   
         dateCur() <- dateFrom;
         WHILE dateCur() <= dateTo DO {      
-            fillSkuRangeDocumentStoreDate(document, store, dateCur()); 
-            dateCur() <- sumDate(dateCur(), 1);
+            fillSku(document, store, dateCur()); 
+            dateCur() <- sum(dateCur(), 1);
         }
     }
 } 
-fillSkuRangeDocument 'Заполнить данные по ассортименту' (document) = ACTION fillSkuRangeDocumentDateFromTo(document, fromDateRangeDocument(document), toDateRangeDocument(document));
+fillSku 'Заполнить данные по ассортименту' (RangeDocument document) = ACTION fillSkuFromTo(document, fromDate(document), toDate(document));
 
 // -- 
  
-inSkuRangeStoreDate 'В ассортименте' (s, range, st, d) = levelRangeStoreTypeDate(range, storeTypeStore(st), d) >= levelRangeSkuDate(range, s, d);  
+in 'В ассортименте' (Sku s, Range range, Store st, DATE d) = level(range, storeType(st), d) >= level(range, s, d);  
 
 TABLE RangeDocumentRangeStoreDate(RangeDocument, Range, Store, DATE);
 
-countSkuRangeDocumentRangeStoreDate 'Кол-во позиций в ассортименте' = DATA INTEGER (RangeDocument, Range, Store, DATE);    
-calcCountSkuRangeStoreDate (range, store, date) =  GROUP SUM 1 IF inSkuRangeStoreDate(sku, range, store, date) BY  range, store, date;
+countSku 'Кол-во позиций в ассортименте' = DATA INTEGER (RangeDocument, Range, Store, DATE);    
+calcCountSku (range, store, date) =  GROUP SUM 1 IF in(Sku sku, Range range, Store store, DATE date) BY  range, store, date;
 
-countAverageSkuRangeDocumentRangeStoreDate 'Кол-во позиций с остатком меньше ср.дн. р-ии' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
-calcCountAverageSkuRangeStoreDate= GROUP SUM 1 IF inSkuRangeStoreDate(s, r, st, d) AND NOT
-    (balanceBSkuStoreDate(s, st, d) >= averageSoldSkuStore(s, st)) AND averageSoldSkuStore(s, st)          
+countAverageSku 'Кол-во позиций с остатком меньше ср.дн. р-ии' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
+calcCountAverageSku= GROUP SUM 1 IF in(Sku s, Range r, Store st, DATE d) AND NOT
+    (balanceB(s, st, d) >= averageSold(s, st)) AND averageSold(s, st)          
         BY  r, st, d;  
         
-percAverageSkuRangeDocumentRangeStoreDate '% в ассортименте с остатком меньше ср.дн. р-ии' (document, range, store, date)= 
-    NUMERIC[12,4](countAverageSkuRangeDocumentRangeStoreDate(document, range, store, date)) / 
-    (countSkuRangeDocumentRangeStoreDate(document, range, store, date) IF countSkuRangeDocumentRangeStoreDate(document, range, store, date) != 0) *  
+percAverageSku '% в ассортименте с остатком меньше ср.дн. р-ии' (RangeDocument document, Range range, Store store, DATE date)= 
+    NUMERIC[12,4](countAverageSku(document, range, store, date)) / 
+    (countSku(document, range, store, date) IF countSku(document, range, store, date) != 0) *  
     100.00;       
         
-countLessSkuRangeDocumentRangeStoreDate 'Кол-во позиций без остатка или  с остатком меньше либо равным 0' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
-calcCountLessSkuRangeStoreDate = GROUP SUM 1 IF inSkuRangeStoreDate(s, r, st, d) AND  NOT (balanceBSkuStoreDate(s, st, d) >0)          
+countLessSku 'Кол-во позиций без остатка или  с остатком меньше либо равным 0' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
+calcCountLessSku = GROUP SUM 1 IF in(Sku s, Range r, Store st, DATE d) AND  NOT (balanceB(s, st, d) >0)          
         BY  r, st, d;   
-percLessSkuRangeDocumentRangeStoreDate '% в ассортименте с остатком меньше либо равным 0' (document, range, store, date)= 
-    NUMERIC[12,4](countLessSkuRangeDocumentRangeStoreDate(document, range, store, date)) / 
-    (countSkuRangeDocumentRangeStoreDate(document, range, store, date) IF countSkuRangeDocumentRangeStoreDate(document, range, store, date) != 0) * 
+percLessSku '% в ассортименте с остатком меньше либо равным 0' (RangeDocument document, Range range, Store store, DATE date)= 
+    NUMERIC[12,4](countLessSku(document, range, store, date)) / 
+    (countSku(document, range, store, date) IF countSku(document, range, store, date) != 0) * 
     100.00;    
        
-countNotSkuRangeDocumentRangeStoreDate 'Кол-во позиций с остатком без ассортимента' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
-calcCountNotRangeInRangeStoreDate= GROUP SUM 1 IF balanceBSkuStoreDate(s, st, d) >0 AND r IS Range AND NOT inSkuRangeStoreDate(s, r, st, d)        
+countNotSku 'Кол-во позиций с остатком без ассортимента' = DATA INTEGER (RangeDocument, Range, Store, DATE); 
+calcCountNotRangeIn= GROUP SUM 1 IF balanceB(Sku s, Store st, DATE d) >0 AND Range r IS Range AND NOT in(s, r, st, d)        
         BY  r, st, d;       
              
-fillSkuRangeDocumentRangeStoreDate 'Заполнить данные по ассортименту' = ACTION (document, range, store, date) {         
-    countSkuRangeDocumentRangeStoreDate(document, range, store, date) <-  calcCountSkuRangeStoreDate(range, store, date);  
-    countAverageSkuRangeDocumentRangeStoreDate(document, range, store, date) <-  calcCountAverageSkuRangeStoreDate(range, store, date);
-    countLessSkuRangeDocumentRangeStoreDate(document, range, store, date) <-  calcCountLessSkuRangeStoreDate(range, store, date);
-    countNotSkuRangeDocumentRangeStoreDate(document, range, store, date) <-  calcCountNotRangeInRangeStoreDate(range, store, date);              
+fillSku 'Заполнить данные по ассортименту' = ACTION (RangeDocument document, Range range, Store store, DATE date) {         
+    countSku(document, range, store, date) <-  calcCountSku(range, store, date);  
+    countAverageSku(document, range, store, date) <-  calcCountAverageSku(range, store, date);
+    countLessSku(document, range, store, date) <-  calcCountLessSku(range, store, date);
+    countNotSku(document, range, store, date) <-  calcCountNotRangeIn(range, store, date);              
 }  
 
-fillRangeDocumentRangeDateFromTo 'Заполнить данные по ассортименту' = ACTION (document, dateFrom, dateTo) {       
+fillRangeDocumentFromTo 'Заполнить данные по ассортименту' = ACTION (RangeDocument document, DATE dateFrom, DATE dateTo) {       
     LOCAL dateCur = DATE();               
       
-    FOR useRangeStore(store) AND isCompanyStore(store) AND range IS Range DO {   
+    FOR useRange(Store store) AND isCompany(store) AND Range range IS Range DO {   
         dateCur() <- dateFrom;
         WHILE dateCur() <= dateTo DO {      
-            fillSkuRangeDocumentRangeStoreDate(document, range, store, dateCur());
-            dateCur() <- sumDate(dateCur(), 1);
+            fillSku(document, range, store, dateCur());
+            dateCur() <- sum(dateCur(), 1);
         }
     }
 }  
  
-fillSkuRangeRangeDocument 'Заполнить данные по ассортименту' (document) = ACTION fillRangeDocumentRangeDateFromTo(document, fromDateRangeDocument(document), toDateRangeDocument(document));
+fillSkuRange 'Заполнить данные по ассортименту' (RangeDocument document) = ACTION fillRangeDocumentFromTo(document, fromDate(document), toDate(document));
  
 FORM rangeBalance 'Исполнение ассортимента'
 
     OBJECTS r = RangeDocument FIXED PANEL
-    PROPERTIES (r) nameNumeratorRangeDocument, 
-                   numberRangeDocument, seriesRangeDocument, dateRangeDocument, timeRangeDocument,
-                   noteRangeDocument, fromDateRangeDocument, toDateRangeDocument, fillSkuRangeDocument         
+    PROPERTIES (r) nameNumerator, 
+                   number, series, date, time,
+                   note, fromDate, toDate, fillSku         
    
     TREE treeStore a=STRING[3], t=ChainStores, st=StoreType
-    PROPERTIES READONLY OBJVALUE(a), nameChainStores(t), nameStoreType(st)
+    PROPERTIES READONLY OBJVALUE(a), name(t), name(st)
 
     FILTERS stringEqualsAll(a),
-            inChainStoresStoreType (t, st)
+            in (t, st)
 
     OBJECTS dts = (d = DATE, ts = Store) FIXED GRID
     PROPERTIES READONLY dataD = OBJVALUE(d)
-    PROPERTIES(ts) SELECTOR nameStore
-    PROPERTIES(ts) READONLY addressStore, nameLegalEntityStore
-    FILTERS  d >= fromDateRangeDocument(r), d <= toDateRangeDocument(r),
-             countSkuRangeDocumentStoreDate(r,ts,d)
+    PROPERTIES(ts) SELECTOR name
+    PROPERTIES(ts) READONLY address, nameLegalEntity
+    FILTERS  d >= fromDate(r), d <= toDate(r),
+             countSku(r,ts,d)
              
-    ORDER BY dataD, nameStore(ts) 
+    ORDER BY dataD, name(ts) 
 
-    FILTERS inChainStoresStoreTypeStore(t, st, ts),
-            isCompanyStore(ts),
-            useRangeStore(ts)
+    FILTERS in(t, st, ts),
+            isCompany(ts),
+            useRange(ts)
         
  
-    PROPERTIES(r, ts, d) countSkuRangeDocumentStoreDate, countLessSkuRangeDocumentStoreDate, percLessSkuRangeDocumentStoreDate,
-                    countAverageSkuRangeDocumentStoreDate, percAverageSkuRangeDocumentStoreDate, 
-                    countNotSkuRangeDocumentStoreDate      
+    PROPERTIES(r, ts, d) countSku, countLessSku, percLessSku,
+                    countAverageSku, percAverageSku, 
+                    countNotSku      
     
-    TREE skuTree sg = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sg), skuGroupName = nameSkuGroup(sg)
-    ORDER BY orderSkuGroup(sg)
+    TREE skuTree sg = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sg), skuGroupName = name(sg)
+    ORDER BY order(sg)
     
-    FILTERGROUP inactive FILTER 'Активные' activeSkuGroup(sg) 'F5' DEFAULT
+    FILTERGROUP inactive FILTER 'Активные' active(sg) 'F5' DEFAULT
     
     OBJECTS s = Sku
-    PROPERTIES(s) READONLY idBarcodeSku, nameSku, nameUOMSku
-    PROPERTIES READONLY balanceBSkuStoreDate(s, ts, d), averageSoldSkuStore(s, ts)
+    PROPERTIES(s) READONLY idBarcode, name, nameUOM
+    PROPERTIES READONLY balanceB(s, ts, d), averageSold(s, ts)
     
     FILTERGROUP rangeSku 
-        FILTER 'Позиции в ассортименте' countRangeSkuStoreDate(s, ts, d) 'F11'  
-        FILTER 'Позиции с остатком <= 0' countRangeSkuStoreDate(s, ts, d) AND  NOT (balanceBSkuStoreDate(s, ts, d) >0) 'F9' 
-        FILTER 'Позиции с остатком < ср.дн. р-ии' countRangeSkuStoreDate(s, ts, d) AND NOT (balanceBSkuStoreDate(s, ts, d) >= averageSoldSkuStore(s, ts)) AND averageSoldSkuStore(s, ts) 'F10'               
-        FILTER 'Позиции с остатком без ассортимента' balanceBSkuStoreDate(s, ts, d) >0 AND NOT countRangeSkuStoreDate(s, ts, d) 'F8' 
-    FILTERS isParentSkuGroupSku(sg,s)
+        FILTER 'Позиции в ассортименте' countRange(s, ts, d) 'F11'  
+        FILTER 'Позиции с остатком <= 0' countRange(s, ts, d) AND  NOT (balanceB(s, ts, d) >0) 'F9' 
+        FILTER 'Позиции с остатком < ср.дн. р-ии' countRange(s, ts, d) AND NOT (balanceB(s, ts, d) >= averageSold(s, ts)) AND averageSold(s, ts) 'F10'               
+        FILTER 'Позиции с остатком без ассортимента' balanceB(s, ts, d) >0 AND NOT countRange(s, ts, d) 'F8' 
+    FILTERS isParent(sg,s)
     
  
-    PROPERTIES(r) fillSkuRangeRangeDocument     
+    PROPERTIES(r) fillSkuRange     
     
     OBJECTS ddtst = (dd = DATE, tst = Store, rn = Range) FIXED GRID
     PROPERTIES READONLY dataDe = OBJVALUE(dd)
-    PROPERTIES(tst) SELECTOR nameStore
-    PROPERTIES(tst) READONLY addressStore, nameLegalEntityStore
-    PROPERTIES(rn) SELECTOR nameRange
-    FILTERS  dd >= fromDateRangeDocument(r), dd <= toDateRangeDocument(r),
-             countSkuRangeDocumentRangeStoreDate(r,rn,tst,dd)
-    FILTERS inParentRangeSkuGroup(rn, sg) OR NOT countSkuGroupRange(rn)         
-    ORDER BY dataDe, nameStore(tst), nameRange(rn)  
+    PROPERTIES(tst) SELECTOR name
+    PROPERTIES(tst) READONLY address, nameLegalEntity
+    PROPERTIES(rn) SELECTOR name
+    FILTERS  dd >= fromDate(r), dd <= toDate(r),
+             countSku(r,rn,tst,dd)
+    FILTERS inParent(rn, sg) OR NOT countSkuGroup(rn)         
+    ORDER BY dataDe, name(tst), name(rn)  
 
-    FILTERS inChainStoresStoreTypeStore(t, st, tst),
-            isCompanyStore(tst),
-            useRangeStore(tst)
+    FILTERS in(t, st, tst),
+            isCompany(tst),
+            useRange(tst)
         
 
-    PROPERTIES(r, rn, ts, d) countSkuRangeDocumentRangeStoreDate, countLessSkuRangeDocumentRangeStoreDate, percLessSkuRangeDocumentRangeStoreDate,
-                    countAverageSkuRangeDocumentRangeStoreDate, percAverageSkuRangeDocumentRangeStoreDate, 
-                    countNotSkuRangeDocumentRangeStoreDate       
+    PROPERTIES(r, rn, ts, d) countSku, countLessSku, percLessSku,
+                    countAverageSku, percAverageSku, 
+                    countNotSku       
                     
     OBJECTS ss = Sku
-    PROPERTIES(ss) READONLY idBarcodeSku, nameSku, nameUOMSku
-    PROPERTIES READONLY balanceBSkuStoreDate(ss, tst, d), averageSoldSkuStore(ss, tst)
+    PROPERTIES(ss) READONLY idBarcode, name, nameUOM
+    PROPERTIES READONLY balanceB(ss, tst, d), averageSold(ss, tst)
     
     FILTERGROUP rangeSku1 
-        FILTER 'Позиции в ассортименте' inSkuRangeStoreDate(ss, rn, tst, dd) 'F11'  
-        FILTER 'Позиции с остатком <= 0' inSkuRangeStoreDate(ss, rn, tst, dd) AND  NOT (balanceBSkuStoreDate(ss, tst, dd) >0) 'F9' 
-        FILTER 'Позиции с остатком < ср.дн. р-ии' inSkuRangeStoreDate(ss, rn, tst, dd) AND NOT (balanceBSkuStoreDate(ss, tst, dd) >= averageSoldSkuStore(ss, tst)) AND averageSoldSkuStore(ss, tst) 'F10'               
-        FILTER 'Позиции с остатком без ассортимента' balanceBSkuStoreDate(ss, tst, dd) >0 AND NOT inSkuRangeStoreDate(ss, rn, tst, dd) 'F8'
-    FILTERS isParentSkuGroupSku(sg,ss)                    
+        FILTER 'Позиции в ассортименте' in(ss, rn, tst, dd) 'F11'  
+        FILTER 'Позиции с остатком <= 0' in(ss, rn, tst, dd) AND  NOT (balanceB(ss, tst, dd) >0) 'F9' 
+        FILTER 'Позиции с остатком < ср.дн. р-ии' in(ss, rn, tst, dd) AND NOT (balanceB(ss, tst, dd) >= averageSold(ss, tst)) AND averageSold(ss, tst) 'F10'               
+        FILTER 'Позиции с остатком без ассортимента' balanceB(ss, tst, dd) >0 AND NOT in(ss, rn, tst, dd) 'F8'
+    FILTERS isParent(sg,ss)                    
 
     EDIT RangeDocument OBJECT r       
 ;
@@ -219,8 +219,8 @@ DESIGN rangeBalance {
             NEW date {
                 caption = 'Период';
                 type = CONTAINERH;
-                MOVE PROPERTY (fromDateRangeDocument(r));
-                MOVE PROPERTY (toDateRangeDocument(r));
+                MOVE PROPERTY (fromDate(r));
+                MOVE PROPERTY (toDate(r));
             }
         }
         NEW top2 {
@@ -246,7 +246,7 @@ DESIGN rangeBalance {
                 caption = 'Магазин';
                 fill = 1;   
                 NEW rightPane11{
-                    MOVE PROPERTY(fillSkuRangeDocument(r));    
+                    MOVE PROPERTY(fillSku(r));    
                 };               
                 NEW rightPane12{
                     fill = 1;
@@ -259,7 +259,7 @@ DESIGN rangeBalance {
                 caption = 'Магазин / ассортимент';
                 fill = 1;   
                 NEW rightPane21{
-                    MOVE PROPERTY(fillSkuRangeRangeDocument(r));    
+                    MOVE PROPERTY(fillSkuRange(r));    
                 };               
                 NEW rightPane22{
                     fill = 1;
@@ -275,8 +275,8 @@ DESIGN rangeBalance {
           
 FORM rangeBalances 'Исполнения ассортимента'
     OBJECTS r = RangeDocument
-    PROPERTIES (r) READONLY numberRangeDocument, seriesRangeDocument, dateRangeDocument, timeRangeDocument,
-                   fromDateRangeDocument, toDateRangeDocument,  noteRangeDocument 
+    PROPERTIES (r) READONLY number, series, date, time,
+                   fromDate, toDate,  note 
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
                         
     DIALOG RangeDocument OBJECT r          

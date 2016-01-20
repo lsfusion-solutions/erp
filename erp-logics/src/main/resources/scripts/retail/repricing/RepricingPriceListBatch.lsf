@@ -4,30 +4,30 @@ REQUIRE RepricingPriceList, RepricingPriceLimitFixed;
 
 NAMESPACE Repricing;
 
-managementRetailPriceBatch 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[14,2] (Batch);
-managementPriceListPriceBatch = DATA LOCAL NESTED NUMERIC[14,2] (Batch); 
-inDashboardRepricingBatch 'Вкл' = DATA LOCAL NESTED BOOLEAN (Batch); 
+managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[14,2] (Batch);
+managementPriceListPrice = DATA LOCAL NESTED NUMERIC[14,2] (Batch); 
+inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Batch); 
 //assignAttributeBatch = ABSTRACT ACTION (Stock, Operation, DATETIME);
 
-skipManagementPriceListPriceBatch = ABSTRACT BOOLEAN (PriceListType, Batch, Stock, DATETIME); 
+skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Batch, Stock, DATETIME); 
 
 
-calculateDashboardManagementRepricingBatch 'По прайсам' = ACTION (d, o, dt) {
-    managementRetailPriceBatch(batch) <- NULL;
+calculateDashboardManagementRepricingBatch 'По прайсам' = ACTION (Stock d, Operation o, DATETIME dt) {
+    managementRetailPrice(Batch batch) <- NULL;
     IF onStockPriceListRepricing() THEN {
-        managementPriceListPriceBatch (batch) <- prevPriceAPriceListTypeBatchStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),batch, d, dt)
-            IF NOT skipManagementPriceListPriceBatch((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),batch, d, dt);
-        managementRetailPriceBatch(batch) <- managementPriceListPriceBatch(batch) WHERE managementPriceListPriceBatch(batch);
+        managementPriceListPrice (Batch batch) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt)
+            IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt);
+        managementRetailPrice(Batch batch) <- managementPriceListPrice(batch) WHERE managementPriceListPrice(batch);
     } ELSE {
-        managementPriceListPriceBatch (batch) <- prevPriceAPriceListTypeBatchStockDateTime((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),batch, d, dt) 
-            IF currentBalanceBatchStock(batch, d) > 0 AND NOT skipManagementPriceListPriceBatch((OVERRIDE retailPriceListTypeDepartmentStore(d), priceListTypeOperation(o)),batch, d, dt);
-        managementRetailPriceBatch(batch) <- managementPriceListPriceBatch(batch) WHERE managementPriceListPriceBatch(batch);
+        managementPriceListPrice (Batch batch) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt) 
+            IF currentBalance(batch, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt);
+        managementRetailPrice(Batch batch) <- managementPriceListPrice(batch) WHERE managementPriceListPrice(batch);
     }
     
 //    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
     
-    inDashboardRepricingBatch(batch) <- managementRetailPriceBatch(batch) != priceABatchLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt) 
-                                            AND skipRepricingSku(skuBatch(batch), d) AND currentBalanceBatchStock(batch, d) > 0; // Берем только те товары, которые исключили из переоценки по товарам
+    inDashboardRepricing(Batch batch) <- managementRetailPrice(batch) != priceABatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt) 
+                                            AND skipRepricing(sku(batch), d) AND currentBalance(batch, d) > 0; // Берем только те товары, которые исключили из переоценки по товарам
 //    includeExtraDashboardRepricingStockDateTime(d, dt);
     
 //    assignAttributeBatch(d, o, dt);    
@@ -36,23 +36,23 @@ calculateDashboardManagementRepricingBatch 'По прайсам' = ACTION (d, o,
 
 //repForm =  DATA LOCAL UserRepricing();  
 
-createDashboardRepricingNotFormBatch 'Создать переоценку' = ACTION (d, o, dt) {
-    IF [ = GROUP SUM 1 IF inDashboardRepricingBatch(batch)]() THEN {
+createDashboardRepricingNotFormBatch 'Создать переоценку' = ACTION (Stock d, Operation o, DATETIME dt) {
+    IF [ = GROUP SUM 1 IF inDashboardRepricing(Batch batch)]() THEN {
         FOR ADDOBJ r = UserRepricing DO {
-            departmentStoreUserRepricing(r) <- d;
-            operationUserRepricing(r) <- o;
-            dateUserRepricing(r) <- toDate(dt);
-            timeUserRepricing(r) <- toTime(dt);  
-            isPostedUserRepricing(r) <- TRUE;
+            departmentStore(r) <- d;
+            operation(r) <- o;
+            date(r) <- toDate(dt);
+            time(r) <- toTime(dt);  
+            isPosted(r) <- TRUE;
     
-            FOR inDashboardRepricingBatch(batch) ADDOBJ rd = UserRepricingDetail DO {
-                userRepricingUserRepricingDetail(rd) <- r;
-                skuUserRepricingDetail(rd) <- skuBatch(batch);
-                batchUserRepricingDetail(rd) <- batch;
-                quantityUserRepricingDetail(rd) <- currentBalanceBatchStock(batch, d);
-                retailPriceUserRepricingDetail(rd) <- managementRetailPriceBatch(batch);
-                curRetailPriceUserRepricingDetail(rd) <- prevPriceBLedgerPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt);
-                priceUserRepricingDetail(rd) <- prevPriceAPriceListTypeBatchStockDateTime(SystemLedgerPriceListType.supplierPricingPriceListType, batch, d, dt);
+            FOR inDashboardRepricing(Batch batch) ADDOBJ rd = UserRepricingDetail DO {
+                userRepricing(rd) <- r;
+                sku(rd) <- sku(batch);
+                batch(rd) <- batch;
+                quantity(rd) <- currentBalance(batch, d);
+                retailPrice(rd) <- managementRetailPrice(batch);
+                curRetailPrice(rd) <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt);
+                price(rd) <- prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, batch, d, dt);
 //                overPriceListUserRepricingDetail(rd);
             }
             repForm() <- r;
@@ -60,13 +60,13 @@ createDashboardRepricingNotFormBatch 'Создать переоценку' = ACT
     }
 } TOOLBAR;
 
-createDashboardRepricingBatch 'Создать переоценку' = ACTION  (d, o, dt) NEWSESSION NESTED LOCAL  {
+createDashboardRepricingBatch 'Создать переоценку' = ACTION  (Stock d, Operation o, DATETIME dt) NEWSESSION NESTED LOCAL  {
     createDashboardRepricingNotFormBatch(d, o, dt);
     FORM userRepricing OBJECTS p = repForm() MANAGESESSION DOCKEDMODAL;
     repForm() <- NULL;      
 }  
 
-createOverManagementRepricingStock(department) += ACTION (department) {
+createOverManagementRepricing(Stock department) += ACTION (department) {
     calculateDashboardManagementRepricingBatch(department, toManagementRepricingOperation(), currentDateTime());
     createDashboardRepricingNotFormBatch(department, toManagementRepricingOperation(), currentDateTime());     
 }

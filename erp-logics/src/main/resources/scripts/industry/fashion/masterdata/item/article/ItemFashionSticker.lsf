@@ -6,39 +6,39 @@ NAMESPACE Item;
 
 GROUP itemSticker 'Стикер' : base;
 
-servicePeriodArticle 'Срок службы'  = DATA TEXT (Article) IN itemSticker;
-servicePeriodItem 'Срок службы' (item) = servicePeriodArticle(articleItem(item));
+servicePeriod 'Срок службы'  = DATA TEXT (Article) IN itemSticker;
+servicePeriod 'Срок службы' (Item item) = servicePeriod(article(item));
 
-guaranteePeriodArticle 'Гарантийный срок'  = DATA TEXT (Article) IN itemSticker;
-guaranteePeriodItem 'Гарантийный срок' (item) = guaranteePeriodArticle(articleItem(item));
+guaranteePeriod 'Гарантийный срок'  = DATA TEXT (Article) IN itemSticker;
+guaranteePeriod 'Гарантийный срок' (Item item) = guaranteePeriod(article(item));
 
-additionalDescriptionArticle 'Дополнение к описанию'  = DATA TEXT (Article) IN itemSticker;
-additionalDescriptionItem 'Дополнение к описанию' (item) = additionalDescriptionArticle(articleItem(item));
+additionalDescription 'Дополнение к описанию'  = DATA TEXT (Article) IN itemSticker;
+additionalDescription 'Дополнение к описанию' (Item item) = additionalDescription(article(item));
 
-manualArticle 'Инструкция по использованию'  = DATA TEXT (Article) IN itemSticker;
-manualItem 'Инструкция по использованию' (item) = manualArticle(articleItem(item));
+manual 'Инструкция по использованию'  = DATA TEXT (Article) IN itemSticker;
+manual 'Инструкция по использованию' (Item item) = manual(article(item));
 
-extraInformationArticle 'Доп. информация'  = DATA TEXT (Article) IN itemSticker;
-extraInformationItem 'Доп. информация' (item) = extraInformationArticle(articleItem(item));
+extraInformation 'Доп. информация'  = DATA TEXT (Article) IN itemSticker;
+extraInformation 'Доп. информация' (Item item) = extraInformation(article(item));
 
-safetyInformationArticle 'Сведения по безопасности'  = DATA TEXT (Article) IN itemSticker;
-safetyInformationItem 'Сведения по безопасности' (item) = safetyInformationArticle(articleItem(item));
+safetyInformation 'Сведения по безопасности'  = DATA TEXT (Article) IN itemSticker;
+safetyInformation 'Сведения по безопасности' (Item item) = safetyInformation(article(item));
 
-warningInformationArticle 'Предупредительная надпись'  = DATA TEXT (Article) IN itemSticker;
-warningInformationItem 'Предупредительная надпись' (item) = warningInformationArticle(articleItem(item));
+warningInformation 'Предупредительная надпись'  = DATA TEXT (Article) IN itemSticker;
+warningInformation 'Предупредительная надпись' (Item item) = warningInformation(article(item));
 
-notRefundableArticle 'Не подлежит возврату' = DATA BOOLEAN (Article) IN itemSticker;
-notRefundableItem 'Не подлежит возврату' (item) = notRefundableArticle(articleItem(item));
+notRefundable 'Не подлежит возврату' = DATA BOOLEAN (Article) IN itemSticker;
+notRefundable 'Не подлежит возврату' (Item item) = notRefundable(article(item));
 
-washingRequiredArticle 'Предварительная стирка обязательна' = DATA BOOLEAN (Article) IN itemSticker;
-washingRequiredItem 'Предварительная стирка обязательна' (item) = washingRequiredArticle(articleItem(item));
+washingRequired 'Предварительная стирка обязательна' = DATA BOOLEAN (Article) IN itemSticker;
+washingRequired 'Предварительная стирка обязательна' (Item item) = washingRequired(article(item));
 
-isEACArticle 'EAC' = DATA BOOLEAN (Article) IN itemSticker;
+isEAC 'EAC' = DATA BOOLEAN (Article) IN itemSticker;
 
 EXTEND FORM article
-    PROPERTIES(a) servicePeriodArticle, guaranteePeriodArticle,
-                  additionalDescriptionArticle,manualArticle, extraInformationArticle, safetyInformationArticle,
-                  warningInformationArticle, notRefundableArticle, washingRequiredArticle, isEACArticle;
+    PROPERTIES(a) servicePeriod, guaranteePeriod,
+                  additionalDescription,manual, extraInformation, safetyInformation,
+                  warningInformation, notRefundable, washingRequired, isEAC;
 ;
 
 DESIGN article {
@@ -49,7 +49,7 @@ DESIGN article {
 
 // ----------------------------------- Отдельный состав для стикера ------------------------------------ //
 
-compositionStickerArticle 'Состав (стикер)' = DATA VARSTRING[255] (Article) IN itemSticker MINCHARWIDTH 30 PREFCHARWIDTH 40;
+compositionSticker 'Состав (стикер)' = DATA VARSTRING[255] (Article) IN itemSticker MINCHARWIDTH 30 PREFCHARWIDTH 40;
 
 @defineStringItemAttribute(compositionSticker, VARSTRING[255], 'Состав (стикер)', itemSticker);
 @defineItemAttributeBatch (compositionSticker, 'Состав (стикер)');
@@ -66,22 +66,22 @@ DESIGN itemGroup {
         }
     }
 }
-EXTEND FORM article PROPERTIES(a) compositionStickerArticle;
+EXTEND FORM article PROPERTIES(a) compositionSticker;
 DESIGN article { articlePrimary { MOVE a.itemSticker; } }
-EXTEND FORM articles PROPERTIES(a) READONLYIF isReadonly() BEFORE deletea compositionStickerArticle;
+EXTEND FORM articles PROPERTIES(a) READONLYIF isReadonly() BEFORE deletea compositionSticker;
 
-overCopyItem(s, d) += ACTION (s, d) {
-    compositionStickerItem(d) <- compositionStickerItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    compositionSticker(d) <- compositionSticker(s);
 }                 
 
 // Автоматическое проставление состава для товара из артикула
 @defineEventChangedArticle(compositionSticker);
 
 // Автоматическое проставление состава из основного состава в переводе
-WHEN CHANGED(compositionArticle(article)) AND NOT CHANGED(compositionStickerArticle(article)) DO {
-    compositionStickerArticle (article) <- compositionArticle(article);
+WHEN CHANGED(composition(Article article)) AND NOT CHANGED(compositionSticker(article)) DO {
+    compositionSticker (article) <- composition(article);
 }
 
-WHEN CHANGED(compositionItem(item)) AND NOT CHANGED(compositionStickerItem(item)) DO {
-    compositionStickerItem (item) <- compositionItem(item);
+WHEN CHANGED(composition(Item item)) AND NOT CHANGED(compositionSticker(item)) DO {
+    compositionSticker (item) <- composition(item);
 }

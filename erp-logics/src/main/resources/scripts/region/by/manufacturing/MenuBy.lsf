@@ -6,39 +6,39 @@ REQUIRE Menu;
 
 FORM menuPrint 'Меню'
     OBJECTS m = Menu FIXED PANEL
-    PROPERTIES (m) fullNameStockMenu, numberMenu, seriesMenu, dateMenu, timeMenu,
-                   nameCurrencyMenu, namePriceListTypeMenu, noteMenu, countMenuDetailMenu,
-                   nameGroupTypeMenu
+    PROPERTIES (m) fullNameStock, number, series, date, time,
+                   nameCurrency, namePriceListType, note, countMenuDetail,
+                   nameGroupType
 
     OBJECTS g1=Group
-    PROPERTIES READONLY nameG = nameGroup(g1)
-    PROPERTIES(m,g1) positionNumberMenuGroup1=positionNumberMenuGroup
-    FILTERS groupTypeGroup(g1) == groupTypeMenu(m),
-            g1 IS Group AND NOT parentGroup(g1)
+    PROPERTIES READONLY nameG = name(g1)
+    PROPERTIES(m,g1) positionNumberMenuGroup1=positionNumber
+    FILTERS groupType(g1) == groupType(m),
+            g1 IS Group AND NOT parent(g1)
     ORDER BY positionNumberMenuGroup1
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(g1) 'F5' DEFAULT
+    FILTERGROUP inactive FILTER 'Активные' active(g1) 'F5' DEFAULT
 
     OBJECTS g2=Group
-    PROPERTIES READONLY nameGr = nameGroup(g2)
-    PROPERTIES(m,g2) positionNumberMenuGroup2=positionNumberMenuGroup
-    FILTERS groupTypeGroup(g2) == groupTypeMenu(m),
-            parentGroup(g2) == g1
+    PROPERTIES READONLY nameGr = name(g2)
+    PROPERTIES(m,g2) positionNumberMenuGroup2=positionNumber
+    FILTERS groupType(g2) == groupType(m),
+            parent(g2) == g1
     ORDER BY positionNumberMenuGroup2
-    FILTERGROUP inactive1 FILTER 'Активные' activeGroup(g2) 'F5' DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' active(g2) 'F5' DEFAULT
 
     OBJECTS d = MenuDetail
-    PROPERTIES (d) READONLY idBarcodeSkuMenuDetail, nameSkuMenuDetail,
-                   priceMenuDetail, compositionMenuDetail, productYieldMenuDetail
-    PROPERTIES (d,g2) positionNumberMenuDetailGroup
-    FILTERS hasParentDetailGroup(d,g2),
-            menuMenuDetail(d) == m
+    PROPERTIES (d) READONLY idBarcodeSku, nameSku,
+                   price, composition, productYield
+    PROPERTIES (d,g2) positionNumber
+    FILTERS hasParent(d,g2),
+            menu(d) == m
 
-    ORDER BY positionNumberMenuDetailGroup(d,g2)
+    ORDER BY positionNumber(d,g2)
 ;
-printMenu 'Меню' (menu) = ACTION FORM menuPrint OBJECTS m = menu PRINT  IMAGE 'print.png' IN print;
+print 'Меню' (Menu menu) = ACTION FORM menuPrint OBJECTS m = menu PRINT  IMAGE 'print.png' IN print;
 
 EXTEND FORM menus
-    PROPERTIES(m) FORCE PANEL printMenu
+    PROPERTIES(m) FORCE PANEL print
 ;
 DESIGN menus {
     printTab {

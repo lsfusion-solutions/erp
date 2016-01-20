@@ -83,7 +83,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(declarationDetailKeys);
 
-        query.and(findProperty("declarationDeclarationDetail").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
+        query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
         if(result.size() != data.size())
@@ -95,23 +95,23 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
             List<ImportField> fields = new ArrayList<ImportField>();
             List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
 
-            ImportField numberDeclarationDetailField = new ImportField(findProperty("numberDeclarationDetail"));
+            ImportField numberDeclarationDetailField = new ImportField(findProperty("number[DeclarationDetail]"));
             ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) findClass("DeclarationDetail"),
-                    findProperty("declarationDetailDeclarationNumber").getMapping(declarationObject, numberDeclarationDetailField));
+                    findProperty("declarationDetail[Declaration,INTEGER]").getMapping(declarationObject, numberDeclarationDetailField));
             keys.add(declarationDetailKey);
-            props.add(new ImportProperty(declarationObject, findProperty("declarationDeclarationDetail").getMapping(declarationDetailKey)));
+            props.add(new ImportProperty(declarationObject, findProperty("declaration[DeclarationDetail]").getMapping(declarationDetailKey)));
             fields.add(numberDeclarationDetailField);
 
-            ImportField dutySumDeclarationDetailField = new ImportField(findProperty("dutySumDeclarationDetail"));
-            props.add(new ImportProperty(dutySumDeclarationDetailField, findProperty("dutySumDeclarationDetail").getMapping(declarationDetailKey)));
+            ImportField dutySumDeclarationDetailField = new ImportField(findProperty("dutySum[DeclarationDetail]"));
+            props.add(new ImportProperty(dutySumDeclarationDetailField, findProperty("dutySum[DeclarationDetail]").getMapping(declarationDetailKey)));
             fields.add(dutySumDeclarationDetailField);
 
-            ImportField VATSumDeclarationDetailField = new ImportField(findProperty("VATSumDeclarationDetail"));
-            props.add(new ImportProperty(VATSumDeclarationDetailField, findProperty("VATSumDeclarationDetail").getMapping(declarationDetailKey)));
+            ImportField VATSumDeclarationDetailField = new ImportField(findProperty("VATSum[DeclarationDetail]"));
+            props.add(new ImportProperty(VATSumDeclarationDetailField, findProperty("VATSum[DeclarationDetail]").getMapping(declarationDetailKey)));
             fields.add(VATSumDeclarationDetailField);
 
-            ImportField homeSumDeclarationDetailField = new ImportField(findProperty("homeSumDeclarationDetail"));
-            props.add(new ImportProperty(homeSumDeclarationDetailField, findProperty("homeSumDeclarationDetail").getMapping(declarationDetailKey)));
+            ImportField homeSumDeclarationDetailField = new ImportField(findProperty("homeSum[DeclarationDetail]"));
+            props.add(new ImportProperty(homeSumDeclarationDetailField, findProperty("homeSum[DeclarationDetail]").getMapping(declarationDetailKey)));
             fields.add(homeSumDeclarationDetailField);
 
             ImportTable table = new ImportTable(fields, data);
@@ -176,7 +176,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                         VATSum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
                     } else if (g471.equals("1010")) {
                         BigDecimal g474 = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);  //dutySum - VATSum
-                        findProperty("registrationSumDeclaration").change(g474, context, declarationObject);
+                        findProperty("registrationSum[Declaration]").change(g474, context, declarationObject);
                     }
                 }
             }

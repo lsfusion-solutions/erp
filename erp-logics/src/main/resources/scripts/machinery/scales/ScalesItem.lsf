@@ -4,21 +4,21 @@ REQUIRE ItemDescription, ScalesPriceTransaction;
 
 NAMESPACE Item;
 
-idSkuGroupMachineryPriceTransactionBarcode (machineryPriceTransaction, barcode) = idItemGroup(skuGroupMachineryPriceTransactionBarcode(machineryPriceTransaction, barcode));
+idSkuGroup (MachineryPriceTransaction machineryPriceTransaction, Barcode barcode) = id[ItemGroup](skuGroup(machineryPriceTransaction, barcode));
 
-overTitleScalesMachineryPriceTransactionBarcode = ABSTRACT VARISTRING[255] (MachineryPriceTransaction, Barcode);
+overTitleScales = ABSTRACT VARISTRING[255] (MachineryPriceTransaction, Barcode);
 
-createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += ACTION (transaction, groupMachinery) {
+createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += ACTION (transaction, groupMachinery) {
     IF groupMachinery IS GroupScales THEN
-        nameMachineryPriceTransactionBarcode(transaction, barcode) <- (OVERRIDE titleScalesBarcode(barcode) IF transaction IS MachineryPriceTransaction, overTitleScalesMachineryPriceTransactionBarcode(transaction, barcode)) WHERE inMachineryPriceTransactionBarcode(transaction, barcode);
+        name(transaction, Barcode barcode) <- (OVERRIDE titleScales(barcode) IF transaction IS MachineryPriceTransaction, overTitleScales(transaction, barcode)) WHERE in(transaction, barcode);
 }
 
 GROUP scales 'Весы' : public;
 
 // Фильтрация для передачи на весы
 @definePrimitiveItemAttribute(passScales, BOOLEAN, 'Передавать на весы', scales);
-passScalesSku(sku) += passScalesItem(sku);
-skipInGroupMachinerySku(groupMachinery, sku) += WHEN groupMachinery IS GroupScales AND sku IS Item AND NOT passScalesItem(sku) THEN TRUE;
+passScales(Item sku) += passScales(sku);
+skipIn(GroupScales groupMachinery, Item sku) += WHEN groupMachinery IS GroupScales AND sku IS Item AND NOT passScales(sku) THEN TRUE;
 
 DESIGN itemGroup {
     itemGroupDetail1 {
@@ -26,8 +26,8 @@ DESIGN itemGroup {
     }
 }
 
-pluStockSku 'Номер PLU' = ABSTRACT INTEGER (Stock, Item);
-pluIdStockSku (s, i) = pluStockSku(stockId(s), i);
+pluSku 'Номер PLU' = ABSTRACT INTEGER (Stock, Item);
+pluIdStockSku (VARSTRING[100] s, Item i) = pluSku(stock(s), i);
 
 maxCharactersNameScalesItem 'Максимальное количество знаков в наименовании для весов' = DATA INTEGER ();
 
@@ -40,29 +40,29 @@ DESIGN options {
     }
 }
 
-CONSTRAINT charLength(titleScalesBarcode(barcodeSku(item))) > maxCharactersNameScalesItem() AND passScalesItem(item) 
+CONSTRAINT charLength(titleScales(barcode(Item item))) > maxCharactersNameScalesItem() AND passScales(item) 
     MESSAGE 'Максимальное количество знаков в наименовании для весов больше предельного значения';
 
 // Формат этикетки
-labelFormatPackItem = DATA LabelFormat(Item);
-idLabelFormatPackItem 'Код формата этикетки' (item) = idLabelFormat(labelFormatPackItem(item)) IN scales;
-labelFormatBarcode 'Формат этикетки' = idLabelFormatPackItem(skuBarcode(barcode));
+labelFormatPack = DATA LabelFormat(Item);
+idLabelFormatPack 'Код формата этикетки' (Item item) = id(labelFormatPack(item)) IN scales;
+labelFormat 'Формат этикетки' = idLabelFormatPack(sku(Barcode barcode));
 
 @defineMachineryPriceTransactionAttribute(labelFormat, 'Формат этикетки', INTEGER);
 
 // Сроки годности
-hoursExpiryPackItem 'Срок годности в часах с момента фасовки' = DATA INTEGER (Item) IN scales;
-hoursExpiryBarcode 'Срок годности в часах с момента фасовки' = hoursExpiryPackItem(skuBarcode(barcode));
+hoursExpiryPack 'Срок годности в часах с момента фасовки' = DATA INTEGER (Item) IN scales;
+hoursExpiry 'Срок годности в часах с момента фасовки' = hoursExpiryPack(sku(Barcode barcode));
 
 @defineMachineryPriceTransactionAttribute(hoursExpiry, 'Срок годности в часах с момента фасовки', INTEGER);
 
 // Состав товара
-overMachineryDescriptionBarcode = ABSTRACT TEXT (Barcode);
-descriptionBarcode 'Описание' = OVERRIDE descriptionItem(skuBarcode(barcode)), overMachineryDescriptionBarcode(barcode);
+overMachineryDescription = ABSTRACT TEXT (Barcode);
+description 'Описание' = OVERRIDE description(sku(Barcode barcode)), overMachineryDescription(barcode);
 
 @defineMachineryPriceTransactionAttribute(description, 'Описание', TEXT);
 
-descriptionNumberMachineryPriceTransactionBarcode(t, b) = numberCellScales(cellScalesGroupScalesDescription(groupMachineryMachineryPriceTransaction(t), descriptionMachineryPriceTransactionBarcode(t, b)));
+descriptionNumber(MachineryPriceTransaction t, Barcode b) = number(cellScales(groupMachinery(t), description(t, b)));
 
 useCellScales 'Использовать автогенерацию ячеек' = DATA BOOLEAN ();
 EXTEND FORM options
@@ -75,22 +75,22 @@ DESIGN options {
     }
 }
 
-synchronizeDescriptionMachineryPriceTransactionGroupScales = ACTION (transaction, groupMachinery) {
+synchronizeDescription = ACTION (MachineryPriceTransaction transaction, GroupScales groupMachinery) {
     IF useCellScales() AND groupMachinery IS GroupScales THEN {
-        FOR [= GROUP SUM 1 BY transaction, descriptionMachineryPriceTransactionBarcode(transaction, barcode)](transaction, description)
-            AND NOT cellScalesGroupScalesDescription(groupMachinery, description)
+        FOR [= GROUP SUM 1 BY MachineryPriceTransaction transaction, description(transaction, Barcode barcode)](transaction, TEXT description)
+            AND NOT cellScales(groupMachinery, description)
             ADDOBJ c = CellScales DO {
-                groupScalesCellScales(c) <- groupMachinery;
-                descriptionCellScales(c) <- description;
+                groupScales(c) <- groupMachinery;
+                description(c) <- description;
             }
     }
 }
 
-snapshotAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += ACTION synchronizeDescriptionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
-createAttributeMachineryPriceTransactionGroupMachinery(transaction, groupMachinery) += ACTION synchronizeDescriptionMachineryPriceTransactionGroupScales(transaction, groupMachinery);
+snapshotAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += ACTION synchronizeDescription(transaction, groupMachinery);
+createAttribute(MachineryPriceTransaction transaction, GroupScales groupMachinery) += ACTION synchronizeDescription(transaction, groupMachinery);
 
 EXTEND FORM item
-    PROPERTIES(i) SHOWIF passScalesItem(i) idLabelFormatPackItem, hoursExpiryPackItem 
+    PROPERTIES(i) SHOWIF passScales(i) idLabelFormatPack, hoursExpiryPack 
 ;
 DESIGN item {
     itemPrimaryColumn2 {
@@ -100,67 +100,67 @@ DESIGN item {
     }
 }
 
-overCopyItem(s, d) += ACTION (s, d) {
-    passScalesItem(d) <- passScalesItem(s);
-    labelFormatPackItem(d) <- labelFormatPackItem(s);
-    hoursExpiryPackItem(d) <- hoursExpiryPackItem(s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    passScales(d) <- passScales(s);
+    labelFormatPack(d) <- labelFormatPack(s);
+    hoursExpiryPack(d) <- hoursExpiryPack(s);
 }
 
 // Установка параметра для единицы измерения
-passScalesUOM 'Передавать на весы' =  DATA BOOLEAN (UOM);
+passScales 'Передавать на весы' =  DATA BOOLEAN (UOM);
 
 EXTEND FORM UOM
-    PROPERTIES(u) passScalesUOM
+    PROPERTIES(u) passScales
 ;
 EXTEND FORM UOMs
-    PROPERTIES(u) READONLY passScalesUOM
+    PROPERTIES(u) READONLY passScales
 ;
 
-passScalesItem(i) <- passScalesUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i));
+passScales(Item i) <- passScales(UOM(i)) WHEN CHANGED(UOM(i));
 
 // Генерация штрихкодов
 @defineNumeratorItemGroup (weight, 'Нумератор штрихкодов (для весового товара)');
-weightNumeratorItem (item) = weightNumeratorItemGroup(itemGroupItem(item));
+weightNumerator (Item item) = weightNumerator(itemGroup(item));
 
-overNumeratorItem(item) += WHEN passScalesItem(item) THEN weightNumeratorItem(item);
+overNumerator(Item item) += WHEN passScales(item) THEN weightNumerator(item);
 
 DESIGN itemGroup {
     itemGroupHeader2 {
-        MOVE PROPERTY(nameWeightNumeratorItemGroup(g));
+        MOVE PROPERTY(nameWeightNumerator(g));
     }
 }
 
 //--
 @defineItemGroupDefaultValue(expired, 'Не грузить с истекшим ср. год-ти', BOOLEAN);
 
-dataExpiredItem 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
-expiredItem 'Не грузить с истекшим ср. год-ти' (item) = OVERRIDE expiredItemGroup(itemGroupItem(item)), dataExpiredItem(item) IN itemBase PERSISTENT ;
+dataExpired 'Не грузить с истекшим ср. год-ти' = DATA BOOLEAN (Item);
+expired 'Не грузить с истекшим ср. год-ти' (Item item) = OVERRIDE expired(itemGroup(item)), dataExpired(item) IN itemBase PERSISTENT ;
 
 
-expiredSkuBarcode (barcode) = expiredItem(skuBarcode(barcode));
+expiredSku (Barcode barcode) = expired(sku(barcode));
 
-quantityChildWithExpiredItemGroup (itemGroup) = GROUP SUM 1 IF dataExpiredItemGroup(childItemGroup) AND isParentItemGroupItemGroup(childItemGroup, itemGroup) BY itemGroup PERSISTENT;
-quantityParentWithExpiredItemGroup (itemGroup) = GROUP SUM 1 IF dataExpiredItemGroup(parentItemGroup) AND isParentItemGroupItemGroup(itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
+quantityChildWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup PERSISTENT;
+quantityParentWithExpired (itemGroup) = GROUP SUM 1 IF dataExpired(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
 
-showExpiredItemGroup 'Не грузить с истекшим ср. год-ти' (itemGroup) = TRUE IF (quantityChildWithExpiredItemGroup (itemGroup) (+) quantityParentWithExpiredItemGroup (itemGroup)) > 0 PERSISTENT;
+showExpired 'Не грузить с истекшим ср. год-ти' (ItemGroup itemGroup) = TRUE IF (quantityChildWithExpired (itemGroup) (+) quantityParentWithExpired (itemGroup)) > 0 PERSISTENT;
 
-backgroundShowExpiredItemGroup (itemGroup) =
-    IF dataExpiredItemGroup(itemGroup) THEN
+backgroundShowExpired (ItemGroup itemGroup) =
+    IF dataExpired(itemGroup) THEN
         RGB(0,0,0) IF itemGroup IS ItemGroup
     ELSE
-        RGB(203,203,206) IF quantityChildWithExpiredItemGroup (itemGroup) != descendantNumberItemGroup(itemGroup)
-                         AND NOT quantityParentWithExpiredItemGroup (itemGroup);
+        RGB(203,203,206) IF quantityChildWithExpired (itemGroup) != descendantNumber(itemGroup)
+                         AND NOT quantityParentWithExpired (itemGroup);
                              
-setNullShowExpiredItemGroup 'Снять признак для всех потомков' = ACTION (itemGroup) {
-    FOR isParentItemGroupItemGroup (childGroup, itemGroup) DO {
-        ASSIGN dataExpiredItemGroup(childGroup) <- NULL;
+setNullShowExpired 'Снять признак для всех потомков' = ACTION (ItemGroup itemGroup) {
+    FOR isParent (ItemGroup childGroup, itemGroup) DO {
+        ASSIGN dataExpired(childGroup) <- NULL;
     }
-} SHORTCUT dataExpiredItemGroup CONFIRM;     
+} SHORTCUT dataExpired[ItemGroup] CONFIRM;     
 
 
-EXTEND FORM itemGroup PROPERTIES(g) dataExpiredItemGroup;
-EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpiredItemGroup BACKGROUND backgroundShowExpiredItemGroup(g) BEFORE deleteg;
-EXTEND FORM item PROPERTIES(i) expiredItem;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei expiredItem;
+EXTEND FORM itemGroup PROPERTIES(g) dataExpired;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpired BACKGROUND backgroundShowExpired(g) BEFORE deleteg;
+EXTEND FORM item PROPERTIES(i) expired;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei expired;
 
-skipInGroupMachinerySku(groupMachinery, sku) += WHEN groupMachinery IS GroupScales AND expiredItem(sku) AND lastExpiryDateSkuStock(sku, stockGroupMachinery(groupMachinery)) < currentDate() THEN TRUE;
+skipIn(GroupScales groupMachinery, Item sku) += WHEN groupMachinery IS GroupScales AND expired(sku) AND lastExpiryDate(sku, stock[GroupMachinery](groupMachinery)) < currentDate() THEN TRUE;

@@ -16,11 +16,11 @@ CLASS StopList 'Запрет продаж по кассе';
 CLASS StopListDetail 'Строка запрета продаж по кассе';
 
 @defineDocument(stopList);
-createdTimeStopListDetail 'Время создания' = createdTimeStopList(stopListStopListDetail(d)); 
-createdUserStopListDetail = createdUserStopList(stopListStopListDetail(d)); 
-createdNameUserStopListDetail 'Создан пользователем' = nameContact(createdUserStopListDetail(d)); 
-createdComputerStopListDetail 'Создан на компьютере' = createdComputerStopList(stopListStopListDetail(d)); 
-createdHostnameComputerStopListDetail 'Создан на компьютере' = hostnameComputer(createdComputerStopListDetail(d)); 
+createdTime 'Время создания' = createdTime(stopList(StopListDetail d)); 
+createdUser = createdUser(stopList(StopListDetail d)); 
+createdNameUser 'Создан пользователем' = name[Contact](createdUser(StopListDetail d)); 
+createdComputer 'Создан на компьютере' = createdComputer(stopList(StopListDetail d)); 
+createdHostnameComputer 'Создан на компьютере' = hostname(createdComputer(StopListDetail d)); 
 
 @deriveDocumentHeaderTimePrefix(StopList, );
 
@@ -36,19 +36,19 @@ createdHostnameComputerStopListDetail 'Создан на компьютере' =
 
 @defineDocumentHeaderLegalEntity(stopList, company, 'Компания');
 
-excludeStopList 'Исключить из запрета'  = DATA BOOLEAN (StopList) IN documentPrm;
-excludeStopListDetail 'Исключить из запрета' (d) = excludeStopList(stopListStopListDetail(d)) PERSISTENT; 
+exclude 'Исключить из запрета'  = DATA BOOLEAN (StopList) IN documentPrm;
+exclude 'Исключить из запрета' (StopListDetail d) = exclude(stopList(d)) PERSISTENT; 
 
 
 TABLE stockStopList (Stock ,StopList);
 TABLE stockStopListDetail (Stock ,StopListDetail);
 
-inStockStopList 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
-stocksStopList 'Склады' (stopList) = GROUP CONCAT nameStock(stock) IF inStockStopList(stock, stopList) , ', '
+in 'Вкл.' = DATA BOOLEAN (Stock ,StopList);
+stocks 'Склады' (stopList) = GROUP CONCAT name(Stock stock) IF in(stock, StopList stopList) , ', '
                                          BY stopList
                                          ORDER stock
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50;
-CONSTRAINT  inStockStopList(stock, stopList) AND NOT isCompanyStock(stock)
+CONSTRAINT  in(Stock stock, StopList stopList) AND NOT isCompany(stock)
     MESSAGE 'Для Запрета продаж по кассе выбран склад, который не принадлежит компании';                                       
                                          
 
@@ -58,142 +58,142 @@ CONSTRAINT  inStockStopList(stock, stopList) AND NOT isCompanyStock(stock)
 
 @defineDocumentDetailSkuPrefix (stopList, sku, , '');
 
-idSkuGroupStopListDetail (stopListDetail) = idSkuGroupSku(skuStopListDetail(stopListDetail));
-nameSkuGroupStopListDetail (stopListDetail) = nameSkuGroupSku(skuStopListDetail(stopListDetail));
-idUOMSkuStopListDetail (stopListDetail) = idUOM(UOMSku(skuStopListDetail(stopListDetail)));
+idSkuGroup (StopListDetail stopListDetail) = idSkuGroup(sku(stopListDetail));
+nameSkuGroup (StopListDetail stopListDetail) = nameSkuGroup(sku(stopListDetail));
+idUOMSku (StopListDetail stopListDetail) = id(UOM(sku(stopListDetail)));
 
-splitSkuStopListDetail (stopListDetail) = splitSku(skuStopListDetail(stopListDetail));
-passScalesSkuStopListDetail (stopListDetail) = passScalesSku(skuStopListDetail(stopListDetail));
+splitSku (StopListDetail stopListDetail) = split(sku(stopListDetail));
+passScalesSku (StopListDetail stopListDetail) = passScales(sku(stopListDetail));
 
 @defineExternalizable(stopListDetail, VARSTRING[100]);
-succeededStockStopList 'Загружен в оборудование' = DATA BOOLEAN (Stock, StopList);
-notSucceededStockStopList 'Не загружен в оборудование' (stock, stopList) = stock IS Stock AND stopList IS StopList AND NOT succeededStockStopList(stock, stopList);   
+succeeded 'Загружен в оборудование' = DATA BOOLEAN (Stock, StopList);
+notSucceeded 'Не загружен в оборудование' (Stock stock, StopList stopList) = stock IS Stock AND stopList IS StopList AND NOT succeeded(stock, stopList);   
 
-countSucceededStocksStopList  = GROUP SUM 1 IF inStockStopList(stock, list) AND succeededStockStopList(stock, list) BY list PERSISTENT;
-countStocksStopList  = GROUP SUM 1 IF inStockStopList(stock, list) BY list PERSISTENT;
+countSucceededStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) AND succeeded(stock, list) BY list PERSISTENT;
+countStocks  = GROUP SUM 1 IF in(Stock stock, StopList list) BY list PERSISTENT;
 
-succeededStopList = countSucceededStocksStopList(l) == countStocksStopList(l);
+succeeded = countSucceededStocks(StopList l) == countStocks(l);
 
-toExportStopList 'К загрузке' = countStocksStopList(l) AND NOT succeededStopList(l);  
+toExport 'К загрузке' = countStocks(StopList l) AND NOT succeeded(l);  
 
-statusSucceededStocksStopList 'Статус загрузки' = CASE 
-    WHEN succeededStopList(l) AND isPostedStopList(l) THEN 'Успешно загружен'
-    WHEN countSucceededStocksStopList(l) < countStocksStopList(l)  AND isPostedStopList(l) THEN 'Частично загружен'
+statusSucceededStocks 'Статус загрузки' = CASE 
+    WHEN succeeded(StopList l) AND isPosted(l) THEN 'Успешно загружен'
+    WHEN countSucceededStocks(l) < countStocks(l)  AND isPosted(l) THEN 'Частично загружен'
     WHEN  l IS StopList THEN 'Не загружался' MINCHARWIDTH 10 PREFCHARWIDTH 15;
     
-backgroundStatusSucceededStocksStopList = CASE 
-    WHEN succeededStopList(l) AND isPostedStopList(l)  THEN RGB(212,255,212)
-    WHEN countSucceededStocksStopList(l) < countStocksStopList(l) AND isPostedStopList(l) THEN RGB(255,238,165)    
+backgroundStatusSucceededStocks = CASE 
+    WHEN succeeded(StopList l) AND isPosted(l)  THEN RGB(212,255,212)
+    WHEN countSucceededStocks(l) < countStocks(l) AND isPosted(l) THEN RGB(255,238,165)    
     WHEN l IS StopList THEN RGB(255,255,255);
 
-stopListNumber (number) = GROUP AGGR stopList BY numberStopList(stopList);
+stopList (number) = GROUP AGGR StopList stopList BY number(stopList);
 
 //--------------------Сообщения об ошибках при загрузке в кассы--------------------//
 CLASS StopListError 'Ошибка';
 TABLE stopListError (StopListError);
 
-dataStopListError 'Сообщение об ошибке' = DATA VARSTRING[200] (StopListError) IN base;
-dateStopListError 'Время возникновения' = DATA DATETIME (StopListError) IN base;
-toDateStopListError 'Дата возникновения' (e) = DATE(dateStopListError(e));
-errorTraceStopListError 'След исключения' = DATA TEXT (StopListError) IN base;
-stopListStopListError 'Запрет продаж по кассе (ID)' = DATA StopList(StopListError) IN base;
-quantityStopListErrorStopList 'Количество ошибок' (StopList) = GROUP SUM 1 BY stopListStopListError (stopListError) IN base;
+data 'Сообщение об ошибке' = DATA VARSTRING[200] (StopListError) IN base;
+date 'Время возникновения' = DATA DATETIME (StopListError) IN base;
+toDate 'Дата возникновения' (StopListError e) = DATE(date(e));
+errorTrace 'След исключения' = DATA TEXT (StopListError) IN base;
+stopList 'Запрет продаж по кассе (ID)' = DATA StopList(StopListError) IN base;
+quantityStopListError 'Количество ошибок' (StopList) = GROUP SUM 1 BY stopList (StopListError stopListError) IN base;
 
 @defineLog (StopListError, 'ошибок загрузки стоп-листов', log, toDate);
 
 //-- SKU
-stopListDetailSkuStopList (sku, stopList) =  GROUP MAX stopListDetail
-    BY skuStopListDetail(stopListDetail), stopListStopListDetail(stopListDetail);
+stopListDetail (sku, stopList) =  GROUP MAX StopListDetail stopListDetail
+    BY sku(stopListDetail), stopList(stopListDetail);
 
-countSkuStopList 'Вкл.' (sku, stopList) =  TRUE IF [ = GROUP SUM 1 
-    BY skuStopListDetail(stopListDetail), stopListStopListDetail(stopListDetail)](sku, stopList);    
+count 'Вкл.' (Sku sku, StopList stopList) =  TRUE IF [ = GROUP SUM 1 
+    BY sku(StopListDetail stopListDetail), stopList(stopListDetail)](sku, stopList);    
 
-inGroupMachinerySkuStopList (groupMachinery, sku, stopList) =countSkuStopList(sku, stopList) AND inGroupMachinerySku(groupMachinery, sku);
-inGroupMachineryStopListDetail (groupMachinery, stopListDetail) =inGroupMachinerySkuStopList(groupMachinery, skuStopListDetail(stopListDetail), stopListStopListDetail(stopListDetail));                                         
+in (GroupMachinery groupMachinery, Sku sku, StopList stopList) =count(sku, stopList) AND in(groupMachinery, sku);
+in (GroupMachinery groupMachinery, StopListDetail stopListDetail) =in(groupMachinery, sku(stopListDetail), stopList(stopListDetail));                                         
     
-changeValueSkuStopList = ACTION (sku, stopList) {
+changeValue = ACTION (Sku sku, StopList stopList) {
     REQUEST BOOLEAN INPUT;
-    IF stopListDetailSkuStopList(sku, stopList) THEN {
+    IF stopListDetail(sku, stopList) THEN {
         IF NOT requestedLogical() THEN {
-            DELETE d WHERE d == stopListDetailSkuStopList(sku, stopList);
+            DELETE StopListDetail d WHERE d == stopListDetail(sku, stopList);
         } 
     } ELSE {
         IF requestedLogical() THEN {
             FOR ADDOBJ d = StopListDetail DO {
-               stopListStopListDetail(d) <- stopList;
-               skuStopListDetail(d) <- sku;
+               stopList(d) <- stopList;
+               sku(d) <- sku;
             }
         }
     }
 }
 
 
-activeStockStopListDetail(stock, detail) = inStockStopList(stock, stopListStopListDetail(detail)) AND isPostedStopListDetail(detail) PERSISTENT;
-skuStockStopListDetail(stock, detail) = skuStopListDetail(detail) IF activeStockStopListDetail(stock, detail) PERSISTENT INDEXED; 
-includeStockStopListDetail(stock, detail) = activeStockStopListDetail(stock, detail) AND NOT excludeStopListDetail(detail) PERSISTENT;
-fromDateTimeStockStopListDetail(stock, detail) = fromDateTimeStopListDetail(detail) IF activeStockStopListDetail(stock, detail) PERSISTENT; 
-toDateTimeStockStopListDetail(stock, detail) = toDateTimeStopListDetail(detail) IF activeStockStopListDetail(stock, detail) PERSISTENT; 
+active(Stock stock, StopListDetail detail) = in(stock, stopList(detail)) AND isPosted(detail) PERSISTENT;
+sku(Stock stock, StopListDetail detail) = sku(detail) IF active(stock, detail) PERSISTENT INDEXED; 
+include(Stock stock, StopListDetail detail) = active(stock, detail) AND NOT exclude(detail) PERSISTENT;
+fromDateTime(Stock stock, StopListDetail detail) = fromDateTime(detail) IF active(stock, detail) PERSISTENT; 
+toDateTime(Stock stock, StopListDetail detail) = toDateTime(detail) IF active(stock, detail) PERSISTENT; 
    
-inStopListSkuStockDateTime (sku, stock, dateTime) =
-    GROUP LAST includeStockStopListDetail(stock, detail)
-          BY   skuStockStopListDetail(stock, detail), stock, dateTimeIn
-          ORDER fromDateTimeStockStopListDetail(stock, detail) , detail 
-          WHERE dateTimeIn >= fromDateTimeStockStopListDetail(stock, detail) 
-                AND NOT dateTimeIn >  toDateTimeStockStopListDetail(stock, detail) COMPLEX;        
+inStopList (sku, stock, dateTime) =
+    GROUP LAST include(Stock stock, StopListDetail detail)
+          BY   sku(stock, detail), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(stock, detail) , detail 
+          WHERE dateTimeIn >= fromDateTime(stock, detail) 
+                AND NOT dateTimeIn >  toDateTime(stock, detail) COMPLEX;        
 
-lastStopListDetailSkuStockDateTime (sku, stock, dateTime) =
-    GROUP LAST detail IF includeStockStopListDetail(stock, detail)
-          BY   skuStockStopListDetail(stock, detail), stock, dateTimeIn
-          ORDER fromDateTimeStockStopListDetail(stock, detail) , detail 
-          WHERE dateTimeIn >= fromDateTimeStockStopListDetail(stock, detail) 
-                AND NOT dateTimeIn >  toDateTimeStockStopListDetail(stock, detail) COMPLEX;        
+lastStopListDetail (sku, stock, dateTime) =
+    GROUP LAST StopListDetail detail IF include(Stock stock, detail)
+          BY   sku(stock, detail), stock, DATETIME dateTimeIn
+          ORDER fromDateTime(stock, detail) , detail 
+          WHERE dateTimeIn >= fromDateTime(stock, detail) 
+                AND NOT dateTimeIn >  toDateTime(stock, detail) COMPLEX;        
 
-skipMachineryPriceTransactionSkuStockDateTime(sku, stock, dateTime) += inStopListSkuStockDateTime(sku, stock, dateTime); 
+skipMachineryPriceTransaction(Sku sku, Stock stock, DATETIME dateTime) += inStopList(sku, stock, dateTime); 
 
 FORM stopList 'Запрет продаж по кассе'
 
     OBJECTS sl=StopList FIXED PANEL
 
-    PROPERTIES(sl) isPostedStopList, nameNumeratorStopList, numberStopList, seriesStopList, dateStopList, timeStopList,
-                   countStopListDetailStopList, noteStopList,
-                   fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList, excludeStopList
+    PROPERTIES(sl) isPosted, nameNumerator, number, series, date, time,
+                   countStopListDetail, note,
+                   fromDate, fromTime, toDate, toTime, exclude
                    
-    TREE stockTree sg = StockGroup PARENT parentStockGroup
-    PROPERTIES READONLY nameStockGroup(sg)
+    TREE stockTree sg = StockGroup PARENT parent
+    PROPERTIES READONLY name(sg)
 
     OBJECTS ts=Stock
-    PROPERTIES    READONLY tsTreeName = nameStock(ts)
-    PROPERTIES(ts, sl) FORCE GRID inStockStopList, succeededStockStopList 
+    PROPERTIES    READONLY tsTreeName = name(ts)
+    PROPERTIES(ts, sl) FORCE GRID in, succeeded 
 
-    FILTERS isParentStockGroupStock(sg, ts)
-    ORDER BY nameStockGroup(sg)                                        
+    FILTERS isParent(sg, ts)
+    ORDER BY name(sg)                                        
 
     OBJECTS d = StopListDetail
-    PROPERTIES(d)   indexStopListDetail,
-                    idBarcodeSkuStopListDetail, nameSkuStopListDetail, shortNameUOMSkuStopListDetail
+    PROPERTIES(d)   index,
+                    idBarcodeSku, nameSku, shortNameUOMSku
 
     PROPERTIES(d)   ADDOBJ, deletedd=DELETESESSION
 
-    PROPERTIES(sl) TODRAW d deleteStopListDetailStopList
+    PROPERTIES(sl) TODRAW d deleteStopListDetail
 
-    FILTERS         stopListStopListDetail(d) == sl
+    FILTERS         stopList(d) == sl
     
     
-    TREE skuTree sk = SkuGroup PARENT parentSkuGroup
-    PROPERTIES READONLY orderSkuGroup(sk), nameSkuGroup(sk)
-    ORDER BY orderSkuGroup(sk), nameSkuGroup(sk)
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), name(sk)
+    ORDER BY order(sk), name(sk)
 
     OBJECTS           ks=Sku 
-    PROPERTIES        READONLY nameSku(ks), idBarcodeSku(ks), shortNameUOMSku(ks)
-    PROPERTIES        addSku() TODRAW ks, editSku(ks), copySku(ks), countSkuStopList(ks,sl) ON CHANGE changeValueSkuStopList(ks,sl)
-    ORDER BY          nameSku(ks) 
-    FILTERS           isParentSkuGroupSku(sk, ks),
-                      nameSku(ks)
+    PROPERTIES        READONLY name(ks), idBarcode(ks), shortNameUOM(ks)
+    PROPERTIES        addSku() TODRAW ks, edit(ks), copy(ks), count(ks,sl) ON CHANGE changeValue(ks,sl)
+    ORDER BY          name(ks) 
+    FILTERS           isParent(sk, ks),
+                      name(ks)
       
-    FILTERGROUP inDocument FILTER 'В док-те' countSkuStopList(ks,sl) 'F10'      
+    FILTERGROUP inDocument FILTER 'В док-те' count(ks,sl) 'F10'      
 
     EVENTS
-        ON OK prePostStopList(sl)
+        ON OK prePost(sl)
 
     EDIT StopList OBJECT sl
 ;
@@ -209,20 +209,20 @@ DESIGN stopList {
                 type = CONTAINERV;
                 MOVE sl.documentHeader {
                     type = CONTAINERH;
-                    MOVE PROPERTY(isPostedStopList(sl)) { preferredCharWidth = 10; }
-                    MOVE PROPERTY(nameNumeratorStopList(sl));
-                    MOVE PROPERTY(numberStopList(sl));
-                    MOVE PROPERTY(seriesStopList(sl));
-                    MOVE PROPERTY(dateStopList(sl));
-                    MOVE PROPERTY(timeStopList(sl));
+                    MOVE PROPERTY(isPosted(sl)) { preferredCharWidth = 10; }
+                    MOVE PROPERTY(nameNumerator(sl));
+                    MOVE PROPERTY(number(sl));
+                    MOVE PROPERTY(series(sl));
+                    MOVE PROPERTY(date(sl));
+                    MOVE PROPERTY(time(sl));
                 }
                 NEW timeContainer {
                     caption = 'Период действия';
                     type = CONTAINERH;
-                    MOVE PROPERTY (fromDateStopList(sl));
-                    MOVE PROPERTY (fromTimeStopList(sl));
-                    MOVE PROPERTY (toDateStopList(sl));
-                    MOVE PROPERTY (toTimeStopList(sl));   
+                    MOVE PROPERTY (fromDate(sl));
+                    MOVE PROPERTY (fromTime(sl));
+                    MOVE PROPERTY (toDate(sl));
+                    MOVE PROPERTY (toTime(sl));   
                 }
                 MOVE sl.documentPrm;
             }
@@ -264,33 +264,33 @@ DESIGN stopList {
 FORM stopLists 'Запреты продаж по оборудованию'
 
     OBJECTS sl=StopList
-    PROPERTIES (sl) READONLY statusSucceededStocksStopList BACKGROUND backgroundStatusSucceededStocksStopList(sl)
-    PROPERTIES (sl) READONLYIF isReadonly() isClosedStopList, isPostedStopList, excludeStopList, numberStopList, seriesStopList, dateStopList, timeStopList
-    PROPERTIES(sl)  READONLY fromDateStopList, fromTimeStopList, toDateStopList, toTimeStopList, countStopListDetailStopList
-    PROPERTIES (sl) READONLYIF isReadonly() noteStopList
-    PROPERTIES (sl) READONLY quantityStopListErrorStopList, stocksStopList
+    PROPERTIES (sl) READONLY statusSucceededStocks BACKGROUND backgroundStatusSucceededStocks(sl)
+    PROPERTIES (sl) READONLYIF isReadonly() isClosed, isPosted, exclude, number, series, date, time
+    PROPERTIES(sl)  READONLY fromDate, fromTime, toDate, toTime, countStopListDetail
+    PROPERTIES (sl) READONLYIF isReadonly() note
+    PROPERTIES (sl) READONLY quantityStopListError, stocks
 
-    PROPERTIES(sl)  READONLY FORCE PANEL createdNameUserStopList, createdTimeStopList, createdHostnameComputerStopList, 
-                                          postedNameUserStopList, postedTimeStopList, postedHostnameComputerStopList
+    PROPERTIES(sl)  READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                          postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (sl) ADDFORM, EDITFORM SHOWIF isOpenedStopList(sl)
-    PROPERTIES(sl)  closeStopList SHOWIF isOpenedStopList(sl), openStopList SHOWIF isClosedStopList(sl)     
+    PROPERTIES (sl) ADDFORM, EDITFORM SHOWIF isOpened(sl)
+    PROPERTIES(sl)  close SHOWIF isOpened(sl), open SHOWIF isClosed(sl)     
     
-    PROPERTIES (sl) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpenedStopList(sl)
+    PROPERTIES (sl) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(sl)
 
     OBJECTS d=StopListDetail
-    PROPERTIES(d)   READONLY indexStopListDetail,
-                    idBarcodeSkuStopListDetail, nameSkuStopListDetail, shortNameUOMSkuStopListDetail
-    FILTERS         stopListStopListDetail(d) == sl
+    PROPERTIES(d)   READONLY index,
+                    idBarcodeSku, nameSku, shortNameUOMSku
+    FILTERS         stopList(d) == sl
     
     OBJECTS e=StopListError
-    PROPERTIES(e)   READONLY dataStopListError, dateStopListError, errorTraceStopListError
-    FILTERS         stopListStopListError(e) == sl
+    PROPERTIES(e)   READONLY data, date, errorTrace
+    FILTERS         stopList(e) == sl
     
     OBJECTS st = Stock FIXED GRID
-    PROPERTIES (st) READONLY nameStock, idStock SHOWIF showIDs()
-    PROPERTIES READONLY inStockStopList(st,sl), succeededStockStopList(st,sl)
-    FILTERS inStockStopList(st,sl) 
+    PROPERTIES (st) READONLY name, id SHOWIF showIDs()
+    PROPERTIES READONLY in(st,sl), succeeded(st,sl)
+    FILTERS in(st,sl) 
 ;
 
 DESIGN stopLists {
@@ -341,10 +341,10 @@ NAVIGATOR {
 }
 
 //--
-statusStopListSkuStock 'Запрет продаж' (sku, stock)= IF lastStopListDetailSkuStockDateTime(sku, stock, currentDateTime())
+statusStopList 'Запрет продаж' (Sku sku, Stock stock)= IF lastStopListDetail(sku, stock, currentDateTime())
     THEN 'В стоп-листе'
     ELSE 'Нет запрета' MINCHARWIDTH 10 PREFCHARWIDTH 12;
-backgroundStopListSkuStock 'Цвет' (sku, stock) = RGB (255,0,0) IF lastStopListDetailSkuStockDateTime(sku, stock, currentDateTime());
+backgroundStopList 'Цвет' (Sku sku, Stock stock) = RGB (255,0,0) IF lastStopListDetail(sku, stock, currentDateTime());
 
 
 notResetStopListSelectSku 'Не сбрасывать отмеченные товары при создании стоп-листа' = DATA BOOLEAN ();
@@ -357,23 +357,23 @@ DESIGN options {
     }
 }
 
-skipSkuStock 'Отм.' = ABSTRACT BOOLEAN (Sku, Stock);
+skip 'Отм.' = ABSTRACT BOOLEAN (Sku, Stock);
 
 createRequestStopList 'Включить в стоп-лист'  = ACTION (){
 
-    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        NEWSESSION NESTED selectSkuStock {
+    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+        NEWSESSION NESTED select[Sku,Stock] {
             FOR ADDOBJ sl = StopList DO {
-                inStockStopList(st, sl) <- TRUE WHERE [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) AND NOT skipSkuStock(sku, stock) BY sku](sku) ADDOBJ d = StopListDetail DO {
-                    stopListStopListDetail(d) <- sl;
-                    skuStopListDetail(d) <- sku;            
+                in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](st);  
+                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) AND NOT skip(sku, stock) BY sku](Sku sku) ADDOBJ d = StopListDetail DO {
+                    stopList(d) <- sl;
+                    sku(d) <- sku;            
                 } 
                  FORM stopList OBJECTS sl = sl MANAGESESSION DOCKEDMODAL;
             }
         }
         IF NOT notResetStopListSelectSku() THEN {
-            selectSkuStock(sku, stock) <- NULL;
+            select(Sku sku, Stock stock) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары, по которым надо создать Стоп-лист.';
@@ -382,20 +382,20 @@ createRequestStopList 'Включить в стоп-лист'  = ACTION (){
 } TOOLBAR;
 excludeRequestStopList 'Исключить из стоп-листа'  = ACTION (){
 
-    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        NEWSESSION NESTED selectSkuStock {
+    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+        NEWSESSION NESTED select[Sku,Stock] {
             FOR ADDOBJ sl = StopList DO {
-                excludeStopList(sl) <- TRUE;
-                inStockStopList(st, sl) <- TRUE WHERE [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY sku](sku) ADDOBJ d = StopListDetail DO {
-                    stopListStopListDetail(d) <- sl;
-                    skuStopListDetail(d) <- sku;            
+                exclude(sl) <- TRUE;
+                in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](st);  
+                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY sku](Sku sku) ADDOBJ d = StopListDetail DO {
+                    stopList(d) <- sl;
+                    sku(d) <- sku;            
                 } 
                  FORM stopList OBJECTS sl = sl MANAGESESSION DOCKEDMODAL;
             }
         }
         IF NOT notResetStopListSelectSku() THEN {
-            selectSkuStock(sku, stock) <- NULL;
+            select(Sku sku, Stock stock) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары, которые надо исключить из Стоп-листа.';
@@ -403,7 +403,7 @@ excludeRequestStopList 'Исключить из стоп-листа'  = ACTION (
 } TOOLBAR;
 
 EXTEND FORM currentBalanceSkuStock
-    PROPERTIES READONLY statusStopListSkuStock(s,st) BACKGROUND backgroundStopListSkuStock(s,st) BEFORE currentBalanceSkuStock(s,st)
+    PROPERTIES READONLY statusStopList(s,st) BACKGROUND backgroundStopList(s,st) BEFORE currentBalance(s,st)
     PROPERTIES  FORCE PANEL TODRAW sts createRequestStopList(), excludeRequestStopList()
 ;
 DESIGN currentBalanceSkuStock {
@@ -417,10 +417,10 @@ DESIGN currentBalanceSkuStock {
     }
 }
 
-countChangedSkusStopList =  GROUP SUM 1 IF SETCHANGED (skuStopListDetail(d)) BY stopListStopListDetail(d);
+countChangedSkus =  GROUP SUM 1 IF SETCHANGED (sku(StopListDetail d)) BY stopList(d);
 
-WHEN FORMS stopList CHANGED(excludeStopList(l)) OR CHANGED(countChangedSkusStopList(l)) AND isPostedStopList(l) DO {
-    succeededStockStopList(st, l) <- NULL WHERE st IS Stock;    
+WHEN FORMS stopList CHANGED(exclude(StopList l)) OR CHANGED(countChangedSkus(l)) AND isPosted(l) DO {
+    succeeded(Stock st, l) <- NULL WHERE st IS Stock;    
 }
 
 FORM historyStopList 'История запрета продаж товара на кассе'
@@ -428,9 +428,9 @@ FORM historyStopList 'История запрета продаж товара н
     OBJECTS s = Sku FIXED PANEL 
     
     OBJECTS d = StopListDetail
-    PROPERTIES(d) READONLY createdTimeStopListDetail, createdNameUserStopListDetail, createdHostnameComputerStopListDetail, numberStopListDetail, excludeStopListDetail
-    FILTERS skuStopListDetail(d) == s,
-            inStockStopList(st, stopListStopListDetail(d))
+    PROPERTIES(d) READONLY createdTime, createdNameUser, createdHostnameComputer, number, exclude
+    FILTERS sku(d) == s,
+            in(st, stopList(d))
 ;
 
 DESIGN historyStopList {
@@ -438,5 +438,5 @@ DESIGN historyStopList {
     REMOVE s.box;
 }
 
-showHistoryStopListSku 'Показать историю запрета продаж товара на кассе' (sku, stock) = 
-    ACTION FORM historyStopList OBJECTS s = sku, st = stock MODAL SHORTCUT statusStopListSkuStock;
+showHistoryStopList 'Показать историю запрета продаж товара на кассе' (Sku sku, Stock stock) = 
+    ACTION FORM historyStopList OBJECTS s = sku, st = stock MODAL SHORTCUT statusStopList[Sku,Stock];

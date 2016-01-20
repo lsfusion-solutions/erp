@@ -43,16 +43,16 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
             QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
-            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectoryImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectory[ImportType]").getExpr(session.getModifier(), importTypeKey));
 
-            importTypeQuery.addProperty("autoImportSupplierImportType", findProperty("autoImportSupplierImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportSupplierStockImportType", findProperty("autoImportSupplierStockImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerImportType", findProperty("autoImportCustomerImportType").getExpr(session.getModifier(), importTypeKey));
-            importTypeQuery.addProperty("autoImportCustomerStockImportType", findProperty("autoImportCustomerStockImportType").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportSupplierImportType", findProperty("autoImportSupplier[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportSupplierStockImportType", findProperty("autoImportSupplierStock[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCustomerImportType", findProperty("autoImportCustomer[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("autoImportCustomerStockImportType", findProperty("autoImportCustomerStock[ImportType]").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("autoImportImportType").getExpr(importTypeKey).getWhere());
-            importTypeQuery.and(findProperty("autoImportDirectoryImportType").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImport[ImportType]").getExpr(importTypeKey).getWhere());
+            importTypeQuery.and(findProperty("autoImportDirectory[ImportType]").getExpr(importTypeKey).getWhere());
             ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> importTypeResult = importTypeQuery.executeClasses(session);
 
             for (int i = 0, size = importTypeResult.size(); i < size; i++) {
@@ -62,7 +62,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
 
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());           
                 
-                ObjectValue operationObject = findProperty("autoImportOperationImportType").readClasses(session, (DataObject) importTypeObject);
+                ObjectValue operationObject = findProperty("autoImportOperation[ImportType]").readClasses(session, (DataObject) importTypeObject);
                 ObjectValue supplierObject = entryValue.get("autoImportSupplierImportType");
                 ObjectValue supplierStockObject = entryValue.get("autoImportSupplierStockImportType");
                 ObjectValue customerObject = entryValue.get("autoImportCustomerImportType");

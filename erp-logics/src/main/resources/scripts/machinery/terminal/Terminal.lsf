@@ -6,30 +6,30 @@ REQUIRE System, Machinery, Pricing;
 CLASS GroupTerminal 'Группы ТСД' : GroupMachinery;
 TABLE groupTerminal (GroupTerminal);
 
-stockGroupTerminal = DATA Stock (GroupTerminal);
-stockGroupMachinery (groupMachinery) += stockGroupTerminal(groupMachinery);
+stock = DATA Stock (GroupTerminal);
+stock (GroupTerminal groupMachinery) += stock(groupMachinery);
 
-inactiveGroupTerminal 'Неактивный' = DATA BOOLEAN (GroupTerminal);
-activeGroupTerminal 'Активный' (group) = group IS GroupTerminal AND NOT inactiveGroupTerminal(group);
-inactiveGroupMachinery(g) += inactiveGroupTerminal(g);
+inactive 'Неактивный' = DATA BOOLEAN (GroupTerminal);
+active 'Активный' (GroupTerminal group) = group IS GroupTerminal AND NOT inactive(group);
+inactive(GroupTerminal g) += inactive(g);
 
 // Модели
 CLASS TerminalModel 'Модель ТСД' : Model;
 TABLE terminalModel (TerminalModel);
 
-nameTerminalModel 'Наименование' = DATA VARISTRING[110](TerminalModel);
+name 'Наименование' = DATA VARISTRING[110](TerminalModel);
 
-nameModel(model) += nameTerminalModel(model) IF model IS TerminalModel;
+name(TerminalModel model) += name(model) IF model IS TerminalModel;
 
 FORM terminalModel 'Модель ТСД'
     OBJECTS t=TerminalModel FIXED PANEL
-    PROPERTIES(t) nameTerminalModel, noteModel, handlerModel, maxProductModel
+    PROPERTIES(t) name, note, handler, maxProduct
     EDIT TerminalModel OBJECT t
 ;
 
 FORM terminalModels 'Модели ТСД'
     OBJECTS m=TerminalModel
-    PROPERTIES(m) READONLY nameTerminalModel, maxProductModel, handlerModel, noteModel
+    PROPERTIES(m) READONLY name, maxProduct, handler, note
     PROPERTIES(m) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 ;
 
@@ -37,23 +37,23 @@ FORM terminalModels 'Модели ТСД'
 CLASS Terminal 'ТСД' : Machinery;
 TABLE terminal (Terminal);
 
-isTerminal (machinery) = machinery IS Terminal;
+is (Terminal machinery) = machinery IS Terminal;
 
-groupTerminalTerminal = DATA GroupTerminal (Terminal) NOT NULL DELETE;
-groupMachineryMachinery(machinery) += groupTerminalTerminal(machinery);
+groupTerminal = DATA GroupTerminal (Terminal) NOT NULL DELETE;
+groupMachinery(Terminal machinery) += groupTerminal(machinery);
 
-directoryGroupTerminal 'Директория обмена с ТСД' = DATA VARSTRING[100] (GroupTerminal) IN base;
-directoryGroupMachinery (groupMachinery) += directoryGroupTerminal(groupMachinery);
-groupTerminalDirectory (npp) = GROUP MAX groupTerminal BY directoryGroupTerminal(groupTerminal);
+directory 'Директория обмена с ТСД' = DATA VARSTRING[100] (GroupTerminal) IN base;
+directory (GroupTerminal groupMachinery) += directory(groupMachinery);
+groupTerminalDirectory (npp) = GROUP MAX GroupTerminal groupTerminal BY directory(groupTerminal);
 
-terminalModelGroupTerminal = DATA TerminalModel (GroupTerminal);
-modelGroupMachinery(groupMachinery) += terminalModelGroupTerminal(groupMachinery);
+terminalModel = DATA TerminalModel (GroupTerminal);
+model(GroupTerminal groupMachinery) += terminalModel(groupMachinery);
 
-groupTerminalNpp (npp) = GROUP AGGR groupTerminal BY nppGroupMachinery(groupTerminal) WHERE groupTerminal IS GroupTerminal;  
+groupTerminal (npp) = GROUP AGGR GroupTerminal groupTerminal BY npp(groupTerminal) WHERE groupTerminal IS GroupTerminal;  
 
 FORM terminal 'ТСД'
     OBJECTS t=Terminal FIXED PANEL
-    PROPERTIES(t) nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery
+    PROPERTIES(t) nameGroupMachinery, npp, description, port
     EDIT Terminal OBJECT t
 ;
 
@@ -64,17 +64,17 @@ TABLE terminalHandbookType(TerminalHandbookType);
 
 @defineExternalizable(terminalHandbookType, VARSTRING[100]);
 
-nameTerminalHandbookType 'Наименование' = DATA VARSTRING[100] (TerminalHandbookType);
+name 'Наименование' = DATA VARSTRING[100] (TerminalHandbookType);
 
 FORM terminalHandbookType
     OBJECTS t = TerminalHandbookType FIXED PANEL
-    PROPERTIES(t) nameTerminalHandbookType, idTerminalHandbookType
+    PROPERTIES(t) name, id
     EDIT TerminalHandbookType OBJECT t
 ;
 
 FORM terminalHandbookTypes 'Виды справочников ТСД'
     OBJECTS t=TerminalHandbookType FIXED GRID
-    PROPERTIES(t) READONLY nameTerminalHandbookType, idTerminalHandbookType
+    PROPERTIES(t) READONLY name, id
     PROPERTIES(t)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG TerminalHandbookType OBJECT t
 ;
@@ -83,69 +83,69 @@ FORM terminalHandbookTypes 'Виды справочников ТСД'
 CLASS GroupTerminalDocumentType 'Группа типов документов';
 TABLE groupTerminalDocumentType (GroupTerminalDocumentType);
 
-nameGroupTerminalDocumentType 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
-groupTerminalDocumentTypeGroupTerminal 'Группа типов документов' = DATA GroupTerminalDocumentType (GroupTerminal);
-nameGroupTerminalDocumentTypeGroupTerminal 'Группа типов документов' (groupTerminal) = nameGroupTerminalDocumentType(groupTerminalDocumentTypeGroupTerminal(groupTerminal));
+name 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
+groupTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (GroupTerminal);
+nameGroupTerminalDocumentType 'Группа типов документов' (GroupTerminal groupTerminal) = name(groupTerminalDocumentType(groupTerminal));
 
 //---------------------------- типы документов ----------------------------------------//
 
 CLASS TerminalDocumentType 'Тип документов';
 TABLE terminalDocumentType (TerminalDocumentType);
 
-groupTerminalDocumentTypeTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (TerminalDocumentType) NOT NULL DELETE;
-nameGroupTerminalDocumentTypeTerminalDocumentType 'Группа типов документов' (terminalDocumentType) = nameGroupTerminalDocumentType(groupTerminalDocumentTypeTerminalDocumentType(terminalDocumentType));
+groupTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (TerminalDocumentType) NOT NULL DELETE;
+nameGroupTerminalDocumentType 'Группа типов документов' (TerminalDocumentType terminalDocumentType) = name(groupTerminalDocumentType(terminalDocumentType));
 
-nameTerminalDocumentType 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
-flagTerminalDocumentType 'Флаг' = DATA INTEGER (TerminalDocumentType) IN base;
+name 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+flag 'Флаг' = DATA INTEGER (TerminalDocumentType) IN base;
 
 @defineExternalizable(terminalDocumentType, VARSTRING[100]);
 
-terminalHandbookType1TerminalDocumentType = DATA TerminalHandbookType (TerminalDocumentType);
-idTerminalHandbookType1TerminalDocumentType 'Код' (terminalDocumentType) = 
-    idTerminalHandbookType (terminalHandbookType1TerminalDocumentType(terminalDocumentType));
-nameTerminalHandbookType1TerminalDocumentType 'Имя' (terminalDocumentType) = 
-    nameTerminalHandbookType(terminalHandbookType1TerminalDocumentType(terminalDocumentType));
+terminalHandbookType1 = DATA TerminalHandbookType (TerminalDocumentType);
+idTerminalHandbookType1 'Код' (TerminalDocumentType terminalDocumentType) = 
+    id (terminalHandbookType1(terminalDocumentType));
+nameTerminalHandbookType1 'Имя' (TerminalDocumentType terminalDocumentType) = 
+    name(terminalHandbookType1(terminalDocumentType));
 
-nameInHandbook1TerminalDocumentType 'Наименование в справочнике 1' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
-nameInHandbook1TerminalDocumentType(terminalDocumentType) <- nameTerminalHandbookType1TerminalDocumentType(terminalDocumentType) 
-    WHEN CHANGED(terminalHandbookType1TerminalDocumentType(terminalDocumentType));
+nameInHandbook1 'Наименование в справочнике 1' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+nameInHandbook1(TerminalDocumentType terminalDocumentType) <- nameTerminalHandbookType1(terminalDocumentType) 
+    WHEN CHANGED(terminalHandbookType1(terminalDocumentType));
 
-terminalHandbookType2TerminalDocumentType = DATA TerminalHandbookType (TerminalDocumentType);
-idTerminalHandbookType2TerminalDocumentType 'Код' (terminalDocumentType) = 
-    idTerminalHandbookType (terminalHandbookType2TerminalDocumentType(terminalDocumentType));
-nameTerminalHandbookType2TerminalDocumentType 'Имя' (terminalDocumentType) = 
-    nameTerminalHandbookType(terminalHandbookType2TerminalDocumentType(terminalDocumentType));
+terminalHandbookType2 = DATA TerminalHandbookType (TerminalDocumentType);
+idTerminalHandbookType2 'Код' (TerminalDocumentType terminalDocumentType) = 
+    id (terminalHandbookType2(terminalDocumentType));
+nameTerminalHandbookType2 'Имя' (TerminalDocumentType terminalDocumentType) = 
+    name(terminalHandbookType2(terminalDocumentType));
 
-nameInHandbook2TerminalDocumentType 'Наименование в справочнике 2' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
-nameInHandbook2TerminalDocumentType(terminalDocumentType) <- nameTerminalHandbookType2TerminalDocumentType(terminalDocumentType) 
-    WHEN CHANGED(terminalHandbookType2TerminalDocumentType(terminalDocumentType));
+nameInHandbook2 'Наименование в справочнике 2' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
+nameInHandbook2(TerminalDocumentType terminalDocumentType) <- nameTerminalHandbookType2(terminalDocumentType) 
+    WHEN CHANGED(terminalHandbookType2(terminalDocumentType));
 
 FORM groupTerminalDocumentType 'Группа типов документов'
     OBJECTS gtdt=GroupTerminalDocumentType FIXED PANEL
-    PROPERTIES(gtdt) nameGroupTerminalDocumentType
+    PROPERTIES(gtdt) name
 
     OBJECTS tdt=TerminalDocumentType
-    PROPERTIES(tdt)   idTerminalDocumentType, nameTerminalDocumentType, flagTerminalDocumentType,
-                      idTerminalHandbookType1TerminalDocumentType, nameInHandbook1TerminalDocumentType,
-                      idTerminalHandbookType2TerminalDocumentType, nameInHandbook2TerminalDocumentType,
+    PROPERTIES(tdt)   id, name, flag,
+                      idTerminalHandbookType1, nameInHandbook1,
+                      idTerminalHandbookType2, nameInHandbook2,
                       ADDOBJ, DELETESESSION
 
-    FILTERS groupTerminalDocumentTypeTerminalDocumentType(tdt) == gtdt
+    FILTERS groupTerminalDocumentType(tdt) == gtdt
 
     EDIT GroupTerminalDocumentType OBJECT gtdt
 ;
 
 FORM groupTerminalDocumentTypes 'Группы типов документов'
     OBJECTS gtdt=GroupTerminalDocumentType
-    PROPERTIES(gtdt) READONLY nameGroupTerminalDocumentType
+    PROPERTIES(gtdt) READONLY name
     PROPERTIES(gtdt) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS tdt=TerminalDocumentType
-    PROPERTIES(tdt) READONLY idTerminalDocumentType, nameTerminalDocumentType, flagTerminalDocumentType,
-                             idTerminalHandbookType1TerminalDocumentType, nameInHandbook1TerminalDocumentType,
-                             idTerminalHandbookType2TerminalDocumentType, nameInHandbook2TerminalDocumentType
+    PROPERTIES(tdt) READONLY id, name, flag,
+                             idTerminalHandbookType1, nameInHandbook1,
+                             idTerminalHandbookType2, nameInHandbook2
 
-    FILTERS groupTerminalDocumentTypeTerminalDocumentType (tdt) == gtdt
+    FILTERS groupTerminalDocumentType (tdt) == gtdt
     
     DIALOG GroupTerminalDocumentType OBJECT gtdt
 ;
@@ -163,34 +163,34 @@ DESIGN groupTerminalDocumentTypes {
 
 FORM groupTerminal 'Группа ТСД'
     OBJECTS grt=GroupTerminal FIXED PANEL
-    PROPERTIES(grt) nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                    nameGroupTerminalDocumentTypeGroupTerminal, nameModelGroupMachinery,
-                    filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
-                    namePriceListTypeGroupMachinery, directoryGroupTerminal, inactiveGroupTerminal
+    PROPERTIES(grt) npp, nameStock, name,
+                    nameGroupTerminalDocumentType, nameModel,
+                    filterSku, showFilterSku SHOWIF filterSku(grt),
+                    namePriceListType, directory, inactive
 
     OBJECTS t=Terminal
-    PROPERTIES(t)   nameGroupMachineryMachinery, nppMachinery, descriptionMachinery, portMachinery, ADDOBJ, DELETESESSION
+    PROPERTIES(t)   nameGroupMachinery, npp, description, port, ADDOBJ, DELETESESSION
 
     FILTERGROUP filters3
-        FILTER 'Показывать только для данной группы' groupTerminalTerminal(t) == grt 'F10' DEFAULT
+        FILTER 'Показывать только для данной группы' groupTerminal(t) == grt 'F10' DEFAULT
 
     EDIT GroupTerminal OBJECT grt
 ;
 
 FORM groupsTerminal 'Группы ТСД'
     OBJECTS grt=GroupTerminal, t=Terminal
-    PROPERTIES(grt)  READONLY activeGroupTerminal, nppGroupMachinery, nameStockGroupMachinery, nameGroupMachinery,
-                     nameGroupTerminalDocumentTypeGroupTerminal, nameModelGroupMachinery,
-                     filterSkuGroupMachinery, showFilterSkuGroupMachinery SHOWIF filterSkuGroupMachinery(grt),
-                     namePriceListTypeGroupMachinery, directoryGroupTerminal
+    PROPERTIES(grt)  READONLY active, npp, nameStock, name,
+                     nameGroupTerminalDocumentType, nameModel,
+                     filterSku, showFilterSku SHOWIF filterSku(grt),
+                     namePriceListType, directory
 
     PROPERTIES(grt)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    PROPERTIES(t) READONLY nppMachinery, descriptionMachinery, portMachinery
-    FILTERS groupTerminalTerminal(t) == grt
+    PROPERTIES(t) READONLY npp, description, port
+    FILTERS groupTerminal(t) == grt
     
     FILTERGROUP active1
-        FILTER 'Активные' activeGroupTerminal(grt) 'F5' DEFAULT       
+        FILTER 'Активные' active(grt) 'F5' DEFAULT       
 ;
 
 DESIGN groupsTerminal {
@@ -211,34 +211,34 @@ TABLE terminalDocument (TerminalDocument);
 
 @defineExternalizable(terminalDocument, VARSTRING[100]);  
 
-titleTerminalDocument 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
-commentTerminalDocument 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
-quantityTerminalDocument 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
-idTerminalHandbookType1TerminalDocument 'Код в справочнике 1' = DATA VARSTRING[100] (TerminalDocument) IN base;
-idTerminalHandbookType2TerminalDocument 'Код в справочнике 2' = DATA VARSTRING[100] (TerminalDocument) IN base;
+title 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
+comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
+quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocument) IN base;
+idTerminalHandbookType1 'Код в справочнике 1' = DATA VARSTRING[100] (TerminalDocument) IN base;
+idTerminalHandbookType2 'Код в справочнике 2' = DATA VARSTRING[100] (TerminalDocument) IN base;
 
-terminalDocumentTypeTerminalDocument = DATA TerminalDocumentType (TerminalDocument);
-nameTerminalDocumentTypeTerminalDocument 'Тип документа' (terminalDocument) = nameTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+terminalDocumentType = DATA TerminalDocumentType (TerminalDocument);
+nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalDocument) = name (terminalDocumentType (terminalDocument)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
-groupTerminalTerminalDocument = DATA GroupTerminal (TerminalDocument);
-nameGroupTerminalTerminalDocument 'Группа ТСД' (terminalDocument) = nameGroupMachinery(groupTerminalTerminalDocument(terminalDocument));
+groupTerminal = DATA GroupTerminal (TerminalDocument);
+nameGroupTerminal 'Группа ТСД' (TerminalDocument terminalDocument) = name(groupTerminal(terminalDocument));
 
-stockTerminalDocument (document) = stockGroupTerminal(groupTerminalTerminalDocument(document));
-nameStockTerminalDocument 'Склад' (document) = nameStock(stockTerminalDocument (document)) IN documentHeader;
+stock (TerminalDocument document) = stock(groupTerminal(document));
+nameStock 'Склад' (TerminalDocument document) = name(stock (document)) IN documentHeader;
 
-idTerminalDocumentTypeTerminalDocument (terminalDocument) = idTerminalDocumentType (terminalDocumentTypeTerminalDocument (terminalDocument));
+idTerminalDocumentType (TerminalDocument terminalDocument) = id (terminalDocumentType (terminalDocument));
 
-usedTerminalDocument 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
-notUsedTerminalDocument 'Неиспользован' (terminalDocument) = terminalDocument IS TerminalDocument AND NOT usedTerminalDocument(terminalDocument);
+used 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
+notUsed 'Неиспользован' (TerminalDocument terminalDocument) = terminalDocument IS TerminalDocument AND NOT used(terminalDocument);
 
-createdUserTerminalDocument = DATA CustomUser (TerminalDocument);
-createdNameUserTerminalDocument 'Создан пользователем' (td) = nameContact(createdUserTerminalDocument(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
-createdUserTerminalDocument (o) <- currentUser() WHEN SET(o IS TerminalDocument);
+createdUser = DATA CustomUser (TerminalDocument);
+createdNameUser 'Создан пользователем' (TerminalDocument td) = name[Contact](createdUser(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+createdUser (TerminalDocument o) <- currentUser() WHEN SET(o IS TerminalDocument);
 
-createdTimeTerminalDocument 'Время создания'= DATA DATETIME (TerminalDocument) IN created;
-createdTimeTerminalDocument (o) <- currentDateTime() WHEN SET(o IS TerminalDocument);
+createdTime 'Время создания'= DATA DATETIME (TerminalDocument) IN created;
+createdTime (TerminalDocument o) <- currentDateTime() WHEN SET(o IS TerminalDocument);
 
-terminalDocumentTerminalDocumentDetail = DATA TerminalDocument(TerminalDocumentDetail) INDEXED;
+terminalDocument = DATA TerminalDocument(TerminalDocumentDetail) INDEXED;
 @defineDocumentDetailIndex(terminalDocument);
 
 @defineDocumentTimePrefix(terminalDocument, , ' документа');
@@ -247,21 +247,21 @@ terminalDocumentTerminalDocumentDetail = DATA TerminalDocument(TerminalDocumentD
 CLASS TerminalDocumentDetail 'Строка документа ТСД';
 TABLE terminalDocumentDetail (TerminalDocumentDetail);
 
-idTerminalDocumentDetail 'Код' = DATA VARSTRING[100] (TerminalDocumentDetail) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+id 'Код' = DATA VARSTRING[100] (TerminalDocumentDetail) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-numberTerminalDocumentDetail 'Номер' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
-barcodeTerminalDocumentDetail 'Штрихкод' = DATA STRING[15] (TerminalDocumentDetail) IN base;
-quantityTerminalDocumentDetail 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
-priceTerminalDocumentDetail 'Цена' = DATA NUMERIC[14,2] (TerminalDocumentDetail) IN base;
-sumTerminalDocumentDetail 'Сумма' = DATA NUMERIC[16,2] (TerminalDocumentDetail) IN base;
-nameTerminalDocumentDetail 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail) IN base;
-isNewTerminalDocumentDetail 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
+number 'Номер' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
+barcode 'Штрихкод' = DATA STRING[15] (TerminalDocumentDetail) IN base;
+quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
+price 'Цена' = DATA NUMERIC[14,2] (TerminalDocumentDetail) IN base;
+sum 'Сумма' = DATA NUMERIC[16,2] (TerminalDocumentDetail) IN base;
+name 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail) IN base;
+isNew 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
 
-terminalDocumentDetailIdTerminalDocumentId (documentDetail, document) = GROUP AGGR terminalDocumentDetail 
-    BY idTerminalDocument (terminalDocumentTerminalDocumentDetail(terminalDocumentDetail)), idTerminalDocumentDetail(terminalDocumentDetail);    
+terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDetail terminalDocumentDetail 
+    BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
 
-descriptionTerminalDocument 'Название документа' (o) =
-    'Документ ТСД' + ' № ' + idTerminalDocument(o) + ' от ' + dateTerminalDocument(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+description 'Название документа' (TerminalDocument o) =
+    'Документ ТСД' + ' № ' + id(o) + ' от ' + date(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
     
 @defineDocumentIs(TerminalDocument, TerminalDocumentDetail);
 @defineDocumentHeaderClosed(TerminalDocument);
@@ -279,16 +279,16 @@ descriptionTerminalDocument 'Название документа' (o) =
 
 FORM terminalDocument 'Документ ТСД'
     OBJECTS td=TerminalDocument FIXED PANEL
-    PROPERTIES(td)  idTerminalDocument, nameGroupTerminalTerminalDocument, nameStockTerminalDocument, dateTerminalDocument, timeTerminalDocument,
-                    nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument,
-                    idTerminalHandbookType2TerminalDocument, titleTerminalDocument, commentTerminalDocument, quantityTerminalDocument,  
-                    usedTerminalDocument READONLY, createdNameUserTerminalDocument
+    PROPERTIES(td)  id, nameGroupTerminal, nameStock, date, time,
+                    nameTerminalDocumentType, idTerminalHandbookType1,
+                    idTerminalHandbookType2, title, comment, quantity,  
+                    used READONLY, createdNameUser
 
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) numberTerminalDocumentDetail, barcodeTerminalDocumentDetail, nameTerminalDocumentDetail,
-    isNewTerminalDocumentDetail, quantityTerminalDocumentDetail, priceTerminalDocumentDetail, sumTerminalDocumentDetail, ADDOBJ, deletetdd=DELETESESSION
+    PROPERTIES(tdd) number, barcode, name,
+    isNew, quantity, price, sum, ADDOBJ, deletetdd=DELETESESSION
 
-    FILTERS terminalDocumentTerminalDocumentDetail(tdd) == td
+    FILTERS terminalDocument(tdd) == td
 
     EDIT TerminalDocument OBJECT td;
 ;
@@ -299,19 +299,19 @@ DESIGN terminalDocument {
 
         NEW row1 {
             type = CONTAINERH;
-            MOVE PROPERTY(idTerminalDocument(td));
-            MOVE PROPERTY(nameGroupTerminalTerminalDocument(td));
-            MOVE PROPERTY(nameTerminalDocumentTypeTerminalDocument(td));
-            MOVE PROPERTY(titleTerminalDocument(td));
-            MOVE PROPERTY(commentTerminalDocument(td));
-            MOVE PROPERTY(createdNameUserTerminalDocument(td));
+            MOVE PROPERTY(id(td));
+            MOVE PROPERTY(nameGroupTerminal(td));
+            MOVE PROPERTY(nameTerminalDocumentType(td));
+            MOVE PROPERTY(title(td));
+            MOVE PROPERTY(comment(td));
+            MOVE PROPERTY(createdNameUser(td));
         }
         NEW row2 {
             type = CONTAINERH;
-            MOVE PROPERTY(idTerminalHandbookType1TerminalDocument(td));
-            MOVE PROPERTY(idTerminalHandbookType2TerminalDocument(td));
-            MOVE PROPERTY(quantityTerminalDocument(td));
-            MOVE PROPERTY(usedTerminalDocument(td));
+            MOVE PROPERTY(idTerminalHandbookType1(td));
+            MOVE PROPERTY(idTerminalHandbookType2(td));
+            MOVE PROPERTY(quantity(td));
+            MOVE PROPERTY(used(td));
         }
     }
     MOVE tdd.box;
@@ -320,21 +320,21 @@ DESIGN terminalDocument {
 
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
-    PROPERTIES(td)  READONLY idTerminalDocument, dateTerminalDocument, timeTerminalDocument, nameGroupTerminalTerminalDocument, 
-                    nameTerminalDocumentTypeTerminalDocument, idTerminalHandbookType1TerminalDocument, idTerminalHandbookType2TerminalDocument,
-                    titleTerminalDocument, commentTerminalDocument, quantityTerminalDocument, countTerminalDocumentDetailTerminalDocument, 
-                    quantityTerminalDocumentDetailTerminalDocument, createdNameUserTerminalDocument FORCE PANEL, createdTimeTerminalDocument FORCE PANEL
+    PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, 
+                    nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
+                    title, comment, quantity, countTerminalDocumentDetail, 
+                    quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
     PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES (td) closeTerminalDocument SHOWIF isOpenedTerminalDocument(td), openTerminalDocument SHOWIF isClosedTerminalDocument(td)
+    PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) READONLY numberTerminalDocumentDetail, barcodeTerminalDocumentDetail, nameTerminalDocumentDetail,
-    isNewTerminalDocumentDetail, priceTerminalDocumentDetail, quantityTerminalDocumentDetail, sumTerminalDocumentDetail
+    PROPERTIES(tdd) READONLY number, barcode, name,
+    isNew, price, quantity, sum
 
-    FILTERS terminalDocumentTerminalDocumentDetail(tdd) == td
+    FILTERS terminalDocument(tdd) == td
     FILTERGROUP filterUse
-        FILTER 'Неиспользованные' notUsedTerminalDocument(td) 'F10' DEFAULT
+        FILTER 'Неиспользованные' notUsed(td) 'F10' DEFAULT
         
-    FILTERGROUP open FILTER 'Открыт' isOpenedTerminalDocument(td) 'F6' DEFAULT
+    FILTERGROUP open FILTER 'Открыт' isOpened(td) 'F6' DEFAULT
 ;
 
 @extendFormFilterAccessStock(TerminalDocument, td, terminalDocuments, stock, company);
@@ -386,17 +386,17 @@ META defineAddDetailDialogTerminal (object, skuProp)
 END
 
 META defineAddDetailDialogTerminalInner (object, class, skuProp)
-    addDetailDialogTerminal###object##Detail###object 'Импорт из ТСД' (object) = ACTION (object) {
+    addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION (object) {
         FORM terminalDocuments MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL document = TerminalDocument ();
             document() <- chosenObject('td');
-            usedTerminalDocument(terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
+            used(TerminalDocument terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
 
-            FOR terminalDocumentTerminalDocumentDetail(tdd) == document() ORDER numberTerminalDocumentDetail(tdd) ADDOBJ o = class##Detail DO {
-                object###object##Detail(o) <- object;
-                skuProp###object##Detail(o) <- skuBarcode(barcodeIdDate(barcodeTerminalDocumentDetail(tdd), date###object(object)));
-                quantity###object##Detail(o) <- quantityTerminalDocumentDetail(tdd);
+            FOR terminalDocument(TerminalDocumentDetail tdd) == document() ORDER number(tdd) ADDOBJ o = class##Detail DO {
+                object(o) <- object;
+                skuProp(o) <- skuProp(barcode(barcode(tdd), date(object)));
+                quantity(o) <- quantity(tdd);
             }
         }
     } TOOLBAR;
@@ -405,11 +405,11 @@ END
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 // Модели терминалов сбора данных
-loadDefaultTerminalModel 'Добавить модель терминала' = ACTION (stringOne, stringTwo, stringThree)  {
+loadDefaultTerminalModel 'Добавить модель терминала' = ACTION (VARSTRING[20] stringOne, VARISTRING[110] stringTwo, VARSTRING[200] stringThree)  {
     FOR ADDOBJ tm = TerminalModel DO {
-         ASSIGN sidModel(tm) <- stringOne;   
-         ASSIGN nameTerminalModel(tm) <- stringTwo;
-         ASSIGN handlerModel(tm) <- stringThree;
+         ASSIGN sid(tm) <- stringOne;   
+         ASSIGN name(tm) <- stringTwo;
+         ASSIGN handler(tm) <- stringThree;
     }
 }
 
@@ -422,10 +422,10 @@ loadDefaultTerminalModels 'Загрузить стандартные модел�
 @implementLoadDefaultData(loadDefaultTerminalModels);
 
 // Виды справочников терминалов сбора данных
-loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД' = ACTION (n, s) {
+loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД' = ACTION (VARSTRING[100] n, VARSTRING[100] s) {
     FOR ADDOBJ t = TerminalHandbookType DO {
-        nameTerminalHandbookType(t) <- n;
-        idTerminalHandbookType(t) <- s;
+        name(t) <- n;
+        id(t) <- s;
     }
 }
 
@@ -436,43 +436,43 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 @implementLoadDefaultData(loadDefaultTerminalHandbookTypes);
 
 // Типы документов терминалов сбора данных
-loadDefaultTerminalDocumentType 'Добавить тип документа ТСД' = ACTION (nameString, gtdt, idTypeString, flagInteger, handbook1String, handbook2String) {
+loadDefault 'Добавить тип документа ТСД' = ACTION (VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String) {
     FOR ADDOBJ tdt = TerminalDocumentType DO {
-        ASSIGN nameTerminalDocumentType(tdt) <- nameString;
-        ASSIGN groupTerminalDocumentTypeTerminalDocumentType(tdt) <- gtdt;
-        ASSIGN terminalHandbookType1TerminalDocumentType(tdt) <- terminalHandbookTypeId(handbook1String);
-        ASSIGN terminalHandbookType2TerminalDocumentType(tdt) <- terminalHandbookTypeId(handbook2String);
-        ASSIGN idTerminalDocumentType(tdt) <- idTypeString;
-        ASSIGN flagTerminalDocumentType(tdt) <-flagInteger;
+        ASSIGN name(tdt) <- nameString;
+        ASSIGN groupTerminalDocumentType(tdt) <- gtdt;
+        ASSIGN terminalHandbookType1(tdt) <- terminalHandbookType(handbook1String);
+        ASSIGN terminalHandbookType2(tdt) <- terminalHandbookType(handbook2String);
+        ASSIGN id(tdt) <- idTypeString;
+        ASSIGN flag(tdt) <-flagInteger;
     }
 }
 
 loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД' = ACTION () {
     FOR ADDOBJ gtdt = GroupTerminalDocumentType DO {
-        ASSIGN nameGroupTerminalDocumentType(gtdt) <- 'Группа типов документов';
-        EXEC loadDefaultTerminalDocumentType('Инвентаризация', gtdt, '01', 31, ' ', ' ');
-        EXEC loadDefaultTerminalDocumentType('Приход', gtdt, '02', 31, '01', ' ');
-        EXEC loadDefaultTerminalDocumentType('Отгрузка по безналичному расчёту', gtdt, '03', 31, '01', ' ');
+        ASSIGN name(gtdt) <- 'Группа типов документов';
+        EXEC loadDefault('Инвентаризация', gtdt, '01', 31, ' ', ' ');
+        EXEC loadDefault('Приход', gtdt, '02', 31, '01', ' ');
+        EXEC loadDefault('Отгрузка по безналичному расчёту', gtdt, '03', 31, '01', ' ');
     }
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultTerminalDocumentTypes);
 
 // ------------------------------------------ Генерация групп терминалов сбора данных ------------------------------ //
-loadDefaultGroupTerminal 'Сгенерировать группу терминалов' = ACTION(stock, model, gtdt, num) {
+loadDefault 'Сгенерировать группу терминалов' = ACTION(Stock stock, TerminalModel model, GroupTerminalDocumentType gtdt, INTEGER num) {
     FOR ADDOBJ g = GroupTerminal DO {
-        stockGroupTerminal(g) <- stock;
-        nameGroupMachinery(g) <- 'Группа ТСД по умолчанию';
-        groupTerminalDocumentTypeGroupTerminal(g) <- gtdt;
+        stock(g) <- stock;
+        name(g) <- 'Группа ТСД по умолчанию';
+        groupTerminalDocumentType(g) <- gtdt;
 
         LOCAL numTerminal = INTEGER();
         numTerminal() <- 0;
         WHILE numTerminal() < num DO {
             FOR ADDOBJ t = Terminal DO {
-                groupTerminalTerminal(t) <- g;
+                groupTerminal(t) <- g;
                 numTerminal() <- numTerminal() + 1;
-                nppMachinery(t) <- numTerminal();
-                terminalModelGroupTerminal(g) <- model;
+                npp(t) <- numTerminal();
+                terminalModel(g) <- model;
             }
         }
     }
@@ -480,21 +480,21 @@ loadDefaultGroupTerminal 'Сгенерировать группу термина
 
 EXTEND FORM defaultData
     OBJECTS         tm=TerminalModel FIXED PANEL
-    PROPERTIES(tm)  SELECTOR nameTerminalModel
+    PROPERTIES(tm)  SELECTOR name
 
     OBJECTS         gtdt=GroupTerminalDocumentType FIXED PANEL
-    PROPERTIES(gtdt) SELECTOR nameGroupTerminalDocumentType
+    PROPERTIES(gtdt) SELECTOR name
 
     OBJECTS         cTerminal=INTEGER FIXED PANEL
     PROPERTIES(cTerminal)   intValueTerminal = OBJVALUE
-    PROPERTIES (s, tm, gtdt, cTerminal)  loadDefaultGroupTerminal
+    PROPERTIES (s, tm, gtdt, cTerminal)  loadDefault
 ;
 
 DESIGN defaultData {
-    PROPERTY(nameTerminalModel(tm)) {
+    PROPERTY(name(tm)) {
         caption = 'Модель ТСД';
     }
-    PROPERTY(nameGroupTerminalDocumentType(gtdt)) {
+    PROPERTY(name(gtdt)) {
         caption = 'Группа типов документов';
     }
     PROPERTY(intValueTerminal) {
@@ -503,10 +503,10 @@ DESIGN defaultData {
     machinery {
         NEW terminal {
             caption = 'ТСД';
-            MOVE PROPERTY(nameTerminalModel(tm));
-            MOVE PROPERTY(nameGroupTerminalDocumentType(gtdt));
+            MOVE PROPERTY(name(tm));
+            MOVE PROPERTY(name(gtdt));
             MOVE PROPERTY(intValueTerminal);
-            MOVE PROPERTY(loadDefaultGroupTerminal(s,tm,gtdt,cTerminal));
+            MOVE PROPERTY(loadDefault(s,tm,gtdt,cTerminal));
         }
     }
 }

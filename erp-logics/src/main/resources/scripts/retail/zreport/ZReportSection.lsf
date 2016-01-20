@@ -4,25 +4,25 @@ REQUIRE ZReport, Section;
 
 NAMESPACE ZReport;
 
-sectionReceiptDetail 'Секция' = DATA Section (ReceiptDetail);
-nameSectionReceiptDetail 'Секция' (d) = nameSection(sectionReceiptDetail(d));
+section 'Секция' = DATA Section (ReceiptDetail);
+nameSection 'Секция' (ReceiptDetail d) = name(section(d));
 
 EXTEND FORM zReports
-    PROPERTIES  nameSectionReceiptDetail(d) READONLY ;
+    PROPERTIES  nameSection(d) READONLY ;
     
 TABLE receiptSection (Receipt, Section);
 
-sumReceipDetailReceiptSection 'Сумма для секции' (r, s) = GROUP SUM signedSumReceiptDetail(d) 
-    IF isPostedReceiptDetail(d) 
-    BY receiptReceiptDetail(d), sectionReceiptDetail(d)  PERSISTENT;
-sumDepartmentStoreSectionDate = GROUP SUM sumReceipDetailReceiptSection(r, sek) 
-    BY departmentStoreReceipt(r), sek, dateZReport(zReportReceipt(r));
-sumDepartmentStoreSectionDateFromTo 'Продано, руб.' (ds, sek, dateFrom, dateTo) = GROUP SUM sumDepartmentStoreSectionDate(ds, sek, date)
-    IF date >= dateFrom AND date <= dateTo 
+sumReceipDetail 'Сумма для секции' (r, s) = GROUP SUM signedSum(ReceiptDetail d) 
+    IF isPosted(d) 
+    BY receipt(d), section(d)  PERSISTENT;
+sum = GROUP SUM sumReceipDetail(Receipt r, Section sek) 
+    BY departmentStore(r), sek, date(zReport(r));
+sum 'Продано, руб.' (ds, sek, dateFrom, dateTo) = GROUP SUM sum(DepartmentStore ds, Section sek, DATE date)
+    IF date >= DATE dateFrom AND date <= DATE dateTo 
     BY ds, sek, dateFrom, dateTo;
 
-discountSumReceipDetailReceiptSection 'Сумма скидки для секции' (r, s) = GROUP SUM signedDiscountSumReceiptDetail(d) 
-    IF isPostedReceiptDetail(d)
-    BY receiptReceiptDetail(d), sectionReceiptDetail(d);
-discountSumDepartmentStoreSectionDate = GROUP SUM discountSumReceipDetailReceiptSection(r, sek) 
-    BY departmentStoreReceipt(r), sek, dateZReport(zReportReceipt(r));
+discountSumReceipDetail 'Сумма скидки для секции' (r, s) = GROUP SUM signedDiscountSum(ReceiptDetail d) 
+    IF isPosted(d)
+    BY receipt(d), section(d);
+discountSum = GROUP SUM discountSumReceipDetail(Receipt r, Section sek) 
+    BY departmentStore(r), sek, date(zReport(r));

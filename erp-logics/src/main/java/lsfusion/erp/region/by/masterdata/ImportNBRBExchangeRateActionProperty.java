@@ -50,37 +50,37 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
 
         if (exchangesList != null) {
 
-            ImportField typeExchangeBYRField = new ImportField(findProperty("nameTypeExchange"));
-            ImportField typeExchangeForeignField = new ImportField(findProperty("nameTypeExchange"));
-            ImportField currencyField = new ImportField(findProperty("shortNameCurrency"));
-            ImportField homeCurrencyField = new ImportField(findProperty("shortNameCurrency"));
-            ImportField rateField = new ImportField(findProperty("rateExchange"));
-            ImportField foreignRateField = new ImportField(findProperty("rateExchange"));
+            ImportField typeExchangeBYRField = new ImportField(findProperty("name[TypeExchange]"));
+            ImportField typeExchangeForeignField = new ImportField(findProperty("name[TypeExchange]"));
+            ImportField currencyField = new ImportField(findProperty("shortName[Currency]"));
+            ImportField homeCurrencyField = new ImportField(findProperty("shortName[Currency]"));
+            ImportField rateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
+            ImportField foreignRateField = new ImportField(findProperty("rate[TypeExchange,Currency,DATE]"));
             ImportField dateField = new ImportField(DateClass.instance);
 
             ImportKey<?> typeExchangeBYRKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchangeName").getMapping(typeExchangeBYRField));
+                    findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeBYRField));
 
             ImportKey<?> typeExchangeForeignKey = new ImportKey((ConcreteCustomClass) findClass("TypeExchange"),
-                    findProperty("typeExchangeName").getMapping(typeExchangeForeignField));
+                    findProperty("typeExchange[VARISTRING[50]]").getMapping(typeExchangeForeignField));
 
             ImportKey<?> currencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName").getMapping(currencyField));
+                    findProperty("currencyShortName[STRING[3]]").getMapping(currencyField));
 
             ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
-                    findProperty("currencyShortName").getMapping(homeCurrencyField));
+                    findProperty("currencyShortName[STRING[3]]").getMapping(homeCurrencyField));
 
             List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
 
-            props.add(new ImportProperty(typeExchangeBYRField, findProperty("nameTypeExchange").getMapping(typeExchangeBYRKey)));
-            props.add(new ImportProperty(homeCurrencyField, findProperty("currencyTypeExchange").getMapping(typeExchangeBYRKey),
+            props.add(new ImportProperty(typeExchangeBYRField, findProperty("name[TypeExchange]").getMapping(typeExchangeBYRKey)));
+            props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeBYRKey),
                     object(findClass("Currency")).getMapping(homeCurrencyKey)));
-            props.add(new ImportProperty(rateField, findProperty("rateExchange").getMapping(typeExchangeBYRKey, currencyKey, dateField)));
+            props.add(new ImportProperty(rateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeBYRKey, currencyKey, dateField)));
 
-            props.add(new ImportProperty(typeExchangeForeignField, findProperty("nameTypeExchange").getMapping(typeExchangeForeignKey)));
-            props.add(new ImportProperty(currencyField, findProperty("currencyTypeExchange").getMapping(typeExchangeForeignKey),
+            props.add(new ImportProperty(typeExchangeForeignField, findProperty("name[TypeExchange]").getMapping(typeExchangeForeignKey)));
+            props.add(new ImportProperty(currencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeForeignKey),
                     object(findClass("Currency")).getMapping(currencyKey)));
-            props.add(new ImportProperty(foreignRateField, findProperty("rateExchange").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
+            props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
             List<List<Object>> data = new ArrayList<List<Object>>();
             for (Exchange e : exchangesList) {

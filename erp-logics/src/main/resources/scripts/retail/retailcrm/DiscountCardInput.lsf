@@ -4,7 +4,7 @@ REQUIRE DiscountCard;
 
 
 defaultDiscountLegalEntityGroup  = DATA LegalEntityGroup ();
-nameDefaultDiscountLegalEntityGroup 'Группа организация по умолчанию' = nameLegalEntityGroup(defaultDiscountLegalEntityGroup());
+nameDefaultDiscountLegalEntityGroup 'Группа организация по умолчанию' = name(defaultDiscountLegalEntityGroup());
 
 EXTEND FORM options 
     PROPERTIES nameDefaultDiscountLegalEntityGroup();
@@ -15,71 +15,71 @@ DESIGN options {
     }
 }
 
-prevLegalEntityDiscountCard(d) = PREV (legalEntityDiscountCard(d));
+prevLegalEntity(DiscountCard d) = PREV (legalEntity(d));
 
-addLegalEntityDiscountCard = ACTION (l, disc) {
-    legalEntityDiscountCard(disc) <- l;
-    ownershipLegalEntity(l) <- Ownership.individual;
-    legalEntityGroupLegalEntity(l) <- defaultDiscountLegalEntityGroup(); 
+add = ACTION (LegalEntity l, DiscountCard disc) {
+    legalEntity(disc) <- l;
+    ownership(l) <- Ownership.individual;
+    legalEntityGroup(l) <- defaultDiscountLegalEntityGroup(); 
 }
 
-changeFirstName = ACTION (disc) {
+changeFirstName = ACTION (DiscountCard disc) {
     REQUEST VARSTRING[30] INPUT;
 
-    FOR NOT legalEntityDiscountCard(disc) ADDOBJ l = LegalEntity DO addLegalEntityDiscountCard(l, disc);
+    FOR NOT legalEntity(disc) ADDOBJ l = LegalEntity DO add(l, disc);
     
-    firstNameContact(l) <- requestedString() WHERE l == legalEntityDiscountCard(disc);
+    firstName(LegalEntity l) <- requestedString() WHERE l == legalEntity(disc);
     
 };
 
-changeLastName = ACTION (disc) {
+changeLastName = ACTION (DiscountCard disc) {
     REQUEST VARSTRING[30] INPUT;
     
-    FOR NOT legalEntityDiscountCard(disc) ADDOBJ l = LegalEntity DO addLegalEntityDiscountCard(l, disc);
+    FOR NOT legalEntity(disc) ADDOBJ l = LegalEntity DO add(l, disc);
     
-    lastNameContact(l) <- requestedString() WHERE l == legalEntityDiscountCard(disc);
+    lastName(LegalEntity l) <- requestedString() WHERE l == legalEntity(disc);
 };
 
-changeAdress = ACTION (disc) {
+changeAdress = ACTION (DiscountCard disc) {
     REQUEST VARSTRING[150] INPUT;
 
-    FOR NOT legalEntityDiscountCard(disc) ADDOBJ l = LegalEntity DO addLegalEntityDiscountCard(l, disc);
+    FOR NOT legalEntity(disc) ADDOBJ l = LegalEntity DO add(l, disc);
     
-    dataAddressLegalEntityDate(l, d) <- requestedString() WHERE l == legalEntityDiscountCard(disc) AND d==currentDate();
+    dataAddress(LegalEntity l, DATE d) <- requestedString() WHERE l == legalEntity(disc) AND d==currentDate();
 };
 
-changeEmail = ACTION (disc) {
+changeEmail = ACTION (DiscountCard disc) {
     REQUEST VARSTRING[100] INPUT;
 
-    FOR NOT legalEntityDiscountCard(disc) ADDOBJ l = LegalEntity DO addLegalEntityDiscountCard(l, disc);
+    FOR NOT legalEntity(disc) ADDOBJ l = LegalEntity DO add(l, disc);
     
-    emailLegalEntity(l) <- requestedString() WHERE l == legalEntityDiscountCard(disc);
+    email(LegalEntity l) <- requestedString() WHERE l == legalEntity(disc);
 };
 
-changePhone = ACTION (disc) {
+changePhone = ACTION (DiscountCard disc) {
     REQUEST VARSTRING[100] INPUT;
 
-    FOR NOT legalEntityDiscountCard(disc) ADDOBJ l = LegalEntity DO addLegalEntityDiscountCard(l, disc);
+    FOR NOT legalEntity(disc) ADDOBJ l = LegalEntity DO add(l, disc);
     
-    dataPhoneLegalEntityDate(l, d) <- requestedString() WHERE l == legalEntityDiscountCard(disc) AND d==currentDate();
+    dataPhone(LegalEntity l, DATE d) <- requestedString() WHERE l == legalEntity(disc) AND d==currentDate();
 };
 
-changeBirthday = ACTION (disc) {
+changeBirthday = ACTION (DiscountCard disc) {
     REQUEST DATE INPUT;
 
-    FOR NOT legalEntityDiscountCard(disc) ADDOBJ l = LegalEntity DO addLegalEntityDiscountCard(l, disc);
+    FOR NOT legalEntity(disc) ADDOBJ l = LegalEntity DO add(l, disc);
     
-    birthdayContact(l) <- requestedDate() WHERE l == legalEntityDiscountCard(disc);
+    birthday(LegalEntity l) <- requestedDate() WHERE l == legalEntity(disc);
 };
 
 FORM discoundCardInput 'Ввод анкет дисконтных карт'
 
     OBJECTS d = DiscountCard
-    PROPERTIES (d) numberDiscountCard READONLY, seriesDiscountCard READONLY, idDiscountCard SHOWIF showIDs() READONLY, idLegalEntityDiscountCard
-    PROPERTIES (d) firstNameContactDiscountCard ON CHANGE changeFirstName(d), lastNameContactDiscountCard ON CHANGE changeLastName(d), addressLegalEntityDiscountCard ON CHANGE changeAdress(d),
-                   emailLegalEntityDiscountCard ON CHANGE changeEmail(d), phoneLegalEntityDiscountCard ON CHANGE changePhone(d), birthdayContactDiscountCard ON CHANGE changeBirthday(d)
+    PROPERTIES (d) number READONLY, series READONLY, id SHOWIF showIDs() READONLY, idLegalEntity
+    PROPERTIES (d) firstNameContact ON CHANGE changeFirstName(d), lastNameContact ON CHANGE changeLastName(d), addressLegalEntity ON CHANGE changeAdress(d),
+                   emailLegalEntity ON CHANGE changeEmail(d), phoneLegalEntity ON CHANGE changePhone(d), birthdayContact ON CHANGE changeBirthday(d)
     FILTERGROUP noneLE
-        FILTER 'Нет держателя' NOT prevLegalEntityDiscountCard(d) DEFAULT
+        FILTER 'Нет держателя' NOT prevLegalEntity(d) DEFAULT
 ;
 
 NAVIGATOR {

@@ -4,17 +4,17 @@ REQUIRE Dashboard, ConsignmentBy, OrderInvoice, TripOrderInvoice,  OrderInvoiceP
 
 NAMESPACE Order;
 
-inConsignmentPrintOrder 'Отметить' = DATA LOCAL BOOLEAN (Order);
+inConsignmentPrint 'Отметить' = DATA LOCAL BOOLEAN (Order);
 
-countInConsignmentPrintOrder = GROUP SUM 1 IF inConsignmentPrintOrder(order);
+countInConsignmentPrintOrder = GROUP SUM 1 IF inConsignmentPrint(Order order);
 
 hidePrintAction = TRUE AND NOT countInConsignmentPrintOrder();
 
-countOrderConsignmentPrintTrip = GROUP SUM 1 IF inConsignmentPrintOrder(order) BY tripOrder(order);
+countOrderConsignmentPrint = GROUP SUM 1 IF inConsignmentPrint(Order order) BY trip(order);
 
-countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrintTrip(trip);
+countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrint(Trip trip);
 
-inConsignmentPrintTrip = GROUP MAX trip IF countOrderConsignmentPrintTrip(trip);
+inConsignmentPrintTrip = GROUP MAX Trip trip IF countOrderConsignmentPrint(trip);
 
 createNotPickedInvoice 'Выписывать накладные на заказы без комплектации' = DATA BOOLEAN (); 
 
@@ -28,43 +28,43 @@ DESIGN options {
     }    
 }
 
-printConsignmentOrder 'Создать накладные' = ACTION (order) {
+printConsignment 'Создать накладные' = ACTION (Order order) {
     IF countInConsignmentPrintOrder() THEN {
         IF countInConsignmentPrintTrip() > 1 THEN {
             MESSAGE 'Выберите заказы одного рейса';
         } ELSE {
-            inCreatePickingUserInvoicePostedOrder(o) <- inConsignmentPrintOrder(o);
+            inCreatePickingUserInvoicePosted(Order o) <- inConsignmentPrint(o);
             IF createNotPickedInvoice()
-                THEN addUserInvoiceOrder(order)
-                ELSE createPickingUserInvoicePostedOrder(order);
-            FOR createdUserInvoiceOrder(i, o) DO {
-                tripInvoice(i) <- tripOrder(o);
-                IF i IS Sale.Invoice AND tripInvoice(i) THEN {
-                    Sale.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                    Sale.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
-                    Sale.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));
-                } ELSE IF i IS PurchaseReturn.Invoice AND tripInvoice(i) THEN {
-                    PurchaseReturn.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                    PurchaseReturn.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
-                    PurchaseReturn.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));                                
+                THEN addUserInvoice(order)
+                ELSE createPickingUserInvoicePosted(order);
+            FOR createdUser(Invoice.Invoice i, Order o) DO {
+                trip(i) <- trip(o);
+                IF i IS Sale.Invoice AND trip(i) THEN {
+                    date[Sale.UserInvoice](i) <- date(trip(i));
+                    time[Sale.UserInvoice](i) <- OVERRIDE time(trip(i)), timeOfArrival(trip(i));
+                    arrivalTime[Sale.Invoice](i) <- dateTime(trip(i));
+                } ELSE IF i IS PurchaseReturn.Invoice AND trip(i) THEN {
+                    date[PurchaseReturn.UserInvoice](i) <- date(trip(i));
+                    time[PurchaseReturn.UserInvoice](i) <- OVERRIDE time(trip(i)), timeOfArrival(trip(i));
+                    arrivalTime[PurchaseReturn.Invoice](i) <- dateTime(trip(i));                                
                 }                
             }
             apply();
         }
     } ELSE {
         IF createNotPickedInvoice()
-            THEN addUserInvoiceOrder(order)
-            ELSE createPickingUserInvoicePostedOrder(order);
-        FOR createdUserInvoiceOrder(i, order) DO {
-            tripInvoice(i) <- tripOrder(order);
-            IF i IS Sale.Invoice AND tripInvoice(i) THEN {
-                Sale.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                Sale.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
-                Sale.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));
-            } ELSE IF i IS PurchaseReturn.Invoice AND tripInvoice(i) THEN {
-                PurchaseReturn.dateUserInvoice(i) <- dateTrip(tripInvoice(i));
-                PurchaseReturn.timeUserInvoice(i) <- OVERRIDE timeTrip(tripInvoice(i)), timeOfArrivalTrip(tripInvoice(i));
-                PurchaseReturn.arrivalTimeInvoice(i) <- dateTimeTrip(tripInvoice(i));                                
+            THEN addUserInvoice(order)
+            ELSE createPickingUserInvoicePosted(order);
+        FOR createdUser(Invoice.Invoice i, order) DO {
+            trip(i) <- trip(order);
+            IF i IS Sale.Invoice AND trip(i) THEN {
+                date[Sale.UserInvoice](i) <- date(trip(i));
+                time[Sale.UserInvoice](i) <- OVERRIDE time(trip(i)), timeOfArrival(trip(i));
+                arrivalTime[Sale.Invoice](i) <- dateTime(trip(i));
+            } ELSE IF i IS PurchaseReturn.Invoice AND trip(i) THEN {
+                date[PurchaseReturn.UserInvoice](i) <- date(trip(i));
+                time[PurchaseReturn.UserInvoice](i) <- OVERRIDE time(trip(i)), timeOfArrival(trip(i));
+                arrivalTime[PurchaseReturn.Invoice](i) <- dateTime(trip(i));                                
             }            
         }
         apply();
@@ -73,55 +73,55 @@ printConsignmentOrder 'Создать накладные' = ACTION (order) {
 
 isNecessaryPowerAttorney 'Необходима доверенность' = ABSTRACT BOOLEAN (Order) IN documentPrm;
 
-backgroundStatusPickingPickingOrder 'Цвет' (order) =  CASE
+backgroundStatusPickingPicking 'Цвет' (Order order) =  CASE
       WHEN isNecessaryPowerAttorney(order) THEN RGB(192,192,255)
-      WHEN isReturnOrder(order) THEN RGB(148,255,255)
-      WHEN tripOrder(order) THEN RGB(212,255,212)
-      WHEN calcPartOrder(order) THEN RGB(255,200,216)
-      WHEN calcFullOrder(order) THEN RGB(255,238,165)
+      WHEN isReturn(order) THEN RGB(148,255,255)
+      WHEN trip(order) THEN RGB(212,255,212)
+      WHEN calcPart(order) THEN RGB(255,200,216)
+      WHEN calcFull(order) THEN RGB(255,238,165)
 ; 
 
-changeTripOrder = ACTION (order){
+changeTrip = ACTION (Order order){
     REQUEST OBJECT t 
-    FORM dialogDateTrips OBJECTS d=dateOrder(order) DIALOG SHOWDROP;
+    FORM dialogDateTrips OBJECTS d=date(order) DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-            tripOrder (order) <- requestedObject();
+            trip (order) <- requestedObject();
         } ELSE IF formResult() == FormResult.drop THEN {
-            tripOrder (order) <- NULL;   
+            trip (order) <- NULL;   
     }
     apply();            
 }
 
-changeNumberInvoice (invoice) = ACTION (invoice) {
+changeNumber (Invoice.Invoice invoice) = ACTION (invoice) {
     REQUEST STRING[18] INPUT;
     IF requestedString() THEN {
-        Invoice.numberInvoice(invoice) <- requestedString();         
+        number(invoice) <- requestedString();         
         apply();
     }    
 }
 
-changeSeriesInvoice (invoice) = ACTION (invoice) {
+changeSeries (Invoice.Invoice invoice) = ACTION (invoice) {
     REQUEST STRING[2] INPUT;
     IF requestedString() THEN {
-        Invoice.seriesInvoice(invoice) <- requestedString();
+        series(invoice) <- requestedString();
         apply();
     }    
 }
 
-printedConsignment 'Распечатана' = DATA BOOLEAN (Consignment);
-notPrintedConsignment = TRUE AND NOT printedConsignment(consignment);
+printed 'Распечатана' = DATA BOOLEAN (Consignment);
+notPrinted = TRUE AND NOT printed(Consignment consignment);
 
 filterOrders = IF createNotPickedInvoice() 
-                    THEN order IS Order
-                    ELSE pickedOrder(order);
+                    THEN Order order IS Order
+                    ELSE picked(order);
                     
-toInvoicedOrder = IF createNotPickedInvoice()
-                    THEN TRUE IF (Sale.toInvoiceOrder(order) OR PurchaseReturn.toInvoiceOrder(order))
-                    ELSE TRUE IF toInvoicePickedOrder(order);
+toInvoiced = IF createNotPickedInvoice()
+                    THEN TRUE IF (toInvoice[Sale.Order](Order order) OR toInvoice[PurchaseReturn.Order](order))
+                    ELSE TRUE IF toInvoicePicked(order);
                     
-toInvoicedOrderDetail = IF createNotPickedInvoice()
-                         THEN TRUE IF (Sale.toInvoiceOrderDetail(order) OR PurchaseReturn.toInvoiceOrderDetail(order))
-                         ELSE TRUE IF toInvoicePickedOrderDetail(order);                    
+toInvoiced = IF createNotPickedInvoice()
+                         THEN TRUE IF (toInvoice[Sale.OrderDetail](OrderDetail order) OR toInvoice[PurchaseReturn.OrderDetail](order))
+                         ELSE TRUE IF toInvoicePicked(order);                    
 
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
 
@@ -129,47 +129,47 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     PROPERTIES(dt) date = OBJVALUE
 
     OBJECTS o=Order FIXED GRID
-    PROPERTIES(o) inConsignmentPrintOrder
-    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPickingOrder(o) nameDriverTripOrder, dateTripOrder
-    PROPERTIES(o) BACKGROUND backgroundStatusPickingPickingOrder(o) numberTripOrder ON CHANGE changeTripOrder(o)   
-    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPickingOrder(o) numberOrder, dateOrder, nameFromStockOrder, 
-                  nameToOrder, nameToStockOrder, addressToStockOrder, grossWeightOrderPickingOrder, packQuantityOrder, quantityOrderDetailOrder,
-                  noteOrder
-    PROPERTIES(o) printConsignmentOrder FORCE PANEL TOOLBAR
-    FILTERS isPostedOrder (o) AND filterOrders(o)
-    FILTERGROUP toInvoice FILTER 'Не выписаны' toInvoicedOrder(o) 'ctrl F6' DEFAULT
-    FILTERGROUP opened FILTER 'Открыт' NOT isClosedOrder(o) 'F4' DEFAULT
-    FILTERGROUP filters FILTER 'Текущие заказы' dateOrder(o)<=dt 'F5' DEFAULT
-                        FILTER 'Будущие заказы' dateOrder(o)>dt 'F6'       
-    FILTERS outOrder (o)
+    PROPERTIES(o) inConsignmentPrint
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPicking(o) nameDriverTrip, dateTrip
+    PROPERTIES(o) BACKGROUND backgroundStatusPickingPicking(o) numberTrip ON CHANGE changeTrip(o)   
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPicking(o) number, date, nameFromStock, 
+                  nameTo, nameToStock, addressToStock, grossWeightOrderPicking, packQuantity, quantityOrderDetail,
+                  note
+    PROPERTIES(o) printConsignment FORCE PANEL TOOLBAR
+    FILTERS isPosted (o) AND filterOrders(o)
+    FILTERGROUP toInvoice FILTER 'Не выписаны' toInvoiced(o) 'ctrl F6' DEFAULT
+    FILTERGROUP opened FILTER 'Открыт' NOT isClosed(o) 'F4' DEFAULT
+    FILTERGROUP filters FILTER 'Текущие заказы' date(o)<=dt 'F5' DEFAULT
+                        FILTER 'Будущие заказы' date(o)>dt 'F6'       
+    FILTERS out (o)
     
     OBJECTS d = OrderDetail FIXED GRID
-    PROPERTIES(d) READONLY indexOrderDetail, idBarcodeSkuOrderDetail, nameSkuOrderDetail, nameBatchOrderDetail, quantityOrderDetail,
-                  pickingQuantityOrderDetail, Invoice.invoicedOrderDetail, toInvoicePickedOrderDetail    
-    FILTERS orderOrderDetail(d) == o
-    FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' toInvoicedOrderDetail(d) 'ctrl F6' DEFAULT 
+    PROPERTIES(d) READONLY index, idBarcodeSku, nameSku, nameBatch, quantity,
+                  pickingQuantity, invoiced, toInvoicePicked    
+    FILTERS order(d) == o
+    FILTERGROUP toInvoiceDetail FILTER 'Не выписаны' toInvoiced(d) 'ctrl F6' DEFAULT 
     
     OBJECTS i = Invoice.Invoice FIXED GRID
-    PROPERTIES (i) FORCE PANEL numInv=numberInvoice ON CHANGE changeNumberInvoice(i), serInv=seriesInvoice ON CHANGE changeSeriesInvoice(i)
-    PROPERTIES (i) READONLY isPostedInvoice 
-    PROPERTIES (i) READONLY numberInvoice, seriesInvoice
-    PROPERTIES (i) READONLY dateInvoice, timeInvoice, nameFromStockInvoice, nameToInvoice, nameToStockInvoice, addressToStockInvoice, countInvoiceDetailInvoice, 
-                   quantityInvoiceDetailInvoice, sumInvoiceDetailInvoice, VATSumInvoiceDetailInvoice, invoiceSumInvoiceDetailInvoice, 
-                   sumGrossWeightInvoiceDetailInvoice, seriesNumberOrderInvoice, noteInvoice, noteOrderInvoice
-    PROPERTIES (i) editInvoice SHOWIF overShowEditInvoice(i)
-    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDeleteInvoice(i)
+    PROPERTIES (i) FORCE PANEL numInv=number ON CHANGE changeNumber(i), serInv=series ON CHANGE changeSeries(i)
+    PROPERTIES (i) READONLY isPosted 
+    PROPERTIES (i) READONLY number, series
+    PROPERTIES (i) READONLY date, time, nameFromStock, nameTo, nameToStock, addressToStock, countInvoiceDetail, 
+                   quantityInvoiceDetail, sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail, 
+                   sumGrossWeightInvoiceDetail, seriesNumberOrder, note, noteOrder
+    PROPERTIES (i) edit SHOWIF overShowEdit(i)
+    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(i)
 
-    PROPERTIES (i)  FORCE PANEL printConsignmentVerticalA, printConsignmentVerticalAB, printConsignmentHorizontalA,
-                                printConsignmentVerticalB, printConsignmentHorizontalB,
-                                printConsignmentAttach, printConsignmentSimpleHorizontal, editAttributesConsignment,
-                                printConsignmentSimpleVertical, printConsignmentSimpleAttach, printConsignmentAttachXLS                        
+    PROPERTIES (i)  FORCE PANEL printVerticalA, printVerticalAB, printHorizontalA,
+                                printVerticalB, printHorizontalB,
+                                printAttach, printSimpleHorizontal, editAttributes,
+                                printSimpleVertical, printSimpleAttach, printAttachXLS                        
                                 
-    FILTERS outInvoice (i)                            
-    FILTERGROUP filters1 FILTER 'Предыдущие накладные' dateInvoice(i)<dt 'F7'
-                         FILTER 'Накладные на дату' dateInvoice(i)==dt 'F8' DEFAULT
-                         FILTER 'Будущие накладные' dateInvoice(i)>dt 'F9'
+    FILTERS out (i)                            
+    FILTERGROUP filters1 FILTER 'Предыдущие накладные' date(i)<dt 'F7'
+                         FILTER 'Накладные на дату' date(i)==dt 'F8' DEFAULT
+                         FILTER 'Будущие накладные' date(i)>dt 'F9'
     FILTERGROUP filters2 
-        FILTER 'Нераспечатанные' notPrintedConsignment(i) 'F10' DEFAULT 
+        FILTER 'Нераспечатанные' notPrinted(i) 'F10' DEFAULT 
 ;
 
 DESIGN consignmentDashboard {
@@ -188,7 +188,7 @@ DESIGN consignmentDashboard {
 //                            PROPERTY(nameToInvoice){
 //                                minimumCharWidth = 40;
 //                            }
-                            PROPERTY(addressToStockOrder(o)){
+                            PROPERTY(addressToStock(o)){
                                 caption = 'Адрес получателя';
                             }
 //                            PROPERTY(nameToStockInvoice){                  
@@ -200,7 +200,7 @@ DESIGN consignmentDashboard {
                             PROPERTY(serInv) {
                                 font = 'bold 18';
                             }
-                            PROPERTY(seriesNumberOrderInvoice(i)) { minimumCharWidth = 8; preferredCharWidth = 15;}
+                            PROPERTY(seriesNumberOrder(i)) { minimumCharWidth = 8; preferredCharWidth = 15;}
                         }
                         MOVE d.box{
                             caption = 'Детализация'; 
@@ -210,22 +210,22 @@ DESIGN consignmentDashboard {
                         fill = 1;
                         MOVE o.box{
                             caption = 'Заказы';
-                                PROPERTY(nameToOrder(o)){
+                                PROPERTY(nameTo(o)){
                                     minimumCharWidth = 40;
                                 }
-                                PROPERTY(nameToStockOrder(o)){
+                                PROPERTY(nameToStock(o)){
                                     minimumCharWidth = 45;
                                 }
-                                PROPERTY(dateOrder(o)){
+                                PROPERTY(date(o)){
                                     caption = 'Дата заказа';
                                 }
-                                PROPERTY(numberOrder(o)){
+                                PROPERTY(number(o)){
                                     caption = 'Номер заказа';
                                 }
-                                PROPERTY(addressToStockOrder(o)){
+                                PROPERTY(addressToStock(o)){
                                     caption = 'Адрес получателя';
                                 }
-                                PROPERTY(inConsignmentPrintOrder(o)){
+                                PROPERTY(inConsignmentPrint(o)){
                                     editKey = 'SPACE';
                                 }
                             }
@@ -239,33 +239,33 @@ DESIGN consignmentDashboard {
                             NEW contOne {
                                 caption = 'Накладная';
                                 type = CONTAINERH;
-                                MOVE PROPERTY(editAttributesConsignment(i));
+                                MOVE PROPERTY(editAttributes(i));
                             }
                             NEW tn{
                                 type = CONTAINERH;
                                 caption = 'ТН-2';
-                                MOVE PROPERTY(printConsignmentSimpleVertical(i));
-                                MOVE PROPERTY(printConsignmentSimpleHorizontal(i));
-                                MOVE PROPERTY(printConsignmentSimpleAttach(i));
+                                MOVE PROPERTY(printSimpleVertical(i));
+                                MOVE PROPERTY(printSimpleHorizontal(i));
+                                MOVE PROPERTY(printSimpleAttach(i));
                             }
                         }
                         NEW consignmentRow2 {
                             type = COLUMNS;
                             columns = 5;
                             caption = 'ТТН-1';
-                            MOVE PROPERTY(printConsignmentVerticalA(i));
-                            MOVE PROPERTY(printConsignmentVerticalAB(i));
-                            MOVE PROPERTY(printConsignmentHorizontalA(i));
-                            MOVE PROPERTY(printConsignmentVerticalB(i));
-                            MOVE PROPERTY(printConsignmentHorizontalB(i));
-                            MOVE PROPERTY(printConsignmentAttach(i));
+                            MOVE PROPERTY(printVerticalA(i));
+                            MOVE PROPERTY(printVerticalAB(i));
+                            MOVE PROPERTY(printHorizontalA(i));
+                            MOVE PROPERTY(printVerticalB(i));
+                            MOVE PROPERTY(printHorizontalB(i));
+                            MOVE PROPERTY(printAttach(i));
                         }
                         NEW consignmentRow3 {
                             type = CONTAINERH;
                             NEW export {
                                 type = CONTAINERH;
                                 caption = 'Экспорт';  
-                                MOVE PROPERTY(printConsignmentAttachXLS(i));
+                                MOVE PROPERTY(printAttachXLS(i));
                             }                        
                         }
                     }

@@ -9,160 +9,160 @@ CLASS PrintOrientation 'Ориентация' {
 }
 TABLE printOrientation(PrintOrientation);
 
-fileTemplatePrintOrientation 'Файл шаблона' = DATA VARSTRING[200] (PrintOrientation);
+fileTemplate 'Файл шаблона' = DATA VARSTRING[200] (PrintOrientation);
 
 FORM printOrientation 'Ориентация'
     OBJECTS o = PrintOrientation FIXED PANEL 
-    PROPERTIES(o) staticCaption, fileTemplatePrintOrientation  
+    PROPERTIES(o) staticCaption, fileTemplate  
     EDIT PrintOrientation OBJECT o
 ;
 
 FORM printOrientations 'Ориентации'
     OBJECTS o = PrintOrientation
-    PROPERTIES(o) READONLY staticCaption, fileTemplatePrintOrientation  
+    PROPERTIES(o) READONLY staticCaption, fileTemplate  
     PROPERTIES(o) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG PrintOrientation OBJECT o
 ;
 
 onStarted() += ACTION (){
-    fileTemplatePrintOrientation(o) <- 'Label_printLabelTransaction.jrxml' WHERE o == PrintOrientation.landscape; 
-    fileTemplatePrintOrientation(o) <- 'Label_printLabelTransaction_P.jrxml' WHERE o == PrintOrientation.portrait; 
+    fileTemplate(PrintOrientation o) <- 'Label_printLabelTransaction.jrxml' WHERE o == PrintOrientation.landscape; 
+    fileTemplate(PrintOrientation o) <- 'Label_printLabelTransaction_P.jrxml' WHERE o == PrintOrientation.portrait; 
 }
 
 // типы ценников
 CLASS LabelType 'Тип ценника';
 TABLE labelType(LabelType);
 
-nameLabelType 'Наименование' = DATA VARISTRING[50](LabelType);
+name 'Наименование' = DATA VARISTRING[50](LabelType);
 
 @defineExternalizable(labelType, VARSTRING[100]);
-widthLabelType 'Ширина' = DATA INTEGER (LabelType);
-heightLabelType 'Высота' = DATA INTEGER (LabelType);
+width 'Ширина' = DATA INTEGER (LabelType);
+height 'Высота' = DATA INTEGER (LabelType);
 
-orientationLabelType = DATA PrintOrientation (LabelType);
-nameOrientationLabelType 'Ориентация' (labelType) = staticCaption(orientationLabelType(labelType));
+orientation = DATA PrintOrientation (LabelType);
+nameOrientation 'Ориентация' (LabelType labelType) = staticCaption(orientation(labelType));
 
-fileTemplateLabelType 'Файл шаблона' = DATA VARSTRING[200] (LabelType);
+fileTemplate 'Файл шаблона' = DATA VARSTRING[200] (LabelType);
 
-priceListTypeLabelType = DATA PriceListType (LabelType);
-namePriceListTypeLabelType 'Вид цен' (labelType) = namePriceListType(priceListTypeLabelType(labelType));
+priceListType = DATA PriceListType (LabelType);
+namePriceListType 'Вид цен' (LabelType labelType) = name(priceListType(labelType));
 
 TABLE labelTypeStoreType (LabelType, StoreType);
 TABLE labelTypeStore (LabelType, Store);
 TABLE labelTypeDepartmentStore (LabelType, DepartmentStore);
 
-inLabelType 'Включен' = DATA BOOLEAN (LabelType);
-inLabelType(labelType) <- TRUE WHEN SET(labelType IS LabelType);
+in 'Включен' = DATA BOOLEAN (LabelType);
+in(LabelType labelType) <- TRUE WHEN SET(labelType IS LabelType);
 
-inDataLabelTypeStoreType 'Включен' (labelType, storeType) = DATA BOOLEAN (LabelType, StoreType);
-inLabelTypeStoreType 'Включен' (labelType, storeType) =
-    OVERRIDE inLabelType(labelType) AND storeType IS StoreType, inDataLabelTypeStoreType(labelType, storeType);
-inDataLabelTypeStore 'Включен' (labelType, store) = DATA BOOLEAN (LabelType, Store);
-inLabelTypeStore 'Включен' (labelType, store) =
-    OVERRIDE inLabelTypeStoreType(labelType, storeTypeStore(store)), inDataLabelTypeStore(labelType, store);
-inDataLabelTypeDepartmentStore 'Включен' (labelType, departmentStore) = DATA BOOLEAN (LabelType, DepartmentStore);
-inLabelTypeDepartmentStore 'Включен' (labelType, departmentStore) =
-    OVERRIDE inLabelTypeStore(labelType, storeDepartmentStore(departmentStore)), inDataLabelTypeDepartmentStore(labelType, departmentStore) PERSISTENT;
+inData 'Включен' (labelType, storeType) = DATA BOOLEAN (LabelType, StoreType);
+in 'Включен' (LabelType labelType, StoreType storeType) =
+    OVERRIDE in(labelType) AND storeType IS StoreType, inData(labelType, storeType);
+inData 'Включен' (labelType, store) = DATA BOOLEAN (LabelType, Store);
+in 'Включен' (LabelType labelType, Store store) =
+    OVERRIDE in(labelType, storeType(store)), inData(labelType, store);
+inData 'Включен' (labelType, departmentStore) = DATA BOOLEAN (LabelType, DepartmentStore);
+in 'Включен' (LabelType labelType, DepartmentStore departmentStore) =
+    OVERRIDE in(labelType, store(departmentStore)), inData(labelType, departmentStore) PERSISTENT;
 
-groupTypeLabelType = DATA GroupType (LabelType);
-nameGroupTypeLabelType 'Тип классификатора' (labelType) = nameGroupType(groupTypeLabelType(labelType));
+groupType = DATA GroupType (LabelType);
+nameGroupType 'Тип классификатора' (LabelType labelType) = name(groupType(labelType));
 
 TABLE labelTypeGroup (LabelType, Group);
-dataInLabelTypeGroup 'Вкл.' = DATA BOOLEAN (LabelType, Group);
+dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Group);
 TABLE labelTypeSku (LabelType, Sku);
-dataInLabelTypeSku 'Вкл.' = DATA BOOLEAN (LabelType, Sku);
+dataIn 'Вкл.' = DATA BOOLEAN (LabelType, Sku);
 
-levelParentLabelTypeGroup (labelType, group) = GROUP MIN levelGroupGroup(group, parent) IF dataInLabelTypeGroup(labelType, parent)
+levelParent (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataIn(LabelType labelType, parent)
                                                               BY labelType, group PERSISTENT;
-nearestParentLabelTypeGroup (labelType, group) = groupGroupLevel(group, levelParentLabelTypeGroup (labelType, group));
-nearestInLabelTypeGroup 'Вкл.' (labelType, group) =
-    dataInLabelTypeGroup(labelType, nearestParentLabelTypeGroup (labelType, group)) PERSISTENT;
+nearestParent (LabelType labelType, Group group) = group(group, levelParent (labelType, group));
+nearestIn 'Вкл.' (LabelType labelType, Group group) =
+    dataIn(labelType, nearestParent (labelType, group)) PERSISTENT;
 
-inLabelTypeGroup 'Вкл.' (labelType, group) =
-    OVERRIDE nearestInLabelTypeGroup(labelType, group), dataInLabelTypeGroup(labelType, group) PERSISTENT;
+in 'Вкл.' (LabelType labelType, Group group) =
+    OVERRIDE nearestIn(labelType, group), dataIn(labelType, group) PERSISTENT;
 
-inLabelTypeSku 'Вкл.' (labelType, sku) =
-    OVERRIDE inLabelTypeGroup(labelType, groupGroupTypeSku(groupTypeLabelType(labelType), sku)), dataInLabelTypeSku(labelType, sku);
+in 'Вкл.' (LabelType labelType, Sku sku) =
+    OVERRIDE in(labelType, group(groupType(labelType), sku)), dataIn(labelType, sku);
 
-overLabelTypeSkuDepartmentStore = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
-skipLabelTypeSkuDepartmentStore = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
-inLabelTypeSkuDepartmentStore (labelType, sku, departmentStore) = ((inLabelTypeSku(labelType, sku) 
-    AND inLabelTypeDepartmentStore(labelType, departmentStore)) AND NOT skipLabelTypeSkuDepartmentStore(labelType, sku, departmentStore)) OR overLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);
+over = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
+skip = ABSTRACT BOOLEAN (LabelType, Sku, DepartmentStore);
+in (LabelType labelType, Sku sku, DepartmentStore departmentStore) = ((in(labelType, sku) 
+    AND in(labelType, departmentStore)) AND NOT skip(labelType, sku, departmentStore)) OR over(labelType, sku, departmentStore);
 
 //-- Множитель
-dataCountLabelTypeGroup 'Множитель' = DATA INTEGER (LabelType, Group);
-dataCountLabelTypeSku 'Множитель' = DATA INTEGER (LabelType, Sku);
+dataCount 'Множитель' = DATA INTEGER (LabelType, Group);
+dataCount 'Множитель' = DATA INTEGER (LabelType, Sku);
 
-levelParentCountLabelLabelTypeGroup (labelType, group) = GROUP MIN levelGroupGroup(group, parent) IF dataCountLabelTypeGroup(labelType, parent)
+levelParentCountLabel (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataCount(LabelType labelType, parent)
                                                               BY labelType, group PERSISTENT;
-nearestParentCountLabelLabelTypeGroup (labelType, group) = groupGroupLevel(group, levelParentCountLabelLabelTypeGroup (labelType, group));
-nearestCountLabelLabelTypeGroup 'Множитель' (labelType, group) =
-    dataCountLabelTypeGroup(labelType, nearestParentCountLabelLabelTypeGroup (labelType, group)) PERSISTENT;
+nearestParentCountLabel (LabelType labelType, Group group) = group(group, levelParentCountLabel (labelType, group));
+nearestCountLabel 'Множитель' (LabelType labelType, Group group) =
+    dataCount(labelType, nearestParentCountLabel (labelType, group)) PERSISTENT;
 
-countLabelTypeGroup 'Множитель' (labelType, group) = OVERRIDE
+count 'Множитель' (LabelType labelType, Group group) = OVERRIDE
     1 IF group IS Group IF labelType IS LabelType,
-    nearestCountLabelLabelTypeGroup(labelType, group),
-    dataCountLabelTypeGroup(labelType, group) PERSISTENT;
+    nearestCountLabel(labelType, group),
+    dataCount(labelType, group) PERSISTENT;
 
-countLabelTypeSku 'Множитель' (labelType, sku) =
-    OVERRIDE countLabelTypeGroup(labelType, groupGroupTypeSku(groupTypeLabelType(labelType), sku)), dataCountLabelTypeSku(labelType, sku);
+count 'Множитель' (LabelType labelType, Sku sku) =
+    OVERRIDE count(labelType, group(groupType(labelType), sku)), dataCount(labelType, sku);
 
 //-- Количество для печати ценника брать множитель или из документа.
-includeLabelType 'Из документа'= DATA BOOLEAN (LabelType);
-dataIncludeLabelTypeGroup 'Из документа' = DATA BOOLEAN (LabelType, Group);
-dataIncludeLabelTypeSku 'Из документа' = DATA BOOLEAN (LabelType, Sku);
+include 'Из документа'= DATA BOOLEAN (LabelType);
+dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Group);
+dataInclude 'Из документа' = DATA BOOLEAN (LabelType, Sku);
 
-levelParentIncludeLabelLabelTypeGroup (labelType, group) = GROUP MIN levelGroupGroup(group, parent) IF dataIncludeLabelTypeGroup(labelType, parent)
+levelParentIncludeLabel (labelType, group) = GROUP MIN level(Group group, Group parent) IF dataInclude(LabelType labelType, parent)
                                                               BY labelType, group PERSISTENT;
-nearestParentIncludeLabelLabelTypeGroup (labelType, group) = groupGroupLevel(group, levelParentIncludeLabelLabelTypeGroup (labelType, group));
-nearestIncludeLabelLabelTypeGroup 'Из документа' (labelType, group) =
-    dataIncludeLabelTypeGroup(labelType, nearestParentIncludeLabelLabelTypeGroup (labelType, group)) PERSISTENT;
+nearestParentIncludeLabel (LabelType labelType, Group group) = group(group, levelParentIncludeLabel (labelType, group));
+nearestIncludeLabel 'Из документа' (LabelType labelType, Group group) =
+    dataInclude(labelType, nearestParentIncludeLabel (labelType, group)) PERSISTENT;
 
-includeLabelTypeGroup 'Из документа' (labelType, group) = OVERRIDE
-    includeLabelType(labelType) AND group IS Group,
-    nearestIncludeLabelLabelTypeGroup(labelType, group),
-    dataIncludeLabelTypeGroup(labelType, group) PERSISTENT;
+include 'Из документа' (LabelType labelType, Group group) = OVERRIDE
+    include(labelType) AND group IS Group,
+    nearestIncludeLabel(labelType, group),
+    dataInclude(labelType, group) PERSISTENT;
 
-includeLabelTypeSku 'Из документа' (labelType, sku) = OVERRIDE
-    includeLabelTypeGroup(labelType, groupGroupTypeSku(groupTypeLabelType(labelType), sku)),
-    dataIncludeLabelTypeSku(labelType, sku);
+include 'Из документа' (LabelType labelType, Sku sku) = OVERRIDE
+    include(labelType, group(groupType(labelType), sku)),
+    dataInclude(labelType, sku);
 
 //печать для нулевых цен
-printNullPriceLabelType 'Включать позиций без цен' = DATA BOOLEAN (LabelType);
+printNullPrice 'Включать позиций без цен' = DATA BOOLEAN (LabelType);
 
-notPrintRetailPriceLabelType 'Не печатать без цены до' = DATA BOOLEAN (LabelType);
+notPrintRetailPrice 'Не печатать без цены до' = DATA BOOLEAN (LabelType);
 
 FORM labelType 'Тип ценника'
     OBJECTS l = LabelType FIXED PANEL
-    PROPERTIES(l) idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
-                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType, notPrintRetailPriceLabelType
+    PROPERTIES(l) id, name, width, height, nameOrientation, fileTemplate,
+                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice
 
     TREE treeStore a=STRING[3], st=StoreType, s=Store
-    PROPERTIES READONLY OBJVALUE(a), nameStockGroup(st), nameStore(s)
-    FILTERS stringEqualsAll(a), inStoreTypeStore(st, s)
+    PROPERTIES READONLY OBJVALUE(a), name[StockGroup](st), name(s)
+    FILTERS stringEqualsAll(a), in(st, s)
 
     OBJECTS d=DepartmentStore
-    PROPERTIES(d) READONLY depName = nameDepartmentStore
+    PROPERTIES(d) READONLY depName = name
     FILTERS (d IS DepartmentStore AND NOT s IS Store AND NOT st IS StoreType) OR
-            (storeDepartmentStore(d)==s AND st IS StoreType) OR
-            (storeTypeDepartmentStore(d)==st AND NOT s IS Store)
-    PROPERTIES(l) TODRAW a FORCE GRID inLabelType, includeLabelType
-    PROPERTIES inLabelTypeStoreType(l,st), inLabelTypeStore(l,s), inLabelTypeDepartmentStore(l,d)
+            (store(d)==s AND st IS StoreType) OR
+            (storeType(d)==st AND NOT s IS Store)
+    PROPERTIES(l) TODRAW a FORCE GRID in, include
+    PROPERTIES in(l,st), in(l,s), in(l,d)
 
     ORDER BY depName
 
-    TREE treeGroup g=Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), nameGroup(g)
-    FILTERS groupTypeGroup(g) == groupTypeLabelType(l)
-    ORDER BY orderGroup(g), nameGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
+    TREE treeGroup g=Group PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(l)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
-    PROPERTIES(l, g) inLabelTypeGroup, countLabelTypeGroup, includeLabelTypeGroup
+    PROPERTIES(l, g) in, count, include
 
     OBJECTS sk = Sku
-    PROPERTIES(sk) READONLY nameSku, idBarcodeSku
-    FILTERS isParentGroupSku(g, sk) OR sk IS Sku AND NOT g
-    PROPERTIES(l, sk) inLabelTypeSku, countLabelTypeSku, includeLabelTypeSku
+    PROPERTIES(sk) READONLY name, idBarcode
+    FILTERS isParent(g, sk) OR sk IS Sku AND NOT g
+    PROPERTIES(l, sk) in, count, include
 
     EDIT LabelType OBJECT l
 ;
@@ -177,18 +177,18 @@ DESIGN labelType {
         MOVE l.box {
             NEW wor1 {
                 type = CONTAINERH;
-                MOVE PROPERTY(nameLabelType(l));
-                MOVE PROPERTY(widthLabelType(l));
-                MOVE PROPERTY(heightLabelType(l));
-                MOVE PROPERTY(nameOrientationLabelType(l));
-                MOVE PROPERTY(printNullPriceLabelType(l));
+                MOVE PROPERTY(name(l));
+                MOVE PROPERTY(width(l));
+                MOVE PROPERTY(height(l));
+                MOVE PROPERTY(nameOrientation(l));
+                MOVE PROPERTY(printNullPrice(l));
             }
             NEW wor2 {
                 type = CONTAINERH;
-                MOVE PROPERTY(idLabelType(l));
-                MOVE PROPERTY(fileTemplateLabelType(l));
-                MOVE PROPERTY(namePriceListTypeLabelType(l));
-                MOVE PROPERTY(nameGroupTypeLabelType(l));
+                MOVE PROPERTY(id(l));
+                MOVE PROPERTY(fileTemplate(l));
+                MOVE PROPERTY(namePriceListType(l));
+                MOVE PROPERTY(nameGroupType(l));
             }
         };
         NEW specification{
@@ -204,7 +204,7 @@ DESIGN labelType {
                 caption = 'Товары';
                 NEW row1 {
                     caption = 'Классификатор';
-                    MOVE PROPERTY(nameGroupTypeLabelType(l));
+                    MOVE PROPERTY(nameGroupType(l));
                 }
                 NEW row2 {
                     fill = 1;
@@ -220,7 +220,7 @@ DESIGN labelType {
 
 FORM labelTypes 'Типы ценников'
     OBJECTS l = LabelType
-    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType, namePriceListTypeLabelType, printNullPriceLabelType
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
     PROPERTIES(l)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG LabelType OBJECT l
 ;
@@ -230,23 +230,23 @@ FORM labelTypes 'Типы ценников'
 CLASS ABSTRACT PriceTransactionDocument 'Документ, требующий загрузки в оборудование';
 TABLE priceTransactionDocument (PriceTransactionDocument);
 
-isDraftPriceTransactionDocument 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
-descriptionPriceTransactionDocument 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
-skipPriceTransactionDocument 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+isDraft 'Не проведен' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
+description 'Название документа загрузки' = ABSTRACT VARSTRING[200] (PriceTransactionDocument) PERSISTENT;
+skip 'Не загружать' = ABSTRACT BOOLEAN (PriceTransactionDocument) PERSISTENT;
 
-printedPriceTransactionDocument 'Распечатан' = DATA BOOLEAN (PriceTransactionDocument);
-printedPriceTransactionDocument(document) <- NULL WHEN SET(isDraftPriceTransactionDocument(document));
+printed 'Распечатан' = DATA BOOLEAN (PriceTransactionDocument);
+printed(PriceTransactionDocument document) <- NULL WHEN SET(isDraft(document));
 
 META implementPriceTransactionDocument(concrete)
     EXTEND CLASS concrete : Label.PriceTransactionDocument;
-    Label.isDraftPriceTransactionDocument (document) += isDraft###concrete(document);
-    Label.descriptionPriceTransactionDocument (document) += description###concrete(document);
+    isDraft[PriceTransactionDocument] (concrete document) += isDraft(document);
+    description[PriceTransactionDocument] (concrete document) += description(document);
 END
 
-createLabelTransactionPriceTransactionDocument 'Распечатать ценники' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
-createSnapshotLabelTransactionPriceTransactionDocument 'Перепечатать ценники' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR;
+createLabelTransaction 'Распечатать ценники' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR CONFIRM;
+createSnapshotLabelTransaction 'Перепечатать ценники' = ABSTRACT ACTION (PriceTransactionDocument) TOOLBAR;
 
-showPrintLabelTransactionPriceTransactionDocument = ABSTRACT BOOLEAN (PriceTransactionDocument);
+showPrintLabelTransaction = ABSTRACT BOOLEAN (PriceTransactionDocument);
 
 //----------------------------------- Печать ценников -------------------------------------------------------
 
@@ -255,137 +255,137 @@ TABLE labelTransaction(LabelTransaction);
 
 @defineCreated(LabelTransaction);
 
-dateLabelTransaction 'Дата' = DATA DATE (LabelTransaction);
-dateLabelTransaction (transaction) <- currentDate() WHEN SET(transaction IS LabelTransaction);
+date 'Дата' = DATA DATE (LabelTransaction);
+date (LabelTransaction transaction) <- currentDate() WHEN SET(transaction IS LabelTransaction);
 
-timeLabelTransaction 'Время' = DATA TIME (LabelTransaction);
-timeLabelTransaction (transaction) <- currentTime() WHEN SET(transaction IS LabelTransaction);
+time 'Время' = DATA TIME (LabelTransaction);
+time (LabelTransaction transaction) <- currentTime() WHEN SET(transaction IS LabelTransaction);
 
-dateTimeLabelTransaction 'Дата/время' (t) = dateTimeToDateTime(dateLabelTransaction(t), timeLabelTransaction(t)) PERSISTENT IN recognize;
+dateTime 'Дата/время' (LabelTransaction t) = dateTimeToDateTime(date(t), time(t)) PERSISTENT IN recognize;
 
-departmentStoreLabelTransaction = DATA DepartmentStore (LabelTransaction);
-nameDepartmentStoreLabelTransaction 'Отдел магазина' (transaction) = nameDepartmentStore(departmentStoreLabelTransaction(transaction)) IN recognize;
-nameStoreLabelTransaction 'Магазин' (transaction) = nameStore(storeDepartmentStore(departmentStoreLabelTransaction(transaction)));
-addressStoreLabelTransaction 'Адрес магазина' (transaction) = addressStore(storeDepartmentStore(departmentStoreLabelTransaction(transaction)));
+departmentStore = DATA DepartmentStore (LabelTransaction);
+nameDepartmentStore 'Отдел магазина' (LabelTransaction transaction) = name(departmentStore(transaction)) IN recognize;
+nameStore 'Магазин' (LabelTransaction transaction) = name(store(departmentStore(transaction)));
+addressStore 'Адрес магазина' (LabelTransaction transaction) = address(store(departmentStore(transaction)));
 
-nameLegalEntityLabelTransaction 'Компания' (transaction) = nameLegalEntityDepartmentStore(departmentStoreLabelTransaction(transaction));
-fullNameLegalEntityLabelTransaction 'Компания (полное наименование)' (transaction) = fullNameLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransaction(transaction)));
+nameLegalEntity 'Компания' (LabelTransaction transaction) = nameLegalEntity(departmentStore(transaction));
+fullNameLegalEntity 'Компания (полное наименование)' (LabelTransaction transaction) = fullName(legalEntity(departmentStore(transaction)));
 
-labelTypeLabelTransaction 'Тип ценника' = DATA LabelType (LabelTransaction) NOT NULL;
-nameLabelTypeLabelTransaction 'Тип ценника' (transaction) = nameLabelType(labelTypeLabelTransaction(transaction)) IN recognize;
+labelType 'Тип ценника' = DATA LabelType (LabelTransaction) NOT NULL;
+nameLabelType 'Тип ценника' (LabelTransaction transaction) = name(labelType(transaction)) IN recognize;
 
 //CONSTRAINT labelTypeLabelTransaction(transaction) AND NOT inLabelTypeDepartmentStore(labelTypeLabelTransaction(transaction), departmentStoreLabelTransaction(transaction))
 //           CHECKED BY labelTypeLabelTransaction MESSAGE 'Тип ценника запрещен для выбранного подразделения';
            
-priceListTypeLabelTransaction = DATA PriceListType (LabelTransaction);     
-namePriceListTypeLabelTransaction 'Вид цен' (labelTransaction) = namePriceListType(priceListTypeLabelTransaction(labelTransaction));         
+priceListType = DATA PriceListType (LabelTransaction);     
+namePriceListType 'Вид цен' (LabelTransaction labelTransaction) = name(priceListType(labelTransaction));         
 
-fileTemplateLabelTransaction 'Файл шаблона' (transaction) = fileTemplateLabelType(labelTypeLabelTransaction(transaction));
+fileTemplate 'Файл шаблона' (LabelTransaction transaction) = fileTemplate(labelType(transaction));
 
-topFileTemplateLabelTransaction 'Файл шаблона (верхний)' = fileTemplatePrintOrientation(orientationLabelType(labelTypeLabelTransaction(transaction)));
+topFileTemplate 'Файл шаблона (верхний)' = fileTemplate(orientation(labelType(LabelTransaction transaction)));
 
-priceTransactionDocumentLabelTransaction = DATA PriceTransactionDocument (LabelTransaction);
-descriptionLabelTransaction 'Основание загрузки' (transaction) =
-    descriptionPriceTransactionDocument(priceTransactionDocumentLabelTransaction(transaction));
+priceTransactionDocument = DATA PriceTransactionDocument (LabelTransaction);
+description 'Основание загрузки' (LabelTransaction transaction) =
+    description(priceTransactionDocument(transaction));
 
-statusLabelPriceTransactionDocument 'Статус печати ценника' (document) =
+statusLabel 'Статус печати ценника' (PriceTransactionDocument document) =
                                                         CASE
-                                                            WHEN skipPriceTransactionDocument(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument
-                                                            WHEN printedPriceTransactionDocument(document) THEN 'Распечатан' IF document IS PriceTransactionDocument
+                                                            WHEN skip(document) THEN 'Загрузка не требуется' IF document IS PriceTransactionDocument
+                                                            WHEN printed(document) THEN 'Распечатан' IF document IS PriceTransactionDocument
                                                             ELSE 'Не распечатан' IF document IS PriceTransactionDocument
                                                         ;
 
 CLASS LabelTransactionDetail 'Строка печати ценников';
 TABLE LabelTransactionDetail(LabelTransactionDetail);
 
-labelTransactionLabelTransactionDetail = DATA LabelTransaction (LabelTransactionDetail);
+labelTransaction = DATA LabelTransaction (LabelTransactionDetail);
 
-labelTypeLabelTransactionDetail (d) = labelTypeLabelTransaction(labelTransactionLabelTransactionDetail(d));
-nameLabelTypeLabelTransactionDetail 'Тип ценника' (d) = nameLabelType(labelTypeLabelTransactionDetail(d));
-descriptionLabelTransactionDetail 'Основание загрузки' (d) = descriptionLabelTransaction(labelTypeLabelTransactionDetail(d));
+labelType (LabelTransactionDetail d) = labelType(labelTransaction(d));
+nameLabelType 'Тип ценника' (LabelTransactionDetail d) = name(labelType(d));
+description 'Основание загрузки' (LabelTransactionDetail d) = description[LabelTransaction](labelType(d));
 
-priceListTypeLabelTypeLabelTransactionDetail(d) = priceListTypeLabelType(labelTypeLabelTransactionDetail(d));
-priceListTypeLabelTransactionDetail(d) = OVERRIDE priceListTypeLabelTypeLabelTransactionDetail(d), priceListTypeLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
-namePriceListTypeLabelTransactionDetail 'Вид цен' (labelTransactionDetail) = namePriceListType(priceListTypeLabelTransactionDetail(labelTransactionDetail));     
+priceListTypeLabelType(LabelTransactionDetail d) = priceListType(labelType(d));
+priceListType(LabelTransactionDetail d) = OVERRIDE priceListTypeLabelType(d), priceListType(labelTransaction(d)) PERSISTENT;
+namePriceListType 'Вид цен' (LabelTransactionDetail labelTransactionDetail) = name(priceListType(labelTransactionDetail));     
 
-printNullPriceLabelTransactionDetail = printNullPriceLabelType(labelTypeLabelTransactionDetail(detail));
-notPrintRetailPriceLabelTransactionDetail = notPrintRetailPriceLabelType(labelTypeLabelTransactionDetail(detail));
+printNullPrice = printNullPrice(labelType(LabelTransactionDetail detail));
+notPrintRetailPrice = notPrintRetailPrice(labelType(LabelTransactionDetail detail));
 
-departmentStoreLabelTransactionDetail (d) = departmentStoreLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
+departmentStore (LabelTransactionDetail d) = departmentStore(labelTransaction(d)) PERSISTENT;
 
-dateTimeLabelTransactionDetail 'Дата/время' (d) = dateTimeLabelTransaction(labelTransactionLabelTransactionDetail(d)) PERSISTENT;
-dateLabelTransactionDetail 'Дата' (d) = dateLabelTransaction(labelTransactionLabelTransactionDetail(d));
-timeLabelTransactionDetail 'Время' (d) = timeLabelTransaction(labelTransactionLabelTransactionDetail(d));
+dateTime 'Дата/время' (LabelTransactionDetail d) = dateTime(labelTransaction(d)) PERSISTENT;
+date 'Дата' (LabelTransactionDetail d) = date(labelTransaction(d));
+time 'Время' (LabelTransactionDetail d) = time(labelTransaction(d));
 
-createdNameUserLabelTransactionDetail 'Создан пользователем' (d) = createdNameUserLabelTransaction(labelTransactionLabelTransactionDetail(d));
-createdTimeLabelTransactionDetail 'Время создания' (d) = createdTimeLabelTransaction(labelTransactionLabelTransactionDetail(d));
-createdHostnameComputerLabelTransactionDetail 'Создан на компьютере' (d) = createdHostnameComputerLabelTransaction(labelTransactionLabelTransactionDetail(d));
+createdNameUser 'Создан пользователем' (LabelTransactionDetail d) = createdNameUser(labelTransaction(d));
+createdTime 'Время создания' (LabelTransactionDetail d) = createdTime(labelTransaction(d));
+createdHostnameComputer 'Создан на компьютере' (LabelTransactionDetail d) = createdHostnameComputer(labelTransaction(d));
 
-skuLabelTransactionDetail = DATA Sku (LabelTransactionDetail) INDEXED;
-nameSkuLabelTransactionDetail 'SKU' (d) = nameSku(skuLabelTransactionDetail(d));
-dataBarcodeLabelTransactionDetail = DATA Barcode (LabelTransactionDetail);
-idBarcodeLabelTransactionDetail 'Штрихкод' (d) = OVERRIDE idBarcodeSku(skuLabelTransactionDetail(d)), idBarcode(dataBarcodeLabelTransactionDetail(d)) MINCHARWIDTH 15 PREFCHARWIDTH 30; 
+sku = DATA Sku (LabelTransactionDetail) INDEXED;
+nameSku 'SKU' (LabelTransactionDetail d) = name(sku(d));
+dataBarcode = DATA Barcode (LabelTransactionDetail);
+idBarcode 'Штрихкод' (LabelTransactionDetail d) = OVERRIDE idBarcode(sku(d)), id(dataBarcode(d)) MINCHARWIDTH 15 PREFCHARWIDTH 30; 
 
-batchLabelTransactionDetail = DATA Batch (LabelTransactionDetail) INDEXED;
-nameBatchLabelTransactionDetail 'Партия' (d) = nameBatch(batchLabelTransactionDetail(d));
+batch = DATA Batch (LabelTransactionDetail) INDEXED;
+nameBatch 'Партия' (LabelTransactionDetail d) = name(batch(d));
 
-quantityLabelTransactionDetail 'Кол-во' = DATA INTEGER (LabelTransactionDetail);
-nameLabelTransactionDetail 'Наименование' = DATA VARSTRING[255] (LabelTransactionDetail);  
-priceLabelTransactionDetail 'Цена' = DATA NUMERIC[14,2] (LabelTransactionDetail);
-retailPriceLabelTransactionDetail 'Цена до'  = DATA NUMERIC[14,2] (LabelTransactionDetail);
-overRetailPriceLabelTransactionDetail = ABSTRACT NUMERIC[14,2] (LabelTransactionDetail);
-operationLabelTransactionDetail = ABSTRACT Operation.Operation (LabelTransactionDetail);
-nameOperationLabelTransactionDetail 'Операция' = nameOperation(operationLabelTransactionDetail(detail));
-discountSumTransactionDetail 'Скидка' (d) = retailPriceLabelTransactionDetail(d) - priceLabelTransactionDetail(d);
+quantity 'Кол-во' = DATA INTEGER (LabelTransactionDetail);
+name 'Наименование' = DATA VARSTRING[255] (LabelTransactionDetail);  
+price 'Цена' = DATA NUMERIC[14,2] (LabelTransactionDetail);
+retailPrice 'Цена до'  = DATA NUMERIC[14,2] (LabelTransactionDetail);
+overRetailPrice = ABSTRACT NUMERIC[14,2] (LabelTransactionDetail);
+operation = ABSTRACT Operation.Operation (LabelTransactionDetail);
+nameOperation 'Операция' = name(operation(LabelTransactionDetail detail));
+discountSum 'Скидка' (LabelTransactionDetail d) = retailPrice(d) - price(d);
 
-fullNameLegalEntityLabelTransactionDetail 'Компания (полное наименование)' (d) = fullNameLegalEntityLabelTransaction(labelTransactionLabelTransactionDetail(d));
+fullNameLegalEntity 'Компания (полное наименование)' (LabelTransactionDetail d) = fullNameLegalEntity(labelTransaction(d));
 
-priceLabelTransactionDetailSkuDepartmentStore 'Текущая цена на ценниках' (sku, stock) =
-    GROUP LAST (priceLabelTransactionDetail(ledger) / OVERRIDE 1.0, amountBarcode(dataBarcodeLabelTransactionDetail(ledger)))
-          BY skuLabelTransactionDetail(ledger), departmentStoreLabelTransactionDetail(ledger)
-          ORDER dateTimeLabelTransactionDetail(ledger), ledger
+priceLabelTransactionDetail 'Текущая цена на ценниках' (sku, stock) =
+    GROUP LAST (price(LabelTransactionDetail ledger) / OVERRIDE 1.0, amount(dataBarcode(ledger)))
+          BY sku(ledger), departmentStore(ledger)
+          ORDER dateTime(ledger), ledger
           WHERE ledger IS LabelTransactionDetail PERSISTENT TABLE extraSkuStock;
 
-firstSortLabelTransactionDetail = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
-secondSortLabelTransactionDetail = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
+firstSort = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
+secondSort = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
-    PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, nameDepartmentStoreLabelTransaction, descriptionLabelTransaction,
-                  dateLabelTransaction, timeLabelTransaction, nameStoreLabelTransaction, nameLegalEntityLabelTransaction, 
-                  fullNameLegalEntityLabelTransaction, dateTimeLabelTransaction                  
+    PROPERTIES(l) READONLY nameLabelType, nameDepartmentStore, description,
+                  date, time, nameStore, nameLegalEntity, 
+                  fullNameLegalEntity, dateTime                  
     
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
-                           quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, 
-                           retailPriceLabelTransactionDetail, discountSumTransactionDetail, fullNameLegalEntityLabelTransactionDetail,
-                           firstSortLabelTransactionDetail, secondSortLabelTransactionDetail
-    FILTERS labelTransactionLabelTransactionDetail(d) == l
-    ORDER BY firstSortLabelTransactionDetail(d), secondSortLabelTransactionDetail(d)
-    REPORTFILES l fileTemplateLabelTransaction(l), TOP topFileTemplateLabelTransaction(l)
+    PROPERTIES(d) READONLY idBarcode, nameSku, nameBatch,
+                           quantity, name, price, 
+                           retailPrice, discountSum, fullNameLegalEntity,
+                           firstSort, secondSort
+    FILTERS labelTransaction(d) == l
+    ORDER BY firstSort(d), secondSort(d)
+    REPORTFILES l fileTemplate(l), TOP topFileTemplate(l)
 ;
 
-needCustomPrintLabelTransaction = ABSTRACT BOOLEAN (LabelTransaction);
-customPrintLabelTransaction = ABSTRACT ACTION (LabelTransaction);
+needCustomPrint = ABSTRACT BOOLEAN (LabelTransaction);
+customPrint = ABSTRACT ACTION (LabelTransaction);
 
-printLabelTransaction(t) = ACTION {
-    IF needCustomPrintLabelTransaction(t) THEN
-        customPrintLabelTransaction(t)
+print(LabelTransaction t) = ACTION {
+    IF needCustomPrint(t) THEN
+        customPrint(t)
     ELSE
         FORM printLabelTransaction OBJECTS l = t PRINT;
 }
 
-selectedLabelTransactionDetail 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
-deleteNotSelectedLabelTransactionDetail 'Удалить кроме отмеченных' = ACTION (t) {
-    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT selectedLabelTransactionDetail(d);
+selected 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
+deleteNotSelectedDetail 'Удалить кроме отмеченных' = ACTION (LabelTransaction t) {
+    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT selected(d);
 } TOOLBAR;
 
-changeBarcodeLabelTransactionDetail(d)  = ACTION {
-    IF [= GROUP SUM 1 IF idBarcode(b) BY skuBarcode(b)](skuLabelTransactionDetail(d)) > 1 THEN {
+changeBarcode(LabelTransactionDetail d)  = ACTION {
+    IF [= GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
         REQUEST OBJECT b
-        FORM barcodeSku OBJECTS s = skuLabelTransactionDetail(d) MODAL;
+        FORM barcodeSku OBJECTS s = sku(d) MODAL;
         IF formResult() == FormResult.ok THEN {
-            dataBarcodeLabelTransactionDetail(d) <- requestedObject();
+            dataBarcode(d) <- requestedObject();
     
         }
     }
@@ -393,35 +393,35 @@ changeBarcodeLabelTransactionDetail(d)  = ACTION {
 
 FORM labelTypesDialog 'Доступные типы ценников'
     OBJECTS ds = DepartmentStore  FIXED PANEL   
-    FILTERS isCompanyStock(ds)
+    FILTERS isCompany(ds)
 
     OBJECTS l = LabelType
-    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType, namePriceListTypeLabelType, printNullPriceLabelType
-    FILTERS inLabelTypeDepartmentStore(l,ds)
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
+    FILTERS in(l,ds)
 ;
 DESIGN labelTypesDialog { main{ preferredSize = (800, 600); } } 
 
-changeLabelTypeLabelTransaction(t)  = ACTION {
+changeLabelType(LabelTransaction t)  = ACTION {
     REQUEST OBJECT l
-    FORM labelTypesDialog OBJECTS ds = departmentStoreLabelTransaction(t) MODAL;
+    FORM labelTypesDialog OBJECTS ds = departmentStore(t) MODAL;
     IF formResult() == FormResult.ok THEN {
-        labelTypeLabelTransaction(t) <- requestedObject();
+        labelType(t) <- requestedObject();
 
     }    
 }
 
 FORM customLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
-    PROPERTIES(l) nameLabelTypeLabelTransaction ON CHANGE changeLabelTypeLabelTransaction(l), nameDepartmentStoreLabelTransaction, dateLabelTransaction, timeLabelTransaction,
-                  descriptionLabelTransaction READONLY 
+    PROPERTIES(l) nameLabelType ON CHANGE changeLabelType(l), nameDepartmentStore, date, time,
+                  description READONLY 
                    
     OBJECTS d = LabelTransactionDetail
-    PROPERTIES(d) selectedLabelTransactionDetail, idBarcodeLabelTransactionDetail ON CHANGE changeBarcodeLabelTransactionDetail(d), nameSkuLabelTransactionDetail READONLY, nameBatchLabelTransactionDetail,
-                  nameOperationLabelTransactionDetail, quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail,
-                  discountSumTransactionDetail, DELETESESSION
-    FILTERS labelTransactionLabelTransactionDetail(d) == l
+    PROPERTIES(d) selected, idBarcode ON CHANGE changeBarcode(d), nameSku READONLY, nameBatch,
+                  nameOperation, quantity, name, price, retailPrice,
+                  discountSum, DELETESESSION
+    FILTERS labelTransaction(d) == l
     
-    PROPERTIES(l) TODRAW d deleteNotSelectedLabelTransactionDetail                      
+    PROPERTIES(l) TODRAW d deleteNotSelectedDetail                      
     
     EDIT LabelTransaction OBJECT l    
 ;
@@ -441,52 +441,52 @@ DESIGN customLabelTransaction {
 
 @extendFormFilterAccessStock(labelTransaction, l, customLabelTransaction, departmentStore, company);
 
-addLabelTransactionDepartmentStore 'Добавить' = ACTION (dep) NEWSESSION {
+addLabelTransaction 'Добавить' = ACTION (DepartmentStore dep) NEWSESSION {
     FOR ADDOBJ l = LabelTransaction DO {
-        ASSIGN departmentStoreLabelTransaction(l) <- dep;
+        ASSIGN departmentStore(l) <- dep;
         FORM customLabelTransaction OBJECTS l=l DOCKEDMODAL;
         IF formResult() == FormResult.ok THEN { 
-                printLabelTransaction(l);
+                print(l);
             apply();
         }            
     }
 } TOOLBAR IMAGE 'add.png';
 
-printToLabelTransaction 'Печать ценников' (labelTransaction) = ACTION (labelTransaction) {
-        printLabelTransaction(labelTransaction);
+printTo 'Печать ценников' (LabelTransaction labelTransaction) = ACTION (labelTransaction) {
+        print(labelTransaction);
 } IMAGE 'print.png' IN print;
 
 FORM labelTransactions 'Печать ценников'
     OBJECTS d = DepartmentStore FIXED PANEL
-    PROPERTIES nameDepartmentStore(d) SELECTOR
+    PROPERTIES name(d) SELECTOR
 
     OBJECTS l = LabelTransaction
-    PROPERTIES(l) READONLY nameLabelTypeLabelTransaction, descriptionLabelTransaction, dateLabelTransaction, timeLabelTransaction
-    PROPERTIES(l) READONLY createdNameUserLabelTransaction, createdTimeLabelTransaction, createdHostnameComputerLabelTransaction
-    PROPERTIES(d) addLabelTransactionDepartmentStore TODRAW l FORCE PANEL TOOLBAR 
+    PROPERTIES(l) READONLY nameLabelType, description, date, time
+    PROPERTIES(l) READONLY createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(d) addLabelTransaction TODRAW l FORCE PANEL TOOLBAR 
     PROPERTIES(l) EDITFORM , DELETE FORCE PANEL TOOLBAR 
-    PROPERTIES(l) printToLabelTransaction FORCE PANEL 
-    FILTERS departmentStoreLabelTransaction(l) == d
-    ORDER BY dateLabelTransaction(l), timeLabelTransaction(l)
+    PROPERTIES(l) printTo FORCE PANEL 
+    FILTERS departmentStore(l) == d
+    ORDER BY date(l), time(l)
 
     OBJECTS dt = LabelTransactionDetail
-    PROPERTIES(dt) READONLY idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
-                            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail, discountSumTransactionDetail 
-    FILTERS labelTransactionLabelTransactionDetail(dt) == l
+    PROPERTIES(dt) READONLY idBarcode, nameSku, nameBatch,
+                            quantity, name, price, retailPrice, discountSum 
+    FILTERS labelTransaction(dt) == l
     
  // по определенной позиции и складу  
     OBJECTS s = Sku
-    PROPERTIES(s)    READONLY idBarcodeSku, nameSku, idSku
+    PROPERTIES(s)    READONLY idBarcode, name, id
     FILTERGROUP price
-        FILTER 'Ранее загруженные' priceLabelTransactionDetailSkuDepartmentStore(s, d) 'F8' DEFAULT
+        FILTER 'Ранее загруженные' priceLabelTransactionDetail(s, d) 'F8' DEFAULT
     OBJECTS dts = LabelTransactionDetail
-    PROPERTIES(dts) READONLY nameLabelTypeLabelTransactionDetail, descriptionLabelTransactionDetail, dateLabelTransactionDetail, timeLabelTransactionDetail,
-            createdNameUserLabelTransactionDetail, createdTimeLabelTransactionDetail, createdHostnameComputerLabelTransactionDetail,
-            idBarcodeLabelTransactionDetail, nameSkuLabelTransactionDetail, nameBatchLabelTransactionDetail,
-            quantityLabelTransactionDetail, nameLabelTransactionDetail, priceLabelTransactionDetail, retailPriceLabelTransactionDetail, discountSumTransactionDetail 
-    ORDER BY dateLabelTransactionDetail(dts) DESC, timeLabelTransactionDetail(dts) DESC
-    FILTERS skuLabelTransactionDetail(dts) == s,
-            departmentStoreLabelTransactionDetail(dts) == d
+    PROPERTIES(dts) READONLY nameLabelType, description, date, time,
+            createdNameUser, createdTime, createdHostnameComputer,
+            idBarcode, nameSku, nameBatch,
+            quantity, name, price, retailPrice, discountSum 
+    ORDER BY date(dts) DESC, time(dts) DESC
+    FILTERS sku(dts) == s,
+            departmentStore(dts) == d
 ;
 
 @extendFormFilterStockAccess(d, labelTransactions);
@@ -531,51 +531,51 @@ DESIGN labelTransactions {
 
 // -------------------------------------------- Действия по печати ценников ------------------------------ //
 
-documentQuantityLabelTransactionDetail = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
-documentPriceLabelTransactionDetail = DATA LOCAL NUMERIC[14,2] (LabelTransactionDetail);
+documentQuantity = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
+documentPrice = DATA LOCAL NUMERIC[14,2] (LabelTransactionDetail);
 
-calcPriceLabelTransactionDetail (d) =
-    IF  batchLabelTransactionDetail(d) THEN
-        prevPriceAPriceListTypeBatchStockDateTime(priceListTypeLabelTransactionDetail(d),
-                                                  batchLabelTransactionDetail(d),
-                                                  departmentStoreLabelTransactionDetail(d),
-                                                  dateTimeLabelTransactionDetail(d))
+calcPrice (LabelTransactionDetail d) =
+    IF  batch(d) THEN
+        prevPriceA(priceListType(d),
+                                                  batch(d),
+                                                  departmentStore(d),
+                                                  dateTime(d))
     ELSE
-        prevPriceAPriceListTypeSkuStockDateTime(priceListTypeLabelTransactionDetail(d),
-                                                skuLabelTransactionDetail(d),
-                                                departmentStoreLabelTransactionDetail(d),
-                                                dateTimeLabelTransactionDetail(d));
+        prevPriceA(priceListType(d),
+                                                sku(d),
+                                                departmentStore(d),
+                                                dateTime(d));
 
 WHEN SESSION FORMS customLabelTransaction
-    CHANGED(labelTypeLabelTransactionDetail(d)) OR SETCHANGED (dataBarcodeLabelTransactionDetail(d)) DO {
-        priceLabelTransactionDetail(d) <- OVERRIDE 
-            roundPriceRoundCondition(calcPriceLabelTransactionDetail(d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amountBarcode(dataBarcodeLabelTransactionDetail(d))), roundConditionDepartmentStore(departmentStoreLabelTransactionDetail(d))), 
-            documentPriceLabelTransactionDetail(d);
-        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
+    CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d)) DO {
+        price(d) <- OVERRIDE 
+            round(calcPrice(d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amount(dataBarcode(d))), roundCondition(departmentStore(d))), 
+            documentPrice(d);
+        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
 }
 
 WHEN SESSION FORMS customLabelTransaction
-    CHANGED(labelTypeLabelTransactionDetail(d)) DO {
-        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
-                                                INTEGER(documentQuantityLabelTransactionDetail(d))
+    CHANGED(labelType(LabelTransactionDetail d)) DO {
+        quantity(d) <- IF include(labelType(d), sku(d)) THEN 
+                                                INTEGER(documentQuantity(d))
                                              ELSE 
-                                                countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d));
+                                                count(labelType(d), sku(d));
 }
 
-createAttributeLabelTransactionDetail = ABSTRACT ACTION LIST (LabelTransactionDetail);
+createAttribute = ABSTRACT ACTION LIST (LabelTransactionDetail);
 
 // -------------------------------- Добавление новых атрибутов -------------------------- //
 META defineLabelTransactionAttributeAction(object, skuClass, skuProp)
-    createAttributeLabelTransactionDetail(d) +=
-        ACTION object##LabelTransactionDetail(d) <- skuProp##skuClass(skuLabelTransactionDetail(d));
+    createAttribute(LabelTransactionDetail d) +=
+        ACTION object(d) <- skuProp(sku(d));
 
-    EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object##LabelTransactionDetail;
-    EXTEND FORM customLabelTransaction PROPERTIES(d) object##LabelTransactionDetail;
-    EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object##LabelTransactionDetail PROPERTIES(dts) READONLY object##LabelTransactionDetail;   
+    EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY object;
+    EXTEND FORM customLabelTransaction PROPERTIES(d) object;
+    EXTEND FORM labelTransactions PROPERTIES(dt) READONLY object PROPERTIES(dts) READONLY object;   
 END
 
 META defineLabelTransactionAttribute(object, caption, type, skuClass, skuProp)
-    object##LabelTransactionDetail caption  = DATA type (LabelTransactionDetail);
+    object caption  = DATA type (LabelTransactionDetail);
     @defineLabelTransactionAttributeAction(object, skuClass, skuProp);
 END
 
@@ -584,59 +584,59 @@ END
 @defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', VARSTRING[100], Sku, nameSkuGroup);
 @defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[100], Sku, shortNameUOM);
 @defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
-residentCountrySkuLabelTransactionDetail 'Отечественный производитель' (d) = residentCountry(countrySku(skuLabelTransactionDetail(d)));
-supplierSkuLabelTransactionDetail = lastSupplierStockSku(departmentStoreLabelTransactionDetail(d), skuLabelTransactionDetail(d));
-nameSupplierSkuLabelTransactionDetail 'Поставщик' (d) = nameLegalEntity(supplierSkuLabelTransactionDetail(d));
-fullNameSupplierSkuLabelTransactionDetail 'Поставщик полное наименование' (d) = fullNameLegalEntity(supplierSkuLabelTransactionDetail(d));
-shortNameOwnershipSupplierSkuLabelTransactionDetail 'Форма собственности (сокр.)' (d) =shortNameOwnershipLegalEntity(supplierSkuLabelTransactionDetail(d));
+residentCountrySku 'Отечественный производитель' (LabelTransactionDetail d) = resident(country(sku(d)));
+supplierSku = lastSupplier(departmentStore(LabelTransactionDetail d), sku(d));
+nameSupplierSku 'Поставщик' (LabelTransactionDetail d) = name(supplierSku(d));
+fullNameSupplierSku 'Поставщик полное наименование' (LabelTransactionDetail d) = fullName(supplierSku(d));
+shortNameOwnershipSupplierSku 'Форма собственности (сокр.)' (LabelTransactionDetail d) =shortNameOwnership(supplierSku(d));
 
 EXTEND FORM printLabelTransaction 
-    PROPERTIES(d) READONLY residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                  fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
-    PROPERTIES(l) addressStoreLabelTransaction                  
+    PROPERTIES(d) READONLY residentCountrySku, nameSupplierSku, 
+                  fullNameSupplierSku, shortNameOwnershipSupplierSku
+    PROPERTIES(l) addressStore                  
                   
 ;
 
 EXTEND FORM customLabelTransaction 
-    PROPERTIES(d) residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                  fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
-    PROPERTIES(l) addressStoreLabelTransaction                   
+    PROPERTIES(d) residentCountrySku, nameSupplierSku, 
+                  fullNameSupplierSku, shortNameOwnershipSupplierSku
+    PROPERTIES(l) addressStore                   
 ;                  
 EXTEND FORM labelTransactions 
-    PROPERTIES(dt) READONLY residentCountrySkuLabelTransactionDetail, nameSupplierSkuLabelTransactionDetail, 
-                   fullNameSupplierSkuLabelTransactionDetail, shortNameOwnershipSupplierSkuLabelTransactionDetail
-    PROPERTIES(l) addressStoreLabelTransaction                
+    PROPERTIES(dt) READONLY residentCountrySku, nameSupplierSku, 
+                   fullNameSupplierSku, shortNameOwnershipSupplierSku
+    PROPERTIES(l) addressStore                
 ;        
-nameAddressPhoneLegalEntityLabelTransactionDetail 'Наименование/Адрес/Телефон юрлица' (d) = 
+nameAddressPhoneLegalEntity 'Наименование/Адрес/Телефон юрлица' (LabelTransactionDetail d) = 
     CONCAT ', ', 
-           fullNameLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d))), 
-           addressLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d))),
-           'Тел. ' + phoneLegalEntity(legalEntityDepartmentStore(departmentStoreLabelTransactionDetail(d)));
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
-EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressPhoneLegalEntityLabelTransactionDetail;
-EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntityLabelTransactionDetail;
+           fullName(legalEntity(departmentStore(d))), 
+           address(legalEntity(departmentStore(d))),
+           'Тел. ' + phone(legalEntity(departmentStore(d)));
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY nameAddressPhoneLegalEntity;
+EXTEND FORM customLabelTransaction PROPERTIES(d) nameAddressPhoneLegalEntity;
+EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntity;
 
 //-------------------------------------- Подбор ------------------------//
 
-addDetailDialogSkuLabelTransactionDetailLabelTransaction 'Подбор товаров' = ACTION (labelTransaction) {
+addDetailDialogSkuLabelTransactionDetail 'Подбор товаров' = ACTION (LabelTransaction labelTransaction) {
     FORM dialogSku MODAL;
     IF formResult() == FormResult.ok THEN {
-        FOR dialogSkuQuantity(sku) INLINE ADDOBJ w = LabelTransactionDetail DO {
-            labelTransactionLabelTransactionDetail(w) <- labelTransaction;
-            skuLabelTransactionDetail(w) <- sku;
-            quantityLabelTransactionDetail(w) <- INTEGER(dialogSkuQuantity(sku));
-            documentQuantityLabelTransactionDetail(w) <- dialogSkuQuantity(sku); 
-            createAttributeLabelTransactionDetail(w);               
+        FOR dialogQuantity(Sku sku) INLINE ADDOBJ w = LabelTransactionDetail DO {
+            labelTransaction(w) <- labelTransaction;
+            sku(w) <- sku;
+            quantity(w) <- INTEGER(dialogQuantity(sku));
+            documentQuantity(w) <- dialogQuantity(sku); 
+            createAttribute(w);               
         }
     }
-    dialogSkuQuantity(sku) <- NULL;
+    dialogQuantity(Sku sku) <- NULL;
 } TOOLBAR;
 
-addDetailDialogSkuStockLabelTransactionDetailLabelTransaction 'Подбор товаров' = ACTION (labelTransaction) {
-    dialogSkuStock() <- departmentStoreLabelTransaction(labelTransaction);
-    dialogSkuAll(sku) <- NULL;
+addDetailDialogSkuStockLabelTransactionDetail 'Подбор товаров' = ACTION (LabelTransaction labelTransaction) {
+    dialogSkuStock() <- departmentStore(labelTransaction);
+    dialogAll(Sku sku) <- NULL;
 
-    addDetailDialogSkuLabelTransactionDetailLabelTransaction(labelTransaction);
+    addDetailDialogSkuLabelTransactionDetail(labelTransaction);
 } TOOLBAR;
             
 @defineDocumentDetailActions(labelTransaction);
@@ -645,179 +645,179 @@ addDetailDialogSkuStockLabelTransactionDetailLabelTransaction 'Подбор то
 
 //-- Подбор товар/партии
 
-labelTransactionDetailSkuLabelTransactionDepartmentStore (sku, labelTransaction, stock) =  GROUP MAX labelTransactionDetail
-    BY skuLabelTransactionDetail(labelTransactionDetail), labelTransactionLabelTransactionDetail(labelTransactionDetail), departmentStoreLabelTransactionDetail(labelTransactionDetail);
-labelTransactionDetailSkuLabelTransaction (sku, labelTransaction) = labelTransactionDetailSkuLabelTransactionDepartmentStore(sku, labelTransaction, departmentStoreLabelTransaction(labelTransaction));
+labelTransactionDetail (sku, labelTransaction, stock) =  GROUP MAX LabelTransactionDetail labelTransactionDetail
+    BY sku(labelTransactionDetail), labelTransaction(labelTransactionDetail), departmentStore(labelTransactionDetail);
+labelTransactionDetail (Sku sku, LabelTransaction labelTransaction) = labelTransactionDetail(sku, labelTransaction, departmentStore(labelTransaction));
 
-currentBalanceSkuLabelTransaction 'Остаток' (sku, labelTransaction) = currentBalanceSkuStock(sku, departmentStoreLabelTransaction(labelTransaction));
-prevCurrentBalanceSkuLabelTransaction 'Остаток' (sku, labelTransaction) = prevCurrentBalanceSkuStock(sku, departmentStoreLabelTransaction(labelTransaction));
-backgroundQuantitySkuLabelTransaction 'Цвет' (sku, labelTransaction) = ABSTRACT CASE COLOR (Sku, LabelTransaction);  
+currentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = currentBalance(sku, departmentStore(labelTransaction));
+prevCurrentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = prevCurrentBalance(sku, departmentStore(labelTransaction));
+backgroundQuantity 'Цвет' (sku, labelTransaction) = ABSTRACT CASE COLOR (Sku, LabelTransaction);  
 
-changeQuantityValueSkuLabelTransaction = ACTION (sku, labelTransaction) {
-    IF labelTransactionDetailSkuLabelTransaction(sku, labelTransaction) THEN {
+changeQuantityValue = ACTION (Sku sku, LabelTransaction labelTransaction) {
+    IF labelTransactionDetail(sku, labelTransaction) THEN {
         IF requestedNumeric() THEN {
-            quantityLabelTransactionDetail(labelTransactionDetail) <- INTEGER(requestedNumeric()) WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
-            documentQuantityLabelTransactionDetail(labelTransactionDetail) <- requestedNumeric() WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
-            nameLabelTransactionDetail(labelTransactionDetail) <- nameSku(skuLabelTransactionDetail(labelTransactionDetail)) WHERE labelTransactionDetail == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);         
+            quantity(LabelTransactionDetail labelTransactionDetail) <- INTEGER(requestedNumeric()) WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
+            documentQuantity(LabelTransactionDetail labelTransactionDetail) <- requestedNumeric() WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
+            name(LabelTransactionDetail labelTransactionDetail) <- name(sku(labelTransactionDetail)) WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);         
         } ELSE {
-            DELETE d WHERE d == labelTransactionDetailSkuLabelTransaction(sku, labelTransaction);
+            DELETE LabelTransactionDetail d WHERE d == labelTransactionDetail(sku, labelTransaction);
         }
     } ELSE {
         IF requestedNumeric() THEN {
             FOR ADDOBJ d = LabelTransactionDetail DO {
-                labelTransactionLabelTransactionDetail(d) <- labelTransaction;
-                skuLabelTransactionDetail(d) <- sku;
-                nameLabelTransactionDetail(d) <- nameSku(sku);                
-                quantityLabelTransactionDetail (d) <- INTEGER(requestedNumeric());
-                documentQuantityLabelTransactionDetail(d) <- requestedNumeric();
-                createAttributeLabelTransactionDetail(d);
+                labelTransaction(d) <- labelTransaction;
+                sku(d) <- sku;
+                name(d) <- name(sku);                
+                quantity (d) <- INTEGER(requestedNumeric());
+                documentQuantity(d) <- requestedNumeric();
+                createAttribute(d);
             }
         }
     }
 }
 
-changeQuantitySkuLabelTransaction = ACTION (sku, labelTransaction) {
+changeQuantity = ACTION (Sku sku, LabelTransaction labelTransaction) {
     REQUEST INTEGER INPUT;
-    changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+    changeQuantityValue(sku, labelTransaction);
 }
 
 // Выбор всего остатка
-allQuantitySkuLabelTransaction 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, LabelTransaction);
-changeAllQuantitySkuLabelTransaction = ACTION (sku, labelTransaction) {
+allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, LabelTransaction);
+changeAllQuantity = ACTION (Sku sku, LabelTransaction labelTransaction) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
         requestedNumeric() <- NULL;
-        allQuantitySkuLabelTransaction (sku,labelTransaction) <- TRUE;
-        requestedNumeric() <- prevCurrentBalanceSkuLabelTransaction(sku,labelTransaction);
-        changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+        allQuantity (sku,labelTransaction) <- TRUE;
+        requestedNumeric() <- prevCurrentBalance(sku,labelTransaction);
+        changeQuantityValue(sku, labelTransaction);
     } ELSE {
-        allQuantitySkuLabelTransaction (sku,labelTransaction) <- NULL;
+        allQuantity (sku,labelTransaction) <- NULL;
         requestedNumeric() <- NULL;
-        changeQuantityValueSkuLabelTransaction(sku, labelTransaction);
+        changeQuantityValue(sku, labelTransaction);
     }
 }
-priceSkuLabelTransaction 'Цена' (sku, labelTransaction) = prevPriceBPriceListTypeSkuStockDateTime(priceListTypeLabelType(labelTypeLabelTransaction(labelTransaction)), sku, departmentStoreLabelTransaction(labelTransaction), dateTimeLabelTransaction(labelTransaction));
+price 'Цена' (Sku sku, LabelTransaction labelTransaction) = prevPriceB(priceListType(labelType(labelTransaction)), sku, departmentStore(labelTransaction), dateTime(labelTransaction));
 
 @extendFormDocumentSku(labelTransaction, customLabelTransaction, l);
                            
 EXTEND FORM customLabelTransaction 
     
-    PROPERTIES(l) TODRAW d addDetailDialogSkuStockLabelTransactionDetailLabelTransaction
+    PROPERTIES(l) TODRAW d addDetailDialogSkuStockLabelTransactionDetail
     
     FILTERGROUP filter
-        FILTER 'С остатком ' prevCurrentBalanceSkuLabelTransaction(ks, l) 'F10' DEFAULT
-        FILTER 'В документе ' quantityLabelTransactionDetailSkuLabelTransaction(ks, l) 'F9'
+        FILTER 'С остатком ' prevCurrentBalance(ks, l) 'F10' DEFAULT
+        FILTER 'В документе ' quantityLabelTransactionDetail(ks, l) 'F9'
                   
 ;
 
-skipLabelTransactionDetail 'Не печатать на ценник' = ABSTRACT BOOLEAN (LabelTransactionDetail);
+skip 'Не печатать на ценник' = ABSTRACT BOOLEAN (LabelTransactionDetail);
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, prefix)
 
-    createAttribute###detailProp##DetailLabelTransactionDetail = ABSTRACT ACTION LIST (###detailProp##Detail, LabelTransactionDetail);
+    createAttribute = ABSTRACT ACTION LIST (###detailProp##Detail, LabelTransactionDetail);
     
-    create###document##LabelTransaction 'Распечатать ценники' = ACTION (document) NEWSESSION {        
+    createLabelTransaction 'Распечатать ценники' = ACTION (###document document) NEWSESSION {        
         
-        IF isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()) THEN {
+        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
         }
-        IF is###document(document) AND (confirmed() OR NOT (isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()))) THEN { 
-            LOCAL inSku = BOOLEAN (Sku);
-            inSku(sku) <- TRUE IF count###detailProp##Detail###skuProp###document(sku, document);
+        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
+            LOCAL in = BOOLEAN (Sku);
+            in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
         
             // бежим по всем типам ценников из управленческих параметров
             // для каждого создаем по операции печати ценников
-            FOR ([= GROUP SUM 1 IF inSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore) BY labelType, departmentStore](labelType, stockProp###document(document)))
+            FOR ([= GROUP SUM 1 IF in(###skuProp sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
                 ADDOBJ t = LabelTransaction DO {
-                    departmentStoreLabelTransaction(t) <- stockProp###document(document);
-                    priceTransactionDocumentLabelTransaction(t) <- document;
-                    labelTypeLabelTransaction(t) <- labelType;
+                    departmentStore(t) <- stockProp(document);
+                    priceTransactionDocument(t) <- document;
+                    labelType(t) <- labelType;
                     
-                    FOR document###detailProp##Detail(dd) == document AND 
-                        inSku(sku) AND sku == skuProp###detailProp##Detail(dd) AND 
-                        inLabelTypeSkuDepartmentStore(labelType, sku, stockProp###document(document))
+                    FOR document(###detailProp##Detail dd) == document AND 
+                        in(###skuProp sku) AND sku == skuProp(dd) AND 
+                        in(labelType, sku, stockProp(document))
                         ADDOBJ d = LabelTransactionDetail DO {
-                        labelTransactionLabelTransactionDetail(d) <- t;
-                        skuLabelTransactionDetail(d) <- sku;
-                        batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
+                        labelTransaction(d) <- t;
+                        skuProp(d) <- sku;
+                        batch(d) <- batch(dd);
     
-                        nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                        createAttributeLabelTransactionDetail(d);
+                        name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                        createAttribute(d);
     
-                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-                                                                THEN INTEGER(prefix###quantity###detailProp##Detail(dd))
-                                                             ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+                        quantity(d) <- IF include(labelType, skuProp(d))
+                                                                THEN INTEGER(prefix###quantity(dd))
+                                                             ELSE count(labelType, skuProp(d));
 
-                        priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-                        retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
-                        createAttribute###detailProp##DetailLabelTransactionDetail(dd, d);
+                        price(d) <- calcPrice(d);
+                        retailPrice(d) <- overRetailPrice(d);
+                        createAttribute(dd, d);
                     }
-                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT priceLabelTransactionDetail(d) AND NOT printNullPriceLabelTransactionDetail(d);
-                    DELETE d WHERE labelTransactionLabelTransactionDetail(d) == t AND NOT retailPriceLabelTransactionDetail(d) AND notPrintRetailPriceLabelTransactionDetail(d);
-                    printLabelTransaction(t);
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+                    DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                    print(t);
             }
-            printedPriceTransactionDocument(document) <- TRUE WHERE isPosted###document(document);
+            printed(document) <- TRUE WHERE isPosted(document);
         }
 
         apply();
     } TOOLBAR CONFIRM;
     
-    createLabelTransactionPriceTransactionDocument(document) += ACTION create###document##LabelTransaction(document);
+    createLabelTransaction(###document document) += ACTION createLabelTransaction(document);
 
-    createSnapshot###document##LabelTransaction 'Перепечатать ценники' = ACTION (document) NEWSESSION {
+    createSnapshotLabelTransaction 'Перепечатать ценники' = ACTION (###document document) NEWSESSION {
 
         
-        IF isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()) THEN {
+        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
         }
-        IF is###document(document) AND (confirmed() OR NOT (isDraft###document(document) OR NOT (dateTime###document(document) <= currentDateTime()))) THEN { 
+        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
             
-            LOCAL inSku = BOOLEAN (Sku);    
-            inSku(sku) <- TRUE IF count###detailProp##Detail###skuProp###document(sku, document);
+            LOCAL in = BOOLEAN (Sku);    
+            in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
             
-            FORM selectLabelTypes OBJECTS ds =  stockProp###document(document) MODAL;
+            FORM selectLabelTypes OBJECTS ds =  stockProp(document) MODAL;
             IF formResult() == FormResult.ok THEN { 
                 IF NOT countSelectType() THEN {  
-                    selectType(type) <- TRUE WHERE type == chosenObject('l');
+                    select(LabelType type) <- TRUE WHERE type == chosenObject('l');
                 }                                        
-                FOR selectType(type) ADDOBJ t = LabelTransaction DO {              
-                    departmentStoreLabelTransaction(t) <- stockProp###document(document);
-                    priceTransactionDocumentLabelTransaction(t) <- document;
-                    labelTypeLabelTransaction(t) <- type;
+                FOR select(LabelType type) ADDOBJ t = LabelTransaction DO {              
+                    departmentStore(t) <- stockProp(document);
+                    priceTransactionDocument(t) <- document;
+                    labelType(t) <- type;
         
-                    FOR document###detailProp##Detail(dd) == document AND inSku(sku) AND sku == skuProp###detailProp##Detail(dd) 
+                    FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd) 
                         ADDOBJ d = LabelTransactionDetail DO {
-                            labelTransactionLabelTransactionDetail(d) <- t;
-                            skuLabelTransactionDetail(d) <- sku;
-                            batchLabelTransactionDetail(d) <- batch###detailProp##Detail(dd);
+                            labelTransaction(d) <- t;
+                            skuProp(d) <- sku;
+                            batch(d) <- batch(dd);
         
-                            nameLabelTransactionDetail(d) <- IF batchLabelTransactionDetail(d) THEN documentNameSkuBatch(batchLabelTransactionDetail(d)) ELSE nameSku(skuLabelTransactionDetail(d));
-                            documentQuantityLabelTransactionDetail(d) <- prefix###quantity###detailProp##Detail(dd); 
+                            name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                            documentQuantity(d) <- prefix###quantity(dd); 
                             
-                            priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
-                            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);                       
+                            price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+                            retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
                                                                        
-                            quantityLabelTransactionDetail(d) <- IF NOT countLabelDepartmentStore(departmentStoreLabelTransactionDetail(d)) 
-                                                                     THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
-                                                                        THEN INTEGER(documentQuantityLabelTransactionDetail(d))
-                                                                         ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
-                                                                     ELSE countLabelDepartmentStore(departmentStoreLabelTransactionDetail(d));                                              
+                            quantity(d) <- IF NOT countLabel(departmentStore(d)) 
+                                                                     THEN (IF include(labelType(d), skuProp(d)) 
+                                                                        THEN INTEGER(documentQuantity(d))
+                                                                         ELSE count(labelType(d), skuProp(d)))
+                                                                     ELSE countLabel(departmentStore(d));                                              
                                                                        
                                                                        
                             
                             
-                            createAttributeLabelTransactionDetail(d);
-                            createAttribute###detailProp##DetailLabelTransactionDetail(dd, d);
+                            createAttribute(d);
+                            createAttribute(dd, d);
                     }
-                    IF changeDepartmentStore(stockProp###document(document)) THEN {
+                    IF change(stockProp(document)) THEN {
                         FORM customLabelTransaction OBJECTS l = t MODAL;
                         IF formResult() == FormResult.ok THEN {    
-                            printLabelTransaction(t);
+                            print(t);
                         } ELSE {
                             cancel();
                         }             
                     } ELSE {
-                        printLabelTransaction(t);
+                        print(t);
                     }                        
                 }
                 apply(); 
@@ -826,13 +826,13 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
         
     } TOOLBAR;
     
-    createSnapshotLabelTransactionPriceTransactionDocument(document) += ACTION createSnapshot###document##LabelTransaction(document);
+    createSnapshotLabelTransaction(###document document) += ACTION createSnapshotLabelTransaction(document);
 
-    showPrintLabelTransaction###document 'Показывать' (document) = isPosted###document(document) AND isOpened###document(document) AND NOT Label.skipPriceTransactionDocument(document);
+    showPrintLabelTransaction 'Показывать' (###document document) = isPosted(document) AND isOpened(document) AND NOT Label.skip(document);
                                                                                                //AND NOT printedPriceTransactionDocument(document);
-    showPrintLabelTransactionPriceTransactionDocument (document) += showPrintLabelTransaction###document(document);
+    showPrintLabelTransaction (###document document) += showPrintLabelTransaction(document);
     
-    backgroundPrintLabelTransaction###document 'Цвет' (document) = RGB(212,255,212) IF showPrintLabelTransaction###document(document) AND NOT printedPriceTransactionDocument(document);
+    backgroundPrintLabelTransaction 'Цвет' (###document document) = RGB(212,255,212) IF showPrintLabelTransaction(document) AND NOT printed(document);
 END
 
 META defineDocumentLabelTransaction (document, skuProp, stockProp, prefix)
@@ -845,9 +845,9 @@ END
 
 META extendFormDocumentLabelTransaction(form, object, document, afterProp, propContainer)
     EXTEND FORM form
-        PROPERTIES(object) statusLabelPriceTransactionDocument BACKGROUND backgroundPrintLabelTransaction###document(object) READONLY AFTER afterProp###document(object),
-                           create###document##LabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction###document(object), 
-                           createSnapshot###document##LabelTransaction FORCE PANEL SHOWIF isOpened###document(object)
+        PROPERTIES(object) statusLabel BACKGROUND backgroundPrintLabelTransaction(object) READONLY AFTER afterProp(object),
+                           createLabelTransaction FORCE PANEL SHOWIF showPrintLabelTransaction(object), 
+                           createSnapshotLabelTransaction FORCE PANEL SHOWIF isOpened(object)
     ;
 
     DESIGN form {
@@ -856,8 +856,8 @@ META extendFormDocumentLabelTransaction(form, object, document, afterProp, propC
                 caption = 'Ценники' ;
                 type = CONTAINERV;
                 
-                MOVE PROPERTY (create###document##LabelTransaction(object));
-                MOVE PROPERTY (createSnapshot###document##LabelTransaction(object));
+                MOVE PROPERTY (createLabelTransaction(object));
+                MOVE PROPERTY (createSnapshotLabelTransaction(object));
             }
         }
     }
@@ -865,13 +865,13 @@ END
 
 // ---------------------------------------------------------- Стандартные значения --------------------------------- //
 
-loadDefaultLabelType 'Добавить тип ценника' = ACTION(name, width, height, orientation, file) {
+loadDefaultLabelType 'Добавить тип ценника' = ACTION(VARISTRING[50] name, INTEGER width, INTEGER height, PrintOrientation orientation, VARSTRING[200] file) {
     FOR ADDOBJ lt = LabelType DO {
-        ASSIGN nameLabelType(lt) <- name;
-        ASSIGN widthLabelType(lt) <-width;
-        ASSIGN heightLabelType(lt) <-height;
-        ASSIGN orientationLabelType(lt) <- orientation;
-        ASSIGN fileTemplateLabelType(lt) <-file;
+        ASSIGN name(lt) <- name;
+        ASSIGN width(lt) <-width;
+        ASSIGN height(lt) <-height;
+        ASSIGN orientation(lt) <- orientation;
+        ASSIGN fileTemplate(lt) <-file;
     }
 }
 
@@ -891,78 +891,78 @@ NAVIGATOR {
     }
 }
 
-selectSkuLabelTypeDepartmentStore = DATA LOCAL BOOLEAN (Sku, LabelType, DepartmentStore);
-overCreateLabelTransaction = ABSTRACT ACTION LIST (LabelTransaction);
+select = DATA LOCAL BOOLEAN (Sku, LabelType, DepartmentStore);
+overCreate = ABSTRACT ACTION LIST (LabelTransaction);
 
-createLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
+createLabelTransaction 'Распечатать ценники' = ACTION (DepartmentStore departmentStore) {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR [= GROUP SUM 1 IF selectSkuLabelTypeDepartmentStore(s,l,d) BY l, d](labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
-        departmentStoreLabelTransaction(t) <- departmentStore;
-        labelTypeLabelTransaction(t) <- labelType;
+    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
+        departmentStore(t) <- departmentStore;
+        labelType(t) <- labelType;
         
-        FOR selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
+        FOR select(Sku sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
             
-            labelTransactionLabelTransactionDetail(d) <- t;
-            skuLabelTransactionDetail(d) <- sku;
+            labelTransaction(d) <- t;
+            sku(d) <- sku;
 
-            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-            createAttributeLabelTransactionDetail(d);
+            name(d) <- name(sku(d));
+            createAttribute(d);
 
-            quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelType, skuLabelTransactionDetail(d))
-                                                    THEN INTEGER(currentBalanceSkuStock(sku, departmentStore))
-                                                 ELSE countLabelTypeSku(labelType, skuLabelTransactionDetail(d));
+            quantity(d) <- IF include(labelType, sku(d))
+                                                    THEN INTEGER(currentBalance(sku, departmentStore))
+                                                 ELSE count(labelType, sku(d));
                                                  
-            priceLabelTransactionDetail(d) <- calcPriceLabelTransactionDetail(d);
-            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d);
+            price(d) <- calcPrice(d);
+            retailPrice(d) <- overRetailPrice(d);
         } 
-        overCreateLabelTransaction(t);
+        overCreate(t);
         // вызываем печатную форму для каждого из них        
-        printLabelTransaction(t);                 
+        print(t);                 
     }
 } TOOLBAR;
 
-selectType 'Вкл.' = DATA LOCAL BOOLEAN (LabelType);
-changeDepartmentStore 'Изменить данные' = DATA LOCAL BOOLEAN (DepartmentStore);
-countLabelDepartmentStore 'Количество ценников' = DATA LOCAL INTEGER (DepartmentStore);
-countSelectType = GROUP SUM 1 IF selectType(t);
+select 'Вкл.' = DATA LOCAL BOOLEAN (LabelType);
+change 'Изменить данные' = DATA LOCAL BOOLEAN (DepartmentStore);
+countLabel 'Количество ценников' = DATA LOCAL INTEGER (DepartmentStore);
+countSelectType = GROUP SUM 1 IF select(LabelType t);
 
 
-createSnapshotLabelTransactionDepartmentStoreLabelType 'Перепечатать ценники' = ACTION (departmentStore, labelType) {
+createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (Stock departmentStore, LabelType labelType) {
 
     FOR ADDOBJ t = LabelTransaction DO {
-        departmentStoreLabelTransaction(t) <- departmentStore;
-        labelTypeLabelTransaction(t) <- labelType;
+        departmentStore(t) <- departmentStore;
+        labelType(t) <- labelType;
         
-        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
-            labelTransactionLabelTransactionDetail(d) <- t;
-            skuLabelTransactionDetail(d) <- sku;
+        FOR select(Sku sku) ADDOBJ d = LabelTransactionDetail DO {
+            labelTransaction(d) <- t;
+            sku(d) <- sku;
 
-            nameLabelTransactionDetail(d) <- nameSku(skuLabelTransactionDetail(d));
-            documentQuantityLabelTransactionDetail(d) <- currentBalanceSkuStock(sku, departmentStore); 
+            name(d) <- name(sku(d));
+            documentQuantity(d) <- currentBalance(sku, departmentStore); 
 
-            createAttributeLabelTransactionDetail(d);           
+            createAttribute(d);           
             
 
-            priceLabelTransactionDetail(d) <- OVERRIDE calcPriceLabelTransactionDetail(d), documentPriceLabelTransactionDetail(d);
-            retailPriceLabelTransactionDetail(d) <- overRetailPriceLabelTransactionDetail(d) WHERE overRetailPriceLabelTransactionDetail(d);   
+            price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+            retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
     
-            quantityLabelTransactionDetail(d) <- IF NOT countLabelDepartmentStore(departmentStore) 
-                                                     THEN (IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) 
-                                                        THEN INTEGER(documentQuantityLabelTransactionDetail(d))
-                                                         ELSE countLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)))
-                                                     ELSE countLabelDepartmentStore(departmentStore);                                                              
+            quantity(d) <- IF NOT countLabel(departmentStore) 
+                                                     THEN (IF include(labelType(d), sku(d)) 
+                                                        THEN INTEGER(documentQuantity(d))
+                                                         ELSE count(labelType(d), sku(d)))
+                                                     ELSE countLabel(departmentStore);                                                              
         }
-        overCreateLabelTransaction(t);
-        IF changeDepartmentStore(departmentStore) THEN {
+        overCreate(t);
+        IF change(departmentStore) THEN {
             FORM customLabelTransaction OBJECTS l = t MODAL;
             IF formResult() == FormResult.ok THEN {    
-                printLabelTransaction(t);
+                print(t);
             } ELSE {
                 cancel();
             }             
         } ELSE {
-            printLabelTransaction(t);
+            print(t);
         }     
     }  
 } TOOLBAR ;
@@ -980,55 +980,55 @@ DESIGN options {
     }
 }
 createSelectedSkuStockLabelTransaction 'Распечатать ценники' = ACTION () {
-    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {
-        NEWSESSION NESTED selectSkuStock {
-            FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock] (stock) AND stock IS DepartmentStore DO {        
-                selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- selectSkuStock(sku, stock) AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
-                createLabelTransactionDepartmentStore(stock);
+    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
+        NEWSESSION NESTED select[Sku,Stock] {
+            FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
+                select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND in(labelType, sku, stock);   
+                createLabelTransaction(stock);
             }
             
             apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
-            selectSkuStock(sku, stock) <- NULL;
+            select(Sku sku, Stock stock) <- NULL;
         }
     }
 } TOOLBAR;
 
 FORM selectLabelTypes 'Доступные типы ценников'
     OBJECTS ds = DepartmentStore  FIXED PANEL   
-    PROPERTIES(ds) SELECTOR nameDepartmentStore
-    PROPERTIES changeDepartmentStore(ds), countLabelDepartmentStore(ds) 
+    PROPERTIES(ds) SELECTOR name
+    PROPERTIES change(ds), countLabel(ds) 
     OBJECTS l = LabelType FIXED GRID
-    PROPERTIES(l) selectType
-    PROPERTIES(l) READONLY idLabelType, nameLabelType, widthLabelType, heightLabelType, nameOrientationLabelType, fileTemplateLabelType,
-                  namePriceListTypeLabelType, nameGroupTypeLabelType, printNullPriceLabelType, notPrintRetailPriceLabelType
-    FILTERS inLabelTypeDepartmentStore(l,ds)
+    PROPERTIES(l) select
+    PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate,
+                  namePriceListType, nameGroupType, printNullPrice, notPrintRetailPrice
+    FILTERS in(l,ds)
 ;
 
 DESIGN selectLabelTypes { main{ preferredSize = (600, 400); } }  
 
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION () {
-    IF [=GROUP SUM 1 IF selectSkuStock(sku, stock)]() THEN {            
-        NEWSESSION NESTED selectSkuStock {
+    IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {            
+        NEWSESSION NESTED select[Sku,Stock] {
 
-            FOR [= GROUP SUM 1 IF selectSkuStock(sku, stock) BY stock](stock) AND stock IS DepartmentStore DO {  
+            FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
                 FORM selectLabelTypes OBJECTS ds =  stock MODAL;
                 IF formResult() == FormResult.ok THEN { 
-                    selectSku(sku) <- NULL;  
-                    selectSku(sku) <- TRUE WHERE  selectSkuStock(sku, stock);     
+                    select(Sku sku) <- NULL;  
+                    select(Sku sku) <- TRUE WHERE  select(sku, stock);     
                     IF NOT countSelectType() THEN {
-                        selectType(type) <- TRUE WHERE type == chosenObject('l');
+                        select(LabelType type) <- TRUE WHERE type == chosenObject('l');
                     }            
-                    FOR selectType(type) DO {
-                        createSnapshotLabelTransactionDepartmentStoreLabelType(stock, type);
+                    FOR select(LabelType type) DO {
+                        createSnapshotLabelTransactionDepartmentStore(stock, type);
                     }                     
                 }                                                  
             }                      
             apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
-            selectSkuStock(sku, stock) <- NULL;
+            select(Sku sku, Stock stock) <- NULL;
         }
     }
 } TOOLBAR;
@@ -1038,36 +1038,36 @@ EXTEND  FORM currentBalanceSkuStock
 ;
 // --------------------------------- Печать ценников по отмеченным по sku ------------------------- //
 
-printSelectedSkuLabelTransactionDepartmentStore 'Распечатать ценники' = ACTION (departmentStore) {
-    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN {
-        NEWSESSION NESTED selectSku {
-            selectSkuLabelTypeDepartmentStore(sku, labelType, departmentStore) <- selectSku(sku) AND inLabelTypeSkuDepartmentStore(labelType, sku, departmentStore);   
-            createLabelTransactionDepartmentStore(departmentStore);
+printSelectedSkuLabelTransaction 'Распечатать ценники' = ACTION (DepartmentStore departmentStore) {
+    IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
+        NEWSESSION NESTED select[Sku] {
+            select(Sku sku, LabelType labelType, departmentStore) <- select(sku) AND in(labelType, sku, departmentStore);   
+            createLabelTransaction(departmentStore);
             apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
-            selectSku(sku) <- NULL;
+            select(Sku sku) <- NULL;
         }  
     } ELSE {
         MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
     }
 } TOOLBAR;
-printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (departmentStore) {
-    IF [=GROUP SUM 1 IF selectSku(sku)]() THEN  { 
-        NEWSESSION NESTED selectSku {
+printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (Stock departmentStore) {
+    IF [=GROUP SUM 1 IF select(Sku sku)]() THEN  { 
+        NEWSESSION NESTED select[Sku] {
             FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;  
             IF formResult() == FormResult.ok THEN {       
                 IF NOT countSelectType() THEN {
-                    selectType(type) <- TRUE WHERE type == chosenObject('l');
+                    select(LabelType type) <- TRUE WHERE type == chosenObject('l');
                 }                                                            
-                FOR selectType(type) DO {
-                    createSnapshotLabelTransactionDepartmentStoreLabelType(departmentStore, type);
+                FOR select(LabelType type) DO {
+                    createSnapshotLabelTransactionDepartmentStore(departmentStore, type);
                 }             
             }
             apply();
         }
         IF NOT notResetLabelSelectSku() THEN {
-            selectSku(sku) <- NULL;
+            select(Sku sku) <- NULL;
         }
     } ELSE {
         MESSAGE 'Не отмечены товары, для которых необходима печать ценников.';
@@ -1077,14 +1077,14 @@ printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатат�
 // Инкрементная загрузка
 GROUP incrementMachineryLabel 'Инкрементная печать ценников' : public;
 
-needLabelTransactionPriceListTypeSkuDepartmentStore (type, sku, stock) = 
-    prevPriceAPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime()) AND NOT prevPriceAPriceListTypeSkuStockDateTime(type,  sku, stock, currentDateTime()) == priceLabelTransactionDetailSkuDepartmentStore(sku, stock); 
+needLabelTransactionDepartmentStore (PriceListType type, Sku sku, Stock stock) = 
+    prevPriceA(type, sku, stock, currentDateTime()) AND NOT prevPriceA(type,  sku, stock, currentDateTime()) == priceLabelTransactionDetail(sku, stock); 
 
-createAllLabelTransactionDepartmentStore 'Все товары' = ACTION (stock) {
-    selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuDepartmentStore(priceListTypeLabelType(labelType), sku, stock) 
-                AND inLabelTypeSkuDepartmentStore(labelType, sku, stock);   
+createAllLabelTransaction 'Все товары' = ACTION (DepartmentStore stock) {
+    select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 
+                AND in(labelType, sku, stock);   
     
-    createLabelTransactionDepartmentStore(stock);
+    createLabelTransaction(stock);
 
     apply();
     IF canceled() THEN {
@@ -1092,11 +1092,11 @@ createAllLabelTransactionDepartmentStore 'Все товары' = ACTION (stock) 
     }        
 } IN incrementMachineryLabel;
 
-createBalanceLabelTransactionDepartmentStore 'Остатки' = ACTION (stock) {
-    selectSkuLabelTypeDepartmentStore(sku, labelType, stock) <- needLabelTransactionPriceListTypeSkuDepartmentStore(priceListTypeLabelType(labelType), sku, stock) 
-                AND inLabelTypeSkuDepartmentStore(labelType, sku, stock) AND balanceASkuStockDateTime(sku, stock, currentDateTime());   
+createBalanceLabelTransaction 'Остатки' = ACTION (DepartmentStore stock) {
+    select(Sku sku, LabelType labelType, stock) <- needLabelTransactionDepartmentStore(priceListType(labelType), sku, stock) 
+                AND in(labelType, sku, stock) AND balanceA(sku, stock, currentDateTime());   
                 
-    createLabelTransactionDepartmentStore(stock);
+    createLabelTransaction(stock);
 
     apply();
     IF canceled() THEN {
@@ -1106,7 +1106,7 @@ createBalanceLabelTransactionDepartmentStore 'Остатки' = ACTION (stock) {
 
 
 EXTEND FORM labelTransactions 
-    PROPERTIES(d) createBalanceLabelTransactionDepartmentStore, createAllLabelTransactionDepartmentStore
+    PROPERTIES(d) createBalanceLabelTransaction, createAllLabelTransaction
 ;
 DESIGN labelTransactions {
     NEW header BEFORE pane{

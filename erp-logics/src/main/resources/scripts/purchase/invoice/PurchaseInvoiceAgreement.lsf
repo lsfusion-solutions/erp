@@ -11,11 +11,11 @@ GROUP agreementPercQuantity 'Ограничения (кол-во)': public;
 GROUP agreementPercPrice 'Ограничения (цена)': public;
 //--------------------------- Допустимый процент отклонения по количеству --------------------------------------//
 
-percDeviationDownQuantityAgreement '% отклонения по количеству вниз' = DATA NUMERIC[8,2] (Agreement) IN agreementPercQuantity;
-percDeviationUpQuantityAgreement '% отклонения по количеству вверх' = DATA NUMERIC[8,2] (Agreement) IN agreementPercQuantity;
+percDeviationDownQuantity '% отклонения по количеству вниз' = DATA NUMERIC[8,2] (Agreement) IN agreementPercQuantity;
+percDeviationUpQuantity '% отклонения по количеству вверх' = DATA NUMERIC[8,2] (Agreement) IN agreementPercQuantity;
 
 EXTEND FORM agreement 
-    PROPERTIES(a) percDeviationDownQuantityAgreement, percDeviationUpQuantityAgreement  
+    PROPERTIES(a) percDeviationDownQuantity, percDeviationUpQuantity  
 ;
 DESIGN agreement {
     orderContainer {
@@ -29,15 +29,15 @@ DESIGN agreement {
     }
 } 
 
-percDeviationDownQuantityAgreementOrderDetail '% отклонения по количеству вниз' (d) = percDeviationDownQuantityAgreement(agreementOrderDetail(d));
-percDeviationUpQuantityAgreementOrderDetail '% отклонения по количеству вверх' (d) = percDeviationUpQuantityAgreement(agreementOrderDetail(d));
+percDeviationDownQuantityAgreement '% отклонения по количеству вниз' (OrderDetail d) = percDeviationDownQuantity(agreement(d));
+percDeviationUpQuantityAgreement '% отклонения по количеству вверх' (OrderDetail d) = percDeviationUpQuantity(agreement(d));
 
 
-maxDeviationQuantityOrderDetail 'Макс. кол-во' (d) = (100.0 + percDeviationUpQuantityAgreementOrderDetail(d)) * 
-                                                        quantityOrderDetail(d) /
+maxDeviationQuantity 'Макс. кол-во' (OrderDetail d) = (100.0 + percDeviationUpQuantityAgreement(d)) * 
+                                                        quantity(d) /
                                                         100.0;
-minDeviationQuantityOrderDetail 'Мин. кол-во' (d) = (100.0 - percDeviationDownQuantityAgreementOrderDetail(d)) *
-                                                        quantityOrderDetail(d) /
+minDeviationQuantity 'Мин. кол-во' (OrderDetail d) = (100.0 - percDeviationDownQuantityAgreement(d)) *
+                                                        quantity(d) /
                                                         100.0;
    
 //CONSTRAINT isPostedOrderDetail(d) AND shippedOrderDetail(d) > maxDeviationQuantityOrderDetail(d)    
@@ -46,78 +46,78 @@ minDeviationQuantityOrderDetail 'Мин. кол-во' (d) = (100.0 - percDeviati
 //CONSTRAINT isPostedOrderDetail(d) AND shippedOrderDetail(d) < minDeviationQuantityOrderDetail(d)    
 //  MESSAGE 'Для заказа превышен минимальный допустимый процент отклонения по количеству';
   
-percDeviationDownQuantityAgreementOrder '% отклонения по количеству вниз' (order) = percDeviationDownQuantityAgreement(agreementOrder(order));
-percDeviationUpQuantityAgreementOrder '% отклонения по количеству вверх' (order) = percDeviationUpQuantityAgreement(agreementOrder(order));
+percDeviationDownQuantityAgreement '% отклонения по количеству вниз' (Order order) = percDeviationDownQuantity(agreement(order));
+percDeviationUpQuantityAgreement '% отклонения по количеству вверх' (Order order) = percDeviationUpQuantity(agreement(order));
     
 EXTEND FORM orders
-    PROPERTIES(d) READONLY  minDeviationQuantityOrderDetail SHOWIF percDeviationDownQuantityAgreementOrder(o) BEFORE quantityOrderDetail(d), 
-                  maxDeviationQuantityOrderDetail SHOWIF percDeviationUpQuantityAgreementOrder(o) AFTER quantityOrderDetail(d)
+    PROPERTIES(d) READONLY  minDeviationQuantity SHOWIF percDeviationDownQuantityAgreement(o) BEFORE quantity(d), 
+                  maxDeviationQuantity SHOWIF percDeviationUpQuantityAgreement(o) AFTER quantity(d)
                   
 ;
 EXTEND FORM userOrder
-    PROPERTIES(d) READONLY  minDeviationQuantityOrderDetail SHOWIF percDeviationDownQuantityAgreementOrder(o) BEFORE quantityUserOrderDetail(d), 
-                  maxDeviationQuantityOrderDetail SHOWIF percDeviationUpQuantityAgreementOrder(o) AFTER quantityUserOrderDetail(d)
+    PROPERTIES(d) READONLY  minDeviationQuantity SHOWIF percDeviationDownQuantityAgreement(o) BEFORE quantity(d), 
+                  maxDeviationQuantity SHOWIF percDeviationUpQuantityAgreement(o) AFTER quantity(d)
  
 ;    
   
 //--------------------------- Допустимый процент отклонения по цене --------------------------------------//
-percDeviationDownPriceAgreement '% отклонения по цене вниз' = DATA NUMERIC[8,2] (Agreement) IN agreementPercPrice;
-percDeviationUpPriceAgreement '% отклонения по цене вверх' = DATA NUMERIC[8,2] (Agreement) IN agreementPercPrice;
+percDeviationDownPrice '% отклонения по цене вниз' = DATA NUMERIC[8,2] (Agreement) IN agreementPercPrice;
+percDeviationUpPrice '% отклонения по цене вверх' = DATA NUMERIC[8,2] (Agreement) IN agreementPercPrice;
 
 // Уточнение по группам
 //-- вниз
-dataPercDeviationDownPriceAgreementGroup '% отклонения по цене вниз' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
-levelParentPercDeviationDownPriceAgreementGroup (agreement, group) =
-    GROUP MIN levelGroupGroup(group, parent) IF dataPercDeviationDownPriceAgreementGroup(agreement, parent)
+dataPercDeviationDownPrice '% отклонения по цене вниз' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
+levelParentPercDeviationDownPrice (agreement, group) =
+    GROUP MIN level(Group group, Group parent) IF dataPercDeviationDownPrice(Agreement agreement, parent)
     BY agreement, group PERSISTENT;
-nearestParentPercDeviationDownPriceAgreementGroup (agreement, group) = groupGroupLevel(group, levelParentPercDeviationDownPriceAgreementGroup (agreement, group));
-nearestPercDeviationDownPriceAgreementGroup (agreement, group) =
-   dataPercDeviationDownPriceAgreementGroup(agreement, nearestParentPercDeviationDownPriceAgreementGroup(agreement, group)) PERSISTENT;
+nearestParentPercDeviationDownPrice (Agreement agreement, Group group) = group(group, levelParentPercDeviationDownPrice (agreement, group));
+nearestPercDeviationDownPrice (Agreement agreement, Group group) =
+   dataPercDeviationDownPrice(agreement, nearestParentPercDeviationDownPrice(agreement, group)) PERSISTENT;
 
-percDeviationDownPriceAgreementGroup '% отклонения по цене вниз (перегруженный)' (agreement, group) =  OVERRIDE  
-    percDeviationDownPriceAgreement(agreement) IF group IS Group,
-    nearestPercDeviationDownPriceAgreementGroup(agreement, group), 
-    dataPercDeviationDownPriceAgreementGroup(agreement, group) PERSISTENT;
+percDeviationDownPrice '% отклонения по цене вниз (перегруженный)' (Agreement agreement, Group group) =  OVERRIDE  
+    percDeviationDownPrice(agreement) IF group IS Group,
+    nearestPercDeviationDownPrice(agreement, group), 
+    dataPercDeviationDownPrice(agreement, group) PERSISTENT;
     
 //-- вверх        
-dataPercDeviationUpPriceAgreementGroup '% отклонения по цене вверх' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
+dataPercDeviationUpPrice '% отклонения по цене вверх' (agreement, group) = DATA NUMERIC[8,2] (Agreement, Group);
 
-levelParentPercDeviationUpPriceAgreementGroup (agreement, group) =
-    GROUP MIN levelGroupGroup(group, parent) IF dataPercDeviationUpPriceAgreementGroup(agreement, parent)
+levelParentPercDeviationUpPrice (agreement, group) =
+    GROUP MIN level(Group group, Group parent) IF dataPercDeviationUpPrice(Agreement agreement, parent)
     BY agreement, group PERSISTENT;
-nearestParentPercDeviationUpPriceAgreementGroup (agreement, group) = groupGroupLevel(group, levelParentPercDeviationUpPriceAgreementGroup (agreement, group));
-nearestPercDeviationUpPriceAgreementGroup (agreement, group) =
-   dataPercDeviationUpPriceAgreementGroup(agreement, nearestParentPercDeviationUpPriceAgreementGroup(agreement, group)) PERSISTENT;
+nearestParentPercDeviationUpPrice (Agreement agreement, Group group) = group(group, levelParentPercDeviationUpPrice (agreement, group));
+nearestPercDeviationUpPrice (Agreement agreement, Group group) =
+   dataPercDeviationUpPrice(agreement, nearestParentPercDeviationUpPrice(agreement, group)) PERSISTENT;
 
-percDeviationUpPriceAgreementGroup '% отклонения по цене вверх (перегруженный)' (agreement, group) =  OVERRIDE  
-    percDeviationUpPriceAgreement(agreement) IF group IS Group,
-    nearestPercDeviationUpPriceAgreementGroup(agreement, group), 
-    dataPercDeviationUpPriceAgreementGroup(agreement, group) PERSISTENT;    
+percDeviationUpPrice '% отклонения по цене вверх (перегруженный)' (Agreement agreement, Group group) =  OVERRIDE  
+    percDeviationUpPrice(agreement) IF group IS Group,
+    nearestPercDeviationUpPrice(agreement, group), 
+    dataPercDeviationUpPrice(agreement, group) PERSISTENT;    
 
 // Уточнение по sku
 //-- вниз
-dataPercDeviationDownPriceAgreementSku '% отклонения по цене вниз' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
+dataPercDeviationDownPrice '% отклонения по цене вниз' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
 
-percDeviationDownPriceAgreementSku '% отклонения по цене вниз (перегруженный)' (agreement, sku) = OVERRIDE     
-    percDeviationDownPriceAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
-    dataPercDeviationDownPriceAgreementSku(agreement, sku);
+percDeviationDownPrice '% отклонения по цене вниз (перегруженный)' (Agreement agreement, Sku sku) = OVERRIDE     
+    percDeviationDownPrice(agreement, group(groupType(agreement),sku)),
+    dataPercDeviationDownPrice(agreement, sku);
     
 //-- вверх
-dataPercDeviationUpPriceAgreementSku '% отклонения по цене вверх' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
+dataPercDeviationUpPrice '% отклонения по цене вверх' (agreement, sku) = DATA NUMERIC[8,2] (Agreement, Sku);
 
-percDeviationUpPriceAgreementSku '% отклонения по цене вверх (перегруженный)' (agreement, sku) = OVERRIDE     
-    percDeviationUpPriceAgreementGroup(agreement, groupGroupTypeSku(groupTypeAgreement(agreement),sku)),
-    dataPercDeviationUpPriceAgreementSku(agreement, sku);
+percDeviationUpPrice '% отклонения по цене вверх (перегруженный)' (Agreement agreement, Sku sku) = OVERRIDE     
+    percDeviationUpPrice(agreement, group(groupType(agreement),sku)),
+    dataPercDeviationUpPrice(agreement, sku);
     
     
-showPercDeviationUpPriceAgreement = GROUP SUM 1 IF percDeviationUpPriceAgreementSku(agreement, sku) BY agreement;
-showPercDeviationDownPriceAgreement = GROUP SUM 1 IF percDeviationDownPriceAgreementSku(agreement, sku) BY agreement;
+showPercDeviationUpPrice = GROUP SUM 1 IF percDeviationUpPrice(Agreement agreement, Sku sku) BY agreement;
+showPercDeviationDownPrice = GROUP SUM 1 IF percDeviationDownPrice(Agreement agreement, Sku sku) BY agreement;
 EXTEND FORM agreement 
-    PROPERTIES(a) percDeviationDownPriceAgreement, percDeviationUpPriceAgreement 
-    PROPERTIES(a, g) dataPercDeviationDownPriceAgreementGroup, percDeviationDownPriceAgreementGroup,
-                     dataPercDeviationUpPriceAgreementGroup, percDeviationUpPriceAgreementGroup
-    PROPERTIES(a, s) dataPercDeviationDownPriceAgreementSku, percDeviationDownPriceAgreementSku,
-                     dataPercDeviationUpPriceAgreementSku, percDeviationUpPriceAgreementSku        
+    PROPERTIES(a) percDeviationDownPrice, percDeviationUpPrice 
+    PROPERTIES(a, g) dataPercDeviationDownPrice, percDeviationDownPrice,
+                     dataPercDeviationUpPrice, percDeviationUpPrice
+    PROPERTIES(a, s) dataPercDeviationDownPrice, percDeviationDownPrice,
+                     dataPercDeviationUpPrice, percDeviationUpPrice        
                          
 ;
 DESIGN agreement {
@@ -126,67 +126,67 @@ DESIGN agreement {
     }
 } 
 
-agreementsPriceOrderDetail 'Цена из соглашения' (d) =
-    priceBLedgerPriceListTypeSkuStockDateTime(priceListTypeOrderDetail(d) AS DataPriceListType,
-                                              skuOrderDetail(d),
-                                              customerStockOrderDetail(d),
-                                              dateTimeOrderDetail(d));
-percDeviationUpPriceAgreementOrderDetail '% отклонения по цене вверх' (d) = percDeviationUpPriceAgreementSku(agreementOrderDetail(d), skuOrderDetail(d));
-percDeviationDownPriceAgreementOrderDetail '% отклонения по цене вниз' (d) = percDeviationDownPriceAgreementSku(agreementOrderDetail(d), skuOrderDetail(d));
+agreementsPrice 'Цена из соглашения' (OrderDetail d) =
+    priceB(priceListType(d) AS DataPriceListType,
+                                              sku(d),
+                                              customerStock(d),
+                                              dateTime(d));
+percDeviationUpPriceAgreement '% отклонения по цене вверх' (OrderDetail d) = percDeviationUpPrice(agreement(d), sku(d));
+percDeviationDownPriceAgreement '% отклонения по цене вниз' (OrderDetail d) = percDeviationDownPrice(agreement(d), sku(d));
 
-maxDeviationPriceOrderDetail 'Макс. цена' (d) = (100.0 + percDeviationUpPriceAgreementOrderDetail(d)) * 
-                                                        priceOrderDetail(d) /
+maxDeviationPrice 'Макс. цена' (OrderDetail d) = (100.0 + percDeviationUpPriceAgreement(d)) * 
+                                                        price(d) /
                                                         100.0;
-minDeviationPriceOrderDetail 'Мин. цена' (d) = (100.0 - percDeviationDownPriceAgreementOrderDetail(d)) *
-                                                        priceOrderDetail(d) /
+minDeviationPrice 'Мин. цена' (OrderDetail d) = (100.0 - percDeviationDownPriceAgreement(d)) *
+                                                        price(d) /
                                                         100.0;      
 
-CONSTRAINT (SET(isPostedOrderDetail(d)) OR SETCHANGED(priceOrderDetail(d))) AND isPostedOrderDetail(d) AND (priceOrderDetail(d) != agreementsPriceOrderDetail(d))    
+CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d))) AND isPosted(d) AND (price(d) != agreementsPrice(d))    
     MESSAGE 'Для строки заказа цена не совпадает с ценой из соглашения';    
     
-percDeviationUpPriceAgreementOrder '% отклонения по цене вверх' (order) = showPercDeviationUpPriceAgreement(agreementOrder(order));
-percDeviationDownPriceAgreementOrder '% отклонения по цене вниз' (order) = showPercDeviationDownPriceAgreement(agreementOrder(order));     
+percDeviationUpPriceAgreement '% отклонения по цене вверх' (Order order) = showPercDeviationUpPrice(agreement(order));
+percDeviationDownPriceAgreement '% отклонения по цене вниз' (Order order) = showPercDeviationDownPrice(agreement(order));     
 
 EXTEND FORM orders
-    PROPERTIES(d) READONLY  minDeviationPriceOrderDetail SHOWIF percDeviationDownPriceAgreementOrder(o) BEFORE priceOrderDetail(d), 
-                  maxDeviationPriceOrderDetail SHOWIF percDeviationUpPriceAgreementOrder(o) AFTER priceOrderDetail(d) 
+    PROPERTIES(d) READONLY  minDeviationPrice SHOWIF percDeviationDownPriceAgreement(o) BEFORE price(d), 
+                  maxDeviationPrice SHOWIF percDeviationUpPriceAgreement(o) AFTER price(d) 
 
 ;
 EXTEND FORM userOrder
-    PROPERTIES(d) READONLY  minDeviationPriceOrderDetail SHOWIF percDeviationDownPriceAgreementOrder(o) BEFORE priceUserOrderDetail(d), 
-                  maxDeviationPriceOrderDetail SHOWIF percDeviationUpPriceAgreementOrder(o) AFTER priceUserOrderDetail(d)
+    PROPERTIES(d) READONLY  minDeviationPrice SHOWIF percDeviationDownPriceAgreement(o) BEFORE price(d), 
+                  maxDeviationPrice SHOWIF percDeviationUpPriceAgreement(o) AFTER price(d)
 
 ;     
 
 //
-maxDeviationPriceOrderInvoiceDetail 'Макс. цена' (d) = maxDeviationPriceOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
-minDeviationPriceOrderInvoiceDetail 'Мин. цена' (d) = minDeviationPriceOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d))); 
+maxDeviationPriceOrder 'Макс. цена' (InvoiceDetail d) = maxDeviationPrice(maxOrderDetail(sku(d), order(d)));
+minDeviationPriceOrder 'Мин. цена' (InvoiceDetail d) = minDeviationPrice(maxOrderDetail(sku(d), order(d))); 
 
-agreementsPriceInvoiceDetail 'Цена из соглашения' (d) =
-    prevPriceBLedgerPriceListTypeSkuStockDateTime(priceListTypeInvoiceDetail(d),
-                                                  skuInvoiceDetail(d),
-                                                  customerStockInvoiceDetail(d),
-                                                  dateTimeInvoiceDetail(d));
+agreementsPrice 'Цена из соглашения' (InvoiceDetail d) =
+    prevPriceB[LedgerPriceListType,Sku,Stock,DATETIME](priceListType(d),
+                                                  sku(d),
+                                                  customerStock(d),
+                                                  dateTime(d));
     // todo : добавлен PREV для того, чтобы при изменении в прайсах (до) она не тормозила. Почему это работает при изменении цены в прайсе - вообще загадка.
 
-percDeviationUpPriceAgreementInvoiceDetail '% отклонения по цене вверх' (d) = percDeviationUpPriceAgreementSku(agreementInvoiceDetail(d), skuInvoiceDetail(d));
-percDeviationDownPriceAgreementInvoiceDetail '% отклонения по цене вниз' (d) = percDeviationDownPriceAgreementSku(agreementInvoiceDetail(d), skuInvoiceDetail(d));
-maxDeviationPriceInvoiceDetail 'Макс. цена' (d) = (100.0 + percDeviationUpPriceAgreementInvoiceDetail(d)) * 
-                                                        agreementsPriceInvoiceDetail(d) /
+percDeviationUpPriceAgreement '% отклонения по цене вверх' (InvoiceDetail d) = percDeviationUpPrice(agreement(d), sku(d));
+percDeviationDownPriceAgreement '% отклонения по цене вниз' (InvoiceDetail d) = percDeviationDownPrice(agreement(d), sku(d));
+maxDeviationPrice 'Макс. цена' (InvoiceDetail d) = (100.0 + percDeviationUpPriceAgreement(d)) * 
+                                                        agreementsPrice(d) /
                                                         100.0;
-minDeviationPriceInvoiceDetail 'Мин. цена' (d) = (100.0 - percDeviationDownPriceAgreementInvoiceDetail(d)) *
-                                                        agreementsPriceInvoiceDetail(d) /
+minDeviationPrice 'Мин. цена' (InvoiceDetail d) = (100.0 - percDeviationDownPriceAgreement(d)) *
+                                                        agreementsPrice(d) /
                                                         100.0; 
                                                          
-overMaxDeviationPriceInvoiceDetail 'Макс. цена' (d) = IF orderInvoiceDetail(d) THEN maxDeviationPriceOrderInvoiceDetail(d) ELSE maxDeviationPriceInvoiceDetail(d);
-overMinDeviationPriceInvoiceDetail 'Мин. цена' (d) = IF orderInvoiceDetail(d) THEN minDeviationPriceOrderInvoiceDetail(d) ELSE minDeviationPriceInvoiceDetail(d);                                                                                                                      
+overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF order(d) THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
+overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF order(d) THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);                                                                                                                      
 
-CONSTRAINT (SET(isPostedInvoiceDetail(d)) OR SETCHANGED(priceInvoiceDetail(d)) OR SETCHANGED(skuInvoiceDetail(d)) OR SETCHANGED(dateTimeInvoiceDetail(d)) OR SETCHANGED(agreementInvoiceDetail(d))) AND 
-           isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) > overMaxDeviationPriceInvoiceDetail(d)    
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
+           isPosted(d) AND price(d) > overMaxDeviationPrice(d)    
            MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
 
-CONSTRAINT (SET(isPostedInvoiceDetail(d)) OR SETCHANGED(priceInvoiceDetail(d)) OR SETCHANGED(skuInvoiceDetail(d)) OR SETCHANGED(dateTimeInvoiceDetail(d)) OR SETCHANGED(agreementInvoiceDetail(d))) AND 
-           isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)    
+CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
+           isPosted(d) AND price(d) < overMinDeviationPrice(d)    
            MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
 
 //CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)    
@@ -194,94 +194,94 @@ CONSTRAINT (SET(isPostedInvoiceDetail(d)) OR SETCHANGED(priceInvoiceDetail(d)) O
                 
 //--------------------------- Запрет на оприходование без заявки --------------------------------------//
 
-deviationNotOrderInvoiceAgreement 'Запретить оприходование накладных без заказа'  = DATA BOOLEAN (Agreement);
+deviationNotOrderInvoice 'Запретить оприходование накладных без заказа'  = DATA BOOLEAN (Agreement);
 EXTEND FORM agreement 
-    PROPERTIES(a) deviationNotOrderInvoiceAgreement 
+    PROPERTIES(a) deviationNotOrderInvoice 
 ;
 
-CONSTRAINT isPostedInvoiceDetail(d) AND deviationNotOrderInvoiceAgreement(agreementInvoice(invoiceInvoiceDetail(d))) AND NOT isPostedOrderDetail(maxOrderDetailInvoiceDetail(d))    
+CONSTRAINT isPosted(InvoiceDetail d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(maxOrderDetail(d))    
     MESSAGE 'Накладную запрещено оприходовать без заказа';   
 
 
 //--------------------------- Минимальная сумма заказа для поставщика --------------------------------------//
 
-minSupplierSumOrderAgreement 'Минимальная сумма заказа' = DATA NUMERIC[16,2] (Agreement) MINCHARWIDTH 13 PREFCHARWIDTH 13;
+minSupplierSumOrder 'Минимальная сумма заказа' = DATA NUMERIC[16,2] (Agreement) MINCHARWIDTH 13 PREFCHARWIDTH 13;
 EXTEND FORM agreement 
-    PROPERTIES(a) minSupplierSumOrderAgreement 
+    PROPERTIES(a) minSupplierSumOrder 
 ;
 DESIGN agreement {
     orderContainer1 {       
-        MOVE PROPERTY (deviationNotOrderInvoiceAgreement(a));
-        MOVE PROPERTY (minSupplierSumOrderAgreement(a));
+        MOVE PROPERTY (deviationNotOrderInvoice(a));
+        MOVE PROPERTY (minSupplierSumOrder(a));
     }
 }
 
-minSumSupplierOrder 'Минимальная сумма заказа' (o) = minSupplierSumOrderAgreement(agreementUserOrder(o)) IN documentSum MINCHARWIDTH 13 PREFCHARWIDTH 13;
-backgroundMinSumSupplierOrder (o) = RGB (255,100,100) IF minSumSupplierOrder(o) > sumUserOrderDetailUserOrder(o);
+minSumSupplier 'Минимальная сумма заказа' (UserOrder o) = minSupplierSumOrder(agreement(o)) IN documentSum MINCHARWIDTH 13 PREFCHARWIDTH 13;
+backgroundMinSumSupplier (UserOrder o) = RGB (255,100,100) IF minSumSupplier(o) > sumUserOrderDetail(o);
 
 EXTEND FORM userOrder 
-    PROPERTIES(o) READONLY minSumSupplierOrder BACKGROUND backgroundMinSumSupplierOrder(o) 
+    PROPERTIES(o) READONLY minSumSupplier BACKGROUND backgroundMinSumSupplier(o) 
 ;
 
 //--
 
-maxDeviationQuantityOrderInvoiceDetail 'Макс. к-во' (d) = maxDeviationQuantityOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d)));
-minDeviationQuantityOrderInvoiceDetail 'Мин. к-во' (d) = minDeviationQuantityOrderDetail(maxOrderDetailSkuOrder(skuInvoiceDetail(d), orderInvoiceDetail(d))); 
+maxDeviationQuantityOrder 'Макс. к-во' (InvoiceDetail d) = maxDeviationQuantity(maxOrderDetail(sku(d), order(d)));
+minDeviationQuantityOrder 'Мин. к-во' (InvoiceDetail d) = minDeviationQuantity(maxOrderDetail(sku(d), order(d))); 
 
-percDeviationUpPriceOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND showPercDeviationUpPriceAgreement(agreementOrder(o)) BY i;  
-percDeviationDownPriceOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND showPercDeviationDownPriceAgreement(agreementOrder(o)) BY i;  
+percDeviationUpPriceOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) AND showPercDeviationUpPrice(agreement(o)) BY i;  
+percDeviationDownPriceOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) AND showPercDeviationDownPrice(agreement(o)) BY i;  
 
-percDeviationUpQuantityOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND percDeviationUpQuantityAgreement(agreementOrder(o)) BY i;  
-percDeviationDownQuantityOrdersInvoice (i) = GROUP SUM 1 IF includeOrderUserInvoice(o,i) AND percDeviationDownQuantityAgreement(agreementOrder(o)) BY i; 
+percDeviationUpQuantityOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) AND percDeviationUpQuantity(agreement(o)) BY i;  
+percDeviationDownQuantityOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) AND percDeviationDownQuantity(agreement(o)) BY i; 
   
     
-backgroundMaxPriceInvoiceDetail (d) = IF priceInvoiceDetail(d) > overMaxDeviationPriceInvoiceDetail(d) 
+backgroundMaxPrice (InvoiceDetail d) = IF price(d) > overMaxDeviationPrice(d) 
     THEN  RGB(0,255,119) 
     ELSE RGB(249,255,212);
 
-backgroundMinPriceInvoiceDetail (d) = IF priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d) 
+backgroundMinPrice (InvoiceDetail d) = IF price(d) < overMinDeviationPrice(d) 
     THEN  RGB(0,255,119) 
     ELSE RGB(249,255,212);
 
 //overShipmentQuantityInvoiceDetail (d) = OVERRIDE shipmentQuantityInvoiceDetail(d), shippedInvoiceDetail(d);    
     
-backgroundMaxQuantityInvoiceDetail (d) = IF shipmentQuantityInvoiceDetail(d) > maxDeviationQuantityOrderInvoiceDetail(d) 
+backgroundMaxQuantity (InvoiceDetail d) = IF shipmentQuantity(d) > maxDeviationQuantityOrder(d) 
     THEN  RGB(0,255,119) 
     ELSE RGB(249,255,212);
 
-backgroundMinQuantityInvoiceDetail (d) = IF shipmentQuantityInvoiceDetail(d) < minDeviationQuantityOrderInvoiceDetail(d) 
+backgroundMinQuantity (InvoiceDetail d) = IF shipmentQuantity(d) < minDeviationQuantityOrder(d) 
     THEN  RGB(0,255,119) 
     ELSE RGB(249,255,212);  
       
   
     
 EXTEND FORM userInvoice
-    PROPERTIES (d) READONLY BEFORE priceUserInvoiceDetail(d) 
-                   minDeviationPriceOrderInvoiceDetail SHOWIF percDeviationDownPriceOrdersInvoice(i) BACKGROUND backgroundMinPriceInvoiceDetail(d), 
-                   priceOrderInvoiceDetail SHOWIF countIncludeOrdersInvoice(i), 
-                   maxDeviationPriceOrderInvoiceDetail SHOWIF percDeviationUpPriceOrdersInvoice(i) BACKGROUND backgroundMaxPriceInvoiceDetail(d)
+    PROPERTIES (d) READONLY BEFORE price(d) 
+                   minDeviationPriceOrder SHOWIF percDeviationDownPriceOrders(i) BACKGROUND backgroundMinPrice(d), 
+                   priceOrder SHOWIF countIncludeOrders(i), 
+                   maxDeviationPriceOrder SHOWIF percDeviationUpPriceOrders(i) BACKGROUND backgroundMaxPrice(d)
      
-    PROPERTIES (d) READONLY BEFORE quantityUserInvoiceDetail(d) 
-                   minDeviationQuantityOrderInvoiceDetail SHOWIF percDeviationDownQuantityOrdersInvoice(i) BACKGROUND backgroundMinQuantityInvoiceDetail(d), 
-                   quantityOrderInvoiceDetail SHOWIF countIncludeOrdersInvoice(i), 
-                   maxDeviationQuantityOrderInvoiceDetail SHOWIF percDeviationUpQuantityOrdersInvoice(i) BACKGROUND backgroundMaxQuantityInvoiceDetail(d) 
+    PROPERTIES (d) READONLY BEFORE quantity(d) 
+                   minDeviationQuantityOrder SHOWIF percDeviationDownQuantityOrders(i) BACKGROUND backgroundMinQuantity(d), 
+                   quantityOrder SHOWIF countIncludeOrders(i), 
+                   maxDeviationQuantityOrder SHOWIF percDeviationUpQuantityOrders(i) BACKGROUND backgroundMaxQuantity(d) 
 
     FILTERGROUP    deviation
-        FILTER  'Есть отклонения' (priceInvoiceDetail(d) > overMaxDeviationPriceInvoiceDetail(d)) OR 
-                                       (priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)) OR 
-                                       (shipmentQuantityInvoiceDetail(d) > maxDeviationQuantityOrderInvoiceDetail(d)) OR 
-                                       (shipmentQuantityInvoiceDetail(d) < minDeviationQuantityOrderInvoiceDetail(d)) 'F6' 
-        FILTER  'По цене' (priceInvoiceDetail(d) > overMaxDeviationPriceInvoiceDetail(d)) OR 
-                                    (priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)) 'ctrl F6'        
-        FILTER  'По количеству' (shipmentQuantityInvoiceDetail(d) > maxDeviationQuantityOrderInvoiceDetail(d)) OR 
-                                           (shipmentQuantityInvoiceDetail(d) < minDeviationQuantityOrderInvoiceDetail(d)) 'shift F6'         
+        FILTER  'Есть отклонения' (price[InvoiceDetail](d) > overMaxDeviationPrice(d)) OR 
+                                       (price[InvoiceDetail](d) < overMinDeviationPrice(d)) OR 
+                                       (shipmentQuantity[InvoiceDetail](d) > maxDeviationQuantityOrder(d)) OR 
+                                       (shipmentQuantity[InvoiceDetail](d) < minDeviationQuantityOrder(d)) 'F6' 
+        FILTER  'По цене' (price[InvoiceDetail](d) > overMaxDeviationPrice(d)) OR 
+                                    (price[InvoiceDetail](d) < overMinDeviationPrice(d)) 'ctrl F6'        
+        FILTER  'По количеству' (shipmentQuantity[InvoiceDetail](d) > maxDeviationQuantityOrder(d)) OR 
+                                           (shipmentQuantity[InvoiceDetail](d) < minDeviationQuantityOrder(d)) 'shift F6'         
         
 
 ;
 
 DESIGN userInvoice {
-    PROPERTY(priceOrderInvoiceDetail(d)) { background = #F9FFD4; }
-    PROPERTY(quantityOrderInvoiceDetail(d)) { background = #F9FFD4; }
+    PROPERTY(priceOrder(d)) { background = #F9FFD4; }
+    PROPERTY(quantityOrder(d)) { background = #F9FFD4; }
 }
 
 

@@ -6,21 +6,21 @@ NAMESPACE Scales;
 // ----------------------------------------- Загрузка в ВУ -------------------------------------- //
 
 CLASS ScalesPriceTransaction 'Загрузка прайса в весы' : MachineryPriceTransaction;
-groupScalesScalesPriceTransaction 'Группа весов' = DATA GroupScales (ScalesPriceTransaction);
-groupMachineryMachineryPriceTransaction (transaction) += groupScalesScalesPriceTransaction(transaction);
+groupScales 'Группа весов' = DATA GroupScales (ScalesPriceTransaction);
+groupMachinery (ScalesPriceTransaction transaction) += groupScales(transaction);
 
 EXTEND FORM groupMachineryInput
-    PROPERTIES(m) READONLY FORCE GRID SHOWIF isGroupScales(g)       numberScales
-    PROPERTIES(g) READONLY FORCE GRID SHOWIF isGroupScales(g)       nameModelGroupMachinery
+    PROPERTIES(m) READONLY FORCE GRID SHOWIF is(g)       number
+    PROPERTIES(g) READONLY FORCE GRID SHOWIF is(g)       nameModel
 ;
 
-createMachineryPriceTransactionGroupMachinery (groupMachinery) += ACTION (groupMachinery) {
+createMachineryPriceTransaction (GroupScales groupMachinery) += ACTION (groupMachinery) {
     IF groupMachinery IS GroupScales THEN
         ADDOBJ ScalesPriceTransaction;
 }
 
-skipGroupMachineryBarcode(groupMachinery, barcode) += WHEN groupMachinery IS GroupScales AND charLength(idBarcode(barcode)) != 5 THEN TRUE;
+skip(GroupScales groupMachinery, Barcode barcode) += WHEN groupMachinery IS GroupScales AND charLength(id(barcode)) != 5 THEN TRUE;
 
-skipSnapshotMachineryPriceTransaction(t) += (groupMachineryMachineryPriceTransaction(t) IS GroupScales) AND skipSnapshotMachineryRole(mainRoleUser(currentUser()));
+skipSnapshot(MachineryPriceTransaction t) += (groupMachinery(t) IS GroupScales) AND skipSnapshotMachinery(mainRole(currentUser()));
 
-skipLastTransactionGroupMachinery(g) += g IS GroupScales;
+skipLastTransaction(GroupScales g) += g IS GroupScales;

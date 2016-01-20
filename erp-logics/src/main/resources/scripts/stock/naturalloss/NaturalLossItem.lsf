@@ -2,38 +2,38 @@ MODULE NaturalLossItem;
 
 REQUIRE NaturalLoss, Item;
 
-subNaturalLossGroupCountryItem = DATA SubNaturalLossGroup (Country, Item);
-nameSubNaturalLossGroupCountryItem 'Группа естественной убыли'(country, item)  = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item));
-nameSubNaturalLossGroupDefaultCountryItem 'Группа естественной убыли' (item) = nameSubNaturalLossGroup(subNaturalLossGroupCountryItem(defaultCountry(), item));
+subNaturalLossGroup = DATA SubNaturalLossGroup (Country, Item);
+nameSubNaturalLossGroup 'Группа естественной убыли'(Country country, Item item)  = name(subNaturalLossGroup(country, item));
+nameSubNaturalLossGroupDefaultCountry 'Группа естественной убыли' (Item item) = name(subNaturalLossGroup(defaultCountry(), item));
 
-changeSubNaturalLossGroupDefaultCountryItem = ACTION (item) {
+changeSubNaturalLossGroupDefaultCountry = ACTION (Item item) {
     REQUEST OBJECT sg
     FORM naturalLossGroups OBJECTS c = defaultCountry() DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
-        subNaturalLossGroupCountryItem(country, item) <- requestedObject() WHERE country == defaultCountry();
+        subNaturalLossGroup(Country country, item) <- requestedObject() WHERE country == defaultCountry();
 
     } ELSE IF formResult() == FormResult.drop THEN {
-        subNaturalLossGroupCountryItem(country, item) <- NULL WHERE country == defaultCountry();
+        subNaturalLossGroup(Country country, item) <- NULL WHERE country == defaultCountry();
     }
 }
 
-CONSTRAINT countrySubNaturalLossGroup(subNaturalLossGroupCountryItem(country, item)) != country
-    CHECKED BY subNaturalLossGroupCountryItem MESSAGE 'Страна группы естественной убыли не совпадает со страной';
+CONSTRAINT country(subNaturalLossGroup(Country country, Item item)) != country
+    CHECKED BY subNaturalLossGroup[Country,Item] MESSAGE 'Страна группы естественной убыли не совпадает со страной';
 
-subNaturalLossGroupCountrySku (country, sku) += subNaturalLossGroupCountryItem (country, sku);
+subNaturalLossGroup (Country country, Item sku) += subNaturalLossGroup (country, sku);
 
-overCopyItem(s, d) += ACTION (s, d) {
-    ASSIGN subNaturalLossGroupCountryItem(country, d) <- subNaturalLossGroupCountryItem(country, s);
+overCopy(Item s, Item d) += ACTION (s, d) {
+    ASSIGN subNaturalLossGroup(Country country, d) <- subNaturalLossGroup(country, s);
 }
 
 EXTEND FORM item
-    PROPERTIES(c,i) nameSubNaturalLossGroupCountryItem
-    PROPERTIES(i) nameSubNaturalLossGroupDefaultCountryItem ON CHANGE changeSubNaturalLossGroupDefaultCountryItem(i)
+    PROPERTIES(c,i) nameSubNaturalLossGroup
+    PROPERTIES(i) nameSubNaturalLossGroupDefaultCountry ON CHANGE changeSubNaturalLossGroupDefaultCountry(i)
 ;
-DESIGN item { regionPrm  { MOVE PROPERTY(nameSubNaturalLossGroupDefaultCountryItem(i));} }
+DESIGN item { regionPrm  { MOVE PROPERTY(nameSubNaturalLossGroupDefaultCountry(i));} }
 
 EXTEND FORM items
-    PROPERTIES(i) READONLYIF isReadonly() nameSubNaturalLossGroupDefaultCountryItem ON CHANGE changeSubNaturalLossGroupDefaultCountryItem(i)
+    PROPERTIES(i) READONLYIF isReadonly() nameSubNaturalLossGroupDefaultCountry ON CHANGE changeSubNaturalLossGroupDefaultCountry(i)
 ;   
 //--
 
@@ -42,10 +42,10 @@ EXTEND FORM items
 
 EXTEND FORM itemGroup
     OBJECTS tc=Country 
-    PROPERTIES(tc)   READONLY nameCountry
-    PROPERTIES(tc, g) nameSubNaturalLossGroupCountryItemGroup
+    PROPERTIES(tc)   READONLY name
+    PROPERTIES(tc, g) nameSubNaturalLossGroup
     FILTERGROUP isResident
-        FILTER 'Отечественный производитель' residentCountry(tc) OR defaultCountry()==tc DEFAULT 
+        FILTER 'Отечественный производитель' resident(tc) OR defaultCountry()==tc DEFAULT 
     
 ;    
 
@@ -55,8 +55,8 @@ DESIGN itemGroup {
     }         
 }
 
-WHEN SESSION CHANGED(itemGroupItem(item)) AND country IS Country AND NOT subNaturalLossGroupCountryItem(country, item) DO
-    subNaturalLossGroupCountryItem(country, item) <- subNaturalLossGroupCountryItemGroup(country, itemGroupItem(item));
+WHEN SESSION CHANGED(itemGroup(Item item)) AND Country country IS Country AND NOT subNaturalLossGroup(country, item) DO
+    subNaturalLossGroup(country, item) <- subNaturalLossGroup(country, itemGroup(item));
 
 
 EXTEND CLASS NaturalLossGroup : Group;
@@ -67,16 +67,16 @@ EXTEND CLASS SystemGroupType { naturalLossGroupType 'Естественная у
 CLASS NaturalLossGroupAll { naturalLossAll 'Все' } : Group;
 TABLE naturalLossGroupAll(NaturalLossGroupAll);
 
-parentGroup (group) += NaturalLossGroupAll.naturalLossAll IF group IS NaturalLossGroup;
-parentGroup (group) += parentNaturalLossGroup(group);
+parent (NaturalLossGroup group) += NaturalLossGroupAll.naturalLossAll IF group IS NaturalLossGroup;
+parent (SubNaturalLossGroup group) += parent(group);
 
-nameGroup (group) += VARISTRING[250](staticCaption(group)) IF group IS NaturalLossGroupAll;
-nameGroup (group) += nameSubNaturalLossGroup(group);
-nameGroup (group) += nameNaturalLossGroup(group);
+name (NaturalLossGroupAll group) += VARISTRING[250](staticCaption(group)) IF group IS NaturalLossGroupAll;
+name (SubNaturalLossGroup group) += name(group);
+name (NaturalLossGroup group) += name(group);
 
-groupTypeGroup(group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroupAll;
-groupTypeGroup(group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroup ;
-groupTypeGroup(group) += SystemGroupType.naturalLossGroupType IF group IS SubNaturalLossGroup;
+groupType(NaturalLossGroupAll group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroupAll;
+groupType(NaturalLossGroup group) += SystemGroupType.naturalLossGroupType IF group IS NaturalLossGroup ;
+groupType(SubNaturalLossGroup group) += SystemGroupType.naturalLossGroupType IF group IS SubNaturalLossGroup;
 
 
-groupGroupTypeSku(type, sku) += WHEN CLASS(subNaturalLossGroupCountryItem(defaultCountry(),sku)) AND type == SystemGroupType.naturalLossGroupType THEN subNaturalLossGroupCountryItem(defaultCountry(),sku);
+group(SystemGroupType type, Item sku) += WHEN CLASS(subNaturalLossGroup(defaultCountry(),sku)) AND type == SystemGroupType.naturalLossGroupType THEN subNaturalLossGroup(defaultCountry(),sku);

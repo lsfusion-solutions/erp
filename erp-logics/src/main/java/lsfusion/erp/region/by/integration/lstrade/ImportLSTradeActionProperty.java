@@ -34,66 +34,66 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
-            Integer numberOfItems = (Integer) findProperty("importNumberItems").read(context);
-            Integer numberOfPriceLists = (Integer) findProperty("importNumberPriceLists").read(context);
-            String prefixStore = trim((String) findProperty("prefixStore").read(context), "МГ");
+            Integer numberOfItems = (Integer) findProperty("importNumberItems[]").read(context);
+            Integer numberOfPriceLists = (Integer) findProperty("importNumberPriceLists[]").read(context);
+            String prefixStore = trim((String) findProperty("prefixStore[]").read(context), "МГ");
 
-            String path = trim((String) findProperty("importLSTDirectory").read(context));
+            String path = trim((String) findProperty("importLSTDirectory[]").read(context));
             if (notNullNorEmpty(path)) {
 
                 ImportData importData = new ImportData();
 
-                Boolean importInactive = findProperty("importInactive").read(context) != null;
+                Boolean importInactive = findProperty("importInactive[]").read(context) != null;
                 importData.setImportInactive(importInactive);
-                importData.setSkipKeys(findProperty("skipKeysLSTrade").read(context) != null);
+                importData.setSkipKeys(findProperty("skipKeysLSTrade[]").read(context) != null);
 
-                importData.setNumberOfItemsAtATime((Integer) findProperty("importNumberItemsAtATime").read(context));
-                importData.setNumberOfPriceListsAtATime((Integer) findProperty("importNumberPriceListsAtATime").read(context));
+                importData.setNumberOfItemsAtATime((Integer) findProperty("importNumberItemsAtATime[]").read(context));
+                importData.setNumberOfPriceListsAtATime((Integer) findProperty("importNumberPriceListsAtATime[]").read(context));
 
-                importData.setItemGroupsList((findProperty("importGroupItems").read(context) != null) ?
+                importData.setItemGroupsList((findProperty("importGroupItems[]").read(context) != null) ?
                         importItemGroupsFromDBF(path + "//_sprgrt.dbf", false) : null);
 
-                importData.setParentGroupsList((findProperty("importGroupItems").read(context) != null) ?
+                importData.setParentGroupsList((findProperty("importGroupItems[]").read(context) != null) ?
                         importItemGroupsFromDBF(path + "//_sprgrt.dbf", true) : null);
 
-                importData.setBanksList((findProperty("importBanks").read(context) != null) ?
+                importData.setBanksList((findProperty("importBanks[]").read(context) != null) ?
                         importBanksFromDBF(path + "//_sprbank.dbf") : null);
 
-                importData.setLegalEntitiesList((findProperty("importLegalEntities").read(context) != null) ?
+                importData.setLegalEntitiesList((findProperty("importLegalEntities[]").read(context) != null) ?
                         importLegalEntitiesFromDBF(path + "//_sprana.dbf", prefixStore, importInactive, false) : null);
 
-                importData.setWarehousesList((findProperty("importWarehouses").read(context) != null) ?
+                importData.setWarehousesList((findProperty("importWarehouses[]").read(context) != null) ?
                         importWarehousesFromDBF(path + "//_sprana.dbf", importInactive) : null);
 
-                importData.setContractsList((findProperty("importContracts").read(context) != null) ?
+                importData.setContractsList((findProperty("importContracts[]").read(context) != null) ?
                         importContractsFromDBF(path + "//_sprcont.dbf") : null);
 
-                importData.setStoresList((findProperty("importStores").read(context) != null) ?
+                importData.setStoresList((findProperty("importStores[]").read(context) != null) ?
                         importLegalEntitiesFromDBF(path + "//_sprana.dbf", prefixStore, importInactive, true) : null);
 
-                importData.setDepartmentStoresList((findProperty("importDepartmentStores").read(context) != null) ?
+                importData.setDepartmentStoresList((findProperty("importDepartmentStores[]").read(context) != null) ?
                         importDepartmentStoresFromDBF(path + "//_sprana.dbf", importInactive, path + "//_storestr.dbf",
                                 prefixStore) : null);
 
-                importData.setRateWastesList((findProperty("importRateWastes").read(context) != null) ?
+                importData.setRateWastesList((findProperty("importRateWastes[]").read(context) != null) ?
                         importRateWastesFromDBF(path + "//_sprvgrt.dbf") : null);
 
-                importData.setWaresList((findProperty("importWares").read(context) != null) ?
+                importData.setWaresList((findProperty("importWares[]").read(context) != null) ?
                         importWaresFromDBF(path + "//_sprgrm.dbf") : null);
 
-                importData.setUOMsList((findProperty("importUOMs").read(context) != null) ?
+                importData.setUOMsList((findProperty("importUOMs[]").read(context) != null) ?
                         importUOMsFromDBF(path + "//_sprgrm.dbf") : null);
 
-                importData.setItemsList((findProperty("importItems").read(context) != null) ?
+                importData.setItemsList((findProperty("importItems[]").read(context) != null) ?
                         importItemsFromDBF(path + "//_sprgrm.dbf", path + "//_postvar.dbf", numberOfItems, importInactive) : null);
 
-                importData.setPriceListStoresList((findProperty("importPriceListStores").read(context) != null) ?
+                importData.setPriceListStoresList((findProperty("importPriceListStores[]").read(context) != null) ?
                         importPriceListStoreFromDBF(path + "//_postvar.dbf", path + "//_strvar.dbf", prefixStore, numberOfPriceLists) : null);
 
-                importData.setPriceListSuppliersList((findProperty("importPriceListSuppliers").read(context) != null) ?
+                importData.setPriceListSuppliersList((findProperty("importPriceListSuppliers[]").read(context) != null) ?
                         importPriceListSuppliersFromDBF(path + "//_postvar.dbf", numberOfPriceLists) : null);
 
-                importData.setUserInvoicesList((findProperty("importUserInvoices").read(context) != null) ?
+                importData.setUserInvoicesList((findProperty("importUserInvoices[]").read(context) != null) ?
                         importUserInvoicesFromDBF(path + "//_sprcont.dbf", path + "//_ostn.dbf") : null);
 
                 new ImportActionProperty(LM).makeImport(importData, context);

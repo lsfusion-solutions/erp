@@ -6,35 +6,35 @@ NAMESPACE Repricing;
 
 //----------------- Переоценка товаров, которые были возвращены покупателями по кассе -----------------//
 
-retailPricingPriceBReceiptReturnDetail 'Розничная цена (действующая)' (d) =
-    priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.retailPricingPriceListType, skuReceiptReturnDetail(d), departmentStoreReceiptReturnDetail(d), dateTimeReceiptReturnDetail(d));
+retailPricingPriceB 'Розничная цена (действующая)' (ReceiptReturnDetail d) =
+    priceB(SystemLedgerPriceListType.retailPricingPriceListType, sku(d), departmentStore(d), dateTime(d));
 
-userRepricingDetailReceiptReturnDetail = DATA  UserRepricingDetail(ReceiptReturnDetail);
+userRepricingDetail = DATA  UserRepricingDetail(ReceiptReturnDetail);
 
-soldPriceReceiptReturnDetail (d) = (sumReceiptReturnDetail(d) (+) discountSumReceiptReturnDetail(d)) / quantityReceiptReturnDetail(d); // priceReceiptReturnDetail(d) просто цену брать не можем, так как при внешнем POS'е в этой цене неправильно 
+soldPrice (ReceiptReturnDetail d) = (sum(d) (+) discountSum(d)) / quantity(d); // priceReceiptReturnDetail(d) просто цену брать не можем, так как при внешнем POS'е в этой цене неправильно 
 
-toRepricingReceiptReturnDetail (d) = (d IS ReceiptReturnDetail) AND NOT (retailPricingPriceBReceiptReturnDetail(d) == soldPriceReceiptReturnDetail(d)) AND
-            NOT userRepricingDetailReceiptReturnDetail(d);
-toRepricingReceiptReturnDetailDepartment (stock) =  GROUP SUM 1 IF toRepricingReceiptReturnDetail(d) BY departmentStoreReceiptReturnDetail(d);
+toRepricing (ReceiptReturnDetail d) = (d IS ReceiptReturnDetail) AND NOT (retailPricingPriceB(d) == soldPrice(d)) AND
+            NOT userRepricingDetail(d);
+toRepricingReceiptReturnDetail (stock) =  GROUP SUM 1 IF toRepricing(ReceiptReturnDetail d) BY departmentStore(d);
 
-setReceiptReturnDetailUserRepricingStockOperation 'Создать акт переоценки'  = ACTION (stock, operation) NEWSESSION {
-    IF toRepricingReceiptReturnDetailDepartment (stock) AND stock IS DepartmentStore THEN {
+setReceiptReturnDetailUserRepricingStock 'Создать акт переоценки'  = ACTION (DepartmentStore stock, Operation operation) NEWSESSION {
+    IF toRepricingReceiptReturnDetail (stock) AND stock IS DepartmentStore THEN {
     
         FOR ADDOBJ p = UserRepricing DO {
-            departmentStoreUserRepricing(p) <- stock;
-            dateUserRepricing(p) <- currentDate();
-            timeUserRepricing(p) <- currentTime();
-            skipChangeLedgerUserRepricing(p) <- TRUE;
-            operationUserRepricing(p) <- operation;
+            departmentStore(p) <- stock;
+            date(p) <- currentDate();
+            time(p) <- currentTime();
+            skipChangeLedger(p) <- TRUE;
+            operation(p) <- operation;
             
-            FOR toRepricingReceiptReturnDetail(detail) AND departmentStoreReceiptDetail(detail) == stock ADDOBJ d = UserRepricingDetail DO {
-                userRepricingUserRepricingDetail(d) <- p;   
-                userRepricingDetailReceiptReturnDetail(detail) <- d;  
+            FOR toRepricing(ReceiptReturnDetail detail) AND departmentStore[ReceiptDetail](detail) == stock ADDOBJ d = UserRepricingDetail DO {
+                userRepricing(d) <- p;   
+                userRepricingDetail(detail) <- d;  
                                 
-                skuUserRepricingDetail(d) <- skuReceiptReturnDetail(detail);
-                quantityUserRepricingDetail(d) <- quantityReceiptReturnDetail(detail);
-                curRetailPriceUserRepricingDetail(d) <- soldPriceReceiptReturnDetail(detail);
-                retailPriceUserRepricingDetail(d) <- retailPricingPriceBReceiptReturnDetail(detail);
+                sku(d) <- sku(detail);
+                quantity(d) <- quantity(detail);
+                curRetailPrice(d) <- soldPrice(detail);
+                retailPrice(d) <- retailPricingPriceB(detail);
             }  
             FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL;
         }
@@ -44,21 +44,21 @@ setReceiptReturnDetailUserRepricingStockOperation 'Создать акт пер�
 FORM returnReceiptDetail 'Дооценка на возврате (касса)'
 
     OBJECTS st = DepartmentStore FIXED PANEL 
-    PROPERTIES (st) SELECTOR nameDepartmentStore
-    FILTERS isCompanyStock(st)
+    PROPERTIES (st) SELECTOR name
+    FILTERS isCompany(st)
     
     OBJECTS o = Operation FIXED PANEL 
-    PROPERTIES (o) SELECTOR nameOperation
+    PROPERTIES (o) SELECTOR name
         
     OBJECTS d = ReceiptReturnDetail
    
-    PROPERTIES(d) FORCE GRID READONLY dateTimeReceiptDetail, idBarcodeReceiptDetail, nameSkuReceiptDetail, nameBatchReceiptDetail SHOWIF explicitBatchLedgerDepartmentStore(st),
-                  descriptionSaleReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
-                  numberVATReceiptDetail, retailPricingPriceBReceiptReturnDetail
-    FILTERS departmentStoreReceiptDetail(d) == st,
-            toRepricingReceiptReturnDetail(d)
+    PROPERTIES(d) FORCE GRID READONLY dateTime[ReceiptDetail], idBarcode, nameSku[ReceiptDetail], nameBatch[ReceiptDetail] SHOWIF explicitBatchLedger(st),
+                  descriptionSale, quantity[ReceiptDetail], price[ReceiptDetail], sum[ReceiptDetail], discountSum[ReceiptDetail],
+                  numberVAT, retailPricingPriceB
+    FILTERS departmentStore[ReceiptDetail](d) == st,
+            toRepricing(d)
             
-    PROPERTIES TODRAW d FORCE PANEL setReceiptReturnDetailUserRepricingStockOperation(st,o)
+    PROPERTIES TODRAW d FORCE PANEL setReceiptReturnDetailUserRepricingStock(st,o)
 ;
 
 @extendFormFilterStockAccess(st, returnReceiptDetail, company);

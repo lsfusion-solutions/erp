@@ -10,31 +10,31 @@ TABLE itemGroup (ItemGroup);
 @defineExternalizable(itemGroup, VARSTRING[100]);
 @defineNumeratedID(ItemGroup, 'Товарные группы');
 
-extIdItemGroup 'Код' = DATA VARSTRING[100] (ItemGroup);
-overIdItemGroup 'Код' (g) = OVERRIDE idItemGroup(g), extIdItemGroup(g);
+extId 'Код' = DATA VARSTRING[100] (ItemGroup);
+overId 'Код' (ItemGroup g) = OVERRIDE id(g), extId(g);
 
-nameItemGroup 'Наименование' = DATA VARISTRING[250](ItemGroup) IN base;
-orderItemGroup 'Порядок' = DATA INTEGER (ItemGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
+name 'Наименование' = DATA VARISTRING[250](ItemGroup) IN base;
+order 'Порядок' = DATA INTEGER (ItemGroup) MINCHARWIDTH 2 PREFCHARWIDTH 2;
 
-nameSkuGroup(group) += nameItemGroup(group) IF group IS ItemGroup;
-orderSkuGroup(group) += orderItemGroup(group) IF group IS ItemGroup;
-idSkuGroup(group) += idItemGroup(group) IF group IS ItemGroup;
+name(ItemGroup group) += name(group) IF group IS ItemGroup;
+order(ItemGroup group) += order(group) IF group IS ItemGroup;
+id(ItemGroup group) += id(group) IF group IS ItemGroup;
 
 TABLE itemGroupItemGroup(ItemGroup, ItemGroup);
 @defineHierarchy(itemGroup);
 
-idParentItemGroup (itemGroup) = overIdItemGroup(parentItemGroup(itemGroup));
+idParent (ItemGroup itemGroup) = overId(parent(itemGroup));
 
-parentSkuGroup (itemGroup) += parentItemGroup(itemGroup);
+parent (ItemGroup itemGroup) += parent(itemGroup);
 
-inItemGroup 'Отм.' = DATA LOCAL BOOLEAN (ItemGroup);
+in 'Отм.' = DATA LOCAL BOOLEAN (ItemGroup);
 
 moveItemGroup 'Перенести отмеченные группы в текущую' = ACTION (itemGroup){
 
-    FOR inItemGroup(i) DO{
+    FOR in(ItemGroup i) DO{
         IF i != itemGroup THEN {
-            ASSIGN parentItemGroup(i) <- itemGroup;
-            ASSIGN inItemGroup(i) <- NULL;
+            ASSIGN parent(i) <- itemGroup;
+            ASSIGN in(i) <- NULL;
         } ELSE {
             MESSAGE 'Выделенная товарная группа не может совпадать с объединяемой';
         }
@@ -45,35 +45,35 @@ moveItemGroup 'Перенести отмеченные группы в теку�
 
 FORM itemGroup 'Товарная группа'
     OBJECTS g=ItemGroup FIXED PANEL
-    PROPERTIES(g) nameItemGroup, orderItemGroup, idItemGroup SHOWIF showIDs(), nameParentItemGroup    
+    PROPERTIES(g) name, order, id SHOWIF showIDs(), nameParent    
     EDIT ItemGroup OBJECT g
 ;
 
 FORM itemGroups 'Товарные группы'
-    TREE treeGroups g=ItemGroup PARENT parentItemGroup
-    PROPERTIES inItemGroup(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
-    PROPERTIES READONLYIF isReadonly() orderItemGroup(g), idItemGroup(g) SHOWIF showIDs(), nameItemGroup(g), canonicalNameItemGroup (g)
+    TREE treeGroups g=ItemGroup PARENT parent
+    PROPERTIES in(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
+    PROPERTIES READONLYIF isReadonly() order(g), id(g) SHOWIF showIDs(), name(g), canonicalName (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
-    ORDER BY orderItemGroup(g), canonicalNameItemGroup(g)
+    ORDER BY order(g), canonicalName(g)
 ;
 @extendFormEditable(itemGroups);
 
 FORM dialogItemGroups 'Товарные группы'
-    TREE treeGroups tg=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(tg), idItemGroup(tg) SHOWIF showIDs(), nameItemGroup(tg)
-    ORDER BY orderItemGroup(tg), nameItemGroup(tg)
+    TREE treeGroups tg=ItemGroup PARENT parent
+    PROPERTIES READONLY order(tg), id(tg) SHOWIF showIDs(), name(tg)
+    ORDER BY order(tg), name(tg)
 
     OBJECTS g=ItemGroup
-    PROPERTIES(g) orderItemGroup READONLY, idItemGroup SHOWIF showIDs() READONLY, nameItemGroup READONLY, canonicalNameItemGroup READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) order READONLY, id SHOWIF showIDs() READONLY, name READONLY, canonicalName READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(g) ADDFORM, EDITFORM
-    ORDER BY orderItemGroup(g), canonicalNameItemGroup(g)
+    ORDER BY order(g), canonicalName(g)
 
-    FILTERS isParentItemGroupItemGroup(g, tg)
+    FILTERS isParent(g, tg)
 
     FILTERGROUP filters
-        FILTER 'Все листья' isParentLeafItemGroupItemGroup(g, tg) 'F10' DEFAULT
-        FILTER 'Всех потомков' isParentItemGroupItemGroup(g, tg) 'F9'
-        FILTER 'Только непосредственных потомков' parentItemGroup(g) == tg 'F8'
+        FILTER 'Все листья' isParentLeaf(g, tg) 'F10' DEFAULT
+        FILTER 'Всех потомков' isParent(g, tg) 'F9'
+        FILTER 'Только непосредственных потомков' parent(g) == tg 'F8'
 
     DIALOG ItemGroup OBJECT g
 ;
@@ -112,92 +112,92 @@ TABLE itemCountryDate (Item, Country, DATE);
 
 @defineNumeratedID(Item, 'Товары');
 
-idSku(sku) += idItem(sku); 
+id(Item sku) += id(sku); 
 
 // Связь с группой товаров
-itemGroupItem 'Группа товара' = DATA ItemGroup(Item) AUTOSET;
-skuGroupSku(item) += itemGroupItem(item);
+itemGroup 'Группа товара' = DATA ItemGroup(Item) AUTOSET;
+skuGroup(Item item) += itemGroup(item);
 //roundSkuGroupSkuSku(item) += itemGroupItem(item);
-countItemItemGroup 'Кол-во товаров' (g) = GROUP SUM 1 BY itemGroupItem(i);
+countItem 'Кол-во товаров' (g) = GROUP SUM 1 BY itemGroup(Item i);
 
-nameItemGroupItem 'Группа товара' (item) = nameItemGroup(itemGroupItem(item)) IN recognize;
-canonicalNameItemGroupItem 'Группа товара' (item) = canonicalNameItemGroup(itemGroupItem(item)) IN base;
-idItemGroupItem 'Код группы товаров' (item) = idItemGroup(itemGroupItem(item));
+nameItemGroup 'Группа товара' (Item item) = name(itemGroup(item)) IN recognize;
+canonicalNameItemGroup 'Группа товара' (Item item) = canonicalName(itemGroup(item)) IN base;
+idItemGroup 'Код группы товаров' (Item item) = id(itemGroup(item));
 
 TABLE itemGroupItem (ItemGroup, Item);
 
-isParentItemGroupItem (itemGroup, item) = isParentItemGroupItemGroup(itemGroupItem(item), itemGroup) PERSISTENT;
+isParent (ItemGroup itemGroup, Item item) = isParent(itemGroup(item), itemGroup) PERSISTENT;
 
 // ------------------ Дополнительные группы --------------- //
 TABLE customGroupTypeItem(CustomGroupType, Item);
 TABLE sessionCustomGroupTypeItem(Session, CustomGroupType, Item);
-customGroupCustomGroupTypeItem = DATA CustomGroup (CustomGroupType, Item);
-customGroupCustomGroupTypeSku(type, item) += customGroupCustomGroupTypeItem(type, item);
+customGroup = DATA CustomGroup (CustomGroupType, Item);
+customGroup(CustomGroupType type, Item item) += customGroup(type, item);
 
-nameCustomGroupCustomGroupTypeItem 'Имя' (type, item) = nameCustomGroup(customGroupCustomGroupTypeItem(type, item));
-canonicalNameCustomGroupCustomGroupTypeItem 'Каноническое имя' (type, item) = canonicalNameCustomGroup(customGroupCustomGroupTypeItem(type, item));
-idCustomGroupCustomGroupTypeItem 'Код' (type, item) = idCustomGroup(customGroupCustomGroupTypeItem(type, item));
+nameCustomGroup 'Имя' (CustomGroupType type, Item item) = name(customGroup(type, item));
+canonicalNameCustomGroup 'Каноническое имя' (CustomGroupType type, Item item) = canonicalName(customGroup(type, item));
+idCustomGroup 'Код' (CustomGroupType type, Item item) = id(customGroup(type, item));
 
-CONSTRAINT customGroupTypeCustomGroup(customGroupCustomGroupTypeItem(type, item)) != type
-           CHECKED BY customGroupCustomGroupTypeItem
+CONSTRAINT customGroupType(customGroup(CustomGroupType type, Item item)) != type
+           CHECKED BY customGroup[CustomGroupType,Item]
            MESSAGE 'Выбранный объект классификатора SKU имеет неправильный тип';
 
 // Атрибуты
-dataImageItem 'Изображение' = DATA IMAGEFILE (Item);
-loadImageItem 'Загрузить изображение' (item) = ACTION LOADFILE dataImageItem(item);
-overImageItem '' = ABSTRACT IMAGEFILE (Item);
+dataImage 'Изображение' = DATA IMAGEFILE (Item);
+loadImage 'Загрузить изображение' (Item item) = ACTION LOADFILE dataImage(item);
+overImage '' = ABSTRACT IMAGEFILE (Item);
 
-imageItem (item) = OVERRIDE dataImageItem (item), overImageItem (item);
-openImageItem 'Открыть изображение' (item) = ACTION OPENFILE imageItem(item);
-hasImageItem (item) = TRUE IF imageItem(item) PERSISTENT;
+image (Item item) = OVERRIDE dataImage (item), overImage (item);
+openImage 'Открыть изображение' (Item item) = ACTION OPENFILE image(item);
+hasImage (Item item) = TRUE IF image(item) PERSISTENT;
 
-nullImageItem 'Сбросить' = ACTION(item) {
-    imageItem(item) <- NULL;
+nullImage 'Сбросить' = ACTION(Item item) {
+    image(item) <- NULL;
 }
 
-imageBatch 'Изображение' (batch) = imageItem(skuBatch(batch)); 
+image 'Изображение' (Batch batch) = image(sku(batch)); 
 
 // -------------------------------- Надбавки для расчетных видов цен --------------------------------//
 
-currentBasePricePriceListTypeSkuStock 'Базовая цена' (type, sku, stock) = priceAPriceListTypeSkuStockDateTime(basePriceListTypeCalcPriceListType(type), sku, stock, currentDateTime());
+currentBasePrice 'Базовая цена' (CalcPriceListType type, Sku sku, Stock stock) = priceA[PriceListType,Sku,Stock,DATETIME](basePriceListType(type), sku, stock, currentDateTime());
 
-currentCalcPricePriceListTypeSkuStock 'Расчетная цена' (type, sku, stock) = priceAPriceListTypeSkuStockDateTime(type, sku, stock, currentDateTime());
+currentCalcPrice 'Расчетная цена' (PriceListType type, Sku sku, Stock stock) = priceA(type, sku, stock, currentDateTime());
 
 // ------------------------------------ Формы -------------------------- //
-backgroundCurrentCalcPricePriceListTypeSkuStock = ABSTRACT CASE COLOR (CalcPriceListType, Sku, Stock);
+backgroundCurrentCalcPrice = ABSTRACT CASE COLOR (CalcPriceListType, Sku, Stock);
 
 FORM item 'Товар'
 
     OBJECTS i=Item FIXED PANEL
 
-    PROPERTIES(i) canonicalNameItemGroupItem, idBarcodeSku ON CHANGE changeBarcodeSku(i) EVENTID 'SCANNER',
-                  dataImageItem, loadImageItem, nullImageItem, idItem SHOWIF showIDs()
+    PROPERTIES(i) canonicalNameItemGroup, idBarcode ON CHANGE changeBarcode(i) EVENTID 'SCANNER',
+                  dataImage, loadImage, nullImage, id SHOWIF showIDs()
 
     OBJECTS b=Barcode
-    PROPERTIES(b)       idBarcode, dateBarcode, shortNameUOMBarcode,
-                        amountBarcode, activeBarcode, primaryBarcode ON CHANGE changePrimaryBarcodeSku(b,i)
-    PROPERTIES(i)       generateBarcodeSku TODRAW b FORCE PANEL
+    PROPERTIES(b)       id, date, shortNameUOM,
+                        amount, active, primary ON CHANGE changePrimary(b,i)
+    PROPERTIES(i)       generateBarcode TODRAW b FORCE PANEL
     PROPERTIES(b)       ADDOBJ, deleteb=DELETESESSION
-    FILTERS skuBarcode(b) == i
+    FILTERS sku(b) == i
 
     OBJECTS cgt = CustomGroupType
-    PROPERTIES nameCustomGroupType(cgt) READONLY, canonicalNameCustomGroupCustomGroupTypeItem(cgt, i)
+    PROPERTIES name(cgt) READONLY, canonicalNameCustomGroup(cgt, i)
 
     OBJECTS dtr = DATE FIXED PANEL
     PROPERTIES (dtr) OBJVALUE BACKGROUND dateDiffersCurrent(dtr)
 
     OBJECTS c = Country 
-    PROPERTIES (c) READONLY nameCountry
+    PROPERTIES (c) READONLY name
 
     OBJECTS st2 = Stock FIXED PANEL
-    PROPERTIES(st2) SELECTOR nameStock
+    PROPERTIES(st2) SELECTOR name
 
     OBJECTS ct = CalcPriceListType
-    PROPERTIES(ct) READONLY nameCalcPriceListType, includeVATPriceListType, nameCurrencyCalcPriceListType, nameRoundConditionPriceListType,
-                            nameBasePriceListTypeCalcPriceListType
-    PROPERTIES(ct, i, st2) READONLY currentBasePricePriceListTypeSkuStock
-    PROPERTIES(ct, i) markupCalcPriceListTypeSku
-    PROPERTIES(ct, i, st2) READONLY currentCalcPricePriceListTypeSkuStock BACKGROUND  backgroundCurrentCalcPricePriceListTypeSkuStock(ct, i, st2)
+    PROPERTIES(ct) READONLY name, includeVAT[PriceListType], nameCurrency, nameRoundCondition,
+                            nameBasePriceListType
+    PROPERTIES(ct, i, st2) READONLY currentBasePrice
+    PROPERTIES(ct, i) markup
+    PROPERTIES(ct, i, st2) READONLY currentCalcPrice BACKGROUND  backgroundCurrentCalcPrice(ct, i, st2)
 
     EDIT Item OBJECT i
 ;
@@ -207,11 +207,11 @@ DESIGN item {
         NEW itemHeader BEFORE functions.box {
             type = COLUMNS;
             columns = 2;
-            MOVE PROPERTY(canonicalNameItemGroupItem(i)) {
+            MOVE PROPERTY(canonicalNameItemGroup(i)) {
                 caption = 'Полное имя группы';
             }
-            MOVE PROPERTY(idBarcodeSku(i));
-            MOVE PROPERTY(idItem(i));
+            MOVE PROPERTY(idBarcode(i));
+            MOVE PROPERTY(id(i));
         }
         NEW itemDetail BEFORE functions.box {
             type = TABBED;
@@ -252,12 +252,12 @@ DESIGN item {
             NEW itemImage {
                 type = CONTAINERV;
                 caption = 'Изображение';
-                MOVE PROPERTY(dataImageItem(i)) {
+                MOVE PROPERTY(dataImage(i)) {
                     caption = '';
                     fill = 1;
                 }
-                MOVE PROPERTY(loadImageItem(i));
-                MOVE PROPERTY(nullImageItem(i));
+                MOVE PROPERTY(loadImage(i));
+                MOVE PROPERTY(nullImage(i));
             }
         }
     }
@@ -268,18 +268,18 @@ seekSkuBarcode = ACTION (){
     REQUEST STRING[15] INPUT;
     ASSIGN seekBarcode() <- NULL;
     ASSIGN seekBarcode() <- requestedString();
-    EXEC seek(skuBarcodeIdDate(seekBarcode(), currentDate()));
-    IF NOT skuBarcodeIdDate(seekBarcode(), currentDate()) THEN
+    EXEC seek(skuBarcode(seekBarcode(), currentDate()));
+    IF NOT skuBarcode(seekBarcode(), currentDate()) THEN
         MESSAGE 'Штрихкод не найден';
     ASSIGN seekBarcode() <- NULL;
 }
 
-disallowEditingItem 'Запретить редактирование' = ABSTRACT BOOLEAN (Item);
-enableEditingItem = s IS Item AND NOT disallowEditingItem(s);
-disallowEditingSku(sku) += disallowEditingItem(sku);
+disallowEditing 'Запретить редактирование' = ABSTRACT BOOLEAN (Item);
+enableEditing = Item s IS Item AND NOT disallowEditing(s);
+disallowEditing[Sku](Item sku) += disallowEditing(sku);
 
-editSku(sku) += ACTION (sku) {
-    IF NOT disallowEditingItem(sku) THEN {
+edit(Item sku) += ACTION (sku) {
+    IF NOT disallowEditing(sku) THEN {
         [= ACTION EDITFORM Item](sku);
     } ELSE {
         MESSAGE 'Запрещено редактировать товар после обработки.';
@@ -287,22 +287,22 @@ editSku(sku) += ACTION (sku) {
 };
 addSku () += ACTION [= ACTION ADDFORM Item]();
 
-backgroundItem = ABSTRACT CASE COLOR (Item);
+background = ABSTRACT CASE COLOR (Item);
 
 FORM items 'Товары'
 
     OBJECTS gt=GroupType FIXED PANEL
-    PROPERTIES(gt) SELECTOR nameGroupType
+    PROPERTIES(gt) SELECTOR name
 
-    TREE groupTree g=Group PARENT parentGroup
-    PROPERTIES READONLY orderGroup(g), idGroup(g), nameGroup(g)
-    FILTERS groupTypeGroup(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
-    ORDER BY orderGroup(g), nameGroup(g)
-    FILTERGROUP inactive1 FILTER 'Активные' activeGroup(g) 'F5' DEFAULT
+    TREE groupTree g=Group PARENT parent
+    PROPERTIES READONLY order(g), id(g), name(g)
+    FILTERS groupType(g) == gt, g IS Group AND NOT (g IS SkuGroup AND NOT g IS ItemGroup)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F5' DEFAULT
     
     OBJECTS i=Item  
-    PROPERTIES(i) READONLYIF isReadonly() idBarcodeSku ON CHANGE changeBarcodeSku(i) BACKGROUND backgroundItem(i), imageItem FORCE PANEL SHOWIF hasImageItem(i), idItem SHOWIF showIDs() BACKGROUND backgroundItem(i)
-    PROPERTIES(i) ADDFORM, EDITFORM SHOWIF enableEditingItem(i), deletei=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND background(i), image FORCE PANEL SHOWIF hasImage(i), id SHOWIF showIDs() BACKGROUND background(i)
+    PROPERTIES(i) ADDFORM, EDITFORM SHOWIF enableEditing(i), deletei=DELETE FORCE PANEL TOOLBAR
     PROPERTIES seekBarcode()
     ON CHANGE seekSkuBarcode() 
     
@@ -328,7 +328,7 @@ DESIGN items {
                 fill = 1;
                 type = SPLITV;
                 MOVE groupTree.tree.box { caption = 'Группы';}               
-                MOVE PROPERTY (imageItem(i)) {
+                MOVE PROPERTY (image(i)) {
                     fill = 1;
                     caption = '';
                 }
@@ -380,53 +380,53 @@ TABLE itemItemAttribute(Item, ItemAttribute);
 
 // Отображение
 META defineItemAttribute (attribute, caption, group)
-    userShow###attribute##ItemGroup caption (itemGroup) = DATA BOOLEAN (ItemGroup) IN group;
+    userShow###attribute caption (itemGroup) = DATA BOOLEAN (ItemGroup) IN group;
 
-    quantityChildWith###attribute##ItemGroup (itemGroup) = GROUP SUM 1 IF userShow###attribute##ItemGroup(childItemGroup) AND isParentItemGroupItemGroup(childItemGroup, itemGroup) BY itemGroup PERSISTENT;
-    quantityParentWith###attribute##ItemGroup (itemGroup) = GROUP SUM 1 IF userShow###attribute##ItemGroup(parentItemGroup) AND isParentItemGroupItemGroup(itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
+    quantityChildWith###attribute (itemGroup) = GROUP SUM 1 IF userShow###attribute(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup PERSISTENT;
+    quantityParentWith###attribute (itemGroup) = GROUP SUM 1 IF userShow###attribute(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
 
-    show###attribute##ItemGroup caption (itemGroup) = TRUE IF (quantityChildWith###attribute##ItemGroup (itemGroup) (+) quantityParentWith###attribute##ItemGroup (itemGroup)) > 0 PERSISTENT;
-    showAny###attribute##ItemGroup caption (itemGroup) = show###attribute##ItemGroup(itemGroup) OR NOT itemGroup IS ItemGroup;
+    show###attribute caption (ItemGroup itemGroup) = TRUE IF (quantityChildWith###attribute (itemGroup) (+) quantityParentWith###attribute (itemGroup)) > 0 PERSISTENT;
+    showAny###attribute caption (ItemGroup itemGroup) = show###attribute(itemGroup) OR NOT itemGroup IS ItemGroup;
 
-    show###attribute##Item caption (item) = TRUE IF quantityParentWith###attribute##ItemGroup(itemGroupItem(item));
+    show###attribute caption (Item item) = TRUE IF quantityParentWith###attribute(itemGroup(item));
 
-    backgroundShow###attribute##ItemGroup (itemGroup) =
-        IF userShow###attribute##ItemGroup(itemGroup) THEN
+    backgroundShow###attribute (ItemGroup itemGroup) =
+        IF userShow###attribute(itemGroup) THEN
             RGB(0,0,0) IF itemGroup IS ItemGroup
         ELSE
-            RGB(203,203,206) IF quantityChildWith###attribute##ItemGroup (itemGroup) != descendantNumberItemGroup(itemGroup)
-                             AND NOT quantityParentWith###attribute##ItemGroup (itemGroup);
+            RGB(203,203,206) IF quantityChildWith###attribute (itemGroup) != descendantNumber(itemGroup)
+                             AND NOT quantityParentWith###attribute (itemGroup);
 
-    setNullShow###attribute##ItemGroup 'Снять признак для всех потомков' = ACTION (itemGroup) {
-        FOR isParentItemGroupItemGroup (childGroup, itemGroup) DO {
-            ASSIGN userShow###attribute##ItemGroup(childGroup) <- NULL;
+    setNullShow###attribute 'Снять признак для всех потомков' = ACTION (ItemGroup itemGroup) {
+        FOR isParent (ItemGroup childGroup, itemGroup) DO {
+            ASSIGN userShow###attribute(childGroup) <- NULL;
         }
-    } SHORTCUT userShow###attribute##ItemGroup CONFIRM;
+    } SHORTCUT userShow###attribute[ItemGroup] CONFIRM;
 END
 
 // Объявление
-valueItemAttribute = ABSTRACT VARISTRING[255] (Item, ItemAttribute) PERSISTENT;
+value = ABSTRACT VARISTRING[255] (Item, ItemAttribute) PERSISTENT;
 
 META defineItemAttribute(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
 
-    EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
+    EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute;
+    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() show###attribute BACKGROUND backgroundShow###attribute(g) BEFORE deleteg;
     
-    background###attribute###item = ABSTRACT COLOR (Item);
-    EXTEND FORM item PROPERTIES(i) formProperty###attribute###item SHOWIF show###attribute##Item(i) BACKGROUND background###attribute###item(i);
-    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###attribute###item SHOWIF show###attribute##ItemGroup(g);
+    background###attribute = ABSTRACT COLOR (Item);
+    EXTEND FORM item PROPERTIES(i) formProperty###attribute SHOWIF show###attribute(i) BACKGROUND background###attribute(i);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei formProperty###attribute SHOWIF show###attribute(g);
 END
 
 // Примитивный тип
 META definePrimitiveItemAttribute(attribute, type, caption, group)
-    attribute##Item caption = DATA type (Item) IN group;
+    attribute caption = DATA type (Item) IN group;
     @defineItemAttribute(attribute, , caption, group);
 END
 
 META implementItemAttribute(property, caption, itemType, attributeClass)
     EXTEND CLASS itemType##ItemAttribute { attributeClass caption }
-    value###itemType##ItemAttribute(i, a) += WHEN a == itemType##ItemAttribute.##attributeClass AND i IS Item THEN property###item(i);
+    value[Item,itemType##ItemAttribute](Item i, itemType##ItemAttribute a) += WHEN a == itemType##ItemAttribute.##attributeClass AND i IS Item THEN property(i);
 END
 
 // Расширяем формы настройки
@@ -434,9 +434,9 @@ FORM itemOptions 'Настройка атрибутов'
     OBJECTS ia = ItemAttribute
     PROPERTIES staticIA= staticCaption(ia)
     
-    TREE treeGroups tg=ItemGroup PARENT parentItemGroup
-    PROPERTIES READONLY orderItemGroup(tg), nameItemGroup(tg)
-    ORDER BY orderItemGroup(tg), nameItemGroup(tg)    
+    TREE treeGroups tg=ItemGroup PARENT parent
+    PROPERTIES READONLY order(tg), name(tg)
+    ORDER BY order(tg), name(tg)    
     
     OBJECTS ia1 = ItemAttribute
     PROPERTIES staticIA1= staticCaption(ia1)    
@@ -464,10 +464,10 @@ NAVIGATOR {
 }
 
 META defineItemAttributeBatch (attribute, formProperty, caption, skuClass)
-    show###attribute##Batch caption (batch)= show###attribute##Item(skuBatch(batch));
-    attribute##Batch caption (batch) = attribute###skuClass(skuBatch(batch));
+    show###attribute caption (Batch batch)= show###attribute(sku(batch));
+    attribute caption (Batch batch) = attribute(sku(batch));
 
-    EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID formProperty###Batch SHOWIF showAny###attribute##ItemGroup(sk);
+    EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID formProperty SHOWIF showAny###attribute(sk);
 END
 
 META defineItemAttributeBatchClass (attribute, caption, skuClass)
@@ -486,7 +486,7 @@ META defineObjectItemAttributeBatch(attribute, identity, caption)
 END
 
 META defineObjectItemAttributeBatch(attribute, identity, caption, skuClass)
-    identity##Batch caption (batch) = identity###skuClass(skuBatch(batch));
+    identity caption (Batch batch) = identity(sku(batch));
     @defineItemAttributeBatch(attribute, identity, caption, skuClass);
 END
 
@@ -502,20 +502,20 @@ DESIGN attributesItem {
 }
 
 META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
-    in###object 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
+    in 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
     allowReplace###object = DATA LOCAL BOOLEAN ();
     
     FORM confirmReplace###object 'Объединяемые '##caption2
         OBJECTS object = ###object FIXED PANEL 
     
         OBJECTS o = ###object  
-        PROPERTIES(o) READONLY nameProp###object
+        PROPERTIES(o) READONLY nameProp
         FILTERS o==object
     
         OBJECTS o2 = ###object
-        PROPERTIES(o2) in###object
-        PROPERTIES(o2) READONLY nameProp###object
-        FILTERS in###object(o2)
+        PROPERTIES(o2) in
+        PROPERTIES(o2) READONLY nameProp
+        FILTERS in(o2)
     ;
     
     DESIGN confirmReplace###object {
@@ -533,16 +533,16 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         MOVE functions.box;
     }
     
-    overReplace###object###object(oTo, oFrom) = ABSTRACT ACTION LIST (###object, ###object);
-    replace###object 'Объединить' = ACTION (object) {
+    overReplace(oTo, oFrom) = ABSTRACT ACTION LIST (###object, ###object);
+    replace 'Объединить' = ACTION (###object object) {
         FORM confirmReplace###object OBJECTS o=object MODAL;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
-            FOR in###object(o) AND allowReplace###object() DO{
+            FOR in(###object o) AND allowReplace###object() DO{
                 IF o != object THEN {
-                    object###object2(object2) <- object WHERE object###object2(object2) == o;
-                    overReplace###object###object(object, o);
-                    in###object(o) <- NULL;
+                    object(###object2 object2) <- object WHERE object(object2) == o;
+                    overReplace(object, o);
+                    in(o) <- NULL;
                     DELETE o;            
                 } ELSE {
                     MESSAGE 'Выделенный '##caption1##' не может совпадать с объединяемым';
@@ -550,22 +550,22 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
             }
             apply();
         } ELSE {
-            in###object(o) <- NULL WHERE in###object(o);           
+            in(###object o) <- NULL WHERE in(o);           
         }   
     };
     
     EXTEND FORM attributesItem
         OBJECTS object = ###object
-        PROPERTIES in###object(object)
-        PROPERTIES READONLY nameProp###object(object)
+        PROPERTIES in(object)
+        PROPERTIES READONLY nameProp(object)
         PROPERTIES(object) ADDFORM, EDITFORM, delete###object =DELETE FORCE PANEL TOOLBAR        
-        ORDER BY nameProp###object(object)
-        PROPERTIES replace###object(object) TODRAW object FORCE PANEL TOOLBAR
+        ORDER BY nameProp(object)
+        PROPERTIES replace(object) TODRAW object FORCE PANEL TOOLBAR
         
         OBJECTS object##Item = Item
-        PROPERTIES(object##Item) READONLY idBarcodeSku, nameSku, idSku, idSkuGroupSku
-        PROPERTIES(object##Item) nameProp###object##Item, editSku FORCE PANEL
-        FILTERS object##Item(object##Item) == object
+        PROPERTIES(object##Item) READONLY idBarcode, nameProp, id[Sku], idSkuGroup
+        PROPERTIES(object##Item) nameProp###object, edit FORCE PANEL
+        FILTERS object(object##Item) == object
     ;
     
     DESIGN attributesItem {
@@ -583,26 +583,26 @@ END
 
 META defineUniteFilterAttributeItem(object, nameProp, caption1, caption2, object2)
     @defineUniteAttributeItem(object, nameProp, caption1, caption2, object2);
-    overReplace###object###object(oTo, oFrom) += ACTION { 
-        dataIn###object##ItemGroup (oTo, g) <- dataIn###object##ItemGroup (oFrom, g) WHERE dataIn###object##ItemGroup(oFrom, g);
+    overReplace(###object oTo, ###object oFrom) += ACTION { 
+        dataIn (oTo, ###object2##Group g) <- dataIn (oFrom, g) WHERE dataIn(oFrom, g);
     }
 END
 
 META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, caption2, object2)
-    in###object 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
+    in 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
     allowReplace###object = DATA LOCAL BOOLEAN ();
     
     FORM confirmReplace###object 'Объединяемые '##caption2
         OBJECTS object = ###object FIXED PANEL 
     
         OBJECTS o = ###object  
-        PROPERTIES(o) READONLY nameProp
+        PROPERTIES(o) READONLY name
         FILTERS o==object
     
         OBJECTS o2 = ###object
-        PROPERTIES(o2) in###object
-        PROPERTIES(o2) READONLY nameProp
-        FILTERS in###object(o2)
+        PROPERTIES(o2) in
+        PROPERTIES(o2) READONLY name
+        FILTERS in(o2)
     ;
     
     DESIGN confirmReplace###object {
@@ -620,14 +620,14 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
         MOVE functions.box;
     }
     
-    replace###object 'Объединить' = ACTION (object) {
+    replace 'Объединить' = ACTION (###object object) {
         FORM confirmReplace###object OBJECTS o=object MODAL;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
-            FOR in###object(o) AND allowReplace###object() DO{
+            FOR in(###object o) AND allowReplace###object() DO{
                 IF o != object THEN {
-                    object###object2(object2) <- object WHERE object###object2(object2) == o;
-                    in###object(o) <- NULL;
+                    object(###object2 object2) <- object WHERE object(object2) == o;
+                    in(o) <- NULL;
                     DELETE o;            
                 } ELSE {
                     MESSAGE 'Выделенный '##caption1##' не может совпадать с объединяемым';
@@ -635,7 +635,7 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
             }
             apply();
         } ELSE {
-            in###object(o) <- NULL WHERE in###object(o);           
+            in(###object o) <- NULL WHERE in(o);           
         }   
     };
 END
@@ -648,33 +648,33 @@ NAVIGATOR {
 
 // -------------------------------------------- Формирование наименования ----------------------------------- //
 
-prefixInNameItemAttribute 'Префикс' = DATA VARSTRING[20] (ItemAttribute);
-postfixInNameItemAttribute 'Постфикс' = DATA VARSTRING[20] (ItemAttribute);
+prefixInName 'Префикс' = DATA VARSTRING[20] (ItemAttribute);
+postfixInName 'Постфикс' = DATA VARSTRING[20] (ItemAttribute);
 
-EXTEND FORM itemOptions PROPERTIES(ia) prefixInNameItemAttribute, postfixInNameItemAttribute;
+EXTEND FORM itemOptions PROPERTIES(ia) prefixInName, postfixInName;
 
-completeNameItemAttribute (item, attribute) = CONCAT '', prefixInNameItemAttribute(attribute) IF item IS Item, valueItemAttribute(item, attribute), postfixInNameItemAttribute(attribute) IF item IS Item;
+completeName (Item item, ItemAttribute attribute) = CONCAT '', prefixInName(attribute) IF item IS Item, value(item, attribute), postfixInName(attribute) IF item IS Item;
 
-overNameItem 'Наименование (перегруженное)' = ABSTRACT VARISTRING[255](Item);
+overName 'Наименование (перегруженное)' = ABSTRACT VARISTRING[255](Item);
 
 META defineItemAttributeName (prefix, caption, group)
     @defineItemDefaultValueCustom(numberInName###prefix, 'Порядковый номер в наименовании'##caption, INTEGER, itemAttribute);
 
-    numberInName###prefix##ItemAttribute 'Порядковый номер в наименовании'##caption = DATA INTEGER (ItemAttribute) IN base;
-    numberInNameItemAttribute###prefix##ItemGroup (itemGroup) = GROUP SUM numberInName###prefix##ItemAttributeItemGroup(attribute, itemGroup) BY itemGroup;
-    numberInName###prefix##ItemAttributeItem 'Порядковый номер в наименовании'##caption (attribute, item) = 
-        IF numberInNameItemAttribute###prefix##ItemGroup(itemGroupItem(item))
-            THEN numberInName###prefix##ItemAttributeItemGroup(attribute, itemGroupItem(item))
-            ELSE numberInName###prefix##ItemAttribute(attribute);
+    numberInName###prefix 'Порядковый номер в наименовании'##caption = DATA INTEGER (ItemAttribute) IN base;
+    numberInNameItemAttribute###prefix (itemGroup) = GROUP SUM numberInName###prefix(ItemAttribute attribute, ItemGroup itemGroup) BY itemGroup;
+    numberInName###prefix 'Порядковый номер в наименовании'##caption (ItemAttribute attribute, Item item) = 
+        IF numberInNameItemAttribute###prefix(itemGroup(item))
+            THEN numberInName###prefix(attribute, itemGroup(item))
+            ELSE numberInName###prefix(attribute);
     
-    name###prefix##AttributeItem 'Наименование'###caption (item) = OVERRIDE VARISTRING[255](
-                    [= GROUP CONCAT completeNameItemAttribute(item, attribute)
-                                  IF numberInName###prefix##ItemAttributeItem(attribute, item) AND valueItemAttribute(item, attribute), ' ' BY item ORDER numberInName###prefix##ItemAttributeItem(attribute, item)](item)),
-                            overNameItem(item)
+    name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE VARISTRING[255](
+                    [= GROUP CONCAT completeName(Item item, ItemAttribute attribute)
+                                  IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item)](item)),
+                            overName(item)
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     EXTEND FORM itemOptions 
-        PROPERTIES(ia) numberInName###prefix##ItemAttribute
-        PROPERTIES(ia1, tg) numberInName###prefix##ItemAttributeItemGroup
+        PROPERTIES(ia) numberInName###prefix
+        PROPERTIES(ia1, tg) numberInName###prefix
     ;
 END
 
@@ -683,8 +683,8 @@ END
 // Строка
 CLASS StringItemAttribute 'Строковый атрибут' : ItemAttribute;
 
-valueStringItemAttribute = ABSTRACT CASE EXCLUSIVE VARISTRING[255] (Item, StringItemAttribute) PERSISTENT;
-valueItemAttribute(item, attribute) += valueStringItemAttribute(item, attribute);
+value = ABSTRACT CASE EXCLUSIVE VARISTRING[255] (Item, StringItemAttribute) PERSISTENT;
+value(Item item, StringItemAttribute attribute) += value(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
     @definePrimitiveItemAttribute(attribute, type, caption, group);
@@ -693,9 +693,9 @@ END
 // Целое число
 CLASS IntegerItemAttribute 'Целочисленный атрибут' : ItemAttribute;
 
-valueIntegerItemAttribute = ABSTRACT CASE EXCLUSIVE INTEGER (Item, IntegerItemAttribute) PERSISTENT;
-stringIntegerItemAttribute(item, attribute) = VARSTRING[255](valueIntegerItemAttribute(item, attribute));
-valueItemAttribute(item, attribute) += stringIntegerItemAttribute(item, attribute);
+value = ABSTRACT CASE EXCLUSIVE INTEGER (Item, IntegerItemAttribute) PERSISTENT;
+string(Item item, IntegerItemAttribute attribute) = VARSTRING[255](value(item, attribute));
+value(Item item, IntegerItemAttribute attribute) += string(item, attribute);
 
 META defineIntegerItemAttribute(attribute, caption, group)
     @definePrimitiveItemAttribute(attribute, INTEGER, caption, group);
@@ -704,9 +704,9 @@ END
 // Дробное число
 CLASS DoubleItemAttribute 'Дробный атрибут' : ItemAttribute;
 
-valueDoubleItemAttribute = ABSTRACT CASE EXCLUSIVE DOUBLE (Item, DoubleItemAttribute) PERSISTENT;
-stringDoubleItemAttribute(item, attribute) = VARSTRING[255]([= FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](valueDoubleItemAttribute(item, attribute)));
-valueItemAttribute(item, attribute) += stringDoubleItemAttribute(item, attribute);
+value = ABSTRACT CASE EXCLUSIVE DOUBLE (Item, DoubleItemAttribute) PERSISTENT;
+string(Item item, DoubleItemAttribute attribute) = VARSTRING[255]([= FORMULA TEXT PG 'convert_numeric_to_string(CAST(($1) AS numeric))', MS 'dbo.convert_numeric_to_string(CAST(($1) AS numeric(38,19)))'](value(item, attribute)));
+value(Item item, DoubleItemAttribute attribute) += string(item, attribute);
 
 META defineDoubleItemAttribute(attribute, type, caption, group)
     @definePrimitiveItemAttribute(attribute, type, caption, group);
@@ -716,18 +716,18 @@ END
 
 GROUP defaultItemGroup 'По-умолчанию' : base;
 META defineItemGroupDefaultValueCustom(property, caption, type, typeIdentity, propertyTypeIdentity)
-    data###property##ItemGroup caption = DATA type (ItemGroup);
-    data###typeIdentity###property##ItemGroup caption (itemGroup) = typeIdentity(data###property##ItemGroup(itemGroup)) IN defaultItemGroup;
+    data###property caption = DATA type (ItemGroup);
+    data###typeIdentity###property caption (ItemGroup itemGroup) = name(data###property(itemGroup)) IN defaultItemGroup;
     
-    levelParent###property##ItemGroup (itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF data###property##ItemGroup(parent)
+    levelParent###property (itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data###property(parent)
                                                                   BY itemGroup PERSISTENT;    
-    nearestParent###property##ItemGroup (itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParent###property##ItemGroup(itemGroup));
-    nearest###property##ItemGroup (itemGroup) = data###property##ItemGroup(nearestParent###property##ItemGroup (itemGroup));
-    property##ItemGroup (itemGroup) =
-        OVERRIDE nearest###property##ItemGroup (itemGroup), 
-                 data###property##ItemGroup(itemGroup) PERSISTENT;    
+    nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
+    nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
+    property (ItemGroup itemGroup) =
+        OVERRIDE nearest###property (itemGroup), 
+                 data###property(itemGroup) PERSISTENT;    
     
-    propertyTypeIdentity##ItemGroup caption (itemGroup) = typeIdentity(property##ItemGroup(itemGroup)) IN defaultItemGroup;    
+    propertyTypeIdentity caption (ItemGroup itemGroup) = name(property(itemGroup)) IN defaultItemGroup;    
 END 
 
 META defineItemGroupDefaultValue(property, caption, type, typeIdentity)  
@@ -736,53 +736,53 @@ META defineItemGroupDefaultValue(property, caption, type, typeIdentity)
 END 
 META defineItemDefaultValue(property, caption, type, typeIdentity)
     @defineItemGroupDefaultValue(property, caption, type, typeIdentity);
-    EXTEND FORM itemGroup PROPERTIES(g) typeIdentity##ItemGroup;
+    EXTEND FORM itemGroup PROPERTIES(g) typeIdentity;
 END  
 META defineItemGroupDefaultValue(property, caption, type)
-    data###property##ItemGroup caption = DATA type (ItemGroup) IN defaultItemGroup;
+    data###property caption = DATA type (ItemGroup) IN defaultItemGroup;
     
-    levelParent###property##ItemGroup (itemGroup) = GROUP MIN level##ItemGroupItemGroup(child, parent) IF data###property##ItemGroup(parent)
+    levelParent###property (itemGroup) = GROUP MIN level(ItemGroup child, ItemGroup parent) IF data###property(parent)
                                                                   BY child PERSISTENT;    
-    nearestParent###property##ItemGroup (itemGroup) = itemGroupItemGroup###level(itemGroup, levelParent###property##ItemGroup(itemGroup));
-    nearest###property##ItemGroup (itemGroup) = data###property##ItemGroup(nearestParent###property##ItemGroup (itemGroup));
-    property##ItemGroup caption (itemGroup) =
-        OVERRIDE nearest###property##ItemGroup (itemGroup), 
-                 data###property##ItemGroup(itemGroup) PERSISTENT IN defaultItemGroup;        
+    nearestParent###property (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(itemGroup));
+    nearest###property (ItemGroup itemGroup) = data###property(nearestParent###property (itemGroup));
+    property caption (ItemGroup itemGroup) =
+        OVERRIDE nearest###property (itemGroup), 
+                 data###property(itemGroup) PERSISTENT IN defaultItemGroup;        
     
 END 
 META defineItemDefaultValue(property, caption, type)
     @defineItemGroupDefaultValue(property, caption, type);        
-    EXTEND FORM itemGroup PROPERTIES(g) property##ItemGroup; 
+    EXTEND FORM itemGroup PROPERTIES(g) property; 
 END
   
 //-- Для двух объектов: задание значения для групы по-умолчанию (иерархия)
 META defineItemDefaultValue(property, caption, type, typeIdentity, object)
-    data###property###object##ItemGroup caption = DATA type (###object, ItemGroup);
-    data###typeIdentity###property###object##ItemGroup caption (object, itemGroup) = typeIdentity(data###property###object##ItemGroup(object, itemGroup)) IN defaultItemGroup;
+    data##type caption = DATA type (###object, ItemGroup);
+    data###typeIdentity##type caption (###object object, ItemGroup itemGroup) = name(data##type(object, itemGroup)) IN defaultItemGroup;
     
-    levelParent###property###object##ItemGroup (object, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF data###property###object##ItemGroup(object, parent)
+    levelParent##type (object, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data##type(###object object, parent)
                                                                   BY object, itemGroup PERSISTENT;    
-    nearestParent###property###object##ItemGroup (object, itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParent###property###object##ItemGroup(object, itemGroup));
-    nearest###property###object##ItemGroup (object, itemGroup) = data###property###object##ItemGroup(object, nearestParent###property###object##ItemGroup (object, itemGroup));
+    nearestParent##type (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParent##type(object, itemGroup));
+    nearest##type (###object object, ItemGroup itemGroup) = data##type(object, nearestParent##type (object, itemGroup));
     
-    property###object##ItemGroup (object, itemGroup) =
-        OVERRIDE nearest###property###object##ItemGroup (object, itemGroup), 
-                 data###property###object##ItemGroup(object, itemGroup) PERSISTENT;    
+    property (###object object, ItemGroup itemGroup) =
+        OVERRIDE nearest##type (object, itemGroup), 
+                 data##type(object, itemGroup) PERSISTENT;    
     
-    typeIdentity###object##ItemGroup caption (object, itemGroup) = typeIdentity(property###object##ItemGroup(object, itemGroup)) IN defaultItemGroup;
+    typeIdentity caption (###object object, ItemGroup itemGroup) = name(property(object, itemGroup)) IN defaultItemGroup;
 END 
 
 META defineItemDefaultValueCustom(property, caption, type, object)
-    data###property###object##ItemGroup caption = DATA type (###object, ItemGroup);
+    data###property caption = DATA type (###object, ItemGroup);
     
-    levelParent###property###object##ItemGroup (object, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF data###property###object##ItemGroup(object, parent)
+    levelParent###property (object, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data###property(###object object, parent)
                                                                   BY object, itemGroup PERSISTENT;    
-    nearestParent###property###object##ItemGroup (object, itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParent###property###object##ItemGroup(object, itemGroup));
-    nearest###property###object##ItemGroup (object, itemGroup) = data###property###object##ItemGroup(object, nearestParent###property###object##ItemGroup (object, itemGroup));
+    nearestParent###property (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###property(object, itemGroup));
+    nearest###property (###object object, ItemGroup itemGroup) = data###property(object, nearestParent###property (object, itemGroup));
     
-    property###object##ItemGroup caption (object, itemGroup) =
-        OVERRIDE nearest###property###object##ItemGroup (object, itemGroup), 
-                 data###property###object##ItemGroup(object, itemGroup) PERSISTENT;    
+    property caption (###object object, ItemGroup itemGroup) =
+        OVERRIDE nearest###property (object, itemGroup), 
+                 data###property(object, itemGroup) PERSISTENT;    
     
 END 
 
@@ -790,10 +790,10 @@ END
 META defineItemAttributeForm(attribute, formProperty, caption, group)
     @defineItemAttribute(attribute, caption, group);
     
-    EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute##ItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showAny###attribute##ItemGroup BACKGROUND backgroundShow###attribute##ItemGroup(g) BEFORE deleteg;
+    EXTEND FORM itemGroup PROPERTIES(g) userShow###attribute;
+    EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showAny###attribute BACKGROUND backgroundShow###attribute(g) BEFORE deleteg;
     
-    background###attribute###item = ABSTRACT COLOR (Item);
+    background###attribute = ABSTRACT COLOR (Item);
 END
 
 deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ABSTRACT ACTION LIST();
@@ -808,68 +808,68 @@ DESIGN options {
 };
 
 META defineObjectItemAttribute(attribute, attributeClass, identity, caption, group)
-    attribute##Item = DATA attributeClass (Item);
-    deleteUnusedAttributes() += ACTION FOR (o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute##Item(item)](o) DO DELETE o;
-    identity###attribute##Item caption (item) = identity###attribute(attribute##Item(item)) IN group;
+    attribute = DATA attributeClass (Item);
+    deleteUnusedAttributes() += ACTION FOR (###attribute o IS attributeClass) AND NOT [= GROUP SUM 1 BY attribute(Item item)](o) DO DELETE o;
+    identity###attribute caption (Item item) = identity(attribute(item)) IN group;
 
-    CONSTRAINT DROPPED(o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute##Item(o) BY PREV(attribute##Item(o))](o)
+    CONSTRAINT DROPPED(###attribute o IS attributeClass) AND [= GROUP SUM 1 IF NOT attribute(Item o) BY PREV(attribute(o))](o)
         MESSAGE 'Запрещено удалять атрибут ('##caption##'), так как на него есть ссылки в справочнике товаров';
 
     @defineItemAttributeForm(attribute, identity, caption, group);
 END
 
-autoSetGroupAttributeUserRole 'Автоматически проставлять привязки атрибутов к группам' = DATA BOOLEAN (UserRole);
-EXTEND FORM userRole PROPERTIES(ur) autoSetGroupAttributeUserRole;
+autoSetGroupAttribute 'Автоматически проставлять привязки атрибутов к группам' = DATA BOOLEAN (UserRole);
+EXTEND FORM userRole PROPERTIES(ur) autoSetGroupAttribute;
  
 META defineItemFilterValue(object, captionProp, o)
     TABLE object##ItemGroup (###object, ItemGroup);
       
-    dataIn###object##ItemGroup 'Вкл' = DATA BOOLEAN (###object, ItemGroup);
+    dataIn 'Вкл' = DATA BOOLEAN (###object, ItemGroup);
     
-    levelParentIn###object##ItemGroup (object, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF dataIn###object##ItemGroup(object, parent)
+    levelParentIn (object, itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF dataIn(###object object, parent)
                                                                   BY object, itemGroup PERSISTENT;    
-    nearestParentIn###object##ItemGroup (object, itemGroup) = itemGroupItemGroup###level(itemGroup, levelParentIn###object##ItemGroup(object, itemGroup));
-    nearestIn###object##ItemGroup (object, itemGroup) = dataIn###object##ItemGroup(object, nearestParentIn###object##ItemGroup (object, itemGroup));
+    nearestParentIn (###object object, ItemGroup itemGroup) = itemGroup(itemGroup, levelParentIn(object, itemGroup));
+    nearestIn (###object object, ItemGroup itemGroup) = dataIn(object, nearestParentIn (object, itemGroup));
     
-    in###object##ItemGroup 'Вкл' (object, itemGroup) =
-        OVERRIDE nearestIn###object##ItemGroup (object, itemGroup), 
-                 dataIn###object##ItemGroup(object, itemGroup) PERSISTENT;    
+    in 'Вкл' (###object object, ItemGroup itemGroup) =
+        OVERRIDE nearestIn (object, itemGroup), 
+                 dataIn(object, itemGroup) PERSISTENT;    
                  
-    quantityChild###object###itemGroup (object, itemGroup) = GROUP SUM 1 IF 
-        dataIn###object##ItemGroup(object, childItemGroup) AND isParentItemGroupItemGroup(childItemGroup, itemGroup) 
+    quantityChild (object, itemGroup) = GROUP SUM 1 IF 
+        dataIn(###object object, ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) 
             BY object, itemGroup PERSISTENT;
-    quantityParent###object###itemGroup (object, itemGroup) = GROUP SUM 1 IF 
-        dataIn###object##ItemGroup(object, parentItemGroup) AND isParentItemGroupItemGroup(itemGroup, parentItemGroup) 
+    quantityParent (object, itemGroup) = GROUP SUM 1 IF 
+        dataIn(###object object, ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) 
             BY object, itemGroup PERSISTENT;                 
 
-    backgroundWith###object##ItemGroup (object, itemGroup) =
-        IF dataIn###object##ItemGroup(object, itemGroup) THEN
+    backgroundWith (###object object, ItemGroup itemGroup) =
+        IF dataIn(object, itemGroup) THEN
             RGB(0,0,0) //IF itemGroup IS ItemGroup
         ELSE
-            RGB(203,203,206) IF quantityChild###object###itemGroup (object, itemGroup) != descendantNumberItemGroup(itemGroup)
-                             AND NOT quantityParent###object###itemGroup (object, itemGroup);
+            RGB(203,203,206) IF quantityChild (object, itemGroup) != descendantNumber(itemGroup)
+                             AND NOT quantityParent (object, itemGroup);
  
-    countRec###object##ItemGroup 'Кол-во (рек.)' (object, itemGroup)= GROUP SUM 1 IF 
-        in###object##ItemGroup(object, child) AND isParent##ItemGroup##ItemGroup(child, parent) 
+    countRec 'Кол-во (рек.)' (object, itemGroup)= GROUP SUM 1 IF 
+        in(###object object, ItemGroup child) AND isParent(child, ItemGroup parent) 
             BY object, parent PERSISTENT;              
-    countData##ItemGroup###object 'Кол-во групп' (object) = GROUP SUM 1 IF 
-        dataIn###object##ItemGroup(object, itemGroup) BY object PERSISTENT;            
+    countDataItemGroup 'Кол-во групп' (object) = GROUP SUM 1 IF 
+        dataIn(###object object, ItemGroup itemGroup) BY object PERSISTENT;            
 
-    WHEN autoSetGroupAttributeUserRole(mainRoleCustomUser(currentUser())) AND CHANGED(object##Item(item)) AND countData##ItemGroup###object(object##Item(item)) AND NOT countRec###object##ItemGroup(object##Item(item), itemGroupItem(item)) DO {
-        dataIn###object##ItemGroup(o, g) <- TRUE WHERE o == object##Item(item) AND g == itemGroupItem(item);
+    WHEN autoSetGroupAttribute(mainRole[CustomUser](currentUser())) AND CHANGED(object(Item item)) AND countDataItemGroup(object(item)) AND NOT countRec(object(item), itemGroup(item)) DO {
+        dataIn(###object o, ItemGroup g) <- TRUE WHERE o == object(item) AND g == itemGroup(item);
     }
 
-    CONSTRAINT object##Item(item) AND itemGroupItem(item) AND countData##ItemGroup###object(object##Item(item)) AND NOT countRec###object##ItemGroup(object##Item(item), itemGroupItem(item))
-        CHECKED BY object##Item  
+    CONSTRAINT object(Item item) AND itemGroup(item) AND countDataItemGroup(object(item)) AND NOT countRec(object(item), itemGroup(item))
+        CHECKED BY object[Item]  
             MESSAGE captionProp##' должен быть доступен для товарной группы (товар)';    
 
     EXTEND FORM object
-        TREE groupTree g=ItemGroup PARENT parentItemGroup
-        PROPERTIES READONLY orderItemGroup(g), nameItemGroup(g)
-        PROPERTIES in###object##ItemGroup(o,g) BACKGROUND backgroundWith###object##ItemGroup(o,g)
+        TREE groupTree g=ItemGroup PARENT parent
+        PROPERTIES READONLY order(g), name(g)
+        PROPERTIES in(o,g) BACKGROUND backgroundWith(o,g)
         
-        ORDER BY orderItemGroup(g), nameItemGroup(g)
-        FILTERS activeItemGroup(g)
+        ORDER BY order(g), name(g)
+        FILTERS active(g)
     ;
     DESIGN object {
         main {
@@ -903,27 +903,27 @@ META defineItemFilterValue(object, captionProp, o)
         OBJECTS gg = ItemGroup FIXED PANEL
     
         OBJECTS t= ###object
-        PROPERTIES(t) name###object READONLY, deletet = DELETE FORCE PANEL TOOLBAR
+        PROPERTIES(t) name READONLY, deletet = DELETE FORCE PANEL TOOLBAR
         PROPERTIES(t) EDITFORM
-        ORDER BY name###object(t)
+        ORDER BY name(t)
     ;
     DESIGN object##s###session { main{ preferredSize = (600, 400); } }    
   
-    add###object 'Добавить' = ACTION (gg) {
+    add###object 'Добавить' = ACTION (ItemGroup gg) {
         FORM object###session OBJECTS gg = gg MODAL;    
         IF formResult() == FormResult.ok THEN {
             LOCAL loc = ###object();
             loc() <- NULL;
-            IF object###name(chosenString('v')) THEN {
-                dataIn###object###ItemGroup(t, gg) <- TRUE WHERE  t == object###name(chosenString('v'));
+            IF object##Name(chosenString('v')) THEN {
+                dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(chosenString('v'));
             } ELSE {
                 FOR ADDOBJ p = ###object DO {
-                    name###object(p) <- chosenString('v');
-                    dataIn###object###itemGroup(p, gg) <- TRUE;
+                    name(p) <- chosenString('v');
+                    dataIn(p, gg) <- TRUE;
                     loc() <- p;
                 }
             }
-            SEEK object##s###session.t (IF object###name(chosenString('v')) THEN object###name(chosenString('v')) ELSE loc());
+            SEEK object##s###session.t (IF object##Name(chosenString('v')) THEN object##Name(chosenString('v')) ELSE loc());
         }
     } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
     
@@ -931,30 +931,30 @@ META defineItemFilterValue(object, captionProp, o)
         PROPERTIES add###object(gg) FORCE PANEL TOOLBAR TODRAW t
     ; 
     
-    change###object###item = ACTION (i) {
-        IF object###item(i) THEN {
+    change###object = ACTION (Item i) {
+        IF object(i) THEN {
             REQUEST OBJECT t
-                FORM object##s###session OBJECTS gg = itemGroupItem(i), t = object###item(i) CONTEXTFILTER t = object###item(i) DIALOG SHOWDROP;
+                FORM object##s###session OBJECTS gg = itemGroup(i), t = object(i) CONTEXTFILTER t = object(i) DIALOG SHOWDROP;
         } ELSE {
             REQUEST OBJECT t
-                FORM object##s###session OBJECTS gg = itemGroupItem(i) CONTEXTFILTER t = object###item(i) DIALOG SHOWDROP;
+                FORM object##s###session OBJECTS gg = itemGroup(i) CONTEXTFILTER t = object(i) DIALOG SHOWDROP;
         }
            
         IF formResult() == FormResult.ok THEN {
-            object###item(i) <- requestedObject();
+            object(i) <- requestedObject();
     
         } ELSE IF formResult() == FormResult.drop THEN {
-            object###item(i) <- NULL;
+            object(i) <- NULL;
         }
     }    
-    EXTEND FORM item PROPERTIES(i) name###object###item SHOWIF show###object##Item(i) BACKGROUND background###object###item(i) ON CHANGE change###object###item(i);
-    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei name###object###item SHOWIF showAny###object##ItemGroup(g) ON CHANGE change###object###item(i);
+    EXTEND FORM item PROPERTIES(i) name###object SHOWIF show###object(i) BACKGROUND background###object(i) ON CHANGE change###object(i);
+    EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei name###object SHOWIF showAny###object(g) ON CHANGE change###object(i);
 
 END
 
 // ---------------------------- Выделение атрибутов -------------------------------- //
 
-skipExtractItemAttribute = ABSTRACT BOOLEAN (Item);
+skipExtractAttribute = ABSTRACT BOOLEAN (Item);
 
 // -------------- Символьное --------------------- //
 FORM extractStringAttributeItem 'Выделение атрибута'
@@ -966,7 +966,7 @@ FORM extractStringAttributeItem 'Выделение атрибута'
 ;
 
 possibleStringAttributeValue = DATA LOCAL BOOLEAN (VARSTRING[100]);
-changePossibleStringAttributeValue = ACTION (v) {
+changePossibleStringAttributeValue = ACTION (VARSTRING[100] v) {
     SEEK extractStringAttributeItem.to v;
 }
  
@@ -996,7 +996,7 @@ DESIGN extractStringAttributeItem {
     }
 }
 
-assignStringToFrom = ACTION (from) {
+assignStringToFrom = ACTION (VARSTRING[100] from) {
     SEEK extractStringAttributeItem.to from; 
 } 
 EXTEND FORM extractStringAttributeItem
@@ -1005,31 +1005,31 @@ EXTEND FORM extractStringAttributeItem
 ;
 
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
-    extract###object##FromCaptionItem 'Выделить из названия' = ACTION (i) {
+    extract###object##FromCaption 'Выделить из названия' = ACTION (Item i) {
         IF i IS Item THEN {
-            possibleStringAttributeValue(s) <- TRUE IF [= GROUP SUM 1 IF in###object##ItemGroup(object, g) BY objectIdentity(object), g](s, itemGroupItem(i));
+            possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             FORM extractStringAttributeItem MODAL;
             IF formResult() == FormResult.ok THEN {
                 LOCAL object = ###object();
                 object() <- identityObject(rtrim(ltrim(chosenString('to'))));
                 IF NOT object() THEN {
                     FOR ADDOBJ a = ###object DO {
-                        objectIdentity(a) <- rtrim(ltrim(chosenString('to')));
+                        name(a) <- rtrim(ltrim(chosenString('to')));
                         object() <- a;
                     }
                 }
                 LOCAL selected = BOOLEAN (Item);
-                selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
-                dataIn###object##ItemGroup(a, g) <- TRUE WHERE a == object() AND [= GROUP SUM 1 IF selected(item) BY itemGroupItem(item)](g);
-                object##Item(item) <- object() WHERE selected(item);
+                selected(Item item) <- isSubstring(caption(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+                dataIn(###object a, ItemGroup g) <- TRUE WHERE a == object() AND [= GROUP SUM 1 IF selected(Item item) BY itemGroup(item)](g);
+                object(Item item) <- object() WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
-                captionItem(item) <- rtrim(
+                caption(Item item) <- rtrim(
                                         ltrim(
                                             replace(
                                                 replace(
                                                     replace(
                                                         replace(
-                                                            replace(captionItem(item), chosenString('from'), ''), 
+                                                            replace(caption(item), chosenString('from'), ''), 
                                                             '  ', ' '),
                                                         '" "', ''),
                                                     '""', ''),
@@ -1038,26 +1038,26 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
                                         ' ,.') WHERE selected(item);
             }
         }
-    } SHORTCUT objectIdentity##Item;
+    } SHORTCUT objectIdentity[Item];
 END
 
 META defineItemExtractPrimitiveAttribute(property, form, fromProp)
-    extract###property##FromCaptionItem 'Выделить из названия' = ACTION (i) {
+    extract###property##FromCaption 'Выделить из названия' = ACTION (Item i) {
         IF i IS Item THEN {
-            possibleStringAttributeValue(s) <- NULL;
+            possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
             FORM form MODAL;
             IF formResult() == FormResult.ok THEN {
                 LOCAL selected = BOOLEAN (Item);
-                selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
-                property##Item(item) <- rtrim(ltrim(fromProp('to'))) WHERE selected(item);
+                selected(Item item) <- isSubstring(caption(item), fromProp('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+                property(Item item) <- rtrim(ltrim(fromProp('to'))) WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
-                captionItem(item) <- rtrim(
+                caption(Item item) <- rtrim(
                                         ltrim(
                                             replace(
                                                 replace(
                                                     replace(
                                                         replace(
-                                                            replace(captionItem(item), chosenString('from'), ''), 
+                                                            replace(caption(item), fromProp('from'), ''), 
                                                             '  ', ' '),
                                                         '" "', ''),
                                                     '""', ''),
@@ -1066,7 +1066,7 @@ META defineItemExtractPrimitiveAttribute(property, form, fromProp)
                                         ' ,.') WHERE selected(item);
             }
         }
-    } SHORTCUT property##Item;
+    } SHORTCUT property[Item];
 END
 
 // -------------- Символьное --------------------- //
@@ -1097,7 +1097,7 @@ DESIGN extractDoubleAttributeItem {
     }
 }
 
-assignDoubleToFrom = ACTION (from) {
+assignDoubleToFrom = ACTION (VARSTRING[100] from) {
     SEEK extractDoubleAttributeItem.to toInteger(replace(from AS VARSTRING[100], '%', ''));
 } 
 EXTEND FORM extractDoubleAttributeItem
@@ -1115,18 +1115,18 @@ GROUP itemBase 'Базовые свойства' : base;
 GROUP itemOriginal 'Оригинальные свойства' : base;
 
 // Неактивный
-inactiveItemGroup 'Неактивная' = DATA BOOLEAN (ItemGroup);
-activeItemGroup 'Активный' (group) = group IS ItemGroup AND NOT inactiveItemGroup(group);
-inactiveSkuGroup(group) += inactiveItemGroup(group);
+inactive 'Неактивная' = DATA BOOLEAN (ItemGroup);
+active 'Активный' (ItemGroup group) = group IS ItemGroup AND NOT inactive(group);
+inactive(ItemGroup group) += inactive(group);
 
-EXTEND FORM itemGroup PROPERTIES(g) inactiveItemGroup;
+EXTEND FORM itemGroup PROPERTIES(g) inactive;
 EXTEND FORM itemGroups
-    PROPERTIES(g) READONLYIF isReadonly() inactiveItemGroup BEFORE canonicalNameItemGroup(g)
-    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(g) 'F10' DEFAULT
+    PROPERTIES(g) READONLYIF isReadonly() inactive BEFORE canonicalName(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F10' DEFAULT
 ;
 EXTEND FORM dialogItemGroups
-    FILTERGROUP inactive FILTER 'Активные' activeItemGroup(tg) 'F10' DEFAULT
-    FILTERGROUP inactive1 FILTER 'Активные' activeItemGroup(g) 'F10' DEFAULT;
+    FILTERGROUP inactive FILTER 'Активные' active(tg) 'F10' DEFAULT
+    FILTERGROUP inactive1 FILTER 'Активные' active(g) 'F10' DEFAULT;
 
 // Группа
 @implementItemAttribute(nameItemGroup, 'Группа товаров', String, itemItemGroup);
@@ -1137,27 +1137,27 @@ EXTEND FORM dialogItemGroups
 @defineStringItemAttribute(caption, VARISTRING[255], 'Название', itemBase);
 
 @defineItemDefaultValue(caption, 'Название', VARISTRING[255]);
-WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT captionItem(i) DO
-    captionItem(i) <- captionItemGroup(itemGroupItem(i));
+WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
+    caption(i) <- caption(itemGroup(i));
 
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
-extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
+extractStringCaption 'Заменить в названии' = ACTION (Item i) {
     IF i IS Item THEN {
-        possibleStringAttributeValue(s) <- NULL;
+        possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
         FORM extractStringAttributeItem MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL selected = BOOLEAN (Item);
-            selected(item) <- isSubstring(captionItem(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractItemAttribute(item);
+            selected(Item item) <- isSubstring(caption(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
             // вырезаем двойные пробелы, а также ненужные символы в начале и конце
-            captionItem(item) <- rtrim(
+            caption(Item item) <- rtrim(
                                     ltrim(
                                         replace(
                                             replace(
                                                 replace(
                                                     replace(
-                                                        replace(captionItem(item), chosenString('from'), chosenString('to')), 
+                                                        replace(caption(item), chosenString('from'), chosenString('to')), 
                                                         '  ', ' '),
                                                     '" "', ''),
                                                 '""', ''),
@@ -1166,7 +1166,7 @@ extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
                                     ' ,.') WHERE selected(item);
         }
     }
-} SHORTCUT captionItem;
+} SHORTCUT caption[Item];
 
 @defineStringItemAttribute(originalCaption, VARISTRING[100], 'Название (ориг.)', itemOriginal);
 @defineItemAttributeBatch (originalCaption, 'Название (ориг.)');
@@ -1175,12 +1175,12 @@ extractStringCaptionItem 'Заменить в названии' = ACTION (i) {
 @defineObjectItemAttribute(UOM, UOM, name, 'Единица измерения', itemBase);
 @defineObjectItemAttributeBatch (UOM, nameUOM, 'Единица измерения', sku);
 
-shortNameUOMItem 'Единица измерения' (item) = shortNameUOM(UOMItem(item)) IN itemBase;
-UOMSku(item) += UOMItem(item);
+shortNameUOM 'Единица измерения' (Item item) = shortName(UOM(item)) IN itemBase;
+UOM(Item item) += UOM(item);
 
 @defineItemDefaultValue(UOM, 'Ед. изм.', UOM, nameUOM); 
-WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT UOMItem(i) DO
-    UOMItem(i) <- UOMItemGroup(itemGroupItem(i));
+WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT UOM(i) DO
+    UOM(i) <- UOM(itemGroup(i));
 @defineItemFilterValue(UOM, 'Ед. изм.', u);
 
 //@implementObjectShortItemAttribute(UOM, 'Единица измерения (сокр.)');
@@ -1188,8 +1188,8 @@ WHEN SESSION CHANGED(itemGroupItem(i)) AND NOT UOMItem(i) DO
 
 @defineUniteFilterAttributeItem(UOM, name, 'единица измерения', 'единицы измерения', item);
 EXTEND FORM attributesItem
-    PROPERTIES(UOM) READONLY AFTER nameUOM(UOM) grossWeightUOM, netWeightUOM, splitUOM, factorUOM, genitiveNameUOM, 
-                                                shortNameBaseUOM, shortNameUOM, idUOM SHOWIF showIDs()   
+    PROPERTIES(UOM) READONLY AFTER name(UOM) grossWeight, netWeight, split, factor, genitiveName, 
+                                                shortNameBase, shortName, id SHOWIF showIDs()   
 ;
 
 // Брэнд
@@ -1198,30 +1198,30 @@ TABLE brand(Brand);
 
 @defineExternalizable(brand, VARSTRING[100]);
 
-nameBrand 'Наименование' = DATA VARISTRING[50](Brand);
-brandName = GROUP AGGR brand BY nameBrand(brand);
+name 'Наименование' = DATA VARISTRING[50](Brand);
+brandName = GROUP AGGR Brand brand BY name(brand);
 
-siteBrand 'Адрес сайта' = DATA VARISTRING[100](Brand);
+site 'Адрес сайта' = DATA VARISTRING[100](Brand);
 
 FORM brand 'Бренд'
     OBJECTS t=Brand FIXED PANEL
-    PROPERTIES(t) nameBrand, siteBrand, idBrand SHOWIF showIDs()
+    PROPERTIES(t) name, site, id SHOWIF showIDs()
     EDIT Brand OBJECT t
 ;
 
 FORM brands 'Бренды'
     OBJECTS t=Brand
-    PROPERTIES(t) nameBrand READONLY, siteBrand READONLY, idBrand READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) name READONLY, site READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t) ADDFORM, EDITFORM
-    ORDER BY nameBrand(t)
+    ORDER BY name(t)
     DIALOG Brand OBJECT t
 ;
 DESIGN brands { main{ preferredSize = (600, 400); } }
 
 @defineObjectItemAttribute(brand, Brand, name, 'Бренд', itemBase);
 
-idBrandBarcode(barcode) = idBrand(brandItem(skuBarcode(barcode)));
-nameBrandBarcode(barcode) = nameBrand(brandItem(skuBarcode(barcode)));
+idBrand(Barcode barcode) = id(brand(sku(barcode)));
+nameBrand(Barcode barcode) = name(brand(sku(barcode)));
 
 @defineObjectItemAttributeBatch (brand, nameBrand, 'Бренд');
 @implementItemAttribute(nameBrand, 'Бренд', String, itemBrand);
@@ -1231,10 +1231,10 @@ nameBrandBarcode(barcode) = nameBrand(brandItem(skuBarcode(barcode)));
 
 @defineUniteFilterAttributeItem(brand, name, 'бренд', 'бренды', item);
 EXTEND FORM attributesItem
-    PROPERTIES(brand) AFTER nameBrand(brand) READONLY siteBrand, idBrand SHOWIF showIDs()
+    PROPERTIES(brand) AFTER name(brand) READONLY site, id SHOWIF showIDs()
 ;
 
-INDEX brandItem(i);
+INDEX brand(Item i);
 
 // Страна
 @defineObjectItemAttribute(country, Country, name, 'Страна', itemBase);
@@ -1245,14 +1245,14 @@ INDEX brandItem(i);
 
 @defineUniteFilterAttributeItem(country, name, 'страна', 'страны', item);
 EXTEND FORM attributesItem
-    PROPERTIES(country) READONLY AFTER nameCountry(country) nameLanguageCountry, nameCurrencyCountry, residentCountry, 
-                                                            sidOrigin3Country, sidOrigin2Country, sidCountry, nameOriginCountry
+    PROPERTIES(country) READONLY AFTER name(country) nameLanguage, nameCurrency, resident, 
+                                                            sidOrigin3, sidOrigin2, sid, nameOrigin
 ;
 
-residentItem 'Отечественное производство' (item) = residentCountry(countryItem(item)) IN itemBase;
-countrySku(sku) += countryItem(sku);
+resident 'Отечественное производство' (Item item) = resident(country(item)) IN itemBase;
+country(Item sku) += country(sku);
 
-INDEX countryItem(i);
+INDEX country(Item i);
 
 // Производитель
 CLASS Manufacturer 'Производитель товара';
@@ -1260,26 +1260,26 @@ TABLE manufacturer(Manufacturer);
 
 @defineExternalizable(manufacturer, VARSTRING[100]);
 
-nameManufacturer 'Наименование' = DATA VARISTRING[100](Manufacturer) IN recognize MINCHARWIDTH 15 PREFCHARWIDTH 25;
-manufacturerName = GROUP AGGR m BY nameManufacturer(m); 
-addressManufacturer 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+name 'Наименование' = DATA VARISTRING[100](Manufacturer) IN recognize MINCHARWIDTH 15 PREFCHARWIDTH 25;
+manufacturerName = GROUP AGGR Manufacturer m BY name(m); 
+address 'Адрес производителя' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-originalNameManufacturer 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 15;
-originalAddressManufacturer 'Адрес производителя (ориг.)' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+originalName 'Наименование (ориг.)' = DATA VARISTRING[100](Manufacturer) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+originalAddress 'Адрес производителя (ориг.)' = DATA VARSTRING[255] (Manufacturer) MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
-countryManufacturer = DATA Country (Manufacturer);
-nameCountryManufacturer 'Страна' = nameCountry(countryManufacturer(m)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
+country = DATA Country (Manufacturer);
+nameCountry 'Страна' = name(country(Manufacturer m)) MINCHARWIDTH 20 PREFCHARWIDTH 20;
 
 FORM manufacturer 'Производитель товара'
     OBJECTS m=Manufacturer FIXED PANEL
-    PROPERTIES(m) nameManufacturer, addressManufacturer, idManufacturer SHOWIF showIDs(), originalNameManufacturer, originalAddressManufacturer,
-                  nameCountryManufacturer
+    PROPERTIES(m) name, address, id SHOWIF showIDs(), originalName, originalAddress,
+                  nameCountry
     EDIT Manufacturer OBJECT m
 ;
 
 DESIGN manufacturer {
     main{
-        PROPERTY(nameManufacturer(m)){
+        PROPERTY(name(m)){
             preferredCharWidth = 50;    
         }
     }       
@@ -1287,10 +1287,10 @@ DESIGN manufacturer {
 
 FORM manufacturerDialog 'Производители товара'
     OBJECTS m=Manufacturer
-    PROPERTIES(m) nameManufacturer READONLY, idManufacturer READONLY SHOWIF showIDs(), 
-                  originalNameManufacturer, originalAddressManufacturer, nameCountryManufacturer, deleteManufacturer =DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(m) name READONLY, id READONLY SHOWIF showIDs(), 
+                  originalName, originalAddress, nameCountry, deleteManufacturer =DELETE FORCE PANEL TOOLBAR
     PROPERTIES(m) ADDFORM, EDITFORM
-    ORDER BY nameManufacturer(m)
+    ORDER BY name(m)
     DIALOG Manufacturer OBJECT m
 ;
 DESIGN manufacturerDialog { main{ preferredSize = (600, 400); } }
@@ -1303,61 +1303,61 @@ DESIGN manufacturerDialog { main{ preferredSize = (600, 400); } }
 
 @defineUniteFilterAttributeItem(manufacturer, name, 'производитель', 'производители', item);
 EXTEND FORM attributesItem
-    PROPERTIES READONLY AFTER nameManufacturer(manufacturer) idManufacturer(manufacturer) SHOWIF showIDs(),
-                        originalNameManufacturer(manufacturer), originalAddressManufacturer(manufacturer), nameCountryManufacturer(manufacturer)
+    PROPERTIES READONLY AFTER name(manufacturer) id(manufacturer) SHOWIF showIDs(),
+                        originalName(manufacturer), originalAddress(manufacturer), nameCountry(manufacturer)
 
 ;
 
-addressManufacturerItem 'Адрес производителя' (item) = addressManufacturer(manufacturerItem(item)); 
+addressManufacturer 'Адрес производителя' (Item item) = address(manufacturer(item)); 
 
-INDEX manufacturerItem(i);
+INDEX manufacturer(Item i);
 
 //  Состав
 @defineStringItemAttribute(composition, VARSTRING[255], 'Состав', itemBase);
 @defineItemAttributeBatchClass (composition, 'Состав', sku);
-compositionSku (sku) += compositionItem(sku);
+composition (Item sku) += composition(sku);
 
 @defineStringItemAttribute(originalComposition, STRING[255], 'Состав (ориг.)', itemOriginal);
 
 // Тара
-skuTypeItem = DATA SkuType (Item);
-skuTypeSku (sku) += skuTypeItem(sku);
+skuType = DATA SkuType (Item);
+skuType (Item sku) += skuType(sku);
 
-skuTypeItem(item) <- SkuType.skuTypeItem WHEN SET(item IS Item);
+skuType(Item item) <- SkuType.skuTypeItem WHEN SET(item IS Item);
 
-nameSkuTypeItem 'Тип SKU' (item) = staticCaption(skuTypeItem(item)) IN itemBase;
-EXTEND FORM item PROPERTIES(i) nameSkuTypeItem;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() nameSkuTypeItem;
+nameSkuType 'Тип SKU' (Item item) = staticCaption(skuType(item)) IN itemBase;
+EXTEND FORM item PROPERTIES(i) nameSkuType;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() nameSkuType;
 
 // Весовой
 @definePrimitiveItemAttribute(split, BOOLEAN, 'Дробный', itemBase);
-splitSku(sku) += splitItem(sku);
+split(Item sku) += split(sku);
 
-splitItem(i) <- splitUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i));
+split(Item i) <- split(UOM(i)) WHEN CHANGED(UOM(i));
 
 // Фиксированная цена
 @definePrimitiveItemAttribute(fixedPrice, BOOLEAN, 'Товар с фиксированной ценой', itemBase);
-fixedPriceSku(sku) += fixedPriceItem(sku);
+fixedPrice(Item sku) += fixedPrice(sku);
 
 // Неактивный
-inactiveItem 'Неактивный' = DATA BOOLEAN (Item) IN itemBase;
-prevInactiveItem (i) = PREV(inactiveItem(i));
+inactive 'Неактивный' = DATA BOOLEAN (Item) IN itemBase;
+prevInactive (Item i) = PREV(inactive(i));
 
-activeItem 'Активный' (item) = item IS Item AND NOT inactiveItem(item);
-prevActiveItem = i IS Item AND NOT prevInactiveItem(i);
+active 'Активный' (Item item) = item IS Item AND NOT inactive(item);
+prevActive = Item i IS Item AND NOT prevInactive(i);
 
-inactiveSku(sku) += inactiveItem(sku);
-EXTEND FORM item PROPERTIES(i) inactiveItem;
+inactive(Item sku) += inactive(sku);
+EXTEND FORM item PROPERTIES(i) inactive;
 EXTEND FORM items
-    PROPERTIES(i) READONLYIF isReadonly() inactiveItem
-    FILTERGROUP inactive2 FILTER 'Активные' prevActiveItem(i) 'F10' DEFAULT
+    PROPERTIES(i) READONLYIF isReadonly() inactive
+    FILTERGROUP inactive2 FILTER 'Активные' prevActive(i) 'F10' DEFAULT
 ;
 
 DESIGN item {
     itemPrimaryColumn1 {
         MOVE i.itemBase {
             columns = 2;
-            PROPERTY(compositionItem(i)) {
+            PROPERTY(composition(i)) {
                 minimumCharWidth = 20;
                 preferredCharWidth = 40;
             }
@@ -1385,16 +1385,16 @@ GROUP itemSize 'Габариты товара' : public;
 @defineDoubleItemAttribute(netWeight, NUMERIC[11,5], 'Вес нетто, кг', itemSize);
 @defineItemAttributeBatchClass (netWeight, 'Вес нетто, кг', sku);
 @implementItemAttribute(netWeight, 'Вес нетто, кг', Double, itemNetWeight);
-netWeightSku(sku) += netWeightItem(sku);
-netWeightItem(i) <- netWeightUOM(UOMItem(i)) WHEN CHANGED(UOMItem(i)) AND netWeightUOM(UOMItem(i));
+netWeight(Item sku) += netWeight(sku);
+netWeight(Item i) <- netWeight(UOM(i)) WHEN CHANGED(UOM(i)) AND netWeight(UOM(i));
 
 // Вес брутто
 @defineDoubleItemAttribute(grossWeight, NUMERIC[11,5], 'Вес брутто, кг', itemSize);
 @defineItemAttributeBatchClass (grossWeight, 'Вес брутто, кг', sku);
-grossWeightSku(sku) += grossWeightItem(sku);
+grossWeight(Item sku) += grossWeight(sku);
 
-WHEN SESSION (CHANGED(netWeightItem(sku)) OR (CHANGED(UOMItem(sku) AND grossWeightUOM(UOMItem(sku))))) AND NOT CHANGED(grossWeightItem(sku)) DO
-    grossWeightItem(sku) <- OVERRIDE netWeightItem(sku), grossWeightUOM(UOMItem(sku));
+WHEN SESSION (CHANGED(netWeight(Item sku)) OR (CHANGED(UOM(sku) AND grossWeight(UOM(sku))))) AND NOT CHANGED(grossWeight(sku)) DO
+    grossWeight(sku) <- OVERRIDE netWeight(sku), grossWeight(UOM(sku));
 
 // Кол-во в грузовом месте
 // todo : здесь скорее всего надо будет рефакторить на более сложную логику
@@ -1437,67 +1437,67 @@ TABLE itemAttributeItemGroup(ItemAttribute, ItemGroup);
 // Базовое наименование
 @defineItemAttributeName( , , recognize);
 
-backgroundNameAttributeItem = RGB(127,199,255) IF overNameItem(i);
-changeNameAttributeItem = ABSTRACT ACTION (Item);
+backgroundNameAttribute = RGB(127,199,255) IF overName(Item i);
+changeNameAttribute = ABSTRACT ACTION (Item);
 
-EXTEND FORM item PROPERTIES(i) nameAttributeItem BACKGROUND backgroundNameAttributeItem(i) ON CHANGE changeNameAttributeItem(i);
-DESIGN item { itemHeader {MOVE PROPERTY(nameAttributeItem(i)); } }
+EXTEND FORM item PROPERTIES(i) nameAttribute BACKGROUND backgroundNameAttribute(i) ON CHANGE changeNameAttribute(i);
+DESIGN item { itemHeader {MOVE PROPERTY(nameAttribute(i)); } }
 
-nameSku(item) += nameAttributeItem(item);
+name(Item item) += nameAttribute(item);
 loadDefaultItemAttributes() += ACTION {
-    ASSIGN numberInNameItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    ASSIGN numberInName(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
 //nameAttributeGroupGroupTypeItem 'Наименование' (group, groupType, item) = nameAttributeItem(item) IF
 //    hasParentGroupGroupTypeItem(group, groupType, item) PERSISTENT INDEXED;
 
 EXTEND FORM items
-    PROPERTIES READONLY BACKGROUND backgroundItem(i) AFTER idBarcodeSku(i) nameAttributeItem(i) // вообще надо использовать nameAttributeGroupGroupTypeItem(g, gt, i) для скорости, но тогда не будет работать отбор без групп
-    PROPERTIES READONLYIF isReadonly() BACKGROUND backgroundItem(i) AFTER nameAttributeItem(i) idItemGroupItem(i) , canonicalNameGroupGroupTypeSku(gt,i) 
+    PROPERTIES READONLY BACKGROUND background(i) AFTER idBarcode(i) nameAttribute(i) // вообще надо использовать nameAttributeGroupGroupTypeItem(g, gt, i) для скорости, но тогда не будет работать отбор без групп
+    PROPERTIES READONLYIF isReadonly() BACKGROUND background(i) AFTER nameAttribute(i) idItemGroup(i) , canonicalNameGroup(gt,i) 
 
     FILTERGROUP groupFilters
-        FILTER 'С группами' isParentGroupSku(g, i) 'F9' DEFAULT
-        FILTER 'Без групп' nameAttributeItem(i) IF gt IS GroupType AND NOT groupGroupTypeSku(gt,i) 'F8'
+        FILTER 'С группами' isParent(g, i) 'F9' DEFAULT
+        FILTER 'Без групп' nameAttribute(i) IF gt IS GroupType AND NOT group(gt,i) 'F8'
 
-    ORDER BY nameAttributeItem(i)
+    ORDER BY nameAttribute(i)
 ;
 
 DESIGN items {
-    PROPERTY(canonicalNameGroupGroupTypeSku(gt,i)) {
+    PROPERTY(canonicalNameGroup(gt,i)) {
         caption = 'Полное имя группы';
     }
 }    
 // Кассы
 @defineItemAttributeName(cashRegister, ' (кассы)', public);
-dataTitleCashRegisterBarcode 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
-titleCashRegisterBarcode 'Наименование для касс' = OVERRIDE nameCashRegisterAttributeItem(skuBarcode(barcode)), dataTitleCashRegisterBarcode(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+dataTitleCashRegister 'Наименование для касс' = DATA VARSTRING[100] (Barcode);
+titleCashRegister 'Наименование для касс' = OVERRIDE nameCashRegisterAttribute(sku(Barcode barcode)), dataTitleCashRegister(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += ACTION {
-    ASSIGN numberInNameCashRegisterItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    ASSIGN numberInNameCashRegister(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 // Весы
 @defineItemAttributeName(scales, ' (весы)', public);
-dataTitleScalesBarcode 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
-titleScalesBarcode 'Наименование для весов' = OVERRIDE nameScalesAttributeItem(skuBarcode(barcode)), dataTitleScalesBarcode(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
+dataTitleScales 'Наименование для весов' = DATA VARSTRING[100] (Barcode);
+titleScales 'Наименование для весов' = OVERRIDE nameScalesAttribute(sku(Barcode barcode)), dataTitleScales(barcode) MINCHARWIDTH 30 PREFCHARWIDTH 30;
 loadDefaultItemAttributes() += ACTION {
-    ASSIGN numberInNameScalesItemAttribute(a) <- 1 WHERE a == StringItemAttribute.itemCaption;
+    ASSIGN numberInNameScales(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
 
 // Сроки годности
 GROUP itemExpiry 'Сроки годности' : public;
 
-expiryDaysItem 'Срок годности в днях' = DATA INTEGER (Item) IN itemExpiry;
-expiryDaysSku(i) += expiryDaysItem(i);
+expiryDays 'Срок годности в днях' = DATA INTEGER (Item) IN itemExpiry;
+expiryDays(Item i) += expiryDays(i);
 
-expiryMonthItem 'Срок годности в месяцах' = DATA INTEGER (Item) IN itemExpiry;
-expiryMonthSku(i) += expiryMonthItem(i);
+expiryMonth 'Срок годности в месяцах' = DATA INTEGER (Item) IN itemExpiry;
+expiryMonth(Item i) += expiryMonth(i);
 
-expiryItem 'Срок годности' = DATA BOOLEAN (Item) IN itemExpiry;
+expiry 'Срок годности' = DATA BOOLEAN (Item) IN itemExpiry;
 @defineItemAttribute(expiry, 'Срок годности', itemExpiry);
 
-EXTEND FORM itemGroup PROPERTIES(g) userShowExpiryItemGroup;
-EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpiryItemGroup BACKGROUND backgroundShowExpiryItemGroup(g) BEFORE deleteg;
-EXTEND FORM item PROPERTIES(i) SHOWIF showExpiryItem(i) expiryDaysItem, expiryMonthItem;
-EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiryItemGroup(g) expiryDaysItem, expiryMonthItem;
+EXTEND FORM itemGroup PROPERTIES(g) userShowExpiry;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showExpiry BACKGROUND backgroundShowExpiry(g) BEFORE deleteg;
+EXTEND FORM item PROPERTIES(i) SHOWIF showExpiry(i) expiryDays, expiryMonth;
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei SHOWIF showExpiry(g) expiryDays, expiryMonth;
 DESIGN item {
     itemPrimaryColumn2 {
         MOVE i.itemExpiry {
@@ -1510,30 +1510,30 @@ DESIGN item {
 // --------------------------------------- Генерация штрихкодов --------------------------------------------- //
 
 META defineNumeratorItemGroup (prefix, caption)
-    data###prefix##NumeratorItemGroup = DATA Numerator (ItemGroup);
-    levelParent###prefix##NumeratorItemGroup (itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF data###prefix##NumeratorItemGroup(parent)
+    data###prefix##Numerator = DATA Numerator (ItemGroup);
+    levelParent###prefix##Numerator (itemGroup) = GROUP MIN level(ItemGroup itemGroup, ItemGroup parent) IF data###prefix##Numerator(parent)
                                                                   BY itemGroup PERSISTENT;
-    nearestParent###prefix##NumeratorItemGroup (itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParent###prefix##NumeratorItemGroup(itemGroup));
-    nearest###prefix##NumeratorItemGroup (itemGroup) = data###prefix##NumeratorItemGroup(nearestParent###prefix##NumeratorItemGroup(itemGroup)) PERSISTENT;
+    nearestParent###prefix##Numerator (ItemGroup itemGroup) = itemGroup(itemGroup, levelParent###prefix##Numerator(itemGroup));
+    nearest###prefix##Numerator (ItemGroup itemGroup) = data###prefix##Numerator(nearestParent###prefix##Numerator(itemGroup)) PERSISTENT;
 
-    prefix##NumeratorItemGroup (itemGroup) =
-        OVERRIDE nearest###prefix##NumeratorItemGroup(itemGroup), data###prefix##NumeratorItemGroup(itemGroup) PERSISTENT;
-    name###prefix##NumeratorItemGroup caption (itemGroup) = nameNumerator(prefix##NumeratorItemGroup(itemGroup)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 10;
+    prefix##Numerator (ItemGroup itemGroup) =
+        OVERRIDE nearest###prefix##Numerator(itemGroup), data###prefix##Numerator(itemGroup) PERSISTENT;
+    name###prefix##Numerator caption (ItemGroup itemGroup) = name(prefix##Numerator(itemGroup)) MINCHARWIDTH 5 PREFCHARWIDTH 10 MAXCHARWIDTH 10;
 
-    background###prefix##NumeratotItemGroup (itemGroup) = IF data###prefix##NumeratorItemGroup(itemGroup) THEN
+    background###prefix##Numeratot (ItemGroup itemGroup) = IF data###prefix##Numerator(itemGroup) THEN
                                                                       RGB(190,190,190) IF itemGroup IS ItemGroup
                                                                   ELSE
-                                                                      RGB(230,230,230) IF prefix##NumeratorItemGroup (itemGroup);
+                                                                      RGB(230,230,230) IF prefix##Numerator (itemGroup);
 
-    EXTEND FORM itemGroup PROPERTIES(g)  AFTER nameParentItemGroup(g) name###prefix##NumeratorItemGroup;
-    EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalNameItemGroup(g) READONLYIF isReadonly() name###prefix##NumeratorItemGroup  BACKGROUND background###prefix##NumeratotItemGroup(g);
+    EXTEND FORM itemGroup PROPERTIES(g)  AFTER nameParent(g) name###prefix##Numerator;
+    EXTEND FORM itemGroups PROPERTIES(g) AFTER canonicalName(g) READONLYIF isReadonly() name###prefix##Numerator  BACKGROUND background###prefix##Numeratot(g);
 END
 
 @defineNumeratorItemGroup (piece, 'Нумератор штрихкодов (для штучного товара)');
-pieceNumeratorItem (item) = pieceNumeratorItemGroup(itemGroupItem(item));
+pieceNumerator (Item item) = pieceNumerator(itemGroup(item));
 
-overNumeratorItem = ABSTRACT CASE Numerator (Item);
-barcodeNumeratorSku(item) += OVERRIDE pieceNumeratorItem(item), overNumeratorItem(item);
+overNumerator = ABSTRACT CASE Numerator (Item);
+barcodeNumerator(Item item) += OVERRIDE pieceNumerator(item), overNumerator(item);
 
 DESIGN itemGroup {
     main {
@@ -1542,17 +1542,17 @@ DESIGN itemGroup {
                 caption = 'Товарная группа';
                 type = COLUMNS;
                 columns = 3;
-                MOVE PROPERTY(nameItemGroup(g));
-                MOVE PROPERTY(orderItemGroup(g));
-                MOVE PROPERTY(idItemGroup(g));
-                MOVE PROPERTY(nameParentItemGroup(g));
-                MOVE PROPERTY(inactiveItemGroup(g));
+                MOVE PROPERTY(name(g));
+                MOVE PROPERTY(order(g));
+                MOVE PROPERTY(id(g));
+                MOVE PROPERTY(nameParent(g));
+                MOVE PROPERTY(inactive(g));
             }
 
             NEW itemGroupHeader2 {
                 caption = 'Нумераторы';
                 type = CONTAINERH;
-                MOVE PROPERTY(namePieceNumeratorItemGroup(g));
+                MOVE PROPERTY(namePieceNumerator(g));
             }
         }
 
@@ -1575,49 +1575,49 @@ DESIGN itemGroup {
 }
 
 // ---------------------------------------- Копирование товара ----------------------- //
-overCopyItem = ABSTRACT ACTION LIST (Item, Item);
-overCopyItemBarcode = ABSTRACT ACTION LIST (Barcode, Barcode, Sku);
+overCopy = ABSTRACT ACTION LIST (Item, Item);
+overCopyItem = ABSTRACT ACTION LIST (Barcode, Barcode, Sku);
 
-copyDataItem = ACTION (item, i) {
-    itemGroupItem(i) <- itemGroupItem(item);
-    captionItem(i) <- captionItem(item);
-    originalCaptionItem(i) <- originalCaptionItem(item);
-    UOMItem(i) <- UOMItem(item);
-    brandItem(i) <- brandItem(item);
-    manufacturerItem(i) <- manufacturerItem(item);
-    compositionItem(i) <- compositionItem(item);
-    originalCompositionItem(i) <- originalCompositionItem(item);
-    netWeightItem(i) <- netWeightItem(item);
-    grossWeightItem(i) <- grossWeightItem(item);
-    countryItem(i) <- countryItem(item);
-    dataImageItem(i) <- dataImageItem(item);
-    skuTypeItem(i) <- skuTypeItem(item);
-    splitItem(i) <- splitItem(item);
-    inactiveItem(i) <- inactiveItem(item);
-    expiryDaysItem(i) <- expiryDaysItem(item);
-    expiryMonthItem(i) <- expiryMonthItem(item);
+copyDataItem = ACTION (Sku item, Sku i) {
+    itemGroup(i) <- itemGroup(item);
+    caption(i) <- caption(item);
+    originalCaption(i) <- originalCaption(item);
+    UOM[Item](i) <- UOM[Item](item);
+    brand(i) <- brand(item);
+    manufacturer(i) <- manufacturer(item);
+    composition[Item](i) <- composition[Item](item);
+    originalComposition(i) <- originalComposition(item);
+    netWeight[Item](i) <- netWeight[Item](item);
+    grossWeight[Item](i) <- grossWeight[Item](item);
+    country[Item](i) <- country[Item](item);
+    dataImage(i) <- dataImage(item);
+    skuType[Item](i) <- skuType[Item](item);
+    split[Item](i) <- split[Item](item);
+    inactive[Item](i) <- inactive[Item](item);
+    expiryDays[Item](i) <- expiryDays[Item](item);
+    expiryMonth[Item](i) <- expiryMonth[Item](item);
 
-    FOR skuBarcode(barcode) == item DO {
+    FOR sku(Barcode barcode) == item DO {
         FOR ADDOBJ b = Barcode DO {
-            skuBarcode(b) <- i;
-            dataDateBarcode(b) <- dataDateBarcode(barcode);
-            dataUOMBarcode(b) <- dataUOMBarcode(barcode);
-            dataAmountBarcode(b) <- dataAmountBarcode(barcode);
-            dataTitleScalesBarcode(b) <- dataTitleScalesBarcode(barcode);
-            dataTitleCashRegisterBarcode(b) <- dataTitleCashRegisterBarcode(barcode);
+            sku(b) <- i;
+            dataDate(b) <- dataDate(barcode);
+            dataUOM(b) <- dataUOM(barcode);
+            dataAmount(b) <- dataAmount(barcode);
+            dataTitleScales(b) <- dataTitleScales(barcode);
+            dataTitleCashRegister(b) <- dataTitleCashRegister(barcode);
             
-            overCopyItemBarcode(b, barcode, i);
+            overCopyItem(b, barcode, i);
         }
     }
 
-    customGroupCustomGroupTypeItem(type, i) <- customGroupCustomGroupTypeItem(type, item);
+    customGroup[CustomGroupType,Item](CustomGroupType type, i) <- customGroup[CustomGroupType,Item](type, item);
 
-    EXEC overCopyItem(item, i);
+    EXEC overCopy(item, i);
 }
 
-copyItem 'Копировать' = ACTION (item) {
+copy 'Копировать' = ACTION (Item item) {
     IF (item IS Item) THEN {
-        NEWSESSION NESTED addedSku {
+        NEWSESSION NESTED addedSku[] {
             FOR ADDOBJ i = Item DO {
                 copyDataItem(item, i);
                 FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
@@ -1629,64 +1629,64 @@ copyItem 'Копировать' = ACTION (item) {
     }
 } EDITKEY 'F5' TOOLBAR;
 
-copyItemsItem 'Копировать' = ACTION (item) {
-    copyItem(item);
+copyItems 'Копировать' = ACTION (Item item) {
+    copy(item);
     IF (addedSku()) THEN {
         SEEK items.i addedSku();
     }
 } EDITKEY 'F5' TOOLBAR;
 
-EXTEND FORM items PROPERTIES (i) copyItemsItem;
-DESIGN items { PROPERTY(copyItemsItem(i)) { focusable = FALSE; } }
+EXTEND FORM items PROPERTIES (i) copyItems;
+DESIGN items { PROPERTY(copyItems(i)) { focusable = FALSE; } }
 
-copySku(sku) += ACTION copyItem(sku);
+copy(Item sku) += ACTION copy(sku);
 
-createItemBarcodeDate = ACTION (barcode, date) NEWSESSION {
+createItemBarcode = ACTION (STRING[15] barcode, DATE date) NEWSESSION {
 
     LOCAL copy = BOOLEAN();
-    IF skuAddedUser(currentUser()) IS Item THEN {
+    IF skuAdded(currentUser()) IS Item THEN {
         CONFIRM 'Создать товар на основе последнего созданного ?';
         ASSIGN copy() <- confirmed();
     }
 
     IF copy() THEN {
         FOR ADDOBJ i = Item DO {
-            copyDataItem(skuAddedUser(currentUser()), i);
-            idBarcode(b) <- barcode WHERE skuBarcode(b) == i AND primaryBarcode(b);
+            copyDataItem(skuAdded(currentUser()), i);
+            id(Barcode b) <- barcode WHERE sku(b) == i AND primary(b);
             FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     } ELSE {
         FOR ADDOBJ bc = Barcode DO {
-            idBarcode(bc) <- barcode;
-            dataDateBarcode(bc) <- date;
+            id(bc) <- barcode;
+            dataDate(bc) <- date;
 
             FOR ADDOBJ s = Item DO {
-                skuBarcode(bc) <- s;
+                sku(bc) <- s;
                 FORM item OBJECTS i = s, b = bc MANAGESESSION DOCKEDMODAL;
             }
         }
     }
 }
 
-createSkuBarcodeDate(barcode, date) += ACTION createItemBarcodeDate(barcode, date);
+createSkuBarcode(STRING[15] barcode, DATE date) += ACTION createItemBarcode(barcode, date);
 
-inItem 'Отм.' = DATA LOCAL BOOLEAN (Item);
+in 'Отм.' = DATA LOCAL BOOLEAN (Item);
 
-countInItem = GROUP SUM 1 IF inItem(item);
+countInItem = GROUP SUM 1 IF in(Item item);
 
-checkReplaceItem = ABSTRACT ACTION (Item);
+checkReplace = ABSTRACT ACTION (Item);
 
 FORM confirmReplaceItem 'Объединяемые товары'
     OBJECTS item = Item FIXED PANEL 
 
     OBJECTS i = Item  
-    PROPERTIES(i) READONLY idBarcodeSku, nameAttributeItem
+    PROPERTIES(i) READONLY idBarcode, nameAttribute
     FILTERS i==item
 
     OBJECTS i2 = Item
-    PROPERTIES(i2) inItem
-    PROPERTIES(i2) READONLY idBarcodeSku, nameAttributeItem
-    FILTERS inItem(i2)
+    PROPERTIES(i2) in
+    PROPERTIES(i2) READONLY idBarcode, nameAttribute
+    FILTERS in(i2)
 ;
 
 DESIGN confirmReplaceItem {
@@ -1704,16 +1704,16 @@ DESIGN confirmReplaceItem {
     MOVE functions.box;
 }
 
-replaceItem 'Объединить' = ACTION (item) {
+replace 'Объединить' = ACTION (Item item) {
     FORM confirmReplaceItem OBJECTS i=item MODAL;
     IF formResult() == FormResult.ok THEN {
         allowReplaceItem() <- TRUE;
-        checkReplaceItem(item);
-        FOR inItem(i) AND allowReplaceItem() AND item IS Item DO {
+        checkReplace(item);
+        FOR in(Item i) AND allowReplaceItem() AND item IS Item DO {
             IF i != item THEN {
-                replaceSkuSku(i, item);
-                overReplaceSkuSku(i, item);
-                inItem(i) <- NULL;
+                replace(i, item);
+                overReplace(i, item);
+                in(i) <- NULL;
                 DELETE i;            
             } ELSE {
                 MESSAGE 'Выделенный товар не может совпадать с объединяемым';
@@ -1721,7 +1721,7 @@ replaceItem 'Объединить' = ACTION (item) {
         }
         apply();
     } ELSE {
-        inItem(i) <- NULL WHERE inItem(i);           
+        in(Item i) <- NULL WHERE in(i);           
     }   
 } CONFIRM;
 
@@ -1729,21 +1729,21 @@ changeGroupItem 'Изменить группу' = ACTION (){
     FORM dialogItemGroups MODAL;
 
     IF formResult() == FormResult.ok THEN {
-        FOR inItem(i) DO{
-            ASSIGN itemGroupItem(i) <- chosenObject('g');
+        FOR in(Item i) DO{
+            ASSIGN itemGroup(i) <- chosenObject('g');
         }
     }
 }
 
 
 EXTEND FORM items
-    PROPERTIES(i) inItem BEFORE idBarcodeSku(i), replaceItem FORCE PANEL
+    PROPERTIES(i) in BEFORE idBarcode(i), replace FORCE PANEL
 ;
 DESIGN items {
     actions {
         NEW replace {
             caption = 'Слияние товаров';
-            MOVE PROPERTY(replaceItem(i));
+            MOVE PROPERTY(replace(i));
         }
     }
 }
@@ -1774,8 +1774,8 @@ TABLE customGroupTypeItemGroup(CustomGroupType, ItemGroup);
 
 EXTEND FORM itemGroup
     OBJECTS dc=CustomGroupType 
-    PROPERTIES(dc)   READONLY nameCustomGroupType, idCustomGroupType
-    PROPERTIES(dc, g) nameCustomGroupCustomGroupTypeItemGroup    
+    PROPERTIES(dc)   READONLY name, id
+    PROPERTIES(dc, g) nameCustomGroup    
 ;    
 DESIGN itemGroup {
 
@@ -1787,7 +1787,7 @@ DESIGN itemGroup {
             MOVE g.defaultItemGroup {
                 caption ='';
                 columns = 3;
-                PROPERTY(captionItemGroup(g)) {minimumCharWidth = 20; preferredCharWidth = 40;}
+                PROPERTY(caption(g)) {minimumCharWidth = 20; preferredCharWidth = 40;}
             }
             NEW detail1{
                 fill = 1;
@@ -1798,20 +1798,20 @@ DESIGN itemGroup {
     }
 }
 
-WHEN SESSION CHANGED(itemGroupItem(i)) AND dc IS CustomGroupType AND NOT customGroupCustomGroupTypeItem(dc, i) DO
-    customGroupCustomGroupTypeItem(dc, i) <- customGroupCustomGroupTypeItemGroup(dc, itemGroupItem(i));
+WHEN SESSION CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupType AND NOT customGroup(dc, i) DO
+    customGroup(dc, i) <- customGroup(dc, itemGroup(i));
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultItemGroup 'Добавить группы товаров' = ACTION (iname, id) {
+loadDefaultItemGroup 'Добавить группы товаров' = ACTION (VARISTRING[250] iname, VARSTRING[100] id) {
     FOR ADDOBJ g = ItemGroup DO {
-        nameItemGroup(g) <- iname;
-        idItemGroup(g) <- id;
-        userShowCaptionItemGroup(g) <- TRUE;
-        userShowUOMItemGroup(g) <- TRUE;
-        userShowBrandItemGroup(g) <- TRUE;
-        userShowManufacturerItemGroup(g) <- TRUE;
-        userShowCountryItemGroup(g) <- TRUE;
+        name(g) <- iname;
+        id(g) <- id;
+        userShowCaption(g) <- TRUE;
+        userShowUOM(g) <- TRUE;
+        userShowBrand(g) <- TRUE;
+        userShowManufacturer(g) <- TRUE;
+        userShowCountry(g) <- TRUE;
     }
 }
 

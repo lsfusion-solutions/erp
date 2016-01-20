@@ -13,34 +13,34 @@ TABLE trip(Trip);
 @defineDocumentHeaderNumber(Trip);
 @defineNumeratedDefault(Trip, 'Рейсы', 'РЕ');
 
-tripNumber (number) = GROUP AGGR trip BY numberTrip(trip);
+trip (number) = GROUP AGGR Trip trip BY number(trip);
 
-truckTrip = DATA Truck(Trip);
-sidTruckTrip 'Машина (номер)'(trip) = sidTruck(truckTrip(trip));
-weightTruckTrip 'Грузоподъёмность (кг)'(trip) = weightTruck(truckTrip(trip));
-ownerTruckTrip 'Владелец'(trip) = ownerTruck(truckTrip(trip));
-truckModelTruckTrip (trip) = truckModelTruck(truckTrip(trip));
-nameTruckModelTruckTrip 'Марка' (trip) = nameTruckModel(truckModelTruckTrip(trip));
-trailerTruckTrip 'Прицеп' (trip) = trailerTruck(truckTrip(trip));
-nameTruckTrip 'Автомобиль' (trip) = nameTruck(truckTrip(trip));
+truck = DATA Truck(Trip);
+sidTruck 'Машина (номер)'(Trip trip) = sid(truck(trip));
+weightTruck 'Грузоподъёмность (кг)'(Trip trip) = weight(truck(trip));
+ownerTruck 'Владелец'(Trip trip) = owner(truck(trip));
+truckModelTruck (Trip trip) = truckModel(truck(trip));
+nameTruckModelTruck 'Марка' (Trip trip) = name(truckModelTruck(trip));
+trailerTruck 'Прицеп' (Trip trip) = trailer(truck(trip));
+nameTruck 'Автомобиль' (Trip trip) = name(truck(trip));
 
-driverTrip = DATA Driver(Trip);
-nameDriverTrip 'Водитель' (trip) = nameContact(driverTrip(trip));
-sidDriverTrip 'Табельный номер' (trip) = sidDriver(driverTrip(trip));
-typeDriverTrip 'Класс' (trip) = typeDriver(driverTrip(trip));
+driver = DATA Driver(Trip);
+nameDriver 'Водитель' (Trip trip) = name[Contact](driver(trip));
+sidDriver 'Табельный номер' (Trip trip) = sid(driver(trip));
+typeDriver 'Класс' (Trip trip) = type(driver(trip));
 
-supplierTrip = DATA LegalEntity(Trip);
-nameSupplierTrip 'Организация (поставщик)' (t) = nameLegalEntity(supplierTrip(t));
-customerTrip = DATA LegalEntity(Trip);
-nameCustomerTrip 'Организация (покупатель)' (t) = nameLegalEntity(customerTrip(t));
+supplier = DATA LegalEntity(Trip);
+nameSupplier 'Организация (поставщик)' (Trip t) = name(supplier(t));
+customer = DATA LegalEntity(Trip);
+nameCustomer 'Организация (покупатель)' (Trip t) = name(customer(t));
 
-descriptionTrip 'Рейс' (o) = CONCAT ' ', seriesNumberTrip(o), dateTrip(o) MINCHARWIDTH 20 PREFCHARWIDTH 30; 
+description 'Рейс' (Trip o) = CONCAT ' ', seriesNumber(o), date(o) MINCHARWIDTH 20 PREFCHARWIDTH 30; 
 
 FORM trip 'Рейс'
     OBJECTS t=Trip FIXED PANEL
-    PROPERTIES(t) nameNumeratorTrip, numberTrip, seriesTrip, dateTrip, timeTrip, 
-                  nameDriverTrip, sidTruckTrip, nameTruckModelTruckTrip, trailerTruckTrip, weightTruckTrip,
-                  nameSupplierTrip, nameCustomerTrip
+    PROPERTIES(t) nameNumerator, number, series, date, time, 
+                  nameDriver, sidTruck, nameTruckModelTruck, trailerTruck, weightTruck,
+                  nameSupplier, nameCustomer
     
     EDIT Trip OBJECT t
 ;
@@ -51,11 +51,11 @@ DESIGN trip {
         NEW headerTop {
             caption = 'Шапка документа';
             type = CONTAINERH;
-            MOVE PROPERTY(nameNumeratorTrip(t));
-            MOVE PROPERTY(numberTrip(t));
-            MOVE PROPERTY(seriesTrip(t));
-            MOVE PROPERTY(dateTrip(t));
-            MOVE PROPERTY(timeTrip(t));
+            MOVE PROPERTY(nameNumerator(t));
+            MOVE PROPERTY(number(t));
+            MOVE PROPERTY(series(t));
+            MOVE PROPERTY(date(t));
+            MOVE PROPERTY(time(t));
         }
         NEW headerCenter {
             type = CONTAINERH;
@@ -63,11 +63,11 @@ DESIGN trip {
                 type = COLUMNS;
                 columns = 3;
                 caption = 'Параметры машины';
-                MOVE PROPERTY(nameDriverTrip(t));
-                MOVE PROPERTY(sidTruckTrip(t));
-                MOVE PROPERTY(nameTruckModelTruckTrip(t));
-                MOVE PROPERTY(trailerTruckTrip(t));
-                MOVE PROPERTY(weightTruckTrip(t));
+                MOVE PROPERTY(nameDriver(t));
+                MOVE PROPERTY(sidTruck(t));
+                MOVE PROPERTY(nameTruckModelTruck(t));
+                MOVE PROPERTY(trailerTruck(t));
+                MOVE PROPERTY(weightTruck(t));
             }
 
             NEW headerSum {
@@ -80,10 +80,10 @@ DESIGN trip {
         NEW headerFilter {
             type = CONTAINERH;
             caption = 'Параметры';
-            MOVE PROPERTY(nameSupplierTrip(t)) {
+            MOVE PROPERTY(nameSupplier(t)) {
                 caption = 'Поставщик';
             }
-            MOVE PROPERTY(nameCustomerTrip(t)){
+            MOVE PROPERTY(nameCustomer(t)){
                 caption = 'Покупатель';
             }
         }
@@ -96,13 +96,13 @@ DESIGN trip {
     MOVE functions.box;
 }
 
-overCopyTrip = ABSTRACT ACTION LIST (Trip, Trip);
-copyTrip 'Копировать' = ACTION (trip) NEWSESSION {
+overCopy = ABSTRACT ACTION LIST (Trip, Trip);
+copy 'Копировать' = ACTION (Trip trip) NEWSESSION {
     FOR ADDOBJ t = Trip DO {
-        ASSIGN driverTrip(t) <- driverTrip(trip);
-        ASSIGN truckTrip(t) <- truckTrip(trip);
+        ASSIGN driver(t) <- driver(trip);
+        ASSIGN truck(t) <- truck(trip);
 
-        EXEC overCopyTrip(t, trip);
+        EXEC overCopy(t, trip);
         FORM trip OBJECTS t = t MANAGESESSION DOCKEDMODAL;
     }
 } TOOLBAR;
@@ -112,11 +112,11 @@ FORM trips 'Рейсы'
     PROPERTIES(dt) OBJVALUE
 
     OBJECTS t=Trip
-    PROPERTIES(t) READONLY numberTrip, seriesTrip, dateTrip, timeTrip, nameDriverTrip, sidTruckTrip, nameTruckModelTruckTrip, trailerTruckTrip, weightTruckTrip
-    PROPERTIES(t) ADDFORM, EDITFORM, copyTrip, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) READONLY number, series, date, time, nameDriver, sidTruck, nameTruckModelTruck, trailerTruck, weightTruck
+    PROPERTIES(t) ADDFORM, EDITFORM, copy, DELETE FORCE PANEL TOOLBAR
     
     FILTERGROUP filterTrips
-        FILTER 'Рейсы на дату' dateTrip(t) == dt 'F10' DEFAULT    
+        FILTER 'Рейсы на дату' date(t) == dt 'F10' DEFAULT    
 ;
 
 DESIGN trips {
@@ -136,8 +136,8 @@ FORM dialogDateTrips 'Рейсы'
     PROPERTIES(d) OBJVALUE
     
     OBJECTS t = Trip
-    PROPERTIES(t) READONLY numberTrip, dateTrip, nameDriverTrip
-    FILTERGROUP filters FILTER 'Рейсы на дату' dateTrip(t)>=d 'F5' DEFAULT 
+    PROPERTIES(t) READONLY number, date, nameDriver
+    FILTERGROUP filters FILTER 'Рейсы на дату' date(t)>=d 'F5' DEFAULT 
 ;
 
 NAVIGATOR {
