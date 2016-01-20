@@ -492,7 +492,8 @@ public class EquipmentServer {
                             handler.finishReadingSalesInfo(mergedSalesBatch);
                         }
                     } catch (Exception e) {
-                        reportEquipmentServerError(remote, sidEquipmentServer, e.getMessage());
+                        logger.error("Equipment server error", e);
+                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
                     }
                 }
 
@@ -513,6 +514,7 @@ public class EquipmentServer {
                                 handler.finishReadingSalesInfo(salesBatch);
                             }
                         } catch (Exception e) {
+                            sendSalesLogger.error("Sending SalesInfo", e);
                             remote.errorEquipmentServerReport(sidEquipmentServer, e);
                         }
                     }
