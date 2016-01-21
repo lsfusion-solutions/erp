@@ -376,10 +376,10 @@ EXTEND FORM options
 ;
 DESIGN options {
     pane {
-        commons {
+        NEW range {
+            caption = 'Ассортиментные матрицы';
             MOVE PROPERTY(nameDefaultDepartmentStore());
         }
-        
     }
 }
 
@@ -962,6 +962,12 @@ DESIGN ranges {
     range{
         MOVE s.box;
     }
+}
+
+autoSetGroupRange 'Автоматически проставлять группы в матрицу при изменении группы товара' = DATA BOOLEAN (UserRole);
+EXTEND FORM userRole PROPERTIES(ur) autoSetGroupAttribute;
+WHEN autoSetGroupAttribute(mainRole(currentUser())) AND CHANGED(itemGroup(Item item)) AND level(RangeRev v, Sku s) AND NOT inChild(range(v), s) DO {
+    inData(Range r, SkuGroup g) <- TRUE WHERE r == range(v) AND g == skuGroup(s);
 }
 
 CONSTRAINT level(RangeRev v, Sku s) AND NOT inChild(range(v), s) MESSAGE 'Товар не соответствует выбранным группам для ассортимента';
