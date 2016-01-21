@@ -75,7 +75,7 @@ public class SalesInfo implements Serializable {
 
     //startDate - для обратной совместимости
     public String getIdZReport(Date startDate) {
-        if (startDate == null || startDate.compareTo(dateZReport) <= 0)
+        if (dateZReport != null && (startDate == null || startDate.compareTo(dateZReport) <= 0))
             return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateZReport);
         else
             return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
