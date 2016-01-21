@@ -1,0 +1,25 @@
+MODULE PurchaseRegistration;
+
+REQUIRE Registration, PurchaseCertificate;
+
+NAMESPACE Purchase;
+
+@defineDocumentCertificate(registration, invoice, i, 'Свидетельство государственной регистрации');
+@deriveDocumentPurchaseCertificate(registration, invoice, customerStock, data);
+
+@defineDocumentCertificate(registration, shipment, s, 'Свидетельство государственной регистрации');
+
+// Проставляем автоматически сертификат от строки инвойса
+WHEN CHANGED(registration(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(registration(d)) DO
+     dataRegistration(d) <- registration(invoiceDetail(d)); 
+
+@deriveDocumentPurchaseCertificate(registration, shipment, customerStock, data);
+
+registration(InvoiceShipmentDetail detail) += registration(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+    ASSIGN dataRegistration(s) <- registration(i);
+}
+
+registration (ShipmentBatch batch) += registration(shipmentDetail(batch));

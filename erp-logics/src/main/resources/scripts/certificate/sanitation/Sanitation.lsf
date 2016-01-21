@@ -1,0 +1,134 @@
+MODULE Sanitation;
+
+REQUIRE Certificate;
+
+CLASS Sanitation 'Удостоверение гигиенической регистрации' : Certificate;
+TABLE sanitation(Sanitation);
+
+// ----------------- Даты / время ------------------ //
+
+@defineDocumentHeaderTimePrefix(Sanitation, ,' документа');
+@deriveDocumentHeaderTimePrefix(Sanitation, );
+date(Sanitation certificate) += date(certificate);
+time(Sanitation certificate) += time(certificate);
+
+fromDate 'Дата с' = DATA DATE (Sanitation) IN documentHeader;
+fromDate(Sanitation certificate) += fromDate(certificate);
+
+toDate 'Дата по' = DATA DATE (Sanitation) IN documentHeader;
+toDate(Sanitation certificate) += toDate(certificate);
+
+// ------ Номер ----------- //
+
+number 'Номер' = DATA STRING[100] (Sanitation) NOT NULL IN numbered MINCHARWIDTH 10;
+series 'Серия' = DATA STRING[2] (Sanitation) IN numbered FIXEDCHARWIDTH 3; 
+
+seriesNumber 'Серия/Номер' (Sanitation o) = 
+    CONCAT '', series(o), number(o) 
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+
+series(Sanitation certificate) += series(certificate);
+number(Sanitation certificate) += number(certificate);
+
+sanitation = GROUP AGGR Sanitation s BY number (s);
+
+// Описание
+description 'Удостоверение гигиенической регистрации' (Sanitation sanitation) = CONCAT ' ', seriesNumber(sanitation),
+                                                 'от ' + fromDate(sanitation), 'по ' + toDate(sanitation);
+// История                                                 
+@defineDocumentHeaderCreated(Sanitation);                                                 
+
+
+@defineBatchCertificate(sanitation, Sanitation, 'Удостоверение гигиенической регистрации');
+fromDateSanitation 'Дата с' (Batch batch) = fromDate(sanitation(batch));
+toDateSanitation 'Дата по' (Batch batch) = toDate(sanitation(batch));
+
+FORM sanitation 'Удостоверение гигиенической регистрации'
+    OBJECTS c = Sanitation FIXED PANEL
+    PROPERTIES(c) number, series, date, time,
+                  fromDate, toDate               
+
+    EDIT Sanitation OBJECT c
+;
+
+DESIGN sanitation {
+    main {
+        NEW pane {
+            fill = 1;
+            NEW header {
+                caption = 'Шапка документа';
+                type = CONTAINERH;
+                MOVE PROPERTY (number(c));
+                MOVE PROPERTY (series(c));
+                MOVE PROPERTY (date(c));
+                MOVE PROPERTY (time(c));
+
+            }
+            NEW params {
+                NEW timeContainer{
+                    type = CONTAINERH;
+                    caption = 'Период действия';
+                    MOVE PROPERTY (fromDate(c));
+                    MOVE PROPERTY (toDate(c));
+                }
+                NEW documentParams {
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Параметры документа';
+                }
+            }
+        }    
+        MOVE functions.box;
+    }
+}
+    
+copy 'Копировать' = ACTION (Sanitation sanitation) NEWSESSION {
+    FOR ADDOBJ c = Sanitation DO {
+        fromDate(c) <- fromDate(sanitation);
+        toDate(c) <- toDate(sanitation);
+
+        FORM sanitation OBJECTS c = c MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+skipShowEdit = ABSTRACT BOOLEAN (Sanitation);
+showEdit = Sanitation c IS Sanitation AND NOT skipShowEdit(c);
+
+FORM sanitations 'Удостоверения гигиенической регистрации'
+    OBJECTS c = Sanitation
+    PROPERTIES(c) READONLY number, series, date, time, fromDate, toDate
+    PROPERTIES(c) copy
+
+    PROPERTIES (c) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(c) ADDFORM, EDITFORM SHOWIF showEdit(c), DELETE SHOWIF showEdit(c) FORCE PANEL TOOLBAR
+    
+    DIALOG Sanitation OBJECT c
+;
+
+DESIGN sanitations {
+    main{
+        preferredSize = (1024, 768);
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE c.box { fill = 2; }
+            NEW documentDetail {
+                fill = 1; 
+                NEW documentHistory {
+                    caption = 'История';
+                    fill = 1; 
+                    type = CONTAINERV;
+        
+                    MOVE c.created;
+                }
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+NAVIGATOR {
+    customsDocuments {
+        ADD sanitations;
+    }
+}

@@ -1,0 +1,25 @@
+MODULE PurchaseSanitation;
+
+REQUIRE Sanitation, PurchaseCertificate;
+
+NAMESPACE Purchase;
+
+@defineDocumentCertificate(sanitation, invoice, i, 'Удостоверение гигиенической регистрации');
+@deriveDocumentPurchaseCertificate(sanitation, invoice, customerStock, data);
+
+@defineDocumentCertificate(sanitation, shipment, s, 'Удостоверение гигиенической регистрации');
+
+// Проставляем автоматически сертификат от строки инвойса
+WHEN CHANGED(sanitation(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(sanitation(d)) DO
+     dataSanitation(d) <- sanitation(invoiceDetail(d)); 
+
+@deriveDocumentPurchaseCertificate(sanitation, shipment, customerStock, data);
+
+sanitation(InvoiceShipmentDetail detail) += sanitation(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+    ASSIGN dataSanitation(s) <- sanitation(i);
+}
+
+sanitation (ShipmentBatch batch) += sanitation(shipmentDetail(batch));

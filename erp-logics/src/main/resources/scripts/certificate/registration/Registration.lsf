@@ -1,0 +1,134 @@
+MODULE Registration;
+
+REQUIRE Certificate;
+
+CLASS Registration 'Свидетельство государственной регистрации' : Certificate;
+TABLE registration(Registration);
+
+// ----------------- Даты / время ------------------ //
+
+@defineDocumentHeaderTimePrefix(Registration, ,' документа');
+@deriveDocumentHeaderTimePrefix(Registration, );
+date(Registration certificate) += date(certificate);
+time(Registration certificate) += time(certificate);
+
+fromDate 'Дата с' = DATA DATE (Registration) IN documentHeader;
+fromDate(Registration certificate) += fromDate(certificate);
+
+toDate 'Дата по' = DATA DATE (Registration) IN documentHeader;
+toDate(Registration certificate) += toDate(certificate);
+
+// ------ Номер ----------- //
+
+number 'Номер' = DATA STRING[100] (Registration) NOT NULL IN numbered MINCHARWIDTH 10;
+series 'Серия' = DATA STRING[2] (Registration) IN numbered FIXEDCHARWIDTH 3; 
+
+seriesNumber 'Серия/Номер' (Registration o) = 
+    CONCAT '', series(o), number(o) 
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+
+series(Registration certificate) += series(certificate);
+number(Registration certificate) += number(certificate);
+
+registration = GROUP AGGR Registration s BY number (s);
+
+// Описание
+description 'Свидетельство государственной регистрации' (Registration registration) = CONCAT ' ', seriesNumber(registration),
+                                                 'от ' + fromDate(registration), 'по ' + toDate(registration);
+// История                                                 
+@defineDocumentHeaderCreated(Registration);                                                 
+
+
+@defineBatchCertificate(registration, Registration, 'Свидетельство государственной регистрации');
+fromDateRegistration 'Дата с' (Batch batch) = fromDate(registration(batch));
+toDateRegistration 'Дата по' (Batch batch) = toDate(registration(batch));
+
+FORM registration 'Свидетельство государственной регистрации'
+    OBJECTS c = Registration FIXED PANEL
+    PROPERTIES(c) number, series, date, time,
+                  fromDate, toDate               
+
+    EDIT Registration OBJECT c
+;
+
+DESIGN registration {
+    main {
+        NEW pane {
+            fill = 1;
+            NEW header {
+                caption = 'Шапка документа';
+                type = CONTAINERH;
+                MOVE PROPERTY (number(c));
+                MOVE PROPERTY (series(c));
+                MOVE PROPERTY (date(c));
+                MOVE PROPERTY (time(c));
+
+            }
+            NEW params {
+                NEW timeContainer{
+                    type = CONTAINERH;
+                    caption = 'Период действия';
+                    MOVE PROPERTY (fromDate(c));
+                    MOVE PROPERTY (toDate(c));
+                }
+                NEW documentParams {
+                    type = COLUMNS;
+                    columns = 3;
+                    caption = 'Параметры документа';
+                }
+            }
+        }    
+        MOVE functions.box;
+    }
+}
+    
+copy 'Копировать' = ACTION (Registration registration) NEWSESSION {
+    FOR ADDOBJ c = Registration DO {
+        fromDate(c) <- fromDate(registration);
+        toDate(c) <- toDate(registration);
+
+        FORM registration OBJECTS c = c MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+
+skipShowEdit = ABSTRACT BOOLEAN (Registration);
+showEdit = Registration c IS Registration AND NOT skipShowEdit(c);
+
+FORM registrations 'Свидетельства государственной регистрации'
+    OBJECTS c = Registration
+    PROPERTIES(c) READONLY number, series, date, time, fromDate, toDate
+    PROPERTIES(c) copy
+
+    PROPERTIES (c) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
+    PROPERTIES(c) ADDFORM, EDITFORM SHOWIF showEdit(c), DELETE SHOWIF showEdit(c) FORCE PANEL TOOLBAR
+    
+    DIALOG Registration OBJECT c
+;
+
+DESIGN registrations {
+    main{
+        preferredSize = (1024, 768);
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE c.box { fill = 2; }
+            NEW documentDetail {
+                fill = 1; 
+                NEW documentHistory {
+                    caption = 'История';
+                    fill = 1; 
+                    type = CONTAINERV;
+        
+                    MOVE c.created;
+                }
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+NAVIGATOR {
+    customsDocuments {
+        ADD registrations;
+    }
+}
