@@ -349,6 +349,8 @@ priceLabelTransactionDetail 'Текущая цена на ценниках' (sku
 firstSort = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 secondSort = ABSTRACT OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 
+skipPrint 'Пропустить' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
+
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
     PROPERTIES(l) READONLY nameLabelType, nameDepartmentStore, description,
@@ -360,7 +362,8 @@ FORM printLabelTransaction 'Печать ценников'
                            quantity, name, price, 
                            retailPrice, discountSum, fullNameLegalEntity,
                            firstSort, secondSort
-    FILTERS labelTransaction(d) == l
+    FILTERS labelTransaction(d) == l,
+            NOT skipPrint(d)
     ORDER BY firstSort(d), secondSort(d)
     REPORTFILES l fileTemplate(l), TOP topFileTemplate(l)
 ;
@@ -456,6 +459,33 @@ printTo 'Печать ценников' (LabelTransaction labelTransaction) = AC
         print(labelTransaction);
 } IMAGE 'print.png' IN print;
 
+select 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
+countSelectLabelTransactionDetails = GROUP SUM 1 IF select(LabelTransactionDetail d);
+
+deleteSelect 'Очистить все' () = ACTION {
+    select(LabelTransactionDetail d) <- NULL;   
+} SHORTCUT select[LabelTransactionDetail];
+
+
+countSelectedLabelTransactions (t)  =   GROUP SUM 1 IF select(LabelTransactionDetail d) BY labelTransaction(d);
+
+printLabelTransactionDetails 'Печать ценников'  = ACTION () {
+    IF countSelectLabelTransactionDetails() THEN NEWSESSION NESTED select[LabelTransactionDetail] {
+        FOR countSelectedLabelTransactions(t)  DO {
+            skipPrint(LabelTransactionDetail d) <- TRUE WHERE labelTransaction(d) ==t AND NOT select(d);
+            print(t);
+        }  
+        apply();
+    } ELSE {
+        MESSAGE 'Вначале надо отметить строки для печати.';
+    }
+
+}
+printLabelTransactionDetail 'Печать ценника' (LabelTransactionDetail d) = ACTION  {
+    select(d) <- TRUE;  
+    printLabelTransactionDetails();
+}
+
 FORM labelTransactions 'Печать ценников'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES name(d) SELECTOR
@@ -470,10 +500,11 @@ FORM labelTransactions 'Печать ценников'
     ORDER BY date(l), time(l)
 
     OBJECTS dt = LabelTransactionDetail
+    PROPERTIES(dt) select
     PROPERTIES(dt) READONLY idBarcode, nameSku, nameBatch,
                             quantity, name, price, retailPrice, discountSum 
     FILTERS labelTransaction(dt) == l
-    
+    PROPERTIES printLabelTransactionDetails() TOOLBAR TODRAW dt SHOWIF countSelectLabelTransactionDetails()
  // по определенной позиции и складу  
     OBJECTS s = Sku
     PROPERTIES(s)    READONLY idBarcode, name, id
@@ -484,6 +515,8 @@ FORM labelTransactions 'Печать ценников'
             createdNameUser, createdTime, createdHostnameComputer,
             idBarcode, nameSku, nameBatch,
             quantity, name, price, retailPrice, discountSum 
+            
+    PROPERTIES printLabelTransactionDetail(dts) FORCE PANEL TOOLBAR 
     ORDER BY date(dts) DESC, time(dts) DESC
     FILTERS sku(dts) == s,
             departmentStore(dts) == d
@@ -536,15 +569,9 @@ documentPrice = DATA LOCAL NUMERIC[14,2] (LabelTransactionDetail);
 
 calcPrice (LabelTransactionDetail d) =
     IF  batch(d) THEN
-        prevPriceA(priceListType(d),
-                                                  batch(d),
-                                                  departmentStore(d),
-                                                  dateTime(d))
+        prevPriceA(priceListType(d), batch(d), departmentStore(d), dateTime(d))
     ELSE
-        prevPriceA(priceListType(d),
-                                                sku(d),
-                                                departmentStore(d),
-                                                dateTime(d));
+        prevPriceA(priceListType(d), sku(d), departmentStore(d), dateTime(d));
 
 WHEN SESSION FORMS customLabelTransaction
     CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d)) DO {
@@ -712,7 +739,7 @@ EXTEND FORM customLabelTransaction
 
 skip 'Не печатать на ценник' = ABSTRACT BOOLEAN (LabelTransactionDetail);
 // ------------------------- Подключение печати ценников в документ --------------------- //
-META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, prefix)
+META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, stockProp, prefix)
 
     createAttribute = ABSTRACT ACTION LIST (###detailProp##Detail, LabelTransactionDetail);
     
@@ -739,7 +766,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                         ADDOBJ d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         skuProp(d) <- sku;
-                        batch(d) <- batch(dd);
+                        batch(d) <- batchProp(dd);
     
                         name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
                         createAttribute(d);
@@ -789,7 +816,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
                         ADDOBJ d = LabelTransactionDetail DO {
                             labelTransaction(d) <- t;
                             skuProp(d) <- sku;
-                            batch(d) <- batch(dd);
+                            batch(d) <- batchProp(dd);
         
                             name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
                             documentQuantity(d) <- prefix###quantity(dd); 
@@ -835,12 +862,12 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, stockProp, p
     backgroundPrintLabelTransaction 'Цвет' (###document document) = RGB(212,255,212) IF showPrintLabelTransaction(document) AND NOT printed(document);
 END
 
-META defineDocumentLabelTransaction (document, skuProp, stockProp, prefix)
-    @defineDocumentLabelTransaction (document, document, skuProp, stockProp, prefix);
+META defineDocumentLabelTransaction (document, skuProp, batchProp, stockProp, prefix)
+    @defineDocumentLabelTransaction (document, document, skuProp, batchProp, stockProp, prefix);
 END
 
-META defineDocumentLabelTransaction (document, skuProp, stockProp)
-    @defineDocumentLabelTransaction (document, skuProp, stockProp, );
+META defineDocumentLabelTransaction (document, skuProp, batchProp, stockProp)
+    @defineDocumentLabelTransaction (document, skuProp, batchProp, stockProp, );
 END
 
 META extendFormDocumentLabelTransaction(form, object, document, afterProp, propContainer)
