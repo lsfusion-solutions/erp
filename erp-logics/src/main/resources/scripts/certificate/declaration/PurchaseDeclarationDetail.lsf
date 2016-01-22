@@ -197,61 +197,66 @@ dutyPrice 'Пошлина (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
 dutyPrice 'Пошлина (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 dutyPrice(UserInvoiceDetail detail) += dutyPrice(detail);
 
-dutySum 'Сумма (пошлина)' (InvoiceDetail detail) = dutyPrice(detail)*quantity(detail);
-dutySum 'Сумма (пошлина)' (UserInvoiceDetail detail) = dutyPrice(detail)*quantity(detail);
+dutySum 'Сумма (пошлина)' = ABSTRACT NUMERIC[16,2] (InvoiceDetail);
+dutySum 'Сумма (пошлина)' = DATA NUMERIC[16,2] (UserInvoiceDetail);
+dutySum[InvoiceDetail] (UserInvoiceDetail d) += dutySum(d);
 
-overDutySum 'Пошлина сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
-overDutySum 'Пошлина сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
-overDutySum(UserInvoiceDetail detail) += overDutySum(detail);
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overDuty, ' (пошлина) всего');
+dutySum(UserInvoiceDetail d) <- quantity(d) * dutyPrice(d) WHEN CHANGED(quantity(d)) OR CHANGED(dutyPrice(d));
+
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, duty, ' (пошлина) всего');
 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
     dutyPrice(d) <- dutyPrice(detail);
-    overDutySum(d) <- overDutySum(detail);
+    dutySum(d) <- dutySum(detail);
 }  
-
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, duty, ' (пошлина) всего');
 
 // Сбор
 registrationPrice 'Таможенный сбор (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
 registrationPrice 'Таможенный сбор (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 registrationPrice(UserInvoiceDetail detail) += registrationPrice(detail);
 
-registrationSum 'Сумма (таможенный сбор)' (InvoiceDetail detail) = registrationPrice(detail)*quantity(detail);
-registrationSum 'Сумма (таможенный сбор)' (UserInvoiceDetail detail) = registrationPrice(detail)*quantity(detail);
+registrationSum 'Таможенный сбор сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+registrationSum 'Таможенный сбор сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+registrationSum[InvoiceDetail](UserInvoiceDetail detail) += registrationSum(detail);
 
-overRegistrationSum 'Таможенный сбор сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
-overRegistrationSum 'Таможенный сбор сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
-overRegistrationSum(UserInvoiceDetail detail) += overRegistrationSum(detail);
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overRegistration, ' (таможенный сбор) всего');
+registrationSum(UserInvoiceDetail d) <- quantity(d) * registrationPrice(d) WHEN CHANGED(quantity(d)) OR CHANGED(registrationPrice(d));
+
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, registration, ' (таможенный сбор) всего');
 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
     registrationPrice(d) <- registrationPrice(detail); 
-    overRegistrationSum(d) <- overRegistrationSum(detail);      
+    registrationSum(d) <- registrationSum(detail);      
 } 
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, registration, ' (таможенный сбор) всего');
+
+migratedDeclarationSum = DATA BOOLEAN ();
+onStarted() += ACTION { 
+    IF NOT migratedDeclarationSum() THEN {
+        dutySum (UserInvoiceDetail detail) <- quantity(detail) * dutyPrice(detail);
+        registrationSum (UserInvoiceDetail detail) <- quantity(detail) * registrationPrice(detail);
+        migratedDeclarationSum() <- TRUE;
+    }    
+}
 
 // Проводим по инвойсу
 customCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += registrationPrice(invoiceDetail) (+) dutyPrice(invoiceDetail);
-customCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += overRegistrationSum(invoiceDetail) (+) overDutySum(invoiceDetail);
+customCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += registrationSum(invoiceDetail) (+) dutySum(invoiceDetail);
 // НДС
 VATPrice 'НДС (ед.)' = ABSTRACT NUMERIC[20,8](InvoiceDetail);
 VATPrice 'НДС (ед.)' = DATA NUMERIC[20,8](UserInvoiceDetail);
 VATPrice(UserInvoiceDetail detail) += VATPrice(detail);
 
-overCustomsVATSum 'НДС сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
-overCustomsVATSum 'НДС сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
-overCustomsVATSum(UserInvoiceDetail detail) += overCustomsVATSum(detail);
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overCustomsVAT, ' НДС (входной) всего');
+customsVATSum 'НДС сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+customsVATSum 'НДС сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+customsVATSum(UserInvoiceDetail detail) += customsVATSum(detail);
+
+customsVATSum(UserInvoiceDetail d) <- quantity(d) * VATPrice(d) WHEN CHANGED(quantity(d)) OR CHANGED(VATPrice(d));
+
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, customsVAT, ' НДС (входной) всего');
 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
     VATPrice(d) <- VATPrice(detail);
-    overCustomsVATSum(d) <- overCustomsVATSum(detail);      
+    customsVATSum(d) <- customsVATSum(detail);      
 } 
-
-customsVATSum 'Сумма НДС (входной)' (InvoiceDetail detail) = VATPrice(detail)*quantity(detail);
-customsVATSum 'Сумма НДС (входной)' (UserInvoiceDetail detail) = VATPrice(detail)*quantity(detail);
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, customsVAT, ' НДС (входной) всего');
 
 // -------------------------------- Расширение накладной свойствами декларации -------------------------- //
 
@@ -263,7 +268,7 @@ EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustoms() showDeclaration
     PROPERTIES(d) BACKGROUND backgroundCustoms() SHOWIF showDeclaration(i) BEFORE numberVAT(d)
         codeCustomsGroup, nameVATCustomsException, 
-        dutyPrice, registrationPrice, VATPrice
+        dutyPrice, dutySum, registrationPrice, registrationSum, VATPrice, customsVATSum
 ;
 DESIGN userInvoice {
     headerExtraParams {
@@ -276,7 +281,7 @@ DESIGN userInvoice {
 
 EXTEND FORM invoices
     PROPERTIES(d) READONLY BACKGROUND backgroundCustoms() SHOWIF showDeclaration(i) BEFORE numberVAT(d) FORCE GRID
-        codeCustomsGroup, nameVATCustomsException, dutyPrice, registrationPrice
+        codeCustomsGroup, nameVATCustomsException, dutyPrice, dutySum, registrationPrice, registrationSum
 ;
 
 // ------------------------------ Выбор накладных ---------------------------- //
@@ -340,7 +345,7 @@ EXTEND FORM declaration
                    nameCustoms, nameCountrySku
     PROPERTIES(id) sumNetWeight, sumGrossWeight, codeCustomsGroup, nameVATCustomsException BACKGROUND backgroundVATCustomsException(id)
     PROPERTIES(id) READONLY quantity, price
-    PROPERTIES(id) dutyPrice, registrationPrice, VATPrice
+    PROPERTIES(id) dutyPrice, dutySum, registrationPrice, registrationSum, VATPrice, customsVATSum
 
     PROPERTIES (d) selectInvoices TODRAW id FORCE PANEL TOOLBAR,
                    setCustomsGroupUserInvoiceDetail TODRAW id FORCE PANEL TOOLBAR
@@ -364,7 +369,7 @@ TABLE declarationInvoiceDetail(DeclarationInvoiceDetail);
 
 declaration = DATA Declaration (DeclarationInvoiceDetail) NOT NULL DELETE;
 
-declarationInvoiceDetail = DATA DeclarationInvoiceDetail (UserInvoiceDetail);
+declarationInvoiceDetail = DATA DeclarationInvoiceDetail (UserInvoiceDetail) INDEXED;
 
 //userInvoiceDetailDeclarationInvoiceDetail = DATA UserInvoiceDetail (DeclarationInvoiceDetail) NOT NULL DELETE;
 //userInvoiceDeclarationInvoiceDetail (d) = userInvoiceUserInvoiceDetail(userInvoiceDetailDeclarationInvoiceDetail(d));  
@@ -780,14 +785,14 @@ chargeSumRound 'Услуги (округление)' (Declaration d) = chargeSum
 
 // Пошлина
 dutySumUserInvoiceDetail 'Пошлина (по накладным)' (d) =
-    GROUP SUM quantity(UserInvoiceDetail d) * dutyPrice(d) BY declaration(d) MINCHARWIDTH 15;
+    GROUP SUM dutySum(UserInvoiceDetail d) BY declaration(d) MINCHARWIDTH 15;
 dutySumRound 'Пошлина (округление)' (Declaration d) = dutySum(d) (-) dutySumUserInvoiceDetail(d);
 
 // Таможенный сбор
 registrationSum 'Таможенный сбор' = DATA NUMERIC[16,2] (Declaration) MINCHARWIDTH 15;
 
 registrationSumUserInvoiceDetail 'Таможенный сбор (по накладным)' (d) =
-    GROUP SUM quantity(UserInvoiceDetail d) * registrationPrice(d) BY declaration(d) MINCHARWIDTH 15;
+    GROUP SUM registrationSum(UserInvoiceDetail d) BY declaration(d) MINCHARWIDTH 15;
 registrationSumRound 'Таможенный сбор (округление)' (Declaration d) = registrationSum(d) (-) registrationSumUserInvoiceDetail(d);
 
 EXTEND FORM declaration
@@ -1084,45 +1089,32 @@ DESIGN declarations {
 // Пошлина
 dutySum(d) = GROUP SUM dutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
 
-coeffDeclarationInvoiceDetail 'Удельный вес по строке' (UserInvoiceDetail d) =
-    NUMERIC[22,8](sum(d)) / sum(declarationInvoiceDetail(d));
-
 calcDutySum (UserInvoiceDetail d) =
     PARTITION UNGROUP dutySum
-              PROPORTION STRICT ROUND(8) coeffDeclarationInvoiceDetail(d)
+              PROPORTION STRICT ROUND(8) sum(d)
               BY declarationInvoiceDetail(d)
               ORDER d;
 
-calcDutyPrice 'Пошлина (ед.)' (UserInvoiceDetail d) = Utils.round(calcDutySum(d) / quantity(d),
-                                                           round(declaration(d)));
-                                                           
-coeffDeclaration 'Удельный вес' (UserInvoiceDetail d) =
-    NUMERIC[22,8](sum(d)) / sumUserInvoiceDetail(declaration(d));
-                                                               
 calcDataDutySum (UserInvoiceDetail d) =
     PARTITION UNGROUP dataDutySum
-              PROPORTION STRICT ROUND(8) coeffDeclaration(d)
+              PROPORTION STRICT ROUND(8) sum(d)
               BY declaration(d)
               ORDER d;
 
-calcDataDutyPrice 'Пошлина (ед.)' (UserInvoiceDetail d) = Utils.round(calcDataDutySum(d) / quantity(d),
-                                                           round(declaration(d)));
 // Таможенный сбор
 
 calcRegistrationSum 'Таможенный сбор' (UserInvoiceDetail d) =
     PARTITION UNGROUP registrationSum
-              PROPORTION STRICT ROUND(8) coeffDeclaration(d)
+              PROPORTION STRICT ROUND(8) sum(d)
               BY declaration(d)
               ORDER d;
 
-calcRegistrationPrice 'Таможенный сбор (ед.)' (UserInvoiceDetail d) = Utils.round(calcRegistrationSum(d) / quantity(d),
-                                                                                  round(declaration(d)));
 // НДС
 VATSum(d) = GROUP SUM VATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
 
 calcVATSum (UserInvoiceDetail d) =
     PARTITION UNGROUP VATSum
-              PROPORTION STRICT ROUND(8) coeffDeclarationInvoiceDetail(d)
+              PROPORTION STRICT ROUND(8) sum(d)
               BY declarationInvoiceDetail(d)
               ORDER d;
 
@@ -1130,81 +1122,101 @@ calcVATPrice 'НДС (ед.)' (UserInvoiceDetail d) = Utils.round(calcVATSum(d) 
                                                            round(declaration(d)));                                                                                                                                                                   
 calcDataVATSum (UserInvoiceDetail d) =
     PARTITION UNGROUP dataVATSum
-              PROPORTION STRICT ROUND(8) coeffDeclaration(d)
+              PROPORTION STRICT ROUND(8) sum(d)
               BY declaration(d)
               ORDER d;
 calcDataVATPrice 'НДС (ед.)' (UserInvoiceDetail d) = Utils.round(calcDataVATSum(d) / quantity(d),
                                                            round(declaration(d)));     
-    
+
+calcSumCustoms 'Рассчитывать пошлины на всю партию по сумме' = DATA BOOLEAN();
 notPaintRounding 'Не расписывать округления сбора, НДС, пошлины' = DATA BOOLEAN ();     
                                                                  
 EXTEND FORM options
-    PROPERTIES () notPaintRounding                                                                 
+    PROPERTIES () notPaintRounding, calcSumCustoms                                                                 
 ;  
 DESIGN options {
     customs {
         MOVE PROPERTY(notPaintRounding()); 
+        MOVE PROPERTY(calcSumCustoms()); 
     }
 }
                                                                       
-recalculateVATPriceInvoice 'Рассчитать НДС (за ед.)' = ACTION (Declaration declaration) {
-    IF NOT dataVATSum(declaration) THEN {
-        VATPrice(UserInvoiceDetail d) <- calcVATPrice(d) WHERE declaration(d) == declaration;    
-        overCustomsVATSum(UserInvoiceDetail d) <- calcVATSum(d) WHERE declaration(d) == declaration;    
-    } ELSE {
-        VATPrice(UserInvoiceDetail d) <- calcDataVATPrice(d) WHERE declaration(d) == declaration;
-        overCustomsVATSum(UserInvoiceDetail d) <- calcDataVATSum(d) WHERE declaration(d) == declaration;  
-    }
-    IF VATSumRound(declaration) AND NOT notPaintRounding() THEN {
-        LOCAL int = INTEGER();
-        int() <-0;
-        FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail d IF VATPrice(d) BY declaration(d), quantity(d), VATPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, - price DO {
-            VATPrice(d)<- Utils.round(((VATSumRound(declaration) / quantity(d)) (+) VATPrice(d)), round(declaration));
-            int()<- int() + 1;    
-            IF int() > 20 OR NOT VATSumRound(declaration) THEN BREAK; // выход
-        }
-    }    
-    
-} TOOLBAR;                                                                      
 // Расчет расходов
 recalculateDutyPriceInvoice 'Рассчитать пошлины (за ед.)' = ACTION (Declaration declaration) {
    
-    IF NOT dataDutySum(declaration) THEN {
-        dutyPrice(UserInvoiceDetail d) <- calcDutyPrice(d) WHERE declaration(d) == declaration;
-        overDutySum(UserInvoiceDetail d) <- NUMERIC[16,2](calcDutySum(d)) WHERE declaration(d) == declaration;
-    } ELSE {
-        dutyPrice(UserInvoiceDetail d) <- calcDataDutyPrice(d) WHERE declaration(d) == declaration;   
-        overDutySum(UserInvoiceDetail d) <- NUMERIC[16,2](calcDataDutySum(d)) WHERE declaration(d) == declaration;          
-    }
-    IF dutySumRound(declaration) AND NOT notPaintRounding() THEN {
-        LOCAL int = INTEGER();
-        int() <-0;
-        FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail d IF dutyPrice(d) BY declaration(d), quantity(d), dutyPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
-            dutyPrice(d)<- Utils.round(((dutySumRound(declaration) / quantity(d)) (+) dutyPrice(d)), round(declaration));
-            int()<- int() + 1;    
-            IF int() > 20 OR NOT dutySumRound(declaration) THEN BREAK; // выход
+    IF calcSumCustoms() THEN {
+        IF NOT dataDutySum(declaration) THEN {
+            dutySum(UserInvoiceDetail d) <- Utils.round(calcDutySum(d), round(declaration(d))) WHERE declaration(d) == declaration;
+        } ELSE {
+            dutySum(UserInvoiceDetail d) <- Utils.round(calcDataDutySum(d), round(declaration(d))) WHERE declaration(d) == declaration;          
+        }
+        dutyPrice(UserInvoiceDetail d) <- Utils.round(dutySum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
+    } ELSE { 
+        IF NOT dataDutySum(declaration) THEN {
+            dutyPrice(UserInvoiceDetail d) <- Utils.round(calcDutySum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
+        } ELSE {
+            dutyPrice(UserInvoiceDetail d) <- Utils.round(calcDataDutySum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;   
+        }
+        IF dutySumRound(declaration) AND NOT notPaintRounding() THEN {
+            LOCAL int = INTEGER();
+            int() <-0;
+            FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail d IF dutyPrice(d) BY declaration(d), quantity(d), dutyPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
+                dutyPrice(d) <- Utils.round(((dutySumRound(declaration) / quantity(d)) (+) dutyPrice(d)), round(declaration));
+                int()<- int() + 1;    
+                IF int() > 20 OR NOT dutySumRound(declaration) THEN BREAK; // выход
+            }
         }
     }
     
 } TOOLBAR;
 
 recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)' = ACTION (Declaration declaration) {
-    registrationPrice(UserInvoiceDetail d) <- calcRegistrationPrice(d) WHERE declaration(d) == declaration;
-    overRegistrationSum(UserInvoiceDetail d) <- NUMERIC[16,2](calcRegistrationSum(d)) WHERE declaration(d) == declaration;
     
-    IF registrationSumRound(declaration) AND NOT notPaintRounding() THEN {
-        LOCAL int = INTEGER();
-        int() <-0;
-        
-        FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail d IF registrationPrice(d) BY declaration(d), quantity(d), registrationPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
-            registrationPrice(d)<- Utils.round(((registrationSumRound(declaration) / quantity(d)) (+) registrationPrice(d)), round(declaration));
-            int()<- int() + 1;    
-            IF int() > 20 OR NOT registrationSumRound(declaration) THEN BREAK; // выход
+    IF calcSumCustoms() THEN {
+        registrationSum(UserInvoiceDetail d) <- Utils.round(calcRegistrationSum(d), round(declaration(d))) WHERE declaration(d) == declaration;
+        registrationPrice(UserInvoiceDetail d) <- Utils.round(registrationSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
+    } ELSE {    
+        registrationPrice(UserInvoiceDetail d) <- Utils.round(calcRegistrationSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
+        IF registrationSumRound(declaration) AND NOT notPaintRounding() THEN {
+            LOCAL int = INTEGER();
+            int() <-0;
+            
+            FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail d IF registrationPrice(d) BY declaration(d), quantity(d), registrationPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, -price DO {
+                registrationPrice(d)<- Utils.round(((registrationSumRound(declaration) / quantity(d)) (+) registrationPrice(d)), round(declaration));
+                int()<- int() + 1;    
+                IF int() > 20 OR NOT registrationSumRound(declaration) THEN BREAK; // выход
+            }
         }
     }
     
 } TOOLBAR;
 
+recalculateVATPriceInvoice 'Рассчитать НДС (за ед.)' = ACTION (Declaration declaration) {
+
+    IF calcSumCustoms() THEN {
+        IF NOT dataVATSum(declaration) THEN {
+            customsVATSum(UserInvoiceDetail d) <- Utils.round(calcVATSum(d), round(declaration(d))) WHERE declaration(d) == declaration;    
+        } ELSE {
+            customsVATSum(UserInvoiceDetail d) <- Utils.round(calcDataVATSum(d), round(declaration(d))) WHERE declaration(d) == declaration;  
+        }
+        VATPrice(UserInvoiceDetail d) <- Utils.round(customsVATSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;    
+    } ELSE {
+        IF NOT dataVATSum(declaration) THEN {
+            VATPrice(UserInvoiceDetail d) <- Utils.round(calcVATSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;    
+        } ELSE {
+            VATPrice(UserInvoiceDetail d) <- Utils.round(calcDataVATSum(d) / quantity(d), round(declaration(d))) WHERE declaration(d) == declaration;
+        }
+        IF VATSumRound(declaration) AND NOT notPaintRounding() THEN {
+            LOCAL int = INTEGER();
+            int() <-0;
+            FOR UserInvoiceDetail d == [ = GROUP MAX UserInvoiceDetail d IF VATPrice(d) BY declaration(d), quantity(d), VATPrice(d)](declaration, NUMERIC[16,5] quantity, NUMERIC[20,8] price) ORDER quantity, - price DO {
+                VATPrice(d)<- Utils.round(((VATSumRound(declaration) / quantity(d)) (+) VATPrice(d)), round(declaration));
+                int()<- int() + 1;    
+                IF int() > 20 OR NOT VATSumRound(declaration) THEN BREAK; // выход
+            }
+        }
+    }
+} TOOLBAR;                                                                      
 
 EXTEND FORM declaration
     PROPERTIES(d) recalculateDutyPriceInvoice TODRAW id, recalculateRegistrationPriceInvoice TODRAW id,

@@ -29,9 +29,7 @@ extraChargeSum 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice
 extraChargeSum 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice,UserInvoiceDetail);
 extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 
-calcExtraChargeSum = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (Invoice,UserInvoiceDetail);
-calcExtraChargeSum(Invoice i,UserInvoiceDetail d) += NUMERIC[16,2](round(quantity(d) * extraChargePrice(i,d), currency(i))); 
-extraChargeSum (Invoice i,UserInvoiceDetail d) <- calcExtraChargeSum(i,d)
+extraChargeSum (Invoice i,UserInvoiceDetail d) <- NUMERIC[16,2](round(quantity(d) * extraChargePrice(i,d), currency(i)))
                 WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
 extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,InvoiceDetail d) BY i;
@@ -132,22 +130,26 @@ DESIGN userInvoice {
 }
 
 
-totalGrossWeightInvoiceDetail = GROUP SUM sumGrossWeight(InvoiceDetail d) IF inExtraCharge(Invoice i,d) BY i;
-coeffGrossWeight 'Удельный вес по весу брутто' (InvoiceDetail d,Invoice i) = NUMERIC[22,8](sumGrossWeight(d)) / totalGrossWeightInvoiceDetail(i);
-
-totalSumInvoiceDetail = GROUP SUM sum(InvoiceDetail d) IF inExtraCharge(Invoice i,d) AND isNotCharge(sku(d)) AND quantity(d)>0 BY i;
-coeffSum 'Удельный вес по весу брутто' (InvoiceDetail d,Invoice i) = NUMERIC[22,8](sum(d)) / totalSumInvoiceDetail(i);
+calcChargeSum(Invoice i) = IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i);
 
 fillExtraChargePriceUser 'Расписать услуги' = ACTION (Invoice i) {
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
-            extraChargePrice(i,UserInvoiceDetail d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i), coeffGrossWeight(d,i), quantity[InvoiceDetail](d) IF quantity[InvoiceDetail](d)!=0.0 ))
-                WHERE inExtraCharge[Invoice,InvoiceDetail](i,d);
+            extraChargeSum(i, InvoiceDetail d) <- 
+                PARTITION UNGROUP calcChargeSum
+                          PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d)) 
+                          BY i;
+            extraChargePrice(i, InvoiceDetail d) <-
+                extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         
         } ELSE {
             IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraCharge(Invoice i,InvoiceDetail d) BY i, currency(d)](Invoice i,Currency c) BY i](i) >1 THEN {
-                extraChargePrice(i,UserInvoiceDetail d)<- NUMERIC[14,2]([ = X*Y/Z](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i), coeffSum(d,i), quantity[InvoiceDetail](d) IF quantity[InvoiceDetail](d)!=0.0 ))
-                    WHERE inExtraCharge[Invoice,InvoiceDetail](i,d) AND isNotCharge(sku[InvoiceDetail](d)); 
+                extraChargeSum(i, InvoiceDetail d) <- 
+                    PARTITION UNGROUP calcChargeSum
+                              PROPORTION STRICT ROUND(2) sum(d) IF inExtraCharge[Invoice, InvoiceDetail](i, d)  AND isNotCharge(sku[InvoiceDetail](d))
+                              BY i;
+                extraChargePrice(i, InvoiceDetail d) <-
+                    extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
             } ELSE {
                 MESSAGE 'Для расписывания доп. услуг пропорционально сумме выбраны накладные с разными валютами.';
             }
@@ -162,9 +164,13 @@ EXTEND FORM userInvoice
 ;
 
 calcExtraChargePrice (d) = GROUP SUM extraChargePrice(UserInvoice i,UserInvoiceDetail d) IF isPosted(i) BY d; //IF isPostedUserInvoiceDetail(d)
+calcExtraChargeSum (d) = GROUP SUM extraChargeSum(UserInvoice i,UserInvoiceDetail d) IF isPosted(i) BY d; //IF isPostedUserInvoiceDetail(d)
 
-chargePrice (UserInvoiceDetail d) <- calcExtraChargePrice(d)
-    WHEN CHANGED(calcExtraChargePrice(d));
+WHEN CHANGED(calcExtraChargePrice(UserInvoiceDetail d)) DO
+    chargePrice (d) <- calcExtraChargePrice(d);
+
+WHEN CHANGED(calcExtraChargeSum(UserInvoiceDetail d)) DO
+    chargeSum (d) <- calcExtraChargeSum(d);
     
 FORM extraChargeParams 'Параметры'
     OBJECTS o = Operation FIXED PANEL 

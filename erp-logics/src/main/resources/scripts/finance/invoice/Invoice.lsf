@@ -334,9 +334,12 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentDetailNumberVATOnChange(userInvoice, stockProp###stock);
     @defineDocumentDetailValueVATOnChange(userInvoice);
     @defineDocumentDetailInvoicePriceVATOnChange(userInvoice);
-    overPriceRound = ABSTRACT INTEGER (UserInvoiceDetail);
-    priceRound (UserInvoiceDetail detail) = OVERRIDE defaultRound(currency(detail)), overPriceRound(detail); 
-    priceRound (InvoiceDetail detail) = OVERRIDE defaultRound(currency(detail)), overPriceRound(detail); 
+    
+    priceRound = ABSTRACT CASE OVERRIDE FIRST INTEGER (InvoiceDetail);
+    priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
+
+    homePriceRound = ABSTRACT CASE OVERRIDE FIRST INTEGER (InvoiceDetail);
+    homePriceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
 
     @defineDocumentInterfacePriceListType(invoice); // объявляем вид цены
     @deriveDocumentDetailPriceListTypeAgreement(userInvoice, priceListTypePrefix); // записываем вид цены из соглашения
@@ -1151,6 +1154,9 @@ META defineInvoiceHomeCurrency(dumb)
     nameHomeCurrency 'Валюта (конв.)' (Invoice i) = name(homeCurrency(i));
 
     homeCurrency(UserInvoice userInvoice) <- currency(customer(userInvoice)) WHEN CHANGED(customer(userInvoice));
+    
+    homeCurrency(InvoiceDetail d) = homeCurrency(invoice(d));
+    homeCurrency(UserInvoiceDetail d) = homeCurrency(userInvoice(d));
 
     typeExchange = ABSTRACT TypeExchange(Invoice);
     typeExchange = DATA TypeExchange(UserInvoice);
@@ -1194,10 +1200,10 @@ META defineInvoiceHomeCurrency(dumb)
 
     homePrice(UserInvoiceDetail d) <- round(price(d) *
                                                         rateExchange(d),
-                                                        homeCurrency(userInvoice(d)))
+                                                        homeCurrency(d))
                                                    WHEN CHANGED (date(userInvoice(d))) OR
                                                         CHANGED (rateExchange(d)) OR
-                                                        CHANGED (homeCurrency(userInvoice(d))) OR
+                                                        CHANGED (homeCurrency(d)) OR
                                                         CHANGED (price(d));
 
     homeSum 'Сумма (конв.)' (InvoiceDetail d) = quantity(d) * homePrice(d);
@@ -1207,6 +1213,8 @@ META defineInvoiceHomeCurrency(dumb)
                                                                   BY invoice(d);
     homeSumUserInvoiceDetail 'Сумма (конв.)' (invoice) = GROUP SUM homeSum(UserInvoiceDetail d)
                                                                           BY userInvoice(d);
+                                                                          
+    homePriceRound(InvoiceDetail d) += WHEN isHomeCurrency(d) THEN defaultRound(homeCurrency(d));
 
     EXTEND FORM userInvoice
         PROPERTIES(i) BACKGROUND backgroundHomeCurrency(i) BEFORE nameAgreement(i)
