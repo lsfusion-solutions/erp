@@ -966,6 +966,12 @@ prevSupplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock,
 prevSupplierPricingPriceB 'Цена поставщика' (Sku sku, Stock stock, DATE date) = 
     prevSupplierPricingPriceB(sku, stock, toDateTime(date));    
 
+currentSupplierPricingPriceListLedger (Sku sku, Stock stock) =
+    currentPriceListLedger(SystemLedgerPriceListType.supplierPricingPriceListType, sku, stock) PERSISTENT TABLE extraSkuStock;
+
+currentSupplierPricingPrice 'Цена поставщика' (Sku sku, Stock stock) =
+    price[PriceListLedger,LedgerPriceListType](currentSupplierPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.supplierPricingPriceListType) PERSISTENT TABLE extraSkuStock; 
+
 retailPricingPriceB 'Розничная цена' (Sku sku, Stock stock, DATETIME dateTime) =
     priceB(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dateTime);
 retailPricingPriceB 'Розничная цена' (Sku sku, Stock stock, DATE date) = 
@@ -991,7 +997,10 @@ currentRetailPricingPriceListLedger (Sku sku, Stock stock) =
     currentPriceListLedger(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock) PERSISTENT TABLE extraSkuStock;
 
 currentRetailPricingPrice 'Розничная цена' (Sku sku, Stock stock) =
-    price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.retailPricingPriceListType); 
+    price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku, stock), SystemLedgerPriceListType.retailPricingPriceListType) PERSISTENT TABLE extraSkuStock; 
+
+currentRetailPricingDescription 'Описание' (Sku sku, Stock stock) =
+    description(currentRetailPricingPriceListLedger(sku, stock)); 
 
 retailPricingPriceA 'Розничная цена' (Sku sk, Stock st) = retailPricingPriceA(sk, st, currentDateTime());
 retailPricingSumA 'Розничная сумма' (Sku sku,Stock stock)= retailPricingPriceA(sku,stock) * currentBalance(sku,stock);
@@ -1000,9 +1009,6 @@ retailPricingDescriptionA 'Описание' (Sku sku, Stock stock, DATETIME dat
     descriptionA(SystemLedgerPriceListType.retailPricingPriceListType, sku, stock, dateTime);
 retailPricingDescriptionA 'Описание' (Sku sku, Stock stock, DATE date) = 
     retailPricingDescriptionA(sku, stock, toDateTime(date));    
-
-currentRetailPricingDescription 'Описание' (Sku sku, Stock stock) =
-    description(currentRetailPricingPriceListLedger(sku, stock)); 
 
 retailPricingDescriptionA 'Описание' (Sku sk, Stock st) = retailPricingDescriptionA(sk, st, currentDateTime()); 
 
