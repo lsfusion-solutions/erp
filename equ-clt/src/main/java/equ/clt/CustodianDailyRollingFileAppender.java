@@ -21,7 +21,7 @@ package equ.clt;
  * of the existing class so that the user can limit the number of log backups
  * and compress the backups to conserve disk space.
  *
- * @author Ryan Kimber
+ * @author Ryan Kimber (some changes made for lsfusion)
  * <p/>
  * Licensed to the Apache Software Foundation (ASF) under one or more
  * contributor license agreements.  See the NOTICE file distributed with
@@ -143,13 +143,9 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
             printPeriodicity(type);
             rc.setType(type);
             File file = new File(fileName);
-            scheduledFilename = fileName
-                    + sdf.format(new Date(file.lastModified()));
-
+            scheduledFilename = fileName + sdf.format(new Date(file.lastModified()));
         } else {
-            LogLog
-                    .error("Either File or DatePattern options are not set for appender ["
-                            + name + "].");
+            LogLog.error("Either File or DatePattern options are not set for appender [" + name + "].");
         }
     }
 
@@ -159,23 +155,19 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
                 LogLog.debug("Appender [" + name + "] to be rolled every minute.");
                 break;
             case TOP_OF_HOUR:
-                LogLog.debug("Appender [" + name
-                        + "] to be rolled on top of every hour.");
+                LogLog.debug("Appender [" + name + "] to be rolled on top of every hour.");
                 break;
             case HALF_DAY:
-                LogLog.debug("Appender [" + name
-                        + "] to be rolled at midday and midnight.");
+                LogLog.debug("Appender [" + name + "] to be rolled at midday and midnight.");
                 break;
             case TOP_OF_DAY:
                 LogLog.debug("Appender [" + name + "] to be rolled at midnight.");
                 break;
             case TOP_OF_WEEK:
-                LogLog.debug("Appender [" + name
-                        + "] to be rolled at start of week.");
+                LogLog.debug("Appender [" + name + "] to be rolled at start of week.");
                 break;
             case TOP_OF_MONTH:
-                LogLog.debug("Appender [" + name
-                        + "] to be rolled at start of every month.");
+                LogLog.debug("Appender [" + name + "] to be rolled at start of every month.");
                 break;
             default:
                 LogLog.warn("Unknown periodicity for appender [" + name + "].");
@@ -192,14 +184,12 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
     // GMT (the epoch).
 
     int computeCheckPeriod() {
-        RollingCalendar rollingCalendar = new RollingCalendar(gmtTimeZone,
-                Locale.ENGLISH);
+        RollingCalendar rollingCalendar = new RollingCalendar(gmtTimeZone, Locale.ENGLISH);
         // set sate to 1970-01-01 00:00:00 GMT
         Date epoch = new Date(0);
         if (datePattern != null) {
             for (int i = TOP_OF_MINUTE; i <= TOP_OF_MONTH; i++) {
-                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(
-                        datePattern);
+                SimpleDateFormat simpleDateFormat = new SimpleDateFormat(datePattern);
                 simpleDateFormat.setTimeZone(gmtTimeZone); // do all date
                 // formatting in GMT
                 String r0 = simpleDateFormat.format(epoch);
@@ -207,7 +197,7 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
                 Date next = new Date(rollingCalendar.getNextCheckMillis(epoch));
                 String r1 = simpleDateFormat.format(next);
                 // System.out.println("Type = "+i+", r0 = "+r0+", r1 = "+r1);
-                if (r0 != null && r1 != null && !r0.equals(r1)) {
+                if (!r0.equals(r1)) {
                     return i;
                 }
             }
@@ -247,8 +237,7 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
         if (result) {
             LogLog.debug(fileName + " -> " + scheduledFilename);
         } else {
-            LogLog.error("Failed to rename [" + fileName + "] to ["
-                    + scheduledFilename + "].");
+            LogLog.error("Failed to rename [" + fileName + "] to [" + scheduledFilename + "].");
         }
 
         try {
@@ -281,6 +270,7 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
             }
         }
         super.subAppend(event);
+        System.out.print(layout.format(event));
     }
 
     public String getCompressBackups() {
@@ -306,40 +296,43 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
      * required.
      */
     protected void cleanupAndRollOver() throws IOException {
+        rollOver();
+
+        Date cutoffDate = getCutoffDate();
+
         // Check to see if there are already max files
         File file = new File(fileName);
-        Calendar cal = Calendar.getInstance();
-        int maxDays = 7;
-        try {
-            maxDays = Integer.parseInt(getMaxNumberOfDays());
-        } catch (Exception e) {
-            // just leave it at 7.
-        }
-        cal.add(Calendar.DATE, -maxDays);
-        Date cutoffDate = cal.getTime();
         if (file.getParentFile().exists()) {
-            File[] files = file.getParentFile().listFiles(
-                    new StartsWithFileFilter(file.getName(), false));
+            File[] files = file.getParentFile().listFiles(new StartsWithFileFilter(file.getName(), false));
             int nameLength = file.getName().length();
-            for (int i = 0; i < files.length; i++) {
-                String datePart = null;
+            for (File f : files) {
+                String datePart;
                 try {
-                    datePart = files[i].getName().substring(nameLength);
+                    datePart = f.getName().substring(nameLength);
                     Date date = sdf.parse(datePart);
                     if (date.before(cutoffDate)) {
-                        files[i].delete();
+                        f.delete();
                     }
                     //If we're supposed to zip files and this isn't already a zip
                     else if (getCompressBackups().equalsIgnoreCase("YES") || getCompressBackups().equalsIgnoreCase("TRUE")) {
-                        zipAndDelete(files[i]);
+                        zipAndDelete(f);
                     }
                 } catch (Exception pe) {
-                    // This isn't a file we should touch (it isn't named
-                    // correctly)
+                    // This isn't a file we should touch (it isn't named correctly)
                 }
             }
         }
-        rollOver();
+    }
+
+    private Date getCutoffDate() {
+        int maxDays = 7;
+        try {
+            maxDays = Integer.parseInt(getMaxNumberOfDays());
+        } catch (Exception ignored) {
+        }
+        Calendar cal = Calendar.getInstance();
+        cal.add(Calendar.DATE, -maxDays);
+        return cal.getTime();
     }
 
     /**
@@ -392,10 +385,7 @@ public class CustodianDailyRollingFileAppender extends FileAppender {
          * @see java.io.FileFilter#accept(java.io.File)
          */
         public boolean accept(File pathname) {
-            if (!inclDirs && pathname.isDirectory()) {
-                return false;
-            } else
-                return pathname.getName().toUpperCase().startsWith(startsWith);
+            return !(!inclDirs && pathname.isDirectory()) && pathname.getName().toUpperCase().startsWith(startsWith);
         }
     }
 }
