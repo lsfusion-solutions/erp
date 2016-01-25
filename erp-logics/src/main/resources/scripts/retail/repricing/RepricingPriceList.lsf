@@ -29,6 +29,7 @@ assignAttributeSku = ABSTRACT ACTION (Stock, Operation, DATETIME);
 
 skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME); 
 
+overSetMarkupManagementRetailPrice = ABSTRACT ACTION LIST(DepartmentStore, Operation, DATETIME);
 overSetManagementRetailPrice = ABSTRACT ACTION LIST (DepartmentStore, DATETIME);
 
 includeExtraDashboardRepricing = ABSTRACT ACTION (Stock, DATETIME);
@@ -38,12 +39,14 @@ calculateDashboardRepricing 'По надбавкам и прайсам' = ACTION
         IF onStockPriceListRepricing() THEN {
             managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)),
                                                                                       sku, d, dt) IF inSession(skuGroup(sku));
+            overSetMarkupManagementRetailPrice(d, o, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
                 IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
             managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)),
                                                                                       sku, d, dt) IF currentBalance(sku, d) > 0 AND inSession(skuGroup(sku));
+            overSetMarkupManagementRetailPrice(d, o, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
