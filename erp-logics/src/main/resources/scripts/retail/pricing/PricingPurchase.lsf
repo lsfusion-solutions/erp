@@ -59,7 +59,7 @@ roundCondition(UserInvoiceDetail d) =  IF overRoundCondition(d)
 @defineInvoicePricingAggregation(invoice, Invoice, ' (закупка)', 'Акт расценки на основе накладной', 'Проведенный акт расценки на основе накладной', customer, );
 
 // Записываем в вид цены управленческий вид цены, если по нему есть цена, иначе - надбавку
-extraCalcRetailCalcPriceListType= ABSTRACT CalcPriceListType(UserInvoiceDetail);
+extraCalcRetailCalcPriceListType = ABSTRACT CASE OVERRIDE FIRST CalcPriceListType (UserInvoiceDetail);
 
 skipSetRetailPriceListType = ABSTRACT BOOLEAN (UserInvoiceDetail);
 WHEN SESSION FORMS userInvoice
@@ -70,12 +70,9 @@ WHEN SESSION FORMS userInvoice
      (CHANGED(pricingDateTime(detail)) AND NOT isPosted(detail))) 
      AND PriceListType pt == calcRetailPriceListType(detail)
      AND NOT skipSetRetailPriceListType(detail) NOINLINE (pt) DO
-     retailPriceListType(detail) <- IF prevPriceB(pt,
-                                                                                                sku(detail),
-                                                                                                customerStock(detail),
-                                                                                                pricingDateTime(detail))
-                                                        THEN pt
-                                                        ELSE OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);
+     retailPriceListType(detail) <- IF prevPriceB(pt, sku(detail), customerStock(detail), pricingDateTime(detail))
+                                        THEN pt
+                                        ELSE OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);
 
 WHEN SESSION FORMS userInvoice
     (CHANGED(calcRetailPriceListType(UserInvoiceDetail detail)) OR
