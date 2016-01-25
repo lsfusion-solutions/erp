@@ -903,8 +903,7 @@ META defineItemFilterValue(object, captionProp, o)
         OBJECTS gg = ItemGroup FIXED PANEL
     
         OBJECTS t= ###object
-        PROPERTIES(t) name READONLY, deletet = DELETE FORCE PANEL TOOLBAR
-        PROPERTIES(t) EDITFORM
+        PROPERTIES(t) name READONLY
         ORDER BY name(t)
     ;
     DESIGN object##s###session { main{ preferredSize = (600, 400); } }    
@@ -914,21 +913,24 @@ META defineItemFilterValue(object, captionProp, o)
         IF formResult() == FormResult.ok THEN {
             LOCAL loc = ###object();
             loc() <- NULL;
-            IF object##Name(chosenString('v')) THEN {
-                dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(chosenString('v'));
-            } ELSE {
-                FOR ADDOBJ p = ###object DO {
-                    name(p) <- chosenString('v');
-                    dataIn(p, gg) <- TRUE;
-                    loc() <- p;
+            NEWSESSION NESTED chosenString, loc {
+                IF object##Name(chosenString('v')) THEN {
+                    dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(chosenString('v'));
+                } ELSE {
+                    FOR ADDOBJ p = ###object DO {
+                        name(p) <- chosenString('v');
+                        dataIn(p, gg) <- TRUE;
+                        loc() <- p;
+                    }
                 }
+                APPLY NESTED LOCAL {};
             }
             SEEK object##s###session.t (IF object##Name(chosenString('v')) THEN object##Name(chosenString('v')) ELSE loc());
         }
     } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
     
     EXTEND FORM object##s###session
-        PROPERTIES add###object(gg) FORCE PANEL TOOLBAR TODRAW t
+        PROPERTIES add###object(gg) FORCE PANEL TOOLBAR TODRAW t, EDITFORM(t), deletet = DELETE(t) FORCE PANEL TOOLBAR
     ; 
     
     change###object = ACTION (Item i) {
