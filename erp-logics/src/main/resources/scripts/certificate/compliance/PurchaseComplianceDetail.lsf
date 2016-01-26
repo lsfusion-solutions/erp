@@ -67,24 +67,23 @@ compliancePrice 'Сертификация (ед.)' = ABSTRACT NUMERIC[14,2](Invo
 compliancePrice 'Сертификация (ед.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
 compliancePrice(UserInvoiceDetail detail) += compliancePrice(detail);
 
-overComplianceSum 'Сертификация сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
-overComplianceSum 'Сертификация сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
-overComplianceSum(UserInvoiceDetail detail) += overComplianceSum(detail);
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, overCompliance, ' (сертификация) всего');
-                                                                
-complianceSum 'Сертификация' (UserInvoiceDetail d) = quantity(d) * compliancePrice(d);
-complianceSum 'Сертификация' (InvoiceDetail d) = quantity(d) * compliancePrice(d);
+complianceSum 'Сертификация сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
+complianceSum 'Сертификация сумма' = DATA NUMERIC[16,2](UserInvoiceDetail);
+complianceSum(UserInvoiceDetail detail) += complianceSum(detail);
 
+complianceSum(UserInvoiceDetail d) <- quantity(d) * compliancePrice(d) WHEN CHANGED(quantity(d)) OR CHANGED(compliancePrice(d));
+
+@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, compliance, ' (сертификация) всего');
+                                                                
 certificateCostPrice[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += compliancePrice(invoiceDetail);
-certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += overComplianceSum(invoiceDetail);
+certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += complianceSum(invoiceDetail);
 
 complianceSumUserInvoiceDetail 'Сертификация' = GROUP SUM complianceSum(UserInvoiceDetail d)
                                                                 BY compliance(d) MINCHARWIDTH 15 PERSISTENT;
-@defineDocumentInterfaceHeaderSumCustomPrefix (invoice, invoiceDetail, compliance, ' (сертификация) всего');
                                                                 
 overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
     compliancePrice(d) <- compliancePrice(detail);
-    overComplianceSum(d) <- overComplianceSum(detail);
+    complianceSum(d) <- complianceSum(detail);
 }                                                                 
 
 // ----------------------------- Расширение формы инвойсов под сертификацию ------------------------- //
@@ -153,7 +152,7 @@ EXTEND FORM compliance
     PROPERTIES(id) READONLY seriesNumber[InvoiceDetail], idBarcodeSku, nameSku,
                             quantity, price, homePrice, homeSum
     PROPERTIES(id) BACKGROUND backgroundCompliance()
-                            nameComplianceGroup, compliancePrice
+                            nameComplianceGroup, compliancePrice, complianceSum
 
     FILTERS compliance(id) == c
 ;
@@ -211,11 +210,9 @@ calcComplianceSum 'Сертификация' (UserInvoiceDetail d) =
               BY compliance(d)
               ORDER d;
 
-calcCompliancePrice 'Сертификация (ед.)' (UserInvoiceDetail d) = Utils.round(calcComplianceSum(d) / quantity(d), 2);
-
 recalculatePriceInvoice 'Рассчитать расходы (за ед.)' = ACTION (Compliance compliance) {
-    compliancePrice(UserInvoiceDetail d) <- calcCompliancePrice(d) WHERE compliance(d) == compliance;
-    overComplianceSum(UserInvoiceDetail d) <- NUMERIC[16,2](calcComplianceSum(d)) WHERE compliance(d) == compliance;
+    complianceSum(UserInvoiceDetail d) <- NUMERIC[16,2](calcComplianceSum(d)) WHERE compliance(d) == compliance;
+    compliancePrice(UserInvoiceDetail d) <- complianceSum(d) / quantity(d) WHERE compliance(d) == compliance;
 } TOOLBAR;
 
 
