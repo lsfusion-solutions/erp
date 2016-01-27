@@ -435,20 +435,23 @@ FORM itemOptions 'Настройка атрибутов'
     PROPERTIES staticIA= staticCaption(ia)
     
     TREE treeGroups tg=ItemGroup PARENT parent
-    PROPERTIES READONLY order(tg), name(tg)
+    PROPERTIES (tg) READONLY order, id SHOWIF showIDs(), name
     ORDER BY order(tg), name(tg)    
     
     OBJECTS ia1 = ItemAttribute
-    PROPERTIES staticIA1= staticCaption(ia1)    
+    PROPERTIES staticIA1= staticCaption(ia1)   
+    FILTERGROUP filterA1
+        FILTER 'Все' staticCaption(ia1) 
 ;
 
 DESIGN itemOptions {
-    NEW itemSplit {
+    NEW itemTab {
         fill = 1;
-        type = SPLITV;
-        MOVE ia.box;
+        type = TABBED;
+        MOVE ia.box {caption = 'Общие';};
         NEW items1 {
             fill = 1;
+            caption = 'Для групп';
             type = SPLITH;
             MOVE treeGroups.tree.box;
             MOVE ia1.box;
@@ -672,9 +675,13 @@ META defineItemAttributeName (prefix, caption, group)
                                   IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item)](item)),
                             overName(item)
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
+    
+    background###prefix (ItemAttribute a, ItemGroup g) = RGB(203,203,206) IF numberInName###prefix(a, g) AND NOT numberInName###prefix(a, g) == dataNumberInName###prefix(a,g);   
     EXTEND FORM itemOptions 
         PROPERTIES(ia) numberInName###prefix
-        PROPERTIES(ia1, tg) numberInName###prefix
+        PROPERTIES(ia1, tg) numberInName###prefix BACKGROUND background###prefix(ia1, tg)
+        EXTEND FILTERGROUP filterA1
+            FILTER 'В наименовании'##caption numberInName###prefix(ia1, tg)  
     ;
 END
 
@@ -1580,24 +1587,24 @@ DESIGN itemGroup {
 overCopy = ABSTRACT ACTION LIST (Item, Item);
 overCopyItem = ABSTRACT ACTION LIST (Barcode, Barcode, Sku);
 
-copyDataItem = ACTION (Sku item, Sku i) {
+copyDataItem(Item item, Item i) = ACTION  {
     itemGroup(i) <- itemGroup(item);
     caption(i) <- caption(item);
     originalCaption(i) <- originalCaption(item);
-    UOM[Item](i) <- UOM[Item](item);
+    UOM(i) <- UOM(item);
     brand(i) <- brand(item);
     manufacturer(i) <- manufacturer(item);
-    composition[Item](i) <- composition[Item](item);
+    composition(i) <- composition(item);
     originalComposition(i) <- originalComposition(item);
-    netWeight[Item](i) <- netWeight[Item](item);
-    grossWeight[Item](i) <- grossWeight[Item](item);
-    country[Item](i) <- country[Item](item);
+    netWeight(i) <- netWeight(item);
+    grossWeight(i) <- grossWeight(item);
+    country(i) <- country(item);
     dataImage(i) <- dataImage(item);
-    skuType[Item](i) <- skuType[Item](item);
-    split[Item](i) <- split[Item](item);
-    inactive[Item](i) <- inactive[Item](item);
-    expiryDays[Item](i) <- expiryDays[Item](item);
-    expiryMonth[Item](i) <- expiryMonth[Item](item);
+    skuType(i) <- skuType(item);
+    split(i) <- split(item);
+    inactive(i) <- inactive(item);
+    expiryDays(i) <- expiryDays(item);
+    expiryMonth(i) <- expiryMonth(item);
 
     FOR sku(Barcode barcode) == item DO {
         FOR ADDOBJ b = Barcode DO {
@@ -1617,7 +1624,7 @@ copyDataItem = ACTION (Sku item, Sku i) {
     EXEC overCopy(item, i);
 }
 
-copy 'Копировать' = ACTION (Item item) {
+copy 'Копировать' (Item item)= ACTION  {
     IF (item IS Item) THEN {
         NEWSESSION NESTED addedSku[] {
             FOR ADDOBJ i = Item DO {
@@ -1631,7 +1638,7 @@ copy 'Копировать' = ACTION (Item item) {
     }
 } EDITKEY 'F5' TOOLBAR;
 
-copyItems 'Копировать' = ACTION (Item item) {
+copyItems 'Копировать' (Item item) = ACTION {
     copy(item);
     IF (addedSku()) THEN {
         SEEK items.i addedSku();
@@ -1643,7 +1650,7 @@ DESIGN items { PROPERTY(copyItems(i)) { focusable = FALSE; } }
 
 copy(Item sku) += ACTION copy(sku);
 
-createItemBarcode = ACTION (STRING[15] barcode, DATE date) NEWSESSION {
+createItemBarcode (STRING[15] barcode, DATE date)= ACTION NEWSESSION {
 
     LOCAL copy = BOOLEAN();
     IF skuAdded(currentUser()) IS Item THEN {
@@ -1706,7 +1713,7 @@ DESIGN confirmReplaceItem {
     MOVE functions.box;
 }
 
-replace 'Объединить' = ACTION (Item item) {
+replace 'Объединить' (Item item)= ACTION {
     FORM confirmReplaceItem OBJECTS i=item MODAL;
     IF formResult() == FormResult.ok THEN {
         allowReplaceItem() <- TRUE;
@@ -1727,12 +1734,12 @@ replace 'Объединить' = ACTION (Item item) {
     }   
 } CONFIRM;
 
-changeGroupItem 'Изменить группу' = ACTION (){
+changeGroupItem 'Изменить группу' () = ACTION {
     FORM dialogItemGroups MODAL;
 
     IF formResult() == FormResult.ok THEN {
         FOR in(Item i) DO{
-            ASSIGN itemGroup(i) <- chosenObject('g');
+            itemGroup(i) <- chosenObject('g');
         }
     }
 }
@@ -1805,7 +1812,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupTyp
 
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
-loadDefaultItemGroup 'Добавить группы товаров' = ACTION (VARISTRING[250] iname, VARSTRING[100] id) {
+loadDefaultItemGroup 'Добавить группы товаров' (VARISTRING[250] iname, VARSTRING[100] id) = ACTION {
     FOR ADDOBJ g = ItemGroup DO {
         name(g) <- iname;
         id(g) <- id;
@@ -1817,7 +1824,7 @@ loadDefaultItemGroup 'Добавить группы товаров' = ACTION (VA
     }
 }
 
-loadDefaultItemGroups 'Загрузить стандарные группы товаров' () = ACTION () {
+loadDefaultItemGroups 'Загрузить стандарные группы товаров' () = ACTION {
     loadDefaultItemGroup('Все','Все');    
 
 } IN loadDefault;
