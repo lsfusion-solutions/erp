@@ -318,9 +318,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     @defineDocumentInterfaceHeaderItemSum (invoice, shipment, shipment);
     @defineDocumentInterfaceHeaderItemSumDouble (invoice, range, shipment, shipment, , VAT);
     @defineDocumentInterfaceHeaderTimePrefix(Invoice, shipment, ' поставки');
-    shipmentDate(UserInvoice i) <- date(i) WHEN CHANGED(date(i));
-    shipmentTime(UserInvoice i) <- time(i) WHEN CHANGED(time(i));
     shipmentDate[Invoice.Invoice](Invoice i) += shipmentDate(i);
+
+    shipmentDate(UserInvoice i) <- date(i) WHEN CHANGED(date(i));
+    shipmentTime(UserInvoice i) <- (IF shipmentDate(i) > date(i) THEN (IF shipmentDate(i) > currentDate() THEN 00:00 ELSE currentTime()) ELSE time(i)) WHEN CHANGED(time(i)) OR CHANGED(shipmentDate(i));
     
     @defineDocumentInterfaceDetailTimePrefix(invoice, InvoiceDetail, shipment,' поставки');
     @defineDocumentInterfaceDetailExpiryDate(invoice);
