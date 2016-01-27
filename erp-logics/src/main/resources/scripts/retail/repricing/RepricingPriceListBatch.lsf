@@ -5,32 +5,15 @@ REQUIRE RepricingPriceList, RepricingPriceLimitFixed;
 NAMESPACE Repricing;
 
 managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NESTED NUMERIC[14,2] (Batch);
-managementPriceListPrice = DATA LOCAL NESTED NUMERIC[14,2] (Batch); 
 inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Batch); 
 //assignAttributeBatch = ABSTRACT ACTION (Stock, Operation, DATETIME);
 
-skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Batch, Stock, DATETIME); 
-
-
 calculateDashboardManagementRepricingBatch 'По прайсам' = ACTION (Stock d, Operation o, DATETIME dt) {
     managementRetailPrice(Batch batch) <- NULL;
-    IF onStockPriceListRepricing() THEN {
-        managementPriceListPrice (Batch batch) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt)
-            IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt);
-        managementRetailPrice(Batch batch) <- managementPriceListPrice(batch) WHERE managementPriceListPrice(batch);
-    } ELSE {
-        managementPriceListPrice (Batch batch) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt) 
-            IF currentBalance(batch, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),batch, d, dt);
-        managementRetailPrice(Batch batch) <- managementPriceListPrice(batch) WHERE managementPriceListPrice(batch);
-    }
+    managementRetailPrice(Batch batch) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)), batch, d, dt) 
+        WHERE currentBalance(batch, d) > 0 AND skipRepricing(sku(batch), d); // Берем только те товары, которые исключили из переоценки по товарам
     
-//    overSetManagementRetailPriceDepartmentStoreDateTime(d, dt);
-    
-    inDashboardRepricing(Batch batch) <- managementRetailPrice(batch) != priceABatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt) 
-                                            AND skipRepricing(sku(batch), d) AND currentBalance(batch, d) > 0; // Берем только те товары, которые исключили из переоценки по товарам
-//    includeExtraDashboardRepricingStockDateTime(d, dt);
-    
-//    assignAttributeBatch(d, o, dt);    
+    inDashboardRepricing(Batch batch) <- managementRetailPrice(batch) != priceABatch(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt); 
     formRefresh();
 } TOOLBAR;
 
