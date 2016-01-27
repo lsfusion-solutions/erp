@@ -873,21 +873,27 @@ META defineOrderBatchDialog(dumb)
 END
 
 META defineOrderBatchDialogStock(stockProp, dialog)
-    changeBatch = ACTION (UserOrderDetail userOrderDetail) {
-        FORM dialogBatchStock##dialog OBJECTS st = stockProp(userOrderDetail),
-                                      t = dateTime(userOrderDetail),
-                                      sk = sku(userOrderDetail) DIALOG SHOWDROP;
-
+    changeBatch = ACTION (UserOrderDetail d) {
+        IF batch(d) THEN {
+            FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
+                                     t = dateTime(d),
+                                     sk = sku(d),
+                                     bt = batch(d) DIALOG SHOWDROP;        
+        } ELSE {
+            FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
+                                     t = dateTime(d),
+                                     sk = sku(d) DIALOG SHOWDROP;        
+        }
         IF formResult() == FormResult.ok THEN {
-            ASSIGN batch(userOrderDetail) <- chosenObject('bt');
+            ASSIGN batch(d) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batch(userOrderDetail) <- NULL;
+            ASSIGN batch(d) <- NULL;
         }
 
     };
 
     EXTEND FORM userOrder
-        PROPERTIES (d) SHOWIF showBatch[Order](o) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d)
+        PROPERTIES (d) SHOWIF showBatch(o) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d)
     ;
     EXTEND FORM orders PROPERTIES (d) READONLY SHOWIF showBatch(o) nameBatch AFTER shortNameUOMSku(d);
 END
