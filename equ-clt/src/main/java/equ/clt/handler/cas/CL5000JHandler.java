@@ -3,10 +3,7 @@ package equ.clt.handler.cas;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.Dispatch;
 import com.jacob.com.Variant;
-import equ.api.MachineryInfo;
-import equ.api.SendTransactionBatch;
-import equ.api.SoftCheckInfo;
-import equ.api.StopListInfo;
+import equ.api.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
@@ -21,9 +18,9 @@ import java.util.*;
 public class CL5000JHandler extends ScalesHandler {
 
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
 
-    static ActiveXComponent activeXComponent;
-    static Dispatch dispatch;
+    Integer idDepartment = 1;
 
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
@@ -32,7 +29,11 @@ public class CL5000JHandler extends ScalesHandler {
 
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
+        ActiveXComponent activeXComponent = null;
+        Dispatch dispatch = null;
+
         try {
+
             activeXComponent = new ActiveXComponent("ForCas2.ForCas");
             dispatch = activeXComponent.getObject();
 
@@ -54,24 +55,27 @@ public class CL5000JHandler extends ScalesHandler {
                             List<ScalesInfo> enabledScalesList = getEnabledScalesList(transaction, succeededScalesList);
                             String errors = "";
 
-                            processTransactionLogger.info("CL5000J: Starting sending to " + enabledScalesList.size() + " scale(s)...");
+                            processTransactionLogger.info("CL5000J: Starting sending to " + enabledScalesList.size() + " scales...");
                             for (ScalesInfo scales : enabledScalesList) {
+
+                                processTransactionLogger.info("CL5000J: Sending to scales # " + scales.number);
 
                                 UDPPort port = new UDPPort(scales.port, 20304, 5000);
 
                                 port.open();
 
-                                connect(scales.port);
+                                connect(dispatch, scales.port);
 
                                     if(transaction.snapshot) {
                                         Dispatch.call(dispatch, "DeletePluAll");
-                                        waitForExecution(scales.port);
+                                        waitForExecution(dispatch, scales.port);
                                     }
 
                                     int count = 0;
                                     for(ScalesItemInfo item : transaction.itemsList) {
 
-                                        String message = "0001" + //Отдел №
+                                        processTransactionLogger.info("CL5000J: Sending item " + item.idBarcode);
+                                        String message = fillZeroes(idDepartment, 4) + //Отдел №
                                                 fillZeroes(item.pluNumber == null ? item.idBarcode : item.pluNumber, 6) + //Товар №
                                                 "01" + //Тип товара
                                                 "00" + //Масса для цены
@@ -104,10 +108,10 @@ public class CL5000JHandler extends ScalesHandler {
                                                 fillSpaces(substr(item.name, 0, 40), 54) + //Plu name1
                                                 fillSpaces(substr(item.name, 40, 80), 54) + //Plu name2
                                                 fillSpaces("", 30) + //Name3
-                                                trim(item.description, "", 300);/* "Прямое сообщение"*/; //Direct ingredient
+                                                trim(item.description, "", 300);/* "Прямое сообщение"*/;
 
                                         if(!checkErrors(Dispatch.call(dispatch, "AddPlu", message), false)) {
-                                            errors += "CL5000J: Failed to load item " + item.idItem + "\n";
+                                            errors += "CL5000J: Failed to load item " + item.idBarcode + "\n";
                                         }
                                         count++;
                                         if (count >= 50) {
@@ -147,18 +151,18 @@ public class CL5000JHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    private void waitForExecution(String ip) {
+    private void waitForExecution(Dispatch dispatch, String ip) {
         Integer state = null;
         while (state == null || (state != 1 && state != 55 && state != 99)) {
             try {
                 Thread.sleep(5000);
             } catch (InterruptedException ignored) {
             }
-            state = activeXComponent.getProperty("State").getInt();
+            state = ((ActiveXComponent) dispatch).getProperty("State").getInt();
         }
         //После очистки выставляется статус 99 - disconnect
         if (state == 99)
-            connect(ip);
+            connect(dispatch, ip);
     }
 
     private String fillZeroes(Object value, int length) {
@@ -208,7 +212,7 @@ public class CL5000JHandler extends ScalesHandler {
         } else return true;
     }
 
-    private void connect(String ip) {
+    private void connect(Dispatch dispatch, String ip) {
         Dispatch.call(dispatch, "Connection", new Variant(ip), new Variant(20304), new Variant(1), new Variant(5010));
     }
 
@@ -220,6 +224,63 @@ public class CL5000JHandler extends ScalesHandler {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
 
+        ActiveXComponent activeXComponent = null;
+        Dispatch dispatch = null;
+
+        try {
+            activeXComponent = new ActiveXComponent("ForCas2.ForCas");
+            dispatch = activeXComponent.getObject();
+
+            Variant result = Dispatch.call(dispatch, "Init");
+            if(checkErrors(result, true)) {
+
+                if (stopListInfo != null && !stopListInfo.exclude) {
+
+                    processStopListLogger.info("CL5000J: Send StopList # " + stopListInfo.number);
+
+                    if (!machineryInfoList.isEmpty()) {
+
+                        for (MachineryInfo scales : machineryInfoList) {
+
+                            try {
+
+                                if (scales.port != null) {
+
+                                    processStopListLogger.info("CL5000J: Sending StopList to scale # " + scales.number);
+
+                                    UDPPort port = new UDPPort(scales.port, 20304, 5000);
+
+                                    port.open();
+
+                                    connect(dispatch, scales.port);
+
+                                    for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+
+                                        processStopListLogger.error("CL5000J: Senging StopList - Deleting item " + item.idBarcode);
+                                        if (!checkErrors(Dispatch.call(dispatch, "DeletePlu", idDepartment, fillZeroes(item.pluNumber == null ? item.idBarcode : item.pluNumber, 6)), false)) {
+                                            processStopListLogger.error("CL5000J: Failed to delete item " + item.idBarcode);
+                                        }
+                                    }
+                                }
+
+                            } catch (Exception e) {
+                                processStopListLogger.error(String.format("CL5000J: Send StopList %s to scales %s error", stopListInfo.number, scales.number), e);
+                            }
+                        }
+                    }
+                }
+            }
+        } catch (UnsatisfiedLinkError e) {
+            processStopListLogger.error(String.format("CL5000J: Send StopList %s error", stopListInfo.number), e);
+        } finally {
+            if (dispatch != null) {
+                Dispatch.call(dispatch, "DisconnectAll");
+                Dispatch.call(dispatch, "DeInit");
+                dispatch.safeRelease();
+            }
+            if (activeXComponent != null)
+                activeXComponent.safeRelease();
+        }
     }
 
     @Override
