@@ -130,15 +130,15 @@ DESIGN userInvoice {
 }
 
 
-calcChargeSum(Invoice i) = IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i);
+calcChargeSum(Invoice i) = NUMERIC[16,2](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
 fillExtraChargePriceUser 'Расписать услуги' = ACTION (Invoice i) {
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
             extraChargeSum(i, UserInvoiceDetail d) <- 
                 PARTITION UNGROUP calcChargeSum
-                          PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d)) 
-                          BY i;
+                                    PROPORTION STRICT ROUND(2) sumGrossWeight(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d)) 
+                                    BY i;
             extraChargePrice(i, UserInvoiceDetail d) <-
                 extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         
@@ -146,8 +146,8 @@ fillExtraChargePriceUser 'Расписать услуги' = ACTION (Invoice i) 
             IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraCharge(Invoice i,InvoiceDetail d) BY i, currency(d)](Invoice i,Currency c) BY i](i) >1 THEN {
                 extraChargeSum(i, UserInvoiceDetail d) <- 
                     PARTITION UNGROUP calcChargeSum
-                              PROPORTION STRICT ROUND(2) sum(d) IF inExtraCharge[Invoice, InvoiceDetail](i, d)  AND isNotCharge(sku[InvoiceDetail](d))
-                              BY i;
+                                      PROPORTION STRICT ROUND(2) sum(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
+                                      BY i;
                 extraChargePrice(i, UserInvoiceDetail d) <-
                     extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
             } ELSE {
