@@ -417,19 +417,16 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     lastBatchExpiryDate 'Срок годности последней партии' (Sku sku, Stock stock) = expiryDate(lastOrderBatch(sku, stock));
 
     batchLastManufactureDate (sku, stock)  =
-        GROUP LAST Batch batch
+        GROUP LAST manufactureDate(Batch batch)
               BY skuLedger(batch, Stock stock), stock
               ORDER order(batch)
               WHERE manufactureDate(batch) COMPLEX;
               
     batchLastExpiryDate (sku, stock)  =
-        GROUP LAST Batch batch
+        GROUP LAST expiryDate(Batch batch)
               BY skuLedger(batch, Stock stock), stock
               ORDER order(batch)
               WHERE expiryDate(batch) COMPLEX;    
-              
-    overLastManufactureDate 'Последняя дата изготовления' (Sku sku, Stock stock) = manufactureDate(batchLastManufactureDate(sku, stock));
-    overLastExpiryDate 'Последний срок годности' (Sku sku, Stock stock) = expiryDate(batchLastExpiryDate(sku, stock));
     
     useFillBatchProperty 'Использовать последние: срок годности, дату и время изготовления' = DATA BOOLEAN ();
     EXTEND FORM options
@@ -441,10 +438,10 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
         }
     }
     lastManufactureDate 'Дата изготовления' (Sku sku, Stock stock) = IF useFillBatchProperty() 
-        THEN manufactureDate(batchLastManufactureDate(sku, stock))
+        THEN batchLastManufactureDate(sku, stock)
         ELSE manufactureDate(lastOrderBatch(sku, stock));
     lastExpiryDate 'Срок годности (дата)' (Sku sku, Stock stock) = IF useFillBatchProperty()
-        THEN expiryDate(batchLastExpiryDate(sku, stock))
+        THEN batchLastExpiryDate(sku, stock)
         ELSE expiryDate(lastOrderBatch(sku, stock));    
     
     lastOrderBatch (sku) = GROUP MAX lastOrderBatch(Sku sku, Stock stock) BY sku;
