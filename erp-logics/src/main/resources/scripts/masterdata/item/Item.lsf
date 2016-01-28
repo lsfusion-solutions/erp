@@ -22,6 +22,7 @@ id(ItemGroup group) += id(group) IF group IS ItemGroup;
 
 TABLE itemGroupItemGroup(ItemGroup, ItemGroup);
 @defineHierarchy(itemGroup);
+@defineHierarchyFilter(ItemGroup, ItemGroup, name);
 
 idParent (ItemGroup itemGroup) = overId(parent(itemGroup));
 
@@ -50,12 +51,20 @@ FORM itemGroup 'Товарная группа'
 ;
 
 FORM itemGroups 'Товарные группы'
+    PROPERTIES filterNameItemGroup()
+
     TREE treeGroups g=ItemGroup PARENT parent
     PROPERTIES in(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
     PROPERTIES READONLYIF isReadonly() order(g), id(g) SHOWIF showIDs(), name(g), canonicalName (g)
     PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
+    FILTERS inFilterName(g) OR NOT filterNameItemGroup()
     ORDER BY order(g), canonicalName(g)
 ;
+
+DESIGN itemGroups {
+    MOVE nogroup.panel BEFORE treeGroups.tree.box;
+}
+
 @extendFormEditable(itemGroups);
 
 FORM dialogItemGroups 'Товарные группы'
