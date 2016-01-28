@@ -200,7 +200,10 @@ addUserAdjustment 'Добавить' = ACTION ADDFORM UserAdjustment;
 edit 'Редактировать' (userAdjustment) = ACTION EDITFORM UserAdjustment;
 edit (UserAdjustment adjustment) += ACTION edit(adjustment);
 
-isUserOpened(UserAdjustment a)=  isOpened[Adjustment](a) AND is(a);
+skipShowEditDelete = ABSTRACT BOOLEAN (Adjustment);
+
+showEdit (Adjustment a) = isOpened(a) AND NOT skipShowEditDelete(a); 
+showDelete(UserAdjustment a) = isOpened(a) AND is(a) AND NOT skipShowEditDelete(a);
 
 actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
 
@@ -239,10 +242,10 @@ FORM adjustments 'Изменения остатков'
                                         postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES ()  addUserAdjustment TODRAW i
-    PROPERTIES (i) edit SHOWIF isOpened(i)
+    PROPERTIES (i) edit SHOWIF showEdit(i)
     PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
 
-    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpened(i)
+    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserAdjustment](i)
 
     OBJECTS d = AdjustmentDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,

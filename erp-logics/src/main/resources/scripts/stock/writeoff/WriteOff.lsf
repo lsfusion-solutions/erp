@@ -375,7 +375,10 @@ addUserWriteOff 'Добавить' = ACTION ADDFORM UserWriteOff;
 edit 'Редактировать'  = ACTION EDITFORM UserWriteOff;
 
 edit(UserWriteOff w) += ACTION edit(w);
-isUserOpened(UserWriteOff w)=  isOpened[WriteOff](w) AND is(w);
+skipShowEditDelete = ABSTRACT BOOLEAN (WriteOff);
+
+showEdit (WriteOff w) = isOpened(w) AND NOT skipShowEditDelete(w); 
+showDelete(UserWriteOff w) = isOpened[WriteOff](w) AND is(w) AND NOT skipShowEditDelete(w);
 
 filterWriteOffDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (WriteOff w) = date(w) >= filterWriteOffDateFrom() OR (w IS WriteOff AND NOT filterWriteOffDateFrom());      
@@ -414,10 +417,10 @@ FORM writeOffs 'Списания'
     PROPERTIES (w) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
     PROPERTIES ()  addUserWriteOff TODRAW w
-    PROPERTIES (w) edit SHOWIF isOpened(w)
-    PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open SHOWIF isClosed[UserWriteOff](w)
+    PROPERTIES (w) edit SHOWIF showEdit(w)
+    PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open[UserWriteOff] SHOWIF isClosed[UserWriteOff](w)
     
-    PROPERTIES (w) deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpened(w)
+    PROPERTIES (w) deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserWriteOff](w)
 
     OBJECTS d=WriteOffDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
