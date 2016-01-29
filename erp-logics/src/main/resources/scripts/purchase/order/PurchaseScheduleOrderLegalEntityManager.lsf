@@ -1,0 +1,20 @@
+MODULE PurchaseScheduleOrderLegalEntityManager;
+
+REQUIRE PurchaseScheduleOrder, LegalEntityManager;
+
+NAMESPACE Purchase;
+
+filter (LegalEntity company) = inManager(currentUser(), company) OR NOT countInManager(currentUser());
+filterSheduleDetail (ScheduleOrderDetail d) = filter(supplier(d));
+filterShedule(ScheduleOrder o) = filter(supplier(o));
+filterOrder (Order d) = filter(supplier(d));
+
+EXTEND FORM scheduleOrderDetails
+    FILTERS filterSheduleDetail(sd)
+    FILTERS filterOrder(o)
+;
+
+EXTEND FORM scheduleOrderDashboard
+    FILTERS filterShedule(s)
+    FILTERS filterShedule(ss)
+;
