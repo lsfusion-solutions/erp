@@ -13,6 +13,7 @@ differentOrganizations 'Для разных организаций' = ABSTRACT C
 
 TABLE ledgerPriceListTypeStock (LedgerPriceListType, Stock);
 batch 'Использовать для партий свои цены' = ABSTRACT CASE EXCLUSIVE BOOLEAN (LedgerPriceListType, Stock) PERSISTENT;
+skipBatch = ABSTRACT CASE BOOLEAN (LedgerPriceListType, Stock, Batch);
                                                    
 FORM ledgerPriceListTypes 'Регистровые виды цен'
    OBJECTS p = LedgerPriceListType
@@ -350,7 +351,7 @@ activePriceListLedgerA  (type, batch, stock, dateTime) =
               fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
 
 priceB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-    IF batch(type, stock) THEN
+    IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
         [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
                BY type, batch, Stock stock, DATETIME dateTimeIn
                ORDER fromDateTime(ledger), ledger
@@ -360,7 +361,7 @@ priceB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME 
         priceB(type, sku(batch), stock, dateTime) COMPLEX;
 
 priceA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-    IF batch(type, stock) THEN
+    IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
         [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
                BY type, batch, Stock stock, DATETIME dateTimeIn
                ORDER fromDateTime(ledger), ledger
@@ -392,7 +393,7 @@ priceABatch 'Цена' (type, batch, stock, dateTime) =
 
 META defineLastLedgerPriceListTypeBatchStock(property, caption)
     property##B caption (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-        IF batch(type, stock) THEN
+        IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
             [= GROUP LAST property(PriceListLedger ledger) IF in(ledger, Batch batch)
                    BY LedgerPriceListType type, batch, Stock stock, DATETIME dateTimeIn
                    ORDER fromDateTime(ledger), ledger
@@ -402,7 +403,7 @@ META defineLastLedgerPriceListTypeBatchStock(property, caption)
             property##B(type, sku(batch), stock, dateTime) COMPLEX;
 
     property##A caption (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
-        IF batch(type, stock) THEN
+        IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
             [= GROUP LAST property(PriceListLedger ledger) IF in(ledger, Batch batch)
                    BY LedgerPriceListType type, batch, Stock stock, DATETIME dateTimeIn
                    ORDER fromDateTime(ledger), ledger
@@ -536,6 +537,22 @@ in = ABSTRACT CASE EXCLUSIVE BOOLEAN (PriceListLedger, SystemLedgerPriceListType
 price = ABSTRACT CASE EXCLUSIVE NUMERIC[14,2] (PriceListLedger, SystemLedgerPriceListType) PERSISTENT;
 in(PriceListLedger ledger, SystemLedgerPriceListType type) += in(ledger, type);
 price(PriceListLedger ledger, SystemLedgerPriceListType type) += price(ledger, type);
+
+// Учетные цены и суммы для товаров
+
+accountPriceA 'Учетная цена' (Sku sku, Stock stock, DATETIME dateTime) =
+    priceA(SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTime);
+
+accountPriceA 'Учетная цена' (Sku sk, Stock st) = accountPriceA(sk, st, currentDateTime());
+
+currentAccountSum 'Сумма учетная' (Sku sku, Stock stock) =
+    currentBalance(sku, stock) * accountPriceA(sku, stock);
+
+diffAccountSum 'Разница' (Sku sku, Stock stock) = currentAccountSum(sku, stock) (-) currentSum(sku, stock);
+
+EXTEND FORM currentBalanceSkuStock
+    PROPERTIES(s, st) accountPriceA, currentAccountSum, diffAccountSum
+;
 
 //Учетные цены и суммы для партий
 accountPriceB 'Учетная цена товара в партии на начало дня' (Batch batch, Stock stock, DATE date) =
