@@ -1,0 +1,18 @@
+MODULE SaleRegistration;
+
+REQUIRE Registration, SaleCertificate;
+
+NAMESPACE Sale;
+
+@defineDocumentCertificate(registration, invoice, i, 'Удостоверение гигиенической регистрации');
+@defineDocumentCertificateConstraint(registration, invoice, 'удостоверение гигиенической регистрации');
+@deriveDocumentSaleCertificate(registration, invoice, supplierStock, data);
+
+@defineDocumentCertificate(registration, shipment, s, 'Удостоверение гигиенической регистрации');
+registration(InvoiceShipmentDetail detail) += registration(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION (s, i) {
+    ASSIGN dataRegistration(s) <- registration(i);
+}
+@defineDocumentCertificateConstraint(registration, shipment, 'удостоверение гигиенической регистрации');
+@deriveDocumentSaleCertificate(registration, shipment, supplierStock, data);
