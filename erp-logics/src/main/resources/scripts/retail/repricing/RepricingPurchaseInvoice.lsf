@@ -40,13 +40,21 @@ DESIGN extraValuation {
 repricing = DATA Repricing (Invoice);
 repricing (InvoiceDetail d) = repricing(invoice(d));
 
-prevRetailPricingPriceB 'Цена розничная до' (InvoiceDetail detail) = prevRetailPricingPriceB(sku(detail), customerStock(detail), dateTime(detail));
+prevRetailPricingPriceB 'Цена розничная до' (InvoiceDetail detail) = prevRetailPricingPriceB(sku(detail), customerStock(detail), pricingDateTime(detail));
 
-calcQuantitySold 'Кол-во продано по старой цене' (sku, stock, price, dateTime) = GROUP SUM 
-    signedQuantity(ReceiptDetail d) IF dateTime(d) >= (DATETIME dateTime AS DATETIME) AND isPosted(d)
-        BY sku(d), departmentStore(d), price(d), dateTime; 
-        
-toRepricingQuantity 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[14,2] price, DATETIME dateTime) = prevBalanceB (sku, stock, dateTime) (-) calcQuantitySold(sku, stock, price, dateTime);         
+//calcQuantitySold 'Кол-во продано по старой цене' (sku, stock, price, dateTime) = GROUP SUM 
+//    signedQuantity(ReceiptDetail d) IF dateTime(d) >= (DATETIME dateTime AS DATETIME) AND isPosted(d)
+//        BY sku(d), departmentStore(d), price(d), dateTime; 
+
+calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime) = 
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND abs(quantity(l) * price - sum(l)) < 50
+          BY sku(l), stock(l), price, fromDateTime;
+           
+calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime) = 
+    GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= fromDateTime 
+          BY sku(d), departmentStore(d), curRetailPrice(d), fromDateTime; 
+
+toRepricingQuantity 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[14,2] price, DATETIME dateTime) = prevBalanceB (sku, stock, dateTime) (-) calcSkuLedgerAhead(sku, stock, price, dateTime) (-) calcRepricingAhead(sku, stock, price, dateTime);         
 toRepricingQuantity 'Кол-во к дооценке' (InvoiceDetail detail) = toRepricingQuantity(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail));
                
 filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME timeFrom)= 
@@ -57,11 +65,22 @@ filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME ti
     repricing(invoice)
 ; 
  
-calcQuantitySoldDateTime 'Кол-во продано по старой цене' (sku, stock, price, fromDateTime, toDateTime) = GROUP SUM 
-    signedQuantity(ReceiptDetail d) IF dateTime(d) >= (DATETIME fromDateTime AS DATETIME) AND (dateTime(d) <= (DATETIME toDateTime AS DATETIME)) AND isPosted(d)
-        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
+//calcQuantitySoldDateTime 'Кол-во продано по старой цене' (sku, stock, price, fromDateTime, toDateTime) = GROUP SUM 
+//    signedQuantity(ReceiptDetail d) IF dateTime(d) >= (DATETIME fromDateTime AS DATETIME) AND (dateTime(d) <= (DATETIME toDateTime AS DATETIME)) AND isPosted(d)
+//        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
+
+calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime, toDateTime) = 
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(quantity(l) * price - sum(l)) < 50
+          BY sku(l), stock(l), price, fromDateTime, toDateTime;
+           
+calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime, toDateTime) = 
+    GROUP SUM quantity(RepricingDetail d) IF dateTime(d) >= fromDateTime AND dateTime(d) <= toDateTime 
+          BY sku(d), departmentStore(d), curRetailPrice(d), fromDateTime, toDateTime; 
+
         
-toRepricingQuantityDateTime 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[14,2] price, DATETIME fromDateTime, DATETIME toDateTime) = prevBalanceB (sku, stock, fromDateTime) (-) calcQuantitySoldDateTime(sku, stock, price, fromDateTime, toDateTime);         
+toRepricingQuantityDateTime 'Кол-во к дооценке' (Sku sku, Stock stock, NUMERIC[14,2] price, DATETIME fromDateTime, DATETIME toDateTime) = 
+    prevBalanceB (sku, stock, fromDateTime) (-) calcSkuLedgerAhead(sku, stock, price, fromDateTime, toDateTime) (-) calcRepricingAhead(sku, stock, price, fromDateTime, toDateTime);
+             
 toRepricingQuantityTo 'Кол-во к дооценке' (InvoiceDetail detail, DATETIME toDateTime) = toRepricingQuantityDateTime(sku(detail), customerStock(detail), prevRetailPricingPriceB(detail), shipmentDateTime(detail), toDateTime); 
 filterToRepricingDate 'Фильтр' (Invoice invoice, Stock department, DATETIME timeFrom, DATETIME timeTo)= 
     customerStock(invoice) == department AND         
@@ -194,7 +213,7 @@ createExtraValuationNotForm 'Создать дооценку' = ACTION (Stock de
                         sku(rd) <- sku(detail);
                         quantity(rd) <- toRepricingQuantityTo(detail, timeTo);
         
-                        curPrice(rd) <- prevSupplierPricingPriceB(sku(detail), department, dateTime(detail));
+                        curPrice(rd) <- prevSupplierPricingPriceB(sku(detail), department, pricingDateTime(detail));
                         curRetailPrice(rd) <- prevRetailPricingPriceB(detail);
         
                         price(rd) <- IF NOT keepSupplierPriceInRepricing(detail, department) THEN price(detail) ELSE curPrice(rd);
