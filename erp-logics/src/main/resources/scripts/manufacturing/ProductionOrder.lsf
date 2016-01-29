@@ -487,7 +487,8 @@ expand 'Развернуть изделие' = ACTION (ComponentDetail component
     DELETE componentDetail;
 } TOOLBAR;
 
-background 'Цвет' (ComponentDetail componentDetail) = RGB(255,255,229) IF product(componentDetail);
+background 'Цвет'  = ABSTRACT CASE OVERRIDE FIRST COLOR (ComponentDetail);
+background (ComponentDetail cd) += WHEN product(cd) THEN  RGB(255,255,229);
 
 recBruttoQuantity 'Рекур.кол-во' (BOM, order, component) = GROUP SUM quantityProducts(BOM BOM, Order order) * recBruttoQuantity(BOM, Component component, date(order)) BY BOM, order, component;
 recBOMQuantity 'Рекур.кол-во' (BOM, order, component) = GROUP SUM recBruttoQuantity(BOM BOM, Component component, date(Order order)) BY BOM, order, component;
@@ -1110,6 +1111,8 @@ showBOMQuantity 'Показывать количество в специфика
 showBOMQuantity= showBOMQuantity(order(ProductDetail pd));
 showBOMQuantity= showBOMQuantity(order(ComponentDetail pd));
 
+background = ABSTRACT CASE COLOR (ProductDetail);
+
 FORM order 'Производственный заказ'
 
     OBJECTS o = Order FIXED PANEL
@@ -1119,8 +1122,8 @@ FORM order 'Производственный заказ'
                   quantityComponentDetail, sumComponentDetail, calcBOMPrice, isPricePercent, isPriceCoeff 
     PROPERTIES(o)  FORCE PANEL nameCalcPriceListType, nameProductsPriceListType, VATProduct, showBOMQuantity
     OBJECTS pd=ProductDetail
-    PROPERTIES(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct, 
-                   shortNameUOM, expiryDate, manufactureDate, BOMQuantity READONLY SHOWIF showBOMQuantity(o), quantity,
+    PROPERTIES(pd) BACKGROUND background(pd) index, nameSku ON EDIT editSku(pd), idProduct SHOWIF showIDs(), nameProduct, shortNameUOM
+    PROPERTIES(pd) expiryDate, manufactureDate, BOMQuantity READONLY SHOWIF showBOMQuantity(o), quantity,
                    calcComponentsPrice READONLY, componentsPrice ON CHANGE changeComponentsPrice(pd),
                    costPrice
     PROPERTIES(pd) markup ON CHANGE changeMarkup(pd) BACKGROUND backgroundMarkup(pd),
@@ -1867,6 +1870,7 @@ changeQuantity = ACTION (Product product, Order order) {
     }
 }
 
+background = ABSTRACT CASE COLOR (Order, Product);  
 
 EXTEND FORM order
 
@@ -1878,7 +1882,7 @@ EXTEND FORM order
     
     OBJECTS p=Product
     PROPERTIES(p) READONLY id SHOWIF showIDs()
-    PROPERTIES(p) READONLY description, nameSku, shortNameUOM
+    PROPERTIES(p) BACKGROUND background(o,p)  READONLY description, nameSku, shortNameUOM
     PROPERTIES(o,p) quantity ON CHANGE changeQuantity(p,o)
     FILTERGROUP inactiveBOM
         FILTER 'Текущие' isActive(BOM(p)) 'F7'            
@@ -1941,6 +1945,7 @@ changeBruttoQuantityBrutto = ACTION (Sku bruttoSku, Order order) {
 
 prevCurrentBalance 'Остаток' (Sku sku, Order o) = prevCurrentBalance(sku, componentsStock(o));
 
+background = ABSTRACT CASE COLOR (Order, Sku); 
 
 EXTEND FORM order
 
@@ -1952,8 +1957,8 @@ EXTEND FORM order
 
     
     OBJECTS p1=Sku
-    PROPERTIES(p1) READONLY id SHOWIF showIDs()
-    PROPERTIES(p1) READONLY name, shortNameUOM
+    PROPERTIES(p1) BACKGROUND background(o,p1) READONLY id SHOWIF showIDs()
+    PROPERTIES(p1) BACKGROUND background(o,p1) READONLY name, shortNameUOM
     PROPERTIES(o,p1) bruttoQuantityBrutto ON CHANGE changeBruttoQuantityBrutto(p1,o)
     PROPERTIES(p1, o) prevCurrentBalance 
 
