@@ -207,7 +207,7 @@ META defineOrderPickingOrder(sign, stockProp)
     pickingNumber[Order.OrderDetail] (OrderDetail d) += pickingNumber(d);
     
     pickingNumber 'Номер комплектации' = GROUP MAX pickingNumber(UserOrderDetail d) BY userOrder(d), bin(d);
-    changePickingNumber = ACTION (UserOrder o, Bin b) {
+    changePickingNumber(UserOrder o, Bin b) = ACTION {
         REQUEST INTEGER INPUT;
         pickingNumber(UserOrderDetail d) <- requestedInteger() WHERE userOrder(d) == o AND bin(d) == b;
     }
@@ -215,7 +215,7 @@ META defineOrderPickingOrder(sign, stockProp)
     pickingOrderCount 'Кол-во комплектаций' = DATA INTEGER (UserOrder);
     pickingOrderCount(UserOrder o) <- 1 WHEN SET(o IS UserOrder);
 
-    calculatePickingNumber = ACTION (UserOrder o) {
+    calculatePickingNumber(UserOrder o) = ACTION {
         LOCAL countDetail = INTEGER();
         countDetail() <- (countUserOrderDetail(o) + pickingOrderCount(o) - 1) / pickingOrderCount(o);
 
@@ -235,7 +235,7 @@ META defineOrderPickingOrder(sign, stockProp)
         }   
     }
 
-    changePickingOrderCount = ACTION (UserOrder o) {
+    changePickingOrderCount(UserOrder o) = ACTION {
         REQUEST INTEGER INPUT;
         pickingOrderCount(o) <- MIN (MAX requestedInteger(), 1), 5;
         calculatePickingNumber(o);

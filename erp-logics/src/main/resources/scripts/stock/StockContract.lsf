@@ -29,7 +29,7 @@ META defineInStockGroupObject(prop, object, objectClass)
     in###prop 'Отм' (Stock stock, ###object object) =
         (OVERRIDE in###prop(stockGroup(stock), object),
                  dataIn###prop(stock, object)) IF in(prop(object), stock) AND active(stock) PERSISTENT;
-    replace(Stock s, Stock o) += ACTION (s, o){ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}                   
+    replace(Stock s, Stock o) += ACTION {ASSIGN dataIn###prop(o, ###object object) <- TRUE WHERE in###prop(s, object) AND NOT in###prop(o, object);}                   
                  
     countDataIn###prop##StockGroups = GROUP SUM 1 IF  dataIn###prop(StockGroup stockGroup, ###object object) BY object;            
                                   
@@ -114,7 +114,7 @@ TABLE supplierCustomer(LegalEntity, LegalEntity);
 @defineContractDefault(contractSku, LegalEntity, Stock, LegalEntity, Stock, supplier, customer);
 
 //объединение организаций
-replace(LegalEntity l, LegalEntity o) += ACTION (l, o){
+replace(LegalEntity l, LegalEntity o) += ACTION {
     supplier(ContractSku contract) <- o WHERE supplier(contract) == l;
     customer(ContractSku contract) <- o WHERE customer(contract) == l;
 }   
@@ -243,7 +243,7 @@ DESIGN userContractSku {
 edit 'Редактировать' = ACTION EDITFORM UserContractSku;
 edit(UserContractSku userContractSku) += ACTION edit(userContractSku);
 
-addUserContractSkuSupplierCustomer 'Добавить' = ACTION (LegalEntity supplier, LegalEntity customer) NESTEDSESSION{
+addUserContractSkuSupplierCustomer 'Добавить'(LegalEntity supplier, LegalEntity customer) = ACTION NESTEDSESSION{
     FOR ADDOBJ uc = UserContractSku DO {
         supplier(uc) <- supplier;
         customer(uc) <- customer;

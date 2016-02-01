@@ -186,7 +186,7 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 // Для инвентаризации по партиям
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
-changeBatch = ACTION (UserWriteOffDetail detail) {
+changeBatch(UserWriteOffDetail detail) = ACTION {
 
     FORM dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
@@ -198,7 +198,7 @@ changeBatch = ACTION (UserWriteOffDetail detail) {
         batch(detail) <- NULL;
     }
 }
-replace(Sku s, Batch b) += ACTION (s, b){ sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += ACTION { sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
 
 @defineDocumentInterfaceDetailQuantity(writeOff);
 @defineDocumentInterfaceDetailPrice(writeOff);
@@ -607,7 +607,7 @@ sum[OutSkuLedger] (WriteOffDetail ledger) += sum(ledger);
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserWriteOffDetail d) = ACTION (d) NEWSESSION {
+edit(UserWriteOffDetail d) = ACTION NEWSESSION {
     FORM userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(UserWriteOffDetail d) += ACTION edit(d);

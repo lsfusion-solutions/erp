@@ -78,7 +78,7 @@ seriesNumber(ReceiptGiftCardSaleDetail detail) += seriesNumber(giftCard(detail))
 sum(ReceiptGiftCardSaleDetail detail) += sum(detail);
 description(ReceiptGiftCardSaleDetail detail) += 'Продажа' IF detail IS ReceiptGiftCardSaleDetail;
 
-edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = ACTION (d) NEWSESSION {
+edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
     FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);
@@ -117,7 +117,7 @@ DESIGN generationGiftCards {
     }
 }
 
-generateGiftCards 'Сгенерировать подарочные сертификаты' = ACTION() {
+generateGiftCards 'Сгенерировать подарочные сертификаты'() = ACTION {
     FORM generationGiftCards OBJECTS n=defaultNumeratorGiftCard() MODAL CHECK;
     IF formResult() == FormResult.ok THEN {
         LOCAL num = INTEGER();
@@ -237,7 +237,7 @@ EXTEND FORM giftCards
 
 EXTEND CLASS PaymentMeans { paymentMeansGiftCard 'Подарочный сертификат'}
 
-overLoadDefaultPaymentTypes() += ACTION () {
+overLoadDefaultPaymentTypes() += ACTION {
     loadDefaultType('Подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcard');
 }
 
@@ -255,7 +255,7 @@ EXTEND FORM zReports
     PROPERTIES (z) READONLY  sumReceiptDetailGiftCard
 ;
 
-overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += ACTION (detail,r) {
+overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += ACTION {
     IF detail IS ReceiptGiftCardSaleDetail THEN {
         FOR ADDOBJ d=ReceiptGiftCardSaleDetail DO {
             receipt(d) <- r;

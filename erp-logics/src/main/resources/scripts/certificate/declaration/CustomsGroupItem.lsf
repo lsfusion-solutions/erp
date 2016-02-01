@@ -24,7 +24,7 @@ EXTEND FORM options PROPERTIES() requestInputChangeCustomsCode;
 DESIGN options { customs { MOVE PROPERTY(requestInputChangeCustomsCode()); } }
 
 // Действие по изменению кода ТНВЭД через ручной ввод
-changeCodeCustomsGroup = ACTION (Country country, Item item) {
+changeCodeCustomsGroup(Country country, Item item) = ACTION {
     IF requestInputChangeCustomsCode() THEN {
         REQUEST STRING[10] INPUT;
         IF requestedString() THEN {
@@ -50,7 +50,7 @@ changeCodeCustomsGroup = ACTION (Country country, Item item) {
     }
 }
 
-changeCustomsGroupDefaultCountry = ACTION (Item item) {
+changeCustomsGroupDefaultCountry(Item item) = ACTION {
     REQUEST OBJECT cg
     FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
@@ -73,7 +73,7 @@ dataValueVATCustomsException 'Льгота НДС, %' (Country country, Item ite
 
 rangeVATCustomsException(Country country, Item item) = range(VATCustomsException(country, item));
 
-changeCustomsExceptionDefaultCountry = ACTION (Item item) {
+changeCustomsExceptionDefaultCountry(Item item) = ACTION {
     REQUEST OBJECT vce
     FORM VATCustomsExceptions DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
@@ -91,7 +91,7 @@ CONSTRAINT customsGroup(Country country, Item item) AND VATCustomsException(coun
 
 background 'Цвет' (Country country, Sku sku) = RGB(212, 255, 212) IF countVATCustomsException(customsGroup(country, sku)) > 0;
 
-changeCustomsGroup = ACTION (Country country, Item item, DATE date) {
+changeCustomsGroup(Country country, Item item, DATE date) = ACTION {
     REQUEST OBJECT cg
         FORM customsGroups DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
@@ -107,7 +107,7 @@ changeCustomsGroup = ACTION (Country country, Item item, DATE date) {
     }
 }
 
-changeVATCustomsException = ACTION (Country country, Item item, DATE date) {
+changeVATCustomsException(Country country, Item item, DATE date) = ACTION {
     REQUEST OBJECT vce
     FORM VATCustomsExceptions OBJECTS cg = customsGroup(country, item) DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
@@ -138,7 +138,7 @@ DESIGN item {
     }
 }
 
-overCopy(Item s, Item d) += ACTION (s, d) {
+overCopy(Item s, Item d) += ACTION {
     customsGroup(Country c,d) <- customsGroup(c,s) WHERE customsGroup(c,s);
     originalCustomsGroup(d) <- originalCustomsGroup(s); 
 }

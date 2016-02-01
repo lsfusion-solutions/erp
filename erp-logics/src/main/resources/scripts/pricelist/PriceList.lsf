@@ -67,7 +67,7 @@ EXTEND FORM priceListTypes
 //    PROPERTIES(pt) SHOWIF showIDs() READONLY idDataPriceListType
 ;
 
-overCopy (DataPriceListType priceListType) += ACTION (priceListType) NEWSESSION {
+overCopy (DataPriceListType priceListType) += ACTION NEWSESSION {
     IF priceListType IS DataPriceListType THEN {
         FOR ADDOBJ p = DataPriceListType DO {
             batchLedger(p) <- batchLedger(priceListType);
@@ -234,7 +234,7 @@ createdComputer (UserPriceListDetail d) += createdComputer(userPriceList(d));
 @defineDocumentInterfaceDetailBatch(priceList, batch);
 //@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
 
-changePurchaseBatch = ACTION (UserPriceListDetail userPriceListDetail) {
+changePurchaseBatch(UserPriceListDetail userPriceListDetail) = ACTION {
     FORM dialogBatch OBJECTS sk = sku(userPriceListDetail) DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
@@ -244,7 +244,7 @@ changePurchaseBatch = ACTION (UserPriceListDetail userPriceListDetail) {
     }
 };
 
-replace(Sku s, Batch b) += ACTION (s, b){ sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += ACTION { sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
 //@defineBalancesBatch(priceListDetail); //-- показываем по нажатию правой клавиши остатки партии
 //@defineBalancesBatch(userPriceListDetail); //-- показываем по нажатию правой клавиши остатки партии
 //@defineMovementBatch(priceListDetail, stockProp); //-- показываем по нажатию правой клавиши движение по партии
@@ -342,7 +342,7 @@ detail(sku, price) = GROUP SUM 1 IF Sku sku == sku(UserPriceListDetail detail) A
 
 in 'Вкл.' (Sku sku, UserPriceList price) = TRUE IF detail(sku, price);
 
-changeIn = ACTION (Sku sku, UserPriceList priceList) {
+changeIn(Sku sku, UserPriceList priceList) = ACTION {
     REQUEST BOOLEAN INPUT;
     IF NOT requestedLogical() THEN {
         IF detail(sku, priceList) THEN {
@@ -362,7 +362,7 @@ detail(batch, price) = GROUP SUM 1 IF Batch batch == batch(UserPriceListDetail d
 
 in 'Вкл.' (Batch batch, UserPriceList price) = TRUE IF detail(batch, price);
 
-changeIn = ACTION (Batch batch, UserPriceList priceList) {
+changeIn(Batch batch, UserPriceList priceList) = ACTION {
     REQUEST BOOLEAN INPUT;
     IF NOT requestedLogical() THEN {
         IF detail(batch, priceList) THEN {
@@ -391,7 +391,7 @@ sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 
 document(PriceListDetail detail) += priceList(detail);
 
-fillDocument 'Подбор документа' = ACTION (UserPriceList userPriceList) {
+fillDocument 'Подбор документа'(UserPriceList userPriceList) = ACTION {
     FORM documents MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL chosenDocument = Document();
@@ -827,7 +827,7 @@ DESIGN userPriceList {
 }
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserPriceListDetail d) = ACTION (d) NEWSESSION {
+edit(UserPriceListDetail d) = ACTION NEWSESSION {
     FORM userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(UserPriceListDetail d) += ACTION edit(d);   
@@ -899,7 +899,7 @@ DESIGN chooseMarkUpSkuUserPriceList {
 
 // ----------------------- Для отмеченных строк ------------------------ //
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
-changeMarkUpChosenSku 'Изменить цену для отмеченных строк' = ACTION (UserPriceList userPriceList, Stock stock) {
+changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = ACTION {
     FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
     IF formResult() == FormResult.ok THEN {
         IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
@@ -970,7 +970,7 @@ DESIGN userPriceList{
 }
 
 // ---------------------- Для всех строк ----------------------- //
-changeMarkUpSku 'Изменить цену для всех строк' = ACTION (UserPriceList userPriceList, Stock stock) {
+changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = ACTION {
     FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL prev = NUMERIC[14,2] (UserPriceListDetail);
@@ -1044,7 +1044,7 @@ edit (UserPriceList p) += ACTION edit(p);
 
 copyAbstractData = ACTION ABSTRACT LIST (PriceList, UserPriceList);
 
-copyData = ACTION (PriceList priceList, UserPriceList userPriceList){
+copyData(PriceList priceList, UserPriceList userPriceList) = ACTION {
         currency(userPriceList) <- currency[UserPriceList](priceList);
         company(userPriceList) <- company[UserPriceList](priceList);
         companyStock(userPriceList) <- companyStock[UserPriceList](priceList);
@@ -1062,7 +1062,7 @@ copyData = ACTION (PriceList priceList, UserPriceList userPriceList){
         }
 }
 
-copySession 'Копировать' = ACTION (PriceList priceList){
+copySession 'Копировать'(PriceList priceList) = ACTION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
@@ -1070,7 +1070,7 @@ copySession 'Копировать' = ACTION (PriceList priceList){
     }
 }
 
-copy 'Копировать' = ACTION (PriceList priceList) NEWSESSION {
+copy 'Копировать'(PriceList priceList) = ACTION NEWSESSION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
@@ -1078,7 +1078,7 @@ copy 'Копировать' = ACTION (PriceList priceList) NEWSESSION {
     }
 }
 
-updateSession 'Обновить' = ACTION (PriceList priceList) {
+updateSession 'Обновить'(PriceList priceList) = ACTION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
@@ -1092,7 +1092,7 @@ updateSession 'Обновить' = ACTION (PriceList priceList) {
     }
 
 }
-update 'Обновить' = ACTION (PriceList priceList) NEWSESSION{
+update 'Обновить'(PriceList priceList) = ACTION NEWSESSION{
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
@@ -1239,7 +1239,7 @@ NAVIGATOR {
 
 // Заполнение на основании
 
-addUnderPriceList 'Заполнить на основании' = ACTION (UserPriceList p) {
+addUnderPriceList 'Заполнить на основании'(UserPriceList p) = ACTION {
     FORM priceLists MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR priceList(PriceListDetail detail) == chosenObject('p') ADDOBJ d = UserPriceListDetail DO {
@@ -1284,7 +1284,7 @@ print(PriceList priceList) += ACTION printPrint(priceList);
 
 // ------------------------- Расширяем форму LegalEntity ----------------------- //
 overAdd= ACTION ABSTRACT LIST (UserPriceList);
-addUserPriceList 'Добавить' = ACTION (LegalEntity legalEntity) NESTEDSESSION {
+addUserPriceList 'Добавить'(LegalEntity legalEntity) = ACTION NESTEDSESSION {
     FOR ADDOBJ u = UserPriceList DO {
         company(u) <- legalEntity;
         overAdd(u); 
@@ -1364,7 +1364,7 @@ equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == com
 //    ADD functions.box;
 //}
 
-findEqualsPriceLists 'Найти дубликаты прайсов' = ACTION () {
+findEqualsPriceLists 'Найти дубликаты прайсов'() = ACTION {
     FOR UserPriceList p1 IS UserPriceList NOINLINE DO {
         FOR equals(p1, PriceList p2) NOINLINE DO {
             ASSIGN dataIn[UserPriceList,Stock](p2, Stock s) <- dataIn(p1, s) WHERE dataIn(p1, s);

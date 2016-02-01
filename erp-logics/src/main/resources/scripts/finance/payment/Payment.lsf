@@ -74,7 +74,7 @@ CONSTRAINT currencyAccountFrom(Payment payment) != currencyAccountTo(payment)
     CHECKED BY accountFrom[Payment], accountTo[Payment] MESSAGE 'Валюта счета(с) должна совпадать с валютой счета(на)';
     
 //объединение организаций
-replace(LegalEntity l, LegalEntity o) += ACTION (l, o){
+replace(LegalEntity l, LegalEntity o) += ACTION {
     payer(Payment payment) <- o WHERE payer(payment) == l;
     beneficiary(Payment payment) <- o WHERE beneficiary(payment) == l;
 }     
@@ -175,7 +175,7 @@ DESIGN payment {
 }
 
 //----------------------------------------- Копирование платежей ----------------------------------------------------//
-copyData = ACTION (Payment payment, Payment p) {
+copyData(Payment payment, Payment p) = ACTION {
     operation(p) <- operation(payment);
     isReturn(p) <- isReturn(payment);
     order(p) <- order(payment);
@@ -186,7 +186,7 @@ copyData = ACTION (Payment payment, Payment p) {
     sum(p) <- sum(payment);
 }
     
-copy 'Копировать' = ACTION (Payment payment) NEWSESSION {
+copy 'Копировать'(Payment payment) = ACTION NEWSESSION {
     FOR ADDOBJ p = Payment DO {
         EXEC copyData(payment, p);
         FORM payment OBJECTS p = p MANAGESESSION DOCKEDMODAL;

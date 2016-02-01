@@ -12,7 +12,7 @@ completedCustoms 'Обработан' = DATA BOOLEAN (Item);
 notCompletedCustoms 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedCustoms(i) BY article(i);
 completedCustoms 'Обработан' = Article a IS Article AND NOT notCompletedCustoms(a);
 
-changeCompletedCustoms (Article article) = ACTION (article) {
+changeCompletedCustoms (Article article) = ACTION {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
         FOR article(Item item) == article DO {
@@ -36,9 +36,9 @@ nullCustoms 'Без атрибутов' (country, article) = GROUP SUM 1 IF Item
 // todo : workaround, так как нельзя в сессионных событиях обращаться к форме
 dateArticleCustomsDashboard 'Дата' = DATA DATE (User);
 dateArticleCustomsDashboard 'Дата' () = dateArticleCustomsDashboard(currentUser());
-setDateArticleCustomsDashboard = ACTION() dateArticleCustomsDashboard(User u) <- currentDate() WHERE u == currentUser();
+setDateArticleCustomsDashboard() = ACTION dateArticleCustomsDashboard(User u) <- currentDate() WHERE u == currentUser();
 
-changeDateArticleCustomsDashboard = ACTION () {
+changeDateArticleCustomsDashboard() = ACTION {
     REQUEST DATE INPUT;
     dateArticleCustomsDashboard(User u) <- requestedDate() WHERE u == currentUser();
 }
@@ -167,7 +167,7 @@ DESIGN articleCustomsDashboard {
 }
 
 // -- Проставляем страну по умолчанию
-seekDefaultCountryArticleCustomsDashboard() = ACTION () {
+seekDefaultCountryArticleCustomsDashboard() = ACTION {
     IF defaultCountry() THEN {
         SEEK articleCustomsDashboard.c defaultCountry();
     }
@@ -176,7 +176,7 @@ EXTEND FORM articleCustomsDashboard
     EVENTS ON INIT seekDefaultCountryArticleCustomsDashboard()
 ;
 
-completeArticleCustomsDashboard 'Подтвердить все' = ACTION (Country country) {   
+completeArticleCustomsDashboard 'Подтвердить все'(Country country) = ACTION {   
     LOCAL k = INTEGER ();
     k() <- 0;
     
@@ -232,7 +232,7 @@ defaultCustomsGroup (country, caption, composition) =
         WHERE count(customsGroup, country, caption, composition);
 
 // Артикулы
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории' = ACTION (Country country, Article article) {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории'(Country country, Article article) = ACTION {
     customsGroup(country,article) <- defaultCustomsGroup(
                                                             country,
                                                             caption(article),
@@ -241,26 +241,26 @@ fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории' = A
 
 } SHORTCUT codeCustomsGroup[Country,Article];
 
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории для всех' = ACTION (Country country) {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории для всех'(Country country) = ACTION {
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillDefaultCustomsGroup(country,article);
    }
 } SHORTCUT codeCustomsGroup[Country,Article];
 
-fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу' = ACTION (Country country, Article article) {
+fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу'(Country country, Article article) = ACTION {
     customsGroup(country,article) <- customsGroup(rpad(originalCustomsGroup(article), 10, '0'))
         WHERE customsGroup(rpad(originalCustomsGroup(article), 10, '0'));
 
 } SHORTCUT codeCustomsGroup[Country,Article];
 
-fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу для всех' = ACTION (Country country) {
+fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу для всех'(Country country) = ACTION {
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillOriginalCustomsGroup(country,article);
    }
 } SHORTCUT codeCustomsGroup[Country,Article];
 
 // Товары
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории' = ACTION (Country country, Item item) {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории'(Country country, Item item) = ACTION {
     customsGroup(country,item) <- defaultCustomsGroup(
                                                             country,
                                                             caption(item),
@@ -269,7 +269,7 @@ fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории' = A
 
 } SHORTCUT codeCustomsGroup[Country,Item];
 
-fillDefaultCustomsGroupItem 'Заполнить ТН ВЭД по истории для всех' = ACTION (Country country) {
+fillDefaultCustomsGroupItem 'Заполнить ТН ВЭД по истории для всех'(Country country) = ACTION {
     FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
         fillDefaultCustomsGroup(country,item);
     }
@@ -286,7 +286,7 @@ defaultComplianceGroup (country, caption, composition) =
         WHERE count(complianceGroup, country, caption, composition);
 
 // Артикулы
-fillDefaultComplianceGroup 'Заполнить группу сертификации' = ACTION (Country country, Article article) {
+fillDefaultComplianceGroup 'Заполнить группу сертификации'(Country country, Article article) = ACTION {
     complianceGroup(country,article) <- defaultComplianceGroup(
                                                             country,
                                                             caption(article),
@@ -295,14 +295,14 @@ fillDefaultComplianceGroup 'Заполнить группу сертификац
 
 } SHORTCUT nameComplianceGroup[Country,Article];
 
-fillDefaultComplianceGroup 'Заполнить группу сертификации для всех' = ACTION (Country country) {
+fillDefaultComplianceGroup 'Заполнить группу сертификации для всех'(Country country) = ACTION {
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillDefaultComplianceGroup(country,article);
    }
 } SHORTCUT nameComplianceGroup[Country,Article];
 
 // Товары
-fillDefaultComplianceGroup 'Заполнить группу сертификации' = ACTION (Country country, Item item) {
+fillDefaultComplianceGroup 'Заполнить группу сертификации'(Country country, Item item) = ACTION {
     complianceGroup(country,item) <- defaultComplianceGroup(
                                                             country,
                                                             caption(item),
@@ -310,7 +310,7 @@ fillDefaultComplianceGroup 'Заполнить группу сертификац
         WHERE defaultComplianceGroup(country, caption(item), composition(item));
 } SHORTCUT nameComplianceGroup[Country,Item];
 
-fillDefaultComplianceGroupItem 'Заполнить группу сертификации для всех' = ACTION (Country country) {
+fillDefaultComplianceGroupItem 'Заполнить группу сертификации для всех'(Country country) = ACTION {
     FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
         fillDefaultComplianceGroup(country,item);
     }

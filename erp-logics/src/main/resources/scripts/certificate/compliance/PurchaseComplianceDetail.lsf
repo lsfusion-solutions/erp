@@ -30,7 +30,7 @@ complianceGroup(UserInvoiceDetail userInvoiceDetail) <-
     WHEN CHANGED (country[InvoiceDetail](userInvoiceDetail)) OR
          CHANGED (sku(userInvoiceDetail));
 
-setComplianceGroup 'Заполнить группы сертификации' = ACTION (UserInvoice invoice) {
+setComplianceGroup 'Заполнить группы сертификации'(UserInvoice invoice) = ACTION {
    FOR userInvoice(UserInvoiceDetail invoiceDetail) == invoice DO {
       complianceGroup(invoiceDetail) <- complianceGroup(country[InvoiceDetail](invoiceDetail), sku[InvoiceDetail](invoiceDetail));
    }
@@ -81,7 +81,7 @@ certificateCostSum[UserInvoiceDetail](UserInvoiceDetail invoiceDetail) += compli
 complianceSumUserInvoiceDetail 'Сертификация' = GROUP SUM complianceSum(UserInvoiceDetail d)
                                                                 BY compliance(d) MINCHARWIDTH 15 PERSISTENT;
                                                                 
-overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
+overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      
     compliancePrice(d) <- compliancePrice(detail);
     complianceSum(d) <- complianceSum(detail);
 }                                                                 
@@ -188,7 +188,7 @@ FORM complianceInvoices 'Накладные сертификации'
     FILTERS userInvoice(id)==i
 ;
 
-selectInvoices 'Выбрать накладные' = ACTION (Compliance compliance) {
+selectInvoices 'Выбрать накладные'(Compliance compliance) = ACTION {
     FORM complianceInvoices OBJECTS c=compliance MODAL;
 } TOOLBAR;
 
@@ -207,7 +207,7 @@ calcComplianceSum 'Сертификация' (UserInvoiceDetail d) =
               BY compliance(d)
               ORDER d;
 
-recalculatePriceInvoice 'Рассчитать расходы (за ед.)' = ACTION (Compliance compliance) {
+recalculatePriceInvoice 'Рассчитать расходы (за ед.)'(Compliance compliance) = ACTION {
     complianceSum(UserInvoiceDetail d) <- NUMERIC[16,2](calcComplianceSum(d)) WHERE compliance(d) == compliance;
     compliancePrice(UserInvoiceDetail d) <- complianceSum(d) / quantity(d) WHERE compliance(d) == compliance;
 } TOOLBAR;

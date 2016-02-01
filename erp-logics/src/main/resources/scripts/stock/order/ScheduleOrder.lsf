@@ -266,7 +266,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     overCreate = ACTION ABSTRACT LIST (ScheduleOrderDetail); 
 
-    create 'Сгенерировать предварительные заказы' = ACTION (ScheduleOrder scheduleOrder) {
+    create 'Сгенерировать предварительные заказы'(ScheduleOrder scheduleOrder) = ACTION {
         LOCAL toDate = DATE ();    
         toDate() <- OVERRIDE sum(currentDate(), countDaysPreOrders()), endDate(scheduleOrder);
     
@@ -358,7 +358,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         //EXEC apply();
     } TOOLBAR;
     
-    addScheduleOrderDetail() = ACTION () NEWSESSION {
+    addScheduleOrderDetail() = ACTION NEWSESSION {
         FOR ScheduleOrder o IS ScheduleOrder AND NOT endDate(o) DO {
             EXEC create(o); 
         }              
@@ -405,7 +405,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     overCreate = ACTION ABSTRACT LIST (UserOrder);
 
-    createScheduleUser 'Создать заказ' = ACTION (ScheduleOrderDetail scheduleOrderDetail) NEWSESSION {
+    createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = ACTION NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
             scheduleOrderDetail(o) <- scheduleOrderDetail;
             date(o) <- currentDate();
@@ -440,7 +440,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     countShipmentScheduleOrderTime (scheduleOrder, dow) = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d);   
     scheduleOrderTimeIn 'Вкл.' (ScheduleOrder scheduleOrder, DOW dow)= TRUE IF [ = GROUP SUM 1 BY scheduleOrder(ScheduleOrderTime d), shipmentDOW(d)](scheduleOrder, dow);   
 
-    setScheduleOrderTimeIn = ACTION (ScheduleOrder scheduleOrder, DOW dow) {
+    setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = ACTION {
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
             LOCAL transfer = INTEGER();
             FOR ADDOBJ  t = ScheduleOrderTime DO {
@@ -456,7 +456,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }
     }
     
-    changeScheduleOrderTimeIn = ACTION (ScheduleOrder scheduleOrder, DOW dow) {
+    changeScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = ACTION {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             setScheduleOrderTimeIn(scheduleOrder, dow) ;
@@ -522,7 +522,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         EDIT ScheduleOrder OBJECT s
     ;
     
-    change = ACTION (ScheduleOrder s, DOW dow) {
+    change(ScheduleOrder s, DOW dow) = ACTION {
         IF scheduleOrderTimeIn(s, dow) THEN
             SEEK scheduleOrder.d [= GROUP MAX ScheduleOrderTime d BY scheduleOrder(d), shipmentDOW(d)](s, dow);
     }
@@ -626,7 +626,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     }
     
     overCopy = ACTION ABSTRACT LIST (ScheduleOrder, ScheduleOrder);
-    copy 'Копировать' = ACTION (ScheduleOrder scheduleOrder) NEWSESSION {
+    copy 'Копировать'(ScheduleOrder scheduleOrder) = ACTION NEWSESSION {
         FOR ADDOBJ o = ScheduleOrder DO {
             stockFilter(o) <- stockFilter(scheduleOrder);
             stockFilter##Stock(o) <- stockFilter##Stock(scheduleOrder);
@@ -659,7 +659,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     edit 'Редактировать' = ACTION EDITFORM ScheduleOrder TOOLBAR;
     edit 'Редактировать' (ScheduleOrderDetail detail) = ACTION edit(scheduleOrder(detail)) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-    addScheduleOrder###stockFilter##Customer 'Добавить'##sign = ACTION (LegalEntity supplier, LegalEntity customer) NESTEDSESSION {
+    addScheduleOrder###stockFilter##Customer 'Добавить'##sign(LegalEntity stockFilter, LegalEntity customer) = ACTION NESTEDSESSION {
         FOR ADDOBJ s = ScheduleOrder DO {
             stockFilter(s) <- supplier;
             customer(s) <- customer;

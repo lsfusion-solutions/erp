@@ -52,7 +52,7 @@ CONSTRAINT stock(UserRevaluation r) AND NOT  isCompany(stock(r))
 idBatch 'Код партии' (RevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 idBatch 'Код партии' (UserRevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
-changeBatch = ACTION (UserRevaluationDetail userRevaluationDetail) {
+changeBatch(UserRevaluationDetail userRevaluationDetail) = ACTION {
     FORM dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
                              t = dateTime(userRevaluationDetail),
                              sk = sku(userRevaluationDetail) DIALOG SHOWDROP;
@@ -65,7 +65,7 @@ changeBatch = ACTION (UserRevaluationDetail userRevaluationDetail) {
 
 }
 
-replace(Sku s, Batch b) += ACTION (s, b){ sku(UserRevaluationDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += ACTION { sku(UserRevaluationDetail detail) <- s WHERE batch(detail) == b;}
 
 // -- До
 
@@ -229,7 +229,7 @@ DESIGN userRevaluation {
 }
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RevaluationDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserRevaluationDetail d) = ACTION (d) NEWSESSION {
+edit(UserRevaluationDetail d) = ACTION NEWSESSION {
     FORM userRevaluation OBJECTS p = userRevaluation(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
@@ -401,7 +401,7 @@ edit[PriceListLedger](RevaluationDetail d) += ACTION edit(d);
 
 // ---------------------- Создание переоценки до учетной цены ----------------------- //
 
-addAdjustmentAccountSumDetail 'Привести учетные суммы к ценам партий' = ACTION (Revaluation revaluation) {
+addAdjustmentAccountSumDetail 'Привести учетные суммы к ценам партий'(Revaluation revaluation) = ACTION {
     LOCAL sum = NUMERIC[16,2] (Batch);
     sum(Batch b) <- accountSumB(b, stock(revaluation), dateTime(revaluation));
     

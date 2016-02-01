@@ -39,7 +39,7 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 // Для инвентаризации по партиям
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
-changeBatch = ACTION (UserWriteOffDetail userWriteOffDetail) {
+changeBatch(UserWriteOffDetail userWriteOffDetail) = ACTION {
     FORM dialogBatchStockIn OBJECTS st = stock(userWriteOffDetail),
                              t = dateTime(userWriteOffDetail),
                              sk = sku(userWriteOffDetail) DIALOG SHOWDROP;
@@ -321,7 +321,7 @@ CONSTRAINT stock(writeOffDetail(UserWriteOffDetail detail)) != stock(detail) CHE
 descriptionWriteOffDetail 'Основание' (WriteOffDetail writeOffDetail) = description(writeOffDetail(writeOffDetail));
 descriptionWriteOffDetail 'Основание' (UserWriteOffDetail userWriteOffDetail) = description(writeOffDetail(userWriteOffDetail));
 
-recalculatedPrice(UserWriteOffDetail detail) = ACTION (detail) {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
+recalculatedPrice(UserWriteOffDetail detail) = ACTION {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
     IF writeOffDetail(detail) THEN {
         ASSIGN price(detail) <-  price(writeOffDetail(detail));
     }
@@ -387,7 +387,7 @@ sum[InSkuLedger](WriteOffDetail ledger) += sum(ledger);
 stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger); 
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserWriteOffDetail d) = ACTION (d) NEWSESSION {
+edit(UserWriteOffDetail d) = ACTION NEWSESSION {
     FORM userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(UserWriteOffDetail d) += ACTION edit(d);

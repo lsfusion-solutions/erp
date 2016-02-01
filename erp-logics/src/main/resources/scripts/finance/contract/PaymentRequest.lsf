@@ -89,11 +89,11 @@ sumInLIFO(PaymentRequest paymentRequest, InContractLedger inContractLedger) =
               BY paymentRequest
               ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
 
-writeFIFO 'Расписать по FIFO' = ACTION (PaymentRequest paymentRequest) {
+writeFIFO 'Расписать по FIFO'(PaymentRequest paymentRequest) = ACTION {
     cost(paymentRequest, InContractLedger inContractLedger) <- sumInFIFO(paymentRequest, inContractLedger);
 }
 
-writeLIFO 'Расписать по LIFO' = ACTION (PaymentRequest paymentRequest) {
+writeLIFO 'Расписать по LIFO'(PaymentRequest paymentRequest) = ACTION {
     cost(paymentRequest, InContractLedger inContractLedger) <- sumInLIFO(paymentRequest, inContractLedger);
 }
 
@@ -208,7 +208,7 @@ requestedDebt 'Неоплаченных требований' (contract) =
 toRequest 'Необходимо выставить требований' (Contract contract, DATE date) = balanceA(contract, date) (-) requestedDebt(contract);
 
 overCreateRequests = ACTION ABSTRACT LIST (PaymentRequest);
-createPaymentRequest 'Выставить платежное требование' = ACTION (Contract contract, DATE date) NEWSESSION {
+createPaymentRequest 'Выставить платежное требование'(Contract contract, DATE date) = ACTION NEWSESSION {
     FOR ADDOBJ pr = PaymentRequest DO {
         date(pr) <- date;
         payer(pr) <- partyB(contract);
@@ -251,7 +251,7 @@ DESIGN contractLedger {
     }
 }
 
-createPaymentRequests 'Выставить платежные требования' = ACTION (DATE date) {
+createPaymentRequests 'Выставить платежные требования'(DATE date) = ACTION {
     LOCAL count = INTEGER();
     count() <- 0;
     FOR toRequest(Contract contract, date) > 0 AND (partyA(contract) == partyA() OR (isCompany(partyA(contract)) AND NOT partyA()))

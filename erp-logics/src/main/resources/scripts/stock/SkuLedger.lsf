@@ -818,7 +818,7 @@ quantity (OutFIFOSkuLedger ledger, Batch batch) =
 quantity (DataSkuLedger ledger, Batch batch) = MULTI quantity[InLIFOSkuLedger,Batch](ledger, batch) (+) 0, // (+) 0 делается, чтобы все 0 стали NULL 
                                                    quantity[OutFIFOSkuLedger,Batch](ledger, batch);
 
-resetCost 'Перерассчитать себестоимость' = ACTION (DataSkuLedger ledger) { //NEWSESSION AUTOAPPLY {
+resetCost 'Перерассчитать себестоимость'(DataSkuLedger ledger) = ACTION { //NEWSESSION AUTOAPPLY {
     ASSIGN cost(ledger, Batch batch) <- NULL;
     ASSIGN cost(ledger, Batch batch) <- quantity(ledger, batch);
 }
@@ -859,14 +859,14 @@ ON { // eventChangeLedger - так как внутрь рекурсивного 
         }
 }
 
-setDataSkuLedgerBatchCost 'Дорассчитать себестоимость' = ACTION () NEWSESSION {
+setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'() = ACTION NEWSESSION {
     APPLY SINGLE { 
         changedSession(DataSkuLedger ledger) <- needToCost(ledger);
         updateDataSkuLedgerBatchCost();
     }
 } CONFIRM;
 
-resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость' = ACTION () NEWSESSION {
+resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость'() = ACTION NEWSESSION {
     FORM dialogDate MODAL;
     IF formResult() == FormResult.ok THEN {
 
@@ -879,7 +879,7 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
     }
 } CONFIRM;
 
-clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость' = ACTION() NEWSESSION {
+clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость'() = ACTION NEWSESSION {
     ASSIGN cost(DataSkuLedger ledger, Batch batch) <- NULL;
     apply();
 } CONFIRM;
@@ -975,12 +975,12 @@ DESIGN costSkuBatchLedger {
 // ------------------------------------------------ Остатки по товарам ---------------------------------------- //
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku);
-resetAllSelectedSku 'Сбросить для всех' = ACTION () {
+resetAllSelectedSku 'Сбросить для всех'() = ACTION {
     select(Sku sku) <- NULL WHERE select(sku);
 } SHORTCUT select[Sku];
 
 select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Sku, Stock);
-resetAllSelectedSkuStock 'Сбросить для всех' = ACTION () {
+resetAllSelectedSkuStock 'Сбросить для всех'() = ACTION {
     select(Sku sku, Stock stock) <- NULL WHERE select(sku, stock);
 } SHORTCUT select[Sku,Stock];
 
@@ -1710,7 +1710,7 @@ END
 //замена товара у партии
 allowReplaceItem = DATA LOCAL BOOLEAN ();
 
-setSku 'Сменить товар' = ACTION (Batch batch) {
+setSku 'Сменить товар'(Batch batch) = ACTION {
     FORM skus MODAL;
     IF formResult() == FormResult.ok THEN {  
         allowReplaceItem() <- TRUE;

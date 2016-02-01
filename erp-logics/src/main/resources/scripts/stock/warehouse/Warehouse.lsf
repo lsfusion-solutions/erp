@@ -191,7 +191,7 @@ DESIGN warehouses {
 }
 @extendFormEditable(warehouses);
 
-addWarehouse 'Добавить склад' = ACTION (LegalEntity legalEntity) NESTEDSESSION {
+addWarehouse 'Добавить склад'(LegalEntity legalEntity) = ACTION NESTEDSESSION {
     FOR ADDOBJ wr = Warehouse DO {
         ASSIGN legalEntity(wr) <- legalEntity;
         FORM warehouse OBJECTS w = wr MANAGESESSION DOCKEDMODAL;
@@ -212,7 +212,7 @@ DESIGN options {
 defaultWarehouse= GROUP MAX Warehouse stock IF in(LegalEntity legalEntity, stock) AND stock IS Warehouse BY legalEntity; 
 addressDefaultWarehouse 'Адрес основного склада' (LegalEntity legalEntity) = address(defaultWarehouse(legalEntity)) IN law;
 
-changeWarehouse = ACTION (LegalEntity legalEntity){
+changeWarehouse(LegalEntity legalEntity) = ACTION {
     REQUEST VARSTRING[100] INPUT;
     IF requestedString() THEN {
         IF defaultWarehouse(legalEntity) THEN {
@@ -246,14 +246,14 @@ NAVIGATOR {
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 
-loadDefaultWarehouseGroup 'Добавить группы складов' = ACTION (VARISTRING[100] iname, VARSTRING[100] id) {
+loadDefaultWarehouseGroup 'Добавить группы складов'(VARISTRING[100] iname, VARSTRING[100] id) = ACTION {
     FOR ADDOBJ w = WarehouseGroup DO {
         name(w) <- iname;
         id(w) <- id;
 
     }
 }
-loadDefaultRecWarehouseGroup 'Добавить группы складов (рекурсивно)' = ACTION (VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) {
+loadDefaultRecWarehouseGroup 'Добавить группы складов (рекурсивно)'(VARISTRING[100] iname, VARSTRING[100] id, VARSTRING[100] idParent) = ACTION {
     FOR ADDOBJ w = WarehouseGroup DO {
         name(w) <- iname;
         id(w) <- id;
@@ -261,7 +261,7 @@ loadDefaultRecWarehouseGroup 'Добавить группы складов (ре
     }
 }
 
-loadDefaultStockGroups () += ACTION ()  {
+loadDefaultStockGroups () += ACTION  {
     loadDefaultWarehouseGroup ('Склады контрагентов', 'Склады контрагентов');
     loadDefaultWarehouseGroup ('Собственные склады', 'Собственные склады');
 }

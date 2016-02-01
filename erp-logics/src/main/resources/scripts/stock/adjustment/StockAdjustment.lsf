@@ -84,7 +84,7 @@ supplierStock(Adjustment adjustment) += stock(adjustment);
 @defineMovementPriceSku(userAdjustmentDetail, stock); //-- показываем по нажатию правой клавиши  изменение цены товара
 // --------------------------- Формы ---------------------------------- //
 
-batchDialog = ACTION (UserAdjustmentDetail userAdjustmentDetail) {
+batchDialog(UserAdjustmentDetail userAdjustmentDetail) = ACTION {
     FORM dialogBatchStockOut OBJECTS st = stock(userAdjustmentDetail), t = dateTime(userAdjustmentDetail),
     sk = sku(userAdjustmentDetail) MODAL;
 
@@ -207,7 +207,7 @@ showDelete(UserAdjustment a) = isOpened(a) AND is(a) AND NOT skipShowEditDelete(
 
 actualBalance 'Остаток фактический' (Sku sku, UserAdjustment userAdjustment, Stock stock)= currentBalance(sku, stock) (+) quantity(sku, userAdjustment, stock);
 
-changeActualQuantity = ACTION (Sku sku, UserAdjustment userAdjustment, Stock stock) {
+changeActualQuantity(Sku sku, UserAdjustment userAdjustment, Stock stock) = ACTION {
     REQUEST NUMERIC[16,5] INPUT;
     ASSIGN requestedNumeric() <- (requestedNumeric() IF sku IS Sku AND stock IS Stock) (-) currentBalance(sku, stock);
 
@@ -219,7 +219,7 @@ EXTEND FORM userAdjustment
 ;
 actualBalance 'Остаток фактический' (Batch batch, UserAdjustment userAdjustment, Stock stock)= currentBalance(batch, stock) (+) quantity(batch, userAdjustment, stock);
 
-changeActualQuantity = ACTION (Batch batch, UserAdjustment userAdjustment, Stock stock) {
+changeActualQuantity(Batch batch, UserAdjustment userAdjustment, Stock stock) = ACTION {
     REQUEST NUMERIC[16,5] INPUT;
     ASSIGN requestedNumeric() <- (requestedNumeric() IF batch IS Batch AND stock IS Stock) (-) currentBalance(batch, stock);
 
@@ -400,7 +400,7 @@ quantity (InAdjustmentSkuDetail ledger) += quantity(ledger);
 sum (InAdjustmentSkuDetail ledger) += sum(ledger);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (AdjustmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserAdjustmentDetail d) = ACTION (d) NEWSESSION {
+edit(UserAdjustmentDetail d) = ACTION NEWSESSION {
     FORM userAdjustment OBJECTS i = userAdjustment(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
@@ -514,7 +514,7 @@ skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(le
 calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime)*priceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
 
-createUserAdjustment = ACTION (DATETIME dateTime) {
+createUserAdjustment(DATETIME dateTime) = ACTION {
     FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,DATETIME dateTime) BY st,dateTime](Stock st,dateTime) AND isCompany(st) DO {
         NEWSESSION {
             FOR ADDOBJ a = UserAdjustment DO {
@@ -547,7 +547,7 @@ sessionConcatSkuGroups 'Группы' () =
     GROUP CONCAT name(SkuGroup group) IF inSession(group) AND NOT inSession(parent(group)),'; ' PREFCHARWIDTH 30;
 
 countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(SkuGroup g);
-resetSelectedGroups  'Сбросить отмеченные' = ACTION () {
+resetSelectedGroups  'Сбросить отмеченные'() = ACTION {
     dataInSession(SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
 }  
 
@@ -594,7 +594,7 @@ DESIGN selectParamsAdjustment {
 
 inAdjustment = DATA LOCAL BOOLEAN (Sku);
 
-createBatchUserAdjustmentDetail = ACTION (UserAdjustment adjustment) {
+createBatchUserAdjustmentDetail(UserAdjustment adjustment) = ACTION {
     FOR inAdjustment(Sku sku) DO {
         LOCAL quantity = NUMERIC[16,5] (Sku);
         quantity(sku) <- NULL;
@@ -627,7 +627,7 @@ createBatchUserAdjustmentDetail = ACTION (UserAdjustment adjustment) {
     }    
 }
 
-createBatchUserAdjustment 'Документ пересорта' = ACTION () {
+createBatchUserAdjustment 'Документ пересорта'() = ACTION {
     FORM selectParamsAdjustment MODAL;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]] {
         FOR ADDOBJ adjustment = UserAdjustment DO {  
@@ -657,7 +657,7 @@ DESIGN adjustments {
     }    
 }
 
-createBatchUserAdjustment 'Документ пересорта' = ACTION (Stock stock) {
+createBatchUserAdjustment 'Документ пересорта'(Stock stock) = ACTION {
 
     IF toAdjustment(stock,currentDateTime()) THEN NEWSESSION {
         FOR ADDOBJ adjustment = UserAdjustment DO {  

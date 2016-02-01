@@ -92,7 +92,7 @@ isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receip
 // оптимизация
 possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, sku(ReceiptSaleDetail detail)) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
 
-calculatePromotions 'Рассчитать акции' = ACTION (Receipt receipt) {
+calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION {
 
     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
     promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
@@ -248,7 +248,7 @@ calculatePromotions 'Рассчитать акции' = ACTION (Receipt receipt)
 
 // Операции с чеками
 
-createCurrentReceipt 'Создать новый чек' = ACTION () {
+createCurrentReceipt 'Создать новый чек'() = ACTION {
     FOR ADDOBJ r = Receipt DO {
         seek(r);
         number(r) <- maxNumberReceipt(currentZReport()) (+) 1;
@@ -268,7 +268,7 @@ fiscalCancel 'Отменить чек' = ACTION ABSTRACT LIST(Receipt);
 GROUP receiptAction 'Оплата' : public;
 
 postPrint 'Напечатать фискальный чек' = ACTION ABSTRACT LIST (Receipt);
-noFiscalPostPrint 'Создать чек (без фискального регистратора)' = ACTION (Receipt receipt) {
+noFiscalPostPrint 'Создать чек (без фискального регистратора)'(Receipt receipt) = ACTION {
     IF receipt IS Receipt THEN {
         apply();
         IF NOT canceled() THEN
@@ -328,14 +328,14 @@ DESIGN postReceiptPayment {
 
 allowPaymentGiftCard = DATA LOCAL BOOLEAN();
 
-prePost = ACTION (Receipt receipt) {
+prePost(Receipt receipt) = ACTION {
     allowPaymentGiftCard() <- TRUE;
     DELETE Payment payment WHERE receipt(payment) == receipt;
     date(receipt) <- currentDate();
     time(receipt) <- currentTime();
 }
 
-post 'Смешанный платеж' = ACTION (Receipt receipt) {
+post 'Смешанный платеж'(Receipt receipt) = ACTION {
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -360,7 +360,7 @@ post 'Смешанный платеж' = ACTION (Receipt receipt) {
     }
 } EDITKEY 'F9' IN receiptAction;
 
-postCard 'Карточкой' = ACTION (Receipt receipt) {
+postCard 'Карточкой'(Receipt receipt) = ACTION {
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -377,7 +377,7 @@ postCard 'Карточкой' = ACTION (Receipt receipt) {
     }
 } EDITKEY 'F10' CONFIRM IN receiptAction;
 
-postCash 'Наличными' = ACTION (Receipt receipt) {
+postCash 'Наличными'(Receipt receipt) = ACTION {
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -396,7 +396,7 @@ postCash 'Наличными' = ACTION (Receipt receipt) {
 
 resetBoard 'Сбросить текст на дисплее' = ACTION ABSTRACT LIST(Receipt);
 
-cancel 'Обнулить чек' = ACTION (Receipt receipt) {
+cancel 'Обнулить чек'(Receipt receipt) = ACTION {
     resetBoard(receipt);
     IF sumReceiptDetail(receipt) OR quantityReceiptDetail(receipt) THEN {
         cancel();
@@ -424,7 +424,7 @@ FORM chooseBatchReceipt 'Выбор партии'
         
 ;
 
-changeBatch 'Изменить партию строки чека' = ACTION (ReceiptDetail detail) {
+changeBatch 'Изменить партию строки чека'(ReceiptDetail detail) = ACTION {
     IF explicitBatchLedger(receipt(detail)) THEN {
         FORM chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail DIALOG;
         IF formResult() == FormResult.ok THEN {
@@ -436,7 +436,7 @@ changeBatch 'Изменить партию строки чека' = ACTION (Rece
 
 focusQuantity = ACTION ABSTRACT LIST (ReceiptDetail); 
 
-createSaleDetail 'Добавить строку продажи' = ACTION (Receipt receipt, Batch batch, STRING[15] barcode) {
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, STRING[15] barcode) = ACTION {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -460,7 +460,7 @@ defaultBatch 'Партия по умолчанию' (sku, stock, receipt) =
                                  BY batch(d), receipt(d)] (batch, Receipt receipt)) > 0
           BY sku(batch), stock, receipt; 
 
-createSaleDetail 'Добавить строку продажи' = ACTION (Receipt receipt, Sku sku, STRING[15] barcode) {
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, STRING[15] barcode) = ACTION {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -492,7 +492,7 @@ consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
 preProcessBarcode = ACTION ABSTRACT LIST (STRING[15], Receipt);
 overChangeBarcodeSale = ACTION ABSTRACT LIST (STRING[15], Receipt);
 
-changeBarcodeSale = ACTION (Receipt receipt) {
+changeBarcodeSale(Receipt receipt) = ACTION {
     REQUEST STRING[15] INPUT;
     consumedChangeBarcodeSaleReceipt() <- NULL;
     LOCAL barcode = STRING[15] ();
@@ -567,7 +567,7 @@ DESIGN searchSkuSaleReceipt {
     }
 }
 
-searchSkuSale 'Поиск' = ACTION (Receipt receipt) {
+searchSkuSale 'Поиск'(Receipt receipt) = ACTION {
     FORM searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
         createSaleDetail[Receipt,Sku,STRING[15]](receipt, chosenObject('s'), idBarcode[Sku](chosenObject('s')));
@@ -621,7 +621,7 @@ DESIGN searchBatchSaleReceipt {
     }
 }
 
-searchBatchSale 'Поиск' = ACTION (Receipt receipt) {
+searchBatchSale 'Поиск'(Receipt receipt) = ACTION {
     FORM searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
         createSaleDetail[Receipt,Batch,STRING[15]](receipt, chosenObject('b'), idBarcodeSku[Batch](chosenObject('b')));
@@ -647,7 +647,7 @@ DESIGN options {
     }    
 }
 
-createReturn 'Добавить строку возврата' = ACTION (Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[15] barcode) {
+createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[15] barcode) = ACTION {
     FOR ADDOBJ d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -661,7 +661,7 @@ createReturn 'Добавить строку возврата' = ACTION (Receipt 
     }
 }
 overCreateReturn = ACTION ABSTRACT LIST (ReceiptReturnDetail, ReceiptSaleDetail);
-createReturn 'Добавить строки возврата' = ACTION (Receipt receipt, Receipt receiptReturn) {
+createReturn 'Добавить строки возврата'(Receipt receipt, Receipt receiptReturn) = ACTION {
     FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn ADDOBJ d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;        
         idBarcode(d) <- idBarcode(sku(receiptSaleDetail));        
@@ -702,7 +702,7 @@ DESIGN scanBarcodeReturnReceipt {
     }
 }
 
-scanBarcodeReturn 'Ввести штрихкод' = ACTION (Receipt receipt) {
+scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
     FORM barcodeInput MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL dialogBarcodeSku = Sku();
@@ -758,7 +758,7 @@ DESIGN searchSkuReturnReceipt {
     preferredSize = (1024, 768);
 }
 
-searchSkuReturn 'Поиск' = ACTION (Receipt receipt) {
+searchSkuReturn 'Поиск'(Receipt receipt) = ACTION {
     FORM searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt) DIALOG;
     IF formResult() == FormResult.ok THEN {
         IF selectiveReturn() THEN {        
@@ -771,7 +771,7 @@ searchSkuReturn 'Поиск' = ACTION (Receipt receipt) {
 
 // Дисконтные карты
 
-overChangeBarcodeDiscountCard = ACTION (STRING[15] string, Receipt receipt) {
+overChangeBarcodeDiscountCard(STRING[15] string, Receipt receipt) = ACTION {
     IF discountString(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
         IF dateTo(discountString(string)) < date(receipt) THEN
             MESSAGE 'Закончился срок действия карты'
@@ -796,7 +796,7 @@ DESIGN inputDiscountCardNumberReceipt {
     }
 }
 
-inputDiscountCardNumber 'Ввести номер' = ACTION (Receipt receipt) {
+inputDiscountCardNumber 'Ввести номер'(Receipt receipt) = ACTION {
     FORM inputDiscountCardNumberReceipt MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL discountCard = DiscountCard();
@@ -811,7 +811,7 @@ inputDiscountCardNumber 'Ввести номер' = ACTION (Receipt receipt) {
     }
 } IN receiptDiscount EDITKEY 'F5';
 
-clearDiscountCard 'Сбросить' = ACTION (Receipt receipt) {
+clearDiscountCard 'Сбросить'(Receipt receipt) = ACTION {
     ASSIGN discountCard(receipt) <- NULL;
 } IN receiptDiscount EDITKEY 'shift F5';
 
@@ -828,7 +828,7 @@ openZReport 'Открыть Z-отчет' (CashRegister cashRegister) = ACTION {
     }
 } IN receiptZReport;
 
-openCurrentZReport 'Открыть Z-отчет' = ACTION () {
+openCurrentZReport 'Открыть Z-отчет'() = ACTION {
     FOR ADDOBJ z = ZReport DO {
         isPosted(z) <- TRUE;
         number(z) <- STRING[255](z);
@@ -852,7 +852,7 @@ closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister) = ACTION 
     apply();
 } CONFIRM IN receiptZReport;
 
-closeCurrentZReport 'Закрыть Z-отчет' = ACTION () {
+closeCurrentZReport 'Закрыть Z-отчет'() = ACTION {
     cancel();
     time(ZReport z) <- currentTime() WHERE z == currentZReport();
     //dateZReport(z) <- currentDate() WHERE z == currentZReport();
@@ -875,7 +875,7 @@ closedCurrentZReportMessage '' = 'Не открыт Z-отчет';
 posExplicitBatchLedger(Receipt r) = explicitBatchLedger(r) AND currentZReport();
 posNotExplicitBatchLedger(Receipt r) = notExplicitBatchLedger(r) AND currentZReport();
 
-changeQuantity 'Изменить кол-во строки чека' = ACTION (ReceiptDetail detail) {
+changeQuantity 'Изменить кол-во строки чека'(ReceiptDetail detail) = ACTION {
     REQUEST NUMERIC[14,3] INPUT;
     IF requestedNumeric() THEN {
         quantity(detail) <- requestedNumeric();
@@ -1128,12 +1128,12 @@ DESIGN POS {
     REMOVE functions.box;
 }
 
-focusQuantity(ReceiptDetail d) += ACTION (d) {
+focusQuantity(ReceiptDetail d) += ACTION {
     FOCUS POS.quantityGrid;
     SEEK POS.d d;
 };
 
-recalculatedPrice 'Пересчитать цены чека' = ACTION (Receipt receipt){
+recalculatedPrice 'Пересчитать цены чека'(Receipt receipt) = ACTION {
     FOR receipt(ReceiptSaleDetail detail) == receipt DO {
         IF posNotExplicitBatchLedger(receipt) THEN 
             price(detail) <- currentPOSPrice(sku(detail), receipt)
@@ -1228,7 +1228,7 @@ DESIGN operationCashRegister{
 }
 
 //-- 
-changeUserPromotion= ACTION (ReceiptSaleDetail d, PromotionCondition pcu) {
+changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu)= ACTION {
     REQUEST BOOLEAN INPUT;   
     IF requestedLogical() THEN {
         setUserPromotion(d, pcu) <- TRUE;

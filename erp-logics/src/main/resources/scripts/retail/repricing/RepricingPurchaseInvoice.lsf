@@ -152,14 +152,14 @@ backgroundShowDataSkipRepricing (SkuGroup skuGroup) =
         RGB(203,203,206) IF quantityChildWithDataSkipRepricing (skuGroup) != descendantNumber(skuGroup)
                          AND NOT quantityParentWithDataSkipRepricing (skuGroup);
 
-setNullShowDataSkipRepricing 'Снять признак для всех потомков' = ACTION (SkuGroup skuGroup) {
+setNullShowDataSkipRepricing 'Снять признак для всех потомков'(SkuGroup skuGroup) = ACTION {
     FOR isParent (SkuGroup childGroup, skuGroup) DO {
         ASSIGN skipRepricing(childGroup) <- NULL;
     }
 } SHORTCUT skipRepricing[SkuGroup] CONFIRM;
   
 createExtraValuationStockTimeOperationNotForm= ACTION ABSTRACT LIST (UserRepricing);
-createExtraValuationNotForm 'Создать дооценку' = ACTION (Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) {
+createExtraValuationNotForm 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = ACTION {
     LOCAL in = BOOLEAN (Invoice);
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
     IF [ = GROUP SUM 1 IF in(Invoice invoice)] () THEN {
@@ -245,20 +245,20 @@ createExtraValuationNotForm 'Создать дооценку' = ACTION (Stock de
     }
 }                  
                    
-createExtraValuation 'Создать дооценку' = ACTION  (Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) NEWSESSION {
+createExtraValuation 'Создать дооценку'(Stock department, DATETIME timeFrom, DATETIME timeTo, Operation operation) = ACTION NEWSESSION {
     createExtraValuationNotForm(department, timeFrom, timeTo, operation);
     FORM userRepricing  OBJECTS p = repricingForm() MANAGESESSION DOCKEDMODAL;  
     repricingForm() <- NULL;      
 }                 
                                                     
-createExtraValuation 'Создать дооценку' = ACTION () NEWSESSION {
+createExtraValuation 'Создать дооценку'() = ACTION NEWSESSION {
     FORM extraValuation  MODAL;
     IF formResult() == FormResult.ok THEN {        
         createExtraValuation(chosenObject('d'), chosenDateTime('tf'), chosenDateTime('tt'), chosenObject('o'));                               
     }
 } TOOLBAR ;
 
-recreateExtraValuation = ACTION(DATE dateFrom, DATE dateTo) {
+recreateExtraValuation(DATE dateFrom, DATE dateTo) = ACTION {
     FOR iterate(DATE d, dateFrom, dateTo) DO {
         DELETE UserRepricing u WHERE operation(u) == toRepricingOperation() AND date(u) == d;
         apply();
@@ -286,7 +286,7 @@ DESIGN repricings {
 createOverExtraValuationAllStocks = ACTION ABSTRACT LIST ();
 isOverExtraValuationAllStocks = ABSTRACT BOOLEAN ();
 
-createExtraValuationAllStocks 'Создать автоматическую дооценку' = ACTION () NEWSESSION {
+createExtraValuationAllStocks 'Создать автоматическую дооценку'() = ACTION NEWSESSION {
     IF isOverExtraValuationAllStocks() THEN {
         createOverExtraValuationAllStocks();
     } ELSE {   

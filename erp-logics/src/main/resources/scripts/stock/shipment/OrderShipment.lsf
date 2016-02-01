@@ -16,7 +16,7 @@ META defineOrderShipment(sign, stockProp)
     order = DATA Order (UserShipmentDetail);
     order(UserShipmentDetail shipmentDetail) += order(shipmentDetail);
     
-    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION (d, detail) {      
+    overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION {      
         order(d) <- order(detail);             
     } 
 
@@ -111,7 +111,7 @@ META defineOrderShipment(sign, stockProp)
 
     overFillOrder = ACTION ABSTRACT LIST (UserShipmentDetail, OrderDetail);
 
-    fillOrder 'Заполнить на основе заказа' =  ACTION (UserShipment userShipment) {
+    fillOrder 'Заполнить на основе заказа'(UserShipment userShipment) =  ACTION {
         FORM shipmentOrders OBJECTS s = supplier(userShipment), ss = supplierStock(userShipment),
                                     c = customer(userShipment), cs = customerStock(userShipment) MODAL;
         IF formResult() == FormResult.ok THEN {
@@ -173,7 +173,7 @@ META defineOrderShipmentPack(showPackage)
                        amountPack, packQuantity
     ;
 
-    overFillOrder(UserShipmentDetail s, OrderDetail o) += ACTION (s, o) {
+    overFillOrder(UserShipmentDetail s, OrderDetail o) += ACTION {
         ASSIGN barcodePack(s) <- barcodePack(o);
         ASSIGN amountPack(s) <- amountPack(o);
         ASSIGN packQuantity (s) <- toShip(o)/amountPack(o);

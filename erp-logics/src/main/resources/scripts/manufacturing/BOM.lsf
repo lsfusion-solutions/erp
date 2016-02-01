@@ -242,7 +242,7 @@ DESIGN yearFromTo {
 }
 
 
-fillWastage 'Заполнить технологии на другой год' = ACTION (Technology technology) {
+fillWastage 'Заполнить технологии на другой год'(Technology technology) = ACTION {
 
     FORM yearFromTo MODAL;
     IF formResult() == FormResult.ok THEN {
@@ -401,7 +401,7 @@ calcPriceCoeff 'Коэффициент цены' (Product product) = NUMERIC[20,
 calcPricePercentNumeric '%' (Product product, NUMERIC[8,5] num) = (num AS NUMERIC[8,5]) * quantity(product)*100 
     /(quantityProduct(BOM(product)) IF quantityProduct(BOM(product))!= 0); 
     
-changePriceCoeff = ACTION (Product product) {
+changePriceCoeff(Product product) = ACTION {
     REQUEST NUMERIC[8,5] INPUT;
     IF requestedNumeric() THEN {        
         pricePercent(product) <- NUMERIC[16,5](calcPricePercentNumeric(product, requestedNumeric()));
@@ -531,11 +531,11 @@ wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)
 @defineDocumentDetailQuantityCustomPrefix (component, brutto, ' (брутто)');
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
             
-selectTechnologies = ACTION (Component component) {
+selectTechnologies(Component component) = ACTION {
     FORM componentTechnologies OBJECTS c = component MODAL;
 }  
        
-changeNettoQuantity = ACTION (Component component) {
+changeNettoQuantity(Component component) = ACTION {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {
         nettoQuantity(component) <- requestedNumeric();
@@ -545,7 +545,7 @@ changeNettoQuantity = ACTION (Component component) {
     }                
 }   
                                                                                                                                                                                                                                                                                                                                                       
-changeWastage = ACTION (Component component) {
+changeWastage(Component component) = ACTION {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN {
         wastage(component) <- requestedNumeric();   
@@ -556,7 +556,7 @@ changeWastage = ACTION (Component component) {
     }
 }                                                                                                                                                                                                                                                                                                                                                      
                                                                                                                                                                                                                                                                                                                                                             
-changeBruttoQuantity = ACTION (Component component) {
+changeBruttoQuantity(Component component) = ACTION {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {    
         bruttoQuantity(component) <- requestedNumeric();
@@ -789,7 +789,7 @@ WHEN SESSION FORMS BOM SET(BOM BOM IS BOM) DO {
 overCopy = ACTION ABSTRACT LIST (BOM, BOM);
 overCopy = ACTION ABSTRACT LIST (Component, Component);
 
-copy 'Копировать' = ACTION (BOM BOM) NEWSESSION {
+copy 'Копировать'(BOM BOM) = ACTION NEWSESSION {
     FOR ADDOBJ b = BOM DO {
 
         note(b) <- note(BOM);
@@ -834,7 +834,7 @@ isActive(BOM BOM) = isActive(BOM, currentDate());
 background 'Цвет' (BOM BOM) = CASE WHEN fromDate(BOM) > currentDate() THEN RGB(224,255,224)
                                   WHEN toDate(BOM) < currentDate() THEN RGB(255,224,224);     
 
-addBOM 'Добавить' = ACTION (Sku sku) NEWSESSION {
+addBOM 'Добавить'(Sku sku) = ACTION NEWSESSION {
     FOR ADDOBJ b = BOM DO {
     
         FOR ADDOBJ p = Product DO {   
@@ -981,7 +981,7 @@ DESIGN BOMs {
     }
 }
 
-copyBOMProduct 'Копировать' = ACTION (Sku sku) {
+copyBOMProduct 'Копировать'(Sku sku) = ACTION {
     Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.p1 addedSku(); 
@@ -989,7 +989,7 @@ copyBOMProduct 'Копировать' = ACTION (Sku sku) {
 
 EXTEND FORM BOMs PROPERTIES(p1) copyBOMProduct;
 
-copyBOMComponent 'Копировать' = ACTION (Sku sku) {
+copyBOMComponent 'Копировать'(Sku sku) = ACTION {
     Stock.copy(sku);
     IF addedSku() THEN
         SEEK BOMs.c2 addedSku(); 
@@ -1236,7 +1236,7 @@ recNettoNodeQuantity (BOM, sku) = GROUP SUM recNettoQuantityBOMBOM(BOM BOM, BOM 
 component (BOM,material) =  GROUP MAX Component component
     BY BOM(component), material(component);
    
-changeQuantity = ACTION (BOM BOM,Material material) {
+changeQuantity(BOM BOM,Material material) = ACTION {
     REQUEST NUMERIC[14,3] INPUT;
     IF component(BOM,material) THEN {
         IF requestedNumeric() THEN {

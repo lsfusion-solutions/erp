@@ -17,7 +17,7 @@ FORM selectDepartmentStore 'Выбор отделов магазина для п
         FILTER 'Активный' active(d) 'F10' DEFAULT    
 ;
 
-createPriceListLabel 'Распечатать ценники' = ACTION (PriceTransactionDocument priceList) NEWSESSION {
+createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList) = ACTION NEWSESSION {
     FORM selectDepartmentStore OBJECTS p = priceList DIALOG;
     IF formResult() == FormResult.ok THEN {
         select(Sku sku, LabelType labelType, DepartmentStore department) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, chosenObject('d')) AND department == chosenObject('d');   
@@ -62,7 +62,7 @@ FORM selectDepartmentStoreLabelType 'Выбор магазина и ценник
     FILTERS in(l,d)        
 ;
 
-createSelectedSkuStockSnapshotLabel 'Перепечатать ценники' = ACTION (PriceTransactionDocument priceList) {    
+createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = ACTION {    
     FORM selectDepartmentStoreLabelType OBJECTS p = priceList MODAL;
     IF formResult() == FormResult.ok THEN {
 
@@ -93,7 +93,7 @@ DESIGN priceLists {
 }
 
 overFillDocument = ACTION ABSTRACT (LabelTransactionDetail, DocumentDetail); 
-fillDocument 'Подбор документа' = ACTION (LabelTransaction labelTransaction) {
+fillDocument 'Подбор документа'(LabelTransaction labelTransaction) = ACTION {
     FORM documents MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL chosenDocument = Document();
@@ -108,7 +108,7 @@ fillDocument 'Подбор документа' = ACTION (LabelTransaction labelT
     }
 } TOOLBAR;
 
-overFillDocument (LabelTransactionDetail i, DocumentDetail d) += ACTION (i, d) {
+overFillDocument (LabelTransactionDetail i, DocumentDetail d) += ACTION {
     batch(i) <- batch(d);
 }
 

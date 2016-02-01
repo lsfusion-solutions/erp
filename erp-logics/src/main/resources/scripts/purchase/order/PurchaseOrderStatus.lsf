@@ -128,7 +128,7 @@ EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
 }
 
-logSendDocumentOrder = ACTION (Object o) FOR ADDOBJ d = DocumentLog DO {
+logSendDocumentOrder(Object o) = ACTION FOR ADDOBJ d = DocumentLog DO {
     document(d) <- o;
     typeDocument(d) <- objectClassName(o);
     numberDocument(d) <- number[Document](o);  
@@ -147,7 +147,7 @@ logSendDocumentOrder = ACTION (Object o) FOR ADDOBJ d = DocumentLog DO {
     FORM printOrderXLS OBJECTS o = o EXPORT XLSX;
     file(d) <- formExportFile();
 }
-emailCustomer 'Отправить заказ поставщику' (Order.Order order)= ACTION (order) {
+emailCustomer 'Отправить заказ поставщику' (Order.Order order)= ACTION {
     IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
         NEWSESSION {
             IF isPosted(order) THEN MESSAGE NO WAIT 'Заказ в статусе "В работе" или выше, статус изменен не будет ';

@@ -264,7 +264,7 @@ skuStockAveragePurchaseInterval 'Интервал расчета закупок 
 
 averagePurchase 'Закупок в день' = DATA NUMERIC[14,3] (Sku, Stock);
 
-calcQuantityPurchaseInterval = ACTION (DATE dateFrom, DATE dateTo) {
+calcQuantityPurchaseInterval(DATE dateFrom, DATE dateTo) = ACTION {
     LOCAL balance = NUMERIC[14,3] (Sku, Stock);
     LOCAL days = INTEGER (Sku, Stock);
     LOCAL dateCur = DATE();
@@ -282,7 +282,7 @@ calcQuantityPurchaseInterval = ACTION (DATE dateFrom, DATE dateTo) {
 
     ASSIGN averagePurchase(Sku sku, Stock stock) <- quantityPurchase (sku, stock, dateFrom, dateTo) / days(sku, stock);
 }
-calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки' = ACTION () NEWSESSION {
+calcCurrentQuantityPurchaseInterval 'Пересчитать однодневные закупки'() = ACTION NEWSESSION {
     EXEC calcQuantityPurchaseInterval(subtract(currentDate(), skuStockAveragePurchaseInterval()), subtract(currentDate(), 1));
     apply();
 }
@@ -321,7 +321,7 @@ DESIGN options {
 
 isShipmentDate 'По дате поставки' = DATA LOCAL BOOLEAN ();
 
-onInitPurchaseLedger = ACTION () {
+onInitPurchaseLedger() = ACTION {
     isShipmentDate() <- isShipmentDatePurchaseLedger();    
 }
 

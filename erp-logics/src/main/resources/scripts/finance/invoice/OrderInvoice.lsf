@@ -55,7 +55,7 @@ countSelectedToStockClass 'Кол-во складов получателей' = 
 
 addUserInvoice = ACTION ABSTRACT LIST (Order);
 
-createMultiUserInvoice 'Создать накладную' = ACTION (Order order) {
+createMultiUserInvoice 'Создать накладную'(Order order) = ACTION {
     IF countSelectedOrder() THEN {
         IF countSelectedFromClass()!=1 OR countSelectedToClass() != 1 OR countSelectedFromStockClass()!=1 OR countSelectedToStockClass()!=1 THEN {
             MESSAGE 'Выбраны заказы с разными покупателями, поставщиками или их складами';               
@@ -82,7 +82,7 @@ META defineOrderInvoice(sign, stockProp)
     order = DATA Order(UserInvoiceDetail);
     order(UserInvoiceDetail invoiceDetail) += order(invoiceDetail);
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      
         order(d) <- order(detail);
     }  
 
@@ -145,7 +145,7 @@ META defineOrderInvoice(sign, stockProp)
     overFill = ACTION ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
     overFill = ACTION ABSTRACT LIST (UserInvoice, Order);
     
-    fill = ACTION (UserInvoiceDetail id, OrderDetail od) {    
+    fill(UserInvoiceDetail id, OrderDetail od) = ACTION {    
         VAT(id) <- VAT(od);
         valueVAT(id) <- valueVAT(od);
         priceListType(id) <- priceListType(od);
@@ -164,7 +164,7 @@ META defineOrderInvoice(sign, stockProp)
     orderCreateUserInvoice = ABSTRACT STRING[100] (OrderDetail);
     skipCreateUserInvoice = ABSTRACT BOOLEAN (OrderDetail);
 
-    createDetail = ACTION (UserInvoice userInvoice, Order order) {
+    createDetail(UserInvoice userInvoice, Order order) = ACTION {
         IF useExplicitBatchDetailUserInvoice(order) AND explicitBatchLedger(stockProp##Stock(order)) THEN {
             // проходим по строкам, для которых не задана партия
             FOR order(OrderDetail orderDetail) == order AND toInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
@@ -209,7 +209,7 @@ META defineOrderInvoice(sign, stockProp)
             }
     }
     
-    fillPrice = ACTION (UserInvoice userInvoice, Order order) {
+    fillPrice(UserInvoice userInvoice, Order order) = ACTION {
         IF notFillPriceInvoiceOrder(operation(order)) THEN {
             FOR userInvoice(UserInvoiceDetail d) == userInvoice AND PriceListType pt == priceListType(d) AND sku(d) NOINLINE (pt) DO {
                 price(d) <- prevListMVAT (pt, d);
@@ -220,7 +220,7 @@ META defineOrderInvoice(sign, stockProp)
     prevListSku (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND maxOrderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) THEN priceOrder(d);    
     prevListBatch (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND maxOrderDetailBatch(d) AND NOT notFillPriceInvoiceOrder(operation(d)) THEN priceOrderBatch(d);
     
-    fillHeader = ACTION (UserInvoice userInvoice, Order order) {
+    fillHeader(UserInvoice userInvoice, Order order) = ACTION {
         date(userInvoice) <- currentDate();
         time(userInvoice) <- currentTime();
         
@@ -242,14 +242,14 @@ META defineOrderInvoice(sign, stockProp)
         EXEC overFill(userInvoice, order);
     }
     
-    fill = ACTION (UserInvoice userInvoice, Order order) {
+    fill(UserInvoice userInvoice, Order order) = ACTION {
         fillHeader(userInvoice, order);
         
         createDetail(userInvoice, order);
         fillPrice(userInvoice, order);
     }
 
-    fillSupplier = ACTION (Stock supplierStock, UserInvoice userInvoice, Order order) {
+    fillSupplier(Stock supplierStock, UserInvoice userInvoice, Order order) = ACTION {
         date(userInvoice) <- currentDate();
         time(userInvoice) <- currentTime();
 
@@ -278,7 +278,7 @@ META defineOrderInvoice(sign, stockProp)
     
     overCreate = ACTION ABSTRACT LIST (Order, UserInvoice);
     
-    createUserInvoice 'Создать накладную' = ACTION (Order order) {
+    createUserInvoice 'Создать накладную'(Order order) = ACTION {
         userInvoice(order) <- NULL;
         FOR ADDOBJ i = UserInvoice DO {
             fill(i, order);
@@ -289,7 +289,7 @@ META defineOrderInvoice(sign, stockProp)
     }
     createUserInvoice (Order order) += ACTION createUserInvoice(order);
 
-    createUserInvoicePosted 'Создать проведенную накладную' = ACTION (Order order) {
+    createUserInvoicePosted 'Создать проведенную накладную'(Order order) = ACTION {
         IF differentStocksInDetails(customerStock(order)) THEN {
             FOR ADDOBJ i = UserInvoice DO {
                 isPosted(i) <- TRUE;
@@ -306,7 +306,7 @@ META defineOrderInvoice(sign, stockProp)
     }
     createUserInvoicePosted (Order order) += ACTION createUserInvoicePosted(order);
 
-    addUserInvoice 'Накладная'###sign =  ACTION (Order order) NEWSESSION {
+    addUserInvoice 'Накладная'###sign(Order order) =  ACTION NEWSESSION {
         createUserInvoice(order);
         FORM userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKEDMODAL;
     } TOOLBAR;
@@ -407,7 +407,7 @@ META defineOrderInvoice(sign, stockProp)
         }
     }
 
-    fillOrder 'Заполнить на основе заказа' =  ACTION (UserInvoice userInvoice) {
+    fillOrder 'Заполнить на основе заказа'(UserInvoice userInvoice) =  ACTION {
         supplierInvoiceOrder() <- supplier(userInvoice) WHERE supplier(userInvoice);
         supplierStockInvoiceOrder() <- supplierStock(userInvoice) WHERE supplierStock(userInvoice);
         customerInvoiceOrder() <- customer(userInvoice) WHERE customer(userInvoice);
@@ -479,7 +479,7 @@ META defineOrderInvoice(sign, stockProp)
     notIncludeInvoiceDetailOrder 'Есть строки накладной с сылкой на заказ, который не включен в накладную' (invoice)= GROUP SUM 1 
         IF relationInvoiceDetail(Order order, Invoice invoice) AND NOT include[Order,UserInvoice](order, invoice)  BY invoice;         
 
-    dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION (userInvoice) {
+    dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION {
         FORM includeOrdersUserInvoice OBJECTS i = userInvoice MODAL;
         IF formResult() == FormResult.ok THEN {
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
@@ -511,12 +511,12 @@ META defineOrderInvoice(sign, stockProp)
         AND order(OrderDetail detail)==order
         BY sku(detail), userInvoice;
 
-    connectOrder 'Привязать строку накладной к заказу' = ACTION (UserInvoiceDetail detail) {
+    connectOrder 'Привязать строку накладной к заказу'(UserInvoiceDetail detail) = ACTION {
         order(detail) <- defaultOrder(sku(detail), userInvoice(detail)) 
                                                     WHERE defaultOrder(sku(detail), userInvoice(detail));
     } SHORTCUT descriptionOrder[UserInvoiceDetail];
 
-    connectOrder 'Привязать все строки накладной к заказам' = ACTION (UserInvoice userInvoice) {
+    connectOrder 'Привязать все строки накладной к заказам'(UserInvoice userInvoice) = ACTION {
         FOR userInvoice(UserInvoiceDetail detail) == userInvoice DO {
             EXEC connectOrder(detail);
         }
@@ -538,7 +538,7 @@ META defineOrderInvoice(sign, stockProp)
     }
 //-- 
     
-    createMultiUserInvoice = ACTION (Order order) {
+    createMultiUserInvoice(Order order) = ACTION {
         IF order IS Order THEN {
             FOR ADDOBJ i = UserInvoice DO {
                 FOR selected(Order.Order o) DO {
@@ -676,7 +676,7 @@ END
 
 META defineOrderInvoicePack (showPackage)
 
-    overFill(UserInvoiceDetail i, OrderDetail o) += ACTION (i, o) {
+    overFill(UserInvoiceDetail i, OrderDetail o) += ACTION {
         IF o IS OrderDetail THEN { // иначе не может определить тип o
             barcodePack(i) <- barcodePack(o);
             amountPack(i) <- amountPack(o);
@@ -693,7 +693,7 @@ END
 
 META defineInvoiceOrder(sign, NS, batchProp, legalProp, stockProp)
 
-    createUserOrder 'Создать заказ' = ACTION (Invoice invoice) NEWSESSION {
+    createUserOrder 'Создать заказ'(Invoice invoice) = ACTION NEWSESSION {
         FOR ADDOBJ o = NS.UserOrder DO {
             supplier(o) <- legalProp(invoice);
             supplierStock(o) <- stockProp(invoice);

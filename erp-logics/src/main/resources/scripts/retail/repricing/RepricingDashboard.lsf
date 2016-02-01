@@ -6,7 +6,7 @@ NAMESPACE Repricing;
 
 //------------------------ Управленческая переоценка ----------------------------//
 
-createRepricingLabelTransaction 'Распечатать ценники' = ACTION (DepartmentStore departmentStore, Operation operation, DATETIME dateTime) NEWSESSION NESTED select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku] {
+createRepricingLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore, Operation operation, DATETIME dateTime) = ACTION NEWSESSION NESTED select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku] {
     IF [=GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
         select(Sku sku, LabelType labelType, departmentStore) <- inDashboardRepricing(sku) AND in(labelType, sku, departmentStore);   
         FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
@@ -63,7 +63,7 @@ createRepricingLabelTransaction 'Распечатать ценники' = ACTION
 //    apply();
 //} TOOLBAR;
 
-createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники' = ACTION (Stock departmentStore, Operation operation, DATETIME dateTime)  {
+createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, Operation operation, DATETIME dateTime) = ACTION  {
     IF countSelectSkus() THEN  NEWSESSION NESTED select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku] {
         FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;
         IF formResult() == FormResult.ok THEN { 
@@ -121,7 +121,7 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
     }
 } TOOLBAR;
 
-clearDashboardRepricing = ACTION() {
+clearDashboardRepricing() = ACTION {
     inDashboardRepricing(Sku sk) <- NULL;
     managementRetailPrice(Sku sk) <- NULL;
     managementPriceListPrice(Sku sk) <- NULL;

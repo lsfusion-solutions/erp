@@ -148,7 +148,7 @@ skipChangeManufacturingPrice 'Пропустить' = ABSTRACT BOOLEAN (UserInvo
 calcReversePrice(UserInvoiceDetail d) =     
     round(NUMERIC[14,2](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
 
-updateManufacturingPrice = ACTION (UserInvoiceDetail d) {
+updateManufacturingPrice(UserInvoiceDetail d) = ACTION {
     IF reverseManufacturingPrice(d) THEN {
         price(d) <- calcReversePrice(d);
     } ELSE {
@@ -159,7 +159,7 @@ updateManufacturingPrice = ACTION (UserInvoiceDetail d) {
                 baseManufacturingPrice(d);    
     }
 }
-overChangePrice (UserInvoiceDetail d) += ACTION (d) {
+overChangePrice (UserInvoiceDetail d) += ACTION {
     IF reverseManufacturingPrice(d) THEN {
         manufacturingPrice(d)<- baseReverseManufacturingPrice(d);    
     }
@@ -176,7 +176,7 @@ ON SESSION FORMS userInvoice {
 calcManufacturingMarkup(UserInvoiceDetail d) =     
     NUMERIC[8,3]((manufacturingPrice(d) * 100.0 / calcBaseManufacturingPrice(d)) - 100.0);
 
-changeManufacturingPrice = ACTION (UserInvoiceDetail d) {
+changeManufacturingPrice(UserInvoiceDetail d) = ACTION {
     REQUEST NUMERIC[14,2] INPUT;
 
     IF requestedNumeric() THEN {
@@ -196,12 +196,12 @@ changeManufacturingPrice = ACTION (UserInvoiceDetail d) {
     }
 }
 
-toFillMarkup 'Проставить надбавку из вида цен' = ACTION (UserInvoiceDetail detail) {
+toFillMarkup 'Проставить надбавку из вида цен'(UserInvoiceDetail detail) = ACTION {
     manufacturingMarkup(detail) <- markup(manufacturingCalcPriceListType(detail), sku(detail));
         EXEC updateManufacturingPrice(detail);
 } SHORTCUT manufacturingMarkup[UserInvoiceDetail];
 
-toFillMarkupDetails 'Проставить надбавку из вида цен для всех' = ACTION (UserInvoiceDetail detail) {
+toFillMarkupDetails 'Проставить надбавку из вида цен для всех'(UserInvoiceDetail detail) = ACTION {
     FOR [= FILTER userInvoice.d](UserInvoiceDetail det) AND detail IS UserInvoiceDetail DO {
         EXEC toFillMarkup(det);
     }

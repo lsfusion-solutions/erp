@@ -40,7 +40,7 @@ CONSTRAINT stock(UserConsumption o) AND NOT  isCompany(stock(o))
 
 @showDocumentInterfaceDetailBatch(consumption);
 @defineDocumentInterfaceDetailBatch(consumption, batch);
-changeBatch = ACTION (UserConsumptionDetail detail) {
+changeBatch(UserConsumptionDetail detail) = ACTION {
 
     FORM dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
@@ -52,7 +52,7 @@ changeBatch = ACTION (UserConsumptionDetail detail) {
         batch(detail) <- NULL;
     }
 }
-replace(Sku s, Batch b) += ACTION (s, b){ sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += ACTION { sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
 
 
     
@@ -163,7 +163,7 @@ recBruttoQuantityOutput 'Рекур.кол-во' (BOM, order, component) = GROUP
 
 calcComponentConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), component(d)) * quantityCoeff(d) * OVERRIDE 1.0, multiplierSubstituteTo(bruttoSku(d), substituteSku(d));
 calcSkuConsumedQuantity (ComponentDetail d) = recBruttoQuantityOutput(BOM(d), order(d), bruttoSku(d)) * quantityCoeff(d) * OVERRIDE 1.0, multiplierSubstituteTo(bruttoSku(d), substituteSku(d));
-createOutputComponent 'Заполнить списание' = ACTION (Order order)  {
+createOutputComponent 'Заполнить списание'(Order order) = ACTION  {
     consumedQuantity(ComponentDetail d) <- calcComponentConsumedQuantity(d) WHERE order(d) == order AND component(d);
     consumedQuantity(ComponentDetail d) <- calcSkuConsumedQuantity(d) WHERE order(d) == order AND NOT component(d);
 } TOOLBAR;
@@ -246,7 +246,7 @@ DESIGN consumptionOrders {
     }
 }
 
-fillOrder 'Заполнить на основе производственного заказа' =  ACTION (UserConsumption userConsumption) {
+fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption) =  ACTION {
     FORM consumptionOrders OBJECTS s = stock(userConsumption) MODAL;
 
     IF formResult() == FormResult.ok THEN {
@@ -463,14 +463,14 @@ WHEN SESSION FORMS userConsumption CHANGED(batch(UserConsumptionDetail detail)) 
 //                    ELSE priceBLedgerPriceListTypeSkuStockDateTime(SystemLedgerPriceListType.accountPriceListType, skuUserConsumptionDetail(detail), stockUserConsumptionDetail(detail), dateTimeUserConsumptionDetail(detail));
                     
 edit 'Редактировать' = ACTION ABSTRACT LIST  (ConsumptionDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserConsumptionDetail d) = ACTION (d) NEWSESSION {
+edit(UserConsumptionDetail d) = ACTION NEWSESSION {
     FORM userConsumption OBJECTS o = userConsumption(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 
 edit(UserConsumptionDetail d) += ACTION edit(d);
 edit[SkuLedger](ConsumptionDetail batch) += ACTION edit(batch);
                        
-edit(ComponentDetail d) = ACTION (d) NEWSESSION {
+edit(ComponentDetail d) = ACTION NEWSESSION {
     FORM order OBJECTS o = order(d), cd = d MANAGESESSION DOCKEDMODAL;
 }
 
@@ -501,7 +501,7 @@ addUserConsumption 'Добавить' = ACTION ADDFORM UserConsumption;
 edit 'Редактировать' (userConsumption) = ACTION EDITFORM UserConsumption;
 edit(UserConsumption consumption) += ACTION edit(consumption);
 
-copy 'Копировать' = ACTION (UserConsumption userConsumption) NEWSESSION {
+copy 'Копировать'(UserConsumption userConsumption) = ACTION NEWSESSION {
     FOR ADDOBJ o = UserConsumption DO {
         ASSIGN stock(o) <- stock(userConsumption);
         ASSIGN currency(o) <- currency(userConsumption);
@@ -612,7 +612,7 @@ requiredQuantitySubstitute 'Кол-во (всего) (компонент)' (orde
 balance = DATA LOCAL NUMERIC[16,3] (Sku);
 left = DATA LOCAL NUMERIC[16,3] (Sku);
 
-addUserConsumptionProduction 'Списание сырья' =  ACTION (Order order) NEWSESSION {
+addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTION NEWSESSION {
     balance(Sku sku) <-  NUMERIC[16,3](balanceB(sku, componentsStock(order), dateTime(order)));
     left(Sku sku) <-  NUMERIC[16,3](requiredQuantitySubstitute(order, sku));
 

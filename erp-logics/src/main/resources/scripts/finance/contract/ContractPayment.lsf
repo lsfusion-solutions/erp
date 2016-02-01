@@ -65,7 +65,7 @@ sum[OutContractLedger](Payment outContractLedger) += sumContract(outContractLedg
 
 //------------------------------------------- Actions --------------------------------------------------------------//
 
-setRateExchangeContract = ACTION (Payment payment){
+setRateExchangeContract(Payment payment) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
     ASSIGN rateExchangeContract(payment) <- requestedNumeric()/sum(payment);
 }
@@ -146,7 +146,7 @@ WHEN SESSION FORMS payment
 
 //------------------------------------- Платежи по договору --------------------------------------------------------//
 
-pay 'Оплатить по договору' = ACTION (Contract contract, DATE date) NEWSESSION {
+pay 'Оплатить по договору'(Contract contract, DATE date) = ACTION NEWSESSION {
 
     FOR ADDOBJ pm = Payment DO {
         ASSIGN date(pm) <- date;
@@ -166,7 +166,7 @@ pay 'Оплатить по договору' = ACTION (Contract contract, DATE d
 
 //------------------------------------------- Платеж c учетом бонусов договора --------------------------------------------//
 
-payPaymentCondition 'Оплатить c учетом бонусов договора' = ACTION (InContractLedger inContractLedger, DATE date) NEWSESSION {
+payPaymentCondition 'Оплатить c учетом бонусов договора'(InContractLedger inContractLedger, DATE date) = ACTION NEWSESSION {
     IF bonusSum(inContractLedger, date) > 0.0 THEN {
         FOR ADDOBJ pm = Payment DO {
             ASSIGN date(pm) <- date;
@@ -192,7 +192,7 @@ payPaymentCondition 'Оплатить c учетом бонусов догово
     ELSE {MESSAGE 'По текущему договору не заданы условия бонуса';}
 }
 
-payPaymentCondition 'Оплатить c учетом бонусов договора' = ACTION (Contract contract, DATE date) NEWSESSION {
+payPaymentCondition 'Оплатить c учетом бонусов договора'(Contract contract, DATE date) = ACTION NEWSESSION {
     IF bonusSum(contract, date) > 0.0 THEN {
         FOR ADDOBJ pm = Payment DO {
             ASSIGN date(pm) <- date;
@@ -220,7 +220,7 @@ payPaymentCondition 'Оплатить c учетом бонусов догово
     ELSE {MESSAGE 'По текущему договору не заданы условия бонуса';}
 }
 
-addPayment 'Оплатить' = ACTION (Contract contract) NEWSESSION{
+addPayment 'Оплатить'(Contract contract) = ACTION NEWSESSION{
     FOR ADDOBJ p = Payment DO{
         ASSIGN payer(Payment pr) <- partyB(contract);
         ASSIGN beneficiary(Payment pr) <- partyA(contract);
