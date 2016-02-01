@@ -41,7 +41,7 @@ defaultStockSaleReport = GROUP MIN Stock st IF inSaleReport(st);
 
 overfillSaleReportFromTo = ACTION ABSTRACT (GroupType, DATE, DATE);
 
-fillSaleReportFromTo 'Сформировать' = ACTION (GroupType gt, DATE df, DATE dt) {
+fillSaleReportFromTo 'Сформировать'(GroupType gt, DATE df, DATE dt) = ACTION  {
 
     quantityStock(Sku sk) <- NULL;           
     sumStock(Sku sk) <- NULL;  
@@ -489,7 +489,7 @@ DESIGN dialogStocksSaleReport {
     }
 }
 @extendFormFilterStockAccess(s, dialogStocksSaleReport, company);    
-changeStocksSalesReport = ACTION (GroupType gt, DATE df, DATE dt) {
+changeStocksSalesReport(GroupType gt, DATE df, DATE dt) = ACTION  {
     FORM dialogStocksSaleReport MODAL;
     IF formResult() == FormResult.ok THEN { 
         fillSaleReportFromTo(gt, df, dt);
@@ -648,7 +648,7 @@ DESIGN salesReport {
     MOVE functions.box;
 }
 
-onInitSalesReport = ACTION () {
+onInitSalesReport() = ACTION  {
     IF countAccessCompanyStock(currentUser()) ==1 THEN {
         inSaleReport(Stock st)  <- TRUE WHERE  defaultCompanyStock(currentUser())== st; 
         fillSaleReportFromTo(SystemGroupType.skuGroupType,currentDate(),currentDate());

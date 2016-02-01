@@ -418,7 +418,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
     backgroundQuantityParam = OVERRIDE backgroundParam(OrderDetail d), backgroundQuantity(d);
     disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
-    overPrePost 'Провести' (UserOrder o) = ACTION (o) {
+    overPrePost 'Провести' (UserOrder o) = ACTION  {
         IF NOT disablePosted(o) THEN {
             isPosted(o) <- TRUE;
         } 
@@ -602,7 +602,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
     overCopy = ACTION ABSTRACT LIST (UserOrderDetail, OrderDetail);
     overCopy = ACTION ABSTRACT LIST (Order, UserOrder);
-    copy 'Копировать' = ACTION (Order order) NEWSESSION {
+    copy (Order order)'Копировать' = ACTION) NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
             ASSIGN supplier(o) <- supplier(order);
             ASSIGN supplierStock(o) <- supplierStock(order);
@@ -633,7 +633,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 //-- Копирование строк     
     overCopy = ACTION ABSTRACT LIST (UserOrderDetail, UserOrderDetail);
 
-    copy 'Копировать' = ACTION (UserOrderDetail detail) {
+    copy(UserOrderDetail detail) 'Копировать' = detail) {
         FOR ADDOBJ d = UserOrderDetail DO {          
 
             userOrder(d) <- userOrder(detail);
@@ -809,7 +809,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineFilterIsOpened (order, orders, o); 
     @defineDocumentLogForm(orders, o);
     edit 'Редактировать' = ACTION ABSTRACT LIST  (OrderDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserOrderDetail d) = ACTION (d) NEWSESSION {
+    edit(UserOrderDetail d) =(d) NEWSESSION {
         FORM userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKEDMODAL;
     }
     edit(UserOrderDetail d) += ACTION edit(d);    
@@ -856,7 +856,7 @@ META defineOrderBatch(legalEntityProp, stockProp)
 END
 
 META defineOrderBatchDialog(dumb)
-    changeBatch = ACTION (UserOrderDetail userOrderDetail) {
+    changeBatch(UserOrderDetail userOrderDetail) = ACTION  {
         FORM dialogBatch OBJECTS sk = sku(userOrderDetail) DIALOG SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
@@ -873,7 +873,7 @@ META defineOrderBatchDialog(dumb)
 END
 
 META defineOrderBatchDialogStock(stockProp, dialog)
-    changeBatch = ACTION (UserOrderDetail d) {
+    changeBatch(UserOrderDetail d) = ACTION  {
         IF batch(d) THEN {
             FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
                                      t = dateTime(d),

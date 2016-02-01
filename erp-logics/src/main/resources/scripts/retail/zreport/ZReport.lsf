@@ -210,7 +210,7 @@ active(ReceiptReturnDetail d) = isPosted(d) AND NOT skip(d);
 
 setAttributes = ACTION ABSTRACT (ReceiptDetail);
 
-changeDialogSku  = ACTION (ReceiptDetail detail) {
+changeDialogSku(ReceiptDetail detail)  = ACTION  {
     setAttributes(detail); 
     REQUEST OBJECT s
         IF sku(detail) THEN {
@@ -235,7 +235,7 @@ batch(ReceiptReturnDetail detail) += batch(detail);
 replace(Sku s, Batch b) += ACTION (s, b){ sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
 replace(Sku s, Batch b) += ACTION (s, b){ sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
 
-changeBatch = ACTION (ReceiptDetail detail) {
+changeBatch(ReceiptDetail detail) = ACTION  {
     FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
@@ -712,7 +712,7 @@ overCopy = ACTION ABSTRACT LIST (ReceiptDetail, Receipt);
 
 edit 'Редактировать' = ACTION EDITFORM ZReport;
 
-copy 'Копировать' = ACTION (Receipt receipt) {
+copy 'Копировать'(Receipt receipt) = ACTION  {
     FOR ADDOBJ r = Receipt DO {
         zReport(r) <- zReport(receipt);
         skip(r) <- skip(receipt);
@@ -795,12 +795,12 @@ WHEN SESSION FORMS zReport CHANGED (sku(ReceiptDetail d))  AND NOT (CHANGED (idB
         
 edit 'Редактировать' = ACTION ABSTRACT LIST  (ReceiptDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-edit 'Редактировать' (ReceiptReturnDetail d) = ACTION (d) NEWSESSION {
+edit 'Редактировать' (ReceiptReturnDetail d) = ACTION  NEWSESSION {
     FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(ReceiptReturnDetail d) += ACTION edit(d);
 
-edit 'Редактировать' (ReceiptSaleDetail d) = ACTION (d) NEWSESSION {
+edit 'Редактировать' (ReceiptSaleDetail d) = ACTION  NEWSESSION {
     FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(ReceiptSaleDetail d) += ACTION edit(d);
@@ -943,7 +943,7 @@ exportedIncrement 'Экспортировано (инкрементно)' (recei
 notExportedIncrement (Receipt r) = NOT exportedIncrement(r);
 pathExportReceipts 'Путь' = DATA VARSTRING[100] ();
 
-exportIncrementReceipts 'Экспортировать (инкрементно) чеки' = ACTION() {
+exportIncrementReceipts 'Экспортировать (инкрементно) чеки'() = ACTION {
     FOR ZReport z IS ZReport DO {
         export(Receipt r) <- NOT exportedIncrement(r) WHERE zReport(r) == z;    
         exportReceiptsFolder(z);
@@ -1050,7 +1050,7 @@ DESIGN zReports {
 
 // ----------------------------------------------- Стандартные значения ------------------------------------- //
 
-loadDefaultType 'Добавить тип оплаты' = ACTION(VARISTRING[110] string, PaymentMeans paymentMeans, STRING[10] sid) {
+loadDefaultType 'Добавить тип оплаты'(VARISTRING[110] string, PaymentMeans paymentMeans, STRING[10] sid) = ACTION {
     FOR ADDOBJ p = PaymentType DO {
         name(p) <- string;
         paymentMeans(p) <- paymentMeans;
@@ -1059,7 +1059,7 @@ loadDefaultType 'Добавить тип оплаты' = ACTION(VARISTRING[110] 
 }
 
 overLoadDefaultPaymentTypes 'Загрузить дополнительные типы оплаты' = ACTION ABSTRACT LIST ();
-loadDefaultPaymentTypes 'Загрузить стандартные типы оплаты' = ACTION() {
+loadDefaultPaymentTypes 'Загрузить стандартные типы оплаты'() = ACTION {
     loadDefaultType('Наличные', PaymentMeans.paymentMeansCash, 'cash');
     loadDefaultType('Карточка', PaymentMeans.paymentMeansCard, 'card');
     overLoadDefaultPaymentTypes();

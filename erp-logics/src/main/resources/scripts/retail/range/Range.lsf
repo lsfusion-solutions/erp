@@ -290,7 +290,7 @@ FORM rangeRevSelectSuppliers 'Выбор поставщика'
     FILTERS hasSkus(v, l, p, d)
 ;
 
-changeNameFilterSupplier = ACTION (RangeRev v, PriceListType p, DepartmentStore d) {
+changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = ACTION  {
     FORM rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         filterSupplier() <- chosenObject('l');
@@ -393,7 +393,7 @@ EXTEND FORM rangeRev
     EVENTS ON INIT seekDefaultPriceListType()
 ;
 
-copy 'Копировать' = ACTION (RangeRev pr) NESTEDSESSION {
+copy 'Копировать'(RangeRev pr) = ACTION  NESTEDSESSION {
     FOR ADDOBJ r = RangeRev DO {
         range(r) <- range(pr);
         level(r, Sku s) <- level(pr, s);
@@ -427,10 +427,10 @@ calcCountSkuNotSupplier 'Кол-во товаров без поставщика'
 
 countSkuNotSupplier 'Кол-во товаров без поставщика' = DATA LOCAL INTEGER (DataPriceListType, DepartmentStore, Range, DATE);
 
-fillCountSkuNotSupplier 'Обновить' = ACTION (DataPriceListType pt, DepartmentStore d, DATE dt) {
+fillCountSkuNotSupplier 'Обновить'(DataPriceListType pt, DepartmentStore d, DATE dt) = ACTION  {
     countSkuNotSupplier(pt, d, Range r, dt) <- calcCountSkuNotSupplier(pt, d, r, dt) WHERE r IS Range;   
 }
-createRangeRev 'Создать версию' = ACTION (Range range, DATE date) NEWSESSION {
+createRangeRev 'Создать версию'(Range range, DATE date) = ACTION  NEWSESSION {
     LOCAL rev = RangeRev();
     rev () <- rangeRev(range, date);
 
@@ -528,7 +528,7 @@ date (r, t, d) = GROUP LAST DATE dateIn
 //levelRangeStoreTypeDate(r, t, d) = OVERRIDE lastLevelRangeStoreTypeDate(r, t, d), dataLevelRangeStoreTypeDate(r, t, d);  
 nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d)); 
 
-changeLevel (Range r, StoreType t, DATE d)= ACTION (r, t, d) {
+changeLevel (Range r, StoreType t, DATE d)= ACTION  {
     REQUEST OBJECT l
         IF level(r, t, d) THEN {
             FORM dialogRangeLevels OBJECTS l = level(r, t, d) CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
@@ -574,7 +574,7 @@ date (r, st, d) = GROUP LAST DATE dateIn
                                               ORDER dateIn
                                               WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
 
-changeLevel (Range r, Store st, DATE d)= ACTION (r, st, d) {
+changeLevel (Range r, Store st, DATE d)= ACTION  {
     REQUEST OBJECT l
         IF level(r, st, d) THEN {
             FORM dialogRangeLevels OBJECTS l = level(r, st, d) CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
@@ -590,7 +590,7 @@ changeLevel (Range r, Store st, DATE d)= ACTION (r, st, d) {
     }
 }              
 
-changeWYSLevel (Range r, Store st, DATE d)= ACTION (r, st, d) {
+changeWYSLevel (Range r, Store st, DATE d)= ACTION  {
     REQUEST VARISTRING[10] INPUT;
     
     IF requestedString() THEN {
@@ -927,7 +927,7 @@ FORM param 'Параметры заполнения ассортиментной
     
 ;
 
-fill 'Заполнить матрицу по остаткам и продажам' = ACTION (RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) {
+fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = ACTION  {
     FORM param OBJECTS v = rangeRev MODAL;
     IF formResult() == FormResult.ok THEN { 
         IF countRangeLevels(range(rangeRev)) THEN {

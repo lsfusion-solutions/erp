@@ -13,7 +13,7 @@ REQUIRE System,
 
 NAMESPACE Purchase;
 
-createDemandUserOrder 'Создать заказ' = ACTION (LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) NEWSESSION {
+createDemandUserOrder 'Создать заказ'(LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) = ACTION  NEWSESSION {
     FOR ADDOBJ o = Purchase.UserOrder DO {
         date(o) <- toDate(dateTime);
         time(o) <- toTime(dateTime);
@@ -53,7 +53,7 @@ recQuantityDemandOrder  (Sku sku, Stock stock, DATETIME dateTime, DATE dFrom, DA
 recommendedQuantityDemandOrder 'Рекомендуемое к закупке кол-во' (Sku sku, Stock stock, DATETIME dateTime, DATE dFrom, DATE dTo) = (recQuantityDemandOrder(sku, stock, dateTime, dFrom, dTo)) IF recQuantityDemandOrder(sku, stock, dateTime, dFrom, dTo) > 0;
 
 numberSkuPurchaseSupplier 'Кол-во товаров' = DATA LOCAL INTEGER (LegalEntity);
-recalculateNumberSkuPurchaseSupplier 'Рассчитать потребность' = ACTION (Stock stock, LedgerPriceListType priceListType, INTEGER int, DATETIME dateTime) {
+recalculateNumberSkuPurchaseSupplier 'Рассчитать потребность'(Stock stock, LedgerPriceListType priceListType, INTEGER int, DATETIME dateTime) = ACTION  {
     numberSkuPurchaseSupplier(LegalEntity supplier) <- numberSkuPurchaseReserve(supplier, stock, priceListType, int, dateTime);
 } TOOLBAR;
 

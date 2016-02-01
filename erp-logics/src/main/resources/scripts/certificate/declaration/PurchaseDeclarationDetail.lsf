@@ -183,7 +183,7 @@ WHEN SESSION FORMS userInvoice
 CONSTRAINT customsGroup(UserInvoiceDetail d) AND VATCustomsException(d) AND NOT customsGroup(VATCustomsException(d)) == customsGroup(d)
     CHECKED BY VATCustomsException[UserInvoiceDetail] MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';
 
-setCustomsGroupUserInvoiceDetail 'Заполнить ТН ВЭД' = ACTION (Declaration declaration) {
+setCustomsGroupUserInvoiceDetail 'Заполнить ТН ВЭД'(Declaration declaration) = ACTION  {
     FOR declaration(UserInvoiceDetail d) == declaration DO {
         customsGroup(d) <- customsGroup(country(d), sku(d));
         VATCustomsException(d) <- VATCustomsException(country(d), sku(d));
@@ -331,7 +331,7 @@ DESIGN declarationInvoices {
     }
 }
 
-selectInvoices 'Выбрать накладные' = ACTION (Declaration declaration) {
+selectInvoices 'Выбрать накладные'(Declaration declaration) = ACTION  {
     FORM declarationInvoices OBJECTS d=declaration MODAL;
 } TOOLBAR;
 
@@ -467,7 +467,7 @@ overCreateDeclarationInvoiceDetail = ACTION ABSTRACT LIST (Declaration);
 // скрипт для проставления старых
 //sumDeclarationInvoiceDetail(dd) <- sumGroupDeclaration(declarationDeclarationInvoiceDetail(dd), nameCustomsDeclarationInvoiceDetail(dd), UOMDeclarationInvoiceDetail(dd), customsGroupDeclarationInvoiceDetail(dd), VATCustomsExceptionDeclarationInvoiceDetail(dd), countryDeclarationInvoiceDetail(dd), priceDeclarationInvoiceDetail(dd));
 
-createDeclarationInvoiceDetail 'Создать позиции' = ACTION (Declaration declaration) {
+createDeclarationInvoiceDetail 'Создать позиции'(Declaration declaration) = ACTION  {
     IF NOT filterUserInvoiceDetail(declaration) THEN {
         DELETE DeclarationInvoiceDetail d WHERE declaration(d) == declaration;
     
@@ -683,7 +683,7 @@ numberDefault 'Номер' (DeclarationDetail d) =
 
 number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE numberDefault(declarationDetail), userNumber(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4;
 
-fillExported (Declaration declaration) = ACTION (declaration) {
+fillExported (Declaration declaration) = ACTION  {
     isExported(declaration) <- TRUE;
     userNumber(DeclarationDetail d) <- number(d) WHERE declaration(d)== declaration;
 }
@@ -695,7 +695,7 @@ WHEN SESSION FORMS declaration SET (DeclarationDetail d IS DeclarationDetail) IF
     userNumber(d) <- (maxNumberDeclarationDetail(declaration(d))) + 1;
 }
 
-changeNumber(DeclarationDetail d) = ACTION (d) {
+changeNumber(DeclarationDetail d) = ACTION  {
     REQUEST INTEGER INPUT;
     IF isExported(declaration(d)) THEN {
         IF requestedInteger() > userNumber(d) THEN {
@@ -739,7 +739,7 @@ dutySumDeclarationDetail 'Пошлина' (declaration) = GROUP SUM dutySum(Decl
 dataDutySum 'Пошлина' (declaration) = DATA NUMERIC[16,2] (Declaration) MINCHARWIDTH 15;                                                                 
 dutySum 'Пошлина' (Declaration declaration)  =  OVERRIDE dutySumDeclarationDetail(declaration), dataDutySum(declaration);                                                                    
 backgroundDutySum = RGB(222,222,222) IF dataDutySum(Declaration declaration);
-changeDutySum = ACTION (Declaration declaration) {
+changeDutySum(Declaration declaration) = ACTION  {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
         IF requestedNumeric() != dutySumDeclarationDetail(declaration) THEN {
@@ -757,7 +757,7 @@ VATSumDeclarationDetail 'НДС' (declaration) = GROUP SUM VATSum(DeclarationDet
 dataVATSum 'НДС' (declaration) = DATA NUMERIC[16,2] (Declaration) MINCHARWIDTH 15;  
 VATSum 'НДС' (Declaration declaration)  = OVERRIDE VATSumDeclarationDetail(declaration), dataVATSum(declaration);
 backgroundVATSum = RGB(222,222,222) IF dataVATSum(Declaration declaration);
-changeVATSum = ACTION (Declaration declaration) {
+changeVATSum(Declaration declaration) = ACTION  {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
         IF requestedNumeric() != VATSumDeclarationDetail(declaration) THEN {
@@ -982,7 +982,7 @@ overSet = ACTION ABSTRACT LIST (DeclarationInvoiceDetail);
 
 overCreate = ACTION ABSTRACT LIST (DeclarationDetail, DeclarationInvoiceDetail);
 
-createDeclarationDetail 'Создать строки' = ACTION (Declaration declaration) {
+createDeclarationDetail 'Создать строки'(Declaration declaration) = ACTION  {
     DELETE DeclarationDetail d WHERE declaration(d) == declaration;
     FOR declaration(DeclarationInvoiceDetail did) == declaration ORDER did  DO {
         IF isSet(did) THEN {
@@ -1019,7 +1019,7 @@ WHEN SESSION FORMS declaration CHANGED(rateExchangeCustomsZone(Declaration d)) O
 //------------------------------ Копирование строк --------------------// 
 overCopy = ACTION ABSTRACT LIST (DeclarationDetail, DeclarationDetail);
 
-copy 'Копировать' = ACTION (DeclarationDetail detail) {
+copy 'Копировать'(DeclarationDetail detail) = ACTION  {
     FOR ADDOBJ d = DeclarationDetail DO {          
     
         declaration(d) <-  declaration(detail);
@@ -1142,7 +1142,7 @@ DESIGN options {
 }
                                                                       
 // Расчет расходов
-recalculateDutyPriceInvoice 'Рассчитать пошлины (за ед.)' = ACTION (Declaration declaration) {
+recalculateDutyPriceInvoice 'Рассчитать пошлины (за ед.)'(Declaration declaration) = ACTION  {
    
     IF calcSumCustoms() THEN {
         IF NOT dataDutySum(declaration) THEN {
@@ -1170,7 +1170,7 @@ recalculateDutyPriceInvoice 'Рассчитать пошлины (за ед.)' =
     
 } TOOLBAR;
 
-recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)' = ACTION (Declaration declaration) {
+recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'(Declaration declaration) = ACTION  {
     
     IF calcSumCustoms() THEN {
         registrationSum(UserInvoiceDetail d) <- Utils.round(calcRegistrationSum(d), round(declaration(d))) WHERE declaration(d) == declaration;
@@ -1191,7 +1191,7 @@ recalculateRegistrationPriceInvoice 'Рассчитать сбор (за ед.)'
     
 } TOOLBAR;
 
-recalculateVATPriceInvoice 'Рассчитать НДС (за ед.)' = ACTION (Declaration declaration) {
+recalculateVATPriceInvoice 'Рассчитать НДС (за ед.)'(Declaration declaration) = ACTION  {
 
     IF calcSumCustoms() THEN {
         IF NOT dataVATSum(declaration) THEN {
@@ -1229,7 +1229,7 @@ EXTEND FORM declaration
 
 
 //-- Декларирование
-createDeclarationDetailUser 'Рассчитать платежи' (Invoice userInvoice) = ACTION (userInvoice) {
+createDeclarationDetailUser 'Рассчитать платежи' (Invoice userInvoice) = ACTION  {
     FOR in(userInvoice, Declaration declaration) DO {
         createDeclarationInvoiceDetail(declaration);
         createDeclarationDetail(declaration);

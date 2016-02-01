@@ -179,7 +179,7 @@ DESIGN outputOrders {
     }
 }
 
-fillOrder 'Заполнить на основе производственного заказа' =  ACTION (UserOutput userOutput) {
+fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput) =  ACTION  {
     FORM outputOrders OBJECTS s = stock(userOutput) MODAL;
 
     IF formResult() == FormResult.ok THEN {
@@ -238,7 +238,7 @@ outputProductsSum(ProductDetail productDetail) <-
          CHANGED(currency(productDetail));
 
 overFillOutputQuantityProductDetail = ACTION ABSTRACT (Order);
-fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order) = ACTION (order) {
+fillOutputQuantityProductDetail 'Заполнить из остатков' (Order order) = ACTION  {
     createOutput(order) <- TRUE;
 
     outputQuantity(ProductDetail d) <- (- balanceA(sku(d), productsStock(d), date(d))) 
@@ -427,7 +427,7 @@ DESIGN userOutput {
 @implementSystemLedgerPriceListTypeBatch(account, OutputDetail, legalEntityStock, stock);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (OutputDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserOutputDetail d) = ACTION (d) NEWSESSION {
+edit(UserOutputDetail d) = ACTION  NEWSESSION {
     FORM userOutput OBJECTS o = userOutput(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 edit(UserOutputDetail d) += ACTION edit(d);
@@ -447,7 +447,7 @@ addUserOutput 'Добавить' = ACTION ADDFORM UserOutput;
 edit 'Редактировать' (userOutput) = ACTION EDITFORM UserOutput;
 edit(UserOutput output) += ACTION edit(output);
 
-copy 'Копировать' = ACTION (UserOutput userOutput) NEWSESSION {
+copy 'Копировать'(UserOutput userOutput) = ACTION  NEWSESSION {
     FOR ADDOBJ o = UserOutput DO {
         ASSIGN stock(o) <- stock(userOutput);
         ASSIGN currency(o) <- currency(userOutput);

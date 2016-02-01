@@ -214,7 +214,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     userShipmentDetail(shipment, sku, dimension) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail), shipmentDimension(detail);
     userShipmentDetail(shipment, sku) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail);
 
-    addDetailBarcodeUserShipmentDetail = ACTION (UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension) {
+    addDetailBarcodeUserShipmentDetail(UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension) = ACTION  {
         LOCAL dialogBarcodeSku = Sku ();
         ASSIGN dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
 
@@ -264,7 +264,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         }
     }
 
-    changeAddDetailInputBarcodeDimensionUserShipmentDetail = ACTION (UserShipment userShipment) {
+    (UserShipment userShipment)changeAddDetailInputBarcodeDimensionUserShipmentDetail = ACTION) {
         REQUEST STRING[15] INPUT;
         EXEC addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(requestedString()), shipmentDimension(userShipment));
     };
@@ -405,7 +405,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     overCopy = ACTION ABSTRACT LIST (UserShipmentDetail, ShipmentDetail);
     overCopy = ACTION ABSTRACT LIST (Shipment, UserShipment);
 
-    copy 'Копировать' = ACTION (Shipment shipment) NEWSESSION {
+    copy(Shipment shipment) 'Копировать' = shipment) NEWSESSION {
         FOR ADDOBJ s = UserShipment DO {
             ASSIGN supplier(s) <- supplier(shipment);
             ASSIGN supplierStock(s) <- supplierStock(shipment);
@@ -437,7 +437,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 //-- Копирование строк     
     overCopy = ACTION ABSTRACT LIST (UserShipmentDetail, UserShipmentDetail);
 
-    copy 'Копировать' = ACTION (UserShipmentDetail detail) {
+    (UserShipmentDetail detail)copy 'Копировать' = detail) {
         FOR ADDOBJ d = UserShipmentDetail DO {          
 
             ASSIGN userShipment(d) <- userShipment(detail);
@@ -600,7 +600,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineFilterIsOpened (shipment, shipments, s);
     @defineDocumentLogForm(shipments, s);
     edit 'Редактировать' = ACTION ABSTRACT LIST  (ShipmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserShipmentDetail d) = ACTION (d) NEWSESSION {
+    edit(UserShipmentDetail d)  (d) NEWSESSION {
         FORM userShipment OBJECTS s = userShipment(d), d = d MANAGESESSION DOCKEDMODAL;
     }
     
@@ -632,7 +632,7 @@ END
 
 META defineShipmentBatchDialogStock(stockProp, dialog)
 
-    changeBatch = ACTION (UserShipmentDetail userShipmentDetail) {
+    changeBatch(UserShipmentDetail userShipmentDetail) = ACTION  {
         FORM dialogBatchStock##dialog OBJECTS st = stockProp(userShipmentDetail),
                                  t = dateTime(userShipmentDetail),
                                  sk = sku(userShipmentDetail) DIALOG SHOWDROP;
@@ -650,7 +650,7 @@ END
 
 META defineShipmentBatchDialog(dumb)
 
-    changeBatch = ACTION (UserShipmentDetail userShipmentDetail) {
+    changeBatch(UserShipmentDetail userShipmentDetail) = ACTION  {
         FORM dialogBatch OBJECTS sk = sku(userShipmentDetail) DIALOG SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {

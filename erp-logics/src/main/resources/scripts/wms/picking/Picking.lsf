@@ -60,7 +60,7 @@ replace(Sku s, Batch b) += ACTION (s, b){ sku(UserPickingDetail detail) <- s WHE
 @defineMovementBatch(pickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 @defineMovementBatch(userPickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
-changeBatch = ACTION (UserPickingDetail detail) {
+changeBatch(UserPickingDetail detail) = ACTION  {
     FORM dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
                                   sk = sku(detail) DIALOG SHOWDROP;
@@ -153,7 +153,7 @@ edit 'Редактировать' (userPicking) = ACTION EDITFORM UserPicking;
 edit(UserPicking picking) += ACTION edit(picking);
 
 
-copy 'Копировать' = ACTION (Picking picking) NEWSESSION {
+copy 'Копировать'(Picking picking) = ACTION  NEWSESSION {
     FOR ADDOBJ o = UserPicking DO {
 
         ASSIGN stock(o) <- stock(picking);
@@ -286,7 +286,7 @@ pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255]
 //                                         IN order
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
-moveUserPicking 'Комплектация' = ACTION (PickingOrder pickingOrder) NEWSESSION {
+moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = ACTION  NEWSESSION {
     FOR ADDOBJ p = UserPicking DO {
         pickingOrder(p) <- pickingOrder;
         stock(p) <- stock(pickingOrder);
@@ -330,7 +330,7 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
     FILTERS pickingOrder(d) == o,
             stock(o) == s
 ;
-fillUserPickingOrder 'Заполнить на основании заказа на комплектацию' = ACTION (UserPicking userPicking) {
+fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking) = ACTION  {
     FORM pickingsOrderPickings OBJECTS s = stock(userPicking) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL order = PickingOrder();
@@ -414,7 +414,7 @@ backgroundStatusPicking 'Цвет' (PickingOrder order) =  CASE
 status 'Статус' = statusPicking(pickingOrder(Picking picking));
 backgroundStatus = backgroundStatusPicking(pickingOrder(Picking picking));
 
-accept 'Принять' = ACTION (PickingOrder pickingOrder) NEWSESSION {
+accept 'Принять'(PickingOrder pickingOrder) = ACTION  NEWSESSION {
     accepted(pickingOrder) <- TRUE;
     performer(pickingOrder) <- currentUser();
     startDate(pickingOrder) <- currentDate();
@@ -422,7 +422,7 @@ accept 'Принять' = ACTION (PickingOrder pickingOrder) NEWSESSION {
     apply();
 
 } TOOLBAR EDITKEY 'ctrl ENTER';
-unaccept 'Отменить' = ACTION (PickingOrder pickingOrder) NEWSESSION {
+unaccept 'Отменить'(PickingOrder pickingOrder) = ACTION  NEWSESSION {
     accepted(pickingOrder) <- NULL;
     performer(pickingOrder) <- NULL;
     startDate(pickingOrder) <- NULL;
@@ -449,7 +449,7 @@ DESIGN packQuantity {
     }
 }
 
-fullyAssembled 'Собран полностью' = ACTION (PickingOrder pickingOrder) NEWSESSION {
+fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = ACTION  NEWSESSION {
     FORM packQuantity MODAL;
     IF formResult() == FormResult.ok THEN {
         finishDate(pickingOrder) <- currentDate();
@@ -471,7 +471,7 @@ fullyAssembled 'Собран полностью' = ACTION (PickingOrder pickingO
     apply();
 } TOOLBAR EDITKEY 'F10';
 
-partiallyAssembled 'Собран частично' = ACTION (PickingOrder pickingOrder) NEWSESSION{
+partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = ACTION  NEWSESSION{
     FORM packQuantity MODAL;
     IF formResult() == FormResult.ok THEN {
         finishDate(pickingOrder) <- currentDate();
