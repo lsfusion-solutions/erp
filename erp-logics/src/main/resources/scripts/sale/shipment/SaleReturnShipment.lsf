@@ -55,13 +55,13 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += ACTION  {
+overFillInvoice(UserShipment s, Invoice i) += ACTION (s, i) {
     ASSIGN operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += ACTION {
+overCopy(Shipment s, UserShipment d) += ACTION(s, d) {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -207,13 +207,13 @@ costSale (invoiceDetail) = GROUP SUM costSum(ShipmentDetail shipmentDetail) BY i
 costSum(InvoiceDetail ledger) += -costSale(ledger);
 cost(InvoiceDetail ledger, Batch batch) += -cost (ledger, batch) ;
 
-receiveShipment (UserInvoice invoice)+= ACTION   {
+receiveShipment (UserInvoice invoice)+= ACTION (invoice)  {
     IF invoice IS UserInvoice THEN {
         createShipment(invoice) <- TRUE;           
     }
 };
 
-deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  ACTION   {
+deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  ACTION (shipment)  {
     createShipment(Invoice invoice) <- NULL WHERE invoice == invoice(shipment);          
 };
 

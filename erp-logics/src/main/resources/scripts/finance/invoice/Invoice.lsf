@@ -869,10 +869,10 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign)
     
     @defineDocumentInterfaceDetailBatch(invoice, batch); 
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION  {      
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
         batch(d) <- batch(detail);
     }  
-    overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION) {      
+    overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
         batch(d) <- batch(detail);
     }  
     
@@ -892,7 +892,7 @@ META defineInvoiceBatch(stockProp, priceListTypePrefix, NS, sign)
     // Подбор документа
     @implementDocumentBatch(invoice);
    
-    replace(Sku s, Batch b) += b){ sku(UserInvoiceDetail detail) <- s WHERE batch[Invoice.InvoiceDetail](detail) == b;} 
+    replace(Sku s, Batch b) += ACTION (s, b){ sku(UserInvoiceDetail detail) <- s WHERE batch[Invoice.InvoiceDetail](detail) == b;} 
     
 END
 
@@ -1194,7 +1194,7 @@ META defineInvoiceHomeCurrency(dumb)
     homePrice 'Цена (конв.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
     homePrice(UserInvoiceDetail d) += homePrice(d);
     
-    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION  {      
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION (d, detail) {      
         dataRateExchange(d) <- dataRateExchange(detail);
     }  
 

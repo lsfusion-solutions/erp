@@ -229,7 +229,7 @@ price (PageInventoryDetail detail)  <- IF isBatch(inventory(detail))
                 ELSE priceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail))
                 WHEN CHANGED(sku(detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail));
 
-replace(Sku s, Batch b) += ACTION { sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
+replace(Sku s, Batch b) += ACTION (s, b){ sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
 // -------------------------------------------- Сличительная ведомость ----------------------------------------------- //
 
 CLASS ABSTRACT CollationSheet 'Сличительная ведомость';
@@ -658,7 +658,7 @@ sumContainerManageShortage 'Сумма недостачи, тара' (CollationS
 
 // Объединение товаров                                                                               
 
-overReplace(Sku s, Sku d) += ACTION  {
+overReplace(Sku s, Sku d) += ACTION (s, d) {
     quantityBalance(CollationSheet collationSheet, d) <- balanceB(d, stock(collationSheet), dateTime(inventory(collationSheet)))
         WHERE PREV(quantityPageInventoryDetail(collationSheet, s));
         

@@ -112,7 +112,7 @@ language (Stock stock) = language(legalEntity(stock)) PERSISTENT;
 
 // ------------------------------------ объединение организаций -------------------------- //
 
-replace(LegalEntity l, LegalEntity o) += ACTION {
+replace(LegalEntity l, LegalEntity o) += ACTION (l, o){
     legalEntity(Stock stock) <- o WHERE legalEntity(stock) == l;
 } 
 
@@ -212,7 +212,7 @@ DESIGN confirmReplaceStockLegalEntity {
     MOVE functions.box;
 }
 
-preReplace(LegalEntity l, LegalEntity o) += ACTION {
+preReplace(LegalEntity l, LegalEntity o) += ACTION(l, o) {
     in(Stock s) <- TRUE WHERE legalEntity(s) == l;
     FORM confirmReplaceStockLegalEntity OBJECTS l=o, l2=l MODAL;
         IF formResult() == FormResult.ok THEN {        
@@ -354,7 +354,7 @@ META defineDocumentHeaderStockInner (object, stockClass, stockClassUpper, stockC
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
     fullName###prefix###stockClass stockCaption (###object object) = fullName(prefix###stockClass(object)) IN documentHeader
             MINCHARWIDTH 20 PREFCHARWIDTH 20;
-    replace(###stockClass s, ###stockClass o) += ACTION {ASSIGN prefix###stockClass(###object object) <- o WHERE prefix###stockClass(object) == s;}             
+    replace(###stockClass s, ###stockClass o) += ACTION (s, o){ASSIGN prefix###stockClass(###object object) <- o WHERE prefix###stockClass(object) == s;}             
             
     prefix###legalEntityStock (###object object) = legalEntity(prefix###stockClass(object));
     name###prefix##LegalEntityStock 'Компания ('###stockCaption###')' (###object object) = name(prefix###legalEntityStock (object));

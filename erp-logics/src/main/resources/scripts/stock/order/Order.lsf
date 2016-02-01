@@ -830,13 +830,13 @@ META defineOrderBatch(legalEntityProp, stockProp)
     @defineDocumentInterfaceDetailBatch(order, batch);
     batch[Order.OrderDetail](OrderDetail d) += batch(d);
     
-    overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) += ACTION  {      
+    overCopy[UserOrderDetail,UserOrderDetail](UserOrderDetail d, UserOrderDetail detail) += ACTION (d, detail) {      
         batch(d) <- batch(detail);
     } 
-    overCopy(UserOrderDetail d, OrderDetail detail) += ACTION) {      
+    overCopy(UserOrderDetail d, OrderDetail detail) += ACTION (d, detail) {      
         batch(d) <- batch(detail);
     } 
-    replace(Sku s, Batch b) += b){ sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
+    replace(Sku s, Batch b) += ACTION (s, b){ sku(UserOrderDetail detail) <- s WHERE batch(detail) == b;}
     // Пишем в цену заказа из вида цен в зависимости от партии
     @deriveDocumentDetailPricePriceListTypeVATBatch(userOrder, priceStock, userOrder);
 

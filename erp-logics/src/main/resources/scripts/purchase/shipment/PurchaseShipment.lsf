@@ -81,13 +81,13 @@ operation[Shipment.Shipment](Shipment s)+=operation(s);
 @defineOperationProperty(createShipment, 'Поставка', createContainer);
 @deriveDocumentOperationProperty(UserInvoice, createShipment);
 
-overFillInvoice(UserShipment s, Invoice i) += ACTION  {
+overFillInvoice(UserShipment s, Invoice i) += ACTION (s, i) {
     ASSIGN operation(s) <- operation(i);
 }
 operation(InvoiceShipment shipment) += operation(invoice(shipment));
 
 // Добавляем в копирование поставок
-overCopy(Shipment s, UserShipment d) += ACTION {
+overCopy(Shipment s, UserShipment d) += ACTION(s, d) {
     ASSIGN operation(d) <- operation(s);
 }
 @defineOperationFilterProperty(shipment, s, shipments, nameFilterShipmentSupplier);
@@ -247,8 +247,8 @@ quantity(ShipmentBatch b) += quantity(b);
 price (ShipmentBatch batch) = price(shipmentDetail(batch));
 costPrice (ShipmentBatch batch) = costPrice(shipmentDetail(batch));
 
-replace(Sku s, ShipmentBatch b) += ACTION { sku(UserShipmentDetail detail) <- s WHERE shipmentBatch(detail) == b;}
-replace(Sku s, ShipmentBatch b) += ACTION { sku(UserInvoiceDetail detail) <- s WHERE detail == invoiceDetail[UserShipmentDetail](shipmentDetail(b));}
+replace(Sku s, ShipmentBatch b) += ACTION (s, b){ sku(UserShipmentDetail detail) <- s WHERE shipmentBatch(detail) == b;}
+replace(Sku s, ShipmentBatch b) += ACTION (s, b){ sku(UserInvoiceDetail detail) <- s WHERE detail == invoiceDetail[UserShipmentDetail](shipmentDetail(b));}
 
 @implementBatch(ShipmentBatch, sku, stock, costPrice);
 manufactureDate(ShipmentBatch batch) += manufactureDate(shipmentDetail(batch)); 
@@ -362,14 +362,14 @@ shortNameCurrencyInvoiceDetail 'Валюта закупки' (Batch batch) = sho
 rateExchangeInvoiceDetail 'Курс' (Batch batch) = rateExchange(invoiceDetail(batch));
 homePriceInvoiceDetail 'Цена закупки (кон.)' (Batch batch) = homePrice(invoiceDetail(batch));
 
-receiveShipment (UserInvoice invoice)+= ACTION   {
+receiveShipment (UserInvoice invoice)+= ACTION (invoice)  {
     IF invoice IS UserInvoice THEN {
         createShipment(invoice) <- TRUE;           
     }
 };
 
 
-deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  ACTION   {
+deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice THEN  ACTION (shipment)  {
     createShipment(Invoice invoice) <- NULL WHERE invoice == invoice(shipment);          
 };
 
