@@ -1,0 +1,32 @@
+MODULE  FoodSupplement;
+
+REQUIRE BOMNutrition, PurchaseShipment, ProductionConsumption;
+
+NAMESPACE Production;
+
+supplementQuantity = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 IF isSupplement(sku(cd)) BY order(cd), sku(cd); 
+supplementQuantity  = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
+        BY pd, sku(cd); 
+supplementQuantity  = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
+        BY pd; 
+        
+FORM  foodSupplement 'Расход пищевых добавок'
+    OBJECTS o =Order FIXED PANEL 
+    PROPERTIES(o) date, nameProductsStock, nameComponentsStock
+    
+    OBJECTS sk =Sku
+    FILTERS supplementQuantity(o,sk)
+
+    OBJECTS pd =ProductDetail
+    PROPERTIES nameSku(pd), outputQuantity(pd), supplementQuantity(pd,sk) COLUMNS (sk) HEADER name(sk) FOOTER supplementQuantity(o,sk)
+    FILTERS order(pd) == o,
+            supplementQuantity(pd)            
+;
+
+foodSupplement 'Расход пищевых добавок' (Order o) = ACTION FORM foodSupplement OBJECTS o = o PRINT IMAGE 'print.png' IN print;
+
+EXTEND FORM orders
+    PROPERTIES (o) FORCE PANEL foodSupplement
+;
