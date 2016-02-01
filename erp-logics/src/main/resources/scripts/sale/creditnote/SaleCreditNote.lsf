@@ -6,7 +6,795 @@ NAMESPACE Sale;
 
 //----------------------------------------------- Акт ---------------------------------------------------//
 
-@defineCreditNote(' (продажа)', supplier, supplier, company, customer, Sale);
+@defineCreditNote(' (продажа)', supplier, supplier, company, customer, Sale){//contact, contactCaption)
+
+    CLASS ABSTRACT CreditNote 'Акт расхождения (продажа)' ;
+    CLASS ABSTRACT CreditNoteDetail 'Строка акта расхождения (продажа)' ;
+
+    CLASS UserCreditNote 'Акт расхождения (польз.) (продажа)' : CreditNote;
+    CLASS UserCreditNoteDetail 'Строка акта расхождения (польз.) (продажа)' : CreditNoteDetail;
+
+    GROUP creditNote 'Информация об акте расхождения' : base;
+    
+    @defineExternalizable(userCreditNote, VARSTRING[100]);
+    @defineExternalizable(userCreditNoteDetail, VARSTRING[100]);
+
+    @defineDocumentInterface(creditNote);
+    @deriveDocumentHeaderTimePrefix(UserCreditNote, );
+
+    @defineDocumentInterfaceNumber(creditNote);
+
+    @defineNumeratedDefault(UserCreditNote, 'Акты расхождений (продажа)', 'АР');
+
+    @defineDocumentInterfaceLegalEntity (creditNote, supplier, 'Поставщик');
+    @defineDocumentInterfaceLegalEntity (creditNote, customer, 'Покупатель');
+
+    @defineDocumentInterfaceDataStock(creditNote, stock, 'Склад поставщика', supplier);
+    @defineDocumentInterfaceDataStock(creditNote, stock, 'Склад покупателя', customer);
+
+    CONSTRAINT supplier(UserCreditNote userCreditNote) AND supplierStock(userCreditNote) AND NOT
+               in(supplier(userCreditNote), supplierStock(userCreditNote))
+        CHECKED BY supplierStock[UserCreditNote]
+            MESSAGE 'Поставщик и склад поставщика для акта расхождений не имеют связи';
+    CONSTRAINT customer(UserCreditNote userCreditNote) AND customerStock(userCreditNote) AND NOT
+               in(customer(userCreditNote), customerStock(userCreditNote))
+        CHECKED BY customerStock[UserCreditNote]
+            MESSAGE 'Покупатель и склад покупателя для акта расхождений не имеют связи';
+
+    @defineDocumentInterfacePosted(creditNote);
+    @defineDocumentInterfaceClosed(creditNote);
+    @defineDocumentClosedConstraint(UserCreditNote);
+    @defineDocumentInterfaceDescription(creditNote, 'Акт расхождения (продажа)');
+
+    @defineDocumentInterfaceCurrency(creditNote);
+    @deriveDocumentCurrency(userCreditNote, supplierStock);
+
+    @defineDocumentInterfaceContract(CreditNote, contractSku, supplier, customer,
+                                     'Организация (поставщик) договора акта расхождений не соответствует организация (поставщик) акта расхождений',
+                                     'Организация (покупатель) договора акта расхождений не соответствует организация (покупатель) акта расхождений',
+                                     'акт расхождения (продажа)', Sale);
+
+    @defineDocumentInterfaceDetailSku(creditNote, sku);
+
+    @defineDocumentInterfaceDetailQuantity(creditNote);
+
+    @defineDocumentInterfaceDetailPrice(creditNote);
+
+    @defineDocumentInterfaceDetailDataSum(creditNote);
+    @deriveDocumentDetailSum(userCreditNote, quantity);
+
+    @defineDocumentInterfaceDetailVAT(creditNote, countrySupplierStock);         //  derive см. ниже в "Связь акта и накладной"
+    @defineDocumentInterfaceDetailVATDataSumCustom(creditNoteDetail, invoice);
+
+    @defineDocumentInterfaceHeaderQuantity(creditNote);
+    @defineDocumentHeaderSkuQuantity(creditNote, sku);
+    @defineDocumentInterfaceHeaderSum(creditNote);
+    @defineDocumentInterfaceHeaderVATSum(creditNote, creditNoteDetail, invoice);
+
+    @defineAddDetailDialogSkuStock(userCreditNote, sku, supplierStock, dialogSku);
+    @defineAddDetailDialogBarcode(userCreditNote, sku);
+        
+    @defineMovementSku(creditNoteDetail, supplierStock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userCreditNoteDetail, supplierStock); //-- показываем по нажатию правой клавиши движение товара
+    @defineBalancesSku(creditNoteDetail); //-- показываем по нажатию правой клавиши остатки товара
+    @defineBalancesSku(userCreditNoteDetail); //-- показываем по нажатию правой клавиши остатки товара     
+    @defineBarcodeSku(creditNoteDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+    @defineBarcodeSku(userCreditNoteDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара       
+    @defineDocumentDialogSupplierCustomerStock(userCreditNote, company, customer);
+    @defineDocumentDialogSupplierCustomerStockDetail(userCreditNoteDetail, company, customer);
+    @defineDocumentDialogSupplierCustomerLegalEntity(userCreditNote, company, customer);       
+    
+    @defineDocumentInterfaceDetailQuantityCustomPrefix (creditNoteDetail, document, ' по накладной');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, document, ' по накладной');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentVAT, ' НДС по накладной');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, documentInvoice, ' с НДС по накладной');    
+    
+    @defineDocumentInterfaceDetailQuantityCustomPrefix (creditNoteDetail, shipment, ' по факту');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipment, ' по факту');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentVAT, ' НДС по факту');
+    @defineDocumentInterfaceDetailDataSumPrefix(creditNote, shipmentInvoice, ' с НДС по факту');    
+// --------------------------- Формы --------------------------------- //
+
+    edit 'Редактировать' = ACTION ABSTRACT LIST (CreditNote) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+    FORM userCreditNote 'Акт расхождений (продажа)'
+        OBJECTS c = UserCreditNote FIXED PANEL
+        PROPERTIES (c) isPosted[CreditNote], nameNumerator, number, series, date, time,
+                       nameSupplier ON CHANGE changeSupplierCompany(c), 
+                       nameCustomer ON CHANGE changeCustomerCustomer(c), 
+                       nameSupplierStock ON CHANGE changeSupplierStockCompany(c), 
+                       nameCustomerStock ON CHANGE changeCustomerStockCustomer(c),
+                       nameCurrency, seriesNumberContractSku, note,
+                       countUserCreditNoteDetail, quantityUserCreditNoteDetail, sumUserCreditNoteDetail,
+                       VATSumUserCreditNoteDetail, invoiceSumUserCreditNoteDetail
+
+        OBJECTS d = UserCreditNoteDetail
+        PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
+                       quantity, price, sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       nameSupplierStock, ADDOBJ, deletecd=DELETESESSION
+
+        PROPERTIES(c) TODRAW d addDetailDialogSkuStockUserCreditNoteDetail,
+                               addDetailInputBarcodeUserCreditNoteDetail, deleteUserCreditNoteDetail
+        FILTERS userCreditNote(d) == c
+
+        EVENTS
+            ON OK prePost(c)
+
+        EDIT UserCreditNote OBJECT c
+    ;
+
+    DESIGN userCreditNote {
+        main {
+            preferredSize = (1024, 768);
+
+            NEW header.box {
+                type = CONTAINERH;
+
+                NEW headerRow1 {
+
+                    MOVE c.documentHeader {
+                        type = CONTAINERV;
+                        NEW first {
+                            type = CONTAINERH;
+                            MOVE PROPERTY(isPosted(c)) { preferredCharWidth = 40; }
+                        }
+                        NEW second { 
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameNumerator(c));
+                            MOVE PROPERTY(number(c));
+                            MOVE PROPERTY(series(c));
+                            MOVE PROPERTY(date(c));
+                            MOVE PROPERTY(time(c));
+                        }                    
+                    }
+                    NEW headerRow11 {
+                        type = CONTAINERH;
+                        NEW headerRow111 {
+                            caption = 'Поставщик';
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameSupplier(c));
+                            MOVE PROPERTY(nameSupplierStock(c));
+
+                        }
+                        NEW headerRow112 {
+                            caption = 'Покупатель';
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameCustomer(c));
+                            MOVE PROPERTY(nameCustomerStock(c));
+                        }
+
+                    }
+                    MOVE c.documentPrm;
+                    NEW headerRow12 {
+                        type = CONTAINERH;
+                    }
+                }
+
+                MOVE c.documentSum {
+                    columns = 1;
+                }
+            }
+
+            NEW specification.box {
+                fill = 1;
+                type = TABBED;
+                MOVE d.box {
+                    caption = 'Спецификация';
+                }
+            }
+            MOVE functions.box;
+            PROPERTY(formOk()) {
+                caption = 'Провести';
+            }
+            PROPERTY(sumUserCreditNoteDetail(c)) { preferredCharWidth = 13;}
+            PROPERTY(VATSumUserCreditNoteDetail(c)) { preferredCharWidth = 13;}  
+            PROPERTY(invoiceSumUserCreditNoteDetail(c)) { preferredCharWidth = 13;}            
+        }
+    }
+
+    @defineDocumentSkuStockPriceListTypeSystemLedger(userCreditNote, accountPriceListType, supplier){
+    @defineDocumentSkuStock(userCreditNote, sku, supplier){
+    @defineDocumentSkuStock(userCreditNote, userCreditNoteDetail, sku, supplier){
+    userCreditNoteDetailSupplier (sku, userCreditNote, stock) =  GROUP MAX (UserCreditNoteDetail userCreditNoteDetail)
+        BY sku(userCreditNoteDetail), userCreditNote(userCreditNoteDetail), supplierStock(userCreditNoteDetail);
+
+    quantitySupplier 'Кол-во товара в документе' (sku, userCreditNote, stock) = GROUP SUM quantity(UserCreditNoteDetail userCreditNoteDetail)
+        BY sku(userCreditNoteDetail), userCreditNote(userCreditNoteDetail), supplierStock(userCreditNoteDetail);
+
+//    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
+//        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
+    backgroundQuantity 'Цвет' (sku, userCreditNote, stock) = ABSTRACT CASE COLOR (Sku, UserCreditNote, Stock);    
+    background 'Цвет' (sku, userCreditNote, stock) = ABSTRACT CASE COLOR (Sku, UserCreditNote, Stock);   
+
+    overChangeQuantityValueSku = ACTION ABSTRACT LIST (UserCreditNoteDetail);
+
+    changeQuantityValue = ACTION (Sku sku, UserCreditNote userCreditNote, Stock stock) {
+        IF userCreditNoteDetailSupplier(sku, userCreditNote, stock) THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+                quantity(UserCreditNoteDetail userCreditNoteDetail) <- requestedNumeric() WHERE userCreditNoteDetail == userCreditNoteDetailSupplier(sku, userCreditNote, stock);
+                overChangeQuantityValueSku(userCreditNoteDetailSupplier(sku, userCreditNote, stock));
+            } ELSE {
+                FOR userCreditNoteDetailSupplier(sku, userCreditNote, stock) == UserCreditNoteDetail d DO
+                    DELETE d;
+            }
+
+        } ELSE {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+                FOR ADDOBJ d = UserCreditNoteDetail DO {
+                   userCreditNote(d) <- userCreditNote;
+//                  Пока работаем с одним складом                   
+//                   stockProp###stock###detail (d) <- stock;
+                   sku(d) <- sku;
+                   quantity (d) <- requestedNumeric();
+                   overChangeQuantityValueSku(d);
+                }
+            }
+        }
+    }
+    changeQuantity = ACTION (Sku sku, UserCreditNote userCreditNote, Stock stock) {
+        REQUEST NUMERIC[16,5] INPUT;
+        changeQuantityValue(sku, userCreditNote, stock);
+    }
+
+    allQuantityUserCreditNote 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
+    changeAllQuantity = ACTION (Sku sku, UserCreditNote userCreditNote, Stock stock) {
+        REQUEST BOOLEAN INPUT;
+        IF requestedLogical() THEN {
+            requestedNumeric() <- NULL;
+            allQuantityUserCreditNote (sku,stock) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(sku,stock);
+            changeQuantityValue(sku, userCreditNote, stock);
+        } ELSE {
+            allQuantityUserCreditNote (sku,stock) <- NULL;
+            requestedNumeric() <- NULL;
+            changeQuantityValue(sku, userCreditNote, stock);
+        }
+    }
+
+};
+};
+    price 'Цена' (Sku sku, Stock stock, UserCreditNote userCreditNote) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTime(userCreditNote));
+};
+    @extendFormDocumentSkuStock(userCreditNote, userCreditNote, c, supplier, supplier){
+    notSupplierStock (UserCreditNote o) = NOT supplierStock(o);
+    EXTEND FORM userCreditNote
+
+        TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
+        PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
+        ORDER BY sgTreeName
+        FILTERS stringEqualsAll(a),
+                stockGroup(ts) == sg
+        FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER BY order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+        OBJECTS           sst=Stock
+        OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
+        PROPERTIES        READONLY BACKGROUND background(ks, c, st) name(ks) ON SHORTCUT showMovementSku(ks, st) ON SHORTCUT showMovementPriceSku(ks, st), idBarcode(ks), id(ks) SHOWIF showIDs(), shortNameUOM(ks)
+        PROPERTIES        READONLY stockName = name(st) SHOWIF notSupplierStock(c)
+        PROPERTIES        addSku() TODRAW sts, edit(ks), copy(ks)
+
+        FILTERS           isParent(sk, ks),
+                          // пока отключаем работу по многим складам, а то люди путаются
+//                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
+//                          st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
+//                          legalEntityStock(st) == legalEntityProp###object(concrete),
+//                          activeStock(st)
+                          st == supplierStock(c)
+
+        FILTERS           name(ks)
+        ORDER BY          name(ks)
+
+        PROPERTIES        quantitySupplier(ks, c, st) ON CHANGE changeQuantity(ks, c, st) 
+                                BACKGROUND backgroundQuantity(ks, c, st)
+                                QUICKFILTER name(ks),
+                          prevCurrentBalance(ks, st) READONLY,
+                          allQuantityUserCreditNote(ks, st) ON CHANGE changeAllQuantity(ks, c, st),
+                          price(ks, st, c) READONLY
+    ;
+
+    DESIGN userCreditNote {
+        REMOVE sst.box;
+        specification.box {
+            type = TABBED;
+            NEW itemBox {
+                caption = 'Подбор';
+                type = SPLITH;
+
+                NEW skuFilters {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE skuTree.tree.box { caption = 'Группы SKU'; }
+                    MOVE stockTree.tree.box { caption = 'Группы складов'; }
+                }
+                NEW skuMainPane {
+                    fill = 2.5;
+                    type = CONTAINERV;
+                    NEW skuSelectPane {
+                        fill = 1;
+                        type = CONTAINERV;
+                        MOVE sts.box {
+                            caption = 'Товары';
+                        }
+                        PROPERTY(copy(ks)) { focusable = FALSE; }
+                    }
+                }
+            }
+        }
+        PROPERTY(prevCurrentBalance(ks, st)) { background = #FFEEEE; }
+        PROPERTY(quantitySupplier(ks, c, st)) { background = #D4FFD4; }
+    }
+};
+    
+    addUserCreditNote 'Добавить' = ACTION ADDFORM UserCreditNote;
+    edit 'Редактировать' (userCreditNote) = ACTION EDITFORM UserCreditNote;
+    edit(UserCreditNote c) += ACTION edit(c);
+    
+    isUserOpened(UserCreditNote c)=  isOpened[CreditNote](c) AND is(c);
+        
+    FORM creditNotes 'Акты расхождений' 
+        OBJECTS c = CreditNote
+        PROPERTIES (c) READONLYIF isReadonly() isClosed, isPosted, number, series, date, time,
+                       nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
+                       nameCurrency, seriesNumberContractSku
+        PROPERTIES (c) READONLY countCreditNoteDetail, quantityCreditNoteDetail, sumCreditNoteDetail,
+                       VATSumCreditNoteDetail, invoiceSumCreditNoteDetail
+        PROPERTIES (c) READONLYIF isReadonly() note
+        PROPERTIES (c) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
+                                            postedNameUser, postedTime, postedHostnameComputer                        
+
+        PROPERTIES ()  addUserCreditNote TODRAW c
+        PROPERTIES (c) edit SHOWIF isOpened(c)
+        PROPERTIES (c) close[UserCreditNote] SHOWIF isOpened[UserCreditNote](c), open SHOWIF isClosed[UserCreditNote](c)
+        PROPERTIES (c) deletec=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(c)
+
+        OBJECTS d = CreditNoteDetail
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+                                quantity, price, sum, numberVAT, valueVAT,
+                                 VATSum, invoiceSum, nameSupplierStock
+        FILTERS creditNote(d) == c
+
+        DIALOG CreditNote OBJECT c
+    ;
+
+    DESIGN creditNotes 'Акты расхождений (продажа)' {
+        PROPERTY (deletec) {
+            askConfirm = TRUE;
+        }
+
+        NEW documentContainer BEFORE functions.box {
+            type = SPLITV;
+            fill = 1;
+
+            MOVE c.box { flex = 2.0; }
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE c.created;
+                    MOVE c.posted;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                        type = CONTAINERV;
+
+//                        ADD PROPERTY(copyInvoice) { caption = 'Накладная (продажа)';}
+                    }
+                    NEW machineryContainer {
+                        caption = 'Загрузка';
+                        type = CONTAINERV;
+                    }
+                }                
+            }
+        }
+    }
+    @extendFormEditable(creditNotes){
+    EXTEND FORM creditNotes
+        PROPERTIES() isEditable
+    ;
+    DESIGN creditNotes {
+        functions.box {
+            MOVE PROPERTY(isEditable()) BEFORE rightControls;
+        }
+    }
+};
+    @defineFilterIsOpened (creditNote, creditNotes, c){   
+    EXTEND FORM creditNotes
+        FILTERGROUP creditNotefilters6 FILTER 'Открыт' isOpened(c) 'F6' DEFAULT
+    ;   
+}; 
+    edit 'Редактировать' = ACTION ABSTRACT LIST  (CreditNoteDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit(UserCreditNoteDetail d) = ACTION (d) NEWSESSION {
+        FORM userCreditNote OBJECTS c = userCreditNote(d), d = d MANAGESESSION DOCKEDMODAL;
+    }
+    
+    edit(UserCreditNoteDetail d) += ACTION edit(d);  
+    
+//--  Связь акта и накладной
+    invoiceDetail = ABSTRACT InvoiceDetail (CreditNoteDetail) PERSISTENT;
+    invoiceDetail = DATA InvoiceDetail (UserCreditNoteDetail);
+    invoiceDetail(UserCreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
+
+    CONSTRAINT supplier[CreditNoteDetail](UserCreditNoteDetail detail) != supplier(invoiceDetail(detail)) OR
+               customer(detail) != customer(invoiceDetail(detail)) OR
+               sku(detail) != sku(invoiceDetail(detail))
+        CHECKED BY invoiceDetail[UserCreditNoteDetail]
+            MESSAGE 'Поставщик, покупатель и товар в накладной и акте расхождения должны соответствовать друг другу';
+
+    descriptionIndexInvoice 'Накладная' (UserCreditNoteDetail userCreditNoteDetail) =  descriptionIndex(invoiceDetail(userCreditNoteDetail));
+    descriptionIndexInvoiceInvoice 'Накладная' (CreditNoteDetail creditNoteDetail) =  descriptionIndex(invoiceDetail(creditNoteDetail));
+
+    quantity (invoice, creditNote) = GROUP SUM quantity(CreditNoteDetail creditNoteDetail) BY invoice(invoiceDetail(creditNoteDetail)), creditNote(creditNoteDetail);
+    invoices 'Накладные' (creditNote) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantity(invoice, CreditNote creditNote) , ', '
+                                                    BY creditNote
+                                                    ORDER invoice IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+    EXTEND FORM userCreditNote
+        PROPERTIES(c) READONLY invoices
+        PROPERTIES(d) descriptionIndexInvoice BEFORE deletecd
+    ;
+    DESIGN userCreditNote { headerRow12 { MOVE c.invoice {type = CONTAINERH;}}}
+
+
+    EXTEND FORM creditNotes
+        PROPERTIES(c) READONLY invoices
+        PROPERTIES(d) READONLY descriptionIndexInvoiceInvoice
+    ;
+    // Записываем значения из накладной
+    quantity (UserCreditNoteDetail detail)  <- toShip(invoiceDetail(detail))
+        WHEN CHANGED(invoiceDetail(detail));
+
+    price (UserCreditNoteDetail detail)  <- price(invoiceDetail(detail))
+        WHEN CHANGED(invoiceDetail(detail));
+
+    VAT (UserCreditNoteDetail detail)  <- VAT(invoiceDetail(detail))
+        WHEN CHANGED(invoiceDetail(detail));
+
+    valueVAT (UserCreditNoteDetail detail)  <- valueVAT(invoiceDetail(detail))
+        WHEN CHANGED(invoiceDetail(detail));
+
+    VATSum (UserCreditNoteDetail detail) <- round((sum(detail) *
+        valueVAT (detail) / 100), currency(invoiceDetail(detail)))
+        WHEN CHANGED(sum(detail)) OR CHANGED(VAT(detail)) OR CHANGED(currency(detail));
+    @deriveDocumentDetailVATPrefixSum (userCreditNote, invoice){
+    @deriveDocumentDetailVATPrefixSumCustom(userCreditNoteDetail, invoice){
+    invoiceSum (UserCreditNoteDetail userCreditNoteDetail) <- sum(userCreditNoteDetail) (+) VATSum(userCreditNoteDetail)
+        WHEN CHANGED(sum(userCreditNoteDetail)) OR CHANGED(VATSum(userCreditNoteDetail));
+};
+};
+
+//-- агр.объект
+    caseToShip = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,5](InvoiceDetail);
+    caseToShip (InvoiceDetail detail) += WHEN sku(detail) IS Item THEN toShip(detail);
+        
+    @defineDocumentInterfaceProperty (invoice, createCreditNote, 'Создать акт расхождения'){
+    @defineDocumentInterfaceHeaderProperty (invoice, createCreditNote, 'Создать акт расхождения'){
+    @defineDocumentAbstractHeaderProperty (invoice, createCreditNote, 'Создать акт расхождения'){
+    createCreditNote 'Создать акт расхождения' (invoice) = ABSTRACT BOOLEAN(Invoice) PERSISTENT IN documentPrm;
+};
+    @defineDocumentHeaderProperty (userInvoice, createCreditNote, 'Создать акт расхождения'){
+    createCreditNote 'Создать акт расхождения' (userInvoice) = DATA BOOLEAN(UserInvoice) IN documentPrm;
+};
+    createCreditNote (UserInvoice invoice) += createCreditNote(invoice);
+};
+    @defineDocumentInterfaceDetailProperty (invoice, createCreditNote, 'Создать акт расхождения'){
+    @defineDocumentInterfaceDetailProperty(invoice, invoiceDetail, createCreditNote, 'Создать акт расхождения'){
+    @defineDocumentDetailProperty(invoice, invoiceDetail, createCreditNote, 'Создать акт расхождения'){
+    createCreditNote 'Создать акт расхождения' (InvoiceDetail invoiceDetail) = createCreditNote(invoice(invoiceDetail)) PERSISTENT;
+};
+    @defineDocumentDetailProperty(userInvoice, userInvoiceDetail, createCreditNote, 'Создать акт расхождения'){
+    createCreditNote 'Создать акт расхождения' (UserInvoiceDetail userInvoiceDetail) = createCreditNote(userInvoice(userInvoiceDetail)) PERSISTENT;
+};
+};
+};
+};
+    
+    skipCreateCreditNote = ABSTRACT BOOLEAN (InvoiceDetail) PERSISTENT;
+    
+    needToCreditNote (InvoiceDetail invoiceDetail)= createCreditNote(invoiceDetail)  AND
+        caseToShip (invoiceDetail) AND isPosted(invoiceDetail) 
+        AND isNotCharge(sku(invoiceDetail)) AND NOT skipCreateCreditNote(invoiceDetail) PERSISTENT;
+
+    overCopy(UserInvoice s, UserInvoice d) += ACTION (s, d) {
+        ASSIGN createCreditNote(d) <- createCreditNote(s);
+    }
+
+    needToCreditNote (invoice) = GROUP SUM 1 IF needToCreditNote(InvoiceDetail invoiceDetail) BY invoice(invoiceDetail) PERSISTENT;
+
+    EXTEND FORM userInvoice PROPERTIES(i) createCreditNote;
+    DESIGN userInvoice {
+        headerCreateDocuments {
+            NEW headerCreateCreditNote {
+                caption = 'Акт расхождения';
+                MOVE PROPERTY(createCreditNote(i));
+            }
+        }
+    }
+
+    CLASS InvoiceCreditNote 'Акт расхождения на основе накладной' : CreditNote;
+    CLASS InvoiceCreditNoteDetail 'Строка акта расхождения на основе накладной' : CreditNoteDetail;
+
+    @defineDocumentTables(invoiceCreditNote){
+    TABLE invoiceCreditNote (InvoiceCreditNote);
+    TABLE invoiceCreditNoteDetail (InvoiceCreditNoteDetail);
+};
+
+    @defineDocumentAggregation(invoice, invoiceCreditNote, needToCreditNote){
+    @defineDocumentAggregationHeader(invoice, invoiceCreditNote, needToCreditNote){
+    @defineAggregation (invoice, invoiceCreditNote, needToCreditNote){
+    @defineAggregationClass(invoice, Invoice, invoiceCreditNote, InvoiceCreditNote, needToCreditNote){
+    invoice = DATA Invoice (InvoiceCreditNote) INDEXED;
+
+    @defineAggregationCustom1(invoiceInvoiceCreditNote, invoice, Invoice, invoiceCreditNote, InvoiceCreditNote, needToCreditNote){
+    invoiceCreditNote (invoice) =
+        GROUP AGGR InvoiceCreditNote invoiceCreditNote BY invoice(invoiceCreditNote)
+        WHERE invoiceCreditNote IS InvoiceCreditNote PERSISTENT INDEXED;
+
+    needToCreditNote(Invoice invoice) => invoiceCreditNote(invoice) RESOLVE LEFT;
+
+    is(InvoiceCreditNote invoiceCreditNote) = invoiceCreditNote IS InvoiceCreditNote;
+    is(InvoiceCreditNote invoiceCreditNote) => needToCreditNote(invoice(invoiceCreditNote)) RESOLVE RIGHT;
+};
+};
+};
+    @defineDocumentAggregationHeaderNote(invoice, invoiceCreditNote){
+    note 'Примечание' (InvoiceCreditNote o) = note(invoice(o));
+};
+    @defineDocumentAggregationHeaderTime(invoice, invoiceCreditNote){
+    @defineDocumentAggregationHeaderTimePrefix(invoice, invoiceCreditNote, ){
+    date 'Дата' (InvoiceCreditNote o) = date(invoice(o));
+    time 'Время' (InvoiceCreditNote o) = time(invoice(o));
+    dateTime 'Дата/время' (InvoiceCreditNote o) = dateTime(invoice(o));
+};
+};
+};
+    @defineDocumentAggregationDetail(invoice, invoiceCreditNote, needToCreditNote){
+    @defineAggregation(invoiceDetail, invoiceCreditNoteDetail, needToCreditNote){
+    @defineAggregationClass(invoiceDetail, InvoiceDetail, invoiceCreditNoteDetail, InvoiceCreditNoteDetail, needToCreditNote){
+    invoiceDetail = DATA InvoiceDetail (InvoiceCreditNoteDetail) INDEXED;
+
+    @defineAggregationCustom1(invoiceDetailInvoiceCreditNoteDetail, invoiceDetail, InvoiceDetail, invoiceCreditNoteDetail, InvoiceCreditNoteDetail, needToCreditNote){
+    invoiceCreditNoteDetail (invoiceDetail) =
+        GROUP AGGR InvoiceCreditNoteDetail invoiceCreditNoteDetail BY invoiceDetail(invoiceCreditNoteDetail)
+        WHERE invoiceCreditNoteDetail IS InvoiceCreditNoteDetail PERSISTENT INDEXED;
+
+    needToCreditNote(InvoiceDetail invoiceDetail) => invoiceCreditNoteDetail(invoiceDetail) RESOLVE LEFT;
+
+    is(InvoiceCreditNoteDetail invoiceCreditNoteDetail) = invoiceCreditNoteDetail IS InvoiceCreditNoteDetail;
+    is(InvoiceCreditNoteDetail invoiceCreditNoteDetail) => needToCreditNote(invoiceDetail(invoiceCreditNoteDetail)) RESOLVE RIGHT;
+};
+};
+};
+    invoiceCreditNote (InvoiceCreditNoteDetail detail) = invoiceCreditNote(invoice(invoiceDetail(detail)));
+
+    @defineDocumentAggregationDetailIndex(invoice, invoiceCreditNote){
+    index 'Номер строки' (InvoiceCreditNoteDetail d) = index(invoiceDetail(d)) IN public;
+};
+    @defineDocumentAggregationDetailTime(invoice, invoiceCreditNote){
+    @defineDocumentAggregationDetailTimePrefix(invoice, invoiceCreditNote, ){
+    date 'Дата' (InvoiceCreditNoteDetail d) = date(invoiceDetail(d));
+    time 'Время' (InvoiceCreditNoteDetail d) = time(invoiceDetail(d));
+    dateTime 'Дата/время' (InvoiceCreditNoteDetail d) = dateTime(invoiceDetail(d));
+};
+};
+};
+    @defineDocumentHeaderCount(invoiceCreditNote){
+    @defineDocumentHeaderCount(invoiceCreditNote, InvoiceCreditNoteDetail){
+    @defineDocumentHeaderCount(invoiceCreditNote, InvoiceCreditNoteDetail, ){
+    countInvoiceCreditNoteDetail 'Кол-во строк' (o) =
+        GROUP SUM 1 BY invoiceCreditNote(InvoiceCreditNoteDetail d) PERSISTENT IN documentSum;
+};
+};
+};
+};
+    creditNote(InvoiceCreditNoteDetail detail) += invoiceCreditNote(detail);
+
+    index(InvoiceCreditNoteDetail detail) += index(detail);
+
+    date(InvoiceCreditNote creditNote) += date(creditNote);
+    time(InvoiceCreditNote creditNote) += time(creditNote);
+
+    @defineDocumentAggregationStockPrefix(invoice, invoiceCreditNote, supplier, 'Склад поставщика', , ){
+    @defineDocumentAggregationHeaderStockPrefix(invoice, invoiceCreditNote, stock, supplier, 'Склад поставщика', , ){
+    supplierStock (InvoiceCreditNote object) = supplierStock(invoice(object)) PERSISTENT;
+    nameSupplierStock 'Склад поставщика' (InvoiceCreditNote object) = name(supplierStock(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    fullNameSupplierStock 'Склад поставщика' (InvoiceCreditNote object) = fullName(supplierStock(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;    
+};
+    @defineDocumentAggregationDetailStockPrefix(invoice, invoiceCreditNote, supplierStock, 'Склад поставщика', , ){
+    supplierStock (InvoiceCreditNoteDetail detail) = supplierStock(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    supplierStock(InvoiceCreditNote creditNote) += supplierStock(creditNote);
+    dataSupplierStock(InvoiceCreditNoteDetail creditNoteDetail) += dataSupplierStock(invoiceDetail(creditNoteDetail));
+
+    @defineDocumentAggregationStockPrefix(invoice, invoiceCreditNote, customer, 'Склад покупателя', , ){
+    @defineDocumentAggregationHeaderStockPrefix(invoice, invoiceCreditNote, stock, customer, 'Склад покупателя', , ){
+    customerStock (InvoiceCreditNote object) = customerStock(invoice(object)) PERSISTENT;
+    nameCustomerStock 'Склад покупателя' (InvoiceCreditNote object) = name(customerStock(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+    fullNameCustomerStock 'Склад покупателя' (InvoiceCreditNote object) = fullName(customerStock(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;    
+};
+    @defineDocumentAggregationDetailStockPrefix(invoice, invoiceCreditNote, customerStock, 'Склад покупателя', , ){
+    customerStock (InvoiceCreditNoteDetail detail) = customerStock(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    customerStock(InvoiceCreditNote creditNote) += customerStock(creditNote);
+    dataCustomerStock(InvoiceCreditNoteDetail creditNoteDetail) += dataCustomerStock(invoiceDetail(creditNoteDetail));
+
+    @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceCreditNote, supplier, 'Поставщик', , ){
+    @defineDocumentAggregationHeaderLegalEntityPrefix(invoice, invoiceCreditNote, supplier, 'Поставщик', , ){
+    supplier (InvoiceCreditNote object) = supplier(invoice(object)) PERSISTENT;
+    nameSupplier 'Поставщик' (InvoiceCreditNote object) = name(supplier(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+};
+    @defineDocumentAggregationDetailLegalEntityPrefix(invoice, invoiceCreditNote, supplier, 'Поставщик', , ){
+    supplier (InvoiceCreditNoteDetail detail) = supplier(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    supplier(InvoiceCreditNote creditNote) += supplier(creditNote);
+
+    @defineDocumentAggregationLegalEntityPrefix(invoice, invoiceCreditNote, customer, 'Покупатель', , ){
+    @defineDocumentAggregationHeaderLegalEntityPrefix(invoice, invoiceCreditNote, customer, 'Покупатель', , ){
+    customer (InvoiceCreditNote object) = customer(invoice(object)) PERSISTENT;
+    nameCustomer 'Покупатель' (InvoiceCreditNote object) = name(customer(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+};
+    @defineDocumentAggregationDetailLegalEntityPrefix(invoice, invoiceCreditNote, customer, 'Покупатель', , ){
+    customer (InvoiceCreditNoteDetail detail) = customer(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    customer(InvoiceCreditNote creditNote) += customer(creditNote);
+    
+    contractSku(InvoiceCreditNote creditNote) += contractSku(invoice(creditNote));
+
+    @defineDocumentAggregationPosted(invoice, invoiceCreditNote){
+    @defineDocumentAggregationHeaderPosted(invoice, invoiceCreditNote){
+    isPosted 'Проведен' (InvoiceCreditNote o) = isPosted(invoice(o));
+};
+    @defineDocumentAggregationDetailPosted(invoice, invoiceCreditNote){
+    isPosted 'Проведен' (InvoiceCreditNoteDetail o) = isPosted(invoiceDetail(o));
+};
+};
+    isPosted(InvoiceCreditNote creditNote) += isPosted(creditNote);
+    
+    @defineDocumentAggregationClosed(invoice, invoiceCreditNote){
+    @defineDocumentAggregationHeaderClosed(invoice, invoiceCreditNote){
+    isClosed 'Закрыт' (InvoiceCreditNote o) = isClosed(invoice(o));
+};
+    @defineDocumentAggregationDetailClosed(invoice, invoiceCreditNote){
+    isClosed 'Закрыт' (InvoiceCreditNoteDetail o) = isClosed(invoiceDetail(o));
+};
+};
+    isClosed(InvoiceCreditNote creditNote) += isClosed(creditNote);
+    
+    number 'Номер документа' (InvoiceCreditNote invoiceCreditNote) = number(invoice(invoiceCreditNote));
+    number(InvoiceCreditNote creditNote) += number(creditNote);
+
+    series 'Серия документа' (InvoiceCreditNote invoiceCreditNote) = series(invoice(invoiceCreditNote));
+    series(InvoiceCreditNote creditNote) += series(creditNote);
+
+    seriesNumber 'Серия/номер документа' (InvoiceCreditNote invoiceCreditNote) = seriesNumber(invoice(invoiceCreditNote));
+
+    noteInvoice 'Примечание' (InvoiceCreditNote invoiceCreditNote) = note(invoice(invoiceCreditNote));
+    note(InvoiceCreditNote creditNote) += noteInvoice(creditNote);
+
+    currency  (InvoiceCreditNote invoiceCreditNote) = currency(invoice(invoiceCreditNote));
+    currency (InvoiceCreditNote creditNote) += currency(creditNote);
+    currency (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = currency(invoiceCreditNote(invoiceCreditNoteDetail));
+
+    @defineDocumentDescription(invoiceCreditNote, InvoiceCreditNoteDetail, 'Акт расхождения на основе накладной (продажа)'){
+    @defineDocumentHeaderDescription(InvoiceCreditNote, 'Акт расхождения на основе накладной (продажа)'){
+    description 'Название документа' (InvoiceCreditNote o) =
+        'Акт расхождения на основе накладной (продажа)' + ' № ' + seriesNumber(o) + ' от ' + date(o) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+};
+    @defineDocumentDetailDescription(invoiceCreditNote, InvoiceCreditNoteDetail){
+    description 'Название документа' (InvoiceCreditNoteDetail d) = description(invoiceCreditNote(d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    descriptionIndex 'Название документа' (InvoiceCreditNoteDetail d) = description(d) + ', позиция ' + index(d) MINCHARWIDTH 30 PREFCHARWIDTH 50 IN base;
+};
+};
+    description (InvoiceCreditNote creditNote) += description(creditNote);
+        
+    @defineDocumentAggregationDetailSku(invoice, invoiceCreditNote, sku){
+    @defineDocumentAggregationDetailSkuPrefix(invoice, invoiceCreditNote, sku, ){
+    sku (InvoiceCreditNoteDetail detail) = sku(invoiceDetail(detail));
+    nameSku 'SKU' (InvoiceCreditNoteDetail detail) = name(sku(detail)) IN public;
+    idBarcodeSku 'Штрихкод' (InvoiceCreditNoteDetail detail) = idBarcode(sku(detail)) IN public;
+};
+};
+    sku(InvoiceCreditNoteDetail creditNoteDetail) +=  sku(creditNoteDetail);
+
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, toShip, 'Кол-во'){
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, toShip, toShip, 'Кол-во'){
+    toShip 'Кол-во' (InvoiceCreditNoteDetail detail) = toShip(invoiceDetail(detail)) PERSISTENT;
+};
+};   //                ????????   может надо сделать через минус
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, caseToShip, 'Кол-во'){
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, caseToShip, caseToShip, 'Кол-во'){
+    caseToShip 'Кол-во' (InvoiceCreditNoteDetail detail) = caseToShip(invoiceDetail(detail)) PERSISTENT;
+};
+}; 
+    
+    quantity(InvoiceCreditNoteDetail creditNoteDetail) += caseToShip(creditNoteDetail);
+
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, price, 'Цена'){
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, price, price, 'Цена'){
+    price 'Цена' (InvoiceCreditNoteDetail detail) = price(invoiceDetail(detail)) PERSISTENT;
+};
+};
+
+    price(InvoiceCreditNoteDetail creditNoteDetail) += price(creditNoteDetail);
+
+    sum 'Сумма' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = NUMERIC[16,2](round((caseToShip(invoiceCreditNoteDetail) *
+        price(invoiceCreditNoteDetail)), currency(invoiceCreditNoteDetail)));
+
+    sum(InvoiceCreditNoteDetail creditNoteDetail) += sum(creditNoteDetail);
+
+    invoiceDetail(InvoiceCreditNoteDetail creditNoteDetail) += invoiceDetail(creditNoteDetail);
+
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, VAT, 'НДС'){
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, VAT, VAT, 'НДС'){
+    VAT 'НДС' (InvoiceCreditNoteDetail detail) = VAT(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    VAT (InvoiceCreditNoteDetail creditNoteDetail) += VAT(creditNoteDetail);
+
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, numberVAT, 'НДС, номер'){
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, numberVAT, numberVAT, 'НДС, номер'){
+    numberVAT 'НДС, номер' (InvoiceCreditNoteDetail detail) = numberVAT(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, valueVAT, 'НДС, %'){
+    @defineDocumentAggregationDetailProperty (invoice, invoiceCreditNote, valueVAT, valueVAT, 'НДС, %'){
+    valueVAT 'НДС, %' (InvoiceCreditNoteDetail detail) = valueVAT(invoiceDetail(detail)) PERSISTENT;
+};
+};
+    valueVAT (InvoiceCreditNoteDetail creditNoteDetail) += valueVAT(creditNoteDetail);
+
+    VATSum 'Сумма НДС' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = NUMERIC[16,2](round((sum(invoiceCreditNoteDetail) *
+    valueVAT (invoiceCreditNoteDetail) / 100), currency(invoiceCreditNoteDetail)));
+
+    invoiceSum 'Сумма с НДС' (InvoiceCreditNoteDetail invoiceCreditNoteDetail) = VATSum(invoiceCreditNoteDetail) (+)
+        sum(invoiceCreditNoteDetail);
+
+    VATSum (InvoiceCreditNoteDetail creditNoteDetail) += VATSum(creditNoteDetail);
+    invoiceSum (InvoiceCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail);
+    
+    edit(InvoiceCreditNote c) += ACTION EXEC edit(invoice(c));
+    edit(InvoiceCreditNoteDetail d) += ACTION edit(invoiceDetail(d));
+    
+   documentQuantity (InvoiceCreditNoteDetail d) += quantity(invoiceDetail(d)); 
+   documentSum (InvoiceCreditNoteDetail d) += sum(invoiceDetail(d)); 
+   documentVATSum (InvoiceCreditNoteDetail d) += VATSum(invoiceDetail(d));        
+   documentInvoiceSum (InvoiceCreditNoteDetail d) += invoiceSum(invoiceDetail(d)); 
+
+   shipmentQuantity (InvoiceCreditNoteDetail d) += shipped(invoiceDetail(d)); 
+   shipmentSum (InvoiceCreditNoteDetail d) = NUMERIC[16,2](round((shipped(invoiceDetail(d)) *
+                                     price(d)), currency(d)));
+   shipmentSum (InvoiceCreditNoteDetail d) += shipmentSum(d);
+   shipmentVATSum (InvoiceCreditNoteDetail d) = NUMERIC[16,2](round((shipmentSum(d) *
+                                  valueVAT (d) / 100), currency(d)));   
+   shipmentVATSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d);        
+   shipmentInvoiceSum (InvoiceCreditNoteDetail d) += shipmentVATSum(d) (+) shipmentSum(d);   
+   
+};
 @defineCreditNotePaymentCondition(' (продажа)');
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, supplierStock, company);
 @extendFormFilterAccessStock(CreditNote, c, creditNotes, customerStock, customer);

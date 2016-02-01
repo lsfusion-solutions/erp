@@ -45,9 +45,9 @@ toShipNotChargeInvoiceDetail 'Не поставлено по накладной 
     GROUP SUM toShip(InvoiceDetail invoiceDetail) IF toShip(invoiceDetail) > 0 AND isNotCharge(sku(invoiceDetail))
           BY invoice(invoiceDetail);                       
           
-addUserShipment  = ABSTRACT ACTION CASE OVERRIDE (Invoice);
+addUserShipment  = ACTION ABSTRACT CASE OVERRIDE (Invoice);
 
-receiveShipment 'Принять полностью' = ABSTRACT ACTION LIST (Invoice);
+receiveShipment 'Принять полностью' = ACTION ABSTRACT LIST (Invoice);
 
 createMultiShipment 'Принять полностью' = ACTION (Invoice invoice) NEWSESSION {
     IF createShipment(invoice) THEN {
@@ -58,7 +58,7 @@ createMultiShipment 'Принять полностью' = ACTION (Invoice invoic
     apply();
 }
 
-deleteCreate  = ABSTRACT ACTION CASE OVERRIDE (Shipment);
+deleteCreate  = ACTION ABSTRACT CASE OVERRIDE (Shipment);
 deleteMulti 'Удалить полностью' = ACTION (Shipment shipment) NEWSESSION {
     IF shipment IS Shipment AND NOT isUser(shipment) THEN {
         deleteCreate(shipment); 
@@ -195,8 +195,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
             MOVE functions.box;
         }
     }
-    overFillInvoice = ABSTRACT ACTION LIST (UserShipment, Invoice);                          // документ
-    overFillInvoice = ABSTRACT ACTION LIST (UserShipmentDetail, InvoiceDetail);  // детайл
+    overFillInvoice = ACTION ABSTRACT LIST (UserShipment, Invoice);                          // документ
+    overFillInvoice = ACTION ABSTRACT LIST (UserShipmentDetail, InvoiceDetail);  // детайл
 
     fillInvoice 'Заполнить на основе накладной' =  ACTION (UserShipment userShipment) {
         FORM shipmentInvoices OBJECTS s = supplier(userShipment), c = customer(userShipment) MODAL;

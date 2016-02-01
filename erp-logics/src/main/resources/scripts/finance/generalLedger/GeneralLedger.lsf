@@ -20,7 +20,7 @@ time 'Время' (GLDocument document) = toTime(dateTime(document));
 
 operation 'Операция' = ABSTRACT Operation (GLDocument) PERSISTENT;
 
-edit 'Редактировать регистр' = ABSTRACT ACTION LIST (GLDocument) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать регистр' = ACTION ABSTRACT LIST (GLDocument) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 onlineGeneralLedger 'Создавать проводки онлайн' = DATA BOOLEAN () IN generalLedger COMPLEX;
 reportinGeneralLedger 'Запретить редактировать проводки после отчетного периода' = DATA BOOLEAN () IN generalLedger;
@@ -117,7 +117,7 @@ skip 'Не изменять значение' (generalLedger) = ABSTRACT BOOLEAN
 skip 'Не изменять значение' (userGeneralLedger) = DATA BOOLEAN (UserGeneralLedger);
 skip (UserGeneralLedger generalLedger) += skip (generalLedger);
 
-edit 'Редактировать' = ABSTRACT ACTION LIST (GeneralLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ACTION ABSTRACT LIST (GeneralLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 CONSTRAINT isPosted(GeneralLedger ledger) AND reportinGeneralLedger() AND date(ledger) < dateReportingGeneralLedger() AND CHANGED(sum(ledger))
     MESSAGE 'Запрещено редактировать проводки после отчетного периода';
@@ -255,7 +255,7 @@ edit 'Редактировать' (userGeneralLedger) = ACTION EDITFORM UserGene
 edit(UserGeneralLedger generalLedger) += ACTION edit(generalLedger);
 is(UserGeneralLedger generalLedger) = generalLedger IS UserGeneralLedger;
 
-overCopy = ABSTRACT ACTION LIST (GeneralLedger, GeneralLedger);
+overCopy = ACTION ABSTRACT LIST (GeneralLedger, GeneralLedger);
 copy 'Копировать' = ACTION (GeneralLedger generalLedger) NEWSESSION {
 
     FOR ADDOBJ g = UserGeneralLedger DO {
@@ -403,7 +403,7 @@ META defineLoadDefaultOperation (NSR, iname, isid)
 END
 
 
-loadDefaultOperations 'Загрузить стандарные операции для проводок' () = ABSTRACT ACTION LIST ()  IN loadDefault;
+loadDefaultOperations 'Загрузить стандарные операции для проводок' () = ACTION ABSTRACT LIST ()  IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultOperations);
 
@@ -433,8 +433,8 @@ END
 
 // ----------------------------------------------- Метакод по созданию проводок через ACTION -------------------------------------------- //
 
-createGeneralLedger  = ABSTRACT ACTION LIST (DATE);
-createGeneralLedgerFromTo  = ABSTRACT ACTION LIST (DATE,DATE); 
+createGeneralLedger  = ACTION ABSTRACT LIST (DATE);
+createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (DATE,DATE); 
 
 createGeneralLedger 'Создать проводки c даты отчетного периода' = ACTION () {
     DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dateReportingGeneralLedger();
@@ -455,7 +455,7 @@ DESIGN options {
 //-- Для одного объекта
 
 META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
-    overCreate###idGL###object = ABSTRACT ACTION LIST (UserGeneralLedger);  
+    overCreate###idGL###object = ACTION ABSTRACT LIST (UserGeneralLedger);  
 
     createUserGeneralLedgerALL###idGL###object 'Создать проводки' = ACTION (DATE date) {     
         FOR property(###object object) AND dateProp(object) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
@@ -511,8 +511,8 @@ END
 
 META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
 
-    overCreate##idGL###object1###object2 = ABSTRACT ACTION LIST (UserGeneralLedger);  
-    overCreate##idGL###object1###object2 = ABSTRACT ACTION LIST (UserGeneralLedger, Dimension);  
+    overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
+    overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
     createUserGeneralLedgerALL##idGL###object1###object2 'Создать проводки' = ACTION (DATE date) {     
         FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;

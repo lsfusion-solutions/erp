@@ -54,13 +54,13 @@ nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder
 
 stocks 'Склады' (scheduleOrder) = ABSTRACT VARSTRING[500] (ScheduleOrder) MINCHARWIDTH 20 PREFCHARWIDTH 40 PERSISTENT;
 
-addScheduleOrderSupplierCustomer 'Добавить' = ABSTRACT ACTION LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
-edit 'Редактировать' = ABSTRACT ACTION LIST (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+addScheduleOrderSupplierCustomer 'Добавить' = ACTION ABSTRACT LIST (LegalEntity, LegalEntity) IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+edit 'Редактировать' = ACTION ABSTRACT LIST (ScheduleOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 GROUP schedule 'График' : public;
 countDaysPreOrders 'Кол-во дней для предварительных заказов' = DATA INTEGER () IN schedule;
 
-addScheduleOrderDetail 'Сгенерировать заказы по графикам без даты окончания' = ABSTRACT ACTION LIST () IN schedule;
+addScheduleOrderDetail 'Сгенерировать заказы по графикам без даты окончания' = ACTION ABSTRACT LIST () IN schedule;
 
 defaultGenType = DATA GenType ();
 nameDefaultGenType 'Тип генерации (по-умолчанию)' ()= staticCaption(defaultGenType()) IN schedule;
@@ -264,7 +264,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     tmpDateP = DATA LOCAL DATE();
     tmpDateS = DATA LOCAL DATE();
     
-    overCreate = ABSTRACT ACTION LIST (ScheduleOrderDetail); 
+    overCreate = ACTION ABSTRACT LIST (ScheduleOrderDetail); 
 
     create 'Сгенерировать предварительные заказы' = ACTION (ScheduleOrder scheduleOrder) {
         LOCAL toDate = DATE ();    
@@ -403,7 +403,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                WHERE isOpened(sd);             
     isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetail###stockFilter##Customer(stockFilter(sd), stockFilter##Stock(sd), customer(sd), customerStock(sd)) == sd;   
 
-    overCreate = ABSTRACT ACTION LIST (UserOrder);
+    overCreate = ACTION ABSTRACT LIST (UserOrder);
 
     createScheduleUser 'Создать заказ' = ACTION (ScheduleOrderDetail scheduleOrderDetail) NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
@@ -625,7 +625,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }
     }
     
-    overCopy = ABSTRACT ACTION LIST (ScheduleOrder, ScheduleOrder);
+    overCopy = ACTION ABSTRACT LIST (ScheduleOrder, ScheduleOrder);
     copy 'Копировать' = ACTION (ScheduleOrder scheduleOrder) NEWSESSION {
         FOR ADDOBJ o = ScheduleOrder DO {
             stockFilter(o) <- stockFilter(scheduleOrder);

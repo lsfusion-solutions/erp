@@ -128,11 +128,33 @@ META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
 
     is (###prefix##ContractLedger prefix##ContractLedger) = prefix##ContractLedger IS classPrefix##ContractLedger;
     
-    edit 'Редактировать' = ABSTRACT ACTION LIST (classPrefix##ContractLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;    
+    edit 'Редактировать' = ACTION ABSTRACT LIST (classPrefix##ContractLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;    
 
 END
 
-@defineInOutContractLedgerPrefix('Приход', in, In);
+@defineInOutContractLedgerPrefix('Приход', in, In){
+
+    CLASS ABSTRACT InContractLedger 'Приход';
+    TABLE inContractLedger(InContractLedger);
+
+    isPosted 'Закрыт' (inContractLedger) = ABSTRACT BOOLEAN (InContractLedger) PERSISTENT;
+    skip 'Не проводить по учету' = ABSTRACT BOOLEAN (InContractLedger) PERSISTENT;
+    active 'Активен' = isPosted(InContractLedger ledger) AND NOT skip(ledger) PERSISTENT;
+
+    dateTime 'Дата/время' (inContractLedger) = ABSTRACT DATETIME (InContractLedger) PERSISTENT;
+    date 'Дата' (InContractLedger inContractLedger) = toDate(dateTime(inContractLedger));
+    time 'Время' (InContractLedger inContractLedger) = toTime(dateTime(inContractLedger));
+
+    contract 'Договор' (inContractLedger) = ABSTRACT Contract (InContractLedger) PERSISTENT;
+
+    description 'Название документа' (inContractLedger) = ABSTRACT VARSTRING[200] (InContractLedger) PERSISTENT;
+    sum 'Сумма' = ABSTRACT NUMERIC[22,8] (InContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT;
+
+    is (InContractLedger inContractLedger) = inContractLedger IS InContractLedger;
+    
+    edit 'Редактировать' = ACTION ABSTRACT LIST (InContractLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;    
+
+};
 
 number 'Номер документа' = ABSTRACT STRING[20] (InContractLedger) PERSISTENT MINCHARWIDTH 7;
 series 'Серия' = ABSTRACT STRING[2] (InContractLedger) PERSISTENT FIXEDCHARWIDTH 3;
@@ -143,7 +165,29 @@ supplierStock (document) = ABSTRACT Stock (InContractLedger) PERSISTENT;
 nameSupplierStock 'Склад поставщика' (InContractLedger inContractLedger) = name(supplierStock(inContractLedger));
 
 paymentCondition 'Условия оплаты'  = ABSTRACT PaymentCondition (InContractLedger);
-@defineInOutContractLedgerPrefix('Расход', out, Out);
+@defineInOutContractLedgerPrefix('Расход', out, Out){
+
+    CLASS ABSTRACT OutContractLedger 'Расход';
+    TABLE outContractLedger(OutContractLedger);
+
+    isPosted 'Закрыт' (outContractLedger) = ABSTRACT BOOLEAN (OutContractLedger) PERSISTENT;
+    skip 'Не проводить по учету' = ABSTRACT BOOLEAN (OutContractLedger) PERSISTENT;
+    active 'Активен' = isPosted(OutContractLedger ledger) AND NOT skip(ledger) PERSISTENT;
+
+    dateTime 'Дата/время' (outContractLedger) = ABSTRACT DATETIME (OutContractLedger) PERSISTENT;
+    date 'Дата' (OutContractLedger outContractLedger) = toDate(dateTime(outContractLedger));
+    time 'Время' (OutContractLedger outContractLedger) = toTime(dateTime(outContractLedger));
+
+    contract 'Договор' (outContractLedger) = ABSTRACT Contract (OutContractLedger) PERSISTENT;
+
+    description 'Название документа' (outContractLedger) = ABSTRACT VARSTRING[200] (OutContractLedger) PERSISTENT;
+    sum 'Сумма' = ABSTRACT NUMERIC[22,8] (OutContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT;
+
+    is (OutContractLedger outContractLedger) = outContractLedger IS OutContractLedger;
+    
+    edit 'Редактировать' = ACTION ABSTRACT LIST (OutContractLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;    
+
+};
 
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
 cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[16,2] (OutContractLedger, InContractLedger) PERSISTENT;

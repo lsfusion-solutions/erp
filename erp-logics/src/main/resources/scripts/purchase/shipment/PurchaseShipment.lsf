@@ -6,7 +6,723 @@ NAMESPACE Purchase;
 
 //----------------------------------------------- Поставка ---------------------------------------------------//
 
-@defineShipment('Поставки', ' (закупка)', customer, supplier, company, company, Purchase);
+@defineShipment('Поставки', ' (закупка)', customer, supplier, company, company, Purchase){
+
+    CLASS ABSTRACT Shipment 'Поставка (закупка)' : Shipment.Shipment;
+    CLASS ABSTRACT ShipmentDetail 'Строка поставки (закупка)' : Shipment.ShipmentDetail;
+
+    CLASS UserShipment 'Поставка (польз.) (закупка)' : Shipment;
+    CLASS UserShipmentDetail 'Строка поставки (польз.) (закупка)' : ShipmentDetail;
+
+    @defineDocumentInterface(shipment);
+    @deriveDocumentHeaderTimePrefix(UserShipment, );
+    shipment[Shipment.ShipmentDetail] (ShipmentDetail detail) += shipment(detail);
+    date[Shipment.Shipment] (Shipment shipment) += date(shipment);
+    time[Shipment.Shipment] (Shipment shipment) += time(shipment);
+    isUser(UserShipment shipment) += is(shipment);
+    index[Shipment.ShipmentDetail](ShipmentDetail d) += index(d);
+    
+    createdUser = ABSTRACT CustomUser (Shipment);
+    createdNameUser 'Создан пользователем' (Shipment shipment) = name[Contact](createdUser(shipment)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdUser(UserShipment shipment) += createdUser(shipment) IF shipment IS UserShipment;    
+
+    @defineDocumentInterfaceNumber(shipment);
+    number[Shipment.Shipment] (Shipment shipment) += number(shipment);
+    series[Shipment.Shipment] (Shipment shipment) += series(shipment);
+    
+    @defineNumeratedDefault(UserShipment, 'Поставки (закупка)', 'ПС');
+
+    @defineDocumentInterfaceLegalEntity (shipment, supplier, 'Поставщик');
+    @defineDocumentInterfaceLegalEntity (shipment, customer, 'Покупатель');
+    supplier[Shipment.Shipment](Shipment shipment) += supplier(shipment);
+    customer[Shipment.Shipment](Shipment shipment) += customer(shipment);
+    
+    isCompanySupplier 'Приход от компании' (ShipmentDetail d) = isCompany(supplier(d)); 
+
+    @defineDocumentInterfaceDataStock(shipment, stock, 'Склад поставщика', supplier);
+    @defineDocumentInterfaceDataStock(shipment, stock, 'Склад покупателя', customer);
+    supplierStock[Shipment.Shipment](Shipment shipment) += supplierStock(shipment);
+    customerStock[Shipment.Shipment](Shipment shipment) += customerStock(shipment);
+    dataSupplierStock[Shipment.ShipmentDetail](ShipmentDetail detail) += dataSupplierStock(detail);
+    dataCustomerStock[Shipment.ShipmentDetail](ShipmentDetail detail) += dataCustomerStock(detail);
+
+    CONSTRAINT supplier(UserShipment userShipment) AND supplierStock(userShipment) AND NOT
+    in(supplier(userShipment), supplierStock(userShipment))
+        CHECKED BY supplierStock[UserShipment]
+            MESSAGE 'Поставщик и склад поставщика для поставки не имеют связи';
+    CONSTRAINT customer(UserShipment userShipment) AND customerStock(userShipment) AND NOT
+    in(customer(userShipment), customerStock(userShipment))
+        CHECKED BY customerStock[UserShipment]
+            MESSAGE 'Покупатель и склад покупателя для поставки не имеют связи';
+
+    @defineDocumentInterfacePosted(shipment);
+    isPosted[Shipment.Shipment] (Shipment shipment) += isPosted(shipment);
+
+    @defineDocumentInterfaceClosed(shipment);
+    @defineDocumentClosedConstraint(UserShipment);
+    isClosed[Shipment.Shipment] (Shipment shipment) += isClosed(shipment);
+    
+    @defineDocumentInterfaceDescription(shipment, 'Поставка (закупка)');
+
+    @defineDocumentInterfaceCurrency(shipment);
+    @deriveDocumentCurrency(userShipment, customerStock);
+
+    @defineDocumentInterfaceDetailSku(shipment, sku);
+    sku[Shipment.ShipmentDetail](ShipmentDetail detail) += sku(detail);
+    
+    blankLineShipments 'Разрешить строки без SKU в поставках  (закупка)' = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() PurchaseblankLineShipments = blankLineShipments
+    ;
+    
+    DESIGN options {
+        shipments {
+            MOVE PROPERTY(PurchaseblankLineShipments);
+        }
+    }
+
+    CONSTRAINT isPosted(UserShipmentDetail d) AND NOT sku(d) AND NOT blankLineShipments()
+        MESSAGE 'Для строки поставки  (закупка) должен быть задан SKU';
+
+    @defineDocumentInterfaceDetailQuantity(shipment);
+    quantity[Shipment.ShipmentDetail](ShipmentDetail detail) += quantity(detail);
+
+    @defineDocumentInterfaceDetailExpiryDate(shipment);
+    @defineDocumentInterfaceDetailManufactureDate(shipment);
+    
+    @defineDocumentInterfaceDetailPrice(shipment);
+    price[Shipment.ShipmentDetail](ShipmentDetail detail) += price(detail);
+    
+    @defineDocumentInterfaceDetailDataSum(shipment);
+    @deriveDocumentDetailSum(userShipment, quantity);
+    sum[Shipment.ShipmentDetail](ShipmentDetail detail) += sum(detail);
+
+    @defineDocumentInterfaceHeaderQuantity(shipment);
+    @defineDocumentHeaderSkuQuantity(shipment, sku);
+    @defineDocumentHeaderSkuQuantity(userShipment, sku);
+    @defineDocumentInterfaceHeaderSum(shipment);
+
+    @defineDocumentInterfaceHeaderItemSum (shipment, , );
+
+    @defineAddDetailDialogSkuStock(userShipment, sku, customerStock, dialogSku);
+//    @defineAddDetailDialogBarcode(userShipment, sku);
+
+    @implementDocumentSupplierCustomer(shipment);
+   
+    @defineMovementSku(shipmentDetail, customerStock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userShipmentDetail, customerStock); //-- показываем по нажатию правой клавиши движение товара
+    @defineBalancesSku(shipmentDetail); //-- показываем по нажатию правой клавиши остатки товара
+    @defineBalancesSku(userShipmentDetail); //-- показываем по нажатию правой клавиши остатки товара
+    
+    @defineBarcodeSku(shipmentDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+    @defineBarcodeSku(userShipmentDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+    
+    @defineDocumentDialogSupplierCustomerStock(userShipment, supplier, company);
+    @defineDocumentDialogSupplierCustomerStockDetail(userShipmentDetail, supplier, company);
+    @defineDocumentDialogSupplierCustomerLegalEntity(userShipment, supplier, company);
+
+    @defineMovementPriceSku(shipmentDetail, customerStock); //-- показываем по нажатию правой клавиши изменение цены товара
+    @defineMovementPriceSku(userShipmentDetail, customerStock); //-- показываем по нажатию правой клавиши  изменение цены товара
+
+// ------------------------------------ Добавление сканированием строк в документ ----------------------//
+
+    CLASS ABSTRACT ShipmentDimension 'Регистр хранения' ;
+    CLASS UserShipmentDimension : ShipmentDimension;
+    TABLE shipmentDimension (ShipmentDimension);
+
+    name 'Наименование' = ABSTRACT VARISTRING[100](ShipmentDimension);
+
+    shipmentDimension = ABSTRACT ShipmentDimension (ShipmentDetail);
+    nameShipmentDimension 'Регистр хранения' (ShipmentDetail detail) = name(shipmentDimension(detail));
+    shipmentDimension = ABSTRACT ShipmentDimension (UserShipmentDetail);
+    nameShipmentDimension 'Регистр хранения' (UserShipmentDetail detail) = name(shipmentDimension(detail));
+    shipmentDimension(UserShipmentDetail detail) += shipmentDimension(detail);
+
+    shipmentDimension= ABSTRACT ShipmentDimension (UserShipment);
+
+    userShipmentDetail(shipment, sku, dimension) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail), shipmentDimension(detail);
+    userShipmentDetail(shipment, sku) = GROUP MAX UserShipmentDetail detail BY userShipment(detail), sku(detail);
+
+    addDetailBarcodeUserShipmentDetail = ACTION (UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension) {
+        LOCAL dialogBarcodeSku = Sku ();
+        ASSIGN dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
+
+        IF dialogBarcodeSku() IS Sku THEN {
+            LOCAL dialogBarcodeDetail = UserShipmentDetail();
+            ASSIGN dialogBarcodeDetail() <- IF dimension IS ShipmentDimension
+                                                THEN userShipmentDetail(shipment, dialogBarcodeSku(), dimension)
+                                                ELSE userShipmentDetail(shipment, dialogBarcodeSku());
+
+
+            IF dialogBarcodeDetail() IS UserShipmentDetail THEN {
+                ASSIGN quantity(UserShipmentDetail detail) <-
+                    quantity(detail) (+) (amount(barcode(barcode, date(shipment))) IF detail IS UserShipmentDetail)
+                    WHERE detail == dialogBarcodeDetail();
+                EXEC seek(dialogBarcodeDetail());
+            } ELSE {
+                FOR ADDOBJ w = UserShipmentDetail DO {
+                    ASSIGN userShipment(w) <- shipment;
+                    ASSIGN sku(w) <- dialogBarcodeSku();
+                    ASSIGN quantity(w) <- amount(barcode(barcode, date(shipment)));
+                    EXEC seek(w);
+                }
+            }
+            EXEC setAddedUser(dialogBarcodeSku());
+        } ELSE {
+            FORM emptyBarcodeSkus MODAL;
+            IF formResult() == FormResult.ok THEN {
+                FOR Object s == chosenObject('s') DO {
+                    ASSIGN dialogBarcodeSku() <- s;
+                    FOR ADDOBJ br = Barcode DO {
+                        ASSIGN id(br) <- barcode;
+                        ASSIGN dataDate(br) <- currentDate();
+                        ASSIGN sku(br) <- s;
+                        FOR ADDOBJ w = UserShipmentDetail DO {
+                            ASSIGN userShipment(w) <- shipment;
+                            ASSIGN sku(w) <- s;
+                            ASSIGN quantity(w) <- amount(br);
+                            EXEC seek(w);
+                        }
+                    }
+                }
+            } ELSE {
+                EXEC createSkuBarcode(barcode, date(shipment));
+                ASSIGN dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
+            }
+            EXEC setAddedUser(dialogBarcodeSku());
+        }
+    }
+
+    changeAddDetailInputBarcodeDimensionUserShipmentDetail = ACTION (UserShipment userShipment) {
+        REQUEST STRING[15] INPUT;
+        EXEC addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(requestedString()), shipmentDimension(userShipment));
+    };
+    addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL STRING[15] (UserShipment) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+                                                                            ON CHANGE changeAddDetailInputBarcodeDimensionUserShipmentDetail(userShipment);
+
+// --------------------------- Формы --------------------------------- //
+
+    edit 'Редактировать' = ACTION ABSTRACT LIST (Shipment) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit[Shipment.Shipment] (Shipment shipment) += ACTION edit(shipment);
+
+    backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserShipmentDetail);
+ 
+    editSku 'Редактировать SKU' (UserShipmentDetail d) = ACTION edit(sku(d));
+    FORM userShipment 'Поставка (закупка)'
+        OBJECTS s = UserShipment FIXED PANEL
+        PROPERTIES (s) isPosted, nameSupplier ON CHANGE changeSupplierSupplier(s),
+                       nameCustomer ON CHANGE changeCustomerCompany(s),
+                       nameSupplierStock ON CHANGE changeSupplierStockSupplier(s),
+                       nameCustomerStock ON CHANGE changeCustomerStockCompany(s),
+                       nameNumerator, number, series, date, time,
+                       nameCurrency, note, countUserShipmentDetail, quantityUserShipmentDetail,
+                       sumUserShipmentDetail
+
+        OBJECTS d = UserShipmentDetail
+        PROPERTIES (d) index
+        PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku BACKGROUND backgroundSku(d), 
+                        nameSku BACKGROUND backgroundSku(d), shortNameUOMSku
+        PROPERTIES (d) quantity, price, sum, manufactureDate, expiryDate,
+                       nameCustomerStock[ShipmentDetail] ON CHANGE changeDataCustomerStockCompany(d), ADDOBJ, deletesd=DELETESESSION
+        ORDER BY index(d)
+
+        PROPERTIES(s) TODRAW d fillDocument, addDetailDialogSkuStockUserShipmentDetail,
+                               addDetailInputBarcodeDimensionUserShipmentDetail, deleteUserShipmentDetail
+        FILTERS userShipment(d) == s
+
+        EVENTS
+            ON OK prePost(s)
+
+        EDIT UserShipment OBJECT s
+    ;
+
+    DESIGN userShipment {
+        main {
+            preferredSize = (1024, 768);
+
+            NEW header.box BEFORE functions.box {
+                type = CONTAINERH;
+
+                NEW headerRow1 {
+                    fill = 1;
+                    type = CONTAINERV;
+                    
+                    MOVE s.documentHeader {
+                        type = CONTAINERV;
+                        NEW first {
+                            type = CONTAINERH;
+                            MOVE PROPERTY(isPosted(s)) { preferredCharWidth = 40; }
+                        }
+                        NEW second { 
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameNumerator(s));
+                            MOVE PROPERTY(number(s));
+                            MOVE PROPERTY(series(s));
+                            MOVE PROPERTY(date(s));
+                            MOVE PROPERTY(time(s));
+                        }    
+                    }                    
+                    NEW headerRow11 {
+                        type = CONTAINERH;
+                        NEW headerRow111 {
+                            caption = 'Поставщик';
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameSupplier(s));
+                            MOVE PROPERTY(nameSupplierStock(s));
+                        }
+                        NEW headerRow112 {
+                            caption = 'Покупатель';
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameCustomer(s));
+                            MOVE PROPERTY(nameCustomerStock(s));
+                        }
+                    }
+
+                    NEW headerTabbedPane {
+                        fill = 1;
+                        type = TABBED;
+                        NEW headerMainParams {
+                            caption = 'Основные параметры';
+                            type = CONTAINERV;
+                            MOVE s.documentPrm {
+                                columns = 2;
+                            }
+                        }
+                        NEW headerExtraParams {
+                            caption = 'Дополнительные параметры';
+                            type = COLUMNS;
+                            columns = 4;
+                        }
+                        NEW headerCreateDetail {
+                            caption = 'Основание';
+                            type = COLUMNS;
+                            columns = 2;
+                        }
+                        NEW headerCreateDocuments {
+                            caption = 'Производные документы';
+                            type = COLUMNS;
+                            columns = 3;
+                        }
+                    }
+                }
+
+                MOVE s.documentSum {
+                    columns = 1;
+                }
+            }
+
+            NEW specification.box BEFORE functions.box{
+                fill = 1;
+                type = TABBED;
+                MOVE d.box;
+            }
+        }
+
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+        PROPERTY(sumUserShipmentDetail(s)) { preferredCharWidth = 13;}  
+        PROPERTY(deleteUserShipmentDetail(s)){focusable = FALSE;}
+    }
+
+    @defineDocumentSkuPriceListTypeSystemLedger(userShipment, accountPriceListType, stock, customer){
+    @defineDocumentSku(userShipment, sku, stock, customer){
+    @defineDocumentSku(userShipment, userShipmentDetail, sku, stock, customer){
+    userShipmentDetailCustomer (sku, userShipment, stock) =  GROUP MAX (UserShipmentDetail userShipmentDetail)
+        BY sku(userShipmentDetail), userShipment(userShipmentDetail), customerStock(userShipmentDetail);
+    userShipmentDetail (Sku sku, UserShipment userShipment) = userShipmentDetailCustomer(sku, userShipment, customerStock(userShipment));
+
+    currentBalance 'Остаток' (Sku sku, UserShipment userShipment) = currentBalance(sku, customerStock(userShipment));
+    prevCurrentBalance 'Остаток' (Sku sku, UserShipment userShipment) = prevCurrentBalance(sku, customerStock(userShipment));
+//    backgroundQuantitySku###object 'Цвет' (sku, object) = RGB(255,128,128) IF quantity###detail###skuProp###object(sku, object) AND NOT
+//        (quantity###detail###skuProp###object(sku, object) <= currentBalanceSku###object(sku, object));
+    backgroundQuantity 'Цвет' (sku, userShipment) = ABSTRACT CASE COLOR (Sku, UserShipment);  
+
+    overChangeQuantityValueSku = ACTION ABSTRACT LIST (UserShipmentDetail);
+
+    changeQuantityValue = ACTION (Sku sku, UserShipment userShipment) {
+        IF userShipmentDetail(sku, userShipment) THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+                quantity(UserShipmentDetail userShipmentDetail) <- requestedNumeric() WHERE userShipmentDetail == userShipmentDetail(sku, userShipment);
+                overChangeQuantityValueSku(userShipmentDetail(sku, userShipment));
+            } ELSE {
+                FOR userShipmentDetail(sku, userShipment) == UserShipmentDetail d DO
+                    DELETE d;
+            }
+        } ELSE {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+                FOR ADDOBJ d = UserShipmentDetail DO {
+                    userShipment(d) <- userShipment;
+                    sku(d) <- sku;
+                    quantity (d) <- requestedNumeric();
+                    overChangeQuantityValueSku(d);
+                }
+            }
+        }
+    }
+
+    changeQuantity = ACTION (Sku sku, UserShipment userShipment) {
+        REQUEST NUMERIC[16,5] INPUT;
+        EXEC changeQuantityValue(sku, userShipment);
+    }
+
+    // Выбор всего остатка
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, UserShipment);
+    changeAllQuantity = ACTION (Sku sku, UserShipment userShipment) {
+        REQUEST BOOLEAN INPUT;
+        IF requestedLogical() THEN {
+            requestedNumeric() <- NULL;
+            allQuantity (sku,userShipment) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(sku,userShipment);
+            changeQuantityValue(sku, userShipment);
+        } ELSE {
+            allQuantity (sku,userShipment) <- NULL;
+            requestedNumeric() <- NULL;
+            changeQuantityValue(sku, userShipment);
+        }
+    }
+
+};
+};
+    price 'Цена' (Sku sku, UserShipment userShipment) = prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, customerStock(userShipment), dateTime(userShipment));
+};
+    @extendFormDocumentSku(userShipment, userShipment, s){
+    @extendFormDocumentSku(userShipment, userShipmentDetail, userShipment, s, sku){
+
+    backgroundPickName 'Цвет в подборе' = ABSTRACT CASE COLOR (Sku, UserShipment);
+    hideQuantitySkuDocument = ABSTRACT BOOLEAN (UserShipment);
+    showQuantitySkuDocument = NOT hideQuantitySkuDocument(UserShipment o); 
+    
+    EXTEND FORM userShipment
+
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER BY order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+        OBJECTS ks=Sku
+        PROPERTIES READONLY      inputName = name(ks) BACKGROUND backgroundPickName(ks, s)
+        PROPERTIES(ks) READONLY  BACKGROUND backgroundPickName(ks, s) idBarcode, id SHOWIF showIDs(), shortNameUOM
+        PROPERTIES(ks, s) quantityUserShipmentDetail ON CHANGE changeQuantity(ks, s) 
+                                    BACKGROUND backgroundQuantity(ks, s) SHOWIF showQuantitySkuDocument(s)
+                                    QUICKFILTER inputName,
+                                 prevCurrentBalance READONLY,
+                                 allQuantity ON CHANGE changeAllQuantity(ks, s),
+                                 price READONLY
+        PROPERTIES               addSku() TODRAW ks, edit(ks), copy(ks)
+
+        FILTERS                isParent(sk, ks)
+        FILTERGROUP activeSku FILTER 'Активные' active(ks) DEFAULT
+
+        ORDER BY inputName
+    ;
+
+    seekSkuBarcode = ACTION (UserShipment userShipment, STRING[15] barcode) { 
+        IF skuBarcode(barcode, date(userShipment)) THEN {
+            SEEK userShipment.ks skuBarcode(barcode, date(userShipment));     
+        } ELSE {
+            MESSAGE 'Штрихкод не найден.';
+        }
+    }
+    
+    seekOverSku = ACTION (UserShipment userShipment) {
+        REQUEST STRING[15] INPUT;
+        IF requestedString() THEN {
+            seekSkuBarcode(userShipment, requestedString());
+        }        
+    };
+    seekSku 'Поиск по штрихкоду:' (UserShipment userShipment) = DATA LOCAL STRING[15] (UserShipment) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
+                                                                            ON CHANGE seekOverSku(userShipment);       
+    EXTEND FORM userShipment
+        PROPERTIES(s) TODRAW ks seekSku    
+    ;
+    DESIGN userShipment {
+        specification.box {
+            type = TABBED;
+            NEW itemBox {
+                caption = 'Подбор';
+                type = SPLITH;
+                fill = 1;
+                MOVE skuTree.tree.box { caption = 'Группы SKU'; }
+                NEW skuMainPane {
+                    fill = 3;
+                    type = CONTAINERV;
+                    NEW skuSelectPane {
+                        fill = 1;
+                        type = CONTAINERV;
+                        NEW skuPane {
+                            type = CONTAINERV;
+                            caption = 'Товары';
+                            fill = 1;
+                            NEW skuTopPane {
+                                caption = 'Поиск товара';
+                                MOVE PROPERTY(seekSku(s));
+                            }
+                            MOVE ks.box;               
+                        }
+                    }
+                }
+            }
+        }
+        PROPERTY(prevCurrentBalance(ks, s)) { background = #FFEEEE; }
+        PROPERTY(quantityUserShipmentDetail(ks, s)) { background = #D4FFD4; }
+    }
+};
+};
+
+    addUserShipment 'Добавить' = ACTION ADDFORM UserShipment;
+    edit 'Редактировать' (userShipment) = ACTION EDITFORM UserShipment;
+    edit (UserShipment shipment) += ACTION edit(shipment);
+    overCopy = ACTION ABSTRACT LIST (UserShipmentDetail, ShipmentDetail);
+    overCopy = ACTION ABSTRACT LIST (Shipment, UserShipment);
+
+    copy 'Копировать' = ACTION (Shipment shipment) NEWSESSION {
+        FOR ADDOBJ s = UserShipment DO {
+            ASSIGN supplier(s) <- supplier(shipment);
+            ASSIGN supplierStock(s) <- supplierStock(shipment);
+            ASSIGN customer(s) <- customer(shipment);
+            ASSIGN customerStock(s) <- customerStock(shipment);
+            ASSIGN currency(s) <- currency(shipment);
+            ASSIGN note(s) <- note(shipment);
+
+            EXEC overCopy(shipment, s);
+
+            FOR shipment(ShipmentDetail shipmentDetail) == shipment DO {
+                FOR ADDOBJ d=UserShipmentDetail DO {
+                    ASSIGN userShipment(d) <- s;
+                    ASSIGN sku(d) <- sku(shipmentDetail);
+                    ASSIGN quantity(d) <- quantity(shipmentDetail);
+                    ASSIGN price(d) <- price(shipmentDetail);
+                    ASSIGN expiryDate(d) <- expiryDate(shipmentDetail);
+                    ASSIGN manufactureDate(d) <- manufactureDate(shipmentDetail);
+                    ASSIGN dataCustomerStock(d) <- dataCustomerStock(shipmentDetail);
+                    
+                    EXEC overCopy(d, shipmentDetail);
+                }
+            }
+
+            FORM userShipment OBJECTS s = s MANAGESESSION DOCKEDMODAL;
+        }
+    } TOOLBAR;
+    
+//-- Копирование строк     
+    overCopy = ACTION ABSTRACT LIST (UserShipmentDetail, UserShipmentDetail);
+
+    copy 'Копировать' = ACTION (UserShipmentDetail detail) {
+        FOR ADDOBJ d = UserShipmentDetail DO {          
+
+            ASSIGN userShipment(d) <- userShipment(detail);
+            ASSIGN sku(d) <- sku(detail);
+            ASSIGN quantity(d) <- quantity(detail);
+            ASSIGN price(d) <- price(detail);
+            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
+            ASSIGN expiryDate(d) <- expiryDate(detail);
+            ASSIGN manufactureDate(d) <- manufactureDate(detail);
+            
+            EXEC overCopy(d, detail);                              
+        }
+    } TOOLBAR;
+    
+    EXTEND FORM userShipment PROPERTIES(d) copy FORCE PANEL;
+    DESIGN userShipment { PROPERTY(copy(d)) { focusable = FALSE; } }
+     
+    isUserOpened(UserShipment s)=  isOpened[Shipment](s) AND is(s);
+    
+    filterShipmentDateFrom 'Дата с' = DATA LOCAL DATE ();
+    filterDateFrom (Shipment s) = date(s) >= filterShipmentDateFrom() OR (s IS Shipment AND NOT filterShipmentDateFrom());      
+    
+    filterShipmentDateTo 'Дата по' = DATA LOCAL DATE ();
+    filterDateTo (Shipment s) = date(s) <= filterShipmentDateTo() OR (s IS Shipment AND NOT filterShipmentDateTo());      
+    
+    filterShipmentCustomer  = DATA LOCAL LegalEntity ();
+    nameFilterShipmentCustomer 'Покупатель' = name(filterShipmentCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomer (Shipment s) = customer(s) == filterShipmentCustomer() OR (s IS Shipment AND NOT filterShipmentCustomer());    
+
+    filterShipmentCustomerStock  = DATA LOCAL Stock ();
+    nameFilterShipmentCustomerStock 'Склад покупателя' = name(filterShipmentCustomerStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomerStock (Shipment s) = customerStock(s) == filterShipmentCustomerStock() OR (s IS Shipment AND NOT filterShipmentCustomerStock());  
+
+    filterShipmentSupplier = DATA LOCAL LegalEntity ();
+    nameFilterShipmentSupplier 'Поставщик' = name(filterShipmentSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplier (Shipment s) = supplier(s) == filterShipmentSupplier() OR (s IS Shipment AND NOT filterShipmentSupplier());      
+
+    filterShipmentSupplierStock  = DATA LOCAL Stock ();
+    nameFilterShipmentSupplierStock 'Склад поставщика' = name(filterShipmentSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplierStock (Shipment s) = supplierStock(s) == filterShipmentSupplierStock() OR (s IS Shipment AND NOT filterShipmentSupplierStock());      
+
+    filterShipmentCustomUser  = DATA LOCAL CustomUser ();
+    nameFilterShipmentCustomUser 'Создан пользователем' = name[Contact](filterShipmentCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomUser (Shipment i) = createdUser[UserShipment](i) == filterShipmentCustomUser() OR (i IS Shipment AND NOT filterShipmentCustomUser());  
+
+    filterShipmentComputer = DATA LOCAL Computer ();
+    nameFilterShipmentComputer 'Создан на компьютере' = hostname(filterShipmentComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterComputer (Shipment i) = createdComputer(i) == filterShipmentComputer() OR (i IS Shipment AND NOT filterOrderComputer());    
+    
+    overShowEdit = ABSTRACT BOOLEAN (Shipment);
+    overShowDelete = ABSTRACT BOOLEAN (Shipment); 
+    skipShowEdit = ABSTRACT BOOLEAN (Shipment);
+    skipShowDelete = ABSTRACT BOOLEAN (Shipment); 
+    
+    overShowEdit[Shipment.Shipment](Shipment i) += overShowEdit(i);
+    overShowDelete[Shipment.Shipment](Shipment i) += overShowDelete(i);
+        
+    backgroundDraft 'Цвет' (Shipment s) = RGB(212,255,212) IF isDraft(s); 
+    FORM shipments 'Поставки' 
+    
+        PROPERTIES() filterShipmentDateFrom, filterShipmentDateTo, nameFilterShipmentSupplier, nameFilterShipmentSupplierStock, 
+                     nameFilterShipmentCustomer, nameFilterShipmentCustomerStock, nameFilterShipmentCustomUser, nameFilterShipmentComputer 
+    
+        OBJECTS s = Shipment LAST
+        PROPERTIES (s) READONLYIF isReadonly() isClosed 
+        PROPERTIES (s) READONLYIF isReadonly() BACKGROUND backgroundDraft(s) isPosted, number, series, date, time
+        PROPERTIES (s) READONLYIF isReadonly() nameSupplier, nameSupplierStock, nameCustomer,
+                       nameCustomerStock, nameCurrency
+        PROPERTIES (s) READONLY countShipmentDetail, quantityShipmentDetail, sumShipmentDetail
+        PROPERTIES (s) READONLYIF isReadonly() note
+        PROPERTIES (s) READONLY FORCE PANEL createdNameUser[UserShipment], createdTime, createdHostnameComputer, 
+                                            postedNameUser, postedTime, postedHostnameComputer
+
+        PROPERTIES ()  addUserShipment TODRAW s
+        PROPERTIES (s) edit SHOWIF overShowEdit(s), //isOpenedShipment(s), 
+                       copy
+        PROPERTIES (s) close[UserShipment] SHOWIF isOpened[UserShipment](s), open SHOWIF isClosed[UserShipment](s)
+
+        PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(s) //isUserOpenedShipment(s)
+
+        OBJECTS d = ShipmentDetail
+        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity, price, sum, manufactureDate, expiryDate, nameCustomerStock
+        ORDER BY index(d)
+        FILTERS shipment(d) == s
+        FILTERS filterDateFrom(s), 
+                filterDateTo(s),
+                filterSupplier(s),
+                filterSupplierStock(s),
+                filterCustomer(s),
+                filterCustomerStock(s),
+                filterCustomUser(s),
+                filterComputer(s)                
+                
+        DIALOG Shipment OBJECT s
+    ;
+
+    DESIGN shipments 'Поставки (закупка)' {
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+            type = SPLITV;
+
+            NEW filtersBox {                       
+                fill = 1;
+                NEW topFilters {
+                    caption = 'Фильтры';
+                    type = CONTAINERV; 
+                    NEW topFilters1 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(filterShipmentDateFrom());
+                        MOVE PROPERTY(filterShipmentDateTo());                            
+                        MOVE PROPERTY(nameFilterShipmentSupplier());
+                        MOVE PROPERTY(nameFilterShipmentSupplierStock());    
+                        MOVE PROPERTY(nameFilterShipmentCustomer());
+                        MOVE PROPERTY(nameFilterShipmentCustomerStock());                                               
+                    }
+                    NEW topFilters2 {
+                        type = CONTAINERH;  
+                        MOVE PROPERTY(nameFilterShipmentCustomUser());
+                        MOVE PROPERTY(nameFilterShipmentComputer());                            
+                    }            
+                }
+                MOVE s.box {
+                    fill = 1;
+                }
+            }
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE s.created;
+                    MOVE s.posted;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                        type = CONTAINERV;
+                        MOVE PROPERTY(copy(s)) { caption = 'Поставка (закупка)';}
+                    }
+                }
+            }
+        }
+    }
+    @extendFormEditable(shipments){
+    EXTEND FORM shipments
+        PROPERTIES() isEditable
+    ;
+    DESIGN shipments {
+        functions.box {
+            MOVE PROPERTY(isEditable()) BEFORE rightControls;
+        }
+    }
+};
+    @defineFilterIsOpened (shipment, shipments, s){   
+    EXTEND FORM shipments
+        FILTERGROUP shipmentfilters6 FILTER 'Открыт' isOpened(s) 'F6' DEFAULT
+    ;   
+};
+    @defineDocumentLogForm(shipments, s){
+    EXTEND FORM shipments
+        OBJECTS dLog=DocumentLog FIXED GRID
+        PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
+                      hostnameComputer, userLogin, nameContact, dateTimeSession, nameTypeChange,
+                      note
+        PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
+        FILTERS document(dLog) == s
+
+        OBJECTS ddLog = DocumentDetailLog FIXED GRID
+        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity,
+                       price, nameUser, dateTime, note
+        FILTERS document(ddLog) == s
+    ;
+    
+    DESIGN shipments {
+        documentHistory { 
+            NEW historyTabs {
+                 fill = 1;
+                 type = TABBED;
+                 NEW historyLog{
+                    caption = 'По документу';
+                    type = CONTAINERV;
+                    MOVE dLog.box;
+                 }
+                 NEW detailLog{
+                     caption = 'По строкам';
+                     MOVE ddLog.box;
+                 }
+            }
+        }    
+    }   
+};
+    edit 'Редактировать' = ACTION ABSTRACT LIST  (ShipmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit(UserShipmentDetail d) = ACTION (d) NEWSESSION {
+        FORM userShipment OBJECTS s = userShipment(d), d = d MANAGESESSION DOCKEDMODAL;
+    }
+    
+    edit(UserShipmentDetail d) += ACTION edit(d);      
+};
 @extendFormFilterAccessStock(Shipment, s, shipments, customerStock, company);
 @extendFormFilterAccessStock(Shipment, s, shipments, supplierStock, supplier);
 @extendFormFilterAccessLegalEntity(Shipment, s, shipments, customer, company);

@@ -257,17 +257,17 @@ createCurrentReceipt 'Создать новый чек' = ACTION () {
 
 // Вывод на дисплей
 
-fiscalDisplayText 'Вывести текст на дисплей'(receiptDetail) = ABSTRACT ACTION LIST (ReceiptDetail);
+fiscalDisplayText 'Вывести текст на дисплей'(receiptDetail) = ACTION ABSTRACT LIST (ReceiptDetail);
 
 //Отмена чека
 
-fiscalCancel 'Отменить чек' = ABSTRACT ACTION LIST(Receipt);
+fiscalCancel 'Отменить чек' = ACTION ABSTRACT LIST(Receipt);
 
 // Проведение чека
 
 GROUP receiptAction 'Оплата' : public;
 
-postPrint 'Напечатать фискальный чек' = ABSTRACT ACTION LIST (Receipt);
+postPrint 'Напечатать фискальный чек' = ACTION ABSTRACT LIST (Receipt);
 noFiscalPostPrint 'Создать чек (без фискального регистратора)' = ACTION (Receipt receipt) {
     IF receipt IS Receipt THEN {
         apply();
@@ -281,7 +281,7 @@ postPrint(Receipt receipt) += ACTION IF NOT sidCashRegisterModel(receipt) THEN n
 paymentTerminalModel (Receipt receipt) = paymentTerminalModel(cashRegister(receipt));
 sidPaymentTerminalModel 'Код модели' (Receipt receipt) = sid(paymentTerminalModel(receipt));
 
-postPaymentTerminal 'Оплата через платёжный терминал' = ABSTRACT ACTION LIST (Receipt);
+postPaymentTerminal 'Оплата через платёжный терминал' = ACTION ABSTRACT LIST (Receipt);
 postPaymentTerminalReceiptResult = DATA LOCAL VARSTRING[100] (); 
 
 FORM postReceiptPayment 'Оплата по чеку'
@@ -394,7 +394,7 @@ postCash 'Наличными' = ACTION (Receipt receipt) {
     }
 } EDITKEY 'F11' IN receiptAction;
 
-resetBoard 'Сбросить текст на дисплее' = ABSTRACT ACTION LIST(Receipt);
+resetBoard 'Сбросить текст на дисплее' = ACTION ABSTRACT LIST(Receipt);
 
 cancel 'Обнулить чек' = ACTION (Receipt receipt) {
     resetBoard(receipt);
@@ -434,7 +434,7 @@ changeBatch 'Изменить партию строки чека' = ACTION (Rece
     }
 }
 
-focusQuantity = ABSTRACT ACTION LIST (ReceiptDetail); 
+focusQuantity = ACTION ABSTRACT LIST (ReceiptDetail); 
 
 createSaleDetail 'Добавить строку продажи' = ACTION (Receipt receipt, Batch batch, STRING[15] barcode) {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
@@ -489,8 +489,8 @@ GROUP receiptSaleAction 'Продажа' : public;
 
 // По штрихкоду
 consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
-preProcessBarcode = ABSTRACT ACTION LIST (STRING[15], Receipt);
-overChangeBarcodeSale = ABSTRACT ACTION LIST (STRING[15], Receipt);
+preProcessBarcode = ACTION ABSTRACT LIST (STRING[15], Receipt);
+overChangeBarcodeSale = ACTION ABSTRACT LIST (STRING[15], Receipt);
 
 changeBarcodeSale = ACTION (Receipt receipt) {
     REQUEST STRING[15] INPUT;
@@ -660,7 +660,7 @@ createReturn 'Добавить строку возврата' = ACTION (Receipt 
         focusQuantity(d);
     }
 }
-overCreateReturn = ABSTRACT ACTION LIST (ReceiptReturnDetail, ReceiptSaleDetail);
+overCreateReturn = ACTION ABSTRACT LIST (ReceiptReturnDetail, ReceiptSaleDetail);
 createReturn 'Добавить строки возврата' = ACTION (Receipt receipt, Receipt receiptReturn) {
     FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn ADDOBJ d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;        
@@ -839,7 +839,7 @@ openCurrentZReport 'Открыть Z-отчет' = ACTION () {
     }
 } CONFIRM IN receiptZReport;
 
-overClose = ABSTRACT ACTION LIST (ZReport);
+overClose = ACTION ABSTRACT LIST (ZReport);
 
 closeZReport 'Закрыть Z-отчет' (CashRegister cashRegister) = ACTION {
     cancel();
@@ -1178,7 +1178,7 @@ CONSTRAINT onlyPossitivePriceReceipDetail() AND ReceiptDetail detail IS ReceiptD
     MESSAGE 'Цена для строки чека должна быть задана и быть больше 0';
 
 // ----------------------------------------- Кассовые операции ---------------------------------------------- //
-fiscalZReport 'Закрыть Z-отчёт' = ABSTRACT ACTION LIST () CONFIRM;
+fiscalZReport 'Закрыть Z-отчёт' = ACTION ABSTRACT LIST () CONFIRM;
 fiscalZReport() += ACTION IF NOT sidModelCurrentCashRegister() THEN closeCurrentZReport();
 
 currentZReportDepartmentStore() = currentZReport() IF departmentStoreCurrentCashRegister();
@@ -1214,7 +1214,7 @@ DESIGN operationCashRegister {
 }
 
 // Update data
-fiscalUpdateData 'Загрузить информацию' = ABSTRACT ACTION LIST ();
+fiscalUpdateData 'Загрузить информацию' = ACTION ABSTRACT LIST ();
 fiscalUpdateDataShowIf = departmentStoreCurrentCashRegister() IF closedCurrentZReportDepartmentStore();
 
 EXTEND FORM operationCashRegister

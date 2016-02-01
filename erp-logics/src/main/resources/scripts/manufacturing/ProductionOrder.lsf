@@ -448,7 +448,7 @@ quantityComponents 'Кол-во спецификаций' (BOM BOM, Order order)
     [= GROUP MAX NUMERIC[19,8](bruttoQuantity(ComponentDetail componentDetail)) / bruttoQuantity(component(componentDetail), date(componentDetail))
     BY BOM(component(componentDetail)), order(componentDetail)](BOM, order);
 
-overCreateProducts = ABSTRACT ACTION LIST (Order);
+overCreateProducts = ACTION ABSTRACT LIST (Order);
 createProducts 'Заполнить изделия из спецификации ' = ACTION (Order order)  {
 
     FOR NUMERIC[35,19] q == quantityComponents(BOM(Product product), order) ADDOBJ d = ProductDetail DO {
@@ -780,7 +780,7 @@ changeComponentsPrice (ProductDetail detail) = ACTION (detail) {
 }
 
 // Изменение коэффициентов и цен
-overChangePriceCoeff = ABSTRACT ACTION LIST (ProductDetail);
+overChangePriceCoeff = ACTION ABSTRACT LIST (ProductDetail);
 changePriceCoeff = ACTION (ProductDetail detail) {
     REQUEST NUMERIC[8,5] INPUT;
     IF requestedNumeric() THEN {        
@@ -791,7 +791,7 @@ changePriceCoeff = ACTION (ProductDetail detail) {
         overChangePriceCoeff(detail);
     }
 }
-overChangePricePercent = ABSTRACT ACTION LIST (ProductDetail);
+overChangePricePercent = ACTION ABSTRACT LIST (ProductDetail);
 changePricePercent = ACTION (ProductDetail detail) {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {
@@ -841,7 +841,7 @@ changeValueProductsPrice (ProductDetail detail) = ACTION (detail) {
 
 //пересчет цены изделия
                                                                                              
-overChangeProductsPrice = ABSTRACT ACTION LIST (ProductDetail);
+overChangeProductsPrice = ACTION ABSTRACT LIST (ProductDetail);
 changeProductsPrice (ProductDetail detail) = ACTION (detail) {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
@@ -905,7 +905,7 @@ sumVATComponentDetail = GROUP SUM sum(ComponentDetail d) IF NOT skip(d) BY BOM(d
 calcValueVAT 'НДС, %' = OVERRIDE 0.0, (sumVATComponents(ProductDetail d) * 100.0 /
                                                                      (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d)));
 // Расчет цен для изделий
-overFillPrice = ABSTRACT ACTION LIST (ProductDetail);
+overFillPrice = ACTION ABSTRACT LIST (ProductDetail);
 fillPrice 'Заполнить цены для изделий' = ACTION (ProductDetail detail)  {
     valueVAT(detail) <- calcValueVAT(detail);
     componentsPrice(detail) <- calcComponentsPrice(detail);
@@ -1733,7 +1733,7 @@ DESIGN options {
 CONSTRAINT company(Order order) AND NOT isCompany(company(order))
     CHECKED BY company[Order] MESSAGE 'Для производственного заказа выбрана организация, не являющаяся компанией';
 
-overCopy = ABSTRACT ACTION LIST (Order, Order);
+overCopy = ACTION ABSTRACT LIST (Order, Order);
 copy 'Копировать' = ACTION (Order order) NEWSESSION {
     FOR ADDOBJ o = Order DO {
         company(o) <- company(order);
