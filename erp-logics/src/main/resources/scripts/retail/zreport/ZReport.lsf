@@ -232,8 +232,8 @@ changeDialogSku(ReceiptDetail detail)  = ACTION  {
 batch(ReceiptSaleDetail detail) += batch(detail);
 batch(ReceiptReturnDetail detail) += batch(detail);
 
-replace(Sku s, Batch b) += ACTION (s, b){ sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
-replace(Sku s, Batch b) += ACTION (s, b){ sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += ACTION { sku(ReceiptSaleDetail detail) <- s WHERE batch(detail) == b;}
+replace(Sku s, Batch b) += ACTION { sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
 
 changeBatch(ReceiptDetail detail) = ACTION  {
     FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
@@ -441,7 +441,7 @@ WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO 
 }
 // todo: после запуска у  всех клиентов удалить
 isDataValueVATReceiptDetail = DATA BOOLEAN ();
-onStarted() += ACTION () {
+onStarted() += ACTION  {
     IF NOT isDataValueVATReceiptDetail() THEN {
         valueVAT(ReceiptDetail d) <- valueRate(VAT(d), date(d));    
         isDataValueVATReceiptDetail() <- TRUE;
@@ -457,7 +457,7 @@ WHEN CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d
 }
 
 isSumVATReceiptDetail = DATA BOOLEAN ();
-onStarted() += ACTION () {
+onStarted() += ACTION  {
     IF NOT isSumVATReceiptDetail() THEN {
         sumVAT(ReceiptDetail d) <- round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d));    
         isSumVATReceiptDetail() <- TRUE;
