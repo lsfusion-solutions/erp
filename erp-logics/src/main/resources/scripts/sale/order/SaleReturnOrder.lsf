@@ -6,7 +6,880 @@ PRIORITY Sale, Operation;
 
 NAMESPACE SaleReturn;
 
-@defineOrder(' (продажа-возврат)', supplier, supplier, company, customer, company, return, SaleReturn);
+@defineOrder(' (продажа-возврат)', supplier, supplier, company, customer, company, return, SaleReturn){
+
+    CLASS ABSTRACT Order 'Заказ (продажа-возврат)' : Order.Order;
+    CLASS ABSTRACT OrderDetail 'Строка заказа (продажа-возврат)' : Order.OrderDetail;
+
+    CLASS UserOrder 'Заказ (польз.) (продажа-возврат)' : Order;
+    CLASS UserOrderDetail 'Строка заказа (польз.) (продажа-возврат)' : OrderDetail;
+    
+    backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (Order);
+
+    @defineExternalizable(userOrder, VARSTRING[100]);
+    @defineExternalizable(userOrderDetail, VARSTRING[100]);
+
+    @defineDocumentInterface(order);
+    note[Order.Order] (Order order) += note(order);
+    index[Order.OrderDetail](OrderDetail d) += index(d);
+    
+    createdUser = ABSTRACT CustomUser (Order);
+    createdNameUser 'Создан пользователем' (Order order) = name[Contact](createdUser(order)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
+    createdUser(UserOrder order) += createdUser(order) IF order IS UserOrder;    
+    createdUser[Order.Order](Order order) += createdUser(order);    
+    @deriveDocumentHeaderTimePrefix(UserOrder, );
+    order[Order.OrderDetail] (OrderDetail detail) += order(detail);
+    date[Order.Order] (Order order) += date(order);
+    time[Order.Order] (Order order) += time(order);
+
+    @defineDocumentInterfaceNumber(order);
+    number[Order.Order] (Order order) += number(order);
+    series[Order.Order] (Order order) += series(order);
+
+    @defineNumeratedDefault(UserOrder, 'Заказы (продажа-возврат)', 'ЗК');
+
+    @defineDocumentInterfaceLegalEntity (order, supplier, 'Поставщик');
+    @defineDocumentInterfaceLegalEntity (order, customer, 'Покупатель');
+    supplier[Order.Order](Order order) += supplier(order);
+    customer[Order.Order](Order order) += customer(order);
+
+    @defineDocumentInterfaceDataStock(order, stock, 'Склад поставщика', supplier);
+    @defineDocumentInterfaceDataStock(order, stock, 'Склад покупателя', customer);
+    supplierStock[Order.Order](Order order) += supplierStock(order);
+    customerStock[Order.Order](Order order) += customerStock(order);
+    dataSupplierStock[Order.OrderDetail](OrderDetail detail) += dataSupplierStock(detail);
+    dataCustomerStock[Order.OrderDetail](OrderDetail detail) += dataCustomerStock(detail);
+
+    CONSTRAINT supplier(UserOrder userOrder) AND supplierStock(userOrder) AND NOT
+               in(supplier(userOrder), supplierStock(userOrder))
+        CHECKED BY supplierStock[UserOrder]
+            MESSAGE 'Поставщик и склад поставщика для заказа не имеют связи';
+    CONSTRAINT customer(UserOrder userOrder) AND customerStock(userOrder) AND NOT
+               in(customer(userOrder), customerStock(userOrder))
+        CHECKED BY customerStock[UserOrder]
+            MESSAGE 'Покупатель и склад покупателя для заказа не имеют связи';
+
+    @defineDocumentInterfaceContract(Order, contractSku, supplier, customer,
+                                     'Организация (поставщик) договора заказа не соответствует организация (поставщик) заказа',
+                                     'Организация (покупатель) договора заказа не соответствует организация (покупатель) заказа',
+                                     'заказ (продажа-возврат)', SaleReturn);
+    contractSku[Order.Order] (Order order) += contractSku (order);
+    
+    contractSku (UserOrderDetail detail) = contractSku(userOrder(detail));
+    
+    acquisitionTarget = ABSTRACT AcquisitionTarget(Order);
+    nameAcquisitionTarget 'Цель приобретения' = name(acquisitionTarget(Order o));
+    acquisitionTarget = DATA AcquisitionTarget(UserOrder);
+    nameAcquisitionTarget 'Цель приобретения' = name(acquisitionTarget(UserOrder o)) IN documentPrm;    
+    acquisitionTarget(UserOrder o) += acquisitionTarget(o);
+    acquisitionTarget[Order.Order](Order o) += acquisitionTarget(o);
+    
+    @defineDocumentInterfacePosted(order);
+    isPosted[Order.Order] (Order order) += isPosted(order);
+    
+    @defineDocumentInterfaceClosed(order);
+    isClosed[Order.Order] (Order order) += isClosed(order);
+    
+    @defineDocumentInterfaceDataTimePrefix(order, shipment, ' поставки');
+    shipmentTime[Order.Order](Order order) += shipmentTime(order);
+    shipmentDate[Order.Order](Order order) += shipmentDate(order);    
+    shipmentTime(OrderDetail d) += shipmentTime(d);
+    shipmentDate(OrderDetail d) += shipmentDate(d);
+    //@deriveDocumentHeaderTimePrefix(UserOrder, shipment);
+    shipmentDate(UserOrder order) <- date(order) WHEN CHANGED(date(order));
+    shipmentTime(UserOrder order) <- time(order) WHEN CHANGED(time(order));
+
+    overCloseDate  = ABSTRACT DATE (Order);
+    closeDate 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm;
+    closeDate 'Дата автоматического закрытия' = DATA DATE (UserOrder) IN documentPrm;
+    closeDate(UserOrder order) += closeDate(order);
+    closeDate[Order.Order] (Order order) += closeDate(order);
+    
+    overCloseDate  = ABSTRACT DATE (OrderDetail);
+    closeDataDate 'Дата автоматического закрытия' = ABSTRACT DATE (OrderDetail) IN documentPrm;
+    closeDataDate 'Дата автоматического закрытия' = DATA DATE (UserOrderDetail) IN documentPrm;
+    closeDataDate(UserOrderDetail detail) += closeDataDate(detail);
+
+    closeDate 'Дата автоматического закрытия' (OrderDetail detail) = OVERRIDE closeDate(order(detail)), closeDataDate(detail) PERSISTENT;
+    closeDate 'Дата автоматического закрытия' (UserOrderDetail detail) = OVERRIDE closeDate(userOrder(detail)), closeDataDate(detail) PERSISTENT;
+
+    closeDataDate(UserOrderDetail detail) <- OVERRIDE sum(shipmentDate(detail), quantityDaysCloseOrders(supplierStock(detail))), overCloseDate(detail)
+        WHEN CHANGED(shipmentDate(detail)) OR CHANGED(supplierStock(detail)) OR CHANGED(overCloseDate(detail));
+    closeDate(UserOrder order) <- OVERRIDE sum(shipmentDate(order), quantityDaysCloseOrders(supplierStock(order))), overCloseDate(order)
+            WHEN CHANGED(shipmentDate(order)) OR CHANGED(supplierStock(order)) OR CHANGED(overCloseDate(order));    
+
+//    isDataClosedOrder 'Закрыт' = ABSTRACT BOOLEAN(Order);
+//    isDataClosedUserOrder 'Закрыт' = DATA BOOLEAN(UserOrder);
+//    isDataClosedOrder(order) += isDataClosedUserOrder(order);
+//
+//    isDataClosedOrderDetail 'Закрыт' = ABSTRACT BOOLEAN(OrderDetail);
+//    isDataClosedUserOrderDetail 'Закрыт' = DATA BOOLEAN(UserOrderDetail);
+//    isDataClosedOrderDetail(order) += isDataClosedUserOrderDetail(order);
+
+    WHEN SET (closeDate(UserOrder order) <= currentDate()) DO isClosed(order) <- TRUE;
+//    isClosedOrderDetail 'Закрыт' (detail) = OVERRIDE defaultClosedOrderDetail(detail),
+//                                                     isDataClosedOrder(orderOrderDetail(detail)),
+//                                                     isDataClosedOrderDetail(detail);
+//    countClosedOrderDetailOrder (order) = GROUP SUM 1 IF isClosedOrderDetail(detail) AND isPostedOrderDetail(detail) BY orderOrderDetail(detail);
+//    isClosedOrder 'Закрыт' (order) =  countClosedOrderDetailOrder(order) == countOrderDetailOrder(order);
+//
+//    defaultClosedUserOrderDetail(detail) = closeDateUserOrderDetail(detail) < currentDate();
+//    isClosedUserOrderDetail 'Закрыт' (detail) = OVERRIDE defaultClosedUserOrderDetail(detail),
+//                                                         isDataClosedUserOrder(userOrderUserOrderDetail(detail)),
+//                                                         isDataClosedUserOrderDetail(detail);
+//    countClosedUserOrderDetailUserOrder (userOrder) = GROUP SUM 1 IF isClosedUserOrderDetail(detail) AND isPostedUserOrderDetail(detail) BY userOrderUserOrderDetail(detail);
+//    isClosedUserOrder 'Закрыт' (userOrder) =  countClosedUserOrderDetailUserOrder(userOrder) == countUserOrderDetailUserOrder(userOrder);
+
+//    isOpenedUserOrder 'Не закрыт' (o) = isPostedUserOrder(o) AND NOT isClosedUserOrder(o) PERSISTENT;
+//
+//    closeUserOrder 'Закрыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isPostedUserOrder(o) AND NOT isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- TRUE; } TOOLBAR CONFIRM;
+//
+//    openUserOrder 'Открыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- NULL; } TOOLBAR CONFIRM;
+
+    @defineDocumentInterfaceDescription(order, 'Заказ (продажа-возврат)');
+    description[Order.Order](Order order) += description(order);    
+    
+    @defineDocumentInterfaceCurrency(order);
+    @deriveDocumentCurrency(userOrder, supplierStock);
+    currency[Order.Order](Order order) += currency(order);
+
+    @defineDocumentInterfaceAgreement(order);
+    @deriveDocumentHeaderAgreement (userOrder, supplier, customer, 'заказ (продажа-возврат)', SaleReturn);
+
+    @defineDocumentInterfaceDetailSku(order, sku);
+    sku[Order.OrderDetail](OrderDetail detail) += sku(detail);
+
+    maxOrderDetail (sku, order) = GROUP MAX OrderDetail orderDetail BY sku(orderDetail),  order(orderDetail);
+   
+    blankLineOrders 'Разрешить строки без SKU в заказах  (продажа-возврат)' = DATA BOOLEAN ();
+    
+    EXTEND FORM options
+        PROPERTIES() SaleReturnblankLineOrders = blankLineOrders
+    ;
+    
+    DESIGN options {
+        optionsContainer {
+            MOVE PROPERTY(SaleReturnblankLineOrders);
+        }
+    }
+
+    CONSTRAINT isPosted(UserOrderDetail d) AND NOT sku(d) AND NOT blankLineOrders()
+        MESSAGE 'Для строки заказа  (продажа-возврат) должен быть задан SKU';   
+
+    @defineDocumentInterfaceDetailQuantity(order);
+    quantity[Order.OrderDetail](OrderDetail detail) += quantity(detail);
+    CONSTRAINT negativeValueOrders() AND OrderDetail detail IS OrderDetail AND quantity(detail) < 0
+        MESSAGE 'Количество в строке заказа должно быть не отрицательным';
+
+    @defineDocumentInterfaceDetailPrice(order); // объявляем цену без НДС
+    price[Order.OrderDetail](OrderDetail detail) += price(detail);
+
+    overPriceStockUser = ABSTRACT CASE OVERRIDE FIRST Stock (Order) PERSISTENT;
+    priceStockUser(Order o) = OVERRIDE supplierStock(o), overPriceStockUser(o);
+    notPriceStockUser(Order o) = NOT priceStockUser(o); 
+    priceStock(UserOrderDetail d) = priceStockUser(userOrder(d)); 
+
+    @defineDocumentInterfaceDetailVAT(order, countrySupplierStock, , ); // объявляем шкалу
+    
+    overVAT = ABSTRACT OVERRIDE FIRST Range (UserOrderDetail);
+    overVAT(UserOrderDetail d) += VAT (sku(d), country(supplierStock(d)));
+    changedVAT = ABSTRACT BOOLEAN (UserOrderDetail);
+    
+    WHEN SESSION
+        (CHANGED(sku(UserOrderDetail detail)) OR CHANGED (supplierStock(detail)) OR changedVAT(detail)) AND NOT CHANGED(VAT(detail)) DO {
+            VAT(detail) <- overVAT(detail);
+        } // записываем шкалу
+
+    @deriveDocumentDetailValueVAT(userOrder); // записываем значение ставки
+
+    VAT[Order.OrderDetail](OrderDetail detail) += VAT(detail);
+    valueVAT[Order.OrderDetail](OrderDetail detail) += valueVAT(detail);
+
+    @defineDocumentInterfaceDetailPricePrefix (order, invoice, ' с НДС'); // объявляем цену с НДС
+    invoicePrice[Order.OrderDetail](OrderDetail d) += invoicePrice(d);
+    // объявляем Action'ы для ON CHANGE
+    @defineDocumentDetailPriceVATOnChange(userOrder);
+    @defineDocumentDetailNumberVATOnChange(userOrder, supplierStock);
+    @defineDocumentDetailValueVATOnChange(userOrder);
+    @defineDocumentDetailInvoicePriceVATOnChange(userOrder);
+
+    @defineDocumentInterfacePriceListType(order); // объявляем вид цены
+    @deriveDocumentDetailPriceListTypeAgreement(userOrder, return); // записываем вид цены из соглашения
+//    @deriveDocumentDetailPricePriceListTypeVAT (userOrder, stockProp); // записываем цены с НДС и без НДС на основе priceListType
+
+    // суммма без НДС
+    @defineDocumentInterfaceDetailDataSum(order);
+    @deriveDocumentDetailSum(userOrder, quantity);
+    sum[Order.OrderDetail](OrderDetail detail) += sum(detail);
+
+    // суммы НДС и с НДС
+    @defineDocumentInterfaceDetailVATDataSum (order, invoice); // объявляем свойства суммы НДС и суммы с НДС
+    @deriveDocumentDetailVATDataSum(userOrder); // записываем сумму НДС
+    @deriveDocumentDetailVATPrefixSum (userOrder, invoice); // записываем сумму с НДС
+
+    VATSum[Order.OrderDetail](OrderDetail detail) += VATSum(detail);
+    invoiceSum[Order.OrderDetail](OrderDetail detail) += invoiceSum(detail);
+
+    @defineDocumentInterfaceHeaderVATSum (order, orderDetail, invoice);
+
+    @defineDocumentInterfaceHeaderQuantity(order);
+    @defineDocumentHeaderSkuQuantity(order, sku);
+    //Order.quantityOrderSku (order, sku) += quantityOrderDetailSkuOrder(sku, order);
+
+    @defineDocumentHeaderSkuQuantity(userOrder, sku);
+    @defineDocumentInterfaceHeaderSum(order);
+    
+    @defineDocumentInterfaceHeaderItemQuantity(order);
+    @defineDocumentInterfaceHeaderItemCount(order);    
+    @defineDocumentInterfaceHeaderItemSum (order, VAT, VAT); //-- сумма НДС поставщика (с разбивкой по таре, товару...)
+    @defineDocumentInterfaceHeaderItemSum (order, , ); //-- сумма поставщика (с разбивкой по таре, товару...)   
+    @defineDocumentInterfaceHeaderItemSum(order, invoice, invoice); //-- сумма поставщика с НДС (с разбивкой по таре, товару...)  
+        
+    @defineDocumentInterfaceHeaderItemSumDouble (order, range, VAT, VAT, , VAT); //-- сумма НДС поставщика (с разбивкой по таре, товару...) по документу и по шкале
+    @defineDocumentInterfaceHeaderItemSumDouble (order, range, , , , VAT);  //сумма без НДС поставщика (с разбивкой по таре, товару...) по документу и по шкале
+    @defineDocumentInterfaceHeaderItemSumDouble (order, range, invoice, invoice, , VAT);  //сумма с НДС (с разбивкой по таре, товару...) по документу и по шкале    
+
+    @defineAddDetailDialogSkuStock(userOrder, sku, supplierStock, dialogSku);
+    @defineAddDetailDialogBarcode(userOrder, sku);
+
+    noAgreement (UserOrder order) = order IS UserOrder AND NOT agreement(order);
+
+    countOrderDetail 'Кол-во строк по складу '(stock, order) = GROUP SUM 1 BY supplierStock(OrderDetail orderDetail), order(orderDetail);
+
+//-- Дата следующей поставки
+    @defineDocumentInterfaceDatePrefix (order, nextShipment, ' следующей поставки');
+    quantityDaysNextShipment 'Кол-во дней до след. поставки' (UserOrder userOrder) =  subtractInteger(nextShipmentDate(userOrder), date(userOrder)) + 1;
+    fromShipmentDate 'Начало периода' (UserOrder userOrder) = subtract(date(userOrder), quantityDaysNextShipment(userOrder));
+
+    @implementDocumentSupplierCustomer(order);
+    @defineMovementSku(orderDetail, supplierStock); //-- показываем по нажатию правой клавиши движение товара
+    @defineMovementSku(userOrderDetail, supplierStock); //-- показываем по нажатию правой клавиши движение товара
+    @defineBalancesSku(orderDetail); //-- показываем по нажатию правой клавиши остатки товара
+    @defineBalancesSku(userOrderDetail); //-- показываем по нажатию правой клавиши остатки товара
+    @defineBarcodeSku(orderDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+    @defineBarcodeSku(userOrderDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
+    @defineMovementPriceSku(orderDetail, supplierStock); //-- показываем по нажатию правой клавиши изменение цены товара
+    @defineMovementPriceSku(userOrderDetail, supplierStock); //-- показываем по нажатию правой клавиши  изменение цены товара
+
+    @defineDocumentDialogSupplierCustomerStock(userOrder, company, customer);
+    @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, company, customer);
+    @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, company, customer);
+    
+    backgroundQuantity 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
+    backgroundName 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
+// --------------------------- Формы Заказа ---------------------------------
+    backgroundSku 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
+
+    edit 'Редактировать' = ACTION ABSTRACT LIST (Order) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit[Order.Order] (Order order) += ACTION edit(order);
+
+    editSku 'Редактировать SKU' (UserOrderDetail d) = ACTION edit(sku(d));
+    
+    backgroundParam = RGB(212,255,212) IF OrderDetail orderDetail IS OrderDetail; 
+    backgroundQuantityParam = OVERRIDE backgroundParam(OrderDetail d), backgroundQuantity(d);
+    disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserOrder); 
+    overPrePost 'Провести' (UserOrder o) = ACTION (o) {
+        IF NOT disablePosted(o) THEN {
+            isPosted(o) <- TRUE;
+        } 
+    }
+    
+    FORM userOrder 'Заказ (продажа-возврат)'
+        OBJECTS o = UserOrder FIXED PANEL
+        PROPERTIES (o) isPosted, nameSupplier ON CHANGE changeSupplierCompany(o),
+                       nameCustomer ON CHANGE changeCustomerCustomer(o),
+                       nameSupplierStock ON CHANGE changeSupplierStockCompany(o),
+                       nameCustomerStock ON CHANGE changeCustomerStockCustomer(o),
+                       nameNumerator, number, series, date, time,
+                       nameCurrency, nameAgreement, namePriceListType SHOWIF noAgreement(o), note, nameAcquisitionTarget
+        PROPERTIES (o) READONLY countUserOrderDetail, quantityUserOrderDetail, sumUserOrderDetail,
+                       VATSumUserOrderDetail, invoiceSumUserOrderDetail
+        PROPERTIES (o) shipmentDate, shipmentTime, closeDate, nextShipmentDate,
+                       quantityDaysNextShipment READONLY,
+                       seriesNumberContractSku, isCommission
+
+        OBJECTS d = UserOrderDetail
+        PROPERTIES (d) index BACKGROUND backgroundSku(d)
+        PROPERTIES (d) ON EDIT editSku(d) BACKGROUND backgroundSku(d) idBarcodeSku, 
+                       idSku, nameSku BACKGROUND backgroundName(d), shortNameUOMSku
+        PROPERTIES (d) quantity BACKGROUND backgroundQuantityParam(d), namePriceListType BACKGROUND backgroundSku(d),
+                       price ON CHANGE changePrice(d) BACKGROUND backgroundParam(d), sum BACKGROUND backgroundSku(d),
+                       numberVAT ON CHANGE changeNumberVAT(d) BACKGROUND backgroundSku(d),
+                       valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundSku(d),
+                       invoicePrice ON CHANGE changeInvoicePrice(d) BACKGROUND backgroundSku(d),
+                       VATSum BACKGROUND backgroundSku(d), invoiceSum BACKGROUND backgroundSku(d),
+                       nameSupplierStock ON CHANGE changeDataSupplierStockCompany(d) BACKGROUND backgroundSku(d), 
+                       shipmentDate BACKGROUND backgroundSku(d), shipmentTime BACKGROUND backgroundSku(d), 
+                       closeDate BACKGROUND backgroundSku(d), ADDOBJ, deleteod = DELETESESSION
+        ORDER BY index(d)
+
+        PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserOrderDetail,
+                               addDetailInputBarcodeUserOrderDetail, deleteUserOrderDetail
+        FILTERS userOrder(d) == o
+
+        EVENTS
+            ON OK overPrePost(o)
+
+//        HINTTABLE LIST dateTimeUserOrderDetail, skuUserOrderDetail, supplierStockUserOrderDetail, customerStockUserOrderDetail,
+//                       priceListTypeUserOrderDetail, currencyUserOrderDetail,
+//                       priceUserOrderDetail, VATUserOrderDetail, valueVATUserOrderDetail, invoicePriceUserOrderDetail
+
+        EDIT UserOrder OBJECT o
+    ;
+
+    DESIGN userOrder {
+
+        main {
+            preferredSize = (1024, 768);
+
+            NEW header.box {
+                type = CONTAINERH;
+
+                NEW headerRow1 {
+                    fill = 1;
+                    type = CONTAINERV;
+
+                    MOVE o.documentHeader {
+                        type = CONTAINERV;
+                        NEW first {
+                            type = CONTAINERH;
+                            MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 40; }
+                        }
+                        NEW second { 
+                            type = CONTAINERH;
+                            MOVE PROPERTY(nameNumerator(o));
+                            MOVE PROPERTY(number(o));
+                            MOVE PROPERTY(series(o));
+                            MOVE PROPERTY(date(o));
+                            MOVE PROPERTY(time(o));
+                        }    
+                    }                    
+                    
+                    NEW headerRow11 {
+                        type = CONTAINERH;
+                        NEW headerRow111 {
+                            caption = 'Поставщик';
+                            type = COLUMNS;
+                            columns = 2;
+                            MOVE PROPERTY(nameSupplier(o));
+                            MOVE PROPERTY(nameSupplierStock(o));
+                        }
+                        NEW headerRow112 {
+                            caption = 'Покупатель';
+                            type = COLUMNS;
+                            columns = 2;
+                            MOVE PROPERTY(nameCustomer(o));
+                            MOVE PROPERTY(nameCustomerStock(o));
+                        }
+                    }
+                    NEW headerTabbedPane {
+                        alignment = STRETCH;
+                        type = TABBED;
+                        NEW headerMainParams {
+                            caption = 'Основные параметры';
+                            type = CONTAINERV;
+                            NEW headerContract {
+                                type = CONTAINERH;
+                                caption = 'Договор';
+                                MOVE PROPERTY(seriesNumberContractSku(o));
+                                MOVE PROPERTY(isCommission(o));
+                            }
+                            MOVE o.documentPrm {
+                                columns = 3;
+                            }
+                        }
+                        NEW headerExtraParams {
+                            caption = 'Дополнительные параметры';
+                            type = CONTAINERH;                                
+                            NEW documentShipmentGroup {
+                                caption = 'Исполнение';
+                                type = COLUMNS;
+                                columns = 1;
+                                MOVE PROPERTY(shipmentDate(o));
+                                MOVE PROPERTY(shipmentTime(o));
+                            }
+                            NEW headerRow121 {
+                                caption = 'Поставка';
+                                type = COLUMNS;
+                                columns = 1;
+                                MOVE PROPERTY(nextShipmentDate(o));
+                                MOVE PROPERTY(quantityDaysNextShipment(o));
+                            }
+                            NEW headerDate {
+                                caption = 'Закрытие';
+                                type = CONTAINERV;
+                                MOVE PROPERTY(closeDate(o));
+                            }
+                        }
+                        NEW headerCreateDetail {
+                            caption = 'Основание';
+                            type = CONTAINERV;
+                        }
+                        NEW headerCreateDocuments {
+                            caption = 'Производные документы';
+                            type = CONTAINERH;
+                        }
+                        NEW import {
+                            caption = 'Импорт';
+                            type = CONTAINERH;
+                        }
+                    }
+                }
+
+                MOVE o.documentSum {
+                    columns = 1;
+                }
+            }
+            NEW specification.box {
+                fill = 1;
+                type = TABBED;
+                MOVE d.box {
+                    caption = 'Спецификация';
+                }
+            }
+
+            MOVE functions.box;
+
+            PROPERTY(formOk()) {
+                caption = 'Провести';
+            }                        
+            PROPERTY(sumUserOrderDetail(o)) { preferredCharWidth = 13;}
+            PROPERTY(VATSumUserOrderDetail(o)) { preferredCharWidth = 13;}
+            PROPERTY(invoiceSumUserOrderDetail(o)) { preferredCharWidth = 13;}
+            PROPERTY(deleteUserOrderDetail(o)){focusable = FALSE;}
+            
+        }
+    }
+
+    @defineDocumentSkuStockPriceListTypeAgreement(userOrder, supplier){
+    @defineDocumentSkuStock(userOrder, sku, supplier){
+    @defineDocumentSkuStock(userOrder, userOrderDetail, sku, supplier){
+    userOrderDetailSupplier (sku, userOrder, stock) =  GROUP MAX (UserOrderDetail userOrderDetail)
+        BY sku(userOrderDetail), userOrder(userOrderDetail), supplierStock(userOrderDetail);
+
+    quantitySupplier 'Кол-во товара в документе' (sku, userOrder, stock) = GROUP SUM quantity(UserOrderDetail userOrderDetail)
+        BY sku(userOrderDetail), userOrder(userOrderDetail), supplierStock(userOrderDetail);
+
+//    backgroundQuantitySku###object###Stock 'Цвет' (sku, object, stock) = RGB(255,128,128) IF quantitySku###object###stockProp(sku, object, stock) AND NOT
+//        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
+    backgroundQuantity 'Цвет' (sku, userOrder, stock) = ABSTRACT CASE COLOR (Sku, UserOrder, Stock);    
+    background 'Цвет' (sku, userOrder, stock) = ABSTRACT CASE COLOR (Sku, UserOrder, Stock);   
+
+    overChangeQuantityValueSku = ACTION ABSTRACT LIST (UserOrderDetail);
+
+    changeQuantityValue = ACTION (Sku sku, UserOrder userOrder, Stock stock) {
+        IF userOrderDetailSupplier(sku, userOrder, stock) THEN {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+                quantity(UserOrderDetail userOrderDetail) <- requestedNumeric() WHERE userOrderDetail == userOrderDetailSupplier(sku, userOrder, stock);
+                overChangeQuantityValueSku(userOrderDetailSupplier(sku, userOrder, stock));
+            } ELSE {
+                FOR userOrderDetailSupplier(sku, userOrder, stock) == UserOrderDetail d DO
+                    DELETE d;
+            }
+
+        } ELSE {
+            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+                FOR ADDOBJ d = UserOrderDetail DO {
+                   userOrder(d) <- userOrder;
+//                  Пока работаем с одним складом                   
+//                   stockProp###stock###detail (d) <- stock;
+                   sku(d) <- sku;
+                   quantity (d) <- requestedNumeric();
+                   overChangeQuantityValueSku(d);
+                }
+            }
+        }
+    }
+    changeQuantity = ACTION (Sku sku, UserOrder userOrder, Stock stock) {
+        REQUEST NUMERIC[16,5] INPUT;
+        changeQuantityValue(sku, userOrder, stock);
+    }
+
+    allQuantityUserOrder 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
+    changeAllQuantity = ACTION (Sku sku, UserOrder userOrder, Stock stock) {
+        REQUEST BOOLEAN INPUT;
+        IF requestedLogical() THEN {
+            requestedNumeric() <- NULL;
+            allQuantityUserOrder (sku,stock) <- TRUE;
+            requestedNumeric() <- prevCurrentBalance(sku,stock);
+            changeQuantityValue(sku, userOrder, stock);
+        } ELSE {
+            allQuantityUserOrder (sku,stock) <- NULL;
+            requestedNumeric() <- NULL;
+            changeQuantityValue(sku, userOrder, stock);
+        }
+    }
+
+};
+};
+    priceListType(UserOrder userOrder, Sku sku) = OVERRIDE priceListType(userOrder) IF sku IS Sku, priceListType(agreement(userOrder), sku);
+
+//    priceSkuStock###object 'Цена' (sku, stock, object) = prevPriceBPriceListTypeSkuStockDateTime(priceListType###object###sku(object, sku), sku, stock, dateTime###object(object));
+    ledgerPrice 'Цена (базовая)' (Sku sku, Stock stock, UserOrder userOrder) = prevPriceB[PriceListType,Sku,Stock,DATETIME](ledgerPriceListType(priceListType(userOrder, sku)), sku, stock, dateTime(userOrder));
+                                      
+    viewPrice 'Цена' (sku, stock, userOrder) = DATA LOCAL NUMERIC[14,2] (Sku, Stock, UserOrder);
+
+    price 'Цена' (Sku sku, Stock stock, UserOrder userOrder) = viewPrice(sku, stock, userOrder);
+
+    updateViewPrice (Sku sku, Stock stock, UserOrder userOrder) = ACTION {
+        FOR PriceListType pt == priceListType(userOrder, sku) AND stock IS Stock NOINLINE (pt) DO
+            viewPrice(sku, stock, userOrder) <- prevPriceB(pt, sku, IF overPriceStockUser(userOrder) THEN overPriceStockUser(userOrder) ELSE stock, dateTime(userOrder));
+    }
+};
+    @extendFormDocumentSkuStockPriceListTypeAgreement(userOrder, userOrder, o, supplier, supplier){
+    @extendFormDocumentSkuStock(userOrder, userOrder, o, supplier, supplier){
+    notSupplierStock (UserOrder o) = NOT supplierStock(o);
+    EXTEND FORM userOrder
+
+        TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
+        PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg), tsTreeName = name(ts)
+        ORDER BY sgTreeName
+        FILTERS stringEqualsAll(a),
+                stockGroup(ts) == sg
+        FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
+        TREE skuTree sk = SkuGroup PARENT parent
+        PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+        ORDER BY order(sk), skuTreeName
+        FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+        OBJECTS           sst=Stock
+        OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
+        PROPERTIES        READONLY BACKGROUND background(ks, o, st) name(ks) ON SHORTCUT showMovementSku(ks, st) ON SHORTCUT showMovementPriceSku(ks, st), idBarcode(ks), id(ks) SHOWIF showIDs(), shortNameUOM(ks)
+        PROPERTIES        READONLY stockName = name(st) SHOWIF notSupplierStock(o)
+        PROPERTIES        addSku() TODRAW sts, edit(ks), copy(ks)
+
+        FILTERS           isParent(sk, ks),
+                          // пока отключаем работу по многим складам, а то люди путаются
+//                          (st == ts AND sg IS StockGroup OR isParentStockGroupStock(sg, st) AND NOT ts OR st IS Stock AND NOT sg AND NOT ts) AND NOT stockProp###stock###object(concrete) OR
+//                          st == stockProp###stock###object(concrete) AND NOT sg AND NOT ts,
+//                          legalEntityStock(st) == legalEntityProp###object(concrete),
+//                          activeStock(st)
+                          st == supplierStock(o)
+
+        FILTERS           name(ks)
+        ORDER BY          name(ks)
+
+        PROPERTIES        quantitySupplier(ks, o, st) ON CHANGE changeQuantity(ks, o, st) 
+                                BACKGROUND backgroundQuantity(ks, o, st)
+                                QUICKFILTER name(ks),
+                          prevCurrentBalance(ks, st) READONLY,
+                          allQuantityUserOrder(ks, st) ON CHANGE changeAllQuantity(ks, o, st),
+                          price(ks, st, o) READONLY
+    ;
+
+    DESIGN userOrder {
+        REMOVE sst.box;
+        specification.box {
+            type = TABBED;
+            NEW itemBox {
+                caption = 'Подбор';
+                type = SPLITH;
+
+                NEW skuFilters {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE skuTree.tree.box { caption = 'Группы SKU'; }
+                    MOVE stockTree.tree.box { caption = 'Группы складов'; }
+                }
+                NEW skuMainPane {
+                    fill = 2.5;
+                    type = CONTAINERV;
+                    NEW skuSelectPane {
+                        fill = 1;
+                        type = CONTAINERV;
+                        MOVE sts.box {
+                            caption = 'Товары';
+                        }
+                        PROPERTY(copy(ks)) { focusable = FALSE; }
+                    }
+                }
+            }
+        }
+        PROPERTY(prevCurrentBalance(ks, st)) { background = #FFEEEE; }
+        PROPERTY(quantitySupplier(ks, o, st)) { background = #D4FFD4; }
+    }
+};
+    
+    currentUserOrderUserOrder() = DATA LOCAL Object ();
+    setCurrentUserOrderUserOrder(Object o) = ACTION currentUserOrderUserOrder() <- o;
+    
+    EXTEND FORM userOrder
+        EVENTS ON CHANGE o setCurrentUserOrderUserOrder(o)
+    ;
+
+    WHEN SESSION FORMS userOrder (SET([= VIEW userOrder.sts](Stock stock, Sku sku)) AND currentUserOrderUserOrder() == Object o) OR 
+                            ((CHANGED(dateTime[UserOrder](o)) OR
+                              CHANGED(priceListType[UserOrder](o)) OR
+                              CHANGED(agreement[UserOrder](o))) AND [= VIEW userOrder.sts](stock, sku)) DO 
+        updateViewPrice(sku, stock, o);
+    ;
+};
+
+    addUserOrder 'Добавить' = ACTION ADDFORM UserOrder;
+    edit 'Редактировать' (userOrder) = ACTION EDITFORM UserOrder;
+    edit(UserOrder order) += ACTION edit(order);
+    
+    isUserOpened(UserOrder o)=  isOpened[Order](o) AND is(o);
+
+    overCopy = ACTION ABSTRACT LIST (UserOrderDetail, OrderDetail);
+    overCopy = ACTION ABSTRACT LIST (Order, UserOrder);
+    copy 'Копировать' = ACTION (Order order) NEWSESSION {
+        FOR ADDOBJ o = UserOrder DO {
+            ASSIGN supplier(o) <- supplier(order);
+            ASSIGN supplierStock(o) <- supplierStock(order);
+            ASSIGN customer(o) <- customer(order);
+            ASSIGN customerStock(o) <- customerStock(order);
+            ASSIGN currency(o) <- currency(order);
+            ASSIGN agreement(o) <- agreement(order);
+            ASSIGN priceListType(o) <- priceListType(order);
+            ASSIGN note(o) <- note(order);
+
+            EXEC overCopy(order, o);
+
+            FOR order(OrderDetail orderDetail) == order DO {
+                FOR ADDOBJ d=UserOrderDetail DO {
+                    ASSIGN userOrder(d) <- o;
+                    ASSIGN sku(d) <- sku(orderDetail);
+                    ASSIGN quantity(d) <- quantity(orderDetail);
+                    ASSIGN dataSupplierStock(d) <- dataSupplierStock(orderDetail);
+                    
+                    EXEC overCopy(d, orderDetail);
+                }
+            }
+
+            FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+        }
+    } TOOLBAR;
+    
+//-- Копирование строк     
+    overCopy = ACTION ABSTRACT LIST (UserOrderDetail, UserOrderDetail);
+
+    copy 'Копировать' = ACTION (UserOrderDetail detail) {
+        FOR ADDOBJ d = UserOrderDetail DO {          
+
+            userOrder(d) <- userOrder(detail);
+            sku(d) <- sku(detail);
+            quantity(d) <- quantity(detail);
+            price(d) <- price(detail);
+            dataSupplierStock(d) <- dataSupplierStock(detail);
+            priceListType(d) <- priceListType(detail);      
+            shipmentDataDate(d) <- shipmentDataDate(detail);         
+            shipmentDataTime(d) <- shipmentDataTime(detail);        
+            closeDataDate(d) <- closeDataDate(detail);  
+            
+            EXEC overCopy(d, detail);                              
+        }
+    } EDITKEY 'F5' TOOLBAR;
+    
+    EXTEND FORM userOrder PROPERTIES(d) copy FORCE PANEL;
+    DESIGN userOrder { PROPERTY(copy(d)) { focusable = FALSE; } }
+    
+    filterOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
+    filterDateFrom (Order o) = date(o) >= filterOrderDateFrom() OR (o IS Order AND NOT filterOrderDateFrom());      
+    
+    filterOrderDateTo 'Дата по' = DATA LOCAL DATE ();
+    filterDateTo (Order o) = date(o) <= filterOrderDateTo() OR (o IS Order AND NOT filterOrderDateTo());      
+    
+    filterOrderCustomer  = DATA LOCAL LegalEntity ();
+    nameFilterOrderCustomer 'Покупатель' = name(filterOrderCustomer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomer (Order o) = customer(o) == filterOrderCustomer() OR (o IS Order AND NOT filterOrderCustomer());    
+
+    filterOrderCustomerStock  = DATA LOCAL Stock ();
+    nameFilterOrderCustomerStock 'Склад покупателя' = name(filterOrderCustomerStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomerStock (Order o) = customerStock(o) == filterOrderCustomerStock() OR (o IS Order AND NOT filterOrderCustomerStock());  
+
+    filterOrderSupplier = DATA LOCAL LegalEntity ();
+    nameFilterOrderSupplier 'Поставщик' = name(filterOrderSupplier()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplier (Order o) = supplier(o) == filterOrderSupplier() OR (o IS Order AND NOT filterOrderSupplier());      
+
+    filterOrderSupplierStock  = DATA LOCAL Stock ();
+    nameFilterOrderSupplierStock 'Склад поставщика' = name(filterOrderSupplierStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterSupplierStock (Order o) = supplierStock(o) == filterOrderSupplierStock() OR (o IS Order AND NOT filterOrderSupplierStock()); 
+           
+    filterOrderCustomUser  = DATA LOCAL CustomUser ();
+    nameFilterOrderCustomUser 'Создан пользователем' = name[Contact](filterOrderCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterCustomUser (Order i) = createdUser[UserOrder](i) == filterOrderCustomUser() OR (i IS Order AND NOT filterOrderCustomUser());  
+
+    filterOrderComputer = DATA LOCAL Computer ();
+    nameFilterOrderComputer 'Создан на компьютере' = hostname(filterOrderComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+    filterComputer (Order i) = createdComputer(i) == filterOrderComputer() OR (i IS Order AND NOT filterOrderComputer());
+    
+    overShowEdit = ABSTRACT BOOLEAN (Order);
+    overShowDelete = ABSTRACT BOOLEAN (Order);          
+    backgroundDraft 'Цвет' (Order o) = RGB(212,255,212) IF isDraft(o);      
+    overBackgroundDraft(Order o) = OVERRIDE backgroundDraft(o), backgroundSku(o);
+    
+    FORM orders 'Заказы' 
+    
+        PROPERTIES() filterOrderDateFrom, filterOrderDateTo, nameFilterOrderSupplier, nameFilterOrderSupplierStock, 
+                     nameFilterOrderCustomer, nameFilterOrderCustomerStock, nameFilterOrderCustomUser, nameFilterOrderComputer
+        FILTERS isCompany(filterOrderSupplier())    
+            
+        OBJECTS o = Order LAST
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) isClosed
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND overBackgroundDraft(o) isPosted, number, series, date, time
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency,
+                                nameAgreement
+        PROPERTIES (o) READONLY BACKGROUND backgroundSku(o) countOrderDetail, quantityOrderDetail, sumOrderDetail,
+                                VATSumOrderDetail, invoiceSumOrderDetail
+        PROPERTIES (o) READONLYIF isReadonly() BACKGROUND backgroundSku(o) shipmentDate, shipmentTime, closeDate, note
+
+        PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserOrder], createdTime, createdHostnameComputer, 
+                                            postedNameUser, postedTime, postedHostnameComputer
+
+        PROPERTIES ()  addUserOrder TODRAW o
+        PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedOrder(o), 
+                       copy
+        PROPERTIES (o) close[UserOrder] SHOWIF isOpened[UserOrder](o), open SHOWIF isClosed[UserOrder](o)
+        PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
+
+        OBJECTS d=OrderDetail
+        PROPERTIES (d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
+        PROPERTIES (d) READONLY quantity BACKGROUND backgroundParam(d), namePriceListType, 
+                       price BACKGROUND backgroundParam(d), sum,
+                       numberVAT, valueVAT, VATSum, invoiceSum,
+                       nameSupplierStock, shipmentDate, shipmentTime
+        ORDER BY index(d)
+
+        FILTERS order(d) == o
+        FILTERS filterDateFrom(o), 
+                filterDateTo(o),
+                filterSupplier(o),
+                filterSupplierStock(o),
+                filterCustomer(o),
+                filterCustomerStock(o),
+                filterCustomUser(o),
+                filterComputer(o)                            
+        
+        DIALOG Order OBJECT o
+    ;
+
+    DESIGN orders 'Заказы (продажа-возврат)' {
+        PROPERTY (deleteo) {
+            askConfirm = TRUE;
+        }
+
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+            type = SPLITV;
+
+            NEW filtersBox {                       
+                fill = 1;
+                NEW topFilters {  
+                    caption = 'Фильтры';
+                    type = CONTAINERV; 
+                    NEW topFilters1 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(filterOrderDateFrom());
+                        MOVE PROPERTY(filterOrderDateTo());                            
+                        MOVE PROPERTY(nameFilterOrderSupplier());
+                        MOVE PROPERTY(nameFilterOrderSupplierStock());     
+                        MOVE PROPERTY(nameFilterOrderCustomer());
+                        MOVE PROPERTY(nameFilterOrderCustomerStock());                                               
+                    }
+                    NEW topFilters2 {
+                        type = CONTAINERH; 
+                        MOVE PROPERTY(nameFilterOrderCustomUser());
+                        MOVE PROPERTY(nameFilterOrderComputer());                            
+                    }                
+                }
+                MOVE o.box {
+                    fill = 1;
+                }
+            }
+//            ADD o.box {
+//                fill = 2;
+//            }
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE o.created;
+                    MOVE o.posted;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                        type = CONTAINERV;
+
+                        MOVE PROPERTY(copy(o)) { caption = 'Заказ (продажа-возврат)';}
+                    }
+                }
+            }
+        }
+    }
+    @extendFormEditable(orders){
+    EXTEND FORM orders
+        PROPERTIES() isEditable
+    ;
+    DESIGN orders {
+        functions.box {
+            MOVE PROPERTY(isEditable()) BEFORE rightControls;
+        }
+    }
+};
+    @defineFilterIsOpened (order, orders, o){   
+    EXTEND FORM orders
+        FILTERGROUP orderfilters6 FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+    ;   
+}; 
+    @defineDocumentLogForm(orders, o){
+    EXTEND FORM orders
+        OBJECTS dLog=DocumentLog FIXED GRID
+        PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
+                      hostnameComputer, userLogin, nameContact, dateTimeSession, nameTypeChange,
+                      note
+        PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
+        FILTERS document(dLog) == o
+
+        OBJECTS ddLog = DocumentDetailLog FIXED GRID
+        PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity,
+                       price, nameUser, dateTime, note
+        FILTERS document(ddLog) == o
+    ;
+    
+    DESIGN orders {
+        documentHistory { 
+            NEW historyTabs {
+                 fill = 1;
+                 type = TABBED;
+                 NEW historyLog{
+                    caption = 'По документу';
+                    type = CONTAINERV;
+                    MOVE dLog.box;
+                 }
+                 NEW detailLog{
+                     caption = 'По строкам';
+                     MOVE ddLog.box;
+                 }
+            }
+        }    
+    }   
+};
+    edit 'Редактировать' = ACTION ABSTRACT LIST  (OrderDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+    edit(UserOrderDetail d) = ACTION (d) NEWSESSION {
+        FORM userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKEDMODAL;
+    }
+    edit(UserOrderDetail d) += ACTION edit(d);    
+};
 @extendFormFilterAccessStock(Order, o, orders, supplierStock, company);
 @extendFormFilterAccessStock(Order, o, orders, customerStock, customer);
 @extendFormFilterAccessLegalEntity(Order, o, orders, supplier, company);

@@ -512,7 +512,7 @@ DESIGN requestExchange {
     }
 }
 
-copy 'Копировать'(RequestExchange request) = ACTION  NEWSESSION {
+copy 'Копировать' = ACTION (RequestExchange request) NEWSESSION {
     FOR ADDOBJ r = RequestExchange DO {
         stock(r) <- stock(request);
         dateFrom(r) <- dateFrom(request);
@@ -596,7 +596,7 @@ skipMachineryPriceTransaction 'Запретить загрузку в обору
 // Перезагрузка целиком
 snapshotAttribute = ACTION ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
 
-snapshotGroupMachinery 'Ранее загруженные'(Stock stock) = ACTION  NEWSESSION {
+snapshotGroupMachinery 'Ранее загруженные' = ACTION (Stock stock) NEWSESSION {
     FORM groupMachineryInput OBJECTS s = stock MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR selected(GroupMachinery groupMachinery) DO {
@@ -660,7 +660,7 @@ exclude = DATA LOCAL BOOLEAN (GroupMachinery);
 
 supressNoNeedMessage() = DATA LOCAL BOOLEAN (); // не выдавать сообщение если загрузка не требуется
 
-createMachineryPriceTransaction 'Создать транзакцию'(Stock stock) = ACTION  {
+createMachineryPriceTransaction 'Создать транзакцию' = ACTION (Stock stock) {
     LOCAL message = TEXT();
     LOCAL sentSomething = BOOLEAN();
     message() <- TEXT('Принято к загрузке в оборудование : \n');
@@ -721,21 +721,21 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
             MESSAGE NO WAIT 'Загрузка прайса в оборудование не требуется.';
 };
 
-createBalanceMachineryPriceTransaction 'Остатки'(Stock stock) = ACTION  NEWSESSION {
+createBalanceMachineryPriceTransaction 'Остатки' = ACTION (Stock stock) NEWSESSION {
     createMachineryPriceTransaction(Sku sku) <- TRUE IF currentBalance(sku, stock);
     createMachineryPriceTransactionComment() <- 'Инкрементная загрузка остатков';
     createMachineryPriceTransaction(stock);
     apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createPriceMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION  NEWSESSION {
+createPriceMachineryPriceTransaction 'Все товары' = ACTION (Stock stock) NEWSESSION {
     createMachineryPriceTransaction(Sku sku) <- TRUE;
     createMachineryPriceTransactionComment() <- 'Инкрементная загрузка товаров';
     createMachineryPriceTransaction(stock);
     apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createSnapshotMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION  NEWSESSION {
+createSnapshotMachineryPriceTransaction 'Все товары' = ACTION (Stock stock) NEWSESSION {
     createMachineryPriceTransaction(Sku sku) <- TRUE;
     createMachineryPriceTransactionComment() <- 'Полная загрузка товаров';
     createMachineryPriceTransactionAll() <- TRUE;
@@ -766,7 +766,7 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
 ;
 DESIGN selectGroupMachinery { main{ preferredSize = (1024, 768); } }
 
-createSelectMachineryPriceTransaction 'Выборочно'(Stock stock) = ACTION  NEWSESSION {
+createSelectMachineryPriceTransaction 'Выборочно' = ACTION (Stock stock) NEWSESSION {
     FORM selectGroupMachinery OBJECTS st = stock MODAL;
     IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
         exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
@@ -782,7 +782,7 @@ createSelectMachineryPriceTransaction 'Выборочно'(Stock stock) = ACTION
 
 
 GROUP documentMachineryPrice 'Из документа' : public;
-createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) = ACTION  NEWSESSION {
+createDocumentMachineryPriceTransaction 'Из документа' = ACTION (Stock stock) NEWSESSION {
     FORM documents DIALOG;
     IF formResult() == FormResult.ok THEN {
         createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, chosenObject('d'));        
@@ -874,7 +874,7 @@ DESIGN options {
 
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
-    createMachineryPriceTransaction 'Загрузить в оборудование'(###document document) = ACTION  NEWSESSION {
+    createMachineryPriceTransaction 'Загрузить в оборудование' = ACTION (###document document) NEWSESSION {
     
         IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
@@ -892,7 +892,7 @@ META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, sto
     
     createMachineryPriceTransaction(###document document) += ACTION createMachineryPriceTransaction(document);
     
-    createSnapshotMachineryPriceTransaction (###document document)'Перегрузить все позиции' = ACTION) NEWSESSION {
+    createSnapshotMachineryPriceTransaction 'Перегрузить все позиции' = ACTION (###document document) NEWSESSION {
         IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
             CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
         }
@@ -961,7 +961,7 @@ DESIGN options {
     }
 }
 
-createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = ACTION  NEWSESSION NESTED select[Sku] {
+createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование' = ACTION (Stock stock) NEWSESSION NESTED select[Sku] {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
         createMachineryPriceTransactionSnapshot() <- TRUE;
         createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku);
@@ -979,14 +979,14 @@ createSelectedSkuPriceTransactionDocument 'Загрузить в оборудо�
     }
 } TOOLBAR ;
 
-createApplySelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = ACTION  {
+createApplySelectedSkuPriceTransactionDocument 'Загрузить в оборудование' = ACTION (Stock stock) {
     APPLY NESTED select[Sku] {};
     IF NOT canceled() THEN {
         createSelectedSkuPriceTransactionDocument(stock);
     }
 }
 
-createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'() = ACTION  NEWSESSION NESTED select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku] {
+createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование' = ACTION () NEWSESSION NESTED select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku] {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
             createMachineryPriceTransactionSnapshot() <- TRUE;

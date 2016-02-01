@@ -24,7 +24,7 @@ numberVAT 'НДС' (Item item) = number(VAT(item));
 valueVAT 'НДС, %' (Item item, DATE date) = valueRate(VAT(item), date);
 valueVAT 'НДС, %' (Item item) = valueVAT(item, currentDate());
 
-changeNumberVAT(Item item) = ACTION  {
+changeNumberVAT = ACTION (Item item) {
     REQUEST OBJECT r
         FORM rangeDialog OBJECTS c = defaultCountry(), r=VAT(item, defaultCountry()) DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
@@ -34,7 +34,7 @@ changeNumberVAT(Item item) = ACTION  {
         VAT(item, Country country) <- NULL WHERE country == defaultCountry();
     }
 }
-changeValueVAT(Item item) = ACTION  {
+changeValueVAT = ACTION (Item item) {
     REQUEST NUMERIC[10,5] INPUT;
     VAT(item, Country country) <- valueCurrentVAT(country, requestedNumeric()) WHERE country == defaultCountry();
 }
@@ -69,7 +69,7 @@ VAT 'НДС' (item, country, date) =
            ORDER dateIn
            WHERE dataVAT(item, country, dateIn) AND dateIn <= (date AS DATE) COMPLEX;
 
-migrateVATItem 'Перенести НДС'() = ACTION  {
+migrateVATItem 'Перенести НДС' = ACTION () {
     VAT(Item item, Country country) <- VAT(item, country, currentDate()) WHERE NOT VAT(item, country);
 }
 EXTEND FORM migrationData

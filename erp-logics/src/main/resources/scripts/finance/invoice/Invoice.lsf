@@ -394,7 +394,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentHeaderNetWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг');  
     @defineDocumentHeaderGrossWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');
     @defineDocumentHeaderGrossWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг'); 
-    changeGrossWeight(Invoice invoice)  = ACTION  {
+    changeGrossWeight  = ACTION (Invoice invoice) {
         REQUEST NUMERIC[16,3] INPUT;
         IF requestedNumeric() THEN {           
             sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](sumNetWeight(d)/(sumNetWeightInvoiceDetail(invoice) IF sumNetWeightInvoiceDetail(invoice) != 0)* requestedNumeric())
@@ -617,7 +617,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     overCopy = ACTION ABSTRACT LIST (Invoice, UserInvoice);
     overCopy = ACTION ABSTRACT LIST (UserInvoiceDetail, InvoiceDetail);
     
-    copy (Invoice invoice)'Копировать' = ACTION) NEWSESSION {
+    copy 'Копировать' = ACTION (Invoice invoice) NEWSESSION {
         FOR ADDOBJ i = UserInvoice DO {
             ASSIGN supplier(i) <- supplier(invoice);
             ASSIGN supplierStock(i) <- supplierStock(invoice);
@@ -652,7 +652,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 //-- Копирование строк     
     overCopy = ACTION ABSTRACT LIST (UserInvoiceDetail, UserInvoiceDetail);
 
-    copy(UserInvoiceDetail detail) 'Копировать' = detail) {
+    copy 'Копировать' = ACTION (UserInvoiceDetail detail) {
         FOR ADDOBJ d = UserInvoiceDetail DO {          
 
             userInvoice(d) <- userInvoice(detail);
@@ -856,7 +856,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
             THEN RGB(255,0,0); 
             
     edit 'Редактировать' = ACTION ABSTRACT LIST (InvoiceDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-    edit(UserInvoiceDetail d) =(d) NEWSESSION {
+    edit(UserInvoiceDetail d) = ACTION (d) NEWSESSION {
         FORM userInvoice OBJECTS i = userInvoice(d), d = d MANAGESESSION DOCKEDMODAL;
     }
     edit(UserInvoiceDetail d) += ACTION edit(d);        
@@ -899,7 +899,7 @@ END
 // Партии с диалогом по складам
 META defineInvoiceBatchDialogStock(stockProp, dialog)
 
-    changeBatch(UserInvoiceDetail d) = ACTION  {
+    changeBatch = ACTION (UserInvoiceDetail d) {
         IF batch(d) THEN {
             FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
                                      t = dateTime(d),
@@ -927,7 +927,7 @@ END
 
 // Партии на приходе
 META defineInvoiceBatchDialog(dumb)
-    changeBatch(UserInvoiceDetail userInvoiceDetail) = ACTION  {
+    changeBatch = ACTION (UserInvoiceDetail userInvoiceDetail) {
         FORM dialogBatch OBJECTS sk = sku(userInvoiceDetail) DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
             batch(userInvoiceDetail) <- chosenObject('bt');
@@ -1003,7 +1003,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
         }
     } 
     
-    change##nsdir##InvoiceDetail(InvoiceDetail detail) = ACTION  {
+    change##nsdir##InvoiceDetail = ACTION (InvoiceDetail detail) {
         REQUEST OBJECT d
         IF stockProp(detail)  THEN {
             IF invoiceDetail[UserInvoiceDetail](detail) THEN {            
@@ -1043,7 +1043,7 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
 //                                             CHANGED(nsret.dateTimeInvoiceDetail(detail));
 
     overRecalculatedPrice = ACTION ABSTRACT LIST (nsret.UserInvoiceDetail);
-    recalculatedPrice(UserInvoiceDetail detail) = ACTION) {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
+    recalculatedPrice(UserInvoiceDetail detail) = ACTION (detail) {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
         IF invoiceDetail(detail) THEN {
             ASSIGN price(detail) <-  price(invoiceDetail(detail));
             ASSIGN invoicePrice[InvoiceDetail](detail) <-  invoicePrice(invoiceDetail(detail));
@@ -1107,14 +1107,14 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
     balanceReturnQuantity(nsdir.InvoiceDetail detail) = quantity(detail) (-) returnQuantity(detail);
     
     //-- пока берем без учета того, что в данной накладной может быть несколько строк с одним товаром
-    fillInvoiceDetail(UserInvoiceDetail d) 'Проставить основание'  = d) {    
+    fillInvoiceDetail 'Проставить основание'  = ACTION (UserInvoiceDetail d) {    
         invoiceDetail(d) <- maxSaleInvoiceDetail(d)
             WHERE NOT invoiceDetail(d)  AND countSaleInvoiceDetails(d) == 1 AND        
             balanceReturnQuantity(maxSaleInvoiceDetail(d)) >= quantity(d);
     } SHORTCUT descriptionInvoiceDetail[UserInvoiceDetail];
     
     
-    (UserInvoiceDetail detail)fillAllInvoiceDetail 'Проставить основание для всех' = detail) {
+    fillAllInvoiceDetail 'Проставить основание для всех' = ACTION (UserInvoiceDetail detail) {
        FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) DO
            fillInvoiceDetail(d);
     } SHORTCUT descriptionInvoiceDetail[UserInvoiceDetail];               
@@ -1248,7 +1248,7 @@ END
 
 META defineInvoicePayment(dumb)
 
-    addPaymentInvoice 'Оплатить'(InContractLedger invoice) = ACTION  {
+    addPaymentInvoice 'Оплатить' = ACTION (InContractLedger invoice) {
         ASSIGN currentInContractLedger() <- invoice;
         FOR ADDOBJ p = Payment DO{
             ASSIGN contract(p) <- contractSku[UserInvoice](invoice);
@@ -1265,7 +1265,7 @@ META defineInvoicePayment(dumb)
         }
     }
 
-    editInvoice (Payment payment, InContractLedger invoice)'Редактировать' = ACTION) {
+    editInvoice 'Редактировать' = ACTION (Payment payment, InContractLedger invoice) {
         ASSIGN currentInContractLedger() <- invoice;
         FORM payment OBJECTS p=payment MODAL;
     }

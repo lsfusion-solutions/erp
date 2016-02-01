@@ -17,14 +17,14 @@ importNBRBExchangeRateDaysCount 'Кол-во дней' = DATA INTEGER() IN nbrb;
 importNBRBExchangeRateDateFromDateToAction 'Импортировать курсы НБРБ' = ACTION CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateDateFromDateToActionProperty' (Currency) IN nbrb;
 importNBRBExchangeRateLastDaysAction 'Импортировать последние курсы НБРБ' = ACTION CUSTOM 'lsfusion.erp.region.by.masterdata.ImportNBRBExchangeRateLastDaysActionProperty' (Currency) IN nbrb;
 
-importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ'() = ACTION  {
+importNBRBExchangeRateDateFromDateTo 'Импортировать курсы НБРБ' = ACTION () {
     FOR Currency c IS Currency DO {
         EXEC importNBRBExchangeRateDateFromDateToAction(c);
     }
     EXEC apply();
 } IN nbrb;
 
-importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ'() = ACTION  {
+importNBRBExchangeRateLastDays 'Импортировать последние курсы НБРБ' = ACTION () {
     FOR Currency c IS Currency DO {
         EXEC importNBRBExchangeRateLastDaysAction(c);
     }
@@ -53,7 +53,7 @@ loadDefaultScheduledTasks () += ACTION ()  {
     loadDefaultScheduledTaskDetail ('Загрузка курсов НБРБ', 1, 'NBRB.importNBRBExchangeRateLastDays[]');
 }
 
-fillCrossFromTo 'Пересчитать обратный и кросс-курс за период'(DATE dateFrom, DATE dateTo) = ACTION  {
+fillCrossFromTo 'Пересчитать обратный и кросс-курс за период' = ACTION (DATE dateFrom, DATE dateTo) {
     LOCAL dateCur = DATE();
     
     dateCur() <- dateFrom;
@@ -71,7 +71,7 @@ fillCrossFromTo 'Пересчитать обратный и кросс-курс 
     }
 }
 
-fillCrossPeriod 'Пересчитать обратный и кросс-курс за период'() = ACTION  {
+fillCrossPeriod 'Пересчитать обратный и кросс-курс за период' = ACTION () {
     IF importNBRBExchangeRateDateFrom() AND importNBRBExchangeRateDateTo() THEN {
         fillCrossFromTo(importNBRBExchangeRateDateFrom(), importNBRBExchangeRateDateTo());
         apply();
@@ -80,7 +80,7 @@ fillCrossPeriod 'Пересчитать обратный и кросс-курс 
     }    
 } IN nbrb;
 
-fillCrossLastDays 'Пересчитать обратный и кросс-курс последние'() = ACTION  {    
+fillCrossLastDays 'Пересчитать обратный и кросс-курс последние' = ACTION () {    
     IF importNBRBExchangeRateDaysCount() THEN {        
         fillCrossFromTo(subtract(currentDate(), importNBRBExchangeRateDaysCount()), currentDate());
         apply();

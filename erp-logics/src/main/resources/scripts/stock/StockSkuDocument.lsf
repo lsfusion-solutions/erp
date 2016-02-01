@@ -40,7 +40,7 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
 
     overChangeQuantityValue###skuProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###skuProp skuProp, ###object object) = ACTION  {
+    changeQuantityValue = ACTION (###skuProp sku, ###object object) {
         IF detail(sku, object) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
@@ -61,14 +61,14 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
         }
     }
 
-    (###skuProp skuProp, ###object object)changeQuantity = ACTION) {
+    changeQuantity = ACTION (###skuProp sku, ###object object) {
         REQUEST NUMERIC[16,5] INPUT;
         EXEC changeQuantityValue(sku, object);
     }
 
     // Выбор всего остатка
-    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);(###skuProp skuProp, ###object object)
-    changeAllQuantity = object) {
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);
+    changeAllQuantity = ACTION (###skuProp sku, ###object object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
@@ -117,7 +117,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
         ORDER BY inputName
     ;
 
-    seek###skuProp##Barcode(###object object, STRING[15] barcode) = ACTION  { 
+    seek###skuProp##Barcode = ACTION (###object object, STRING[15] barcode) { 
         IF skuProp##Barcode(barcode, date(object)) THEN {
             SEEK form.ks skuProp##Barcode(barcode, date(object));     
         } ELSE {
@@ -125,7 +125,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
         }
     }
     
-    (###object object)seekOver###skuProp = ACTION) {
+    seekOver###skuProp = ACTION (###object object) {
         REQUEST STRING[15] INPUT;
         IF requestedString() THEN {
             seek###skuProp##Barcode(object, requestedString());
@@ -236,7 +236,7 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
 
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###batchProp batchProp, ###object object) = ACTION  {
+    changeQuantityValue = ACTION (###batchProp batch, ###object object) {
         IF detail(batch, object) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity(###detail detail) <- requestedNumeric() WHERE detail == detail(batch, object);
@@ -259,14 +259,14 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
         }
     }
 
-    (###batchProp batchProp, ###object object)changeQuantity = ACTION) {
+    changeQuantity = ACTION (###batchProp batch, ###object object) {
         REQUEST NUMERIC[16,5] INPUT;
         changeQuantityValue(batch, object);
     }
 
     // Выбор всего остатка
-    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);(###batchProp batchProp, ###object object)
-    changeAllQuantity= object) {
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);
+    changeAllQuantity= ACTION (###batchProp batch, ###object object) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
@@ -402,7 +402,7 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
 
     overChangeQuantityValue###skuProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###skuProp skuProp, ###object object, Stock stock) = ACTION  {
+    changeQuantityValue = ACTION (###skuProp sku, ###object object, Stock stock) {
         IF detail###stockProp(sku, object, stock) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
@@ -425,13 +425,13 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             }
         }
     }
-    (###skuProp skuProp, ###object object, Stock stock)changeQuantity = ACTION) {
+    changeQuantity = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST NUMERIC[16,5] INPUT;
         changeQuantityValue(sku, object, stock);
     }
 
-    allQuantity###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);(###skuProp skuProp, ###object object, Stock stock)
-    changeAllQuantity = stock) {
+    allQuantity###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
+    changeAllQuantity = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
@@ -578,7 +578,7 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
     backgroundName###object 'Цвет'  (d)= ABSTRACT CASE COLOR (Batch);
 
-    changeQuantityValue(###batchProp batchProp, ###object object, Stock stock) = ACTION  {
+    changeQuantityValue = ACTION (###batchProp batch, ###object object, Stock stock) {
         IF detail###stockProp(batch, object, stock) THEN {
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 quantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(batch, object, stock);
@@ -601,13 +601,13 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
         }
     }
 
-    (###batchProp batchProp, ###object object, Stock stock)changeQuantity = ACTION) {
+    changeQuantity = ACTION (###batchProp batch, ###object object, Stock stock) {
         REQUEST NUMERIC[16,5] INPUT;
         changeQuantityValue(batch, object, stock);
     }
 
-    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);(###batchProp batchProp, ###object object, Stock stock)
-    changeAllQuantity = stock) {
+    allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);
+    changeAllQuantity = ACTION (###batchProp batch, ###object object, Stock stock) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             requestedNumeric() <- NULL;
@@ -700,7 +700,7 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
 //        (quantitySku###object###stockProp(sku, object, stock) <= currentBalanceSkuStock(sku, stock));
     backgroundQuantity 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);  
     
-    changeQuantityCustomer(###skuProp skuProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION  {
+    changeQuantityCustomer = ACTION (###skuProp sku, ###object object, Stock stockProp, Stock stockExtra) {
         REQUEST NUMERIC[16,5] INPUT;
         IF detail##SupplierCustomer(sku, object, stockProp, stockExtra) THEN {
             IF requestedNumeric() THEN {
@@ -848,7 +848,7 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
 //        (quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock));
     backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
 
-    changeQuantityValueCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION  {
+    changeQuantityValueCustomer = ACTION (###batchProp batch, ###object object, Stock stockProp, Stock stockExtra) {
         IF detail##SupplierCustomer(batch, object, stockProp, stockExtra) THEN {
             IF requestedNumeric() THEN {
                 quantity(###detail detail) <- requestedNumeric() WHERE detail == detail##SupplierCustomer(batch, object, stockProp, stockExtra);
@@ -871,7 +871,7 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
             }
         }
     }
-    (###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra)changeQuantityCustomer = ACTION) {
+    changeQuantityCustomer = ACTION (###batchProp batch, ###object object, Stock stockProp, Stock stockExtra) {
         REQUEST NUMERIC[16,5] INPUT;
         changeQuantityValueCustomer(batch, object, stockProp, stockExtra);
     }
@@ -932,7 +932,7 @@ META defineDocumentSkuStockIn(object, detail, skuProp, stockProp)
 
     in 'Отм.' (###skuProp sku, ###object object) = TRUE IF detail(sku, object);
 
-    changeIn(###skuProp skuProp, ###object object) = ACTION  {
+    changeIn = ACTION (###skuProp sku, ###object object) {
         REQUEST BOOLEAN INPUT;
         IF NOT requestedLogical() THEN {
             IF detail(sku, object) THEN {
@@ -1133,7 +1133,7 @@ END
 
 META defineAddDetailDialogSkuStockCustomInner (object, class, detail, caption, skuProp, stockProp, form)
     @defineAddDetailDialogSkuCustom(object, detail, caption, skuProp, form);
-    addDetail###form##Stock###detail 'Подбор товаров'###caption(class object) = ACTION  {
+    addDetail###form##Stock###detail 'Подбор товаров'###caption = ACTION (class object) {
         ASSIGN form##Stock() <- stockProp(object);
         ASSIGN dialogAll(###skuProp sku) <- NULL;
 
@@ -1150,7 +1150,7 @@ META defineAddDetailDialogSkuCustom (object, detail, caption, skuProp, form)
 END
 
 META defineAddDetailDialogSkuCustomInner (object, class, detail, detailClass, caption, skuProp, form)
-    addDetail###form###detail 'Подбор товаров'###caption(class object) = ACTION  {
+    addDetail###form###detail 'Подбор товаров'###caption = ACTION (class object) {
         FORM form MODAL;
         IF formResult() == FormResult.ok THEN {
             FOR dialogQuantity(###skuProp sku) INLINE ADDOBJ w = detailClass DO {
@@ -1275,7 +1275,7 @@ META implementDocumentPrefix(object, prefixP, prefixQ)
     document[DocumentDetail](###object##Detail detail) += object(detail);
 
     overFillDocument = ACTION ABSTRACT (###object##Detail, DocumentDetail); 
-    fillDocument 'Подбор документа'(User###object user###object) = ACTION  {
+    fillDocument 'Подбор документа' = ACTION (User###object user###object) {
         FORM documents MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL chosenDocument = Document();

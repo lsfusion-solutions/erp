@@ -30,7 +30,7 @@ complianceGroup(UserInvoiceDetail userInvoiceDetail) <-
     WHEN CHANGED (country[InvoiceDetail](userInvoiceDetail)) OR
          CHANGED (sku(userInvoiceDetail));
 
-setComplianceGroup 'Заполнить группы сертификации'(UserInvoice invoice) = ACTION  {
+setComplianceGroup 'Заполнить группы сертификации' = ACTION (UserInvoice invoice) {
    FOR userInvoice(UserInvoiceDetail invoiceDetail) == invoice DO {
       complianceGroup(invoiceDetail) <- complianceGroup(country[InvoiceDetail](invoiceDetail), sku[InvoiceDetail](invoiceDetail));
    }
@@ -188,7 +188,7 @@ FORM complianceInvoices 'Накладные сертификации'
     FILTERS userInvoice(id)==i
 ;
 
-selectInvoices 'Выбрать накладные'(Compliance compliance) = ACTION  {
+selectInvoices 'Выбрать накладные' = ACTION (Compliance compliance) {
     FORM complianceInvoices OBJECTS c=compliance MODAL;
 } TOOLBAR;
 
@@ -207,7 +207,7 @@ calcComplianceSum 'Сертификация' (UserInvoiceDetail d) =
               BY compliance(d)
               ORDER d;
 
-recalculatePriceInvoice 'Рассчитать расходы (за ед.)'(Compliance compliance) = ACTION  {
+recalculatePriceInvoice 'Рассчитать расходы (за ед.)' = ACTION (Compliance compliance) {
     complianceSum(UserInvoiceDetail d) <- NUMERIC[16,2](calcComplianceSum(d)) WHERE compliance(d) == compliance;
     compliancePrice(UserInvoiceDetail d) <- complianceSum(d) / quantity(d) WHERE compliance(d) == compliance;
 } TOOLBAR;

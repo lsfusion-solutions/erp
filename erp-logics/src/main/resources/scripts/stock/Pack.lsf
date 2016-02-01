@@ -15,7 +15,7 @@ META definePackSku (caption, NS)
     
     CONSTRAINT sku(packBarcode(Sku item)) != item CHECKED BY packBarcode[Sku] MESSAGE 'Выбран неверный sku для штрихкода упаковки ('##caption##')';
     
-    changePack(Barcode barcode, Sku sku) = ACTION  {
+    changePack = ACTION (Barcode barcode, Sku sku) {
         REQUEST BOOLEAN INPUT;
         IF requestedLogical() THEN {
             ASSIGN packBarcode(sku) <- barcode;
@@ -34,7 +34,7 @@ META definePackSku (caption, NS)
     shortNameUOMPack 'Ед. изм. упаковки' (Sku sku)= shortNameUOM(packBarcode(sku));
     amountPack 'Кол-во в упаковке'(Sku sku) =amount(packBarcode(sku)) IN itemPack;
     
-    (Sku sku)changeValuePack = ACTION) {
+    changeValuePack = ACTION (Sku sku) {
         IF requestedNumeric() THEN {
             IF NOT packBarcode(sku) THEN {
                 FOR ADDOBJ b = Barcode DO {
@@ -52,9 +52,9 @@ META definePackSku (caption, NS)
                 DELETE Barcode p WHERE p==packBarcode(sku);
             }
         }
-    }(Sku sku)
+    }
 
-    changePack = sku) {
+    changePack = ACTION (Sku sku) {
         REQUEST NUMERIC[14,3] INPUT;
         EXEC changeValuePack(sku);
     }
@@ -80,14 +80,14 @@ META defineDocumentPack(object, detail, f)
 
     // Объявляем действия по изменению количества в упаковке и количества упаковок
     overChangeAmountPackUser = ACTION ABSTRACT LIST (###detail); 
-    changeAmountPackUser(###detail detail) = ACTION  {
+    changeAmountPackUser = ACTION (###detail detail) {
         REQUEST NUMERIC[14,3] INPUT;
         ASSIGN amountPack[User###detail](detail) <- requestedNumeric();
         ASSIGN quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
         EXEC overChangeAmountPackUser(detail);
     }
 
-    (User###detail detail)changePackQuantity = ACTION) {
+    changePackQuantity = ACTION (User###detail detail) {
         REQUEST NUMERIC[14,3] INPUT;
         ASSIGN packQuantity(detail) <- requestedNumeric();
         ASSIGN quantity(detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail));
@@ -123,7 +123,7 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
     packQuantity###stockProp 'Кол-во упаковок в документе' (sku, object, stock) = GROUP SUM packQuantity(###detail detail)
         BY skuProp(detail), object(detail), stockProp##Stock(detail);
 
-    changePackQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION  {
+    changePackQuantity = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
@@ -149,7 +149,7 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
         }
     }
 
-    (###skuProp skuProp, ###object object, Stock stock)changeAmountPack = ACTION) {
+    changeAmountPack = ACTION (###skuProp sku, ###object object, Stock stock) {
         REQUEST NUMERIC[14,3] INPUT;
         IF detail###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
@@ -189,7 +189,7 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
     packQuantity 'Кол-во упаковок в документе' (sku, object) = GROUP SUM packQuantity(###detail detail)
         BY skuProp(detail), object(detail);
 
-    changePackQuantity(###skuProp skuProp, ###object object) = ACTION  {
+    changePackQuantity = ACTION (###skuProp sku, ###object object) {
         REQUEST NUMERIC[14,3] INPUT;
         IF detail(sku, object) THEN {
             IF requestedNumeric() THEN {
@@ -209,7 +209,7 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
                 }
         }
     }
-    (###skuProp skuProp, ###object object)changeAmountPack = ACTION) {
+    changeAmountPack = ACTION (###skuProp sku, ###object object) {
         REQUEST NUMERIC[14,3] INPUT;
         IF detail(sku, object) THEN {
             IF requestedNumeric() THEN {

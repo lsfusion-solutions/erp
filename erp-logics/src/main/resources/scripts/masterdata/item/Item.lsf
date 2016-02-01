@@ -30,7 +30,7 @@ parent (ItemGroup itemGroup) += parent(itemGroup);
 
 in 'Отм.' = DATA LOCAL BOOLEAN (ItemGroup);
 
-moveItemGroup 'Перенести отмеченные группы в текущую'(itemGroup) = ACTION {
+moveItemGroup 'Перенести отмеченные группы в текущую' = ACTION (itemGroup){
 
     FOR in(ItemGroup i) DO{
         IF i != itemGroup THEN {
@@ -160,7 +160,7 @@ image (Item item) = OVERRIDE dataImage (item), overImage (item);
 openImage 'Открыть изображение' (Item item) = ACTION OPENFILE image(item);
 hasImage (Item item) = TRUE IF image(item) PERSISTENT;
 
-nullImage 'Сбросить'(Item item) = ACTION {
+nullImage 'Сбросить' = ACTION(Item item) {
     image(item) <- NULL;
 }
 
@@ -273,7 +273,7 @@ DESIGN item {
 }
 
 seekBarcode 'Штрихкод' = DATA LOCAL STRING[15] ();
-seekSkuBarcode() = ACTION {
+seekSkuBarcode = ACTION (){
     REQUEST STRING[15] INPUT;
     ASSIGN seekBarcode() <- NULL;
     ASSIGN seekBarcode() <- requestedString();
@@ -318,7 +318,7 @@ FORM items 'Товары'
     DIALOG Item OBJECT i  
 ;
 
-seekSkuGroupType() = ACTION  SEEK items.gt SystemGroupType.skuGroupType;
+seekSkuGroupType = ACTION () SEEK items.gt SystemGroupType.skuGroupType;
 EXTEND FORM items
     EVENTS
         ON INIT seekSkuGroupType()
@@ -406,7 +406,7 @@ META defineItemAttribute (attribute, caption, group)
             RGB(203,203,206) IF quantityChildWith###attribute (itemGroup) != descendantNumber(itemGroup)
                              AND NOT quantityParentWith###attribute (itemGroup);
 
-    setNullShow###attribute 'Снять признак для всех потомков'(ItemGroup itemGroup) = ACTION  {
+    setNullShow###attribute 'Снять признак для всех потомков' = ACTION (ItemGroup itemGroup) {
         FOR isParent (ItemGroup childGroup, itemGroup) DO {
             ASSIGN userShow###attribute(childGroup) <- NULL;
         }
@@ -546,7 +546,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
     }
     
     overReplace(oTo, oFrom) = ACTION ABSTRACT LIST (###object, ###object);
-    replace 'Объединить'(###object object) = ACTION  {
+    replace 'Объединить' = ACTION (###object object) {
         FORM confirmReplace###object OBJECTS o=object MODAL;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
@@ -632,7 +632,7 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
         MOVE functions.box;
     }
     
-    replace 'Объединить'(###object object) = ACTION  {
+    replace 'Объединить' = ACTION (###object object) {
         FORM confirmReplace###object OBJECTS o=object MODAL;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
@@ -924,7 +924,7 @@ META defineItemFilterValue(object, captionProp, o)
     ;
     DESIGN object##s###session { main{ preferredSize = (600, 400); } }    
   
-    add###object 'Добавить'(ItemGroup gg) = ACTION  {
+    add###object 'Добавить' = ACTION (ItemGroup gg) {
         FORM object###session OBJECTS gg = gg MODAL;    
         IF formResult() == FormResult.ok THEN {
             LOCAL loc = ###object();
@@ -949,7 +949,7 @@ META defineItemFilterValue(object, captionProp, o)
         PROPERTIES add###object(gg) FORCE PANEL TOOLBAR TODRAW t, EDITFORM(t), deletet = DELETE(t) FORCE PANEL TOOLBAR
     ; 
     
-    (Item i)change###object = ACTION) {
+    change###object = ACTION (Item i) {
         IF object(i) THEN {
             REQUEST OBJECT t
                 FORM object##s###session OBJECTS gg = itemGroup(i), t = object(i) CONTEXTFILTER t = object(i) DIALOG SHOWDROP;
@@ -984,7 +984,7 @@ FORM extractStringAttributeItem 'Выделение атрибута'
 ;
 
 possibleStringAttributeValue = DATA LOCAL BOOLEAN (VARSTRING[100]);
-changePossibleStringAttributeValue(VARSTRING[100] v) = ACTION  {
+changePossibleStringAttributeValue = ACTION (VARSTRING[100] v) {
     SEEK extractStringAttributeItem.to v;
 }
  
@@ -1014,7 +1014,7 @@ DESIGN extractStringAttributeItem {
     }
 }
 
-assignStringToFrom(VARSTRING[100] from) = ACTION  {
+assignStringToFrom = ACTION (VARSTRING[100] from) {
     SEEK extractStringAttributeItem.to from; 
 } 
 EXTEND FORM extractStringAttributeItem
@@ -1023,7 +1023,7 @@ EXTEND FORM extractStringAttributeItem
 ;
 
 META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
-    extract###object##FromCaption 'Выделить из названия'(Item i) = ACTION  {
+    extract###object##FromCaption 'Выделить из названия' = ACTION (Item i) {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
             FORM extractStringAttributeItem MODAL;
@@ -1060,7 +1060,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
 END
 
 META defineItemExtractPrimitiveAttribute(property, form, fromProp)
-    extract###property##FromCaption 'Выделить из названия'(Item i) = ACTION  {
+    extract###property##FromCaption 'Выделить из названия' = ACTION (Item i) {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
             FORM form MODAL;
@@ -1115,7 +1115,7 @@ DESIGN extractDoubleAttributeItem {
     }
 }
 
-assignDoubleToFrom(VARSTRING[100] from) = ACTION  {
+assignDoubleToFrom = ACTION (VARSTRING[100] from) {
     SEEK extractDoubleAttributeItem.to toInteger(replace(from AS VARSTRING[100], '%', ''));
 } 
 EXTEND FORM extractDoubleAttributeItem
@@ -1161,7 +1161,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
 @defineItemAttributeBatch (caption, 'Название');
 @implementItemAttribute(caption, 'Название', String, itemCaption);
 
-extractStringCaption 'Заменить в названии'(Item i) = ACTION  {
+extractStringCaption 'Заменить в названии' = ACTION (Item i) {
     IF i IS Item THEN {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
         FORM extractStringAttributeItem MODAL;
@@ -1776,7 +1776,7 @@ DESIGN options {
     } 
 }
 
-seekItemDate() = ACTION  {
+seekItemDate() = ACTION () {
     IF defaultItemDate() THEN {
         SEEK item.dtr defaultItemDate();
     }

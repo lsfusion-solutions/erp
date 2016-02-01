@@ -161,7 +161,7 @@ DESIGN priceListDashboard {
 
 // Создание прайс-листов
 
-fillCompany(UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company) = ACTION  {
+fillCompany = ACTION (UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company) {
     fromDate(userPriceList) <- toDate(dateTime);
     fromTime(userPriceList) <- toTime(dateTime);
     company(userPriceList) <- company;
@@ -175,7 +175,7 @@ fillCompany(UserPriceList userPriceList, DATETIME dateTime, PriceListType dataPr
 }
 
 // Добавление в ассортимент
-includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = ACTION  {
+includeDataCompany 'Включить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) {
     NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompany(u, dateTime, dataPriceListType, company);
@@ -190,7 +190,7 @@ includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPrice
 }
 
 // Изменение цен
-modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = ACTION  {
+modifyDataCompany 'Изменить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) {
     NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompany(u, dateTime, dataPriceListType, company);
@@ -208,7 +208,7 @@ modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceL
 }
 
 // Исключение из ассортимента
-excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) = ACTION  {
+excludeDataCompany 'Исключить' = ACTION (DATETIME dateTime, PriceListType dataPriceListType, LegalEntity company, PriceList.Operation operation) {
     NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompany(u, dateTime, dataPriceListType, company);
@@ -341,7 +341,7 @@ DESIGN priceListDashboard {
     }
 }
 
-fillCompanyPriceList(UserPriceList u, LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = ACTION  {
+fillCompanyPriceList = ACTION (UserPriceList u, LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) {
     fromDate(u) <- toDate(dateTime);
     fromTime(u) <- toTime(dateTime);
     company(u) <- company;
@@ -356,7 +356,7 @@ fillCompanyPriceList(UserPriceList u, LegalEntity company, DATETIME dateTime, Pr
     }
 }
 
-createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = ACTION  {
+createCompanyPriceList = ACTION (LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) {
     NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
@@ -366,7 +366,7 @@ createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dat
     }
 }
 
-createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) = ACTION  {
+createWPricesCompanyPriceList = ACTION (LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock stock) {
     NEWSESSION NESTED in[Sku] {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
@@ -380,14 +380,14 @@ createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListT
 }
 
 // Изменение цен
-modifyData 'Изменить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = ACTION  {
+modifyData 'Изменить' = ACTION (DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) {
     FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createWPricesCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
 }
 
 // Исключение из ассортимента
-excludeData 'Исключить'(DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) = ACTION  {
+excludeData 'Исключить' = ACTION (DATETIME dateTime, LedgerPriceListType dataPriceListType, Stock stock) {
     FOR [= GROUP SUM 1 IF in(Sku s) BY companyA(LedgerPriceListType t, s, Stock st, DATETIME d), t, st, d] (LegalEntity company, dataPriceListType, stock, dateTime) DO {
         createCompanyPriceList(company, dateTime, dataPriceListType, stock);
     }
@@ -412,7 +412,7 @@ DESIGN priceListDashboard {
 // ----------------------------------- Список прайсов ---------------------------- //
 // p
 
-addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type, DATETIME dateTime) = ACTION  NEWSESSION {
+addUserPriceList 'Добавить' = ACTION (LegalEntity legalEntity, PriceListType type, DATETIME dateTime) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
         company(p) <- legalEntity;
         fromDate(p) <- toDate(dateTime);
@@ -460,7 +460,7 @@ DESIGN priceListDashboard {
 
 // ------------------- Импорт прайсов --------------------------- //
 importTime = ABSTRACT BOOLEAN (UserPriceList);
-importUserPriceList 'Импортировать'(LegalEntity c, ImportUserPriceListType t, DATETIME dt) = ACTION  NEWSESSION {
+importUserPriceList 'Импортировать' = ACTION (LegalEntity c, ImportUserPriceListType t, DATETIME dt) NEWSESSION {
     FOR ADDOBJ p = UserPriceList DO {
         importUserPriceListType(p) <- t;
         company(p) <- c;

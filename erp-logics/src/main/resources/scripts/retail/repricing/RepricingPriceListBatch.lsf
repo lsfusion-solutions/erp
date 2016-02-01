@@ -8,7 +8,7 @@ managementRetailPrice 'Цена (управленческая)' = DATA LOCAL NES
 inDashboardRepricing 'Вкл' = DATA LOCAL NESTED BOOLEAN (Batch); 
 //assignAttributeBatch = ACTION ABSTRACT (Stock, Operation, DATETIME);
 
-calculateDashboardManagementRepricingBatch 'По прайсам'(Stock d, Operation o, DATETIME dt) = ACTION  {
+calculateDashboardManagementRepricingBatch 'По прайсам' = ACTION (Stock d, Operation o, DATETIME dt) {
     managementRetailPrice(Batch batch) <- NULL;
     managementRetailPrice(Batch batch) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)), batch, d, dt) 
         WHERE currentBalance(batch, d) > 0 AND skipRepricing(sku(batch), d); // Берем только те товары, которые исключили из переоценки по товарам
@@ -19,7 +19,7 @@ calculateDashboardManagementRepricingBatch 'По прайсам'(Stock d, Operat
 
 //repForm =  DATA LOCAL UserRepricing();  
 
-createDashboardRepricingNotFormBatch 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION  {
+createDashboardRepricingNotFormBatch 'Создать переоценку' = ACTION (Stock d, Operation o, DATETIME dt) {
     IF [ = GROUP SUM 1 IF inDashboardRepricing(Batch batch)]() THEN {
         FOR ADDOBJ r = UserRepricing DO {
             departmentStore(r) <- d;
@@ -43,7 +43,7 @@ createDashboardRepricingNotFormBatch 'Создать переоценку'(Stock
     }
 } TOOLBAR;
 
-createDashboardRepricingBatch 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION   NEWSESSION NESTED LOCAL  {
+createDashboardRepricingBatch 'Создать переоценку' = ACTION  (Stock d, Operation o, DATETIME dt) NEWSESSION NESTED LOCAL  {
     createDashboardRepricingNotFormBatch(d, o, dt);
     FORM userRepricing OBJECTS p = repForm() MANAGESESSION DOCKEDMODAL;
     repForm() <- NULL;      

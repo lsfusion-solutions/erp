@@ -153,7 +153,7 @@ nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE name(truck
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
 
-changeTruck(Consignment consignment) = ACTION {
+changeTruck = ACTION (Consignment consignment){
     
     IF notUseDriverTruck(consignment) THEN {
         REQUEST VARSTRING[70] INPUT;
@@ -206,7 +206,7 @@ dataNameDriver = DATA VARSTRING[30] (Consignment);
 nameDriver 'Водитель' (Consignment consignment) = OVERRIDE shortName(driver(consignment)),
                                                           shortName(dataEmployee(consignment)), dataNameDriver(consignment) IN carConsignment;
                                                           
-changeDriver(Consignment consignment) = ACTION {
+changeDriver = ACTION (Consignment consignment){
     
     IF notUseDriverTruck(consignment) THEN {
         REQUEST VARSTRING[70] INPUT;
@@ -266,7 +266,7 @@ dataIssuanceAllowed = DATA VARSTRING[100](Consignment);
 issuanceAllowed (consignment) = ABSTRACT Employee (Consignment);
 nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE positionShortName(issuanceAllowed(consignment)),
                                                                                              dataIssuanceAllowed(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
-changeIssuanceAllowed(Consignment consignment) = ACTION {    
+changeIssuanceAllowed = ACTION (Consignment consignment){    
     IF notUseIssuanceAllowed(consignment) THEN {
         REQUEST VARSTRING[100] INPUT;
         dataIssuanceAllowed(consignment) <- requestedString();         
@@ -284,7 +284,7 @@ dataIssuanceExecuted = DATA VARSTRING[100](Consignment);
 issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
 nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) = OVERRIDE positionShortName(issuanceExecuted(consignment)),
                                                                                               dataIssuanceExecuted(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
-changeIssuanceExecuted(Consignment consignment) = ACTION {    
+changeIssuanceExecuted = ACTION (Consignment consignment){    
     IF notUseIssuanceExecuted(consignment) THEN {
         REQUEST VARSTRING[100] INPUT;
         dataIssuanceExecuted(consignment) <- requestedString();
@@ -306,7 +306,7 @@ forwarder 'Товар к перевозке принял (экспедитор),
     positionShortName(dataForwarder(consignment)), 
     dataNameForwarder(consignment) IN issuanceConsignment MINCHARWIDTH 30 PREFCHARWIDTH 30;
 
-changeForwarder(Consignment consignment) = ACTION {
+changeForwarder = ACTION (Consignment consignment){
     
     IF notUseDriverTruck(consignment) THEN {
         REQUEST VARSTRING[70] INPUT;
@@ -334,7 +334,7 @@ overGoodsAccepted 'Принял грузополучатель'  = OVERRIDE
     positionShortName(dataGoodsAccepted(Consignment consignment)), 
     goodsAccepted(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 40;
     
-changeGoodsAccepted(Consignment consignment) = ACTION {    
+changeGoodsAccepted = ACTION (Consignment consignment){    
     IF useGoodsAccepted(consignment) THEN {
         REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
@@ -893,7 +893,7 @@ DESIGN consignment {
     MOVE functions.box;
 }
 
-editAttributes 'Заполнить атрибуты накладной' (Consignment consignment) = ACTION  NEWSESSION {
+editAttributes 'Заполнить атрибуты накладной' (Consignment consignment) = ACTION (consignment) NEWSESSION {
     IF NOT isArrivalTime(consignment) AND NOT dataArrivalTime(consignment) THEN {
         dataArrivalTime(consignment) <- currentDateTime();
     }    

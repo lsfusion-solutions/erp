@@ -90,7 +90,7 @@ DESIGN extraChargeInvoices {
     }
 }
 
-selectExtraCharge 'Выбрать накладные'(UserInvoice i) = ACTION  {   
+selectExtraCharge 'Выбрать накладные' = ACTION (UserInvoice i) {   
     filterOperationExtraCharge(i) <- operation('purchase_external'); // todo: пока пишем явно операцию
     FORM extraChargeInvoices OBJECTS i=i MODAL;
 } TOOLBAR;
@@ -132,7 +132,7 @@ DESIGN userInvoice {
 
 calcChargeSum(Invoice i) = NUMERIC[16,2](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
-fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = ACTION  {
+fillExtraChargePriceUser 'Расписать услуги' = ACTION (Invoice i) {
     IF currency(i) THEN {    
         IF toWeightExtraCharge(i) THEN {
             extraChargeSum(i, UserInvoiceDetail d) <- 
@@ -216,10 +216,10 @@ DESIGN extraChargeParams {
     }
 }
 
-seekDefaultOperatioParams() = ACTION  {
+seekDefaultOperatioParams = ACTION () {
     SEEK extraChargeParams.o  operation('purchase_charge');
 }
-changeDefaultCurrencyParams(LegalEntity s) = ACTION  {
+changeDefaultCurrencyParams = ACTION (LegalEntity s) {
     SEEK extraChargeParams.c  currency(s);
 }    
 
@@ -228,7 +228,7 @@ EXTEND FORM extraChargeParams
     EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
     
-createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = ACTION  {   
+createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = ACTION (invoice) {   
     FORM extraChargeParams MODAL;    
     LOCAL o = Operation();
     LOCAL s = LegalEntity(); 

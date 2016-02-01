@@ -632,7 +632,7 @@ include 'Вкл' (Snapshot snapshot, Stock stock) =
              dataInclude(snapshot, stock)) IF isCompany(stock) PERSISTENT;
 countIncludeStocks= GROUP SUM 1 IF include(Snapshot r,Stock st) BY r;
 
-deleteIncludeStocks 'Сбросить отмеченные'(Snapshot r) = ACTION  {
+deleteIncludeStocks 'Сбросить отмеченные' = ACTION (Snapshot r) {
     allStockInclude (r) <- NULL;
     dataInclude(r,StockGroup g) <- NULL;
     dataInclude (r,Stock st) <- NULL;
@@ -693,7 +693,7 @@ nameIncludeSkuGroups 'Группы товаров (все)' (document)=
 dataInclude (Snapshot o,SkuGroup g) <- dataInclude(snapshotType(o),g) IF g IS SkuGroup
     WHEN CHANGED(snapshotType(o));  
 
-deleteIncludeSkuGroups 'Сбросить отмеченные'(Snapshot r) = ACTION  {
+deleteIncludeSkuGroups 'Сбросить отмеченные' = ACTION (Snapshot r) {
     dataInclude(r,SkuGroup g) <- NULL;
 };
     
@@ -712,7 +712,7 @@ backgroundStatus 'Цвет' (Snapshot snapshot) =  CASE
                                           WHEN snapshot IS Snapshot THEN RGB(255,200,216)
                                       ;
 //overNetWeightSkuBatch (batch)= OVERRIDE overNetWeightSku(skuBatch(batch)), (sumNetWeightInvoiceDetail(invoiceDetailBatch(batch))/(quantityInvoiceDetail(invoiceDetailBatch(batch)) IF quantityInvoiceDetail(invoiceDetailBatch(batch))!=0));
-takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION  {
+takeFromTo  = ACTION (Snapshot snapshot, DATE dateFrom, DATE dateTo) {
     apply();  
     startTime(snapshot) <- currentDateTime();   
     IF countIncludeSku(snapshot) AND countIncludeStock(snapshot) THEN {      
@@ -1014,7 +1014,7 @@ takeFromTo(Snapshot snapshot, DATE dateFrom, DATE dateTo)  = ACTION  {
     }           
 };
 
-takeData 'Сформировать отчет' (Snapshot snapshot) = ACTION  { 
+takeData 'Сформировать отчет' (Snapshot snapshot) = ACTION (snapshot) { 
     IF finishTime(snapshot) THEN {
         CONFIRM 'Вы действительно хотите выполнить действие "Сформировать отчет?"';
         IF (confirmed()) THEN {            
@@ -1178,7 +1178,7 @@ DESIGN snapshotType {
 in (SnapshotType type, DATE date) = ((countDOWsIn(type) AND in(type, extractDOW(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDOWsIn(type))) AND
                               ((countDaysIn(type) AND inDays(type, extractDay(date))) OR (type IS SnapshotType AND date IS DATE AND NOT countDaysIn(type)));            
   
-createSnapshotString 'Создать отчет'(STRING[100] string, DATE dateTo) = ACTION  NEWSESSION { 
+createSnapshotString 'Создать отчет' = ACTION (STRING[100] string, DATE dateTo) NEWSESSION { 
     FOR idReport(SnapshotType type) == string  DO {
         IF in(type, currentDate()) AND countDays(type) THEN {     
 
@@ -1220,7 +1220,7 @@ DESIGN options{
     }
 }
 
-deleteSnapshots 'Удальть старые аналитические отчеты'()= ACTION  {
+deleteSnapshots 'Удальть старые аналитические отчеты'= ACTION () {
     DELETE Snapshot r WHERE sum(date(r),countDaysDelete(snapshotType(r))) < currentDate()
         OR (NOT snapshotType(r) AND sum(date(r), countDaysDeleteSnapshots()) < currentDate());
 }

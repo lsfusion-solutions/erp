@@ -12,7 +12,7 @@ showHumidity 'Отображать влажность' = DATA BOOLEAN(BOM) IN do
 percentHumidity 'Влажность, %' (Product p) = percentHumidity(sku(p)) IN itemHumidity;
 @changeNutrition(product, sku, percentHumidity) ;
 percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
-changePercentDryness(Product product)  = ACTION  {
+changePercentDryness  = ACTION (Product product) {
     REQUEST  NUMERIC[8,2] INPUT ;
     IF requestedNumeric() THEN {
         percentHumidity(Item item) <- (100-requestedNumeric()) WHERE item == sku(product);
@@ -25,7 +25,7 @@ changePercentDryness(Product product)  = ACTION  {
 percentHumidity 'Влажность, %' (Component component) = percentHumidity[Item](overSku(component));
 @changeNutrition(component, overSku, percentHumidity);
 percentDryness 'Массовая доля сухих веществ, %' (Component component) = percentDryness[Item](overSku(component)) IN itemHumidity;     
-changePercentDryness(Component component)  = ACTION  {
+changePercentDryness  = ACTION (Component component) {
     REQUEST  NUMERIC[8,2] INPUT ;
     IF requestedNumeric() THEN {
         percentHumidity(Item item) <- (100-requestedNumeric()) WHERE item == overSku(component);
@@ -137,7 +137,7 @@ FORM productionRecipe 'Производственная рецептура'
                   material(c2) IS Product                      
                   
 ;
-printProductionRecipe 'Производственная рецептура'(BOM BOM)  = ACTION  NEWSESSION {
+printProductionRecipe 'Производственная рецептура'  = ACTION (BOM BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM productionRecipe OBJECTS dt = chosenDate('d'), b = BOM PRINT;
@@ -185,7 +185,7 @@ calcNetEnergyGramsQuantity'Энергетическая ценность в ре
     netFatsGramsQuantity(p,d)*9 (+)
     netCarbohydratesGramsQuantity(p,d)*4;
     
-fillNutrition 'Записать энерг.ценность' (BOM BOM) = ACTION  {
+fillNutrition 'Записать энерг.ценность' (BOM BOM) = ACTION (BOM) {
     FOR BOM(Product p) == BOM DO {
         proteins(Item item)<- NUMERIC[8,2](netProteinsGramsQuantity(p,currentDate())) WHERE item == sku(p);
         fats(Item item)<- NUMERIC[8,2](netFatsGramsQuantity(p,currentDate())) WHERE item == sku(p);     
@@ -223,7 +223,7 @@ FORM nutritionalValue 'Пищевая ценность'
                         carbohydratesGramsQuantity, energyGramsQuantity 
     FILTERS recBruttoQuantity(b,sk,dt)                                      
 ;
-printNutritionalValue 'Расчет пищевой ценности'(BOM BOM)  = ACTION  NEWSESSION {
+printNutritionalValue 'Расчет пищевой ценности'  = ACTION (BOM BOM) NEWSESSION {
     FORM dialogDate MODAL;
         IF formResult() == FormResult.ok THEN {
             FORM nutritionalValue OBJECTS dt = chosenDate('d'), b = BOM PRINT;

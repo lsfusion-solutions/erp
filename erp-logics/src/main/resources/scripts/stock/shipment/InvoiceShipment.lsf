@@ -49,7 +49,7 @@ addUserShipment  = ACTION ABSTRACT CASE OVERRIDE (Invoice);
 
 receiveShipment 'Принять полностью' = ACTION ABSTRACT LIST (Invoice);
 
-createMultiShipment 'Принять полностью'(Invoice invoice) = ACTION  NEWSESSION {
+createMultiShipment 'Принять полностью' = ACTION (Invoice invoice) NEWSESSION {
     IF createShipment(invoice) THEN {
         MESSAGE 'Для данного инвойса уже создана накладная'; 
     } ELSE {
@@ -59,7 +59,7 @@ createMultiShipment 'Принять полностью'(Invoice invoice) = ACTIO
 }
 
 deleteCreate  = ACTION ABSTRACT CASE OVERRIDE (Shipment);
-deleteMulti 'Удалить полностью'(Shipment shipment) = ACTION  NEWSESSION {
+deleteMulti 'Удалить полностью' = ACTION (Shipment shipment) NEWSESSION {
     IF shipment IS Shipment AND NOT isUser(shipment) THEN {
         deleteCreate(shipment); 
     }
@@ -198,7 +198,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     overFillInvoice = ACTION ABSTRACT LIST (UserShipment, Invoice);                          // документ
     overFillInvoice = ACTION ABSTRACT LIST (UserShipmentDetail, InvoiceDetail);  // детайл
 
-    fillInvoice 'Заполнить на основе накладной'(UserShipment userShipment) =  ACTION  {
+    fillInvoice 'Заполнить на основе накладной' =  ACTION (UserShipment userShipment) {
         FORM shipmentInvoices OBJECTS s = supplier(userShipment), c = customer(userShipment) MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL saleInvoice = Invoice();
@@ -260,14 +260,14 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     defaultInvoiceDetail (sku, dimension, userShipment) = GROUP MAX InvoiceDetail detail IF include(invoice(detail), UserShipment userShipment)
         BY sku(detail), shipmentDimension(detail), userShipment;
 
-    fillInvoiceDetail (UserShipmentDetail detail, ShipmentDimension dimension)'Привязать поставку к накладным' = ACTION) {
+    fillInvoiceDetail 'Привязать поставку к накладным' = ACTION (UserShipmentDetail detail, ShipmentDimension dimension) {
 
         invoiceDetail(detail) <- IF dimension IS ShipmentDimension
                                     THEN defaultInvoiceDetail(sku(detail), dimension, userShipment(detail))
                                     ELSE defaultInvoiceDetail(sku(detail), userShipment(detail));
     };
 
-    fillInvoiceDetail(UserShipment userShipment, ShipmentDimension dimension) 'Привязать поставку к накладным' = dimension) {
+    fillInvoiceDetail 'Привязать поставку к накладным' = ACTION (UserShipment userShipment, ShipmentDimension dimension) {
         FOR userShipment(UserShipmentDetail detail) == userShipment DO {
             EXEC fillInvoiceDetail(detail, dimension);
         }
@@ -540,7 +540,7 @@ END
 //-- Действие
 
 META defineInvoiceShipmentAction (sign)
-    addUserShipment 'Поставка'###sign(Invoice invoice) =  ACTION  NEWSESSION{
+    addUserShipment 'Поставка'###sign =  ACTION (Invoice invoice) NEWSESSION{
 
         FOR ADDOBJ s = UserShipment DO {
 

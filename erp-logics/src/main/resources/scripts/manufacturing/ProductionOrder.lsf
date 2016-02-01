@@ -344,7 +344,7 @@ FORM dialogBatchStockOrder 'Партии'
 ;
 
 
-changeBatch(ComponentDetail d) = ACTION  {
+changeBatch = ACTION (ComponentDetail d) {
     IF batch(d) THEN {
         FORM dialogBatchStockOrder OBJECTS st = componentsStock(d),
                                  t = dateTime(d),
@@ -391,7 +391,7 @@ CONSTRAINT component(ComponentDetail d) AND componentsStock(d) AND countStocks(B
     CHECKED BY BOM[ComponentDetail]
     MESSAGE 'Для строки компонента в производственном заказе выбрана компонента, которая не действует для склада компонента.';
 
-createComponents 'Заполнить компоненты из спецификации'(Order order) = ACTION  {
+createComponents 'Заполнить компоненты из спецификации' = ACTION (Order order) {
 
     FOR quantityProducts(BOM BOM, order) DO {
 
@@ -423,7 +423,7 @@ recBOMQuantity 'Рекур.кол-во' (BOM, order, sku) = GROUP SUM recBruttoQ
 
 productionCoeff = ABSTRACT NUMERIC[20,9] (ComponentDetail);
 quantityCoeff(ComponentDetail d) = OVERRIDE 1.0 IF d IS ComponentDetail, productionCoeff(d) PERSISTENT; 
-createRecComponents 'Заполнить из спецификации (рекурсивно)'(Order order) = ACTION   {
+createRecComponents 'Заполнить из спецификации (рекурсивно)' = ACTION (Order order)  {
 
     FOR NUMERIC[91,46] q == recBruttoQuantity(BOM BOM, order, Sku sku) ORDER BOM ADDOBJ d = ComponentDetail DO {
         order(d) <- order;
@@ -437,7 +437,7 @@ createRecComponents 'Заполнить из спецификации (реку�
 calcSkuBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), sku(d)) * quantityCoeff(d);
 calcSkuBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), sku(d)) * quantityCoeff(d);
 
-updateComponentsOrder 'Пересчитать кол-во для всех'(order) = ACTION  {
+updateComponentsOrder 'Пересчитать кол-во для всех' = ACTION (order) {
     bruttoQuantity(ComponentDetail d) <- calcSkuBruttoQuantity (d);
     BOMQuantity(ComponentDetail d)  <- calcSkuBOMQuantity(d);
 } TOOLBAR;
@@ -449,7 +449,7 @@ quantityComponents 'Кол-во спецификаций' (BOM BOM, Order order)
     BY BOM(component(componentDetail)), order(componentDetail)](BOM, order);
 
 overCreateProducts = ACTION ABSTRACT LIST (Order);
-createProducts 'Заполнить изделия из спецификации '(Order order) = ACTION   {
+createProducts 'Заполнить изделия из спецификации ' = ACTION (Order order)  {
 
     FOR NUMERIC[35,19] q == quantityComponents(BOM(Product product), order) ADDOBJ d = ProductDetail DO {
         order(d) <- order;
@@ -461,7 +461,7 @@ createProducts 'Заполнить изделия из спецификации 
     overCreateProducts(order);
 } TOOLBAR;
 
-expand 'Развернуть изделие'(ComponentDetail componentDetail) = ACTION   {
+expand 'Развернуть изделие' = ACTION (ComponentDetail componentDetail)  {
 
     FOR  BOM(Component component) == BOM(product(componentDetail))  DO {
         FOR ADDOBJ d=ComponentDetail DO {
@@ -496,7 +496,7 @@ recBOMQuantity 'Рекур.кол-во' (BOM, order, component) = GROUP SUM recB
 calcComponentBruttoQuantity (ComponentDetail d) = recBruttoQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 calcComponentBOMQuantity (ComponentDetail d) = recBOMQuantity(BOM(d), order(d), component(d)) * quantityCoeff(d);
 
-createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)'(Order order) = ACTION   {
+createForRecComponents 'Заполнить из спецификации (рекурсивно по компонентам)' = ACTION (Order order)  {
 
     FOR NUMERIC[91,46] q == recBruttoQuantity(BOM BOM, order, Component component) IF material(component) IS Sku ORDER BOM ADDOBJ d = ComponentDetail DO {
         order(d) <- order;
@@ -568,7 +568,7 @@ substitutesPrice 'Цена' (Sku sku,Order order)= prevPriceB(priceListType(orde
 showPriceSubstitutes (Order order) = stockSubstitutesSku() AND priceListType(order);
 
 multiplierSubstituteTo 'Коэффициент' (Sku fromSku ,Sku toSku) =  multiplier(uniqueSubstituteFromTo(fromSku ,toSku));
-changeMultiplierSubstituteFromTo(Sku fromSku, Sku toSku) = ACTION  {
+changeMultiplierSubstituteFromTo = ACTION (Sku fromSku, Sku toSku) {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN {         
         IF uniqueSubstituteFromTo(fromSku, toSku) THEN {
@@ -659,7 +659,7 @@ DESIGN substitutesSku {
     }
 }
 
-chooseSubstitute 'Выбрать замену'(Sku fromSku, Order order) =  ACTION  {
+chooseSubstitute 'Выбрать замену' =  ACTION (Sku fromSku, Order order) {
     stockSubstitutesSku() <- NULL;
     BOMSubstitutesSku() <- NULL;
     stockSubstitutesSku() <- componentsStock(order) WHERE componentsStock(order);
@@ -682,7 +682,7 @@ substitutesPrice 'Цена' (Substitute substitute, Order order)= prevPriceB(pri
 
 // Действие по заполнении замены через галочку
 is 'Использовать замену' (Substitute substitute, Sku sku, Order order) = substitute(sku, order) == toSku(substitute);
-change(Substitute substitute, Sku sku, Order order) = ACTION  {
+change = ACTION (Substitute substitute, Sku sku, Order order) {
     REQUEST BOOLEAN INPUT;
     IF requestedLogical() THEN {
         substitute(sku, order) <- toSku(substitute);
@@ -764,13 +764,13 @@ calcPremiumPrice 'Цена расчетная (с надбавками)' (Produc
                                          
 // Изменение надбавок при вводе пользователем процента
 
-changeValueMarkup (ProductDetail detail) = ACTION  {
+changeValueMarkup (ProductDetail detail) = ACTION (detail) {
     IF calcPremiumPrice(detail) THEN {
         price(detail) <- calcPremiumPrice(detail);
     }
 }
 
-changeComponentsPrice (ProductDetail detail) = ACTION  {
+changeComponentsPrice (ProductDetail detail) = ACTION (detail) {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
         componentsPrice (detail) <- requestedNumeric();
@@ -781,7 +781,7 @@ changeComponentsPrice (ProductDetail detail) = ACTION  {
 
 // Изменение коэффициентов и цен
 overChangePriceCoeff = ACTION ABSTRACT LIST (ProductDetail);
-changePriceCoeff(ProductDetail detail) = ACTION  {
+changePriceCoeff = ACTION (ProductDetail detail) {
     REQUEST NUMERIC[8,5] INPUT;
     IF requestedNumeric() THEN {        
         pricePercent(detail) <- NUMERIC[16,5](calcPricePercentNumeric(detail, requestedNumeric()));
@@ -792,7 +792,7 @@ changePriceCoeff(ProductDetail detail) = ACTION  {
     }
 }
 overChangePricePercent = ACTION ABSTRACT LIST (ProductDetail);
-changePricePercent(ProductDetail detail) = ACTION  {
+changePricePercent = ACTION (ProductDetail detail) {
     REQUEST NUMERIC[16,5] INPUT;
     IF requestedNumeric() THEN {
         pricePercent(detail) <- requestedNumeric(); 
@@ -804,7 +804,7 @@ changePricePercent(ProductDetail detail) = ACTION  {
 }   
 
 
-changeMarkup (ProductDetail detail) = ACTION  {
+changeMarkup (ProductDetail detail) = ACTION (detail) {
     REQUEST NUMERIC[10,4] INPUT;
     IF requestedNumeric() THEN {
         markup (detail) <- requestedNumeric();
@@ -824,7 +824,7 @@ calcMarkup(ProductDetail d)  = [= round2((X/Y-1)*100)](
 notRecalculateMarkup = ABSTRACT BOOLEAN (Order);
 notRecalculateMarkupOrder(ProductDetail detail) = notRecalculateMarkup(order(detail)); 
 
-changeValueProductsPrice (ProductDetail detail) = ACTION  {
+changeValueProductsPrice (ProductDetail detail) = ACTION (detail) {
     IF addVAT(detail) THEN {
         markup(detail) <- calcMarkupIsVAT(detail);
         IF notRecalculateMarkupOrder(detail) THEN {
@@ -842,7 +842,7 @@ changeValueProductsPrice (ProductDetail detail) = ACTION  {
 //пересчет цены изделия
                                                                                              
 overChangeProductsPrice = ACTION ABSTRACT LIST (ProductDetail);
-changeProductsPrice (ProductDetail detail) = ACTION  {
+changeProductsPrice (ProductDetail detail) = ACTION (detail) {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN {
         price (detail) <- requestedNumeric();
@@ -857,7 +857,7 @@ changeProductsPrice (ProductDetail detail) = ACTION  {
     }
 }
 
-recordMarkup(ProductDetail detail) = ACTION  {
+recordMarkup(ProductDetail detail) = ACTION (detail) {
     IF calcPriceListType(detail) THEN {
         markup(detail) <- markup(calcPriceListType(detail), sku(detail));
         changeValueMarkup(detail);
@@ -906,7 +906,7 @@ calcValueVAT 'НДС, %' = OVERRIDE 0.0, (sumVATComponents(ProductDetail d) * 10
                                                                      (sumVATComponentDetail(BOM(d), order(d)) - sumVATComponents(d)));
 // Расчет цен для изделий
 overFillPrice = ACTION ABSTRACT LIST (ProductDetail);
-fillPrice 'Заполнить цены для изделий'(ProductDetail detail) = ACTION   {
+fillPrice 'Заполнить цены для изделий' = ACTION (ProductDetail detail)  {
     valueVAT(detail) <- calcValueVAT(detail);
     componentsPrice(detail) <- calcComponentsPrice(detail);
     costPrice(detail) <- calcCost(detail);
@@ -936,7 +936,7 @@ fillPrice 'Заполнить цены для изделий'(ProductDetail deta
 
 
 
-fillPriceProducts 'Заполнить цены для изделий'(Order order) = ACTION   {
+fillPriceProducts 'Заполнить цены для изделий' = ACTION (Order order)  {
     FOR order(ProductDetail detail) == order INLINE DO {
         fillPrice(detail);                                                    
     }
@@ -944,7 +944,7 @@ fillPriceProducts 'Заполнить цены для изделий'(Order orde
 
 //-- Замены для компонентов
 
-chooseSubstitute 'Выбрать замену'(ComponentDetail detail) =  ACTION {
+chooseSubstitute 'Выбрать замену' =  ACTION (ComponentDetail detail){
     stockSubstitutesSku() <- NULL;
     BOMSubstitutesSku()<- NULL;
     
@@ -969,7 +969,7 @@ chooseSubstitute 'Выбрать замену'(ComponentDetail detail) =  ACTION
 backgroundSubstitutes 'Цвет' (Sku sku, Order order) = RGB(255,224,255) IF substituteQuantity(sku, order);
 
 
-resetSubstitute 'Сбросить все замены'(Order order) = ACTION  {
+resetSubstitute 'Сбросить все замены' = ACTION (Order order) {
     FOR substitute(Sku sku, order) OR multiplier(sku, order) DO {
         substitute(sku, order) <- NULL;
         multiplier(sku, order) <- NULL;
@@ -978,7 +978,7 @@ resetSubstitute 'Сбросить все замены'(Order order) = ACTION  {
     }
 } TOOLBAR;
 
-deleteComponents 'Очистить'(Order order) =  ACTION  {
+deleteComponents 'Очистить' =  ACTION (Order order) {
     deleteComponentDetail(order);
     resetSubstitute(order);
 } TOOLBAR;
@@ -1006,7 +1006,7 @@ DESIGN multiplier {
     }
 } 
 
-fillSubstitutePriceFromTo 'Использовать цену'(Order order, Sku sku, Sku skuSubstitute) = ACTION  {
+fillSubstitutePriceFromTo 'Использовать цену' = ACTION (Order order, Sku sku, Sku skuSubstitute) {
     IF multiplierSubstituteTo(sku, skuSubstitute) THEN {
         dataBruttoPrice(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order));
         cost(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, skuSubstitute)*calcCost(skuSubstitute,priceStock(order)));
@@ -1039,7 +1039,7 @@ minSubstituteSkuPrice = GROUP LAST Sku skuSubstitute
     WHERE currentBalancePriceStock(skuSubstitute,order) >0 AND multiplierSubstituteTo(sku, skuSubstitute) AND priceStock(skuSubstitute,order) 
 ;          
          
-fillSubstitutePriceMaxFrom 'Исп. max цену'(Order order, Sku sku) = ACTION  {
+fillSubstitutePriceMaxFrom 'Исп. max цену' = ACTION (Order order, Sku sku) {
     LOCAL sku = Sku ();
     sku() <- NULL;
     sku() <- maxSubstituteSkuPrice(sku, order);
@@ -1047,7 +1047,7 @@ fillSubstitutePriceMaxFrom 'Исп. max цену'(Order order, Sku sku) = ACTION
     dataBruttoPrice(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();     
     cost(sku, order) <- NUMERIC[14,2](calcCost(sku(),priceStock(order))) WHERE sku();   
 };  
-fillSubstitutePriceMinFrom 'Исп. min цену'(Order order, Sku sku) = ACTION  {
+fillSubstitutePriceMinFrom 'Исп. min цену' = ACTION (Order order, Sku sku) {
     LOCAL sku = Sku ();
     sku() <- NULL;
     sku() <- minSubstituteSkuPrice(sku, order);
@@ -1057,13 +1057,13 @@ fillSubstitutePriceMinFrom 'Исп. min цену'(Order order, Sku sku) = ACTION
        
 };   
 
-fillSubstitutePriceMax 'Исп. max цену'(Order order) = ACTION  {
+fillSubstitutePriceMax 'Исп. max цену' = ACTION (Order order) {
     FOR quantityComponentDetail(Sku sku,order) DO {
         fillSubstitutePriceMaxFrom(order,sku);
     }   
         
 } TOOLBAR;  
-fillSubstitutePriceMin 'Исп. min цену'(Order order) = ACTION  {
+fillSubstitutePriceMin 'Исп. min цену' = ACTION (Order order) {
     FOR quantityComponentDetail(Sku sku,order) DO {
         fillSubstitutePriceMinFrom(order,sku);
     }       
@@ -1075,7 +1075,7 @@ maxSkuBalanceSubstitute (sku, order) =
           ORDER (currentBalancePriceStock(skuSubstitute,order) /(multiplierSubstituteTo(sku, skuSubstitute) IF multiplierSubstituteTo(sku, skuSubstitute)!=0)), skuSubstitute
           WHERE priceStock(skuSubstitute,order) AND currentBalancePriceStock(skuSubstitute,order) AND multiplierSubstituteTo(sku, skuSubstitute);
 
-fillSubstitutePriceMaxBalanceFrom 'Исп. цену большего остатка'(Order order, Sku sku) = ACTION  {
+fillSubstitutePriceMaxBalanceFrom 'Исп. цену большего остатка' = ACTION (Order order, Sku sku) {
     LOCAL sku = Sku();
     sku() <- NULL;
     sku() <- maxSkuBalanceSubstitute (sku, order);
@@ -1083,7 +1083,7 @@ fillSubstitutePriceMaxBalanceFrom 'Исп. цену большего остат�
     cost(sku, order) <- NUMERIC[14,2](calcCost(sku(),priceStock(order))) WHERE sku();   
      
 }; 
-fillSubstitutePriceMaxBalance 'Исп. цену большего остатка'(Order order) = ACTION  {
+fillSubstitutePriceMaxBalance 'Исп. цену большего остатка' = ACTION (Order order) {
     FOR quantityComponentDetail(Sku sku,order) DO {
         fillSubstitutePriceMaxBalanceFrom(order,sku);
     }        
@@ -1734,7 +1734,7 @@ CONSTRAINT company(Order order) AND NOT isCompany(company(order))
     CHECKED BY company[Order] MESSAGE 'Для производственного заказа выбрана организация, не являющаяся компанией';
 
 overCopy = ACTION ABSTRACT LIST (Order, Order);
-copy 'Копировать'(Order order) = ACTION  NEWSESSION {
+copy 'Копировать' = ACTION (Order order) NEWSESSION {
     FOR ADDOBJ o = Order DO {
         company(o) <- company(order);
         componentsStock(o) <- componentsStock(order);
@@ -1851,7 +1851,7 @@ productDetail (order,product) =  GROUP MAX ProductDetail productDetail
 quantity 'Кол-во изделий в документе' (order,product) =  GROUP SUM quantity(ProductDetail productDetail)
     BY order(productDetail), product(productDetail);    
     
-changeQuantity(Product product, Order order) = ACTION  {
+changeQuantity = ACTION (Product product, Order order) {
     REQUEST NUMERIC[16,5] INPUT;
     IF productDetail(order,product) THEN {
         IF requestedNumeric() THEN {
@@ -1913,7 +1913,7 @@ DESIGN order{
     }
 }
 
-edit 'Редактировать' (ProductDetail d) = ACTION  NEWSESSION {
+edit 'Редактировать' (ProductDetail d) = ACTION (d) NEWSESSION {
     FORM order OBJECTS o = order(d), pd = d MANAGESESSION DOCKEDMODAL;
 }
 
@@ -1924,7 +1924,7 @@ componentDetailBrutto (order,bruttoSku) =  GROUP MAX ComponentDetail componentDe
 bruttoQuantityBrutto 'Кол-во брутто компонентов в документе' (order,bruttoSku) =  GROUP SUM bruttoQuantity(ComponentDetail componentDetail)
     BY order(componentDetail), bruttoSku(componentDetail);    
     
-changeBruttoQuantityBrutto(Sku bruttoSku, Order order) = ACTION  {
+changeBruttoQuantityBrutto = ACTION (Sku bruttoSku, Order order) {
     REQUEST NUMERIC[16,5] INPUT;
     IF componentDetailBrutto(order,bruttoSku) THEN {
         IF requestedNumeric() THEN {

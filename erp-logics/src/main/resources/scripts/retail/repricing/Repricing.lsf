@@ -73,7 +73,7 @@ curRepricingPrice (RepricingDetail detail) = OVERRIDE curPrice(detail), overCurR
 @showDocumentInterfaceDetailBatch(repricing);
 @defineDocumentInterfaceDetailBatch(repricing, batch);
 
-changeBatch(UserRepricingDetail detail) = ACTION  {
+changeBatch = ACTION (UserRepricingDetail detail) {
     FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
@@ -323,7 +323,7 @@ DESIGN addPercentUserRepricing {
 
 overChangePriceUser = ACTION ABSTRACT LIST (RepricingDetail);
 
-changePrice 'Изменить цену' (UserRepricing repricing) = ACTION  {
+changePrice 'Изменить цену' (UserRepricing repricing) = ACTION (repricing) {
         roundCondition(repricing) <- repricingRoundCondition() IF currency(repricing) == currency(repricingRoundCondition());
         FORM addPercentUserRepricing OBJECTS u = repricing MODAL;
         IF formResult() == FormResult.ok AND changePriceType(repricing) AND percent(repricing) THEN {
@@ -347,7 +347,7 @@ changePrice 'Изменить цену' (UserRepricing repricing) = ACTION  {
 overRecalculatePrice = ACTION ABSTRACT LIST (UserRepricingDetail);
 overConfirmRecalculatePrice = ACTION ABSTRACT LIST (UserRepricingDetail);
 
-recalculatePrice 'Пересчитать цены (до)' (UserRepricing repricing) = ACTION  {
+recalculatePrice 'Пересчитать цены (до)' (UserRepricing repricing) = ACTION (repricing) {
     CONFIRM 'Может, Вы, хотите пересчитать и цены (после)?';
     
     FOR userRepricing(UserRepricingDetail d) == repricing DO {
@@ -445,7 +445,7 @@ printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTIO
 
 @defineDocumentOperationRolePrefix(userRepricing, );
 
-toFillQuantityUserRepricingDetail 'Записать в кол-во остатки'(UserRepricing repricing) = ACTION  {
+toFillQuantityUserRepricingDetail 'Записать в кол-во остатки' = ACTION (UserRepricing repricing) {
     quantity(UserRepricingDetail d) <- IF batch(d) THEN balanceB(batch(d),   
                                                                             departmentStore(d), 
                                                                             dateTime(d)) 
@@ -455,7 +455,7 @@ toFillQuantityUserRepricingDetail 'Записать в кол-во остатк�
                                                                      WHERE userRepricing(d) == repricing;    
 }
 
-toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)'() = ACTION  NEWSESSION {
+toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)' = ACTION () NEWSESSION {
     FOR UserRepricing r IS UserRepricing AND balance(operation(r)) AND NOT isClosed(r) DO {
         toFillQuantityUserRepricingDetail(r);    
     }
@@ -601,7 +601,7 @@ DESIGN userRepricing{
 }
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
-edit(UserRepricingDetail d) = ACTION  NEWSESSION {
+edit(UserRepricingDetail d) = ACTION (d) NEWSESSION {
     FORM userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKEDMODAL;
 }
 

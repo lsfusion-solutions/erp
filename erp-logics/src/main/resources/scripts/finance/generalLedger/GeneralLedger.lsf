@@ -256,7 +256,7 @@ edit(UserGeneralLedger generalLedger) += ACTION edit(generalLedger);
 is(UserGeneralLedger generalLedger) = generalLedger IS UserGeneralLedger;
 
 overCopy = ACTION ABSTRACT LIST (GeneralLedger, GeneralLedger);
-copy 'Копировать'(GeneralLedger generalLedger) = ACTION  NEWSESSION {
+copy 'Копировать' = ACTION (GeneralLedger generalLedger) NEWSESSION {
 
     FOR ADDOBJ g = UserGeneralLedger DO {
         ASSIGN legalEntity(g) <- legalEntity(generalLedger);
@@ -391,7 +391,7 @@ END
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 META defineLoadDefaultOperationPrefix (NSR, iname, isid, prefix)
-    loadDefault###prefix##Operation 'Добавить значение операций'(VARISTRING[100] iname, VARISTRING[100] isid) = ACTION  {
+    loadDefault###prefix##Operation 'Добавить значение операций' = ACTION (VARISTRING[100] iname, VARISTRING[100] isid) {
         FOR ADDOBJ t = NSR.Operation DO {
             ASSIGN name(t) <- iname;
             ASSIGN id (t) <- isid;
@@ -436,7 +436,7 @@ END
 createGeneralLedger  = ACTION ABSTRACT LIST (DATE);
 createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (DATE,DATE); 
 
-createGeneralLedger 'Создать проводки c даты отчетного периода'() = ACTION  {
+createGeneralLedger 'Создать проводки c даты отчетного периода' = ACTION () {
     DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dateReportingGeneralLedger();
     EXEC createGeneralLedger(dateReportingGeneralLedger());
     apply();
@@ -457,7 +457,7 @@ DESIGN options {
 META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
     overCreate###idGL###object = ACTION ABSTRACT LIST (UserGeneralLedger);  
 
-    createUserGeneralLedgerALL###idGL###object 'Создать проводки'(DATE dateProp) = ACTION  {     
+    createUserGeneralLedgerALL###idGL###object 'Создать проводки' = ACTION (DATE date) {     
         FOR property(###object object) AND dateProp(object) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object;
             legalEntity(u) <- companyProp(object);
@@ -473,7 +473,7 @@ META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timePro
         }    
     }
     createGeneralLedger(DATE date) += ACTION createUserGeneralLedgerALL###idGL###object(date);
-    createUserGeneralLedgerALL###idGL###object##FromTo (DATE dateProp, DATE dateProp##To)'Создать проводки за период' = ACTION) {     
+    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период' = ACTION (DATE date, DATE dateTo) {     
         FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object;
             legalEntity(u) <- companyProp(object);
@@ -513,7 +513,7 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
 
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
-    createUserGeneralLedgerALL##idGL###object1###object2 'Создать проводки'(DATE dateProp) = ACTION  {     
+    createUserGeneralLedgerALL##idGL###object1###object2 'Создать проводки' = ACTION (DATE date) {     
         FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;
             legalEntity(u) <- companyProp(object1);
@@ -531,7 +531,7 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
     }
     createGeneralLedger(DATE date) += ACTION createUserGeneralLedgerALL##idGL###object1###object2(date);
     
-    createUserGeneralLedgerALL##idGL###object1###object2##FromTo (DATE dateProp,DATE dateProp##To)'Создать проводки' = ACTION) {     
+    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки' = ACTION (DATE date,DATE dateTo) {     
         FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;
             legalEntity(u) <- companyProp(object1);
