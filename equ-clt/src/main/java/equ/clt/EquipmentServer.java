@@ -1019,6 +1019,7 @@ public class EquipmentServer {
                         }
                     }
                 } catch (Exception e) {
+                    processTransactionLogger.error("EquipmentServerError: ", e);
                     errorEquipmentServerReport(e);
                 }
 
