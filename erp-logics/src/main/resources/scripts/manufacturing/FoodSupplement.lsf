@@ -12,21 +12,39 @@ supplementQuantity  = GROUP SUM consumedQuantity(ComponentDetail cd) * overNetWe
     IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
         BY pd; 
         
+supplementQuantityPlan = GROUP SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 IF isSupplement(sku(cd)) BY order(cd), sku(cd); 
+supplementQuantityPlan  = GROUP SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
+        BY pd, sku(cd); 
+supplementQuantityPlan  = GROUP SUM bruttoQuantity(ComponentDetail cd) * overNetWeight(sku(cd))*1000.0 
+    IF isSupplement(sku(cd)) AND order(cd) == order(ProductDetail pd) AND BOM(cd) == BOM(pd) 
+        BY pd;   
+             
+isPlan 'План'  = DATA LOCAL BOOLEAN (Order);       
+        
 FORM  foodSupplement 'Расход пищевых добавок'
     OBJECTS o =Order FIXED PANEL 
-    PROPERTIES(o) date, nameProductsStock, nameComponentsStock
+    PROPERTIES(o) date, nameProductsStock, nameComponentsStock, isPlan 
     
     OBJECTS sk =Sku
-    FILTERS supplementQuantity(o,sk)
+    FILTERS (supplementQuantity(o,sk) IF NOT isPlan(o)) OR (supplementQuantityPlan(o,sk) IF isPlan(o))
 
     OBJECTS pd =ProductDetail
     PROPERTIES nameSku(pd), outputQuantity(pd), supplementQuantity(pd,sk) COLUMNS (sk) HEADER name(sk) FOOTER supplementQuantity(o,sk)
+    PROPERTIES quantity(pd), supplementQuantityPlan(pd,sk) COLUMNS (sk) HEADER name(sk) FOOTER supplementQuantityPlan(o,sk)
     FILTERS order(pd) == o,
-            supplementQuantity(pd)            
+            (supplementQuantity(pd) IF NOT isPlan(o)) OR  (supplementQuantityPlan(pd) IF isPlan(o))           
 ;
 
-foodSupplement 'Расход пищевых добавок' (Order o) = ACTION FORM foodSupplement OBJECTS o = o PRINT IMAGE 'print.png' IN print;
+foodSupplement 'Расход пищевых добавок (факт)' (Order o) = ACTION  {
+    isPlan(o) <- NULL;
+    FORM foodSupplement OBJECTS o = o PRINT;
+}IMAGE 'print.png' IN print;
 
+foodSupplementPlan 'Расход пищевых добавок (план)' (Order o) = ACTION {
+    isPlan(o) <- TRUE;    
+    FORM foodSupplement OBJECTS o = o PRINT; 
+} IMAGE 'print.png' IN print;
 EXTEND FORM orders
-    PROPERTIES (o) FORCE PANEL foodSupplement
+    PROPERTIES (o) FORCE PANEL foodSupplement, foodSupplementPlan
 ;
