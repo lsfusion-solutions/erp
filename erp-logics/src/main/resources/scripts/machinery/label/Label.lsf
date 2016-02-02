@@ -562,6 +562,27 @@ DESIGN labelTransactions {
     }
 }
 
+countDaysClearLabelTransaction 'За сколько дней хранить журнал печати ценников' = DATA INTEGER (); 
+
+EXTEND FORM options PROPERTIES countDaysClearLabelTransaction();
+DESIGN options { log { MOVE PROPERTY(countDaysClearLabelTransaction());} } 
+
+lastTransaction 'Текущая цена на ценниках' (sku, stock) =
+    GROUP LAST LabelTransactionDetail d
+          BY sku(d), departmentStore(d)
+          ORDER dateTime(d), d
+          WHERE d IS LabelTransactionDetail;
+
+clearApplicationLog () += ACTION NEWSESSION {
+    IF countDaysClearLabelTransaction() THEN {
+        DELETE LabelTransactionDetail d WHERE d IS LabelTransactionDetail AND NOT d == lastTransaction(sku(d), departmentStore(d)) AND date(d) <= subtract(currentDate(), countDaysClearLabelTransaction());
+        apply();
+        
+        DELETE LabelTransaction t WHERE  t IS LabelTransaction AND NOT [= GROUP SUM 1 BY labelTransaction(LabelTransactionDetail d)](t);
+        apply();
+    }
+}
+
 // -------------------------------------------- Действия по печати ценников ------------------------------ //
 
 documentQuantity = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
