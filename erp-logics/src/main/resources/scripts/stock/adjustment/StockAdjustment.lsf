@@ -592,7 +592,8 @@ DESIGN selectParamsAdjustment {
     MOVE functions.box;
 }
 
-inAdjustment = DATA LOCAL BOOLEAN (Sku);
+inAdjustment = DATA LOCAL NESTED BOOLEAN (Sku);
+inAdjustment = DATA LOCAL NESTED BOOLEAN (Stock);
 
 createBatchUserAdjustmentDetail(UserAdjustment adjustment) = ACTION {
     FOR inAdjustment(Sku sku) DO {
@@ -627,11 +628,12 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment) = ACTION {
     }    
 }
 
-createBatchUserAdjustment 'Документ пересорта'() = ACTION {
+createBatchUserAdjustment 'Документ пересорта'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
     FORM selectParamsAdjustment MODAL;
-    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]] {
+    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
+        
         FOR ADDOBJ adjustment = UserAdjustment DO {  
-            stock(adjustment) <- chosenObject('st');
+            stock(adjustment) <- chosenObject('st');            
             date(adjustment) <- DATE(chosenDateTime('dt'));
             time(adjustment) <- TIME(chosenDateTime('dt'));          
 
@@ -641,10 +643,7 @@ createBatchUserAdjustment 'Документ пересорта'() = ACTION {
             
             createBatchUserAdjustmentDetail(adjustment);
             FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKEDMODAL ;          
-        }
-        dataInSession(SkuGroup d) <- NULL;
-        chosenObject(STRING[100] d) <- NULL;
-        chosenDateTime(STRING[100] d) <- NULL;
+        }        
     }
 }
 
@@ -674,4 +673,26 @@ createBatchUserAdjustment 'Документ пересорта'(Stock stock) = A
         apply();
     }
 }//-- для планировщика
+
+//-- Для всех складов
+overCreateUserAdjustmentAll = ACTION ABSTRACT LIST (UserAdjustment);
+
+createOverBatchUserAdjustmentAll 'Документ пересорта'() = ACTION {
+    FOR [ = GROUP SUM 1 IF toAdjustment (Sku s,Stock st,DATETIME dt) AND inAdjustment(s) BY st,dt](Stock st, currentDateTime()) AND inAdjustment(st) DO {
+        NEWSESSION NESTED inAdjustment[Stock], inAdjustment[Sku] {
+            FOR ADDOBJ a = UserAdjustment DO {  
+                stock(a) <- st;
+                date(a) <- currentDate();
+                time(a) <- currentTime();  
+                isPosted(a) <- TRUE;
+                
+                overCreateUserAdjustmentAll(a);
+                
+                createBatchUserAdjustmentDetail(a);      
+            }
+            apply();        
+        }    
+    }
+}//-- для планировщика
+
 
