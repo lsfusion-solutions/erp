@@ -164,16 +164,20 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
     in(Invoice invoice) <- filterToRepricingDate (invoice, department, timeFrom, timeTo);
     IF [ = GROUP SUM 1 IF in(Invoice invoice)] () THEN {
         
+        LOCAL repricingQuantity = NUMERIC[16,5] (InvoiceDetail);
+        repricingQuantity(InvoiceDetail detail) <- NULL;
+        
         positive(InvoiceDetail detail) <- NULL;
         positive(InvoiceDetail detail) <- in(invoice(detail));
         positive(InvoiceDetail detail) <- NULL WHERE positive(detail) AND skipRepricing(skuGroup(sku(detail)));        
         positive(InvoiceDetail detail) <- prevRetailPricingPriceB(detail) != retailExtraPrice(detail) WHERE positive(detail);
-        positive(InvoiceDetail detail) <- toRepricingQuantityTo(detail, timeTo) > 0 AND isStockSku(detail) WHERE positive(detail);
+        repricingQuantity(InvoiceDetail detail) <- toRepricingQuantityTo(detail, timeTo) WHERE positive(detail);
+        positive(InvoiceDetail detail) <- repricingQuantity(detail) > 0 AND isStockSku(detail) WHERE positive(detail);
         positive(InvoiceDetail detail) <- maxInvoiceDetail(sku(detail), invoice(detail)) == detail WHERE positive(detail);
         positive(InvoiceDetail detail) <- NULL WHERE skipExtraValuation(sku(detail), department) AND positive(detail);                     
         positive(InvoiceDetail detail) <- NULL WHERE positive(detail) AND NOT price(detail);
         IF minQuantityToRepricing() THEN {
-            positive(InvoiceDetail detail) <- NULL WHERE toRepricingQuantityTo(detail, timeTo) < minQuantityToRepricing() AND positive(detail);
+            positive(InvoiceDetail detail) <- NULL WHERE repricingQuantity(detail) < minQuantityToRepricing() AND positive(detail);
         }
           
         FOR positive(InvoiceDetail detail) DO {
@@ -185,12 +189,13 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
             negative(InvoiceDetail detail) <- in(invoice(detail));
             negative(InvoiceDetail detail) <- NULL WHERE negative(detail) AND skipRepricing(skuGroup(sku(detail)));        
             negative(InvoiceDetail detail) <- prevRetailPricingPriceB(detail) != retailExtraPrice(detail) WHERE negative(detail);
-            negative(InvoiceDetail detail) <- toRepricingQuantityTo(detail, timeTo) < 0 AND isStockSku(detail) WHERE negative(detail);
+            repricingQuantity(InvoiceDetail detail) <- toRepricingQuantityTo(detail, timeTo) WHERE negative(detail);
+            negative(InvoiceDetail detail) <- repricingQuantity(detail) < 0 AND isStockSku(detail) WHERE negative(detail);
             negative(InvoiceDetail detail) <- maxInvoiceDetail(sku(detail), invoice(detail))==detail WHERE negative(detail);
             negative(InvoiceDetail detail) <- NULL WHERE skipExtraValuation(sku(detail), department) AND negative(detail);         
             negative(InvoiceDetail detail) <- NULL WHERE negative(detail) AND NOT price(detail); 
             IF minQuantityToRepricing() THEN {
-                negative(InvoiceDetail detail) <- NULL WHERE delta(toRepricingQuantityTo(detail, timeTo),0) < minQuantityToRepricing() AND negative(detail);
+                negative(InvoiceDetail detail) <- NULL WHERE delta(repricingQuantity(detail),0) < minQuantityToRepricing() AND negative(detail);
             }
         
             FOR negative(InvoiceDetail detail) DO {
@@ -212,7 +217,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
                 FOR positive(InvoiceDetail detail) ADDOBJ rd = UserRepricingDetail DO {
                         userRepricing(rd) <- r;
                         sku(rd) <- sku(detail);
-                        quantity(rd) <- toRepricingQuantityTo(detail, timeTo);
+                        quantity(rd) <- repricingQuantity(detail);
         
                         curPrice(rd) <- prevSupplierPricingPriceB(sku(detail), department, pricingDateTime(detail));
                         curRetailPrice(rd) <- prevRetailPricingPriceB(detail);
@@ -227,7 +232,7 @@ createExtraValuationNotForm 'Создать дооценку'(Stock department, 
                 FOR negative(InvoiceDetail detail) ADDOBJ rd = UserRepricingDetail DO {
                         userRepricing(rd) <- r;
                         sku(rd) <- sku(detail);
-                        quantity(rd) <- - toRepricingQuantityTo(detail, timeTo);
+                        quantity(rd) <- - repricingQuantity(detail);
         
                         curPrice(rd) <- price(detail);
                         curRetailPrice(rd) <- retailExtraPrice(detail);
