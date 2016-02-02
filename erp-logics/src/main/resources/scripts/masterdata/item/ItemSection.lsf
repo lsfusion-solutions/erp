@@ -6,14 +6,13 @@ NAMESPACE Item;
 
 TABLE SectionItem (Section, Item);
 
+dataIn 'Отм' = DATA BOOLEAN (Section, Item);
 
-dataIn 'Отм' = DATA BOOLEAN (Section,Item);
-
-dataIn (Section section, Item sku) += dataIn(section, sku);
+dataIn (Section s, Item sku) += dataIn(s, sku);
 
 EXTEND FORM item
     OBJECTS sec = Section FIXED GRID 
-    PROPERTIES dataIn(sec,i), id(sec) READONLY, name(sec) READONLY
+    PROPERTIES dataIn(sec, i), id(sec) READONLY, name(sec) READONLY
 ;
 
 DESIGN item {
@@ -24,4 +23,8 @@ DESIGN item {
             MOVE sec.box; 
         }
     }
+}
+
+overCopy(Item old, Item new) += ACTION {
+    dataIn(s, new) <- dataIn(s, old);
 }
