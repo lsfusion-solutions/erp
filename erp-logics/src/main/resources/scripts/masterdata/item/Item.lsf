@@ -438,7 +438,7 @@ META implementItemAttribute(property, caption, itemType, attributeClass)
     value[Item,itemType##ItemAttribute](Item i, itemType##ItemAttribute a) += WHEN a == itemType##ItemAttribute.##attributeClass AND i IS Item THEN property(i);
 END
 
-// Расширяем формы настройки
+// Форма настройки артибутов
 FORM itemOptions 'Настройка атрибутов'
     OBJECTS ia = ItemAttribute
     PROPERTIES staticIA= staticCaption(ia)
@@ -798,8 +798,7 @@ META defineItemDefaultValueCustom(property, caption, type, object)
     
     property caption (###object object, ItemGroup itemGroup) =
         OVERRIDE nearest###property (object, itemGroup), 
-                 data###property(object, itemGroup) PERSISTENT;    
-    
+                 data###property(object, itemGroup) PERSISTENT;
 END 
 
 // Ограничения на выбор значений справочника
@@ -1434,24 +1433,28 @@ loadDefaultItemAttributes 'Загрузить стандартные атриб�
 
 TABLE itemAttributeItemGroup(ItemAttribute, ItemGroup);
 
-@defineItemDefaultValueCustom(numberInNameItem, 'Порядковый номер в наименовании', INTEGER, itemAttribute); 
+@defineItemDefaultValueCustom(required, 'Обязательный для заполнения', BOOLEAN , itemAttribute);
 
-//dataNumberInNameItemItemAttributeItemGroup 'Порядковый номер в наименовании' = DATA INTEGER (ItemAttribute, ItemGroup);
-//
-//levelParentNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup) = GROUP MIN levelItemGroupItemGroup(itemGroup, parent) IF dataNumberInNameItemItemAttributeItemGroup(itemAttribute, parent)
-//                                                              BY itemAttribute, itemGroup PERSISTENT;    
-//nearestParentNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup) = itemGroupItemGroupLevel(itemGroup, levelParentNumberInNameItemItemAttributeItemGroup(itemAttribute, itemGroup));
-//nearestNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup) = dataNumberInNameItemItemAttributeItemGroup(itemAttribute, nearestParentNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup));
-//
-//numberInNameItemItemAttributeItemGroup 'Порядковый номер в наименовании' (itemAttribute, itemGroup) =
-//    OVERRIDE nearestNumberInNameItemItemAttributeItemGroup (itemAttribute, itemGroup), 
-//             dataNumberInNameItemItemAttributeItemGroup(itemAttribute, itemGroup) PERSISTENT;   
-//
-//numberInNameItemAttribute 'Порядковый номер в наименовании' = DATA INTEGER (ItemAttribute) IN base;
-//numberInNameItemAttributeItem 'Порядковый номер в наименовании'= OVERRIDE numberInNameItemAttribute(attribute), numberInNameItemItemAttributeItemGroup(attribute, itemGroupItem(item));
+quantityChildWithRequired = GROUP SUM 1 IF dataRequired(ItemAttribute a, ItemGroup child) AND isParent(child, ItemGroup parent) BY a, parent ;
+quantityParentWithRequired = GROUP SUM 1 IF dataRequired(ItemAttribute a, ItemGroup parent) AND isParent(ItemGroup child, parent) BY a, child ;
 
+backgroundRequired (ItemAttribute a, ItemGroup g) =
+    IF dataRequired(a, g) THEN
+        RGB(0,0,0)
+    ELSE
+        RGB(203,203,206) IF quantityChildWithRequired (a, g) != descendantNumber(g)
+                         AND NOT quantityParentWithRequired (a, g);
 
-                    
+EXTEND FORM itemOptions 
+    PROPERTIES(ia1, tg) required BACKGROUND backgroundRequired(ia1, tg);
+
+constraintRequired(ItemAttribute a, Item i) = (DROPPED (value(i, a)) OR SET (i IS Item)) AND required(a, itemGroup(i)) AND NOT value(i, a);
+
+CONSTRAINT  constraintRequired(ItemAttribute a, Item i)
+    MESSAGE 
+    [=GROUP CONCAT ('Для товара должены быть задан атрибут ' + staticCaption(ItemAttribute a)) IF 
+                    constraintRequired(a,Item i), '\n']();
+
 // Базовое наименование
 @defineItemAttributeName( , , recognize);
 
@@ -1465,9 +1468,6 @@ name(Item item) += nameAttribute(item);
 loadDefaultItemAttributes() += ACTION {
     ASSIGN numberInName(StringItemAttribute a) <- 1 WHERE a == StringItemAttribute.itemCaption;
 }
-
-//nameAttributeGroupGroupTypeItem 'Наименование' (group, groupType, item) = nameAttributeItem(item) IF
-//    hasParentGroupGroupTypeItem(group, groupType, item) PERSISTENT INDEXED;
 
 EXTEND FORM items
     PROPERTIES READONLY BACKGROUND background(i) AFTER idBarcode(i) nameAttribute(i) // вообще надо использовать nameAttributeGroupGroupTypeItem(g, gt, i) для скорости, но тогда не будет работать отбор без групп
