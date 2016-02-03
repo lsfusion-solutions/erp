@@ -42,7 +42,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
             LCP<PropertyInterface> isImportType = (LCP<PropertyInterface>) is(findClass("ImportType"));
             ImRevMap<PropertyInterface, KeyExpr> importTypeKeys = isImportType.getMapKeys();
             KeyExpr importTypeKey = importTypeKeys.singleValue();
-            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<PropertyInterface, Object>(importTypeKeys);
+            QueryBuilder<PropertyInterface, Object> importTypeQuery = new QueryBuilder<>(importTypeKeys);
             importTypeQuery.addProperty("autoImportDirectoryImportType", findProperty("autoImportDirectory[ImportType]").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.addProperty("autoImportSupplierImportType", findProperty("autoImportSupplier[ImportType]").getExpr(session.getModifier(), importTypeKey));
@@ -76,23 +76,25 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                     File dir = new File(directory);
 
                     if (dir.exists()) {
+                        File[] files = dir.listFiles();
+                        if(files != null) {
+                            for (File f : files) {
+                                if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
+                                    try (DataSession currentSession = context.createSession()) {
+                                        DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
+                                        try {
 
-                        for (File f : dir.listFiles()) {
-                            if (f.getName().toLowerCase().endsWith(fileExtension.toLowerCase())) {
-                                try (DataSession currentSession = context.createSession()) {
-                                    DataObject orderObject = currentSession.addObject((ConcreteCustomClass) findClass("Sale.UserOrder"));
-                                    try {
+                                            boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(),
+                                                    currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
+                                                    fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
+                                                    customerStockObject);
 
-                                        boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(),
-                                                currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
-                                                fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
-                                                customerStockObject);
+                                            if (importResult)
+                                                renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
-                                        if (importResult)
-                                            renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
-
-                                    } catch (Exception e) {
-                                        ServerLoggers.systemLogger.error("ImportSaleOrders Error: ", e);
+                                        } catch (Exception e) {
+                                            ServerLoggers.importLogger.error("ImportSaleOrders Error: ", e);
+                                        }
                                     }
                                 }
                             }

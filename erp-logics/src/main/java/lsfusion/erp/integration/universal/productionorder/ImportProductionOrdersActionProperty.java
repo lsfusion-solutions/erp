@@ -83,7 +83,7 @@ public class ImportProductionOrdersActionProperty extends ImportDocumentActionPr
                                             renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
                                     } catch (Exception e) {
-                                        ServerLoggers.systemLogger.error("ImportProductionOrders Error: ", e);
+                                        ServerLoggers.importLogger.error("ImportProductionOrders Error: ", e);
                                     }
                                 }
                             }

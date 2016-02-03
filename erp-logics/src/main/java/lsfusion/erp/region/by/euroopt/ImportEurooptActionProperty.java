@@ -324,7 +324,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             int idPriceListDetail = 1;
             int i = 1;
             for (String itemURL : itemURLSet) {
-                ServerLoggers.systemLogger.info(String.format("Import Euroopt: parsing item page #%s: %s", i, itemURL));
+                ServerLoggers.importLogger.info(String.format("Import Euroopt: parsing item page #%s: %s", i, itemURL));
                 Document doc = useTor ? getDocumentTor(lowerNetLayer, itemURL) : getDocument(itemURL);
                 if (doc != null) {
                     Elements prodImage = doc.getElementsByClass("increaseImage");
@@ -349,7 +349,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             if (importItems) {
                                 imageItem = prodImage.size() == 0 ? null : useTor ? readImageTor(lowerNetLayer, prodImage.get(0).attr("href")) : readImage(prodImage.get(0).attr("href"));
                                 byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
-                                ServerLoggers.systemLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
+                                ServerLoggers.importLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
                                 if(imageBytes != null)
                                     imageCount++;
                                 itemsList.add(Arrays.asList((Object) idBarcode, imageBytes));
@@ -364,7 +364,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
                         } else {
-                            ServerLoggers.systemLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
+                            ServerLoggers.importLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
                         }
                     } else {
                         String captionItem = doc.getElementsByTag("h1").text();
@@ -446,7 +446,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             if (importItems) {
                                 imageItem = prodImage.size() == 0 ? null : useTor ? readImageTor(lowerNetLayer, prodImage.get(0).attr("href")) : readImage(prodImage.get(0).attr("href"));
                                 byte[] imageBytes = imageItem == null ? null : IOUtils.getFileBytes(imageItem);
-                                ServerLoggers.systemLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
+                                ServerLoggers.importLogger.info(imageBytes != null ? "image read succesfull" : prodImage.size() == 0 ? "No image found" : "Image read failed");
                                 if (imageBytes != null)
                                     imageCount++;
                                 itemsList.add(Arrays.asList((Object) idBarcode, idItemGroup, captionItem, netWeight, descriptionItem, compositionItem, proteinsItem,
@@ -463,7 +463,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             //to avoid duplicates
                             barcodeSet.remove(idBarcode);
                         } else {
-                            ServerLoggers.systemLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
+                            ServerLoggers.importLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
                         }
                     }
                     if (imageItem != null)
@@ -474,7 +474,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }
-        ServerLoggers.systemLogger.info(String.format("Read %s items (%s with images), %s priceLists", itemsList.size(), imageCount, userPriceListsList.size()));
+        ServerLoggers.importLogger.info(String.format("Read %s items (%s with images), %s priceLists", itemsList.size(), imageCount, userPriceListsList.size()));
         return Arrays.asList(itemsList, userPriceListsList);
     }
 
@@ -516,7 +516,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                         String href = item.attr("href");
                         if (href != null && href.matches(itemPattern)) {
                             if(!itemsSet.contains(href)) {
-                                ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item page #%s: %s", itemsSet.size() + 1, href));
+                                ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item page #%s: %s", itemsSet.size() + 1, href));
                                 itemsSet.add(href);
                             }
                             hash += href;
@@ -546,7 +546,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                         if (href != null && href.matches(itemPattern)) {
                             href = href.replace(mainPage, "");
                             if(!itemsSet.contains(href)) {
-                                ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item page #%s: %s", itemsSet.size() + 1, href));
+                                ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item page #%s: %s", itemsSet.size() + 1, href));
                                 itemsSet.add(href);
                             }
                             hash += href;
@@ -569,7 +569,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
                 if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href)) {
-                    ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
+                    ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
                     itemGroupsSet.add(href);
                 }
             }
@@ -584,7 +584,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
                 if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href)) {
-                    ServerLoggers.systemLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
+                    ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
                     itemGroupsSet.add(href.replace(mainPage, ""));
                 }
             }
@@ -650,7 +650,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if(count <= 0)
-                    ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
+                    ServerLoggers.importLogger.error("ImportEuroopt Error: ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
@@ -670,7 +670,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             } catch (HttpStatusException e) {
                 count--;
                 if(count <= 0)
-                    ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
+                    ServerLoggers.importLogger.error("ImportEuroopt Error: ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }
@@ -693,7 +693,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             }
             output.close();
         } catch (IOException e) {
-            ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
+            ServerLoggers.importLogger.error("ImportEuroopt Error: ", e);
             file = null;
         }
         return file;
@@ -720,7 +720,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 file = null;
                 count--;
                 if(count <= 0)
-                    ServerLoggers.systemLogger.error("ImportEuroopt Error: ", e);
+                    ServerLoggers.importLogger.error("ImportEuroopt Error: ", e);
             } catch (InterruptedException e) {
                 throw Throwables.propagate(e);
             }

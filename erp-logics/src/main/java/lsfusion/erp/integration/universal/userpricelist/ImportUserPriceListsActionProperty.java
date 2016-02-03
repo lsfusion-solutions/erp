@@ -82,7 +82,7 @@ public class ImportUserPriceListsActionProperty extends DefaultImportActionPrope
                                             renameImportedFile(context, f.getAbsolutePath(), "." + settings.getFileExtension());
 
                                     } catch (Exception e) {
-                                        ServerLoggers.systemLogger.error("ImportUserPriceLists Error: ", e);
+                                        ServerLoggers.importLogger.error("ImportUserPriceLists Error: ", e);
                                     }
                                 }
                             }

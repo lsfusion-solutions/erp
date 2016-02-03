@@ -158,7 +158,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                     } catch (Exception e) {
                                         logImportError(context, attachmentEmailObject, e.toString(), isOld);
-                                        ServerLoggers.systemLogger.error("ImportPurchaseInvoices Error: ", e);
+                                        ServerLoggers.importLogger.error("ImportPurchaseInvoices Error: ", e);
                                     }
                                 }
                             }

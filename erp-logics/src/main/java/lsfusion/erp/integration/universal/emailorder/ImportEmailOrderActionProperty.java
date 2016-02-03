@@ -50,12 +50,8 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
             try {
                 importOrder(context, file);
                 finishImportOrder(context, attachment.getKey());
-            } catch (ScriptingErrorLog.SemanticErrorException e) {
-                ServerLoggers.systemLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
-            } catch (ParseException e) {
-                ServerLoggers.systemLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
-            } catch (IOException e) {
-                ServerLoggers.systemLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
+            } catch (ScriptingErrorLog.SemanticErrorException | IOException | ParseException e) {
+                ServerLoggers.importLogger.error("Импорт из почты: ошибка при чтении файла" + fileName);
             }
 
         }
@@ -70,7 +66,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
             ObjectValue accountObject = findProperty("importEmailOrderAccount[]").readClasses(context);
             if (accountObject instanceof NullValue) {
-                ServerLoggers.systemLogger.error("Импорт из почты: не задан почтовый аккаунт");
+                ServerLoggers.importLogger.error("Импорт из почты: не задан почтовый аккаунт");
             } else {
                 KeyExpr emailExpr = new KeyExpr("email");
                 KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
@@ -112,7 +108,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         String quantityColumn = (String) findProperty("importEmailOrderQuantityColumn[]").read(context);
 
         if (firstRow == null || !notNullNorEmpty(numberCell) || !notNullNorEmpty(quantityColumn)) {
-            ServerLoggers.systemLogger.error("Импорт из почты: не все параметры заданы (начинать со строки, ячейка номера заказа или колонка количества)");
+            ServerLoggers.importLogger.error("Импорт из почты: не все параметры заданы (начинать со строки, ячейка номера заказа или колонка количества)");
         } else {
 
             List<List<Object>> data = importOrderFromXLSX(file, firstRow, numberCell, quantityColumn);
@@ -174,7 +170,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
         Pattern p = Pattern.compile("(\\w+)(\\d+)");
         Matcher m = p.matcher(numberCell);
         if (!m.matches()) {
-            ServerLoggers.systemLogger.error("Импорт из почты: некорректно задана ячейка номера заказа");
+            ServerLoggers.importLogger.error("Импорт из почты: некорректно задана ячейка номера заказа");
         } else {
             Integer numberColumn = getCellIndex(m.group(1));
             Integer numberRow = Integer.parseInt(m.group(2)) - 1;
