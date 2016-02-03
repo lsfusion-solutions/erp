@@ -17,6 +17,7 @@ import java.math.BigDecimal;
 import java.net.Inet4Address;
 import java.net.ServerSocket;
 import java.net.Socket;
+import java.nio.ByteBuffer;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -454,16 +455,27 @@ public class TerminalServer extends LifecycleAdapter {
         byte b;
         String escStr = Character.toString((char) esc);
         List<String[]> result = new ArrayList<>();
-        String line = "";
+        List<Byte> line = new ArrayList<>();
         while ((b = inFromClient.readByte()) != 3) {
             if (b == (char) 13) {
-                result.add(line.isEmpty() ? null : line.split(escStr, -1));
-                line = "";
+                result.add(bytesToString(line).split(escStr, -1));
+                line = new ArrayList();
             }
             else
-                line += (char) b;
+                line.add(b);
         }
-        result.add(line.isEmpty() ? null : line.split(escStr, -1));
+        result.add(bytesToString(line).split(escStr, -1));
+        return result;
+    }
+
+    private String bytesToString(List<Byte> bytes) throws UnsupportedEncodingException {
+        String result = "";
+        if (!bytes.isEmpty()) {
+            ByteBuffer lineBytes = ByteBuffer.allocate(bytes.size());
+            for (byte lb : bytes)
+                lineBytes.put(lb);
+            result = new String(lineBytes.array(), "cp1251");
+        }
         return result;
     }
 
