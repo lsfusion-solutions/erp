@@ -495,6 +495,9 @@ changeStocksSalesReport(GroupType gt, DATE df, DATE dt) = ACTION {
         fillSaleReportFromTo(gt, df, dt);
     }
 }
+ 
+showMovementSkuStocksSale 'Показать движение товара по складу' (Sku sku) = ACTION FORM movementSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() NEWSESSION MODAL;
+showMovementPriceSkuStocksSale 'Показать изменение цены товара по складу' (Sku sku) = ACTION FORM movementPriceSkuStock OBJECTS s = sku, st = [ = GROUP MIN Stock st IF inSaleReport(st)]() NEWSESSION MODAL;
     
 FORM salesReport 'Отчет по продажам'
     OBJECTS df=DATE FIXED PANEL
@@ -527,8 +530,9 @@ FORM salesReport 'Отчет по продажам'
             inSaleReport(stock(s)),
             date(s) >= df,
             date(s) <= dt
+            
     OBJECTS sku = Sku
-    PROPERTIES(sku) READONLY name ON SHORTCUT showMovementSkuStocks[Sku](sk) ON SHORTCUT showMovementPriceSkuStocks[Sku](sk), id SHOWIF showIDs()
+    PROPERTIES(sku) READONLY name ON SHORTCUT showMovementSkuStocksSale[Sku](sku) ON SHORTCUT showMovementPriceSkuStocksSale[Sku](sku), id SHOWIF showIDs()
     PROPERTIES(sku) READONLY quantityStock, costSumStock, markupSumStock, sumVATStock, sumStock
     FILTERS isParent(sk, sku),
             active(sku),
