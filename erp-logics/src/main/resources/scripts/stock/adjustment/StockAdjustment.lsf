@@ -596,39 +596,36 @@ inAdjustment = DATA LOCAL NESTED BOOLEAN (Sku);
 inAdjustment = DATA LOCAL NESTED BOOLEAN (Stock);
 
 createBatchUserAdjustmentDetail(UserAdjustment adjustment) = ACTION {
-    FOR inAdjustment(Sku sku) DO {
-        LOCAL quantity = NUMERIC[16,5] (Sku);
-        quantity(sku) <- NULL;
-        quantity(sku) <- min(toPositiveAdjustment(sku,stock(adjustment),dateTime(adjustment)), abs(toNegativeAdjustment(sku,stock(adjustment),dateTime(adjustment))));        
-        FOR balanceB(Batch batch,stock(adjustment),dateTime(adjustment)) <0 AND quantity(sku) AND sku(batch) == sku 
-            ORDER DESC balanceB(batch,stock(adjustment),dateTime(adjustment))
-            ADDOBJ d = UserAdjustmentDetail DO {            
-            userAdjustment(d) <- adjustment;
-            sku(d) <- sku;
-            batch(d) <- batch;
-            quantity(d) <- min(quantity(sku),abs(balanceB(batch,stock(adjustment),dateTime(adjustment))));
-            quantity(sku) <- quantity(sku) (-) quantity(d);
-            IF NOT quantity(sku) >0 THEN {
-                BREAK;
-            }        
-        }
-        quantity(sku) <- min(toPositiveAdjustment(sku,stock(adjustment),dateTime(adjustment)), abs(toNegativeAdjustment(sku,stock(adjustment),dateTime(adjustment))));        
-        FOR balanceB(Batch batch,stock(adjustment),dateTime(adjustment)) >0 AND quantity(sku) AND sku(batch) == sku 
-            ORDER balanceB(batch,stock(adjustment),dateTime(adjustment))
-            ADDOBJ d = UserAdjustmentDetail DO {            
-            userAdjustment(d) <- adjustment;
-            sku(d) <- sku;
-            batch(d) <- batch;
-            quantity(d) <- (-min(quantity(sku),balanceB(batch,stock(adjustment),dateTime(adjustment))));
-            quantity(sku) <- quantity(sku) (+) quantity(d);
-            IF NOT quantity(sku) >0 THEN {
-                BREAK;
-            }                   
-        }                        
-    }    
+
+    LOCAL balance = NUMERIC[16,5] (Batch);
+    balance(Batch b) <- NULL;
+    balance(Batch b) <- balanceB(b, stock(adjustment), dateTime(adjustment)) WHERE inAdjustment(sku(b));
+    
+    LOCAL adjust = NUMERIC[16,5] (Sku);
+    adjust (Sku s) <- NULL; 
+    adjust (Sku s) <- min(-[= GROUP SUM balance(Batch b) IF balance(b) < 0 BY sku(b)](s), [= GROUP SUM balance(Batch b) IF balance(b) > 0 BY sku(b)](s));
+    
+    LOCAL adjust = NUMERIC[16,5] (Batch);
+    adjust(Batch b) <- NULL; 
+    adjust(Batch b) <- PARTITION UNGROUP adjust
+                                            LIMIT -balance(b) IF balance(b) < 0
+                                            BY sku(b)
+                                            ORDER order(b) WHERE balance(b) < 0;
+    
+    adjust(Batch b) <- - PARTITION UNGROUP adjust
+                                            LIMIT balance(b) IF balance(b) > 0
+                                            BY sku(b)
+                                            ORDER order(b) WHERE balance(b) > 0;
+
+    FOR adjust(Batch b) ORDER nameSku(b) ADDOBJ d = UserAdjustmentDetail DO {            
+        userAdjustment(d) <- adjustment;
+        sku(d) <- sku(b);
+        batch(d) <- b;
+        quantity(d) <- adjust(b);
+    }
 }
 
-createBatchUserAdjustment 'Документ пересорта'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
+createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
     FORM selectParamsAdjustment MODAL;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
@@ -638,8 +635,7 @@ createBatchUserAdjustment 'Документ пересорта'() = ACTION NEWSE
             time(adjustment) <- TIME(chosenDateTime('dt'));          
 
             inAdjustment(Sku sku) <- NULL;
-            inAdjustment(Sku sku) <-  inSession(skuGroup(sku));
-            inAdjustment(Sku sku) <- NULL WHERE inAdjustment(sku)  AND NOT toAdjustment(sku,stock(adjustment),dateTime(adjustment));
+            inAdjustment(Sku sku) <- inSession(skuGroup(sku));
             
             createBatchUserAdjustmentDetail(adjustment);
             FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKEDMODAL ;          
@@ -648,11 +644,11 @@ createBatchUserAdjustment 'Документ пересорта'() = ACTION NEWSE
 }
 
 EXTEND FORM adjustments
-    PROPERTIES createBatchUserAdjustment()  FORCE PANEL 
+    PROPERTIES createDialogBatchUserAdjustment()  FORCE PANEL 
 ;
 DESIGN adjustments {
     createdContainer {
-        MOVE PROPERTY (createBatchUserAdjustment());
+        MOVE PROPERTY (createDialogBatchUserAdjustment());
     }    
 }
 
@@ -665,8 +661,8 @@ createBatchUserAdjustment 'Документ пересорта'(Stock stock) = A
             time(adjustment) <- currentTime();  
             isPosted(adjustment) <- TRUE;
 
-            inAdjustment(Sku sku) <- NULL;
-            inAdjustment(Sku sku) <- TRUE WHERE toAdjustment(sku,stock(adjustment),dateTime(adjustment));
+            inAdjustment(Sku sku) <- TRUE;
+//            inAdjustment(Sku sku) <- TRUE WHERE toAdjustment(sku,stock(adjustment),dateTime(adjustment));
             
             createBatchUserAdjustmentDetail(adjustment);      
         }
@@ -675,23 +671,18 @@ createBatchUserAdjustment 'Документ пересорта'(Stock stock) = A
 }//-- для планировщика
 
 //-- Для всех складов
-overCreateUserAdjustmentAll = ACTION ABSTRACT LIST (UserAdjustment);
+overCreateBatchUserAdjustment = ACTION ABSTRACT LIST (UserAdjustment);
 
-createOverBatchUserAdjustmentAll 'Документ пересорта'() = ACTION {
-    FOR [ = GROUP SUM 1 IF toAdjustment (Sku s,Stock st,DATETIME dt) AND inAdjustment(s) BY st,dt](Stock st, currentDateTime()) AND inAdjustment(st) DO {
-        NEWSESSION NESTED inAdjustment[Stock], inAdjustment[Sku] {
-            FOR ADDOBJ a = UserAdjustment DO {  
-                stock(a) <- st;
-                date(a) <- currentDate();
-                time(a) <- currentTime();  
-                isPosted(a) <- TRUE;
-                
-                overCreateUserAdjustmentAll(a);
-                
-                createBatchUserAdjustmentDetail(a);      
-            }
-            apply();        
-        }    
+createBatchUserAdjustment 'Документ пересорта'() = ACTION {
+    FOR inAdjustment(Stock st) ADDOBJ a = UserAdjustment DO {  
+        stock(a) <- st;
+        date(a) <- currentDate();
+        time(a) <- currentTime();  
+        isPosted(a) <- TRUE;
+        
+        overCreateBatchUserAdjustment(a);
+        
+        createBatchUserAdjustmentDetail(a);      
     }
 }//-- для планировщика
 
