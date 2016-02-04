@@ -16,15 +16,17 @@ countInConsignmentPrintTrip = GROUP SUM 1 IF countOrderConsignmentPrint(Trip tri
 
 inConsignmentPrintTrip = GROUP MAX Trip trip IF countOrderConsignmentPrint(trip);
 
-createNotPickedInvoice 'Выписывать накладные на заказы без комплектации' = DATA BOOLEAN (); 
+createNotPickedInvoice 'Выписывать накладные на заказы без комплектации' = DATA BOOLEAN ();
+singleInvoicedOrder 'Считать выписанным заказ, по которому создана хоть одна накладная' = DATA BOOLEAN ();
 
 EXTEND FORM options 
-    PROPERTIES () createNotPickedInvoice
+    PROPERTIES () createNotPickedInvoice, singleInvoicedOrder
 ;
 
 DESIGN options {
     sale {        
         MOVE PROPERTY(createNotPickedInvoice());
+        MOVE PROPERTY(singleInvoicedOrder());
     }    
 }
 
@@ -115,12 +117,13 @@ filterOrders = IF createNotPickedInvoice()
                     THEN Order order IS Order
                     ELSE picked(order);
                     
-toInvoiced = IF createNotPickedInvoice()
-                    THEN TRUE IF (toInvoice[Sale.Order](Order order) OR toInvoice[PurchaseReturn.Order](order))
-                    ELSE TRUE IF toInvoicePicked(order);
+toInvoiced = CASE
+                            WHEN singleInvoicedOrder() THEN TRUE IF Order o IS Order AND NOT invoicedOrderDetail(o)
+                            WHEN createNotPickedInvoice() THEN TRUE IF toInvoice(o)
+                            ELSE TRUE IF toInvoicePicked(o);
                     
 toInvoiced = IF createNotPickedInvoice()
-                         THEN TRUE IF (toInvoice[Sale.OrderDetail](OrderDetail order) OR toInvoice[PurchaseReturn.OrderDetail](order))
+                         THEN TRUE IF toInvoice(OrderDetail order)
                          ELSE TRUE IF toInvoicePicked(order);                    
 
 FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
@@ -132,7 +135,7 @@ FORM consignmentDashboard 'Выписка накладных' AUTOREFRESH 60
     PROPERTIES(o) inConsignmentPrint
     PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPicking(o) nameDriverTrip, dateTrip
     PROPERTIES(o) BACKGROUND backgroundStatusPickingPicking(o) numberTrip ON CHANGE changeTrip(o)   
-    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPicking(o) number, date, nameFromStock, 
+    PROPERTIES(o) READONLY BACKGROUND backgroundStatusPickingPicking(o) number, date, shipmentDate, nameFromStock, 
                   nameTo, nameToStock, addressToStock, grossWeightOrderPicking, packQuantity, quantityOrderDetail,
                   note
     PROPERTIES(o) printConsignment FORCE PANEL TOOLBAR
