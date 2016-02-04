@@ -45,7 +45,7 @@ public class CL5000JHandler extends ScalesHandler {
 
                     processTransactionLogger.info("CL5000J: Sending to scales " + scales.port);
                     if(scales.port != null) {
-                        DataSocket socket = new DataSocket(scales.port, 1111);
+                        DataSocket socket = new DataSocket(scales.port, 20304);
                         try {
 
                             socket.open();
@@ -277,7 +277,7 @@ public class CL5000JHandler extends ScalesHandler {
             if (!machineryInfoList.isEmpty()) {
                 for (MachineryInfo scales : machineryInfoList) {
                     if (scales.port != null) {
-                        DataSocket socket = new DataSocket(scales.port, 1111);
+                        DataSocket socket = new DataSocket(scales.port, 20304);
                         try {
                             processStopListLogger.info("CL5000J: Sending StopList to scale " + scales.port);
                             socket.open();
