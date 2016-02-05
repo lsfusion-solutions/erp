@@ -12,6 +12,7 @@ import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
+import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.*;
@@ -25,6 +26,7 @@ import lsfusion.server.lifecycle.LifecycleAdapter;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -1146,6 +1148,50 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
         }
         return terminalLegalEntityList;
+    }
+
+    public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<TerminalLegalEntity> customANAList = new ArrayList<>();
+        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        if (terminalLM != null) {
+
+            KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
+            ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
+            String[] names = new String[]{"id", "name", "propertyID", "propertyName"};
+            LCP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]", "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]");
+            for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
+                query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
+            }
+            query.and(terminalLM.findProperty("id[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+            for (ImMap<Object, Object> entry : result.values()) {
+                String prefix = trim((String) entry.get("id"));
+                LCP propertyID = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
+                LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
+
+                if(propertyID != null && propertyName != null) {
+                    ImOrderSet<PropertyInterface> interfaces = propertyID.listInterfaces;
+                    if (interfaces.size() == 1) {
+                        KeyExpr customANAExpr = new KeyExpr("customANA");
+                        ImRevMap<Object, KeyExpr> customANAKeys = MapFact.singletonRev((Object) "customANA", customANAExpr);
+                        QueryBuilder<Object, Object> customANAQuery = new QueryBuilder<>(customANAKeys);
+                        customANAQuery.addProperty("id", propertyID.getExpr(customANAExpr));
+                        customANAQuery.addProperty("name", propertyName.getExpr(customANAExpr));
+                        customANAQuery.and(propertyID.getExpr(customANAExpr).getWhere());
+                        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> customANAResult = customANAQuery.execute(session);
+                        for (ImMap<Object, Object> customANAEntry : customANAResult.values()) {
+                            String idCustomANA = trim((String) customANAEntry.get("id"));
+                            String nameCustomANA = trim((String) customANAEntry.get("name"));
+                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA));
+                        }
+                    }
+                }
+            }
+        }
+        return customANAList;
     }
 
     public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)

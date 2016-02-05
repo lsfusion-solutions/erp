@@ -128,7 +128,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 List<List<Object>> itemList = readItemList(session, stockObject);
                 List<TerminalAssortment> assortmentList = EquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = EquipmentServer.readTerminalHandbookTypeList(session, BL);
-                List<TerminalLegalEntity> terminalLegalEntityList = EquipmentServer.readTerminalLegalEntityList(session, BL);
+                List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);
+                List<TerminalLegalEntity> terminalLegalEntityList = customANAList.isEmpty() ? EquipmentServer.readTerminalLegalEntityList(session, BL) : new ArrayList<TerminalLegalEntity>();
                 List<TerminalDocumentType> terminalDocumentTypeList = EquipmentServer.readTerminalDocumentTypeList(session, BL);
                 file = File.createTempFile("terminalHandler", ".db");
 
@@ -147,7 +148,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 updateVANTable(connection, handbookTypeList);
 
                 createANATable(connection);
-                updateANATable(connection, terminalLegalEntityList);
+                updateANATable(connection, terminalLegalEntityList, customANAList);
 
                 createVOPTable(connection);
                 updateVOPTable(connection, terminalDocumentTypeList);
@@ -361,18 +362,28 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateANATable(Connection connection, List<TerminalLegalEntity> terminalLegalEntityList) throws SQLException {
-        if (!terminalLegalEntityList.isEmpty()) {
+    private void updateANATable(Connection connection, List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalLegalEntity> customANAList) throws SQLException {
+        if (!terminalLegalEntityList.isEmpty() || !customANAList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '');";
                 statement = connection.prepareStatement(sql);
-                for (TerminalLegalEntity legalEntity : terminalLegalEntityList) {
-                    if (legalEntity.idLegalEntity != null) {
-                        statement.setObject(1, "ПС" + formatValue(legalEntity.idLegalEntity));
-                        statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
-                        statement.addBatch();
+                if (customANAList.isEmpty()) {
+                    for (TerminalLegalEntity legalEntity : terminalLegalEntityList) {
+                        if (legalEntity.idLegalEntity != null) {
+                            statement.setObject(1, "ПС" + formatValue(legalEntity.idLegalEntity));
+                            statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
+                            statement.addBatch();
+                        }
+                    }
+                } else {
+                    for (TerminalLegalEntity legalEntity : customANAList) {
+                        if (legalEntity.idLegalEntity != null) {
+                            statement.setObject(1, formatValue(legalEntity.idLegalEntity));
+                            statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
+                            statement.addBatch();
+                        }
                     }
                 }
                 statement.executeBatch();
@@ -411,7 +422,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 statement = connection.prepareStatement(sql);
                 for (TerminalDocumentType tdt : terminalDocumentTypeList) {
                     if (tdt.id != null) {
-                        statement.setObject(1, "ПС" + formatValue(tdt.id));
+                        statement.setObject(1, formatValue(tdt.id));
                         statement.setObject(2, "");
                         statement.setObject(3, formatValue(tdt.name));
                         statement.setObject(4, formatValue(tdt.analytics1));
@@ -465,6 +476,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         terminalHandlerLM.object(terminalHandlerLM.findClass("TerminalDocumentType")).getMapping(terminalDocumentTypeKey)));
                 fields.add(idTerminalDocumentTypeField);
 
+                ImportField idTerminalHandbookType1Field = new ImportField(terminalHandlerLM.findProperty("idTerminalHandbookType1[TerminalDocument]"));
+                props.add(new ImportProperty(idTerminalHandbookType1Field, terminalHandlerLM.findProperty("idTerminalHandbookType1[TerminalDocument]").getMapping(terminalDocumentKey)));
+                fields.add(idTerminalHandbookType1Field);
+
+                ImportField idTerminalHandbookType2Field = new ImportField(terminalHandlerLM.findProperty("idTerminalHandbookType2[TerminalDocument]"));
+                props.add(new ImportProperty(idTerminalHandbookType2Field, terminalHandlerLM.findProperty("idTerminalHandbookType2[TerminalDocument]").getMapping(terminalDocumentKey)));
+                fields.add(idTerminalHandbookType2Field);
+
+                ImportField commentTerminalDocumentField = new ImportField(terminalHandlerLM.findProperty("comment[TerminalDocument]"));
+                props.add(new ImportProperty(commentTerminalDocumentField, terminalHandlerLM.findProperty("comment[TerminalDocument]").getMapping(terminalDocumentKey)));
+                fields.add(commentTerminalDocumentField);
+
                 if (!emptyDocument) {
 
                     ImportField idTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("id[TerminalDocumentDetail]"));
@@ -491,6 +514,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     ImportField priceTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("price[TerminalDocumentDetail]"));
                     props.add(new ImportProperty(priceTerminalDocumentDetailField, terminalHandlerLM.findProperty("price[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                     fields.add(priceTerminalDocumentDetailField);
+
+                    ImportField commentTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("comment[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(commentTerminalDocumentDetailField, terminalHandlerLM.findProperty("comment[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(commentTerminalDocumentDetailField);
+
+                    ImportField dateTimeScanTerminalDocumentDetailField = new ImportField(terminalHandlerLM.findProperty("dateTimeScan[TerminalDocumentDetail]"));
+                    props.add(new ImportProperty(dateTimeScanTerminalDocumentDetailField, terminalHandlerLM.findProperty("dateTimeScan[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
+                    fields.add(dateTimeScanTerminalDocumentDetailField);
                 }
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);

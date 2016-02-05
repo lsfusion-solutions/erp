@@ -10,6 +10,7 @@ import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 
 import java.io.*;
@@ -20,6 +21,7 @@ import java.net.Socket;
 import java.nio.ByteBuffer;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
@@ -279,10 +281,10 @@ public class TerminalServer extends LifecycleAdapter {
                                         String numberDocument = document[2];
                                         String idDocument = numberDocument + " " + dateDocument;
                                         String idTerminalDocumentType = document[3];
-                                        //String ana1 = document[4];
-                                        //String ana2 = document[5];
+                                        String ana1 = formatValue(document[4]);
+                                        String ana2 = formatValue(document[5]);
                                         //String ana3 = document[6];
-                                        //String comment = document[7];
+                                        String comment = formatValue(document[7]);
                                         for (int i = 1; i < params.size(); i++) {
                                             String[] line = params.get(i);
                                             if (line.length < 5) {
@@ -294,15 +296,16 @@ public class TerminalServer extends LifecycleAdapter {
                                                 BigDecimal priceDocumentDetail = parseBigDecimal(line[2]);
                                                 //String numberDocumentDetail = line[3];
                                                 String idDocumentDetail = idDocument + i;
-                                                //String commentLine = line[4];
+                                                String commentDocumentDetail = formatValue(line[4]);
+                                                String dateDocumentDetail = line.length <= 5 ? null : formatValue(line[5]);
                                                 terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType,
-                                                        idDocumentDetail, String.valueOf(i), barcodeDocumentDetail, quantityDocumentDetail,
-                                                        priceDocumentDetail));
+                                                        ana1, ana2, comment, idDocumentDetail, String.valueOf(i), barcodeDocumentDetail, quantityDocumentDetail,
+                                                        priceDocumentDetail, commentDocumentDetail, parseDate(dateDocumentDetail)));
                                             }
                                         }
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if(emptyDocument)
-                                            terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType));
+                                            terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
                                         result = importTerminalDocumentDetail(idDocument, user, terminalDocumentDetailList, emptyDocument);
                                         if (result != null) {
                                             errorCode = PROCESS_DOCUMENT_ERROR;
@@ -440,6 +443,21 @@ public class TerminalServer extends LifecycleAdapter {
             return null;
         }
 
+    }
+
+    private String formatValue(String value) {
+        return value == null || value.isEmpty() ? null : value;
+    }
+
+    private Timestamp parseDate(String value) {
+        Timestamp timestamp;
+        try {
+            timestamp = value == null ? null : new Timestamp(DateUtils.parseDate(value, new String[] {"yyyy-MM-dd HH:mm:ss"}).getTime());
+        } catch (Exception e) {
+            logger.error("Parsing date failed: " + value, e);
+            timestamp = null;
+        }
+        return timestamp;
     }
 
     private BigDecimal parseBigDecimal(String value) {

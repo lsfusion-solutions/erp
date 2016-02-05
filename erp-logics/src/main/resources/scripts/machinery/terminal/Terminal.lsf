@@ -65,17 +65,21 @@ TABLE terminalHandbookType(TerminalHandbookType);
 @defineExternalizable(terminalHandbookType, VARSTRING[100]);
 
 name 'Наименование' = DATA VARSTRING[100] (TerminalHandbookType);
+propertyID 'Свойство ID' = DATA Property (TerminalHandbookType);
+canonicalNamePropertyID 'Свойство ID' (t) = canonicalName(propertyID(t)) PREFCHARWIDTH 30; 
+propertyName 'Свойство наименование' = DATA Property (TerminalHandbookType);
+canonicalNamePropertyName 'Свойство наименование' (t) = canonicalName(propertyName(t)) PREFCHARWIDTH 30; 
 
 FORM terminalHandbookType
     OBJECTS t = TerminalHandbookType FIXED PANEL
-    PROPERTIES(t) name, id
+    PROPERTIES(t) name, id, canonicalNamePropertyID, canonicalNamePropertyName
     EDIT TerminalHandbookType OBJECT t
 ;
 
 FORM terminalHandbookTypes 'Виды справочников ТСД'
     OBJECTS t=TerminalHandbookType FIXED GRID
-    PROPERTIES(t) READONLY name, id
-    PROPERTIES(t)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) READONLY name, id, canonicalNamePropertyID, canonicalNamePropertyName
+    PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG TerminalHandbookType OBJECT t
 ;
 
@@ -256,6 +260,8 @@ price 'Цена' = DATA NUMERIC[14,2] (TerminalDocumentDetail) IN base;
 sum 'Сумма' = DATA NUMERIC[16,2] (TerminalDocumentDetail) IN base;
 name 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail) IN base;
 isNew 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
+comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
+dateTimeScan 'Время сканирования' = DATA DATETIME (TerminalDocumentDetail) IN base;
 
 terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDetail terminalDocumentDetail 
     BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
@@ -286,7 +292,7 @@ FORM terminalDocument 'Документ ТСД'
 
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) number, barcode, name,
-    isNew, quantity, price, sum, ADDOBJ, deletetdd=DELETESESSION
+    isNew, quantity, price, sum, comment, dateTimeScan, ADDOBJ, deletetdd=DELETESESSION
 
     FILTERS terminalDocument(tdd) == td
 
@@ -328,7 +334,7 @@ FORM terminalDocuments 'Документы ТСД'
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) READONLY number, barcode, name,
-    isNew, price, quantity, sum
+    isNew, price, quantity, sum, comment, dateTimeScan
 
     FILTERS terminalDocument(tdd) == td
     FILTERGROUP filterUse
