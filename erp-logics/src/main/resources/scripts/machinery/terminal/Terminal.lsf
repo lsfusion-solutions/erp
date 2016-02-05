@@ -280,7 +280,7 @@ description 'Название документа' (TerminalDocument o) =
 
 @defineDocumentHeaderCount(terminalDocument);
 @defineDocumentHeaderQuantity(terminalDocument);
-
+@defineDocumentHeaderSum(terminalDocument);
 // ----------------------------------------------- Формы документов ------------------------------------------ //
 
 FORM terminalDocument 'Документ ТСД'
@@ -324,6 +324,21 @@ DESIGN terminalDocument {
     MOVE functions.box;
 }
 
+FORM terminalDocumentPrint 'Документ ТСД'
+    OBJECTS td=TerminalDocument FIXED PANEL 
+    PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, 
+                    nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
+                    title, comment, quantity, countTerminalDocumentDetail, 
+                    quantityTerminalDocumentDetail, sumTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
+
+    OBJECTS tdd=TerminalDocumentDetail
+    PROPERTIES(tdd) READONLY number, barcode, name, isNew, price, quantity, sum, dateTimeScan
+
+    FILTERS terminalDocument(tdd) == td
+;
+terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td) = ACTION FORM terminalDocumentPrint OBJECTS td = td PRINT IMAGE 'print.png' IN print;
+
+
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
     PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, 
@@ -341,6 +356,7 @@ FORM terminalDocuments 'Документы ТСД'
         FILTER 'Неиспользованные' notUsed(td) 'F10' DEFAULT
         
     FILTERGROUP open FILTER 'Открыт' isOpened(td) 'F6' DEFAULT
+    PROPERTIES terminalDocumentPrint(td) FORCE PANEL 
 ;
 
 @extendFormFilterAccessStock(TerminalDocument, td, terminalDocuments, stock, company);
@@ -366,6 +382,14 @@ DESIGN terminalDocuments {
                     caption = 'История';
                     type = CONTAINERV;
                     MOVE td.created;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                        MOVE td.print;
+                    }
                 }
                 NEW actionContainer {
                     caption = 'Действия';
