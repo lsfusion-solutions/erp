@@ -70,6 +70,10 @@ nameSku 'Наименование' (PriceTransactionDocumentDetail detail) = nam
 quantity 'Кол-во' = ABSTRACT NUMERIC[16,5](PriceTransactionDocumentDetail);
 price 'Цена' = ABSTRACT NUMERIC[14,2](PriceTransactionDocumentDetail);
 
+WHEN (SETCHANGED(sku(PriceTransactionDocumentDetail d)) OR SETCHANGED(price(d))) AND sent(priceTransactionDocument(d)) DO {
+    sent( PriceTransactionDocument t) <- NULL WHERE t == priceTransactionDocument(d);   
+}; 
+
 META implementPriceTransactionDocumentDetail(object, class)
     EXTEND CLASS class##Detail : Machinery.PriceTransactionDocumentDetail;
     priceTransactionDocument (class##Detail detail) += object(detail);
