@@ -125,7 +125,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
                 DataObject priceListTypeObject = ((ConcreteCustomClass) terminalHandlerLM.findClass("SystemLedgerPriceListType")).getDataObject("manufacturingPriceStockPriceListType");
 
-                List<List<Object>> itemList = readItemList(session, stockObject);
+                List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
                 List<TerminalAssortment> assortmentList = EquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = EquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);
@@ -137,7 +137,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
 
                 createGoodsTable(connection);
-                updateGoodsTable(connection, itemList);
+                updateGoodsTable(connection, barcodeList);
 
                 createOrderTable(connection);
 
@@ -182,31 +182,31 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         }
     }
 
-    private List<List<Object>> readItemList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private List<List<Object>> readBarcodeList(DataSession session, ObjectValue stockObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<List<Object>> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
-            KeyExpr itemExpr = new KeyExpr("item");
-            ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "item", itemExpr);
+            KeyExpr barcodeExpr = new KeyExpr("barcode");
+            ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
 
-            QueryBuilder<Object, Object> itemQuery = new QueryBuilder<>(itemKeys);
-            itemQuery.addProperty("idBarcodeSku", terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(itemExpr));
-            itemQuery.addProperty("nameSku", terminalHandlerLM.findProperty("name[Sku]").getExpr(itemExpr));
-            itemQuery.addProperty("transactionPriceSkuStock", terminalHandlerLM.findProperty("transactionPrice[Sku,Stock]").getExpr(itemExpr, stockObject.getExpr()));
-            //itemQuery.addProperty("quantitySkuStock", terminalHandlerLM.findProperty("quantitySkuStock").getExpr(itemExpr, stockObject.getExpr()));
-            itemQuery.and(terminalHandlerLM.findProperty("idBarcode[Sku]").getExpr(itemExpr).getWhere());
-            itemQuery.and(terminalHandlerLM.findProperty("transactionPrice[Sku,Stock]").getExpr(itemExpr, stockObject.getExpr()).getWhere());
-            //itemQuery.and(terminalHandlerLM.findProperty("quantitySkuStock").getExpr(itemExpr, stockObject.getExpr()).getWhere());
+            QueryBuilder<Object, Object> barcodeQuery = new QueryBuilder<>(barcodeKeys);
+            barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.addProperty("nameSkuBarcode", terminalHandlerLM.findProperty("nameSku[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.addProperty("transactionPriceBarcodeStock", terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+            barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
+            barcodeQuery.and(terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
 
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = itemQuery.execute(session);
-            for (ImMap<Object, Object> entry : itemResult.values()) {
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
+            for (ImMap<Object, Object> entry : barcodeResult.values()) {
 
-                String idBarcodeSku = trim((String) entry.get("idBarcodeSku"));
-                String nameSku = trim((String) entry.get("nameSku"));
-                BigDecimal transactionPriceSkuStock = (BigDecimal) entry.get("transactionPriceSkuStock");
-                BigDecimal quantitySkuStock = BigDecimal.ONE;//(BigDecimal) entry.get("quantitySkuStock");
+                String idBarcode = trim((String) entry.get("idBarcode"));
+                String nameSkuBarcode = trim((String) entry.get("nameSkuBarcode"));
+                BigDecimal transactionPriceBarcodeStock = (BigDecimal) entry.get("transactionPriceBarcodeStock");
+                BigDecimal quantityBarcodeStock = BigDecimal.ONE;
+                String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
 
-                result.add(Arrays.<Object>asList(idBarcodeSku, nameSku, transactionPriceSkuStock, quantitySkuStock));
+                result.add(Arrays.<Object>asList(idBarcode, nameSkuBarcode, transactionPriceBarcodeStock, quantityBarcodeStock, idSkuBarcode));
 
             }
         }
@@ -253,19 +253,20 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<List<Object>> itemList) throws SQLException {
-        if (!itemList.isEmpty()) {
+    private void updateGoodsTable(Connection connection, List<List<Object>> barcodeList) throws SQLException {
+        if (!barcodeList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', '');";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, '', '', '', '', '');";
                 statement = connection.prepareStatement(sql);
-                for (List<Object> item : itemList) {
-                    if (item.get(0) != null) {
-                        statement.setObject(1, formatValue(item.get(0))); //idBarcode
-                        statement.setObject(2, formatValue(item.get(1))); //name
-                        statement.setObject(3, formatValue(item.get(2))); //price
-                        statement.setObject(4, formatValue(item.get(3))); //quantity
+                for (List<Object> barcode : barcodeList) {
+                    if (barcode.get(0) != null) {
+                        statement.setObject(1, formatValue(barcode.get(0))); //idBarcode
+                        statement.setObject(2, formatValue(barcode.get(1))); //name
+                        statement.setObject(3, formatValue(barcode.get(2))); //price
+                        statement.setObject(4, formatValue(barcode.get(3))); //quantity
+                        statement.setObject(5, formatValue(barcode.get(4))); //idItem
                         statement.addBatch();
                     }
                 }
