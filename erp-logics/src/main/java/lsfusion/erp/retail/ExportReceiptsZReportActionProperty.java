@@ -90,7 +90,7 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
                 receiptQuery.addProperty("numberDiscountCardReceipt", zReportDiscountCardLM.findProperty("numberDiscountCard[Receipt]").getExpr(session.getModifier(), receiptExpr));
 
             if (POSVostrovLM != null)
-                receiptQuery.addProperty("isInvoiceReceipt", POSVostrovLM.findProperty("isInvoiceReceipt").getExpr(session.getModifier(), receiptExpr));
+                receiptQuery.addProperty("isInvoiceReceipt", POSVostrovLM.findProperty("isInvoice[Receipt]").getExpr(session.getModifier(), receiptExpr));
 
             receiptQuery.and(findProperty("zReport[Receipt]").getExpr(session.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
             receiptQuery.and(findProperty("export[Receipt]").getExpr(session.getModifier(), receiptQuery.getMapExprs().get("receipt")).getWhere());
