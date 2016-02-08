@@ -50,7 +50,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы DBF", "DBF");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             if (objectValue != null) {
@@ -59,7 +59,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
             Declaration declaration = exportDeclaration(context, declarationObject);
             G44 g44 = exportG44ToList(context, declarationObject);
 
-                Map<String, byte[]> outputFiles = new HashMap<String, byte[]>();
+                Map<String, byte[]> outputFiles = new HashMap<>();
 
                 Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
                 for (Map.Entry<String, byte[]> entry : fileList.entrySet()) {
@@ -104,17 +104,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
                 if(outputFiles.size() > 0)
                     context.delayUserInterfaction(new ExportFileClientAction(outputFiles));
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (JDBFException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | JDBFException | IOException | xBaseJException | ParseException e) {
             throw new RuntimeException(e);
         }
     }
@@ -151,7 +141,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         LCP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
         ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
         KeyExpr key = keys.singleValue();
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
         for (int j = 0; j < exportProperties.length; j++) {
             query.addProperty(exportNames[j], exportProperties[j].getExpr(context.getModifier(), key));
         }
@@ -161,7 +151,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
         if (result.size() == 0)
             return null;
-        List<DeclarationDetail> declarationDetailList = new ArrayList<DeclarationDetail>();
+        List<DeclarationDetail> declarationDetailList = new ArrayList<>();
         for (int i = 0, size = result.size(); i < size; i++) {
             ImMap<Object, Object> values = result.getValue(i);
             String extraNameDeclarationDetail = (String) values.get("extraNameDeclarationDetail"); //G31_NT 
@@ -206,8 +196,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private G44 exportG44ToList(ExecutionContext context, DataObject declarationObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<G44Detail> customsDocumentDetailList = new ArrayList<G44Detail>();
-        List<G44Detail> complianceDetailList = new ArrayList<G44Detail>();
+        List<G44Detail> customsDocumentDetailList = new ArrayList<>();
+        List<G44Detail> complianceDetailList = new ArrayList<>();
 
         String numberDeclaration = (String) findProperty("number[Declaration]").read(context, declarationObject);
 
@@ -218,7 +208,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         KeyExpr customsDocumentExpr = new KeyExpr("customsDocument");
         ImRevMap<Object, KeyExpr> customsDocumentKeys = MapFact.toRevMap((Object) "declarationDetail", declarationDetailExpr, "customsDocument", customsDocumentExpr);
 
-        QueryBuilder<Object, Object> customsDocumentQuery = new QueryBuilder<Object, Object>(customsDocumentKeys);
+        QueryBuilder<Object, Object> customsDocumentQuery = new QueryBuilder<>(customsDocumentKeys);
 
         customsDocumentQuery.addProperty("numberDeclarationDetail", findProperty("number[DeclarationDetail]").getExpr(declarationDetailExpr));
         customsDocumentQuery.addProperty("isVATCustomsExceptionDeclarationDetail", findProperty("isVATCustomsException[DeclarationDetail]").getExpr(declarationDetailExpr));
@@ -258,7 +248,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         KeyExpr complianceExpr = new KeyExpr("compliance");
         ImRevMap<Object, KeyExpr> complianceKeys = MapFact.toRevMap((Object) "declarationDetail", declarationDetail2Expr, "compliance", complianceExpr);
 
-        QueryBuilder<Object, Object> complianceQuery = new QueryBuilder<Object, Object>(complianceKeys);
+        QueryBuilder<Object, Object> complianceQuery = new QueryBuilder<>(complianceKeys);
 
         complianceQuery.addProperty("numberDeclarationDetail", findProperty("number[DeclarationDetail]").getExpr(declarationDetail2Expr));
         for (int j = 0; j < complianceProperties.length; j++) {
@@ -585,7 +575,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
 
     private Map<Field, Object> readDBFFields(byte[] fileBytes) throws IOException, xBaseJException, ParseException {
 
-        Map<Field, Object> fieldMap = new LinkedHashMap<Field, Object>();
+        Map<Field, Object> fieldMap = new LinkedHashMap<>();
 
         File tempFile = null;
         DBF dbfFile = null;
@@ -634,7 +624,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
     }
 
     private OverJDBField[] getJDBFieldArray(Map<Field, Object> dbfFields) throws JDBFException {
-        List<OverJDBField> dataFields = new ArrayList<OverJDBField>();
+        List<OverJDBField> dataFields = new ArrayList<>();
 
         for (Map.Entry<Field, Object> entry : dbfFields.entrySet()) {
             dataFields.add(new OverJDBField(entry.getKey().getName(), entry.getKey().getType(), entry.getKey().getLength(), entry.getKey().getDecimalPositionCount()));
@@ -643,7 +633,7 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
     }
 
     private Map<String, Object> getNameValueFieldMap(Map<Field, Object> dbfFields) throws JDBFException {
-        LinkedHashMap<String, Object> nameValueFieldMap = new LinkedHashMap<String, Object>();
+        LinkedHashMap<String, Object> nameValueFieldMap = new LinkedHashMap<>();
 
         for (Map.Entry<Field, Object> entry : dbfFields.entrySet()) {
             nameValueFieldMap.put(entry.getKey().getName(), entry.getValue());

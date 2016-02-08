@@ -39,7 +39,7 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
             findProperty("defaultCountry[]").change(countryBelarus, context);
             context.getSession().apply(context);
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "DBF");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
                 List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());

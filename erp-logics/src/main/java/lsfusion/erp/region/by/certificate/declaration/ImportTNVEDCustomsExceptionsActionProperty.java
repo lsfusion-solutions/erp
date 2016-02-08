@@ -41,7 +41,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "DBF");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             if (objectValue != null) {

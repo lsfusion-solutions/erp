@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
@@ -89,7 +90,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
 
             DataObject declarationObject = context.getDataKeyValue(declarationInterface);
 
-            Map<String, byte[]> files = new HashMap<String, byte[]>();
+            Map<String, byte[]> files = new HashMap<>();
             File fileTSware = File.createTempFile("TSware", ".csv");
             PrintWriter writerTSware = new PrintWriter(
                     new OutputStreamWriter(
@@ -121,7 +122,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
             LCP<?> isDeclarationDetail = is(findClass("DeclarationDetail"));
             ImRevMap<Object, KeyExpr> keys = (ImRevMap<Object, KeyExpr>) isDeclarationDetail.getMapKeys();
             KeyExpr key = keys.singleValue();
-            QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(keys);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
             for (int j = 0; j < exportProperties.length; j++) {
                 query.addProperty(exportNames.get(j), exportProperties[j].getExpr(context.getModifier(), key));
             }
@@ -129,11 +130,11 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
             query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), key).compare(declarationObject.getExpr(), Compare.EQUALS));
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
 
-            TreeMap<Integer, Map<String, Object>> sortedRows = new TreeMap<Integer, Map<String, Object>>();
+            TreeMap<Integer, Map<String, Object>> sortedRows = new TreeMap<>();
 
             for (int i=0,size=result.size();i<size;i++) {
                 ImMap<Object, Object> values = result.getValue(i);
-                Map<String, Object> valuesRow = new HashMap<String, Object>();
+                Map<String, Object> valuesRow = new HashMap<>();
                 for (String propertySID : exportNames)
                     valuesRow.put(propertySID, values.get(propertySID));
                 valuesRow.put("declarationDetailID", result.getKey(i).getValue(0));
@@ -155,7 +156,7 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
                 KeyExpr invoiceExpr = new KeyExpr("invoice");
                 ImRevMap<Object, KeyExpr> invoiceKeys = MapFact.singletonRev((Object)"invoice", invoiceExpr);
 
-                QueryBuilder<Object, Object> invoiceQuery = new QueryBuilder<Object, Object>(invoiceKeys);
+                QueryBuilder<Object, Object> invoiceQuery = new QueryBuilder<>(invoiceKeys);
                 invoiceQuery.addProperty("seriesNumberInvoice", findProperty("seriesNumber[Purchase.Invoice]").getExpr(invoiceExpr));
                 invoiceQuery.addProperty("dateInvoice", findProperty("date[Purchase.Invoice]").getExpr(invoiceExpr));
 
@@ -282,16 +283,8 @@ public class ExportDeclarationActionProperty extends DefaultExportActionProperty
             fileTSDocs44.delete();
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 

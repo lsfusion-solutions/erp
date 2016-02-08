@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -49,7 +50,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
         try {
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файл G47.DBF", "DBF");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, "Файл G47.DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
 
             DataObject declarationObject = context.getDataKeyValue(declarationInterface);
@@ -64,14 +65,8 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
                 }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException e) {
+            throw Throwables.propagate(e);
         }
     }
 
@@ -81,7 +76,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
         KeyExpr declarationDetailExpr = new KeyExpr("DeclarationDetail");
         ImRevMap<Object, KeyExpr> declarationDetailKeys = MapFact.singletonRev((Object) "declarationDetail", declarationDetailExpr);
-        QueryBuilder<Object, Object> query = new QueryBuilder<Object, Object>(declarationDetailKeys);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(declarationDetailKeys);
 
         query.and(findProperty("declaration[DeclarationDetail]").getExpr(context.getModifier(), declarationDetailExpr).compare(declarationObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
@@ -91,9 +86,9 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
         else {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             ImportField numberDeclarationDetailField = new ImportField(findProperty("number[DeclarationDetail]"));
             ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) findClass("DeclarationDetail"),
@@ -132,7 +127,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
     private List<List<Object>> readDeclarationFromDBF(ExecutionContext context, DataObject declarationObject, byte[] entry) throws ScriptingErrorLog.SemanticErrorException, SQLException, IOException, xBaseJException, SQLHandledException {
         
-        List<List<Object>> data = new ArrayList<List<Object>>();
+        List<List<Object>> data = new ArrayList<>();
         File tempFile = null;
         DBF dbfFile = null;
         try {

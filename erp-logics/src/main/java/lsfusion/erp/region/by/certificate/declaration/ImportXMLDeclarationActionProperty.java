@@ -54,7 +54,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                 //ObjectValue customsZone = LM.findProperty("customsZoneDeclaration").readClasses(context.getSession(), declaration);
                 for (byte[] file : fileList) {
 
-                    List<List<Object>> data = new ArrayList<List<Object>>();
+                    List<List<Object>> data = new ArrayList<>();
                     Date defaultDate = new Date(2011-1900, 0, 1);
 
                     SAXBuilder builder = new SAXBuilder();
@@ -67,7 +67,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     List list = rootNode.getChildren("ESADout_CUGoods", ns);
                     for (int i = 0; i < list.size(); i++) {
                         Element node = (Element) list.get(i);
-                        row = new ArrayList<Object>();
+                        row = new ArrayList<>();
                         List payment = node.getChildren("ESADout_CUCustomsPaymentCalculation", ns);
 
                         Double duty = null;
@@ -114,7 +114,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     ImportField nameUOMField = new ImportField(findProperty("name[UOM]"));
                     ImportField UOMIDField = new ImportField(findProperty("id[UOM]"));
 
-                    List<ImportProperty<?>> properties = new ArrayList<ImportProperty<?>>();
+                    List<ImportProperty<?>> properties = new ArrayList<>();
 
                     ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) findClass("DeclarationDetail"),
                             findProperty("declarationDetail[Declaration,INTEGER]").getMapping(userNumberField, nameCustomsField));
@@ -157,13 +157,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     integrationService.synchronize(true, false);
                 }
             }
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (SQLException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (JDOMException e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | JDOMException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }

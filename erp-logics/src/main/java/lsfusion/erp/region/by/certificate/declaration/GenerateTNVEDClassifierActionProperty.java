@@ -32,9 +32,9 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
 
         try {
 
-            Map<String, byte[]> files = new HashMap<String, byte[]>();
+            Map<String, byte[]> files = new HashMap<>();
 
-            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы DBF", "DBF");
+            CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, "Файлы DBF", "dbf");
             ObjectValue objectValue = context.requestUserData(valueClass, null);
             if (objectValue != null) {
                 Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
@@ -57,11 +57,11 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
 
                 DBF dbfFile = new DBF(inputFile.getAbsolutePath());
 
-                List<String> groupIDsList = new ArrayList<String>();
+                List<String> groupIDsList = new ArrayList<>();
 
-                Map<String, Object[]> dutiesMap = getDuties(context, fileDuties);
+                Map<String, Object[]> dutiesMap = getDuties(fileDuties);
 
-                Set<String> codes = new HashSet<String>();
+                Set<String> codes = new HashSet<>();
 
                 int recordCount = dbfFile.getRecordCount();
                 for (int i = 1; i <= recordCount; i++) {
@@ -129,30 +129,22 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
             }
 
 
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
-        } catch (UnsupportedEncodingException e) {
-            throw new RuntimeException(e);
-        } catch (FileNotFoundException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
+        } catch (ParseException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         }
 
     }
 
-    private Map<String, Object[]> getDuties(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ParseException {
+    private Map<String, Object[]> getDuties(byte[] fileBytes) throws IOException, xBaseJException, ParseException {
 
-        Map<String, Object[]> result = new HashMap<String, Object[]>();
+        Map<String, Object[]> result = new HashMap<>();
 
         File tempFile = File.createTempFile("dutiesTNVED", ".dbf");
         IOUtils.putFileBytes(tempFile, fileBytes);
 
         DBF file = new DBF(tempFile.getPath());
 
-        Map<String, BigDecimal> registrationMap = new HashMap<String, BigDecimal>();
+        Map<String, BigDecimal> registrationMap = new HashMap<>();
 
         int recordCount = file.getRecordCount();
         for (int i = 1; i <= recordCount; i++) {
