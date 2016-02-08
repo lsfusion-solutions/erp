@@ -227,7 +227,8 @@ nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalD
 groupTerminal = DATA GroupTerminal (TerminalDocument);
 nameGroupTerminal 'Группа ТСД' (TerminalDocument terminalDocument) = name(groupTerminal(terminalDocument));
 
-stock (TerminalDocument document) = stock(groupTerminal(document));
+dataStock = DATA Stock (TerminalDocument);
+stock (TerminalDocument document) = OVERRIDE stock(groupTerminal(document)), dataStock(document);
 nameStock 'Склад' (TerminalDocument document) = name(stock (document)) IN documentHeader;
 
 idTerminalDocumentType (TerminalDocument terminalDocument) = id (terminalDocumentType (terminalDocument));
@@ -238,6 +239,7 @@ notUsed 'Неиспользован' (TerminalDocument terminalDocument) = termi
 createdUser = DATA CustomUser (TerminalDocument);
 createdNameUser 'Создан пользователем' (TerminalDocument td) = name[Contact](createdUser(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
 createdUser (TerminalDocument o) <- currentUser() WHEN SET(o IS TerminalDocument);
+dataStock(TerminalDocument d) <- stock(createdUser(d)) WHEN SET (createdUser(d));
 
 createdTime 'Время создания'= DATA DATETIME (TerminalDocument) IN created;
 createdTime (TerminalDocument o) <- currentDateTime() WHEN SET(o IS TerminalDocument);
@@ -271,12 +273,6 @@ description 'Название документа' (TerminalDocument o) =
     
 @defineDocumentIs(TerminalDocument, TerminalDocumentDetail);
 @defineDocumentHeaderClosed(TerminalDocument);
-//@defineDocumentDetailClosed(terminalDocument){
-//    @defineDocumentDetailClosed(terminalDocument, TerminalDocumentDetail){
-//    isClosedTerminalDocumentDetail 'Закрыт' (d) = isClosedTerminalDocument(terminalDocumentTerminalDocumentDetail(d));
-//    isOpenedTerminalDocumentDetail 'Не закрыт' (d) = isPostedTerminalDocumentDetail(d) AND NOT isClosedTerminalDocumentDetail(d);
-//};
-//};
 
 @defineDocumentHeaderCount(terminalDocument);
 @defineDocumentHeaderQuantity(terminalDocument);
@@ -341,7 +337,7 @@ terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument
 
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
-    PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, 
+    PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, nameStock,
                     nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
                     title, comment, quantity, countTerminalDocumentDetail, 
                     quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
