@@ -32,7 +32,7 @@ WHEN SESSION CHANGED(VAT(UserInvoiceDetail detail)) OR CHANGED(valueVAT(detail))
 
 extraRetailPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail); 
 WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
-              CHANGED(dateTime(detail)) OR
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND batch(detail) DO {
     retailPrice (detail)  <- prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
                                                                                                        batch(detail),
@@ -41,7 +41,7 @@ WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
 }
 
 WHEN SESSION (CHANGED(customerStock(UserInvoiceDetail detail)) OR
-              CHANGED(dateTime(detail)) OR
+              (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               DROPPED(batch(detail)) OR
               CHANGED(sku(detail))) AND NOT batch(detail) DO {
     retailPrice (detail)  <- prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
