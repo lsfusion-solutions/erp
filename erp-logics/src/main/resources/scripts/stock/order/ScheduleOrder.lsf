@@ -258,7 +258,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                dateSupply(scheduleOrderDetail1) == dateSupply(scheduleOrderDetail2) AND
                dateOrder(scheduleOrderDetail1) == dateOrder(scheduleOrderDetail2) AND 
                customerStock(scheduleOrderDetail1) == customerStock(scheduleOrderDetail2) AND NOT
-               scheduleOrderDetail1 == scheduleOrderDetail2 MESSAGE 'Совпадение даты заказа и даты поставки';        
+               scheduleOrderDetail1 == scheduleOrderDetail2 MESSAGE 'Совпадение даты заказа и даты поставки';    
+                   
+    CONSTRAINT scheduleOrder(ScheduleOrderDetail d) AND customerStock(d) AND NOT in[ScheduleOrder, Stock](scheduleOrder(d), customerStock(d))
+        MESSAGE 'Для предварительного заказа выбран склад покупателя, который не включен в график поставок.';                                     
 
     tmpDate = DATA LOCAL DATE();
     tmpDateP = DATA LOCAL DATE();
@@ -936,8 +939,12 @@ lastScheduleOrderSupplierCustomer (s,ss,c,cs) =
             MOVE PROPERTY(nameSupplierStock());
             MOVE PROPERTY(nameCustomer());
         }
-        MOVE s.box;
-        MOVE ss.box;
+        NEW head.box {
+            fill = 1;
+            type = SPLITV;
+            MOVE s.box;
+            MOVE ss.box { fill = 2;}           
+        }
         MOVE functions.box;
     }
     @extendFormFilterAccessStock(scheduleOrder, s, scheduleOrderDashboard, supplierStock, filterSupplier);
