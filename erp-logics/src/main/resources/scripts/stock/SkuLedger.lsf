@@ -1264,6 +1264,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY dateTime, description,
                     signedQuantity, signedPrice, signedSum, skip
+    PROPERTIES      READONLY cost(bil, bt) AFTER signedQuantity(bil)
     FILTERS isPosted(bil) AND (cost(bil, bt) OR batch(bil)==bt) AND stock(bil)==st   //skuSkuLedger(bil)==skuBatch(bt)
     ORDER BY dateTime(bil) DESC
     FILTERGROUP container 
@@ -1370,7 +1371,8 @@ FORM balanceBatchStock 'Остатки по партиям на дату'
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY dateTime, description,
                     signedQuantity, signedPrice, signedSum, skip
-    FILTERS isPosted(bil) AND sku(bil)==sku(bt) AND stock(bil)==st,
+    PROPERTIES      READONLY cost(bil, bt) AFTER signedQuantity(bil)
+    FILTERS isPosted(bil) AND (cost(bil, bt) OR batch(bil)==bt) AND stock(bil)==st,
             dateTime(bil) < t
     ORDER BY dateTime(bil) DESC
     FILTERGROUP container 
