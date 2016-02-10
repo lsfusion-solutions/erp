@@ -890,6 +890,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         machineryQuery.addProperty("overDirectoryMachinery", machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr));
         machineryQuery.addProperty("portMachinery", machineryLM.findProperty("port[Machinery]").getExpr(machineryExpr));
         machineryQuery.addProperty("nppMachinery", machineryLM.findProperty("npp[Machinery]").getExpr(machineryExpr));
+        machineryQuery.addProperty("overDepartmentNumber", cashRegisterLM.findProperty("overDepartmentNumber[Machinery]").getExpr(machineryExpr));
 
         machineryQuery.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
         machineryQuery.and(machineryLM.findProperty("idStock[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
@@ -910,12 +911,16 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             boolean isCashRegister = machineryClass != null && machineryClass.equals(cashRegisterClass);
             boolean isScales = machineryClass != null && machineryClass.equals(scalesClass);
             String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
+            Integer overDepartNumber = (Integer) values.get("overDepartmentNumber").getValue();
 
             Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<MachineryInfo>>();
             if(!handlerMap.containsKey(handlerModel))
                 handlerMap.put(handlerModel, new HashSet<MachineryInfo>());
             if(isCashRegister) {
-                handlerMap.get(handlerModel).add(new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
+                CashRegisterInfo e = new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery);
+                // чтобы не менять api
+                e.overDepartNumber = overDepartNumber;
+                handlerMap.get(handlerModel).add(e);
             } else if(isScales){
                 handlerMap.get(handlerModel).add(new ScalesInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
             }

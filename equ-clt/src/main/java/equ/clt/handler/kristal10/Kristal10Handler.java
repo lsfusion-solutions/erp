@@ -157,7 +157,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             //parent: priceEntry
                             Element department = new Element("department");
                             setAttribute(department, "number", transaction.departmentNumberGroupCashRegister);
-                            addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
+//                            addStringElement(department, "name", transaction.nameGroupMachinery == null ? "Отдел" : transaction.nameGroupMachinery);
                             priceEntry.addContent(department);
 
                             //parent: good
@@ -584,7 +584,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         Set<Integer> nppGroupMachinerySet = new HashSet<>();
                         for (MachineryInfo machineryInfo : machineryInfoSet) {
                             if (machineryInfo instanceof CashRegisterInfo)
-                                nppGroupMachinerySet.add(((CashRegisterInfo) machineryInfo).numberGroup);
+                                nppGroupMachinerySet.add(((CashRegisterInfo) machineryInfo).overDepartNumber != null ? ((CashRegisterInfo) machineryInfo).overDepartNumber : ((CashRegisterInfo) machineryInfo).numberGroup);
                         }
                         for (Integer number : nppGroupMachinerySet) {
                             Element department = new Element("department");
