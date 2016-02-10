@@ -294,12 +294,12 @@ public class TerminalServer extends LifecycleAdapter {
                                                 String barcodeDocumentDetail = line[0];
                                                 BigDecimal quantityDocumentDetail = parseBigDecimal(line[1]);
                                                 BigDecimal priceDocumentDetail = parseBigDecimal(line[2]);
-                                                //String numberDocumentDetail = line[3];
-                                                String idDocumentDetail = idDocument + i;
+                                                Integer numberDocumentDetail = parseInteger(line[3]);
+                                                String idDocumentDetail = idDocument + fillZeroes(i);
                                                 String commentDocumentDetail = formatValue(line[4]);
                                                 String dateDocumentDetail = line.length <= 5 ? null : formatValue(line[5]);
                                                 terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType,
-                                                        ana1, ana2, comment, idDocumentDetail, String.valueOf(i), barcodeDocumentDetail, quantityDocumentDetail,
+                                                        ana1, ana2, comment, idDocumentDetail, numberDocumentDetail, barcodeDocumentDetail, quantityDocumentDetail,
                                                         priceDocumentDetail, commentDocumentDetail, parseDate(dateDocumentDetail)));
                                             }
                                         }
@@ -449,6 +449,13 @@ public class TerminalServer extends LifecycleAdapter {
         return value == null || value.isEmpty() ? null : value;
     }
 
+    private String fillZeroes(int i) {
+        String value = String.valueOf(i);
+        while (value.length() < 4)
+            value = "0" + value;
+        return value;
+    }
+
     private Timestamp parseDate(String value) {
         Timestamp timestamp;
         try {
@@ -465,6 +472,15 @@ public class TerminalServer extends LifecycleAdapter {
             return value == null || value.isEmpty() ? null : new BigDecimal(value);
         } catch (Exception e) {
             logger.error("Error occured while parsing numeric value: ", e);
+            return null;
+        }
+    }
+
+    private Integer parseInteger(String value) {
+        try {
+            return value == null || value.isEmpty() ? null : Integer.parseInt(value);
+        } catch (Exception e) {
+            logger.error("Error occured while parsing integer value: ", e);
             return null;
         }
     }

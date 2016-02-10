@@ -1648,7 +1648,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 props.add(new ImportProperty(numberTerminalDocumentDetailField, terminalLM.findProperty("number[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
                 fields.add(numberTerminalDocumentDetailField);
                 for (int i = 0; i < terminalDocumentDetailList.size(); i++)
-                    data.get(i).add(terminalDocumentDetailList.get(i).numberDocumentDetail);
+                    data.get(i).add(parseInteger(terminalDocumentDetailList.get(i).numberDocumentDetail));
 
                 ImportField barcodeTerminalDocumentDetailField = new ImportField(terminalLM.findProperty("barcode[TerminalDocumentDetail]"));
                 props.add(new ImportProperty(barcodeTerminalDocumentDetailField, terminalLM.findProperty("barcode[TerminalDocumentDetail]").getMapping(terminalDocumentDetailKey)));
@@ -1694,6 +1694,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
         } catch (Exception e) {
             throw Throwables.propagate(e);
+        }
+    }
+
+    private Integer parseInteger(String value) {
+        try {
+            return value == null || value.isEmpty() ? null : Integer.parseInt(value);
+        } catch (Exception e) {
+            logger.error("Error occured while parsing integer value: ", e);
+            return null;
         }
     }
 
