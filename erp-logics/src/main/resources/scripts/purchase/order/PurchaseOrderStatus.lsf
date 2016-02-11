@@ -128,26 +128,26 @@ EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
 }
 
-logSendDocumentOrder(Object o) = ACTION FOR ADDOBJ d = DocumentLog DO {
+logSendDocumentOrder(Purchase.Order o) = ACTION FOR ADDOBJ d = DocumentLog DO {
     document(d) <- o;
     typeDocument(d) <- objectClassName(o);
-    numberDocument(d) <- number[Document](o);  
-    seriesDocument(d) <- series[Document](o); 
-    dateDocument(d) <- date[Document](o);
+    numberDocument(d) <- number(o);  
+    seriesDocument(d) <- series(o); 
+    dateDocument(d) <- date(o);
     typeChange(d) <- TypeChange.email;
-    note(d) <- VARSTRING[255](OVERRIDE email(supplier[Order](o)), email(supplierStock[Order](o)), overEmailList(o));      
+    note(d) <- VARSTRING[255](OVERRIDE email(supplier(o)), email(supplierStock(o)), overEmailList(o));      
     session(d) <- currentSession();  
     hostnameComputer(d) <- hostnameCurrentComputer();
     userLogin(d) <- login(currentUser()); 
     nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
     dateTimeSession(d) <- currentDateTime();  
-    supplierStock(d) <- supplierStock[Document](o);
-    customerStock(d) <- customerStock[Document](o);
+    supplierStock(d) <- supplierStock(o);
+    customerStock(d) <- customerStock(o);
     
     FORM printOrderXLS OBJECTS o = o EXPORT XLSX;
     file(d) <- formExportFile();
 }
-emailCustomer 'Отправить заказ поставщику' (Order.Order order)= ACTION {
+emailCustomer 'Отправить заказ поставщику' (Purchase.Order order)= ACTION {
     IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
         NEWSESSION {
             IF isPosted(order) THEN MESSAGE NO WAIT 'Заказ в статусе "В работе" или выше, статус изменен не будет ';
