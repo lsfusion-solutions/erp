@@ -255,17 +255,10 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
         AND NOT CHANGED(prefix##Price(detail))
         AND sku(detail) AND PriceListType priceListType == prefix##PriceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
 
-            prefix##Price(detail) <- IF batch(detail) THEN
-                                                            prevPriceB(priceListType,
-                                                                                       batch(detail),
-                                                                                       stockProp(detail),
-                                                                                       prefixTime###dateTime(detail))
-                                                   ELSE
-                                                            prevPriceB(priceListType,
-                                                                                       sku(detail),
-                                                                                       stockProp(detail),
-                                                                                       prefixTime###dateTime(detail))
+            prefix##Price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
+                                                      ELSE prevPriceB(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix##PriceListType(detail) == priceListType;
+                                                         
             prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
                                                                prefix##Price(detail),
                                                                prefixP##Price(detail) IF prefixP##Price(detail)!= 0.0,
@@ -284,6 +277,37 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
                                                                value###prefix##VAT(detail));
         }
 END
+
+META recalculateDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, cap, concrete)
+    recalculate###prefix##Price 'Пересчитать розн. цену'###cap () = ACTION {
+        FOR sku(###idetail detail)  AND CalcPriceListType priceListType == prefix##PriceListType(detail) 
+            AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))    
+            AND pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType, roundCondition) INLINE DO {
+            
+            prefix##Markup(detail) <- markup(priceListType, sku(detail))
+                                                         WHERE prefix##PriceListType(detail) == priceListType;
+            prefix##Price(detail) <- round([= X*(Y+100)*(Z+100)/10000](
+                                                                    prefixP##Price(detail),
+                                                                    prefix##Markup(detail),
+                                                                    value###prefix##VAT(detail)), roundCondition)
+                                                         WHERE prefix##PriceListType(detail) == priceListType;
+        } 
+           
+        FOR sku(###idetail detail) AND PriceListType priceListType == prefix##PriceListType(detail) 
+            AND NOT pricingDocument(priceListType) AND [= FILTER form.concrete](detail) NOINLINE (priceListType) INLINE DO {
+    
+            prefix##Price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
+                                                    ELSE prevPriceB(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
+                                                         WHERE prefix##PriceListType(detail) == priceListType;
+                                                         
+            prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                               prefix##Price(detail),
+                                                               prefixP##Price(detail) IF prefixP##Price(detail)!= 0.0,
+                                                               value###prefix##VAT(detail))
+                                                         WHERE prefix##PriceListType(detail) == priceListType;
+        }             
+    } SHORTCUT prefix##Price[###idetail];
+END 
 
 META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD)
     calc###prefixD##Markup(###detail detail)  = [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
@@ -891,6 +915,7 @@ WHEN SESSION FORMS userPricing // цены берем на начало сесс
 //    PROPERTIES (d) minRetailPriceUserPricingDetail
 //;
 @deriveDocumentDetailBatchOnSessionPriceListType (userPricingDetail, retail, pricing, departmentStore, userPricing, );
+@recalculateDocumentDetailBatchOnSessionPriceListType(userPricingDetail, retail, pricing, departmentStore, userPricing, , '', d);
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
