@@ -10,11 +10,11 @@ statusStopList 'Запрет продаж' (Purchase.InvoiceDetail d)= IF skipMa
 backgroundStopList 'Цвет' (Purchase.InvoiceDetail d) = RGB (255,0,0) IF skipMachineryPriceTransaction(sku(d), customerStock(d), currentDateTime());
 
 countInStopList 'Количество товаров в стоп-листе ' (i,s)= GROUP SUM 1 
-    IF skipMachineryPriceTransaction(sku(Purchase.InvoiceDetail d), customerStock(d), currentDateTime()) 
-          BY invoice(d), sku(d);
+    IF skipMachineryPriceTransaction(sku(Purchase.UserInvoiceDetail d), customerStock(d), currentDateTime()) 
+          BY userInvoice(d), sku(d);
 
 countSkuInStopList 'Количество товаров в стоп-листе ' = GROUP SUM 1 
-    IF countInStopList(Purchase.Invoice i,Sku s) BY i;
+    IF countInStopList(Purchase.UserInvoice i,Sku s) BY i;
             
 createReversStopList 'Исключить из стоп-листа'(Purchase.Invoice invoice)  = ACTION {
 
@@ -33,6 +33,40 @@ createReversStopList 'Исключить из стоп-листа'(Purchase.Invo
         }        
     }
 };
+
+//createReversStopList 'Исключить из стоп-листа'(Purchase.Invoice invoice)  = ACTION {
+//
+//    LOCAL stock = Stock ();
+//    stock() <- customerStock(invoice);
+//
+//    LOCAL dateStopList = DATE ();
+//    dateStopList() <- date(invoice);
+//
+//    LOCAL timeStopList = TIME ();
+//    timeStopList() <- time(invoice);
+//
+//    LOCAL inSku = BOOLEAN (Sku);
+//    inSku(Sku sku) <- TRUE IF countInStopList(invoice, sku);
+//    
+//    NEWSESSION NESTED stock, dateStopList, timeStopList, inSku {   
+//        FOR ADDOBJ sl = StopList DO {
+//            date(sl) <- dateStopList();
+//            time(sl) <- timeStopList();
+//            fromDate(sl) <- dateStopList();
+//            fromTime(sl) <- timeStopList();
+//            in(Stock st, sl) <- TRUE WHERE st == stock();
+//            exclude(sl) <-TRUE;
+//            isPosted(sl) <-TRUE;
+//                   
+//            FOR inSku(sku) ADDOBJ d = StopListDetail DO {
+//                
+//                stopList(d) <- sl;
+//                sku(d) <- sku;            
+//            }   
+//            FORM stopList OBJECTS sl =sl MANAGESESSION DOCKEDMODAL;
+//        }        
+//    }
+//};
 
 EXTEND FORM userInvoice
     PROPERTIES (i) READONLY FORCE PANEL SHOWIF countSkuInStopList(i) TODRAW d countSkuInStopList,
