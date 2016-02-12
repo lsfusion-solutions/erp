@@ -687,3 +687,61 @@ createBatchUserAdjustment 'Документ пересорта'() = ACTION {
 }//-- для планировщика
 
 
+//------------------------------- Корректировка суммы ТО -----------------------//
+
+accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt)*priceB(SystemLedgerPriceListType.accountPriceListType, s, st, dt);
+// balanceB(s,st,dt)
+diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
+
+createSumUserAdjustment (UserAdjustment adjustment) = ACTION {
+
+    FOR sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND inAdjustment(s) ORDER name(s) ADDOBJ d = UserAdjustmentDetail DO {            
+        userAdjustment(d) <- adjustment;
+        sku(d) <- s;       
+        quantity(d) <- 0.0;
+        sum(d) <- (-sumDiff);
+    }
+}
+
+createDialogSumUserAdjustment 'Корректировка суммы ТО'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
+    FORM selectParamsAdjustment MODAL;
+    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
+        
+        FOR ADDOBJ adjustment = UserAdjustment DO {  
+            stock(adjustment) <- chosenObject('st');            
+            date(adjustment) <- DATE(chosenDateTime('dt'));
+            time(adjustment) <- TIME(chosenDateTime('dt'));          
+
+            inAdjustment(Sku sku) <- NULL;
+            inAdjustment(Sku sku) <- inSession(skuGroup(sku));
+            
+            createSumUserAdjustment(adjustment);
+            FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKEDMODAL NOCANCEL;          
+        }        
+    }
+}
+
+EXTEND FORM adjustments
+    PROPERTIES createDialogSumUserAdjustment()  FORCE PANEL 
+;
+DESIGN adjustments {
+    createdContainer {
+        MOVE PROPERTY (createDialogSumUserAdjustment());
+    }    
+}
+
+//-- Для всех складов
+overCreateSumUserAdjustment = ACTION ABSTRACT LIST (UserAdjustment);
+
+createSumUserAdjustment 'Корректировка суммы ТО'() = ACTION {
+    FOR inAdjustment(Stock st) ADDOBJ a = UserAdjustment DO {  
+        stock(a) <- st;
+        date(a) <- currentDate();
+        time(a) <- currentTime();  
+        isPosted(a) <- TRUE;
+        
+        overCreateSumUserAdjustment(a);
+        
+        createSumUserAdjustment(a);      
+    }
+}//-- для планировщика
