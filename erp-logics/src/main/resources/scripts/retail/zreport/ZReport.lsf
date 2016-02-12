@@ -130,7 +130,9 @@ type 'Тип' = ABSTRACT STRING[10] (ReceiptDetail) MINCHARWIDTH 10 PREFCHARWIDT
 type(ReceiptSaleDetail detail) += 'Продажа' IF detail IS ReceiptSaleDetail;
 type(ReceiptReturnDetail detail) += 'Возврат' IF detail IS ReceiptReturnDetail;
 
-@defineDocumentDetailIndex(receipt, ReceiptDetail);
+index 'Номер строки' (ReceiptDetail d) =
+    PARTITION SUM 1 BY receipt(d)
+    ORDER d MINCHARWIDTH 4 PREFCHARWIDTH 4;
 
 @defineDocumentDetailTime(receipt, ReceiptSaleDetail);
 dateZReport 'Дата Z-отчета'(ReceiptSaleDetail d) = date(zReport(receipt(d)));
