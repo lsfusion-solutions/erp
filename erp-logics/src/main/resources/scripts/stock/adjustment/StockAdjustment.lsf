@@ -12,6 +12,7 @@ REQUIRE System,
         Employee,
         StockDocument,
         StockMovement,
+        StockAdjustmentOperation,
         Barcode;
 
 NAMESPACE Stock;
@@ -82,6 +83,7 @@ supplierStock(Adjustment adjustment) += stock(adjustment);
 @defineBarcodeSku(adjustmentDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
 @defineMovementPriceSku(adjustmentDetail, stock); //-- показываем по нажатию правой клавиши изменение цены товара
 @defineMovementPriceSku(userAdjustmentDetail, stock); //-- показываем по нажатию правой клавиши  изменение цены товара
+
 // --------------------------- Формы ---------------------------------- //
 
 batchDialog(UserAdjustmentDetail userAdjustmentDetail) = ACTION {
@@ -310,9 +312,28 @@ NAVIGATOR {
     stockNavigator {
         NEW adjustmentNavigator 'Изменение остатков' BEFORE balanceSku {
             ADD adjustments;
+            ADD operations;
         }
     }
 }
+
+//----------------------------------------------- Операции -----------------------------------------------------//
+@defineDocumentInterfaceOperation (adjustment, Stock, );
+@extendFormFilterRoleAccess(adjustment, i, adjustments);
+@defineDocumentOperationConstraint(adjustment, 'изменение остатков', Adjustment);
+@defineDocumentOperationRolePrefix(userAdjustment, );
+
+EXTEND FORM userAdjustment
+    PROPERTIES(i) nameOperation
+;
+DESIGN userAdjustment{
+    first{
+        MOVE PROPERTY (nameOperation(i)) BEFORE PROPERTY(nameStock(i));
+    }
+}
+EXTEND FORM adjustments
+    PROPERTIES(i) READONLY nameOperation AFTER nameStock(i)
+;
 
 //---------------------------- Изменение остатка sku----------------------------//
 
@@ -468,6 +489,19 @@ EXTEND FORM userAdjustment
     PROPERTIES (i) active
 ;
 
+active 'Провести по товарному отчету' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+     PROPERTIES(o) active
+ ;
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(active(o));
+    }
+}
+    
+@deriveDocumentOperationProperty(UserAdjustment, active);
+
 // ------------ Проведение по товарному отчету ----------------- //
 
 @defineDocumentInterfaceHeaderItemSum (adjustment, , );
@@ -492,6 +526,7 @@ edit(OutAdjustment ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i =
 close(OutAdjustment ledger) += ACTION close(adjustment(ledger));
 type(OutAdjustment ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
 skip(OutAdjustment ledger) += ledger IS OutAdjustment AND NOT active(adjustment(ledger));
+operation[StockDocumentLedger](OutAdjustment ledger) += operation(adjustment(ledger));
 
 //-- Приход
 needToInStockLedger = sumAdjustmentDetail(Adjustment l) > 0; //activeAdjustment(l) AND  
@@ -510,6 +545,7 @@ edit(InAdjustment ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = 
 close(InAdjustment ledger) += ACTION close(adjustment(ledger));
 type(InAdjustment ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
 skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));
+operation[StockDocumentLedger](InAdjustment ledger) += operation(adjustment(ledger));
 
 calcSumB (Sku sku,Stock st,DATETIME dateTime) = balanceB(sku,st,dateTime)*priceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, st, dateTime);
 needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (sku,st,dateTime)) AND NOT (calcSumB (sku,st,dateTime) ==  sumB (sku,st,dateTime));  
@@ -572,6 +608,9 @@ FORM selectParamsAdjustment 'Параметры пересорта'
     OBJECTS dt = DATETIME FIXED PANEL 
     PROPERTIES val = OBJVALUE (dt)
     
+    OBJECTS o = Operation FIXED PANEL 
+    PROPERTIES SELECTOR name(o)
+    
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
     ORDER BY order(sk), skuTreeName
@@ -585,6 +624,7 @@ DESIGN selectParamsAdjustment {
         NEW top {
             type = CONTAINERH;
             MOVE st.box;
+            MOVE o.box; 
             MOVE dt.box {caption ='Дата/время документа';}
         }
         MOVE skuTree.tree.box;
@@ -633,7 +673,7 @@ createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTIO
             stock(adjustment) <- chosenObject('st');            
             date(adjustment) <- DATE(chosenDateTime('dt'));
             time(adjustment) <- TIME(chosenDateTime('dt'));          
-
+            operation(adjustment) <- chosenObject('o');          
             inAdjustment(Sku sku) <- NULL;
             inAdjustment(Sku sku) <- inSession(skuGroup(sku));
             
@@ -690,7 +730,6 @@ createBatchUserAdjustment 'Документ пересорта'() = ACTION {
 //------------------------------- Корректировка суммы ТО -----------------------//
 
 accountSumB 'Учетная сумма'  (Sku s, Stock st, DATETIME dt)= balanceB(s,st,dt)*priceB(SystemLedgerPriceListType.accountPriceListType, s, st, dt);
-// balanceB(s,st,dt)
 diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountSumB(s,st,dt);
 
 createSumUserAdjustment (UserAdjustment adjustment) = ACTION {
@@ -711,7 +750,8 @@ createDialogSumUserAdjustment 'Корректировка суммы ТО'() = A
             stock(adjustment) <- chosenObject('st');            
             date(adjustment) <- DATE(chosenDateTime('dt'));
             time(adjustment) <- TIME(chosenDateTime('dt'));          
-
+            operation(adjustment) <- chosenObject('o');          
+            
             inAdjustment(Sku sku) <- NULL;
             inAdjustment(Sku sku) <- inSession(skuGroup(sku));
             
