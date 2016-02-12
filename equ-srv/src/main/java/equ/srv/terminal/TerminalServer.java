@@ -478,7 +478,7 @@ public class TerminalServer extends LifecycleAdapter {
 
     private Integer parseInteger(String value) {
         try {
-            return value == null || value.isEmpty() ? null : Integer.parseInt(value);
+            return value == null || value.isEmpty() || value.equals("0") ? null : Integer.parseInt(value);
         } catch (Exception e) {
             logger.error("Error occured while parsing integer value: ", e);
             return null;
