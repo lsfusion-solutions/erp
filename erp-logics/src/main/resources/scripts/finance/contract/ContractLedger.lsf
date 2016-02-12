@@ -23,7 +23,7 @@ META defineContractLedgerPrefix (caption, prefix)
     date 'Дата' (Contract###prefix##Ledger contract###prefix##Ledger) = toDate(dateTime(contract###prefix##Ledger));
     time 'Время' (Contract###prefix##Ledger contract###prefix##Ledger) = toTime(dateTime(contract###prefix##Ledger));
 
-    contract 'Договор' (contract###prefix##Ledger) = ABSTRACT Contract (Contract###prefix##Ledger) PERSISTENT;
+    contract 'Договор' (contract###prefix##Ledger) = ABSTRACT Contract (Contract###prefix##Ledger) INDEXED PERSISTENT;
 
     description 'Название документа' (contract###prefix##Ledger) = ABSTRACT VARSTRING[200] (Contract###prefix##Ledger) PERSISTENT;
 
@@ -31,19 +31,17 @@ META defineContractLedgerPrefix (caption, prefix)
 
     currentBalance###prefix 'Текущая задолженность'###caption (contract)=
         GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
-              BY contract(contract###prefix##Ledger) PERSISTENT;
+              BY contract(contract###prefix##Ledger);
 
     balanceB###prefix 'Задолженность на начало дня'###caption (Contract contract, DATE date) =
-        currentBalance###prefix(contract) (-)
-        [= GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
-                  AND date(contract###prefix##Ledger) >= DATE date
-              BY contract(contract###prefix##Ledger), date](contract, date);
+        GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+                  AND date(contract###prefix##Ledger) < DATE date
+              BY contract(contract###prefix##Ledger), date;
 
     balanceA###prefix 'Задолженность на конец дня'###caption (Contract contract, DATE date) =
-        currentBalance###prefix(contract) (-)
-        [= GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
+        GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
                   AND date(contract###prefix##Ledger) > DATE date
-              BY contract(contract###prefix##Ledger), date](contract, date);
+              BY contract(contract###prefix##Ledger), date;
 
 END
 
