@@ -18,6 +18,7 @@ import lsfusion.interop.Compare;
 import lsfusion.server.classes.*;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.data.SQLSession;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.expr.ValueExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -2221,7 +2222,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                         String result = session.applyMessage(getBusinessLogics());
                         if (result == null) {
-                            logCompleteMessage(data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                            logCompleteMessage(session.sql, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
                         } else
                             return result;
                     }
@@ -2233,9 +2234,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
     
-    private String logCompleteMessage(List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String logCompleteMessage(SQLSession sql, List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         
-        String message = formatCompleteMessage(data, dataSize, timeStart);
+        String message = formatCompleteMessage(sql, data, dataSize, timeStart);
         
         try (DataSession session = getDbManager().createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
@@ -2247,11 +2248,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
     
-    private String formatCompleteMessage(List<SalesInfo> data, int dataSize, Timestamp timeStart) {
+    private String formatCompleteMessage(SQLSession sql, List<SalesInfo> data, int dataSize, Timestamp timeStart) {
 
+        String conflicts = sql.getAttemptCountMap();
         Timestamp timeFinish = getCurrentTimestamp();
         String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s",  
                 (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize);
+        if(conflicts != null)
+            message += "\nКонфликты: " + conflicts;
         
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
