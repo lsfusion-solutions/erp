@@ -6,6 +6,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import org.apache.log4j.Logger;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
@@ -20,8 +21,17 @@ public class CL5000JHandler extends ScalesHandler {
     private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
 
+    private FileSystemXmlApplicationContext springContext;
+
+    public CL5000JHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
+    }
+
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
+
+        CL5000JSettings settings = springContext.containsBean("cl5000jSettings") ? (CL5000JSettings) springContext.getBean("cl5000jSettings") : null;
+        Integer priceCoefficient = settings == null ? null : settings.getPriceCoefficient();
 
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
@@ -50,7 +60,7 @@ public class CL5000JHandler extends ScalesHandler {
 
                             socket.open();
 
-
+                            short weightCode = getWeightCode(scales);
                             if (transaction.snapshot) {
                                 processTransactionLogger.info("CL5000J: Deleting all plu at scales " + scales.port);
                                 int reply = deleteAllPlu(socket);
@@ -64,7 +74,7 @@ public class CL5000JHandler extends ScalesHandler {
                                         int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                         int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                         processTransactionLogger.info(String.format("CL5000J: Sending item %s to scales %s", barcode, scales.port));
-                                        int reply = sendItem(socket, pluNumber, barcode, item.name, item.price, trim(item.description, null, 299));
+                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name, getPrice(item.price, priceCoefficient), trim(item.description, null, 299));
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                             errorsCount++;
@@ -97,7 +107,20 @@ public class CL5000JHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    private int sendItem(DataSocket socket, int pluNumber, int barcode, String name, BigDecimal price, String description) throws IOException, CommunicationException {
+    private int getPrice(BigDecimal price, Integer priceCoefficient) {
+        return price == null ? 0 : (int) (price.doubleValue() * (priceCoefficient == null ? 1 : priceCoefficient));
+    }
+
+    private short getWeightCode(MachineryInfo scales) {
+        try {
+            String weightCode = scales instanceof ScalesInfo ? ((ScalesInfo) scales).weightCodeGroupScales : null;
+            return weightCode == null ? 1 : Short.parseShort(weightCode);
+        } catch (Exception e) {
+            return 1;
+        }
+    }
+
+    private int sendItem(DataSocket socket, short weightCode, int pluNumber, int barcode, String name, int price, String description) throws IOException, CommunicationException {
         int descriptionLength = description == null ? 0 : (description.length() + 1);
         ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -111,11 +134,11 @@ public class CL5000JHandler extends ScalesHandler {
         bytes.put(getBytes(":"));
 
         //body (147 bytes + description (max 300 bytes)
-        bytes.putShort((short) 1); //departmentNumber 2 bytes
+        bytes.putShort(weightCode); //departmentNumber 2 bytes
         bytes.putInt(pluNumber); //pluNumber 4 bytes
         bytes.put((byte) 1); //pluType
-        bytes.put(getBytes(fillSpaces(substr(name, 0, 40), 40))); //firstLine
-        bytes.put(getBytes(fillSpaces(substr(name, 40, 80), 40)));//secondLine
+        bytes.put(getBytes(fillSpaces(substr(name, 0, 28), 40))); //firstLine
+        bytes.put(getBytes(fillSpaces(substr(name, 28, 56), 40)));//secondLine
         bytes.put(getBytes(fillSpaces("", 5)));//thirdLine
         bytes.putShort((short) 0); //groupNumber
         bytes.putShort((short) 0); //labelNumber
@@ -127,7 +150,7 @@ public class CL5000JHandler extends ScalesHandler {
         bytes.putShort((short) 0); //quantity
         bytes.put((byte) 0); //quantity symbol number
         bytes.put((byte) 0); //use fixed price type
-        bytes.putInt(price.intValue()); //unit price
+        bytes.putInt(price); //unit price
         bytes.putInt(0); //special price
         bytes.putInt(0); //tare weight
         bytes.put((byte) 0);//tare number
@@ -178,7 +201,7 @@ public class CL5000JHandler extends ScalesHandler {
         return sendCommand(socket, bytes.array());
     }
 
-    private int deletePlu(DataSocket socket, int pluNumber) throws IOException, CommunicationException {
+    private int deletePlu(DataSocket socket, short weightCode, int pluNumber) throws IOException, CommunicationException {
         ByteBuffer bytes = ByteBuffer.allocate(19);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
@@ -191,7 +214,7 @@ public class CL5000JHandler extends ScalesHandler {
         bytes.put(getBytes(":"));
 
         //body (6 bytes)
-        bytes.putShort((short) 1); //departmentNumber 2 bytes
+        bytes.putShort(weightCode); //departmentNumber 2 bytes
         bytes.putInt(pluNumber); //pluNumber 4 bytes
 
         //tail (3 bytes)
@@ -281,12 +304,12 @@ public class CL5000JHandler extends ScalesHandler {
                         try {
                             processStopListLogger.info("CL5000J: Sending StopList to scale " + scales.port);
                             socket.open();
-
+                            short weightCode = getWeightCode(scales);
                             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                                 int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                 int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                 processStopListLogger.error(String.format("CL5000J: Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
-                                int reply = deletePlu(socket, pluNumber);
+                                int reply = deletePlu(socket, weightCode, pluNumber);
                                 if (reply != 0)
                                     processStopListLogger.error(String.format("CL5000J: Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port));
                             }
