@@ -1173,7 +1173,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
-                //String prefix = trim((String) entry.get("id"));
+                String prefix = trim((String) entry.get("id"));
                 LCP propertyID = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
                 LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
 
@@ -1190,7 +1190,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         for (ImMap<Object, Object> customANAEntry : customANAResult.values()) {
                             String idCustomANA = trim((String) customANAEntry.get("id"));
                             String nameCustomANA = trim((String) customANAEntry.get("name"));
-                            customANAList.add(new TerminalLegalEntity(/*prefix + */idCustomANA, nameCustomANA));
+                            customANAList.add(new TerminalLegalEntity(prefix + idCustomANA, nameCustomANA));
                         }
                     }
                 }

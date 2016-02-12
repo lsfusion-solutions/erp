@@ -227,10 +227,6 @@ nameTerminalDocumentType 'Тип документа' (TerminalDocument terminalD
 groupTerminal = DATA GroupTerminal (TerminalDocument);
 nameGroupTerminal 'Группа ТСД' (TerminalDocument terminalDocument) = name(groupTerminal(terminalDocument));
 
-dataStock = DATA Stock (TerminalDocument);
-stock (TerminalDocument document) = OVERRIDE stock(groupTerminal(document)), dataStock(document);
-nameStock 'Склад' (TerminalDocument document) = name(stock (document)) IN documentHeader;
-
 idTerminalDocumentType (TerminalDocument terminalDocument) = id (terminalDocumentType (terminalDocument));
 
 used 'Использован' (terminalDocument) = DATA BOOLEAN (TerminalDocument) IN base;
@@ -239,6 +235,10 @@ notUsed 'Неиспользован' (TerminalDocument terminalDocument) = termi
 createdUser = DATA CustomUser (TerminalDocument);
 createdNameUser 'Создан пользователем' (TerminalDocument td) = name[Contact](createdUser(td)) MINCHARWIDTH 10 PREFCHARWIDTH 20 IN created;
 createdUser (TerminalDocument o) <- currentUser() WHEN SET(o IS TerminalDocument);
+
+dataStock = DATA Stock (TerminalDocument);
+stock (TerminalDocument document) = OVERRIDE stock(groupTerminal(document)), dataStock(document);
+nameStock 'Склад' (TerminalDocument document) = name(stock (document)) IN documentHeader;
 dataStock(TerminalDocument d) <- stock(createdUser(d)) WHEN SET (createdUser(d));
 
 createdTime 'Время создания'= DATA DATETIME (TerminalDocument) IN created;
@@ -264,6 +264,8 @@ name 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail) I
 isNew 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
 dateTimeScan 'Время сканирования' = DATA DATETIME (TerminalDocumentDetail) IN base;
+
+sku(TerminalDocumentDetail d) = OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), date(d)));
 
 terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDetail terminalDocumentDetail 
     BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
