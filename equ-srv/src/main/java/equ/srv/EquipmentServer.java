@@ -1061,6 +1061,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 query.addProperty(names[i], properties[i].getExpr(terminalDocumentTypeExpr));
             }
             query.and(terminalLM.findProperty("id[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
+            query.and(terminalLM.findProperty("notSkip[TerminalDocumentType]").getExpr(terminalDocumentTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
                 String id = trim((String) entry.get("idTerminalDocumentType"));

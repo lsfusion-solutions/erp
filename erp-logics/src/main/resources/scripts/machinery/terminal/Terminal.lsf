@@ -90,7 +90,7 @@ TABLE groupTerminalDocumentType (GroupTerminalDocumentType);
 name 'Наименование группы' = DATA VARSTRING[200] (GroupTerminalDocumentType) IN base MINCHARWIDTH 10 PREFCHARWIDTH 20;
 groupTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (GroupTerminal);
 nameGroupTerminalDocumentType 'Группа типов документов' (GroupTerminal groupTerminal) = name(groupTerminalDocumentType(groupTerminal));
-
+skip 'Не передавать в онлайн-режиме' = DATA BOOLEAN (GroupTerminalDocumentType);
 //---------------------------- типы документов ----------------------------------------//
 
 CLASS TerminalDocumentType 'Тип документов';
@@ -98,6 +98,7 @@ TABLE terminalDocumentType (TerminalDocumentType);
 
 groupTerminalDocumentType 'Группа типов документов' = DATA GroupTerminalDocumentType (TerminalDocumentType) NOT NULL DELETE;
 nameGroupTerminalDocumentType 'Группа типов документов' (TerminalDocumentType terminalDocumentType) = name(groupTerminalDocumentType(terminalDocumentType));
+notSkip (TerminalDocumentType terminalDocumentType) = NOT skip(groupTerminalDocumentType(terminalDocumentType));
 
 name 'Название' = DATA VARSTRING[200] (TerminalDocumentType) IN base;
 flag 'Флаг' = DATA INTEGER (TerminalDocumentType) IN base;
@@ -141,7 +142,7 @@ FORM groupTerminalDocumentType 'Группа типов документов'
 
 FORM groupTerminalDocumentTypes 'Группы типов документов'
     OBJECTS gtdt=GroupTerminalDocumentType
-    PROPERTIES(gtdt) READONLY name
+    PROPERTIES(gtdt) name READONLY, skip
     PROPERTIES(gtdt) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS tdt=TerminalDocumentType
