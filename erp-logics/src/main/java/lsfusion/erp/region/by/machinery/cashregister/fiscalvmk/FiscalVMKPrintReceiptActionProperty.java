@@ -14,6 +14,7 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -102,19 +103,17 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
-                receiptDetailQuery.addProperty("nameSkuReceiptDetail", findProperty("nameSku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("quantityReceiptDetail", findProperty("quantity[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("quantityReceiptSaleDetail", findProperty("quantity[ReceiptSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("quantityReceiptReturnDetail", findProperty("quantity[ReceiptReturnDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("priceReceiptDetail", findProperty("price[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("idBarcodeReceiptDetail", findProperty("idBarcode[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("sumReceiptDetail", findProperty("sum[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("discountPercentReceiptSaleDetail", findProperty("discountPercent[ReceiptSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("discountSumReceiptDetail", findProperty("discountSum[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("numberVATReceiptDetail", findProperty("numberVAT[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("typeReceiptDetail", findProperty("type[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("skuReceiptDetail", findProperty("sku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
-                receiptDetailQuery.addProperty("boardNameSkuReceiptDetail", findProperty("boardNameSku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
+                String[] receiptDetailNames = new String[]{"nameSkuReceiptDetail", "quantityReceiptDetail", "quantityReceiptSaleDetail",
+                        "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
+                        "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail", "typeReceiptDetail",
+                        "skuReceiptDetail", "boardNameSkuReceiptDetail", "bonusSumReceiptDetail", "bonusPaidReceiptDetail"};
+                LCP[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
+                        "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
+                        "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]", "type[ReceiptDetail]",
+                        "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "bonusSum[ReceiptDetail]", "bonusPaid[ReceiptDetail]");
+                for (int j = 0; j < receiptDetailProperties.length; j++) {
+                    receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
+                }
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
@@ -139,17 +138,19 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     name = name == null ? "" : name.trim();
                     BigDecimal sumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
                     long sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.longValue();
+                    long bonusSumReceiptDetail = getLong((BigDecimal) receiptDetailValues.get("bonusSumReceiptDetail"), quantityReturn > 0);
+                    long bonusPaidReceiptDetail = getLong((BigDecimal) receiptDetailValues.get("bonusPaidReceiptDetail"), quantityReturn > 0);
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
                     long discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().longValue();
                     if (quantitySale > 0 && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
                     if (quantity > 0 && isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
                     if (quantityReturn > 0)
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
                 }
 
                 if (context.checkApply()) {
@@ -168,7 +169,9 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
+    }
 
-
+    private long getLong(BigDecimal value, boolean negate) {
+        return value == null ? 0 : (negate ? value.negate() : value).longValue();
     }
 }

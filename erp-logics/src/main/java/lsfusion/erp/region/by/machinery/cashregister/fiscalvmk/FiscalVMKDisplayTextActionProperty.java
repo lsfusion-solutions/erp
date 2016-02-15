@@ -56,15 +56,20 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 long sum = sumValue == null ? 0 : sumValue.longValue();
                 BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSum[ReceiptDetail]").read(session, receiptDetailObject);
                 long articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.longValue();
+                long bonusSum = getLong((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
+                long bonusPaid = getLong((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate, new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum)));
+                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate,
+                        new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
+    }
 
-
+    private long getLong(BigDecimal value) {
+        return value == null ? 0 : value.longValue();
     }
 }

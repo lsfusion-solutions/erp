@@ -5,6 +5,8 @@ import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.action.MessageClientAction;
 
 import java.io.IOException;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 import java.util.List;
 
 
@@ -100,6 +102,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                 return null;
             if (!FiscalVMK.discountItem(item))
                 return null;
+            DecimalFormat formatter = getFormatter();
+            if(item.bonusSum != 0)
+                FiscalVMK.printFiscalText("Начислено бонусов:\n" + formatter.format(item.bonusSum));
+            if(item.bonusPaid != 0)
+                FiscalVMK.printFiscalText("Оплачено бонусами:\n" + formatter.format(item.bonusPaid));
         }
 
         if (!FiscalVMK.subtotal())
@@ -116,5 +123,13 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         if (!FiscalVMK.totalCash(receipt.sumCash))
             return null;
         return receiptNumber;
+    }
+
+    private DecimalFormat getFormatter() {
+        DecimalFormat formatter = new DecimalFormat("#,###.00");
+        DecimalFormatSymbols symbols = formatter.getDecimalFormatSymbols();
+        symbols.setGroupingSeparator('`');
+        formatter.setDecimalFormatSymbols(symbols);
+        return formatter;
     }
 }
