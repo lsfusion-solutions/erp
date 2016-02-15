@@ -33,6 +33,17 @@ sumContract(Payment payment) <- IF currencyContract(payment) == currencyAccountT
          CHANGED(typeExchangeContract(payment)) OR
          CHANGED(rateExchangeContract(payment));
 
+WHEN SESSION FORMS payment CHANGED(sum(Payment payment)) OR 
+                           CHANGED(currencyContract(payment)) OR
+                           CHANGED(currencyAccountTo(payment)) OR
+                           CHANGED(typeExchangeContract(payment)) OR
+                           CHANGED(rateExchangeContract(payment))DO {
+    sumContract(payment) <- IF currencyContract(payment) == currencyAccountTo(payment)
+                               THEN sum(payment)
+                               ELSE rateExchangeContract(payment)*sum(payment);
+    writeFIFO(payment);    
+}
+
 CONSTRAINT currency(typeExchangeContract(Payment payment)) != currencyContract(payment)
     CHECKED BY typeExchangeContract[Payment] MESSAGE 'Валюта договора должна совпадать с валютой типа обмена';
 
@@ -146,17 +157,17 @@ WHEN SESSION FORMS payment
         DO ASSIGN cost(p, InContractLedger i) <- sumContract(p) WHERE i == currentInContractLedger();
 
 //------------------------------------- Платежи по договору --------------------------------------------------------//
+overSum = ABSTRACT NUMERIC[16,2] (Currency, DATE);
 
 pay 'Оплатить по договору'(Contract contract, DATE date) = ACTION NEWSESSION {
     FOR ADDOBJ pm = Payment DO {
-        ASSIGN date(pm) <- date;
-        ASSIGN payer(pm) <- partyB(contract);
-        ASSIGN beneficiary(pm) <- partyA(contract);
-        ASSIGN contract(pm) <- contract;
-        ASSIGN sumContract(pm) <- debtSum(contract, date);
-        ASSIGN sum(pm) <- debtSum(contract, date) IF currencyContract(pm) == currencyAccountFrom(pm);
-        ASSIGN cost(pm, InContractLedger inContractLedger) <- debt(inContractLedger, date)
-            WHERE contract(pm) == contract(inContractLedger);
+        date(pm) <- date;
+        payer(pm) <- partyB(contract);
+        beneficiary(pm) <- partyA(contract);
+        contract(pm) <- contract;
+        sumContract(pm) <- OVERRIDE balanceA(contract, date), overSum(currency(contract), date);
+        sum(pm) <- OVERRIDE balanceA(contract, date), overSum(currency(contract), date) IF currencyContract(pm) == currencyAccountFrom(pm);
+        writeFIFO(pm);
         FORM payment OBJECTS p = pm MANAGESESSION DOCKEDMODAL NOCANCEL;
     }
 }
