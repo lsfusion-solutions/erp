@@ -394,6 +394,15 @@ codeCustomsGroup 'ТН ВЭД' (DeclarationInvoiceDetail d) = code(customsGroup(
 VATCustomsException 'Льгота НДС' = DATA VATCustomsException (DeclarationInvoiceDetail);
 nameVATCustomsException 'Льгота НДС' (DeclarationInvoiceDetail d) = name(VATCustomsException(d));
 
+description 'Описание' (DeclarationInvoiceDetail d) = CONCAT ',', nameCustoms(d), shortNameUOM(d), nameCountry(d), codeCustomsGroup(d) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+descriptionDeclarationInvoiceDetail 'Позиция декларации' (UserInvoiceDetail d) = description(declarationInvoiceDetail(d)); 
+EXTEND FORM declaration
+    PROPERTIES(id) descriptionDeclarationInvoiceDetail 
+;
+CONSTRAINT declaration(UserInvoiceDetail d) AND NOT declaration(d) == declaration(declarationInvoiceDetail(d))
+    CHECKED BY declarationInvoiceDetail[UserInvoiceDetail]
+    MESSAGE 'Декларация позиции декларации должна соответствовать декларации строки накладной';
+
 CONSTRAINT customsGroup(DeclarationInvoiceDetail d) AND VATCustomsException(d) 
            AND NOT customsGroup(VATCustomsException(d)) == customsGroup(d)
     CHECKED BY VATCustomsException[DeclarationInvoiceDetail] MESSAGE 'Льгота НДС должна соответствовать ТН ВЭД';
