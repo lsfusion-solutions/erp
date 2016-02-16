@@ -1,6 +1,6 @@
 MODULE ZReportDiscountCard;
 
-REQUIRE ZReport, DiscountCard;
+REQUIRE ZReport, DiscountCard, ZReportRetailBonus;
 
 NAMESPACE ZReport;
 
@@ -33,6 +33,7 @@ EXTEND FORM zReports
 posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) PERSISTENT;
 posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) PERSISTENT; 
 cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) PERSISTENT;
+availableBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM bonusSum(ReceiptDetail rd) BY discountCard[ReceiptDetail](rd); 
 
 externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
 totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
