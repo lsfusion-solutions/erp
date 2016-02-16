@@ -2221,9 +2221,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey),
                                 paymentProperties).synchronize(true);
 
+                        session.setKeepLastAttemptCountMap(true);
                         String result = session.applyMessage(getBusinessLogics());
                         if (result == null) {
-                            logCompleteMessage(session.sql, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                            logCompleteMessage(session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
                         } else
                             return result;
                     }
@@ -2235,9 +2236,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
     
-    private String logCompleteMessage(SQLSession sql, List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String logCompleteMessage(DataSession mainSession, List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         
-        String message = formatCompleteMessage(sql, data, dataSize, timeStart);
+        String message = formatCompleteMessage(mainSession, data, dataSize, timeStart);
         
         try (DataSession session = getDbManager().createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
@@ -2249,9 +2250,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
     
-    private String formatCompleteMessage(SQLSession sql, List<SalesInfo> data, int dataSize, Timestamp timeStart) {
+    private String formatCompleteMessage(DataSession session, List<SalesInfo> data, int dataSize, Timestamp timeStart) {
 
-        String conflicts = sql.getAttemptCountMap();
+        String conflicts = session.getLastAttemptCountMap();
         Timestamp timeFinish = getCurrentTimestamp();
         String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s",  
                 (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize);
