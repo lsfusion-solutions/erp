@@ -539,9 +539,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                     int version = getVersion(conn);
                     version++;
+                    conn.setAutoCommit(false);
                     if (!skipBarcodes) {
                         processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
-                        conn.setAutoCommit(false);
 
                         ps = conn.prepareStatement(
                                 "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
