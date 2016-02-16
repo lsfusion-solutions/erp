@@ -18,6 +18,7 @@ import java.util.*;
 public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
 
     private FileSystemXmlApplicationContext springContext;
@@ -539,7 +540,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     int version = getVersion(conn);
                     version++;
                     if (!skipBarcodes) {
-                        processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
+                        processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
                         conn.setAutoCommit(false);
 
                         ps = conn.prepareStatement(
@@ -560,7 +561,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         conn.commit();
                     }
 
-                    processTransactionLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
+                    processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
                     ps = conn.prepareStatement(
                             "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                     "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
@@ -581,10 +582,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     ps.executeBatch();
                     conn.commit();
 
-                    processTransactionLogger.info("ukm4 mysql: executing stopLists, table signal");
+                    processStopListLogger.info("ukm4 mysql: executing stopLists, table signal");
                     exportSignals(conn, null, version, true, timeout, true);
 
                 } catch (SQLException e) {
+                    processStopListLogger.error("ukm4 mysql:", e);
                     e.printStackTrace();
                 } finally {
                     try {
@@ -592,7 +594,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             ps.close();
                         if (conn != null)
                             conn.close();
-                    } catch (SQLException ignored) {
+                    } catch (SQLException e) {
+                        processStopListLogger.error("ukm4 mysql:", e);
                     }
                 }
             }
