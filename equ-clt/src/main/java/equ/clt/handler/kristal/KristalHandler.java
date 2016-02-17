@@ -953,7 +953,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     } else {
                         SAXBuilder builder = new SAXBuilder();
 
-                        Document document = builder.build(file);
+                        Document document;
+                        try (FileReader fileReader = new FileReader(file)) {
+                            document = builder.build(fileReader);
+                        }
                         Element rootNode = document.getRootElement();
                         List daysList = rootNode.getChildren("DAY");
 
@@ -1126,6 +1129,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                     }
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
+                    if (makeDirsIfNeeded(file.getParent() + "/error/")) {
+                        FileCopyUtils.copy(file, new File(file.getParent() + "/error/" + file.getName()));
+                        if(!file.delete())
+                            file.deleteOnExit();
+                    }
                 }
                 filePathList.add(file.getAbsolutePath());
             }
