@@ -179,14 +179,16 @@ minDeviationPrice 'Мин. цена' (InvoiceDetail d) = (100.0 - percDeviationD
                                                         100.0; 
                                                          
 overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF order(d) THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
-overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF order(d) THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);                                                                                                                      
+overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF order(d) THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
+                                                                                                                      
+skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);                                                                                                                     
 
-CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
-           isPosted(d) AND price(d) > overMaxDeviationPrice(d)    
+CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
+           isPosted(d) AND price(d) > overMaxDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)   
            MESSAGE 'Для строки накладной превышен максимальный допустимый процент отклонения по цене';    
 
-CONSTRAINT (SET(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
-           isPosted(d) AND price(d) < overMinDeviationPrice(d)    
+CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
+           isPosted(d) AND price(d) < overMinDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)      
            MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
 
 //CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)    
