@@ -2659,11 +2659,15 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     private static Comparator<SalesInfo> COMPARATOR = new Comparator<SalesInfo>() {
         public int compare(SalesInfo o1, SalesInfo o2) {
-            int compareCashRegister = BaseUtils.nullCompareTo(o1.nppMachinery, o2.nppMachinery); 
-            if (compareCashRegister == 0)
-                return BaseUtils.nullCompareTo(o1.numberZReport, o2.numberZReport);                    
-            else
-                return compareCashRegister;
+            int compareGroupCashRegister = BaseUtils.nullCompareTo(o1.nppGroupMachinery, o2.nppGroupMachinery);
+            if (compareGroupCashRegister == 0) {
+                int compareCashRegister = BaseUtils.nullCompareTo(o1.nppMachinery, o2.nppMachinery);
+                if (compareCashRegister == 0)
+                    return BaseUtils.nullCompareTo(o1.numberZReport, o2.numberZReport);
+                else
+                    return compareCashRegister;
+            } else
+                return compareGroupCashRegister;
         }
     };
 
