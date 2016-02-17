@@ -193,7 +193,7 @@ bonusSum 'Сумма бонуса' (InContractLedger inContractLedger, DATE date
 bonusDebtSum 'Сумма долга по документу с учетом бонуса' (InContractLedger inContractLedger, DATE date) =
     debt(inContractLedger, date) (-) bonusSum(inContractLedger, date);
 
-CONSTRAINT costedInContractLedger(OutContractLedger outContractLedger) > sum(outContractLedger)
+CONSTRAINT abs(costedInContractLedger(OutContractLedger outContractLedger)) > abs(sum(outContractLedger))
     MESSAGE 'Расписанная сумма должна быть равна сумме платежа';
 
 sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
@@ -310,7 +310,7 @@ namePartyA 'Организация (поставщик)' = name(partyA());
 partyB = DATA LOCAL LegalEntity();
 namePartyB 'Организация (покупатель)' = name(partyB());
 
-isCosted 'Расписан' (OutContractLedger outContractLedger) = sum(outContractLedger) (-) delta(costedInContractLedger(outContractLedger),0);
+isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger));
 
 writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = ACTION {
     FOR isCosted(OutContractLedger ledger) ORDER dateTime(ledger) DO {
