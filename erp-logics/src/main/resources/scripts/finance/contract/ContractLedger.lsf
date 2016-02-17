@@ -143,6 +143,8 @@ nameSupplierStock 'Склад поставщика' (InContractLedger inContract
 paymentCondition 'Условия оплаты'  = ABSTRACT PaymentCondition (InContractLedger);
 @defineInOutContractLedgerPrefix('Расход', out, Out);
 
+isReturn 'Возвратный' = ABSTRACT BOOLEAN (OutContractLedger) PERSISTENT;
+
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
 cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[16,2] (OutContractLedger, InContractLedger) PERSISTENT;
 costedOutContractLedger 'Оплачено по документу' (inContractLedger) =
@@ -210,10 +212,23 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
               BY outContractLedger
               ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
 
+negativeSum 'Обратная сумма' (OutContractLedger outContractLedger) = -sum(outContractLedger);
+negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
+    PARTITION UNGROUP negativeSum
+              LIMIT sum(inContractLedger) (-) debt(inContractLedger) IF
+                    contract(outContractLedger) == contract(inContractLedger) AND
+                    active(inContractLedger)
+              BY outContractLedger
+              ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
+
 writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
 
-    ASSIGN cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
-    ASSIGN cost(outContractLedger, InContractLedger inContractLedger) <- sumInFIFO(outContractLedger, inContractLedger);
+    cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
+    IF isReturn(outContractLedger) THEN {
+        cost(outContractLedger, InContractLedger inContractLedger) <- -negativeSumInLIFO(outContractLedger, inContractLedger);
+    } ELSE {
+        cost(outContractLedger, InContractLedger inContractLedger) <- sumInFIFO(outContractLedger, inContractLedger);
+    }
 }
 
 writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
@@ -298,14 +313,14 @@ namePartyB 'Организация (покупатель)' = name(partyB());
 isCosted 'Расписан' (OutContractLedger outContractLedger) = sum(outContractLedger) (-) delta(costedInContractLedger(outContractLedger),0);
 
 writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = ACTION {
-    FOR isCosted(OutContractLedger ledger) DO {
+    FOR isCosted(OutContractLedger ledger) ORDER dateTime(ledger) DO {
         writeFIFO(ledger);
     }
     apply();
 }
 
 writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразнесенные по LIFO'() = ACTION {
-    FOR isCosted(OutContractLedger ledger) DO {
+    FOR isCosted(OutContractLedger ledger) ORDER DESC dateTime(ledger) DO {
         writeLIFO(ledger);
     }
     apply();
