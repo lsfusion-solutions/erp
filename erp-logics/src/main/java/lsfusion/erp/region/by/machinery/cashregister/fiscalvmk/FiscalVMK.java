@@ -262,7 +262,8 @@ public class FiscalVMK {
     public static boolean registerItem(ReceiptItem item) {
         try {
             logAction("vmk_sale", item.barcode, item.name, (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
-            return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, (int) (item.sumPos - item.articleDiscSum));
+            return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), //articleDiscSum is negative, bonusPaid is positive
+                    (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, (int) (item.sumPos - item.articleDiscSum + item.bonusPaid));
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -278,12 +279,13 @@ public class FiscalVMK {
     }
     
     public static boolean discountItem(ReceiptItem item) {
-        if (item.articleDiscSum == 0)
+        long discSum = item.articleDiscSum - item.bonusPaid; //articleDiscSum is negative, bonusPaid is positive
+        if (discSum == 0)
             return true;
-        boolean discount = item.articleDiscSum < 0;
+        boolean discount = discSum < 0;
         try {
-            logAction("vmk_discount", discount ? "Скидка" : "Наценка", (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
-            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(item.articleDiscSum), discount ? 3 : 1);
+            logAction("vmk_discount", discount ? "Скидка" : "Наценка", (int) Math.abs(discSum), discount ? 3 : 1);
+            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(discSum), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
