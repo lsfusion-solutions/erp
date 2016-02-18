@@ -32,7 +32,7 @@ skipManagementPriceList = ABSTRACT BOOLEAN (PriceListType, Sku, Stock, DATETIME)
 overSetMarkupManagementRetailPrice = ACTION ABSTRACT LIST(DepartmentStore, Operation, DATETIME);
 overSetManagementRetailPrice = ACTION ABSTRACT LIST (DepartmentStore, DATETIME);
 
-includeExtraDashboardRepricing = ACTION ABSTRACT (Stock, DATETIME);
+includeExtraDashboardRepricing = ACTION ABSTRACT (Stock, Operation, DATETIME);
 calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d, Operation o, DATETIME dt) = ACTION {
     FORM dialogSkuGroup MODAL;
     IF formResult() == FormResult.ok THEN {              
@@ -56,7 +56,7 @@ calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d,
         
         inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
         
-        includeExtraDashboardRepricing(d, dt);
+        includeExtraDashboardRepricing(d, o, dt);
         
         assignAttributeSku(d, o, dt);
         formRefresh();
@@ -79,7 +79,7 @@ calculateDashboardManagementRepricing 'По прайсам'(Stock d, Operation o
     
     inDashboardRepricing(Sku sku) <- managementRetailPrice(sku) != prevRetailPricingPriceA(sku, d, dt) AND NOT skipRepricing(sku, d);
     
-    includeExtraDashboardRepricing(d, dt);
+    includeExtraDashboardRepricing(d, o, dt);
     
     assignAttributeSku(d, o, dt);    
     formRefresh();

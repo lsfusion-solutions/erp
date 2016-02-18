@@ -18,6 +18,19 @@ calculateDashboardManagementRepricingBatch 'По прайсам'(Stock d, Operat
 } TOOLBAR;
 
 //repForm =  DATA LOCAL UserRepricing();  
+createDashboardRepricingNotFormBatchDetail (UserRepricing r, Stock d, DATETIME dt) = ACTION {
+    FOR inDashboardRepricing(Batch batch) ADDOBJ rd = UserRepricingDetail DO {
+        userRepricing(rd) <- r;
+        sku(rd) <- sku(batch);
+        batch(rd) <- batch;
+        quantity(rd) <- currentBalance(batch, d);
+        retailPrice(rd) <- managementRetailPrice(batch);
+        curRetailPrice(rd) <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt);
+        price(rd) <- prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, batch, d, dt);
+//                overPriceListUserRepricingDetail(rd);
+    }
+
+}
 
 createDashboardRepricingNotFormBatch 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION {
     IF [ = GROUP SUM 1 IF inDashboardRepricing(Batch batch)]() THEN {
@@ -28,16 +41,7 @@ createDashboardRepricingNotFormBatch 'Создать переоценку'(Stock
             time(r) <- toTime(dt);  
             isPosted(r) <- TRUE;
     
-            FOR inDashboardRepricing(Batch batch) ADDOBJ rd = UserRepricingDetail DO {
-                userRepricing(rd) <- r;
-                sku(rd) <- sku(batch);
-                batch(rd) <- batch;
-                quantity(rd) <- currentBalance(batch, d);
-                retailPrice(rd) <- managementRetailPrice(batch);
-                curRetailPrice(rd) <- prevPriceB(SystemLedgerPriceListType.retailPricingPriceListType, batch, d, dt);
-                price(rd) <- prevPriceA[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType, batch, d, dt);
-//                overPriceListUserRepricingDetail(rd);
-            }
+            createDashboardRepricingNotFormBatchDetail(r, d, dt);
             repForm() <- r;
         }
     }
