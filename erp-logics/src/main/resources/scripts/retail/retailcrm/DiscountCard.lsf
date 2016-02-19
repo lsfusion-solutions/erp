@@ -58,20 +58,21 @@ DESIGN generationDiscountCards {
     }
 }
 
-
+overGenerateDiscountCard = ACTION ABSTRACT LIST (DiscountCard);
 generateDiscountCards 'Сгенерировать дисконтные карты'() = ACTION {
     FORM generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard() MODAL CHECK;
     IF formResult() == FormResult.ok THEN {
         LOCAL num = INTEGER();
-        ASSIGN num() <- 0;
+        num() <- 0;
         WHILE num() < chosenInteger('quantityCards') DO {
             FOR ADDOBJ d = DiscountCard DO {
                 // todo : делается влоб, поскольку numerator сейчас не умеет генерировать сразу несколько объектов
-                ASSIGN numerator(d) <- chosenObject('n');
-                ASSIGN number(d) <- curStringValue(numerator(d));
-                ASSIGN series(d) <- series(numerator(d));
-                ASSIGN curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(d);
-                ASSIGN num() <- num() + 1;
+                numerator(d) <- chosenObject('n');
+                number(d) <- curStringValue(numerator(d));
+                series(d) <- series(numerator(d));
+                curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(d);
+                num() <- num() + 1;
+                overGenerateDiscountCard(d);
             }
         }
     }
