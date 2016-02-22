@@ -346,7 +346,10 @@ WHEN SESSION FORMS userWriteOff CHANGED(batch(UserWriteOffDetail detail)) DO {
 }
 
 WHEN SESSION FORMS userWriteOff 
-    CHANGED(sku(UserWriteOffDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail)) DO
+    CHANGED(sku(UserWriteOffDetail detail)) OR
+    CHANGED(batch(detail)) OR
+    CHANGED(stock(detail)) OR
+    (CHANGED (dateTime(detail)) AND NOT isPosted(detail)) DO
     price (detail)  <- IF batch(detail)
                     THEN priceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
                     ELSE priceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
