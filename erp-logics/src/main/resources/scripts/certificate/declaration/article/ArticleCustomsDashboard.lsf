@@ -198,11 +198,12 @@ EXTEND FORM articleCustomsDashboard
 
 // ----------------------------- Заполнение атрибутов для товаров при изменении для товара ----------------- //
 
+@defineOption(setCustomsGroupArticleCompleted, 'Изменять ТВЭД для обработанных товаров по артикулу', customs);
 // ТНВЭД
 WHEN SESSION FORMS articleCustomsDashboard
     CHANGED(customsGroup(Country country, Article article)) DO {
-        customsGroup (country, Item item) <- customsGroup(country, article) WHERE article(item) == article AND NOT completedCustoms(item);
-        VATCustomsException(country, Item item) <- NULL WHERE article(item) == article  AND NOT completedCustoms(item);
+        customsGroup (country, Item item) <- customsGroup(country, article) WHERE article(item) == article AND (setCustomsGroupArticleCompleted() OR NOT completedCustoms(item));
+        VATCustomsException(country, Item item) <- NULL WHERE article(item) == article  AND (setCustomsGroupArticleCompleted() OR NOT completedCustoms(item));
     }
 
 WHEN SESSION FORMS articleCustomsDashboard
