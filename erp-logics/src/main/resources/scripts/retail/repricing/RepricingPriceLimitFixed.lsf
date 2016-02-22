@@ -12,14 +12,10 @@ minLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(minLimitPriceListT
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) += ACTION {
     LOCAL limitPrice = NUMERIC[14,2] (Sku);
-    FOR managementRetailPrice(Sku sku) DO {
-        IF fixedLimitPrice(d, sku, dt) THEN {
-            limitPrice(sku) <- fixedLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
-            managementRetailPrice (sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
-        };
-        IF minLimitPrice(d, sku, dt) THEN {
-            limitPrice(sku) <- minLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
-            managementRetailPrice (sku) <- limitPrice(sku) WHERE limitPrice(sku) > managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
-        };    
-    }
+    limitPrice(Sku sku) <- fixedLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
+
+    limitPrice(Sku sku) <- NULL;
+    limitPrice(Sku sku) <- minLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
+    managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) > managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
 }
