@@ -215,9 +215,10 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     dateOrder 'Дата заказа' = DATA DATE (ScheduleOrderDetail) IN recognize;
     dateSupply 'Дата поставки' = DATA DATE (ScheduleOrderDetail) IN recognize;
+    INDEX dateSupply(ScheduleOrderDetail d), customerStock(d);
     
     isClosed  'Аннулирован' = DATA BOOLEAN (ScheduleOrderDetail );
-    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) PERSISTENT;
+    isOpened  'Не аннулирован' (ScheduleOrderDetail o) = o IS ScheduleOrderDetail  AND NOT isClosed (o) PERSISTENT INDEXED;
 
     close  'Аннулировать' (ScheduleOrderDetail o) = ACTION NEWSESSION { isClosed (o) <- TRUE; apply(); } TOOLBAR CONFIRM;
 
@@ -225,7 +226,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
 //    isClosedScheduleOrderDetail(d) += isClosedScheduleOrderDetail(d);
     
-    scheduleOrder 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NOT NULL DELETE;
+    scheduleOrder 'График поставок' = DATA ScheduleOrder(ScheduleOrderDetail) NOT NULL DELETE INDEXED;
     scheduleOrder(ScheduleOrderDetail d) += scheduleOrder(d);
     
     operation = DATA Operation (ScheduleOrder);
