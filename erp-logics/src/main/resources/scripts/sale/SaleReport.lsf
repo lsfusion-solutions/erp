@@ -1,0 +1,1065 @@
+MODULE SaleReport;
+
+REQUIRE SaleReports, PurchaseShipment, Store, Pricing, ZReport, TaxReverse, ZReportSection, PurchaseOrderStatus, StockDocumentBy;
+
+NAMESPACE SaleReport;
+
+//////////////////////Отчет комиссионера////////////////////////////
+
+CLASS SaleReport 'Акт реализации';
+CLASS SaleReportDetail 'Строка акта реализации';
+
+@defineDocument(saleReport);
+@deriveDocumentHeaderTimePrefix(SaleReport, );
+
+@defineDocumentHeaderNumber(SaleReport);
+@defineNumeratedDefault(SaleReport, 'Акты реализации', 'АР');
+
+@defineDocumentDataStock(saleReport, stock, 'Склад', company);
+
+@defineDocumentDescription (saleReport, 'Акт реализации');
+@defineDocumentCurrency (saleReport);
+
+@defineDocumentDetailSkuCustomPrefix(saleReportDetail, sku, , );
+@defineDocumentDetailBatchCustomPrefix(saleReportDetail, batch, );
+idBatch 'Код партии' (SaleReportDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+replace(Sku s, Batch b) += ACTION { sku(SaleReportDetail detail) <- s WHERE batch(detail) == b;} 
+
+@defineDocumentPosted(saleReport);
+
+@defineDocumentClosed(saleReport);
+
+supplier = DATA LegalEntity (SaleReport);
+nameSupplier 'Поставщик' (SaleReport o) = name(supplier(o)) IN documentPrm;
+fullNameSupplier 'Поставщик' (SaleReport o) = fullName(supplier(o));
+
+CONSTRAINT  supplier(SaleReport o) AND NOT isSupplier(supplier(o))
+    CHECKED BY supplier[SaleReport] MESSAGE 'В качестве поставщика в "Акте реализации" выбрана организация, которая не является поставщиком.';
+
+company = DATA LegalEntity (SaleReport);
+nameCompany 'Компания' (SaleReport o) = name(company(o)) IN documentPrm;
+
+currency (SaleReport saleReport) <- OVERRIDE currency(company(saleReport)), currency(companyStock(saleReport)) 
+    WHEN CHANGED(companyStock(saleReport)) OR CHANGED (company(saleReport));
+
+
+CONSTRAINT  company(SaleReport o) AND NOT isCompany(company(o))
+    CHECKED BY company[SaleReport] MESSAGE 'В качестве компании в "Акте реализации" выбрана организация, которая не является компанией.';
+
+CONSTRAINT companyStock(SaleReport o) AND company(o) AND NOT in(company(o),companyStock(o))
+    CHECKED BY companyStock[SaleReport] MESSAGE 'Выбранный склад не принадлежит компании в "Акте реализации".';   
+
+contractSku = DATA ContractSku (SaleReport);
+numberContractSku 'Договор (номер)' (SaleReport o) = number[Contract](contractSku(o)) IN documentPrm;
+descriptionContractSku 'Договор' (SaleReport o) = description(contractSku(o)) IN documentPrm;
+
+CONSTRAINT contractSku(SaleReport o) AND NOT company(o) == partyB(contractSku(o))
+    CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (покупатель) договора не соответствует компании в акте реализации';    
+
+CONSTRAINT contractSku(SaleReport o) AND NOT supplier(o) == partyA(contractSku(o))
+    CHECKED BY contractSku[SaleReport] MESSAGE 'Организация (поставщик) договора не соответствует поставщику в акте реализации'; 
+
+fromDate 'Дата с' = DATA DATE (SaleReport) IN documentHeader;
+fromDate 'Дата с' (SaleReportDetail d)= fromDate(saleReport(d));
+toDate 'Дата по' = DATA DATE (SaleReport) IN documentHeader;
+toDate 'Дата по' (SaleReportDetail d)= toDate(saleReport(d));
+
+quantity 'Кол-во' = DATA NUMERIC[14,3] (SaleReportDetail);
+price 'Цена' = DATA NUMERIC[14,2] (SaleReportDetail);
+
+VAT = DATA Range (SaleReportDetail);
+numberVAT 'НДС, номер' (SaleReportDetail d) = number(VAT(d));
+valueVAT 'НДС, %' = DATA NUMERIC[10,5] (SaleReportDetail);
+
+sum 'Сумма поставщика' = DATA NUMERIC[16,2] (SaleReportDetail);
+VATSum 'Сумма НДС поставщика' = DATA NUMERIC[16,2] (SaleReportDetail);
+invoiceSum 'Сумма поставщика с НДС' = DATA NUMERIC[16,2] (SaleReportDetail);
+
+sumBalanceB 'Остаток с НДС (начало)' = DATA NUMERIC[16,2] (SaleReportDetail);
+sumBalanceA 'Остаток с НДС (конец)' = DATA NUMERIC[16,2] (SaleReportDetail);
+sumReturn 'Возврат с НДС' = DATA NUMERIC[16,2] (SaleReportDetail);
+
+quantityBalanceB 'Остаток количество (начало)' = DATA NUMERIC[16,5] (SaleReportDetail);
+quantityBalanceA 'Остаток количество (конец)' = DATA NUMERIC[16,5] (SaleReportDetail);
+
+sumBalanceBReportDetail 'Остаток с НДС (начало)' (saleReport) = GROUP SUM sumBalanceB(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum PERSISTENT;
+sumBalanceAReportDetail 'Остаток с НДС (конец)' (saleReport) = GROUP SUM sumBalanceA(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum PERSISTENT;
+sumReturnReportDetail 'Возврат с НДС' (saleReport) = GROUP SUM sumReturn(SaleReportDetail idetail) BY saleReport(idetail) IN documentSum PERSISTENT;
+
+CONSTRAINT tax(VAT(SaleReportDetail d)) != Tax.taxVAT OR
+           country(VAT(d)) != country(legalEntity(companyStock(d)))
+           CHECKED BY VAT[SaleReportDetail]
+           MESSAGE 'ошибка: Шкала и страна строки должна соответствовать шкале и строке НДС: Tax';
+
+@defineDocumentHeaderQuantityPrefix (saleReport, , );
+
+@defineDocumentHeaderSumPrefix (saleReport, , ' поставщика');
+
+@defineDocumentHeaderSumPrefix (saleReport, VAT, ' НДС поставщика');
+
+
+@defineDocumentHeaderSumPrefix (saleReport, invoice, ' поставщика с НДС');
+
+inSalereport 'Вкл. в отчет "Акт реализации"' = DATA BOOLEAN (Stock);
+
+EXTEND FORM options 
+    PROPERTIES (s) inSalereport
+;
+       
+quantitySoldCompanyFromTo 'Продано за интервал (кол-во)' = GROUP SUM quantitySold(Batch bt,Stock st,DATE dFrom,DATE dTo) IF inSalereport(st)
+    BY  bt,legalEntity(st),dFrom,dTo;  
+       
+balanceBCompanyFrom 'Остаток начало (кол-во)' = GROUP SUM balanceB(Batch bt,Stock st,DATE dFrom) IF inSalereport(st)
+    BY  bt,legalEntity(st),dFrom;          
+balanceACompanyTo 'Остаток конец (кол-во)' = GROUP SUM balanceA(Batch bt,Stock st,DATE dTo) IF inSalereport(st)
+    BY  bt,legalEntity(st),dTo; 
+     
+quantityReturnFromTo 'Возваращено' = GROUP SUM (-cost(PurchaseLedger ledger, Batch batch)) IF cost(ledger, batch) <0 
+    AND date(ledger) >= DATE dateFrom AND date(ledger) <= DATE dateTo
+    BY batch, stock(ledger), dateFrom, dateTo;
+
+quantityReturnCompanyFromTo 'Возваращено' = GROUP SUM (-cost(PurchaseLedger ledger, Batch batch)) IF cost(ledger, batch) <0 
+    AND date(ledger) >= DATE dateFrom AND date(ledger) <= DATE dateTo AND inSalereport(stock(ledger))
+    BY batch, legalEntity(stock(ledger)), dateFrom, dateTo;
+
+prevStocksReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF companyStock(saleReport)
+    BY companyStock(saleReport), supplier(saleReport), contractSku(saleReport) ORDER toDate(saleReport);
+prevCompaniesReport 'Предыдущий отчет' (SaleReport saleReport) = PARTITION PREV saleReport IF NOT companyStock(saleReport)
+    BY company(saleReport), supplier(saleReport), contractSku(saleReport) ORDER toDate(saleReport);
+
+detail (b,r)= GROUP MAX SaleReportDetail d BY batch(d), saleReport(d);             
+
+skipSaleReport = ABSTRACT BOOLEAN (Batch);     
+       
+fillData 'Заполнить данные'(SaleReport report) = ACTION {    
+    IF supplier(report) AND contractSku(report) AND company(report) THEN {
+        DELETE SaleReportDetail d WHERE d IS SaleReportDetail AND saleReport(d)== report;
+        IF companyStock(report) THEN {
+            FOR (quantitySold(Batch batch, companyStock(report), fromDate(report), toDate(report)) 
+                OR balanceA(batch, companyStock(report), toDate(report))
+                OR quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report))
+                ) AND supplier(report) == supplier(batch) AND contractSku(report) == contractSku(invoice(invoiceDetail(batch)))
+                 AND NOT skipSaleReport(batch) ADDOBJ d = SaleReportDetail DO {        
+        
+                saleReport(d) <- report;
+                batch(d) <- batch;
+                sku(d) <- sku(batch);
+                
+                quantity(d) <- NUMERIC[14,3](quantitySold(batch, companyStock(report), fromDate(report), toDate(report)));
+                price(d) <- price(invoiceDetail(batch));
+                VAT(d) <- OVERRIDE VAT(invoiceDetail(batch)), VAT(sku(batch));
+                valueVAT(d) <- OVERRIDE valueVAT(invoiceDetail(batch)), valueVAT(sku(batch));
+                
+                sum(d) <- NUMERIC[16,2](round(quantity(d) * price(d), currency(d)));
+                VATSum(d) <- NUMERIC[14,2](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
+                invoiceSum(d) <- NUMERIC[14,2](sum(d) (+) VATSum(d));  
+                                                                                                                                                       
+                sumBalanceB(d) <- NUMERIC[14,2](round(balanceB(batch, companyStock(report), fromDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
+                sumBalanceA(d) <- NUMERIC[14,2](round(balanceA(batch, companyStock(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
+                sumReturn(d) <- NUMERIC[14,2](round(quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));
+                                                                                                                                                                                                                                                                                                                
+                quantityBalanceB(d) <- balanceB(batch, companyStock(report), fromDate(report));
+                quantityBalanceA(d) <- balanceA(batch, companyStock(report), toDate(report));
+            }
+        } ELSE {
+            FOR (quantitySoldCompanyFromTo(Batch batch, company(report), fromDate(report), toDate(report)) 
+                OR balanceACompanyTo(batch, company(report), toDate(report))
+                OR quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report))
+                ) AND supplier(report) == supplier(batch) AND contractSku(report) == contractSku(invoice(invoiceDetail(batch)))
+                 AND NOT skipSaleReport(batch)  ADDOBJ d = SaleReportDetail DO {        
+        
+                saleReport(d) <- report;
+                batch(d) <- batch;
+                sku(d) <- sku(batch);
+                
+                quantity(d) <- NUMERIC[14,3](quantitySoldCompanyFromTo(batch, company(report), fromDate(report), toDate(report)));
+                price(d) <- price(invoiceDetail(batch));
+                VAT(d) <- OVERRIDE VAT(invoiceDetail(batch)), VAT(sku(batch));
+                valueVAT(d) <- OVERRIDE valueVAT(invoiceDetail(batch)), valueVAT(sku(batch));
+                
+                sum(d) <- NUMERIC[16,2](round(quantity(d) * price(d), currency(d)));
+                VATSum(d) <- NUMERIC[14,2](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
+                invoiceSum(d) <- NUMERIC[14,2](sum(d) (+) VATSum(d));     
+                                                                                                                                                    
+                sumBalanceB(d) <- NUMERIC[14,2](round(balanceBCompanyFrom(batch, company(report), fromDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
+                sumBalanceA(d) <- NUMERIC[14,2](round(balanceACompanyTo(batch, company(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                                          
+                sumReturn(d) <- NUMERIC[14,2](round(quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));
+                                                                                                                                                                          
+                quantityBalanceB(d) <- balanceBCompanyFrom(batch, company(report), fromDate(report));                                                                                                                                         
+                quantityBalanceA(d) <- balanceACompanyTo(batch, company(report), toDate(report)); 
+            
+            }        
+        }
+        
+    } ELSE {
+        MESSAGE 'Не задан поставщик, компания или договор.';
+    }
+}
+
+@defineDocumentDialogLegalEntity(saleReport, supplier, supplier);
+@defineDocumentDialogLegalEntity(saleReport, company, company);
+@defineDocumentDialogStock(saleReport, company, company, );
+
+note(SaleReport r) <- VARSTRING[100](CONCAT ' ', nameSupplier(r), nameCompanyStock(r), 'с '+toDateDDMMYY(fromDate(r)), 'по '+toDateDDMMYY(toDate(r)))
+    WHEN  CHANGED(fromDate(r)) OR CHANGED(toDate(r)) OR CHANGED (companyStock(r)) OR CHANGED (supplier(r));
+
+FORM saleReport 'Акт реализации'
+
+    OBJECTS r = SaleReport FIXED PANEL
+    PROPERTIES (r) isPosted, nameCompany ON CHANGE changeCompanyCompany(r), nameCompanyStock ON CHANGE changeCompanyStockCompany(r), nameNumerator, 
+                   number, series, date, time,
+                   nameCurrency, note, fromDate, toDate,
+                   nameSupplier ON CHANGE changeSupplierSupplier(r), numberContractSku                   
+                                                              
+    PROPERTIES (r) READONLY countSaleReportDetail, sumBalanceBReportDetail, sumReturnReportDetail, quantitySaleReportDetail, 
+                   sumSaleReportDetail,  VATSumSaleReportDetail, invoiceSumSaleReportDetail, sumBalanceAReportDetail                    
+
+
+    OBJECTS d = SaleReportDetail
+    PROPERTIES (d) index
+    PROPERTIES (d) idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch
+    PROPERTIES (d) sumBalanceB, sumReturn, quantity, price, sum, numberVAT, 
+                   valueVAT, VATSum, invoiceSum, sumBalanceA 
+                
+    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
+    
+    PROPERTIES(r)  fillData FORCE PANEL TOOLBAR TODRAW d  
+    
+    ORDER BY index(d)
+
+    PROPERTIES(r) TODRAW d deleteSaleReportDetail
+    
+    FILTERS saleReport(d) == r
+    
+    EVENTS
+        ON OK prePost(r)
+
+    EDIT SaleReport OBJECT r
+;
+
+DESIGN saleReport {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+
+            NEW headerParams {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE r.documentHeader {
+                    type = CONTAINERV;
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (isPosted(r));
+                        MOVE PROPERTY(nameNumerator(r));
+                        MOVE PROPERTY(number(r));
+                        MOVE PROPERTY(series(r));
+                        MOVE PROPERTY(date(r));
+                        MOVE PROPERTY(time(r));                 
+                    }
+                    NEW second { 
+                        type = CONTAINERH;
+
+                        MOVE PROPERTY(fromDate(r));
+                        MOVE PROPERTY(toDate(r));
+                        MOVE PROPERTY(nameCompany(r));
+                        MOVE PROPERTY(nameCompanyStock(r));
+                        MOVE PROPERTY(nameSupplier(r));   
+                        MOVE PROPERTY(numberContractSku(r));    
+                    }                                                                                                                       
+                }
+                MOVE r.documentPrm;
+            }
+            MOVE r.documentSum {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
+            fill = 1;
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+        }
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+        MOVE functions.box;
+
+    }
+}
+
+FORM reportsSales 'Акты реализации'
+
+    OBJECTS r = SaleReport 
+    PROPERTIES (r) READONLY isClosed, isPosted, postedGrid = postedNameUser,  nameCompany, nameCompanyStock, 
+                   number, series, date, time,
+                   nameCurrency, note, fromDate, toDate,
+                   fullNameSupplier, numberContractSku 
+                
+    PROPERTIES (r) READONLY countSaleReportDetail, sumBalanceBReportDetail, sumReturnReportDetail, quantitySaleReportDetail, 
+                   sumSaleReportDetail,  VATSumSaleReportDetail, invoiceSumSaleReportDetail, sumBalanceAReportDetail
+                   
+    PROPERTIES (r) ADDFORM, EDITFORM SHOWIF isOpened(r), deleter=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(r)  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer,
+                    postedNameUser, postedTime, postedHostnameComputer 
+    PROPERTIES (r) close SHOWIF isOpened(r), open SHOWIF isClosed(r)
+        
+    OBJECTS d = SaleReportDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch
+    PROPERTIES (d) READONLY sumBalanceB, sumReturn, quantity, price, sum, numberVAT, 
+                   valueVAT, VATSum, invoiceSum, sumBalanceA 
+    
+    ORDER BY index(d)
+
+    FILTERS saleReport(d) == r
+                
+    DIALOG SaleReport OBJECT r
+;
+DESIGN reportsSales {
+    main {
+        preferredSize = (1024, 768);
+        PROPERTY (deleter) {
+            askConfirm = TRUE;
+        }
+
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE r.box;    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE r.created;
+                    MOVE r.posted;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                    }
+                }
+            }
+        }
+    }
+}
+
+@defineFilterIsOpened(saleReport, reportsSales, r);
+
+//aa 'склад' = seriesNumberSaleReport (prevStocksReportSaleReport(r));
+//bb 'орг-ия' = seriesNumberSaleReport (prevCompaniesReportSaleReport(r));
+//
+//EXTEND FORM reportsSales
+//    PROPERTIES (r) aa, bb
+//;
+
+// История по правой кнопке
+@defineBalancesBatch(saleReportDetail); //-- показываем по нажатию правой клавиши остатки партии
+@defineMovementBatch(saleReportDetail, companyStock); //-- показываем по нажатию правой клавиши движение по партии
+
+@defineMovementSku(saleReportDetail, companyStock); //-- показываем по нажатию правой клавиши движение товара
+@defineBalancesSku(saleReportDetail); //-- показываем по нажатию правой клавиши остатки товара
+
+@defineMovementPriceSku(saleReportDetail, companyStock); //-- показываем по нажатию правой клавиши изменение цены товара
+
+// -- Печатные формы
+
+FORM detailSaleReport 'Акт реализации'
+
+    OBJECTS r = SaleReport FIXED PANEL
+    PROPERTIES (r) nameCompany, nameCompanyStock, seriesNumber, 
+                   number, series, date, time,
+                   nameCurrency, note, fromDate, toDate,
+                   nameSupplier, numberContractSku, descriptionContractSku                   
+                                                              
+    PROPERTIES (r) READONLY countSaleReportDetail, sumBalanceBReportDetail, sumReturnReportDetail, quantitySaleReportDetail, 
+                   sumSaleReportDetail,  VATSumSaleReportDetail, invoiceSumSaleReportDetail, sumBalanceAReportDetail 
+                   
+    OBJECTS d = SaleReportDetail
+    PROPERTIES (d) index
+    PROPERTIES (d) idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch
+    PROPERTIES (d) quantity, price, sum, numberVAT, valueVAT, VATSum, invoiceSum,
+                   sumBalanceB, sumBalanceA, sumReturn 
+    
+    ORDER BY index(d)    
+    FILTERS saleReport(d) == r
+;
+printDetail 'Акт реализации' (SaleReport report) =
+    ACTION FORM detailSaleReport OBJECTS r = report PRINT  IMAGE 'print.png' IN print;
+
+EXTEND FORM reportsSales
+    PROPERTIES(r) printDetail FORCE PANEL    
+;
+DESIGN reportsSales {
+    printContainer {
+        MOVE r.print;
+    }    
+}
+
+@extendFormFilterAccessStock(SaleReport, r, reportsSales, companyStock, company);
+@extendFormFilterAccessLegalEntity(SaleReport, r, reportsSales, company, company);
+@extendFormFilterAccessLegalEntity(SaleReport, r, reportsSales, supplier, supplier);
+
+NAVIGATOR {
+    salesReports {
+        ADD reportsSales;
+    }
+}
+
+isSent 'Отправлен' (o) = DATA BOOLEAN (SaleReport);
+sentDateTime 'Дата отправления' (o) = DATA DATETIME (SaleReport);
+
+logSendDocumentSaleReport(Object o) = ACTION FOR ADDOBJ d = DocumentLog DO {
+        document(d) <- o;
+        typeDocument(d) <- objectClassName(o);
+        numberDocument(d) <- number[Document](o);  
+        seriesDocument(d) <- series[Document](o); 
+        dateDocument(d) <- date[Document](o);   
+        note(d) <- 'Отправлен';      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameCurrentComputer();
+        userLogin(d) <- login(currentUser()); 
+        nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+        dateTimeSession(d) <- currentDateTime();  
+        supplierStock(d) <- supplierStock[Document](o);
+        customerStock(d) <- customerStock[Document](o);
+}
+
+FORM messageSaleReports 'Сообщение'
+    OBJECTS s = SaleReport FIXED PANEL
+    PROPERTIES(s) nameCompanyStock, fromDate, toDate
+    PROPERTIES () messageEmailOrders TODRAW s
+;
+
+calcEmailSupplier 'Отправить акт поставщику' (SaleReport report) = ACTION EMAIL
+    FROM fromEmailOrders()
+    SUBJECT 'Акт реализации по магазину ' + nameCompanyStock(report)+ ' за период с '  + fromDate(report)+ ' по ' + toDate(report)
+    TO email(supplier(report))
+    INLINE messageSaleReports OBJECTS s=report
+    ATTACH XLSX 
+           NAME number(report) + '/' + fromDate(report)+ '/' + toDate(report)// без кирилицы должно быть
+           detailSaleReport OBJECTS r=report
+;
+    
+emailSupplier 'Отправить акт поставщику' (SaleReport report)= ACTION {
+    IF email(supplier(report)) THEN {
+        NEWSESSION {
+            isSent(report) <- TRUE;
+            IF NOT disableDocumentLog() THEN logSendDocumentSaleReport(report);
+            sentDateTime(report) <- currentDateTime();
+               
+            calcEmailSupplier(report);
+            apply();
+        }
+
+    } ELSE {
+        MESSAGE 'У поставщика не задан e-mail';
+    }
+} TOOLBAR;
+
+EXTEND FORM reportsSales
+    PROPERTIES (r) READONLY isSent, sentDateTime
+    PROPERTIES (r) emailSupplier
+;
+
+//filterSoldSupplierCompanyContractSkuDateFromTo = GROUP SUM quantitySoldBatchStockDateFromTo(batch, stock, dateFrom, dateTo) IF inSalereportStock(stock)
+//    BY supplierBatch(batch), legalEntityStock(stock), contractSkuInvoice(invoiceInvoiceDetail(invoiceDetailBatch(batch))), dateFrom, dateTo;   
+
+partSale 'Формировать два акта реализации за месяц' = ABSTRACT BOOLEAN (ContractSku);
+partSale 'Формировать два акта реализации за месяц' = DATA BOOLEAN (UserContractSku);
+partSale(UserContractSku c) += partSale(c);
+
+EXTEND FORM userContractSku 
+    PROPERTIES (c) partSale
+;
+DESIGN userContractSku{
+    params {
+        MOVE PROPERTY (partSale(c));
+    }
+}
+EXTEND FORM contracts 
+    PROPERTIES (c) READONLY FORCE GRID partSale[ContractSku]
+;
+EXTEND FORM contractSkus 
+    PROPERTIES (c) READONLY FORCE GRID partSale
+;
+
+
+
+filterSoldCompanyFromTo = GROUP SUM quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) IF inSalereport(stock)
+    BY legalEntity(stock), contractSku(invoice(invoiceDetail(batch))), dateFrom, dateTo;   
+
+createAutoSaleReport 'Создать акты реализации'(LegalEntity company, DATE dateFrom, DATE dateTo) = ACTION {
+    FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
+        AND inSalereport(Stock stock) AND partyB(c) == company DO {
+        NEWSESSION  {
+            FOR ADDOBJ r = SaleReport DO {
+            
+            supplier(r) <- partyA(c);
+            company(r) <- partyB(c);
+            companyStock(r) <- stock;
+            contractSku(r) <- c;
+            fromDate(r) <- dateFrom;
+            toDate(r) <- dateTo;
+            fillData(r);
+            IF countSaleReportDetail(r)  
+                THEN {
+                    apply();
+                } ELSE {
+                    cancel();
+                }            
+            }
+        }
+
+    }
+}
+firstSaleDate = firstDayOfMonth(sumMonth(currentDate(), -1));
+firstDateCurrentMonth = firstDayOfMonth(currentDate());
+lastSaleDate = lastDayOfMonth(sumMonth(currentDate(), -1));
+
+createAutoSaleReportdFull 'Создать акты реализации (10 число)'(LegalEntity company) = ACTION { // 10 числа каждого месяца
+    FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
+        AND inSalereport(Stock stock) AND partyB(c) == company DO {
+        NEWSESSION {
+            FOR ADDOBJ r = SaleReport DO {
+        
+            supplier(r) <- partyA(c);
+            company(r) <- partyB(c);
+            companyStock(r) <- stock;
+            contractSku(r) <- c;
+            fromDate(r) <- IF partSale(c) THEN sum(firstSaleDate(),15)
+                                                               ELSE firstSaleDate();
+            toDate(r) <- lastSaleDate();
+            fillData(r);
+            IF countSaleReportDetail(r)  
+                THEN {
+                    apply();
+                } ELSE {
+                    cancel();
+                }
+            }
+        }
+    }
+}
+createAutoSaleReportdPart 'Создать акты реализации (20 число)'(LegalEntity company) = ACTION { // 20 числа
+    FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
+        AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) DO {
+        NEWSESSION {
+            FOR ADDOBJ r = SaleReport DO {
+                supplier(r) <- partyA(c);
+                company(r) <- partyB(c);
+                companyStock(r) <- stock;
+                contractSku(r) <- c;
+                fromDate(r) <- firstDateCurrentMonth();
+                toDate(r) <- sum(firstDateCurrentMonth(),14);
+                fillData(r);
+                IF countSaleReportDetail(r)  
+                    THEN {
+                        apply();
+                    }
+            }
+        }
+
+    }
+}
+
+createAutoSaleReportPrevMonth 'Создать акты реализации (за пред.месяц)'(LegalEntity company) = ACTION {
+    createAutoSaleReport(company, firstSaleDate(), lastSaleDate());    
+}
+
+
+createSchedulerAutoSaleReportdFull 'Создать акты реализации (10 число планировщик)'() = ACTION{
+    FOR isCompany(LegalEntity l) DO {
+        createAutoSaleReportdFull(l);    
+    }
+}
+
+createSchedulerAutoSaleReportdPart 'Создать акты реализации (20 число планировщик)'() = ACTION {
+    FOR isCompany(LegalEntity l) DO {
+        createAutoSaleReportdPart(l);    
+    }    
+}
+
+EXTEND FORM options 
+    OBJECTS df = DATE FIXED PANEL, dt=DATE FIXED PANEL,l=LegalEntity FIXED PANEL 
+    PROPERTIES dateFrom = OBJVALUE (df), dateTo = OBJVALUE (dt), name(l) SELECTOR 
+    PROPERTIES createAutoSaleReport(l,df,dt), createAutoSaleReportdFull(l), createAutoSaleReportdPart(l)
+    FILTERS isCompany(l)
+; 
+
+DESIGN options {
+    stock {
+        NEW saleRepotrs {
+            caption = 'Акты реализации';
+            type = CONTAINERV;
+            NEW saleRepotrs1 {
+                caption = 'За период';
+                type = CONTAINERH;
+                MOVE PROPERTY(dateFrom) {caption = 'Дата с';}
+                MOVE PROPERTY(dateTo) {caption = 'Дата по';}    
+                MOVE PROPERTY(name(l));
+                MOVE PROPERTY(createAutoSaleReport(l,df,dt));                             
+            }
+            NEW saleRepotrs2 {
+                caption = 'Предыдущий месяц';
+                type = CONTAINERH;
+                MOVE PROPERTY(createAutoSaleReportdFull(l)); 
+                MOVE PROPERTY(createAutoSaleReportdPart(l)); 
+            }
+
+
+            
+        }
+    }
+}
+
+maxToDatePostedSaleSupplier(report, s,l,c) = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == report BY report, companyStock(r), supplier(r), contractSku(r);
+
+CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r))) 
+    AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)) 
+    MESSAGE 'Уже сформирован акт за выбранный период';
+    
+WHEN SESSION FORMS saleReport SET (SaleReport r IS SaleReport) OR SETCHANGED (companyStock(r)) OR SETCHANGED (supplier(r)) OR SETCHANGED (contractSku(r)) DO {
+    fromDate(r) <- OVERRIDE firstDayOfMonth(currentDate()), sum(maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)), 1);
+}
+WHEN SESSION FORMS saleReport SET (SaleReport r IS SaleReport) DO {
+    toDate(r) <- lastDayOfMonth(currentDate());
+}
+
+//----------- Отчет о реализации и остатках по поставщикам ----------//
+
+inSessionGroup = inSession(skuGroup(Sku sku));
+          
+quantitySold 'Продано за интервал (кол-во)' (supplier, stock, dateFrom, dateTo)= GROUP SUM 
+    quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) 
+        BY supplier(batch), stock, dateFrom, dateTo; 
+sumSold 'Продано за интервал (сумма)' (supplier, stock, dateFrom, dateTo)= GROUP SUM 
+    sumSold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) 
+        BY supplier(batch), stock, dateFrom, dateTo;            
+     
+quantitySold 'Продано за интервал (кол-во)' (sku, stock, supplier, dateFrom, dateTo)= GROUP SUM 
+    quantitySold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) 
+        BY sku(batch), stock, supplier(batch), dateFrom, dateTo; 
+sumSold 'Продано за интервал (сумма)' (sku, stock, supplier, dateFrom, dateTo)= GROUP SUM 
+    sumSold(Batch batch, Stock stock, DATE dateFrom, DATE dateTo) 
+        BY sku(batch), stock, supplier(batch), dateFrom, dateTo;  
+averagePrice =  sumSold(Sku sku, Stock stock, LegalEntity supplier, DATE dateFrom, DATE dateTo) /
+    (quantitySold(sku, stock, supplier, dateFrom, dateTo) IF quantitySold(sku, stock, supplier, dateFrom, dateTo) !=0);
+
+currentBalanceSupplier 'Остатки' = GROUP SUM currentBalance(Batch bt,Stock st) BY sku(bt), st, supplier(bt);
+
+FORM printSaleLedgerPeriod 'По поставщикам'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)    
+    
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES (st) name
+    FILTERS isCompany(st)
+    PROPERTIES currentDate() TODRAW st
+    
+    OBJECTS su = LegalEntity FIXED PANEL
+    PROPERTIES (su) name
+    PROPERTIES (su,st,dFrom,dTo) sumSold, quantitySold
+    
+    OBJECTS s = Sku  
+    PROPERTIES(s) id, idBarcode, name, shortNameUOM
+    PROPERTIES currentBalanceSupplier(s,st,su), quantitySold(s,st,su,dFrom,dTo)
+    ORDER BY name(s)
+    FILTERS quantitySold(s,st,su,dFrom,dTo) OR currentBalanceSupplier(s,st,su)           
+;
+
+printSaleLedgerPeriod 'Печать' (DATE dFrom,DATE dTo,Stock st,LegalEntity su) = ACTION  FORM printSaleLedgerPeriod OBJECTS dFrom = dFrom, dTo = dTo, st = st, su=su PRINT IMAGE 'print.png' IN print; 
+
+FORM saleLedgerPeriod 'Отчет по поставщикам'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)    
+    
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES (st) SELECTOR name
+    FILTERS isCompany(st)
+    
+    OBJECTS su = LegalEntity FIXED PANEL
+    PROPERTIES (su) SELECTOR name
+    FILTERS isSupplier(su)
+    
+    OBJECTS s = Sku FIXED GRID 
+    PROPERTIES(s) id, idBarcode, name, shortNameUOM
+    PROPERTIES currentBalanceSupplier(s,st,su), quantitySold(s,st,su,dFrom,dTo)
+    ORDER BY name(s)
+    FILTERS quantitySold(s,st,su,dFrom,dTo) OR currentBalanceSupplier(s,st,su)  
+    
+    PROPERTIES printSaleLedgerPeriod(dFrom,dTo,st,su) //FORCE PANEL TOOLBAR TODRAW s       
+;
+DESIGN saleLedgerPeriod {
+    NEW top {
+        type = CONTAINERH;
+        MOVE dates.box;
+        MOVE st.box;
+        MOVE su.box;
+        MOVE su.print;
+    }
+    MOVE s.box;
+    MOVE functions.box;
+}
+@extendFormFilterStockAccess(st, saleLedgerPeriod, company);
+@extendFormFilterLegalEntityAccess(su, saleLedgerPeriod, supplier);
+
+NAVIGATOR {
+    saleDashboardNavigator {
+        ADD saleLedgerPeriod;
+    }
+}
+
+isBarcodeSku 'Штрихкод' = idBarcode(sku(SaleLedger ledger));
+
+EXTEND FORM salesReport
+    PROPERTIES (s) READONLY isBarcodeSku BEFORE nameSku(s) 
+;
+
+calcDiscountPercent '% скидки' (ReceiptDetail s) = round2(signedDiscountSum(s)*100.0/(signedDiscountSum(s)(+) signedSum(s) IF ((signedDiscountSum(s)(+)signedSum(s)) !=0)));
+
+reverseValueVAT'Расчетный НДС, % (СП)' = valueVAT(store(ReceiptDetail s), date(s)); 
+
+discountSumVAT 'Скидка в НДС' (ReceiptDetail s) = round0(signedDiscountSum(s) * valueVAT(s) / (100.0 + valueVAT(s)));    
+    
+discountSumMarkup 'Скидка в надбавке' = signedDiscountSum(ReceiptDetail s) (-) discountSumVAT(s);
+
+discountSumReceiptDetailStockDate 'Итого скидка' (d,dFrom,dTo)= GROUP SUM signedDiscountSum(ReceiptDetail s) 
+    IF isPosted(s) AND discountSum(s)>0 AND date(s) >= DATE dFrom AND date(s) <= DATE dTo AND NOT section(s) == section('3')
+        BY departmentStore(s) , dFrom, dTo;
+discountSumVATReceiptDetailStockDate 'Итого скидка в НДС' (d,dFrom,dTo)= GROUP SUM discountSumVAT(ReceiptDetail s) 
+    IF isPosted(s) AND discountSum(s)>0 AND date(s) >= DATE dFrom AND date(s) <= DATE dTo AND NOT section(s) == section('3')  
+        BY departmentStore(s) , dFrom, dTo;
+discountSumMarkupReceiptDetailStockDate 'Итого скидка в надбавке' (d,dFrom,dTo)= GROUP SUM discountSumMarkup(ReceiptDetail s) 
+    IF isPosted(s) AND discountSum(s)>0 AND date(s) >= DATE dFrom AND date(s) <= DATE dTo AND NOT section(s) == section('3') 
+        BY departmentStore(s) , dFrom, dTo;
+                
+FORM discountSumPeriod 'Отчет о предоставленных скидках'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) name, nameLegalEntity[Stock], fullNameLegalEntity, positionShortNameBooker
+    
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    PROPERTIES(d,dFrom,dTo) discountSumReceiptDetailStockDate, discountSumVATReceiptDetailStockDate, discountSumMarkupReceiptDetailStockDate
+
+    OBJECTS s = ReceiptDetail
+    PROPERTIES(s) READONLY idBarcode, nameSku, price, quantity, 
+                  calcDiscountPercent, discountSum, valueVAT, discountSumVAT,
+                  discountSumMarkup, overValueVAT
+    FILTERS isPosted(s), date(s) >= dFrom, date(s) <= dTo,
+            departmentStore(s) == d,
+            discountSum(s) >0,
+            NOT section(s) == section('3')  
+    
+;
+discountSumPeriod 'Отчет о скидках' (DepartmentStore ds,DATE dtFrom,DATE dtTo) =
+    ACTION FORM discountSumPeriod OBJECTS d = ds, dFrom = dtFrom, dTo = dtTo PRINT  IMAGE 'print.png' IN print;
+
+discountSumReceiptDetailStockDateManufacture 'Итого скидка' (d,dFrom,dTo)= GROUP SUM signedDiscountSum(ReceiptDetail s) 
+    IF isPosted(s) AND discountSum(s)>0 AND date(s) >= DATE dFrom AND date(s) <= DATE dTo AND section(s) == section('3')  
+        BY departmentStore(s) , dFrom, dTo;
+discountSumVATReceiptDetailStockDateManufacture 'Итого скидка в НДС' (d,dFrom,dTo)= GROUP SUM discountSumVAT(ReceiptDetail s) 
+    IF isPosted(s) AND discountSum(s)>0 AND date(s) >= DATE dFrom AND date(s) <= DATE dTo AND section(s) == section('3')  
+        BY departmentStore(s) , dFrom, dTo;
+discountSumMarkupReceiptDetailStockDateManufacture 'Итого скидка в надбавке' (d,dFrom,dTo)= GROUP SUM discountSumMarkup(ReceiptDetail s) 
+    IF isPosted(s) AND discountSum(s)>0 AND date(s) >= DATE dFrom AND date(s) <= DATE dTo AND section(s) == section('3')  
+        BY departmentStore(s) , dFrom, dTo;
+    
+FORM discountSumPeriodManufacture 'Отчет о предоставленных скидках СП'
+    OBJECTS d = DepartmentStore FIXED PANEL
+    PROPERTIES (d) name, nameLegalEntity[Stock], fullNameLegalEntity, positionShortNameBooker
+    
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    PROPERTIES(d,dFrom,dTo) discountSumReceiptDetailStockDateManufacture, discountSumVATReceiptDetailStockDateManufacture, discountSumMarkupReceiptDetailStockDateManufacture
+
+    OBJECTS s = ReceiptDetail
+    PROPERTIES(s) READONLY idBarcode, nameSku, price, quantity, 
+                  calcDiscountPercent, discountSum, valueVAT, discountSumVAT,
+                  discountSumMarkup, overValueVAT
+    FILTERS isPosted(s), date(s) >= dFrom, date(s) <= dTo,
+            departmentStore(s) == d,
+            discountSum(s) >0,
+            section(s) == section('3')  
+    
+;
+discountSumPeriodManufacture 'Отчет о скидках (СП)' (DepartmentStore ds,DATE dtFrom,DATE dtTo) =
+    ACTION FORM discountSumPeriodManufacture OBJECTS d = ds, dFrom = dtFrom, dTo = dtTo PRINT  IMAGE 'print.png' IN print;    
+    
+
+EXTEND FORM sumStockDocumentLedger
+    PROPERTIES(ds,dtFrom,dtTo) discountSumPeriod, discountSumPeriodManufacture
+;
+DESIGN sumStockDocumentLedger {
+    print {
+        MOVE PROPERTY (discountSumPeriod(ds,dtFrom,dtTo));
+        MOVE PROPERTY (discountSumPeriodManufacture(ds,dtFrom,dtTo));
+    }
+}
+
+DESIGN sumStockDocumentLedger {
+    NEW actions AFTER header {
+        MOVE print;    
+    }    
+}
+
+dateTimeChanged 'Дата/время изменения' = DATA DATETIME (SaleReport);
+dateTimeExport 'Дата/время выгрузки' = DATA DATETIME (SaleReport);
+
+WHEN SETCHANGED(seriesNumber(SaleReport s)) OR SETCHANGED (date(s)) OR SETCHANGED (supplier(s)) 
+    OR SETCHANGED (contractSku(s)) OR SETCHANGED (sumSaleReportDetail(s)) OR SETCHANGED (VATSumSaleReportDetail(s)) OR SET (isPosted(s))
+    DO dateTimeChanged(s) <- currentDateTime();
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (DepartmentStore);
+in 'Вкл.' = DATA LOCAL BOOLEAN (Sku);
+
+deleteInSku 'Сбросить для всех'() = ACTION {
+    in(Sku s) <- NULL;    
+};
+
+quantity 'Количество' = DATA LOCAL NUMERIC[16,5] (Sku,Stock); 
+costSum 'Себестоимость' = DATA LOCAL NUMERIC[16,2] (Sku,Stock); 
+markupSum 'Надбавка' = DATA LOCAL NUMERIC[16,2] (Sku,Stock);
+sumVAT 'Сумма НДС' = DATA LOCAL NUMERIC[16,2] (Sku,Stock);
+sum 'Сумма' = DATA LOCAL NUMERIC[16,2] (Sku,Stock);
+balance 'Остаток' = DATA LOCAL NUMERIC[16,5] (Sku, Stock);
+
+
+reserveDate 'Запас' (Sku s,Stock ds,DATE dFrom,DATE dTo) = balanceA(s,ds,dTo) / (quantity(s,ds) / (1+subtractInteger(dTo,dFrom)));
+
+quantityStocks 'Продано, шт.' (s) = GROUP SUM  quantity(Sku s,DepartmentStore ds) IF in(ds)  BY s;
+sumStocks 'Продано, руб.' (s) = GROUP SUM  sum(Sku s,DepartmentStore ds) IF in(ds) BY s;
+balanceStocks 'Остаток на конец' (s) = GROUP SUM  balance(Sku s,DepartmentStore ds) IF in(ds) BY s;
+
+reserveStocksDate 'Запас' (Sku s,DATE dFrom,DATE dTo) = balanceStocks(s) / (quantityStocks(s) / (1+subtractInteger(dTo,dFrom)));
+markupSumStocks 'ТН' (s) = GROUP SUM  markupSum(Sku s,DepartmentStore ds) IF in(ds) BY s;
+
+nameSum(Stock ds) = 'Продано, руб.' IF ds IS Stock;
+nameQuantity(Stock ds) = 'Продано, шт.' IF ds IS Stock;
+nameBalance(Stock ds) = 'Остаток' IF ds IS Stock;
+nameReserve(Stock ds) = 'Запас, дн.' IF ds IS Stock;
+nameMarkup(Stock ds) = 'ТН' IF ds IS Stock;
+nameRetail(Stock ds) = 'РЦ' IF ds IS Stock;
+
+caption(Sku s,Stock ds) = 'ds' IF ds IS Stock AND s IS Sku;
+
+FORM reportSaleStocksPeriodPrint 'Отчет'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    
+    OBJECTS ds = DepartmentStore
+    FILTERS in(ds)
+    
+    OBJECTS s = Sku
+    PROPERTIES (s) name, id, idBarcode
+    
+    PROPERTIES sum(s,ds) COLUMNS 'ds' (ds) HEADER nameSum(ds)
+    PROPERTIES quantity(s,ds) COLUMNS 'ds' (ds) HEADER nameQuantity(ds)    
+    PROPERTIES balanceA(s,ds,dTo) COLUMNS 'ds' (ds) HEADER nameBalance(ds)
+    PROPERTIES reserveDate(s,ds,dFrom,dTo) COLUMNS 'ds' (ds) HEADER nameReserve(ds)
+    PROPERTIES markupSum(s,ds) COLUMNS 'ds' (ds) HEADER nameMarkup(ds)
+    PROPERTIES retailPricingPriceA(s,ds,dTo) COLUMNS 'ds' (ds) HEADER nameRetail(ds)
+    PROPERTIES caption(s,ds) COLUMNS 'ds' (ds) HEADER name[Stock](ds)
+    
+    PROPERTIES  quantityStocks(s), sumStocks(s), balanceStocks(s), reserveStocksDate(s,dFrom,dTo), markupSumStocks(s)
+    
+    FILTERS //inSessionSkuGroup(skuGroupSku(s)) OR inSku(s),
+            quantityStocks(s) OR balanceStocks(s)
+;
+
+fillSaleReportFromTo 'Рассчитать'(DATE df, DATE dt) = ACTION {
+
+        quantity(Sku sk, Stock st) <- NULL;    
+        sum(Sku sk, Stock st) <- NULL;    
+        sumVAT(Sku sk, Stock st) <- NULL;    
+        costSum(Sku sk, Stock st) <- NULL;    
+        markupSum(Sku sk, Stock st) <- NULL;
+        balance(Sku sk, Stock st) <- NULL;
+
+        quantity(Sku sk, DepartmentStore st) <- NUMERIC[16,5](quantitySold(sk, st, df, dt)) WHERE quantitySold(sk, st, df, dt) AND in(st) AND (SaleLedger.inSession(skuGroup(sk)) OR in(sk));    
+        sum(Sku sk, DepartmentStore st) <- NUMERIC[16,2](sumSold(sk, st, df, dt))  WHERE sumSold(sk, st, df, dt) AND in(st)  AND (SaleLedger.inSession(skuGroup(sk)) OR in(sk));
+        sumVAT(Sku sk, DepartmentStore st) <- NUMERIC[16,2](sumVATSold(sk, st, df, dt))  WHERE sumVATSold(sk, st, df, dt) AND in(st)  AND (SaleLedger.inSession(skuGroup(sk)) OR in(sk));
+        costSum(Sku sk, DepartmentStore st) <- NUMERIC[16,2](costSumSold(sk, st, df, dt))  WHERE costSumSold(sk, st, df, dt) AND in(st)  AND (SaleLedger.inSession(skuGroup(sk)) OR in(sk));
+        markupSum(Sku sk, Stock st) <- (sum(sk, st) (-) sumVAT(sk, st) (-) costSum(sk, st));
+        balance(Sku sk, DepartmentStore st) <- balanceA(sk, st, dt) WHERE balanceA(sk, st, dt) AND in(st)  AND (SaleLedger.inSession(skuGroup(sk)) OR in(sk));
+}
+
+reportSaleStocksPeriodPrint 'Отчет' (DATE dFrom,DATE dTo) = ACTION {
+    fillSaleReportFromTo(dFrom,dTo);
+    FORM reportSaleStocksPeriodPrint OBJECTS dFrom =dFrom, dTo =dTo PRINT;
+} IMAGE 'print.png' IN print; 
+reportSaleStocksPeriodPrintXLS 'Отчет (xls)' (DATE dFrom,DATE dTo) = ACTION {
+    fillSaleReportFromTo(dFrom,dTo);
+    FORM reportSaleStocksPeriodPrint OBJECTS dFrom =dFrom, dTo =dTo PRINT XLSX;  
+} IMAGE 'print.png' IN print;
+
+FORM reportSaleStocksPeriod 'Топ-5000'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES SaleLedger.inSession(sk)
+    PROPERTIES READONLY order(sk), name(sk)
+    ORDER BY order(sk), name(sk)
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT    
+    
+    OBJECTS ds = DepartmentStore
+    FILTERS id[Stock](ds)  == id(store(ds)),
+            isCompany(ds),
+            active(ds)          
+    PROPERTIES(ds) name READONLY , in
+    
+    PROPERTIES (dFrom,dTo) //reportSaleStocksPeriodPrint, 
+                           reportSaleStocksPeriodPrintXLS
+    
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY in EDITABLE ON SHORTCUT deleteInSku(), name, id, idBarcode    
+    FILTERS isParent(sk,s)    
+;
+DESIGN reportSaleStocksPeriod {
+    main {
+        NEW header {
+            type = CONTAINERH;
+            MOVE dates.box { caption = 'Период';}  
+            MOVE dates.print;  
+        }
+        NEW top {
+            fill = 1;
+            type = SPLITH;
+            NEW topLeft {
+                fill = 1;
+                type = SPLITV;
+                MOVE skuTree.tree.box;
+                MOVE ds.box;
+                
+            }
+            MOVE s.box;            }                      
+        }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    salesReports {
+        ADD reportSaleStocksPeriod;
+    }
+}
+
+dateTimeLastOrderBatch (Sku sku, Stock stock, DATE date) = dateTime(lastOrderBatchB(sku, stock, date));
+
+FORM noSalesReport 'Отчет по нулевым продажам'       
+    OBJECTS params = (dFrom = DATE, dTo = DATE, gt = GroupType) FIXED PANEL
+    PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
+
+    PROPERTIES sessionConcatGroups(gt) 
+    
+    OBJECTS st = Stock  
+    PROPERTIES(st) SELECTOR name  
+    FILTERS isCompany(st),
+            inSaleReport(st)
+    
+    PROPERTIES currentDateTime() 
+    
+    OBJECTS s = Sku FIXED GRID    
+    PROPERTIES(s) READONLY name, id, idBarcode
+    PROPERTIES balanceA(s,st,dTo), dateTimeLastOrderBatch(s,st,dTo)
+    FILTERS balanceA(s,st,dTo) >0,
+            NOT quantitySold(s,st,dFrom,dTo)    
+    ORDER BY  name(s)    
+    FILTERS inSessionGroup(s)                  
+;
+noSalesReport 'Нулевые продажи' (DATE dFrom, DATE dTo, GroupType gt) =
+    ACTION FORM noSalesReport OBJECTS dFrom = dFrom, dTo = dTo,gt = gt PRINT  IMAGE 'print.png' IN print;
+    
+EXTEND FORM salesReport
+    PROPERTIES noSalesReport(df,dt,gt)   
+;
+
+DESIGN  salesReport {
+    salesContainer {
+        NEW noSales {
+            caption = 'Нулевые продажи';
+            MOVE PROPERTY (noSalesReport(df,dt,gt));
+        }
+    }
+}
+
+isCommission 'Реализация товара на коммиссии' = DATA BOOLEAN (SaleReport) IN documentPrm;
+EXTEND FORM saleReport
+    PROPERTIES (r) isCommission;
+
+WHEN SESSION SETCHANGED (contractSku(SaleReport r)) DO {
+    isCommission(r) <- type(contractSku(r)) == ContractSkuType.commission;
+}
+
+CLASS StockSaleReport 'Реализация товара на коммиссии' : OutStockDocumentLedger;
+
+needToOutLedger(SaleReport r) = sumSaleReportDetail(r) AND isCommission(r) AND isPosted(r);
+
+@defineAggregation(saleReport, StockSaleReport, needToOutLedger);
+isPosted (StockSaleReport ledger) += isPosted(saleReport(ledger));  
+isClosed (StockSaleReport ledger) += isClosed(saleReport(ledger));                                                                                                                                                                                                                                                                                                                                                                                                                                                                    
+series (StockSaleReport ledger) += series(saleReport(ledger));
+number (StockSaleReport ledger) += number(saleReport(ledger));
+dateTime (StockSaleReport ledger) += dateTimeToDateTime(toDate(saleReport(ledger)), 23:59);
+stock (StockSaleReport ledger) += companyStock(saleReport(ledger));
+legalEntity(StockSaleReport ledger) += supplier(saleReport(ledger));
+description (StockSaleReport ledger) += description(saleReport(ledger));
+sumItem(StockSaleReport ledger) += -sumSaleReportDetail(saleReport(ledger));
+edit(StockSaleReport ledger) += ACTION NEWSESSION {FORM saleReport OBJECTS r = saleReport(ledger) MANAGESESSION DOCKEDMODAL;}
+close(StockSaleReport ledger) += ACTION close(saleReport(ledger));
+type(StockSaleReport l) += 'Реализация товара на коммиссии' IF l IS StockSaleReport;
+
+FORM commissionSaleReport 'Акт реализации'
+
+    OBJECTS r = SaleReport FIXED PANEL
+    PROPERTIES (r) nameCompany, nameCompanyStock, seriesNumber, 
+                   number, series, date, time,
+                   nameCurrency, note, fromDate, toDate,
+                   nameSupplier, numberContractSku, descriptionContractSku                   
+                                                              
+    PROPERTIES (r) READONLY countSaleReportDetail, sumBalanceBReportDetail, sumReturnReportDetail, quantitySaleReportDetail, 
+                   sumSaleReportDetail,  VATSumSaleReportDetail, invoiceSumSaleReportDetail, sumBalanceAReportDetail 
+                   
+    OBJECTS d = SaleReportDetail
+    PROPERTIES (d) index
+    PROPERTIES (d) idBarcodeSku, nameSku, shortNameUOMSku,
+                   nameBatch
+    PROPERTIES (d) quantity, price, sum, numberVAT, valueVAT, VATSum, invoiceSum,
+                   sumBalanceB, sumBalanceA, sumReturn, quantityBalanceB, quantityBalanceA
+    
+    ORDER BY index(d)    
+    FILTERS saleReport(d) == r
+;
+printCommission 'Акт реализации товара на коммиссии' (SaleReport report) =
+    ACTION FORM commissionSaleReport OBJECTS r = report PRINT XLSX IN print;
+
+EXTEND FORM reportsSales
+    PROPERTIES(r) printCommission FORCE PANEL    
+;
