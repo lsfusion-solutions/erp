@@ -4,11 +4,13 @@ REQUIRE PurchaseScheduleOrder, PurchaseDemand;
 
 NAMESPACE Purchase;
 
-overCreate(UserOrder userOrder) += ACTION {
-    executeLocalEvents();
-    fillRecommendedQuantityStock(userOrder);
-};
-
 overCreate(UserOrder o) += ACTION {
     dateFromSoldPeriod(o) <-  fromShipmentDate(o);   
 }
+
+overCreate(UserOrder userOrder) += ACTION {
+    IF isRecommended(userOrder) THEN {
+        executeLocalEvents();
+        fillRecommendedQuantityStock(userOrder);    
+    }
+};

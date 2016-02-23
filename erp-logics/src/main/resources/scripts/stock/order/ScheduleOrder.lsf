@@ -408,8 +408,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetail###stockFilter##Customer(stockFilter(sd), stockFilter##Stock(sd), customer(sd), customerStock(sd)) == sd;   
 
     overCreate = ACTION ABSTRACT LIST (UserOrder);
-
+    isRecommended = DATA LOCAL BOOLEAN (UserOrder);
     createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = ACTION NEWSESSION {
+        isRecommended(o) <- NULL;
+        CONFIRM 'Заполнить рекомендуемым количеством?';
+        
         FOR ADDOBJ o = UserOrder DO {
             scheduleOrderDetail(o) <- scheduleOrderDetail;
             date(o) <- currentDate();
@@ -421,7 +424,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             customer(o) <- customer(scheduleOrderDetail);
             stockFilter##Stock(o) <- stockFilter##Stock(scheduleOrderDetail);
             customerStock(o) <- customerStock(scheduleOrderDetail);
-
+            IF confirmed() THEN {
+                isRecommended(o) <- TRUE;
+            }
             IF operation(scheduleOrderDetail) THEN
                 operation(o) <- operation(scheduleOrderDetail)
             ELSE
