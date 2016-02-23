@@ -301,6 +301,8 @@ sum (NaturalLossDetail naturalLossDetail) <- price(naturalLossDetail) * quantity
 sum 'Сумма' (naturalLoss) = GROUP SUM sum(NaturalLossDetail naturalLossDetail)
     BY naturalLoss(naturalLossDetail) IN documentSum;
 
+overFillDetail =  ACTION ABSTRACT LIST (NaturalLoss);
+
 toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss naturalLoss) = ACTION {
     IF countNaturalLossDetail(naturalLoss) THEN {
         CONFIRM 'Существующие строки будут удалены.';
@@ -332,7 +334,8 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
               price(d) <- NUMERIC[14,2](price);
               sum (d) <- price(d) * quantity(d);
           }
-    }                 
+    }
+    overFillDetail(naturalLoss);
 } IN fillNaturalLoss;
 
 //--
@@ -375,6 +378,7 @@ toPurchaseFillDetail 'Заполнить на основе поступлени�
             sum (d) <- price(d) * quantity(d);
         }
     }
+    overFillDetail(naturalLoss);
 } IN fillNaturalLoss;
 
 FORM naturalLoss 'Ведомость естественной убыли'
@@ -439,6 +443,7 @@ DESIGN naturalLoss {
             }
         }
         MOVE functions.box;
+        PROPERTY(sum(s)) { preferredCharWidth = 13;}
 
         PROPERTY(formOk()) {
             caption = 'Провести';
