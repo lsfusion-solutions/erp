@@ -49,7 +49,8 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
             
             FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND 
                 in(Sku sku) AND sku == sku(dd) AND 
-                in(labelType, sku, stock(terminalDocument))
+                in(labelType, sku, stock(terminalDocument)) AND 
+                PriceListType pt == overPriceListType(t) NOINLINE (pt)
                 ADDOBJ d = LabelTransactionDetail DO {
                 labelTransaction(d) <- t;
                 sku(d) <- sku;
@@ -59,7 +60,7 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
 
                 quantity(d) <- INTEGER(quantity(dd));
 
-                price(d) <- calcPrice(d);
+                price(d) <- calcPrice(pt, d);
                 retailPrice(d) <- overRetailPrice(d);
                 createAttribute(dd, d);
             }
@@ -88,7 +89,8 @@ createSnapshotTerminalDocumentLabel 'Перепечатать ценники'(Te
             priceTransactionDocument(t) <- terminalDocument;
             labelType(t) <- type;
 
-            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd) 
+            FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd)
+                AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
                 ADDOBJ d = LabelTransactionDetail DO {
                     labelTransaction(d) <- t;
                     sku(d) <- sku;
@@ -96,7 +98,7 @@ createSnapshotTerminalDocumentLabel 'Перепечатать ценники'(Te
                     name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
                     documentQuantity(d) <- quantity(dd); 
                     
-                    price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+                    price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
                     retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
                                                                
                     quantity(d) <- IF NOT countLabel(departmentStore(d)) 

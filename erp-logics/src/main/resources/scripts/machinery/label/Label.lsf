@@ -280,6 +280,8 @@ nameLabelType 'Тип ценника' (LabelTransaction transaction) = name(labe
 priceListType = DATA PriceListType (LabelTransaction);     
 namePriceListType 'Вид цен' (LabelTransaction labelTransaction) = name(priceListType(labelTransaction));         
 
+overPriceListType(LabelTransaction d) = OVERRIDE priceListType(labelType(d)), priceListType(d) PERSISTENT;
+
 fileTemplate 'Файл шаблона' (LabelTransaction transaction) = fileTemplate(labelType(transaction));
 
 topFileTemplate 'Файл шаблона (верхний)' = fileTemplate(orientation(labelType(LabelTransaction transaction)));
@@ -304,9 +306,7 @@ labelType (LabelTransactionDetail d) = labelType(labelTransaction(d));
 nameLabelType 'Тип ценника' (LabelTransactionDetail d) = name(labelType(d));
 description 'Основание загрузки' (LabelTransactionDetail d) = description[LabelTransaction](labelType(d));
 
-priceListTypeLabelType(LabelTransactionDetail d) = priceListType(labelType(d));
-priceListType(LabelTransactionDetail d) = OVERRIDE priceListTypeLabelType(d), priceListType(labelTransaction(d)) PERSISTENT;
-namePriceListType 'Вид цен' (LabelTransactionDetail labelTransactionDetail) = name(priceListType(labelTransactionDetail));     
+priceListType(LabelTransactionDetail d) = overPriceListType(labelTransaction(d)) PERSISTENT; 
 
 printNullPrice = printNullPrice(labelType(LabelTransactionDetail detail));
 notPrintRetailPrice = notPrintRetailPrice(labelType(LabelTransactionDetail detail));
@@ -588,16 +588,16 @@ clearApplicationLog () += ACTION NEWSESSION {
 documentQuantity = DATA LOCAL NUMERIC[14,3] (LabelTransactionDetail);
 documentPrice = DATA LOCAL NUMERIC[14,2] (LabelTransactionDetail);
 
-calcPrice (LabelTransactionDetail d) =
+calcPrice (PriceListType pt, LabelTransactionDetail d) =
     IF  batch(d) THEN
-        prevPriceA(priceListType(d), batch(d), departmentStore(d), dateTime(d))
+        prevPriceA(pt, batch(d), departmentStore(d), dateTime(d))
     ELSE
-        prevPriceA(priceListType(d), sku(d), departmentStore(d), dateTime(d));
+        prevPriceA(pt, sku(d), departmentStore(d), dateTime(d));
 
 WHEN SESSION FORMS customLabelTransaction
-    CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d)) DO {
+    (CHANGED(labelType(LabelTransactionDetail d)) OR SETCHANGED (dataBarcode(d))) AND PriceListType pt == priceListType(d) NOINLINE (pt) DO {
         price(d) <- OVERRIDE 
-            round(calcPrice(d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amount(dataBarcode(d))), roundCondition(departmentStore(d))), 
+            round(calcPrice(pt, d) * (OVERRIDE 1.0 IF d IS LabelTransactionDetail, amount(dataBarcode(d))), roundCondition(departmentStore(d))), 
             documentPrice(d);
         retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
 }
@@ -633,7 +633,7 @@ END
 @defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[100], Sku, shortNameUOM);
 @defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
 residentCountrySku 'Отечественный производитель' (LabelTransactionDetail d) = resident(country(sku(d)));
-supplierSku = lastSupplier(departmentStore(LabelTransactionDetail d), sku(d));
+supplierSku = supplierLastOrderBatch(sku(LabelTransactionDetail d), departmentStore(d));
 nameSupplierSku 'Поставщик' (LabelTransactionDetail d) = name(supplierSku(d));
 fullNameSupplierSku 'Поставщик полное наименование' (LabelTransactionDetail d) = fullName(supplierSku(d));
 shortNameOwnershipSupplierSku 'Форма собственности (сокр.)' (LabelTransactionDetail d) =shortNameOwnership(supplierSku(d));
@@ -783,7 +783,8 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                     
                     FOR document(###detailProp##Detail dd) == document AND 
                         in(###skuProp sku) AND sku == skuProp(dd) AND 
-                        in(labelType, sku, stockProp(document))
+                        in(labelType, sku, stockProp(document)) AND 
+                        PriceListType pt == overPriceListType(t) NOINLINE (pt)
                         ADDOBJ d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         skuProp(d) <- sku;
@@ -796,7 +797,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                                                                 THEN INTEGER(prefix###quantity(dd))
                                                              ELSE count(labelType, skuProp(d));
 
-                        price(d) <- calcPrice(d);
+                        price(d) <- calcPrice(pt, d);
                         retailPrice(d) <- overRetailPrice(d);
                         createAttribute(dd, d);
                     }
@@ -833,7 +834,8 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                     priceTransactionDocument(t) <- document;
                     labelType(t) <- type;
         
-                    FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd) 
+                    FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd)
+                        AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
                         ADDOBJ d = LabelTransactionDetail DO {
                             labelTransaction(d) <- t;
                             skuProp(d) <- sku;
@@ -842,7 +844,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                             name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
                             documentQuantity(d) <- prefix###quantity(dd); 
                             
-                            price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+                            price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
                             retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
                                                                        
                             quantity(d) <- IF NOT countLabel(departmentStore(d)) 
@@ -949,7 +951,7 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         
-        FOR select(Sku sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
+        FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
             
             labelTransaction(d) <- t;
             sku(d) <- sku;
@@ -961,7 +963,7 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
                                                     THEN INTEGER(currentBalance(sku, departmentStore))
                                                  ELSE count(labelType, sku(d));
                                                  
-            price(d) <- calcPrice(d);
+            price(d) <- calcPrice(pt, d);
             retailPrice(d) <- overRetailPrice(d);
         } 
         overCreate(t);
@@ -982,7 +984,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         
-        FOR select(Sku sku) ADDOBJ d = LabelTransactionDetail DO {
+        FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
             labelTransaction(d) <- t;
             sku(d) <- sku;
 
@@ -992,7 +994,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
             createAttribute(d);           
             
 
-            price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+            price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
             retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
     
             quantity(d) <- IF NOT countLabel(departmentStore) 

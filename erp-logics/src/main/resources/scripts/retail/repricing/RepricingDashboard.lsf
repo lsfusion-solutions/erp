@@ -16,7 +16,7 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
             date(t) <- toDate(dateTime);      
             time(t) <- toTime(dateTime);      
             
-            FOR select(Sku sku, labelType, departmentStore) ADDOBJ d = LabelTransactionDetail DO {
+            FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
                 
                 labelTransaction(d) <- t;
                 sku(d) <- sku;
@@ -28,7 +28,7 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
                                                         THEN INTEGER(currentBalance(sku, departmentStore))
                                                      ELSE count(labelType, sku(d));
                                                      
-                price(d) <- calcPrice(d);
+                price(d) <- calcPrice(pt, d);
                 retailPrice(d) <- overRetailPrice(d);
             } 
             print(t);
@@ -79,7 +79,7 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
                     time(t) <- toTime(dateTime);
                     labelType(t) <- type;
             
-                    FOR select(Sku sku) ADDOBJ d = LabelTransactionDetail DO {
+                    FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         sku(d) <- sku;
             
@@ -88,7 +88,7 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
             
                         createAttribute(d);                      
                
-                        price(d) <- OVERRIDE calcPrice(d), documentPrice(d);
+                        price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
                         retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
                 
 //                        quantityLabelTransactionDetail(d) <- IF includeLabelTypeSku(labelTypeLabelTransactionDetail(d), skuLabelTransactionDetail(d)) THEN 
