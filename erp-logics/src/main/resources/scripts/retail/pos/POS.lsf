@@ -899,6 +899,8 @@ background(Receipt r, ReceiptDetail d) = RGB(255, 128, 128)
     IF ((posNotExplicitBatchLedger(r) AND prevCurrentBalanceSku(d) < quantity(d)) OR 
        (posExplicitBatchLedger(r) AND prevCurrentBalanceBatch(d) < quantity(d))) AND NOT notBackgroundPOS();
 
+currentZReportUseBonus() = currentZReport() AND useBonus();
+
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
 
@@ -912,6 +914,7 @@ FORM POS
                                           post, postCard, postCash, cancel,
                                           numberDiscountCard, nameLegalEntityDiscountCard,
                                           prevTotalSum, clearDiscountCard, fiscalSkip
+    PROPERTIES(r) SHOWIF currentZReportUseBonus() totalBonuses AFTER prevTotalSum(r)                                       
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID BACKGROUND background(r, d)  
@@ -928,6 +931,7 @@ FORM POS
                         shortNameUOMSkuPanel = shortNameUOMSku,
                         pricePanel = price,
                         sumPanel = sum
+    PROPERTIES(d) SHOWIF currentZReportUseBonus() FORCE GRID BACKGROUND background(r, d) bonusPaid, bonusSum READONLY                        
     PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL BACKGROUND background(r, d) 
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
@@ -987,6 +991,7 @@ DESIGN POS {
                 type = CONTAINERH;
                 MOVE PROPERTY(numberDiscountCard(r)) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'bold 22'; }
                 MOVE PROPERTY(prevTotalSum(r)) { alignment = STRETCH; caption = 'Сумма'; focusable = FALSE; font = 'bold 22'; }
+                MOVE PROPERTY(totalBonuses(r)) { alignment = STRETCH; caption = 'Доступно бонусов'; focusable = FALSE; font = 'bold 22'; }
                 NEW receiptDiscountActions {
                     fill = 1;
                     type = CONTAINERH;
