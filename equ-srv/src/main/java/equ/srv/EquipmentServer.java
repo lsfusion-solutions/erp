@@ -2496,28 +2496,30 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
     @Override
     public void succeedMachineryTransaction(Integer transactionId, List<MachineryInfo> machineryInfoList, Timestamp dateTime) throws RemoteException, SQLException {
-        if(machineryPriceTransactionLM != null) {
-            try (DataSession session = getDbManager().createSession()) {
-                DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
-                for (MachineryInfo machineryInfo : machineryInfoList) {
-                    ObjectValue machineryObject = null;
-                    if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
-                        machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                    else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
-                        machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
-                    if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
-                        boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").read(session, machineryObject, transactionObject) != null;
-                        if(!alreadySucceeded) {
-                            machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
-                                    (DataObject) machineryObject, transactionObject);
-                            machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(dateTime, session,
-                                    (DataObject) machineryObject, transactionObject);
+        synchronized (this) {
+            if (machineryPriceTransactionLM != null) {
+                try (DataSession session = getDbManager().createSession()) {
+                    DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
+                    for (MachineryInfo machineryInfo : machineryInfoList) {
+                        ObjectValue machineryObject = null;
+                        if (machineryInfo instanceof CashRegisterInfo && cashRegisterLM != null)
+                            machineryObject = cashRegisterLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        else if (machineryInfo instanceof ScalesInfo && scalesLM != null)
+                            machineryObject = scalesLM.findProperty("scalesNppGroupScales[INTEGER,INTEGER]").readClasses(session, new DataObject(machineryInfo.numberGroup), new DataObject(machineryInfo.number));
+                        if (machineryObject != null && (!(machineryInfo instanceof CashRegisterInfo) || !((CashRegisterInfo) machineryInfo).succeeded)) {
+                            boolean alreadySucceeded = machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").read(session, machineryObject, transactionObject) != null;
+                            if (!alreadySucceeded) {
+                                machineryPriceTransactionLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").change(true, session,
+                                        (DataObject) machineryObject, transactionObject);
+                                machineryPriceTransactionLM.findProperty("dateTimeSucceeded[Machinery,MachineryPriceTransaction]").change(dateTime, session,
+                                        (DataObject) machineryObject, transactionObject);
+                            }
                         }
                     }
+                    session.apply(getBusinessLogics());
+                } catch (Exception e) {
+                    throw Throwables.propagate(e);
                 }
-                session.apply(getBusinessLogics());
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
             }
         }
     }
