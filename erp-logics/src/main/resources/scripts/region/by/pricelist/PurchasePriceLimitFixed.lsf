@@ -26,11 +26,7 @@ WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
             SETCHANGED(retailPrice(UserInvoiceDetail d))
             AND fixedLimitPrice(d) < retailPrice(d) DO {
     retailPrice(d) <- fixedLimitPrice(d);
-
-    retailMarkup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                       retailPrice(d),
-                                                       pricingPrice(d),
-                                                       valueRetailVAT(d));
+    retailMarkup(d) <- calcRetailMarkup(d);
 }
 
 minLimitPrice(UserInvoiceDetail d) = prevPriceA(minLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
@@ -38,9 +34,5 @@ WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
             SETCHANGED(retailPrice(UserInvoiceDetail d))
             AND minLimitPrice(d) > retailPrice(d) DO {
     retailPrice(d) <- minLimitPrice(d);
-
-    retailMarkup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                       retailPrice(d),
-                                                       pricingPrice(d),
-                                                       valueRetailVAT(d));
+    retailMarkup(d) <- calcRetailMarkup(d);
 }

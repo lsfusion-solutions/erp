@@ -45,30 +45,39 @@ EXTEND FORM invoices
 overLimitBasePrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
 limitBasePrice(UserInvoiceDetail d) = OVERRIDE price(d), overLimitBasePrice(d);
  
-limitPrice (UserInvoiceDetail detail) =
-                                       IF limitMarkup(detail) > 3000 THEN
-                                           limitMarkup(detail)
-                                       ELSE
+limitMarkupPrice (UserInvoiceDetail d) =
                                            round(
-                                           IF limitMarkup(detail) > 100 THEN
                                                 [= (X+Y)*(Z+100)/100](
-                                                    limitBasePrice(detail),
-                                                    limitMarkup(detail),
-                                                    valueRetailVAT(detail))
-                                           ELSE [= X*(Y+100)*(Z+100)/10000](
+                                                    limitBasePrice(d),
+                                                    limitMarkup(d),
+                                                    valueRetailVAT(d)), roundCondition(priceLimitPriceListType(customerStock(d)), sku(d)));
+
+limitPrice (UserInvoiceDetail detail) =
+                                       round(
+                                           [= X*(Y+100)*(Z+100)/10000](
                                                     limitBasePrice(detail),
                                                     limitMarkup(detail),
                                                     valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)));
 
 WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPrice(d) AND limitMarkup(d) > 3000 AND limitMarkup(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitMarkup(d);
+    retailMarkup(d) <- calcRetailMarkup(d);;
+}
+
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND limitPrice(d) < retailPrice(d) DO {
+             showLimitPrice(d) AND limitMarkup(d) <= 3000 AND limitMarkup(d) > 100 AND limitMarkupPrice(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitMarkupPrice(d);
+    retailMarkup(d) <- calcRetailMarkup(d);
+}
+
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPrice(d) AND limitMarkup(d) <= 100 AND limitPrice(d) < retailPrice(d) DO {
     retailPrice(d) <- limitPrice(d);
-     
-    retailMarkup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                       retailPrice(d),
-                                                       pricingPrice(d) IF pricingPrice(d)!= 0.0,
-                                                       valueRetailVAT(d));
+    retailMarkup(d) <- calcRetailMarkup(d);
 }
 
 showLimitPrice(InvoicePricing pricing) += showLimitPrice(invoice(pricing));

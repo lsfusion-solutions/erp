@@ -947,7 +947,7 @@ END
 
 META defineInvoiceReturn(nsdir, nsret, stockProp)
     invoiceDetail (invoiceDetail) = ABSTRACT nsdir.InvoiceDetail (nsret.InvoiceDetail) PERSISTENT INDEXED;
-    invoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail);
+    invoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail) INDEXED;
     invoiceDetail(UserInvoiceDetail detail) += invoiceDetail(detail);
 
     returnQuantity 'Кол-во (возвращено)' (invoiceDetail)= GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail) 
@@ -1072,8 +1072,9 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
     EXTEND FORM invoices PROPERTIES (d) READONLY descriptionInvoiceDetail AFTER shortNameUOMSku(d);
     EXTEND FORM nsdir.invoices PROPERTIES (d) READONLY returnQuantity BEFORE namePriceListType(d);
 
-    batch(UserInvoiceDetail detail) <- maxBatch(invoiceDetail(detail))
-        WHEN CHANGED(invoiceDetail(detail)) AND countBatch(invoiceDetail(detail)) == 1;
+    WHEN SESSION FORMS userInvoice
+        CHANGED(invoiceDetail(UserInvoiceDetail detail)) AND countBatch(invoiceDetail(detail)) == 1 DO
+            batch(detail) <- maxBatch(invoiceDetail(detail));
 
     CONSTRAINT batch(UserInvoiceDetail detail) AND invoiceDetail(detail) AND
                NOT in(invoiceDetail(detail), batch(detail))
