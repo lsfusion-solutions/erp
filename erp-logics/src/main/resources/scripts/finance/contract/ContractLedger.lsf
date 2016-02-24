@@ -19,7 +19,7 @@ META defineContractLedgerPrefix (caption, prefix)
     skip 'Не проводить по учету' = ABSTRACT BOOLEAN (Contract###prefix##Ledger) PERSISTENT;
     active 'Активен' = isPosted(Contract###prefix##Ledger ledger) AND NOT skip(ledger) PERSISTENT;
 
-    dateTime 'Дата/время' (contract###prefix##Ledger) = ABSTRACT DATETIME (Contract###prefix##Ledger) PERSISTENT;
+    dateTime 'Дата/время' (contract###prefix##Ledger) = ABSTRACT DATETIME (Contract###prefix##Ledger) PERSISTENT INDEXED;
     date 'Дата' (Contract###prefix##Ledger contract###prefix##Ledger) = toDate(dateTime(contract###prefix##Ledger));
     time 'Время' (Contract###prefix##Ledger contract###prefix##Ledger) = toTime(dateTime(contract###prefix##Ledger));
 
@@ -115,11 +115,11 @@ META defineInOutContractLedgerPrefix(caption, prefix, classPrefix)
     skip 'Не проводить по учету' = ABSTRACT BOOLEAN (classPrefix##ContractLedger) PERSISTENT;
     active 'Активен' = isPosted(###prefix##ContractLedger ledger) AND NOT skip(ledger) PERSISTENT;
 
-    dateTime 'Дата/время' (prefix##ContractLedger) = ABSTRACT DATETIME (classPrefix##ContractLedger) PERSISTENT;
-    date 'Дата' (###prefix##ContractLedger prefix##ContractLedger) = toDate(dateTime(prefix##ContractLedger));
+    dateTime 'Дата/время' (prefix##ContractLedger) = ABSTRACT DATETIME (classPrefix##ContractLedger) PERSISTENT INDEXED;
+    date 'Дата' (###prefix##ContractLedger prefix##ContractLedger) = toDate(dateTime(prefix##ContractLedger)) PERSISTENT INDEXED;
     time 'Время' (###prefix##ContractLedger prefix##ContractLedger) = toTime(dateTime(prefix##ContractLedger));
 
-    contract 'Договор' (prefix##ContractLedger) = ABSTRACT Contract (classPrefix##ContractLedger) PERSISTENT;
+    contract 'Договор' (prefix##ContractLedger) = ABSTRACT Contract (classPrefix##ContractLedger) PERSISTENT INDEXED;
 
     description 'Название документа' (prefix##ContractLedger) = ABSTRACT VARSTRING[200] (classPrefix##ContractLedger) PERSISTENT;
     sum 'Сумма' = ABSTRACT NUMERIC[22,8] (classPrefix##ContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT;
@@ -202,7 +202,7 @@ sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER date(inContractLedger), number(inContractLedger), inContractLedger;
+              ORDER dateTime(inContractLedger), inContractLedger;
 
 sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
     PARTITION UNGROUP sum
@@ -210,16 +210,16 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
+              ORDER DESC dateTime(inContractLedger), inContractLedger;
 
 negativeSum 'Обратная сумма' (OutContractLedger outContractLedger) = -sum(outContractLedger);
 negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
     PARTITION UNGROUP negativeSum
-              LIMIT sum(inContractLedger) (-) debt(inContractLedger) IF
+              LIMIT costedOutContractLedger(inContractLedger) IF
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER DESC date(inContractLedger), number(inContractLedger), inContractLedger;
+              ORDER DESC dateTime(inContractLedger), inContractLedger;
 
 writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
 
@@ -310,12 +310,20 @@ namePartyA 'Организация (поставщик)' = name(partyA());
 partyB = DATA LOCAL LegalEntity();
 namePartyB 'Организация (покупатель)' = name(partyB());
 
-isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger));
+isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outContractLedger)) (-) abs(costedInContractLedger(outContractLedger)) PERSISTENT;
 
 writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = ACTION {
-    FOR isCosted(OutContractLedger ledger) ORDER dateTime(ledger) DO {
-        writeFIFO(ledger);
-    }
+
+    cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE isCosted(ol) AND costedInContractLedger(ol);
+    
+    apply();
+
+    cost(OutContractLedger ol, InContractLedger il) <- -negativeSumInLIFO(ol, il) WHERE isCosted(ol) AND negativeSumInLIFO(ol, il) AND isReturn(ol);
+    
+    apply();
+    
+    cost(OutContractLedger ol, InContractLedger il) <- sumInFIFO(ol, il) WHERE isCosted(ol) AND sumInFIFO(ol, il) AND NOT isReturn(ol);
+
     apply();
 }
 
