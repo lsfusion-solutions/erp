@@ -337,7 +337,7 @@ prePost(Receipt receipt) = ACTION {
 
 post 'Смешанный платеж'(Receipt receipt) = ACTION {
     prePost(receipt);
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
         FOR ADDOBJ p = Payment DO {
             receipt(p) <- receipt;
             paymentType(p) <- minCashPaymentType();
@@ -362,7 +362,7 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
 
 postCard 'Карточкой'(Receipt receipt) = ACTION {
     prePost(receipt);
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
         FOR ADDOBJ p = Payment DO {
             ASSIGN receipt(p) <- receipt;
             ASSIGN paymentType(p) <- minCardPaymentType();
@@ -379,7 +379,7 @@ postCard 'Карточкой'(Receipt receipt) = ACTION {
 
 postCash 'Наличными'(Receipt receipt) = ACTION {
     prePost(receipt);
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
         FOR ADDOBJ p = Payment DO {
             receipt(p) <- receipt;
             paymentType(p) <- minCashPaymentType();
@@ -393,6 +393,62 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
         }
     }
 } EDITKEY 'F11' IN receiptAction;
+
+//Оплата бонусами
+
+toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[16,2] (Receipt);
+
+changeToPayBonuses (Receipt r) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF sumReceiptDetail(r) >= round(requestedNumeric(), roundCondition(departmentStore(r))) THEN {
+            toPayBonuses(r) <- round(requestedNumeric(), roundCondition(departmentStore(r)));        
+        } ELSE {
+            MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека';
+        }
+    } ELSE {
+        toPayBonuses(r) <- NULL;
+    } 
+}
+
+sumBonusFIFO (ReceiptDetail detail) =
+    PARTITION UNGROUP toPayBonuses
+        LIMIT sum(detail)
+        BY receipt(detail)
+        ORDER detail;
+
+FORM bonusPayment 'Оплата бонусами'
+    OBJECTS r = Receipt FIXED PANEL 
+
+    OBJECTS rec = Receipt
+    PROPERTIES(rec) toPayBonuses ON CHANGE changeToPayBonuses(r)
+    FILTERS r == rec
+        
+    OBJECTS d = DiscountCard FIXED PANEL 
+    PROPERTIES(d) READONLY nameLegalEntity, seriesNumber, totalBonuses TODRAW rec FORCE GRID 
+;
+
+DESIGN bonusPayment {
+    NEW topContainer{
+        MOVE PROPERTY(nameLegalEntity(d)){font = 'bold 22';}  
+        MOVE PROPERTY(seriesNumber(d)){font = 'bold 22';}  
+    }
+    NEW bottomContainer {
+        MOVE PROPERTY(toPayBonuses(rec)){font = 'bold 22';}  
+        MOVE PROPERTY(totalBonuses(d)){font = 'bold 22';}          
+    }
+    MOVE functions.box;
+}
+
+postBonus 'Бонусами'(Receipt receipt) = ACTION {
+    prePost(receipt);
+    IF sumReceiptDetail(receipt) THEN {
+        FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt MODAL;
+        IF formResult() == FormResult.ok AND toPayBonuses(receipt) > 0 THEN {
+            bonusPaid(ReceiptDetail detail) <- sumBonusFIFO(detail) WHERE receipt(detail) == receipt;        
+        }
+    }
+} EDITKEY 'F8' IN receiptAction;
 
 resetBoard 'Сбросить текст на дисплее' = ACTION ABSTRACT LIST(Receipt);
 
@@ -901,6 +957,21 @@ background(Receipt r, ReceiptDetail d) = RGB(255, 128, 128)
 
 currentZReportUseBonus() = currentZReport() AND useBonus();
 
+bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0;
+
+changeBonusPaid (ReceiptDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF sum(d) >= round(requestedNumeric(), roundCondition(departmentStore(d))) THEN {
+            bonusPaid(d) <- round(requestedNumeric(), roundCondition(departmentStore(d)));        
+        } ELSE {
+            MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме строки чека';
+        }      
+    } ELSE {
+        bonusPaid(d) <- NULL;
+    }  
+}
+
 FORM POS
     PROPERTIES() READONLY hostnameCurrentComputer, currentDateTime, currentUserName
 
@@ -911,10 +982,10 @@ FORM POS
                                           searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
                                           searchBatchSale SHOWIF posExplicitBatchLedger(r),
                                           searchSkuReturn, scanBarcodeReturn,
-                                          post, postCard, postCash, cancel,
+                                          post, postCard, postCash, postBonus, cancel,
                                           numberDiscountCard, nameLegalEntityDiscountCard,
                                           prevTotalSum, clearDiscountCard, fiscalSkip
-    PROPERTIES(r) SHOWIF currentZReportUseBonus() totalBonuses AFTER prevTotalSum(r)                                       
+    PROPERTIES(r) SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID BACKGROUND background(r, d)  
@@ -931,7 +1002,7 @@ FORM POS
                         shortNameUOMSkuPanel = shortNameUOMSku,
                         pricePanel = price,
                         sumPanel = sum
-    PROPERTIES(d) SHOWIF currentZReportUseBonus() FORCE GRID BACKGROUND background(r, d) bonusPaid, bonusSum READONLY                        
+    PROPERTIES(d) SHOWIF currentZReportUseBonus() FORCE GRID BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d), bonusSum READONLY                        
     PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL BACKGROUND background(r, d) 
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
@@ -1022,6 +1093,8 @@ DESIGN POS {
 //        PROPERTY(numberVATReceiptDetail(d)) { font = '18'; minimumCharWidth = 3; }
         PROPERTY(valueVAT(d)) { font = '18'; minimumCharWidth = 3; preferredCharWidth = 4;}
         PROPERTY(calcSumVAT(d)) { font = '18';}
+        PROPERTY(bonusPaid(d)) { font = '18';}
+        PROPERTY(bonusSum(d)) { font = '18';}
 //        PROPERTY(deleted) { focusable = FALSE; font = '18'; }
         REMOVE d.toolbar;
     }
@@ -1117,6 +1190,7 @@ DESIGN POS {
             MOVE r.receiptAction {
                 type = CONTAINERV;
                 alignment = STRETCH;
+                MOVE PROPERTY(postBonus(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
                 MOVE PROPERTY(post(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
                 MOVE PROPERTY(postCard(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }
                 MOVE PROPERTY(postCash(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 22'; }

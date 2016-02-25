@@ -301,12 +301,14 @@ priceSum 'Сумма без скидки' = round(quantity(ReceiptSaleDetail det
 calcDiscountSum (ReceiptSaleDetail detail) = round(priceSum(detail) * discountPercent (detail) / 100,
                                                roundDiscountCondition(departmentStore(detail)));
 
-calcSum (ReceiptSaleDetail detail) = priceSum(detail) (-) discountSum(detail);
+extraDiscountSum = ABSTRACT NUMERIC[16,2] (ReceiptSaleDetail);
+calcSum (ReceiptSaleDetail detail) = priceSum(detail) (-) discountSum(detail) (-) extraDiscountSum(detail);
 sum (ReceiptSaleDetail detail) <- calcSum(detail)
     WHEN CHANGED (quantity(detail)) OR
          CHANGED (price(detail)) OR
          CHANGED (discountPercent(detail)) OR
          CHANGED (discountSum(detail)) OR
+         CHANGED (extraDiscountSum(detail)) OR
          CHANGED (departmentStore(detail));
 
 quantity 'Количество' (receiptDetail) = DATA NUMERIC[14,3] (ReceiptReturnDetail);
