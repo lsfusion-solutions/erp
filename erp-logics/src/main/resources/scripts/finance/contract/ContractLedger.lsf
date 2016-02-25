@@ -314,17 +314,25 @@ isCosted 'Расписан' (OutContractLedger outContractLedger) = abs(sum(outC
 
 writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразнесенные по FIFO'() = ACTION {
 
-    cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE isCosted(ol) AND costedInContractLedger(ol);
+    APPLY {
+        LOCAL changed = BOOLEAN (OutContractLedger);
+        changed(l) <- TRUE IF isCosted(l);
+        
+        cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol) AND costedInContractLedger(ol);
+        
+        LOCAL ordered = INTEGER (OutContractLedger);
+        ordered(OutContractLedger ledger) <- PARTITION SUM 1 IF changed(ledger) BY contract(ledger) ORDER dateTime(ledger), ledger;
     
-    apply();
+        FOR iterate(INTEGER i, 1, [= GROUP MAX ordered(OutContractLedger ledger)]()) DO {
+            LOCAL it = BOOLEAN (OutContractLedger);
+            it(OutContractLedger ledger) <- ordered(ledger) == i AND isReturn(ledger); // чтобы определились классы
+            IF [= GROUP SUM 1 IF it(OutContractLedger ledger)]() THEN
+                cost(OutContractLedger ol, InContractLedger il) <- -negativeSumInLIFO(ol, il) WHERE it(ol) AND negativeSumInLIFO(ol, il);
 
-    cost(OutContractLedger ol, InContractLedger il) <- -negativeSumInLIFO(ol, il) WHERE isCosted(ol) AND negativeSumInLIFO(ol, il) AND isReturn(ol);
-    
-    apply();
-    
-    cost(OutContractLedger ol, InContractLedger il) <- sumInFIFO(ol, il) WHERE isCosted(ol) AND sumInFIFO(ol, il) AND NOT isReturn(ol);
-
-    apply();
+            it(OutContractLedger ledger) <- ordered(ledger) == i AND NOT isReturn(ledger); // чтобы определились классы
+            cost(OutContractLedger ol, InContractLedger il) <- sumInFIFO(ol, il) WHERE it(ol) AND sumInFIFO(ol, il);
+        }
+    }
 }
 
 writeNotCostedOutContractLedgerLIFOApply 'Расписать все неразнесенные по LIFO'() = ACTION {
