@@ -336,62 +336,74 @@ prePost(Receipt receipt) = ACTION {
 }
 
 post 'Смешанный платеж'(Receipt receipt) = ACTION {
-    prePost(receipt);
-    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
-        FOR ADDOBJ p = Payment DO {
-            receipt(p) <- receipt;
-            paymentType(p) <- minCashPaymentType();
+    IF totalBonuses(receipt) > 0.0 THEN { 
+        prePost(receipt);
+        IF sumReceiptDetail(receipt) THEN {
+            FOR ADDOBJ p = Payment DO {
+                receipt(p) <- receipt;
+                paymentType(p) <- minCashPaymentType();
+            }
+            FOR ADDOBJ p = Payment DO {
+                receipt(p) <- receipt;
+                paymentType(p) <- minCardPaymentType();
+            }
+            FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
+            IF formResult() == FormResult.ok THEN {
+                postPaymentTerminal(receipt);
+                IF NOT postPaymentTerminalReceiptResult() THEN {
+                    postPrint(receipt);
+                } ELSE {
+                    MESSAGE postPaymentTerminalReceiptResult();
+                }
+            } ELSE {
+                DELETE Payment p WHERE receipt(p) == receipt;
+            }
         }
-        FOR ADDOBJ p = Payment DO {
-            receipt(p) <- receipt;
-            paymentType(p) <- minCardPaymentType();
-        }
-        FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
-        IF formResult() == FormResult.ok THEN {
+    } ELSE {
+        MESSAGE 'Сумма бонусов по карте не может быть отрицательной';
+    }    
+} EDITKEY 'F9' IN receiptAction;
+
+postCard 'Карточкой'(Receipt receipt) = ACTION {
+    IF totalBonuses(receipt) > 0.0 THEN { 
+        prePost(receipt);
+        IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
+            FOR ADDOBJ p = Payment DO {
+                ASSIGN receipt(p) <- receipt;
+                ASSIGN paymentType(p) <- minCardPaymentType();
+                ASSIGN sum(p) <- sumReceiptDetail(receipt);
+            }
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
                 postPrint(receipt);
             } ELSE {
                 MESSAGE postPaymentTerminalReceiptResult();
             }
-        } ELSE {
-            DELETE Payment p WHERE receipt(p) == receipt;
         }
-    }
-} EDITKEY 'F9' IN receiptAction;
-
-postCard 'Карточкой'(Receipt receipt) = ACTION {
-    prePost(receipt);
-    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
-        FOR ADDOBJ p = Payment DO {
-            ASSIGN receipt(p) <- receipt;
-            ASSIGN paymentType(p) <- minCardPaymentType();
-            ASSIGN sum(p) <- sumReceiptDetail(receipt);
-        }
-        postPaymentTerminal(receipt);
-        IF NOT postPaymentTerminalReceiptResult() THEN {
-            postPrint(receipt);
-        } ELSE {
-            MESSAGE postPaymentTerminalReceiptResult();
-        }
-    }
+    } ELSE {
+        MESSAGE 'Сумма бонусов по карте не может быть отрицательной';
+    }         
 } EDITKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt) = ACTION {
-    prePost(receipt);
-    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
-        FOR ADDOBJ p = Payment DO {
-            receipt(p) <- receipt;
-            paymentType(p) <- minCashPaymentType();
-            sum(p) <- sumReceiptDetail(receipt);
+    IF totalBonuses(receipt) > 0.0 THEN { 
+        prePost(receipt);
+        IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
+            FOR ADDOBJ p = Payment DO {
+                receipt(p) <- receipt;
+                paymentType(p) <- minCashPaymentType();
+                sum(p) <- sumReceiptDetail(receipt);
+            }
+            FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
+            IF formResult() == FormResult.ok THEN {
+                postPrint(receipt);
+            } ELSE {
+                DELETE Payment p WHERE receipt(p) == receipt;
+            }
         }
-        FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
-        IF formResult() == FormResult.ok THEN {
-            postPrint(receipt);
-        } ELSE {
-            DELETE Payment p WHERE receipt(p) == receipt;
-        }
-    }
+    } ELSE {
+        MESSAGE 'Сумма бонусов по карте не может быть отрицательной';
+    }     
 } EDITKEY 'F11' IN receiptAction;
 
 //Оплата бонусами
@@ -401,11 +413,13 @@ toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[16,2] (Rec
 changeToPayBonuses (Receipt r) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
-        IF sumReceiptDetail(r) >= round(requestedNumeric(), roundCondition(departmentStore(r))) THEN {
-            toPayBonuses(r) <- round(requestedNumeric(), roundCondition(departmentStore(r)));        
-        } ELSE {
-            MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека';
-        }
+        CASE WHEN requestedNumeric() < 0.0 THEN 
+                MESSAGE 'Сумма бонусов не может быть отрицательной'
+             WHEN sumReceiptDetail(r) < round(requestedNumeric(), roundCondition(departmentStore(r))) THEN
+                MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека'                 
+             WHEN NOT toPayBonuses(r) < totalBonuses(discountCard(r)) THEN
+                MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных'
+             ELSE toPayBonuses(r) <- round(requestedNumeric(), roundCondition(departmentStore(r)));
     } ELSE {
         toPayBonuses(r) <- NULL;
     } 
@@ -417,34 +431,36 @@ sumBonusFIFO (ReceiptDetail detail) =
         BY receipt(detail)
         ORDER detail;
 
+bonusBackground (DiscountCard d) = RGB(255,128,128) IF NOT totalBonuses(d) >= 0.0;
+
 FORM bonusPayment 'Оплата бонусами'
     OBJECTS r = Receipt FIXED PANEL 
-
-    OBJECTS rec = Receipt
-    PROPERTIES(rec) toPayBonuses ON CHANGE changeToPayBonuses(r)
-    FILTERS r == rec
+    PROPERTIES(r) toPayBonuses ON CHANGE changeToPayBonuses(r)
         
     OBJECTS d = DiscountCard FIXED PANEL 
-    PROPERTIES(d) READONLY nameLegalEntity, seriesNumber, totalBonuses TODRAW rec FORCE GRID 
+    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) totalBonuses TODRAW r FORCE PANEL
 ;
 
 DESIGN bonusPayment {
-    NEW topContainer{
-        MOVE PROPERTY(nameLegalEntity(d)){font = 'bold 22';}  
-        MOVE PROPERTY(seriesNumber(d)){font = 'bold 22';}  
+    NEW topContainer {
+        type = CONTAINERH;
+        MOVE PROPERTY(toPayBonuses(r)){
+            font = 'bold 48';
+            panelCaptionAbove = TRUE;
+        }  
+        MOVE PROPERTY(totalBonuses(d)){
+            font = 'bold 48';
+            panelCaptionAbove = TRUE;        
+        }          
     }
-    NEW bottomContainer {
-        MOVE PROPERTY(toPayBonuses(rec)){font = 'bold 22';}  
-        MOVE PROPERTY(totalBonuses(d)){font = 'bold 22';}          
-    }
+    REMOVE d.box;
     MOVE functions.box;
 }
 
 postBonus 'Бонусами'(Receipt receipt) = ACTION {
-    prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
         FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt MODAL;
-        IF formResult() == FormResult.ok AND toPayBonuses(receipt) > 0 THEN {
+        IF formResult() == FormResult.ok THEN {
             bonusPaid(ReceiptDetail detail) <- sumBonusFIFO(detail) WHERE receipt(detail) == receipt;        
         }
     }
@@ -962,11 +978,11 @@ bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0;
 changeBonusPaid (ReceiptDetail d) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
-        IF sum(d) >= round(requestedNumeric(), roundCondition(departmentStore(d))) THEN {
-            bonusPaid(d) <- round(requestedNumeric(), roundCondition(departmentStore(d)));        
-        } ELSE {
-            MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме строки чека';
-        }      
+        CASE WHEN requestedNumeric() < 0.0 THEN 
+                MESSAGE 'Сумма бонусов не может быть отрицательной'
+             WHEN sum(d) < round(requestedNumeric(), roundCondition(departmentStore(d))) THEN
+                MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме строки чека'                 
+             ELSE bonusPaid(d) <- round(requestedNumeric(), roundCondition(departmentStore(d)));        
     } ELSE {
         bonusPaid(d) <- NULL;
     }  
