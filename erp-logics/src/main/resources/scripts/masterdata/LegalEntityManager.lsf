@@ -1,6 +1,6 @@
 MODULE LegalEntityManager;
 
-REQUIRE LegalEntity, EmployeeManager;
+REQUIRE LegalEntity, EmployeeManager, Stock;
 
 NAMESPACE LegalEntity;
 
@@ -9,8 +9,20 @@ nameManager 'Менеджер' (LegalEntity l) = shortName(manager(l));
 inManager 'Отм' (Employee e, LegalEntity l) = e == manager(l);
 countInManager = GROUP SUM 1 IF inManager (Employee e, LegalEntity l) BY e;
 
+manager = DATA Employee (Stock);
+nameManager 'Менеджер' (Stock s) = shortName(manager(s));
+inManager 'Отм' (Employee e, Stock s) = e == manager(s);
+
+overManager 'Менеджер' (Stock s) = OVERRIDE manager(legalEntity(s)), manager(s);
+nameOverManager 'Менеджер' (Stock s) = shortName(overManager(s));
+overInManager 'Отм' (Employee e, Stock s) = OVERRIDE inManager(e, legalEntity(s)), inManager(e, s);
+
 EXTEND FORM legalEntity
     PROPERTIES (l) nameManager
+    OBJECTS stlm=Stock
+    PROPERTIES(stlm) READONLY name
+    PROPERTIES nameOverManager(stlm)
+    FILTERS legalEntity(stlm) == l
 ;
 
 DESIGN legalEntity {
@@ -18,6 +30,7 @@ DESIGN legalEntity {
         NEW managerContainer {
             caption = 'Менеджмент';
             MOVE PROPERTY(nameManager(l));
+            MOVE stlm.box;
         }
     } 
 }
@@ -32,6 +45,11 @@ EXTEND FORM employee
     PROPERTIES (e, lm) inManager
     ORDER BY name(lm)
     FILTERS isParent(lgm, lm) OR (lm IS LegalEntity AND NOT lgm)
+    
+    OBJECTS leSt = Stock
+    PROPERTIES(leSt) READONLY name, nameOverManager
+    PROPERTIES overInManager(e, leSt)
+    FILTERS legalEntity(leSt) == lm
 ;
 
 DESIGN employee {
@@ -41,7 +59,10 @@ DESIGN employee {
             fill = 1;
             type = SPLITH;
             MOVE legalEntityTreeM.tree.box {fill = 1;};
-            MOVE lm.box {fill = 3;};
+            MOVE lm.box {
+                    fill = 3;
+                    MOVE leSt.box;
+                };
         }
     }
 }
