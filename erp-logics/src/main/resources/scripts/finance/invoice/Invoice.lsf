@@ -1202,16 +1202,12 @@ META defineInvoiceHomeCurrency(dumb)
         dataRateExchange(d) <- dataRateExchange(detail);
     }  
 
-    homePrice(UserInvoiceDetail d) <- round(price(d) *
-                                                        rateExchange(d),
-                                                        homeCurrency(d))
-                                                   WHEN CHANGED (date(userInvoice(d))) OR
-                                                        CHANGED (rateExchange(d)) OR
-                                                        CHANGED (homeCurrency(d)) OR
+    homePrice(UserInvoiceDetail d) <- round2(price(d) * rateExchange(d)) // пока округляем до копеек всегда
+                                                   WHEN CHANGED (rateExchange(d)) OR
                                                         CHANGED (price(d));
 
-    homeSum 'Сумма (конв.)' (InvoiceDetail d) = quantity(d) * homePrice(d);
-    homeSum 'Сумма (конв.)' (UserInvoiceDetail d) = quantity(d) * homePrice(d);
+    homeSum 'Сумма (конв.)' (InvoiceDetail d) = round2(sum(d) * rateExchange(d));
+    homeSum 'Сумма (конв.)' (UserInvoiceDetail d) = round2(sum(d) * rateExchange(d));
 
     homeSumInvoiceDetail 'Сумма (конв.)' (invoice) = GROUP SUM homeSum(InvoiceDetail d)
                                                                   BY invoice(d);
