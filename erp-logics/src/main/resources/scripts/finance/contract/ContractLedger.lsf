@@ -167,7 +167,7 @@ costedInContractLedger 'Расписано из документа на дату
     BY outContractLedger, date;
 
 debt 'Долг по документу' (InContractLedger inContractLedger) =
-    sum(inContractLedger) (-) costedOutContractLedger(inContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12;
+    sum(inContractLedger) (-) costedOutContractLedger(inContractLedger) MINCHARWIDTH 12 PREFCHARWIDTH 12 PERSISTENT;
 
 debt 'Долг по документу на дату' (InContractLedger inContractLedger, DATE date) =
     (sum(inContractLedger) IF date IS DATE) (-) costedOutContractLedger(inContractLedger, date) MINCHARWIDTH 12 PREFCHARWIDTH 12;
@@ -273,6 +273,12 @@ META implementOutContractLedger(objectClass, contractProp)
     
     edit[OutContractLedger](objectClass ledger) += ACTION edit(ledger);
 END
+
+// ----------------------------------------- Связь между InContractLedger и ContractLedger
+inContractLedger = ABSTRACT InContractLedger (ContractLedger) PERSISTENT INDEXED;
+
+minDateContractLedger = GROUP MIN date(ContractLedger l) BY inContractLedger(l) PERSISTENT;
+
 //------------------------------------------- Платеж по договору -----------------------------------------------------//
 
 debtSum 'Долг по документам' (contract, date) = GROUP SUM debt(InContractLedger inContractLedger, DATE date) IF
