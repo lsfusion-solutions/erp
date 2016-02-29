@@ -294,6 +294,9 @@ bonusSum 'Сумма бонусов' (contract, date) = GROUP SUM bonusSum(InCon
 bonusDebtSum 'Сумма долга с учетом бонуса' (Contract contract, DATE date) =
     debtSum(contract, date) (-) bonusSum(contract, date);
 
+debtSum 'Долг по документам' (contract) = GROUP SUM debt(InContractLedger inContractLedger) IF
+                                                                            active(inContractLedger)
+                                                                  BY contract(inContractLedger);      
 //----------------------------------------------- Цвета --------------------------------------------------------------//
 
 backgroundSum 'Цвет' (ContractLedger contractLedger, DATE date) = OVERRIDE RGB(255,238,165) IF date(contractLedger) <= date,
@@ -415,9 +418,9 @@ FORM contractLedger 'Управление задолженностями'
     OBJECTS c = Contract
     PROPERTIES(c) READONLY seriesNumber, namePartyA, namePartyB, nameCurrency
     PROPERTIES(c, d) READONLY balanceA BACKGROUND backgroundSum(c),
-                              balanceAA BACKGROUND backgroundSumA(c),
-                              debtSum BACKGROUND backgroundBonusSum(c),
-                              bonusSum BACKGROUND backgroundBonusSum(c),
+                              balanceAA BACKGROUND backgroundSumA(c)
+    PROPERTIES(c) READONLY debtSum BACKGROUND backgroundBonusSum(c)
+    PROPERTIES(c, d) READONLY bonusSum BACKGROUND backgroundBonusSum(c),
                               bonusDebtSum BACKGROUND backgroundBonusSum(c)
 //    ORDER BY seriesNumber(c)
 
@@ -437,8 +440,8 @@ FORM contractLedger 'Управление задолженностями'
 
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY date, description, sum
-    PROPERTIES(ic, d) READONLY debt BACKGROUND backgroundBonusSum(ic),
-                               bonusSum BACKGROUND backgroundBonusSum(ic),
+    PROPERTIES(ic) READONLY debt BACKGROUND backgroundBonusSum(ic)
+    PROPERTIES(ic, d) READONLY bonusSum BACKGROUND backgroundBonusSum(ic),
                                bonusDebtSum BACKGROUND backgroundBonusSum(ic)
     ORDER BY date(ic)
     FILTERS active(ic)
