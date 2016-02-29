@@ -166,8 +166,8 @@ DESIGN userInvoice {
 CONSTRAINT supplier[SaleReturn.InvoiceDetail](SaleReturn.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
            supplierStock[SaleReturn.InvoiceDetail](detail) != supplierStock(invoiceDetail(detail)) OR
            customer[SaleReturn.InvoiceDetail](detail) != customer(invoiceDetail(detail)) OR
-           customerStock[SaleReturn.InvoiceDetail](detail) != customerStock(invoiceDetail(detail)) OR
-           sku[SaleReturn.InvoiceDetail](detail) != sku(invoiceDetail(detail))
+           customerStock[SaleReturn.InvoiceDetail](detail) != customerStock(invoiceDetail(detail))
+//           sku[SaleReturn.InvoiceDetail](detail) != sku(invoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
     CHECKED BY invoiceDetail[SaleReturn.UserInvoiceDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
 
@@ -185,6 +185,11 @@ relationSaleReturn 'Связь' (saleReturn) = GROUP SUM quantityInvoiceDetail (
 
 invoiced 'Кол-во (выписано)' (invoiceDetail) = GROUP SUM quantity(SaleReturn.InvoiceDetail detail) IF isPosted(detail)
                                                                    BY invoiceDetail(detail) PERSISTENT;
+invoiced 'Кол-во (выписано)' = GROUP SUM invoiced(InvoiceDetail detail) BY invoice(detail);                                                                   
+                                                                   
+statusInvoice 'Статус' = CASE WHEN invoiced(Invoice i) THEN 'Создан возврат'
+                                                                        ELSE 'Не создан возврат';                                                                   
+                                                                   
 
 toInvoiced 'Не выписано' (InvoiceDetail invoiceDetail) = quantity (invoiceDetail) (-) invoiced(invoiceDetail);
 
