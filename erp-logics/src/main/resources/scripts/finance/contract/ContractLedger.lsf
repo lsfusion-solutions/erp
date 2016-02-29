@@ -172,27 +172,6 @@ debt 'Долг по документу' (InContractLedger inContractLedger) =
 debt 'Долг по документу на дату' (InContractLedger inContractLedger, DATE date) =
     (sum(inContractLedger) IF date IS DATE) (-) costedOutContractLedger(inContractLedger, date) MINCHARWIDTH 12 PREFCHARWIDTH 12;
 
-applied(InContractLedger inContractLedger, BonusPeriod bonusPeriod) =
-    debt(inContractLedger, sum(date(inContractLedger), countDays(bonusPeriod))) <= 0.0
-    AND paymentCondition(inContractLedger) == paymentCondition(bonusPeriod);
-
-daysBonusPeriod(inContractLedger, date) =
-    GROUP MIN countDays(BonusPeriod bonusPeriod) IF
-              paymentCondition(InContractLedger inContractLedger) == paymentCondition(bonusPeriod) AND
-              sum(date(inContractLedger), countDays(bonusPeriod)) >= DATE date
-              //appliedInContractLedgerBonusPeriod(inContractLedger, bonusPeriod)
-    BY inContractLedger, date;
-
-bonusPeriod(InContractLedger inContractLedger, DATE date) =
-    bonusPeriod(paymentCondition(inContractLedger), daysBonusPeriod(inContractLedger, date));
-
-bonusSum 'Сумма бонуса' (InContractLedger inContractLedger, DATE date) =
-    sum(inContractLedger) * percent(bonusPeriod(inContractLedger, date))/100
-    IF debt(inContractLedger) > 0.0;
-
-bonusDebtSum 'Сумма долга по документу с учетом бонуса' (InContractLedger inContractLedger, DATE date) =
-    debt(inContractLedger, date) (-) bonusSum(inContractLedger, date);
-
 //CONSTRAINT abs(costedInContractLedger(OutContractLedger outContractLedger)) > abs(sum(outContractLedger))
 //    MESSAGE 'Расписанная сумма должна быть равна сумме платежа';
 
@@ -285,14 +264,6 @@ debtSum 'Долг по документам' (contract, date) = GROUP SUM debt(I
                                                                             active(inContractLedger) AND
                                                                             date(inContractLedger) <= date
                                                                   BY contract(inContractLedger), date;
-
-bonusSum 'Сумма бонусов' (contract, date) = GROUP SUM bonusSum(InContractLedger inContractLedger, DATE date) IF
-                                                                         active(inContractLedger) AND
-                                                                         date(inContractLedger) <= date
-                                                               BY contract(inContractLedger), date;
-
-bonusDebtSum 'Сумма долга с учетом бонуса' (Contract contract, DATE date) =
-    debtSum(contract, date) (-) bonusSum(contract, date);
 
 debtSum 'Долг по документам' (contract) = GROUP SUM debt(InContractLedger inContractLedger) IF
                                                                             active(inContractLedger)
@@ -420,8 +391,7 @@ FORM contractLedger 'Управление задолженностями'
     PROPERTIES(c, d) READONLY balanceA BACKGROUND backgroundSum(c),
                               balanceAA BACKGROUND backgroundSumA(c)
     PROPERTIES(c) READONLY debtSum BACKGROUND backgroundBonusSum(c)
-    PROPERTIES(c, d) READONLY bonusSum BACKGROUND backgroundBonusSum(c),
-                              bonusDebtSum BACKGROUND backgroundBonusSum(c)
+
 //    ORDER BY seriesNumber(c)
 
     OBJECTS cl = ContractLedger
@@ -441,8 +411,7 @@ FORM contractLedger 'Управление задолженностями'
     OBJECTS ic = InContractLedger
     PROPERTIES(ic) READONLY date, description, sum
     PROPERTIES(ic) READONLY debt BACKGROUND backgroundBonusSum(ic)
-    PROPERTIES(ic, d) READONLY bonusSum BACKGROUND backgroundBonusSum(ic),
-                               bonusDebtSum BACKGROUND backgroundBonusSum(ic)
+
     ORDER BY date(ic)
     FILTERS active(ic)
     FILTERGROUP filters1 

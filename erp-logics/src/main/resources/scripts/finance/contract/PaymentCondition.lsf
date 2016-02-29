@@ -59,16 +59,6 @@ description 'Условия оплаты' (PaymentCondition paymentCondition) = 
 paymentConditionDescription = GROUP MAX PaymentCondition c BY description(c);
 // Бонусы
 
-CLASS BonusPeriod 'Период бонуса';
-TABLE bonusPeriod(BonusPeriod);
-
-countDays 'Кол-во дней' = DATA INTEGER (BonusPeriod);
-percent 'Процент' = DATA NUMERIC[8,3] (BonusPeriod);
-paymentCondition 'Условия оплаты периода бонуса' = DATA PaymentCondition (BonusPeriod) NOT NULL DELETE;
-
-bonusPeriod(paymentCondition, days) = GROUP AGGR BonusPeriod bonusPeriod BY paymentCondition(bonusPeriod),
-                                                                                      countDays(bonusPeriod)
-                                                                                   WHERE bonusPeriod IS BonusPeriod;
 
 sumPercent(paymentCondition) = GROUP SUM percent(PaymentPeriod paymentPeriod) BY paymentCondition(paymentPeriod);
 CONSTRAINT sumPercent(PaymentCondition paymentCondition) != 100.0 CHECKED BY sumPercent[PaymentCondition]
@@ -85,12 +75,7 @@ FORM paymentCondition 'Условие оплаты'
     PROPERTIES(pp) ADDOBJ SHOWIF isPrepaymentType(pc),
                    DELETESESSION SHOWIF isPrepaymentType(pc)
 
-    OBJECTS bp = BonusPeriod
-    PROPERTIES(bp) countDays, percent
-    PROPERTIES(bp) ADDOBJ, DELETESESSION
-
-    FILTERS paymentCondition(pp) == pc,
-            paymentCondition(bp) == pc
+    FILTERS paymentCondition(pp) == pc
 
     EDIT PaymentCondition OBJECT pc
 ;
