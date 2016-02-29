@@ -191,10 +191,22 @@ CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SET
 CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d)) OR CHANGED(skipMaxDeviationPrice(d))) AND 
            isPosted(d) AND price(d) < overMinDeviationPrice(d) AND NOT skipMaxDeviationPrice(d)      
            MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
+           
+banNotAgreementsPrice'Запретить оприходование накладных без прайса' = DATA BOOLEAN (Agreement);
 
-//CONSTRAINT isPostedInvoiceDetail(d) AND priceInvoiceDetail(d) < overMinDeviationPriceInvoiceDetail(d)    
-//    MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';
-                
+EXTEND FORM agreement
+    PROPERTIES (a) banNotAgreementsPrice
+;
+DESIGN agreement {
+    propContainer {
+        MOVE PROPERTY (banNotAgreementsPrice(a));
+    }
+}
+
+CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SETCHANGED(sku(d)) OR SETCHANGED(dateTime(d)) OR SETCHANGED(agreement(d))) AND 
+    isPosted(d) AND banNotAgreementsPrice(agreement(d)) AND NOT agreementsPrice(d) 
+        MESSAGE 'Запрещено оприходование накладных без прайса';           
+                           
 //--------------------------- Запрет на оприходование без заявки --------------------------------------//
 
 deviationNotOrderInvoice 'Запретить оприходование накладных без заказа'  = DATA BOOLEAN (Agreement);
