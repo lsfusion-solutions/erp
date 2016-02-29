@@ -23,6 +23,8 @@ bonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 bonusPaid(ReceiptReturnDetail d) += bonusPaid(d);
 extraDiscountSum(ReceiptSaleDetail d) += bonusPaid(d);
 
+bonusPaid 'Оплачено бонусами' (Receipt r) = GROUP SUM bonusPaid(ReceiptDetail d) BY receipt(d);
+
 signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
 signedBonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 signedBonusPaid(ReceiptReturnDetail d) += -bonusPaid(d);
@@ -45,9 +47,10 @@ paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(Rece
 availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
 
 externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
-totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d); 
+totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d);
+prevTotalBonuses 'Доступно бонусов' (DiscountCard d) = PREV(totalBonuses(d));
 
-totalBonuses 'Доступно бонусов' (Receipt r) = totalBonuses(discountCard(r)) IN receiptDiscount;
+totalBonuses 'Доступно бонусов' (Receipt r) = prevTotalBonuses(discountCard(r)) IN receiptDiscount;
 
 EXTEND FORM discountCard
     PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses

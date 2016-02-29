@@ -70,6 +70,12 @@ setUserPromotion (receipt) = GROUP SUM 1 IF setUserPromotion (ReceiptSaleDetail 
 promotionSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail, PromotionCondition condition)
                                                BY detail;
 
+promotionDiscountSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) IF NOT useBonus(condition)
+                                               BY detail;
+promotionBonusSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) IF useBonus(condition)
+                                               BY detail;
+
+
 in (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
                                           date(receipt) >= dateFrom(promotion) AND date(receipt) <= dateTo(promotion) AND
                                           NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
@@ -229,21 +235,24 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 
                 quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- taken(detail, condition)
                     WHERE taken(detail, condition);
-
+                
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
                     CASE WHEN sumReceipt(condition) THEN taken(detail, condition) * (price(detail) (-) sumReceipt(condition) / quantityDiscount (condition))
                          WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
                          WHEN resultPrice(condition, sku(detail)) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition, sku(detail)))
                          WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
                          WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) (-) priceA(priceListType(condition), sku(detail), departmentStore(detail), dateTime(detail)))
-                         WHEN condition IS PromotionCondition THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) * percent(condition) / 100)
+                         WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
                     WHERE taken(detail, condition);
             }
         }
     }
 
-    discountSum(ReceiptSaleDetail detail) <- round(promotionSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
+    discountSum(ReceiptSaleDetail detail) <- round(promotionDiscountSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
     discountSum(ReceiptSaleDetail detail) <- calcDiscountSum(detail) WHERE detail IS ReceiptSaleDetail AND receipt(detail) == receipt AND discountPercent(detail) AND NOT promotionSum(detail);
+
+    IF useBonus() THEN
+        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
 }
 
 // Операции с чеками
@@ -417,7 +426,7 @@ changeToPayBonuses (Receipt r) = ACTION {
                 MESSAGE 'Сумма бонусов не может быть отрицательной'
              WHEN sumReceiptDetail(r) < round(requestedNumeric(), roundCondition(departmentStore(r))) THEN
                 MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека'                 
-             WHEN NOT toPayBonuses(r) < totalBonuses(discountCard(r)) THEN
+             WHEN NOT requestedNumeric() < totalBonuses(discountCard(r)) THEN
                 MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных'
              ELSE toPayBonuses(r) <- round(requestedNumeric(), roundCondition(departmentStore(r)));
     } ELSE {
@@ -1240,7 +1249,8 @@ recalculatedPrice 'Пересчитать цены чека'(Receipt receipt) = 
 WHEN SESSION FORMS POS CHANGED(quantityReceiptDetail(Receipt receipt)) OR 
                        CHANGED(discountCard(receipt)) OR 
                        CHANGED(setUserPromotion(receipt)) OR 
-                       CHANGED(discountPercent(receipt)) 
+                       CHANGED(discountPercent(receipt)) OR
+                       CHANGED(bonusPaid(receipt))
     DO calculatePromotions(receipt);
     
 WHEN SESSION FORMS POS CHANGED(quantity(ReceiptDetail receiptDetail)) OR CHANGED(sum(receiptDetail)) DO 
