@@ -74,3 +74,12 @@ DESIGN discountCard {
 EXTEND FORM discountCards
     PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
 ;
+//-- Скидки с учетом бонусов
+discountBonusSumVAT 'Сумма НДС в скидке' (ReceiptDetail d) = round((discountSum(d) (+) bonusPaid(d))* valueVAT(d) / (100 + valueVAT(d)), currency(d));
+ 
+discountBonusSumVATSale 'Сумма НДС в скидке (продажа)' (zReport)= GROUP SUM discountBonusSumVAT(ReceiptSaleDetail d) IF d IS ReceiptSaleDetail BY zReport[ReceiptDetail](d);
+discountBonusSumVATReturn 'Сумма НДС в скидке (возврат)' (zReport)= GROUP SUM discountBonusSumVAT(ReceiptReturnDetail d) IF d IS ReceiptReturnDetail BY zReport[ReceiptDetail](d);
+
+discountBonusSumVAT 'Сумма НДС в скидке' (ZReport zReport)= discountBonusSumVATSale(zReport) (-) discountBonusSumVATReturn(zReport);
+
+discountBonusSumMarkup 'Сумма набавки в скидке' (ZReport z) = discountSum(z) (+) signedBonusPaid(z) (-) discountBonusSumVAT(z);
