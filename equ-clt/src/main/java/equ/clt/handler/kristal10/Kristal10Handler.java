@@ -729,7 +729,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 return pathname.getName().startsWith("purchases") && pathname.getPath().endsWith(".xml");
             }
         });
-
+        
+        Set<String> ids = new HashSet<String>();
         if (filesList == null || filesList.length == 0)
             sendSalesLogger.info("Kristal10: No checks found in " + exchangeDirectory);
         else {
@@ -896,6 +897,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                             Date dateReceiptOriginal = new Date(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(readStringXMLAttribute(originalPurchase, "saletime")).getTime());
                                             idSaleReceiptReceiptReturnDetail = nppGroupMachinery + "_" + numberCashRegisterOriginal + "_" + numberZReportOriginal + "_"
                                                     + new SimpleDateFormat("ddMMyyyy").format(dateReceiptOriginal) + "_" + numberReceiptOriginal;
+                                        }
+                                        
+                                        String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;  
+                                        if (ids.contains(id)) {
+                                            sendSalesLogger.error("found duplicate key : " + id);
+                                            numberReceipt += 10000;
+                                        } else {
+                                            ids.add(id);
                                         }
 
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
