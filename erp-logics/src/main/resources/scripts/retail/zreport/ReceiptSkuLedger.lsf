@@ -16,9 +16,13 @@ discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date, p
 countReceiptSaleDetail (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
     BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
 
-VATReceiptSaleDetail (department, sku, date, price) = GROUP MAX VAT(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[14,2]);
+WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[14,2] price)) DO {
+    VATReceiptSaleDetail (department, sku, date, price) <- VAT (sku, country(department));
+}
 
+//INDEX sku(ReceiptSaleDetail d), dateZReport(d);
+//
 @defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
 
 dateTime[DataSkuLedger] (ReceiptSaleSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
@@ -67,8 +71,11 @@ discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date,
     BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
 countReceiptReturnDetail  (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
     BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
-VATReceiptReturnDetail  (department, sku, date, price) = GROUP MAX VAT(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+
+VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[14,2]);
+WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[14,2] price)) DO {
+    VATReceiptReturnDetail (department, sku, date, price) <- VAT (sku, country(department));
+}
 
 @defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);
 dateTime[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += dateTimeToDateTime(date(ledger), 23:59);
