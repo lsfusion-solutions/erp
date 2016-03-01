@@ -35,11 +35,12 @@ posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(Rece
 cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) PERSISTENT;
 
 externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
-totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
+signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d) (+) signedTransferSum(d); 
 
 dateFirstUse 'Дата первого использования'=  GROUP MIN date(Receipt receipt) BY discountCard (receipt);
 
 EXTEND FORM discountCards
-    PROPERTIES(d) READONLY AFTER initialSum(d) posSum, posReturnSum, cumulativeSum, externalSum, totalSum
+    PROPERTIES(d) READONLY AFTER initialSum(d) posSum, posReturnSum, cumulativeSum, externalSum, signedTransferSum, totalSum
     PROPERTIES(d) READONLY AFTER date(d) dateFirstUse
 ;

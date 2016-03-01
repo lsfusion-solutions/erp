@@ -52,28 +52,6 @@ prevTotalBonuses 'Доступно бонусов' (DiscountCard d) = PREV(total
 
 totalBonuses 'Доступно бонусов' (Receipt r) = prevTotalBonuses(discountCard(r)) IN receiptDiscount;
 
-EXTEND FORM discountCard
-    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
-;
-
-DESIGN discountCard {
-    d.panel {
-        NEW row3 {
-            caption = 'Бонусы';
-            type = CONTAINERH;
-            MOVE PROPERTY(cumulativeBonuses(d));
-            MOVE PROPERTY(blockedBonuses(d));
-            MOVE PROPERTY(paidBonuses(d));
-            MOVE PROPERTY(availableBonuses(d));
-            MOVE PROPERTY(externalBonuses(d));
-            MOVE PROPERTY(totalBonuses(d));
-        }
-    }
-}
-
-EXTEND FORM discountCards
-    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
-;
 //-- Скидки с учетом бонусов
 discountBonusSumVAT 'Сумма НДС в скидке' (ReceiptDetail d) = round((discountSum(d) (+) bonusPaid(d))* valueVAT(d) / (100 + valueVAT(d)), currency(d));
  
@@ -83,3 +61,42 @@ discountBonusSumVATReturn 'Сумма НДС в скидке (возврат)' (
 discountBonusSumVAT 'Сумма НДС в скидке' (ZReport zReport)= discountBonusSumVATSale(zReport) (-) discountBonusSumVATReturn(zReport);
 
 discountBonusSumMarkup 'Сумма набавки в скидке' (ZReport z) = discountSum(z) (+) signedBonusPaid(z) (-) discountBonusSumVAT(z);
+
+//перевод накоплений по карте
+
+discountCard = DATA DiscountCard (DiscountCard);
+numberDiscountCard 'Номер дисконтной карты для перевода' (DiscountCard d) = number(discountCard(d)); 
+transferSum 'Сумма перевода' = DATA NUMERIC[16,2] (DiscountCard);
+
+totalTransferSum 'Сумма переводов' = GROUP SUM transferSum(DiscountCard d) BY discountCard(d);
+
+signedTransferSum(DiscountCard d) += totalTransferSum(d) (-) transferSum(d);
+
+EXTEND FORM discountCard
+    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses, totalTransferSum
+    PROPERTIES(d) SHOWIF useBonus() numberDiscountCard, transferSum
+;
+
+DESIGN discountCard {
+    d.panel {
+        NEW row3 {
+            caption = 'Бонусы';
+            type = COLUMNS;
+            columns = 3;
+            MOVE PROPERTY(cumulativeBonuses(d));
+            MOVE PROPERTY(blockedBonuses(d));
+            MOVE PROPERTY(paidBonuses(d));
+            MOVE PROPERTY(availableBonuses(d));
+            MOVE PROPERTY(externalBonuses(d));
+            MOVE PROPERTY(totalBonuses(d));
+            MOVE PROPERTY(totalTransferSum(d));
+            MOVE PROPERTY(numberDiscountCard(d));
+            MOVE PROPERTY(transferSum(d));
+        }
+    }
+}
+
+EXTEND FORM discountCards
+    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, 
+                                             totalBonuses, totalTransferSum, numberDiscountCard, transferSum
+;
