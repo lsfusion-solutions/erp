@@ -345,74 +345,75 @@ prePost(Receipt receipt) = ACTION {
 }
 
 post 'Смешанный платеж'(Receipt receipt) = ACTION {
-    IF totalBonuses(receipt) > 0.0 THEN { 
-        prePost(receipt);
-        IF sumReceiptDetail(receipt) THEN {
-            FOR ADDOBJ p = Payment DO {
-                receipt(p) <- receipt;
-                paymentType(p) <- minCashPaymentType();
-            }
-            FOR ADDOBJ p = Payment DO {
-                receipt(p) <- receipt;
-                paymentType(p) <- minCardPaymentType();
-            }
-            FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
-            IF formResult() == FormResult.ok THEN {
-                postPaymentTerminal(receipt);
-                IF NOT postPaymentTerminalReceiptResult() THEN {
-                    postPrint(receipt);
-                } ELSE {
-                    MESSAGE postPaymentTerminalReceiptResult();
-                }
-            } ELSE {
-                DELETE Payment p WHERE receipt(p) == receipt;
-            }
+    IF bonusPaid(receipt) AND NOT totalBonuses(receipt) >= bonusPaid(receipt) THEN { 
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
+        RETURN;
+    } 
+    prePost(receipt);
+    IF sumReceiptDetail(receipt) THEN {
+        FOR ADDOBJ p = Payment DO {
+            receipt(p) <- receipt;
+            paymentType(p) <- minCashPaymentType();
         }
-    } ELSE {
-        MESSAGE 'Сумма бонусов по карте не может быть отрицательной';
-    }    
-} EDITKEY 'F9' IN receiptAction;
-
-postCard 'Карточкой'(Receipt receipt) = ACTION {
-    IF totalBonuses(receipt) > 0.0 THEN { 
-        prePost(receipt);
-        IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
-            FOR ADDOBJ p = Payment DO {
-                ASSIGN receipt(p) <- receipt;
-                ASSIGN paymentType(p) <- minCardPaymentType();
-                ASSIGN sum(p) <- sumReceiptDetail(receipt);
-            }
+        FOR ADDOBJ p = Payment DO {
+            receipt(p) <- receipt;
+            paymentType(p) <- minCardPaymentType();
+        }
+        FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
+        IF formResult() == FormResult.ok THEN {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
                 postPrint(receipt);
             } ELSE {
                 MESSAGE postPaymentTerminalReceiptResult();
             }
+        } ELSE {
+            DELETE Payment p WHERE receipt(p) == receipt;
         }
-    } ELSE {
-        MESSAGE 'Сумма бонусов по карте не может быть отрицательной';
-    }         
+    } 
+} EDITKEY 'F9' IN receiptAction;
+
+postCard 'Карточкой'(Receipt receipt) = ACTION {
+    IF bonusPaid(receipt) AND NOT totalBonuses(receipt) >= bonusPaid(receipt) THEN { 
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';    
+        RETURN;
+    } 
+    prePost(receipt);
+    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
+        FOR ADDOBJ p = Payment DO {
+            ASSIGN receipt(p) <- receipt;
+            ASSIGN paymentType(p) <- minCardPaymentType();
+            ASSIGN sum(p) <- sumReceiptDetail(receipt);
+        }
+        postPaymentTerminal(receipt);
+        IF NOT postPaymentTerminalReceiptResult() THEN {
+            postPrint(receipt);
+        } ELSE {
+            MESSAGE postPaymentTerminalReceiptResult();
+        }
+    }
+        
 } EDITKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt) = ACTION {
-    IF totalBonuses(receipt) > 0.0 THEN { 
-        prePost(receipt);
-        IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
-            FOR ADDOBJ p = Payment DO {
-                receipt(p) <- receipt;
-                paymentType(p) <- minCashPaymentType();
-                sum(p) <- sumReceiptDetail(receipt);
-            }
-            FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
-            IF formResult() == FormResult.ok THEN {
-                postPrint(receipt);
-            } ELSE {
-                DELETE Payment p WHERE receipt(p) == receipt;
-            }
+    IF bonusPaid(receipt) AND NOT totalBonuses(receipt) >= bonusPaid(receipt) THEN { 
+        MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
+        RETURN;
+    }    
+    prePost(receipt);
+    IF sumReceiptDetail(receipt) AND NOT totalBonuses(receipt) < 0 THEN {
+        FOR ADDOBJ p = Payment DO {
+            receipt(p) <- receipt;
+            paymentType(p) <- minCashPaymentType();
+            sum(p) <- sumReceiptDetail(receipt);
         }
-    } ELSE {
-        MESSAGE 'Сумма бонусов по карте не может быть отрицательной';
-    }     
+        FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
+        IF formResult() == FormResult.ok THEN {
+            postPrint(receipt);
+        } ELSE {
+            DELETE Payment p WHERE receipt(p) == receipt;
+        }
+    }  
 } EDITKEY 'F11' IN receiptAction;
 
 //Оплата бонусами
@@ -1007,7 +1008,7 @@ FORM POS
                                           searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
                                           searchBatchSale SHOWIF posExplicitBatchLedger(r),
                                           searchSkuReturn, scanBarcodeReturn,
-                                          post, postCard, postCash, postBonus, cancel,
+                                          post, postCard, postCash, postBonus SHOWIF useBonus(), cancel,
                                           numberDiscountCard, nameLegalEntityDiscountCard,
                                           prevTotalSum, clearDiscountCard, fiscalSkip
     PROPERTIES(r) SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
