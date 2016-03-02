@@ -1854,6 +1854,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                         ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
                         Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
+                        Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
 
                         ImportField nppGroupMachineryField = new ImportField(zReportLM.findProperty("npp[GroupMachinery]"));
                         ImportField nppMachineryField = new ImportField(zReportLM.findProperty("npp[Machinery]"));
@@ -2086,19 +2087,19 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 barcodeMap.put(sale.idItem, barcode);
                             }
 
-                            String idReceipt = sale.getIdReceipt(startDate);
+                            String idReceipt = sale.getIdReceipt(startDate, timeId);
                             if (sale.isGiftCard) {
                                 //giftCard 3
                                 List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                         sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode,
+                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
                                         sale.priceReceiptDetail, sale.sumReceiptDetail);
                                 dataGiftCard.add(row);
                             } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                                 //return 3
                                 List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                         sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
                                         sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
                                 if (discountCardLM != null) {
                                     row = new ArrayList<>(row);
@@ -2113,7 +2114,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                                 //sale 3
                                 List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
                                         sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
                                         sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
                                 if (discountCardLM != null) {
                                     row = new ArrayList<>(row);

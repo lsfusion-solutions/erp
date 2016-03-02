@@ -902,7 +902,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         String id = nppGroupMachinery + "_" + numberCashRegister + "_" + numberZReport + "_" + new SimpleDateFormat("ddMMyyyy").format(dateReceipt) + "_" + numberReceipt + "_" + numberReceiptDetail;  
                                         if (ids.contains(id)) {
                                             sendSalesLogger.error("found duplicate key : " + id);
-                                            numberReceipt += 10000;
+//                                            numberReceipt += 10000;
                                         } else {
                                             ids.add(id);
                                         }

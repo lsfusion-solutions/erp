@@ -101,7 +101,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
         if (result == null) {
             List<String> succeededReceiptList = new ArrayList<>();
             for (SalesInfo sale : salesInfoList) {
-                succeededReceiptList.add(sale.getIdReceipt(null));
+                succeededReceiptList.add(sale.getIdReceipt(null, null));
             }
             if (!succeededReceiptList.isEmpty())
                 finishSendSalesInfo(context, succeededReceiptList);

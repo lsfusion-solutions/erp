@@ -81,11 +81,11 @@ public class SalesInfo implements Serializable {
             return nppGroupMachinery + "_" + nppMachinery + "_" + numberZReport;
     }
     
-    public String getIdReceipt(Date startDate) {
-        return getIdZReport(startDate) + "_" + numberReceipt;
+    public String getIdReceipt(Date startDate, Boolean timeId) {
+        return getIdZReport(startDate) + "_" + numberReceipt + (timeId != null && timeId.equals(Boolean.TRUE) ? "_" + timeReceipt : "");
     }
 
-    public String getIdReceiptDetail(Date startDate) {
-        return getIdReceipt(startDate) + "_" + numberReceiptDetail;
+    public String getIdReceiptDetail(Date startDate, Boolean timeId) {
+        return getIdReceipt(startDate, timeId) + "_" + numberReceiptDetail;
     }
 }
