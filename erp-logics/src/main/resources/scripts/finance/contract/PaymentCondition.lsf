@@ -30,6 +30,9 @@ nameType 'Тип оплаты' (PaymentCondition paymentCondition) = staticCapti
 
 isPrepaymentType(PaymentCondition paymentCondition) = type(paymentCondition) == AgreementPaymentType.prepayment;
 
+isRequirement 'Платежное требование' = DATA BOOLEAN (PaymentCondition);
+isRequirementType(PaymentCondition paymentCondition) = type(paymentCondition) == AgreementPaymentType.prepayment AND isRequirement(paymentCondition);
+
 // Периоды рассрочки
 
 CLASS PaymentPeriod 'Период рассрочки';
@@ -54,6 +57,7 @@ descriptionPeriod 'Условия оплаты' (paymentCondition) =
 //    OVERRIDE 'По факту реализации' IF paymentCondition IS PaymentCondition , 
 //             descriptionPeriodPaymentCondition(paymentCondition) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 description 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
+    WHEN isRequirementType(paymentCondition) THEN 'Требование '+ descriptionPeriod(paymentCondition)
     WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN descriptionPeriod(paymentCondition)
     WHEN paymentCondition IS PaymentCondition THEN staticCaption(type(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 paymentConditionDescription = GROUP MAX PaymentCondition c BY description(c);
@@ -68,6 +72,7 @@ FORM paymentCondition 'Условие оплаты'
 
     OBJECTS pc = PaymentCondition FIXED PANEL
     PROPERTIES(pc) id SHOWIF showIDs(), nameType, bankingDays 
+    PROPERTIES(pc) isRequirement SHOWIF isPrepaymentType(pc)
 
     OBJECTS pp = PaymentPeriod FIXED GRID
     PROPERTIES(pp) countDays SHOWIF isPrepaymentType(pc),
