@@ -37,10 +37,160 @@ cumulativeSum 'Накопленная сумма (основная)' (DiscountCa
 externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
 signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
 totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d) (+) signedTransferSum(d); 
+prevTotalSum 'Накопленная сумма' (DiscountCard d) = PREV(totalSum(d)); 
 
 dateFirstUse 'Дата первого использования'=  GROUP MIN date(Receipt receipt) BY discountCard (receipt);
+
+//перевод накоплений по карте
+
+discountCard = DATA DiscountCard (DiscountCard);
+numberDiscountCard 'Номер дисконтной карты для перевода' (DiscountCard d) = number(discountCard(d)); 
+transferSum 'Сумма перевода' = DATA NUMERIC[16,2] (DiscountCard);
+
+totalTransferSum 'Сумма переводов' = GROUP SUM transferSum(DiscountCard d) BY discountCard(d);
+
+signedTransferSum(DiscountCard d) += totalTransferSum(d) (-) transferSum(d);
+
+EXTEND FORM discountCard
+    PROPERTIES(d) READONLY totalTransferSum
+    PROPERTIES(d) numberDiscountCard, transferSum
+;
+
+DESIGN discountCard {
+    d.panel {
+        NEW row3 {
+            caption = 'Перевод накоплений';
+            type = CONTAINERH;
+            MOVE PROPERTY(totalTransferSum(d));
+            MOVE PROPERTY(numberDiscountCard(d));
+            MOVE PROPERTY(transferSum(d));
+        }
+    }       
+}
 
 EXTEND FORM discountCards
     PROPERTIES(d) READONLY AFTER initialSum(d) posSum, posReturnSum, cumulativeSum, externalSum, signedTransferSum, totalSum
     PROPERTIES(d) READONLY AFTER date(d) dateFirstUse
+    PROPERTIES(d) READONLY totalTransferSum, numberDiscountCard, transferSum 
 ;
+
+numberDiscountCardInput 'Штрихкод' = DATA LOCAL STRING[15] () EVENTID 'SCANNER';
+changeNumberDiscountCardInput() = ACTION {
+    REQUEST STRING[15] INPUT;
+    numberDiscountCardInput() <- processedBarcode(requestedString());
+    formOk();
+}
+
+FORM numberDiscountCardInput 'Ввод номера старой дисконтной карты'
+    PROPERTIES() numberDiscountCardInput ON CHANGE changeNumberDiscountCardInput()
+;
+
+DESIGN numberDiscountCardInput {
+    PROPERTY (numberDiscountCardInput()) {
+        caption = 'Штрихкод';
+        font = 'bold 32';
+        panelCaptionAbove = TRUE;
+        editKey = 'F4';
+        focusable = TRUE;
+    }
+}
+
+numberDiscountCardInputNew 'Штрихкод' = DATA LOCAL STRING[15] () EVENTID 'SCANNER';
+changeNumberDiscountCardInputNew() = ACTION {
+    REQUEST STRING[15] INPUT;
+    numberDiscountCardInputNew() <- processedBarcode(requestedString());
+    formOk();
+}
+
+FORM numberDiscountCardInputNew 'Ввод номера новой дисконтной карты'
+    PROPERTIES() numberDiscountCardInputNew ON CHANGE changeNumberDiscountCardInputNew()
+;
+
+DESIGN numberDiscountCardInputNew {
+    PROPERTY (numberDiscountCardInputNew()) {
+        caption = 'Штрихкод';
+        font = 'bold 32';
+        panelCaptionAbove = TRUE;
+        editKey = 'F4';
+        focusable = TRUE;
+    }
+}
+
+showTransferSum() = numberDiscountCardInput() AND NOT numberDiscountCardInputNew();
+notShowTransferSum() = NOT showTransferSum();
+
+changeTransferSum (DiscountCard dc) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF NOT requestedNumeric() > prevTotalSum(dc) AND NOT requestedNumeric() < 0.0 THEN
+        transferSum(dc) <- requestedNumeric()
+    ELSE 
+        IF requestedNumeric() < 0.0 THEN
+            MESSAGE 'Сумма перевода не может быть меньше ноля'
+    ELSE    
+        MESSAGE 'Нельзя переводить сумму больше суммы накопленний';           
+}
+
+FORM tranferDiscountCards 'Перевод накоплений'
+    OBJECTS dc = DiscountCard FIXED PANEL
+    PROPERTIES(dc) READONLY nameLegalEntity, seriesNumber, prevTotalSum
+    PROPERTIES(dc) transferSum SHOWIF showTransferSum() ON CHANGE changeTransferSum(dc)
+    PROPERTIES(dc) totalTransferSum SHOWIF notShowTransferSum()
+;
+
+DESIGN tranferDiscountCards {
+    NEW topContainer {
+        type = CONTAINERV;
+        MOVE PROPERTY(nameLegalEntity(dc)){
+            font = 'bold 32';
+            panelCaptionAbove = TRUE;
+            preferredCharWidth = 35;
+            
+        }
+        MOVE PROPERTY(seriesNumber(dc)){
+            font = 'bold 32';
+            panelCaptionAbove = TRUE;
+            alignment = STRETCH;            
+        }
+        MOVE PROPERTY(prevTotalSum(dc)){
+            font = 'bold 32';
+            panelCaptionAbove = TRUE;
+            alignment = STRETCH;              
+        }
+        MOVE PROPERTY(transferSum(dc)){
+            font = 'bold 32';
+            panelCaptionAbove = TRUE;
+            alignment = STRETCH;              
+        }
+        MOVE PROPERTY(totalTransferSum(dc)){
+            font = 'bold 32';
+            panelCaptionAbove = TRUE;
+            alignment = STRETCH;              
+        }
+    }
+    MOVE functions.box;
+}
+
+tranferDiscountCards 'Перевод накоплений' () = ACTION NEWSESSION {
+    FORM numberDiscountCardInput MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR DiscountCard card == discountString(numberDiscountCardInput()) DO { 
+            transferSum(card) <- prevTotalSum(card);
+            FORM tranferDiscountCards OBJECTS dc = card MODAL;
+            IF formResult() == FormResult.ok THEN {
+                FORM numberDiscountCardInputNew MODAL;
+                IF formResult() == FormResult.ok THEN {
+                    FOR DiscountCard newCard == discountString(numberDiscountCardInputNew()) DO {
+                        discountCard(card) <- newCard;
+                        legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
+                        FORM tranferDiscountCards OBJECTS dc = newCard MODAL;
+                        IF formResult() == FormResult.ok THEN {
+                            apply();
+                        } ELSE {
+                            cancel();
+                        }
+                    }    
+                }
+            }
+        }    
+    }
+}

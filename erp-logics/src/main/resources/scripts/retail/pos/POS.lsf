@@ -345,7 +345,11 @@ prePost(Receipt receipt) = ACTION {
 }
 
 post 'Смешанный платеж'(Receipt receipt) = ACTION {
-    IF bonusPaid(receipt) AND NOT totalBonuses(receipt) >= bonusPaid(receipt) THEN { 
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) THEN {
+        MESSAGE 'Выберите дисконтную карту';      
+        RETURN;   
+    } 
+    IF signedBonusPaid(receipt) AND NOT totalBonuses(receipt) >= signedBonusPaid(receipt) THEN { 
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
         RETURN;
     } 
@@ -374,7 +378,11 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
 } EDITKEY 'F9' IN receiptAction;
 
 postCard 'Карточкой'(Receipt receipt) = ACTION {
-    IF bonusPaid(receipt) AND NOT totalBonuses(receipt) >= bonusPaid(receipt) THEN { 
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) THEN {
+        MESSAGE 'Выберите дисконтную карту';      
+        RETURN;   
+    } 
+    IF signedBonusPaid(receipt) AND NOT totalBonuses(receipt) >= signedBonusPaid(receipt) THEN { 
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';    
         RETURN;
     } 
@@ -396,7 +404,11 @@ postCard 'Карточкой'(Receipt receipt) = ACTION {
 } EDITKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt) = ACTION {
-    IF bonusPaid(receipt) AND NOT totalBonuses(receipt) >= bonusPaid(receipt) THEN { 
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) THEN {
+        MESSAGE 'Выберите дисконтную карту';      
+        RETURN;   
+    } 
+    IF signedBonusPaid(receipt) AND NOT totalBonuses(receipt) >= signedBonusPaid(receipt) THEN { 
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
         RETURN;
     }    
@@ -435,7 +447,7 @@ changeToPayBonuses (Receipt r) = ACTION {
     } 
 }
 
-sumBonusFIFO (ReceiptDetail detail) =
+sumBonusFIFO (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
         LIMIT sum(detail)
         BY receipt(detail)
@@ -448,7 +460,7 @@ FORM bonusPayment 'Оплата бонусами'
     PROPERTIES(r) toPayBonuses ON CHANGE changeToPayBonuses(r)
         
     OBJECTS d = DiscountCard FIXED PANEL 
-    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) totalBonuses TODRAW r FORCE PANEL
+    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) prevTotalBonuses TODRAW r FORCE PANEL
 ;
 
 DESIGN bonusPayment {
@@ -458,7 +470,7 @@ DESIGN bonusPayment {
             font = 'bold 48';
             panelCaptionAbove = TRUE;
         }  
-        MOVE PROPERTY(totalBonuses(d)){
+        MOVE PROPERTY(prevTotalBonuses(d)){
             font = 'bold 48';
             panelCaptionAbove = TRUE;        
         }          
@@ -468,10 +480,10 @@ DESIGN bonusPayment {
 }
 
 postBonus 'Бонусами'(Receipt receipt) = ACTION {
-    IF sumReceiptDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) AND countReceiptSaleDetail(receipt) THEN {
         FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt MODAL;
         IF formResult() == FormResult.ok THEN {
-            bonusPaid(ReceiptDetail detail) <- sumBonusFIFO(detail) WHERE receipt(detail) == receipt;        
+            bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFO(detail) WHERE receipt(detail) == receipt;        
         }
     }
 } EDITKEY 'F8' IN receiptAction;
@@ -739,6 +751,8 @@ createReturn 'Добавить строку возврата'(Receipt receipt, R
         price(d) <- price(receiptSaleDetail);
         VAT(d) <- VAT(receiptSaleDetail);
         batch(d) <- batch(receiptSaleDetail);
+        bonusPaid(d) <- bonusPaid(receiptSaleDetail);
+        bonusSum(d) <- bonusSum(receiptSaleDetail);        
         focusQuantity(d);
     }
 }
@@ -753,6 +767,8 @@ createReturn 'Добавить строки возврата'(Receipt receipt, R
         price(d) <- price(receiptSaleDetail);
         VAT(d) <- VAT(receiptSaleDetail);
         batch(d) <- batch(receiptSaleDetail);
+        bonusPaid(d) <- bonusPaid(receiptSaleDetail);
+        bonusSum(d) <- bonusSum(receiptSaleDetail);
         overCreateReturn(d,receiptSaleDetail);
     }
 }
@@ -828,12 +844,14 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
     PROPERTIES(s) READONLY  number, date, time, nameEmployee,
                             numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, discountSumReceiptDetail,
                             countReceiptDetail, quantityReceiptDetail
-    FILTERS departmentStore(s) == st
+    FILTERS departmentStore(s) == st,
+            countReceiptSaleDetail(s) 
 
     OBJECTS r = ReceiptSaleDetail FIXED GRID
     PROPERTIES(r) READONLY  idBarcode, nameSku[ReceiptDetail], nameBatch SHOWIF explicitBatchLedger(st),
                             quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
                             sum[ReceiptDetail], discountPercent, discountSum[ReceiptDetail]
+    PROPERTIES(r) READONLY SHOWIF useBonus() bonusPaid, bonusSum                            
     FILTERS receipt(r) == s
 ;
 DESIGN searchSkuReturnReceipt {
@@ -1009,9 +1027,9 @@ FORM POS
                                           searchBatchSale SHOWIF posExplicitBatchLedger(r),
                                           searchSkuReturn, scanBarcodeReturn,
                                           post, postCard, postCash, postBonus SHOWIF useBonus(), cancel,
-                                          numberDiscountCard, nameLegalEntityDiscountCard,
-                                          prevTotalSum, clearDiscountCard, fiscalSkip
-    PROPERTIES(r) SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
+                                          clearDiscountCard, fiscalSkip
+    PROPERTIES(r) READONLY SHOWIF currentZReport() numberDiscountCard, nameLegalEntityDiscountCard, prevTotalSum
+    PROPERTIES(r) READONLY SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
 
     OBJECTS d = ReceiptDetail FIXED GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY FORCE GRID BACKGROUND background(r, d)  
@@ -1028,7 +1046,7 @@ FORM POS
                         shortNameUOMSkuPanel = shortNameUOMSku,
                         pricePanel = price,
                         sumPanel = sum
-    PROPERTIES(d) SHOWIF currentZReportUseBonus() FORCE GRID BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d), bonusSum READONLY                        
+    PROPERTIES(d) SHOWIF currentZReportUseBonus() FORCE GRID BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d) READONLYIF is[ReceiptReturnDetail](d), bonusSum READONLY                        
     PROPERTIES(d) SHOWIF currentZReport() FORCE PANEL BACKGROUND background(r, d) 
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
@@ -1251,7 +1269,7 @@ WHEN SESSION FORMS POS CHANGED(quantityReceiptDetail(Receipt receipt)) OR
                        CHANGED(discountCard(receipt)) OR 
                        CHANGED(setUserPromotion(receipt)) OR 
                        CHANGED(discountPercent(receipt)) OR
-                       CHANGED(bonusPaid(receipt))
+                       CHANGED(signedBonusPaid(receipt))
     DO calculatePromotions(receipt);
     
 WHEN SESSION FORMS POS CHANGED(quantity(ReceiptDetail receiptDetail)) OR CHANGED(sum(receiptDetail)) DO 
