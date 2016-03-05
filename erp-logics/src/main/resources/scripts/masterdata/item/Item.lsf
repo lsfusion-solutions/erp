@@ -124,7 +124,7 @@ TABLE itemCountryDate (Item, Country, DATE);
 id(Item sku) += id(sku); 
 
 // Связь с группой товаров
-itemGroup 'Группа товара' = DATA ItemGroup(Item) AUTOSET;
+itemGroup 'Группа товара' = DATA ItemGroup(Item) AUTOSET INDEXED;
 skuGroup(Item item) += itemGroup(item);
 //roundSkuGroupSkuSku(item) += itemGroupItem(item);
 countItem 'Кол-во товаров' (g) = GROUP SUM 1 BY itemGroup(Item i);
@@ -680,9 +680,10 @@ META defineItemAttributeName (prefix, caption, group)
             THEN numberInName###prefix(attribute, itemGroup(item))
             ELSE numberInName###prefix(attribute);
     
+    nameConcat###prefix##Attribute = GROUP CONCAT completeName(Item item, ItemAttribute attribute)
+                                                   IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item) PERSISTENT;
     name###prefix##Attribute 'Наименование'###caption (Item item) = OVERRIDE VARISTRING[255](
-                    [= GROUP CONCAT completeName(Item item, ItemAttribute attribute)
-                                  IF numberInName###prefix(attribute, item) AND value(item, attribute), ' ' BY item ORDER numberInName###prefix(attribute, item)](item)),
+                    nameConcat###prefix##Attribute(item)),
                             overName(item)
                     IN group PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80 INDEXED AGGPROP;
     
