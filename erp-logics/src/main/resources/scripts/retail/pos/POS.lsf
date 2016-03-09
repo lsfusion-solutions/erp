@@ -449,7 +449,7 @@ changeToPayBonuses (Receipt r) = ACTION {
 
 sumBonusFIFO (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
-        LIMIT sum(detail)
+        LIMIT round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
         BY receipt(detail)
         ORDER detail;
 
@@ -1001,7 +1001,7 @@ background(Receipt r, ReceiptDetail d) = RGB(255, 128, 128)
 
 currentZReportUseBonus() = currentZReport() AND useBonus();
 
-bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0;
+bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) < totalBonuses(r));
 
 changeBonusPaid (ReceiptDetail d) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
@@ -1028,7 +1028,7 @@ FORM POS
                                           searchSkuReturn, scanBarcodeReturn,
                                           post, postCard, postCash, postBonus SHOWIF useBonus(), cancel,
                                           clearDiscountCard, fiscalSkip
-    PROPERTIES(r) READONLY SHOWIF currentZReport() numberDiscountCard, nameLegalEntityDiscountCard, prevTotalSum
+    PROPERTIES(r) READONLY SHOWIF currentZReport() numberDiscountCard, nameLegalEntityDiscountCard, prevTotalSum, bonusPaid BACKGROUND bonusBackground(r)
     PROPERTIES(r) READONLY SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
 
     OBJECTS d = ReceiptDetail FIXED GRID
@@ -1107,12 +1107,16 @@ DESIGN POS {
                 MOVE PROPERTY(numberDiscountCard(r)) { alignment = STRETCH; caption = 'Номер'; focusable = FALSE; font = 'bold 22'; }
                 MOVE PROPERTY(prevTotalSum(r)) { alignment = STRETCH; caption = 'Сумма'; focusable = FALSE; font = 'bold 22'; }
                 MOVE PROPERTY(totalBonuses(r)) { alignment = STRETCH; caption = 'Доступно бонусов'; focusable = FALSE; font = 'bold 22'; }
+            }
+            NEW receiptDiscountRow3 {
+                fill = 1;
+                type = CONTAINERH;
                 NEW receiptDiscountActions {
                     fill = 1;
                     type = CONTAINERH;
                     childrenAlignment = TRAILING;
                     MOVE PROPERTY(clearDiscountCard(r)) { alignment = STRETCH; focusable = FALSE; font = 'bold 14'; }
-                }
+                }                
             }
         }
         MOVE PROPERTY(closedCurrentZReportMessage()) {
@@ -1243,8 +1247,9 @@ DESIGN POS {
             NEW receiptSums {
                 alignment = STRETCH;
                 caption = 'Итого';
-                MOVE PROPERTY(discountSumReceiptDetail(r)) { alignment = STRETCH; panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 48'; }
-                MOVE PROPERTY(sumReceiptDetail(r)) { alignment = STRETCH; panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 48'; }
+                MOVE PROPERTY(bonusPaid(r)) { alignment = STRETCH; panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 32'; }
+                MOVE PROPERTY(discountSumReceiptDetail(r)) { alignment = STRETCH; panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 32'; }
+                MOVE PROPERTY(sumReceiptDetail(r)) { alignment = STRETCH; panelCaptionAbove = TRUE; focusable = FALSE; font = 'bold 32'; }
             }
         }
     }
