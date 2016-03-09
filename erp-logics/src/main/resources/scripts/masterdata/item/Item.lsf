@@ -1597,6 +1597,7 @@ DESIGN itemGroup {
 // ---------------------------------------- Копирование товара ----------------------- //
 overCopy = ACTION ABSTRACT LIST (Item, Item);
 overCopyItem = ACTION ABSTRACT LIST (Barcode, Barcode, Sku);
+toCopy = ABSTRACT CASE BOOLEAN (Barcode);
 
 copyDataItem(Item item, Item i) = ACTION  {
     itemGroup(i) <- itemGroup(item);
@@ -1617,7 +1618,7 @@ copyDataItem(Item item, Item i) = ACTION  {
     expiryDays(i) <- expiryDays(item);
     expiryMonth(i) <- expiryMonth(item);
 
-    FOR sku(Barcode barcode) == item DO {
+    FOR sku(Barcode barcode) == item AND toCopy(barcode) DO {
         FOR ADDOBJ b = Barcode DO {
             sku(b) <- i;
             dataDate(b) <- dataDate(barcode);
@@ -1632,7 +1633,7 @@ copyDataItem(Item item, Item i) = ACTION  {
 
     customGroup[CustomGroupType,Item](CustomGroupType type, i) <- customGroup[CustomGroupType,Item](type, item);
 
-    EXEC overCopy(item, i);
+    overCopy(item, i);
 }
 
 copy 'Копировать' (Item item)= ACTION  {
