@@ -287,10 +287,17 @@ userPrevDate 'Дата предыдущей инвентаризации' (colla
 inventoryPrev (Stock stock, Inventory inventory) = PARTITION PREV inventory IF include(stock, inventory) AND isPosted(inventory)
     BY stock ORDER DESC date(inventory);
 
-calcPrevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = PARTITION PREV date(collationSheet)
-    BY stock(collationSheet) ORDER date(collationSheet);
+calcPrevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = PARTITION PREV date(collationSheet) IF isPosted(collationSheet)
+    BY stock(collationSheet) ORDER date(collationSheet), collationSheet;
+    
+//calcPrevCollationSheet = GROUP LAST CollationSheet cs
+//                                                  BY stock(cs), DATE dateIn 
+//                                                  ORDER date(cs), cs
+//                                                  WHERE isPosted(cs) AND date(cs) < dateIn COMPLEX; // возможно следует учитывать операцию    
 
-prevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = OVERRIDE sum(calcPrevDate(collationSheet), 1), userPrevDate(collationSheet);
+overPrevDate= ABSTRACT DATE (CollationSheet); // для даты полной инвентаризации
+prevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = OVERRIDE sum(calcPrevDate(collationSheet), 1), sum(overPrevDate(collationSheet), 1), userPrevDate(collationSheet);
+//prevDate 'Дата предыдущей инвентаризации' (CollationSheet collationSheet) = OVERRIDE sum(date(calcPrevCollationSheet(stock(collationSheet), date(collationSheet))), 1), userPrevDate(collationSheet);
 
 // Комиссии
 committee = committee(inventory(CollationSheet collationSheet));

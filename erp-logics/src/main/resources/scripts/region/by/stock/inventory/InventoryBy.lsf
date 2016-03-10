@@ -272,6 +272,59 @@ FORM printCollationSheetXLS 'Опись'
 printXLS 'Опись (xls)' (CollationSheet collationSheet) =
     ACTION FORM printCollationSheetXLS OBJECTS cs = collationSheet PRINT XLSX 
     IMAGE 'print.png' IN print;
+    
+
+countIndexFacts 'Количество наименований товара'(cs) = GROUP SUM 1 IF quantityPageInventoryDetail(CollationSheet cs, Sku i)
+        BY cs IN documentSum;    
+countIndexBatchFacts 'Количество наименований партий'(cs) = GROUP SUM 1 IF quantityPageInventoryDetail(CollationSheet cs,Batch b)    
+        BY cs IN documentSum; 
+    
+FORM printCollationSheetFacts 'Опись (факт)'
+
+    OBJECTS          cs=CollationSheet FIXED PANEL
+    PROPERTIES (cs)  SELECTOR name, fullNameLegalEntityStock, nameLegalEntityStock, committee, nameCommittee,
+                              nameChairmanCommittee, namePositionChairman, nameEmployee,
+                              nameTypeOfAddition, fullNameStock, date,
+                              quantityPageInventoryDetail, quantityBalance, quantityShortage,
+                              sumPageInventoryDetail, sumBalance, sumShortage,
+                              countListInventory, countPageInventory, prevDate,
+                              sumItemPageInventoryDetail, sumContainerPageInventoryDetail,
+                              sumItemBalance, sumContainerBalance, timeFrom, timeTo,
+                              sumItemShortage, sumContainerShortage, isBatch, isSku,
+                              countIndexFacts, countIndexBatchFacts, numberDisposal,
+                              countResponsiblePersonStock, accountSumItemBalance, accountSumContainerBalance, accountSumBalance
+
+    OBJECTS          i=Sku
+    PROPERTIES(i)     SELECTOR name, idBarcode, id, shortNameUOM
+    PROPERTIES(cs, i) SELECTOR quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs, i)          pricePageInventoryDetail, priceBalance
+    PROPERTIES(cs, i) SELECTOR sumPageInventoryDetail, sumBalance, sumShortage
+    FILTERS                    quantityPageInventoryDetail(cs, i)
+    ORDER BY name(i)
+
+    OBJECTS         b=Batch
+    PROPERTIES(b)    SELECTOR nameSku, idBarcodeSku, description, name, id, shortNameUOM
+    PROPERTIES(cs,b) SELECTOR quantityPageInventoryDetail, quantityBalance, quantityShortage
+    PROPERTIES(cs,b) SELECTOR pricePageInventoryDetail, priceBalance
+    PROPERTIES(cs,b) READONLY sumPageInventoryDetail, sumBalance, sumShortage
+    FILTERS                   quantityPageInventoryDetail(cs,b)
+    ORDER BY nameSku(b)
+    
+    OBJECTS e=Employee
+    PROPERTIES(e) READONLY   name[Contact], namePosition
+    FILTERS        in(cs, e)  
+      
+    OBJECTS e1=Employee
+    PROPERTIES(e1) READONLY   name[Contact], namePosition, shortName, positionName, positionShortName
+    FILTERS    isOverResponsiblePerson(stock(cs), e1)          
+    
+    OBJECTS e2=Employee
+    PROPERTIES(e2) READONLY   name[Contact], namePosition, shortName, positionName, positionShortName
+    FILTERS    isOverResponsiblePerson(stock(cs), e2)     
+;
+
+printFacts 'Опись (факт)' (CollationSheet collationSheet) =
+    ACTION FORM printCollationSheetFacts OBJECTS cs = collationSheet PRINT  IMAGE 'print.png' IN print;    
 //------------------------------------ Сличительная ведомость (итоги) ------------------------------------------//
 
 FORM printTotalCollationSheetBy 'Сличительная ведомость (итоги)'
@@ -298,7 +351,7 @@ printTotalBy 'Сличительная ведомость (итоги)' (Collati
 EXTEND FORM inventories
 
     PROPERTIES(li) printBy
-    PROPERTIES(cs) FORCE PANEL printTotalBy, printBy, printByXLS, printByGroup, printXLS, print
+    PROPERTIES(cs) FORCE PANEL printTotalBy, printBy, printByXLS, printByGroup, printXLS, print, printFacts
 ;
 //DESIGN inventories {
 //    cs.print {
