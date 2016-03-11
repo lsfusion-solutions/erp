@@ -426,6 +426,15 @@ EXTEND FORM brand
 
 overridePriceUser(InvoiceDetail d) = OVERRIDE price[UserInvoiceDetail](d), 1 IF notPrice(brand(sku(d)));
 
+indexDeclaration 'Кол-во' = GROUP MAX index(UserInvoiceDetail d)
+                                           BY declaration(d),
+                                              nameCustoms(d),
+                                              UOM(d),
+                                              customsGroup(d),
+                                              noneVATCustomsException(d),
+                                              countrySkuUser(d),
+                                              overridePriceUser(d); 
+
 quantityDeclaration 'Кол-во' = GROUP SUM quantity(UserInvoiceDetail d)
                                            BY declaration(d),
                                               nameCustoms(d),
@@ -481,7 +490,8 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
         DELETE DeclarationInvoiceDetail d WHERE declaration(d) == declaration;
     
         FOR NUMERIC[16,5] quantity == quantityDeclaration(declaration, VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[14,2] price) AND
-            NUMERIC[16,2] sum == sumDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
+            NUMERIC[16,2] sum == sumDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ORDER
+            indexDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
             // Ключи
             declaration(dd) <- declaration;
             nameCustoms(dd) <- customsName;
@@ -645,8 +655,8 @@ homeSum 'Стоимость (декл.)' = DATA NUMERIC[16,2](DeclarationDetail)
 
 WHEN SESSION FORMS declaration (CHANGED(sum(DeclarationDetail d)) OR CHANGED(rateExchange(declaration(d))) OR
                                CHANGED(deliverySum(d)) OR CHANGED(chargeSum(d))) AND NOT isExported(d) DO
-    homeSum(d) <- (sum(d) * rateExchange(declaration(d))) (+)
-                                   deliverySum(d) (+) chargeSum(d);
+    homeSum(d) <- round((sum(d) * rateExchange(declaration(d))) (+)
+                                   deliverySum(d) (+) chargeSum(d), homeCurrency(d));
 
 // -- Платежи
 
@@ -686,9 +696,20 @@ VATSum 'НДС' = DATA NUMERIC[16,2] (DeclarationDetail) MINCHARWIDTH 12;
 // Порядковый номер строки
 userNumber 'Пользовательский номер' (declarationDetail) = DATA INTEGER (DeclarationDetail);
 
+notOrderCustomsGroup 'Не сортировать по коду ТНВЭД строки декларации' = DATA BOOLEAN ();     
+
+EXTEND FORM options
+    PROPERTIES () notOrderCustomsGroup                                                                 
+;  
+DESIGN options {
+    customs {
+        MOVE PROPERTY(notOrderCustomsGroup()); 
+    }
+}
+
 numberDefault 'Номер' (DeclarationDetail d) =
         PARTITION SUM 1 IF d IS DeclarationDetail AND NOT userNumber(d) BY declaration(d)
-        ORDER codeCustomsGroup(d), d;
+        ORDER codeCustomsGroup(d) IF NOT notOrderCustomsGroup(), d;
 
 number 'Номер' (DeclarationDetail declarationDetail) = OVERRIDE numberDefault(declarationDetail), userNumber(declarationDetail) MINCHARWIDTH 4 PREFCHARWIDTH 4;
 
