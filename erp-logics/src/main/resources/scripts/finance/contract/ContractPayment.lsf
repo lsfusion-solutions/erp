@@ -33,6 +33,18 @@ sumContract(Payment payment) <- IF currencyContract(payment) == currencyAccountT
          CHANGED(typeExchangeContract(payment)) OR
          CHANGED(rateExchangeContract(payment));
 
+autoWriteFIFO 'Автоматически расписывать по ФИФО' = DATA BOOLEAN (PaymentOperation.Operation);
+
+EXTEND FORM PaymentOperation.operation
+    PROPERTIES (o) autoWriteFIFO
+;
+
+DESIGN PaymentOperation.operation{
+    propertyContainer {
+        MOVE PROPERTY(autoWriteFIFO(o));
+    }    
+}
+
 WHEN SESSION FORMS payment CHANGED(sum(Payment payment)) OR 
                            CHANGED(currencyContract(payment)) OR
                            CHANGED(currencyAccountTo(payment)) OR
@@ -41,7 +53,7 @@ WHEN SESSION FORMS payment CHANGED(sum(Payment payment)) OR
     sumContract(payment) <- IF currencyContract(payment) == currencyAccountTo(payment)
                                THEN sum(payment)
                                ELSE rateExchangeContract(payment)*sum(payment);
-    writeFIFO(payment);    
+    IF autoWriteFIFO(operation(payment)) THEN writeFIFO(payment);    
 }
 
 CONSTRAINT currency(typeExchangeContract(Payment payment)) != currencyContract(payment)
