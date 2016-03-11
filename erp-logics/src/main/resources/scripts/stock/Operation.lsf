@@ -329,6 +329,12 @@ META defineCountLegalEntityOperation(prop, filter)
     default###prop (operation) = GROUP MIN LegalEntity legalEntity IF in###prop(legalEntity,Operation operation) AND is###filter(legalEntity) BY operation;   
 END
 
+META defineCountLegalEntityOperation(prop)
+    // Подсчет органиизации по-умолчанию            
+    count###prop (operation) = GROUP SUM 1 IF in###prop(LegalEntity legalEntity,Operation operation) BY operation;
+    default###prop (operation) = GROUP MIN LegalEntity legalEntity IF in###prop(legalEntity,Operation operation) BY operation;   
+END
+
 META deriveDocumentOperationLegalEntity(objectClass, prop, form)
     WHEN SESSION FORMS form CHANGED(operation(###objectClass o)) NOINLINE DO {
         prop(o) <- default###prop(operation(o))
