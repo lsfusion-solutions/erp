@@ -1,0 +1,243 @@
+MODULE InputBalance;
+
+REQUIRE PurchaseInvoice, PricingPurchase, PurchaseManufacturingPrice;
+
+NAMESPACE Purchase;
+
+CLASS InputBalance 'Ввод начальных остатков';
+CLASS InputBalanceDetail 'Строка начальных остатков';
+
+@defineDocument(inputBalance);
+@deriveDocumentHeaderTimePrefix(InputBalance, );
+
+@defineDocumentHeaderNumber(InputBalance);
+@defineNumeratedDefault(InputBalance, 'Ввод начальных остатков', 'НО');
+
+@defineDocumentHeaderLegalEntity(inputBalanceDetail, supplier, 'Поставщик');
+@defineDocumentDialogLegalEntity(inputBalanceDetail, supplier, supplier);
+
+@defineDocumentDataStock (inputBalance, stock, 'Склад', );
+@defineDocumentDialogStocks(inputBalance, stock, company, , );
+
+@defineDocumentDescription (inputBalance, 'Ввод начальных остатков');
+@defineDocumentCurrency (inputBalance);
+@deriveDocumentCurrency(inputBalance, stock);
+@defineDocumentDetailSku(inputBalance, sku);
+
+@defineDocumentDetailQuantity (inputBalance);
+@defineDocumentDetailPriceCustomPrefix (inputBalanceDetail, , ' поставщика');
+
+@defineDocumentDetailPriceCustomPrefix(inputBalanceDetail, retail, ' розничная');
+
+@defineDocumentDetailPriceCustomPrefix(inputBalanceDetail, manufacturing, ' изготовителя');
+
+@defineDocumentHeaderQuantity (inputBalance);
+
+@defineAddDetailDialogSkuStock(inputBalance, sku, stock, dialogSku);
+@defineAddDetailDialogBarcode(inputBalance, sku);
+
+FORM inputBalance 'Ввод начальных остатков'
+
+    OBJECTS i=InputBalance FIXED PANEL
+
+    PROPERTIES(i) nameNumerator, number, series, nameStock ON CHANGE changeStockCompany(i), 
+                  date, time, nameCurrency, quantityInputBalanceDetail, countInputBalanceDetail, note
+
+    OBJECTS d = InputBalanceDetail
+    PROPERTIES(d)   index,
+                    idBarcodeSku, nameSku, shortNameUOMSku, nameSupplier ON CHANGE changeSupplierSupplier(d),                    
+                    quantity, price, retailPrice, manufacturingPrice                    
+                    
+    PROPERTIES(d)   ADDOBJ, deletedd=DELETESESSION
+
+    PROPERTIES(i) TODRAW d addDetailDialogSkuStockInputBalanceDetail,
+                             addDetailInputBarcodeInputBalanceDetail, deleteInputBalanceDetail
+
+    FILTERS         inputBalance(d) == i
+
+    EDIT InputBalance OBJECT i
+;
+DESIGN inputBalance {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+
+            NEW headerRow1 {
+                fill = 1;
+                MOVE i.documentHeader {
+                
+                    type = CONTAINERV;
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameStock(i));
+                    }
+                    NEW second { 
+                        type = CONTAINERH;
+                        MOVE PROPERTY(nameNumerator(i));
+                        MOVE PROPERTY(number(i));
+                        MOVE PROPERTY(series(i));
+                        MOVE PROPERTY(date(i));
+                        MOVE PROPERTY(time(i));
+                    }                
+                }
+
+                NEW headerTabbedPane {
+                    alignment = STRETCH;
+                    NEW headerMainParams {
+                        caption = 'Основные параметры';
+                        MOVE i.documentPrm {
+                            type = COLUMNS;
+                            columns = 2;
+                        }
+                    }
+                }
+            }
+
+            MOVE i.documentSum {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
+            fill = 1;
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+FORM inputBalances 'Ввод начальных остатков'
+
+    OBJECTS i=InputBalance
+    PROPERTIES (i) READONLYIF isReadonly() number, series, date, time, nameStock, nameCurrency
+    PROPERTIES(i)  READONLY countInputBalanceDetail, quantityInputBalanceDetail
+    PROPERTIES (i) READONLYIF isReadonly() note
+
+    PROPERTIES(i)  READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
+
+    PROPERTIES (i) ADDFORM, EDITFORM 
+    
+    PROPERTIES (i) deleted=DELETE FORCE PANEL TOOLBAR 
+
+    OBJECTS d=InputBalanceDetail
+    PROPERTIES(d)   READONLY index,
+                    idBarcodeSku, nameSku, shortNameUOMSku, nameSupplier,
+                    quantity, price, retailPrice, manufacturingPrice
+
+    FILTERS         inputBalance(d) == i
+;
+@extendFormFilterAccessStock(InputBalance, i, inputBalances, stock, company);
+
+DESIGN inputBalances {
+    main {
+        preferredSize = (1024, 768);
+        NEW documentContainer  {
+            fill = 1;
+            type = SPLITV;
+
+            MOVE i.box {
+                fill = 2;
+            }
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+
+                    MOVE i.created;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                    }
+                }   
+            }
+        }
+        MOVE functions.box;
+    }
+}
+@extendFormEditable(inputBalances);
+
+NAVIGATOR {
+    purchasePurchaseNavigator {
+        ADD inputBalances;
+    }
+}
+
+
+CONSTRAINT supplier(InputBalanceDetail d) AND NOT isSupplier(supplier(d))
+    CHECKED BY supplier[InputBalanceDetail] MESSAGE 'Для строки ввода начальных остатков выбрана в качестве поставщика организация, не являющаяся поставщиком';             
+    
+
+relation (supplier, balance) = GROUP SUM quantity(InputBalanceDetail detail) BY supplier(detail), inputBalance(detail);
+
+operation = DATA Operation (InputBalance);
+nameOperation 'Операция (закупка)' (InputBalance i) = name(operation(i));
+idOperation 'ID операции (закупка)' (InputBalance i) = id(operation(i));
+
+EXTEND FORM inputBalance
+    PROPERTIES(i) nameOperation
+;
+
+DESIGN inputBalance{
+    first {
+        MOVE PROPERTY(nameOperation(i));
+    }
+    PROPERTY(nameOperation(i)) {minimumCharWidth = 20; preferredCharWidth = 20;} 
+}
+EXTEND FORM inputBalances
+    PROPERTIES(i) READONLYIF isReadonly() nameOperation BEFORE nameCurrency(i)
+;
+
+createInvoices 'Создать накладные (закупка)'  (InputBalance balance) = ACTION {
+    FOR relation(LegalEntity l, balance) DO {
+        NEWSESSION {
+            FOR ADDOBJ invoice = Purchase.UserInvoice DO {
+                supplier(invoice) <- l;
+                customer(invoice) <- legalEntity(stock(balance));
+                supplierStock(invoice) <-defaultStock(l);
+                customerStock(invoice) <- stock(balance);
+                currency(invoice) <- currency(balance);
+                operation(invoice) <- operation(balance);
+                isPosted(invoice) <- TRUE;
+                
+                FOR supplier(InputBalanceDetail detail) == l AND inputBalance(detail) == i ADDOBJ d = Purchase.UserInvoiceDetail DO {
+                    userInvoice(d) <- invoice;
+                    sku(d) <- sku(detail);
+                    quantity(d) <- quantity(detail);
+                    price(d) <- price(detail);
+                    VAT(d) <- VAT(sku(d), country(customerStock(d)));
+                    retailPrice(d) <- retailPrice(detail);
+                    manufacturingPrice(d) <- manufacturingPrice(detail);                    
+                }
+            }
+            apply();
+        }
+    }    
+} TOOLBAR;
+
+EXTEND FORM inputBalances
+    PROPERTIES (i) FORCE PANEL createInvoices
+;
+DESIGN inputBalances {
+    documentDetail {
+        NEW actionContainer {
+            caption = 'Действия';
+            type = CONTAINERH;
+            NEW createdContainer {
+                caption = 'Создание на основе';
+                type = CONTAINERV;
+        
+                MOVE PROPERTY(createInvoices(i));
+            }
+        }              
+    }
+
+}
