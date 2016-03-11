@@ -19,3 +19,16 @@ EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnection
 EXTEND FORM groupsTerminal
     PROPERTIES () checkIdTerminal
     PROPERTIES(t) AFTER npp(t) READONLY id, blocked, lastConnectionTime, shortNameLastUser;
+
+currentRetailPricingPrice 'Розничная цена' (Barcode barcode, Stock stock) =
+    price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku(barcode), stock), SystemLedgerPriceListType.retailPricingPriceListType);     
+    
+useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES() useCurrentPriceInTerminal
+;
+DESIGN options {
+    machinery {
+        MOVE PROPERTY(useCurrentPriceInTerminal());
+    }
+}    

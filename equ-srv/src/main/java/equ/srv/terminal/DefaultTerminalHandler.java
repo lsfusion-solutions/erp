@@ -56,6 +56,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
+                boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
                 String nameSkuBarcode = (String) terminalHandlerLM.findProperty("nameSku[Barcode]").read(session, terminalHandlerLM.findProperty("barcode[STRING[15]]").readClasses(session, new DataObject(barcode)));
                 if(nameSkuBarcode == null)
                     return null;
@@ -64,7 +65,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 BigDecimal price = null;
                 BigDecimal quantity = null;
                 if(skuObject instanceof DataObject && stockObject instanceof DataObject) {
-                    price = (BigDecimal) terminalHandlerLM.findProperty("currentRetailPricingPrice[Sku,Stock]").read(session, skuObject, stockObject);
+                    if(currentPrice)
+                        price = (BigDecimal) terminalHandlerLM.findProperty("currentRetailPricingPrice[Sku,Stock]").read(session, skuObject, stockObject);
+                    else
+                        price = (BigDecimal) terminalHandlerLM.findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
                     quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Sku,Stock]").read(session, skuObject, stockObject);
                 }
                 return Arrays.asList(barcode, nameSkuBarcode, price == null ? "0" : String.valueOf(price.longValue()),
@@ -186,6 +190,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         List<List<Object>> result = new ArrayList<>();
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
+            boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
+
             KeyExpr barcodeExpr = new KeyExpr("barcode");
             ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
 
@@ -193,20 +199,25 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
             barcodeQuery.addProperty("nameSkuBarcode", terminalHandlerLM.findProperty("nameSku[Barcode]").getExpr(barcodeExpr));
             barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
-            barcodeQuery.addProperty("transactionPriceBarcodeStock", terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+            if(currentPrice) {
+                barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentRetailPricingPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.and(terminalHandlerLM.findProperty("currentRetailPricingPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
+            } else {
+                barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
+                barcodeQuery.and(terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
+            }
             barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
-            barcodeQuery.and(terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
             for (ImMap<Object, Object> entry : barcodeResult.values()) {
 
                 String idBarcode = trim((String) entry.get("idBarcode"));
                 String nameSkuBarcode = trim((String) entry.get("nameSkuBarcode"));
-                BigDecimal transactionPriceBarcodeStock = (BigDecimal) entry.get("transactionPriceBarcodeStock");
+                BigDecimal price = (BigDecimal) entry.get("price");
                 BigDecimal quantityBarcodeStock = BigDecimal.ONE;
                 String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
 
-                result.add(Arrays.<Object>asList(idBarcode, nameSkuBarcode, transactionPriceBarcodeStock, quantityBarcodeStock, idSkuBarcode));
+                result.add(Arrays.<Object>asList(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode));
 
             }
         }
