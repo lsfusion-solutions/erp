@@ -106,7 +106,11 @@ supplierGroup (Batch batch) = legalEntityGroup(supplier(batch));
 supplierStock = ABSTRACT Stock (Batch) PERSISTENT;
 nameSupplierStock 'Склад поставщика' (Batch batch) = name(supplierStock(batch));
 
-@defineExternalizableAbstract(batch, VARSTRING[100]);
+id 'Код' = ABSTRACT VARSTRING[100] (Batch) PERSISTENT INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+batch = GROUP MAX Batch b BY id(b);
+
+@defineOption(disableUniqueIdBatch, 'Не контролировать уникальность кодов партий', stock);
+CONSTRAINT SETCHANGED(id(Batch b)) AND [= GROUP SUM 1 BY id(Batch b)](id(b)) > 1 AND NOT disableUniqueIdBatch() MESSAGE 'Нарушена уникальность свойства Код партии';
 
 expires(Batch batch, DATETIME dateTime, LONG period) = expiryDate(batch) < sum(toDate(dateTime), period);
 expires(Batch batch, DATE date, LONG period) = expiryDate(batch) < sum(date, period);
