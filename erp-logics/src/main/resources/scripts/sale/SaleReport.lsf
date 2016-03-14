@@ -538,10 +538,15 @@ createAutoSaleReport 'Создать акты реализации'(LegalEntity 
 firstSaleDate = firstDayOfMonth(sumMonth(currentDate(), -1));
 firstDateCurrentMonth = firstDayOfMonth(currentDate());
 lastSaleDate = lastDayOfMonth(sumMonth(currentDate(), -1));
+fromDateFull(ContractSku c) = IF partSale(c) THEN sum(firstSaleDate(),15)
+                                      ELSE firstSaleDate();
+
+saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate(r), toDate(r);
 
 createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company) = ACTION {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
-        AND inSalereport(Stock stock) AND partyB(c) == company DO {
+        AND inSalereport(Stock stock) AND partyB(c) == company 
+        AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate()) DO {
         NEWSESSION {
             FOR ADDOBJ r = SaleReport DO {
         
@@ -549,8 +554,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
             company(r) <- partyB(c);
             companyStock(r) <- stock;
             contractSku(r) <- c;
-            fromDate(r) <- IF partSale(c) THEN sum(firstSaleDate(),15)
-                                                               ELSE firstSaleDate();
+            fromDate(r) <- fromDateFull(c);
             toDate(r) <- lastSaleDate();
             fillData(r);
             IF countSaleReportDetail(r)  
@@ -565,7 +569,8 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
 }
 createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company) = ACTION {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
-        AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) DO {
+        AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
+        AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) DO {
         NEWSESSION {
             FOR ADDOBJ r = SaleReport DO {
                 supplier(r) <- partyA(c);
