@@ -462,6 +462,8 @@ priceMinPageInventoryDetail 'Цена по описям' (collationSheet, batch)
 sumPageInventoryDetail 'Сумма по описям' (collationSheet, batch) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
 
+countPageInventoryDetail  (collationSheet, batch) = GROUP SUM 1 IF batch(PageInventoryDetail pageInventoryDetail)
+    BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
 
 quantityPageInventoryDetail 'Кол-во в описи' (listInventory, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
     BY listInventory(pageInventoryDetail), batch(pageInventoryDetail);
@@ -1557,10 +1559,8 @@ FORM inventories 'Инвентаризации'
     OBJECTS         b=Batch FIXED GRID
     PROPERTIES(li,b) READONLY SHOWIF isBatch(li) index
     PROPERTIES(b)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name
-    PROPERTIES(li,b) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail,
-                                                              pricePageInventoryDetail,
-                                                              sumPageInventoryDetail
-    FILTERS                                                   quantityPageInventoryDetail(li,b)
+    PROPERTIES(li,b) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    FILTERS quantityPageInventoryDetail(li,b)    
 
     OBJECTS         cs=CollationSheet
     PROPERTIES(cs)  READONLY             name, nameTypeOfAddition, nameStock,
@@ -1584,13 +1584,14 @@ FORM inventories 'Инвентаризации'
 
     OBJECTS         bt=Batch FIXED GRID 
     PROPERTIES(bt)    READONLY SHOWIF isBatch(cs) nameSku, idBarcodeSku, name
-    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) quantityPageInventoryDetail, quantityBalance,
-                                                                quantityShortage
+    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, bt),
                                                                 priceBalance BACKGROUND differentPrice(cs, bt)
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) sumPageInventoryDetail, sumBalance, sumShortage
-    FILTERS                                                     include(cs, bt),
-                                                                quantityPageInventoryDetail(cs,bt) OR quantityBalance(cs,bt)
+    
+    FILTERS include(cs, bt), 
+            quantityPageInventoryDetail(cs,bt) OR quantityBalance(cs,bt)            
+            
     FILTERS accessCompanyStockCurrentUser(in) OR NOT countStocks(in)
 ;
 
