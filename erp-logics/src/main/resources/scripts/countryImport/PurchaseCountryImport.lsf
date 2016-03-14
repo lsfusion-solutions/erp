@@ -1,0 +1,56 @@
+MODULE PurchaseCountryImport;
+
+REQUIRE PurchaseShipment, CountryImport;
+
+NAMESPACE Purchase;
+
+@defineOperationProperty(showCountryImport, 'Страна ввоза', commonContainer);
+
+@defineDocumentInterfaceProperty (invoice, showCountryImport, 'Страна ввоза');
+@deriveDocumentOperationProperty(UserInvoice, showCountryImport);
+EXTEND FORM userInvoice
+    PROPERTIES (i) showCountryImport
+;
+DESIGN userInvoice {
+    headerExtraParams {
+        NEW headerCountryImport {
+            caption = 'Страна ввоза';
+            MOVE PROPERTY(showCountryImport(i));
+        }
+    }
+}
+
+@defineDocumentInterfaceProperty (shipment, showCountryImport, 'Страна ввоза');
+
+@deriveDocumentOperationProperty(UserShipment, showCountryImport);
+EXTEND FORM userShipment
+    PROPERTIES (s) showCountryImport
+;
+DESIGN userShipment {
+    headerExtraParams {
+        NEW headerCountryImport {
+            caption = 'Страна ввоза';
+            MOVE PROPERTY(showCountryImport(s));
+        }
+    }
+}
+
+@defineDocumentCountryImport(invoice, i, showCountryImport);
+
+@defineDocumentCountryImport(countryImport, Country, invoice, i, 'Страна ввоза', showCountryImport) ;
+
+@defineDocumentCountryImport(shipment, s, showCountryImport);
+@defineDocumentCountryImport(countryImport, Country, shipment, s, 'Страна ввоза', showCountryImport);
+
+// Проставляем автоматически сертификат от строки инвойса
+WHEN CHANGED(countryImport(invoiceDetail(UserShipmentDetail d))) AND 
+     NOT CHANGED(countryImport(d)) DO
+     dataCountryImport(d) <- countryImport(invoiceDetail(d)); 
+     
+     
+countryImport(InvoiceShipmentDetail detail) += countryImport(invoiceDetail(detail));
+
+overFillInvoice(UserShipmentDetail s, InvoiceDetail i) += ACTION {
+    ASSIGN dataCountryImport(s) <- countryImport(i);
+}
+countryImport (ShipmentBatch batch) += countryImport(shipmentDetail(batch));

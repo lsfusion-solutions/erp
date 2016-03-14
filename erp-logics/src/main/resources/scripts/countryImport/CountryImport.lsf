@@ -1,0 +1,81 @@
+MODULE CountryImport;
+
+REQUIRE SkuLedger;
+
+countryImport = ABSTRACT Country(Batch) PERSISTENT;
+nameCountryImport 'Страна ввоза' (Batch b) = name(countryImport(b)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
+prevCountryImport (Batch batch) = PREV(countryImport(batch));
+
+META defineDocumentCountryImport(document, object, showProp)
+
+    EXTEND FORM user###document
+        OBJECTS di = User###document##Detail FIXED GRID
+        PROPERTIES (di) SHOWIF showProp(object) index, idBarcodeSku, nameSku,
+                        nameBatch ON CHANGE changeBatch(di), DELETESESSION 
+        FILTERS user###document(di) == object
+    ;
+
+    DESIGN user###document{
+        specification.box{
+            NEW countryImportContainer AFTER d.box {
+                caption = 'Страна ввоза';
+                NEW headerCountryimportContainer { type = CONTAINERH; }
+                MOVE di.box;
+            }
+        }
+    }
+END
+
+
+META defineDocumentCountryImport(prop, document, object, caption)
+    @defineDocumentCountryImport(prop, ###prop, document, object, caption);
+END
+
+META defineDocumentCountryImport(prop, propClass, document, object, caption, showProp)
+
+    prop = ABSTRACT propClass (###document##Detail);
+    name###prop caption (###document##Detail detail) = name(prop(detail));
+
+    prop = DATA propClass (User###document);
+    name###prop caption (User###document document) = name(prop(document));
+
+    data###prop = DATA propClass (User###document##Detail);
+    prop (User###document##Detail detail) =
+        OVERRIDE prop(user###document(detail)), data###prop(detail) PERSISTENT INDEXED;
+    prop(User###document##Detail detail) += prop(detail);
+
+    name###prop caption (User###document##Detail detail) = name(prop(detail));
+
+    overCopy(User###document##Detail d, User###document##Detail detail) += ACTION {      
+        data###prop(d) <- data###prop(detail);
+    } 
+    
+    backgroup###prop##User = ABSTRACT COLOR (###document##Detail);
+
+    EXTEND FORM user###document
+        PROPERTIES(object) name###prop SHOWIF showProp(object)
+        PROPERTIES(d) SHOWIF showProp(object) BACKGROUND backgroup###prop##User(d) name###prop
+        PROPERTIES(di) SHOWIF showProp(object) BACKGROUND backgroup###prop##User(di) name###prop
+    ;
+
+    DESIGN user###document {
+        headerCountryimportContainer {
+            MOVE PROPERTY(name###prop(object));
+        }
+    }
+
+    EXTEND FORM document##s
+        PROPERTIES(d) SHOWIF showProp(object) READONLY name###prop
+    ;
+END
+
+EXTEND FORM batches
+    PROPERTIES (bt) READONLY nameCountryImport
+;
+
+EXTEND FORM currentBalanceBatchStock
+    PROPERTIES (bt) READONLY nameCountryImport
+;
+EXTEND FORM balanceBatchStock
+    PROPERTIES (bt) READONLY nameCountryImport
+;
