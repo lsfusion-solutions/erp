@@ -22,9 +22,15 @@ public class CL5000JHandler extends ScalesHandler {
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
 
     private FileSystemXmlApplicationContext springContext;
+    private int descriptionLength;
 
     public CL5000JHandler(FileSystemXmlApplicationContext springContext) {
+        this(springContext, 300);
+    }
+
+    public CL5000JHandler(FileSystemXmlApplicationContext springContext, int descriptionLength) {
         this.springContext = springContext;
+        this.descriptionLength = descriptionLength;
     }
 
     @Override
@@ -36,10 +42,10 @@ public class CL5000JHandler extends ScalesHandler {
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList.isEmpty()) {
-            processTransactionLogger.error("CL5000J: Empty transaction list!");
+            processTransactionLogger.error("CL5000: Empty transaction list!");
         }
         for (TransactionScalesInfo transaction : transactionList) {
-            processTransactionLogger.info("CL5000J: Send Transaction # " + transaction.id);
+            processTransactionLogger.info("CL5000: Send Transaction # " + transaction.id);
 
             List<MachineryInfo> succeededScalesList = new ArrayList<>();
             Exception exception = null;
@@ -50,10 +56,10 @@ public class CL5000JHandler extends ScalesHandler {
                 String errors = "";
                 Integer errorsCount = 0;
 
-                processTransactionLogger.info("CL5000J: Starting sending to " + enabledScalesList.size() + " scales...");
+                processTransactionLogger.info("CL5000: Starting sending to " + enabledScalesList.size() + " scales...");
                 for (ScalesInfo scales : enabledScalesList) {
 
-                    processTransactionLogger.info("CL5000J: Sending to scales " + scales.port);
+                    processTransactionLogger.info("CL5000: Sending to scales " + scales.port);
                     if(scales.port != null) {
                         DataSocket socket = new DataSocket(scales.port, 20304);
                         try {
@@ -62,7 +68,7 @@ public class CL5000JHandler extends ScalesHandler {
 
                             short weightCode = getWeightCode(scales);
                             if (transaction.snapshot) {
-                                processTransactionLogger.info("CL5000J: Deleting all plu at scales " + scales.port);
+                                processTransactionLogger.info("CL5000: Deleting all plu at scales " + scales.port);
                                 int reply = deleteAllPlu(socket);
                                 if(reply != 0)
                                     errors += String.format("Deleting all plu failed. Error: %s\n", getErrorMessage(reply));
@@ -73,8 +79,8 @@ public class CL5000JHandler extends ScalesHandler {
                                     if(errorsCount < 5) {
                                         int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                         int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
-                                        processTransactionLogger.info(String.format("CL5000J: Sending item %s to scales %s", barcode, scales.port));
-                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name, getPrice(item.price, priceCoefficient), trim(item.description, null, 399));
+                                        processTransactionLogger.info(String.format("CL5000: Sending item %s to scales %s", barcode, scales.port));
+                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name, getPrice(item.price, priceCoefficient), trim(item.description, null, descriptionLength - 1));
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                             errorsCount++;
@@ -243,7 +249,7 @@ public class CL5000JHandler extends ScalesHandler {
             } catch (CommunicationException e) {
                 attempts++;
                 if (attempts == 3)
-                    processTransactionLogger.error("CL5000J SendCommand Error: ", e);
+                    processTransactionLogger.error("CL5000 SendCommand Error: ", e);
             }
         }
         return -1;
@@ -296,32 +302,32 @@ public class CL5000JHandler extends ScalesHandler {
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
 
         if (stopListInfo != null && !stopListInfo.exclude) {
-            processStopListLogger.info("CL5000J: Send StopList # " + stopListInfo.number);
+            processStopListLogger.info("CL5000: Send StopList # " + stopListInfo.number);
             if (!machineryInfoList.isEmpty()) {
                 for (MachineryInfo scales : machineryInfoList) {
                     if (scales.port != null) {
                         DataSocket socket = new DataSocket(scales.port, 20304);
                         try {
-                            processStopListLogger.info("CL5000J: Sending StopList to scale " + scales.port);
+                            processStopListLogger.info("CL5000: Sending StopList to scale " + scales.port);
                             socket.open();
                             short weightCode = getWeightCode(scales);
                             for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                                 int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                 int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
-                                processStopListLogger.error(String.format("CL5000J: Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
+                                processStopListLogger.error(String.format("CL5000: Sending StopList - Deleting item %s at scales %s", pluNumber, scales.port));
                                 int reply = deletePlu(socket, weightCode, pluNumber);
                                 if (reply != 0)
-                                    processStopListLogger.error(String.format("CL5000J: Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port));
+                                    processStopListLogger.error(String.format("CL5000: Failed to delete item %s at scales %s", getErrorMessage(pluNumber), scales.port));
                             }
 
                         } catch (Exception e) {
-                            processStopListLogger.error(String.format("CL5000J: Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
+                            processStopListLogger.error(String.format("CL5000: Send StopList %s to scales %s error", stopListInfo.number, scales.port), e);
                         } finally {
-                            processStopListLogger.info("CL5000J: Finally disconnecting..." + scales.port);
+                            processStopListLogger.info("CL5000: Finally disconnecting..." + scales.port);
                             try {
                                 socket.close();
                             } catch (CommunicationException e) {
-                                processStopListLogger.info("CL5000J close port error: ", e);
+                                processStopListLogger.info("CL5000 close port error: ", e);
                             }
                         }
                     }
@@ -332,7 +338,7 @@ public class CL5000JHandler extends ScalesHandler {
 
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
-        return "CL5000J";
+        return "CL5000";
     }
 
     @Override
