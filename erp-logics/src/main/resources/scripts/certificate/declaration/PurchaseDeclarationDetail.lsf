@@ -1114,10 +1114,68 @@ DESIGN declarations {
     MOVE functions.box;
 }
 
+//------------------------------------ Корректировка таможенной стоимости ---------------------------------------------//
+
+CLASS DeclarationAdjustment 'КТС';
+TABLE declarationAdjustment(DeclarationAdjustment);
+
+declaration = DATA Declaration(DeclarationAdjustment) NOT NULL DELETE;//
+
+date 'Дата' = DATA DATE (DeclarationAdjustment);
+name 'Наименование' = DATA VARISTRING[150] (DeclarationAdjustment);
+note 'Примечание' = DATA VARSTRING[100](DeclarationAdjustment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+homeSum 'Стоимость корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
+dutySum 'Пошлина корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
+VATSum 'НДС корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
+
+date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
+
+defaultDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
+    BY  DeclarationDetail detail
+    ORDER date(adjustment), adjustment
+    WHERE homeSum(adjustment, detail);
+    
+homeSum 'Сумма корр.' (a) = GROUP SUM homeSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+dutySum 'Пошлика корр.' (a) = GROUP SUM dutySum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+VATSum 'НДС корр.' (a) = GROUP SUM VATSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+
+dutySumToPay 'Пошлика к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   dutySum(a,dd) - dutySum(dd);
+VATSumToPay 'НДС к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   VATSum(a,dd) - VATSum(dd);
+
+dutySumToPay 'Пошлика к доплате' = GROUP SUM dutySumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+VATSumToPay 'НДС к доплате' = GROUP SUM VATSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+// -------------------------------- Расчет таможенных пошлин -------------------------- //        
+        
+calcSumPriceDuty 'Пошлина по стоимости' (DeclarationAdjustment adjustment, DeclarationDetail detail) =
+    homeSum(adjustment, detail) * percentDuty(detail) / 100.0;
+
+calcDutySum 'Пошлина' (DeclarationAdjustment a, DeclarationDetail d) = round((MAX calcSumWeightDuty(d) IF a IS DeclarationAdjustment,
+                                                                     calcSumPriceDuty(a,d)),
+                                                                homeCurrency(d)) MINCHARWIDTH 12;
+
+WHEN SESSION FORMS declaration (CHANGED(calcDutySum(DeclarationAdjustment a,DeclarationDetail d)) OR CHANGED (homeSum(a,d))) AND homeSum(a,d)  DO //AND NOT isExported(d)
+    dutySum(a,d) <- calcDutySum(a,d);
+    
+// -------------------------------- Расчет НДС -------------------------- //
+
+baseVATSum(DeclarationAdjustment a, DeclarationDetail d) = homeSum(a,d) (+) dutySum(a,d); 
+
+calcVATSum 'НДС' (DeclarationAdjustment a, DeclarationDetail d) =
+    round(baseVATSum(a,d) *
+                       percentVAT(d) / 100.0,
+                       homeCurrency(d)) MINCHARWIDTH 12;
+
+WHEN SESSION FORMS declaration
+    (CHANGED(homeSum(DeclarationAdjustment a, DeclarationDetail d)) OR CHANGED(dutySum(a,d)) OR
+    CHANGED(VAT(d)) OR CHANGED(homeCurrency(d))) AND homeSum(a,d)  DO //AND NOT isExported(d)
+    VATSum(a,d) <- calcVATSum(a,d);    
+    
+    
 //------------------------------------ Расчет расходов за единицу -----------------------------------------------------//
 
 // Пошлина
-dutySum(d) = GROUP SUM dutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
+//dutySum(d) = GROUP SUM dutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
+dutySum(d) = GROUP SUM (OVERRIDE dutySum(DeclarationDetail dd), dutySum(defaultDeclarationAdjustment(dd),dd)) BY declarationInvoiceDetail(dd) PERSISTENT; 
 
 calcDutySum (UserInvoiceDetail d) =
     PARTITION UNGROUP dutySum
@@ -1140,7 +1198,8 @@ calcRegistrationSum 'Таможенный сбор' (UserInvoiceDetail d) =
               ORDER d;
 
 // НДС
-VATSum(d) = GROUP SUM VATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
+//VATSum(d) = GROUP SUM VATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
+VATSum(d) = GROUP SUM (OVERRIDE VATSum(DeclarationDetail dd), VATSum(defaultDeclarationAdjustment(dd),dd)) BY declarationInvoiceDetail(dd) PERSISTENT; 
 
 calcVATSum (UserInvoiceDetail d) =
     PARTITION UNGROUP VATSum
@@ -1325,6 +1384,9 @@ declaration = DATA Declaration (CustomsDocument);
 TABLE customsDocumentUserInvoice (CustomsDocument, UserInvoice);
 in 'Вкл' = DATA BOOLEAN (CustomsDocument, UserInvoice);
 
+editBackground 'Небесный'  = RGB(127,199,255) IF TRUE; 
+payBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
+
 EXTEND FORM declaration
     OBJECTS cd = CustomsDocument
     PROPERTIES(cd) order, date, id, name, sum
@@ -1335,6 +1397,24 @@ EXTEND FORM declaration
     PROPERTIES in(cd, cdu)
     PROPERTIES(cdu) READONLY date, seriesNumber
     FILTERS in(cdu, d)
+    
+    OBJECTS a = DeclarationAdjustment
+    PROPERTIES(a) date, name, note
+    PROPERTIES (a)  BACKGROUND editBackground() homeSum, dutySum, VATSum    
+    PROPERTIES(a) READONLY BACKGROUND payBackground() dutySumToPay, VATSumToPay
+       
+    PROPERTIES(a) ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR 
+    FILTERS declaration(a) == d
+    
+    OBJECTS ddd=DeclarationDetail
+    PROPERTIES(ddd) READONLY number, nameCustoms, nameCountry, sumNetWeight,
+                   codeCustomsGroup, quantity, price, sum,
+                   deliverySum, chargeSum, homeSum,
+                   percentDuty, weightDuty, dutySum,
+                   numberVAT, percentVAT, VATSum
+    PROPERTIES (a,ddd)  BACKGROUND editBackground() homeSum, dutySum, VATSum
+    PROPERTIES (a,ddd)  BACKGROUND payBackground() dutySumToPay, VATSumToPay
+    FILTERS declaration(ddd)==d    
 ;
 
 DESIGN declaration {
@@ -1347,6 +1427,13 @@ DESIGN declaration {
             }
             MOVE cdu.box;
         }
+        NEW adjustment {
+            type = SPLITV;
+            caption = 'КТС';
+            fill = 1;
+            MOVE a.box;
+            MOVE ddd.box{fill = 2;}
+        }        
     }
 }
 
