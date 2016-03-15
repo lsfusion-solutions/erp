@@ -349,6 +349,9 @@ EXTEND FORM userShipment
 invoiceDetail = ABSTRACT InvoiceDetail (Batch);
 invoiceDetail(ShipmentBatch b) += invoiceDetail(shipmentDetail(b));
 
+barcodePack (Batch batch) = barcodePack(invoiceDetail(batch));
+captionBarcodePack 'Упаковка' (Batch batch) = caption(barcodePack(batch));
+idBarcodePack 'Штрихкод упаковки' (Batch batch) = id(barcodePack(batch));
 //invoiceDetailBatch 'Строка накладной партии' = invoiceDetailShipmentDetail(shipmentDetailShipmentBatch(batch));
 
 descriptionInvoiceDetailInvoiceDetail 'Строка накладной партии' = description(invoiceDetail(Batch batch));
@@ -375,6 +378,7 @@ deleteCreate (InvoiceShipment shipment)+= WHEN invoice(shipment) IS UserInvoice 
 
 EXTEND FORM batches 
     PROPERTIES(bt)  READONLY BEFORE cost(bt) priceInvoiceDetail FORCE GRID
+    PROPERTIES (bt) READONLY captionBarcodePack, idBarcodePack
 ; 
 
 //-- Запрет на изменение документа другим пользователем
