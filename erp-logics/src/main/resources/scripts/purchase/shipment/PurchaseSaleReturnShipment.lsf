@@ -53,15 +53,15 @@ DESIGN userShipment {
 //;
 //--  Связь поставки с поставкой
 
-shipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) PERSISTENT;
-shipmentDetail = DATA ShipmentDetail (SaleReturn.UserShipmentDetail);
+shipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) PERSISTENT INDEXED;
+shipmentDetail = DATA ShipmentDetail (SaleReturn.UserShipmentDetail) INDEXED;
 shipmentDetail(SaleReturn.UserShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
-CONSTRAINT supplier[SaleReturn.ShipmentDetail](SaleReturn.UserShipmentDetail detail) != supplier(shipmentDetail(detail)) OR
-           supplierStock[SaleReturn.ShipmentDetail](detail) != supplierStock(shipmentDetail(detail)) OR
-           customer[SaleReturn.ShipmentDetail](detail) != customer(shipmentDetail(detail)) OR
-           customerStock[SaleReturn.ShipmentDetail](detail) != customerStock(shipmentDetail(detail)) OR
-           sku[SaleReturn.ShipmentDetail](detail) != sku(shipmentDetail(detail))
+CONSTRAINT supplier(SaleReturn.UserShipmentDetail detail) != supplier(shipmentDetail(detail)) OR
+           supplierStock(detail) != supplierStock(shipmentDetail(detail)) OR
+           customer(detail) != customer(shipmentDetail(detail)) OR
+           customerStock(detail) != customerStock(shipmentDetail(detail)) OR
+           sku(detail) != sku(shipmentDetail(detail))
     CHECKED BY shipmentDetail[SaleReturn.UserShipmentDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в поставке и поставке на основе поставке должны соответствовать друг другу';
 

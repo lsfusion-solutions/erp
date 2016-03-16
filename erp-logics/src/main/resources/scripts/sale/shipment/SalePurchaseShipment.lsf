@@ -51,13 +51,13 @@ EXTEND FORM shipments
 //--  Связь поставки с поставкой
 
 shipmentDetail = ABSTRACT ShipmentDetail (Purchase.ShipmentDetail) PERSISTENT INDEXED;
-shipmentDetail = DATA ShipmentDetail (Purchase.UserShipmentDetail);
+shipmentDetail = DATA ShipmentDetail (Purchase.UserShipmentDetail) INDEXED;
 shipmentDetail(Purchase.UserShipmentDetail shipmentDetail) += shipmentDetail(shipmentDetail);
 
-CONSTRAINT supplier[Purchase.ShipmentDetail](Purchase.UserShipmentDetail detail) != supplier(shipmentDetail(detail)) OR
-           supplierStock[Purchase.ShipmentDetail](detail) != supplierStock(shipmentDetail(detail)) OR
-           customer[Purchase.ShipmentDetail](detail) != customer(shipmentDetail(detail)) OR
-           customerStock[Purchase.ShipmentDetail](detail) != customerStock(shipmentDetail(detail))
+CONSTRAINT supplier(Purchase.UserShipmentDetail detail) != supplier(shipmentDetail(detail)) OR
+           supplierStock(detail) != supplierStock(shipmentDetail(detail)) OR
+           customer(detail) != customer(shipmentDetail(detail)) OR
+           customerStock(detail) != customerStock(shipmentDetail(detail))
 //           Purchase.skuShipmentDetail(detail) != skuShipmentDetail(shipmentDetailUserShipmentDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
     CHECKED BY shipmentDetail[Purchase.UserShipmentDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в поставке и поставке на основе поставке должны соответствовать друг другу';

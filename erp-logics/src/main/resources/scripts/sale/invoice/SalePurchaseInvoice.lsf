@@ -110,7 +110,7 @@ DESIGN operation {
 }
 
 invoiceDetail = ABSTRACT InvoiceDetail (Purchase.InvoiceDetail) PERSISTENT INDEXED;
-invoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail);
+invoiceDetail = DATA InvoiceDetail (Purchase.UserInvoiceDetail) INDEXED;
 invoiceDetail(Purchase.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
 setPropertiesPurchaseSale = ACTION ABSTRACT LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
@@ -184,10 +184,10 @@ DESIGN Purchase.operation {
 CONSTRAINT notNullSaleReference(operation(Purchase.UserInvoiceDetail d)) AND NOT invoiceDetail(d)
     MESSAGE 'Для строки накладной (закупка) должна быть задана ссылка на строку накладной (продажа)'; 
 
-CONSTRAINT supplier[Purchase.InvoiceDetail](Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
-           supplierStock[Purchase.InvoiceDetail](detail) != supplierStock(invoiceDetail(detail)) OR
-           customer[Purchase.InvoiceDetail](detail) != customer(invoiceDetail(detail)) OR
-           customerStock[Purchase.InvoiceDetail](detail) != customerStock(invoiceDetail(detail))
+CONSTRAINT supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
+           supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
+           customer(detail) != customer(invoiceDetail(detail)) OR
+           customerStock(detail) != customerStock(invoiceDetail(detail))
 //           Purchase.skuInvoiceDetail(detail) != skuInvoiceDetail(invoiceDetailUserInvoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail]
         MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';

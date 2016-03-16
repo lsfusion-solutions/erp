@@ -102,7 +102,7 @@ DESIGN invoiceInvoices {
 }
 
 invoiceDetail = ABSTRACT InvoiceDetail (SaleReturn.InvoiceDetail) PERSISTENT INDEXED;
-invoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail);
+invoiceDetail = DATA InvoiceDetail (SaleReturn.UserInvoiceDetail) INDEXED;
 invoiceDetail(SaleReturn.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoiceDetail);
 
 setPropertiesPurchaseReturnSaleReturn = ACTION ABSTRACT LIST (SaleReturn.UserInvoiceDetail, InvoiceDetail);
@@ -163,13 +163,12 @@ DESIGN userInvoice {
 
 //--  Связь поставки с поставкой
 
-CONSTRAINT supplier[SaleReturn.InvoiceDetail](SaleReturn.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
-           supplierStock[SaleReturn.InvoiceDetail](detail) != supplierStock(invoiceDetail(detail)) OR
-           customer[SaleReturn.InvoiceDetail](detail) != customer(invoiceDetail(detail)) OR
-           customerStock[SaleReturn.InvoiceDetail](detail) != customerStock(invoiceDetail(detail))
+CONSTRAINT supplier(SaleReturn.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
+           customer(detail) != customer(invoiceDetail(detail)) OR
+           customerStock(detail) != customerStock(invoiceDetail(detail))
 //           sku[SaleReturn.InvoiceDetail](detail) != sku(invoiceDetail(detail)) // пока отключаем, чтобы при перемещении в производстве (с изменением sku) работало
     CHECKED BY invoiceDetail[SaleReturn.UserInvoiceDetail]
-        MESSAGE 'Поставщик, покупатель, склад поставщика и склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
+        MESSAGE 'Поставщик, покупатель, склад покупателя в накладной и накладной на основе накладной должны соответствовать друг другу';
 
 
 descriptionIndexInvoiceDetail 'Строка накладной (закупка-возврат)' (SaleReturn.InvoiceDetail detail) = descriptionIndex(invoiceDetail(detail));
