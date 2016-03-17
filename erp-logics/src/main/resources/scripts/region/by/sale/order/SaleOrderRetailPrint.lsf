@@ -1,0 +1,40 @@
+MODULE SaleOrderRetailPrint;
+
+REQUIRE SaleOrder, OrderPrint, LegalEntityBy;
+
+NAMESPACE Sale;
+
+@defineDocumentUNPLegalEntity(order, supplier, ' поставщика') ;
+@defineDocumentUNPLegalEntity(order, customer, ' покупателя') ;
+
+FORM saleOrderRetail 'Счет-фактура (розн.)'
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES (o) READONLY fullNameSupplier, nameSupplier, nameSupplierStock, addressSupplier, addressSupplierStock,  
+                   numberAccountSupplier, nameBankSupplier, addressBankSupplier,
+                   departmentBankSupplier, CBUBankSupplier, MFOBankSupplier, phoneSupplier,
+                   nameCustomer, fullNameCustomer, nameCustomerStock, addressCustomer, 
+                   numberAccountCustomer, nameBankCustomer, addressBankCustomer,
+                   departmentBankCustomer, CBUBankCustomer, MFOBankCustomer, phoneCustomer,
+                   number, series, seriesNumber, date, time, closeDate, currency,
+                   nameCurrency, note, countOrderDetail, quantityOrderDetail, sumOrderDetail,
+                   VATSumOrderDetail, invoiceSumOrderDetail, nameAcquisitionTarget,
+                   UNPSupplier, OKYLPSupplier, UNPCustomer, OKYLPCustomer, shipmentDate                   
+
+    OBJECTS d = OrderDetail
+    PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
+                   quantity,
+                   price, sum, numberVAT,
+                   valueVAT,  VATSum, invoiceSum, invoicePrice
+    FILTERS order(d) == o
+;
+
+printSaleRetail 'Счет-фактура (розн.)' (Order order) = ACTION FORM saleOrderRetail OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+
+EXTEND FORM orders
+    PROPERTIES (o) printSaleRetail FORCE PANEL;
+
+DESIGN orders {
+    printContainer {
+        MOVE PROPERTY(printSaleRetail(o));
+    }
+}
