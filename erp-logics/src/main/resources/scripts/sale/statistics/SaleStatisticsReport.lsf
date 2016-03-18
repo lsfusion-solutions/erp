@@ -30,7 +30,7 @@ rate 'Кратность для отчета'  = DATA NUMERIC[15,4] (StatisticRe
 
 name 'Наименование' = DATA VARISTRING[255] (StatisticReportTypeDetail);
 nameUOM 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportTypeDetail);
-isInteger 'Целое' = DATA BOOLEAN (StatisticReportTypeDetail);
+round 'Точность' = DATA INTEGER (StatisticReportTypeDetail);
 
 statisticGroup  = DATA StatisticGroup (StatisticReportTypeDetail);
 nameStatisticGroup 'Наименование группы' = name(statisticGroup(StatisticReportTypeDetail d));
@@ -52,7 +52,7 @@ FORM statisticReportType 'Тип статистического отчета'
 
     OBJECTS d = StatisticReportTypeDetail
     PROPERTIES (d) index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, isInteger
+                   sidStatisticGroup, nameUOM, round
                 
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION    
     
@@ -100,7 +100,7 @@ FORM statisticReportTypes 'Типы статистических отчетов'
         
     OBJECTS d = StatisticReportTypeDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, isInteger 
+                   sidStatisticGroup, nameUOM, round 
     ORDER BY index(d)
 
     FILTERS statisticReportType(d) == r
@@ -157,7 +157,7 @@ loadDefaultStatisticReportType 'Добавить тип статистическ
     }
 }
 
-loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (VARSTRING[255] type, INTEGER index, VARSTRING[255] name, VARSTRING[10] number, STRING[12] group, VARSTRING[100] nameUOM, BOOLEAN isInteger) = ACTION {
+loadDefaultStatisticReportTypeDetail 'Добавить строку типа статистического отчета' (VARSTRING[255] type, INTEGER index, VARSTRING[255] name, VARSTRING[10] number, STRING[12] group, VARSTRING[100] nameUOM, INTEGER round) = ACTION {
     FOR ADDOBJ d = StatisticReportTypeDetail DO {
         statisticReportType(d) <- statisticReportType(type);
         index(d) <- index;
@@ -165,7 +165,7 @@ loadDefaultStatisticReportTypeDetail 'Добавить строку типа с�
         number(d) <- number;
         statisticGroup(d) <- groupIdTypeIdGroup(id(statisticGroupType(statisticReportType(type))), group);
         nameUOM(d) <- nameUOM;
-        isInteger(d) <- isInteger;
+        round(d) <- round;
     }
 }
 //////////////////////Отчет ////////////////////////////
@@ -265,7 +265,7 @@ nameStockRegion 'Склад/Регион' (StatisticReport r) = CASE
 
 name 'Наименование' = DATA VARISTRING[255] (StatisticReportDetail);
 nameUOM 'Ед. изм.' = DATA VARISTRING[100] (StatisticReportDetail);
-isInteger 'Целое' = DATA BOOLEAN (StatisticReportDetail);
+round 'Точность' = DATA INTEGER (StatisticReportDetail);
 number 'Код строки' = DATA STRING[10] (StatisticReportDetail);
 
 statisticGroup  = DATA StatisticGroup (StatisticReportDetail);
@@ -277,14 +277,14 @@ CONSTRAINT statisticGroup(StatisticReportDetail d) AND statisticGroupType(statis
     CHECKED BY statisticGroup[StatisticReportDetail]
     MESSAGE 'Для строки статистического отчета выбрана группа, которая не соответствует выбранному классификатору.';
     
-sold 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
-soldResident 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
-balance 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
-balanceResident 'Запас отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
+sold 'Продано всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
+soldResident 'Продано отечественного' = DATA NUMERIC[16,3] (StatisticReportDetail);
+balance 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
+balanceResident 'Запас отечественного' = DATA NUMERIC[16,3] (StatisticReportDetail);
 
-soldSum 'Продано всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
-soldSumResident 'Продано отечественного' = DATA NUMERIC[16,2] (StatisticReportDetail);
-balanceSum 'Запас всего' = DATA NUMERIC[16,2] (StatisticReportDetail);
+soldSum 'Продано всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
+soldSumResident 'Продано отечественного' = DATA NUMERIC[16,3] (StatisticReportDetail);
+balanceSum 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
 
 fillData 'Заполнить данные'(StatisticReport report) = ACTION {
     sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
@@ -295,16 +295,16 @@ fillData 'Заполнить данные'(StatisticReport report) = ACTION {
     FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
         Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO { 
     
-        sold(d) <- NUMERIC[16,2](valueBy(s, st, dFrom, dTo));
-        soldResident(d) <- NUMERIC[16,2](valueResidentBy(s, st, dFrom, dTo));
-        balance(d) <- NUMERIC[16,2](valueByTo(s, st, dTo));
-        balanceResident(d) <- NUMERIC[16,2](valueResidentByTo(s, st, dTo));
+        sold(d) <- NUMERIC[16,3](valueBy(s, st, dFrom, dTo));
+        soldResident(d) <- NUMERIC[16,3](valueResidentBy(s, st, dFrom, dTo));
+        balance(d) <- NUMERIC[16,3](valueByTo(s, st, dTo));
+        balanceResident(d) <- NUMERIC[16,3](valueResidentByTo(s, st, dTo));
     }                                                                                                                                                  
     
-    sold(StatisticReportDetail d) <- INTEGER(sold(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    soldResident(StatisticReportDetail d) <- INTEGER(soldResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    balance(StatisticReportDetail d) <- INTEGER(balance(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    balanceResident(StatisticReportDetail d) <- INTEGER(balanceResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    sold(StatisticReportDetail d) <- round(sold(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- round(soldResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- round(balance(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    balanceResident(StatisticReportDetail d) <- round(balanceResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
 }
 
 fillRegionData 'Заполнить данные'(StatisticReport report) = ACTION {
@@ -317,17 +317,17 @@ fillRegionData 'Заполнить данные'(StatisticReport report) = ACTIO
         LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) 
         NOINLINE DO {
     
-        sold(d) <- NUMERIC[16,2](valueBy(s, c, r, dFrom, dTo));
-        soldResident(d) <- NUMERIC[16,2](valueResidentBy(s, c, r, dFrom, dTo));
-        balance(d) <- NUMERIC[16,2](valueByTo(s, c, r, dTo));
-        balanceResident(d) <- NUMERIC[16,2](valueResidentByTo(s, c, r, dTo));
+        sold(d) <- NUMERIC[16,3](valueBy(s, c, r, dFrom, dTo));
+        soldResident(d) <- NUMERIC[16,3](valueResidentBy(s, c, r, dFrom, dTo));
+        balance(d) <- NUMERIC[16,3](valueByTo(s, c, r, dTo));
+        balanceResident(d) <- NUMERIC[16,3](valueResidentByTo(s, c, r, dTo));
 
     }
                                                                                                                                                       
-    sold(StatisticReportDetail d) <- INTEGER(sold(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    soldResident(StatisticReportDetail d) <- INTEGER(soldResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    balance(StatisticReportDetail d) <- INTEGER(balance(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    balanceResident(StatisticReportDetail d) <- INTEGER(balanceResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    sold(StatisticReportDetail d) <- round(sold(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- round(soldResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- round(balance(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    balanceResident(StatisticReportDetail d) <- round(balanceResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
 }
 //суммы
 fillSumData 'Заполнить данные'(StatisticReport report) = ACTION {
@@ -338,18 +338,18 @@ fillSumData 'Заполнить данные'(StatisticReport report) = ACTION {
     FOR StatisticGroup s == statisticGroup(StatisticReportDetail d) AND statisticReport(d) == report AND 
         Stock st == stock(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) NOINLINE DO { 
     
-        soldSum(d) <- NUMERIC[16,2](totalSumSoldBy(s, st, dFrom, dTo));
-        soldSumResident(d) <- NUMERIC[16,2](totalSumResidentSoldBy(s, st, dFrom, dTo));
-        balanceSum(d) <- NUMERIC[16,2](sumBalanceABy(s, st, dTo));
+        soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, st, dFrom, dTo));
+        soldSumResident(d) <- NUMERIC[16,3](totalSumResidentSoldBy(s, st, dFrom, dTo));
+        balanceSum(d) <- NUMERIC[16,3](sumBalanceABy(s, st, dTo));
     }                                                                                                                  
     
-    soldSum(StatisticReportDetail d) <- NUMERIC[16,2](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
-    soldSumResident(StatisticReportDetail d) <- NUMERIC[16,2](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
-    balanceSum(StatisticReportDetail d) <- NUMERIC[16,2](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                           
+    soldSum(StatisticReportDetail d) <- NUMERIC[16,3](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NUMERIC[16,3](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NUMERIC[16,3](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                           
     
-    soldSum(StatisticReportDetail d) <- INTEGER(soldSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    soldSumResident(StatisticReportDetail d) <- INTEGER(soldSumResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    balanceSum(StatisticReportDetail d) <- INTEGER(balanceSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    soldSum(StatisticReportDetail d) <- round(soldSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- round(balanceSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
 }
 
 fillSumRegionData 'Заполнить данные'(StatisticReport report) = ACTION {
@@ -361,18 +361,18 @@ fillSumRegionData 'Заполнить данные'(StatisticReport report) = AC
         LegalEntity c == company(report) AND Region r == region(report) AND DATE dFrom == fromDate(report) AND DATE dTo == toDate(report) 
         NOINLINE DO {
     
-        soldSum(d) <- NUMERIC[16,2](totalSumSoldBy(s, c, r, dFrom, dTo));
-        soldSumResident(d) <- NUMERIC[16,2](totalSumResidentSoldBy(s, c, r, dFrom, dTo));
-        balanceSum(d) <- NUMERIC[16,2](sumBalanceABy(s, c, r, dTo));
+        soldSum(d) <- NUMERIC[16,3](totalSumSoldBy(s, c, r, dFrom, dTo));
+        soldSumResident(d) <- NUMERIC[16,3](totalSumResidentSoldBy(s, c, r, dFrom, dTo));
+        balanceSum(d) <- NUMERIC[16,3](sumBalanceABy(s, c, r, dTo));
     }
 
-    soldSum(StatisticReportDetail d) <- NUMERIC[16,2](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
-    soldSumResident(StatisticReportDetail d) <- NUMERIC[16,2](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
-    balanceSum(StatisticReportDetail d) <- NUMERIC[16,2](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                                                                                                         
+    soldSum(StatisticReportDetail d) <- NUMERIC[16,3](soldSum(d) / rate(report)) WHERE statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- NUMERIC[16,3](soldSumResident(d)/ rate(report)) WHERE statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- NUMERIC[16,3](balanceSum(d)/ rate(report)) WHERE statisticReport(d) == report;                                                                                                         
    
-    soldSum(StatisticReportDetail d) <- INTEGER(soldSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    soldSumResident(StatisticReportDetail d) <- INTEGER(soldSumResident(d)) WHERE isInteger(d) AND statisticReport(d) == report;
-    balanceSum(StatisticReportDetail d) <- INTEGER(balanceSum(d)) WHERE isInteger(d) AND statisticReport(d) == report;
+    soldSum(StatisticReportDetail d) <- round(soldSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- round(balanceSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
 }
 
 
@@ -391,7 +391,7 @@ changeStatisticReportType (StatisticReport r) = ACTION {
             name(d) <- name(detail);
             statisticGroup(d) <- statisticGroup(detail);
             nameUOM(d) <- nameUOM(detail);
-            isInteger(d) <- isInteger(detail);            
+            round(d) <- round(detail);            
         }               
     }
 }
@@ -412,7 +412,7 @@ FORM statisticReport 'Статистический отчет'
 
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, isInteger
+                   sidStatisticGroup, nameUOM, round
     PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
     PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
                 
@@ -531,7 +531,7 @@ createSumReport 'Создать суммарный отчет'()= ACTION NEWSESS
             name(d) <- name(detail);
             statisticGroup(d) <- statisticGroup(detail);
             nameUOM(d) <- nameUOM(detail);
-            isInteger(d) <- isInteger(detail);
+            round(d) <- round(detail);
             
             sold(d) <- [=GROUP SUM sold(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
             soldResident(d) <- [=GROUP SUM soldResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
@@ -560,8 +560,9 @@ FORM statisticReports 'Статистические отчеты'
         
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, isInteger, 
-                   sold, soldResident, balance, balanceResident 
+                   sidStatisticGroup, nameUOM, round
+   PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
+   PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
     ORDER BY index(d)
     FILTERS statisticReport(d) == r
                 

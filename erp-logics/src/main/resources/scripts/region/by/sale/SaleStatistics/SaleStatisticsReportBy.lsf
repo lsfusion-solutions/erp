@@ -4,10 +4,10 @@ REQUIRE SaleStatisticsReport;
 
 NAMESPACE Sale;
 
-fromMonth = extractMonthName(fromDate(StatisticReport r));
-toMonth = extractMonthName(toDate(StatisticReport r));
+fromMonth(StatisticReport r) = extractMonthName(fromDate(r));
+toMonth(StatisticReport r) = extractMonthName(toDate(r));
 
-FORM statisticReportPrint '4-торг (продажа)'
+FORM statisticReport4Print '4-торг (продажа)'
 
     OBJECTS r = StatisticReport FIXED PANEL 
     PROPERTIES (r) READONLY name, nameStock,  fullNameLegalEntityStock, 
@@ -21,17 +21,44 @@ FORM statisticReportPrint '4-торг (продажа)'
         
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, isInteger, 
+                   sidStatisticGroup, nameUOM,  
                    sold, soldResident, balance, balanceResident 
     ORDER BY index(d)
 
     FILTERS statisticReport(d) == r
 ;
-statisticPrint '4-торг (продажа)' (StatisticReport r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT  IMAGE 'print.png' IN print;   
-excelPrint '4-торг (продажа) (xls)' (StatisticReport r) = ACTION FORM statisticReportPrint OBJECTS r =r PRINT XLSX  IMAGE 'print.png' IN print;   
+statistic4Print '4-торг (продажа)' (StatisticReport r) = ACTION FORM statisticReport4Print OBJECTS r =r PRINT  IMAGE 'print.png' IN print;   
+excel4Print '4-торг (продажа) (xls)' (StatisticReport r) = ACTION FORM statisticReport4Print OBJECTS r =r PRINT XLSX  IMAGE 'print.png' IN print;   
 
 EXTEND FORM statisticReports
-    PROPERTIES FORCE PANEL statisticPrint(r), excelPrint(r) 
+    PROPERTIES FORCE PANEL statistic4Print(r), excel4Print(r) 
+;
+
+FORM statisticReport12Print '12-торг (товарооборот)'
+
+    OBJECTS r = StatisticReport FIXED PANEL 
+    PROPERTIES (r) READONLY name, nameStock,  fullNameLegalEntityStock, 
+                   addressLegalEntityStock, addressStock,
+                   note, fromDate, toDate,   
+                   fromMonth, toMonth
+                
+    PROPERTIES (r) READONLY countStatisticReportDetail
+    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
+        
+    OBJECTS d = StatisticReportDetail
+    PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM,  
+                   soldSum
+    ORDER BY index(d)
+
+    FILTERS statisticReport(d) == r
+;
+statistic12Print '12-торг (товарооборот)' (StatisticReport r) = ACTION FORM statisticReport12Print OBJECTS r =r PRINT  IMAGE 'print.png' IN print;   
+excel12Print '12-торг (товарооборот) (xls)' (StatisticReport r) = ACTION FORM statisticReport12Print OBJECTS r =r PRINT XLSX  IMAGE 'print.png' IN print;   
+
+EXTEND FORM statisticReports
+    PROPERTIES FORCE PANEL statistic12Print(r), excel12Print(r) 
 ;
 
 DESIGN statisticReports {
@@ -43,86 +70,93 @@ DESIGN statisticReports {
 loadDefaultStStatisticReportTypeBy 'Загрузить стандартные статистические отчеты'() = ACTION {
     loadDefaultStatisticReportType ('12-торг', 'BYRTN', TRUE , 1000000.0);
     
-    loadDefaultStatisticReportTypeDetail('12-торг', 1, 'Розничный товарооборот (сумма строк 02 и 04)', '01', 'ВСЕ', NULL , TRUE);
+    loadDefaultStatisticReportTypeDetail('12-торг', 1, 'Розничный товарооборот (сумма строк 02 и 04)', '01', 'ВСЕ', NULL , 0);
     loadDefaultStatisticReportTypeDetail('12-торг', 2, '   в том числе продано:', NULL, NULL, NULL, NULL );
-    loadDefaultStatisticReportTypeDetail('12-торг', 3, '   пищевых продуктов, напитков и табачных изделий', '02', '47.2', NULL, TRUE);
-    loadDefaultStatisticReportTypeDetail('12-торг', 4, '      из них алкогольных напитков', '03', '47.25.11', NULL, TRUE);
-    loadDefaultStatisticReportTypeDetail('12-торг', 5, '   непродовольственных товаров', '04', '47.200', NULL, TRUE);
+    loadDefaultStatisticReportTypeDetail('12-торг', 3, '   пищевых продуктов, напитков и табачных изделий', '02', '47.2', NULL, 0);
+    loadDefaultStatisticReportTypeDetail('12-торг', 4, '      из них алкогольных напитков', '03', '47.25.11', NULL, 0);
+    loadDefaultStatisticReportTypeDetail('12-торг', 5, '   непродовольственных товаров', '04', '47.200', NULL, 0);
+    
+    loadDefaultStatisticReportTypeDetail('12-торг', 6, 'Запасы товаров в розничных торговых объектах и на складах на конец отчетного периода ', '05', NULL , NULL , NULL);
+    loadDefaultStatisticReportTypeDetail('12-торг', 7, 'Товарооборот общественного питания (сумма строк 07 и 09)', '06',  NULL, NULL , NULL );
+    loadDefaultStatisticReportTypeDetail('12-торг', 8, '   в том числе продано:', NULL, NULL, NULL, NULL );
+    loadDefaultStatisticReportTypeDetail('12-торг', 9, '   пищевых продуктов, напитков и табачных изделий', '07', NULL , NULL, NULL);
+    loadDefaultStatisticReportTypeDetail('12-торг', 10, '      из них алкогольных напитков', '08', NULL, NULL, NULL);
+    loadDefaultStatisticReportTypeDetail('12-торг', 11, '   непродовольственных товаров', '09', NULL, NULL, NULL);
     
     loadDefaultStatisticReportType ('4-торг', 'BYRTN', NULL , NULL);
     
-    loadDefaultStatisticReportTypeDetail('4-торг', 1, 'Свежие фрукты и орехи (47.21.11.100)', '01', '47.21.11.100', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 2, 'Свежие овощи и грибы (47.21.11.300)', '02', '47.21.11.300', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 3, '   из них свежий картофель (47.21.11.310)', '03', '47.21.11.310', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 4, 'Мясо и мясные продукты (47.22.1) (сумма строк 05 и 11)', '04', '47.22.1', 'т', NULL);
+    loadDefaultStatisticReportTypeDetail('4-торг', 1, 'Свежие фрукты и орехи (47.21.11.100)', '01', '47.21.11.100', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 2, 'Свежие овощи и грибы (47.21.11.300)', '02', '47.21.11.300', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 3, '   из них свежий картофель (47.21.11.310)', '03', '47.21.11.310', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 4, 'Мясо и мясные продукты (47.22.1) (сумма строк 05 и 11)', '04', '47.22.1', 'т', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 6, '   в том числе:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 7, '   мясо, включая птицу и субпродукты пищевые (47.22.11) (сумма строк 06, 09, 10)', '05', '47.22.11', 'т', NULL);
+    loadDefaultStatisticReportTypeDetail('4-торг', 7, '   мясо, включая птицу и субпродукты пищевые (47.22.11) (сумма строк 06, 09, 10)', '05', '47.22.11', 'т', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 8, '      в том числе:', NULL,NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 9, '      мясо (47.22.11.100)', '06', '47.22.11.100', 'т', NULL);
+    loadDefaultStatisticReportTypeDetail('4-торг', 9, '      мясо (47.22.11.100)', '06', '47.22.11.100', 'т', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 10, '         из него:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 11, '         свинина (47.22.11.110)', '07', '47.22.11.110', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 12, '         говядина (47.22.11.120)', '08', '47.22.11.120', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 13, '      пищевые субпродукты (47.22.11.200)', '09', '47.22.11.200', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 14, '      мясо домашней птицы и дичи (47.22.11.300)', '10', '47.22.11.300', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 15, '   мясные продукты (47.22.12)', '11', '47.22.12', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 16, '      из них консервы из мяса и субпродуктов пищевых (47.22.12.210)', '12', '47.22.12.210', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 17, 'Рыба, ракообразные и моллюски (47.23.1) (сумма строк 14 и 18)', '13', '47.23.1', 'т', NULL);
+    loadDefaultStatisticReportTypeDetail('4-торг', 11, '         свинина (47.22.11.110)', '07', '47.22.11.110', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 12, '         говядина (47.22.11.120)', '08', '47.22.11.120', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 13, '      пищевые субпродукты (47.22.11.200)', '09', '47.22.11.200', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 14, '      мясо домашней птицы и дичи (47.22.11.300)', '10', '47.22.11.300', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 15, '   мясные продукты (47.22.12)', '11', '47.22.12', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 16, '      из них консервы из мяса и субпродуктов пищевых (47.22.12.210)', '12', '47.22.12.210', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 17, 'Рыба, ракообразные и моллюски (47.23.1) (сумма строк 14 и 18)', '13', '47.23.1', 'т', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 18, '   в том числе:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 19, '   рыба и продукты из нее (47.23.11)', '14', '47.23.11', 'т', NULL);
+    loadDefaultStatisticReportTypeDetail('4-торг', 19, '   рыба и продукты из нее (47.23.11)', '14', '47.23.11', 'т', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 20, '      из нее:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 21, '      рыба (47.23.11.100)', '15', '47.23.11.100', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 22, '      рыба приготовленная или консервированная (47.23.11.400)', '16', '47.23.11.400', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 23, '         из них консервы и пресервы из рыбы, икра и ее заменители (47.23.11.410)', '17', '47.23.11.410', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 24, '   ракообразные, моллюски и прочие морепродукты (47.23.19)', '18', '47.23.19', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 25, 'Мучные кондитерские изделия (47.24.11.200)', '19', '47.24.11.200', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 26, 'Сахаристые кондитерские изделия (47.24.12)', '20', '47.24.12', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 27, '   из них шоколад и прочие продукты пищевые готовые, содержащие какао (47.24.12.100)', '21', '47.24.12.100', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 28, 'Вино виноградное (47.25.11.110)', '22', '47.25.11.110', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 29, 'Вино плодовое (47.25.11.120)', '23', '47.25.11.120', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 30, 'Вина игристые, включая шампанское (47.25.11.130)', '24', '47.25.11.130', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 31, 'Водка (47.25.11.200)', '25', '47.25.11.200', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 32, 'Коньяк, коньячные напитки и бренди (47.25.11.300)', '26', '47.25.11.300', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 33, 'Пиво (47.25.11.400)', '27', '47.25.11.400', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 34, 'Ликеры и изделия ликеро-водочные (47.25.11.500)', '28', '47.25.11.500', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 35, 'Слабоалкогольные напитки (47.25.11.900)', '29', '47.25.11.900', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 36, 'Фруктовые и овощные соки (47.25.12.100)', '30', '47.25.12.100', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 37, 'Минеральная вода (47.25.12.200)', '31', '47.25.12.200', 'дал', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 38, 'Табачные изделия (47.26.10)', '32', '47.26.10', 'тыс. шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 39, 'Сыры (47.29.11.120)', '33', '47.29.11.120', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 40, 'Масло сливочное (47.29.11.130)', '34', '47.29.11.130', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 41, 'Яйца (47.29.12)', '35', '47.29.12', 'тыс. шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 42, 'Масло растительное (47.29.22.200)', '36', '47.29.22.200', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 43, 'Детское питание (47.29.23.100)', '37', '47.29.23.100', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 44, 'Крупа (47.29.29.200)', '38', '47.29.29.200', 'ц', NULL);
+    loadDefaultStatisticReportTypeDetail('4-торг', 21, '      рыба (47.23.11.100)', '15', '47.23.11.100', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 22, '      рыба приготовленная или консервированная (47.23.11.400)', '16', '47.23.11.400', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 23, '         из них консервы и пресервы из рыбы, икра и ее заменители (47.23.11.410)', '17', '47.23.11.410', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 24, '   ракообразные, моллюски и прочие морепродукты (47.23.19)', '18', '47.23.19', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 25, 'Мучные кондитерские изделия (47.24.11.200)', '19', '47.24.11.200', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 26, 'Сахаристые кондитерские изделия (47.24.12)', '20', '47.24.12', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 27, '   из них шоколад и прочие продукты пищевые готовые, содержащие какао (47.24.12.100)', '21', '47.24.12.100', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 28, 'Вино виноградное (47.25.11.110)', '22', '47.25.11.110', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 29, 'Вино плодовое (47.25.11.120)', '23', '47.25.11.120', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 30, 'Вина игристые, включая шампанское (47.25.11.130)', '24', '47.25.11.130', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 31, 'Водка (47.25.11.200)', '25', '47.25.11.200', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 32, 'Коньяк, коньячные напитки и бренди (47.25.11.300)', '26', '47.25.11.300', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 33, 'Пиво (47.25.11.400)', '27', '47.25.11.400', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 34, 'Ликеры и изделия ликеро-водочные (47.25.11.500)', '28', '47.25.11.500', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 35, 'Слабоалкогольные напитки (47.25.11.900)', '29', '47.25.11.900', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 36, 'Фруктовые и овощные соки (47.25.12.100)', '30', '47.25.12.100', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 37, 'Минеральная вода (47.25.12.200)', '31', '47.25.12.200', 'дал', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 38, 'Табачные изделия (47.26.10)', '32', '47.26.10', 'тыс. шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 39, 'Сыры (47.29.11.120)', '33', '47.29.11.120', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 40, 'Масло сливочное (47.29.11.130)', '34', '47.29.11.130', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 41, 'Яйца (47.29.12)', '35', '47.29.12', 'тыс. шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 42, 'Масло растительное (47.29.22.200)', '36', '47.29.22.200', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 43, 'Детское питание (47.29.23.100)', '37', '47.29.23.100', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 44, 'Крупа (47.29.29.200)', '38', '47.29.29.200', 'ц', 1);
     loadDefaultStatisticReportTypeDetail('4-торг', 45, '   из нее:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 46, '   крупа рисовая (47.29.29.210)', '39', '47.29.29.210', 'ц', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 47, '   крупа гречневая (47.29.29.220)', '40', '47.29.29.220', 'ц', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 48, '   крупа овсяная  и хлопья овсяные (47.29.29.250)', '41', '47.29.29.250', 'ц', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 49, 'Сахар и сахарозаменители (47.29.29.400)', '42', '47.29.29.400', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 50, 'Мука (47.29.29.700)', '43', '47.29.29.700', 'ц', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 51, 'Макаронные изделия (47.29.29.800)', '44', '47.29.29.800', 'ц', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 52, 'Новые легковые автомобили (45.11.21)', '45', '45.11.21', 'шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 53, 'Подержанные легковые автомобили (45.11.22)', '46', '45.11.22', 'шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 54, 'Моторное топливо (47.30.10.100)', '47', '47.30.10.100', 'млн. руб.', TRUE);
+    loadDefaultStatisticReportTypeDetail('4-торг', 46, '   крупа рисовая (47.29.29.210)', '39', '47.29.29.210', 'ц', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 47, '   крупа гречневая (47.29.29.220)', '40', '47.29.29.220', 'ц', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 48, '   крупа овсяная  и хлопья овсяные (47.29.29.250)', '41', '47.29.29.250', 'ц', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 49, 'Сахар и сахарозаменители (47.29.29.400)', '42', '47.29.29.400', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 50, 'Мука (47.29.29.700)', '43', '47.29.29.700', 'ц', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 51, 'Макаронные изделия (47.29.29.800)', '44', '47.29.29.800', 'ц', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 52, 'Новые легковые автомобили (45.11.21)', '45', '45.11.21', 'шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 53, 'Подержанные легковые автомобили (45.11.22)', '46', '45.11.22', 'шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 54, 'Моторное топливо (47.30.10.100)', '47', '47.30.10.100', 'млн. руб.', 0);;
     loadDefaultStatisticReportTypeDetail('4-торг', 55, '   из него:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 56, '   автомобильный бензин (47.30.10.110)', '48', '47.30.10.110', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 57, '   дизельное топливо (47.30.10.130)', '49', '47.30.10.130', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 58, 'Телевизоры (47.43.10.210)', '50', '47.43.10.210', 'шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 59, 'Строительные материалы (47.52)', '51', '47.52', 'млн. руб.', TRUE);
+    loadDefaultStatisticReportTypeDetail('4-торг', 56, '   автомобильный бензин (47.30.10.110)', '48', '47.30.10.110', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 57, '   дизельное топливо (47.30.10.130)', '49', '47.30.10.130', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 58, 'Телевизоры (47.43.10.210)', '50', '47.43.10.210', 'шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 59, 'Строительные материалы (47.52)', '51', '47.52', 'млн. руб.', 0);
     loadDefaultStatisticReportTypeDetail('4-торг', 60, '   из них:', NULL, NULL, NULL, NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 61, '   пиломатериалы (47.52.16.220)', '52', '47.52.16.220', 'м3', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 62, '   цемент (47.52.16.310)', '53', '47.52.16.310', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 63, '   плитка керамическая (47.52.16.510)', '54', '47.52.16.510', 'м2', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 64, 'Холодильники и морозильники бытовые (47.54.10.100)', '55', '47.54.10.100', 'шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 65, 'Стиральные машины бытовые и машины для сушки одежды (47.54.10.200)', '56', '47.54.10.200', 'шт.', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 66, 'Чистящие и прочие средства бытовой химии (47.59.19.400)', '57', '47.59.19.400', 'т', NULL);
-    loadDefaultStatisticReportTypeDetail('4-торг', 67, 'Верхняя одежда (47.71.10.100)', '58', '47.71.10.100', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 68, '   из нее одежда трикотажная (47.71.10.110)', '59', '47.71.10.110', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 69, 'Нижнее белье (47.71.10.200)', '60', '47.71.10.200', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 70, 'Чулочно-носочные изделия (47.71.10.600)', '61', '47.71.10.600', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 71, 'Обувь (47.72.11)', '62', '47.72.11', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 72, '   из нее обувь кожаная (47.72.11.100)', '63', '47.72.11.100', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 73, 'Фармацевтические товары (47.73.10)', '64', '47.73.10', 'млн. руб.', TRUE);
-    loadDefaultStatisticReportTypeDetail('4-торг', 74, 'Парфюмерно-косметическая продукция и туалетные принадлежности (47.75)', '65', '47.75', 'млн. руб.', TRUE);
+    loadDefaultStatisticReportTypeDetail('4-торг', 61, '   пиломатериалы (47.52.16.220)', '52', '47.52.16.220', 'м3', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 62, '   цемент (47.52.16.310)', '53', '47.52.16.310', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 63, '   плитка керамическая (47.52.16.510)', '54', '47.52.16.510', 'м2', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 64, 'Холодильники и морозильники бытовые (47.54.10.100)', '55', '47.54.10.100', 'шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 65, 'Стиральные машины бытовые и машины для сушки одежды (47.54.10.200)', '56', '47.54.10.200', 'шт.', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 66, 'Чистящие и прочие средства бытовой химии (47.59.19.400)', '57', '47.59.19.400', 'т', 1);
+    loadDefaultStatisticReportTypeDetail('4-торг', 67, 'Верхняя одежда (47.71.10.100)', '58', '47.71.10.100', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 68, '   из нее одежда трикотажная (47.71.10.110)', '59', '47.71.10.110', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 69, 'Нижнее белье (47.71.10.200)', '60', '47.71.10.200', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 70, 'Чулочно-носочные изделия (47.71.10.600)', '61', '47.71.10.600', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 71, 'Обувь (47.72.11)', '62', '47.72.11', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 72, '   из нее обувь кожаная (47.72.11.100)', '63', '47.72.11.100', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 73, 'Фармацевтические товары (47.73.10)', '64', '47.73.10', 'млн. руб.', 0);
+    loadDefaultStatisticReportTypeDetail('4-торг', 74, 'Парфюмерно-косметическая продукция и туалетные принадлежности (47.75)', '65', '47.75', 'млн. руб.', 0);
 
 }
