@@ -450,7 +450,8 @@ public class LSTerminalHandler extends TerminalHandler {
                 " fld3    TEXT," +
                 " fld4    TEXT," +
                 " fld5    TEXT," +
-                " image   TEXT)";
+                " image   TEXT," +
+                " weight  TEXT)";
         statement.executeUpdate(sql);
         statement.close();
     }
@@ -461,8 +462,8 @@ public class LSTerminalHandler extends TerminalHandler {
             String sql = "BEGIN TRANSACTION;";
             for (TerminalOrder order : terminalOrderList) {
                 if (order.barcode != null)
-                    sql += String.format("INSERT OR IGNORE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "", "", "", "", "", "");
+                    sql += String.format("INSERT OR IGNORE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
+                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "", "", "", "", "", "", "");
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
@@ -481,7 +482,7 @@ public class LSTerminalHandler extends TerminalHandler {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?, ?);";
                 statement = connection.prepareStatement(sql);
                 for (TerminalItemInfo item : transactionInfo.itemsList) {
                     if (item.idBarcode != null) {
@@ -490,6 +491,7 @@ public class LSTerminalHandler extends TerminalHandler {
                         statement.setObject(3, formatValue(item.price));
                         statement.setObject(4, formatValue(item.quantity));
                         statement.setObject(5, formatValue(item.image));
+                        statement.setObject(6, item.passScalesItem ? "1" : "0");
                         statement.addBatch();
                     }
                 }
