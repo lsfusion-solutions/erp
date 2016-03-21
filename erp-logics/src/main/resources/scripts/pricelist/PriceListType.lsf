@@ -384,21 +384,18 @@ META deriveDocumentDetailPriceBatchPriceListType (object, stockProp)
 END
 
 META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, form)
-    prevListSku (priceListType, detail) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[14,2] (PriceListType, ###detail); 
-
-    prevListSku (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND sku(detail) THEN  
+    prevList (priceListType, detail) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[14,2] (PriceListType, ###detail); 
+    prevList (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND sku(detail) THEN  
                                                          prevPriceB(priceListType,
-                                                                                                sku(detail),
-                                                                                                stockProp(detail),
-                                                                                                dateTime(detail));
-    
-    prevListBatch (priceListType, detail) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[14,2] (PriceListType, ###detail); 
-    prevListBatch (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND batch(detail) THEN
+                                                                    sku(detail),
+                                                                    stockProp(detail),
+                                                                    dateTime(detail));
+
+    prevList (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND batch(detail) THEN
                                                           prevPriceB(priceListType,
-                                                                                                    batch(detail),
-                                                                                                    stockProp(detail),
-                                                                                                    dateTime(detail));
-    prevList (PriceListType priceListType, ###detail detail) = IF batch(detail) THEN prevListBatch(priceListType, detail) ELSE prevListSku (priceListType, detail);
+                                                                     batch(detail),
+                                                                     stockProp(detail),
+                                                                     dateTime(detail));
 
     prevListMVAT (PriceListType priceListType, ###detail detail) =
         IF includeVAT(priceListType)
