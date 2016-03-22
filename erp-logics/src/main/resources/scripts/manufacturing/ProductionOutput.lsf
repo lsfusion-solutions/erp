@@ -231,8 +231,11 @@ name(OutputDetail batch) += VARISTRING[200](CONCAT '', STRING[10](date(batch)), 
 outputQuantity(ProductDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
 
 outputProductsSum 'Сумма произведенного изделия' = DATA NUMERIC[16,2] (ProductDetail);
+
+calcOutputSum = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (ProductDetail);
+calcOutputSum(ProductDetail productDetail) += NUMERIC[16,2](round((outputQuantity(productDetail) * price(productDetail)), currency(productDetail))); 
 outputProductsSum(ProductDetail productDetail) <-
-    NUMERIC[16,2](round((outputQuantity(productDetail) * price(productDetail)), currency(productDetail)))
+    calcOutputSum(productDetail)
     WHEN CHANGED (outputQuantity(productDetail)) OR
          CHANGED (price(productDetail)) OR
          CHANGED(currency(productDetail));
