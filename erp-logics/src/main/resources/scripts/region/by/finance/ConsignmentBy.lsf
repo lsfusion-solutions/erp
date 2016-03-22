@@ -414,24 +414,24 @@ batch = ABSTRACT Batch (ConsignmentDetail);
 descriptionBatch 'Партия' (ConsignmentDetail d) = description(batch(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 nameBatch 'Партия' (ConsignmentDetail d) = name(batch(d)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
 
-sku (d) = ABSTRACT Sku (ConsignmentDetail);
+dataSku (d) = ABSTRACT Sku (ConsignmentDetail);
+overSku (d) = ABSTRACT Sku (ConsignmentDetail);
+sku (ConsignmentDetail d) = OVERRIDE dataSku(d), overSku(d);
+
 overNameSku = ABSTRACT VARISTRING[255](ConsignmentDetail); // дополнительные характеристики
 dataNameSku = ABSTRACT VARISTRING[255](ConsignmentDetail);
 
 nameSku 'Наименование товара' (ConsignmentDetail d) = CONCAT ' ',
-    IF batch(d) THEN documentNameSku(batch(d)) ELSE (OVERRIDE name(sku(d)), dataNameSku(d)),
+    (OVERRIDE (IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d))), dataNameSku(d)),
     overNameSku(d);
     
-//nameSkuConsignmentDetail 'Наименование товара' (d) = nameSku(skuConsignmentDetail(d));
-
 shortNameUOM 'Единица измерения' (ConsignmentDetail d) = shortNameUOM(sku(d));
-//shortNameUOMConsignmentDetail 'Единица измерения' (d) = ABSTRACT STRING[15] (ConsignmentDetail);
 
 consignment (d) = ABSTRACT Consignment (ConsignmentDetail);
 
-//useRetailPriceConsignment 'Использовать розничные цены' = ABSTRACT BOOLEAN (Consignment);
-
-quantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
+quantity 'Количество' (ConsignmentDetail d) = OVERRIDE dataQuantity(d), overQuantity(d);
 
 invoicePrice 'Цена с НДС' (d) = ABSTRACT NUMERIC[14,2] (ConsignmentDetail);
 isInvoicePrice 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT BOOLEAN (ConsignmentDetail);
