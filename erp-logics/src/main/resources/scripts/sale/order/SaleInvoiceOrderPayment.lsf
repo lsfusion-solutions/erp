@@ -4,41 +4,68 @@ REQUIRE SaleInvoiceOrderAggregation, SaleInvoicePayment;
 
 NAMESPACE Sale;
   
+@defineOperationProperty(showPayment, 'Показывать платежи', showContainer);  
+  
+showPayment (UserOrder o) = showPayment(operation(o));
+  
 cost 'Оплачено из документа' = cost(OutContractLedger payment, orderInvoice(Order order));
 
 addPayment 'Оплатить'(Order order) = ACTION {
-    currentInContractLedger() <- orderInvoice(order);
-    FOR ADDOBJ p = Payment DO{
-        contract(p) <- contractSku(orderInvoice(order));
-        date(p) <- currentDate();
-        time(p) <- currentTime();
-        payer(p) <- customer[Invoice](orderInvoice(order));
-        beneficiary(p) <- supplier[Invoice](orderInvoice(order));
-        sum(p) <- invoiceSumInvoiceDetail(orderInvoice(order));
-        cost(p, InContractLedger invoice) <- sumContract(p) WHERE invoice == currentInContractLedger();
-        FORM payment OBJECTS p=p MODAL;
-        IF NOT formResult() == FormResult.ok THEN {
-            DELETE p;
-        }
+    IF orderInvoice(order) THEN {
+        currentInContractLedger() <- orderInvoice(order);
+        FOR ADDOBJ p = Payment DO {
+            contract(p) <- contractSku(orderInvoice(order));
+            date(p) <- currentDate();
+            time(p) <- currentTime();
+            payer(p) <- customer[Invoice](orderInvoice(order));
+            beneficiary(p) <- supplier[Invoice](orderInvoice(order));
+            sum(p) <- invoiceSumInvoiceDetail(orderInvoice(order));
+            cost(p, InContractLedger invoice) <- sumContract(p) WHERE invoice == currentInContractLedger();
+            FORM payment OBJECTS p=p MODAL;
+            IF NOT formResult() == FormResult.ok THEN {
+                DELETE p;
+            }
+        }    
+    } ELSE {
+        FOR ADDOBJ p = Payment DO {
+            contract(p) <- contractSku(order);
+            date(p) <- currentDate();
+            time(p) <- currentTime();
+            payer(p) <- customer(order);
+            beneficiary(p) <- supplier(order);
+            sum(p) <- invoiceSumOrderDetail(order);
+            FORM payment OBJECTS p=p MODAL;
+            IF NOT formResult() == FormResult.ok THEN {
+                DELETE p;
+            }
+        }    
     }
 }
 
 edit 'Редактировать'(Payment payment, Order order) = ACTION {
-    currentInContractLedger() <- orderInvoice(order);
-    FORM payment OBJECTS p=payment MODAL;
+    IF orderInvoice(order) THEN {
+        currentInContractLedger() <- orderInvoice(order);
+        FORM payment OBJECTS p=payment MODAL;    
+    } ELSE {        
+        FORM payment OBJECTS p=payment MODAL;    
+    }
 } IMAGE 'edit.png';
     
+showPaymentInvoice (UserOrder o) = showPayment(o) AND createInvoice(o);    
+filterPaymentInvoice 'Платежи по накладной' = DATA LOCAL BOOLEAN (UserOrder);
+
+
 EXTEND FORM userOrder
     OBJECTS pm = Payment FIXED GRID
-    PROPERTIES(pm) READONLY SHOWIF createInvoice(o) seriesNumber, dateTime, namePayer, nameBeneficiary,
-                            note, isPosted
+    PROPERTIES(pm) READONLY SHOWIF showPayment(o) isPosted, seriesNumber, dateTime, namePayer, nameBeneficiary, note, sum
     ORDER BY dateTime(pm)
-    PROPERTIES(pm, o) SHOWIF createInvoice(o)  cost
-    PROPERTIES TODRAW pm FORCE PANEL TOOLBAR SHOWIF createInvoice(o)  addPayment(o), edit(pm, o)
-    PROPERTIES(pm) SHOWIF createInvoice(o) DELETESESSION
-
-    FILTERGROUP filters
-        FILTER 'Платежи по накладной' cost(pm, o) 'F10' DEFAULT
+    PROPERTIES(pm, o) SHOWIF showPaymentInvoice(o)  cost
+    PROPERTIES SHOWIF showPayment(o) TODRAW pm FORCE PANEL TOOLBAR addPayment(o), edit(pm, o) 
+    PROPERTIES(pm)  DELETESESSION SHOWIF showPayment(o)
+    PROPERTIES SHOWIF showPaymentInvoice(o) filterPaymentInvoice(o)
+    FILTERS (cost(pm, o) IF filterPaymentInvoice(o)) OR (pm IS Payment AND NOT filterPaymentInvoice(o)) 
+//    FILTERGROUP filters
+//        FILTER 'Платежи по накладной' cost(pm, o) 'F10' DEFAULT
     FILTERS contract(pm) == contractSku(o)
 ;
 
@@ -47,6 +74,9 @@ DESIGN userOrder{
         NEW paymentContainer{
             caption = 'Платежи';
             MOVE pm.box;
+            pm.filters {
+                MOVE PROPERTY (filterPaymentInvoice(o));
+            }
         }
     }
 }
