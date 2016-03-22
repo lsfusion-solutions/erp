@@ -87,12 +87,15 @@ META defineDocumentSku(object, skuProp, stockClass, stockProp)
     @defineDocumentSku(object, object##Detail, skuProp, stockClass, stockProp);
 END
 
-META extendFormDocumentSku(object, detail, form, concrete, skuProp)
+META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
 
     backgroundPickName 'Цвет в подборе' = ABSTRACT CASE COLOR (Sku, ###object);
     hideQuantity###skuProp##Document = ABSTRACT BOOLEAN (###object);
     showQuantity###skuProp##Document = NOT hideQuantity###skuProp##Document(###object o); 
     
+    showMovementSku 'Показать движение по складу' (Sku ks, ###object concrete) = ACTION showMovementSku(ks, stockProp(concrete));
+    showMovementPriceSku 'Показать изменение цены по складу' (Sku ks, ###object concrete) = ACTION showMovementPriceSku(ks, stockProp(concrete));
+        
     EXTEND FORM form
 
         TREE skuTree sk = SkuGroup PARENT parent
@@ -101,7 +104,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
         FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
         OBJECTS ks=Sku
-        PROPERTIES READONLY      inputName = name(ks) BACKGROUND backgroundPickName(ks, concrete)
+        PROPERTIES READONLY      inputName = name(ks) ON SHORTCUT showMovementSku(ks, concrete) ON SHORTCUT showMovementPriceSku(ks, concrete) BACKGROUND backgroundPickName(ks, concrete)
         PROPERTIES(ks) READONLY  BACKGROUND backgroundPickName(ks, concrete) idBarcode, id SHOWIF showIDs(), shortNameUOM
         PROPERTIES(ks, concrete) quantity###detail ON CHANGE changeQuantity(ks, concrete) 
                                     BACKGROUND backgroundQuantity(ks, concrete) SHOWIF showQuantity###skuProp##Document(concrete)
@@ -170,7 +173,7 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp)
 END
 
 META extendFormDocumentSkuPriceListTypeAgreement(eobj, detail, form, concrete, skuProp, stockProp)
-    @extendFormDocumentSku(eobj, detail, form, concrete, skuProp);
+    @extendFormDocumentSku(eobj, detail, form, concrete, skuProp, stockProp);
 
     current###eobj###eobj() = DATA LOCAL Object ();
     setCurrent###eobj###eobj(Object concrete) = ACTION current###eobj###eobj() <- concrete;
