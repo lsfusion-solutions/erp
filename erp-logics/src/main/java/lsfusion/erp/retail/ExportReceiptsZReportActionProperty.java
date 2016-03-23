@@ -44,7 +44,6 @@ import java.util.List;
 public abstract class ExportReceiptsZReportActionProperty extends DefaultExportActionProperty {
 
     // Опциональные модули
-    ScriptingLogicsModule POSVostrovLM;
     ScriptingLogicsModule itemArticleLM;
     ScriptingLogicsModule zReportDiscountCardLM;
     ScriptingLogicsModule zReportRetailCRMLM;
@@ -60,7 +59,6 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
 
     public void export(ExecutionContext<ClassPropertyInterface> context, DataObject zReportObject, String filePath, boolean customPath) {
 
-        this.POSVostrovLM = context.getBL().getModule("POSVostrov");
         this.itemArticleLM = context.getBL().getModule("ItemArticle");
         this.zReportDiscountCardLM = context.getBL().getModule("ZReportDiscountCard");
         this.zReportRetailCRMLM = context.getBL().getModule("ZReportRetailCRM");
@@ -88,9 +86,6 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
             }
             if (zReportDiscountCardLM != null)
                 receiptQuery.addProperty("numberDiscountCardReceipt", zReportDiscountCardLM.findProperty("numberDiscountCard[Receipt]").getExpr(session.getModifier(), receiptExpr));
-
-            if (POSVostrovLM != null)
-                receiptQuery.addProperty("isInvoiceReceipt", POSVostrovLM.findProperty("isInvoice[Receipt]").getExpr(session.getModifier(), receiptExpr));
 
             receiptQuery.and(findProperty("zReport[Receipt]").getExpr(session.getModifier(), receiptQuery.getMapExprs().get("receipt")).compare(zReportObject.getExpr(), Compare.EQUALS));
             receiptQuery.and(findProperty("export[Receipt]").getExpr(session.getModifier(), receiptQuery.getMapExprs().get("receipt")).getWhere());
