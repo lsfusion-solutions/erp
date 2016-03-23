@@ -1816,7 +1816,18 @@ DESIGN options {
 @defineBalancesBatch(pageInventoryDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineMovementBatch(pageInventoryDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
-CONSTRAINT isPosted(inventory(PageInventoryDetail d)) AND isBatch(inventory(d)) AND NOT batch(d)
+notCheckBatchDetail 'Не проверять наличие партий для строк описи' = DATA BOOLEAN (Operation);
+
+EXTEND FORM operation
+    PROPERTIES(o) notCheckBatchDetail SHOWIF isBatch(o)
+;
+DESIGN operation {
+    commonContainer {
+        MOVE PROPERTY(notCheckBatchDetail(o)) AFTER PROPERTY (isBatch(o));
+    }
+}
+
+CONSTRAINT isPosted(inventory(PageInventoryDetail d)) AND isBatch(inventory(d)) AND NOT notCheckBatchDetail(operation(inventory(d)))  AND NOT batch(d)
     MESSAGE 'В инвентаризации по партиям не должно быть строк описи без партий.';     
 
 batchQuantity 'Расписано по партиям' = GROUP SUM quantityPageInventoryDetail(CollationSheet cs, Batch bt) BY cs, sku(bt);
