@@ -250,11 +250,12 @@ ledgerA (type, sku, stock, dateTime) =
                 fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
 editLedgerA 'Редактировать' (LedgerPriceListType type, Sku sku, Stock stock, DATETIME dateTime) = ACTION edit(ledgerA (type, sku, stock, dateTime)) IMAGE 'edit.png';                
 
+stockFilter (Stock stock, PriceList.Operation operation) = (stock IS Stock AND showNotCompanyStocks(operation)) OR isCompany(stock);
 
 EXTEND FORM priceListDashboard
     OBJECTS s = Stock FIXED PANEL
     PROPERTIES(s) name SELECTOR
-    FILTERS isCompany(s)
+    FILTERS stockFilter(s, o)
 
     TREE sskg sskg = SkuGroup PARENT parent
     PROPERTIES READONLY order(sskg), sskgName = name(sskg)
