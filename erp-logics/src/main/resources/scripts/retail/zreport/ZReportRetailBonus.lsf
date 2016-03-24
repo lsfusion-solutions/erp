@@ -50,7 +50,7 @@ blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = G
 
 paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
 
-availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
+availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
 
 externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
 totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d);
@@ -80,6 +80,7 @@ DESIGN discountCard {
             MOVE PROPERTY(cumulativeBonuses(d));
             MOVE PROPERTY(blockedBonuses(d));
             MOVE PROPERTY(paidBonuses(d));
+            MOVE PROPERTY(sumBonusLedger(d));
             MOVE PROPERTY(availableBonuses(d));
             MOVE PROPERTY(externalBonuses(d));
             MOVE PROPERTY(totalBonuses(d));
