@@ -579,15 +579,15 @@ quantitySkuBalance 'Кол-во по остаткам' (collationSheet) =
     GROUP SUM quantityBalance(CollationSheet collationSheet, Sku sku) IF include(collationSheet, sku) BY collationSheet PERSISTENT;
 sumSkuBalance 'Сумма по остаткам' (collationSheet) =  GROUP SUM sumBalance(CollationSheet collationSheet, Sku sku) IF include(collationSheet, sku) BY collationSheet PERSISTENT;
 
-quantityShortage 'Кол-во недостачи' (CollationSheet collationSheet, Sku sku) =
+quantityShortage 'Кол-во недостачи / излишка' (CollationSheet collationSheet, Sku sku) =
     quantityBalance(collationSheet, sku) (-) quantityPageInventoryDetail(collationSheet, sku) PERSISTENT;
-sumShortage 'Сумма недостачи' (CollationSheet collationSheet, Sku sku) =
+sumShortage 'Сумма недостачи / излишка' (CollationSheet collationSheet, Sku sku) =
     sumBalance(collationSheet, sku) (-) sumPageInventoryDetail(collationSheet, sku) PERSISTENT;
 
-quantitySkuShortage 'Кол-во недостачи' (collationSheet) =
+quantitySkuShortage 'Кол-во недостачи / излишка' (collationSheet) =
     GROUP SUM quantityShortage(CollationSheet collationSheet, Sku sku) IF include(collationSheet, sku) 
         BY collationSheet PERSISTENT;
-sumShortageSku 'Сумма недостачи' (collationSheet) = 
+sumShortageSku 'Сумма недостачи / излишка' (collationSheet) = 
     GROUP SUM sumShortage(CollationSheet collationSheet, Sku sku) IF include(collationSheet, sku) 
         BY collationSheet PERSISTENT;
 //-- Отдельно излишки, отдельно недостача
@@ -615,9 +615,9 @@ sumItemSkuPageInventoryDetail 'Сумма по факту, товар' (collatio
 sumContainerSkuPageInventoryDetail 'Сумма по факту, тара' (collationSheet) = GROUP SUM sumPageInventoryDetail(CollationSheet collationSheet, Sku sku) 
     IF include(collationSheet, sku) IF isContainer(sku) BY collationSheet PERSISTENT;
 
-sumItemSkuShortage 'Сумма недостачи, товар' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Sku sku) 
+sumItemSkuShortage 'Сумма недостачи / излишка, товар' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Sku sku) 
     IF include(collationSheet, sku) IF isItem(sku) BY collationSheet PERSISTENT;
-sumContainerSkuShortage 'Сумма недостачи, тара' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Sku sku) 
+sumContainerSkuShortage 'Сумма недостачи / излишка, тара' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Sku sku) 
     IF include(collationSheet, sku) IF isContainer(sku) BY collationSheet PERSISTENT;
 
 // ------------------------------------ Итоги по сличительной ведомости (Batch) ------------------------------------ //
@@ -631,14 +631,14 @@ sumBatchBalance 'Сумма по остаткам' (collationSheet) =  GROUP SUM
     IF include(collationSheet, batch) BY collationSheet PERSISTENT;
 
 
-quantityShortage 'Кол-во недостачи' (CollationSheet collationSheet, Batch batch) =
+quantityShortage 'Кол-во недостачи / излишка' (CollationSheet collationSheet, Batch batch) =
     quantityBalance(collationSheet, batch) (-) quantityPageInventoryDetail(collationSheet, batch) PERSISTENT;
-sumShortage 'Сумма недостачи' (CollationSheet collationSheet, Batch batch) =
+sumShortage 'Сумма недостачи / излишка' (CollationSheet collationSheet, Batch batch) =
     sumBalance(collationSheet, batch) (-) sumPageInventoryDetail(collationSheet, batch) PERSISTENT;
 
-quantityBatchShortage 'Кол-во недостачи' (collationSheet) =
+quantityBatchShortage 'Кол-во недостачи / излишка' (collationSheet) =
     GROUP SUM quantityShortage(CollationSheet collationSheet, Batch batch) IF include(collationSheet, batch) BY collationSheet PERSISTENT;
-sumBatchShortage 'Сумма недостачи' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Batch batch) 
+sumBatchShortage 'Сумма недостачи / излишка' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Batch batch) 
     IF include(collationSheet, batch) BY collationSheet PERSISTENT;
     
 //-- Отдельно излишки, отдельно недостача    
@@ -666,9 +666,9 @@ sumItemBatchPageInventoryDetail 'Сумма по факту, товар' (collat
 sumContainerBatchPageInventoryDetail 'Сумма по факту, тара' (collationSheet) = GROUP SUM sumPageInventoryDetail(CollationSheet collationSheet, Batch batch) 
     IF include(collationSheet, batch) IF isContainer(batch) BY collationSheet PERSISTENT;
 
-sumItemBatchShortage 'Сумма недостачи, товар' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Batch batch) 
+sumItemBatchShortage 'Сумма недостачи / излишка, товар' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Batch batch) 
     IF include(collationSheet, batch) IF NOT isContainer(batch) BY collationSheet PERSISTENT;
-sumContainerBatchShortage 'Сумма недостачи, тара' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Batch batch) 
+sumContainerBatchShortage 'Сумма недостачи / излишка, тара' (collationSheet) = GROUP SUM sumShortage(CollationSheet collationSheet, Batch batch) 
     IF include(collationSheet, batch) IF isContainer(batch) BY collationSheet PERSISTENT;
 
 
@@ -681,10 +681,10 @@ sumBalance 'Сумма по остаткам' (CollationSheet collationSheet) = 
                                                                     THEN sumBatchBalance(collationSheet)
                                                                     ELSE sumSkuBalance(collationSheet);
 
-quantityShortage 'Кол-во недостачи' (CollationSheet collationSheet) = IF isBatch(collationSheet)
+quantityShortage 'Кол-во недостачи / излишка' (CollationSheet collationSheet) = IF isBatch(collationSheet)
                                                                         THEN quantityBatchShortage(collationSheet)
                                                                         ELSE quantitySkuShortage(collationSheet);
-sumManageShortage 'Сумма недостачи' (CollationSheet collationSheet) = IF isBatch(collationSheet)
+sumManageShortage 'Сумма недостачи / излишка' (CollationSheet collationSheet) = IF isBatch(collationSheet)
                                                                     THEN sumBatchShortage(collationSheet)
                                                                     ELSE sumShortageSku(collationSheet);
                                                                     
@@ -716,10 +716,10 @@ sumContainerPageInventoryDetail 'Сумма по факту, тара' (Collatio
                                                                                             THEN sumContainerBatchPageInventoryDetail(collationSheet)
                                                                                             ELSE sumContainerSkuPageInventoryDetail(collationSheet);
 
-sumItemManageShortage 'Сумма недостачи, товар' (CollationSheet collationSheet) = IF isBatch(collationSheet)
+sumItemManageShortage 'Сумма недостачи / излишка, товар' (CollationSheet collationSheet) = IF isBatch(collationSheet)
                                                                             THEN sumItemBatchShortage(collationSheet)
                                                                             ELSE sumItemSkuShortage(collationSheet);
-sumContainerManageShortage 'Сумма недостачи, тара' (CollationSheet collationSheet) = IF isBatch(collationSheet)
+sumContainerManageShortage 'Сумма недостачи / излишка, тара' (CollationSheet collationSheet) = IF isBatch(collationSheet)
                                                                                 THEN sumContainerBatchShortage(collationSheet)
                                                                                 ELSE sumContainerSkuShortage(collationSheet);
 
@@ -833,16 +833,16 @@ accountSumBalance = IF showAccountSums(CollationSheet collationSheet)
                                                           THEN accountSumItemBalance(collationSheet) (+) accountSumContainerBalance(collationSheet)
                                                           ELSE sumBalance(collationSheet);                                                                                                                          
 
-sumItemShortage 'Сумма недостачи, товар' = IF showAccountSums(CollationSheet collationSheet)
+sumItemShortage 'Сумма недостачи / излишка, товар' = IF showAccountSums(CollationSheet collationSheet)
                                                             THEN sumItemAccountShortage(collationSheet)
                                                             ELSE sumItemManageShortage(collationSheet);
                                                             
-sumContainerShortage 'Сумма недостачи, тара' = IF showAccountSums(CollationSheet collationSheet)
+sumContainerShortage 'Сумма недостачи / излишка, тара' = IF showAccountSums(CollationSheet collationSheet)
                                                             THEN sumContainerAccountShortage(collationSheet)
                                                             ELSE sumContainerManageShortage(collationSheet);
 
-sumAccountShortage 'Сумма недостачи по ТО' = sumItemShortage(CollationSheet collationSheet) (+) sumContainerShortage(collationSheet);                                                            
-sumShortage 'Сумма недостачи'  =  IF showAccountSums(CollationSheet collationSheet)
+sumAccountShortage 'Сумма недостачи / излишка по ТО' = sumItemShortage(CollationSheet collationSheet) (+) sumContainerShortage(collationSheet);                                                            
+sumShortage 'Сумма недостачи / излишка'  =  IF showAccountSums(CollationSheet collationSheet)
                                                                     THEN sumAccountShortage(collationSheet)
                                                                     ELSE sumManageShortage(collationSheet);                                                           
 
@@ -922,8 +922,8 @@ sku(InventorySkuDetail inventorySkuDetail) = MULTI sku[OutInventorySkuDetail](in
 nameSku 'Товар' (InventorySkuDetail inventorySkuDetail) = name(sku(inventorySkuDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
 idBarcode 'Штрихкод' (InventorySkuDetail inventorySkuDetail) =  idBarcode(sku(inventorySkuDetail));
 
-quantity 'Кол-во недостачи' (InventorySkuDetail inventorySkuDetail) = quantityShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) PERSISTENT;
-sum 'Сумма недостачи' (InventorySkuDetail inventorySkuDetail) = sumShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) PERSISTENT;
+quantity 'Кол-во недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = quantityShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) PERSISTENT;
+sum 'Сумма недостачи / излишка' (InventorySkuDetail inventorySkuDetail) = sumShortage(collationSheet(inventorySkuDetail), sku(inventorySkuDetail)) PERSISTENT;
 
 description 'Название документа' (OutInventorySkuDetail inventorySkuDetail) =
     'Недостача по инвентаризации ' + name(collationSheet(inventorySkuDetail)) + ' от ' + date(collationSheet(inventorySkuDetail));
@@ -996,8 +996,8 @@ sku (InventoryBatchDetail inventoryBatchDetail) = sku(batch(inventoryBatchDetail
 nameSku 'Товар' (InventoryBatchDetail inventoryBatchDetail) = nameSku(batch(inventoryBatchDetail)) MINCHARWIDTH 15 PREFCHARWIDTH 15;
 idBarcode 'Штрихкод' (InventoryBatchDetail inventoryBatchDetail) =  idBarcode(sku(inventoryBatchDetail));
 
-quantity 'Кол-во недостачи' (InventoryBatchDetail inventoryBatchDetail) = quantityShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
-sum 'Сумма недостачи' (InventoryBatchDetail inventoryBatchDetail) = sumShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
+quantity 'Кол-во недостачи / излишка' (InventoryBatchDetail inventoryBatchDetail) = quantityShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
+sum 'Сумма недостачи / излишка' (InventoryBatchDetail inventoryBatchDetail) = sumShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
 
 includeBatch(InventoryBatchDetail inventoryBatchDetail) = include(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
 
@@ -1314,7 +1314,7 @@ sumShortageBatches  (collationSheet, group) = GROUP SUM sumShortage(CollationShe
     BY cs, group PERSISTENT;
 overSumPageInventoryDetail 'Сумма по описям' = IF isBatch(CollationSheet cs) THEN sumPageInventoryDetailBatches(cs,SkuGroup g) ELSE sumPageInventoryDetail(cs,g);
 overSumBalance 'Сумма по остаткам' = IF isBatch(CollationSheet cs) THEN sumBalanceBatches(cs,SkuGroup g) ELSE sumBalance(cs,g);
-overSumShortage 'Сумма недостачи' = IF isBatch(CollationSheet cs) THEN sumShortageBatches(cs,SkuGroup g) ELSE sumShortage(cs,g);
+overSumShortage 'Сумма недостачи / излишка' = IF isBatch(CollationSheet cs) THEN sumShortageBatches(cs,SkuGroup g) ELSE sumShortage(cs,g);
 
 saved 'Сохранена' (Inventory i) = PREV(i IS Inventory);
 
