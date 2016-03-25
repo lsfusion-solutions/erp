@@ -326,6 +326,7 @@ quantityBalance 'Кол-во по остаткам' (collationSheet, batch) = DA
 
 priceBalance 'Цена по остаткам' (collationSheet, batch) = DATA NUMERIC[14,2] (CollationSheet, Batch);
 
+sumBalance 'Сумма по остаткам'  = DATA NUMERIC[16,2] (CollationSheet, Batch); 
 // ------------------------------------- Действия по заполнению сличительной ведомости --------------------------------------- //
 
 GROUP inventoryAction 'Действия' : public;
@@ -343,16 +344,41 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory) = A
         sumBalance(CollationSheet collationSheet, Sku sku)
             <- NUMERIC[16,2](round(balanceB(sku, stock(collationSheet), dateTime(inventory(collationSheet)))*priceBalance(collationSheet, sku),currency(stock(collationSheet))))
             WHERE inventory(collationSheet) == inventory;    
-    }
-//NUMERIC[16,2](roundPriceCurrency((quantityPageInventoryDetail(pageInventoryDetail) * pricePageInventoryDetail(pageInventoryDetail)), currencyPageInventoryDetail(pageInventoryDetail)));    
+    }   
     
     IF isBatch (inventory) THEN {
         quantityBalance(CollationSheet collationSheet, Batch batch)
             <- balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
             WHERE inventory(collationSheet) == inventory;
+        IF NOT isPrice(inventory) THEN {
+            FOR inventory(CollationSheet collationSheet) == inventory DO {
+                IF explicitBatchLedger(stock(collationSheet)) THEN 
+                    sumBalance(collationSheet, Batch batch)
+                        <- NUMERIC[16,2](sumB(batch, stock(collationSheet), dateTime(inventory(collationSheet))))
+                ELSE
+                    sumBalance(collationSheet, Batch batch)
+                        <- NUMERIC[16,2](round(quantityBalance(collationSheet, batch)*priceBalance(collationSheet, batch),currency(stock(collationSheet))));
+            }
+                                      
+        } ELSE {
+            sumBalance(CollationSheet collationSheet, Batch batch)
+                <- NUMERIC[16,2](round(quantityBalance(collationSheet, batch)*priceBalance(collationSheet, batch),currency(stock(collationSheet))))
+                WHERE inventory(collationSheet) == inventory;    
+        }
+            
     }
     overRecalculateBalance(inventory);
 } CONFIRM IN inventoryAction;
+
+isNewExplicitBatchLedger = DATA BOOLEAN ();
+onStarted() += ACTION {
+    IF NOT isNewExplicitBatchLedger() THEN {
+        sumBalance(CollationSheet collationSheet, Batch batch)
+                    <- NUMERIC[16,2](round(quantityBalance(collationSheet, batch)*priceBalance(collationSheet, batch),currency(stock(collationSheet))));
+        isNewExplicitBatchLedger() <- TRUE;
+        apply();
+    }
+}
 
 
 overPriceBalance = ABSTRACT NUMERIC[14,2](CollationSheet, Sku);
@@ -596,9 +622,9 @@ sumContainerSkuShortage 'Сумма недостачи, тара' (collationShee
 
 // ------------------------------------ Итоги по сличительной ведомости (Batch) ------------------------------------ //
 
-sumBalance 'Сумма по остаткам' (CollationSheet collationSheet, Batch batch) =
-    NUMERIC[16,2](round(quantityBalance(collationSheet, batch) * priceBalance(collationSheet, batch), currency(stock(collationSheet))));
-
+//sumBalance 'Сумма по остаткам' (CollationSheet collationSheet, Batch batch) = explicitBatchLedger
+//    NUMERIC[16,2](round(quantityBalance(collationSheet, batch) * priceBalance(collationSheet, batch), currency(stock(collationSheet))));
+      
 quantityBatchBalance 'Кол-во по остаткам' (collationSheet) =
     GROUP SUM quantityBalance(CollationSheet collationSheet, Batch batch) IF include(collationSheet, batch) BY collationSheet PERSISTENT;
 sumBatchBalance 'Сумма по остаткам' (collationSheet) =  GROUP SUM sumBalance(CollationSheet collationSheet, Batch batch) 

@@ -534,7 +534,11 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     sumB 'Сумма (до)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentSum(sku, stock)
                                                                      (-) [= GROUP SUM signedSumActive(SkuLedger ledger) IF dateTime(ledger) >= DATETIME dateTime
                                                                                 BY sku(ledger), stock(ledger), dateTime](sku, stock, dateTime);
-       
+    //-- использовать только при условии explicitBatchLedger для склада                                                                            
+    sumB 'Сумма (до)'###caption (Batch batch, Stock stock, DATETIME dateTime) = GROUP SUM signedSumActive(SkuLedger ledger) IF dateTime(ledger) < DATETIME dateTime
+                                                                                    BY batch(ledger), stock(ledger), dateTime;
+                                                                                       
+                                                                                       
     sumRecBSku 'Учетная сумма (всего)' (group, stock, dateTime) =
         GROUP SUM sumB (Sku sku, Stock stock, DATETIME dateTime) IF isParent(Group group, sku)
         BY group, stock, dateTime;
