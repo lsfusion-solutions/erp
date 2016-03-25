@@ -150,6 +150,7 @@ truck(Consignment consignment) = OVERRIDE defaultTruck(consignment), dataTruck(c
 
 dataNameTruck = DATA VARSTRING[70](Consignment);
 nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE name(truck(consignment)), dataNameTruck(consignment) IN carConsignment;
+skipTruck 'Пропустить проверку автомобиля' = ABSTRACT CASE BOOLEAN (Consignment);
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
 
@@ -205,6 +206,7 @@ dataEmployee = ABSTRACT Employee(Consignment);
 dataNameDriver = DATA VARSTRING[30] (Consignment);
 nameDriver 'Водитель' (Consignment consignment) = OVERRIDE shortName(driver(consignment)),
                                                           shortName(dataEmployee(consignment)), dataNameDriver(consignment) IN carConsignment;
+skipDriver 'Пропустить проверку водителя' = ABSTRACT CASE BOOLEAN (Consignment);
                                                           
 changeDriver(Consignment consignment) = ACTION {
     
@@ -227,7 +229,7 @@ dataWaybill 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Co
 waybill 'Путевой лист' (consignment) = ABSTRACT STRING[30] (Consignment);
 
 overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE waybill(consignment), dataWaybill(consignment) IN carConsignment;
-
+skipWaybill 'Пропустить проверку путевого листа' = ABSTRACT CASE BOOLEAN (Consignment);
 
 // Склад погрузки
 supplierStock (consignment) = ABSTRACT Stock (Consignment);
@@ -589,19 +591,19 @@ stopPrintConsignment = DATA LOCAL BOOLEAN ();
 
 checkMandatoryAttribute = ACTION ABSTRACT LIST (Consignment);
 
-META checkConsignmentAttribute(type, attrib, msg)
+META checkConsignmentAttribute(type, attrib, msg, skipProp)
 
 checkMandatoryAttribute(Consignment c) += ACTION {
-    IF is##type(c) AND NOT attrib(c) THEN {
+    IF is##type(c) AND NOT attrib(c) AND NOT skipProp(c) THEN {
         stopPrintConsignment() <- TRUE;
         MESSAGE NO WAIT msg;
     }
 }
 END
 
-@checkConsignmentAttribute(TTN1, nameDriver, 'Для накладной должен быть заполнен водитель');
-@checkConsignmentAttribute(TTN1, nameTruck, 'Для накладной должен быть заполнен автомобиль');
-@checkConsignmentAttribute(TTN1, overWaybill, 'Для накладной должен быть заполнен путевой лист');
+@checkConsignmentAttribute(TTN1, nameDriver, 'Для накладной должен быть заполнен водитель', skipDriver);
+@checkConsignmentAttribute(TTN1, nameTruck, 'Для накладной должен быть заполнен автомобиль', skipTruck);
+@checkConsignmentAttribute(TTN1, overWaybill, 'Для накладной должен быть заполнен путевой лист', skipWaybill);
 
 // ---------------------------- Формы для накладных --------------------------------- //
 
