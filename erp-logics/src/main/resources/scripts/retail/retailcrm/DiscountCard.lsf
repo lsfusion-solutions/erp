@@ -24,7 +24,7 @@ emailLegalEntity 'E-mail' (DiscountCard discountCard) = email(legalEntity(discou
 idLegalEntityGroup 'Группа держателя дисконтной карты' (DiscountCard discountCard) = id(legalEntityGroup(legalEntity(discountCard)));
 idLegalEntity 'Держатель дисконтной карты' (DiscountCard discountCard) = id(legalEntity(discountCard));
 nameLegalEntity 'Держатель дисконтной карты' (DiscountCard discountCard) = name(legalEntity(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
-addressLegalEntity 'Юридический адрес' (DiscountCard discountCard) = address(legalEntity(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
+addressLegalEntity 'Адрес' (DiscountCard discountCard) = address(legalEntity(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
 firstNameContact 'Имя' (DiscountCard discountCard) = firstName(legalEntity(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
 lastNameContact 'Фамилия' (DiscountCard discountCard) = lastName(legalEntity(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
 birthdayContact 'День рождения' (DiscountCard discountCard) = birthday(legalEntity(discountCard)) IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 40;
@@ -81,11 +81,11 @@ generateDiscountCards 'Сгенерировать дисконтные карт�
 // Формы по работе с дисконтными картами
 FORM discountCard 'Дисконтная карта'
     OBJECTS d=DiscountCard FIXED PANEL
-    PROPERTIES(d) nameLegalEntity, phoneLegalEntity, emailLegalEntity, 
-                  addressLegalEntity, firstNameContact, lastNameContact, 
-                  birthdayContact, postAddressContact, id SHOWIF showIDs(), 
-                  name, initialSum, percent, nameNumerator, number, series,
-                  date, dateTo
+    PROPERTIES(d) id SHOWIF showIDs(), name, initialSum, percent,
+                  nameNumerator, number, series,
+                  date, dateTo,
+                  firstNameContact, lastNameContact, phoneLegalEntity, emailLegalEntity,                  
+                  addressLegalEntity, birthdayContact 
 
     EDIT DiscountCard OBJECT d
 ;
@@ -97,22 +97,30 @@ DESIGN discountCard {
             d.panel {
                 type = CONTAINERV;
                 NEW row1 {
-                    type = CONTAINERH;
-                    MOVE PROPERTY(nameLegalEntity(d)) {
-                        font = '24';
+                    NEW common {
+                        type = CONTAINERH;
+                        caption = 'Общие';
+                        MOVE PROPERTY(id(d));
+                        MOVE PROPERTY(name(d));
+                        MOVE PROPERTY(initialSum(d));
+                        MOVE PROPERTY(percent(d));
                     }
-                    MOVE PROPERTY(initialSum(d)) {
-                        font = '24';
-                    }                    
                 }
                 NEW row2 {
                     type = CONTAINERH;
-                    NEW row21{
-                        caption = 'Код';
-                        MOVE PROPERTY(id(d));
-                    }
                     MOVE d.numbered;
                     MOVE d.discountCardDate;
+                }
+                NEW row3 {
+                    caption = 'Держатель';
+                    type = COLUMNS;
+                    columns = 3;
+                    MOVE PROPERTY(firstNameContact(d));
+                    MOVE PROPERTY(lastNameContact(d));
+                    MOVE PROPERTY(phoneLegalEntity(d));
+                    MOVE PROPERTY(emailLegalEntity(d));
+                    MOVE PROPERTY(addressLegalEntity(d));
+                    MOVE PROPERTY(birthdayContact(d));
                 }
             }
         }
