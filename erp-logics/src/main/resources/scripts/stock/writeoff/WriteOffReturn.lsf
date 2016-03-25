@@ -295,61 +295,60 @@ DESIGN userWriteOff{
 EXTEND FORM writeOffs
     PROPERTIES(w) READONLY nameOperation BEFORE nameReason(w)
 ;
-
-    
-// Основание    
-    
-writeOffDetail (writeOffDetail) = ABSTRACT WriteOff.WriteOffDetail (WriteOffDetail) PERSISTENT;
-writeOffDetail (userWriteOffDetail) = DATA WriteOff.WriteOffDetail (UserWriteOffDetail);
-writeOffDetail(UserWriteOffDetail detail) += writeOffDetail(detail);
-
-returnQuantity 'Кол-во (возвращено)' (writeOffDetail)= GROUP SUM quantity(WriteOffDetail writeOffDetail) BY writeOffDetail(writeOffDetail) PERSISTENT;
-returnQuantityWriteOffDetail 'Кол-во (возвращено)' (writeOff) =  GROUP SUM returnQuantity(WriteOff.WriteOffDetail writeOffDetail) BY writeOff(writeOffDetail) PERSISTENT;
-
-CONSTRAINT returnQuantity(WriteOff.WriteOffDetail detail) > quantity(detail)
-    MESSAGE 'Количество строки возврата больше чем количество строки основания';
-
-CONSTRAINT sku(writeOffDetail(UserWriteOffDetail detail)) !=  sku(detail) CHECKED BY writeOffDetail[UserWriteOffDetail]
-    MESSAGE 'SKU строки основания должен соответствовать SKU строки возврата';
-
-CONSTRAINT contact(writeOffDetail(UserWriteOffDetail detail)) !=  contact(detail) CHECKED BY writeOffDetail[UserWriteOffDetail]
-    MESSAGE 'Контрагент строки основания должен соответствовать Контрагент строки возврата';
-
-CONSTRAINT stock(writeOffDetail(UserWriteOffDetail detail)) != stock(detail) CHECKED BY writeOffDetail[UserWriteOffDetail]
-    MESSAGE 'Склад строки основания должен соответствовать Склад строки возврата';
-
-descriptionWriteOffDetail 'Основание' (WriteOffDetail writeOffDetail) = description(writeOffDetail(writeOffDetail));
-descriptionWriteOffDetail 'Основание' (UserWriteOffDetail userWriteOffDetail) = description(writeOffDetail(userWriteOffDetail));
-
-recalculatedPrice(UserWriteOffDetail detail) = ACTION {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
-    IF writeOffDetail(detail) THEN {
-        ASSIGN price(detail) <-  price(writeOffDetail(detail));
-    }
-}
-    WHEN SESSION FORMS userWriteOff
-        CHANGED(writeOffDetail[UserWriteOffDetail](WriteOffDetail detail)) OR
-        CHANGED(batch(detail)) OR
-        CHANGED(sku(detail)) OR
-        CHANGED(stock(detail)) OR
-        CHANGED(dateTime(detail))
-            DO EXEC recalculatedPrice(detail);
-
-
-EXTEND FORM userWriteOff PROPERTIES (d) descriptionWriteOffDetail AFTER shortNameUOMSku(d);
-EXTEND FORM WriteOff.userWriteOff PROPERTIES (d) READONLY returnQuantity BEFORE price(d);
-
-EXTEND FORM writeOffs PROPERTIES (d) READONLY descriptionWriteOffDetail AFTER shortNameUOMSku(d);
-EXTEND FORM WriteOff.writeOffs PROPERTIES (d) READONLY returnQuantity BEFORE price(d);
-
-WHEN SESSION FORMS userWriteOff  CHANGED(writeOffDetail(UserWriteOffDetail detail)) AND countBatchCost(writeOffDetail(detail)) == 1 DO {
-    batch(detail) <- maxBatchCost(writeOffDetail(detail));
-}
-
    
-CONSTRAINT batch(UserWriteOffDetail detail) AND writeOffDetail(detail) AND
-           NOT cost[SkuLedger,Batch](writeOffDetail(detail), batch(detail))
-           CHECKED BY batch[UserWriteOffDetail], writeOffDetail[UserWriteOffDetail]
-           MESSAGE 'Выбрана партия, которая не была списана в соответствующей строке списания';    
+//// Основание    
+//    
+//writeOffDetail (writeOffDetail) = ABSTRACT WriteOff.WriteOffDetail (WriteOffDetail) PERSISTENT;
+//writeOffDetail (userWriteOffDetail) = DATA WriteOff.WriteOffDetail (UserWriteOffDetail);
+//writeOffDetail(UserWriteOffDetail detail) += writeOffDetail(detail);
+//
+//returnQuantity 'Кол-во (возвращено)' (writeOffDetail)= GROUP SUM quantity(WriteOffDetail writeOffDetail) BY writeOffDetail(writeOffDetail) PERSISTENT;
+//returnQuantityWriteOffDetail 'Кол-во (возвращено)' (writeOff) =  GROUP SUM returnQuantity(WriteOff.WriteOffDetail writeOffDetail) BY writeOff(writeOffDetail) PERSISTENT;
+//
+//CONSTRAINT returnQuantity(WriteOff.WriteOffDetail detail) > quantity(detail)
+//    MESSAGE 'Количество строки возврата больше чем количество строки основания';
+//
+//CONSTRAINT sku(writeOffDetail(UserWriteOffDetail detail)) !=  sku(detail) CHECKED BY writeOffDetail[UserWriteOffDetail]
+//    MESSAGE 'SKU строки основания должен соответствовать SKU строки возврата';
+//
+//CONSTRAINT contact(writeOffDetail(UserWriteOffDetail detail)) !=  contact(detail) CHECKED BY writeOffDetail[UserWriteOffDetail]
+//    MESSAGE 'Контрагент строки основания должен соответствовать Контрагент строки возврата';
+//
+//CONSTRAINT stock(writeOffDetail(UserWriteOffDetail detail)) != stock(detail) CHECKED BY writeOffDetail[UserWriteOffDetail]
+//    MESSAGE 'Склад строки основания должен соответствовать Склад строки возврата';
+//
+//descriptionWriteOffDetail 'Основание' (WriteOffDetail writeOffDetail) = description(writeOffDetail(writeOffDetail));
+//descriptionWriteOffDetail 'Основание' (UserWriteOffDetail userWriteOffDetail) = description(writeOffDetail(userWriteOffDetail));
+//
+//recalculatedPrice(UserWriteOffDetail detail) = ACTION {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
+//    IF writeOffDetail(detail) THEN {
+//        ASSIGN price(detail) <-  price(writeOffDetail(detail));
+//    }
+//}
+//    WHEN SESSION FORMS userWriteOff
+//        CHANGED(writeOffDetail[UserWriteOffDetail](WriteOffDetail detail)) OR
+//        CHANGED(batch(detail)) OR
+//        CHANGED(sku(detail)) OR
+//        CHANGED(stock(detail)) OR
+//        CHANGED(dateTime(detail))
+//            DO EXEC recalculatedPrice(detail);
+//
+//
+//EXTEND FORM userWriteOff PROPERTIES (d) descriptionWriteOffDetail AFTER shortNameUOMSku(d);
+//EXTEND FORM WriteOff.userWriteOff PROPERTIES (d) READONLY returnQuantity BEFORE price(d);
+//
+//EXTEND FORM writeOffs PROPERTIES (d) READONLY descriptionWriteOffDetail AFTER shortNameUOMSku(d);
+//EXTEND FORM WriteOff.writeOffs PROPERTIES (d) READONLY returnQuantity BEFORE price(d);
+//
+//WHEN SESSION FORMS userWriteOff  CHANGED(writeOffDetail(UserWriteOffDetail detail)) AND countBatchCost(writeOffDetail(detail)) == 1 DO {
+//    batch(detail) <- maxBatchCost(writeOffDetail(detail));
+//}
+//
+//   
+//CONSTRAINT batch(UserWriteOffDetail detail) AND writeOffDetail(detail) AND
+//           NOT cost[SkuLedger,Batch](writeOffDetail(detail), batch(detail))
+//           CHECKED BY batch[UserWriteOffDetail], writeOffDetail[UserWriteOffDetail]
+//           MESSAGE 'Выбрана партия, которая не была списана в соответствующей строке списания';    
  
 CONSTRAINT operation(UserWriteOff writeOff) AND contact(writeOff)
            AND NOT inContact(contact(writeOff), operation(writeOff))
