@@ -25,6 +25,7 @@ nameStatisticGroupType 'Тип классификатора' = name(statisticGro
 isSumReport 'Сумовой отчет' = DATA BOOLEAN (StatisticReportType) IN documentPrm;
 notSumReport = StatisticReportType r IS StatisticReportType AND NOT isSumReport(r);
 rate 'Кратность для отчета'  = DATA NUMERIC[15,4] (StatisticReportType) IN documentPrm;
+isPositiveReport 'Только положительные' = DATA BOOLEAN (StatisticReportType) IN documentPrm;
 
 //------------------------------ Строки -------------------------------//
 
@@ -43,24 +44,42 @@ CONSTRAINT statisticGroup(StatisticReportTypeDetail d) AND statisticGroupType(st
 
 number 'Код строки' = DATA STRING[10] (StatisticReportTypeDetail);    
 
+statisticReportTypeDetail = DATA StatisticReportTypeDetail (StatisticReportTypeDetail);
+in 'Вкл.' (StatisticReportTypeDetail child, StatisticReportTypeDetail parent) = statisticReportTypeDetail(child) == parent;
+count = GROUP SUM 1 BY statisticReportTypeDetail (StatisticReportTypeDetail d); 
+count = GROUP SUM 1 BY statisticReportType(statisticReportTypeDetail (StatisticReportTypeDetail d)); 
+
+CONSTRAINT statisticReportTypeDetail(StatisticReportTypeDetail child) AND NOT (statisticReportType(statisticReportTypeDetail(child)) == statisticReportType(child))
+    MESSAGE 'Ссылка на строки другого типа статистического отчета.';
+    
+childNumbers 'Строки' (detail) =
+    GROUP CONCAT number(StatisticReportTypeDetail child) IF in(child, StatisticReportTypeDetail parent),'; '
+    BY parent 
+    ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
 FORM statisticReportType 'Тип статистического отчета'
 
     OBJECTS r = StatisticReportType FIXED PANEL
-    PROPERTIES (r) name, note,  nameStatisticGroupType, isSumReport, rate SHOWIF isSumReport(r)
+    PROPERTIES (r) name, note,  nameStatisticGroupType, isSumReport, rate SHOWIF isSumReport(r), isPositiveReport
                 
     PROPERTIES (r) countStatisticReportTypeDetail
 
     OBJECTS d = StatisticReportTypeDetail
     PROPERTIES (d) index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, round
-                
-    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION    
-    
+                   sidStatisticGroup, nameUOM, round    
+    PROPERTIES READONLY childNumbers(d)                
+    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION              
     ORDER BY index(d)
-
-    PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetail
-    
+    PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetail    
     FILTERS statisticReportType(d) == r
+    
+    OBJECTS dd = StatisticReportTypeDetail
+    PROPERTIES (dd) READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, round                
+    PROPERTIES (dd,d) in 
+    ORDER BY index(dd) 
+    FILTERS statisticReportType(dd) == r,
+            dd != d    
 
     EDIT StatisticReportType OBJECT r
 ;
@@ -80,12 +99,18 @@ DESIGN statisticReportType {
         }
         NEW specification.box {
             fill = 1;
+            type = SPLITV;
             MOVE d.box {
                 caption = 'Спецификация';
+                fill = 2;
+            }
+            MOVE dd.box {
+                caption = 'Состав';
             }
         }
         MOVE functions.box;
         PROPERTY (index(d)) {caption ='Порядок';}
+        PROPERTY (index(dd)) {caption ='Порядок';}
     }
 }
 
@@ -201,7 +226,7 @@ statisticGroupType = DATA StatisticGroupType (StatisticReport) AUTOSET NOT NULL 
 nameStatisticGroupType 'Тип классификатора' = name(statisticGroupType(StatisticReport r)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 statisticReportType = DATA StatisticReportType (StatisticReport);
-nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r));
+nameStatisticReportType 'Тип отчета' = name(statisticReportType(StatisticReport r)) MINCHARWIDTH 20 PREFCHARWIDTH 30 ;
 
 @defineDocumentDataStock(statisticReport, stock, 'Склад', );
 @defineDocumentDialogStocks(statisticReport, stock, company, , );
@@ -231,6 +256,8 @@ rate 'Кратность для отчета' (StatisticReport r) = rate(statist
 isThing(StatisticReport r) = notSumReport(statisticReportType(r));
 isSum(StatisticReport r) = isSumReport(statisticReportType(r));
 
+isPositiveReport 'Только со знаком "+"' (StatisticReport r)= isPositiveReport(statisticReportType(r));
+
 reportKind = DATA ReportKind (StatisticReport);
 nameReportKind 'Вид отчета'(StatisticReport r) = staticCaption(reportKind(r));
 
@@ -255,7 +282,7 @@ WHEN SESSION SETCHANGED ( reportKind(StatisticReport r)) AND NOT company(r) AND 
 
 region = DATA Region (StatisticReport);
 nameRegion 'Регион' (StatisticReport r) = name(region(r));
-consolidateStocks 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport);
+consolidateStocks 'Склады/Регионы' = DATA VARSTRING[255](StatisticReport) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 
 nameStockRegion 'Склад/Регион' (StatisticReport r) = CASE 
     WHEN isStock(r) THEN nameStock(r) 
@@ -285,6 +312,18 @@ balanceResident 'Запас отечественного' = DATA NUMERIC[16,3] (
 soldSum 'Продано всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
 soldSumResident 'Продано отечественного' = DATA NUMERIC[16,3] (StatisticReportDetail);
 balanceSum 'Запас всего' = DATA NUMERIC[16,3] (StatisticReportDetail);
+  
+statisticReportDetail = DATA StatisticReportDetail (StatisticReportDetail);
+in 'Вкл.' (StatisticReportDetail child, StatisticReportDetail parent) = statisticReportDetail(child) == parent;
+count = GROUP SUM 1  BY statisticReportDetail (StatisticReportDetail d); 
+
+CONSTRAINT statisticReportDetail(StatisticReportDetail child) AND NOT (statisticReport(statisticReportDetail(child)) == statisticReport(child))
+    MESSAGE 'Ссылка на строки другого статистического отчета.';
+
+childNumbers 'Строки' (detail) =
+    GROUP CONCAT number(StatisticReportDetail child) IF in(child, StatisticReportDetail parent),'; '
+    BY parent 
+    ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 fillData 'Заполнить данные'(StatisticReport report) = ACTION {
     sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == report;
@@ -305,6 +344,19 @@ fillData 'Заполнить данные'(StatisticReport report) = ACTION {
     soldResident(StatisticReportDetail d) <- round(soldResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balance(StatisticReportDetail d) <- round(balance(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balanceResident(StatisticReportDetail d) <- round(balanceResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    
+    sold(StatisticReportDetail d) <- [ = GROUP SUM sold(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- [ = GROUP SUM soldResident(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- [ = GROUP SUM balance(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    balanceResident(StatisticReportDetail d) <- [ = GROUP SUM balanceResident(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    
+    IF isPositiveReport(report) THEN {
+        sold(StatisticReportDetail d) <- 0.0 WHERE sold(d) <0 AND statisticReport(d) == report;
+        soldResident(StatisticReportDetail d) <- 0.0 WHERE soldResident(d) <0 AND statisticReport(d) == report;
+        balance(StatisticReportDetail d) <- 0.0 WHERE balance(d) <0 AND statisticReport(d) == report;
+        balanceResident(StatisticReportDetail d) <- 0.0 WHERE balanceResident(d) <0 AND statisticReport(d) == report;   
+    }
+    
 }
 
 fillRegionData 'Заполнить данные'(StatisticReport report) = ACTION {
@@ -328,6 +380,18 @@ fillRegionData 'Заполнить данные'(StatisticReport report) = ACTIO
     soldResident(StatisticReportDetail d) <- round(soldResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balance(StatisticReportDetail d) <- round(balance(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balanceResident(StatisticReportDetail d) <- round(balanceResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    
+    sold(StatisticReportDetail d) <- [ = GROUP SUM sold(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    soldResident(StatisticReportDetail d) <- [ = GROUP SUM soldResident(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    balance(StatisticReportDetail d) <- [ = GROUP SUM balance(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    balanceResident(StatisticReportDetail d) <- [ = GROUP SUM balanceResident(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+        
+    IF isPositiveReport(report) THEN {
+        sold(StatisticReportDetail d) <- 0.0 WHERE sold(d) <0 AND statisticReport(d) == report;
+        soldResident(StatisticReportDetail d) <- 0.0 WHERE soldResident(d) <0 AND statisticReport(d) == report;
+        balance(StatisticReportDetail d) <- 0.0 WHERE balance(d) <0 AND statisticReport(d) == report;
+        balanceResident(StatisticReportDetail d) <- 0.0 WHERE balanceResident(d) <0 AND statisticReport(d) == report;   
+    }
 }
 //суммы
 fillSumData 'Заполнить данные'(StatisticReport report) = ACTION {
@@ -350,6 +414,16 @@ fillSumData 'Заполнить данные'(StatisticReport report) = ACTION {
     soldSum(StatisticReportDetail d) <- round(soldSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- round(balanceSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    
+    soldSum(StatisticReportDetail d) <- [ = GROUP SUM soldSum(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- [ = GROUP SUM soldSumResident(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- [ = GROUP SUM balanceSum(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    
+    IF isPositiveReport(report) THEN {
+        soldSum(StatisticReportDetail d) <- 0.0 WHERE soldSum(d) <0 AND statisticReport(d) == report;
+        soldSumResident(StatisticReportDetail d) <- 0.0 WHERE soldSumResident(d) <0 AND statisticReport(d) == report;
+        balanceSum(StatisticReportDetail d) <- 0.0 WHERE balanceSum(d) <0 AND statisticReport(d) == report;         
+    }
 }
 
 fillSumRegionData 'Заполнить данные'(StatisticReport report) = ACTION {
@@ -373,8 +447,19 @@ fillSumRegionData 'Заполнить данные'(StatisticReport report) = AC
     soldSum(StatisticReportDetail d) <- round(soldSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     soldSumResident(StatisticReportDetail d) <- round(soldSumResident(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
     balanceSum(StatisticReportDetail d) <- round(balanceSum(d), round(d)) WHERE round(d) AND statisticReport(d) == report;
+    
+    soldSum(StatisticReportDetail d) <- [ = GROUP SUM soldSum(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    soldSumResident(StatisticReportDetail d) <- [ = GROUP SUM soldSumResident(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;
+    balanceSum(StatisticReportDetail d) <- [ = GROUP SUM balanceSum(StatisticReportDetail detail)  BY statisticReportDetail(detail)](d) WHERE count(d) AND statisticReport(d) == report;    
+    
+    IF isPositiveReport(report) THEN {
+        soldSum(StatisticReportDetail d) <- 0.0 WHERE soldSum(d) <0 AND statisticReport(d) == report;
+        soldSumResident(StatisticReportDetail d) <- 0.0 WHERE soldSumResident(d) <0 AND statisticReport(d) == report;
+        balanceSum(StatisticReportDetail d) <- 0.0 WHERE balanceSum(d) <0 AND statisticReport(d) == report;         
+    }
 }
 
+statisticReportDetail = GROUP MAX StatisticReportDetail detail BY statisticReport(detail), number(detail);
 
 changeStatisticReportType (StatisticReport r) = ACTION {
     FORM statisticReportTypes DIALOG SHOWDROP;
@@ -383,6 +468,8 @@ changeStatisticReportType (StatisticReport r) = ACTION {
         name(r) <- name(statisticReportType(r));
         statisticGroupType(r) <- statisticGroupType(statisticReportType(r));     
         DELETE StatisticReportDetail d WHERE statisticReport(d) ==r;
+        LOCAL parent =  STRING[10](StatisticReportDetail);   
+        parent(StatisticReportDetail d) <- NULL;
         
         FOR statisticReportType(r) == statisticReportType(StatisticReportTypeDetail detail) ADDOBJ d = StatisticReportDetail DO {
             statisticReport(d) <-r;
@@ -391,11 +478,13 @@ changeStatisticReportType (StatisticReport r) = ACTION {
             name(d) <- name(detail);
             statisticGroup(d) <- statisticGroup(detail);
             nameUOM(d) <- nameUOM(detail);
-            round(d) <- round(detail);            
-        }               
+            round(d) <- round(detail);   
+            parent(d) <- number(statisticReportTypeDetail(detail));       
+        }         
+        statisticReportDetail(StatisticReportDetail d) <- statisticReportDetail(r,parent(d)) WHERE statisticReport(d) == r; 
     }
 }
-
+showDD = count(statisticReportType(StatisticReport r));
 FORM statisticReport 'Статистический отчет'
 
     OBJECTS r = StatisticReport FIXED PANEL
@@ -412,22 +501,30 @@ FORM statisticReport 'Статистический отчет'
 
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, round
+                   sidStatisticGroup, nameUOM, round, childNumbers READONLY SHOWIF showDD(r)
     PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
-    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
-                
+    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum                
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
-    
+              
     PROPERTIES(r) fillData FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockThing(r) ,
                 fillRegionData FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionThing(r),
                 fillSumData FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockSum(r) ,
-                fillSumRegionData FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionSum(r)
-    
+                fillSumRegionData FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionSum(r)    
     ORDER BY index(d)
-
-    PROPERTIES(r) TODRAW d deleteStatisticReportDetail
+    PROPERTIES(r) TODRAW d deleteStatisticReportDetail    
+    FILTERS statisticReport(d) == r   
     
-    FILTERS statisticReport(d) == r
+    OBJECTS dd = StatisticReportDetail FIXED GRID
+    PROPERTIES (dd) SHOWIF showDD(r)  READONLY index, name, number, nameStatisticGroup,
+                   sidStatisticGroup, nameUOM, round
+                   
+    ORDER BY index(dd)
+    FILTERS statisticReport(dd) == r,
+            dd != d
+    PROPERTIES in (dd, d) SHOWIF showDD(r)
+    
+    FILTERGROUP select
+        FILTER 'Отмеченные' in (dd, d) 'F11' DEFAULT 
 
     EDIT StatisticReport OBJECT r
 ;
@@ -443,26 +540,29 @@ DESIGN statisticReport {
                 type = CONTAINERV;
                 MOVE r.documentHeader {
                     type = CONTAINERV;
-                    NEW first {
+                    NEW doc1 {
                         type = CONTAINERH;
                         MOVE PROPERTY(nameStatisticReportType(r));
+                        MOVE PROPERTY(name(r));                        
+                        MOVE PROPERTY(fromDate(r));
+                        MOVE PROPERTY(toDate(r));                                                
+                    }
+                    NEW doc2 { 
+                        type = CONTAINERH;
                         MOVE PROPERTY(nameReportKind(r));
                         MOVE PROPERTY(nameCompany(r));
                         MOVE PROPERTY(nameStock(r));
                         MOVE PROPERTY(nameRegion(r));
-                        MOVE PROPERTY(consolidateStocks(r));
-                        MOVE PROPERTY(fromDate(r));
-                        MOVE PROPERTY(toDate(r));
-                    }
-                    NEW second { 
+                        MOVE PROPERTY(consolidateStocks(r));                                                
+                    } 
+                    NEW doc3 { 
                         type = CONTAINERH;
-                        MOVE PROPERTY(name(r));
                         MOVE PROPERTY(nameNumerator(r));
                         MOVE PROPERTY(number(r));
                         MOVE PROPERTY(series(r));
                         MOVE PROPERTY(date(r));
                         MOVE PROPERTY(time(r));
-                    }   
+                    }                       
                 }
                 MOVE r.documentPrm;
             }
@@ -472,12 +572,16 @@ DESIGN statisticReport {
         }
         NEW specification.box {
             fill = 1;
+            type = SPLITV;
             MOVE d.box {
                 caption = 'Спецификация';
+                fill = 2;
+            }
+            MOVE dd.box {
+                caption = 'Состав';
             }
         }
         MOVE functions.box;
-
     }
 }
 
@@ -574,7 +678,7 @@ FORM statisticReports 'Статистические отчеты'
         
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, round
+                   sidStatisticGroup, nameUOM, round, childNumbers
    PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
     ORDER BY index(d)
