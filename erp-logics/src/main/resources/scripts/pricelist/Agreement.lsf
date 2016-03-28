@@ -417,6 +417,8 @@ copyData(Agreement s, Agreement d) = ACTION {
     returnPriceListType(d) <- returnPriceListType(s);
     note(d) <- note(s);
     groupType(d) <- groupType(s);
+    paymentCondition(d) <- groupType(s);
+    note(d) <- note(s);
 
     dataInCustomer(d, LegalEntity customer) <- dataInCustomer (s, customer);
     dataInCustomer(d, LegalEntityGroup legalEntityGroup) <- dataInCustomer(s, legalEntityGroup);
@@ -603,20 +605,24 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp, caption,
     }          
 
     CONSTRAINT agreement(###object o) AND NOT (fromDateTime(agreement(o)) <= dateTime(o) 
-               AND NOT (toDateTime(agreement(o)) < dateTime(o))) AND NOT (dateFromConstraintAgreement###object() > date(o))
+               AND NOT (toDateTime(agreement(o)) < dateTime(o))) AND NOT (dateFromConstraintAgreement###object() > date(o)) AND 
+               (CHANGED(agreement(o)) OR CHANGED(dateTime(o)))
                CHECKED BY agreement[###object]
                MESSAGE 'Соглашение просрочено или еще не действует';
 
-    CONSTRAINT currency(###object o) != currency(agreement(o))
+    CONSTRAINT currency(###object o) != currency(agreement(o)) AND 
+               (CHANGED(agreement(o)) OR CHANGED(currency(o))) 
                CHECKED BY agreement[###object]
                MESSAGE 'Валюта документа должны совпадать с валютой соглашения';
 
-    CONSTRAINT agreement(###object o) AND NOT in###supplierProp(agreement(o), supplierProp(o))
+    CONSTRAINT agreement(###object o) AND NOT in###supplierProp(agreement(o), supplierProp(o)) AND 
+               (CHANGED(agreement(o)) OR CHANGED(supplierProp(o)))
                CHECKED BY agreement[###object]
                MESSAGE 'Соглашение должно быть между заданными организациями (поставщик)';
 
-    CONSTRAINT agreement(###object object)
-               AND NOT in###customerProp(agreement(object), customerProp(object))
+    CONSTRAINT agreement(###object o)
+               AND NOT in###customerProp(agreement(o), customerProp(o)) AND 
+               (CHANGED(agreement(o)) OR CHANGED(customerProp(o)))
                CHECKED BY agreement[###object]
                MESSAGE 'Соглашение должно быть между заданными организациями (покупатель)';
 END

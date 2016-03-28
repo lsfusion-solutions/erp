@@ -193,7 +193,6 @@ CONSTRAINT (SETCHANGED(isPosted(InvoiceDetail d)) OR SETCHANGED(price(d)) OR SET
            MESSAGE 'Для строки накладной превышен минимальный допустимый процент отклонения по цене';    
            
 banNotAgreementsPrice'Запретить оприходование накладных без прайса' = DATA BOOLEAN (Agreement);
-
 EXTEND FORM agreement
     PROPERTIES (a) banNotAgreementsPrice
 ;
@@ -299,4 +298,14 @@ DESIGN userInvoice {
     PROPERTY(quantityOrder(d)) { background = #F9FFD4; }
 }
 
-
+overCopy(Agreement s, Agreement d) += ACTION {
+    banNotAgreementsPrice(d) <- banNotAgreementsPrice(s);
+    deviationNotOrderInvoice(d) <- deviationNotOrderInvoice(s);
+    minSupplierSumOrder(d) <- minSupplierSumOrder(s);
+    
+    percDeviationDownQuantity(d) <- percDeviationDownQuantity(s);
+    percDeviationUpQuantity(d) <- percDeviationUpQuantity(s);
+    
+    percDeviationDownPrice(d) <- percDeviationDownPrice(s);
+    percDeviationUpPrice(d) <- percDeviationUpPrice(s);
+}
