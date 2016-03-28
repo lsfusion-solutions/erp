@@ -492,6 +492,15 @@ balance  = GROUP LAST balance(StatisticReportDetail d)
     ORDER toDate(d)
     WHERE in(statisticReport(d)) ;
     
+balanceSum = GROUP LAST balanceSum(StatisticReportDetail d) 
+    BY stock(d), statisticGroup(d) 
+    ORDER toDate(d)
+    WHERE in(statisticReport(d)) ;
+balanceSum  = GROUP LAST balanceSum(StatisticReportDetail d) 
+    BY region(statisticReport(d)), statisticGroup(d) 
+    ORDER toDate(d)
+    WHERE in(statisticReport(d)) ;
+    
 balanceResident = GROUP LAST balanceResident(StatisticReportDetail d) 
     BY stock(d), statisticGroup(d) 
     ORDER toDate(d)
@@ -539,8 +548,13 @@ createSumReport 'Создать суммарный отчет'()= ACTION NEWSESS
                 ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balance(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
             balanceResident(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceResident(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
                 ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceResident(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
+                
+            soldSum(d) <- [=GROUP SUM soldSum(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+            soldSumResident(d) <- [=GROUP SUM soldSumResident(StatisticReportDetail d) IF in(statisticReport(d)) BY statisticGroup(d)](statisticGroup(d));
+            balanceSum(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceSum(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
+                ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceSum(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
         }
-        FORM statisticReport OBJECTS r = s MANAGESESSION DOCKEDMODAL;
+        FORM statisticReport OBJECTS r = s MANAGESESSION DOCKEDMODAL NOCANCEL;
     }
     in(StatisticReport r) <- NULL;
 }
