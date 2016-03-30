@@ -584,7 +584,7 @@ GROUP receiptSaleAction 'Продажа' : public;
 // По штрихкоду
 consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
 preProcessBarcode = ACTION ABSTRACT LIST (STRING[15], Receipt);
-overChangeBarcodeSale = ACTION ABSTRACT LIST (STRING[15], Receipt);
+overChangeBarcodeSale = ACTION ABSTRACT LIST FIRST (STRING[15], Receipt);
 
 changeBarcodeSale(Receipt receipt) = ACTION {
     REQUEST STRING[15] INPUT;
@@ -872,12 +872,12 @@ searchSkuReturn 'Поиск'(Receipt receipt) = ACTION {
 // Дисконтные карты
 
 overChangeBarcodeDiscountCard(STRING[15] string, Receipt receipt) = ACTION {
-    IF discountString(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
+    IF discountString(string) AND receipt IS Receipt AND string IS STRING[15] AND NOT consumedChangeBarcodeSaleReceipt() THEN {
         IF dateTo(discountString(string)) < date(receipt) THEN
             MESSAGE 'Закончился срок действия карты'
         ELSE
             discountCard(receipt) <- discountString(string); 
-        consumedChangeBarcodeSaleReceipt() <- TRUE;
+            consumedChangeBarcodeSaleReceipt() <- TRUE;
     }
 } TOOLBAR;
 
