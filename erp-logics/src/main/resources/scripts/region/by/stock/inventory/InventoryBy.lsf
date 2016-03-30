@@ -166,7 +166,7 @@ FORM printCollationSheetByGroup 'Сличительная ведомость(п�
     PROPERTIES(cs,b) SELECTOR pricePageInventoryDetail, priceBalance
     PROPERTIES(cs,b) READONLY sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                   include(cs,b),
-                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b),
+                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs,b),
                               skuGroup(sku(b)) == sk
     ORDER BY nameSku(b)
 ;
@@ -177,7 +177,7 @@ printByGroup 'Сличительная ведомость(по группам)' 
 countIndex 'Количество наименований товара'(cs) = GROUP SUM 1 IF include(CollationSheet cs, Sku i)
         BY cs IN documentSum;    
 countIndexBatch 'Количество наименований партий'(cs) = GROUP SUM 1 IF include(CollationSheet cs,Batch b) 
-    AND (quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b))
+    AND (quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b))
         BY cs IN documentSum;     
   
 countResponsiblePersonStock = TRUE IF [ =GROUP SUM 1 IF isOverResponsiblePerson(stock(CollationSheet cs), Employee e1) BY cs](CollationSheet cs);
@@ -211,7 +211,7 @@ FORM printCollationSheet 'Опись'
     PROPERTIES(cs,b) SELECTOR pricePageInventoryDetail, priceBalance
     PROPERTIES(cs,b) READONLY sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                   include(cs,b),
-                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b)
+                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b)
     ORDER BY nameSku(b)
     
     OBJECTS e=Employee
@@ -260,7 +260,7 @@ FORM printCollationSheetXLS 'Опись'
     PROPERTIES(cs,b) SELECTOR pricePageInventoryDetail, priceBalance
     PROPERTIES(cs,b) READONLY sumPageInventoryDetail, sumBalance, sumShortage
     FILTERS                   include(cs,b),
-                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b)
+                              quantityPageInventoryDetail(cs,b) OR quantityBalance(cs,b) OR sumBalance(cs, b)
     ORDER BY nameSku(b)
     
     OBJECTS e=Employee
