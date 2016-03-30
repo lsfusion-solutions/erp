@@ -26,6 +26,18 @@ EXTEND FORM promotions
     PROPERTIES(sh) READONLY SHOWIF useBonus() useBonus 
 ;
 
+CLASS TypeBonusLedger 'Тип начисления бонусов' {
+    user 'Пользовательсий',
+    registration 'За регистрацию'
+}
+
+FORM typeBonusLedger 'Тип начисления бонусов' 
+    OBJECTS t = TypeBonusLedger
+    PROPERTIES(t) READONLY staticCaption
+    
+    DIALOG TypeBonusLedger OBJECT t
+;
+
 CLASS BonusLedger 'Начисление бонусов';
 
 date 'Дата' = DATA DATE (BonusLedger);
@@ -33,6 +45,8 @@ date (BonusLedger ledger) <- currentDate() WHEN SET(ledger IS BonusLedger);
 sum 'Сумма' = DATA NUMERIC[16,2] (BonusLedger);
 note 'Описание' = DATA VARSTRING[100] (BonusLedger);
 discountCard = DATA DiscountCard (BonusLedger) NOT NULL DELETE;
+typeBonusLedger = DATA TypeBonusLedger (BonusLedger) NOT NULL;
+nameTypeBonusLedger 'Тип начисления бонусов' (BonusLedger bl) = staticCaption(typeBonusLedger(bl));
 
 sumBonusLedger 'Начислено бонусов' = GROUP SUM sum(BonusLedger l) BY discountCard(l);
 
@@ -45,13 +59,21 @@ createdComputer = DATA Computer (BonusLedger);
 createdComputer (BonusLedger ledger) <- currentComputer() WHEN SET(ledger IS BonusLedger);
 createdHostnameComputer 'Создан на компьютере' (BonusLedger ledger) = hostname(createdComputer(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
+addBonusLedger 'Добавить' (DiscountCard dc) = ACTION {
+    FOR ADDOBJ bl = BonusLedger DO {
+        discountCard(bl) <- dc;
+        typeBonusLedger(bl) <- TypeBonusLedger.user;
+    }    
+}
+
 EXTEND FORM discountCard
     PROPERTIES(d) READONLY sumBonusLedger
 
     OBJECTS l = BonusLedger
-    PROPERTIES(l) date, sum ,note
+    PROPERTIES(l) date, sum ,note, nameTypeBonusLedger
     PROPERTIES(l) READONLY createdNameUser, createdTime, createdHostnameComputer
-    PROPERTIES(l) FORCE PANEL TOOLBAR ADDOBJ, DELETE
+    PROPERTIES(d) addBonusLedger TODRAW l FORCE PANEL TOOLBAR 
+    PROPERTIES(l) FORCE PANEL TOOLBAR DELETE
     FILTERS discountCard(l) == d
 ;
 
