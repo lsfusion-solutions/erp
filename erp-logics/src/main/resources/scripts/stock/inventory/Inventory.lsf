@@ -953,13 +953,15 @@ TABLE inventoryBatchDetail (InventoryBatchDetail);
 CLASS OutInventoryBatchDetail 'Недостача инвентаризации' : InventoryBatchDetail;
 CLASS InInventoryBatchDetail 'Излишки инвентаризации' : InventoryBatchDetail;
 
-needToOutLedger (CollationSheet collationSheet, Batch batch) = quantityShortage(collationSheet, batch) > 0
+needToOutLedger (CollationSheet collationSheet, Batch batch) = 
+    (quantityShortage(collationSheet, batch) > 0  OR (sumShortage(collationSheet, batch) > 0 AND NOT quantityShortage(collationSheet, batch)))
     AND include(collationSheet, batch) 
     AND NOT skipSkuLedger(collationSheet) 
     AND isBatch(collationSheet)
     AND isPosted(collationSheet); 
 
-needToInLedger (CollationSheet collationSheet, Batch batch) = quantityShortage(collationSheet, batch) < 0
+needToInLedger (CollationSheet collationSheet, Batch batch) =
+    (quantityShortage(collationSheet, batch) < 0 OR (sumShortage(collationSheet, batch) < 0 AND NOT quantityShortage(collationSheet, batch)))
     AND include(collationSheet, batch) 
     AND NOT skipSkuLedger(collationSheet) 
     AND isBatch(collationSheet)
