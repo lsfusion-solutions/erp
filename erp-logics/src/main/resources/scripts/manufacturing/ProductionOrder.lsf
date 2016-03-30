@@ -1369,11 +1369,13 @@ calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE dataBruttoPrice(sku(d
                                                                                                         batch(detail),
                                                                                                         componentsStock(order(detail)),
                                                                                                         dateTime(order(detail)));
+
+skipPrice = ABSTRACT BOOLEAN (ComponentDetail);
 WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 
                           CHANGED(batch(detail)) OR 
                           CHANGED(componentsStock(order(detail))) OR 
                           CHANGED(dateTime(order(detail)))) AND
-                          PriceListType pt == priceListType(order(detail)) NOINLINE (pt) DO
+                          PriceListType pt == priceListType(order(detail)) AND NOT skipPrice(detail) NOINLINE (pt) DO
     price (detail) <- calc(pt, detail); 
          
 calcCost = OVERRIDE cost(sku(ComponentDetail detail), order(detail)), cost(batch(detail));    
