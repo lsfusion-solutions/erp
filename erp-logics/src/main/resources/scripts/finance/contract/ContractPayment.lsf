@@ -24,9 +24,9 @@ rateExchangeContract (Payment payment) <- OVERRIDE 1.0 IF payment IS Payment AND
          CHANGED(currencyAccountTo(payment));
 
 sumContract 'Сумма платежа по контракту' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
-sumContract(Payment payment) <- IF currencyContract(payment) == currencyAccountTo(payment)
-                               THEN sum(payment)
-                               ELSE rateExchangeContract(payment)*sum(payment)
+sumContract(Payment payment) <- IF NOT currencyContract(payment) == currencyAccountTo(payment)
+                               THEN rateExchangeContract(payment)*sum(payment)
+                               ELSE sum(payment)
     WHEN CHANGED(sum(payment)) OR
          CHANGED(currencyContract(payment)) OR
          CHANGED(currencyAccountTo(payment)) OR
