@@ -587,11 +587,10 @@ META deriveDocumentHeaderAgreement (object, supplierProp, customerProp, caption,
         defaultAgreement(supplierProp(###object o), customerProp(o), dateTime(o)) 
             IF currency(o) == currency(defaultAgreement(supplierProp(o), customerProp(o), dateTime(o))), 
         defaultAgreement(o);
+    skipSetAgreement = ABSTRACT BOOLEAN (###object);
     WHEN SESSION
-        CHANGED(currency(###object o)) OR
-                 CHANGED(customerProp(o)) OR
-                 CHANGED(supplierProp(o)) OR 
-                 CHANGED(changedDefaultAgreement(o)) DO
+        (CHANGED(currency(###object o)) OR CHANGED(customerProp(o)) OR CHANGED(supplierProp(o)) OR  CHANGED(changedDefaultAgreement(o))) 
+         AND NOT skipSetAgreement(o)  DO
         agreement (o) <- overDefaultAgreement(o);
         
     dateFromConstraintAgreement###object 'Дата начала контроля сроков соглашения '##caption = DATA DATE ();  
