@@ -439,7 +439,7 @@ changeToPayBonuses (Receipt r) = ACTION {
                 MESSAGE 'Сумма бонусов не может быть отрицательной'
              WHEN sumReceiptDetail(r) (-) minBonusSum() < round(requestedNumeric(), roundCondition(departmentStore(r))) THEN
                 MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека'                 
-             WHEN NOT round(requestedNumeric(), roundCondition(departmentStore(r))) < prevTotalBonuses(discountCard(r)) THEN
+             WHEN NOT round(requestedNumeric(), roundCondition(departmentStore(r))) <= prevTotalBonuses(discountCard(r)) THEN
                 MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных'
              ELSE toPayBonuses(r) <- round(requestedNumeric(), roundCondition(departmentStore(r)));
     } ELSE {
@@ -447,11 +447,11 @@ changeToPayBonuses (Receipt r) = ACTION {
     } 
 }
 
-sumBonusFIFO (ReceiptSaleDetail detail) =
+sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
         LIMIT round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
         BY receipt(detail)
-        ORDER detail;
+        ORDER detail; 
 
 bonusBackground (DiscountCard d) = RGB(255,128,128) IF NOT totalBonuses(d) >= 0.0;
 
@@ -479,11 +479,14 @@ DESIGN bonusPayment {
     MOVE functions.box;
 }
 
+overPostBonus = ACTION ABSTRACT (Receipt); 
+
 postBonus 'Бонусами'(Receipt receipt) = ACTION {
-    IF sumReceiptDetail(receipt) AND countReceiptSaleDetail(receipt) THEN {
+    IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
         FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt MODAL;
         IF formResult() == FormResult.ok THEN {
-            bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFO(detail) WHERE receipt(detail) == receipt;        
+            bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;        
+            overPostBonus(receipt);        
         }
     }
 } EDITKEY 'F8' IN receiptAction;
@@ -1001,7 +1004,7 @@ background(Receipt r, ReceiptDetail d) = RGB(255, 128, 128)
 
 currentZReportUseBonus() = currentZReport() AND useBonus();
 
-bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) < totalBonuses(r));
+bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) <= totalBonuses(r));
 
 changeBonusPaid (ReceiptDetail d) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
