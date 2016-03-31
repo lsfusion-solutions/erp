@@ -136,6 +136,64 @@ nameStock 'Склады' (inventory) =
 // Тип инвентаризации
 typeOfAddition(inventory) = DATA TypeOfAddition (Inventory);
 nameTypeOfAddition 'Тип инвентаризации' (Inventory inventory) = staticCaption(typeOfAddition(inventory)) IN documentPrm MINCHARWIDTH 20 PREFCHARWIDTH 20;
+isPartly 'Частичная' = DATA BOOLEAN (Inventory);
+
+
+//-- Выбор групп товара  
+TABLE inventorySkuGroup (Inventory, SkuGroup);  
+     
+dataInclude 'Вкл' = DATA BOOLEAN (Inventory, SkuGroup);
+
+levelParentInclude (inventory, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataInclude(Inventory inventory, parent)
+                                                              BY inventory, skuGroup PERSISTENT;    
+nearestParentInclude (Inventory inventory, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentInclude(inventory, skuGroup));
+nearestInclude (Inventory inventory, SkuGroup skuGroup) = dataInclude(inventory, nearestParentInclude (inventory, skuGroup));
+
+include 'Вкл' (Inventory inventory, SkuGroup skuGroup) =
+    OVERRIDE nearestInclude (inventory, skuGroup), 
+             dataInclude(inventory, skuGroup) PERSISTENT;    
+                      
+include 'Вкл' (Inventory inventory, Sku sku) = include(inventory, skuGroup(sku));  
+countIncludeSkuGroup 'Вкл' (inventory) = GROUP SUM 1 IF include(Inventory inventory, SkuGroup sku) BY inventory;     
+                    
+countIncludeSku 'Вкл' (inventory) = GROUP SUM 1 IF include(Inventory inventory, Sku sku) BY inventory;                    
+
+nameIncludeSkuGroups 'Группы товаров' (document)= 
+    GROUP CONCAT name(SkuGroup skuGroup) IF dataInclude(Inventory document, skuGroup), ', ' 
+    BY document 
+    ORDER skuGroup
+    MINCHARWIDTH 20 PREFCHARWIDTH 40;
+
+resetIncludeSkuGroups  'Сбросить отмеченные'(Inventory in) = ACTION {
+    dataInclude(in, SkuGroup g) <- NULL WHERE g IS SkuGroup ;    
+}  
+
+FORM selectSkuGroups 'Выбор групп'
+
+    OBJECTS in = Inventory FIXED PANEL 
+
+    TREE skuTree2 sk2 = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk2), name(sk2)
+    PROPERTIES include(in,sk2)
+    ORDER BY order(sk2), name(sk2)
+    PROPERTIES (in) resetIncludeSkuGroups FORCE PANEL TOOLBAR TODRAW sk2 SHOWIF countIncludeSku(in)
+    FILTERGROUP inactive2 FILTER 'Активные' active(sk2) 'F5' DEFAULT       
+;
+DESIGN selectSkuGroups {
+    main {
+        preferredSize = (1024, 768);
+    }
+}
+
+changeSkuGroups (Inventory in) = ACTION {
+    IF typeOfAddition(in) == TypeOfAddition.remains THEN {
+        FORM selectSkuGroups OBJECTS in = in MODAL; 
+    }
+}
+isRemains(Inventory in) = typeOfAddition(in) == TypeOfAddition.remains;
+
+CONSTRAINT isPartly(Inventory in) AND NOT isRemains(in)
+    MESSAGE 'Признак "Частичная" доступен только для типа инвентаризации "Товары по остаткам".';
 
 userTypeOfAddition(stock, inventory) = DATA TypeOfAddition (Stock, Inventory);
 nameUserTypeOfAddition 'Тип инвентаризации' (Stock stock, Inventory inventory) = staticCaption(userTypeOfAddition(stock, inventory));
@@ -332,40 +390,80 @@ sumBalance 'Сумма по остаткам'  = DATA NUMERIC[16,2] (CollationSh
 GROUP inventoryAction 'Действия' : public;
 overRecalculateBalance = ACTION ABSTRACT LIST (Inventory);
 
-recalculateBalance 'Заполнить остатки' (Inventory inventory) = ACTION {
-    quantityBalance(CollationSheet collationSheet, Sku sku)
-        <- balanceB(sku, stock(collationSheet), dateTime(inventory(collationSheet)))
-        WHERE inventory(collationSheet) == inventory;
-    IF NOT isPrice(inventory) THEN {
-        sumBalance(CollationSheet collationSheet, Sku sku)
-            <- NUMERIC[16,2](sumB(sku, stock(collationSheet), dateTime(inventory(collationSheet))))
-            WHERE inventory(collationSheet) == inventory;        
-    } ELSE {
-        sumBalance(CollationSheet collationSheet, Sku sku)
-            <- NUMERIC[16,2](round(balanceB(sku, stock(collationSheet), dateTime(inventory(collationSheet)))*priceBalance(collationSheet, sku),currency(stock(collationSheet))))
-            WHERE inventory(collationSheet) == inventory;    
-    }   
+recalculateBalance 'Заполнить остатки' (Inventory inventory) = ACTION {   
+    quantityBalance(CollationSheet cs, Sku sku) <- NULL WHERE inventory(cs) == inventory;
+    sumBalance(CollationSheet cs, Sku sku)<- NULL WHERE inventory(cs) == inventory;
+    quantityBalance(CollationSheet cs, Batch batch)<- NULL WHERE inventory(cs) == inventory;
+    sumBalance(CollationSheet cs, Batch batch)<- NULL WHERE inventory(cs) == inventory;
     
-    IF isBatch (inventory) THEN {
-        quantityBalance(CollationSheet collationSheet, Batch batch)
-            <- balanceB(batch, stock(collationSheet), dateTime(inventory(collationSheet)))
-            WHERE inventory(collationSheet) == inventory;
+    IF isPartly(inventory) AND isRemains(inventory) THEN { 
+        quantityBalance(CollationSheet cs, Sku sku)
+            <- balanceB(sku, stock(cs), dateTime(inventory(cs)))
+            WHERE inventory(cs) == inventory AND include(inventory(cs), sku);
         IF NOT isPrice(inventory) THEN {
-            FOR inventory(CollationSheet collationSheet) == inventory DO {
-                IF explicitBatchLedger(stock(collationSheet)) THEN 
-                    sumBalance(collationSheet, Batch batch)
-                        <- NUMERIC[16,2](sumB(batch, stock(collationSheet), dateTime(inventory(collationSheet))))
-                ELSE
-                    sumBalance(collationSheet, Batch batch)
-                        <- NUMERIC[16,2](round(quantityBalance(collationSheet, batch)*priceBalance(collationSheet, batch),currency(stock(collationSheet))));
-            }
-                                      
+            sumBalance(CollationSheet cs, Sku sku)
+                <- NUMERIC[16,2](sumB(sku, stock(cs), dateTime(inventory(cs))))
+                WHERE inventory(cs) == inventory AND include(inventory(cs), sku);        
         } ELSE {
-            sumBalance(CollationSheet collationSheet, Batch batch)
-                <- NUMERIC[16,2](round(quantityBalance(collationSheet, batch)*priceBalance(collationSheet, batch),currency(stock(collationSheet))))
-                WHERE inventory(collationSheet) == inventory;    
+            sumBalance(CollationSheet cs, Sku sku)
+                <- NUMERIC[16,2](round(balanceB(sku, stock(cs), dateTime(inventory(cs)))*priceBalance(cs, sku),currency(stock(cs))))
+                WHERE inventory(cs) == inventory AND include(inventory(cs), sku);    
+        }   
+        
+        IF isBatch (inventory) THEN {
+            quantityBalance(CollationSheet cs, Batch batch)
+                <- balanceB(batch, stock(cs), dateTime(inventory(cs)))
+                WHERE inventory(cs) == inventory AND include(inventory(cs), sku(batch));
+            IF NOT isPrice(inventory) THEN {
+                FOR inventory(CollationSheet cs) == inventory DO {
+                    IF explicitBatchLedger(stock(cs)) THEN 
+                        sumBalance(cs, Batch batch)
+                            <- NUMERIC[16,2](sumB(batch, stock(cs), dateTime(inventory(cs)))) WHERE include(inventory(cs), sku(batch))
+                    ELSE
+                        sumBalance(cs, Batch batch)
+                            <- NUMERIC[16,2](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs)))) WHERE include(inventory(cs), sku(batch));
+                }                                          
+            } ELSE {
+                sumBalance(CollationSheet cs, Batch batch)
+                    <- NUMERIC[16,2](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs))))
+                    WHERE inventory(cs) == inventory AND include(inventory(cs), sku(batch));    
+            }                
+        }    
+    } ELSE {
+        quantityBalance(CollationSheet cs, Sku sku)
+            <- balanceB(sku, stock(cs), dateTime(inventory(cs)))
+            WHERE inventory(cs) == inventory;
+        IF NOT isPrice(inventory) THEN {
+            sumBalance(CollationSheet cs, Sku sku)
+                <- NUMERIC[16,2](sumB(sku, stock(cs), dateTime(inventory(cs))))
+                WHERE inventory(cs) == inventory;        
+        } ELSE {
+            sumBalance(CollationSheet cs, Sku sku)
+                <- NUMERIC[16,2](round(balanceB(sku, stock(cs), dateTime(inventory(cs)))*priceBalance(cs, sku),currency(stock(cs))))
+                WHERE inventory(cs) == inventory;    
+        }   
+        
+        IF isBatch (inventory) THEN {
+            quantityBalance(CollationSheet cs, Batch batch)
+                <- balanceB(batch, stock(cs), dateTime(inventory(cs)))
+                WHERE inventory(cs) == inventory;
+            IF NOT isPrice(inventory) THEN {
+                FOR inventory(CollationSheet cs) == inventory DO {
+                    IF explicitBatchLedger(stock(cs)) THEN 
+                        sumBalance(cs, Batch batch)
+                            <- NUMERIC[16,2](sumB(batch, stock(cs), dateTime(inventory(cs))))
+                    ELSE
+                        sumBalance(cs, Batch batch)
+                            <- NUMERIC[16,2](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs))));
+                }
+                                          
+            } ELSE {
+                sumBalance(CollationSheet cs, Batch batch)
+                    <- NUMERIC[16,2](round(quantityBalance(cs, batch)*priceBalance(cs, batch),currency(stock(cs))))
+                    WHERE inventory(cs) == inventory;    
+            }
+                
         }
-            
     }
     overRecalculateBalance(inventory);
 } CONFIRM IN inventoryAction;
@@ -1325,8 +1423,8 @@ backgroundQuantity = ABSTRACT CASE COLOR (CollationSheet, Sku);
 FORM inventory 'Инвентаризация'
     OBJECTS          in=Inventory FIXED PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
-                     name, nameTypeOfAddition, date, time,
-                     note, nameStock ON CHANGE dialogStock(in),
+                     name, nameTypeOfAddition, nameIncludeSkuGroups SHOWIF isPartly(in) ON CHANGE changeSkuGroups(in), date, time,
+                     note, nameStock ON CHANGE dialogStock(in), isPartly SHOWIF isRemains(in),
                      recalculatePrice, recalculateBalance,
                      timeFrom, timeTo, nameHeadMan,
                      nameCommittee, nameChairmanCommittee, nameEmployee, skipStockDocumentLedger, skipSkuLedger
@@ -1438,10 +1536,12 @@ DESIGN inventory {
                 MOVE in.documentPrm {
                     type = COLUMNS;
                     columns = 2;
-                    MOVE PROPERTY(nameTypeOfAddition(in));
+                    MOVE PROPERTY(nameTypeOfAddition(in));                    
                     MOVE PROPERTY(name(in));
                     MOVE PROPERTY(isBatch(in));
                     MOVE PROPERTY(isPrice(in));
+                    MOVE PROPERTY(isPartly(in));
+                    MOVE PROPERTY(nameIncludeSkuGroups(in));
                     MOVE PROPERTY(note(in));
                 }
                 MOVE in.inventoryCommittee {
@@ -1790,6 +1890,8 @@ nameTypeOfAddition 'Тип инвентаризации' (Operation o) = staticC
 
 @defineOperationProperty(isPrice, 'Сумму остатка считать по цене', commonContainer);
 @deriveDocumentOperationProperty(inventory, isPrice) ;
+@defineOperationProperty(isPartly, 'Частичная', commonContainer);
+@deriveDocumentOperationProperty(inventory, isPartly) ;
 @defineOperationProperty(preventChangesDocument, 'Запрет на изменение документа другим пользователем', showContainer);
 
 EXTEND FORM operation
@@ -1869,7 +1971,12 @@ EXTEND FORM inventory
 overRecalculateBalance(Inventory in) += ACTION {
     FOR inventory(CollationSheet cs) == in DO {
         IF isBatch(cs) AND countNotBatchPageInventoryDetail(cs) THEN {
-            partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt); 
+            
+            IF isPartly(in) AND isRemains(in) THEN {
+                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE include(inventory(cs), sku(bt)); 
+            }ELSE {
+                partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt); 
+            }
             FOR quantityPageInventoryDetail(cs,Sku sk) AND NOT batchQuantity(cs,sk) == quantityPageInventoryDetail(cs,sk) DO {
                 MESSAGE NO WAIT (CONCAT ' ', 'Для товара:', name(sk), '('+id(sk)+')', 'в количестве', quantityPageInventoryDetail(cs,sk)+' единиц', 'нет подходящих партий.');
             }            
