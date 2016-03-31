@@ -1365,18 +1365,17 @@ WHEN SESSION FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), 
     }   
  
 calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE dataBruttoPrice(sku(detail), order(detail)), 
-                                                              prevPriceB(pt,
-                                                                                                        batch(detail),
-                                                                                                        componentsStock(order(detail)),
-                                                                                                        dateTime(order(detail)));
+                                                              prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail)));
 
-skipPrice = ABSTRACT BOOLEAN (ComponentDetail);
+calcPrice = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (PriceListType, ComponentDetail);
+calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[14,2](calc(pt,d)); 
+
 WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 
                           CHANGED(batch(detail)) OR 
                           CHANGED(componentsStock(order(detail))) OR 
                           CHANGED(dateTime(order(detail)))) AND
-                          PriceListType pt == priceListType(order(detail)) AND NOT skipPrice(detail) NOINLINE (pt) DO
-    price (detail) <- calc(pt, detail); 
+                          PriceListType pt == priceListType(order(detail)) NOINLINE (pt) DO
+    price (detail) <- calcPrice(pt, detail); 
          
 calcCost = OVERRIDE cost(sku(ComponentDetail detail), order(detail)), cost(batch(detail));    
 WHEN SESSION FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
