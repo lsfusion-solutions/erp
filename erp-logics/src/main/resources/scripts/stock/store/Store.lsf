@@ -22,6 +22,10 @@ TABLE storeType (StoreType);
 
 name 'Наименование' = DATA VARISTRING[100](StoreType);
 
+// Неактивный
+inactive 'Неактивный' = DATA BOOLEAN (StoreType);
+active 'Активный' (StoreType t) = t IS StoreType AND NOT inactive(t);
+
 name(StoreType group) += name(group) IF group IS StoreType;
 
 chainStores = DATA ChainStores (StoreType) NOT NULL DELETE;
@@ -35,7 +39,7 @@ storeType 'Формат магазина по имени и торговой с�
 
 FORM storeType 'Формат магазина'
     OBJECTS t=StoreType FIXED PANEL
-    PROPERTIES(t) nameChainStores, name
+    PROPERTIES(t) nameChainStores, name, inactive
     EDIT StoreType OBJECT t
 ;
 
@@ -53,9 +57,11 @@ FORM chainStores 'Торговая сеть'
     PROPERTIES(n) name, id SHOWIF showIDs()
 
     OBJECTS s=StoreType
-    PROPERTIES(s) name
+    PROPERTIES(s) name, inactive
     PROPERTIES(s) ADDOBJ, DELETESESSION
     FILTERS in(n, s)
+    FILTERGROUP active
+        FILTER 'Активные' active(s) DEFAULT
 
     EDIT ChainStores OBJECT n
 ;
@@ -409,6 +415,8 @@ FORM stores 'Магазины'
 
     FILTERS stringEqualsAll(a)
     FILTERS in (t, st)
+    FILTERGROUP active
+        FILTER 'Активные' active(st) DEFAULT
 
     PROPERTIES(t)          addT=ADDFORM FORCE PANEL, editT=EDITFORM FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
 
