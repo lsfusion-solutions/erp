@@ -117,7 +117,17 @@ TABLE itemDate (Item, DATE);
 TABLE itemCountry (Item, Country);
 TABLE itemCountryDate (Item, Country, DATE);
 
+DESIGN options {
+    pane {
+        NEW items {
+            caption = 'Товары';
+        }
+    }
+};
+
 @defineExternalizable(item, VARSTRING[100]);
+@defineOption(replaceSpacesInItemId, 'Замещать пробелы в коде товара', items);
+WHEN SESSION CHANGED (id(Item i)) AND replaceSpacesInItemId()  DO id(i) <- replace(id(i), ' ', '');
 
 @defineNumeratedID(Item, 'Товары');
 
@@ -126,7 +136,6 @@ id(Item sku) += id(sku);
 // Связь с группой товаров
 itemGroup 'Группа товара' = DATA ItemGroup(Item) AUTOSET INDEXED;
 skuGroup(Item item) += itemGroup(item);
-//roundSkuGroupSkuSku(item) += itemGroupItem(item);
 countItem 'Кол-во товаров' (g) = GROUP SUM 1 BY itemGroup(Item i);
 
 nameItemGroup 'Группа товара' (Item item) = name(itemGroup(item)) IN recognize;
@@ -816,11 +825,8 @@ END
 deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ACTION ABSTRACT LIST();
 EXTEND FORM options PROPERTIES() deleteUnusedAttributes;
 DESIGN options {
-    pane {
-        NEW items {
-            caption = 'Товары';
-            MOVE PROPERTY(deleteUnusedAttributes()); 
-            }
+    items {
+        MOVE PROPERTY(deleteUnusedAttributes());
     }
 };
 
