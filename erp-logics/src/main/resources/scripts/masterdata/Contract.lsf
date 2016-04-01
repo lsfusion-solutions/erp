@@ -167,10 +167,10 @@ META defineContractDefault (contract, contractClass, partyAClass, stockAClass, p
         AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
             BY prefixA(contract), prefixB(contract), dateIn;
         
-    default###contract###prefixA###prefixB (pA, sA, pB, sB, dateIn) = GROUP MAX (###contract contract) 
+    default###contract###prefixA###prefixB (sA, sB, dateIn) = GROUP MAX (###contract contract) 
         IF in###prefixA(stockAClass sA,contract) AND in###prefixB(stockAClass sB,contract)
         AND dateFrom(contract) <= DATE dateIn AND NOT dateTo(contract) < dateIn
-            BY prefixA(contract), sA, prefixB(contract), sB, dateIn;
+            BY sA, sB, dateIn;
             
     default###contract###prefixA (pA, sA, dateIn) = GROUP MAX (###contract contract) 
         IF in###prefixA(stockAClass sA,contract) //AND inCustomerStockContractSku(sB,contract)
@@ -221,11 +221,11 @@ META defineDocumentContract (objectClass, contractType, contractTypeClass, prefi
 
     skipSet###contractType = ABSTRACT BOOLEAN (###objectClass);
     WHEN SESSION (CHANGED(prefixA(objectClass o)) OR CHANGED(prefixB(o)) OR CHANGED(prefixA##Stock(o))
-                OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) DO {
+                OR CHANGED(prefixB##Stock(o)) OR CHANGED(date(o))) AND NOT CHANGED(contractType(o)) AND NOT skipSet###contractType(o) NOINLINE DO {
                 
         contractType(o) <- OVERRIDE single###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) IF count###contractType###prefixA###prefixB(prefixA(o), prefixB(o), date(o)) == 1,
                                                  defaultContractProp(prefixA(o), prefixB(o), date(o)),
-                                                 defaultContractProp(prefixA(o), prefixA##Stock(o), prefixB(o), prefixB##Stock(o), date(o)); 
+                                                 defaultContractProp(prefixA##Stock(o), prefixB##Stock(o), date(o)); 
     }
 
     CONSTRAINT contractType(objectClass o) AND NOT prefixA(o) == partyA(contractType(o))
