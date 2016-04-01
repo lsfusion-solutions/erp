@@ -35,11 +35,12 @@ EXTEND FORM zReports
 
 posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) PERSISTENT;
 posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) PERSISTENT; 
-cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) PERSISTENT;
+signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+
+cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) (+) signedTransferSum(discountCard) PERSISTENT;
 
 externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
-signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
-totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d) (+) signedTransferSum(d); 
+totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
 prevTotalSum 'Накопленная сумма' (DiscountCard d) = PREV(totalSum(d)); 
 
 dateFirstUse 'Дата первого использования'=  GROUP MIN date(Receipt receipt) BY discountCard (receipt);
@@ -173,6 +174,7 @@ DESIGN tranferDiscountCards {
     MOVE functions.box;
 }
 
+overTransferDiscountCards = ACTION ABSTRACT LIST (DiscountCard, DiscountCard); 
 tranferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
     FORM numberDiscountCardInput MODAL;
     IF formResult() == FormResult.ok THEN {
@@ -186,6 +188,7 @@ tranferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
                         discountCard(card) <- newCard;
                         dateTo(card) <- currentDate();
                         legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
+                        overTransferDiscountCards(newCard, card);
                         FORM tranferDiscountCards OBJECTS dc = newCard MODAL;
                         IF formResult() == FormResult.ok THEN {
                             apply();
