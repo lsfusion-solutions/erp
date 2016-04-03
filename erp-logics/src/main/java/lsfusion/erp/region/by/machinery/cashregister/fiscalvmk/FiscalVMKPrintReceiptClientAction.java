@@ -104,7 +104,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                 return null;
             DecimalFormat formatter = getFormatter();
             if(item.bonusSum != 0)
-                FiscalVMK.printFiscalText("Начислено бонусными баллами:\n" + formatter.format(item.bonusSum));
+                FiscalVMK.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
             if(item.bonusPaid != 0)
                 FiscalVMK.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
         }
