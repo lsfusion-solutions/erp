@@ -937,9 +937,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> sldKeys = MapFact.singletonRev((Object) "stopListDetail", sldExpr);
         QueryBuilder<Object, Object> sldQuery = new QueryBuilder<>(sldKeys);
         String[] sldNames = new String[] {"idBarcodeSkuStopListDetail", "idSkuStopListDetail", "nameSkuStopListDetail", "idSkuGroupStopListDetail",
-                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail"};
+                "nameSkuGroupStopListDetail", "idUOMSkuStopListDetail", "shortNameUOMSkuStopListDetail", "splitSkuStopListDetail", "passScalesSkuStopListDetail",
+                "flagsSkuStopListDetail"};
         LCP[] sldProperties = stopListLM.findProperties("idBarcodeSku[StopListDetail]", "idSku[StopListDetail]", "nameSku[StopListDetail]", "idSkuGroup[StopListDetail]",
-                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]");
+                "nameSkuGroup[StopListDetail]", "idUOMSku[StopListDetail]", "shortNameUOMSku[StopListDetail]", "splitSku[StopListDetail]", "passScalesSku[StopListDetail]",
+                "flagsSku[StopListDetail]");
         for (int i = 0; i < sldProperties.length; i++) {
             sldQuery.addProperty(sldNames[i], sldProperties[i].getExpr(sldExpr));
         }
@@ -962,13 +964,14 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             String shortNameUOM = trim((String) values.get("shortNameUOMSkuStopListDetail").getValue());
             boolean split = values.get("splitSkuStopListDetail").getValue() != null;
             boolean passScales = values.get("passScalesSkuStopListDetail").getValue() != null;
+            Integer flags = (Integer) values.get("flagsSkuStopListDetail").getValue();
             Map<String, Integer> stockPluNumberMap = new HashMap();
             for(String idStock : idStockSet) {
                 Integer pluNumber = (Integer) scalesItemLM.findProperty("pluIdStockSku[VARSTRING[100],Item]").read(session, new DataObject(idStock), skuObject);
                 stockPluNumberMap.put(idStock, pluNumber);
             }
             stopListItemList.put(idBarcode, new ItemInfo(stockPluNumberMap, idItem, idBarcode, nameItem, null, split, null, null, passScales,
-                    null, null, null, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
+                    null, null, flags, idSkuGroup, nameSkuGroup, idUOM, shortNameUOM));
         }
         return stopListItemList;
     }
