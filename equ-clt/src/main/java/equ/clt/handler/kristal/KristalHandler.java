@@ -493,7 +493,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     @Override
     public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
 
-        sendSalesLogger.info("Kristal: requesting CashierTime");
+        machineryExchangeLogger.info("Kristal: requesting CashierTime");
 
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         for (MachineryInfo c : cashRegisterInfoList) {
@@ -507,7 +507,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         List<CashierTime> result = new ArrayList<>();
 
         if(kristalSettings == null) {
-            sendSalesLogger.error("No kristalSettings found");
+            machineryExchangeLogger.error("Kristal CashierTime: No kristalSettings found");
         } else {
             for (Map.Entry<String, String> sqlHostEntry : kristalSettings.sqlHost.entrySet()) {
                 Connection conn = null;
@@ -515,7 +515,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                     String dir = trim(sqlHostEntry.getKey());
                     String sqlHost = trim(sqlHostEntry.getValue());
-                    sendSalesLogger.info("Kristal: connection to " + sqlHost);
+                    machineryExchangeLogger.info("Kristal CashierTime: connection to " + sqlHost);
 
                     String url = String.format("jdbc:sqlserver://%s:%s;databaseName=%s;User=%s;Password=%s",
                             sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
@@ -544,7 +544,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         dateTo = ct.logOnCashier;
                     }
 
-                    sendSalesLogger.info("Kristal: found " + result.size() + " CashierTime");
+                    machineryExchangeLogger.info(String.format("Kristal CashierTime: server %s, found %s entries", sqlHost, result.size()));
 
                 } catch (SQLException e) {
                     e.printStackTrace();
