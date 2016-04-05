@@ -1137,6 +1137,58 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         return terminalOrderList;
     }
 
+    public static List<TerminalOrder> readTerminalOrderList(DataSession session, BusinessLogics BL, ObjectValue customerStockObject) throws RemoteException, SQLException {
+        List<TerminalOrder> terminalOrderList = new ArrayList<>();
+        ScriptingLogicsModule purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
+        if (purchaseInvoiceAgreementLM != null) {
+            try {
+                KeyExpr orderExpr = new KeyExpr("order");
+                KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
+                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
+                QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
+                String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
+                LCP<?>[] orderProperties = purchaseInvoiceAgreementLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idSupplier[Purchase.Order]");
+                for (int i = 0; i < orderProperties.length; i++) {
+                    orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
+                }
+                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
+                        "quantityOrderDetail", "minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
+                        "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
+                LCP<?>[] orderDetailProperties = purchaseInvoiceAgreementLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]",
+                        "quantity[Purchase.OrderDetail]", "minDeviationQuantity[Purchase.OrderDetail]", "maxDeviationQuantity[Purchase.OrderDetail]",
+                        "minDeviationPrice[Purchase.OrderDetail]", "maxDeviationPrice[Purchase.OrderDetail]");
+                for (int i = 0; i < orderDetailProperties.length; i++) {
+                    orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
+                }
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("isOpened[Purchase.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
+                            customerStockObject.getExpr(), Compare.EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("order[Purchase.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("number[Purchase.Order]").getExpr(orderExpr).getWhere());
+                orderQuery.and(purchaseInvoiceAgreementLM.findProperty("idBarcodeSku[Purchase.OrderDetail]").getExpr(orderDetailExpr).getWhere());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
+                for (ImMap<Object, Object> entry : orderResult.values()) {
+                    Date dateOrder = (Date) entry.get("dateOrder");
+                    String numberOrder = trim((String) entry.get("numberOrder"));
+                    String idSupplier = trim((String) entry.get("idSupplierOrder"));
+                    String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
+                    String name = trim((String) entry.get("nameSkuOrderDetail"));
+                    BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
+                    BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
+                    BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail");
+                    BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
+                    BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
+                    BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
+                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
+                            quantity, minQuantity, maxQuantity, minPrice, maxPrice));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return terminalOrderList;
+    }
+
     public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> terminalLegalEntityList = new ArrayList<>();
         ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");

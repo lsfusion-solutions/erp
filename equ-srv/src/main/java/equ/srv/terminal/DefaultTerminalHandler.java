@@ -1,10 +1,7 @@
 package equ.srv.terminal;
 
 import com.google.common.base.Throwables;
-import equ.api.terminal.TerminalAssortment;
-import equ.api.terminal.TerminalDocumentType;
-import equ.api.terminal.TerminalHandbookType;
-import equ.api.terminal.TerminalLegalEntity;
+import equ.api.terminal.*;
 import equ.srv.EquipmentServer;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
@@ -132,6 +129,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 DataObject priceListTypeObject = ((ConcreteCustomClass) terminalHandlerLM.findClass("SystemLedgerPriceListType")).getDataObject("manufacturingPriceStockPriceListType");
 
                 List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
+                List<TerminalOrder> orderList = EquipmentServer.readTerminalOrderList(session, BL, stockObject);
                 List<TerminalAssortment> assortmentList = EquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = EquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);
@@ -146,6 +144,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 updateGoodsTable(connection, barcodeList);
 
                 createOrderTable(connection);
+                updateOrderTable(connection, orderList);
 
                 createAssortTable(connection);
                 updateAssortTable(connection, assortmentList);
@@ -249,6 +248,39 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.executeUpdate(sql);
         statement.execute("CREATE INDEX zayavki_post ON zayavki (post);");
         statement.close();
+    }
+
+    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
+        if (!terminalOrderList.isEmpty()) {
+            PreparedStatement statement = null;
+            try {
+                connection.setAutoCommit(false);
+                String sql = "INSERT OR REPLACE INTO zayavki VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?);";
+                statement = connection.prepareStatement(sql);
+                for (TerminalOrder order : terminalOrderList) {
+                    if (order.number != null) {
+                        String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
+                        statement.setObject(1, formatValue(order.date));
+                        statement.setObject(2, formatValue(order.number));
+                        statement.setObject(3,supplier);
+                        statement.setObject(4,formatValue(order.barcode));
+                        statement.setObject(5,formatValue(order.quantity));
+                        statement.setObject(6,formatValue(order.price));
+                        statement.setObject(7,formatValue(order.minQuantity));
+                        statement.setObject(8,formatValue(order.maxQuantity));
+                        statement.setObject(9,formatValue(order.minPrice));
+                        statement.setObject(10,formatValue(order.maxPrice));
+                        statement.addBatch();
+                    }
+                }
+                statement.executeBatch();
+                connection.commit();
+            } finally {
+                if (statement != null)
+                    statement.close();
+                connection.setAutoCommit(true);
+            }
+        }
     }
 
     private void createGoodsTable(Connection connection) throws SQLException {
