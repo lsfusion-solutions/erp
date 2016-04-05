@@ -223,7 +223,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("Unknown error: ", e);
+                            logger.error("GetUserInfo Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
@@ -253,7 +253,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("Unknown error: ", e);
+                            logger.error("GetItemInfo Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
@@ -318,7 +318,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("Unkown error", e);
+                            logger.error("SaveDocument Unkown error", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
@@ -341,7 +341,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("Unknown error: ", e);
+                            logger.error("GetItemHtml Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
@@ -368,7 +368,7 @@ public class TerminalServer extends LifecycleAdapter {
                                 errorText = WRONG_PARAMETER_COUNT_TEXT;
                             }
                         } catch (Exception e) {
-                            logger.error("Unknown error: ", e);
+                            logger.error("GetAllBase Unknown error: ", e);
                             errorCode = UNKNOWN_ERROR;
                             errorText = UNKNOWN_ERROR_TEXT;
                         }
@@ -380,7 +380,7 @@ public class TerminalServer extends LifecycleAdapter {
                         break;
                 }
 
-                logger.info("error code: " + (int) errorCode);
+                logger.info(String.format("Command %s, error code: %s. Sending answer", command, (int) errorCode));
                 if(errorText != null)
                     logger.info("error: " + errorText);
                 writeByte(outToClient, stx);
@@ -425,7 +425,7 @@ public class TerminalServer extends LifecycleAdapter {
 
                 if(fileBytes == null)
                     writeByte(outToClient, etx);
-
+                logger.info(String.format("Command %s: answer sent", command));
                 Thread.sleep(1000);
                 return null;
             } catch (Exception e) {
