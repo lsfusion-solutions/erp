@@ -214,7 +214,10 @@ DESIGN groupsTerminal {
 CLASS TerminalDocument 'Документ ТСД';
 TABLE terminalDocument (TerminalDocument);
 
-@defineExternalizable(terminalDocument, VARSTRING[100]);  
+TABLE terminalDocumentId(VARISTRING[100]);
+
+id 'Код' = DATA VARSTRING[100] (TerminalDocument) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
+terminalDocument (id) = GROUP AGGR (TerminalDocument td) BY id (td) PERSISTENT TABLE terminalDocumentId;
 
 title 'Имя' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocument) IN base MINCHARWIDTH 20 PREFCHARWIDTH 30;
@@ -350,7 +353,7 @@ FORM terminalDocuments 'Документы ТСД'
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
     FILTERS terminalDocumentType(td) == filterTerminalDocumentType() OR (td IS TerminalDocument AND NOT filterTerminalDocumentType())
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) READONLY number, barcode, name,
+    PROPERTIES(tdd) READONLY id, number, barcode, name,
     isNew, price, quantity, sum, comment, dateTimeScan
 
     FILTERS terminalDocument(tdd) == td
