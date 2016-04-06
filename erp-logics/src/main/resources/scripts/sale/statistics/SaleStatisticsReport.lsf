@@ -209,6 +209,17 @@ name 'Наименование' = DATA VARISTRING[255] (StatisticReport) MINCHAR
 @defineDocument(statisticReport);
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 
+isClosed 'Закрыт' = DATA BOOLEAN (StatisticReport);
+isOpened 'Не закрыт' (StatisticReport o) = o IS StatisticReport AND NOT isClosed(o) PERSISTENT;
+
+close 'Закрыть' (StatisticReport o) = ACTION NEWSESSION { isClosed(o) <- TRUE; apply(); } TOOLBAR CONFIRM;
+
+open 'Открыть' (StatisticReport o) = ACTION NEWSESSION { isClosed(o) <- NULL; apply(); } TOOLBAR CONFIRM;
+
+isClosed 'Закрыт' (StatisticReportDetail d) = isClosed(statisticReport(d));
+isOpened 'Не закрыт' (StatisticReportDetail d) = d IS StatisticReportDetail AND NOT isClosed(d);
+
+
 
 @deriveDocumentHeaderTimePrefix(StatisticReport, );
 @defineDocumentHeaderNumber(StatisticReport);
@@ -684,7 +695,7 @@ createSumReport 'Создать суммарный отчет'()= ACTION NEWSESS
         FORM statisticReport OBJECTS r = s MANAGESESSION DOCKEDMODAL NOCANCEL;
     }
     in(StatisticReport r) <- NULL;
-}
+} 
 
 FORM statisticReports 'Статистические отчеты'
 
@@ -694,16 +705,18 @@ FORM statisticReports 'Статистические отчеты'
                    number, series, date, time,
                    note, fromDate, toDate, nameStatisticGroupType   
 
-    PROPERTIES (r) READONLY countStatisticReportDetail
-    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY countStatisticReportDetail    
     PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
     PROPERTIES createSumReport()
-        
+    
+    PROPERTIES (r) close SHOWIF isOpened(r), open SHOWIF isClosed(r)
+    PROPERTIES (r) ADDFORM, EDITFORM SHOWIF isOpened(r), deleter=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(r)  
+                                       
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
                    sidStatisticGroup, nameUOM, round, childNumbers
-   PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
-   PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
+    PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
+    PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum
     ORDER BY index(d)
     FILTERS statisticReport(d) == r
                 
@@ -752,6 +765,10 @@ DESIGN statisticReports {
         PROPERTY (index(d)) {caption ='Порядок';}
     }
 }
+
+EXTEND FORM statisticReports
+    FILTERGROUP openFilter FILTER 'Открыт' isOpened(r) 'F6' DEFAULT
+; 
 
 NAVIGATOR {
     statisticsNavigator {
