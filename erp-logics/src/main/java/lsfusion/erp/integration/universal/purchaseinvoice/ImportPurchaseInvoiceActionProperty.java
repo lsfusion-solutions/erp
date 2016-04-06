@@ -725,7 +725,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
-        Workbook wb = null;
+        ws.setGCDisabled(true);
+        Workbook wb;
         try {
             wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         } catch (Exception e) {

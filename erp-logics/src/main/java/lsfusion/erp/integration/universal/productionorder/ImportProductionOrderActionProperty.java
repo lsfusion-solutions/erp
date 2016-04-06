@@ -88,15 +88,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -123,9 +115,9 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(orderDetailsList.size());
 
@@ -328,15 +320,16 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                                                             Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
+        List<ProductionOrderDetail> result = new ArrayList<>();
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
+        ws.setGCDisabled(true);
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 fieldValues.put(field, getXLSFieldValue(sheet, i, importColumns.get(field)));
             }
@@ -366,18 +359,18 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                                                             Integer startRow, Boolean isPosted, String separator, DataObject orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
-        List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
+        List<ProductionOrderDetail> result = new ArrayList<>();
         
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "utf-8"));
         String line;
         
-        List<String[]> valuesList = new ArrayList<String[]>();
+        List<String[]> valuesList = new ArrayList<>();
         while ((line = br.readLine()) != null) {
             valuesList.add(line.split(separator));              
         }
 
         for (int count = startRow; count <= valuesList.size(); count++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 fieldValues.put(field, getCSVFieldValue(valuesList, importColumns.get(field), count));
             }
@@ -407,13 +400,13 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                                                              Integer startRow, Boolean isPosted, DataObject orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
+        List<ProductionOrderDetail> result = new ArrayList<>();
         
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 fieldValues.put(field, getXLSXFieldValue(sheet, i, importColumns.get(field)));
             }
@@ -442,7 +435,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
                                                             List<String> stringFields, List<String> bigDecimalFields, List<String> dateFields,
                                                             Integer startRow, Boolean isPosted, DataObject orderObject) throws IOException, xBaseJException, UniversalImportException {
 
-        List<ProductionOrderDetail> result = new ArrayList<ProductionOrderDetail>();
+        List<ProductionOrderDetail> result = new ArrayList<>();
 
         DBF file = null;
         File tempFile = null;
@@ -464,7 +457,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                 file.read();
 
-                Map<String, Object> fieldValues = new HashMap<String, Object>();
+                Map<String, Object> fieldValues = new HashMap<>();
                 for (String field : stringFields) {
                     String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
                     fieldValues.put(field, value);

@@ -101,17 +101,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
-        } catch (JDBFException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException | JDBFException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -653,6 +643,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
+        ws.setGCDisabled(true);
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 

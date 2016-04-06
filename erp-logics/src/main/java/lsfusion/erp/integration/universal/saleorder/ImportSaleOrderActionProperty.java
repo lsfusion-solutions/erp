@@ -98,15 +98,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (BiffException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException e) {
             throw new RuntimeException(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
@@ -149,9 +141,9 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             if(orderDetailsList.isEmpty())
                 return true;
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-            List<ImportField> fields = new ArrayList<ImportField>();
-            List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
 
             List<List<Object>> data = initData(orderDetailsList.size());
 
@@ -382,19 +374,20 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                             Integer startRow, Boolean isPosted, Integer orderObject)
             throws IOException, BiffException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
-        List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
+        List<SaleOrderDetail> primaryList = new ArrayList<>();
+        List<SaleOrderDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
         
         WorkbookSettings ws = new WorkbookSettings();
         ws.setEncoding("cp1251");
+        ws.setGCDisabled(true);
         Workbook wb = Workbook.getWorkbook(new ByteArrayInputStream(importFile), ws);
         Sheet sheet = wb.getSheet(0);
 
         for (int i = startRow - 1; i < sheet.getRows(); i++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 String value = getXLSFieldValue(sheet, i, importColumns.get(field));
                 if(field.equals("idDocumentDetail"))
@@ -439,8 +432,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                             String secondaryKeyType, boolean keyIsDigit, Integer startRow, Boolean isPosted, String separator, Integer orderObject)
             throws UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, IOException, SQLHandledException {
 
-        List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
-        List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
+        List<SaleOrderDetail> primaryList = new ArrayList<>();
+        List<SaleOrderDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
@@ -448,13 +441,13 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile)));
         String line;
         
-        List<String[]> valuesList = new ArrayList<String[]>();
+        List<String[]> valuesList = new ArrayList<>();
         while ((line = br.readLine()) != null) {
             valuesList.add(line.split(separator));              
         }
 
         for (int count = startRow; count <= valuesList.size(); count++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 String value = getCSVFieldValue(valuesList, importColumns.get(field), count);
                 if(field.equals("idDocumentDetail"))
@@ -501,8 +494,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                              Integer startRow, Boolean isPosted, Integer orderObject)
             throws IOException, UniversalImportException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
-        List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
+        List<SaleOrderDetail> primaryList = new ArrayList<>();
+        List<SaleOrderDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
@@ -511,7 +504,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         XSSFSheet sheet = Wb.getSheetAt(0);
 
         for (int i = startRow - 1; i <= sheet.getLastRowNum(); i++) {
-            Map<String, Object> fieldValues = new HashMap<String, Object>();
+            Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 String value = getXLSXFieldValue(sheet, i, importColumns.get(field));
                 if(field.equals("idDocumentDetail"))
@@ -557,8 +550,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                                                             Integer startRow, Boolean isPosted, Integer orderObject)
             throws IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, UniversalImportException, SQLHandledException {
 
-        List<SaleOrderDetail> primaryList = new ArrayList<SaleOrderDetail>();
-        List<SaleOrderDetail> secondaryList = new ArrayList<SaleOrderDetail>();
+        List<SaleOrderDetail> primaryList = new ArrayList<>();
+        List<SaleOrderDetail> secondaryList = new ArrayList<>();
 
         String primaryKeyColumn = getItemKeyColumn(primaryKeyType);
         String secondaryKeyColumn = getItemKeyColumn(secondaryKeyType);
@@ -579,7 +572,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             }
 
             for (int i = startRow - 1; i < totalRecordCount; i++) {
-                Map<String, Object> fieldValues = new HashMap<String, Object>();
+                Map<String, Object> fieldValues = new HashMap<>();
 
                 file.read();
 

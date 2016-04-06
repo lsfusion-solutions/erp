@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.integration.excel;
 
+import jxl.WorkbookSettings;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Warehouse;
@@ -74,7 +75,9 @@ public class ImportExcelWarehousesActionProperty extends ImportExcelActionProper
 
     protected static List<WarehouseGroup> importWarehouseGroups(byte[] file) throws IOException, BiffException, ParseException {
 
-        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file));
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setGCDisabled(true);
+        Workbook Wb = Workbook.getWorkbook(new ByteArrayInputStream(file), ws);
         Sheet sheet = Wb.getSheet(0);
 
         List<WarehouseGroup> data = new ArrayList<>();
