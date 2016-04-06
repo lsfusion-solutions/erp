@@ -400,7 +400,7 @@ public class TerminalServer extends LifecycleAdapter {
                             break;
                         case GET_ITEM_INFO:
                             if (itemInfo != null) {
-                                for (int i = 0; i < 8; i++) {
+                                for (int i = 0; i < 10; i++) {
                                     if (itemInfo.size() > i) {
                                         write(outToClient, itemInfo.get(i));
                                     }
