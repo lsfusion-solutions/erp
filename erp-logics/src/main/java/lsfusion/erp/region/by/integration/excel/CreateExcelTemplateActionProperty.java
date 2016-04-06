@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import jxl.CellView;
 import jxl.Workbook;
+import jxl.WorkbookSettings;
 import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
@@ -26,7 +27,9 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
 
     public static Map<String, byte[]> createFile(String fileName, List<String> columns, List<List<String>> defaultRows) throws IOException, WriteException {
         File file = File.createTempFile(fileName, ".xls");
-        WritableWorkbook workbook = Workbook.createWorkbook(file);
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setGCDisabled(true);
+        WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
         WritableSheet sheet = workbook.createSheet("List 1", 0);
         CellView cv = new CellView();
         cv.setAutosize(true);
@@ -44,7 +47,7 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
         workbook.write();
         workbook.close();
 
-        Map<String, byte[]> result = new HashMap<String, byte[]>();
+        Map<String, byte[]> result = new HashMap<>();
         result.put(fileName + ".xls", IOUtils.getFileBytes(file));
         file.delete();
         return result;
@@ -58,9 +61,7 @@ public abstract class CreateExcelTemplateActionProperty extends ScriptingActionP
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             context.delayUserInterfaction(new ExportFileClientAction(createFile()));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (WriteException e) {
+        } catch (IOException | WriteException e) {
             throw new RuntimeException(e);
         }
     }

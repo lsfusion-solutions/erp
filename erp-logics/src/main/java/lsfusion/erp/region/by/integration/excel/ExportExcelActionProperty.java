@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.integration.excel;
 
 import jxl.CellView;
 import jxl.Workbook;
+import jxl.WorkbookSettings;
 import jxl.write.WritableSheet;
 import jxl.write.WritableWorkbook;
 import jxl.write.WriteException;
@@ -27,7 +28,9 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
 
     public static Map<String, byte[]> createFile(String fileName, List<String> columns, List<List<String>> rows) throws IOException, WriteException {
         File file = File.createTempFile(fileName, ".xls");
-        WritableWorkbook workbook = Workbook.createWorkbook(file);
+        WorkbookSettings ws = new WorkbookSettings();
+        ws.setGCDisabled(true);
+        WritableWorkbook workbook = Workbook.createWorkbook(file, ws);
         WritableSheet sheet = workbook.createSheet("List 1", 0);
         CellView cv = new CellView();
         cv.setAutosize(true);
@@ -60,9 +63,7 @@ public abstract class ExportExcelActionProperty extends DefaultIntegrationAction
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
             context.delayUserInterfaction(new ExportFileClientAction(createFile(context)));
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (WriteException e) {
+        } catch (IOException | WriteException e) {
             throw new RuntimeException(e);
         }
     }
