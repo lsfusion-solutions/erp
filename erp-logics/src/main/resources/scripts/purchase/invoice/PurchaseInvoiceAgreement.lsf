@@ -126,11 +126,13 @@ DESIGN agreement {
     }
 } 
 
-agreementsPrice 'Цена из соглашения' (OrderDetail d) =
-    priceB(priceListType(d) AS DataPriceListType,
-                                              sku(d),
-                                              customerStock(d),
-                                              dateTime(d));
+agreementsPrice 'Цена из соглашения' (OrderDetail d) =    
+    prevPriceB(priceListType(d) AS DataPriceListType, sku(d), customerStock(d), supplier(d), dateTime(d));
+//
+//    priceB(priceListType(d) AS DataPriceListType,
+//                                              sku(d),
+//                                              customerStock(d),
+//                                              dateTime(d));
 percDeviationUpPriceAgreement '% отклонения по цене вверх' (OrderDetail d) = percDeviationUpPrice(agreement(d), sku(d));
 percDeviationDownPriceAgreement '% отклонения по цене вниз' (OrderDetail d) = percDeviationDownPrice(agreement(d), sku(d));
 
@@ -143,6 +145,10 @@ minDeviationPrice 'Мин. цена' (OrderDetail d) = (100.0 - percDeviationDow
 
 CONSTRAINT (SET(isPosted(OrderDetail d)) OR SETCHANGED(price(d))) AND isPosted(d) AND (price(d) != agreementsPrice(d))    
     MESSAGE 'Для строки заказа цена не совпадает с ценой из соглашения';    
+   
+EXTEND FORM userOrder
+    PROPERTIES (d) READONLY agreementsPrice
+;
     
 percDeviationUpPriceAgreement '% отклонения по цене вверх' (Order order) = showPercDeviationUpPrice(agreement(order));
 percDeviationDownPriceAgreement '% отклонения по цене вниз' (Order order) = showPercDeviationDownPrice(agreement(order));     
@@ -163,11 +169,7 @@ maxDeviationPriceOrder 'Макс. цена' (InvoiceDetail d) = maxDeviationPric
 minDeviationPriceOrder 'Мин. цена' (InvoiceDetail d) = minDeviationPrice(maxOrderDetail(sku(d), order(d))); 
 
 agreementsPrice 'Цена из соглашения' (InvoiceDetail d) =
-    prevPriceB(priceListType(d),
-               sku(d),
-               customerStock(d),
-               supplier(d),
-               dateTime(d));
+    prevPriceB(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
     // todo : добавлен PREV для того, чтобы при изменении в прайсах (до) она не тормозила. Почему это работает при изменении цены в прайсе - вообще загадка.
 
 percDeviationUpPriceAgreement '% отклонения по цене вверх' (InvoiceDetail d) = percDeviationUpPrice(agreement(d), sku(d));
