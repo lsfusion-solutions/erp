@@ -521,17 +521,15 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                             sqlHost, kristalSettings.sqlPort, kristalSettings.sqlDBName, kristalSettings.sqlUsername, kristalSettings.sqlPassword);
                     Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                     conn = DriverManager.getConnection(url);
-                    Statement statement = conn.createStatement();
-                    String queryString = "SELECT CashierTabNumber, CashNumber, LogOn, LogOff FROM CashierWorkTime";
-                    ResultSet rs = statement.executeQuery(queryString);
-                    while (rs.next()) {
 
-                        String numberCashier = rs.getString(1);
-                        Integer numberCashRegister = rs.getInt(2);
-                        Timestamp timeFrom = rs.getTimestamp(3);
-                        Timestamp timeTo = rs.getTimestamp(4);
-                        result.add(new CashierTime(null, numberCashier, numberCashRegister,
-                                directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo));
+                    int start = 1;
+                    int limit = 10000;
+                    Integer lastCount = null;
+                    while(lastCount == null || lastCount == limit) {
+                        List<CashierTime> cashierTimeList = readCashierTime(conn, directoryGroupCashRegisterMap, dir, start, limit);
+                        result.addAll(cashierTimeList);
+                        lastCount = cashierTimeList.size();
+                        start += lastCount;
                     }
 
                     Timestamp dateTo = null;
@@ -553,6 +551,25 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                         conn.close();
                 }
             }
+        }
+        return result;
+    }
+
+    private List<CashierTime> readCashierTime(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir, int start, int limit) throws SQLException {
+        List<CashierTime> result = new ArrayList<>();
+        Statement statement = conn.createStatement();
+        String queryString = "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
+                "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
+                "FROM CashierWorkTime) AS MyDerivedTable WHERE MyDerivedTable.RowNum BETWEEN " + start + " AND " + (start + limit - 1);
+        ResultSet rs = statement.executeQuery(queryString);
+        while (rs.next()) {
+
+            String numberCashier = rs.getString(1);
+            Integer numberCashRegister = rs.getInt(2);
+            Timestamp timeFrom = rs.getTimestamp(3);
+            Timestamp timeTo = rs.getTimestamp(4);
+            result.add(new CashierTime(null, numberCashier, numberCashRegister,
+                    directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo));
         }
         return result;
     }
