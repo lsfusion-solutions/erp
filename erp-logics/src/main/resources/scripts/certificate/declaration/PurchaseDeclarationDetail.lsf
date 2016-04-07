@@ -1129,6 +1129,37 @@ homeSum 'Стоимость корр.' = DATA NUMERIC[16,2](DeclarationAdjustmen
 dutySum 'Пошлина корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
 VATSum 'НДС корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
 
+changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == homeSum(a,d) THEN {
+            homeSum(a,d)<- requestedNumeric() (+) homeSum(d);
+        }
+    }ELSE {
+        homeSum(a,d)<- NULL;
+    }
+}
+changeDutySum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == dutySum(a,d) THEN {
+            dutySum(a,d)<- requestedNumeric() (+) dutySum(d);
+        }       
+    }ELSE {
+        dutySum(a,d)<- NULL;
+    }
+}
+changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == VATSum(a,d) THEN {
+            VATSum(a,d)<- requestedNumeric() (+) VATSum(d);
+        }
+    }ELSE {
+        VATSum(a,d)<- NULL;
+    }
+}
+
 date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
 
 defaultDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
@@ -1413,8 +1444,8 @@ EXTEND FORM declaration
                    deliverySum, chargeSum, homeSum,
                    percentDuty, weightDuty, dutySum,
                    numberVAT, percentVAT, VATSum
-    PROPERTIES (a,ddd)  BACKGROUND editBackground() homeSum, dutySum, VATSum
-    PROPERTIES (a,ddd)  BACKGROUND payBackground() dutySumToPay, VATSumToPay
+    PROPERTIES (a,ddd)  BACKGROUND editBackground() homeSum ON CHANGE changeHomeSum(a,ddd), dutySum ON CHANGE changeDutySum(a,ddd), VATSum ON CHANGE changeVATSum(a,ddd)
+    PROPERTIES (a,ddd)  READONLY BACKGROUND payBackground() dutySumToPay, VATSumToPay
     FILTERS declaration(ddd)==d    
 ;
 
