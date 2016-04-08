@@ -89,6 +89,8 @@ checkInCurrentUser(ItemGroup itemGroup) = ACTION {
     dataIn(User user, itemGroup) <- requestedLogical() WHERE user == currentUser();    
 }
 
+inPurchase = GROUP SUM 1 IF inPurchase(invoice(Purchase.InvoiceDetail d), currentUser()) BY sku(d); 
+
 FORM articleStickerDashboard 'Стикеровка'
     OBJECTS u = User FIXED PANEL 
     FILTERS u == currentUser()
@@ -125,9 +127,6 @@ FORM articleStickerDashboard 'Стикеровка'
 
     FILTERS isParent(g, a) AND NOT itemGroupsCurrentUser() OR
             inCurrentUser(a) AND itemGroupsCurrentUser()    
-//    FILTERGROUP groupFilters
-//        FILTER 'По группам' 'F11' isParentGroupArticle(g, a) DEFAULT
-//        FILTER 'Без групп' 'ctrl F11' captionArticle(a) IF NOT itemGroupArticle(a)    
 
     FILTERGROUP translateFilters
         FILTER 'Не обработан' notCompletedSticker(a) 'F9' DEFAULT
@@ -152,6 +151,7 @@ FORM articleStickerDashboard 'Стикеровка'
         FILTER 'С атрибутами' NOT nullSticker(i) 'F6'
              
     FILTERGROUP itemFilters
+        FILTER 'По накладным' inPurchase(i) 'F7'
         FILTER 'По артикулам' article(i) == a 'F4' DEFAULT
         FILTER 'По группам (не обработан)' isParent(g,i) AND completedTranslate(i) AND NOT completedSticker(i) 'shift F4'
         FILTER 'По группам ' isParent(g,i) 'ctrl F4' 
@@ -244,6 +244,23 @@ EXTEND FORM  articleStickerDashboard
 ;
 
 // --------- Заполнение по матрице соответствия      
+
+mapStickerItem 'Заполнить атрибуты для всех по соответствию'() = ACTION {
+   FOR [= FILTER articleStickerDashboard.i](Item i)  DO {
+        IF NOT sizeHeight(i) THEN mapSizeHeight(i);
+        IF NOT sizeChest(i) THEN mapSizeChest(i);
+        IF NOT sizeUnderChest(i) THEN mapSizeUnderChest(i);
+        IF NOT sizeCupBra(i) THEN mapSizeCupBra(i);
+        IF NOT sizeHips(i) THEN mapSizeHips(i); 
+        IF NOT sizeWaist(i) THEN mapSizeWaist(i);
+        IF NOT sizeNeck(i) THEN mapSizeNeck(i);
+        IF NOT sizeHead(i) THEN mapSizeHead(i);
+        IF NOT footLength(i) THEN mapFootLength(i);   
+   }
+} CONFIRM TOOLBAR;
+
+EXTEND FORM articleStickerDashboard
+    PROPERTIES mapStickerItem() TODRAW i;
 
 mapAllSizeHeightStickerItem 'Заполнить рост для всех по соответствию'() = ACTION {
    FOR [= FILTER articleStickerDashboard.i](Item i)  AND NOT sizeHeight(i) DO
