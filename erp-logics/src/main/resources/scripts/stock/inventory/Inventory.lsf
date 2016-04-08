@@ -650,6 +650,7 @@ include(CollationSheet collationSheet, Sku sku) = MULTI
     collationSheet IS RegisterCollationSheet IF countPageInventoryDetail(collationSheet, sku),
     (OVERRIDE in(collationSheet, sku), collationSheet IS ManyCollationSheet IF quantityPageInventoryDetail(collationSheet, sku)),
     (collationSheet IS RemainsCollationSheet IF (quantityBalance(collationSheet, sku) != 0 OR sumBalance(collationSheet, sku) OR quantityPageInventoryDetail(collationSheet, sku)));
+overInclude = ABSTRACT BOOLEAN (CollationSheet, Sku);
 
 priceBalance(CollationSheet collationSheet, Sku sku) <- OVERRIDE overPriceBalance(collationSheet, sku), prevPriceB(SystemLedgerPriceListType.accountPriceListType,
                 sku, stock(collationSheet), dateTime(inventory(collationSheet)))
@@ -870,7 +871,12 @@ WHEN SESSION CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
 WHEN CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
     recalculateSumAccountB(c);
 
-sumItemAccountShortage = sumItemAccountB(CollationSheet collationSheet) (-) sumItemPageInventoryDetail (collationSheet); 
+overSumItemAccountShortage = ABSTRACT NUMERIC[16,2](CollationSheet);
+
+sumItemAccountShortage = sumItemAccountB(CollationSheet collationSheet) (+)
+                                          overSumItemAccountShortage(collationSheet) (-) 
+                                          sumItemPageInventoryDetail (collationSheet); 
+                                          
 sumContainerAccountShortage = sumContainerAccountB(CollationSheet collationSheet) (-) sumContainerPageInventoryDetail (collationSheet); 
 
 skipStockDocumentLedger 'Не проводить по товарному отчету'  = DATA BOOLEAN (Inventory) IN documentPrm;
@@ -1494,7 +1500,7 @@ FORM inventory 'Инвентаризация'
                                                 priceBalance BACKGROUND differentPrice(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) sumPageInventoryDetail, sumBalance, sumShortage
     PROPERTIES(i) READONLY                      nameSkuGroup1, nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5 
-    FILTERS                                     include(cs, i),
+    FILTERS                                     include(cs, i) OR overInclude(cs,i),
                                                 isParent(g, i)
     FILTERGROUP notEqualsPriceSkuFilters
             FILTER 'Товар с разными ценами' differentPrice(cs, i) 'F10'
@@ -1762,7 +1768,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(cs,it) READONLY SHOWIF isSku(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, it),
                                                               priceBalance BACKGROUND differentPrice(cs, it)
     PROPERTIES(cs,it) READONLY SHOWIF isSku(cs) sumPageInventoryDetail, sumBalance, sumShortage
-    FILTERS                                                   include(cs, it)
+    FILTERS                                                   include(cs, it) OR overInclude(cs,it)
     ORDER BY                                                  nASku
 
     OBJECTS         bt=Batch FIXED GRID 
