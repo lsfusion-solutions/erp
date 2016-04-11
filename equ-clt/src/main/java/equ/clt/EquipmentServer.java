@@ -353,7 +353,12 @@ public class EquipmentServer {
 
     private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         sendSalesLogger.info("Send SalesInfo");
-        Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
+
+        //временно, для динамического изменения кол-ва чеков за раз. Потом переделать эти три обращения к remote в одно
+        EquipmentServerSettings settings = remote.readEquipmentServerSettings(sidEquipmentServer);
+        Integer numberAtATime = settings == null ? null : settings.numberAtATime;
+        //Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
+
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
 
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
