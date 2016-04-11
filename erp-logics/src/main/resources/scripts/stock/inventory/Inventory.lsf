@@ -871,10 +871,8 @@ WHEN SESSION CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
 WHEN CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
     recalculateSumAccountB(c);
 
-overSumItemAccountShortage = ABSTRACT NUMERIC[16,2](CollationSheet);
 
-sumItemAccountShortage = sumItemAccountB(CollationSheet collationSheet) (+)
-                                          overSumItemAccountShortage(collationSheet) (-) 
+sumItemAccountShortage = sumItemAccountB(CollationSheet collationSheet) (-) 
                                           sumItemPageInventoryDetail (collationSheet); 
                                           
 sumContainerAccountShortage = sumContainerAccountB(CollationSheet collationSheet) (-) sumContainerPageInventoryDetail (collationSheet); 
@@ -937,9 +935,10 @@ accountSumBalance = IF showAccountSums(CollationSheet collationSheet)
                                                           THEN accountSumItemBalance(collationSheet) (+) accountSumContainerBalance(collationSheet)
                                                           ELSE sumBalance(collationSheet);                                                                                                                          
 
-sumItemShortage 'Сумма недостачи / излишка, товар' = IF showAccountSums(CollationSheet collationSheet)
+overSumItemShortage = ABSTRACT NUMERIC[16,2](CollationSheet);
+sumItemShortage 'Сумма недостачи / излишка, товар' = (IF showAccountSums(CollationSheet collationSheet)
                                                             THEN sumItemAccountShortage(collationSheet)
-                                                            ELSE sumItemManageShortage(collationSheet);
+                                                            ELSE sumItemManageShortage(collationSheet)) (+) overSumItemShortage(collationSheet) ;
                                                             
 sumContainerShortage 'Сумма недостачи / излишка, тара' = IF showAccountSums(CollationSheet collationSheet)
                                                             THEN sumContainerAccountShortage(collationSheet)
@@ -987,13 +986,11 @@ needToOutLedger (CollationSheet collationSheet, Sku sku) =
     (quantityShortage(collationSheet, sku) > 0  OR (sumShortage(collationSheet, sku) > 0 AND NOT quantityShortage(collationSheet, sku)))
     AND include(collationSheet, sku)
     AND NOT skipSkuLedger(collationSheet) 
-//    AND isPostedCollationSheet(collationSheet) 
     AND NOT isBatch(collationSheet)
     AND isPosted(collationSheet);
 
 needToInLedger (CollationSheet collationSheet, Sku sku) = (quantityShortage(collationSheet, sku) < 0 OR (sumShortage(collationSheet, sku) < 0 AND NOT quantityShortage(collationSheet, sku)))
     AND include(collationSheet, sku) 
-//    AND isPostedCollationSheet(collationSheet) 
     AND NOT skipSkuLedger(collationSheet) 
     AND NOT isBatch(collationSheet)
     AND isPosted(collationSheet);
