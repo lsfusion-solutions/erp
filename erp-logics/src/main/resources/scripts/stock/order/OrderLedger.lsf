@@ -1,6 +1,6 @@
 MODULE OrderLedger;
 
-REQUIRE System, SkuLedger, StockSkuDocument;
+REQUIRE System, SkuLedger, StockSkuDocument, Operation;
 
 CLASS ABSTRACT OrderLedger 'Резерв товара';
 TABLE orderLedger(OrderLedger);
@@ -30,6 +30,8 @@ isPurchase 'Закупка' (ledger) = ABSTRACT BOOLEAN (OrderLedger) PERSISTENT
 statusReserve 'Статус резерва' (OrderLedger ledger) = IF isPurchase(ledger) THEN 'Закупка' ELSE 'Продажа' MINCHARWIDTH 8 PREFCHARWIDTH 15;               
 backgroundReserve 'Статус резерва' (OrderLedger ledger) = IF isPurchase(ledger) THEN RGB(204,255,204) ELSE RGB(189,227,255);               
 
+operation  (ledger) = ABSTRACT Operation (OrderLedger) PERSISTENT;
+nameOperation 'Операция' (OrderLedger ledger) = name(operation(ledger)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 contact (ledger) = ABSTRACT LegalEntity (OrderLedger) PERSISTENT INDEXED;
 nameContact 'Контрагент' (OrderLedger ledger) = name(contact(ledger));
@@ -194,7 +196,7 @@ FORM orderSkuLedgerStocksNotDate 'Резерв товара'
 
     OBJECTS s = OrderLedger
     PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve
-    PROPERTIES(s) READONLY date, dateTime, nameContact, nameContactStock, description, nameStock,
+    PROPERTIES(s) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description, nameStock,
                   toShipQuantity, quantity
     PROPERTIES(s) edit       
     ORDER BY statusReserve(s), dateTime(s)
@@ -229,7 +231,7 @@ FORM orderSkuLedgerNotDate 'Резерв товара по складу'
 
     OBJECTS s = OrderLedger
     PROPERTIES(s) READONLY BACKGROUND backgroundReserve(s) statusReserve
-    PROPERTIES(s) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(s) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   toShipQuantity, quantity
     PROPERTIES(s) edit       
     ORDER BY statusReserve(s), dateTime(s)
@@ -500,7 +502,7 @@ EXTEND FORM currentBalanceSkuStock
     PROPERTIES(s, st) READONLY AFTER currentBalance(s,st) currentReserve, availableQuantity
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
 
     FILTERS stock(l)==st,
@@ -509,7 +511,7 @@ EXTEND FORM currentBalanceSkuStock
     FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
 
     FILTERS stock(ll)==st,
@@ -531,7 +533,7 @@ EXTEND FORM currentBalanceBatchStock
     PROPERTIES(bt, st) AFTER currentBalance(bt,st) READONLY currentReserve, availableQuantity 
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
 
     FILTERS stock(l)==st,
@@ -540,7 +542,7 @@ EXTEND FORM currentBalanceBatchStock
     FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
 
     FILTERS stock(ll)==st,
@@ -567,7 +569,7 @@ EXTEND FORM balanceSkuStock
     PROPERTIES(s, st, t) reserveA READONLY AFTER balanceB(s,st,t)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
 
     FILTERS stock(l)==st,
@@ -577,12 +579,12 @@ EXTEND FORM balanceSkuStock
     FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
 
     FILTERS stock(ll)==st,
             sku(ll)==s,
-            dateTime(l) <= t
+            dateTime(ll) <= t
 
     FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
 
@@ -600,7 +602,7 @@ EXTEND FORM balanceBatchStock
     PROPERTIES(bt, st, t) reserveA READONLY AFTER balanceB(bt,st,t)
 
     OBJECTS l = OrderLedger
-    PROPERTIES(l) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(l) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                   quantity, toShipQuantity
 
     FILTERS stock(l)==st,
@@ -610,12 +612,12 @@ EXTEND FORM balanceBatchStock
     FILTERS isPosted(l) AND NOT isClosed(l) AND isPurchase(l)
 
     OBJECTS ll = OrderLedger
-    PROPERTIES(ll) READONLY date, dateTime, nameContact, nameContactStock, description,
+    PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
 
     FILTERS stock(ll)==st,
             batch(ll)==bt,
-            dateTime(l) <= t
+            dateTime(ll) <= t
 
     FILTERS isPosted(ll) AND NOT isClosed(ll) AND NOT isPurchase(ll)
 
