@@ -1129,37 +1129,6 @@ homeSum 'Стоимость корр.' = DATA NUMERIC[16,2](DeclarationAdjustmen
 dutySum 'Пошлина корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
 VATSum 'НДС корр.' = DATA NUMERIC[16,2](DeclarationAdjustment, DeclarationDetail);
 
-changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == homeSum(a,d) THEN {
-            homeSum(a,d)<- requestedNumeric() (+) homeSum(d);
-        }
-    }ELSE {
-        homeSum(a,d)<- NULL;
-    }
-}
-changeDutySum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == dutySum(a,d) THEN {
-            dutySum(a,d)<- requestedNumeric() (+) dutySum(d);
-        }       
-    }ELSE {
-        dutySum(a,d)<- NULL;
-    }
-}
-changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == VATSum(a,d) THEN {
-            VATSum(a,d)<- requestedNumeric() (+) VATSum(d);
-        }
-    }ELSE {
-        VATSum(a,d)<- NULL;
-    }
-}
-
 date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
 
 defaultDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
@@ -1171,11 +1140,52 @@ homeSum 'Сумма корр.' (a) = GROUP SUM homeSum(DeclarationAdjustment a, 
 dutySum 'Пошлика корр.' (a) = GROUP SUM dutySum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
 VATSum 'НДС корр.' (a) = GROUP SUM VATSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
 
+homeSumToPay 'Сумма к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   homeSum(a,dd) - homeSum(dd);
 dutySumToPay 'Пошлика к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   dutySum(a,dd) - dutySum(dd);
 VATSumToPay 'НДС к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   VATSum(a,dd) - VATSum(dd);
 
+homeSumToPay 'Сумма к доплате'=  GROUP SUM homeSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
 dutySumToPay 'Пошлика к доплате' = GROUP SUM dutySumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
 VATSumToPay 'НДС к доплате' = GROUP SUM VATSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+
+changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == homeSumToPay(a,d) THEN {
+            homeSum(a,d)<- requestedNumeric() (+) homeSum(d);            
+        }
+    }ELSE {
+        homeSum(a,d)<- NULL;
+    }
+}
+changeDutySum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == dutySumToPay(a,d) THEN {
+            
+            IF NOT homeSum(a,d) THEN {
+                homeSum(a,d)<- homeSum(d);
+            }
+            dutySum(a,d)<- requestedNumeric() (+) dutySum(d);            
+        }       
+    }ELSE {
+        dutySum(a,d)<- NULL;
+    }
+}
+changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == VATSumToPay(a,d) THEN {            
+            IF NOT homeSum(a,d) THEN {
+                homeSum(a,d)<- homeSum(d);
+            } 
+            VATSum(a,d)<- requestedNumeric() (+) VATSum(d);
+        }
+    }ELSE {
+        VATSum(a,d)<- NULL;
+    }
+}
+
 // -------------------------------- Расчет таможенных пошлин -------------------------- //        
         
 calcSumPriceDuty 'Пошлина по стоимости' (DeclarationAdjustment adjustment, DeclarationDetail detail) =
@@ -1185,8 +1195,11 @@ calcDutySum 'Пошлина' (DeclarationAdjustment a, DeclarationDetail d) = ro
                                                                      calcSumPriceDuty(a,d)),
                                                                 homeCurrency(d)) MINCHARWIDTH 12;
 
-WHEN SESSION FORMS declaration (CHANGED(calcDutySum(DeclarationAdjustment a,DeclarationDetail d)) OR CHANGED (homeSum(a,d))) AND homeSum(a,d)  DO //AND NOT isExported(d)
+WHEN SESSION FORMS declaration (CHANGED(calcDutySum(DeclarationAdjustment a,DeclarationDetail d)) OR CHANGED (homeSum(a,d))) AND homeSum(a,d) AND NOT CHANGED(dutySum(a,d))  DO //AND NOT isExported(d)
     dutySum(a,d) <- calcDutySum(a,d);
+
+WHEN SESSION FORMS declaration (CHANGED(dutySum(DeclarationAdjustment a,DeclarationDetail d)) OR CHANGED (VATSum(a,d)))  AND NOT CHANGED(homeSum(a,d))  DO 
+    homeSum(a,d) <- homeSum(d);
     
 // -------------------------------- Расчет НДС -------------------------- //
 
@@ -1199,7 +1212,7 @@ calcVATSum 'НДС' (DeclarationAdjustment a, DeclarationDetail d) =
 
 WHEN SESSION FORMS declaration
     (CHANGED(homeSum(DeclarationAdjustment a, DeclarationDetail d)) OR CHANGED(dutySum(a,d)) OR
-    CHANGED(VAT(d)) OR CHANGED(homeCurrency(d))) AND homeSum(a,d)  DO //AND NOT isExported(d)
+    CHANGED(VAT(d)) OR CHANGED(homeCurrency(d))) AND homeSum(a,d) AND NOT CHANGED(VATSum(a,d)) DO //AND NOT isExported(d)
     VATSum(a,d) <- calcVATSum(a,d);    
     
     
@@ -1433,7 +1446,7 @@ EXTEND FORM declaration
     OBJECTS a = DeclarationAdjustment
     PROPERTIES(a) date, name, note
     PROPERTIES (a)  BACKGROUND editBackground() homeSum, dutySum, VATSum    
-    PROPERTIES(a) READONLY BACKGROUND payBackground() dutySumToPay, VATSumToPay
+    PROPERTIES(a) READONLY BACKGROUND payBackground() homeSumToPay, dutySumToPay, VATSumToPay
        
     PROPERTIES(a) ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR 
     FILTERS declaration(a) == d
@@ -1444,8 +1457,8 @@ EXTEND FORM declaration
                    deliverySum, chargeSum, homeSum,
                    percentDuty, weightDuty, dutySum,
                    numberVAT, percentVAT, VATSum
-    PROPERTIES (a,ddd)  BACKGROUND editBackground() homeSum ON CHANGE changeHomeSum(a,ddd), dutySum ON CHANGE changeDutySum(a,ddd), VATSum ON CHANGE changeVATSum(a,ddd)
-    PROPERTIES (a,ddd)  READONLY BACKGROUND payBackground() dutySumToPay, VATSumToPay
+    PROPERTIES (a,ddd)  BACKGROUND editBackground() homeSum, dutySum, VATSum 
+    PROPERTIES (a,ddd)  BACKGROUND payBackground() homeSumToPay ON CHANGE changeHomeSum(a,ddd), dutySumToPay ON CHANGE changeDutySum(a,ddd), VATSumToPay ON CHANGE changeVATSum(a,ddd)
     FILTERS declaration(ddd)==d    
 ;
 
