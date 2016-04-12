@@ -255,6 +255,12 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
         bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
 }
 
+WHEN SESSION FORMS zReport
+    CHANGED(nameLegalEntityDiscountCard(Receipt r)) DO {
+        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r;    
+        bonusSum(ReceiptReturnDetail detail) <- bonusSum(overReceiptSaleDetail(detail)) WHERE receipt(detail) == r;    
+    }
+
 // Операции с чеками
 
 createCurrentReceipt 'Создать новый чек'() = ACTION {
@@ -345,7 +351,7 @@ prePost(Receipt receipt) = ACTION {
 }
 
 post 'Смешанный платеж'(Receipt receipt) = ACTION {
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -378,7 +384,7 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
 } EDITKEY 'F9' IN receiptAction;
 
 postCard 'Карточкой'(Receipt receipt) = ACTION {
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -404,7 +410,7 @@ postCard 'Карточкой'(Receipt receipt) = ACTION {
 } EDITKEY 'F10' CONFIRM IN receiptAction;
 
 postCash 'Наличными'(Receipt receipt) = ACTION {
-    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) THEN {
+    IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
         MESSAGE 'Выберите дисконтную карту';      
         RETURN;   
     } 
@@ -755,7 +761,8 @@ createReturn 'Добавить строку возврата'(Receipt receipt, R
         VAT(d) <- VAT(receiptSaleDetail);
         batch(d) <- batch(receiptSaleDetail);
         bonusPaid(d) <- bonusPaid(receiptSaleDetail);
-        bonusSum(d) <- bonusSum(receiptSaleDetail);        
+        bonusSum(d) <- bonusSum(receiptSaleDetail);   
+        discountCard(receipt) <- discountCard(receiptSaleDetail);
         focusQuantity(d);
     }
 }
@@ -772,6 +779,7 @@ createReturn 'Добавить строки возврата'(Receipt receipt, R
         batch(d) <- batch(receiptSaleDetail);
         bonusPaid(d) <- bonusPaid(receiptSaleDetail);
         bonusSum(d) <- bonusSum(receiptSaleDetail);
+        discountCard(receipt) <- discountCard(receiptSaleDetail);        
         overCreateReturn(d,receiptSaleDetail);
     }
 }

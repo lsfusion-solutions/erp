@@ -40,9 +40,16 @@ signedBonusSum 'Начислено бонусов' = GROUP SUM signedBonusSum(Re
 
 signedBonusPaid 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d)
     BY zReport(receipt(d));
+
+EXTEND FORM zReport
+    PROPERTIES(b) SHOWIF useBonus() signedBonusSum, signedBonusPaid  
+    PROPERTIES(d) SHOWIF useBonus() bonusSum, bonusPaid  
+;
     
 EXTEND FORM zReports
-    PROPERTIES(z)  READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid
+    PROPERTIES(z) READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid
+    PROPERTIES(b) READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid  
+    PROPERTIES(d) READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid  
 ;
 
 cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
