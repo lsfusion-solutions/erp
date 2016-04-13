@@ -251,7 +251,6 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 for (int i = 0; i < amountOfImportIterations; i++) {
                     importPackOfItems(itemsList.subList(i * numAtATime, i * numAtATime + (rest > numAtATime ? numAtATime : rest)));
                     rest -= numAtATime;
-                    System.gc();
                 }
             }
         } catch (xBaseJException | IOException e) {
