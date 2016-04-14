@@ -172,6 +172,36 @@ WHEN CHANGED(calcExtraChargePrice(UserInvoiceDetail d)) DO
 WHEN CHANGED(calcExtraChargeSum(UserInvoiceDetail d)) DO
     chargeSum (d) <- calcExtraChargeSum(d);
     
+FORM extraCharge 'Доп услуги'
+    OBJECTS d = InvoiceDetail FIXED PANEL 
+    PROPERTIES (d) READONLY nameSku, chargePrice BACKGROUND backgroundChargeInvoice(), chargeSum BACKGROUND backgroundChargeInvoice()
+    
+    OBJECTS i = Invoice
+    PROPERTIES (i) READONLY date, time, nameOperation, nameSupplier, nameSupplierStock
+    PROPERTIES (i,d) READONLY BACKGROUND backgroundChargeInvoice() extraChargePrice, extraChargeSum
+    FILTERS extraChargeSum(i,d),
+            isPosted(i)
+    ORDER BY date(i)
+;
+
+DESIGN extraCharge {
+    main {
+        NEW top {
+            caption = 'Строка приходной накладной';
+            type = CONTAINERH;
+            MOVE PROPERTY (nameSku(d)) { minimumCharWidth = 50; preferredCharWidth = 80;}
+            MOVE PROPERTY (chargePrice(d)) {minimumCharWidth = 15; preferredCharWidth = 15;}
+            MOVE PROPERTY (chargeSum(d)){minimumCharWidth = 15; preferredCharWidth = 15;}
+        }
+        MOVE i.box {caption = 'Услуги';}
+    }
+    MOVE functions.box;
+}
+showExtraChargePrice 'Показать доп. услуги' (InvoiceDetail d) = ACTION FORM extraCharge OBJECTS d = d NEWSESSION MODAL SHORTCUT chargePrice[InvoiceDetail];
+showExtraChargeSum 'Показать доп. услуги' (InvoiceDetail d) = ACTION FORM extraCharge OBJECTS d = d NEWSESSION MODAL SHORTCUT chargeSum[InvoiceDetail];
+
+    
+    
 FORM extraChargeParams 'Параметры'
     OBJECTS o = Operation FIXED PANEL 
     PROPERTIES SELECTOR name(o)
