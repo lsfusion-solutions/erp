@@ -1039,7 +1039,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                 Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                 if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                    currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister,
+                                                    currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryGroupCashRegisterMap, directory, numberCashRegister), numberCashRegister,
                                                             numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, null, barcode,
                                                             idItem, null, null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null));
                                             }
@@ -1123,7 +1123,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
                                                     Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                        currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
+                                                        currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryGroupCashRegisterMap, directory, numberCashRegister),
                                                                 numberCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee,
                                                                 null, null, sumCard, sumCash, null, barcode, idItem, null, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
                                                                 null, discountCard, numberReceiptDetail, fileName, null));
@@ -1157,6 +1157,15 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new KristalSalesBatch(salesInfoList, filePathList);
+    }
+
+    private Integer getNppGroupMachinery(Map<String, Integer> directoryGroupCashRegisterMap, String directory, Integer numberCashRegister) {
+        Integer result = directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
+        if(result == null)
+            directoryGroupCashRegisterMap.get(directory.toUpperCase() + "_" + numberCashRegister);
+        if(result == null)
+            directoryGroupCashRegisterMap.get(directory.toLowerCase() + "_" + numberCashRegister);
+        return result;
     }
 
     private boolean makeDirsIfNeeded(String directory) {
