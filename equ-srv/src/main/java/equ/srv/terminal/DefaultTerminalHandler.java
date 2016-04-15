@@ -25,6 +25,7 @@ import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.*;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Calendar;
@@ -492,7 +493,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     private Object formatValue(Object value) {
-        return value == null ? "" : value;
+        return value == null ? "" : value instanceof Date ? new SimpleDateFormat("dd.MM.yyyy").format(value) : value;
     }
 
     @Override
