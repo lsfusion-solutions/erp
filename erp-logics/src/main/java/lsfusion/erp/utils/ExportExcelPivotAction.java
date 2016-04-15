@@ -4,6 +4,7 @@ import com.google.common.collect.Lists;
 import com.jacob.activeX.ActiveXComponent;
 import com.jacob.com.ComThread;
 import com.jacob.com.Dispatch;
+import com.jacob.com.SafeArray;
 import com.jacob.com.Variant;
 import jasperapi.ReportGenerator;
 import lsfusion.interop.action.ClientAction;
@@ -58,9 +59,7 @@ public class ExportExcelPivotAction implements ClientAction {
             throw new RuntimeException("Некорректное количество параметров сводных таблиц");
         try {
             runExcelPivot();
-        } catch (JRException e) {
-            throw new RuntimeException("Ошибка при формировании сводной таблицы", e);
-        } catch (ClassNotFoundException e) {
+        } catch (JRException | ClassNotFoundException e) {
             throw new RuntimeException("Ошибка при формировании сводной таблицы", e);
         }
         return null;
@@ -134,10 +133,10 @@ public class ExportExcelPivotAction implements ClientAction {
 
                 LinkedHashMap<Integer, Integer> fieldsMap = getFieldsMap(sourceSheet, columnsCount, i);
 
-                LinkedHashMap<String, Dispatch> rowDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
-                LinkedHashMap<String, Dispatch> columnDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
-                LinkedHashMap<String, Dispatch> filterDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
-                LinkedHashMap<String, Dispatch> cellDispatchFieldsMap = new LinkedHashMap<String, Dispatch>();
+                LinkedHashMap<String, Dispatch> rowDispatchFieldsMap = new LinkedHashMap<>();
+                LinkedHashMap<String, Dispatch> columnDispatchFieldsMap = new LinkedHashMap<>();
+                LinkedHashMap<String, Dispatch> filterDispatchFieldsMap = new LinkedHashMap<>();
+                LinkedHashMap<String, Dispatch> cellDispatchFieldsMap = new LinkedHashMap<>();
 
 
                 for (Map.Entry<Integer, Integer> entry : fieldsMap.entrySet()) {
@@ -159,8 +158,16 @@ public class ExportExcelPivotAction implements ClientAction {
 
                 for (List<Object> entry : rowFieldsEntry) {
                     Dispatch field = rowDispatchFieldsMap.get(entry.get(0));
-                    if (field != null)
+                    if (field != null) {
                         Dispatch.put(field, "Orientation", new Variant(xlRowField));
+                        boolean noSubTotal = (boolean) entry.get(6);
+                        if(noSubTotal) {
+                            SafeArray array = new SafeArray(Variant.VariantBoolean, 12);
+                            for (int c = 0; c < 12; c++)
+                                array.setBoolean(c, false);
+                            Dispatch.put(field, "Subtotals", array);
+                        }
+                    }
                 }
 
                 for (List<Object> entry : columnFieldsEntry) {
@@ -306,7 +313,7 @@ public class ExportExcelPivotAction implements ClientAction {
     }
 
     private LinkedHashMap<Integer, Dispatch> getIndexFieldDispatchMap(Dispatch pivotTableWizard, Integer columnsCount) {
-        LinkedHashMap<Integer, Dispatch> fieldDispatchMap = new LinkedHashMap<Integer, Dispatch>();
+        LinkedHashMap<Integer, Dispatch> fieldDispatchMap = new LinkedHashMap<>();
         for (int i = 0; i<columnsCount;i++) {
             try {
                 Dispatch fieldDispatch = Dispatch.call(pivotTableWizard, "HiddenFields", new Variant(i + 1)).toDispatch();
@@ -318,7 +325,7 @@ public class ExportExcelPivotAction implements ClientAction {
     }
     
     public LinkedHashMap<Integer, String> getFieldCaptionMap(Dispatch sheet, Integer columnsCount) {
-        LinkedHashMap<Integer, String> fieldCaptionMap = new LinkedHashMap<Integer, String>();
+        LinkedHashMap<Integer, String> fieldCaptionMap = new LinkedHashMap<>();
         for (int i = 0; i <= columnsCount; i++) {
             Variant cell = getCellVariant(sheet, i + 1, firstRow);
             if (!cell.isNull()) {
@@ -331,7 +338,7 @@ public class ExportExcelPivotAction implements ClientAction {
 
     public LinkedHashMap<Integer, Integer> getFieldsMap(Dispatch sheet, Integer columnsCount, Integer pivotTableNumber) {
 
-        LinkedHashMap<String, List<Integer>> captionFieldsMap = new LinkedHashMap<String, List<Integer>>();
+        LinkedHashMap<String, List<Integer>> captionFieldsMap = new LinkedHashMap<>();
         for (int i = 0; i <= columnsCount; i++) {
             Variant cell = getCellVariant(sheet, i + 1, firstRow);
             if (!cell.isNull()) {
@@ -342,7 +349,7 @@ public class ExportExcelPivotAction implements ClientAction {
             }
         }
         
-        LinkedHashMap<Integer, Integer> fieldsMap = new LinkedHashMap<Integer, Integer>();
+        LinkedHashMap<Integer, Integer> fieldsMap = new LinkedHashMap<>();
         for (Map.Entry<String, List<Integer>> entry : captionFieldsMap.entrySet()) {                       
             for(Integer field : entry.getValue()) {
                 if (listContainsField(rowFields.get(pivotTableNumber), entry.getKey())) {

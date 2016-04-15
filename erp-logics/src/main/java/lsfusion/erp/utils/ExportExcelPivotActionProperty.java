@@ -26,12 +26,13 @@ import java.util.List;
 import java.util.Map;
 
 // Syntax:
-// xxx=yyy[zzz]~n/m
+// xxx=yyy[zzz]~n/m-
 // xxx is formula 
 // yyy is caption (optional)
 // zzz is number format (optional)
 // n is column width (optional)
 // m is width for column total (optional)
+// - disables subtotals for rows (optional)
 //IFERROR(xxx, a)
 // xxx is formula
 // a is default value
@@ -112,11 +113,18 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
     }
 
     public List<List<List<Object>>> readFieldCaptions(ImOrderSet<PropertyDrawView> properties, List<List<String>> fields) throws ScriptingErrorLog.SemanticErrorException {
-        List<List<List<Object>>> result = new ArrayList<List<List<Object>>>();
+        List<List<List<Object>>> result = new ArrayList<>();
         if (fields != null) {
             for (List<String> fieldsEntry : fields) {
-                List<List<Object>> resultEntry = new ArrayList<List<Object>>();
+                List<List<Object>> resultEntry = new ArrayList<>();
                 for (String field : fieldsEntry) {
+
+                    //noSubTotals
+                    boolean noSubTotals = false;
+                    if(field.endsWith("-")) {
+                        field = field.substring(0, field.length() - 1);
+                        noSubTotals = true;
+                    }
 
                     //column width
                     Integer columnWidth = null;
@@ -160,7 +168,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         }
                     }                    
                     String formula = fieldValue == null ? field : null;
-                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth));
+                    resultEntry.add(Arrays.asList((Object) (fieldValue == null ? field : fieldValue), formula, caption, numberFormat, columnWidth, columnTotalWidth, noSubTotals));
                 }
                 result.add(resultEntry);
             }
@@ -175,7 +183,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
             String[] splittedTitle = idTitle.split("\\(|\\)");
             String property = splittedTitle[0];
             String params = splittedTitle.length > 1 ? splittedTitle[1] : null;
-            List<DataObject> objects = new ArrayList<DataObject>();
+            List<DataObject> objects = new ArrayList<>();
             if(params != null) {
                 for(String param : params.split(",")) {
                     if(valuesMap.containsKey(param))
