@@ -256,13 +256,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 }
 
 WHEN SESSION FORMS zReport
-    CHANGED(nameLegalEntityDiscountCard(Receipt r)) DO {
-        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r;    
-        bonusSum(ReceiptReturnDetail detail) <- bonusSum(overReceiptSaleDetail(detail)) WHERE receipt(detail) == r;    
+    CHANGED(discountCard(Receipt r)) DO {
+        calculatePromotions(r);
+        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r AND useBonus();    
+        bonusSum(ReceiptReturnDetail detail) <- bonusSum(overReceiptSaleDetail(detail)) WHERE receipt(detail) == r AND useBonus();    
     }
 
 // Операции с чеками
-
+ 
 createCurrentReceipt 'Создать новый чек'() = ACTION {
     FOR ADDOBJ r = Receipt DO {
         seek(r);

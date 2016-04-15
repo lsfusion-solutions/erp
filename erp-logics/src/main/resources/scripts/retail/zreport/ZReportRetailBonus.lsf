@@ -53,11 +53,16 @@ EXTEND FORM zReports
 ;
 
 cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
-blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) IF date(rd) > subtract(currentDate(), blockDaysBonus()) BY discountCard(rd);
+
+returnBonusSum = GROUP SUM bonusSum(ReceiptReturnDetail rrd) BY receiptSaleDetail(rrd) PERSISTENT;
+blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = 
+    GROUP SUM (bonusSum(ReceiptSaleDetail rsd) (-) returnBonusSum(rsd)) IF date(rsd) > subtract(currentDate(), blockDaysBonus()) BY discountCard(rsd);
+externalBlockedBonuses 'Дополнительные заблокированные бонусы' = DATA NUMERIC[16,2] (DiscountCard);  
+totalBlockedBonuses 'Всего заблокировано бонусов' (DiscountCard dc)= blockedBonuses(dc) (+) externalBlockedBonuses(dc);
 
 paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
 
-availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
+availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) totalBlockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
 
 externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
 totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d);
@@ -76,7 +81,7 @@ discountBonusSumVAT 'Сумма НДС в скидке' (ZReport zReport)= disco
 discountBonusSumMarkup 'Сумма набавки в скидке' (ZReport z) = discountSum(z) (+) signedBonusPaid(z) (-) discountBonusSumVAT(z);
 
 EXTEND FORM discountCard
-    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
+    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, externalBlockedBonuses, totalBlockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
 ;
 
 DESIGN discountCard {
@@ -97,5 +102,5 @@ DESIGN discountCard {
 }
 
 EXTEND FORM discountCards
-    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
+    PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, externalBlockedBonuses, totalBlockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
 ;
