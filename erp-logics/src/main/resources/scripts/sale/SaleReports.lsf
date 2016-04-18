@@ -126,6 +126,36 @@ sumSalesStock 'Сумма продаж (по покупателю)' (groupType, 
                                            inSaleReport(stock(saleLedger))
     BY groupType, customer(saleLedger), dateFrom, dateTo;
 
+//суммы продаж по складу покупателю
+costSumSalesStock 'Себестоимость продаж (по покупателю)' (groupType, customer, dateFrom, dateTo) =
+    GROUP SUM costSum(SaleLedger saleLedger) IF active(saleLedger) AND
+                                               inSession(group(GroupType groupType, sku(saleLedger))) AND
+                                               date(saleLedger) >= DATE dateFrom AND
+                                               date(saleLedger) <= DATE dateTo AND
+                                               inSaleReport(stock(saleLedger))
+    BY groupType, customerStock(saleLedger), dateFrom, dateTo;
+markupSumSalesStock 'Надбавка (по покупателю)'(groupType, customer, dateFrom, dateTo) =
+    GROUP SUM markupSum(SaleLedger saleLedger) IF active(saleLedger) AND
+                                               inSession(group(GroupType groupType, sku(saleLedger))) AND
+                                               date(saleLedger) >= DATE dateFrom AND
+                                               date(saleLedger) <= DATE dateTo AND
+                                               inSaleReport(stock(saleLedger))
+    BY groupType, customerStock(saleLedger), dateFrom, dateTo;
+sumVATSalesStock 'Сумма НДС (по покупателю)'(groupType, customer, dateFrom, dateTo) =
+    GROUP SUM sumVAT(SaleLedger saleLedger) IF active(saleLedger) AND
+                                              inSession(group(GroupType groupType, sku(saleLedger))) AND
+                                              date(saleLedger) >= DATE dateFrom AND
+                                              date(saleLedger) <= DATE dateTo AND 
+                                              inSaleReport(stock(saleLedger))
+    BY groupType, customerStock(saleLedger), dateFrom, dateTo;
+sumSalesStock 'Сумма продаж (по покупателю)' (groupType, customer, dateFrom, dateTo) =
+    GROUP SUM sum(SaleLedger saleLedger) IF active(saleLedger) AND
+                                           inSession(group(GroupType groupType, sku(saleLedger))) AND
+                                           date(saleLedger) >= DATE dateFrom AND
+                                           date(saleLedger) <= DATE dateTo AND
+                                           inSaleReport(stock(saleLedger))
+    BY groupType, customerStock(saleLedger), dateFrom, dateTo;
+
 //суммы продаж по SKU    
 costSumStock 'Итоговая себестоимость продаж' (groupType) =
     GROUP SUM costSumStock(Sku sku) IF inSession(group(GroupType groupType, sku))                                                
@@ -356,6 +386,43 @@ printGrCustomerSalesReportXLS 'По покупателям (XLS)' (GroupType gro
     ACTION FORM printGroupCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
     
     
+FORM printGroupCustomerStockSalesReport 'Отчет по продажам'
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+    PROPERTIES inSaleReportStocks()
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR name
+    PROPERTIES(gt) READONLY costSumStock, markupSumStock,sumVATStock, sumStock
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = Stock
+    PROPERTIES READONLY name(l), nameLegalEntity(l)
+    ORDER BY name(l)
+    PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock,
+                                           sumVATSalesStock, sumSalesStock
+    FILTERS isBuyer(l)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    
+    OBJECTS s = SaleLedger
+    PROPERTIES(s) READONLY dateTime, nameStock, nameCustomer, nameSku, description,
+                           quantity, costSum, markupSum, sumVAT, sum, averagePrice
+    ORDER BY nameSku(s)
+    FILTERS active(s),
+            inSession(group(gt, sku(s))),
+            inSaleReport(stock(s)),
+            date(s) >= df,
+            date(s) <= dt,
+            customerStock(s) == l
+;
+printGrCustomerStockSalesReport 'По складам покупателя' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+    ACTION FORM printGroupCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
+printGrCustomerStockSalesReportXLS 'По складам покупателя (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+    ACTION FORM printGroupCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;    
+    
+    
 quantitySold 'Продано за интервал (кол-во)' (sku, customer, dateFrom, dateTo) = GROUP SUM
         quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE dateFrom, DATE dateTo) IF inSaleReport(stock)
         BY sku, customer, dateFrom, dateTo;
@@ -440,6 +507,34 @@ printCustomerSalesReport 'По покупателям' (GroupType groupType, DAT
     ACTION FORM printCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
 printCustomerSalesReportXLS 'По покупателям (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
     ACTION FORM printCustomerSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;
+    
+FORM printCustomerStockSalesReport 'Отчет по продажам'
+    OBJECTS df=DATE FIXED PANEL
+    PROPERTIES dateFrom = OBJVALUE(df)
+    PROPERTIES inSaleReportStocks()
+    OBJECTS dt=DATE FIXED PANEL
+    PROPERTIES dateTo = OBJVALUE(dt)
+
+    OBJECTS gt = GroupType FIXED PANEL
+    PROPERTIES(gt) SELECTOR name
+    PROPERTIES(gt) READONLY costSumStock, markupSumStock, sumVATStock, sumStock
+    PROPERTIES(gt) READONLY sessionConcatGroups
+
+    OBJECTS l = Stock
+    PROPERTIES READONLY name(l), nameLegalEntity(l)
+    ORDER BY name(l)
+    PROPERTIES(gt, l, df, dt) READONLY costSumSalesStock, markupSumSalesStock,
+                                           sumVATSalesStock, sumSalesStock
+    FILTERS isBuyer(l),
+            costSumSalesStock(gt, l, df, dt) OR markupSumSalesStock(gt, l, df, dt) OR
+            sumVATSalesStock(gt, l, df, dt) OR sumSalesStock(gt, l, df, dt)
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT        
+;
+
+printCustomerStockSalesReport 'По складам покупателя' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+    ACTION FORM printCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT  IMAGE 'print.png' IN print;
+printCustomerStockSalesReportXLS 'По складам покупателя (XLS)' (GroupType groupType, DATE dateFrom, DATE dateTo) =
+    ACTION FORM printCustomerStockSalesReport OBJECTS gt = groupType, df = dateFrom, dt = dateTo PRINT XLS IMAGE 'print.png' IN print;    
     
     
 FORM dialogStocksSaleReport 'Выбор складов'
@@ -539,9 +634,9 @@ FORM salesReport 'Отчет по продажам'
             filterStock(sku)
             
     PROPERTIES(gt,df, dt) printListSalesReport, printListSkuSalesReport, printSalesReport, printSkuSalesReport, printGrSalesReport,
-                           printGrCustomerSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport
+                           printGrCustomerSalesReport, printGrCustomerStockSalesReport, printGroupCustomerSkuSalesReport, printCustomerSalesReport, printCustomerStockSalesReport
     PROPERTIES(gt,df, dt) printListSalesReportXLS, printListSkuSalesReportXLS, printSalesReportXLS, printSkuSalesReportXLS, printGrSalesReportXLS,
-                           printGrCustomerSalesReportXLS, printGroupCustomerSkuSalesReportXLS, printCustomerSalesReportXLS
+                           printGrCustomerSalesReportXLS, printGrCustomerStockSalesReportXLS, printGroupCustomerSkuSalesReportXLS, printCustomerSalesReportXLS, printCustomerStockSalesReportXLS
     EVENTS 
         ON CHANGE gt fillSaleReportFromTo(gt, df, dt), 
         ON CHANGE df fillSaleReportFromTo(gt, df, dt), 
@@ -604,6 +699,7 @@ DESIGN salesReport {
                             MOVE PROPERTY(printSalesReport(gt,df,dt));
                             MOVE PROPERTY(printSkuSalesReport(gt,df,dt));
                             MOVE PROPERTY(printGrCustomerSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printGrCustomerStockSalesReport(gt,df,dt));
                             MOVE PROPERTY(printGroupCustomerSkuSalesReport(gt,df,dt));
                         }
                         NEW secondColumnSalesContainer{
@@ -611,12 +707,13 @@ DESIGN salesReport {
                             type = CONTAINERV;
                             MOVE PROPERTY(printGrSalesReport(gt,df,dt));
                             MOVE PROPERTY(printCustomerSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printCustomerStockSalesReport(gt,df,dt));
                         }
                         NEW thirdColumnSalesContainer{
                             caption = 'Список';
                             type = CONTAINERV;
                             MOVE PROPERTY(printListSalesReport(gt,df,dt));
-                            MOVE PROPERTY(printListSkuSalesReport(gt,df,dt));
+                            MOVE PROPERTY(printListSkuSalesReport(gt,df,dt));                            
                         }
                     }
                     NEW rowSalesContainerXLS{
@@ -629,6 +726,7 @@ DESIGN salesReport {
                             MOVE PROPERTY(printSalesReportXLS(gt,df,dt));
                             MOVE PROPERTY(printSkuSalesReportXLS(gt,df,dt));
                             MOVE PROPERTY(printGrCustomerSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printGrCustomerStockSalesReportXLS(gt,df,dt));
                             MOVE PROPERTY(printGroupCustomerSkuSalesReportXLS(gt,df,dt));
                         }
                         NEW secondColumnSalesContainerXLS{
@@ -636,6 +734,7 @@ DESIGN salesReport {
                             type = CONTAINERV;
                             MOVE PROPERTY(printGrSalesReportXLS(gt,df,dt));
                             MOVE PROPERTY(printCustomerSalesReportXLS(gt,df,dt));
+                            MOVE PROPERTY(printCustomerStockSalesReportXLS(gt,df,dt));
                         }
                         NEW thirdColumnSalesContainerXLS{
                             caption = 'Список';
