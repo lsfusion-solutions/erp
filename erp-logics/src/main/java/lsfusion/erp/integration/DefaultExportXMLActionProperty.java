@@ -47,8 +47,18 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
             parent.addContent(new Element(id).setText(String.valueOf(value)));
     }
 
+    protected void addBigDecimalElement(Namespace namespace, Element parent, String id, BigDecimal value) {
+        if (value != null)
+            parent.addContent(new Element(id, namespace).setText(String.valueOf(value)));
+    }
+
     protected void addStringElement(Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id).setText(value));
+    }
+
+    protected void addStringElement(Namespace namespace, Element parent, String id, String value) {
+        if (value != null)
+            parent.addContent(new Element(id, namespace).setText(value));
     }
 }
