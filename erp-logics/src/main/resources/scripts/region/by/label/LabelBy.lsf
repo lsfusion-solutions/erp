@@ -6,11 +6,16 @@ NAMESPACE Label;
 //-- До деноминации
 priceRubB 'Рубли' (LabelTransactionDetail d) = divideInteger(price(d), 10000.0);
 priceKopB 'Копейки' (LabelTransactionDetail d) = round0(abs(priceRubB(d) (-) round2(price(d) / 10000.00))*100.0);
-//right(VARSTRING[50](INTEGER(price(d))),4);       
 
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY priceRubB, priceKopB;
-EXTEND FORM customLabelTransaction PROPERTIES(d) priceRubB, priceKopB;
+retailPriceRubB 'Рубли (цена до)' (LabelTransactionDetail d) = divideInteger(retailPrice(d), 10000.0);
+retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = round0(abs(retailPriceRubB(d) (-) round2(retailPrice(d) / 10000.00))*100.0);
+
+discountPriceRubB 'Рубли (скидка)' (LabelTransactionDetail d) = divideInteger(discountSum(d), 10000.0);
+discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = round0(abs(discountPriceRubB(d) (-) round2(discountSum(d) / 10000.00))*100.0);
+
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB;
+EXTEND FORM customLabelTransaction PROPERTIES(d) priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB;
 EXTEND FORM labelTransactions 
-    PROPERTIES(dt) READONLY priceRubB, priceKopB 
-    PROPERTIES(dts) READONLY priceRubB, priceKopB
+    PROPERTIES(dt) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB 
+    PROPERTIES(dts) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB
 ;
