@@ -1,6 +1,6 @@
 MODULE TerminalHandler;
 
-REQUIRE Terminal, MachineryPriceTransaction;
+REQUIRE Terminal, MachineryPriceTransaction, Item;
 
 process 'Обработка документа ТСД' (terminalDocument) = ACTION ABSTRACT LIST (TerminalDocument);
 
@@ -14,6 +14,9 @@ blocked 'Заблокирован' = DATA BOOLEAN (Terminal);
 lastConnectionTime 'Последнее подключение' = DATA DATETIME (Terminal);
 lastUser 'Пользователь' = DATA CustomUser (Terminal);
 shortNameLastUser 'Пользователь' (Terminal terminal) = shortName(lastUser(terminal));
+
+manufacturer = ABSTRACT LegalEntity (Item);
+nameManufacturer (Barcode barcode) = name(manufacturer(skuBarcode(id(barcode))));
 
 EXTEND FORM groupTerminal PROPERTIES(t) AFTER npp(t) id, blocked, lastConnectionTime, shortNameLastUser;
 EXTEND FORM groupsTerminal

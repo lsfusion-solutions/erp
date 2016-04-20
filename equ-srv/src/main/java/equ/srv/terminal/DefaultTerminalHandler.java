@@ -201,6 +201,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             barcodeQuery.addProperty("idBarcode", terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr));
             barcodeQuery.addProperty("nameSkuBarcode", terminalHandlerLM.findProperty("nameSku[Barcode]").getExpr(barcodeExpr));
             barcodeQuery.addProperty("idSkuBarcode", terminalHandlerLM.findProperty("idSku[Barcode]").getExpr(barcodeExpr));
+            barcodeQuery.addProperty("nameManufacturer", terminalHandlerLM.findProperty("nameManufacturer[Barcode]").getExpr(barcodeExpr));
             barcodeQuery.addProperty("passScales", terminalHandlerLM.findProperty("passScales[Barcode]").getExpr(barcodeExpr));
             if(currentPrice) {
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("currentRetailPricingPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
@@ -219,9 +220,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 BigDecimal price = (BigDecimal) entry.get("price");
                 BigDecimal quantityBarcodeStock = BigDecimal.ONE;
                 String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
+                String nameManufacturer = trim((String) entry.get("nameManufacturer"));
                 String isWeight = entry.get("passScales") != null ? "1" : "0";
 
-                result.add(Arrays.<Object>asList(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, isWeight));
+                result.add(Arrays.<Object>asList(idBarcode, nameSkuBarcode, price, quantityBarcodeStock, idSkuBarcode, nameManufacturer, isWeight));
 
             }
         }
@@ -307,7 +309,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
-                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, '', '', '', '', '', ?);";
+                String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?);";
                 statement = connection.prepareStatement(sql);
                 for (List<Object> barcode : barcodeList) {
                     if (barcode.get(0) != null) {
@@ -316,7 +318,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(3, formatValue(barcode.get(2))); //price
                         statement.setObject(4, formatValue(barcode.get(3))); //quantity
                         statement.setObject(5, formatValue(barcode.get(4))); //idItem
-                        statement.setObject(6, formatValue(barcode.get(5))); //weight
+                        statement.setObject(6, formatValue(barcode.get(5))); //manufacturer
+                        statement.setObject(7, formatValue(barcode.get(6))); //weight
                         statement.addBatch();
                     }
                 }
