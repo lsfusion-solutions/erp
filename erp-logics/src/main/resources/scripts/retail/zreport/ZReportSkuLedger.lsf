@@ -30,18 +30,21 @@ edit[SaleLedger] (ReceiptReturnDetail ledger) += ACTION edit(ledger);
 
 // -------------Проведение по регистрам --------------------- //
 
+extraSum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (ReceiptReturnDetail) PERSISTENT;
+extraSum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (ReceiptSaleDetail) PERSISTENT;
+
 @implementSkuLedgerOutFIFO(ReceiptSaleDetail, sku, departmentStore);
 quantity[OutFIFOSkuLedger] (ReceiptSaleDetail ledger) += quantity(ledger);
 batch[SkuLedger](ReceiptSaleDetail ledger) += batch(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(receiptSaleDetail, departmentStore);
-sum[OutSkuLedger] (ReceiptSaleDetail ledger) += sum(ledger) (+) discountSum(ledger);
+sum[OutSkuLedger] (ReceiptSaleDetail ledger) += sum(ledger) (+) discountSum(ledger) (+) extraSum(ledger);
 skip[SkuLedger](ReceiptSaleDetail ledger) += skip(ledger);
 
 @implementSkuLedgerInLIFO(ReceiptReturnDetail, sku, departmentStore);
 quantity[InLIFOSkuLedger] (ReceiptReturnDetail ledger) += quantity(ledger);
 batch[SkuLedger](ReceiptReturnDetail ledger) += batch(ledger);
 @implementSkuLedgerInLIFOBatchBalance(receiptReturnDetail, departmentStore);
-sum[InSkuLedger] (ReceiptReturnDetail ledger) += sum(ledger) (+) discountSum(ledger);
+sum[InSkuLedger] (ReceiptReturnDetail ledger) += sum(ledger) (+) discountSum(ledger) (+) extraSum(ledger);
 skip[SkuLedger](ReceiptReturnDetail ledger) += skip(ledger);
 
 edit[SkuLedger](ReceiptReturnDetail d) += ACTION edit(d);
