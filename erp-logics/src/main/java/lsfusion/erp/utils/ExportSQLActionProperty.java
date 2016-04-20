@@ -23,14 +23,16 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     String idGroupObject;
     List<String> keyColumns;
     String connectionStringProperty;
+    boolean truncate;
 
     public ExportSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                   List<String> keyColumns, String connectionStringProperty) {
+                                   List<String> keyColumns, String connectionStringProperty, boolean truncate) {
         super(LM);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;
         this.keyColumns = keyColumns;
         this.connectionStringProperty = connectionStringProperty;
+        this.truncate = truncate;
     }
 
     @Override
@@ -91,6 +93,17 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                     for (String key : keyColumns)
                         wheres += (wheres.isEmpty() ? "" : " AND ") + key + "=?";
 
+                    if (truncate) {
+                        Statement statement = null;
+                        try {
+                            statement = conn.createStatement();
+                            statement.execute("TRUNCATE TABLE " + idForm);
+                            conn.commit();
+                        } finally {
+                            if (statement != null)
+                                statement.close();
+                        }
+                    }
                     if (wheres.isEmpty()) {
                         ps = conn.prepareStatement(String.format("INSERT INTO %s(%s) VALUES (%s)", idForm, columns, params));
                         for (List<Object> row : rows) {
@@ -155,6 +168,6 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
 //public class TestExportSQLActionProperty extends ExportSQLActionProperty {
 //
 //    public TestExportSQLActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
-//        super(LM, "testtable4", "i", Arrays.asList("dt"), "connectionString");
+//        super(LM, "testtable4", "i", Arrays.asList("dt"), "connectionString", true);
 //    }
 //}
