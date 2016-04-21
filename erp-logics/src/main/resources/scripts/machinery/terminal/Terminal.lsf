@@ -341,7 +341,7 @@ FORM terminalDocumentPrint 'Документ ТСД'
 ;
 terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td) = ACTION FORM terminalDocumentPrint OBJECTS td = td PRINT IMAGE 'print.png' IN print;
 
-filterTerminalDocumentType = DATA LOCAL TerminalDocumentType();
+in = DATA LOCAL BOOLEAN (TerminalDocumentType);
 
 FORM terminalDocuments 'Документы ТСД'
     OBJECTS td=TerminalDocument
@@ -351,7 +351,7 @@ FORM terminalDocuments 'Документы ТСД'
                     quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
     PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
-    FILTERS terminalDocumentType(td) == filterTerminalDocumentType() OR (td IS TerminalDocument AND NOT filterTerminalDocumentType())
+    FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT [=GROUP SUM 1 IF in(TerminalDocumentType t)]())
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) READONLY id, number, barcode, name,
     isNew, price, quantity, sum, comment, dateTimeScan
@@ -421,9 +421,9 @@ META defineAddDetailDialogTerminal (object, skuProp)
 END
 
 META defineAddDetailDialogTerminalInner (object, class, skuProp)
-    filterTerminalDocumentType = ABSTRACT TerminalDocumentType (class);
+    in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
     addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
-    filterTerminalDocumentType() <- filterTerminalDocumentType(object);
+    in(TerminalDocumentType t) <- in(t, object);
         FORM terminalDocuments MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL document = TerminalDocument ();
