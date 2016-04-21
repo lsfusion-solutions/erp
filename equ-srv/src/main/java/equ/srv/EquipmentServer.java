@@ -18,7 +18,6 @@ import lsfusion.interop.Compare;
 import lsfusion.server.classes.*;
 import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.data.SQLSession;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.expr.ValueExpr;
 import lsfusion.server.data.query.QueryBuilder;
@@ -91,6 +90,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
     private ScriptingLogicsModule zReportSectionLM;
     
     private boolean started = false;
+
+    private int skipTroubleCounter = 1;
 
     public void setLogicsInstance(LogicsInstance logicsInstance) {
         this.logicsInstance = logicsInstance;
@@ -253,11 +254,23 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
 
             Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
+            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            Integer minutesTroubleMachineryGroups = (Integer) equipmentLM.findProperty("minutesTroubleMachineryGroup[EquipmentServer]").read(session, equipmentServerObject);
+            Integer skipTroubles = (Integer) equipmentLM.findProperty("skipTroublesDelay[EquipmentServer]").read(session, equipmentServerObject);
+            List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
+            boolean skipTroubleMachineryGroups = skipTroubles != null && skipTroubleCounter < skipTroubles;
+            if (skipTroubleMachineryGroups)
+                skipTroubleCounter++;
+            else
+                skipTroubleCounter = 1;
 
             for (Object[] transaction : transactionObjects) {
 
                 DataObject groupMachineryObject = (DataObject) transaction[0];
                 Integer nppGroupMachinery = (Integer) transaction[1];
+                if(troubleMachineryGroups.contains(nppGroupMachinery) && skipTroubleMachineryGroups)
+                    continue;
+
                 String nameGroupMachinery = (String) transaction[2];
                 DataObject transactionObject = (DataObject) transaction[3];
                 String dateTimeCode = (String) transaction[4];
@@ -634,6 +647,35 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private List<Integer> readTroubleMachineryGroups(DataSession session, Integer minutes) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<Integer> result = new ArrayList();
+        if(minutes != null) {
+            KeyExpr groupMachineryExpr = new KeyExpr("GroupMachinery");
+            ImRevMap<Object, KeyExpr> groupMachineryKeys = MapFact.singletonRev((Object) "groupMachinery", groupMachineryExpr);
+            QueryBuilder<Object, Object> groupMachineryQuery = new QueryBuilder<>(groupMachineryKeys);
+
+            String[] groupMachineryNames = new String[]{"npp", "lastTime"};
+            LCP[] groupMachineryProperties = machineryPriceTransactionLM.findProperties("npp[GroupMachinery]", "lastTime[GroupMachinery]");
+            for (int i = 0; i < groupMachineryProperties.length; i++) {
+                groupMachineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
+            }
+            groupMachineryQuery.and(machineryPriceTransactionLM.findProperty("lastTime[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> groupMachineryResult = groupMachineryQuery.execute(session);
+
+            Calendar cal = Calendar.getInstance();
+            cal.add(Calendar.MINUTE, -minutes);
+            Timestamp minTime = new Timestamp(cal.getTimeInMillis());
+            for (ImMap<Object, Object> row : groupMachineryResult.valueIt()) {
+                Integer npp = (Integer) row.get("npp");
+                Timestamp lastTime = (Timestamp) row.get("lastTime");
+                if (lastTime.compareTo(minTime) <= 0)
+                    result.add(npp);
+            }
+        }
+        return result;
     }
 
     private Map<String, List<ItemGroup>> readItemGroupMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
