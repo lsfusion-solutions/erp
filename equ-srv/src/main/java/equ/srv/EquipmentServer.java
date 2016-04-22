@@ -1935,31 +1935,32 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
 
                 Collections.sort(salesInfoList, COMPARATOR);
 
-                if (numberAtATime == null)
-                    numberAtATime = salesInfoList.size();
-
                 for (int start = 0; true;) {
-                    
-                    Timestamp timeStart = getCurrentTimestamp();
-
-                    int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
-                    
-                    Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
-                    if(lastNumberReceipt != null) {
-                        while(start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
-                            finish++;                        
-                    }
-                    
-                    List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
-                    start = finish;
-                    if (!notNullNorEmpty(data))
-                        return null;
-
-                    logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
 
                     try (DataSession session = getDbManager().createSession()) {
-
+                        //для динамического изменения кол-ва чеков за раз. В будущем убрать numberAtATime из EqupmentSettings (затронет api)
                         ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+                        numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
+                        if (numberAtATime == null)
+                            numberAtATime = salesInfoList.size();
+
+                        Timestamp timeStart = getCurrentTimestamp();
+
+                        int finish = (start + numberAtATime) < salesInfoList.size() ? (start + numberAtATime) : salesInfoList.size();
+
+                        Integer lastNumberReceipt = start < finish ? salesInfoList.get(finish - 1).numberReceipt : null;
+                        if (lastNumberReceipt != null) {
+                            while (start < finish && salesInfoList.size() > finish && salesInfoList.get(finish).numberReceipt.equals(lastNumberReceipt))
+                                finish++;
+                        }
+
+                        List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
+                        start = finish;
+                        if (!notNullNorEmpty(data))
+                            return null;
+
+                        logger.info(String.format("Sending SalesInfo from %s to %s", start, finish));
+
                         Date startDate = (Date) equLM.findProperty("startDate[EquipmentServer]").read(session, equipmentServerObject);
                         Boolean timeId = (Boolean) equLM.findProperty("timeId[EquipmentServer]").read(session, equipmentServerObject);
 
