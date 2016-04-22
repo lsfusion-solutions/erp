@@ -635,10 +635,57 @@ META defineConsignmentFormSimple(form, caption)
     printSimple###form##Auto caption (Consignment consignment) = ACTION FORM consignmentSimple###form OBJECTS c = consignment PRINT AUTO IMAGE 'print.png' IN print;
 END
 
+
+META defineConsignmentFormSimpleExtra(form, caption)
+
+    FORM consignmentSimple###form caption
+        OBJECTS c=Consignment FIXED PANEL
+
+        PROPERTIES (c) date, shipmentBase, nameIssuanceAllowed, nameIssuanceExecuted,
+                       forwarder, warrant, warrantHolder, overGoodsAccepted,
+                       quantityConsignmentDetail, sumConsignmentDetail, sumVATConsignmentDetail,
+                       sumInvoiceConsignmentDetail,
+                       UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
+                       fullNameSupplier, fullNameCustomer, number, series, seriesNumber, countConsignmentDetail,
+                       isWare, isCustomsFlow, isCurrency, shortNameCurrency,
+                       note, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
+        PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
+        OBJECTS d=ConsignmentDetail
+
+        PROPERTIES(d) order, index, nameSku, shortNameUOM, quantity, price,
+                      sum, vat, useEmptyVAT, sumVAT, sumInvoice,
+                      note, extraDescription
+        ORDER BY order(d), index(d)
+        FILTERS consignment(d) == c,
+                NOT skip(d)
+    ;
+    printSimple###form caption (Consignment consignment) = ACTION NEWSESSION {        
+        FORM consignmentSimple###form OBJECTS c = consignment PRINT;
+        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
+        apply();
+        
+    } IMAGE 'print.png' IN print;
+    
+    printSimple###form##Auto caption (Consignment consignment) = ACTION FORM consignmentSimple###form OBJECTS c = consignment PRINT AUTO IMAGE 'print.png' IN print;        
+END
+
 @defineConsignmentFormSimple(vertical, 'ТН-2, вертикальная');
 @defineConsignmentFormSimple(horizontal, 'ТН-2, горизонтальная');
-@defineConsignmentFormSimple(attach, 'Приложение к ТН-2');
-
+@defineConsignmentFormSimpleExtra(attach, 'Приложение к ТН-2');
+printSimpleVerticalAttach 'ТН-2, вертикальная с приложением' (Consignment consignment) = ACTION NEWSESSION {        
+    FORM consignmentSimpleAttach OBJECTS c = consignment PRINT;
+    countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);      
+    printSimpleVertical(consignment);
+    apply();      
+    
+} IMAGE 'print.png' IN print;
+printSimpleHorizontalAttach 'ТН-2, горизонтальная с приложением' (Consignment consignment) = ACTION NEWSESSION {        
+    FORM consignmentSimpleAttach OBJECTS c = consignment PRINT;
+    countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);      
+    printSimpleHorizontal(consignment);
+    apply();      
+    
+} IMAGE 'print.png' IN print;
 
 META defineConsignmentForm(form, caption)  // объявляем форму
     FORM form caption
@@ -723,7 +770,24 @@ META definePrintConsignmentForm(form, caption, prefix)  //печать накл�
             checkMandatoryAttribute(consignment);
             IF NOT stopPrintConsignment() THEN FORM consignment###form OBJECTS prefix = consignment PRINT AUTO;
         } IMAGE 'print.png' IN print; 
-END  
+END 
+META definePrintConsignmentFormExtra(form, caption, prefix)  //печать накладной по сторонам
+        print###form caption (Consignment consignment) = ACTION NEWSESSION {
+            //stopPrintConsignment() <- NULL;
+            checkMandatoryAttribute(consignment);
+            IF NOT stopPrintConsignment() THEN {
+                FORM consignment###form OBJECTS prefix = consignment PRINT;
+                countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
+                apply();                
+                
+            }
+        } IMAGE 'print.png' IN print;
+        print###form##Auto caption (Consignment consignment) = ACTION {
+            stopPrintConsignment() <- NULL;
+            checkMandatoryAttribute(consignment);
+            IF NOT stopPrintConsignment() THEN FORM consignment###form OBJECTS prefix = consignment PRINT AUTO;
+        } IMAGE 'print.png' IN print; 
+END 
   
 META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       //печать накладной сквозная
         print###form caption (Consignment consignment) = ACTION {
@@ -731,6 +795,19 @@ META defineExtendPrintConsignmentFormAll(form, caption, prefixA, prefixB)       
             checkM##prefixA##nd##prefixA##tory###prefixA##ttri##prefixB##ute(consignment);
             IF NOT stopPrintConsignment() THEN FORM consignment###form OBJECTS prefixA = consignment, prefixB = consignment PRINT;            
         } IMAGE 'print.png' IN print;
+        print###form###attach caption###' с приложением' (Consignment consignment) = ACTION NEWSESSION {
+///            stopPrintConsignment() <- NULL;
+            checkM##prefixA##nd##prefixA##tory###prefixA##ttri##prefixB##ute(consignment);
+            IF NOT stopPrintConsignment() THEN {
+                FORM consignment###attach OBJECTS c = consignment PRINT;
+                countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);
+                FORM consignment###form OBJECTS prefixA = consignment, prefixB = consignment PRINT;
+                apply();
+            }            
+        } IMAGE 'print.png' IN print;        
+        
+        
+        
         print###form###prefixA##uto caption (Consignment consignment) = ACTION {
             stopPrintConsignment() <- NULL;
             checkM##prefixA##nd##prefixA##tory###prefixA##ttri##prefixB##ute(consignment);
@@ -765,7 +842,20 @@ END
 @definePrintConsignmentForm(horizontalA, 'ТТН-1, горизонтальная (сторона А)', a);
 @definePrintConsignmentForm(verticalB, 'ТТН-1, вертикальная (сторона Б)', b);
 @definePrintConsignmentForm(horizontalB, 'ТТН-1, горизонтальная (сторона Б)', b);
-@definePrintConsignmentForm(attach, 'Приложение к ТТН-1', c);
+@definePrintConsignmentFormExtra(attach, 'Приложение к ТТН-1', c);
+
+printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с приложением' (Consignment consignment) = ACTION NEWSESSION {
+    //stopPrintConsignment() <- NULL;
+    checkMandatoryAttribute(consignment);
+    IF NOT stopPrintConsignment() THEN {
+        FORM consignmentAttach OBJECTS c = consignment PRINT;
+        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);                      
+        FORM consignmentVerticalAB OBJECTS a = consignment PRINT;
+        apply(); 
+        
+    }
+} IMAGE 'print.png' IN print;
+
 printAttachXLS 'Приложение к ТТН-1 (xls)' (Consignment consignment) = ACTION FORM consignmentAttach OBJECTS c = consignment PRINT XLSX IN print;
 printSimpleAttachXLS 'Приложение к ТН-2 (xls)' (Consignment consignment) = ACTION FORM consignmentSimpleAttach OBJECTS c = consignment PRINT XLSX IN print;
 @definePrintConsignmentForm(verticalAB, 'ТТН-1, вертикальная (сторона А/Б)', a);
