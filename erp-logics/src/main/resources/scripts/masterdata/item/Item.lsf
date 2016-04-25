@@ -810,6 +810,22 @@ META defineItemDefaultValueCustom(property, caption, type, object)
     property caption (###object object, ItemGroup itemGroup) =
         OVERRIDE nearest###property (object, itemGroup), 
                  data###property(object, itemGroup) PERSISTENT;
+                 
+    quantityChild###property (object, itemGroup) = GROUP SUM 1 IF 
+        data###property(###object object, ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) 
+            BY object, itemGroup PERSISTENT;
+    quantityParent###property (object, itemGroup) = GROUP SUM 1 IF 
+        data###property(###object object, ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) 
+            BY object, itemGroup PERSISTENT;                 
+
+    backgroundWith###property (###object object, ItemGroup itemGroup) =
+        IF data###property(object, itemGroup) THEN
+            RGB(127,199,255) //IF itemGroup IS ItemGroup
+        ELSE
+            RGB(203,203,206) IF quantityChild###property (object, itemGroup) != descendantNumber(itemGroup)
+                             AND NOT quantityParent###property (object, itemGroup);
+                 
+                 
 END 
 
 // Ограничения на выбор значений справочника
