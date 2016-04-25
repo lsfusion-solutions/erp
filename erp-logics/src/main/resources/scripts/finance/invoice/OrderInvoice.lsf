@@ -11,8 +11,9 @@ createUserInvoicePosted 'Создать проведенную накладну�
 
 order = ABSTRACT Order (InvoiceDetail) PERSISTENT INDEXED;
 
+TABLE orderSku (Order, Sku);
 invoicedInvoiceDetail 'Выписано накладных' (order, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
-                                                           BY order(invoiceDetail), sku(invoiceDetail);
+                                                           BY order(invoiceDetail), sku(invoiceDetail) PERSISTENT;
 invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = PARTITION UNGROUP invoicedInvoiceDetail
                                                           LIMIT STRICT quantity (orderDetail)
                                                           BY order(orderDetail), sku(orderDetail)
@@ -107,8 +108,9 @@ META defineOrderInvoice(sign, stockProp)
                                              ORDER invoice
                                              IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
 
+    TABLE orderSku (Order, Sku);
     invoicedInvoiceDetail 'Выписано накладных' (order, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
-                                                               BY order(invoiceDetail), sku(invoiceDetail);
+                                                               BY order(invoiceDetail), sku(invoiceDetail) PERSISTENT;
     invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = PARTITION UNGROUP invoicedInvoiceDetail
                                                               LIMIT STRICT quantity (orderDetail)
                                                               BY order(orderDetail), sku(orderDetail)
