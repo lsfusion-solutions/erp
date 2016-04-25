@@ -621,12 +621,9 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
             if(terminalHandlerLM != null) {
-                terminalHandlerLM.findAction("calculateBase64Hash[STRING[10],STRING[30]]").execute(session, new DataObject("SHA-256"), new DataObject(password));
-                String calculatedHash = (String) terminalHandlerLM.findProperty("calculatedHash[]").read(session);
                 ObjectValue customUser = terminalHandlerLM.findProperty("customUserUpcase[?]").readClasses(session, new DataObject(login.toUpperCase()));
-                String sha256PasswordCustomUser = (String) terminalHandlerLM.findProperty("sha256Password[CustomUser]").read(session, customUser);
-                boolean check = customUser instanceof DataObject && sha256PasswordCustomUser != null && calculatedHash != null && sha256PasswordCustomUser.equals(calculatedHash);
-                DataObject result = check ? (DataObject) customUser : null;
+                boolean authenticated = customUser instanceof DataObject && getLogicsInstance().getBusinessLogics().authenticationLM.checkPassword((DataObject) customUser, password);
+                DataObject result = authenticated ? (DataObject) customUser : null;
                 if(result != null) {
                     ObjectValue terminalObject = terminalHandlerLM.findProperty("terminal[VARSTRING[100]]").readClasses(session, new DataObject(idTerminal));
                     if(terminalObject instanceof DataObject) {
