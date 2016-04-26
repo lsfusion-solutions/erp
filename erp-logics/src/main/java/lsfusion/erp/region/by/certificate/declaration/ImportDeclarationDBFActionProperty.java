@@ -211,7 +211,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         if (declarationMap.isEmpty())
             context.requestUserInteraction(new MessageClientAction("Не найдено ни одной декларации во входном файле G47", "Ошибка"));
         else {
-            Integer index = (Integer) (declarationMap.size() == 1 ? declarationMap.get(0) :
+            Integer index = (Integer) (declarationMap.size() == 1 ? 0 :
                     context.requestUserInteraction(new ChooseObjectClientAction("Выберите декларацию", new String[]{"Номер декларации"}, variants)));
             if(index != null) {
                 if (index == -1)
