@@ -52,18 +52,11 @@ WHEN SESSION // цены берем на начало сессии, а не эт
     CHANGED(sku(detail)) OR
     CHANGED(customerStock(detail)) OR
     CHANGED(dateTime(detail))) AND PriceListType pt == calcPurchaseRetailPriceListType(detail) NOINLINE (pt) DO
-    purchaseRetailPriceListType(detail) <- IF (IF batch(detail) THEN
-                                                                    prevPriceB(pt,
-                                                                                               batch(detail),
-                                                                                               retailStock(detail),
-                                                                                               dateTime(detail))
-                                                                ELSE
-                                                                    prevPriceB(pt,
-                                                                                               sku(detail),
-                                                                                               retailStock(detail),
-                                                                                               dateTime(detail)))
-                                                            THEN pt
-                                                            ELSE calcPurchaseRetailCalcPriceListType(detail);
+    purchaseRetailPriceListType(detail) <- IF (IF batch(detail) 
+                                                        THEN prevPriceB(pt,batch(detail),retailStock(detail),dateTime(detail))
+                                                        ELSE prevPriceB(pt, sku(detail), retailStock(detail), dateTime(detail)))
+                                                THEN pt
+                                                ELSE calcPurchaseRetailCalcPriceListType(detail);
 
 // если не задана управленческая цена
 WHEN SESSION // цены берем на начало сессии, а не этого event'а

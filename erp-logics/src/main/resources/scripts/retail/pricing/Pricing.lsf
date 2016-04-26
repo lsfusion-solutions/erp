@@ -226,54 +226,54 @@ EXTEND FORM calcPriceListType
 META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime)
 
     WHEN SESSION 
-        (CHANGED(prefix##PriceListType(###idetail detail)) OR
-         CHANGED(prefixP##Price(detail)) OR
+        (CHANGED(prefix###priceListType(###idetail detail)) OR
+         CHANGED(prefixP###price(detail)) OR
          CHANGED(sku(detail)) OR
          CHANGED(stockProp(detail)) OR
         (CHANGED(prefixTime###dateTime(detail)) AND NOT isPosted(detail)) OR
          CHANGED(value###prefix##VAT(detail)))
-        AND sku(detail) AND CalcPriceListType priceListType == prefix##PriceListType(detail) AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))
-        AND NOT CHANGED(prefix##Price(detail))
+        AND sku(detail) AND CalcPriceListType priceListType == prefix###priceListType(detail) AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))
+        AND NOT CHANGED(prefix###price(detail))
         AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
-            prefix##Markup(detail) <- markup(priceListType, sku(detail))
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
-            prefix##Price(detail) <- round([= X*(Y+100)*(Z+100)/10000](
-                                                                    prefixP##Price(detail),
-                                                                    prefix##Markup(detail),
+            prefix###markup(detail) <- markup(priceListType, sku(detail))
+                                                         WHERE prefix###priceListType(detail) == priceListType;
+            prefix###price(detail) <- round([= X*(Y+100)*(Z+100)/10000](
+                                                                    prefixP###price(detail),
+                                                                    prefix###markup(detail),
                                                                     value###prefix##VAT(detail)), roundCondition)
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
+                                                         WHERE prefix###priceListType(detail) == priceListType;
         }
         
     WHEN SESSION
-        (CHANGED(prefix##PriceListType(###idetail detail)) OR
-         CHANGED(prefixP##Price(detail)) OR
+        (CHANGED(prefix###priceListType(###idetail detail)) OR
+         CHANGED(prefixP###price(detail)) OR
          CHANGED(sku(detail)) OR
          CHANGED(stockProp(detail)) OR
         (CHANGED(prefixTime###dateTime(detail)) AND NOT isPosted(detail)) OR
          CHANGED(batch(detail)) OR
          CHANGED(value###prefix##VAT(detail)))
-        AND NOT CHANGED(prefix##Price(detail))
-        AND sku(detail) AND PriceListType priceListType == prefix##PriceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
+        AND NOT CHANGED(prefix###price(detail))
+        AND sku(detail) AND PriceListType priceListType == prefix###priceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
 
-            prefix##Price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
+            prefix###price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                       ELSE prevPriceB(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
+                                                         WHERE prefix###priceListType(detail) == priceListType;
                                                          
-            prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                               prefix##Price(detail),
-                                                               prefixP##Price(detail),
+            prefix###markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                               prefix###price(detail),
+                                                               prefixP###price(detail),
                                                                value###prefix##VAT(detail))
-                                                         WHERE prefix##PriceListType(detail) == priceListType;
+                                                         WHERE prefix###priceListType(detail) == priceListType;
         }
 
     WHEN SESSION
-        (CHANGED(prefixP##Price(###idetail detail)) OR
+        (CHANGED(prefixP###price(###idetail detail)) OR
          CHANGED(value###prefix##VAT(detail)))
-        AND NOT prefix##PriceListType(detail) INLINE DO {
+        AND NOT prefix###priceListType(detail) INLINE DO {
 
-            prefix##Markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                               prefix##Price(detail),
-                                                               prefixP##Price(detail),
+            prefix###markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                               prefix###price(detail),
+                                                               prefixP###price(detail),
                                                                value###prefix##VAT(detail));
         }
 END
