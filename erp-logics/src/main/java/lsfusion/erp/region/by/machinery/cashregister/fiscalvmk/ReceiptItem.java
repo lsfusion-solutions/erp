@@ -3,19 +3,18 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 import java.io.Serializable;
 
 public class ReceiptItem implements Serializable {
-    //todo: необходимо переделать для деноминации цены в double
     public boolean isGiftCard;
-    public long price;
+    public double price;
     public double quantity;
     public String barcode;
     public String name;
-    public long sumPos;
-    public long articleDiscSum;
-    public long bonusSum;
-    public long bonusPaid;
+    public double sumPos;
+    public double articleDiscSum;
+    public double bonusSum;
+    public double bonusPaid;
 
-    public ReceiptItem(boolean isGiftCard, long price, double quantity, String barcode, String name, long sumPos,
-                       long articleDiscSum, long bonusSum, long bonusPaid) {
+    public ReceiptItem(boolean isGiftCard, double price, double quantity, String barcode, String name, double sumPos,
+                       double articleDiscSum, double bonusSum, double bonusPaid) {
         this.isGiftCard = isGiftCard;
         this.price = price;
         this.quantity = quantity;

@@ -21,9 +21,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String receiptTop;
     String receiptBottom;
     boolean giftCardAsDiscount;
+    boolean denominate;
 
     public FiscalVMKPrintReceiptClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsDiscount) {
+                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsDiscount,
+                                             boolean denominate) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -33,6 +35,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardAsDiscount = giftCardAsDiscount;
+        this.denominate = denominate;
     }
 
 
@@ -98,9 +101,9 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         FiscalVMK.printFiscalText(receiptTop);
         
         for (ReceiptItem item : receiptList) {
-            if (!FiscalVMK.registerItem(item))
+            if (!FiscalVMK.registerItem(item, denominate))
                 return null;
-            if (!FiscalVMK.discountItem(item))
+            if (!FiscalVMK.discountItem(item, denominate))
                 return null;
             DecimalFormat formatter = getFormatter();
             if(item.bonusSum != 0)
@@ -111,16 +114,16 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
         if (!FiscalVMK.subtotal())
             return null;
-        if (!FiscalVMK.discountReceipt(receipt))
+        if (!FiscalVMK.discountReceipt(receipt, denominate))
             return null;
         
         FiscalVMK.printFiscalText(receiptBottom);
         
-        if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, giftCardAsDiscount))
+        if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, giftCardAsDiscount, denominate))
             return null;
-        if (!FiscalVMK.totalCard(receipt.sumCard))
+        if (!FiscalVMK.totalCard(receipt.sumCard, denominate))
             return null;
-        if (!FiscalVMK.totalCash(receipt.sumCash))
+        if (!FiscalVMK.totalCash(receipt.sumCash, denominate))
             return null;
         return receiptNumber;
     }
