@@ -43,7 +43,8 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
                         importData.setUOMsList(ImportExcelUOMsActionProperty.importUOMs(file.getValue()));
                     }
                     if (file.getKey().contains("importItems")) {
-                        importData.setItemsList(ImportExcelItemsActionProperty.importItems(file.getValue()));
+                        boolean onlyEAN = findProperty("importItemsOnlyEAN[]").read(context) != null;
+                        importData.setItemsList(ImportExcelItemsActionProperty.importItems(file.getValue(), onlyEAN));
                     }
                     if (file.getKey().contains("importGroupItems")) {
                         importData.setParentGroupsList(ImportExcelGroupItemsActionProperty.importGroupItems(file.getValue(), true));
