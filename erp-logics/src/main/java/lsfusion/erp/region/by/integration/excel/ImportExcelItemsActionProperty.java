@@ -6,11 +6,13 @@ import jxl.read.biff.BiffException;
 import lsfusion.erp.integration.ImportActionProperty;
 import lsfusion.erp.integration.ImportData;
 import lsfusion.erp.integration.Item;
+import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
 import java.io.IOException;
@@ -41,18 +43,20 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
 
                     ImportData importData = new ImportData();
 
-                    importData.setItemsList(importItems(file));
+                    boolean onlyEAN = findProperty("importItemsOnlyEAN[]").read(context) != null;
+
+                    importData.setItemsList(importItems(file, onlyEAN));
 
                     new ImportActionProperty(LM).makeImport(importData, context);
 
                 }
             }
-        } catch (IOException | BiffException | ParseException e) {
+        } catch (IOException | BiffException | ParseException| ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }
 
-    protected static List<Item> importItems(byte[] file) throws IOException, BiffException, ParseException {
+    protected static List<Item> importItems(byte[] file, boolean onlyEAN) throws IOException, BiffException, ParseException {
 
         Sheet sheet = getSheet(file, 21);
 
@@ -67,8 +71,13 @@ public class ImportExcelItemsActionProperty extends ImportExcelActionProperty {
             String idBrand = parseString(sheet.getCell(5, i));
             String nameCountry = parseString(sheet.getCell(6, i));
             String barcode = parseString(sheet.getCell(7, i));
-            if (barcode != null && (barcode.contains(" ") || (barcode.length() != 7 && barcode.length() != 8 && barcode.length() != 12 && barcode.length() != 13))) {
-                barcode = null;
+            if(barcode != null) {
+                if (barcode.contains(" ") || (barcode.length() != 7 && barcode.length() != 8 && barcode.length() != 12 && barcode.length() != 13)) {
+                    barcode = null;
+                }
+                if (barcode.length() == 12 && onlyEAN) {
+                    barcode = BarcodeUtils.appendCheckDigitToBarcode(barcode, 12);
+                }
             }
             Date date = parseDateValue(sheet.getCell(8, i), new Date(Calendar.getInstance().getTime().getTime()));
             Boolean split = parseBoolean(sheet.getCell(9, i));

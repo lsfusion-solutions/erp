@@ -39,7 +39,7 @@ public class ImportExcelActionProperty extends DefaultImportActionProperty {
 
     protected static BigDecimal parseBigDecimal(Cell cell) throws ParseException {
         String value = cell == null ? null : cell.getContents();
-        return value == null || value.isEmpty() ? null : BigDecimal.valueOf(NumberFormat.getInstance().parse(value).doubleValue());
+        return value == null || value.trim().isEmpty() ? null : BigDecimal.valueOf(NumberFormat.getInstance().parse(value.trim()).doubleValue());
     }
 
     protected static Boolean parseBoolean(Cell cell) {
