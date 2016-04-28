@@ -1,0 +1,84 @@
+MODULE PurchaseReturnInvoiceDiscount;
+
+REQUIRE PurchaseReturnInvoice, StockContractSku;
+
+PRIORITY Purchase, Operation;
+
+NAMESPACE PurchaseReturn;
+
+
+percReturnDiscount '% отпускной цены поставщика при возврате' = DATA NUMERIC[8,3] (ContractSku, Sku);
+
+@defineDocumentInterfaceProperty (invoice, showPercReturnDiscount, '% отпускной цены поставщика при возврате');
+
+percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
+percReturnDiscountPrice '% отпускной цены поставщика при возврате' = DATA NUMERIC[14,2] (UserInvoiceDetail);
+percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
+
+percReturnDiscountPrice (UserInvoiceDetail d) <- percReturnDiscount(contractSku(d), sku(d))
+                WHEN DO CHANGED(contractSku(d)) OR CHANGED (sku(d));
+
+@defineDocumentInterfaceDetailPricePrefix (invoice, full, ' (полная)');
+
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND sku(d) AND showPercReturnDiscount(d) THEN  
+                                                     round2(NUMERIC[14,2](prevPriceB(t,sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0));
+prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
+                                                     round2(NUMERIC[14,2](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0));
+                                                     
+WHEN SESSION FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] // цены берем на начало сессии, а не этого event'а
+        (((CHANGED(customerStock(UserInvoiceDetail d)) OR
+         CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
+         (CHANGED(priceListType(d)) OR
+         CHANGED(batch(d)) OR
+         CHANGED(sku(d))))          
+         AND NOT CHANGED(fullPrice(d))  
+         AND PriceListType pt == priceListType(d) AND sku(d) NOINLINE (pt) DO {
+    fullPrice(d) <- IF batch(d) THEN prevPriceB(pt,batch(d),customerStock(d),dateTime(d))
+                                ELSE prevPriceB(pt,sku(d),customerStock(d),dateTime(d));
+}
+recalculatedFullPrice(UserInvoiceDetail detail) = ACTION {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
+    IF invoiceDetail(detail) THEN {
+        ASSIGN fullPrice(detail) <-  price(invoiceDetail(detail));
+
+    }
+}
+WHEN SESSION FORMS userInvoice
+    CHANGED(invoiceDetail[UserInvoiceDetail](InvoiceDetail detail)) OR
+    CHANGED(batch(detail)) OR
+    CHANGED(priceListType(detail)) OR
+    CHANGED(sku(detail)) OR
+    CHANGED(customerStock(detail)) OR
+    CHANGED(dateTime(detail)) 
+        DO EXEC recalculatedFullPrice(detail);
+
+
+
+changePercReturnDiscountPrice (UserInvoiceDetail d) = ACTION {
+    REQUEST NUMERIC[8,3] INPUT;
+    IF requestedNumeric() THEN { 
+        percReturnDiscountPrice (d) <- requestedNumeric();        
+        price(d) <- round2(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0)) WHERE fullPrice(d); 
+    } ELSE {
+        percReturnDiscountPrice(d) <- NULL;
+        price(d) <- fullPrice(d) WHERE fullPrice(d);     
+    }  
+}
+changeFullPrice (UserInvoiceDetail d) = ACTION {
+    REQUEST NUMERIC[14,2] INPUT;
+    IF requestedNumeric() THEN { 
+        fullPrice (d) <- requestedNumeric();        
+        price(d) <- round2(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0)) WHERE percReturnDiscountPrice(d); 
+    } ELSE {
+        fullPrice(d) <- NULL;
+//        price(d) <- fullPrice(d) WHERE fullPrice(d);     
+    }  
+}
+
+EXTEND FORM userInvoice
+    PROPERTIES (i) showPercReturnDiscount
+    PROPERTIES (d) SHOWIF showPercReturnDiscount(i) BEFORE price(d) fullPrice ON CHANGE changeFullPrice(d), 
+                          percReturnDiscountPrice ON CHANGE changePercReturnDiscountPrice(d)
+;
+EXTEND FORM invoices
+    PROPERTIES (d) READONLY SHOWIF showPercReturnDiscount(i) BEFORE price(d) fullPrice, percReturnDiscountPrice
+;
