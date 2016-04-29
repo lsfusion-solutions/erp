@@ -61,7 +61,6 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
-                boolean denominate = findProperty("denominateCurrentCashRegister[]").read(context) != null;
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsDiscount = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsDiscountCurrentCashRegister[]").read(context) != null);
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
@@ -124,7 +123,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
                     BigDecimal priceValue = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
-                    double price = priceValue == null ? 0 : priceValue.doubleValue();
+                    long price = priceValue == null ? 0 : priceValue.longValue();
                     BigDecimal quantitySaleValue = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
                     double quantitySale = quantitySaleValue == null ? 0.0 : quantitySaleValue.doubleValue();
                     BigDecimal quantityReturnValue = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");
@@ -138,11 +137,11 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     String name = boardName != null ? boardName : (String) receiptDetailValues.get("nameSkuReceiptDetail");
                     name = name == null ? "" : name.trim();
                     BigDecimal sumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
-                    double sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.doubleValue();
-                    double bonusSumReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("bonusSumReceiptDetail"), quantityReturn > 0);
-                    double bonusPaidReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("bonusPaidReceiptDetail"), quantityReturn > 0);
+                    long sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.longValue();
+                    long bonusSumReceiptDetail = getLong((BigDecimal) receiptDetailValues.get("bonusSumReceiptDetail"), quantityReturn > 0);
+                    long bonusPaidReceiptDetail = getLong((BigDecimal) receiptDetailValues.get("bonusPaidReceiptDetail"), quantityReturn > 0);
                     BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
-                    double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
+                    long discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().longValue();
                     if (quantitySale > 0 && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail,
                                 discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
@@ -158,7 +157,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(ip, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, receiptSaleItemList, receiptReturnItemList),
-                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsDiscount, denominate));
+                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsDiscount));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change(result, context, receiptObject);
                         context.apply();
@@ -172,7 +171,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
         }
     }
 
-    private double getDouble(BigDecimal value, boolean negate) {
-        return value == null ? 0 : (negate ? value.negate() : value).doubleValue();
+    private long getLong(BigDecimal value, boolean negate) {
+        return value == null ? 0 : (negate ? value.negate() : value).longValue();
     }
 }

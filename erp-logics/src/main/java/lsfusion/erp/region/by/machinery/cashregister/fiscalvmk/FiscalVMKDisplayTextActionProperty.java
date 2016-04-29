@@ -51,13 +51,13 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
                 BigDecimal priceValue = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                double price = priceValue == null ? 0 : priceValue.doubleValue();
+                long price = priceValue == null ? 0 : priceValue.longValue();
                 BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
-                double sum = sumValue == null ? 0 : sumValue.doubleValue();
+                long sum = sumValue == null ? 0 : sumValue.longValue();
                 BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSum[ReceiptDetail]").read(session, receiptDetailObject);
-                double articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.doubleValue();
-                double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
-                double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
+                long articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.longValue();
+                long bonusSum = getLong((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
+                long bonusPaid = getLong((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate,
                         new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
@@ -69,7 +69,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
         }
     }
 
-    private double getDouble(BigDecimal value) {
-        return value == null ? 0 : value.doubleValue();
+    private long getLong(BigDecimal value) {
+        return value == null ? 0 : value.longValue();
     }
 }

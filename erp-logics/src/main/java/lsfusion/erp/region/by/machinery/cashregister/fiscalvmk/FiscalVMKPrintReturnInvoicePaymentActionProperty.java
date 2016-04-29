@@ -33,8 +33,6 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
-            boolean denominate = findProperty("denominateCurrentCashRegister[]").read(context) != null;
-
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
@@ -51,7 +49,7 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, false, denominate));
+            Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, false));
             if(result == null)
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else
