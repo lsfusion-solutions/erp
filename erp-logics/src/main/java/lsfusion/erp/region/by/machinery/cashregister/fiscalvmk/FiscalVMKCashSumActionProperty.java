@@ -28,7 +28,7 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
 
             Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5));
-            if (result instanceof Long) {
+            if (result instanceof Double) {
                 context.requestUserInteraction(new MessageClientAction(String.valueOf(result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
                 context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

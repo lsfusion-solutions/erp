@@ -13,12 +13,14 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
     int comPort;
     int baudRate;
     BigDecimal sum;
+    String denominationStage;
 
-    public FiscalVMKServiceInOutClientAction(String ip, Integer comPort, Integer baudRate, BigDecimal sum) {
+    public FiscalVMKServiceInOutClientAction(String ip, Integer comPort, Integer baudRate, BigDecimal sum, String denominationStage) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.sum = sum;
+        this.denominationStage = denominationStage;
     }
 
 
@@ -31,7 +33,7 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
 
             FiscalVMK.opensmIfClose();
 
-            if (!FiscalVMK.inOut(sum.longValue()))
+            if (!FiscalVMK.inOut(sum.doubleValue(), denominationStage))
                 return "Недостаточно наличных в кассе";
             else {
                 if(!FiscalVMK.openDrawer())
