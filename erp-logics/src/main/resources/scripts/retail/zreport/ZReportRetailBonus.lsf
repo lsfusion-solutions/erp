@@ -1,6 +1,6 @@
 MODULE ZReportRetailBonus;
 
-REQUIRE ZReportDiscountCard, RetailBonus, ZReportSkuLedger;
+REQUIRE ZReportDiscountCard, RetailBonus, ZReportSkuLedger, PricingZReport;
 
 NAMESPACE ZReport;
 
@@ -54,6 +54,14 @@ EXTEND FORM zReports
     PROPERTIES(b) READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid  
     PROPERTIES(d) READONLY SHOWIF useBonus() signedBonusSum, signedBonusPaid  
 ;
+
+bonusPaidSaleReceiptDetailSale 'Сумма бонусов (продажи)' (receipt) = GROUP SUM bonusPaid(ReceiptSaleDetail receiptDetail)
+    BY receipt (receiptDetail) IN documentSum;
+bonusPaidReturnReceiptDetailReturn 'Сумма бонусов (возврат)' (receipt) = GROUP SUM bonusPaid(ReceiptReturnDetail receiptDetail)
+    BY receipt (receiptDetail) IN documentSum;
+bonusPaidReceiptDetail 'Сумма бонусов' (Receipt receipt) = bonusPaidSaleReceiptDetailSale(receipt) (-) bonusPaidReturnReceiptDetailReturn(receipt) PERSISTENT;
+bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP SUM bonusPaidReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
+extraDiscount(ZReportRepricing zReportRepricing) += bonusPaidReceiptDetail(zReport(zReportRepricing));
 
 cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP SUM signedBonusSum(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
 
