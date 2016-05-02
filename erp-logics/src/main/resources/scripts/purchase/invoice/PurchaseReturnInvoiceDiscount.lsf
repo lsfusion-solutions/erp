@@ -15,8 +15,10 @@ percReturnDiscountPrice '% отпускной цены поставщика пр
 percReturnDiscountPrice '% отпускной цены поставщика при возврате' = DATA NUMERIC[14,2] (UserInvoiceDetail);
 percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
 
-percReturnDiscountPrice (UserInvoiceDetail d) <- percReturnDiscount(contractSku(d), sku(d))
-                WHEN DO CHANGED(contractSku(d)) OR CHANGED (sku(d));
+//percReturnDiscountPrice (UserInvoiceDetail d) <- percReturnDiscount(contractSku(d), sku(d))
+//                WHEN ((CHANGED(contractSku(d)) 
+//                    OR CHANGED (sku(d))) AND showPercReturnDiscount(userInvoice(d)))
+//                    OR (SET(showPercReturnDiscount(userInvoice(d))) AND NOT PREV(percReturnDiscountPrice(d)));
 
 @defineDocumentInterfaceDetailPricePrefix (invoice, full, ' (полная)');
 
@@ -24,7 +26,7 @@ prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND p
                                                      round2(NUMERIC[14,2](prevPriceB(t,sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0));
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
                                                      round2(NUMERIC[14,2](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0));
-                                                     
+                                                    
 WHEN SESSION FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] // цены берем на начало сессии, а не этого event'а
         (((CHANGED(customerStock(UserInvoiceDetail d)) OR
          CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
@@ -49,29 +51,42 @@ WHEN SESSION FORMS userInvoice
     CHANGED(sku(detail)) OR
     CHANGED(customerStock(detail)) OR
     CHANGED(dateTime(detail)) 
-        DO EXEC recalculatedFullPrice(detail);
-
-
+        DO EXEC recalculatedFullPrice(detail); 
 
 changePercReturnDiscountPrice (UserInvoiceDetail d) = ACTION {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN { 
         percReturnDiscountPrice (d) <- requestedNumeric();        
-        price(d) <- round2(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0)) WHERE fullPrice(d); 
+        price(d) <- round(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
+        invoicePrice(d) <- prevListPVAT (priceListType(d), d);
     } ELSE {
         percReturnDiscountPrice(d) <- NULL;
         price(d) <- fullPrice(d) WHERE fullPrice(d);     
     }  
 }
+
 changeFullPrice (UserInvoiceDetail d) = ACTION {
     REQUEST NUMERIC[14,2] INPUT;
     IF requestedNumeric() THEN { 
         fullPrice (d) <- requestedNumeric();        
-        price(d) <- round2(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0)) WHERE percReturnDiscountPrice(d); 
+        price(d) <- round(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE percReturnDiscountPrice(d); 
+        invoicePrice(d) <- prevListPVAT (priceListType(d), d);
     } ELSE {
         fullPrice(d) <- NULL;
 //        price(d) <- fullPrice(d) WHERE fullPrice(d);     
     }  
+}
+
+WHEN SESSION FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CHANGED (sku(d))) AND showPercReturnDiscount(userInvoice(d)))
+                                                OR (SET(showPercReturnDiscount(userInvoice(d))) AND NOT PREV(percReturnDiscountPrice(d))) DO {
+    percReturnDiscountPrice (d) <- percReturnDiscount(contractSku(d), sku(d));                                               
+    price(d) <- round(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
+    invoicePrice(d) <- prevListPVAT (priceListType(d), d);    
+}
+
+WHEN SESSION FORMS userInvoice DROPPED(showPercReturnDiscount(userInvoice(UserInvoiceDetail d))) DO {
+    price(d) <- prevListMVAT (priceListType(d), d);
+    invoicePrice(d) <- prevListPVAT (priceListType(d), d);
 }
 
 EXTEND FORM userInvoice
