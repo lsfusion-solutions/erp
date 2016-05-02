@@ -432,6 +432,34 @@ META defineGroupDefaultValue(property, caption, type, groupClass)
     
 END 
 
+META defineDefaultValueCustom(property, caption, type, object, class)
+    data###property caption = DATA type (###object, ###class);
+    
+    levelParent###property (object, group) = GROUP MIN level(###class group, ###class parent) IF data###property(###object object, parent)
+                                                                  BY object, group PERSISTENT;    
+    nearestParent###property (###object object, ###class group) = group(group, levelParent###property(object, group));
+    nearest###property (###object object, ###class group) = data###property(object, nearestParent###property (object, group));
+    
+    property caption (###object object, ###class group) =
+        OVERRIDE nearest###property (object, group), 
+                 data###property(object, group) PERSISTENT;
+                 
+    quantityChild###property (object, group) = GROUP SUM 1 IF 
+        data###property(###object object, ###class child###class) AND isParent(child###class, ###class group) 
+            BY object, group PERSISTENT;
+    quantityParent###property (object, group) = GROUP SUM 1 IF 
+        data###property(###object object, ###class parent###class) AND isParent(###class group, parent###class) 
+            BY object, group PERSISTENT;                 
+
+    backgroundWith###property (###object object, ###class group) =
+        IF data###property(object, group) THEN
+            RGB(127,199,255) //IF group IS ItemGroup
+        ELSE
+            RGB(203,203,206) IF quantityChild###property (object, group) != descendantNumber(group)
+                             AND NOT quantityParent###property (object, group);
+                 
+                 
+END 
 
 // Sku
 META defineDocumentDetailSkuCustomPrefix (detail, skuClass, prefix, caption)
