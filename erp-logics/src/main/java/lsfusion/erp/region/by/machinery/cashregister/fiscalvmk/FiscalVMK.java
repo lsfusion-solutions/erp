@@ -48,12 +48,12 @@ public class FiscalVMK {
 
         Boolean vmk_cancel();
 
-        Boolean vmk_sale(byte[] coddigit, byte[] codname, Double codcena, Integer ot, Double quantity,
-                         Double sum);
+        Boolean vmk_sale(byte[] coddigit, byte[] codname, Integer codcena, Integer ot, Double quantity,
+                         Integer sum);
 
-        Boolean vmk_discount(byte[] name, Double value, int flag);
+        Boolean vmk_discount(byte[] name, Integer value, int flag);
 
-        Boolean vmk_discountpi(byte[] name, Double value, int flag);
+        Boolean vmk_discountpi(byte[] name, Integer value, int flag);
 
         Boolean vmk_subtotal();
 
@@ -61,7 +61,7 @@ public class FiscalVMK {
 
         Boolean vmk_repeat();
 
-        Boolean vmk_oplat(Integer type, Double sum, Integer flagByte);
+        Boolean vmk_oplat(Integer type, Integer sum, Integer flagByte);
 
         Boolean vmk_xotch();
 
@@ -69,9 +69,9 @@ public class FiscalVMK {
 
         Boolean vmk_feed(int type, int cnt_string, int cnt_dot_line);
 
-        Boolean vmk_vnes(double sum);
+        Boolean vmk_vnes(long sum);
 
-        Boolean vmk_vyd(double sum);
+        Boolean vmk_vyd(long sum);
 
         Boolean vmk_opendrawer(int cnt_msek);
 
@@ -85,16 +85,17 @@ public class FiscalVMK {
     }
 
     static void init() {
-//        try {
-//            System.loadLibrary("vmk");
-//        } catch (Exception e) {
-//            System.out.println(e.toString());
-//        }
-//
-//        try {
-//            Thread.sleep(100);
-//        } catch (Exception ignored) {
-//        }
+
+        try {
+            System.loadLibrary("vmk");
+        } catch (Exception e) {
+            System.out.println(e.toString());
+        }
+
+        try {
+            Thread.sleep(100);
+        } catch (Exception e) {
+        }
     }
 
     public static String getError(boolean closePort) {
@@ -147,7 +148,7 @@ public class FiscalVMK {
         if(msg != null && !msg.isEmpty()) {
             for(String line : msg.split("\n")) {
                 logAction("vmk_prnch", line);
-                boolean result = vmkDLL.vmk.vmk_prnch(getBytes(line));
+                boolean result = vmkDLL.vmk.vmk_prnch((line + "\0").getBytes("cp1251"));
                 if(!result) return false;
             }
         }
@@ -163,33 +164,30 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_repeat();
     }
 
-    public static boolean totalCash(BigDecimal sum, String denominationStage) {
+    public static boolean totalCash(BigDecimal sum) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(Math.abs(sum.doubleValue()), denominationStage);
-        logAction("vmk_oplat", 0, sumValue, 0);
-        return vmkDLL.vmk.vmk_oplat(0, sumValue, 0/*"00000000"*/);
+        logAction("vmk_oplat", 0, Math.abs(sum.intValue()), 0);
+        return vmkDLL.vmk.vmk_oplat(0, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
-    public static boolean totalCard(BigDecimal sum, String denominationStage) {
+    public static boolean totalCard(BigDecimal sum) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(Math.abs(sum.doubleValue()), denominationStage);
-        logAction("vmk_oplat", 1, sumValue, 0);
-        return vmkDLL.vmk.vmk_oplat(1, sumValue, 0/*"00000000"*/);
+        logAction("vmk_oplat", 1, Math.abs(sum.intValue()), 0);
+        return vmkDLL.vmk.vmk_oplat(1, Math.abs(sum.intValue()), 0/*"00000000"*/);
     }
 
-    public static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount, String denominationStage) {
+    public static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount) {
         if (sum == null)
             return true;
         try {
-            double sumValue = makeDenomination(sum.doubleValue(), denominationStage);
             if (giftCardAsDiscount) {
-                logAction("vmk_discountpi", "Сертификат", sumValue, 3);
-                return vmkDLL.vmk.vmk_discountpi(getBytes("Сертификат"), sumValue, 3);
+                logAction("vmk_discountpi", "Сертификат", sum, 3);
+                return vmkDLL.vmk.vmk_discountpi(("Сертификат" + "\0").getBytes("cp1251"), sum.intValue(), 3);
             } else {
-                logAction("vmk_oplat", 2, Math.abs(sumValue), 0);
-                return vmkDLL.vmk.vmk_oplat(2, Math.abs(sumValue), 0/*"00000000"*/);
+                logAction("vmk_oplat", 2, Math.abs(sum.intValue()), 0);
+                return vmkDLL.vmk.vmk_oplat(2, Math.abs(sum.intValue()), 0/*"00000000"*/);
             }
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();
@@ -197,10 +195,9 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean total(BigDecimal sumPayment, Integer typePayment, String denominationStage) {
-        double sumPaymentValue = makeDenomination(Math.abs(sumPayment.doubleValue()), denominationStage);
-        logAction("vmk_oplat", typePayment, sumPaymentValue, 0);
-        if (!vmkDLL.vmk.vmk_oplat(typePayment, sumPaymentValue, 0/*"00000000"*/))
+    public static boolean total(BigDecimal sumPayment, Integer typePayment) {
+        logAction("vmk_oplat", typePayment, Math.abs(sumPayment.intValue()), 0);
+        if (!vmkDLL.vmk.vmk_oplat(typePayment, Math.abs(sumPayment.intValue()), 0/*"00000000"*/))
             return false;
 
         return true;
@@ -224,15 +221,15 @@ public class FiscalVMK {
             checkErrors(true);
     }
 
-    public static boolean inOut(Double sum, String denominationStage) {
-        double sumValue = makeDenomination(sum, denominationStage);
-        if (sumValue > 0) {
-            logAction("vmk_vnes", sumValue);
-            if (!vmkDLL.vmk.vmk_vnes(sumValue))
+    public static boolean inOut(Long sum) {
+
+        if (sum > 0) {
+            logAction("vmk_vnes", sum);
+            if (!vmkDLL.vmk.vmk_vnes(sum))
                 checkErrors(true);
         } else {
-            logAction("vmk_vyd", -sumValue);
-            if (!vmkDLL.vmk.vmk_vyd(-sumValue))
+            logAction("vmk_vyd", -sum);
+            if (!vmkDLL.vmk.vmk_vyd(-sum))
                 return false;
         }
         return true;
@@ -253,58 +250,54 @@ public class FiscalVMK {
                 secondLine = " " + secondLine;
             secondLine = "ИТОГ:" + secondLine;
             logAction("vmk_indik", firstLine, secondLine);
-            if(!vmkDLL.vmk.vmk_indik2(getBytes(secondLine)))
+            if(!vmkDLL.vmk.vmk_indik2((secondLine + "\0").getBytes("cp1251")))
                 checkErrors(true);
-            if (!vmkDLL.vmk.vmk_indik(getBytes(firstLine), getBytes(secondLine)))
+            if (!vmkDLL.vmk.vmk_indik((firstLine + "\0").getBytes("cp1251"), (secondLine + "\0").getBytes("cp1251")))
                 checkErrors(true);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }
 
-    public static boolean registerItem(ReceiptItem item, String denominationStage) {
+    public static boolean registerItem(ReceiptItem item) {
         try {
-            double price = makeDenomination(Math.abs(item.price), denominationStage);
-            double sum = makeDenomination(item.sumPos - item.articleDiscSum + item.bonusPaid, denominationStage);
-            logAction("vmk_sale", item.barcode, item.name, price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
-            return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
-                    price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
+            logAction("vmk_sale", item.barcode, item.name, (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, 0);
+            return vmkDLL.vmk.vmk_sale((item.barcode + "\0").getBytes("cp1251"), (item.name + "\0").getBytes("cp1251"), //articleDiscSum is negative, bonusPaid is positive
+                    (int) Math.abs(item.price), item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, (int) (item.sumPos - item.articleDiscSum + item.bonusPaid));
         } catch (UnsupportedEncodingException e) {
             return false;
         }
     }
 
-    public static boolean registerItemPayment(double sumPayment, String denominationStage) {
+    public static boolean registerItemPayment(long sumPayment) {
         try {
-            double sum = makeDenomination(Math.abs(sumPayment), denominationStage);
-            logAction("vmk_sale", "", "ОПЛАТА", sum, 1 /*отдел*/, 1, 0);
-            return vmkDLL.vmk.vmk_sale(getBytes(""), getBytes("ОПЛАТА"), sum, 1 /*отдел*/, 1.0, 0.0);
+            logAction("vmk_sale", "", "ОПЛАТА", (int) Math.abs(sumPayment), 1 /*отдел*/, 1, 0);
+            return vmkDLL.vmk.vmk_sale("\0".getBytes("cp1251"), ("ОПЛАТА" + "\0").getBytes("cp1251"), (int) Math.abs(sumPayment), 1 /*отдел*/, 1.0, 0);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
     }
     
-    public static boolean discountItem(ReceiptItem item, String denominationStage) {
-        double discSum = makeDenomination(item.articleDiscSum - item.bonusPaid, denominationStage); //articleDiscSum is negative, bonusPaid is positive
+    public static boolean discountItem(ReceiptItem item) {
+        long discSum = item.articleDiscSum - item.bonusPaid; //articleDiscSum is negative, bonusPaid is positive
         if (discSum == 0)
             return true;
         boolean discount = discSum < 0;
         try {
-            logAction("vmk_discount", discount ? "Скидка" : "Наценка", Math.abs(discSum), discount ? 3 : 1);
-            return vmkDLL.vmk.vmk_discount(getBytes(discount ? "Скидка" : "Наценка"), Math.abs(discSum), discount ? 3 : 1);
+            logAction("vmk_discount", discount ? "Скидка" : "Наценка", (int) Math.abs(discSum), discount ? 3 : 1);
+            return vmkDLL.vmk.vmk_discount(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(discSum), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
     }
 
-    public static boolean discountReceipt(ReceiptInstance receipt, String denominationStage) {
+    public static boolean discountReceipt(ReceiptInstance receipt) {
         if (receipt.sumDisc == null)
             return true;
         boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
         try {
-            double sumDisc =  makeDenomination(Math.abs(receipt.sumDisc.doubleValue()), denominationStage);
-            logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", sumDisc, discount ? 3 : 1);
-            return vmkDLL.vmk.vmk_discountpi(getBytes(discount ? "Скидка" : "Наценка"), sumDisc, discount ? 3 : 1);
+            logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
+            return vmkDLL.vmk.vmk_discountpi(((discount ? "Скидка" : "Наценка") + "\0").getBytes("cp1251"), (int) Math.abs(receipt.sumDisc.doubleValue()), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
         }
@@ -363,13 +356,13 @@ public class FiscalVMK {
         return Integer.parseInt(result.split(",")[1]);
     }
 
-    public static double getCashSum(Boolean throwException) {
+    public static long getCashSum(Boolean throwException) {
         byte[] buffer = new byte[50];
         logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
-        return Double.parseDouble(result.split(",")[2]);
+        return Long.parseLong(result.split(",")[2]);
     }
 
     public static void logReceipt(ReceiptInstance receipt, Integer numberReceipt) {
@@ -414,19 +407,6 @@ public class FiscalVMK {
 
     private static String trim(BigDecimal value) {
         return value == null ? "" : String.valueOf(value);
-    }
-
-    private static byte[] getBytes(String value) throws UnsupportedEncodingException {
-        return (value + "\0").getBytes("cp1251");
-    }
-
-    private static double makeDenomination(double value, String denominationStage) {
-        if (denominationStage == null || denominationStage.trim().endsWith("before")) {
-            return value / 100;
-        } else if (denominationStage.trim().endsWith("fusion")) {
-            return value * 100;
-        } else
-            return value;
     }
 }
 

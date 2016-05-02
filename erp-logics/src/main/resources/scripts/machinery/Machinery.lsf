@@ -112,33 +112,6 @@ ports 'Адрес/порт' = GROUP CONCAT port(Machinery m), ',' BY groupMachin
 overInactive = ABSTRACT BOOLEAN (Machinery);
 inactive 'Неактивный' (Machinery m)= OVERRIDE inactive(groupMachinery(m)), overInactive(m);
 
-
-
-//---------------------------- признак деноминации ----------------------------------------//
-CLASS DenominationStage 'Этап деноминации' {
-    before 'Деноминация не начата',
-    fusion 'Fusion переведён, оборудование не переведено',
-    after 'Fusion переведён, оборудование переведено'
-}
-
-denominationStage 'Этап деноминации' = DATA DenominationStage (GroupMachinery);
-onStarted() += ACTION {
-    denominationStage(GroupMachinery groupMachinery) <- DenominationStage.before WHERE NOT denominationStage(groupMachinery);
-}
-
-nameDenominationStage 'Этап деноминации' (GroupMachinery groupMachinery) = staticName(denominationStage(groupMachinery));
-captionDenominationStage 'Этап деноминации' (GroupMachinery groupMachinery) = staticCaption(denominationStage(groupMachinery));
-
-denominationStage (Machinery machinery) = denominationStage(groupMachinery(machinery));
-nameDenominationStage 'Этап деноминации' (Machinery machinery) = staticName(denominationStage(machinery));
-captionDenominationStage 'Этап деноминации' (Machinery machinery) = staticCaption(denominationStage(machinery));
-
-FORM denominationStages
-    OBJECTS d = DenominationStage
-    PROPERTIES(d) READONLY staticCaption
-    DIALOG DenominationStage OBJECT d
-;
-
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 
 EXTEND FORM defaultData
