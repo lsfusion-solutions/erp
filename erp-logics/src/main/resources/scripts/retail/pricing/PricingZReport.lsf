@@ -11,7 +11,10 @@ REQUIRE System,
 CLASS ZReportRepricing 'Скидка по продаже через кассы';
 TABLE zReportRepricing (ZReportRepricing);
 
-@defineAggregation(zReport, zReportRepricing, discountSumReceiptDetail);
+extraDiscountSumReceiptDetail = ABSTRACT NUMERIC[16,2] (ZReport);
+totalDiscountSumReceiptDetail(ZReport zReport) = discountSumReceiptDetail(zReport) (+) extraDiscountSumReceiptDetail(zReport);
+
+@defineAggregation(zReport, zReportRepricing, totalDiscountSumReceiptDetail);
 @defineDocumentAggregationHeaderNumberCustom(zReport, zReportRepricing, zReport);
 @defineDocumentAggregationHeaderTime(zReport, zReportRepricing);
 @defineDocumentAggregationHeaderStock(zReport, zReportRepricing, departmentStore, , 'Отдел магазина');
@@ -20,14 +23,14 @@ isClosed 'Закрыт' (ZReportRepricing o) = isClosed(zReport(o));
 numberCashRegister (ZReportRepricing zReportRepricing) = overNumberCashRegister(zReport(zReportRepricing));
 
 discount (ZReportRepricing zReportRepricing) = discountSumReceiptDetail(zReport(zReportRepricing));
-extraDiscount = ABSTRACT NUMERIC[16,2] (ZReportRepricing);
+extraDiscount (ZReportRepricing zReportRepricing) = extraDiscountSumReceiptDetail(zReport(zReportRepricing));
 
 description (ZReportRepricing zReportRepricing) =
     VARSTRING[200]('Скидка по кассе ' + numberCashRegister(zReportRepricing) + ' отдела ' + nameDepartmentStore(zReportRepricing) + ' от ' + date(zReportRepricing));
 
 @implementStockDocumentLedgerOut(ZReportRepricing, departmentStore);
 type(ZReportRepricing l) += 'Скидка по кассе' IF l IS ZReportRepricing;
-sumItem (ZReportRepricing ledger) += discount(ledger) + extraDiscount(ledger);
+sumItem (ZReportRepricing ledger) += discount(ledger) (+) extraDiscount(ledger);
 sumContainer (ZReportRepricing ledger) += 0.0 IF ledger IS ZReportRepricing;
 skip (ZReportRepricing ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
 edit(ZReportRepricing l) += ACTION edit(zReport(l));
