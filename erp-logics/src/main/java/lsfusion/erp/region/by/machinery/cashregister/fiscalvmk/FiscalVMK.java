@@ -363,13 +363,13 @@ public class FiscalVMK {
         return Integer.parseInt(result.split(",")[1]);
     }
 
-    public static double getCashSum(Boolean throwException) {
+    public static double getCashSum(Boolean throwException, String denominationStage) {
         byte[] buffer = new byte[50];
         logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
-        return Double.parseDouble(result.split(",")[2]);
+        return makeNomination(Double.parseDouble(result.split(",")[2]), denominationStage);
     }
 
     public static void logReceipt(ReceiptInstance receipt, Integer numberReceipt) {
@@ -425,6 +425,15 @@ public class FiscalVMK {
             return value / 100;
         } else if (denominationStage.trim().endsWith("fusion")) {
             return value * 100;
+        } else
+            return value;
+    }
+
+    private static double makeNomination(double value, String denominationStage) {
+        if (denominationStage == null || denominationStage.trim().endsWith("before")) {
+            return value * 100;
+        } else if (denominationStage.trim().endsWith("fusion")) {
+            return value / 100;
         } else
             return value;
     }

@@ -10,6 +10,7 @@ import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import java.math.BigDecimal;
 import java.sql.SQLException;
 
 public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
@@ -26,10 +27,11 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
+            String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
 
-            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5));
+            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5, denominationStage));
             if (result instanceof Double) {
-                context.requestUserInteraction(new MessageClientAction(String.valueOf(result), "Сумма наличных в кассе"));
+                context.requestUserInteraction(new MessageClientAction(String.valueOf(new BigDecimal((Double)result)), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
                 context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
             }

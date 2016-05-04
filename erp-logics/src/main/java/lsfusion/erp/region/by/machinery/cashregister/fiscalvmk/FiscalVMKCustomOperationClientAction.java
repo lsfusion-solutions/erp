@@ -13,17 +13,23 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
     int baudRate;
     int type;
     String textTop;
+    String denominationStage;
 
     public FiscalVMKCustomOperationClientAction(String ip, Integer comPort, Integer baudRate, int type) {
         this(ip, comPort, baudRate, type, null);
     }
 
-    public FiscalVMKCustomOperationClientAction(String ip, Integer comPort, Integer baudRate, int type, String textTop) {
+    public FiscalVMKCustomOperationClientAction(String ip, Integer comPort, Integer baudRate, int type, String denominationStage) {
+        this(ip, comPort, baudRate, type, null, denominationStage);
+    }
+
+    public FiscalVMKCustomOperationClientAction(String ip, Integer comPort, Integer baudRate, int type, String textTop, String denominationStage) {
         this.type = type;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
         this.ip = ip;
         this.textTop = textTop;
+        this.denominationStage = denominationStage;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
@@ -50,7 +56,7 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
                     FiscalVMK.cancelReceipt();
                     break;
                 case 5:
-                    return FiscalVMK.getCashSum(true);
+                    return FiscalVMK.getCashSum(true, denominationStage);
                 case 6:
                     FiscalVMK.opensmIfClose();
                     FiscalVMK.printFiscalText(textTop);

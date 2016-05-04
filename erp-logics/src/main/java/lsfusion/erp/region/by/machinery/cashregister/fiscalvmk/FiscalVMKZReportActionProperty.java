@@ -30,7 +30,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
 
             if (context.checkApply()) {
                 if(ip == null) { //rs-232
-                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 2, fiscalVMKReportTop));
+                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 2, fiscalVMKReportTop, null));
                     if (result instanceof Integer) {
                         if ((Integer) result != 0)
                             findProperty("number[ZReport]").change(String.valueOf(result), context, zReportObject);
@@ -38,10 +38,10 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                     }
                 } else { //ethernet
-                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 6, fiscalVMKReportTop));
+                    Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 6, fiscalVMKReportTop, null));
                     if(result == null) {
                         context.requestUserInteraction(new MessageClientAction("Дождитесь окончания печати z-отчета и нажмите ОК", "Подождите..."));
-                        result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 7, fiscalVMKReportTop));
+                        result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 7, fiscalVMKReportTop, null));
                         if (result instanceof Integer) {
                             if ((Integer) result != 0)
                                 findProperty("number[ZReport]").change(String.valueOf(result), context, zReportObject);
@@ -50,7 +50,7 @@ public class FiscalVMKZReportActionProperty extends ScriptingActionProperty {
                         }
                     } else if (result instanceof String) {
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
-                        context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 8, fiscalVMKReportTop));
+                        context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 8, fiscalVMKReportTop, null));
                     }
 
                 }
