@@ -823,6 +823,7 @@ END
 @defineConsignmentForm(consignmentHorizontalB, 'ТТН-1, горизонтальная (сторона Б)');
 @defineConsignmentForm(consignmentAttach, 'Приложение к ТТН-1');
 @defineConsignmentForm(consignmentVerticalAB, 'ТТН-1, вертикальная (сторона А/Б)');
+@defineConsignmentForm(consignmentHorizontalAB, 'ТТН-1, горизонтальная (сторона А/Б)');
 
 @defineConsignment(consignmentVerticalA, a);
 @defineConsignment(consignmentHorizontalA, a);
@@ -830,6 +831,7 @@ END
 @defineConsignment(consignmentHorizontalB, b);
 @defineConsignment(consignmentAttach, c);
 @defineConsignment(consignmentVerticalAB, a);
+@defineConsignment(consignmentHorizontalAB, a);
 
 @defineExtendConsignmentForm(consignmentVerticalA, a);
 @defineExtendConsignmentForm(consignmentHorizontalA, a);
@@ -837,6 +839,7 @@ END
 @defineExtendConsignmentForm(consignmentHorizontalB, b);
 @defineExtendConsignmentForm(consignmentAttach, c);
 @defineExtendConsignmentForm(consignmentVerticalAB, a);
+@defineExtendConsignmentForm(consignmentHorizontalAB, a);
 
 @definePrintConsignmentForm(verticalA, 'ТТН-1, вертикальная (сторона А)', a);
 @definePrintConsignmentForm(horizontalA, 'ТТН-1, горизонтальная (сторона А)', a);
@@ -845,7 +848,6 @@ END
 @definePrintConsignmentFormExtra(attach, 'Приложение к ТТН-1', c);
 
 printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с приложением' (Consignment consignment) = ACTION NEWSESSION {
-    //stopPrintConsignment() <- NULL;
     checkMandatoryAttribute(consignment);
     IF NOT stopPrintConsignment() THEN {
         FORM consignmentAttach OBJECTS c = consignment PRINT;
@@ -855,10 +857,21 @@ printVerticalABAttach 'ТТН-1 вертикальная (А/Б) с прилож
         
     }
 } IMAGE 'print.png' IN print;
+printHorizontalABAttach 'ТТН-1 горизонтальная (А/Б) с приложением' (Consignment consignment) = ACTION NEWSESSION {
+    checkMandatoryAttribute(consignment);
+    IF NOT stopPrintConsignment() THEN {
+        FORM consignmentAttach OBJECTS c = consignment PRINT;
+        countPages(consignment) <- formPageCount() WHERE NOT countPages(consignment);                      
+        FORM consignmentHorizontalAB OBJECTS a = consignment PRINT;
+        apply(); 
+        
+    }
+} IMAGE 'print.png' IN print;
 
 printAttachXLS 'Приложение к ТТН-1 (xls)' (Consignment consignment) = ACTION FORM consignmentAttach OBJECTS c = consignment PRINT XLSX IN print;
 printSimpleAttachXLS 'Приложение к ТН-2 (xls)' (Consignment consignment) = ACTION FORM consignmentSimpleAttach OBJECTS c = consignment PRINT XLSX IN print;
 @definePrintConsignmentForm(verticalAB, 'ТТН-1, вертикальная (сторона А/Б)', a);
+@definePrintConsignmentForm(horizontalAB, 'ТТН-1, горизонтальная (сторона А/Б)', a);
 
 //-------------------  Создание сквозной накладной  ----------------------//
 
@@ -1011,7 +1024,7 @@ FORM printConsignment 'Печать накладных'
     OBJECTS c=Consignment FIXED PANEL
 
     PROPERTIES (c)  printSimpleVertical, printSimpleHorizontal, printSimpleAttach,
-                    printVerticalA, printVerticalAB, printHorizontalA, printVerticalB,
+                    printVerticalA, printVerticalAB, printHorizontalA, printHorizontalAB, printVerticalB,
                     printHorizontalB, printAttach, editAttributes,
                     printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS
 ;
@@ -1052,6 +1065,7 @@ DESIGN printConsignment {
                 type = CONTAINERV;
                 MOVE PROPERTY(printHorizontalA(c));
                 MOVE PROPERTY(printHorizontalB(c));
+                MOVE PROPERTY(printHorizontalAB(c));
             }
             NEW ttn1A {
                 MOVE PROPERTY(printAttach(c));
