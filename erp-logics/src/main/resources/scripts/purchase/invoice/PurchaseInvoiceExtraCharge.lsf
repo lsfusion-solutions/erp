@@ -14,6 +14,12 @@ inExtraCharge 'Вкл.' (Invoice invoice, UserInvoiceDetail detail) =
     OVERRIDE inExtraCharge(invoice, userInvoice(detail)), inDataExtraCharge(invoice, detail);
 inExtraCharge(Invoice invoice, UserInvoiceDetail detail) += inExtraCharge(invoice, detail);
 
+inExtraCharge (charge, invoice) = GROUP SUM 1 IF inExtraCharge(Invoice charge, InvoiceDetail d) BY charge, invoice(d);
+nameSuppliers 'Поставщики' =GROUP CONCAT  nameSupplier(Invoice invoice) IF inExtraCharge(Invoice charge, invoice), '; ' 
+    BY charge ORDER invoice MINCHARWIDTH 20 PREFCHARWIDTH 40;
+seriesNumberSuppliers 'Накладные' =GROUP CONCAT  seriesNumber(Invoice invoice) IF inExtraCharge(Invoice charge, invoice), '; ' 
+    BY charge ORDER invoice MINCHARWIDTH 20 PREFCHARWIDTH 40;  
+
 overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      
     inDataExtraCharge(Invoice i,d) <- inDataExtraCharge(i,detail);
 } 
@@ -35,8 +41,8 @@ extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[16,2](round(quantity(
 extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,InvoiceDetail d) BY i;
 extraChargeSumUserInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) BY i;
 
-extraChargePrice  (o, d) = GROUP SUM extraChargePrice(Invoice i,UserInvoiceDetail d) IF isPosted(i) BY operation(i),d;
-extraChargeSum  (o, d) = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) IF isPosted(i) BY operation(i),d;
+extraChargePrice 'Цена доп. услуг' (o, d) = GROUP SUM extraChargePrice(Invoice i,UserInvoiceDetail d) IF isPosted(i) BY operation(i),d;
+extraChargeSum  'Сумма доп. услуг' (o, d) = GROUP SUM extraChargeSum(Invoice i,UserInvoiceDetail d) IF isPosted(i) BY operation(i),d;
 
 @defineOperationProperty(showExtraCharge, 'Доп. услуги', commonContainer);
 @defineDocumentInterfaceProperty (invoice, showExtraCharge, 'Доп. услуги');
@@ -111,7 +117,8 @@ EXTEND FORM userInvoice
     PROPERTIES(i,uid) SHOWIF showExtraCharge(i) extraChargePrice BACKGROUND backgroundExtraChargeInvoice(), extraChargeSum BACKGROUND backgroundExtraChargeInvoice()                               
     FILTERS inExtraCharge(i,uid)   
                                         
-    PROPERTIES SHOWIF showExtraCharge(i) toWeightExtraCharge(i), extraChargeSumUserInvoiceDetail(i) BACKGROUND backgroundExtraChargeInvoice()
+    PROPERTIES SHOWIF showExtraCharge(i) toWeightExtraCharge(i), extraChargeSumUserInvoiceDetail(i) BACKGROUND backgroundExtraChargeInvoice(),
+               nameSuppliers(i) READONLY BACKGROUND backgroundExtraChargeInvoice(), seriesNumberSuppliers(i) READONLY BACKGROUND backgroundExtraChargeInvoice()
 ;
 DESIGN userInvoice {
     specification.box {        
@@ -123,6 +130,8 @@ DESIGN userInvoice {
                 type = CONTAINERH;
                 MOVE PROPERTY (toWeightExtraCharge(i));
                 MOVE PROPERTY (extraChargeSumUserInvoiceDetail(i)) {minimumCharWidth = 15; preferredCharWidth = 20;}
+                MOVE PROPERTY (nameSuppliers(i)) {minimumCharWidth = 15; preferredCharWidth = 20;}
+                MOVE PROPERTY (seriesNumberSuppliers(i)) {minimumCharWidth = 15; preferredCharWidth = 20;}
             }
             MOVE uid.box;
         }        
@@ -300,7 +309,7 @@ createExtraChargeUser 'Накладная (закупка) доп. услуги'
                     price(d) <- nu();                    
                     
                 }
-                inExtraCharge(i,invoice) <- TRUE;
+                inExtraCharge[Invoice,UserInvoice](i,invoice) <- TRUE;
                 fillExtraChargePriceUser(i);
                 FORM userInvoice OBJECTS i=i MANAGESESSION DOCKEDMODAL NOCANCEL;
             }
