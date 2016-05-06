@@ -34,8 +34,16 @@ wholesaleCalcPriceListType (UserInvoice invoice) <- wholesaleCalcPriceListType(o
     WHEN CHANGED(operation(invoice));
 
 
-@defineDocumentDetailPriceListTypePrefix (invoice, invoiceDetail, calcPriceListType, wholesale, ' (надбавка)');
-@defineDocumentDetailPriceListTypePrefix (userInvoice, userInvoiceDetail, calcPriceListType, wholesale, ' (надбавка)');
+@defineDocumentInterfaceDetailPriceListType (invoice, calcPriceListType, wholesale, ' (опт)');
+
+overWholesaleCalcPriceListType = ABSTRACT CASE OVERRIDE FIRST  CalcPriceListType (UserInvoiceDetail);
+
+WHEN SESSION FORMS userInvoice
+    (CHANGED(sku(UserInvoiceDetail detail)) OR
+     CHANGED(supplierStock(detail)) OR
+     CHANGED(customerStock(detail)) OR
+     (CHANGED(dateTime(detail)) AND NOT isPosted(detail))) DO
+     wholesaleCalcPriceListType(detail) <- OVERRIDE wholesaleCalcPriceListType(userInvoice(detail)), overWholesaleCalcPriceListType(detail);
 
 // Объявляем цену для строки
 @defineDocumentInterfaceDetailPriceCustomPrefix (invoiceDetail, wholesale, ' (оптовая)');
@@ -81,7 +89,7 @@ backgroundWholesale 'Цвет' (Invoice invoice) = RGB(238, 250, 200) IF invoice
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundWholesale(i) showWholesalePrice, nameWholesaleCalcPriceListType SHOWIF showWholesalePrice(i)
-    PROPERTIES(d) BACKGROUND backgroundWholesale(i) SHOWIF showWholesalePrice(i) BEFORE deleteid wholesaleMarkup,
+    PROPERTIES(d) BACKGROUND backgroundWholesale(i) SHOWIF showWholesalePrice(i) BEFORE deleteid nameWholesaleCalcPriceListType, wholesaleMarkup,
                   wholesalePrice ON CHANGE changeWholesalePrice(d)
 ;
 DESIGN userInvoice {
@@ -95,7 +103,7 @@ DESIGN userInvoice {
 }
 
 EXTEND FORM invoices
-    PROPERTIES(d) READONLY BACKGROUND backgroundWholesale(i) SHOWIF showWholesalePrice(i) wholesaleMarkup, wholesalePrice
+    PROPERTIES(d) READONLY BACKGROUND backgroundWholesale(i) SHOWIF showWholesalePrice(i) nameWholesaleCalcPriceListType, wholesaleMarkup, wholesalePrice
 ;
 
 // Создаем виды цен
