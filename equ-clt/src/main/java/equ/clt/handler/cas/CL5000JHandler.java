@@ -80,7 +80,7 @@ public class CL5000JHandler extends ScalesHandler {
                                         int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                         int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                         processTransactionLogger.info(String.format("CL5000: Sending item %s to scales %s", barcode, scales.port));
-                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name, getPrice(item.price, priceCoefficient), trim(item.description, null, descriptionLength - 1));
+                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name, getPrice(item.price, priceCoefficient), trim(item.description, null, descriptionLength - 1), item.extraPercent);
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                             errorsCount++;
@@ -126,7 +126,7 @@ public class CL5000JHandler extends ScalesHandler {
         }
     }
 
-    private int sendItem(DataSocket socket, short weightCode, int pluNumber, int barcode, String name, int price, String description) throws IOException, CommunicationException {
+    private int sendItem(DataSocket socket, short weightCode, int pluNumber, int barcode, String name, int price, String description, BigDecimal extraPercent) throws IOException, CommunicationException {
         int descriptionLength = description == null ? 0 : (description.length() + 1);
         ByteBuffer bytes = ByteBuffer.allocate(160 + descriptionLength);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -159,7 +159,7 @@ public class CL5000JHandler extends ScalesHandler {
         bytes.putInt(price); //unit price
         bytes.putInt(0); //special price
         bytes.putInt(0); //tare weight
-        bytes.put((byte) 0);//tare number
+        bytes.put((byte) (extraPercent == null ? 0 : extraPercent.intValue()));//tare number, исп. только в cl5000d
         bytes.putShort((short) 0); //barcode number
         bytes.putShort((short) 0); //aux barcode number
         bytes.putShort((short) 0); //produced date

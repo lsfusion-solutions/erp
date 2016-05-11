@@ -12,8 +12,15 @@ public class MachineryInfo implements Serializable {
     public String handlerModel;
     public String port;
     public String directory;
+    public String denominationStage;
 
-    public MachineryInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory) {
+    public MachineryInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel,
+                         String handlerModel, String port, String directory) {
+        this(enabled, cleared, succeeded, numberGroup, number, nameModel, handlerModel, port, directory, null);
+    }
+
+    public MachineryInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel,
+                         String handlerModel, String port, String directory, String denominationStage) {
         this.enabled = enabled;
         this.cleared = cleared;
         this.succeeded = succeeded;
@@ -23,5 +30,6 @@ public class MachineryInfo implements Serializable {
         this.handlerModel = handlerModel;
         this.port = port;
         this.directory = directory;
+        this.denominationStage = denominationStage;
     }
 }

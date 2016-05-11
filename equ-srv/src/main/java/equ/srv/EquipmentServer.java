@@ -286,6 +286,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 
                 String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, groupMachineryObject);
                 String nameModelGroupMachinery = (String) equLM.findProperty("nameModel[GroupMachinery]").read(session, groupMachineryObject);
+                String denominationStageGroupMachinery = (String) cashRegisterLM.findProperty("nameDenominationStage[GroupMachinery]").read(session, groupMachineryObject);
 
                 ValueExpr transactionExpr = transactionObject.getExpr();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
@@ -347,6 +348,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     for (int i = 0; i < scalesSkuProperties.length; i++) {
                         skuQuery.addProperty(scalesSkuNames[i], scalesSkuProperties[i].getExpr(transactionExpr, barcodeExpr));
                     }
+                    skuQuery.addProperty("extraPercent", scalesItemLM.findProperty("extraPercent[MachineryPriceTransaction, Barcode]").getExpr(transactionExpr, barcodeExpr));
                 }
                 
                 if (machineryPriceTransactionStockTaxLM != null) {
@@ -411,7 +413,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean enabled = row.get("inMachineryPriceTransactionMachinery") != null;
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
-                                startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
+                                /*denominationStageGroupMachinery, */startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
                                 disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister));
                     }
 
@@ -454,8 +456,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     transactionList.add(new TransactionCashRegisterInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, itemGroupMap, cashRegisterItemInfoList,
-                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, overDepartmentNumberGroupCashRegister,
-                            weightCodeGroupCashRegister, nameStockGroupCashRegister));
+                            cashRegisterInfoList, snapshotTransaction, lastErrorDateTransaction, /*denominationStageGroupMachinery, */overDepartmentNumberGroupCashRegister, weightCodeGroupCashRegister, nameStockGroupCashRegister));
 
                 } else if (isScalesPriceTransaction) {
                     List<ScalesInfo> scalesInfoList = new ArrayList<>();
@@ -488,7 +489,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
                         boolean cleared = values.get("clearedMachineryMachineryPriceTransaction") != null;
                         scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
-                                nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directory,
+                                nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directory, denominationStageGroupMachinery,
                                 pieceCodeGroupScales, weightCodeGroupScales));
                     }
 
@@ -515,16 +516,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         
                         String idItemGroup = scalesItemLM == null ? null : (String) row.get("ScalesItem.idSkuGroupMachineryPriceTransactionBarcode");
                         String canonicalNameSkuGroup = (String) row.get("canonicalNameSkuGroupMachineryPriceTransactionBarcode");
+                        BigDecimal extraPercent = scalesItemLM == null ? null : (BigDecimal) row.get("extraPercent");
 
                         scalesItemInfoList.add(new ScalesItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, 
                                 passScales, valueVAT, pluNumber, flags, idItemGroup, canonicalNameSkuGroup, hoursExpiry,
-                                labelFormat, description, descriptionNumberCellScales, idUOM, shortNameUOM));
+                                labelFormat, description, descriptionNumberCellScales, idUOM, shortNameUOM, extraPercent));
                     }
 
                     transactionList.add(new TransactionScalesInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, scalesItemInfoList, scalesInfoList, snapshotTransaction,
-                            lastErrorDateTransaction));
+                            lastErrorDateTransaction, denominationStageGroupMachinery));
 
                 } else if (isPriceCheckerPriceTransaction) {
                     List<PriceCheckerInfo> priceCheckerInfoList = new ArrayList<>();
@@ -550,7 +552,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Boolean succeeded = row.get("succeededMachineryMachineryPriceTransaction") != null;
                         Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
                         priceCheckerInfoList.add(new PriceCheckerInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
-                                nameModelGroupMachinery, handlerModelGroupMachinery, (String) row.get("portMachinery")));
+                                nameModelGroupMachinery, handlerModelGroupMachinery, (String) row.get("portMachinery")/*, denominationStageGroupMachinery*/));
                     }
 
                     List<PriceCheckerItemInfo> priceCheckerItemInfoList = new ArrayList<>();
@@ -574,7 +576,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     transactionList.add(new TransactionPriceCheckerInfo((Integer) transactionObject.getValue(), dateTimeCode,
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery,
                             nameGroupMachinery, descriptionTransaction, priceCheckerItemInfoList, priceCheckerInfoList,
-                            snapshotTransaction, lastErrorDateTransaction));
+                            snapshotTransaction, lastErrorDateTransaction/*, denominationStageGroupMachinery*/));
 
 
                 } else if (isTerminalPriceTransaction) {
@@ -609,7 +611,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         Boolean cleared = row.get("clearedMachineryMachineryPriceTransaction") != null;
                         terminalInfoList.add(new TerminalInfo(enabled, cleared, succeeded, nppGroupMachinery, (Integer) row.get("nppMachinery"),
                                 nameModelGroupMachinery, handlerModelGroupMachinery, getRowValue(row, "portMachinery"),
-                                directoryGroupTerminal, idPriceListType));
+                                directoryGroupTerminal, /*denominationStageGroupMachinery, */idPriceListType));
                     }
 
                     List<TerminalItemInfo> terminalItemInfoList = new ArrayList<>();
@@ -639,7 +641,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     transactionList.add(new TransactionTerminalInfo((Integer) transactionObject.getValue(), dateTimeCode, 
                             date, handlerModelGroupMachinery, (Integer) groupMachineryObject.object, nppGroupMachinery, nameGroupMachinery,
                             descriptionTransaction, terminalItemInfoList, terminalInfoList, snapshotTransaction, lastErrorDateTransaction,
-                            terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
+                            /*denominationStageGroupMachinery, */terminalHandbookTypeList, terminalDocumentTypeList, terminalLegalEntityList, terminalAssortmentList,
                             nppGroupTerminal, directoryGroupTerminal));
                 }
             }
@@ -775,17 +777,17 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         }
     }
 
-    private int discountCardCompare(String d1, String d2) {
-        int result = 0;
-        if (d1 != null && d2 != null) {
-            try {
-                result = Integer.parseInt(d1) - Integer.parseInt(d2);
-            } catch (Exception e) {
-                result = 0;
-            }
-        }
-        return result;
-    }
+//    private int discountCardCompare(String d1, String d2) {
+//        int result = 0;
+//        if (d1 != null && d2 != null) {
+//            try {
+//                result = Integer.parseInt(d1) - Integer.parseInt(d2);
+//            } catch (Exception e) {
+//                result = 0;
+//            }
+//        }
+//        return result;
+//    }
 
     @Override
     public List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException {
@@ -925,8 +927,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         ImRevMap<Object, KeyExpr> machineryKeys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
         QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
-        String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery"};
-        LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "idStock[GroupMachinery]");
+        String[] groupMachineryNames = new String[] {"nppGroupMachinery", "handlerModelGroupMachinery", "idStockGroupMachinery", "denominationStage"};
+        LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "idStock[GroupMachinery]", "nameDenominationStage[GroupMachinery]");
         for (int i = 0; i < groupMachineryProperties.length; i++) {
             machineryQuery.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
         }
@@ -955,17 +957,18 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             boolean isScales = machineryClass != null && machineryClass.equals(scalesClass);
             String idStockGroupMachinery = (String) values.get("idStockGroupMachinery").getValue();
             Integer overDepartNumber = (Integer) values.get("overDepartmentNumber").getValue();
+            String denominationStage = trim((String) values.get("denominationStage").getValue());
 
             Map<String, Set<MachineryInfo>> handlerMap = stockMap.containsKey(idStockGroupMachinery) ? stockMap.get(idStockGroupMachinery) : new HashMap<String, Set<MachineryInfo>>();
             if(!handlerMap.containsKey(handlerModel))
                 handlerMap.put(handlerModel, new HashSet<MachineryInfo>());
             if(isCashRegister) {
-                CashRegisterInfo e = new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery);
+                CashRegisterInfo e = new CashRegisterInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, /*denominationStage, */idStockGroupMachinery);
                 // чтобы не менять api
                 e.overDepartNumber = overDepartNumber;
                 handlerMap.get(handlerModel).add(e);
             } else if(isScales){
-                handlerMap.get(handlerModel).add(new ScalesInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, idStockGroupMachinery));
+                handlerMap.get(handlerModel).add(new ScalesInfo(nppGroupMachinery, nppMachinery, handlerModel, port, directory, denominationStage, idStockGroupMachinery));
             }
             stockMap.put(idStockGroupMachinery, handlerMap);
         }
@@ -1369,7 +1372,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     String idDiscountCardTo = trim((String) requestExchangeResult.getValue(i).get("idDiscountCardToRequestExchange").getValue());
                     String typeRequestExchange = trim((String) requestExchangeResult.getValue(i).get("nameRequestExchangeTypeRequestExchange").getValue());
 
-                    Set<Integer> cashRegisterSet = new HashSet<> ();
+                    Set<Integer/*CashRegisterInfo*/> cashRegisterSet = new HashSet<> ();
                     Map<String, Set<String>> directoryStockMap = readExtraStockRequestExchange(session, requestExchangeObject);
                     String idStock = null;
 
@@ -1377,8 +1380,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     ImRevMap<Object, KeyExpr> machineryKeys = MapFact.singletonRev((Object) "machinery", machineryExpr);
                     QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
-                    String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery"};
-                    LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectory[Machinery]", "idStock[Machinery]", "npp[Machinery]");
+                    String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery", "denominationStage"};
+                    LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectory[Machinery]", "idStock[Machinery]",
+                            "npp[Machinery]", "nameDenominationStage[Machinery]");
                     for (int j = 0; j < machineryProperties.length; j++) {
                         machineryQuery.addProperty(machineryNames[j], machineryProperties[j].getExpr(machineryExpr));
                     }
@@ -1392,8 +1396,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                         String directoryMachinery = trim((String) result.getValue(j).get("overDirectoryMachinery").getValue());
                         idStock = trim((String) result.getValue(j).get("idStockMachinery").getValue());
                         Integer nppMachinery = (Integer) result.getValue(j).get("nppMachinery").getValue();
+                        //String denominationStage = trim((String) result.getValue(j).get("denominationStage").getValue());
 
-                        cashRegisterSet.add(nppMachinery);
+                        cashRegisterSet.add(nppMachinery/*new CashRegisterInfo(null, nppMachinery, null, null, directoryMachinery, denominationStage, null)*/);
                         putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
                     }
 
@@ -1535,9 +1540,11 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
 
                 String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
-                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister", "idStockGroupMachinery"};
+                        "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister",
+                        "idStockGroupMachinery"/*, "denominationStage"*/};
                 LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]",
-                        "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]");
+                        "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]"/*,
+                        "nameDenominationStage[GroupMachinery]"*/);
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
@@ -1553,7 +1560,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     cashRegisterInfoList.add(new CashRegisterInfo((Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryMachinery"), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
+                            (String) row.get("overDirectoryMachinery"), /*trim((String) row.get("denominationStage")), */(Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
                             (String) row.get("weightCodeGroupCashRegister")));
                 }
@@ -1589,9 +1596,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 }
 
                 String[] groupTerminalNames = new String[]{"nameModelGroupMachinery", "handlerModelGroupMachinery",
-                        "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery"};
+                        "directoryGroupTerminal", "idPriceListTypeGroupMachinery", "nppGroupMachinery"/*, "denominationStage"*/};
                 LCP[] groupTerminalProperties = terminalLM.findProperties("nameModel[GroupMachinery]", "handlerModel[GroupMachinery]",
-                        "directory[GroupTerminal]", "idPriceListType[GroupMachinery]", "npp[GroupMachinery]");
+                        "directory[GroupTerminal]", "idPriceListType[GroupMachinery]", "npp[GroupMachinery]"/*, "nameDenominationStage[GroupMachinery]"*/);
                 for (int i = 0; i < groupTerminalProperties.length; i++) {
                     query.addProperty(groupTerminalNames[i], groupTerminalProperties[i].getExpr(groupTerminalExpr));
                 }
@@ -1607,7 +1614,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     terminalInfoList.add(new TerminalInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("directoryGroupTerminal"), (String) row.get("idPriceListTypeGroupMachinery")));
+                            (String) row.get("directoryGroupTerminal"), /*trim((String) row.get("denominationStage")), */(String) row.get("idPriceListTypeGroupMachinery")));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException e) {
                 throw new RuntimeException(e.toString());
@@ -1636,8 +1643,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                     query.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
                 }
 
-                String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery"};
-                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]");
+                String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
+                        "denominationStage"};
+                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]",
+                        "nameDenominationStage[GroupMachinery]");
                 for (int i = 0; i < groupMachineryProperties.length; i++) {
                     query.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
                 }
@@ -1652,7 +1661,7 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 for (ImMap<Object, Object> row : result.values()) {
                     machineryInfoList.add(new MachineryInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
-                            (String) row.get("overDirectoryMachinery")));
+                            (String) row.get("overDirectoryMachinery"), trim((String) row.get("denominationStage"))));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -1890,8 +1899,9 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
 
-            String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery"};
-            LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]", "overDirectory[Machinery]");
+            String[] machineryNames = new String[] {"nppMachinery", "nppGroupMachineryMachinery", "overDirectoryMachinery", "denominationStage"};
+            LCP[] machineryProperties = equipmentCashRegisterLM.findProperties("npp[Machinery]", "nppGroupMachinery[Machinery]",
+                    "overDirectory[Machinery]", "nameDenominationStage[Machinery]");
             for (int i = 0; i < machineryProperties.length; i++) {
                 query.addProperty(machineryNames[i], machineryProperties[i].getExpr(cashRegisterExpr));
             }
@@ -1904,9 +1914,10 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 Integer nppMachinery = (Integer) entry.get("nppMachinery");
                 Integer nppGroupMachinery = (Integer) entry.get("nppGroupMachineryMachinery");
                 String overDirectoryMachinery = trim((String) entry.get("overDirectoryMachinery"));
+                String denominationStage = trim((String) entry.get("denominationStage"));
                 if(nppMachinery != null && nppGroupMachinery != null && overDirectoryMachinery != null) {
                     List<List<Object>> nppMachineryList = cashRegisterList.containsKey(nppGroupMachinery) ? cashRegisterList.get(nppGroupMachinery) : new ArrayList<List<Object>>();
-                    nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery));
+                    nppMachineryList.add(Arrays.asList((Object) nppMachinery, overDirectoryMachinery, denominationStage));
                     cashRegisterList.put(nppGroupMachinery, nppMachineryList);
                 }
             }
