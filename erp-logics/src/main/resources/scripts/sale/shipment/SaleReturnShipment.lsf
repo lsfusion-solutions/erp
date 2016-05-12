@@ -263,19 +263,20 @@ changeShipmentPrice(InvoiceShipment s) += changeShipmentPrice(invoice(s));
 
 EXTEND CLASS ShipmentDetail : PriceListLedger;
 
-fromDateTime (ShipmentDetail ledger) += dateTime(ledger);
+// todo : убрать IF changed
+fromDateTime (ShipmentDetail ledger) += dateTime(ledger) IF changeShipmentPrice(ledger);
 
-isPosted[PriceListLedger](ShipmentDetail ledger) += isPosted(ledger);
+isPosted[PriceListLedger](ShipmentDetail ledger) += isPosted(ledger) IF changeShipmentPrice(ledger);
 
-sku[PriceListLedger] (ShipmentDetail ledger) += sku(ledger);
+sku[PriceListLedger] (ShipmentDetail ledger) += sku(ledger) IF changeShipmentPrice(ledger);
 
-description[PriceListLedger] (ShipmentDetail ledger) += description(ledger);
+description[PriceListLedger] (ShipmentDetail ledger) += description(ledger) IF changeShipmentPrice(ledger);
 
-company (ShipmentDetail ledger) += supplier(ledger);
+company (ShipmentDetail ledger) += supplier(ledger) IF changeShipmentPrice(ledger);
 
 in (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType THEN changeShipmentPrice(ledger);
 price (ShipmentDetail ledger, SystemLedgerPriceListType account) += WHEN price(ledger) AND account == SystemLedgerPriceListType.accountPriceListType AND changeShipmentPrice(ledger) THEN price(ledger);
 
-in (ShipmentDetail ledger, Stock stock) += supplierStock(ledger) == stock;
-in(ShipmentDetail ledger, Batch batch) += batch(ledger) == batch; 
+in (ShipmentDetail ledger, Stock stock) += supplierStock(ledger) == stock IF changeShipmentPrice(ledger);
+in(ShipmentDetail ledger, Batch batch) += batch(ledger) == batch IF changeShipmentPrice(ledger); 
 edit[PriceListLedger](ShipmentDetail d) += ACTION edit(d);
