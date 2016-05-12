@@ -265,9 +265,11 @@ shipmentBase 'Основание отпуска' (Consignment consignment) = OVE
                                                                       overShipmentBase(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 notUseIssuanceAllowed 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
 dataIssuanceAllowed = DATA VARSTRING[100](Consignment);
+overIssuanceAllowed (consignment) = DATA Employee (Consignment);
 issuanceAllowed (consignment) = ABSTRACT Employee (Consignment);
-nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE positionShortName(issuanceAllowed(consignment)),
-                                                                                             dataIssuanceAllowed(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
+nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = OVERRIDE positionShortName(overIssuanceAllowed(consignment)), // для агрегированных объектов (накладная на основании накладной)
+                                                                                              positionShortName(issuanceAllowed(consignment)),
+                                                                                              dataIssuanceAllowed(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 changeIssuanceAllowed(Consignment consignment) = ACTION {    
     IF notUseIssuanceAllowed(consignment) THEN {
         REQUEST VARSTRING[100] INPUT;
@@ -276,16 +278,22 @@ changeIssuanceAllowed(Consignment consignment) = ACTION {
         REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
             issuanceAllowed(consignment) <- requestedObject();
+            IF NOT issuanceAllowed(consignment) THEN {
+                overIssuanceAllowed(consignment) <- requestedObject();
+            }
         } ELSE IF formResult() == FormResult.drop THEN {
             issuanceAllowed(consignment) <- NULL;
+            overIssuanceAllowed(consignment) <- NULL;
         }
     }        
 }
 notUseIssuanceExecuted 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
 dataIssuanceExecuted = DATA VARSTRING[100](Consignment);
+overIssuanceExecuted (consignment) = DATA Employee(Consignment);
 issuanceExecuted (consignment) = ABSTRACT Employee(Consignment);
-nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) = OVERRIDE positionShortName(issuanceExecuted(consignment)),
-                                                                                              dataIssuanceExecuted(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
+nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) = OVERRIDE  positionShortName(overIssuanceExecuted(consignment)),
+                                                                                                positionShortName(issuanceExecuted(consignment)),
+                                                                                                dataIssuanceExecuted(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 changeIssuanceExecuted(Consignment consignment) = ACTION {    
     IF notUseIssuanceExecuted(consignment) THEN {
         REQUEST VARSTRING[100] INPUT;
@@ -294,8 +302,12 @@ changeIssuanceExecuted(Consignment consignment) = ACTION {
         REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
             issuanceExecuted(consignment) <- requestedObject();
+            IF NOT issuanceExecuted(consignment) THEN {
+                overIssuanceExecuted(consignment) <- requestedObject();
+            }
         } ELSE IF formResult() == FormResult.drop THEN {
             issuanceExecuted(consignment) <- NULL;
+            overIssuanceExecuted(consignment) <- NULL;
         }
     }        
 }
