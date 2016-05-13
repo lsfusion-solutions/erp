@@ -37,15 +37,15 @@ calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d,
     FORM dialogSkuGroup MODAL;
     IF formResult() == FormResult.ok THEN {              
         IF onStockPriceListRepricing() THEN {
-            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)),
-                                                                                      sku, d, dt) IF inSession(skuGroup(sku));
+            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)), sku, d, dt) 
+                IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, o, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
                 IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
             managementRetailPrice(Sku sku) <- managementPriceListPrice(sku) WHERE managementPriceListPrice(sku);
         } ELSE {
-            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)),
-                                                                                      sku, d, dt) IF currentBalance(sku, d) > 0 AND inSession(skuGroup(sku));
+            managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)), sku, d, dt)
+                IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
             overSetMarkupManagementRetailPrice(d, o, dt);
             managementPriceListPrice (Sku sku) <- prevPriceA((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt)
                 IF currentBalance(sku, d) > 0 AND NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
