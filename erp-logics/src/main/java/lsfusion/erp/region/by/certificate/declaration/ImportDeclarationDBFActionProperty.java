@@ -23,7 +23,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.xBaseJ.DBF;
 import org.xBaseJ.xBaseJException;
 
@@ -108,17 +107,9 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
 
             ImportTable table = new ImportTable(fields, data);
 
-            String resultMessage;
-            try (DataSession session = context.createSession()) {
-                session.pushVolatileStats("DBF_DN");
-                IntegrationService service = new IntegrationService(session, table, keys, props);
-                service.synchronize(true, false);
-                resultMessage = session.applyMessage(context);
-                session.popVolatileStats();
-            }
-            if (resultMessage == null) {
-                context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт из декларанта"));
-            }
+            IntegrationService service = new IntegrationService(context.getSession(), table, keys, props);
+            service.synchronize(true, false);
+            context.requestUserInteraction(new MessageClientAction("Импорт успешно завершён", "Импорт из декларанта"));
         }
     }
 
@@ -204,7 +195,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         List<List<Object>> data = null;
         Object[][] variants = new Object[declarationMap.size()][1];
         int i = 0;
-        for(String key : declarationMap.keySet()) {
+        for (String key : declarationMap.keySet()) {
             variants[i][0] = key;
             i++;
         }
@@ -213,7 +204,7 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
         else {
             Integer index = (Integer) (declarationMap.size() == 1 ? 0 :
                     context.requestUserInteraction(new ChooseObjectClientAction("Выберите декларацию", new String[]{"Номер декларации"}, variants)));
-            if(index != null) {
+            if (index != null) {
                 if (index == -1)
                     index = 0;
 
