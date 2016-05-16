@@ -547,7 +547,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             Set<String> stockSet = new HashSet<>();
                             for (MachineryInfo machineryInfo : machineryInfoSet) {
                                 if (machineryInfo instanceof CashRegisterInfo)
-                                    stockSet.add(((CashRegisterInfo) machineryInfo).idStock);
+                                    stockSet.add(((CashRegisterInfo) machineryInfo).idDepartmentStore);
                             }
                             for (String idStock : stockSet) {
                                 shopIndices += idStock + " ";

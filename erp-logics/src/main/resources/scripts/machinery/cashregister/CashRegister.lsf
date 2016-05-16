@@ -36,15 +36,17 @@ ignoreCashRegisterServer 'Не работать с кассовым сервер
 
 allUserSnapshot 'Разрешить загрузку целиком всем пользователям' = DATA BOOLEAN(CashRegisterModel);
 
+showSection 'Показывать секции' = DATA BOOLEAN (CashRegisterModel);
+
 FORM cashRegisterModel 'Модель касс'
     OBJECTS c=CashRegisterModel FIXED PANEL
-    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot
+    PROPERTIES(c) name, sid, note, handler, dateTo, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection
     EDIT CashRegisterModel OBJECT c
 ;
 
 FORM cashRegistersModels 'Модели касс'
     OBJECTS c=CashRegisterModel
-    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot
+    PROPERTIES(c) READONLY name, sid, handler, note, maxSum, ignoreCashRegisterServer, allUserSnapshot, showSection
     PROPERTIES(c) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG CashRegisterModel OBJECT c
 ;
@@ -135,6 +137,7 @@ denominationStageCurrentCashRegister = nameDenominationStage(groupCashRegister(c
 
 ignoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = ignoreCashRegisterServer(cashRegisterModel(gcr));
 notIgnoreCashRegisterServerCashRegisterModel(GroupCashRegister gcr) = gcr IS GroupCashRegister AND NOT ignoreCashRegisterServerCashRegisterModel(gcr);
+showSection(GroupCashRegister gcr) = showSection(model(gcr));
 
 overChangeDirectory = ACTION ABSTRACT LIST (GroupCashRegister);
 changeDirectory(GroupCashRegister group) = ACTION {     
@@ -158,7 +161,7 @@ FORM groupCashRegister 'Группа касс'
                     filterSku, showFilterSku SHOWIF filterSku(grc),
                     namePriceListType, nameModel, 
                     directory SHOWIF notIgnoreCashRegisterServerCashRegisterModel(grc) ON CHANGE changeDirectory(grc),
-                    startDate, notDetailed, inactive, captionDenominationStage
+                    startDate, notDetailed, inactive, captionDenominationStage, section SHOWIF showSection(grc)
 
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachinery, npp, shortDescription, description, port SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
@@ -182,7 +185,7 @@ FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
     PROPERTIES(grc)  READONLY active, npp, departmentNumber, nameStock, name,
                      filterSku, nameModel, directory,
-                     startDate, notDetailed,  pieceCode, weightCode, captionDenominationStage
+                     startDate, notDetailed,  pieceCode, weightCode, captionDenominationStage, section SHOWIF showSection(grc)
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     PROPERTIES(c) READONLY npp, shortDescription, description, port, ip, comPort, baudRate,
@@ -240,30 +243,31 @@ EXTEND FORM stores
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
 cashRegisterSID (cashRegisterModel) = GROUP MAX CashRegisterModel scalesModel BY sid (scalesModel);
 
-loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler) = ACTION  {
+loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection) = ACTION  {
     IF NOT cashRegisterSID(isid) THEN {
         FOR ADDOBJ crm = CashRegisterModel DO {
-             ASSIGN name(crm) <- iname;
-             ASSIGN sid(crm) <- isid;
-             ASSIGN handler(crm) <- ihandler;
+             name(crm) <- iname;
+             sid(crm) <- isid;
+             handler(crm) <- ihandler;
+             showSection(crm) <- iShowSection;
         }
     }
 }
 
 loadDefaultCashRegisterModels 'Загрузить стандартные модели касс'() = ACTION {
-    EXEC loadDefaultCashRegisterModel('Кассы Atol', 'Atol', 'equ.clt.handler.atol.AtolHandler');
-    EXEC loadDefaultCashRegisterModel('Кассы EasyCSV', 'EasyCSV', 'equ.clt.handler.easy.EasyCSVHandler');
-    EXEC loadDefaultCashRegisterModel('Кассы Kristal', 'Kristal', 'equ.clt.handler.kristal.KristalHandler');
-    EXEC loadDefaultCashRegisterModel('Кассы Kristal 10', 'Kristal10', 'equ.clt.handler.kristal10.Kristal10Handler');
-    EXEC loadDefaultCashRegisterModel('Кассы Maxishop', 'Maxishop', 'equ.clt.handler.maxishop.MaxishopHandler');
-    EXEC loadDefaultCashRegisterModel('Кассы UKM4', 'Ukm4', 'equ.clt.handler.ukm4.UKM4Handler');
-    EXEC loadDefaultCashRegisterModel('Кассы UKM4 MySQL', 'Ukm4-mysql', 'equ.clt.handler.ukm4mysql.UKM4MySQLHandler');
-    EXEC loadDefaultCashRegisterModel('Кассы HTC', 'HTC', 'equ.clt.handler.htc.HTCHandler');
-    EXEC loadDefaultCashRegisterModel('Кассы BelCoopSoyuz', 'BelCoopSoyuz', 'equ.clt.handler.belcoopsoyuz.BelCoopSoyuzHandler');
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор DateCS', 'DateCS', '');
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор VMK', 'VMK', '');
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Casbi', 'Casbi', '');
-    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Shtrih', 'Shtrih', '');
+    EXEC loadDefaultCashRegisterModel('Кассы Atol', 'Atol', 'equ.clt.handler.atol.AtolHandler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы EasyCSV', 'EasyCSV', 'equ.clt.handler.easy.EasyCSVHandler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы Kristal', 'Kristal', 'equ.clt.handler.kristal.KristalHandler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы Kristal 10', 'Kristal10', 'equ.clt.handler.kristal10.Kristal10Handler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы Maxishop', 'Maxishop', 'equ.clt.handler.maxishop.MaxishopHandler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы UKM4', 'Ukm4', 'equ.clt.handler.ukm4.UKM4Handler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы UKM4 MySQL', 'Ukm4-mysql', 'equ.clt.handler.ukm4mysql.UKM4MySQLHandler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы HTC', 'HTC', 'equ.clt.handler.htc.HTCHandler', NULL);
+    EXEC loadDefaultCashRegisterModel('Кассы BelCoopSoyuz', 'BelCoopSoyuz', 'equ.clt.handler.belcoopsoyuz.BelCoopSoyuzHandler', TRUE);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор DateCS', 'DateCS', '', NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор VMK', 'VMK', '', NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Casbi', 'Casbi', '', NULL);
+    EXEC loadDefaultCashRegisterModel('Фискальный регистратор Shtrih', 'Shtrih', '', NULL);
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultCashRegisterModels);

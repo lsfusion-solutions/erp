@@ -3,15 +3,14 @@ package equ.clt.handler.belcoopsoyuz;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
-import net.iryndin.jdbf.core.DbfField;
-import net.iryndin.jdbf.core.DbfFieldTypeEnum;
 import net.iryndin.jdbf.core.DbfRecord;
 import net.iryndin.jdbf.reader.DbfReader;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
 import org.xBaseJ.DBF;
-import org.xBaseJ.fields.*;
+import org.xBaseJ.fields.CharField;
+import org.xBaseJ.fields.Field;
 import org.xBaseJ.xBaseJException;
 
 import java.io.*;
@@ -51,7 +50,6 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
         Map<String, Exception> brokenDirectoriesMap = new HashMap<>();
         for (TransactionCashRegisterInfo transaction : transactionList) {
 
-            List<MachineryInfo> succeededCashRegisterList = new ArrayList<>();
             Exception exception = null;
             try {
 
@@ -60,21 +58,11 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                 } else {
                     processTransactionLogger.info(String.format("BelCoopSoyuz: Send Transaction # %s", transaction.id));
 
-                    List<CashRegisterInfo> enabledCashRegisterList = new ArrayList<>();
+                    Map<String, CashRegisterInfo> directoryMap = new HashMap<>();
                     for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                        if (cashRegister.enabled)
-                            enabledCashRegisterList.add(cashRegister);
-                    }
-
-                    Map<String, List<CashRegisterInfo>> directoryMap = new HashMap<>();
-                    for (CashRegisterInfo cashRegister : enabledCashRegisterList.isEmpty() ? transaction.machineryInfoList : enabledCashRegisterList) {
-                        if (cashRegister.succeeded || cashRegister.directory == null)
-                            succeededCashRegisterList.add(cashRegister);
-                        else {
+                        if(cashRegister.directory != null) {
                             String directory = cashRegister.directory.trim();
-                            List<CashRegisterInfo> cashRegisterEntry = directoryMap.containsKey(directory) ? directoryMap.get(directory) : new ArrayList<CashRegisterInfo>();
-                            cashRegisterEntry.add(cashRegister);
-                            directoryMap.put(directory, cashRegisterEntry);
+                            directoryMap.put(directory, cashRegister);
                         }
                     }
 
@@ -99,7 +87,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         File cachedPriceMdxFile = null;
 
                         List<List<Object>> waitList = new ArrayList<>();
-                        for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
+                        for (Map.Entry<String, CashRegisterInfo> entry : directoryMap.entrySet()) {
 
                             String directory = entry.getKey();
                             if (brokenDirectoriesMap.containsKey(directory)) {
@@ -143,7 +131,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                             putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
                                             putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
                                             putField(dbfFile, NEOBFREE, "9999", 25, append); //остаток
-                                            putField(dbfFile, CECUCOD, "600358416 MF", 25, append); //секция todo протянуть unp
+                                            putField(dbfFile, CECUCOD, entry.getValue().idStock, 25, append); //секция, "600358416 MF"
                                             putField(dbfFile, CEOPCURO, "BYR 974 1", 25, append); //валюта
                                             for (CashRegisterItemInfo item : transaction.itemsList) {
                                                 if (!Thread.currentThread().isInterrupted()) {
@@ -204,7 +192,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                                 processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, directory + "/" + fileName));
                                             }
                                             if (flagPriceFile.createNewFile())
-                                                waitList.add(Arrays.asList(priceFile, flagPriceFile, directory, entry.getValue()));
+                                                waitList.add(Arrays.<Object>asList(priceFile, flagPriceFile, directory, entry.getValue()));
                                             else {
                                                 processTransactionLogger.error("BelCoopSoyuz: error while create flag file " + flagPriceFile.getAbsolutePath());
                                             }
@@ -223,7 +211,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                             }
                         }
                         processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s wait for deletion", transaction.id));
-                        Exception deletionException = waitForDeletion(waitList, succeededCashRegisterList, brokenDirectoriesMap);
+                        Exception deletionException = waitForDeletion(waitList, brokenDirectoriesMap);
                         processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s end waiting for deletion", transaction.id));
                         exception = exception == null ? deletionException : exception;
 
@@ -237,33 +225,9 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             } catch (Exception e) {
                 exception = e;
             }
-            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(succeededCashRegisterList, exception));
+            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
         return sendTransactionBatchMap;
-    }
-
-    public DbfField createCharDBFField(String name, int length) {
-        final DbfField fld = new DbfField();
-        fld.setName(name);
-        fld.setType(DbfFieldTypeEnum.Character);
-        fld.setLength(length);
-        return fld;
-    }
-
-    public DbfField createNumDBFField(String name, int length, int decimal) {
-        final DbfField fld = new DbfField();
-        fld.setName(name);
-        fld.setType(DbfFieldTypeEnum.Numeric);
-        fld.setLength(length);
-        fld.setNumberOfDecimalPlaces(decimal);
-        return fld;
-    }
-
-    public DbfField createDateDBFField(String name) {
-        final DbfField fld = new DbfField();
-        fld.setName(name);
-        fld.setType(DbfFieldTypeEnum.Date);
-        return fld;
     }
 
     @Override
@@ -305,7 +269,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             field.put(value);
     }
 
-    private Exception waitForDeletion(List<List<Object>> waitList, List<MachineryInfo> succeededCashRegisterList, Map<String, Exception> brokenDirectoriesMap) {
+    private Exception waitForDeletion(List<List<Object>> waitList, Map<String, Exception> brokenDirectoriesMap) {
         int count = 0;
         while (!Thread.currentThread().isInterrupted() && !waitList.isEmpty()) {
             try {
@@ -318,11 +282,8 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                     File file = (File) waitEntry.get(0);
                     File flagFile = (File) waitEntry.get(1);
                     String directory = (String) waitEntry.get(2);
-                    List<CashRegisterInfo> cashRegisterInfoList = (List<CashRegisterInfo>) waitEntry.get(3);
                     if (flagFile.exists() || file.exists())
-                        nextWaitList.add(Arrays.asList(file, flagFile, directory, cashRegisterInfoList));
-                    else
-                        succeededCashRegisterList.addAll(cashRegisterInfoList);
+                        nextWaitList.add(Arrays.<Object>asList(file, flagFile, directory));
                 }
                 waitList = nextWaitList;
                 Thread.sleep(1000);
@@ -386,10 +347,10 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException {
 
-        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
+        Map<String, CashRegisterInfo> sectionCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.handlerModel != null && c.directory != null && c.handlerModel.endsWith("BelCoopSoyuzHandler")) {
-                directoryCashRegisterMap.put(c.directory, c);
+            if (c.idStock != null && c.handlerModel != null && c.handlerModel.endsWith("BelCoopSoyuzHandler")) {
+                sectionCashRegisterMap.put(c.idStock, c);
             }
         }
 
@@ -445,9 +406,10 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                     Date dateReceipt = getJDBFDateFieldValue(rec, "TEDOCINS");
                                     Time timeReceipt = getJDBFTimeFieldValue(rec, "TEDOCINS");
                                     String barcodeItem = getJDBFFieldValue(rec, "CEOBIDE");
+                                    String section = getJDBFFieldValue(rec, "CESUCOD");
 
-                                    CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory);
-                                    Integer nppMachinery = getJDBFIntegerFieldValue(rec, "CEOPDEV");
+                                    CashRegisterInfo cashRegister = sectionCashRegisterMap.get(section);
+                                    Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
                                     String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
