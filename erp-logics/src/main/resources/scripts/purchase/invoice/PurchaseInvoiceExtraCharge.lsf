@@ -154,16 +154,12 @@ fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = ACTION {
                 extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         
         } ELSE {
-            IF NOT [ = GROUP SUM 1 IF [ = GROUP SUM 1 IF inExtraCharge(Invoice i,InvoiceDetail d) BY i, currency(d)](Invoice i,Currency c) BY i](i) >1 THEN {
-                extraChargeSum(i, UserInvoiceDetail d) <- 
-                    PARTITION UNGROUP calcChargeSum
-                                      PROPORTION STRICT ROUND(2) sum(d) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
-                                      BY i;
-                extraChargePrice(i, UserInvoiceDetail d) <-
-                    extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
-            } ELSE {
-                MESSAGE 'Для расписывания доп. услуг пропорционально сумме выбраны накладные с разными валютами.';
-            }
+            extraChargeSum(i, UserInvoiceDetail d) <- 
+                PARTITION UNGROUP calcChargeSum
+                                  PROPORTION STRICT ROUND(2) (IF isHomeCurrency(d) THEN homeSum(d) ELSE sum(d)) IF inExtraCharge(i, d) AND isNotCharge(sku(d))
+                                  BY i;
+            extraChargePrice(i, UserInvoiceDetail d) <-
+                extraChargeSum(i, d) / quantity(d) WHERE inExtraCharge[Invoice, InvoiceDetail](i, d) AND isNotCharge(sku[InvoiceDetail](d));
         }
     } ELSE {
         MESSAGE 'Для инвойса не задана валюта.';
