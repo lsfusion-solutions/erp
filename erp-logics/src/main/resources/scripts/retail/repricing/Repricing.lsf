@@ -447,12 +447,14 @@ printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTIO
 
 toFillQuantityUserRepricingDetail 'Записать в кол-во остатки'(UserRepricing repricing) = ACTION {
     quantity(UserRepricingDetail d) <- IF batch(d) THEN balanceB(batch(d),   
-                                                                            departmentStore(d), 
-                                                                            dateTime(d)) 
-                                                                     ELSE balanceB(sku(d), 
-                                                                            departmentStore(d), 
-                                                                            dateTime(d))                                                                      
-                                                                     WHERE userRepricing(d) == repricing;    
+                                                        departmentStore(d), 
+                                                        dateTime(d)) 
+                                                 ELSE balanceB(sku(d), 
+                                                        departmentStore(d), 
+                                                        dateTime(d))                                                                      
+                                                 WHERE userRepricing(d) == repricing;
+                                                                     
+    quantity(UserRepricingDetail d) <- NULL WHERE quantity(d) < 0.0 AND userRepricing(d) == repricing;
 }
 
 toFillQuantityUserRepricingDetailAllUserRepricings 'Записать в кол-во остатки (для всех)'() = ACTION NEWSESSION {
