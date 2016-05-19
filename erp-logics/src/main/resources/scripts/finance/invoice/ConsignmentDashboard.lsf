@@ -29,6 +29,7 @@ DESIGN options {
         MOVE PROPERTY(singleInvoicedOrder());
     }    
 }
+overPrintConsignment  =  ACTION ABSTRACT LIST (Order);
 
 printConsignment 'Создать накладные'(Order order) = ACTION {
     IF countInConsignmentPrintOrder() THEN {
@@ -49,8 +50,11 @@ printConsignment 'Создать накладные'(Order order) = ACTION {
                     date[PurchaseReturn.UserInvoice](i) <- date(trip(i));
                     time[PurchaseReturn.UserInvoice](i) <- OVERRIDE time(trip(i)), timeOfArrival(trip(i));
                     arrivalTime[PurchaseReturn.Invoice](i) <- dateTime(trip(i));                                
-                }                
+                }                 
             }
+            FOR inConsignmentPrint(Order o) DO {
+                overPrintConsignment(o);
+            }            
             apply();
         }
     } ELSE {
@@ -67,8 +71,9 @@ printConsignment 'Создать накладные'(Order order) = ACTION {
                 date[PurchaseReturn.UserInvoice](i) <- date(trip(i));
                 time[PurchaseReturn.UserInvoice](i) <- OVERRIDE time(trip(i)), timeOfArrival(trip(i));
                 arrivalTime[PurchaseReturn.Invoice](i) <- dateTime(trip(i));                                
-            }            
+            }             
         }
+        overPrintConsignment(order);           
         apply();
     }
 } TOOLBAR EDITKEY 'ctrl ENTER';
