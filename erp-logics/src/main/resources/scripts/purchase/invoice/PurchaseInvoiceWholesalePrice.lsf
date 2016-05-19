@@ -81,6 +81,18 @@ changeWholesalePrice(UserInvoiceDetail detail) = ACTION {
     }
 }
 
+changeWholesaleMarkup (UserInvoiceDetail detail) = ACTION {
+    REQUEST NUMERIC[8,3] INPUT;
+    IF requestedNumeric() THEN {
+        wholesaleMarkup(detail) <- requestedNumeric();
+        wholesalePrice(detail) <- round((basePrice(detail) * (wholesaleMarkup(detail) + 100)/ 100),
+                                                                            roundCondition(wholesaleCalcPriceListType(detail)));
+    } ELSE {
+        wholesaleMarkup(detail) <- NULL;
+        wholesalePrice(detail) <- basePrice(detail);  
+    }
+} 
+
 calcWholesalePrice(UserInvoiceDetail detail)  = round([= X*(Y+100)/100](
     basePrice(detail),
     wholesaleMarkup(detail)),currency(detail));
@@ -89,7 +101,8 @@ backgroundWholesale 'Цвет' (Invoice invoice) = RGB(238, 250, 200) IF invoice
 
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundWholesale(i) showWholesalePrice, nameWholesaleCalcPriceListType SHOWIF showWholesalePrice(i)
-    PROPERTIES(d) BACKGROUND backgroundWholesale(i) SHOWIF showWholesalePrice(i) BEFORE deleteid nameWholesaleCalcPriceListType, wholesaleMarkup,
+    PROPERTIES(d) BACKGROUND backgroundWholesale(i) SHOWIF showWholesalePrice(i) BEFORE deleteid nameWholesaleCalcPriceListType, 
+                  wholesaleMarkup ON CHANGE changeWholesaleMarkup(d),
                   wholesalePrice ON CHANGE changeWholesalePrice(d)
 ;
 DESIGN userInvoice {
