@@ -927,7 +927,7 @@ calcDutySum 'Пошлина' (DeclarationDetail d) = round((MAX calcSumWeightDut
                                                                      calcSumPriceDuty(d)),
                                                                 homeCurrency(d)) MINCHARWIDTH 12;
 
-WHEN SESSION FORMS declaration CHANGED(calcDutySum(DeclarationDetail d)) AND NOT isExported(d) DO
+WHEN SESSION FORMS declaration CHANGED(calcDutySum(DeclarationDetail d)) AND NOT CHANGED(dutySum(d)) AND NOT isExported(d) DO
     dutySum(d) <- calcDutySum(d);
 
 // -------------------------------- Расчет НДС -------------------------- //
@@ -941,7 +941,7 @@ calcVATSum 'НДС' (DeclarationDetail d) =
 
 WHEN SESSION FORMS declaration
     (CHANGED(homeSum(DeclarationDetail d)) OR CHANGED(dutySum(d)) OR
-    CHANGED(VAT(d)) OR CHANGED(homeCurrency(d))) AND NOT isExported(d) DO
+    CHANGED(VAT(d)) OR CHANGED(homeCurrency(d))) AND NOT CHANGED(dutySum(d)) AND NOT isExported(d) DO
     VATSum(d) <- calcVATSum(d);
 
 // ------------------------------ Таможенный сбор ----------------------------- //
