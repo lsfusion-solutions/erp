@@ -5,6 +5,8 @@ import equ.api.*;
 import equ.api.cashregister.*;
 import net.iryndin.jdbf.core.DbfRecord;
 import net.iryndin.jdbf.reader.DbfReader;
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
@@ -27,6 +29,8 @@ import java.text.DecimalFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBatch> {
 
@@ -68,38 +72,59 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         }
                     }
 
-                    try {
+                    List<List<Object>> waitList = new ArrayList<>();
+                    for (Map.Entry<String, CashRegisterInfo> entry : directoryMap.entrySet()) {
 
-                        CharField CEUNIKEY = new CharField("CEUNIKEY", 25);
-                        CharField CEDOCCOD = new CharField("CEDOCCOD", 25);
-                        CharField CEOBIDE = new CharField("CEOBIDE", 25);
-                        CharField CEOBMEA = new CharField("CEOBMEA", 25);
-                        CharField MEOBNAM = new CharField("MEOBNAM", 100);
-                        NumField2 NEOBFREE = new NumField2("NEOBFREE", 18, 6);
-                        NumField2 NEOPLOS = new NumField2("NEOPLOS", 18, 6);
-                        NumField2 NERECOST = new NumField2("NERECOST", 18, 6);
-                        CharField CEOPCURO = new CharField("CEOPCURO", 25);
-                        NumField2 NEOPPRIC = new NumField2("NEOPPRIC", 18, 2);
-                        NumField2 NEOPPRIE = new NumField2("NEOPPRIE", 18, 2);
-                        NumField2 NEOPNDS = new NumField2("NEOPNDS", 6, 2);
-                        CharField CECUCOD = new CharField("CECUCOD", 25);
-                        CharField FORMAT = new CharField("FORMAT", 10);
+                        String directory = entry.getKey();
+                        CashRegisterInfo cashRegister = entry.getValue();
+                        if (brokenDirectoriesMap.containsKey(directory)) {
+                            exception = brokenDirectoriesMap.get(directory);
+                        } else {
+                            boolean ftp = directory.startsWith("ftp://");
+                            String priceName = "a9sk34lsf";
+                            String baseName = "base";
+                            if(ftp) {
+                                String pricePath = directory + "/" + priceName + ".dbf";
+                                String flagPricePath = directory + "/" + priceName + ".lsf";
+                                String basePath = directory + "/" + baseName + ".dbf";
+                                processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s, writing to %s", transaction.id, directory));
 
-                        List<List<Object>> waitList = new ArrayList<>();
-                        for (Map.Entry<String, CashRegisterInfo> entry : directoryMap.entrySet()) {
+                                File baseFile = File.createTempFile(baseName, ".dbf");
+                                File baseMdxFile = new File(baseFile.getAbsolutePath().replace(".dbf", ".mdx"));
+                                File flagPriceFile = File.createTempFile(priceName, ".lsf");
+                                boolean append = !transaction.snapshot && copyFTPToFile(basePath, baseFile);
 
-                            String directory = entry.getKey();
-                            CashRegisterInfo cashRegister = entry.getValue();
-                            if (brokenDirectoriesMap.containsKey(directory)) {
-                                exception = brokenDirectoriesMap.get(directory);
+                                try {
+                                    //write to local base file
+                                    writeBaseFile(transaction, cashRegister, baseFile, append);
+
+                                    processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s started copying %s file", transaction.id, pricePath));
+                                    storeFileToFTP(basePath, baseFile);
+                                    storeFileToFTP(pricePath, baseFile);
+                                    processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, pricePath));
+                                    storeFileToFTP(flagPricePath, flagPriceFile);
+                                    waitList.add(Arrays.<Object>asList(ftp, pricePath, flagPricePath, directory));
+                                } catch (Exception e) {
+                                    brokenDirectoriesMap.put(directory, e);
+                                    exception = e;
+                                    processTransactionLogger.error("BelCoopSoyuz: error while create files", e);
+                                } finally {
+                                    safeFileDelete(baseFile, processTransactionLogger);
+                                    safeFileDelete(baseMdxFile, processTransactionLogger);
+                                    safeFileDelete(flagPriceFile, processTransactionLogger);
+                                }
                             } else {
+                                String pricePath = directory + "/" + priceName + ".dbf";
+                                String flagPricePath = directory + "/" + priceName + ".lsf";
+                                String basePath = directory + "/" + baseName + ".lsf";
+                                String baseMDXPath = directory + "/" + baseName + ".mdx";
                                 if (new File(directory).exists() || new File(directory).mkdirs()) {
                                     processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s, writing to %s", transaction.id, directory));
-                                    String fileName = "a9sk34lsf";
-                                    File priceFile = new File(directory + "/" + fileName + ".dbf");
-                                    File flagPriceFile = new File(directory + "/" + fileName + ".lsf");
-                                    File baseFile = new File(directory + "/base.dbf");
-                                    File baseMdxFile = new File(directory + "/base.mdx");
+
+                                    File baseFile = new File(basePath);
+                                    File baseMdxFile = new File(baseMDXPath);
+                                    if(ftp)
+                                        copyFTPToFile(basePath, baseFile);
 
                                     if(transaction.snapshot) {
                                         safeFileDelete(baseFile, processTransactionLogger);
@@ -108,112 +133,36 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
                                     boolean append = !transaction.snapshot && baseFile.exists();
 
-                                    DBF dbfFile = null;
+                                    File priceFile = new File(pricePath);
+                                    File flagPriceFile = new File(flagPricePath);
                                     try {
+                                        //write to local base file
+                                        writeBaseFile(transaction, cashRegister, baseFile, append);
 
-                                        if (append) {
-                                            dbfFile = new DBF(baseFile.getAbsolutePath(), charset);
-                                        } else {
-                                            dbfFile = new DBF(baseFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
-                                            dbfFile.addField(new Field[]{CEUNIKEY, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM,
-                                                    NEOBFREE, NEOPLOS, NERECOST, CEOPCURO, NEOPPRIC, NEOPPRIE, NEOPNDS, FORMAT, CECUCOD});
+                                        processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s started copying %s file", transaction.id, pricePath));
+                                        FileCopyUtils.copy(baseFile, priceFile);
+                                        processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, pricePath));
+                                        if (flagPriceFile.createNewFile())
+                                            waitList.add(Arrays.<Object>asList(ftp, priceFile, flagPriceFile, directory));
+                                        else {
+                                            processTransactionLogger.error("BelCoopSoyuz: error while create flag file " + flagPriceFile.getAbsolutePath());
                                         }
-
-                                        Set<String> usedBarcodes = new HashSet<>();
-                                        Map<String, Integer> barcodeRecordMap = new HashMap<>();
-                                        for (int i = 1; i <= dbfFile.getRecordCount(); i++) {
-                                            dbfFile.read();
-                                            String barcode = getDBFFieldValue(dbfFile, "CEUNIKEY", charset);
-                                            barcodeRecordMap.put(barcode, i);
-                                        }
-                                        dbfFile.startTop();
-
-                                        putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
-                                        putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
-                                        putField(dbfFile, NEOBFREE, "9999", 25, append); //остаток
-                                        putField(dbfFile, CECUCOD, cashRegister.idStock, 25, append); //секция, "600358416 MF"
-                                        putField(dbfFile, CEOPCURO, "BYR 974 1", 25, append); //валюта
-                                        for (CashRegisterItemInfo item : transaction.itemsList) {
-                                            if (!Thread.currentThread().isInterrupted()) {
-
-                                                String barcode = appendBarcode(item.idBarcode);
-                                                if (!usedBarcodes.contains(barcode)) {
-                                                    Integer recordNumber = null;
-                                                    if (append) {
-                                                        recordNumber = barcodeRecordMap.get(barcode);
-                                                        if (recordNumber != null)
-                                                            dbfFile.gotoRecord(recordNumber);
-                                                    }
-
-                                                    putField(dbfFile, CEUNIKEY, barcode, 25, append);
-                                                    putField(dbfFile, CEOBIDE, barcode, 25, append);
-                                                    putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
-                                                    putField(dbfFile, MEOBNAM, trim(item.name, 100), 25, append);
-                                                    BigDecimal price = /*denominateMultiplyType2(*/item.price/*, transaction.denominationStage)*/;
-                                                    putNumField(dbfFile, NERECOST, price, append);
-                                                    putNumField(dbfFile, NEOPPRIC, price, append);
-                                                    putNumField(dbfFile, NEOPPRIE, price, append);
-                                                    putNumField(dbfFile, NEOPNDS, item.vat, append);
-                                                    putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
-
-                                                    if (recordNumber != null)
-                                                        dbfFile.update();
-                                                    else {
-                                                        dbfFile.write();
-                                                        dbfFile.file.setLength(dbfFile.file.length() - 1);
-                                                        if (append)
-                                                            barcodeRecordMap.put(barcode, barcodeRecordMap.size() + 1);
-                                                    }
-                                                    usedBarcodes.add(barcode);
-                                                }
-                                            }
-                                        }
-
-                                        putField(dbfFile, CEUNIKEY, null, 25, append);
-                                        putField(dbfFile, CEDOCCOD, null, 25, append);
-                                        putField(dbfFile, CEOBIDE, null, 25, append);
-                                        putField(dbfFile, CEOBMEA, null, 25, append);
-                                        putField(dbfFile, MEOBNAM, null, 100, append);
-                                        putNumField(dbfFile, NEOBFREE, null, append);
-                                        putNumField(dbfFile, NEOPLOS, 25, append);
-                                        putNumField(dbfFile, NERECOST, 25, append);
-                                        putField(dbfFile, CEOPCURO, null, 25, append);
-                                        putNumField(dbfFile, NEOPPRIC, 25, append);
-                                        putNumField(dbfFile, NEOPPRIE, 25, append);
-                                        putNumField(dbfFile, NEOPNDS, 25, append);
-                                        putField(dbfFile, CECUCOD, null, 25, append);
-                                        putField(dbfFile, FORMAT, null, 10, append);
-
-                                        try {
-                                            processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s started copying %s file", transaction.id, directory + "/" + fileName));
-                                            FileCopyUtils.copy(baseFile, priceFile);
-                                            processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s finished copying %s file", transaction.id, directory + "/" + fileName));
-                                            if (flagPriceFile.createNewFile())
-                                                waitList.add(Arrays.<Object>asList(priceFile, flagPriceFile, directory));
-                                            else {
-                                                processTransactionLogger.error("BelCoopSoyuz: error while create flag file " + flagPriceFile.getAbsolutePath());
-                                            }
-                                        } catch (IOException e) {
-                                            brokenDirectoriesMap.put(priceFile.getParent(), e);
-                                            exception = e;
-                                            processTransactionLogger.error("BelCoopSoyuz: error while create files", e);
-                                        }
-                                    } finally {
-                                        if (dbfFile != null)
-                                            dbfFile.close();
+                                    } catch (Exception e) {
+                                        brokenDirectoriesMap.put(directory, e);
+                                        exception = e;
+                                        processTransactionLogger.error("BelCoopSoyuz: error while create files", e);
                                     }
+
                                 } else {
                                     processTransactionLogger.error("BelCoopSoyuz: error while create files: unable to create dir " + directory);
                                 }
                             }
                         }
-                        processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s wait for deletion", transaction.id));
-                        Exception deletionException = waitForDeletion(waitList, brokenDirectoriesMap);
-                        processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s end waiting for deletion", transaction.id));
-                        exception = exception == null ? deletionException : exception;
-                    } catch (xBaseJException e) {
-                        throw Throwables.propagate(e);
                     }
+                    processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s wait for deletion", transaction.id));
+                    Exception deletionException = waitForDeletion(waitList, brokenDirectoriesMap);
+                    processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s end waiting for deletion", transaction.id));
+                    exception = exception == null ? deletionException : exception;
                 }
             } catch (Exception e) {
                 exception = e;
@@ -221,6 +170,251 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
         }
         return sendTransactionBatchMap;
+    }
+
+    private boolean copyFTPToFile(String path, File file) throws IOException {
+        List<Object> properties = parseFTPPath(path, 21);
+        if (properties != null) {
+            String username = (String) properties.get(0);
+            String password = (String) properties.get(1);
+            String server = (String) properties.get(2);
+            Integer port = (Integer) properties.get(3);
+            String remoteFile = (String) properties.get(4);
+            FTPClient ftpClient = new FTPClient();
+            ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
+            try {
+
+                ftpClient.connect(server, port);
+                ftpClient.login(username, password);
+                ftpClient.enterLocalPassiveMode();
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+                OutputStream outputStream = new FileOutputStream(file);
+                boolean done = ftpClient.retrieveFile(remoteFile, outputStream);
+                outputStream.close();
+                if (!done)
+                    processTransactionLogger.info("BelCoopSoyuz: base file was not found, will be created new one");
+                return done;
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ftpClient.isConnected()) {
+                    ftpClient.logout();
+                    ftpClient.disconnect();
+                }
+            }
+        } else {
+            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+        }
+    }
+
+    private boolean existsFTPFile(String path) throws IOException {
+        List<Object> properties = parseFTPPath(path, 21);
+        if (properties != null) {
+            String username = (String) properties.get(0);
+            String password = (String) properties.get(1);
+            String server = (String) properties.get(2);
+            Integer port = (Integer) properties.get(3);
+            String remoteFile = (String) properties.get(4);
+            FTPClient ftpClient = new FTPClient();
+            ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
+            try {
+
+                ftpClient.connect(server, port);
+                ftpClient.login(username, password);
+                ftpClient.enterLocalPassiveMode();
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+                InputStream stream = ftpClient.retrieveFileStream(remoteFile);
+                int returnCode = ftpClient.getReplyCode();
+                return !(stream == null || returnCode == 550);
+
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ftpClient.isConnected()) {
+                    ftpClient.logout();
+                    ftpClient.disconnect();
+                }
+            }
+        } else {
+            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+        }
+    }
+
+    private boolean backupFTPFile(String path, String from, String to) throws IOException {
+        List<Object> properties = parseFTPPath(path, 21);
+        if (properties != null) {
+            String username = (String) properties.get(0);
+            String password = (String) properties.get(1);
+            String server = (String) properties.get(2);
+            Integer port = (Integer) properties.get(3);
+            String remoteDir = (String) properties.get(4);
+            FTPClient ftpClient = new FTPClient();
+            ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
+            try {
+
+                ftpClient.connect(server, port);
+                ftpClient.login(username, password);
+                ftpClient.enterLocalPassiveMode();
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+                ftpClient.makeDirectory("/" + remoteDir + "/backup");
+                return ftpClient.rename("/" + remoteDir + "/" + from, "/" + remoteDir + "/" + to) &&
+                        ftpClient.rename("/" + remoteDir + "/" + to, "/" + remoteDir + "/backup/" + to);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ftpClient.isConnected()) {
+                    ftpClient.logout();
+                    ftpClient.disconnect();
+                }
+            }
+        } else {
+            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+        }
+    }
+
+    private List<Object> parseFTPPath(String path, Integer defaultPort) {
+        /*sftp|ftp://username:password@host:port/path_to_file*/
+        Pattern connectionStringPattern = Pattern.compile("s?ftp:\\/\\/(.*):(.*)@([^\\/:]*)(?::([^\\/]*))?(?:\\/(.*))?");
+        Matcher connectionStringMatcher = connectionStringPattern.matcher(path);
+        if (connectionStringMatcher.matches()) {
+            String username = connectionStringMatcher.group(1); //lstradeby
+            String password = connectionStringMatcher.group(2); //12345
+            String server = connectionStringMatcher.group(3); //ftp.harmony.neolocation.net
+            boolean noPort = connectionStringMatcher.groupCount() == 4;
+            Integer port = noPort || connectionStringMatcher.group(4) == null ? defaultPort : Integer.parseInt(connectionStringMatcher.group(4)); //21
+            String remoteFile = connectionStringMatcher.group(noPort ? 4 : 5);
+            return Arrays.asList((Object) username, password, server, port, remoteFile);
+        } else return null;
+    }
+
+    public static void storeFileToFTP(String path, File file) throws IOException {
+        /*ftp://username:password@host:port/path_to_file*/
+        Pattern connectionStringPattern = Pattern.compile("ftp:\\/\\/(.*):(.*)@([^\\/:]*)(?::([^\\/]*))?(?:\\/(.*))?");
+        Matcher connectionStringMatcher = connectionStringPattern.matcher(path);
+        if (connectionStringMatcher.matches()) {
+            String username = connectionStringMatcher.group(1); //lstradeby
+            String password = connectionStringMatcher.group(2); //12345
+            String server = connectionStringMatcher.group(3); //ftp.harmony.neolocation.net
+            boolean noPort = connectionStringMatcher.group(4) == null;
+            Integer port = noPort ? 21 : Integer.parseInt(connectionStringMatcher.group(4)); //21
+            String remoteFile = connectionStringMatcher.group(5);
+            FTPClient ftpClient = new FTPClient();
+            ftpClient.setConnectTimeout(3600000); //1 hour = 3600 sec
+            try {
+
+                ftpClient.connect(server, port);
+                if (ftpClient.login(username, password)) {
+                    ftpClient.enterLocalPassiveMode();
+                    ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+                    InputStream inputStream = new FileInputStream(file);
+                    boolean done = ftpClient.storeFile(remoteFile, inputStream);
+                    inputStream.close();
+                    if(!done) {
+                        processTransactionLogger.error(String.format("BelCoopSoyuz: Failed writing file to %s", path));
+                        throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Some error occurred while writing file to ftp"));
+                    }
+                } else {
+                    throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect login or password. Writing file from ftp failed"));
+                }
+            } finally {
+                try {
+                    if (ftpClient.isConnected()) {
+                        ftpClient.logout();
+                        ftpClient.disconnect();
+                    }
+                } catch (IOException e) {
+                    e.printStackTrace();
+                }
+            }
+        } else {
+            throw Throwables.propagate(new RuntimeException("BelCoopSoyuz: Incorrect ftp url. Please use format: ftp://username:password@host:port/path_to_file"));
+        }
+    }
+
+    private void writeBaseFile(TransactionCashRegisterInfo transaction, CashRegisterInfo cashRegister, File baseFile, boolean append) throws IOException, xBaseJException {
+        DBF dbfFile = null;
+        try {
+
+            CharField CEUNIKEY = new CharField("CEUNIKEY", 25);
+            CharField CEDOCCOD = new CharField("CEDOCCOD", 25);
+            CharField CEOBIDE = new CharField("CEOBIDE", 25);
+            CharField CEOBMEA = new CharField("CEOBMEA", 25);
+            CharField MEOBNAM = new CharField("MEOBNAM", 100);
+            NumField2 NEOBFREE = new NumField2("NEOBFREE", 18, 6);
+            NumField2 NEOPLOS = new NumField2("NEOPLOS", 18, 6);
+            NumField2 NERECOST = new NumField2("NERECOST", 18, 6);
+            CharField CEOPCURO = new CharField("CEOPCURO", 25);
+            NumField2 NEOPPRIC = new NumField2("NEOPPRIC", 18, 2);
+            NumField2 NEOPPRIE = new NumField2("NEOPPRIE", 18, 2);
+            NumField2 NEOPNDS = new NumField2("NEOPNDS", 6, 2);
+            CharField CECUCOD = new CharField("CECUCOD", 25);
+            CharField FORMAT = new CharField("FORMAT", 10);
+
+            if (append) {
+                Util.setxBaseJProperty("ignoreMissingMDX", "true");
+                dbfFile = new DBF(baseFile.getAbsolutePath(), charset);
+            } else {
+                dbfFile = new DBF(baseFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
+                dbfFile.addField(new Field[]{CEUNIKEY, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM,
+                        NEOBFREE, NEOPLOS, NERECOST, CEOPCURO, NEOPPRIC, NEOPPRIE, NEOPNDS, FORMAT, CECUCOD});
+            }
+
+            Set<String> usedBarcodes = new HashSet<>();
+            Map<String, Integer> barcodeRecordMap = new HashMap<>();
+            for (int i = 1; i <= dbfFile.getRecordCount(); i++) {
+                dbfFile.read();
+                String barcode = getDBFFieldValue(dbfFile, "CEUNIKEY", charset);
+                barcodeRecordMap.put(barcode, i);
+            }
+            dbfFile.startTop();
+
+            putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
+            putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
+            putField(dbfFile, NEOBFREE, "9999", 25, append); //остаток
+            putField(dbfFile, CECUCOD, cashRegister.idStock, 25, append); //секция, "600358416 MF"
+            putField(dbfFile, CEOPCURO, "BYR 974 1", 25, append); //валюта
+            for (CashRegisterItemInfo item : transaction.itemsList) {
+                if (!Thread.currentThread().isInterrupted()) {
+
+                    String barcode = appendBarcode(item.idBarcode);
+                    if (!usedBarcodes.contains(barcode)) {
+                        Integer recordNumber = null;
+                        if (append) {
+                            recordNumber = barcodeRecordMap.get(barcode);
+                            if (recordNumber != null)
+                                dbfFile.gotoRecord(recordNumber);
+                        }
+
+                        putField(dbfFile, CEUNIKEY, barcode, 25, append);
+                        putField(dbfFile, CEOBIDE, barcode, 25, append);
+                        putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
+                        putField(dbfFile, MEOBNAM, trim(item.name, 100), 25, append);
+                        BigDecimal price = /*denominateMultiplyType2(*/item.price/*, transaction.denominationStage)*/;
+                        putNumField(dbfFile, NERECOST, price, append);
+                        putNumField(dbfFile, NEOPPRIC, price, append);
+                        putNumField(dbfFile, NEOPPRIE, price, append);
+                        putNumField(dbfFile, NEOPNDS, item.vat, append);
+                        putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
+
+                        if (recordNumber != null)
+                            dbfFile.update();
+                        else {
+                            dbfFile.write();
+                            dbfFile.file.setLength(dbfFile.file.length() - 1);
+                            if (append)
+                                barcodeRecordMap.put(barcode, barcodeRecordMap.size() + 1);
+                        }
+                        usedBarcodes.add(barcode);
+                    }
+                }
+            }
+        } finally {
+            if (dbfFile != null)
+                dbfFile.close();
+        }
     }
 
     @Override
@@ -283,10 +477,10 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             throw new xBaseJException("Field length too long; inDouble=" + inString + " (maxLength=" + field.Length + " / format=" + formatString + ")");
         }
 
-        int i = Math.min(inString.length(), field.Length);
+        int i;
 
         //-- fill database
-        byte b[] = null;
+        byte b[];
         try {
             b = inString.getBytes(DBF.encodedType);
         } catch (UnsupportedEncodingException uee) {
@@ -319,31 +513,56 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                     break;
                 }
                 for (List<Object> waitEntry : waitList) {
-                    File file = (File) waitEntry.get(0);
-                    File flagFile = (File) waitEntry.get(1);
-                    String directory = (String) waitEntry.get(2);
-                    if (flagFile.exists() || file.exists())
-                        nextWaitList.add(Arrays.<Object>asList(file, flagFile, directory));
+                    boolean ftp = (boolean) waitEntry.get(0);
+                    if(ftp) {
+                        String file = (String) waitEntry.get(1);
+                        String flagFile = (String) waitEntry.get(2);
+                        String directory = (String) waitEntry.get(3);
+                        if (existsFTPFile(flagFile) || existsFTPFile(file))
+                            nextWaitList.add(Arrays.<Object>asList(true, file, flagFile, directory));
+                    } else {
+                        File file = (File) waitEntry.get(1);
+                        File flagFile = (File) waitEntry.get(2);
+                        String directory = (String) waitEntry.get(3);
+                        if (flagFile.exists() || file.exists())
+                            nextWaitList.add(Arrays.<Object>asList(false, file, flagFile, directory));
+                    }
                 }
                 waitList = nextWaitList;
                 Thread.sleep(1000);
-            } catch (InterruptedException e) {
+            } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
         }
 
-        String exception = waitList.isEmpty() ? null : "BelCoopSoyuz: files has been created but not processed by cash register machine: ";
-        for (List<Object> waitEntry : waitList) {
-            File file = (File) waitEntry.get(0);
-            File flagFile = (File) waitEntry.get(1);
-            String directory = (String) waitEntry.get(2);
-            if (file.exists())
-                exception += file.getAbsolutePath() + "; ";
-            if (flagFile.exists())
-                exception += flagFile.getAbsolutePath() + "; ";
-            brokenDirectoriesMap.put(directory, new RuntimeException(exception));
+        try {
+            String exception = waitList.isEmpty() ? null : "BelCoopSoyuz: files has been created but not processed by cash register machine: ";
+            for (List<Object> waitEntry : waitList) {
+                boolean ftp = (boolean) waitEntry.get(0);
+                if (ftp) {
+                    String file = (String) waitEntry.get(1);
+                    String flagFile = (String) waitEntry.get(2);
+                    String directory = (String) waitEntry.get(3);
+                    if (existsFTPFile(file))
+                        exception += file + "; ";
+                    if (existsFTPFile(flagFile))
+                        exception += flagFile + "; ";
+                    brokenDirectoriesMap.put(directory, new RuntimeException(exception));
+                } else {
+                    File file = (File) waitEntry.get(0);
+                    File flagFile = (File) waitEntry.get(1);
+                    String directory = (String) waitEntry.get(2);
+                    if (file.exists())
+                        exception += file.getAbsolutePath() + "; ";
+                    if (flagFile.exists())
+                        exception += flagFile.getAbsolutePath() + "; ";
+                    brokenDirectoriesMap.put(directory, new RuntimeException(exception));
+                }
+            }
+            return exception == null ? null : new RuntimeException(exception);
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
         }
-        return exception == null ? null : new RuntimeException(exception);
     }
 
     @Override
@@ -395,151 +614,247 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
         }
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
-        List<String> filePathList = new ArrayList<>();
+        Map<String, Boolean> filePathMap = new HashMap<>();
 
         String timestamp = getCurrentTimestamp();
-        String filename = "a9ck07lsf";
-        File remoteSalesFile = new File(directory + "/" + filename + ".dbf");
-        File audFlagFile = new File(directory + "/" + filename + ".lsf");
-        File lsfFlagFile = new File(directory + "/" + timestamp + "-" + filename + ".lsf");
+        String salesName = "a9ck07lsf";
 
-        try {
-            if (!remoteSalesFile.exists()) {
-                sendSalesLogger.info(String.format("BelCoopSoyuz: %s.dbf not found in %s", filename, directory));
-            } else if (audFlagFile.exists()) {
-                sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf with stop flag in %s", filename, directory));
-            } else if (!lsfFlagFile.createNewFile()) {
-                sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf in %s, lsf flag creation failed", filename, directory));
-            } else {
-                sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf in %s, lsf flag created", filename, directory));
+        boolean ftp = directory.startsWith("ftp://");
+        if (ftp) {
 
-                File salesFile = null;
-                boolean copyError = false;
+            File remoteSalesFile = new File(directory + "/" + salesName + ".dbf");
+
+            String salesPath = directory + "/" + salesName + ".dbf";
+            String audPath = directory + "/" + salesName + ".lsf";
+            String salesFlagPath = directory + "/" + timestamp + "-" + salesName + ".lsf";
+
+            if (!existsFTPFile(salesPath))
+                sendSalesLogger.info(String.format("BelCoopSoyuz: %s.dbf not found in %s", salesName, directory));
+            else if (existsFTPFile(audPath))
+                sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf with stop flag in %s", salesName, directory));
+            else {
+               File lsfFlagFile = File.createTempFile(salesName, ".lsf");
                 try {
-                    salesFile = File.createTempFile(filename, ".dbf");
-                    sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", filename, remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
-                    FileCopyUtils.copy(remoteSalesFile, salesFile);
-                    sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", filename, remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
-                } catch (Exception e) {
-                    copyError = true;
-                    sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
-                }
+                    storeFileToFTP(salesFlagPath, lsfFlagFile);
+                    sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf in %s, lsf flag created", salesName, directory));
 
-                try {
-                    if (!copyError) {
+                    File salesFile = null;
+                    boolean copyError = false;
+                    try {
+                        salesFile = File.createTempFile(salesName, ".dbf");
+                        sendSalesLogger.info(String.format("BelCoopSoyuz: Start copying %s.dbf from %s to local file", salesName, directory));
+                        copyFTPToFile(salesPath, salesFile);
+                        sendSalesLogger.info(String.format("BelCoopSoyuz: End copying %s.dbf from %s to to local file", salesName, directory));
+                    } catch (Exception e) {
+                        copyError = true;
+                        sendSalesLogger.error("BelCoopSoyuz: File copy failed: " + salesPath, e);
+                    }
 
-                        //используем jdbf, а не xbasej, т.к. xbasej не умеет работать с foxpro файлами
+                    try {
+                        if (!copyError)
+                            salesInfoList.addAll(readSalesFile(salesFile, sectionCashRegisterMap));
 
-                        Charset stringCharset = Charset.forName(charset);
+                        if (salesFile != null) {
+                            String backupName = salesName + "-" + timestamp + ".dbf";
+                            sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", salesName, directory, backupName));
+                            backupFTPFile(directory, salesName + ".dbf", backupName);
+                            sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", salesName, directory, backupName));
+                        }
 
-                        InputStream dbf = new FileInputStream(salesFile);
-
-                        try (DbfReader reader = new DbfReader(dbf)) {
-                            DbfRecord rec;
-                            Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
-                            List<SalesInfo> curSalesInfoList = new ArrayList<>();
-                            while ((rec = reader.read()) != null) {
-                                rec.setStringCharset(stringCharset);
-                                if(!rec.isDeleted()) {
-
-                                    Integer numberReceipt = getJDBFIntegerFieldValue(rec, "CEDOCCOD");
-                                    Date dateReceipt = getJDBFDateFieldValue(rec, "TEDOCINS");
-                                    Time timeReceipt = getJDBFTimeFieldValue(rec, "TEDOCINS");
-                                    String barcodeItem = getJDBFFieldValue(rec, "CEOBIDE");
-                                    String section = getJDBFFieldValue(rec, "CESUCOD");
-
-                                    CashRegisterInfo cashRegister = sectionCashRegisterMap.get(section);
-                                    Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
-                                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
-
-                                    BigDecimal quantityReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPEXP");
-                                    BigDecimal priceReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPRIC")/*, denominationStage)*/;
-                                    BigDecimal sumReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSUMC")/*, denominationStage)*/;
-                                    BigDecimal discountSum1ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSDELC")/*, denominationStage)*/;
-                                    BigDecimal discountSum2ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPDELC")/*, denominationStage)*/;
-                                    BigDecimal discountSumReceiptDetail = safeNegate(safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
-
-                                    Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
-                                    numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
-                                    numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
-                                    String numberZReport = getJDBFFieldValue(rec, "CEDOCNUM");
-
-                                    String idEmployee = getJDBFFieldValue(rec, "CEOPDEV");
-                                    String idSaleReceiptReceiptReturnDetail = getJDBFFieldValue(rec, "CEUNIREV");
-                                    String idSection = getJDBFFieldValue(rec, "CESUCOD");
-
-                                    String type = getJDBFFieldValue(rec, "CEOBTYP");
-                                    if(type != null) {
-                                        switch (type) {
-                                            case "ТОВАР":
-                                                curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
-                                                        priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, filename + "dbf", idSection));
-                                                break;
-                                            case "ТОВАР ВОЗВРАТ":
-                                                curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, safeNegate(quantityReceiptDetail),
-                                                        priceReceiptDetail, safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, filename + "dbf", idSection));
-                                                break;
-                                            case "ВСЕГО":
-                                                for(SalesInfo salesInfo : curSalesInfoList) {
-                                                    salesInfo.sumCash = getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT");
-                                                    salesInfoList.add(salesInfo);
-                                                }
-                                                curSalesInfoList = new ArrayList<>();
-                                                break;
-                                            case "ВОЗВРАТ":
-                                                for(SalesInfo salesInfo : curSalesInfoList) {
-                                                    salesInfo.sumCash = safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"));
-                                                    salesInfoList.add(salesInfo);
-                                                }
-                                                curSalesInfoList = new ArrayList<>();
-                                                break;
-                                        }
-                                    }
-
-                                }
+                    } catch (Throwable e) {
+                        sendSalesLogger.error("File copy failed: " + salesPath, e);
+                    } finally {
+                        if (!copyError) {
+                            deleteFTPFile(salesFlagPath);
+                            if (salesInfoList.isEmpty()) {
+                                deleteFTPFile(salesPath);
                             }
+                            else
+                                filePathMap.put(remoteSalesFile.getAbsolutePath(), true);
+                        }
+                        safeFileDelete(salesFile, sendSalesLogger);
+                    }
+                } finally {
+                    safeFileDelete(lsfFlagFile, sendSalesLogger);
+                }
+            }
+
+
+        } else {
+
+            File remoteSalesFile = new File(directory + "/" + salesName + ".dbf");
+            File audFlagFile = new File(directory + "/" + salesName + ".lsf");
+            File lsfFlagFile = new File(directory + "/" + timestamp + "-" + salesName + ".lsf");
+
+            try {
+                if (!remoteSalesFile.exists()) {
+                    sendSalesLogger.info(String.format("BelCoopSoyuz: %s.dbf not found in %s", salesName, directory));
+                } else if (audFlagFile.exists()) {
+                    sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf with stop flag in %s", salesName, directory));
+                } else if (!lsfFlagFile.createNewFile()) {
+                    sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf in %s, lsf flag creation failed", salesName, directory));
+                } else {
+                    sendSalesLogger.info(String.format("BelCoopSoyuz: found %s.dbf in %s, lsf flag created", salesName, directory));
+
+                    File salesFile = null;
+                    boolean copyError = false;
+                    try {
+                        salesFile = File.createTempFile(salesName, ".dbf");
+                        sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", salesName, remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
+                        FileCopyUtils.copy(remoteSalesFile, salesFile);
+                        sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", salesName, remoteSalesFile.getAbsolutePath(), salesFile.getAbsolutePath()));
+                    } catch (Exception e) {
+                        copyError = true;
+                        sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
+                    }
+
+                    try {
+                        if (!copyError)
+                            salesInfoList.addAll(readSalesFile(salesFile, sectionCashRegisterMap));
+
+                        if (salesFile != null) {
+                            new File(directory + "/backup").mkdir();
+                            File backupSalesFile = new File(directory + "/backup/" + salesName + "-" + timestamp + ".dbf");
+                            sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", salesName, salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
+                            FileCopyUtils.copy(salesFile, backupSalesFile);
+                            sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", salesName, salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
+                        }
+
+                    } catch (Throwable e) {
+                        sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
+                    } finally {
+                        if (!copyError) {
+                            if (salesInfoList.isEmpty())
+                                safeFileDelete(remoteSalesFile, sendSalesLogger);
+                            else
+                                filePathMap.put(remoteSalesFile.getAbsolutePath(), false);
+                        }
+                        safeFileDelete(salesFile, sendSalesLogger);
+                    }
+                }
+            } finally {
+                safeFileDelete(lsfFlagFile, sendSalesLogger);
+            }
+        }
+        return (salesInfoList.isEmpty() && filePathMap.isEmpty()) ? null :
+                new BelCoopSoyuzSalesBatch(salesInfoList, filePathMap);
+    }
+
+    private boolean deleteFTPFile(String path) throws IOException {
+        List<Object> properties = parseFTPPath(path, 21);
+        if (properties != null) {
+            String username = (String) properties.get(0);
+            String password = (String) properties.get(1);
+            String server = (String) properties.get(2);
+            Integer port = (Integer) properties.get(3);
+            String remoteFile = (String) properties.get(4);
+            FTPClient ftpClient = new FTPClient();
+            try {
+
+                ftpClient.connect(server, port);
+                ftpClient.login(username, password);
+                ftpClient.enterLocalPassiveMode();
+                ftpClient.setFileType(FTP.BINARY_FILE_TYPE);
+
+                return ftpClient.deleteFile(remoteFile);
+            } catch (IOException e) {
+                throw Throwables.propagate(e);
+            } finally {
+                if (ftpClient.isConnected()) {
+                    ftpClient.logout();
+                    ftpClient.disconnect();
+                }
+            }
+        }
+        return true;
+    }
+
+    //используем jdbf, а не xbasej, т.к. xbasej не умеет работать с foxpro файлами
+    private List<SalesInfo> readSalesFile(File salesFile, Map<String, CashRegisterInfo> sectionCashRegisterMap) throws IOException {
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        InputStream dbf = new FileInputStream(salesFile);
+        try (DbfReader reader = new DbfReader(dbf)) {
+            DbfRecord rec;
+            Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
+            List<SalesInfo> curSalesInfoList = new ArrayList<>();
+            while ((rec = reader.read()) != null) {
+                rec.setStringCharset(Charset.forName(charset));
+                if (!rec.isDeleted()) {
+
+                    Integer numberReceipt = getJDBFIntegerFieldValue(rec, "CEDOCCOD");
+                    Date dateReceipt = getJDBFDateFieldValue(rec, "TEDOCINS");
+                    Time timeReceipt = getJDBFTimeFieldValue(rec, "TEDOCINS");
+                    String barcodeItem = getJDBFFieldValue(rec, "CEOBIDE");
+                    String section = getJDBFFieldValue(rec, "CESUCOD");
+
+                    CashRegisterInfo cashRegister = sectionCashRegisterMap.get(section);
+                    Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
+                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
+                    BigDecimal quantityReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPEXP");
+                    BigDecimal priceReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPRIC")/*, denominationStage)*/;
+                    BigDecimal sumReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSUMC")/*, denominationStage)*/;
+                    BigDecimal discountSum1ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSDELC")/*, denominationStage)*/;
+                    BigDecimal discountSum2ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPDELC")/*, denominationStage)*/;
+                    BigDecimal discountSumReceiptDetail = safeNegate(safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
+
+                    Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
+                    numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
+                    numberReceiptDetailMap.put(numberReceipt, numberReceiptDetail);
+                    String numberZReport = getJDBFFieldValue(rec, "CEDOCNUM");
+
+                    String idEmployee = getJDBFFieldValue(rec, "CEOPDEV");
+                    String idSaleReceiptReceiptReturnDetail = getJDBFFieldValue(rec, "CEUNIREV");
+                    String idSection = getJDBFFieldValue(rec, "CESUCOD");
+
+                    String type = getJDBFFieldValue(rec, "CEOBTYP");
+                    if (type != null) {
+                        switch (type) {
+                            case "ТОВАР":
+                                curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                                        priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
+                                break;
+                            case "ТОВАР ВОЗВРАТ":
+                                curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, safeNegate(quantityReceiptDetail),
+                                        priceReceiptDetail, safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
+                                break;
+                            case "ВСЕГО":
+                                for (SalesInfo salesInfo : curSalesInfoList) {
+                                    salesInfo.sumCash = getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT");
+                                    salesInfoList.add(salesInfo);
+                                }
+                                curSalesInfoList = new ArrayList<>();
+                                break;
+                            case "ВОЗВРАТ":
+                                for (SalesInfo salesInfo : curSalesInfoList) {
+                                    salesInfo.sumCash = safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"));
+                                    salesInfoList.add(salesInfo);
+                                }
+                                curSalesInfoList = new ArrayList<>();
+                                break;
                         }
                     }
 
-                    if (salesFile != null) {
-                        new File(directory + "/backup").mkdir();
-                        File backupSalesFile = new File(directory + "/backup/" + filename + "-" + timestamp + ".dbf");
-                        sendSalesLogger.info(String.format("Start copying %s.dbf from %s to %s", filename, salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
-                        FileCopyUtils.copy(salesFile, backupSalesFile);
-                        sendSalesLogger.info(String.format("End copying %s.dbf from %s to %s", filename, salesFile.getAbsolutePath(), backupSalesFile.getAbsolutePath()));
-                    }
-
-                } catch (Throwable e) {
-                    sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
-                } finally {
-                    if (!copyError) {
-                        if(salesInfoList.isEmpty())
-                            safeFileDelete(remoteSalesFile, sendSalesLogger);
-                        else
-                            filePathList.add(remoteSalesFile.getAbsolutePath());
-                    }
-                    safeFileDelete(salesFile, sendSalesLogger);
                 }
             }
-        } finally {
-            safeFileDelete(lsfFlagFile, sendSalesLogger);
         }
-        return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
-                new BelCoopSoyuzSalesBatch(salesInfoList, filePathList);
+        return salesInfoList;
     }
 
     @Override
     public void finishReadingSalesInfo(BelCoopSoyuzSalesBatch salesBatch) {
         sendSalesLogger.info("BelCoopSoyuz: Finish Reading started");
-        for (String readFile : salesBatch.readFiles) {
-            File f = new File(readFile);
-            if (f.delete()) {
-                sendSalesLogger.info("BelCoopSoyuz: file " + readFile + " has been deleted");
-            } else {
-                throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
+        for (Map.Entry<String, Boolean> readFile : salesBatch.readFiles.entrySet()) {
+            try {
+                if (readFile.getValue() ? deleteFTPFile(readFile.getKey()) : new File(readFile.getKey()).delete())
+                    sendSalesLogger.info("BelCoopSoyuz: file " + readFile.getKey() + " has been deleted");
+                else
+                    throw new RuntimeException("The file " + readFile.getKey() + " can not be deleted");
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
             }
         }
     }
