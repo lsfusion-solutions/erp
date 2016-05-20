@@ -550,9 +550,9 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         exception += flagFile + "; ";
                     brokenDirectoriesMap.put(directory, new RuntimeException(exception));
                 } else {
-                    File file = (File) waitEntry.get(0);
-                    File flagFile = (File) waitEntry.get(1);
-                    String directory = (String) waitEntry.get(2);
+                    File file = (File) waitEntry.get(1);
+                    File flagFile = (File) waitEntry.get(2);
+                    String directory = (String) waitEntry.get(3);
                     if (file.exists())
                         exception += file.getAbsolutePath() + "; ";
                     if (flagFile.exists())
