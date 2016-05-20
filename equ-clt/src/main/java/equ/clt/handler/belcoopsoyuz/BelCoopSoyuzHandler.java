@@ -81,7 +81,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                             exception = brokenDirectoriesMap.get(directory);
                         } else {
                             boolean ftp = directory.startsWith("ftp://");
-                            String priceName = "a9sk34lsf";
+                            String priceName = "a9ck34lsf";
                             String baseName = "base";
                             if(ftp) {
                                 String pricePath = directory + "/" + priceName + ".dbf";
