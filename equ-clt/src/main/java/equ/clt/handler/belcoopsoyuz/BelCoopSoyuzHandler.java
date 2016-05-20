@@ -81,7 +81,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                             exception = brokenDirectoriesMap.get(directory);
                         } else {
                             boolean ftp = directory.startsWith("ftp://");
-                            String priceName = "a9ck34lsf";
+                            String priceName = "a9sk34lsf";
                             String baseName = "base";
                             if(ftp) {
                                 String pricePath = directory + "/" + priceName + ".dbf";
@@ -155,6 +155,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
                                 } else {
                                     processTransactionLogger.error("BelCoopSoyuz: error while create files: unable to create dir " + directory);
+                                    exception = new RuntimeException("BelCoopSoyuz: error while create files: unable to create dir " + directory);
                                 }
                             }
                         }
@@ -391,7 +392,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         putField(dbfFile, CEUNIKEY, barcode, 25, append);
                         putField(dbfFile, CEOBIDE, barcode, 25, append);
                         putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
-                        putField(dbfFile, MEOBNAM, trim(item.name, 100), 25, append);
+                        putField(dbfFile, MEOBNAM, trim(item.name, 100), 100, append);
                         BigDecimal price = /*denominateMultiplyType2(*/item.price/*, transaction.denominationStage)*/;
                         putNumField(dbfFile, NERECOST, price, append);
                         putNumField(dbfFile, NEOPPRIC, price, append);
@@ -879,21 +880,25 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
     }
 
     public String appendBarcode(String barcode) {
-        if (barcode == null || barcode.length() != 5) return barcode;
-        barcode = "22" + barcode + "00000";
-        try {
-            int checkSum = 0;
-            for (int i = 0; i <= 10; i = i + 2) {
-                checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-                checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+        if (barcode != null) {
+            if (barcode.length() == 5)
+                barcode = "22" + barcode + "00000";
+            if (barcode.length() == 12) {
+                try {
+                    int checkSum = 0;
+                    for (int i = 0; i <= 10; i = i + 2) {
+                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+                    }
+                    checkSum %= 10;
+                    if (checkSum != 0)
+                        checkSum = 10 - checkSum;
+                    barcode = barcode.concat(String.valueOf(checkSum));
+                } catch (Exception ignored) {
+                }
             }
-            checkSum %= 10;
-            if (checkSum != 0)
-                checkSum = 10 - checkSum;
-            return barcode.concat(String.valueOf(checkSum));
-        } catch (Exception e) {
-            return barcode;
         }
+        return barcode;
     }
 
     protected String getCurrentTimestamp() {
