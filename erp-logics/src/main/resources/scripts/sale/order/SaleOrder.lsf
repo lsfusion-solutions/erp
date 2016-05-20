@@ -190,6 +190,21 @@ edit[OrderLedger](OrderDetail ledger) += ACTION edit(ledger);
 overShowEdit (Order i) += showEditDeleteUser(i) AND isOpened(i);
 overShowDelete (UserOrder i) += showEditDeleteUser(i) AND isUserOpened(i); 
 
+orderBatch (sku, stock, dateTime) = GROUP MIN order(Batch batch) IF balanceB(batch, Stock stock, DATETIME dateTime)
+                                                   BY skuLedger(batch, stock), stock, dateTime;
+firstOrderBatch(Sku sku, Stock stock, DATETIME dateTime) = orderBatch(sku, stock, dateTime)[2];
+
+fillBatch 'Проставить партию'(UserOrderDetail d)  = ACTION {    
+    batch(d) <- firstOrderBatch(sku(d), supplierStock(d), dateTime(d)) 
+        WHERE NOT batch(d)  AND
+        balanceB(firstOrderBatch(sku(d), supplierStock(d), dateTime(d)), supplierStock(d), dateTime(d)) >= quantity(d);
+} SHORTCUT nameBatch[UserOrderDetail];
+
+fillAllBatch 'Проставить партии для всех'(UserOrderDetail detail) = ACTION {
+   FOR userOrder(detail) == userOrder(UserOrderDetail d) DO
+       fillBatch(d);
+} SHORTCUT nameBatch[UserOrderDetail];
+
 NAVIGATOR {
     saleSaleNavigator {
         ADD orders;
