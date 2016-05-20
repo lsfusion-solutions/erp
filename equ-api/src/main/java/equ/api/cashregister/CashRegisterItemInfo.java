@@ -17,6 +17,7 @@ public class CashRegisterItemInfo extends ItemInfo {
     public BigDecimal minPrice;
     public String extIdItemGroup;
     public BigDecimal amountBarcode;
+    public BigDecimal balance;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,

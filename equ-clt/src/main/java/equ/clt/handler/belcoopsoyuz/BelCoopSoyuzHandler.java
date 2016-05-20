@@ -116,7 +116,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                             } else {
                                 String pricePath = directory + "/" + priceName + ".dbf";
                                 String flagPricePath = directory + "/" + priceName + ".lsf";
-                                String basePath = directory + "/" + baseName + ".lsf";
+                                String basePath = directory + "/" + baseName + ".dbf";
                                 String baseMDXPath = directory + "/" + baseName + ".mdx";
                                 if (new File(directory).exists() || new File(directory).mkdirs()) {
                                     processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s, writing to %s", transaction.id, directory));
@@ -135,6 +135,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
                                     File priceFile = new File(pricePath);
                                     File flagPriceFile = new File(flagPricePath);
+                                    safeFileDelete(flagPriceFile, processTransactionLogger);
                                     try {
                                         //write to local base file
                                         writeBaseFile(transaction, cashRegister, baseFile, append);
@@ -160,9 +161,9 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                             }
                         }
                     }
-                    processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s wait for deletion", transaction.id));
-                    Exception deletionException = waitForDeletion(waitList, brokenDirectoriesMap);
-                    processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s end waiting for deletion", transaction.id));
+                    //processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s wait for deletion", transaction.id));
+                    Exception deletionException = null;//waitForDeletion(waitList, brokenDirectoriesMap); не ждём, пока заберут флаг и файл, переходим к следующей транзакции
+                    //processTransactionLogger.info(String.format("BelCoopSoyuz: Transaction # %s end waiting for deletion", transaction.id));
                     exception = exception == null ? deletionException : exception;
                 }
             } catch (Exception e) {
@@ -374,7 +375,6 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
             putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
             putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
-            putField(dbfFile, NEOBFREE, "9999", 25, append); //остаток
             putField(dbfFile, CECUCOD, cashRegister.idStock, 25, append); //секция, "600358416 MF"
             putField(dbfFile, CEOPCURO, "BYR 974 1", 25, append); //валюта
             for (CashRegisterItemInfo item : transaction.itemsList) {
@@ -399,6 +399,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         putNumField(dbfFile, NEOPPRIE, price, append);
                         putNumField(dbfFile, NEOPNDS, item.vat, append);
                         putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
+                        putNumField(dbfFile, NEOBFREE, item.balance == null ? BigDecimal.ZERO : item.balance, append); //остаток
 
                         if (recordNumber != null)
                             dbfFile.update();
