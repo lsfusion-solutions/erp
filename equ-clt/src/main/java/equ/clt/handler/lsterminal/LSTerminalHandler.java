@@ -194,7 +194,7 @@ public class LSTerminalHandler extends TerminalHandler {
             Set<String> directorySet = new HashSet<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
-                if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("InventoryTechHandler")) {
+                if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("LSTerminalHandler")) {
                     directorySet.add(t.directory);
                 }
             }
