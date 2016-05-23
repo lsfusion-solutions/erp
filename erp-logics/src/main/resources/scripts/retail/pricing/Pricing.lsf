@@ -224,18 +224,22 @@ EXTEND FORM calcPriceListType
 ;
 
 META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime)
+    @deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, );
+END
+
+META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, stockProp, form, prefixTime, prefixSku)
 
     WHEN SESSION 
         (CHANGED(prefix###priceListType(###idetail detail)) OR
          CHANGED(prefixP###price(detail)) OR
-         CHANGED(sku(detail)) OR
+         CHANGED(prefixSku###sku(detail)) OR
          CHANGED(stockProp(detail)) OR
         (CHANGED(prefixTime###dateTime(detail)) AND NOT isPosted(detail)) OR
          CHANGED(value###prefix##VAT(detail)))
-        AND sku(detail) AND CalcPriceListType priceListType == prefix###priceListType(detail) AND RoundCondition roundCondition == roundCondition(priceListType, sku(detail))
+        AND prefixSku###sku(detail) AND CalcPriceListType priceListType == prefix###priceListType(detail) AND RoundCondition roundCondition == roundCondition(priceListType, prefixSku###sku(detail))
         AND NOT CHANGED(prefix###price(detail))
         AND pricingDocument(priceListType) NOINLINE (priceListType, roundCondition) INLINE DO {
-            prefix###markup(detail) <- markup(priceListType, sku(detail))
+            prefix###markup(detail) <- markup(priceListType, prefixSku###sku(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
             prefix###price(detail) <- round([= X*(Y+100)*(Z+100)/10000](
                                                                     prefixP###price(detail),
@@ -247,16 +251,16 @@ META deriveDocumentDetailBatchOnSessionPriceListType (idetail, prefix, prefixP, 
     WHEN SESSION
         (CHANGED(prefix###priceListType(###idetail detail)) OR
          CHANGED(prefixP###price(detail)) OR
-         CHANGED(sku(detail)) OR
+         CHANGED(prefixSku###sku(detail)) OR
          CHANGED(stockProp(detail)) OR
         (CHANGED(prefixTime###dateTime(detail)) AND NOT isPosted(detail)) OR
          CHANGED(batch(detail)) OR
          CHANGED(value###prefix##VAT(detail)))
         AND NOT CHANGED(prefix###price(detail))
-        AND sku(detail) AND PriceListType priceListType == prefix###priceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
+        AND prefixSku###sku(detail) AND PriceListType priceListType == prefix###priceListType(detail) AND NOT pricingDocument(priceListType) NOINLINE (priceListType) INLINE DO {
 
             prefix###price(detail) <- IF batch(detail) THEN prevPriceB(priceListType, batch(detail), stockProp(detail), prefixTime###dateTime(detail))
-                                                      ELSE prevPriceB(priceListType, sku(detail), stockProp(detail), prefixTime###dateTime(detail))
+                                                      ELSE prevPriceB(priceListType, prefixSku###sku(detail), stockProp(detail), prefixTime###dateTime(detail))
                                                          WHERE prefix###priceListType(detail) == priceListType;
                                                          
             prefix###markup(detail) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
