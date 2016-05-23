@@ -6,6 +6,7 @@ import java.sql.Date;
 public class GeneralLedger {
     public Date dateGeneralLedger;
     public String numberGeneralLedger;
+    public String seriesGeneralLedger;
     public String descriptionGeneralLedger;
     public String idOperationGeneralLedger;
     public String idDebitGeneralLedger;
@@ -18,12 +19,13 @@ public class GeneralLedger {
     public String anak3;
     public BigDecimal sumGeneralLedger;
 
-    public GeneralLedger(Date dateGeneralLedger, String numberGeneralLedger, String descriptionGeneralLedger, 
+    public GeneralLedger(Date dateGeneralLedger, String numberGeneralLedger, String seriesGeneralLedger, String descriptionGeneralLedger,
                          String idOperationGeneralLedger, String idDebitGeneralLedger, String idCreditGeneralLedger,
                          String anad1, String anad2, String anad3, String anak1, String anak2, String anak3, 
                          BigDecimal sumGeneralLedger) {
         this.dateGeneralLedger = dateGeneralLedger;
         this.numberGeneralLedger = numberGeneralLedger;
+        this.seriesGeneralLedger = seriesGeneralLedger;
         this.descriptionGeneralLedger = descriptionGeneralLedger;
         this.idOperationGeneralLedger = idOperationGeneralLedger;
         this.idDebitGeneralLedger = idDebitGeneralLedger;

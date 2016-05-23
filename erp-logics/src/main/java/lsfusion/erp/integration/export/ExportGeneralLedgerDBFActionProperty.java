@@ -75,7 +75,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                 new OverJDBField("K_ANAK3", 'C', 100, 0), new OverJDBField("N_SUM", 'F', 17, 2),
                 new OverJDBField("K_MAT", 'C', 12, 0), new OverJDBField("N_MAT", 'F', 17, 3),
                 new OverJDBField("N_DSUM", 'F', 15, 2), new OverJDBField("KOD_ISP", 'C', 2, 0),
-                new OverJDBField("P_AVT", 'C', 3, 0)
+                new OverJDBField("P_AVT", 'C', 3, 0), new OverJDBField("SER_P", 'C', 2, 0)
         };
 
         KeyExpr generalLedgerExpr = new KeyExpr("GeneralLedger");
@@ -86,10 +86,10 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         QueryBuilder<Object, Object> generalLedgerQuery = new QueryBuilder<>(generalLedgerKeys);
 
 
-        String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocumentGeneralLedger",
+        String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocument", "seriesGLDocument",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
                 "idOperationGeneralLedger"};
-        LCP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]",
+        LCP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]", "seriesGLDocument[GeneralLedger]",
                 "description[GeneralLedger]", "idDebit[GeneralLedger]", "idCredit[GeneralLedger]", "sum[GeneralLedger]",
                 "idOperation[GeneralLedger]");
         for (int j = 0; j < generalLedgerProperties.length; j++) {
@@ -140,7 +140,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             ImMap<Object, ObjectValue> resultValues = generalLedgerResult.getValue(i);
 
             Date dateGeneralLedger = (Date) resultValues.get("dateGeneralLedger").getValue(); //D_VV
-            String numberGeneralLedger = trim((String) resultValues.get("numberGLDocumentGeneralLedger").getValue(), 8); //DOK
+            String numberGeneralLedger = trim((String) resultValues.get("numberGLDocument").getValue(), 8); //DOK
+            String seriesGeneralLedger = trim((String) resultValues.get("seriesGLDocument").getValue(), 2); //SER_P
 
             String description = trim((String) resultValues.get("descriptionGeneralLedger").getValue(), 60); //TEXTPR
             String idDebit = (String) resultValues.get("idDebitGeneralLedger").getValue();   //K_SCHD
@@ -173,7 +174,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             }
 
             generalLedgerMap.put(generalLedgerObject, Arrays.asList((Object) dateGeneralLedger, numberGeneralLedger,
-                    description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger));
+                    description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger, seriesGeneralLedger));
         }
 
         File dbfFile = File.createTempFile("export", "dbf");
@@ -183,7 +184,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         for (Map.Entry<DataObject, List<Object>> entry : generalLedgerMap.entrySet()) {
             DataObject key = entry.getKey();
             List<Object> values = entry.getValue();
-            generalLedgerList.add(new GeneralLedger((Date) values.get(0), (String) values.get(1), (String) values.get(2),
+            generalLedgerList.add(new GeneralLedger((Date) values.get(0), (String) values.get(1), (String) values.get(7), (String) values.get(2),
                     (String) values.get(6), (String) values.get(3), (String) values.get(4), debit1Map.get(key),
                     debit2Map.get(key), debit3Map.get(key), credit1Map.get(key), credit2Map.get(key),
                     credit3Map.get(key), (BigDecimal) values.get(5)));
@@ -194,7 +195,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         for(GeneralLedger gl : generalLedgerList) {
         dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
                 gl.idOperationGeneralLedger, gl.idDebitGeneralLedger, gl.idCreditGeneralLedger, gl.anad1, gl.anad2, //9 
-                gl.anad3, gl.anak1, gl.anak2, gl.anak3, gl.sumGeneralLedger, null, null, 0, "00", "TMC"}); //19
+                gl.anad3, gl.anak1, gl.anak2, gl.anak3, gl.sumGeneralLedger, null, null, 0, "00", "TMC", gl.seriesGeneralLedger}); //20
         }
         dbfwriter.close();
 
