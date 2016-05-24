@@ -151,7 +151,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                                 sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
                     if (quantityReturn > 0)
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail));
                 }
 
                 if (context.checkApply()) {
