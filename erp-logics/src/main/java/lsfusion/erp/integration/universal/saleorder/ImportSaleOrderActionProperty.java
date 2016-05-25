@@ -1,5 +1,6 @@
 package lsfusion.erp.integration.universal.saleorder;
 
+import com.google.common.base.Throwables;
 import jxl.Sheet;
 import jxl.Workbook;
 import jxl.WorkbookSettings;
@@ -11,6 +12,7 @@ import lsfusion.erp.integration.universal.ImportDocumentSettings;
 import lsfusion.erp.integration.universal.UniversalImportException;
 import lsfusion.erp.stock.BarcodeUtils;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.CustomStaticFormatFileClass;
@@ -84,22 +86,27 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                     CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, false, fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
-                        List<byte[]> fileList = valueClass.getFiles(objectValue.getValue());
+                        Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
 
-                        for (byte[] file : fileList) {
+                        for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
 
-                            makeImport(context.getBL(), session, orderObject, importColumns, file, settings, fileExtension, 
-                                    operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
+                            try {
+                                makeImport(context.getBL(), session, orderObject, importColumns, file.getValue(), settings, fileExtension,
+                                        operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
 
-                            session.apply(context);
-                            
-                            findAction("formRefresh[]").execute(context);
+                                session.apply(context);
+
+                                findAction("formRefresh[]").execute(context);
+                            } catch (IOException | xBaseJException | ParseException | ScriptingErrorLog.SemanticErrorException | BiffException e) {
+                                ServerLoggers.importLogger.error("ImportSaleOrder failed, file " + file.getKey(), e);
+                                throw Throwables.propagate(e);
+                            }
                         }
                     }
                 }
             }
-        } catch (ScriptingErrorLog.SemanticErrorException | xBaseJException | IOException | BiffException | ParseException e) {
-            throw new RuntimeException(e);
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         } catch (UniversalImportException e) {
             e.printStackTrace();
             context.requestUserInteraction(new MessageClientAction(e.getMessage(), e.getTitle()));
@@ -349,21 +356,29 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         List<String> bigDecimalFields = Arrays.asList("dataIndex", "quantity", "price", "sum", "sumVAT", "invoiceSum", "manufacturingPrice");
 
         List<String> dateFields = Arrays.asList("dateDocument");
-        
-        if (fileExtension.equals("DBF"))
-            orderDetailsList = importOrdersFromDBF(session, file, importColumns, stringFields, bigDecimalFields, dateFields, 
-                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("XLS"))
-            orderDetailsList = importOrdersFromXLS(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
-                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("XLSX"))
-            orderDetailsList = importOrdersFromXLSX(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
-                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
-        else if (fileExtension.equals("CSV") || fileExtension.equals("TXT"))
-            orderDetailsList = importOrdersFromCSV(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
-                    primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, orderObject);
-        else
-            orderDetailsList = null;
+
+        switch (fileExtension) {
+            case "DBF":
+                orderDetailsList = importOrdersFromDBF(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                        primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
+                break;
+            case "XLS":
+                orderDetailsList = importOrdersFromXLS(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                        primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
+                break;
+            case "XLSX":
+                orderDetailsList = importOrdersFromXLSX(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                        primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, orderObject);
+                break;
+            case "CSV":
+            case "TXT":
+                orderDetailsList = importOrdersFromCSV(session, file, importColumns, stringFields, bigDecimalFields, dateFields,
+                        primaryKeyType, checkExistence, secondaryKeyType, keyIsDigit, startRow, isPosted, separator, orderObject);
+                break;
+            default:
+                orderDetailsList = null;
+                break;
+        }
 
         return orderDetailsList;
     }
@@ -390,18 +405,25 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 String value = getXLSFieldValue(sheet, i, importColumns.get(field));
-                if(field.equals("idDocumentDetail"))
-                    fieldValues.put(field, String.valueOf(orderObject) + i);
-                else if(field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                else if(field.equals("idCustomerStock")) {
-                    String idCustomer = readIdCustomer(session, value);
-                    fieldValues.put(field, value);
-                    fieldValues.put("idCustomer", idCustomer);
-                } else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "idDocumentDetail":
+                        fieldValues.put(field, String.valueOf(orderObject) + i);
+                        break;
+                    case "valueVAT":
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                        break;
+                    case "barcodeItem":
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                        break;
+                    case "idCustomerStock":
+                        String idCustomer = readIdCustomer(session, value);
+                        fieldValues.put(field, value);
+                        fieldValues.put("idCustomer", idCustomer);
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
             for(String field : bigDecimalFields) {
                 BigDecimal value = getXLSBigDecimalFieldValue(sheet, i, importColumns.get(field));
@@ -450,18 +472,25 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 String value = getCSVFieldValue(valuesList, importColumns.get(field), count);
-                if(field.equals("idDocumentDetail"))
-                    fieldValues.put(field, String.valueOf(orderObject) + count);
-                else if(field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                else if(field.equals("idCustomerStock")) {
-                    String idCustomer = readIdCustomer(session, value);
-                    fieldValues.put(field, value);
-                    fieldValues.put("idCustomer", idCustomer);
-                } else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "idDocumentDetail":
+                        fieldValues.put(field, String.valueOf(orderObject) + count);
+                        break;
+                    case "valueVAT":
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                        break;
+                    case "barcodeItem":
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                        break;
+                    case "idCustomerStock":
+                        String idCustomer = readIdCustomer(session, value);
+                        fieldValues.put(field, value);
+                        fieldValues.put("idCustomer", idCustomer);
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
             for(String field : bigDecimalFields) {
                 BigDecimal value = getCSVBigDecimalFieldValue(valuesList, importColumns.get(field), count);
@@ -507,18 +536,25 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             Map<String, Object> fieldValues = new HashMap<>();
             for(String field : stringFields) {
                 String value = getXLSXFieldValue(sheet, i, importColumns.get(field));
-                if(field.equals("idDocumentDetail"))
-                    fieldValues.put(field, String.valueOf(orderObject) + i);
-                else if(field.equals("valueVAT"))
-                    fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                else if (field.equals("barcodeItem"))
-                    fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                else if(field.equals("idCustomerStock")) {
-                    String idCustomer = readIdCustomer(session, value);
-                    fieldValues.put(field, value);
-                    fieldValues.put("idCustomer", idCustomer);
-                } else
-                    fieldValues.put(field, value);
+                switch (field) {
+                    case "idDocumentDetail":
+                        fieldValues.put(field, String.valueOf(orderObject) + i);
+                        break;
+                    case "valueVAT":
+                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                        break;
+                    case "barcodeItem":
+                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                        break;
+                    case "idCustomerStock":
+                        String idCustomer = readIdCustomer(session, value);
+                        fieldValues.put(field, value);
+                        fieldValues.put("idCustomer", idCustomer);
+                        break;
+                    default:
+                        fieldValues.put(field, value);
+                        break;
+                }
             }
             for(String field : bigDecimalFields) {
                 BigDecimal value = getXLSXBigDecimalFieldValue(sheet, i, importColumns.get(field));
@@ -578,18 +614,25 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                 for (String field : stringFields) {
                     String value = getDBFFieldValue(file, importColumns.get(field), i, charset);
-                    if (field.equals("idDocumentDetail"))
-                        fieldValues.put(field, String.valueOf(orderObject) + i);
-                    else if (field.equals("valueVAT"))
-                        fieldValues.put(field, VATifAllowed(parseVAT(value)));
-                    else if (field.equals("barcodeItem"))
-                        fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
-                    else if (field.equals("idCustomerStock")) {
-                        String idCustomer = readIdCustomer(session, value);
-                        fieldValues.put(field, value);
-                        fieldValues.put("idCustomer", idCustomer);
-                    } else
-                        fieldValues.put(field, value);
+                    switch (field) {
+                        case "idDocumentDetail":
+                            fieldValues.put(field, String.valueOf(orderObject) + i);
+                            break;
+                        case "valueVAT":
+                            fieldValues.put(field, VATifAllowed(parseVAT(value)));
+                            break;
+                        case "barcodeItem":
+                            fieldValues.put(field, BarcodeUtils.appendCheckDigitToBarcode(value, 7));
+                            break;
+                        case "idCustomerStock":
+                            String idCustomer = readIdCustomer(session, value);
+                            fieldValues.put(field, value);
+                            fieldValues.put("idCustomer", idCustomer);
+                            break;
+                        default:
+                            fieldValues.put(field, value);
+                            break;
+                    }
                 }
                 for (String field : bigDecimalFields) {
                     BigDecimal value = getDBFBigDecimalFieldValue(file, importColumns.get(field), i, charset);
@@ -614,8 +657,8 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         } finally {
             if(file != null)
                 file.close();
-            if(tempFile != null)
-                tempFile.delete();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
 
         return Arrays.asList(primaryList, secondaryList);

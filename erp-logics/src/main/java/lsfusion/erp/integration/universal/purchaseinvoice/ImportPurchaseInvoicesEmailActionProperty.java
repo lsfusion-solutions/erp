@@ -139,9 +139,10 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
                                                 new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);
 
                                         if (importResult >= IMPORT_RESULT_OK) {
-                                            if(!currentSession.apply(context)) {
+                                            String result = currentSession.applyMessage(context);
+                                            if(result != null) {
                                                 importResult = IMPORT_RESULT_ERROR;
-                                                logImportError(context, attachmentEmailObject, "Apply failed, see constraints in log", isOld);
+                                                logImportError(context, attachmentEmailObject, result, isOld);
                                             }
                                         }
                                         if (importResult >= IMPORT_RESULT_EMPTY) {

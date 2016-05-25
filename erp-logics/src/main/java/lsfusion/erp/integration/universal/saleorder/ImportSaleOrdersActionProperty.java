@@ -93,7 +93,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                                 renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
 
                                         } catch (Exception e) {
-                                            ServerLoggers.importLogger.error("ImportSaleOrders Error: ", e);
+                                            ServerLoggers.importLogger.error("ImportSaleOrders Error, file " + f.getAbsolutePath(), e);
                                         }
                                     }
                                 }
