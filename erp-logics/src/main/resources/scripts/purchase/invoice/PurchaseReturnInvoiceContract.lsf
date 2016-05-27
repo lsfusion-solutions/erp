@@ -10,13 +10,14 @@ NAMESPACE PurchaseReturn;
 
 @implementContractLedger(, Invoice, contractSku);
 sum[ContractLedger](Invoice contractLedger) +=
-    IF currency(contractLedger) != currency(contractSku(contractLedger)) THEN 
+    (IF currency(contractLedger) != currency(contractSku(contractLedger)) THEN 
         NUMERIC[16,2](-invoiceSumInvoiceDetail(contractLedger) * 
                       rateOn(typeExchange(contractSku(contractLedger)), 
                                                      currency(contractLedger),
                                                      date(contractLedger)))
     ELSE 
-        -invoiceSumInvoiceDetail(contractLedger);
+        -invoiceSumInvoiceDetail(contractLedger)) IF isSaleType(contractSku(contractLedger)) AND isPrepaymentType(paymentCondition(contractLedger));
+;
 
 @implementContractLedger(a, Invoice, contractSku);
 sum[ContractALedger](Invoice contractALedger) +=
