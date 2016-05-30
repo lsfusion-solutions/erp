@@ -796,7 +796,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
                     BigDecimal quantityReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPEXP");
                     BigDecimal priceReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPRIC")/*, denominationStage)*/;
-                    BigDecimal sumReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSUMC")/*, denominationStage)*/;
+                    BigDecimal sumReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")/*, denominationStage)*/;
                     BigDecimal discountSum1ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSDELC")/*, denominationStage)*/;
                     BigDecimal discountSum2ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPDELC")/*, denominationStage)*/;
                     BigDecimal discountSumReceiptDetail = safeNegate(safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
