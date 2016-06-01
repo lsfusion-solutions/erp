@@ -76,7 +76,7 @@ public class Kristal10Settings implements Serializable{
         return ignoreFileLock;
     }
 
-    public void setIgnoreFileLocks(Boolean ignoreFileLock) {
+    public void setIgnoreFileLock(Boolean ignoreFileLock) {
         this.ignoreFileLock = ignoreFileLock;
     }
 
