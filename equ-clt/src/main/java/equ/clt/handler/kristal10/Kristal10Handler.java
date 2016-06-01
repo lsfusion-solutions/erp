@@ -407,6 +407,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
         Set<String> directorySet = new HashSet<>();
@@ -441,7 +443,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     try {
                         String fileName = file.getName();
                         sendSalesLogger.info("Kristal10: reading " + fileName);
-                        if (isFileLocked(file)) {
+                        if (!ignoreFileLocks && isFileLocked(file)) {
                             sendSalesLogger.info("Kristal10: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();
@@ -700,6 +702,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         boolean ignoreSalesWeightPrefix = kristalSettings == null || kristalSettings.getIgnoreSalesWeightPrefix() != null && kristalSettings.getIgnoreSalesWeightPrefix();
         boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean ignoreSalesDepartmentNumber = kristalSettings != null && kristalSettings.getIgnoreSalesDepartmentNumber() != null && kristalSettings.getIgnoreSalesDepartmentNumber();
+        boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
         Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
@@ -747,7 +750,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 try {
                     String fileName = file.getName();
                     sendSalesLogger.info("Kristal10: reading " + fileName);
-                    if (isFileLocked(file)) {
+                    if (!ignoreFileLocks && isFileLocked(file)) {
                         sendSalesLogger.info("Kristal10: " + fileName + " is locked");
                     } else {
                         SAXBuilder builder = new SAXBuilder();
@@ -939,6 +942,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
     @Override
     public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) {
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
@@ -969,7 +974,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     try {
                         String fileName = file.getName();
                         sendSalesLogger.info("Kristal10: reading " + fileName);
-                        if (isFileLocked(file)) {
+                        if (!ignoreFileLocks && isFileLocked(file)) {
                             sendSalesLogger.info("Kristal10: " + fileName + " is locked");
                         } else {
                             SAXBuilder builder = new SAXBuilder();

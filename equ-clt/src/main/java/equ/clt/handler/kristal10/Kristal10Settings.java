@@ -12,6 +12,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean useShopIndices;
     private Boolean ignoreSalesDepartmentNumber;
     private Boolean useIdItemInRestriction;
+    private Boolean ignoreFileLock;
     private String transformUPCBarcode; //12to13 or 13to12
     private Integer maxFilesCount;
     private String tobaccoGroup;
@@ -69,6 +70,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setUseIdItemInRestriction(Boolean useIdItemInRestriction) {
         this.useIdItemInRestriction = useIdItemInRestriction;
+    }
+
+    public Boolean getIgnoreFileLock() {
+        return ignoreFileLock;
+    }
+
+    public void setIgnoreFileLocks(Boolean ignoreFileLock) {
+        this.ignoreFileLock = ignoreFileLock;
     }
 
     public String getTransformUPCBarcode() {
