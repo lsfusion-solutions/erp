@@ -1234,8 +1234,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         } finally {
             if(file != null)
                 file.close();
-            if(tempFile != null)
-                tempFile.delete();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
        
         return checkArticles(context, session, importSettings.getPropertyImportType(), staticNameImportType, staticCaptionImportType, 

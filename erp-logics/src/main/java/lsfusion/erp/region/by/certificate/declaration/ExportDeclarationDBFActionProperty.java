@@ -617,8 +617,8 @@ public class ExportDeclarationDBFActionProperty extends DefaultExportActionPrope
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null)
-                tempFile.delete();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }            
         return fieldMap;
     }

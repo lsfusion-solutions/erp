@@ -142,8 +142,8 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null)
-                tempFile.delete();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
         
         for (Map.Entry<String, List<Object>> entry : dataVATMap.entrySet()) {

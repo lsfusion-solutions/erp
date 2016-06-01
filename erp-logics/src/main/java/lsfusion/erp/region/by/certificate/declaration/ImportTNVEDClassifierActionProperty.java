@@ -89,8 +89,8 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null)
-            tempFile.delete();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
         
         ImportField codeCustomsGroupField = new ImportField(findProperty("code[CustomsGroup]"));
@@ -127,37 +127,44 @@ public class ImportTNVEDClassifierActionProperty extends ScriptingActionProperty
 
     private void importParents(ExecutionContext<ClassPropertyInterface> context, byte[] fileBytes) throws IOException, xBaseJException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
-        File tempFile = File.createTempFile("tempTnved", ".dbf");
-        IOUtils.putFileBytes(tempFile, fileBytes);
-
-        DBF file = new DBF(tempFile.getPath());
-
         List<List<Object>> data = new ArrayList<>();
-        List<String> groupIDsList = new ArrayList<>();
-        int recordCount = file.getRecordCount();
-        for (int i = 1; i <= recordCount; i++) {
-            file.read();
+        File tempFile = null;
+        DBF file = null;
+        try {
+            tempFile = File.createTempFile("tempTnved", ".dbf");
+            IOUtils.putFileBytes(tempFile, fileBytes);
 
-            String groupID = new String(file.getField("KOD").getBytes(), "Cp866").trim();
-            String parentID = null;
-            if (!groupID.equals("··········"))
-                for (int j = groupID.length() - 1; j > 0; j--) {
-                    if (groupIDsList.contains(groupID.substring(0, j))) {
-                        parentID = groupID.substring(0, j);
-                        break;
+            file = new DBF(tempFile.getPath());
+
+            List<String> groupIDsList = new ArrayList<>();
+            int recordCount = file.getRecordCount();
+            for (int i = 1; i <= recordCount; i++) {
+                file.read();
+
+                String groupID = new String(file.getField("KOD").getBytes(), "Cp866").trim();
+                String parentID = null;
+                if (!groupID.equals("··········"))
+                    for (int j = groupID.length() - 1; j > 0; j--) {
+                        if (groupIDsList.contains(groupID.substring(0, j))) {
+                            parentID = groupID.substring(0, j);
+                            break;
+                        }
                     }
+
+                if (groupID.equals("··········")) {
+                    groupID = "-" + i;
                 }
 
-            if (groupID.equals("··········")) {
-                groupID = "-" + i;
+                data.add(Arrays.asList((Object) groupID, parentID));
+                groupIDsList.add(groupID);
             }
-
-            data.add(Arrays.asList((Object) groupID, parentID));
-            groupIDsList.add(groupID);
+        } finally {
+            if(file != null)
+                file.close();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
-        file.close();
-        tempFile.delete();
-        
+
         ImportField groupIDField = new ImportField(findProperty("code[CustomsGroup]"));
         ImportField parentIDField = new ImportField(findProperty("code[CustomsGroup]"));
 

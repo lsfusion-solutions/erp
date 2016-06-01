@@ -92,9 +92,10 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                 File baseFile = File.createTempFile(baseName, ".dbf");
                                 File baseMdxFile = new File(baseFile.getAbsolutePath().replace(".dbf", ".mdx"));
                                 File flagPriceFile = File.createTempFile(priceName, ".lsf");
-                                boolean append = !transaction.snapshot && copyFTPToFile(basePath, baseFile);
 
                                 try {
+                                    boolean append = !transaction.snapshot && copyFTPToFile(basePath, baseFile);
+
                                     //write to local base file
                                     writeBaseFile(transaction, cashRegister, baseFile, append);
 

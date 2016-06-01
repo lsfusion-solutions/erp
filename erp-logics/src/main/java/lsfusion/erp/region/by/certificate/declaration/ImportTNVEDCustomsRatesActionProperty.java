@@ -214,8 +214,8 @@ public class ImportTNVEDCustomsRatesActionProperty extends ScriptingActionProper
         } finally {
             if(dbfFile != null)
                 dbfFile.close();
-            if(tempFile != null)
-                tempFile.delete();
+            if(tempFile != null && !tempFile.delete())
+                tempFile.deleteOnExit();
         }
         
         Date defaultDateFrom = new Date(2010 - 1900, 0, 1);

@@ -82,6 +82,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         }
                     }
 
+                    File cachedPriceFile = null;
+                    File cachedPriceMdxFile = null;
                     try {
 
                         NumField CODE = new NumField("CODE", 6, 0);
@@ -101,9 +103,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         CharField STRFLAGS = new CharField("STRFLAGS", 16);
                         NumField NDS = new NumField("NDS", 5, 2);
                         NumField NALOG = new NumField("NALOG", 1, 0);
-
-                        File cachedPriceFile = null;
-                        File cachedPriceMdxFile = null;
 
                         List<List<Object>> waitList = new ArrayList<>();
                         for (Map.Entry<String, List<CashRegisterInfo>> entry : directoryMap.entrySet()) {
@@ -310,11 +309,11 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         processTransactionLogger.info(String.format("HTC: Transaction # %s end waiting for deletion", transaction.id));
                         exception = exception == null ? deletionException : exception;
 
-                        safeFileDelete(cachedPriceFile, processTransactionLogger);
-                        safeFileDelete(cachedPriceMdxFile, processTransactionLogger);
-
                     } catch (xBaseJException e) {
                         throw Throwables.propagate(e);
+                    } finally {
+                        safeFileDelete(cachedPriceFile, processTransactionLogger);
+                        safeFileDelete(cachedPriceMdxFile, processTransactionLogger);
                     }
                 }
             } catch (Exception e) {
@@ -728,6 +727,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                     sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
                 }
 
+                DBF salesDBFFile = null;
                 try {
                     if (!copyError) {
                         Map<Integer, List<Object>> receiptMap = new HashMap<>();
@@ -746,7 +746,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                         }
                         receiptDBFFile.close();
 
-                        DBF salesDBFFile = new DBF(salesFile.getAbsolutePath());
+                        salesDBFFile = new DBF(salesFile.getAbsolutePath());
                         int recordCount = salesDBFFile.getRecordCount();
 
                         Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
@@ -797,7 +797,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                 }
                             }
                         }
-                        salesDBFFile.close();
+
 
                         if(makeBackup) {
                             String timePostfix = postfix == null ? (getCurrentTimestamp() + ".dbf") : postfix;
@@ -816,6 +816,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + remoteSalesFile.getAbsolutePath(), e);
                 } finally {
+                    if(salesDBFFile != null)
+                        salesDBFFile.close();
                     receiptFilesPathList.remove(remoteReceiptFile.getAbsolutePath());
                     if (!copyError) {
                         filePathList.add(remoteSalesFile.getAbsolutePath());

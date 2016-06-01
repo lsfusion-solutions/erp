@@ -179,12 +179,12 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         } catch (Exception e) {
             throw Throwables.propagate(e);
         } finally {
+            if (connection != null)
+                connection.close();
             if(file != null && !file.delete())
                 file.deleteOnExit();
             if(zipFile != null && !zipFile.delete())
                 zipFile.deleteOnExit();
-            if (connection != null)
-                connection.close();
         }
     }
 
