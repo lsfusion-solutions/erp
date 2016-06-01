@@ -20,6 +20,7 @@ dataCurrency (Shipment consignment) += currency(consignment);
 consignmentType (Shipment consignment) += consignmentType(operation(consignment));
 dataShipmentBase (Shipment consignment) += shipmentBase(operation(consignment));
 ownerTrackType (Shipment consignment) += ownerTrackType(operation(consignment));
+banPrint (Invoice consignment) += WHEN banOpenedPrint(operation(consignment)) AND NOT isPosted(consignment)THEN TRUE;
 
 notUseDriverTruck(Shipment c) += notUseDriverTruck(operation(c));
 
@@ -47,7 +48,7 @@ dataSumInvoice (ShipmentDetail detail) += sum(detail);
 showConsignment (Shipment shipment) = TRUE AND NOT relationInvoice(shipment);
 
 EXTEND FORM  shipments
-    PROPERTIES (s)  FORCE PANEL printVerticalA, printVerticalAB, printHorizontalA,
+    PROPERTIES (s)   READONLYIF banPrint(s) FORCE PANEL printVerticalA, printVerticalAB, printHorizontalA,
                      printVerticalB, printHorizontalB,
                      printAttach, printSimpleHorizontal, editAttributes,
                      printSimpleVertical, printSimpleAttach,
