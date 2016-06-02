@@ -120,7 +120,8 @@ addressSupplier 'Юр. адрес отправителя' (Consignment consignme
     OVERRIDE address(supplier(consignment), date(consignment)), overAddressSupplier(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 overFullNameSupplier = ABSTRACT VARISTRING[200] (Consignment);  
 fullNameSupplier 'Наим-ие отправителя' (Consignment consignment) = 
-    OVERRIDE fullName(supplier(consignment)), overFullNameSupplier(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+    OVERRIDE fullName(supplier(consignment)), overFullNameSupplier(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;    
+extraDescriptionSupplier = ABSTRACT VARISTRING[255] (Consignment);  
 
 dataCustomer = ABSTRACT LegalEntity (Consignment);
 overCustomer = ABSTRACT LegalEntity (Consignment);
@@ -134,6 +135,7 @@ nameCustomer 'Наим-ие получателя' (Consignment consignment) = na
 overFullNameCustomer = ABSTRACT VARISTRING[200] (Consignment);  
 fullNameCustomer 'Наим-ие получателя' (Consignment consignment) = 
     OVERRIDE fullName(customer(consignment)), overFullNameCustomer(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+extraDescriptionCustomer = ABSTRACT VARISTRING[255] (Consignment);  
 
 payer = ABSTRACT LegalEntity (Consignment);
 UNPPayer 'УНП заказчика' (Consignment consignment) = UNP(payer(consignment));
@@ -551,6 +553,7 @@ overGrossWeightConsignmentDetail 'Общая масса груза, кг' = OVER
                                                                                grossWeight(consignment);
 
 isCustomsFlow 'Расход с СВХ' (consignment) = ABSTRACT BOOLEAN (Consignment);
+printDetailCustomsFlow 'Печатать строки' (consignment) = ABSTRACT BOOLEAN (Consignment);
 
 dataCurrency 'Валюта (ИД)' (consignment) = ABSTRACT Currency (Consignment);
 overCurrency 'Валюта (ИД)' (consignment) = ABSTRACT CASE Currency (Consignment);
@@ -635,8 +638,8 @@ META defineConsignmentFormSimple(form, caption)
                        quantityConsignmentDetail, sumConsignmentDetail, sumVATConsignmentDetail,
                        sumInvoiceConsignmentDetail,
                        UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
-                       fullNameSupplier, fullNameCustomer, number, series, seriesNumber, countConsignmentDetail,
-                       isWare, isCustomsFlow, isCurrency, shortNameCurrency,
+                       fullNameSupplier, fullNameCustomer, extraDescriptionSupplier, extraDescriptionCustomer, number, series, seriesNumber, countConsignmentDetail,
+                       isWare, isCustomsFlow, printDetailCustomsFlow, isCurrency, shortNameCurrency,
                        note, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
@@ -664,7 +667,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
                        quantityConsignmentDetail, sumConsignmentDetail, sumVATConsignmentDetail,
                        sumInvoiceConsignmentDetail,
                        UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
-                       fullNameSupplier, fullNameCustomer, number, series, seriesNumber, countConsignmentDetail,
+                       fullNameSupplier, fullNameCustomer, extraDescriptionSupplier, extraDescriptionCustomer, number, series, seriesNumber, countConsignmentDetail,
                        isWare, isCustomsFlow, isCurrency, shortNameCurrency,
                        note, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
@@ -728,6 +731,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##UNPSupplierConsignment=UNPSupplier, prefix##addressSupplierConsignment=addressSupplier, 
                        prefix##addressCustomerConsignment=addressCustomer, prefix##fullNameSupplierConsignment=fullNameSupplier,
                        prefix##fullNameCustomerConsignment=fullNameCustomer, prefix##nameTruckConsignment=nameTruck, 
+                       prefix##extraDescriptionSupplier=extraDescriptionSupplier, prefix##extraDescriptionCustomer=extraDescriptionCustomer,
                        prefix##ownerTruckConsignment=ownerTruck, prefix##trailerConsignment=trailer, 
                        prefix##nameDriverConsignment=nameDriver, prefix##overWaybillConsignment=overWaybill,
                        prefix##fullNamePayerConsignment=fullNamePayer, prefix##UNPPayerConsignment=UNPPayer, 
