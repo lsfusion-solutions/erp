@@ -426,13 +426,26 @@ DESIGN options {
     }
 }
 
+allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Stock);
+
+// по товарам
+
+banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN (Stock);
+EXTEND FORM options
+    PROPERTIES banNegativeSku(s)
+;
+
+CONSTRAINT availableQuantity(Sku sk, Stock st) < 0.0 AND 
+           banNegativeSku(st) AND NOT allowedNegative(st)
+    MESSAGE 'Текущий резерв по товарам превышает текущий остаток';
+
+// по партия
+
+allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
 banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN (Stock);
 EXTEND FORM options
     PROPERTIES banNegativeBatch(s)
 ;
-
-allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
-allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Stock);
 
 EXTEND FORM currentBalanceBatchStock 
     PROPERTIES (bt,st) allowedNegative BEFORE nameSku(bt) SHOWIF banNegativeBatch()
@@ -513,6 +526,7 @@ EXTEND FORM currentBalanceSkuStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
+    PROPERTIES(ll) edit
 
     FILTERS stock(ll)==st,
             sku(ll)==s
@@ -544,6 +558,7 @@ EXTEND FORM currentBalanceBatchStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
+    PROPERTIES(ll) edit
 
     FILTERS stock(ll)==st,
             batch(ll)==bt
@@ -581,6 +596,7 @@ EXTEND FORM balanceSkuStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
+    PROPERTIES(ll) edit
 
     FILTERS stock(ll)==st,
             sku(ll)==s,
@@ -614,6 +630,7 @@ EXTEND FORM balanceBatchStock
     OBJECTS ll = OrderLedger
     PROPERTIES(ll) READONLY date, dateTime, nameOperation, nameContact, nameContactStock, description,
                    quantity, toShipQuantity
+    PROPERTIES(ll) edit
 
     FILTERS stock(ll)==st,
             batch(ll)==bt,
