@@ -98,12 +98,13 @@ META defineOrderInvoice(sign, stockProp)
     descriptionOrder 'Заказ' (UserInvoiceDetail userInvoiceDetail) = description(order(userInvoiceDetail)) IN order;
 
     quantityInvoiceDetail (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY order(invoiceDetail), invoice(invoiceDetail);
-    orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityInvoiceDetail(order, Invoice invoice) , ', '
+    countInvoiceDetail(order, invoice) = GROUP SUM 1 BY order(InvoiceDetail invoiceDetail), invoice(invoiceDetail);
+    orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF countInvoiceDetail(order, Invoice invoice) , ', '
                                              BY invoice
                                              ORDER order
                                              IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
                                              
-    invoices 'Накладные' (order) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF quantityInvoiceDetail(Order order, invoice) , ', '
+    invoices 'Накладные' (order) = GROUP CONCAT VARSTRING[255](description(Invoice invoice)) IF countInvoiceDetail(Order order, invoice) , ', '
                                              BY order
                                              ORDER invoice
                                              IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
