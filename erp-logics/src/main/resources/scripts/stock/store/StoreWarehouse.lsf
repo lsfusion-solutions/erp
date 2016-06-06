@@ -10,6 +10,7 @@ changeClassWarehouse 'Сделать магазином'(Stock warehouse) = ACTI
     LOCAL la = NUMERIC[10,5]();
     LOCAL lo = NUMERIC[10,5]();
     LOCAL i = INTEGER();
+    LOCAL ac = BOOLEAN();
     LOCAL w = WriteOffCommittee();
     LOCAL e = Employee();
     LOCAL ee = Employee();
@@ -18,18 +19,19 @@ changeClassWarehouse 'Сделать магазином'(Stock warehouse) = ACTI
     LOCAL r = BOOLEAN (Employee);
     LOCAL id = VARSTRING[100]();
 
-    ASSIGN n() <- name[Warehouse](warehouse);
-    ASSIGN a() <- address[Warehouse](warehouse);
-    ASSIGN le() <- legalEntity[Warehouse](warehouse);
-    ASSIGN la() <- latitude[Warehouse](warehouse);
-    ASSIGN lo() <- longitude[Warehouse](warehouse);
-    ASSIGN i() <- quantityDaysClose[Warehouse](warehouse);
-    ASSIGN w() <- writeOffCommittee(warehouse);
-    ASSIGN e() <- responsiblePerson(warehouse);
-    ASSIGN ee() <- booker(warehouse);
-    ASSIGN eee() <- controller(warehouse);
-    ASSIGN b() <- explicitBatchLedger[Warehouse](warehouse);
-    ASSIGN id() <- id[Warehouse](warehouse);
+    n() <- name[Warehouse](warehouse);
+    a() <- address[Warehouse](warehouse);
+    le() <- legalEntity[Warehouse](warehouse);
+    la() <- latitude[Warehouse](warehouse);
+    lo() <- longitude[Warehouse](warehouse);
+    i() <- quantityDaysClose[Warehouse](warehouse);
+    ac() <- autoCloseOrders[Warehouse](warehouse);
+    w() <- writeOffCommittee(warehouse);
+    e() <- responsiblePerson(warehouse);
+    ee() <- booker(warehouse);
+    eee() <- controller(warehouse);
+    b() <- explicitBatchLedger[Warehouse](warehouse);
+    id() <- id[Warehouse](warehouse);
 
     FOR in(warehouse, Employee employee) DO {
         ASSIGN r(employee) <- in(warehouse, employee);
@@ -38,23 +40,24 @@ changeClassWarehouse 'Сделать магазином'(Stock warehouse) = ACTI
     CHANGECLASS warehouse TO DepartmentStore;
 
     FOR ADDOBJ s = Store DO{
-        ASSIGN name(s) <- n();
-        ASSIGN address(s) <- a();
-        ASSIGN legalEntity(s) <- le();
-        ASSIGN latitude(s) <- la();
-        ASSIGN longitude(s) <- lo();
+        name(s) <- n();
+        address(s) <- a();
+        legalEntity(s) <- le();
+        latitude(s) <- la();
+        longitude(s) <- lo();
 
-        ASSIGN name[DepartmentStore](warehouse) <- n();
-        ASSIGN store(warehouse) <- s;
-        ASSIGN quantityDaysClose[DepartmentStore](warehouse) <- i();
-        ASSIGN writeOffCommittee(warehouse) <- w();
-        ASSIGN dataResponsiblePerson(warehouse, DATE date) <- e() WHERE date == currentDate();
-        ASSIGN dataBooker(warehouse, DATE date) <- ee() WHERE date == currentDate();
-        ASSIGN dataController(warehouse, DATE date) <- eee() WHERE date == currentDate();
-        ASSIGN explicitBatchLedger[DepartmentStore](warehouse) <- b();
-        ASSIGN id[Warehouse](warehouse) <- id();
+        name[DepartmentStore](warehouse) <- n();
+        store(warehouse) <- s;
+        quantityDaysClose[DepartmentStore](warehouse) <- i();
+        autoCloseOrders[DepartmentStore](warehouse) <- ac();
+        writeOffCommittee(warehouse) <- w();
+        dataResponsiblePerson(warehouse, DATE date) <- e() WHERE date == currentDate();
+        dataBooker(warehouse, DATE date) <- ee() WHERE date == currentDate();
+        dataController(warehouse, DATE date) <- eee() WHERE date == currentDate();
+        explicitBatchLedger[DepartmentStore](warehouse) <- b();
+        id[Warehouse](warehouse) <- id();
         FOR r(Employee employee) DO {
-            ASSIGN in(warehouse, employee) <- r(employee);
+            in(warehouse, employee) <- r(employee);
         }
 
         FORM store OBJECTS s=s MODAL;

@@ -212,17 +212,16 @@ overPreventClose (UserInvoice i) += preventCloseDocument(currentUser(), operatio
 //                                                   BY skuLedger(batch, stock), stock, dateTime;
 //firstOrderBatch(Sku sku, Stock stock, DATETIME dateTime) = orderBatch(sku, stock, dateTime)[2];
 
-orderBatchBalance (sku, stock, dateTime, q) = GROUP MIN order(Batch batch) IF balanceB(batch, Stock stock, DATETIME dateTime) >= NUMERIC[16,5] q
+orderBatchBalance (sku, stock, dateTime, q) = GROUP MIN order(Batch batch) IF prevAvailableQuantity(batch, Stock stock, DATETIME dateTime) >= NUMERIC[16,5] q
                                                    BY skuLedger(batch, stock), stock, dateTime, q;
 firstOrderBatchBalance(Sku sku, Stock stock, DATETIME dateTime, NUMERIC[16,5] q) = orderBatchBalance(sku, stock, dateTime, q)[2];
 
 fillBatch 'Проставить партию'(UserInvoiceDetail d)  = ACTION {    
-    batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), dateTime(d), quantity(d)) 
-        WHERE NOT batch(d);
+    batch(d) <- firstOrderBatchBalance(sku(d), supplierStock(d), dateTime(d), quantity(d)); 
 } SHORTCUT nameBatch[UserInvoiceDetail];
 
 fillAllBatch 'Проставить партии для всех'(UserInvoiceDetail detail) = ACTION {
-   FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) DO
+   FOR userInvoice(detail) == userInvoice(UserInvoiceDetail d) AND NOT batch(d) DO
        fillBatch(d);
 } SHORTCUT nameBatch[UserInvoiceDetail];
 

@@ -187,7 +187,10 @@ legalEntity (DepartmentStore departmentStore) = legalEntity(store(departmentStor
 legalEntity (DepartmentStore stock) += legalEntity(stock);
 
 quantityDaysClose 'Срок автоматического закрытия заказов' = DATA INTEGER(DepartmentStore);
+autoCloseOrders 'Автоматически закрывать заказы' = DATA BOOLEAN (DepartmentStore); 
+
 quantityDaysCloseOrders(DepartmentStore stock) += quantityDaysClose(stock);
+autoCloseOrders (DepartmentStore stock) += autoCloseOrders(stock); 
 
 user 'Отм.' = DATA BOOLEAN (LegalEntity, DepartmentStore);
 user(LegalEntity legalEntity, DepartmentStore stock) += user(legalEntity, stock);
@@ -248,7 +251,7 @@ CONSTRAINT chairman(Store store) AND NOT in(store, chairman(store))
 FORM departmentStore 'Отдел магазина'
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES(d) nameDep=name, fullName, phone, nameStore, nameStockGroup, tradingSquare,
-                  numberCashAccount SHOWIF isCompany(d), quantityDaysClose SHOWIF isCompany(d),
+                  numberCashAccount SHOWIF isCompany(d), quantityDaysClose SHOWIF isCompany(d), autoCloseOrders SHOWIF isCompany(d),
                   id SHOWIF showIDs(), inactive
 
     OBJECTS e = Employee FIXED GRID
@@ -284,6 +287,7 @@ DESIGN departmentStore {
                     caption = 'Дополнительные параметры';
                     MOVE PROPERTY(numberCashAccount(d));
                     MOVE PROPERTY(quantityDaysClose(d));
+                    MOVE PROPERTY(autoCloseOrders(d));
                 }
             }
             NEW headerRight;

@@ -564,6 +564,10 @@ META defineOrderInvoice(sign, stockProp)
     }
     overCreateMultiUserInvoice(Order o)+= ACTION createMultiUserInvoice(o);
 
+    // автомтатическое закрытие заказов
+    WHEN SET(order(InvoiceDetail d) AND isPosted(d)) AND autoCloseOrders(stockProp###stock(d)) AND NOT isClosed(order(d)) DO
+        isClosed(UserOrder o) <- TRUE WHERE o == order(d);
+
 //-- агр.объект
 
     // todo : временно отключено из-за тормозов при вводе количества в подборе, так как строка заказов может начать влиять на партии
