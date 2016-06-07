@@ -211,8 +211,36 @@ edit (WriteOffPricing p)+= ACTION edit(writeOff(p));
 //descriptionDocumentPricing(pricing) += writeOffsPricing(pricing);
 
 // Автоматически проставляем цены поставщика и розничные
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userWriteOff, supplierPricingPriceListType, supplier, sku, stock);
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userWriteOff, retailPricingPriceListType, retail, sku, stock);
+
+WHEN CHANGED(sku(UserWriteOffDetail detail)) OR
+     CHANGED(stock(detail)) OR
+     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+     CHANGED(batch(detail)) DO 
+    supplierPrice (detail)  <- IF batch(detail)
+    
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   stock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 stock(detail),
+                                                                                                 dateTime(detail));
+
+WHEN CHANGED(sku(UserWriteOffDetail detail)) OR
+     CHANGED(stock(detail)) OR
+     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+     CHANGED(batch(detail)) DO
+     retailPrice (detail)  <- IF batch(detail)
+    
+                                                     THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                                    batch(detail),
+                                                                                                    stock(detail),
+                                                                                                    dateTime(detail))
+                                                     ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.retailPricingPriceListType,
+                                                                                                  sku(detail),
+                                                                                                  stock(detail),
+                                                                                                  dateTime(detail));
 
 // Автоматический расчет розничной надбавки
 WHEN CHANGED(retailPrice(UserWriteOffDetail userWriteOffDetail)) OR
