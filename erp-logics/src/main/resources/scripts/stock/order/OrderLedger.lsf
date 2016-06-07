@@ -652,6 +652,7 @@ DESIGN balanceBatchStock {
 META extendFormDocumentSkuOrderLedgerOver(object, form, concrete, stockProp)
 
     prevAvailableQuantity 'Доступное к-во' (Sku sku, ###object object)= prevAvailableQuantity(sku, stockProp(object), dateTime(object));
+    prevCurrentAvailableQuantity 'Доступное кол-во (всего)' (Sku sku, ###object object) = prevAvailableQuantity(sku, stockProp(object));
 
     prevReserveBPurchase 'Резерв закупка' (Sku sku, ###object object) = prevReserveBPurchase(sku, stockProp(object), dateTime(object));
     prevCurrentReservePurchase 'Резерв закупка (всего)' (Sku sku, ###object object) = prevCurrentReservePurchase(sku, stockProp(object));
@@ -669,16 +670,19 @@ META extendFormDocumentSkuOrderLedgerOver(object, form, concrete, stockProp)
     @defineReserveSku(object###Detail, stockProp);     
     EXTEND FORM form
         PROPERTIES BEFORE prevCurrentBalance(ks, concrete) 
-                   prevAvailableQuantity(ks, concrete) ON CHANGE reviewReserve(ks,concrete)
+                   prevCurrentAvailableQuantity(ks, concrete) ON CHANGE reviewReserve(ks,concrete)
 
         PROPERTIES AFTER prevCurrentBalance(ks, concrete)
-                   prevReserveBPurchase(ks, concrete) ON CHANGE reviewReserve(ks,concrete),
-                   prevReserveBSale(ks, concrete) ON CHANGE reviewReserve(ks,concrete),
                    prevCurrentReservePurchase(ks,concrete) ON CHANGE reviewReserve(ks,concrete),
                    prevCurrentReserveSale(ks,concrete) ON CHANGE reviewReserve(ks,concrete)
+        
+        PROPERTIES prevAvailableQuantity(ks, concrete) ON CHANGE reviewReserve(ks,concrete),
+                   prevReserveBPurchase(ks, concrete) ON CHANGE reviewReserve(ks,concrete),
+                   prevReserveBSale(ks, concrete) ON CHANGE reviewReserve(ks,concrete)
     ;
     DESIGN form {
         PROPERTY(prevAvailableQuantity(ks, concrete)) { background = #F4FFBD; }
+        PROPERTY(prevCurrentAvailableQuantity(ks, concrete)) { background = #F4FFBD; }
         PROPERTY(prevCurrentReserveSale(ks, concrete)) { background = #BDE3FF; }
         PROPERTY(prevCurrentReservePurchase(ks, concrete)) { background = #CCFFCC; }
         PROPERTY(prevReserveBSale(ks, concrete)) { background = #BDE3FF; }
