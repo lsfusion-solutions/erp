@@ -442,9 +442,10 @@ toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[16,2] (Rec
 changeToPayBonuses (Receipt r) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
+        bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == r;
         CASE WHEN requestedNumeric() < 0.0 THEN 
                 MESSAGE 'Сумма бонусов не может быть отрицательной'
-             WHEN sumReceiptDetail(r) (-) minBonusSum() < round(requestedNumeric(), roundCondition(departmentStore(r))) THEN
+             WHEN sumReceiptDetail(r) (-) minBonusSum() * countReceiptDetail(r) < round(requestedNumeric(), roundCondition(departmentStore(r))) THEN
                 MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека'                 
              WHEN NOT round(requestedNumeric(), roundCondition(departmentStore(r))) <= prevTotalBonuses(discountCard(r)) THEN
                 MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных'
@@ -456,7 +457,7 @@ changeToPayBonuses (Receipt r) = ACTION {
 
 sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
-        LIMIT round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
+        LIMIT MIN (sum(detail) (-) minBonusSum()), round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
         BY receipt(detail)
         ORDER detail; 
 
@@ -492,6 +493,7 @@ postBonus 'Бонусами'(Receipt receipt) = ACTION {
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
         FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt MODAL;
         IF formResult() == FormResult.ok THEN {
+            bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
             bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;        
             overPostBonus(receipt);        
         }
