@@ -232,3 +232,21 @@ DESIGN options {
 }
 CONSTRAINT isPosted(ShipmentDetail d) AND isShipmentPrice(operation(d)) AND NOT price(d)
     MESSAGE 'Для документа (продажа) должна быть задана учетная цена';
+
+
+EXTEND FORM invoices
+    OBJECTS dsLog = DocumentDetailLog FIXED GRID
+    PROPERTIES (dsLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity, price, nameUser, dateTime, note
+    FILTERS document(dsLog) == invoiceShipment(i)
+;
+
+DESIGN invoices {
+    documentHistory { 
+        historyTabs {
+             NEW detailShipmentLog{
+                 caption = 'По строкам (поставка)';
+                 MOVE dsLog.box;
+             }
+        }
+    }    
+} 
