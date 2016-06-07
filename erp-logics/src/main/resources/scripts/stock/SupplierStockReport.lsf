@@ -133,6 +133,93 @@ supplierReportPrintXLSX 'Отчет по поставщику (xlsx)' (Stock st,
 //    inReportStock(stock) <- NULL;
 }IMAGE 'print.png' IN print;    
 
+// склад поставщика 
+inSupplierStockReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+countInSupplierStockReport = GROUP SUM 1 IF inSupplierStockReport(Stock st) ;    
+nameInSupplierStockReport 'Склады' () =
+    GROUP CONCAT name(Stock st) IF inSupplierStockReport(st) ,', ' PREFCHARWIDTH 30;    
+
+FORM dialogSupplierStocks 'Выбор складов поставщика'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL    
+    OBJECTS gt = GroupType FIXED PANEL
+        
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), name(sg)
+    ORDER BY name(sg)
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, name
+    PROPERTIES (s) inSupplierStockReport
+    ORDER BY name(s)
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isSeller(s),
+            countCompanyStock(sg) OR countSupplierStock(sg)
+
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
+    FILTERGROUP select FILTER 'Отм.' inSupplierStockReport(s) 'F9' 
+    FILTERGROUP sold FILTER 'С продажей' quantitySoldSupplierFromTo(s,dFrom,dTo) 'F8'
+;
+
+DESIGN dialogSupplierStocks {
+    main{
+        preferredSize = (1024, 768);        
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+
+            MOVE stockTree.tree.box {
+                caption = 'Склады';
+            }
+
+            MOVE s.box {
+                fill = 3;
+                s.grid {
+                    defaultComponent = TRUE;
+                }
+                PROPERTY(name(s)){
+                    minimumCharWidth = 35;
+                    preferredCharWidth = 35;
+                }
+            }
+        }
+
+        MOVE functions.box;
+    }
+}
+    
+
+FORM supplierStockReportPrintAll 'По поставщикам'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)    
+    
+    OBJECTS st = Stock 
+    PROPERTIES (st) SELECTOR name, fullName, nameLegalEntity, fullNameLegalEntity
+    FILTERS inSupplierStockReport(st)
+    PROPERTIES  TODRAW st stocksReport(), currentDate(), sessionConcatSkuGroups(), nameInSupplierStockReport()
+             
+    PROPERTIES(st,dFrom,dTo) quantityPurchaseSupplierFromTo,sumPurchaseSupplierFromTo, supplierSumPurchaseSupplierFromTo,
+                quantitySoldSupplierFromTo,sumSoldSupplierFromTo,
+                sumSaleSupplierFromTo, supplierSumSaleSupplierFromTo
+    PROPERTIES(st,dFrom) balanceBSupplierFrom,  sumBSupplierFrom,  supplierSumBSupplierFrom        
+    PROPERTIES(st,dTo) balanceASupplierTo,  sumASupplierTo,  supplierSumASupplierTo                              
+;
+
+supplierReportPrintAll 'Отчет по поставщику (xls)' (Stock st,DATE dFrom,DATE dTo) = ACTION {
+    inSupplierStockReport(Stock stock) <- NULL;
+    inSupplierStockReport(st) <- TRUE;
+    FORM supplierStockReportPrintAll OBJECTS dFrom = dFrom, dTo=dTo PRINT XLS;
+    inSupplierStockReport(Stock stock) <- NULL;
+}IMAGE 'print.png' IN print;
+
+supplierReportPrintAllSelect 'Отчет по поставщикам (xls)' (DATE dFrom,DATE dTo) = ACTION {
+    inSupplierStockReport(Stock st) <- NULL;
+    FORM dialogSupplierStocks OBJECTS dFrom = dFrom, dTo=dTo MODAL;
+    FORM supplierStockReportPrintAll OBJECTS dFrom = dFrom, dTo=dTo PRINT XLS;
+    inSupplierStockReport(Stock st) <- NULL;
+}IMAGE 'print.png' IN print; 
+
 FORM supplierStockReport 'По поставщикам'
 
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
@@ -166,6 +253,7 @@ FORM supplierStockReport 'По поставщикам'
     PROPERTIES resetSelectedGroups() TOOLBAR FORCE PANEL TODRAW g        
 
     PROPERTIES(sup,dFrom,dTo) supplierReportPrintXLS, supplierReportPrintXLSX
+    PROPERTIES  supplierReportPrintAll(sup,dFrom,dTo), supplierReportPrintAllSelect(dFrom,dTo) TODRAW sup
 ;
 DESIGN supplierStockReport {
     NEW top {
