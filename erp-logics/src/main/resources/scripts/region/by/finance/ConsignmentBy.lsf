@@ -1038,11 +1038,12 @@ DESIGN consignment {
 editAttributes 'Заполнить атрибуты накладной' (Consignment consignment) = ACTION NEWSESSION {
     IF NOT isArrivalTime(consignment) AND NOT dataArrivalTime(consignment) THEN {
 //        dataArrivalTime(consignment) <- currentDateTime();
-        
-        IF date(consignment) <= currentDate() THEN {
-            dataArrivalTime(consignment) <- currentDateTime();
-        } ELSE {
-            dataArrivalTime(consignment) <- dateTimeToDateTime(date(consignment), currentTime());
+        IF NOT notArrivalTimeConsignment() THEN {
+            IF date(consignment) <= currentDate() THEN {
+                dataArrivalTime(consignment) <- currentDateTime();
+            } ELSE {
+                dataArrivalTime(consignment) <- dateTimeToDateTime(date(consignment), currentTime());
+            }        
         }
     }    
     FORM consignment OBJECTS c = consignment MANAGESESSION DOCKEDMODAL; 
