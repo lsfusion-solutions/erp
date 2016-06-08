@@ -4,7 +4,6 @@ import equ.api.*;
 
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.ParseException;
@@ -12,17 +11,17 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
-public abstract class  CashRegisterHandler<S extends SalesBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
+public abstract class CashRegisterHandler<S extends SalesBatch> extends MachineryHandler<TransactionCashRegisterInfo, CashRegisterInfo, S> {
 
     public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
 
-    public abstract void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException;
+    public abstract void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException;
 
     public abstract void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException;
 
     public abstract List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException;
 
-    public abstract void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException;
+    public abstract void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException;
     
     public abstract SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException, ClassNotFoundException;
 

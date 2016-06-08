@@ -145,7 +145,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                             //parent: good
                             Element priceEntry = new Element("price-entry");
-                            Object price = item.price == null ? null : (item.price.intValue() == 0 ? "0.00" : item.price.intValue());
+                            Object price = item.price == null ? null : (item.price.doubleValue() == 0.0 ? "0.00" : denominateMultiplyType2(item.price, transaction.denominationStage));
                             setAttribute(priceEntry, "price", price);
                             setAttribute(priceEntry, "deleted", "false");
                             addStringElement(priceEntry, "begin-date", currentDate());
@@ -410,20 +410,16 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
-        Set<String> directorySet = new HashSet<>();
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler")) {
-                directorySet.add(c.directory);
-                if (c.handlerModel != null && c.number != null && c.numberGroup != null) {
-                    directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
-                }
+            if (c.directory != null && c.number != null && c.handlerModel != null && c.handlerModel.endsWith("Kristal10Handler")) {
+                directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
             }
         }
 
         List<CashDocument> cashDocumentList = new ArrayList<>();
         List<String> readFiles = new ArrayList<>();
-        for (String directory : directorySet) {
+        for (String directory : directoryCashRegisterMap.keySet()) {
 
             String exchangeDirectory = directory + "/reports/";
 
@@ -458,8 +454,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             for (Object cashDocumentNode : cashDocumentsList) {
 
                                 String numberCashDocument = readStringXMLAttribute(cashDocumentNode, "number");
+
                                 Integer numberCashRegister = readIntegerXMLAttribute(cashDocumentNode, "cash");
-                                BigDecimal sumCashDocument = readBigDecimalXMLAttribute(cashDocumentNode, "amount");
+                                CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                Integer numberGroup = cashRegister == null ? null : cashRegister.numberGroup;
+                                String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
+                                BigDecimal sumCashDocument = denominateDivideType2(readBigDecimalXMLAttribute(cashDocumentNode, "amount"), denominationStage);
                                 if(!cashIn)
                                     sumCashDocument = sumCashDocument == null ? null : sumCashDocument.negate();
 
@@ -468,7 +469,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 Time timeCashDocument = new Time(dateTimeCashDocument);
 
                                 cashDocumentList.add(new CashDocument(numberCashDocument, numberCashDocument, dateCashDocument, timeCashDocument,
-                                        directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), numberCashRegister, sumCashDocument));
+                                        numberGroup, numberCashRegister, sumCashDocument));
                             }
                             readFiles.add(file.getAbsolutePath());
                         }
@@ -616,13 +617,24 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directorySet) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
+
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
+        for (CashRegisterInfo c : requestExchange.cashRegisterSet) {
+            if (c.directory != null && c.number != null && c.handlerModel != null && c.handlerModel.endsWith("Kristal10Handler")) {
+                directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
+            }
+        }
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         Map<Double, String> discountCardPercentTypeMap = kristalSettings != null ? kristalSettings.getDiscountCardPercentTypeMap() : new HashMap<Double, String>();
 
         if (!discountCardList.isEmpty()) {
-            for (String directory : directorySet) {
+            for (String directory : requestExchange.directoryStockMap.keySet()) {
+
+                CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory);
+                String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
                 String exchangeDirectory = directory.trim() + "/products/source/";
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     processStopListLogger.info(String.format("Kristal10: Send DiscountCards to %s", exchangeDirectory));
@@ -652,7 +664,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                         String guid = discountCardPercentTypeMap.get(percent);
                         if(discountCard.numberDiscountCard != null) {
                             setAttribute(internalCard, "number", discountCard.numberDiscountCard);
-                            setAttribute(internalCard, "amount", discountCard.initialSumDiscountCard == null ? "0.00" : discountCard.initialSumDiscountCard);
+                            setAttribute(internalCard, "amount", discountCard.initialSumDiscountCard == null ? "0.00" : denominateMultiplyType2(discountCard.initialSumDiscountCard, denominationStage));
                             setAttribute(internalCard, "expiration-date", discountCard.dateToDiscountCard == null ? "2050-12-03" : discountCard.dateToDiscountCard);
                             setAttribute(internalCard, "status",
                                     discountCard.dateFromDiscountCard == null || currentDate.compareTo(discountCard.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
@@ -669,7 +681,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {
+    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
@@ -705,17 +717,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, Integer> directoryDepartNumberGroupCashRegisterMap = new HashMap<>();
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
-        Map<String, Date> directoryStartDateMap = new HashMap<>();
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         Map<String, String> directoryWeightCodeMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null) {
                 String key = c.directory + "_" + c.number + (ignoreSalesDepartmentNumber ? "" : ("_" + c.overDepartNumber)) + (useShopIndices ? ("_" + c.idDepartmentStore) : "");
                 directoryDepartNumberGroupCashRegisterMap.put(key, c.numberGroup);
-                if (c.number != null && c.numberGroup != null)
-                    directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
-                if (c.number != null && c.startDate != null)
-                    directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
+                if (c.number != null)
+                    directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
                 if (c.weightCodeGroupCashRegister != null)
                     directoryWeightCodeMap.put(key, c.weightCodeGroupCashRegister);
             }
@@ -733,7 +742,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             }
         });
         
-        Set<String> ids = new HashSet<String>();
+        Set<String> ids = new HashSet<>();
         if (filesList == null || filesList.length == 0)
             sendSalesLogger.info("Kristal10: No checks found in " + exchangeDirectory);
         else {
@@ -785,6 +794,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             Date dateReceipt = new Date(dateTimeReceipt);
                             Time timeReceipt = new Time(dateTimeReceipt);
 
+                            CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                            String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
                             BigDecimal sumCard = BigDecimal.ZERO;
                             BigDecimal sumCash = BigDecimal.ZERO;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
@@ -795,7 +808,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 for (Object paymentEntryNode : paymentEntryList) {
                                     String paymentType = readStringXMLAttribute(paymentEntryNode, "typeClass");
                                     if (paymentType != null) {
-                                        BigDecimal sum = readBigDecimalXMLAttribute(paymentEntryNode, "amount");
+                                        BigDecimal sum = denominateDivideType2(readBigDecimalXMLAttribute(paymentEntryNode, "amount"), denominationStage);
                                         sum = (sum != null && !isSale) ? sum.negate() : sum;
                                         switch (paymentType) {
                                             case "CashPaymentEntity":
@@ -878,18 +891,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     }
 
                                     quantity = (quantity != null && !isSale) ? quantity.negate() : quantity;
-                                    BigDecimal price = readBigDecimalXMLAttribute(positionEntryNode, "cost");
-                                    BigDecimal sumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "amount");
+                                    BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(positionEntryNode, "cost"), denominationStage);
+                                    BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(positionEntryNode, "amount"), denominationStage);
                                     sumReceiptDetail = (sumReceiptDetail != null && !isSale) ? sumReceiptDetail.negate() : sumReceiptDetail;
                                     currentPaymentSum = safeAdd(currentPaymentSum, sumReceiptDetail);
-                                    BigDecimal discountSumReceiptDetail = readBigDecimalXMLAttribute(positionEntryNode, "discountValue");
+                                    BigDecimal discountSumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(positionEntryNode, "discountValue"), denominationStage);
                                     //discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
                                     Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
 
-                                    Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                                     if (startDate == null || dateReceipt.compareTo(startDate) >= 0) {
                                         Integer nppGroupMachinery = directoryDepartNumberGroupCashRegisterMap.get(key);
-                                        nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                        nppGroupMachinery = nppGroupMachinery != null ? nppGroupMachinery : (cashRegister == null ? null : cashRegister.numberGroup);
 
                                         String idSaleReceiptReceiptReturnDetail = null;
                                         Element originalPurchase = ((Element) purchaseNode).getChild("original-purchase");
@@ -947,16 +959,14 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
 
-        Set<String> directorySet = new HashSet<>();
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.handlerModel.endsWith("Kristal10Handler"))
-                directorySet.add(c.directory);
-            if (c.directory != null && c.number != null && c.numberGroup != null)
-                directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+            if (c.directory != null && c.number != null && c.handlerModel.endsWith("Kristal10Handler")) {
+                directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
+            }
         }
 
-        for (String directory : directorySet) {
+        for (String directory : directoryCashRegisterMap.keySet()) {
 
             String exchangeDirectory = directory + "/reports/";
 
@@ -986,12 +996,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             for (Object zReportNode : zReportsList) {
 
                                 Integer numberCashRegister = readIntegerXMLValue(zReportNode, "cashNumber");
-                                Integer numberGroupCashRegister = directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                Integer numberGroupCashRegister = cashRegister == null ? null : cashRegister.numberGroup;
+                                String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
                                 String numberZReport = readStringXMLValue(zReportNode, "shiftNumber");
                                 String idZReport = numberGroupCashRegister + "_" + numberCashRegister + "_" + numberZReport;
 
-                                BigDecimal sumSale = readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal");
-                                BigDecimal sumReturn = readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal");
+                                BigDecimal sumSale = denominateDivideType2(readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal"), denominationStage);
+                                BigDecimal sumReturn = denominateDivideType2(readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal"), denominationStage);
                                 BigDecimal kristalSum = safeSubtract(sumSale, sumReturn);
                                 zReportSumMap.put(idZReport, Arrays.asList((Object) kristalSum, numberCashRegister, numberZReport, idZReport));
 

@@ -89,7 +89,7 @@ public class DigiHandler extends ScalesHandler {
                         if (!Thread.currentThread().isInterrupted()) {
                             String recordNumber = addZeros(item.idBarcode, 8, false);
                             String statusCode = item.splitItem ? "7C000DA003" : "7D000DA003";
-                            String price = addZeros(String.valueOf(item.price.intValue()), 8, false);
+                            String price = addZeros(String.valueOf(denominateMultiplyType1(item.price, transaction.denominationStage)), 8, false);
 
                             int deltaDaysExpiry = (int) ((item.expiryDate.getTime() - System.currentTimeMillis()) / 1000 / 3600 / 24);
                             String daysExpiry = addZeros(String.valueOf(item.daysExpiry == null ? (deltaDaysExpiry >= 0 ? deltaDaysExpiry : 0) : item.daysExpiry), 4, false);

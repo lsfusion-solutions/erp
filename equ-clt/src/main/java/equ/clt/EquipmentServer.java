@@ -641,16 +641,16 @@ public class EquipmentServer {
 
         if (!requestExchangeList.isEmpty()) {
 
-            Map<String, Set<Pair<Integer, String>>> handlerModelMachineryMap = new HashMap<>();
+            Map<String, Set<MachineryInfo>> handlerModelMachineryMap = new HashMap<>();
             for (MachineryInfo machinery : machineryInfoList) {
                 if (!handlerModelMachineryMap.containsKey(machinery.handlerModel))
-                    handlerModelMachineryMap.put(machinery.handlerModel, new HashSet<Pair<Integer, String>>());
-                handlerModelMachineryMap.get(machinery.handlerModel).add(new Pair<>(machinery.numberGroup, machinery.directory));
+                    handlerModelMachineryMap.put(machinery.handlerModel, new HashSet<MachineryInfo>());
+                handlerModelMachineryMap.get(machinery.handlerModel).add(machinery);
             }
 
-            for (Map.Entry<String, Set<Pair<Integer, String>>> entry : handlerModelMachineryMap.entrySet()) {
+            for (Map.Entry<String, Set<MachineryInfo>> entry : handlerModelMachineryMap.entrySet()) {
                 String handlerModel = entry.getKey();
-                Set<Pair<Integer, String>> machineryMap = entry.getValue();
+                Set<MachineryInfo> machineryMap = entry.getValue();
                 if (handlerModel != null) {
                     try {
 
@@ -677,7 +677,7 @@ public class EquipmentServer {
                                     else if (requestExchange.isDiscountCard()) {
                                         List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange.idDiscountCardFrom, requestExchange.idDiscountCardTo);
                                         if (discountCardList != null && !discountCardList.isEmpty())
-                                            ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange.startDate, requestExchange.directoryStockMap.keySet());
+                                            ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange);
                                         remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
 
@@ -685,7 +685,7 @@ public class EquipmentServer {
                                     else if (requestExchange.isPromotion()) {
                                         PromotionInfo promotionInfo = remote.readPromotionInfo();
                                         if (promotionInfo != null)
-                                            ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, requestExchange.directoryStockMap.keySet());
+                                            ((CashRegisterHandler) clsHandler).sendPromotionInfo(promotionInfo, requestExchange);
                                         remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
                                 }
@@ -693,13 +693,10 @@ public class EquipmentServer {
                                 //TerminalOrder
                                 else if (requestExchange.isTerminalOrderExchange() && isTerminalHandler) {
 
-                                    for (Pair<Integer, String> machineryEntry : machineryMap) {
-                                        Integer nppGroupMachinery = machineryEntry.first;
-                                        String directoryGroupMachinery = machineryEntry.second;
-
+                                    for (MachineryInfo machinery : machineryMap) {
                                         List<TerminalOrder> terminalOrderList = remote.readTerminalOrderList(requestExchange);
                                         if (terminalOrderList != null && !terminalOrderList.isEmpty())
-                                            ((TerminalHandler) clsHandler).sendTerminalOrderList(terminalOrderList, nppGroupMachinery, directoryGroupMachinery);
+                                            ((TerminalHandler) clsHandler).sendTerminalOrderList(terminalOrderList, machinery);
                                         remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
                                 }

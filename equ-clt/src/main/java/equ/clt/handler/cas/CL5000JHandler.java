@@ -36,9 +36,6 @@ public class CL5000JHandler extends ScalesHandler {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
-        CL5000JSettings settings = springContext.containsBean("cl5000jSettings") ? (CL5000JSettings) springContext.getBean("cl5000jSettings") : null;
-        Integer priceCoefficient = settings == null ? null : settings.getPriceCoefficient();
-
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
         if (transactionList.isEmpty()) {
@@ -80,7 +77,8 @@ public class CL5000JHandler extends ScalesHandler {
                                         int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                         int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                         processTransactionLogger.info(String.format("CL5000: Sending item %s to scales %s", barcode, scales.port));
-                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name, getPrice(item.price, priceCoefficient), trim(item.description, null, descriptionLength - 1), item.extraPercent);
+                                        int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name,
+                                                denominateMultiplyType1(item.price, transaction.denominationStage), trim(item.description, null, descriptionLength - 1), item.extraPercent);
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                             errorsCount++;
@@ -111,10 +109,6 @@ public class CL5000JHandler extends ScalesHandler {
             }
         }
         return sendTransactionBatchMap;
-    }
-
-    private int getPrice(BigDecimal price, Integer priceCoefficient) {
-        return price == null ? 0 : (int) (price.doubleValue() * (priceCoefficient == null ? 1 : priceCoefficient));
     }
 
     private short getWeightCode(MachineryInfo scales) {

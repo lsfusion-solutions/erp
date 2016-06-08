@@ -1,6 +1,7 @@
 package equ.clt.handler.inventoryTech;
 
 import com.google.common.base.Throwables;
+import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
@@ -94,7 +95,7 @@ public class InventoryTechHandler extends TerminalHandler {
     }
 
     @Override
-    public void sendTerminalOrderList(List list, Integer nppGroupTerminal, String directorySet) throws IOException {
+    public void sendTerminalOrderList(List list, MachineryInfo machinery) throws IOException {
     }
 
     @Override
@@ -138,12 +139,12 @@ public class InventoryTechHandler extends TerminalHandler {
         try {
 
             Set<String> directorySet = new HashSet<>();
-            Map<String, Integer> groupIds = new HashMap<>();
+            Map<String, TerminalInfo> directoryMachineryMap = new HashMap<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
                 if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("InventoryTechHandler")) {
                     directorySet.add(t.directory);
-                    groupIds.put(t.directory, t.numberGroup);
+                    directoryMachineryMap.put(t.directory, t);
                 }
             }
 
@@ -183,13 +184,16 @@ public class InventoryTechHandler extends TerminalHandler {
                                 Date date = dateTime == null ? null : new Date(dateTime.getTime());
                                 Time time = dateTime == null ? null : new Time(dateTime.getTime());
 
+                                TerminalInfo terminal = directoryMachineryMap.get(directory);
+                                Integer numberGroup = terminal == null ? null : terminal.numberGroup;
+                                String denominationStage = terminal == null ? null : terminal.denominationStage;
+
                                 String idBarcode = getDBFFieldValue(dbfFile, "ARTICUL", charset);
                                 String name = getDBFFieldValue(dbfFile, "NAME", charset);
                                 String number = getDBFFieldValue(dbfFile, "NOMPOS", charset);
-                                BigDecimal price = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
+                                BigDecimal price = denominateDivideType2(getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset), denominationStage);
                                 BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
                                 BigDecimal sum = safeMultiply(price, quantity);
-                                Integer numberGroup = groupIds.get(directory);
                                 String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
                                 String idDocumentDetail = idDocument + "/" + i;
                                 count++;
@@ -276,9 +280,12 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/GOODS.mdx");
                 File fileCDX = new File(path + "/GOODS.cdx");
                 if (transaction.snapshot) {
-                    fileDBF.delete();
-                    fileMDX.delete();
-                    fileCDX.delete();
+                    if(!fileDBF.delete())
+                        fileDBF.deleteOnExit();
+                    if(!fileMDX.delete())
+                        fileMDX.deleteOnExit();
+                    if(!fileCDX.delete())
+                        fileCDX.deleteOnExit();
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
@@ -310,7 +317,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                 putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
                                 putField(dbfWriter, NAME, trim(item.name, 200), append);
                                 putField(dbfWriter, QUAN, String.valueOf(item.quantity == null ? 1 : item.quantity.intValue()), append);
-                                putField(dbfWriter, PRICE, String.valueOf(item.price == null ? 0 : item.price.intValue()), append);
+                                putField(dbfWriter, PRICE, String.valueOf(item.price == null ? 0 : denominateMultiplyType2(item.price, transaction.denominationStage)), append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();
@@ -348,9 +355,12 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/BARCODE.mdx");
                 File fileCDX = new File(path + "/BARCODE.cdx");
                 if (transaction.snapshot) {
-                    fileDBF.delete();
-                    fileMDX.delete();
-                    fileCDX.delete();
+                    if(!fileDBF.delete())
+                        fileDBF.deleteOnExit();
+                    if(!fileMDX.delete())
+                        fileMDX.deleteOnExit();
+                    if(!fileCDX.delete())
+                        fileCDX.deleteOnExit();
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
@@ -425,9 +435,12 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/SPRAV.mdx");
                 File fileCDX = new File(path + "/SPRAV.cdx");
                 if (transaction.snapshot) {
-                    fileDBF.delete();
-                    fileMDX.delete();
-                    fileCDX.delete();
+                    if(!fileDBF.delete())
+                        fileDBF.deleteOnExit();
+                    if(!fileMDX.delete())
+                        fileMDX.deleteOnExit();
+                    if(!fileCDX.delete())
+                        fileCDX.deleteOnExit();
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;
@@ -508,9 +521,12 @@ public class InventoryTechHandler extends TerminalHandler {
                 File fileMDX = new File(path + "/SPRDOC.mdx");
                 File fileCDX = new File(path + "/SPRDOC.cdx");
                 if (transaction.snapshot) {
-                    fileDBF.delete();
-                    fileMDX.delete();
-                    fileCDX.delete();
+                    if(!fileDBF.delete())
+                        fileDBF.deleteOnExit();
+                    if(!fileMDX.delete())
+                        fileMDX.deleteOnExit();
+                    if(!fileCDX.delete())
+                        fileCDX.deleteOnExit();
                 }
                 boolean append = !transaction.snapshot && fileDBF.exists();
                 DBF dbfWriter = null;

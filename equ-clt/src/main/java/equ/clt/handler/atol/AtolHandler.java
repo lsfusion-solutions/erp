@@ -72,12 +72,14 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
-                                for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
-                                    String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
-                                    if (!itemGroups.containsKey(idItemGroup)) {
-                                        String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
-                                        String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
-                                        itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
+                                if(hierarchyItemGroup != null) {
+                                    for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
+                                        String idItemGroup = hierarchyItemGroup.get(i).idItemGroup;
+                                        if (!itemGroups.containsKey(idItemGroup)) {
+                                            String nameItemGroup = hierarchyItemGroup.get(i).nameItemGroup;
+                                            String parentItemGroup = hierarchyItemGroup.size() <= (i + 1) ? null : hierarchyItemGroup.get(i + 1).idItemGroup;
+                                            itemGroups.put(idItemGroup, new String[]{nameItemGroup, parentItemGroup, item.splitItem ? "1" : "0"});
+                                        }
                                     }
                                 }
                             }
@@ -97,7 +99,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
                                 String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                                        format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
+                                        format(item.name, 100, ";") + format(denominateMultiplyType2(item.price, transaction.denominationStage), ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
                                         ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
                                         (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
                                 goodsWriter.println(record);
@@ -294,7 +296,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                 boolean isSale = entryType != null && (entryType.equals("1") || entryType.equals("11"));
                                 String documentType = getStringValue(entry, 22);
                                 String numberSoftCheck = getStringValue(entry, 18);
-                                if (isSale && documentType.equals("2000001"))
+                                if (isSale && documentType != null && documentType.equals("2000001"))
                                     result.put(numberSoftCheck, dateTime);
                             }
                             scanner.close();
@@ -333,14 +335,14 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         try {
-            
-            Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
+
+            Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
             Set<String> directorySet = new HashSet<>();
             for (CashRegisterInfo c : cashRegisterInfoList) {
-                if (c.directory != null && c.handlerModel.endsWith("AtolHandler")) {
+                if (c.directory != null && c.handlerModel != null && c.handlerModel.endsWith("AtolHandler")) {
                     directorySet.add(c.directory);
-                    if (c.handlerModel != null && c.number != null && c.numberGroup != null) {
-                        directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
+                    if (c.number != null && c.numberGroup != null) {
+                        directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
                     }
                 }
             }
@@ -389,10 +391,12 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     Date dateReceipt = getDateValue(entry, 1);
                                     Time timeReceipt = getTimeValue(entry, 2);
                                     Integer numberCashRegister = getIntValue(entry, 4);
-                                    BigDecimal sumCashDocument = isOutputCashDocument ? safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
-                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt, 
-                                            directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), 
-                                            numberCashRegister, sumCashDocument));
+                                    CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+                                    Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+                                    BigDecimal sumCashDocument = denominateDivideType2(isOutputCashDocument ? safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11), denominationStage);
+                                    currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt,
+                                            nppGroupMachinery, numberCashRegister, sumCashDocument));
 
                                 }
                             }
@@ -428,11 +432,11 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {       
+    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
@@ -449,13 +453,10 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
         List<String> unusedEntryTypes = Arrays.asList("4", "14", "21", "23", "42", "43", "45", "49", "50", "51", "55", "60", "61", "63");
 
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
-        Map<String, Date> directoryStartDateMap = new HashMap<>();
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.directory != null && c.number != null && c.numberGroup != null)
-                directoryGroupCashRegisterMap.put(c.directory + "_" + c.number, c.numberGroup);
-            if (c.directory != null && c.number != null && c.startDate != null)
-                directoryStartDateMap.put(c.directory + "_" + c.number, c.startDate);
+            if (c.directory != null && c.number != null)
+                directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
         }
 
         Set<Integer> cancelReceiptSet = new HashSet<>();
@@ -499,6 +500,11 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                         boolean isCancelDocument = entryType != null && entryType.equals("56");
 
                         Integer numberReceiptDetail = getIntValue(entry, 0);
+
+                        Integer numberCashRegisterPayment = getIntValue(entry, 4);
+                        CashRegisterInfo cashRegisterPayment = directoryCashRegisterMap.get(directory + "_" + numberCashRegisterPayment);
+                        String denominationStagePayment = cashRegisterPayment == null ? null : cashRegisterPayment.denominationStage;
+
                         Integer numberReceipt = getIntValue(entry, 5);
                         String documentType = getStringValue(entry, 22);
 
@@ -506,7 +512,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                             for (SalesInfo salesInfo : currentSalesInfoList) {
                                 if (salesInfo.numberReceipt != null && numberReceipt != null && salesInfo.numberReceipt.equals(numberReceipt)) {
                                     Integer paymentType = getIntValue(entry, 8);
-                                    BigDecimal sum = getBigDecimalValue(entry, 9);
+                                    BigDecimal sum = denominateDivideType2(getBigDecimalValue(entry, 9), denominationStagePayment);
                                     if (paymentType != null) {
                                         switch (paymentType) {
                                             case 2:
@@ -520,25 +526,31 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     }
                                 }
                             }
-                        } else if (isSale && documentType.equals("2000001")) {
+                        } else if (isSale && documentType != null && documentType.equals("2000001")) {
                             //nothing to do: it's soft check
                         } else if (isSale || isReturn) {
                             Date dateReceipt = getDateValue(entry, 1);
                             Time timeReceipt = getTimeValue(entry, 2);
                             Integer numberCashRegister = getIntValue(entry, 4);
+
+                            CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                            String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+                            Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
+
                             Integer itemObject = getIntValue(entry, 7);
-                            BigDecimal priceReceiptDetail = getBigDecimalValue(entry, 9);
+                            BigDecimal priceReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 9), denominationStage);
                             BigDecimal quantityReceiptDetail = getBigDecimalValue(entry, 10);
-                            BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
+                            BigDecimal sumReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 11), denominationStage);
                             String numberZReport = getStringValue(entry, 13);
-                            BigDecimal discountedSumReceiptDetail = getBigDecimalValue(entry, 14);
-                            BigDecimal discountSumReceiptDetail = safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ? safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
+                            BigDecimal discountedSumReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 14), denominationStage);
+                            BigDecimal discountSumReceiptDetail = denominateDivideType2(safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
+                                    safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail), denominationStage);
                             String barcodeItem = getStringValue(entry, 18);
 
-                            Date startDate = directoryStartDateMap.get(directory + "_" + numberCashRegister);
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                currentSalesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister),
-                                        numberCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, null,
+                                currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport,
+                                        dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, null,
                                         null, null, barcodeItem, null, itemObject, null, quantityReceiptDetail, priceReceiptDetail,
                                         sumReceiptDetail, discountSumReceiptDetail, null, null, numberReceiptDetail, file.getName(), null));
                         } else if (isCancelDocument) {

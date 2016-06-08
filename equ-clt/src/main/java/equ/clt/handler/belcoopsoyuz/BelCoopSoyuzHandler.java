@@ -376,7 +376,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
             putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
             putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
-            putField(dbfFile, CECUCOD, cashRegister.idStock, 25, append); //секция, "600358416 MF"
+            putField(dbfFile, CECUCOD, cashRegister.section, 25, append); //секция, "600358416 MF"
             putField(dbfFile, CEOPCURO, "BYR 974 1", 25, append); //валюта
             for (CashRegisterItemInfo item : transaction.itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
@@ -394,7 +394,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         putField(dbfFile, CEOBIDE, barcode, 25, append);
                         putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
                         putField(dbfFile, MEOBNAM, trim(item.name, 100), 100, append);
-                        BigDecimal price = /*denominateMultiplyType2(*/item.price/*, transaction.denominationStage)*/;
+                        BigDecimal price = denominateMultiplyType2(item.price, transaction.denominationStage);
                         putNumField(dbfFile, NERECOST, price, append);
                         putNumField(dbfFile, NEOPPRIC, price, append);
                         putNumField(dbfFile, NEOPPRIE, price, append);
@@ -421,11 +421,11 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directorySet) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directorySet) throws IOException {
+    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
@@ -611,8 +611,8 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
 
         Map<String, CashRegisterInfo> sectionCashRegisterMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
-            if (c.idStock != null && c.handlerModel != null && c.handlerModel.endsWith("BelCoopSoyuzHandler")) {
-                sectionCashRegisterMap.put(c.idStock, c);
+            if (c.section != null && c.handlerModel != null && c.handlerModel.endsWith("BelCoopSoyuzHandler")) {
+                sectionCashRegisterMap.put(c.section, c);
             }
         }
 
@@ -796,10 +796,10 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                     String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
                     BigDecimal quantityReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPEXP");
-                    BigDecimal priceReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPRIC")/*, denominationStage)*/;
-                    BigDecimal sumReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")/*, denominationStage)*/;
-                    BigDecimal discountSum1ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPSDELC")/*, denominationStage)*/;
-                    BigDecimal discountSum2ReceiptDetail = /*denominateDivideType2(*/getJDBFBigDecimalFieldValue(rec, "NEOPPDELC")/*, denominationStage)*/;
+                    BigDecimal priceReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPPRIC"), denominationStage);
+                    BigDecimal sumReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"), denominationStage);
+                    BigDecimal discountSum1ReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSDELC"), denominationStage);
+                    BigDecimal discountSum2ReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPPDELC"), denominationStage);
                     BigDecimal discountSumReceiptDetail = safeNegate(safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
 
                     Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);

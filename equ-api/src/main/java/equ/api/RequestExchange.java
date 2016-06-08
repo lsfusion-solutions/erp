@@ -1,5 +1,7 @@
 package equ.api;
 
+import equ.api.cashregister.CashRegisterInfo;
+
 import java.io.Serializable;
 import java.sql.Date;
 import java.util.Map;
@@ -7,7 +9,7 @@ import java.util.Set;
 
 public class RequestExchange implements Serializable {
     public Integer requestExchange;
-    public Set<Integer> cashRegisterSet;
+    public Set<CashRegisterInfo> cashRegisterSet;
     public String idStock;
     public Map<String, Set<String>> directoryStockMap;
     public Date dateFrom;
@@ -17,7 +19,7 @@ public class RequestExchange implements Serializable {
     public String idDiscountCardTo;
     private String typeRequestExchange;
 
-    public RequestExchange(Integer requestExchange, Set<Integer> cashRegisterSet, String idStock, Map<String, Set<String>> directoryStockMap,
+    public RequestExchange(Integer requestExchange, Set<CashRegisterInfo> cashRegisterSet, String idStock, Map<String, Set<String>> directoryStockMap,
                            Date dateFrom, Date dateTo, Date startDate, String idDiscountCardFrom, String idDiscountCardTo, String typeRequestExchange) {
         this.requestExchange = requestExchange;
         this.cashRegisterSet = cashRegisterSet;

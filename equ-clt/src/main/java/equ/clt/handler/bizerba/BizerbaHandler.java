@@ -450,7 +450,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters, String denominationStage) throws CommunicationException, IOException {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -487,7 +487,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             byte priceOverflow = 0;
-            int price = item.price.intValue();
+            int price = denominateMultiplyType1(item.price, denominationStage);
             if (price > 999999) {
                 price = Math.round((float) (price / 10));
                 priceOverflow = 1;
@@ -610,7 +610,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
+                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters, transaction.denominationStage);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {

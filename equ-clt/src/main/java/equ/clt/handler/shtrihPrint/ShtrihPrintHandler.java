@@ -149,7 +149,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         }
 
                                                         if (error == 0) {
-                                                            int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName, item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1);
+                                                            int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName,
+                                                                    item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1, transaction.denominationStage);
                                                             if (result != 0)
                                                                 error = result;
                                                         }
@@ -194,7 +195,8 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                             }
 
                                                             if (error == 0) {
-                                                                int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(999999), 0, 0, i, new Date(2001 - 1900, 0, 1), 0);
+                                                                int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(999999),
+                                                                        0, 0, i, new Date(2001 - 1900, 0, 1), 0, transaction.denominationStage);
                                                                 if (result != 0)
                                                                     error = result;
                                                             }
@@ -290,7 +292,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         String secondName = len < 28 ? "" : nameItem.substring(28, len < 56 ? len : 56);
 
                                                         shtrihActiveXComponent.setProperty("PLUNumber", new Variant(item.pluNumber));
-                                                        shtrihActiveXComponent.setProperty("Price", new Variant(item.price));
+                                                        shtrihActiveXComponent.setProperty("Price", new Variant(denominateMultiplyType1(item.price, transaction.denominationStage)));
                                                         shtrihActiveXComponent.setProperty("Tare", new Variant(0));
                                                         shtrihActiveXComponent.setProperty("ItemCode", new Variant(barcode));
                                                         shtrihActiveXComponent.setProperty("NameFirst", new Variant(firstName));
@@ -715,7 +717,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
     }
 
     private int setPLUDataEx(List<String> errors, UDPPort port, int pluNumber, int barcode, String firstName, String secondName, BigDecimal price,
-                             int shelfLife, int groupCode, int messageNumber, Date expiryDate, int goodsType) throws IOException, CommunicationException {
+                             int shelfLife, int groupCode, int messageNumber, Date expiryDate, int goodsType, String denominationStage) throws IOException, CommunicationException {
         ByteBuffer bytes = ByteBuffer.allocate(87);
         bytes.put((byte) 87); //57H
         bytes.put(getPassword().getBytes("cp1251"), 0, 4); //4 байта
@@ -723,7 +725,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
         bytes.putInt(Integer.reverseBytes(barcode)); //4 байта
         bytes.put(leftString(firstName, 28).getBytes("cp1251"), 0, 28); //28 байт
         bytes.put(leftString(secondName, 28).getBytes("cp1251"), 0, 28); //28 байт
-        bytes.putInt(Integer.reverseBytes(price.intValue())); //4 байта
+        bytes.putInt(Integer.reverseBytes(denominateMultiplyType1(price, denominationStage))); //4 байта
         bytes.putShort(Short.reverseBytes((short)shelfLife)); //2 байта
         bytes.putShort(Short.reverseBytes((short)0)); //тара, 2 байта
         bytes.putShort(Short.reverseBytes((short) groupCode)); //2 байта

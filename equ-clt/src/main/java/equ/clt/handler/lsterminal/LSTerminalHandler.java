@@ -1,6 +1,7 @@
 package equ.clt.handler.lsterminal;
 
 import com.google.common.base.Throwables;
+import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
@@ -75,21 +76,21 @@ public class LSTerminalHandler extends TerminalHandler {
     }
 
     @Override
-    public void sendTerminalOrderList(List terminalOrderList, Integer nppGroupTerminal, String directoryGroupTerminal) throws IOException {
+    public void sendTerminalOrderList(List terminalOrderList, MachineryInfo machinery) throws IOException {
         try {
 
-            File directory = new File(directoryGroupTerminal + dbPath);
+            File directory = new File(machinery.directory + dbPath);
             if (directory.exists() || directory.mkdir()) {
                 Class.forName("org.sqlite.JDBC");
                 Connection connection = null;
                 try {
-                    connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal));
+                    connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(machinery.directory + dbPath, machinery.numberGroup));
 
                     createGoodsTableIfNotExists(connection);
-                    updateTerminalGoodsTable(connection, terminalOrderList);
+                    updateTerminalGoodsTable(connection, terminalOrderList, machinery.denominationStage);
 
                     createOrderTable(connection);
-                    updateOrderTable(connection, terminalOrderList);
+                    updateOrderTable(connection, terminalOrderList, machinery.denominationStage);
                 } finally {
                     if(connection != null)
                         connection.close();
@@ -100,11 +101,11 @@ public class LSTerminalHandler extends TerminalHandler {
                 throw Throwables.propagate(new RuntimeException("Directory " + directory.getAbsolutePath() + " doesn't exist"));
             }
 
-            if (directoryGroupTerminal != null) {
-                String exchangeDirectory = directoryGroupTerminal + "/exchange";
+            if (machinery.directory != null) {
+                String exchangeDirectory = machinery.directory + "/exchange";
                 if ((new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdir())) {
                     //copy base to exchange directory                   
-                    FileInputStream fis = new FileInputStream(new File(makeDBPath(directoryGroupTerminal + dbPath, nppGroupTerminal)));
+                    FileInputStream fis = new FileInputStream(new File(makeDBPath(machinery.directory + dbPath, machinery.numberGroup)));
                     FileOutputStream fos = new FileOutputStream(new File(exchangeDirectory + "/base.zip"));
                     ZipOutputStream zos = new ZipOutputStream(fos);
                     zos.putNextEntry(new ZipEntry("tsd.db"));
@@ -191,11 +192,11 @@ public class LSTerminalHandler extends TerminalHandler {
 
             Class.forName("org.sqlite.JDBC");
 
-            Set<String> directorySet = new HashSet<>();
+            Map<String, TerminalInfo> directoryMachineryMap = new HashMap<>();
             for (Object m : machineryInfoList) {
                 TerminalInfo t = (TerminalInfo) m;
                 if (t.directory != null && t.handlerModel != null && t.handlerModel.endsWith("LSTerminalHandler")) {
-                    directorySet.add(t.directory);
+                    directoryMachineryMap.put(t.directory, t);
                 }
             }
 
@@ -203,9 +204,9 @@ public class LSTerminalHandler extends TerminalHandler {
 
             List<TerminalDocumentDetail> terminalDocumentDetailList = new ArrayList<>();
 
-            for (String directory : directorySet) {
+            for (Map.Entry<String, TerminalInfo> directoryEntry : directoryMachineryMap.entrySet()) {
 
-                String exchangeDirectory = directory + "/exchange";
+                String exchangeDirectory = directoryEntry.getKey() + "/exchange";
 
                 File[] filesList = new File(exchangeDirectory).listFiles(new FileFilter() {
                     @Override
@@ -229,7 +230,8 @@ public class LSTerminalHandler extends TerminalHandler {
                                 Connection connection = null;
                                 try {
                                     connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
-                                    List<List<Object>> dokData = readDokFile(connection);
+                                    String denominationStage = directoryEntry.getValue() == null ? null : directoryEntry.getValue().denominationStage;
+                                    List<List<Object>> dokData = readDokFile(connection, denominationStage);
 
                                     for (List<Object> entry : dokData) {
 
@@ -244,7 +246,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                         String idTerminalHandbookType2 = (String) entry.get(4); //ANA2
                                         String barcode = (String) entry.get(5); //BARCODE
                                         BigDecimal quantity = (BigDecimal) entry.get(6); //QUANT
-                                        BigDecimal price = (BigDecimal) entry.get(7); //PRICE
+                                        BigDecimal price = denominateDivideType2((BigDecimal) entry.get(7), denominationStage); //PRICE
                                         String numberDocumentDetail = (String) entry.get(8); //npp
                                         String commentDocument = (String) entry.get(9); //PRIM
                                         BigDecimal sum = safeMultiply(quantity, price);
@@ -252,7 +254,7 @@ public class LSTerminalHandler extends TerminalHandler {
 
                                         if (quantity != null && !quantity.equals(BigDecimal.ZERO))
                                             terminalDocumentDetailList.add(new TerminalDocumentDetail(idDocument, numberDocument,
-                                                    date, time, commentDocument, directory, idTerminalHandbookType1, idTerminalHandbookType2,
+                                                    date, time, commentDocument, directoryEntry.getKey(), idTerminalHandbookType1, idTerminalHandbookType2,
                                                     idDocumentType, null, idDocumentDetail, numberDocumentDetail, barcode, null,
                                                     price, quantity, sum));
                                     }
@@ -276,7 +278,7 @@ public class LSTerminalHandler extends TerminalHandler {
         }
     }
 
-    private List<List<Object>> readDokFile(Connection connection) throws SQLException {
+    private List<List<Object>> readDokFile(Connection connection, String denominationStage) throws SQLException {
 
         List<List<Object>> itemsList = new ArrayList<>();
 
@@ -308,7 +310,7 @@ public class LSTerminalHandler extends TerminalHandler {
         while (resultSet.next()) {
             String barcode = resultSet.getString("barcode");
             BigDecimal quantity = new BigDecimal(resultSet.getDouble("quant"));
-            BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
+            BigDecimal price = denominateDivideType2(new BigDecimal(resultSet.getDouble("price")), denominationStage);
             Integer npp = resultSet.getInt("npp");
             npp = npp == 0 ? count : npp;
             count++;
@@ -456,14 +458,14 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
     }
 
-    private void updateTerminalGoodsTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
+    private void updateTerminalGoodsTable(Connection connection, List<TerminalOrder> terminalOrderList, String denominationStage) throws SQLException {
         if (listNotEmpty(terminalOrderList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalOrder order : terminalOrderList) {
                 if (order.barcode != null)
                     sql += String.format("INSERT OR IGNORE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "", "", "", "", "", "", "");
+                            formatValue(order.barcode), formatValue(order.name), formatValue(denominateMultiplyType2(order.price, denominationStage)), "", "", "", "", "", "", "", "");
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
@@ -471,24 +473,24 @@ public class LSTerminalHandler extends TerminalHandler {
         }
     }
     
-    private void updateGoodsTable(Connection connection, TransactionTerminalInfo transactionInfo) throws SQLException {
-        if(transactionInfo.snapshot) {
+    private void updateGoodsTable(Connection connection, TransactionTerminalInfo transaction) throws SQLException {
+        if(transaction.snapshot) {
             createOrderTable(connection);
             Statement statement = connection.createStatement();      
             statement.executeUpdate("BEGIN TRANSACTION; DELETE FROM goods; COMMIT;");
             statement.close();
         }
-        if (listNotEmpty(transactionInfo.itemsList)) {
+        if (listNotEmpty(transaction.itemsList)) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, '', '', '', '', '', ?, ?);";
                 statement = connection.prepareStatement(sql);
-                for (TerminalItemInfo item : transactionInfo.itemsList) {
+                for (TerminalItemInfo item : transaction.itemsList) {
                     if (item.idBarcode != null) {
                         statement.setObject(1, formatValue(item.idBarcode));
                         statement.setObject(2, formatValue(item.name));
-                        statement.setObject(3, formatValue(item.price));
+                        statement.setObject(3, formatValue(denominateMultiplyType2(item.price, transaction.denominationStage)));
                         statement.setObject(4, formatValue(item.quantity));
                         statement.setObject(5, formatValue(item.image));
                         statement.setObject(6, item.passScalesItem ? "1" : "0");
@@ -559,7 +561,7 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
+    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String denominationStage) throws SQLException {
         if (listNotEmpty(terminalOrderList)) {
 
             PreparedStatement statement = null;
@@ -575,11 +577,11 @@ public class LSTerminalHandler extends TerminalHandler {
                         statement.setObject(3,supplier);
                         statement.setObject(4,formatValue(order.barcode));
                         statement.setObject(5,formatValue(order.quantity));
-                        statement.setObject(6,formatValue(order.price));
+                        statement.setObject(6,formatValue(denominateMultiplyType2(order.price, denominationStage)));
                         statement.setObject(7,formatValue(order.minQuantity));
                         statement.setObject(8,formatValue(order.maxQuantity));
-                        statement.setObject(9,formatValue(order.minPrice));
-                        statement.setObject(10,formatValue(order.maxPrice));
+                        statement.setObject(9,formatValue(denominateMultiplyType2(order.minPrice, denominationStage)));
+                        statement.setObject(10,formatValue(denominateMultiplyType2(order.maxPrice, denominationStage)));
                         statement.addBatch();
                     }
                 }

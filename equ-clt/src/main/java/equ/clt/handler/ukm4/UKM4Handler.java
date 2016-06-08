@@ -90,35 +90,37 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                         for (CashRegisterItemInfo item : transaction.itemsList) {
                             if (!Thread.currentThread().isInterrupted()) {
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
-                                int size = hierarchyItemGroup.size();
-                                Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
-                                Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
-                                Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
-                                Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
-                                Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
-                                String name = trim(item.nameItemGroup, 80);
-                                if (!idItemGroups.contains(group1)) {
-                                    idItemGroups.add(group1);
-                                    if (size == 5) {
-                                        classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, group1, name});
-                                        classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                        classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
-                                        classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
-                                        classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, hierarchyItemGroup.get(4).nameItemGroup});
-                                    } else if (size == 4) {
-                                        classifDBFWriter.addRecord(new Object[]{group4, group3, group2, group1, 0, name});
-                                        classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                        classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
-                                        classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
-                                    } else if (size == 3) {
-                                        classifDBFWriter.addRecord(new Object[]{group3, group2, group1, 0, 0, name});
-                                        classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                        classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
-                                    } else if (size == 2) {
-                                        classifDBFWriter.addRecord(new Object[]{group2, group1, 0, 0, 0, name});
-                                        classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
-                                    } else if (size == 1)
-                                        classifDBFWriter.addRecord(new Object[]{group1, 0, 0, 0, 0, name});
+                                if(hierarchyItemGroup != null) {
+                                    int size = hierarchyItemGroup.size();
+                                    Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(0).idItemGroup, 6) : "0");
+                                    Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(1).idItemGroup, 6) : "0");
+                                    Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(2).idItemGroup, 6) : "0");
+                                    Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(3).idItemGroup, 6) : "0");
+                                    Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(4).idItemGroup, 6) : "0");
+                                    String name = trim(item.nameItemGroup, 80);
+                                    if (!idItemGroups.contains(group1)) {
+                                        idItemGroups.add(group1);
+                                        if (size == 5) {
+                                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, group1, name});
+                                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, group2, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                            classifDBFWriter.addRecord(new Object[]{group5, group4, group3, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                                            classifDBFWriter.addRecord(new Object[]{group5, group4, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
+                                            classifDBFWriter.addRecord(new Object[]{group5, 0, 0, 0, 0, hierarchyItemGroup.get(4).nameItemGroup});
+                                        } else if (size == 4) {
+                                            classifDBFWriter.addRecord(new Object[]{group4, group3, group2, group1, 0, name});
+                                            classifDBFWriter.addRecord(new Object[]{group4, group3, group2, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                            classifDBFWriter.addRecord(new Object[]{group4, group3, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                                            classifDBFWriter.addRecord(new Object[]{group4, 0, 0, 0, 0, hierarchyItemGroup.get(3).nameItemGroup});
+                                        } else if (size == 3) {
+                                            classifDBFWriter.addRecord(new Object[]{group3, group2, group1, 0, 0, name});
+                                            classifDBFWriter.addRecord(new Object[]{group3, group2, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                            classifDBFWriter.addRecord(new Object[]{group3, 0, 0, 0, 0, hierarchyItemGroup.get(2).nameItemGroup});
+                                        } else if (size == 2) {
+                                            classifDBFWriter.addRecord(new Object[]{group2, group1, 0, 0, 0, name});
+                                            classifDBFWriter.addRecord(new Object[]{group2, 0, 0, 0, 0, hierarchyItemGroup.get(1).nameItemGroup});
+                                        } else if (size == 1)
+                                            classifDBFWriter.addRecord(new Object[]{group1, 0, 0, 0, 0, name});
+                                    }
                                 }
                             }
                         }
@@ -159,16 +161,18 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                                 String mesuriment = item.passScalesItem && item.splitItem ? "кг" : "1";
                                 double mespresisi = item.splitItem ? 0.001 : 1.000;
                                 List<ItemGroup> hierarchyItemGroup = transaction.itemGroupMap.get(item.idItemGroup);
-                                int size = hierarchyItemGroup.size();
-                                Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
-                                Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
-                                Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
-                                Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
-                                Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
+                                if(hierarchyItemGroup != null) {
+                                    int size = hierarchyItemGroup.size();
+                                    Long group1 = parseGroup(size >= 1 ? trim(hierarchyItemGroup.get(size - 1).idItemGroup, 6) : "0");
+                                    Long group2 = parseGroup(size >= 2 ? trim(hierarchyItemGroup.get(size - 2).idItemGroup, 6) : "0");
+                                    Long group3 = parseGroup(size >= 3 ? trim(hierarchyItemGroup.get(size - 3).idItemGroup, 6) : "0");
+                                    Long group4 = parseGroup(size >= 4 ? trim(hierarchyItemGroup.get(size - 4).idItemGroup, 6) : "0");
+                                    Long group5 = parseGroup(size >= 5 ? trim(hierarchyItemGroup.get(size - 5).idItemGroup, 6) : "0");
 
-                                pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null,
-                                        null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
-                                        item.price.doubleValue(), null, 0, null, 1, transaction.date, null, null});
+                                    pluCashDBFWriter.addRecord(new Object[]{trim(item.idBarcode, 30), trim(item.name, 80), mesuriment, mespresisi, null, null,
+                                            null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
+                                            denominateMultiplyType2(item.price, transaction.denominationStage), null, 0, null, 1, transaction.date, null, null});
+                                }
                             }
                         }
                         pluCashDBFWriter.close();
@@ -231,11 +235,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     }
 
     @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, Date startDate, Set<String> directory) throws IOException {
+    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, Set<String> directory) throws IOException {       
+    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
     }
 
     @Override
@@ -249,10 +253,11 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
     @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
-        Map<String, Integer> directoryGroupCashRegisterMap = new HashMap<>();
-        for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
-            if (cashRegister.number != null && cashRegister.numberGroup != null)
-                directoryGroupCashRegisterMap.put(cashRegister.directory + "_" + cashRegister.number, cashRegister.numberGroup);
+        Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
+        for (CashRegisterInfo c : cashRegisterInfoList) {
+            if (c.handlerModel != null && c.directory != null && c.number != null && c.handlerModel.endsWith("UKM4Handler")) {
+                directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
+            }
         }
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> readFiles = new ArrayList<>();
@@ -270,13 +275,16 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                 for (int i = 0; i < recordDiscCount; i++) {
                     importDiscFile.read();
 
-                    String cashRegisterNumber = getDBFFieldValue(importDiscFile, "CASHNUMBER", defaultCharset);
+                    String numberCashRegister = getDBFFieldValue(importDiscFile, "CASHNUMBER", defaultCharset);
+                    CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
                     String zNumber = getDBFFieldValue(importDiscFile, "ZNUMBER", defaultCharset);
                     Integer receiptNumber = getDBFIntegerFieldValue(importDiscFile, "CHECKNUMBE", defaultCharset);
                     Integer numberReceiptDetail = getDBFIntegerFieldValue(importDiscFile, "ID", defaultCharset);
-                    BigDecimal discountSum = getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTCU", defaultCharset);
+                    BigDecimal discountSum = denominateDivideType2(getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTCU", defaultCharset), denominationStage);
 
-                    String sid = cashRegisterNumber + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
+                    String sid = numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
                     BigDecimal tempSum = discountMap.get(sid);
                     discountMap.put(sid, safeAdd(discountSum, tempSum));
                 }
@@ -316,6 +324,10 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     //0 - возврат cash, 1 - продажа cash, 2,4 - возврат card, 3,5 - продажа card
 
                     String numberCashRegister = getDBFFieldValue(importSailFile, "CASHNUMBER", defaultCharset);
+                    CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                    Integer numberGroup = cashRegister == null ? null : cashRegister.numberGroup;
+                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
                     String zNumber = getDBFFieldValue(importSailFile, "ZNUMBER", defaultCharset);
                     Integer receiptNumber = getDBFIntegerFieldValue(importSailFile, "CHECKNUMBE", defaultCharset);
                     Integer numberReceiptDetail = getDBFIntegerFieldValue(importSailFile, "ID", defaultCharset);
@@ -325,8 +337,8 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
                     String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
                     BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
-                    BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
-                    BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset);
+                    BigDecimal priceReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset), denominationStage);
+                    BigDecimal sumReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset), denominationStage);
                     BigDecimal discountSumReceiptDetail = discountMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
                     String discountCardNumber = discountCardMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber);
 
@@ -336,7 +348,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
                     receiptNumberSumReceipt.put(receiptNumber, new BigDecimal[]{safeAdd(tempSum1, (operation <= 1 ? sumReceiptDetail : null)),
                             safeAdd(tempSum2, (operation > 1 ? sumReceiptDetail : null))});
 
-                    salesInfoList.add(new SalesInfo(false, directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister), Integer.parseInt(numberCashRegister), zNumber,
+                    salesInfoList.add(new SalesInfo(false, numberGroup, Integer.parseInt(numberCashRegister), zNumber,
                             date, time, receiptNumber, date, time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, barcodeReceiptDetail,
                             null, null, null, operation % 2 == 1 ? quantityReceiptDetail : quantityReceiptDetail.negate(),
                             priceReceiptDetail,

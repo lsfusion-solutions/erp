@@ -16,21 +16,11 @@ public class TransactionCashRegisterInfo extends TransactionInfo<CashRegisterInf
     public TransactionCashRegisterInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
                                        Integer nppGroupMachinery, String nameGroupMachinery, String description,
                                        Map<String, List<ItemGroup>> itemGroupMap, List<CashRegisterItemInfo> itemsList, 
-                                       List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate, Integer departmentNumberGroupCashRegister,
+                                       List<CashRegisterInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate,
+                                       String denominationStage, Integer departmentNumberGroupCashRegister,
                                        String weightCodeGroupCashRegister, String nameStockGroupCashRegister) {
-        this.id = id;
-        this.dateTimeCode = dateTimeCode;
-        this.date = date;
-        this.handlerModel = handlerModel;
-        this.idGroupMachinery = idGroupMachinery;
-        this.nppGroupMachinery = nppGroupMachinery;
-        this.nameGroupMachinery = nameGroupMachinery;
-        this.description = description;
-        this.itemGroupMap = itemGroupMap;
-        this.itemsList = itemsList;
-        this.machineryInfoList = machineryInfoList;
-        this.snapshot = snapshot;
-        this.lastErrorDate = lastErrorDate;
+        super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description,
+                itemGroupMap, itemsList, machineryInfoList, snapshot, lastErrorDate, denominationStage);
         this.departmentNumberGroupCashRegister = departmentNumberGroupCashRegister;
         this.weightCodeGroupCashRegister = weightCodeGroupCashRegister;
         this.nameStockGroupCashRegister = nameStockGroupCashRegister;
