@@ -458,9 +458,9 @@ END
 META defineDocumentDetailPriceVATOnChangeCustom (detail)
     overChangePrice = ACTION ABSTRACT (###detail);
     changePrice (###detail detail) = ACTION {
-        REQUEST NUMERIC[14,2] INPUT;
-        ASSIGN price (detail) <- requestedNumeric();
-        ASSIGN invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail)) / 100;
+        REQUEST NUMERIC[16,4] INPUT;
+        price (detail) <- requestedNumeric();
+        invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail)) / 100;
         overChangePrice(detail);
     }
 END
@@ -475,11 +475,11 @@ META defineDocumentDetailNumberVATOnChangeCustom (detail, stockProp)
         REQUEST OBJECT r
             FORM rangeDialog OBJECTS c = country###stockProp(detail) DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
-            ASSIGN VAT (detail) <- requestedObject();
-            ASSIGN invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail))/100;
+            VAT (detail) <- requestedObject();
+            invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail))/100;
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN VAT(detail) <- NULL;
-            ASSIGN invoicePrice(detail) <- price (detail);
+            VAT(detail) <- NULL;
+            invoicePrice(detail) <- price (detail);
         }
     }
 END
@@ -505,9 +505,9 @@ END
 // Изменение цены с НДС
 META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
     changeInvoicePrice (###detail detail) = ACTION {
-        REQUEST NUMERIC[14,2] INPUT;
-        ASSIGN invoicePrice (detail) <- requestedNumeric();
-        ASSIGN price (detail) <- invoicePrice (detail) * 100/(100 + calcValueVAT(detail));
+        REQUEST NUMERIC[16,4] INPUT;
+        invoicePrice (detail) <- requestedNumeric();
+        price (detail) <- invoicePrice (detail) * 100/(100 + calcValueVAT(detail));
     }
 END
 

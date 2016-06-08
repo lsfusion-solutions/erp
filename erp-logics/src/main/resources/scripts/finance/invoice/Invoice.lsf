@@ -66,12 +66,13 @@ sumGrossWeightTon 'Вес брутто, т' (InvoiceDetail d) = round6(sumGrossW
 @defineDocumentAbstractHeaderCurrency (invoice);
 @defineDocumentDetailCurrency (invoice, invoiceDetail);
 
-@defineDocumentAbstractDetailPrice(invoice);
+price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, , );
 @defineDocumentHeaderSum(invoice);
 @defineDocumentHeaderItemQuantityPrefix(invoice, , );
 
-@defineDocumentAbstractDetailPriceCustomPrefix(invoiceDetail, invoice, ' с НДС');
+invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
 
 @defineDocumentAbstractDetailVAT(invoice, , );
 @defineDocumentAbstractDetailVATDataSumCustom (invoiceDetail, invoice);
@@ -286,7 +287,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 //    @defineDocumentDetailGrossWeight(invoice, sku);
 
-    @defineDocumentInterfaceDetailPrice(invoice); // объявляем цену без НДС
+    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+    price (UserInvoiceDetail invoiceDetail) += price(invoiceDetail);
+    
     price[Invoice.InvoiceDetail](InvoiceDetail detail) += price(detail);
 
     @defineDocumentInterfaceDetailVAT(invoice, country###stockProp###stock, , ); // объявляем шкалу
@@ -328,7 +332,10 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     VAT[Invoice.InvoiceDetail](InvoiceDetail detail) += VAT(detail);
     valueVAT[Invoice.InvoiceDetail](InvoiceDetail detail) += valueVAT(detail);
 
-    @defineDocumentInterfaceDetailPricePrefix (invoice, invoice, ' с НДС'); // объявляем цену с НДС
+    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+    invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+    invoicePrice (UserInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail);
+
     invoicePrice[Invoice.InvoiceDetail](InvoiceDetail detail) += invoicePrice(detail);
     
     // объявляем Action'ы для ON CHANGE по изменению цен
