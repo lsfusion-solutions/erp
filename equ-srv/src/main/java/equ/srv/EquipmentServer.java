@@ -237,6 +237,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             query.and(equLM.findProperty("sidEquipmentServer[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
             query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
 
+            logger.info("Starting to read transactions");
+
             ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
             List<Object[]> transactionObjects = new ArrayList<>();
             for (int i = 0, size = result.size(); i < size; i++) {
@@ -265,9 +267,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
                 skipTroubleCounter++;
             else
                 skipTroubleCounter = 1;
-
+            
+            logger.info("" + transactionObjects.size() + " transactions read");
+            int count = 0;
             for (Object[] transaction : transactionObjects) {
 
+                count++;
+                logger.info("Reading transaction number " + count + " of " + transactionObjects.size());
                 DataObject groupMachineryObject = (DataObject) transaction[0];
                 Integer nppGroupMachinery = (Integer) transaction[1];
                 if(troubleMachineryGroups.contains(nppGroupMachinery) && skipTroubleMachineryGroups)
