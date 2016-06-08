@@ -4,10 +4,6 @@ REQUIRE PurchaseOrderInvoiceDashboard;
 
 NAMESPACE Purchase;
 
-orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT INDEXED;
-orderDetail = DATA OrderDetail (UserInvoiceDetail);
-orderDetail(UserInvoiceDetail d) += orderDetail(d);
-
 countInvoiceDetails = GROUP SUM 1 BY orderDetail(InvoiceDetail id);
 backgroundInvoiceDetails = RGB (212,255,212) IF OrderDetail d IS OrderDetail AND countInvoiceDetails(d);
 perform = ACTION ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
@@ -17,7 +13,6 @@ perform 'Принять'(OrderDetail od, UserInvoice invoice) = ACTION {
     FOR ADDOBJ d = UserInvoiceDetail DO {    
         
         userInvoice(d) <- invoice;  
-        orderDetail(d) <- od; 
 
         order(d) <- order(od);
         sku(d) <- sku(od);
@@ -70,7 +65,6 @@ correct 'Корректировать'(OrderDetail od, UserInvoice invoice) = AC
     FOR ADDOBJ d = UserInvoiceDetail DO {    
         
         userInvoice(d) <- invoice;  
-        orderDetail(d) <- od; 
 
         order(d) <- order(od);
         sku(d) <- sku(od);
