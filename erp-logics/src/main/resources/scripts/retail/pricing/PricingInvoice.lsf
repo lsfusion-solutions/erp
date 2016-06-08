@@ -88,9 +88,13 @@ META defineInvoicePricingAggregation(concrete, concreteClass, sign, captionPre, 
     overPricingPrice = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
     overPricingPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
     overPricingPrice (User###concrete##Detail detail) += overPricingPrice(detail);
+    
+    extraPricingPrice = ABSTRACT NUMERIC[14,2] (InvoiceDetail);
+    extraPricingPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
+    extraPricingPrice (User###concrete##Detail detail) += extraPricingPrice(detail);    
 
-    pricingPrice 'Цена входная' (User###concrete##Detail detail) = OVERRIDE price(detail), overPricingPrice(detail) PERSISTENT;
-    pricingPrice 'Цена входная' (###concrete##Detail detail) = OVERRIDE price(detail), overPricingPrice(detail) PERSISTENT;
+    pricingPrice 'Цена входная' (User###concrete##Detail detail) = (OVERRIDE price(detail), overPricingPrice(detail)) (+) extraPricingPrice(detail) PERSISTENT;
+    pricingPrice 'Цена входная' (###concrete##Detail detail) = (OVERRIDE price(detail), overPricingPrice(detail)) (+) extraPricingPrice(detail) PERSISTENT;
 
     // Надбавка
     @defineDocumentInterfaceDetailMarkupPrefix (invoice, retail, );
