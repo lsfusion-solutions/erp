@@ -128,8 +128,11 @@ META defineOrderInvoice(sign, stockProp)
     quantityOrder 'К-во заказа' (InvoiceDetail d) = quantity(maxOrderDetail(d)); 
     priceOrder 'Цена заказа' (InvoiceDetail d) = price(maxOrderDetail(d));
 
-    maxOrderDetailBatch (InvoiceDetail d) = maxOrderDetail(batch(d), order(d));
+    maxOrderDetailBatch (InvoiceDetail d) = maxOrderDetail(batch(d), order(d)) PERSISTENT INDEXED;
     priceOrderBatch (InvoiceDetail d) = price(maxOrderDetailBatch(d));
+    
+    orderDetail (InvoiceDetail d) = OVERRIDE maxOrderDetail(d), maxOrderDetailBatch(d) PERSISTENT INDEXED;
+    priceOrderDetail (InvoiceDetail d) = price(orderDetail(d));
 
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
@@ -221,7 +224,7 @@ META defineOrderInvoice(sign, stockProp)
             }
         }
     }
-    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND (OVERRIDE maxOrderDetail(d), maxOrderDetailBatch(d)) AND NOT notFillPriceInvoiceOrder(operation(d)) THEN OVERRIDE priceOrder(d), priceOrderBatch(d);
+    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) THEN priceOrderDetail(d);
     
     fillHeader(UserInvoice userInvoice, Order order) = ACTION {
         date(userInvoice) <- currentDate();
