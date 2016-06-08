@@ -39,7 +39,7 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
                         if (result != null)
                             context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
                         else
-                            findAction("closeCurrentZReport[]").execute(session);
+                            findAction("closeCurrentZReport[]").execute(session, context.stack);
                     }
                 }
             }

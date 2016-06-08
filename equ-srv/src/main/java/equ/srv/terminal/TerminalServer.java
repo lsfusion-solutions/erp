@@ -1,9 +1,8 @@
 package equ.srv.terminal;
 
-import lsfusion.server.context.LogicsInstanceContext;
-import lsfusion.server.context.ThreadLocalContext;
-import lsfusion.server.lifecycle.LifecycleAdapter;
+import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.lifecycle.LifecycleEvent;
+import lsfusion.server.lifecycle.MonitorServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
@@ -26,9 +25,8 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.*;
-import java.util.concurrent.atomic.AtomicInteger;
 
-public class TerminalServer extends LifecycleAdapter {
+public class TerminalServer extends MonitorServer {
 
     public static byte WRONG_PARAMETER_COUNT = 101;
     public static String WRONG_PARAMETER_COUNT_TEXT = "Неверное кол-во параметров";
@@ -63,7 +61,6 @@ public class TerminalServer extends LifecycleAdapter {
     boolean stopped = false;
     private TerminalHandlerInterface terminalHandlerInterface;
     private LogicsInstance logicsInstance;
-    private LogicsInstanceContext logicsInstanceContext;
 
     protected BusinessLogics BL;
     protected ScriptingLogicsModule terminalLM;
@@ -96,7 +93,6 @@ public class TerminalServer extends LifecycleAdapter {
             assert terminalHandlerInterface != null;
             assert host != null;
             assert port != null;
-            logicsInstanceContext = getLogicsInstance().getContext();
             BL = logicsInstance.getBusinessLogics();
             terminalLM = getLogicsInstance().getBusinessLogics().getModule("Terminal");
             logger.info("Binding Terminal Server.");
@@ -113,7 +109,6 @@ public class TerminalServer extends LifecycleAdapter {
         if (started) {
             logger.info("Stopping Terminal Server.");
             try {
-                ThreadLocalContext.set(null);
             } catch (Exception e) {
                 throw new RuntimeException("Error stopping Terminal Server: ", e);
             }
@@ -124,8 +119,13 @@ public class TerminalServer extends LifecycleAdapter {
         super(HIGH_DAEMON_ORDER);
     }
 
+    @Override
+    public String getEventName() {
+        return "terminal";
+    }
+
     public void listenToPort() {
-        final ExecutorService executorService = Executors.newFixedThreadPool(10, new TerminalThreadFactory("terminal"));
+        final ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, this);
         ServerSocket serverSocket = null;
         try {
             serverSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
@@ -136,6 +136,7 @@ public class TerminalServer extends LifecycleAdapter {
         }
 
         if (serverSocket != null) {
+            // аналогичный механизм в FiscalBoardDaemon, но через Executor пока не принципиально
             final ServerSocket finalServerSocket = serverSocket;
             Thread thread = new Thread(new Runnable() {
                 public void run() {
@@ -155,8 +156,6 @@ public class TerminalServer extends LifecycleAdapter {
     }
 
     protected DataSession createSession() throws SQLException {
-        if (ThreadLocalContext.get() == null)
-            ThreadLocalContext.set(logicsInstanceContext);
         return getDbManager().createSession();
     }
 
@@ -524,38 +523,8 @@ public class TerminalServer extends LifecycleAdapter {
         return result.split(escStr, -1);
     }
 
-    private static class TerminalThreadFactory implements ThreadFactory {
-        private static final AtomicInteger poolNumber = new AtomicInteger(1);
-        private final ThreadGroup group;
-        private final AtomicInteger threadNumber = new AtomicInteger(1);
-        private final String namePrefix;
-
-        public TerminalThreadFactory(String threadNamePrefix) {
-            SecurityManager s = System.getSecurityManager();
-            group = s != null
-                    ? s.getThreadGroup()
-                    : Thread.currentThread().getThreadGroup();
-            this.namePrefix = "pool-" + poolNumber.getAndIncrement() + "-" + threadNamePrefix + "-";
-        }
-
-        public Thread newThread(Runnable runnable) {
-            Thread t = newThreadInstance(group, runnable, namePrefix + threadNumber.getAndIncrement(), 0);
-            if (!t.isDaemon()) {
-                t.setDaemon(true);
-            }
-            if (t.getPriority() != Thread.NORM_PRIORITY) {
-                t.setPriority(Thread.NORM_PRIORITY);
-            }
-            return t;
-        }
-
-        protected Thread newThreadInstance(ThreadGroup group, Runnable r, String name, int stackSize) {
-            return new Thread(group, r, name, stackSize);
-        }
-    }
-
     public String login(String login, String password, String idTerminal) throws RemoteException, SQLException {
-        DataObject userObject = terminalHandlerInterface.login(createSession(), login, password, idTerminal);
+        DataObject userObject = terminalHandlerInterface.login(createSession(), getStack(), login, password, idTerminal);
         if(userObject != null) {
             String sessionId = String.valueOf((login + password + idTerminal).hashCode());
             userMap.put(sessionId, userObject);
@@ -577,7 +546,7 @@ public class TerminalServer extends LifecycleAdapter {
     }
 
     protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
-        return terminalHandlerInterface.importTerminalDocument(createSession(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+        return terminalHandlerInterface.importTerminalDocument(createSession(), getStack(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
     }
 
     private void writeByte(DataOutputStream outToClient, byte b) throws IOException {

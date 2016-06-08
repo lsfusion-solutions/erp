@@ -1,6 +1,7 @@
 package equ.api;
 
 import equ.api.cashregister.CashierTime;
+import lsfusion.interop.remote.RmiServerInterface;
 
 import java.rmi.Remote;
 import java.rmi.RemoteException;
@@ -9,7 +10,7 @@ import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 
-public interface SoftCheckInterface extends Remote {
+public interface SoftCheckInterface extends RmiServerInterface {
 
     List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
 

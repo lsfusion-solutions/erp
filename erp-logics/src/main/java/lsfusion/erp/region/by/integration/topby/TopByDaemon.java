@@ -4,12 +4,12 @@ import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.TimeClass;
-import lsfusion.server.context.Context;
-import lsfusion.server.context.ContextAwareDaemonThreadFactory;
+import lsfusion.server.context.ExecutionStack;
+import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
-import lsfusion.server.lifecycle.LifecycleAdapter;
 import lsfusion.server.lifecycle.LifecycleEvent;
+import lsfusion.server.lifecycle.MonitorServer;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -30,11 +30,10 @@ import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.List;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
-public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
+public class TopByDaemon extends MonitorServer implements InitializingBean {
     private static final Logger logger = ServerLoggers.systemLogger;
 
     public ExecutorService daemonTasksExecutor;
@@ -42,7 +41,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
     private BusinessLogics businessLogics;
     private ScriptingLogicsModule topByLM;
     private DBManager dbManager;
-    private Context instanceContext;
+    private LogicsInstance logicsInstance;
     private String directoryIn;
     private String directoryOut;
     private Integer sleep;
@@ -50,14 +49,14 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
     public TopByDaemon(ScriptingBusinessLogics businessLogics, DBManager dbManager, LogicsInstance logicsInstance) {
         this.businessLogics = businessLogics;
         this.dbManager = dbManager;
-        this.instanceContext = logicsInstance.getContext();
+        this.logicsInstance = logicsInstance;
     }
 
     @Override
     public void afterPropertiesSet() throws Exception {
         Assert.notNull(businessLogics, "businessLogics must be specified");
         Assert.notNull(dbManager, "dbManager must be specified");
-        Assert.notNull(instanceContext, "logicsInstance must be specified");
+        Assert.notNull(logicsInstance, "logicsInstance must be specified");
         Assert.notNull(directoryIn, "DirectoryIn must be specified");
         Assert.notNull(directoryOut, "DirectoryOut must be specified");
     }
@@ -86,12 +85,22 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
         this.sleep = sleep;
     }
 
+    @Override
+    public String getEventName() {
+        return "topby-daemon";
+    }
+
+    @Override
+    public LogicsInstance getLogicsInstance() {
+        return logicsInstance;
+    }
+
     public void setupDaemon(DBManager dbManager) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();
 
-        daemonTasksExecutor = Executors.newSingleThreadExecutor(new ContextAwareDaemonThreadFactory(instanceContext, "topby-daemon"));
+        daemonTasksExecutor = ExecutorFactory.createMonitorThreadService(1, this);
         daemonTasksExecutor.submit(new DaemonTask(dbManager));
     }
 
@@ -163,12 +172,14 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                                         }
                                     }
 
+                                    ExecutionStack stack = getStack();
+
                                     //step5: сохраняем накладную
                                     if(inputDocument.status != null) {
                                         switch (inputDocument.status) {
                                             case "9":
                                                 logger.info(String.format("Import %s: started", file.getAbsolutePath()));
-                                                importUserInvoice(inputDocument, uniqueMessageNumber);
+                                                importUserInvoice(stack, inputDocument, uniqueMessageNumber);
                                                 logger.info(String.format("Import %s: successfully finished", file.getAbsolutePath()));
                                                 break;
                                             case "1":
@@ -176,7 +187,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                                                     ObjectValue invoiceObject = topByLM.findProperty("userInvoice[VARSTRING[100]]").readClasses(session, new DataObject(inputDocument.seriesNumber));
                                                     if (invoiceObject instanceof DataObject) {
                                                         topByLM.findProperty("isCancelled[UserInvoice]").change(true, session, (DataObject) invoiceObject);
-                                                        session.apply(businessLogics);
+                                                        session.apply(businessLogics, getStack());
                                                     }
                                                 }
                                                 break;
@@ -214,7 +225,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
             }
         }
 
-        private void importUserInvoice(InputDocument inputDocument, Integer uniqueMessageNumber) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        private void importUserInvoice(ExecutionStack stack, InputDocument inputDocument, Integer uniqueMessageNumber) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -427,7 +438,7 @@ public class TopByDaemon extends LifecycleAdapter implements InitializingBean {
                 session.pushVolatileStats("TB_UI");
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
-                session.apply(businessLogics);
+                session.apply(businessLogics, stack);
                 session.popVolatileStats();
             }
         }

@@ -25,7 +25,7 @@ public class FiscalMercuryZReportActionProperty extends ScriptingActionProperty 
             if (context.checkApply()) {
                 String result = (String) context.requestUserInteraction(new FiscalMercuryCustomOperationClientAction(2));
                 if (result == null)
-                    findAction("closeCurrentZReport[]").execute(session);
+                    findAction("closeCurrentZReport[]").execute(session, context.stack);
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

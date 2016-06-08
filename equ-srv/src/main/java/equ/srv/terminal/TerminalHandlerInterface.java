@@ -1,6 +1,7 @@
 package equ.srv.terminal;
 
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.session.DataSession;
 
 import java.rmi.RemoteException;
@@ -15,9 +16,9 @@ public interface TerminalHandlerInterface {
 
     byte[] readBase(DataSession session, DataObject userObject) throws RemoteException, SQLException;
 
-    String importTerminalDocument(DataSession session, DataObject userObject, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
+    String importTerminalDocument(DataSession session, ExecutionStack stack, DataObject userObject, String idTerminalDocument, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException;
 
     boolean isActiveTerminal(DataSession session, String idTerminal) throws RemoteException, SQLException;
 
-    DataObject login(DataSession session, String login, String password, String idTerminal) throws RemoteException, SQLException;
+    DataObject login(DataSession session, ExecutionStack stack, String login, String password, String idTerminal) throws RemoteException, SQLException;
 }
