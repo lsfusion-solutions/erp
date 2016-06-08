@@ -412,12 +412,44 @@ DESIGN orderBatchLedger {
     MOVE functions.box;
 }
 
+allowNegativeAvailableSku 'Разрешить расходовать в минус' = DATA BOOLEAN (UserRole);
+EXTEND FORM userRole
+    PROPERTIES(ur) allowNegativeAvailableSku
+;
+
 //-- Запрет на расходование товаров по партиям больше чем есть в остатке
 
+// по товарам
+
+banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN ();
+banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN (Stock);
+overBanNegativeSku (Stock st) = (banNegativeSku() AND isCompany(st)) OR banNegativeSku(st) PERSISTENT;
+
+EXTEND FORM options
+    PROPERTIES() banNegativeSku 
+    PROPERTIES banNegativeSku(s)
+;
+
+DESIGN options {
+    stock1 {
+        MOVE PROPERTY(banNegativeSku());
+    }
+}
+
+CONSTRAINT SET(availableQuantity(Sku sk, Stock st) < 0.0) AND 
+           overBanNegativeSku(st) AND NOT allowNegativeAvailableSku(mainRole(currentUser()))
+    MESSAGE 'Текущий резерв по товарам превышает текущий остаток';
+
+// по партия
+
 banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN ();
+banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN (Stock);
+overBanNegativeBatch (Stock st) = (banNegativeBatch() AND isCompany(st)) OR banNegativeBatch(st) PERSISTENT;
+
 
 EXTEND FORM options 
     PROPERTIES() banNegativeBatch 
+    PROPERTIES banNegativeBatch(s)
 ;
 
 DESIGN options {
@@ -426,33 +458,8 @@ DESIGN options {
     }
 }
 
-allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Stock);
-
-// по товарам
-
-banNegativeSku 'Запретить расходовать больше чем в остатке по товару' = DATA BOOLEAN (Stock);
-EXTEND FORM options
-    PROPERTIES banNegativeSku(s)
-;
-
-CONSTRAINT availableQuantity(Sku sk, Stock st) < 0.0 AND 
-           banNegativeSku(st) AND NOT allowedNegative(st)
-    MESSAGE 'Текущий резерв по товарам превышает текущий остаток';
-
-// по партия
-
-allowedNegative 'Разрешить расходовать больше чем в остатке' = DATA BOOLEAN (Batch, Stock);
-banNegativeBatch 'Запретить расходовать больше чем в остатке по партии' = DATA BOOLEAN (Stock);
-EXTEND FORM options
-    PROPERTIES banNegativeBatch(s)
-;
-
-EXTEND FORM currentBalanceBatchStock 
-    PROPERTIES (bt,st) allowedNegative BEFORE nameSku(bt) SHOWIF banNegativeBatch()
-;
-
-CONSTRAINT currentBalance(Batch bt, Stock st) (+) currentReserve(bt,st) < 0.0 AND
-           (banNegativeBatch() OR banNegativeBatch(st)) AND NOT allowedNegative(bt, st) AND NOT allowedNegative(st)
+CONSTRAINT SET(availableQuantity(Batch bt, Stock st) < 0.0) AND
+           overBanNegativeBatch(st) AND NOT allowNegativeAvailableSku(mainRole(currentUser()))
     MESSAGE 'Текущий резерв по партиям превышает текущий остаток';
 
 //---------------------------------------------- Макросы для имплементаций Продажа-------------------------------------//
