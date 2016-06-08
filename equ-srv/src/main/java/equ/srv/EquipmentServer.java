@@ -221,6 +221,13 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
         try (DataSession session = getDbManager().createSession()) {
             List<TransactionInfo> transactionList = new ArrayList<>();
 
+            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
+            Integer minutesTroubleMachineryGroups = (Integer) equipmentLM.findProperty("minutesTroubleMachineryGroup[EquipmentServer]").read(session, equipmentServerObject);
+            Integer skipTroubles = (Integer) equipmentLM.findProperty("skipTroublesDelay[EquipmentServer]").read(session, equipmentServerObject);
+            Integer selectTop = (Integer) equipmentLM.findProperty("selectTop[EquipmentServer]").read(session, equipmentServerObject);
+            if(selectTop == null)
+                selectTop = 0;
+
             KeyExpr machineryPriceTransactionExpr = new KeyExpr("machineryPriceTransaction");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "machineryPriceTransaction", machineryPriceTransactionExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
@@ -237,9 +244,8 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             query.and(equLM.findProperty("sidEquipmentServer[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
             query.and(equLM.findProperty("process[MachineryPriceTransaction]").getExpr(machineryPriceTransactionExpr).getWhere());
 
-            logger.info("Starting to read transactions");
-
-            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
+            logger.info(String.format("Starting to read top %s transactions", selectTop));
+            ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session, selectTop);
             List<Object[]> transactionObjects = new ArrayList<>();
             for (int i = 0, size = result.size(); i < size; i++) {
                 ImMap<Object, ObjectValue> value = result.getValue(i);
@@ -258,9 +264,6 @@ public class EquipmentServer extends LifecycleAdapter implements EquipmentServer
             }
 
             Map<String, List<ItemGroup>> itemGroupMap = transactionObjects.isEmpty() ? null : readItemGroupMap(session);
-            ObjectValue equipmentServerObject = equipmentLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-            Integer minutesTroubleMachineryGroups = (Integer) equipmentLM.findProperty("minutesTroubleMachineryGroup[EquipmentServer]").read(session, equipmentServerObject);
-            Integer skipTroubles = (Integer) equipmentLM.findProperty("skipTroublesDelay[EquipmentServer]").read(session, equipmentServerObject);
             List<Integer> troubleMachineryGroups = readTroubleMachineryGroups(session, minutesTroubleMachineryGroups);
             boolean skipTroubleMachineryGroups = skipTroubles != null && skipTroubleCounter < skipTroubles;
             if (skipTroubleMachineryGroups)
