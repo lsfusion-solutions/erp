@@ -926,6 +926,24 @@ hidePayerConsignmnet = ABSTRACT BOOLEAN (Consignment);
 showPayer(Consignment consignment) = showTTN1(consignment) AND NOT hidePayerConsignmnet(consignment);
 banSeries = ABSTRACT BOOLEAN (Consignment);
 toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
+
+META changeConsignment(property, classType, request)
+    change###property(Consignment c) = ACTION {
+        REQUEST classType INPUT;
+            IF request() THEN {
+                property(i) <- request();
+            }ELSE {
+                property(i) <- NULL;
+            }
+    }
+END
+
+@changeConsignment(ownerTruck,VARISTRING[200],requestedString);
+@changeConsignment(trailer,VARSTRING[100],requestedString);
+@changeConsignment(overWaybill,VARSTRING[20],requestedString);
+@changeConsignment(addressSupplierStock,VARSTRING[60],requestedString);
+@changeConsignment(addressCustomerStock,VARSTRING[150],requestedString);
+
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment FIXED PANEL
 
@@ -938,14 +956,15 @@ FORM consignment 'Атрибуты накладной'
                    forwarder ON CHANGE changeForwarder(c), overGoodsAccepted ON CHANGE changeGoodsAccepted(c)
 
     PROPERTIES(c) SHOWIF showTTN1(c)
-                   nameTruck ON CHANGE changeTruck(c), ownerTruck, trailer, nameDriver ON CHANGE changeDriver(c), overWaybill,
-                   addressSupplierStock, addressCustomerStock, readdressing,
+                   nameTruck ON CHANGE changeTruck(c), ownerTruck ON CHANGE changeOwnerTruck(c), trailer ON CHANGE changeTrailer(c), 
+                   nameDriver ON CHANGE changeDriver(c), overWaybill ON CHANGE changeOverWaybill(c),
+                   addressSupplierStock ON CHANGE changeAddressSupplierStock(c), addressCustomerStock ON CHANGE changeAddressCustomerStock(c), readdressing,
                    warrant, warrantHolder, overNameLoadingExecuter, nameWayOfLoading, codeLoading,
                    overNameUnloadingExecuter, nameWayOfUnloading,
                    arrivalTime, downtime, departureTime READONLY, raceQuantity
     PROPERTIES(c)  quantityConsignmentDetail, overPackQuantityConsignmentDetail, grossWeightConsignmentDetail,
                    sumConsignmentDetail, sumVATConsignmentDetail, sumInvoiceConsignmentDetail,
-                   countConsignmentDetail, note, shortNameCurrency, countPages//, SHOWIF isCustomsFlowConsignment(c)
+                   countConsignmentDetail, note, shortNameCurrency, countPages
     PROPERTIES(c) SHOWIF showPayer(c) fullNamePayer, UNPPayer, addressPayer                 
 
 
