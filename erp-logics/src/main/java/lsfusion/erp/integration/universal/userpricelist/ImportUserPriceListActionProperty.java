@@ -538,8 +538,8 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
 
         if (stockAdjustmentLM != null && dataAdjustment != null) {
 
-            stockAdjustmentLM.findAction("unpostAllUserAdjustment[]").execute(context.getSession());
-            stockAdjustmentLM.findAction("overImportAdjustment[]").execute(context.getSession());
+            stockAdjustmentLM.findAction("unpostAllUserAdjustment[]").execute(context.getSession(), context.stack);
+            stockAdjustmentLM.findAction("overImportAdjustment[]").execute(context.getSession(), context.stack);
 
             DataObject userAdjustmentObject = context.addObject((ConcreteCustomClass) stockAdjustmentLM.findClass("UserAdjustment"));
 

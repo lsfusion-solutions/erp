@@ -8,7 +8,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
-import lsfusion.server.lifecycle.LifecycleAdapter;
+import lsfusion.server.remote.RmiServer;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.LogicsInstance;
 import lsfusion.server.logics.linear.LCP;
@@ -23,7 +23,12 @@ import java.sql.Time;
 import java.util.ArrayList;
 import java.util.List;
 
-public class PromotionHandler extends LifecycleAdapter implements PromotionInterface, InitializingBean {
+public class PromotionHandler extends RmiServer implements PromotionInterface, InitializingBean {
+
+    @Override
+    public LogicsInstance getLogicsInstance() {
+        return logicsInstance;
+    }
 
     private LogicsInstance logicsInstance;
 
@@ -146,5 +151,10 @@ public class PromotionHandler extends LifecycleAdapter implements PromotionInter
     
     @Override
     public void afterPropertiesSet() throws Exception {
+    }
+
+    @Override
+    public String getEventName() {
+        return "promotion-handler";
     }
 }

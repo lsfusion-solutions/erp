@@ -26,6 +26,7 @@ import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -91,7 +92,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                         for (Map.Entry<String, byte[]> file : fileList.entrySet()) {
 
                             try {
-                                makeImport(context.getBL(), session, orderObject, importColumns, file.getValue(), settings, fileExtension,
+                                makeImport(context.getBL(), session, context.stack, orderObject, importColumns, file.getValue(), settings, fileExtension,
                                         operationObject, supplierObject, supplierStockObject, customerObject, customerStockObject);
 
                                 session.apply(context);
@@ -113,7 +114,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
         }
     }
 
-    public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
+    public boolean makeImport(BusinessLogics BL, DataSession session, ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject, ObjectValue supplierObject,
                               ObjectValue supplierStockObject, ObjectValue customerObject, ObjectValue customerStockObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
@@ -125,20 +126,20 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                 settings.getPrimaryKeyType(), settings.isCheckExistence(), settings.getSecondaryKeyType(), settings.isKeyIsDigit());
 
         boolean importResult1 = (orderDetailsList != null && orderDetailsList.size() >= 1) && importOrders(orderDetailsList.get(0),
-                BL, session, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
+                BL, session, stack, orderObject, importColumns, settings.getPrimaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
         boolean importResult2 = (orderDetailsList != null && orderDetailsList.size() >= 2) && importOrders(orderDetailsList.get(1),
-                BL, session, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
+                BL, session, stack, orderObject, importColumns, settings.getSecondaryKeyType(), operationObject, supplierObject, supplierStockObject,
                 customerObject, customerStockObject);
 
-        findAction("formRefresh[]").execute(session);
+        findAction("formRefresh[]").execute(session, stack);
 
         return importResult1 && importResult2;
     }
 
     public boolean importOrders(List<SaleOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
-                                DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType,
+                                ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, String keyType,
                                 ObjectValue operationObject, ObjectValue supplierObject, ObjectValue supplierStockObject,
                                 ObjectValue customerObject, ObjectValue customerStockObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
@@ -336,7 +337,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
             session.pushVolatileStats("SOA_OR");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(BL);
+            String result = session.applyMessage(BL, stack);
             session.popVolatileStats();
 
             return result == null;

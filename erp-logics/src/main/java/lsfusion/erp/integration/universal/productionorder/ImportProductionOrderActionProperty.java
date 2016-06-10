@@ -22,6 +22,7 @@ import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
+import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -79,7 +80,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
 
                         for (byte[] file : fileList) {
 
-                            makeImport(context.getBL(), session, orderObject, importColumns, file, settings, fileExtension, operationObject);
+                            makeImport(context.getBL(), session, context.stack, orderObject, importColumns, file, settings, fileExtension, operationObject);
 
                             session.apply(context);
                             
@@ -96,21 +97,21 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
         }
     }
 
-    public boolean makeImport(BusinessLogics BL, DataSession session, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
+    public boolean makeImport(BusinessLogics BL, DataSession session, ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns,
                               byte[] file, ImportDocumentSettings settings, String fileExtension, ObjectValue operationObject)
             throws ParseException, IOException, SQLException, BiffException, xBaseJException, ScriptingErrorLog.SemanticErrorException, UniversalImportException, SQLHandledException {
 
         List<ProductionOrderDetail> orderDetailsList = importOrdersFromFile(orderObject, importColumns, file, fileExtension, settings.getStartRow(), settings.isPosted(), settings.getSeparator());
 
-        boolean importResult = importOrders(orderDetailsList, BL, session, orderObject, importColumns, operationObject);
+        boolean importResult = importOrders(orderDetailsList, BL, session, stack, orderObject, importColumns, operationObject);
 
-        findAction("formRefresh[]").execute(session);
+        findAction("formRefresh[]").execute(session, stack);
 
         return importResult;
     }
 
     public boolean importOrders(List<ProductionOrderDetail> orderDetailsList, BusinessLogics BL, DataSession session,
-                                DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
+                                ExecutionStack stack, DataObject orderObject, Map<String, ImportColumnDetail> importColumns, ObjectValue operationObject)
             throws SQLException, ScriptingErrorLog.SemanticErrorException, IOException, xBaseJException, ParseException, BiffException, SQLHandledException {
 
         if (orderDetailsList != null && (orderObject !=null || showField(orderDetailsList, "idOrder"))) {
@@ -281,7 +282,7 @@ public class ImportProductionOrderActionProperty extends ImportDocumentActionPro
             session.pushVolatileStats("POA_IO");
             IntegrationService service = new IntegrationService(session, table, keys, props);
             service.synchronize(true, false);
-            String result = session.applyMessage(BL);
+            String result = session.applyMessage(BL, stack);
             session.popVolatileStats();
 
             return result == null;

@@ -159,7 +159,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
     private void finishImportOrder(ExecutionContext context, DataObject orderObject) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         try (DataSession session = context.createSession()) {
             findProperty("importedOrder[AttachmentEmail]").change(true, session, (DataObject) orderObject);
-            session.apply(context.getBL());
+            session.apply(context);
         }
     }
 
