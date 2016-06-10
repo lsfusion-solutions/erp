@@ -6,7 +6,6 @@ import equ.api.cashregister.*;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.api.terminal.TransactionTerminalInfo;
-import equ.srv.EquipmentServer;
 import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -98,12 +97,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
 
         List<SalesInfo> salesInfoList = readSalesInfo(context);
 
-        String result;
-        if(remote instanceof EquipmentServer)
-            result = ((EquipmentServer) remote).sendSalesInfoNonRemote(context.stack, salesInfoList, sidEquipmentServer, null);
-        else
-            result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, null);
-
+        String result = remote.sendSalesInfo(salesInfoList, sidEquipmentServer, null);
         if (result == null) {
             List<String> succeededReceiptList = new ArrayList<>();
             for (SalesInfo sale : salesInfoList) {
@@ -483,7 +477,7 @@ public class TransactionExchangeActionProperty extends DefaultIntegrationActionP
                 if (receiptObject instanceof DataObject)
                     findProperty("exportedIncrement[Receipt]").change(true, session, (DataObject) receiptObject);
             }
-            session.apply(context);
+            session.apply(context.getBL());
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }

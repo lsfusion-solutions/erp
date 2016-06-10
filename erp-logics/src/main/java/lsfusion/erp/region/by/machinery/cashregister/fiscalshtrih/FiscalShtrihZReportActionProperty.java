@@ -32,7 +32,7 @@ public class FiscalShtrihZReportActionProperty extends ScriptingActionProperty {
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-            findAction("closeCurrentZReport[]").execute(session, context.stack);
+            findAction("closeCurrentZReport[]").execute(session);
         } catch (SQLException e) {
             throw new RuntimeException(e);
         } catch (ScriptingErrorLog.SemanticErrorException e) {

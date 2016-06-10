@@ -85,7 +85,7 @@ public class ImportSaleOrdersActionProperty extends ImportDocumentActionProperty
                                         try {
 
                                             boolean importResult = new ImportSaleOrderActionProperty(LM).makeImport(context.getBL(),
-                                                    currentSession, context.stack, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
+                                                    currentSession, orderObject, importColumns, IOUtils.getFileBytes(f), settings,
                                                     fileExtension, operationObject, supplierObject, supplierStockObject, customerObject,
                                                     customerStockObject);
 

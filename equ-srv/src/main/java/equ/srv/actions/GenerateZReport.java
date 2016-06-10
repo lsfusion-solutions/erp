@@ -185,7 +185,7 @@ public class GenerateZReport extends ScriptingActionProperty {
         }
         try {
             EquipmentServer equipmentServer = context.getLogicsInstance().getCustomObject(EquipmentServer.class);
-            String res = equipmentServer.sendSalesInfoNonRemote(context.stack, salesInfoList, "equServer1", null);
+            String res = equipmentServer.sendSalesInfoNonRemote(salesInfoList, "equServer1", null);
             if (res != null) {
                 throw new RuntimeException(res);
             }

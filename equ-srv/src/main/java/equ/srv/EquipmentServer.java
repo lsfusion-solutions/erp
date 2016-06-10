@@ -22,16 +22,18 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.expr.ValueExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.integration.*;
+import lsfusion.server.lifecycle.LifecycleAdapter;
 import lsfusion.server.lifecycle.LifecycleEvent;
-import lsfusion.server.remote.RmiServer;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.linear.LCP;
-import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.logics.property.PropertyInterface;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.log4j.Logger;
+import org.aspectj.lang.annotation.AfterReturning;
+import org.aspectj.lang.annotation.Aspect;
+import org.aspectj.lang.annotation.Before;
 import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
@@ -50,7 +52,7 @@ import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
-public class EquipmentServer extends RmiServer implements EquipmentServerInterface, InitializingBean {
+public class EquipmentServer extends LifecycleAdapter implements EquipmentServerInterface, InitializingBean {
     private static final Logger logger = Logger.getLogger(EquipmentServer.class);
 
     public static final String EXPORT_NAME = "EquipmentServer";
@@ -1065,7 +1067,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             e.printStackTrace(new PrintStream(os));
             stopListLM.findProperty("errorTrace[StopListError]").change(os.toString(), session, errorObject);
 
-            session.apply(getBusinessLogics(), getStack());
+            session.apply(getBusinessLogics());
         } catch (Exception e2) {
             throw Throwables.propagate(e2);
         }
@@ -1079,7 +1081,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 DataObject stockObject = (DataObject) stopListLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
                 stopListLM.findProperty("succeeded[Stock,StopList]").change(true, session, stockObject, stopListObject);
             }
-            session.apply(getBusinessLogics(), getStack());
+            session.apply(getBusinessLogics());
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
@@ -1421,7 +1423,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             idStock, directoryStockMap, dateFromRequestExchange, dateToRequestExchange,
                             startDateRequestExchange, idDiscountCardFrom, idDiscountCardTo, typeRequestExchange));
                 }
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -1467,7 +1469,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     machineryPriceTransactionLM.findProperty("succeeded[RequestExchange]").change(true, session, requestExchangeObject);
                     machineryPriceTransactionLM.findProperty("dateTimeSucceeded[RequestExchange]").change(getCurrentTimestamp(), session, requestExchangeObject);
                 }
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -1484,7 +1486,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     machineryPriceTransactionLM.findProperty("date[RequestExchangeError]").change(getCurrentTimestamp(), session, errorObject);
                     machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeError]").change(request.getKey(), session, errorObject);
                 }
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -1527,7 +1529,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 for (String idZReport : idZReportList) {
                     try (DataSession session = getDbManager().createSession()) {
                         zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
-                        session.apply(getBusinessLogics(), getStack());
+                        session.apply(getBusinessLogics());
                     }
                 }
             }
@@ -1825,7 +1827,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     session.pushVolatileStats("ES_TI");
                     IntegrationService service = new IntegrationService(session, table, keys, props);
                     service.synchronize(true, false);
-                    String result = session.applyMessage(getBusinessLogics(), getStack());
+                    String result = session.applyMessage(getBusinessLogics());
                     session.popVolatileStats();
                     return result;
                 }
@@ -1874,7 +1876,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList((Object) sumZReport, dateZReport));
                 }
                 
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
@@ -1896,7 +1898,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     machineryPriceTransactionLM.findProperty("machinery[RequestExchangeLog]").change(cashRegisterObject.getValue(), session, logObject);
                     machineryPriceTransactionLM.findProperty("requestExchange[RequestExchangeLog]").change(idRequestExchange, session, logObject);
                 }
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
@@ -1951,11 +1953,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
-        return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer, numberAtATime);
+        return sendSalesInfoNonRemote(salesInfoList, sidEquipmentServer, numberAtATime);
     }
 
 
-    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
+    public String sendSalesInfoNonRemote(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
         try {
 
             if (zReportLM != null && notNullNorEmpty(salesInfoList)) {
@@ -2358,9 +2360,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 paymentProperties).synchronize(true);
 
                         session.setKeepLastAttemptCountMap(true);
-                        String result = session.applyMessage(getBusinessLogics(), stack);
+                        String result = session.applyMessage(getBusinessLogics());
                         if (result == null) {
-                            logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                            logCompleteMessage(session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
                         } else
                             return result;
                     }
@@ -2372,7 +2374,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
     
-    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String logCompleteMessage(DataSession mainSession, List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         
         String message = formatCompleteMessage(mainSession, data, dataSize, timeStart);
         
@@ -2382,7 +2384,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             equLM.findProperty("equipmentServer[EquipmentServerLog]").change(equipmentServerObject.getValue(), session, logObject);
             equLM.findProperty("data[EquipmentServerLog]").change(message, session, logObject);
             equLM.findProperty("date[EquipmentServerLog]").change(getCurrentTimestamp(), session, logObject);
-            return session.applyMessage(getBusinessLogics(), stack);
+            return session.applyMessage(getBusinessLogics());
         }
     }
     
@@ -2394,7 +2396,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize);
         if(conflicts != null)
             message += "\nКонфликты: " + conflicts;
-
+        
         Map<Integer, Set<Integer>> nppCashRegisterMap = new HashMap<>();
         List<String> fileNames = new ArrayList<>();
         Set<String> dates = new HashSet<>();
@@ -2558,7 +2560,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     session.pushVolatileStats("ES_CDI");
                     IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
                     service.synchronize(true, false);
-                    resultIncome = session.applyMessage(getBusinessLogics(), getStack());
+                    resultIncome = session.applyMessage(getBusinessLogics());
                     session.popVolatileStats();
                 }
                 if(resultIncome != null)
@@ -2571,7 +2573,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     session.pushVolatileStats("ES_CDI");
                     IntegrationService service = new IntegrationService(session, table, keysOutcome, propsOutcome);
                     service.synchronize(true, false);
-                    resultOutcome = session.applyMessage(getBusinessLogics(), getStack());
+                    resultOutcome = session.applyMessage(getBusinessLogics());
                     session.popVolatileStats();
                 }
 
@@ -2589,7 +2591,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
                 equLM.findProperty("succeeded[MachineryPriceTransaction]").change(true, session, transactionObject);
                 equLM.findProperty("dateTimeSucceeded[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
@@ -2602,7 +2604,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             try (DataSession session = getDbManager().createSession()) {
                 DataObject transactionObject = session.getDataObject(equLM.findClass("MachineryPriceTransaction"), transactionId);
                 machineryPriceTransactionLM.findProperty("dateTimeProcessing[MachineryPriceTransaction]").change(dateTime, session, transactionObject);
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
@@ -2623,7 +2625,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     if (machineryObject != null && !machineryInfo.cleared)
                         machineryPriceTransactionLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").change(true, session, (DataObject) machineryObject, transactionObject);
                 }
-                session.apply(getBusinessLogics(), getStack());
+                session.apply(getBusinessLogics());
             } catch (Exception e) {
                 throw Throwables.propagate(e);
             }
@@ -2652,7 +2654,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             }
                         }
                     }
-                    session.apply(getBusinessLogics(), getStack());
+                    session.apply(getBusinessLogics());
                 } catch (Exception e) {
                     throw Throwables.propagate(e);
                 }
@@ -2706,7 +2708,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             e.printStackTrace(new PrintStream(os));
             equLM.findProperty("errorTrace[MachineryPriceTransactionError]").change(os.toString(), session, errorObject);
 
-            session.apply(getBusinessLogics(), getStack());
+            session.apply(getBusinessLogics());
         } catch (Exception e2) {
             throw Throwables.propagate(e2);
         }
@@ -2726,7 +2728,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
             equLM.findProperty("date[EquipmentServerError]").change(getCurrentTimestamp(), session, errorObject);
 
-            session.apply(getBusinessLogics(), getStack());
+            session.apply(getBusinessLogics());
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
@@ -2735,7 +2737,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException {
         try {
-            ThreadLocalContext.assureRmi(this);
+            ThreadLocalContext.set(logicsInstance.getContext());
             try (DataSession session = getDbManager().createSession()) {
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(equipmentServer));
                 if (equipmentServerObject instanceof DataObject) {
@@ -2811,8 +2813,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     };
 
-    @Override
-    public String getEventName() {
-        return "equipment-server";
+    @Aspect
+    private static class RemoteLogicsContextHoldingAspect {
+        @Before("execution(* equ.api.EquipmentServerInterface.*(..)) && target(remoteLogics)")
+        public void beforeCall(EquipmentServer remoteLogics) {
+            ThreadLocalContext.set(remoteLogics.logicsInstance.getContext());
+        }
+
+        @AfterReturning("execution(* equ.api.EquipmentServerInterface.*(..)) && target(remoteLogics)")
+        public void afterReturning(EquipmentServer remoteLogics) {
+            ThreadLocalContext.set(null);
+        }
     }
 }

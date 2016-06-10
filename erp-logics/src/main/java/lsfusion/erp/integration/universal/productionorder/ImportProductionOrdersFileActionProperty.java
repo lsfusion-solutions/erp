@@ -56,7 +56,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
                         for (byte[] file : fileList) {
 
-                            new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), session, context.stack, null, importColumns, file, settings, fileExtension, operationObject);
+                            new ImportProductionOrderActionProperty(LM).makeImport(context.getBL(), session, null, importColumns, file, settings, fileExtension, operationObject);
 
                             session.apply(context);
                             
