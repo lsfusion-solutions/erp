@@ -66,32 +66,12 @@ CONSTRAINT Stock s == dataStock(Employee e) AND NOT accessCompany(e, s) CHECKED 
 
 EXTEND FORM employees PROPERTIES(e) READONLY nameStock;
 
+// todo : Удалить потом
 //-- Поставщик
 dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Employee);
 dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (Stock, Employee);
 dataAccessSupplier 'Доступ разрешен (поставщик)' = DATA BOOLEAN (StockGroup, Employee);
-levelParentSupplier (employee, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataAccessSupplier(parent, Employee employee)
-                                                               BY employee, stockGroup PERSISTENT;
-nearestParentSupplier (Employee employee, StockGroup stockGroup) = stockGroup(stockGroup, levelParentSupplier(employee, stockGroup));
-nearestInSupplier (Employee employee, StockGroup stockGroup) =
-    dataAccessSupplier(nearestParentSupplier (employee, stockGroup), employee) PERSISTENT;
 
-accessSupplier 'Доступ разрешен (поставщик)' (Employee employee, StockGroup stockGroup) = OVERRIDE
-    employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccess(employee),
-    dataAccessSupplier(employee) AND stockGroup IS StockGroup,
-    nearestInSupplier(employee, stockGroup),
-    dataAccessSupplier(stockGroup, employee); // PERSISTENT;
-
-accessSupplier 'Доступ разрешен (поставщик)' (Employee employee, Stock stock) = OVERRIDE
-    employee IS Employee AND stock IS Stock AND NOT limitAccess(employee),
-    dataAccessSupplier(employee) AND stock IS Stock,
-    nearestInSupplier(employee, stockGroup(stock)),
-    dataAccessSupplier(stock, employee); // PERSISTENT;
-
-countAccessSupplier 'Кол-во доступных подразделений (поставщик)' (employee, stockGroup) =
-    GROUP SUM 1 IF accessSupplier(Employee employee, Stock stock)
-                AND isParent(stockGroup(stock), StockGroup stockGroup)
-          BY employee, stockGroup PERSISTENT;
 //--  Покупатель
 dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Employee);
 dataAccessCustomer 'Доступ разрешен (покупатель)' = DATA BOOLEAN (Stock, Employee);
@@ -115,29 +95,6 @@ overCopy(Employee e,Employee employee) += ACTION {
     dataAccessCustomer(StockGroup lg,e) <- dataAccessCustomer(lg,employee) WHERE dataAccessCustomer(lg,employee);    
 };
 
-levelParentCustomer (employee, stockGroup) = GROUP MIN level(StockGroup stockGroup, StockGroup parent) IF dataAccessCustomer(parent, Employee employee)
-                                                               BY employee, stockGroup PERSISTENT;
-nearestParentCustomer (Employee employee, StockGroup stockGroup) = stockGroup(stockGroup, levelParentCustomer(employee, stockGroup));
-nearestInCustomer (Employee employee, StockGroup stockGroup) =
-    dataAccessCustomer(nearestParentCustomer (employee, stockGroup), employee) PERSISTENT;
-
-accessCustomer 'Доступ разрешен (покупатель)' (Employee employee, StockGroup stockGroup) = OVERRIDE
-    employee IS Employee AND stockGroup IS StockGroup AND NOT limitAccess(employee),
-    dataAccessCustomer(employee) AND stockGroup IS StockGroup,
-    nearestInCustomer(employee, stockGroup),
-    dataAccessCustomer(stockGroup, employee); 
-
-accessCustomer 'Доступ разрешен (покупатель)' (Employee employee, Stock stock) = OVERRIDE
-    employee IS Employee AND stock IS Stock AND NOT limitAccess(employee),
-    dataAccessCustomer(employee) AND stock IS Stock,
-    nearestInCustomer(employee, stockGroup(stock)),
-    dataAccessCustomer(stock, employee); 
-
-countAccessCustomer 'Кол-во доступных подразделений (покупатель)' (employee, stockGroup) =
-    GROUP SUM 1 IF accessCustomer(Employee employee, Stock stock)
-                AND isParent(stockGroup(stock), StockGroup stockGroup)
-          BY employee, stockGroup PERSISTENT;
-
 EXTEND FORM employee
 
     PROPERTIES nameStock(e)
@@ -147,7 +104,7 @@ EXTEND FORM employee
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
     PROPERTIES(e)  TODRAW a dataAccessSupplier, dataAccessCompany, dataAccessCustomer
-    PROPERTIES(e,sg)  accessSupplier, accessCompany, accessCustomer
+    PROPERTIES(e,sg)  accessCompany
 
     OBJECTS s = Stock FIXED GRID
     PROPERTIES(s) READONLY id 
@@ -156,7 +113,7 @@ EXTEND FORM employee
     ORDER BY stockName
     FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg)
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT
-    PROPERTIES(e,s) accessSupplier, accessCompany, accessCustomer
+    PROPERTIES(e,s) accessCompany
 ;
 
 DESIGN employee {
@@ -169,18 +126,14 @@ DESIGN employee {
                 type = SPLITH;
                 MOVE stockTree.tree.box { 
                     caption = 'Группы складов';
-                    PROPERTY (accessSupplier(e,sg)) {minimumWidth = 100; }
                     PROPERTY (accessCompany(e,sg)) {minimumWidth = 100; }
-                    PROPERTY (accessCustomer(e,sg)) {minimumWidth = 100; }
                     
                 };
                 MOVE s.box {
                     s.grid {
                         defaultComponent = TRUE;
                         PROPERTY (in(s,e)) {minimumWidth = 90;  preferredWidth = 90;}
-                        PROPERTY (accessSupplier(e,s)) {minimumWidth = 100;  preferredWidth = 100;}
                         PROPERTY (accessCompany(e,s)) {minimumWidth = 100;  preferredWidth = 100;}
-                        PROPERTY (accessCustomer(e,s)) {minimumWidth = 100;  preferredWidth = 100;}                   
                     }
                 }
             }
@@ -265,14 +218,6 @@ nameStocks 'Подразделения' (committee) =
 
 // ---------------------------------- Доступ к складам --------------------------------------------------- //
 
-countAccessSupplierStock (employee, legalEntity) = GROUP SUM 1 
-    IF in(LegalEntity legalEntity, Stock stock) AND active(stock) AND accessSupplier(Employee employee, stock)
-        BY employee, legalEntity;
-
-defaultSupplierStock 'Склад по умолчанию (поставщик)' (employee, legalEntity)= GROUP MIN Stock stock 
-    IF in(LegalEntity legalEntity, stock) AND active(stock) AND accessSupplier(Employee employee, stock)
-        BY employee, legalEntity;
-
 countAccessCompanyStock (employee, legalEntity) = GROUP SUM 1 
     IF in(LegalEntity legalEntity, Stock stock) AND active(stock) AND accessCompany(Employee employee, stock)
         BY employee, legalEntity;
@@ -286,14 +231,6 @@ minDefaultCompanyStock 'Склад по умолчанию (компания)' (
 defaultCompanyStock 'Склад по умолчанию (компания)'(Employee employee, LegalEntity legalEntity) = 
     OVERRIDE minDefaultCompanyStock(employee, legalEntity), 
     dataDefaultCompanyStock(legalEntity);                                                                                  
-
-countAccessCustomerStock (employee, legalEntity) = GROUP SUM 1 
-    IF in(LegalEntity legalEntity, Stock stock) AND active(stock) AND accessCustomer(Employee employee, stock)
-        BY employee, legalEntity;
-
-defaultCustomerStock 'Склад по умолчанию (покупатель)' (employee, legalEntity)= GROUP MIN Stock stock 
-    IF in(LegalEntity legalEntity, stock) AND active(stock) AND accessCustomer(Employee employee, stock)
-        BY employee, legalEntity;
 
 // Для документа, у которого задан склад
 META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)
@@ -338,18 +275,5 @@ END
 @extendFormFilterStockGroupAccess(sg, companyStocks, company);
 @extendFormFilterStockAccess(s, companyStocks, company);
 
-@extendFormFilterStockGroupAccess(sg, supplierStocks, supplier);
-@extendFormFilterStockAccess(s, supplierStocks, supplier);
-
-@extendFormFilterStockGroupAccess(sg, customerStocks, customer);
-@extendFormFilterStockAccess(s, customerStocks, customer);
-
-
 @extendFormFilterStockGroupAccess(sg, companysStock, company);
 @extendFormFilterStockAccess(s, companysStock, company);
-
-@extendFormFilterStockGroupAccess(sg, suppliersStock, supplier);
-@extendFormFilterStockAccess(s, suppliersStock, supplier);
-
-@extendFormFilterStockGroupAccess(sg, customersStock, customer);
-@extendFormFilterStockAccess(s, customersStock, customer);

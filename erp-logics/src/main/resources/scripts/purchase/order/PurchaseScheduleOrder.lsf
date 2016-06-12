@@ -5,12 +5,10 @@ REQUIRE PurchaseOrder,
 
 NAMESPACE Purchase;
 
-@defineScheduleOrder(' (закупка)', supplier, company, supplier);
+@defineScheduleOrder(' (закупка)', supplier, company, customer);
 
 @extendFormFilterStockAccess(ts, scheduleOrder);
 @extendFormFilterStockGroupAccess(sg, scheduleOrder);
-@defineDocumentLegalEntityStockAccess(ScheduleOrder, supplier, supplier, scheduleOrder);
-
 
 WHEN SESSION FORMS scheduleOrder CHANGED(customer(ScheduleOrder o)) DO {
     IF countAccessCompanyStock (currentUser(), customer(o)) == 1 THEN         
@@ -88,8 +86,7 @@ DESIGN scheduleOrder {
 
 
 WHEN SESSION CHANGED(supplier(ScheduleOrder o)) DO {
-    supplierStock(o) <- defaultSupplierStock(currentUser(), supplier(o))
-        IF countAccessSupplierStock (currentUser(), supplier(o)) == 1;
+    supplierStock(o) <- defaultStock(supplier(o)) IF countStocks(supplier(o)) == 1;
 }
 
 //WHEN SESSION CHANGED(customerScheduleOrder(o)) DO {
@@ -115,7 +112,14 @@ EXTEND FORM legalEntity
 ;
 
 // Добавляем Dashboard для работы с графиками закупок
-@defineScheduleOrderDashboard(' (закупка)', supplier, company);
+@defineScheduleOrderDashboard(' (закупка)', customer);
+
+countStocks (order)= GROUP SUM 1 IF in(ScheduleOrder order,Stock stock)
+    BY order;       
+countAccessCompanyEmployeeStock (order)= GROUP SUM 1 IF accessCompany(currentUser(),Stock stock) AND in(ScheduleOrder order,stock)
+    BY order;
+EXTEND FORM scheduleOrderDashboard FILTERS countAccessCompanyEmployeeStock(s) OR NOT countStocks(s);
+EXTEND FORM scheduleOrderDashboard FILTERS countAccessCompanyEmployeeStock(ss) OR NOT countStocks(ss);
 
 autoCloseScheduleOrderInterval 'За сколько дней аннулировать точки заказов по графику' = DATA INTEGER ();
 autoCloseScheduleOrderDetails 'Аннулировать точки заказов'() = ACTION {

@@ -86,37 +86,28 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     nameType 'Тип генерации графика' (ScheduleOrder scheduleOrder) = staticCaption(type(scheduleOrder)) IN base;
     type(ScheduleOrder o) <- defaultGenType() WHEN SET(o IS ScheduleOrder);
     
-    stockFilter 'Поставщик (ИД)' = DATA LegalEntity(ScheduleOrder);
-    name###stockFilter 'Поставщик' (ScheduleOrder scheduleOrder) = name(stockFilter(scheduleOrder)) IN base;
-    fullName###stockFilter 'Поставщик' (ScheduleOrder scheduleOrder) = fullName(stockFilter(scheduleOrder)) IN base;    
+    supplier 'Поставщик (ИД)' = DATA LegalEntity(ScheduleOrder);
+    nameSupplier 'Поставщик' (ScheduleOrder scheduleOrder) = name(supplier(scheduleOrder)) IN base;
+    fullNameSupplier 'Поставщик' (ScheduleOrder scheduleOrder) = fullName(supplier(scheduleOrder)) IN base;    
 
     customer 'Покупатель (ИД)' = DATA LegalEntity(ScheduleOrder);
     nameCustomer 'Покупатель' (ScheduleOrder scheduleOrder) = name(customer(scheduleOrder)) IN base;
     fullNameCustomer 'Покупатель' (ScheduleOrder scheduleOrder) = fullName(customer(scheduleOrder)) IN base;
     
-    stockFilter(ScheduleOrder scheduleOrder) += stockFilter(scheduleOrder);
+    supplier(ScheduleOrder scheduleOrder) += supplier(scheduleOrder);
     customer(ScheduleOrder scheduleOrder) += customer(scheduleOrder);
 
-    stockFilter##Stock = DATA Stock(ScheduleOrder);
-    name###stockFilter##Stock 'Склад поставщика' (ScheduleOrder scheduleOrder) = name(stockFilter##Stock(scheduleOrder));
+    supplierStock = DATA Stock(ScheduleOrder);
+    nameSupplierStock 'Склад поставщика' (ScheduleOrder scheduleOrder) = name(supplierStock(scheduleOrder));
 
     @defineDocumentHeaderCreated(ScheduleOrder);
 
-//    customerStockScheduleOrder = DATA Stock(ScheduleOrder);
-//    nameCustomerStockScheduleOrder 'Склад покупателя' (scheduleOrder) = nameStock(customerStockScheduleOrder(scheduleOrder));
-
-    stockFilter##Stock(ScheduleOrder scheduleOrder) += stockFilter##Stock(scheduleOrder);
-//    ScheduleOrder.customerStockScheduleOrder(scheduleOrder) += customerStockScheduleOrder(scheduleOrder);
+    supplierStock(ScheduleOrder scheduleOrder) += supplierStock(scheduleOrder);
     
-    CONSTRAINT stockFilter(ScheduleOrder scheduleOrder) AND stockFilter##Stock(scheduleOrder) AND NOT
-    in(stockFilter(scheduleOrder), stockFilter##Stock(scheduleOrder))
-        CHECKED BY stockFilter##Stock[ScheduleOrder]
+    CONSTRAINT supplier(ScheduleOrder scheduleOrder) AND supplierStock(scheduleOrder) AND NOT
+    in(supplier(scheduleOrder), supplierStock(scheduleOrder))
+        CHECKED BY supplierStock[ScheduleOrder]
             MESSAGE 'Поставщик и склад поставщика для графика заказов не имеют связи';
-
-//    CONSTRAINT customerScheduleOrder(scheduleOrder) AND customerStockScheduleOrder(scheduleOrder) AND NOT
-//    inLegalEntityStock(customerScheduleOrder(scheduleOrder), customerStockScheduleOrder(scheduleOrder))
-//        CHECKED BY customerScheduleOrder, customerStockScheduleOrder
-//            MESSAGE 'Покупатель и склад покупателя для графика заказов не имеют связи';
 
     // ---------------------  Склады, для которых действует график заказов
     
@@ -237,14 +228,14 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     operation (ScheduleOrderDetail scheduleOrderDetail) = operation(scheduleOrder(scheduleOrderDetail));    
     nameOperation 'Операция' (ScheduleOrderDetail scheduleOrderDetail) = name(operation(scheduleOrderDetail));    
 
-    stockFilter(ScheduleOrderDetail scheduleOrderDetail) = stockFilter(scheduleOrder(scheduleOrderDetail));
-    name###stockFilter 'Поставщик' (ScheduleOrderDetail scheduleOrderDetail) = name(stockFilter(scheduleOrderDetail)) IN recognize;
+    supplier(ScheduleOrderDetail scheduleOrderDetail) = supplier(scheduleOrder(scheduleOrderDetail));
+    nameSupplier 'Поставщик' (ScheduleOrderDetail scheduleOrderDetail) = name(supplier(scheduleOrderDetail)) IN recognize;
 
     customer(ScheduleOrderDetail scheduleOrderDetail) = customer(scheduleOrder(scheduleOrderDetail));
     nameCustomer 'Покупатель' (ScheduleOrderDetail scheduleOrderDetail) = name(customer(scheduleOrderDetail));
 
-    stockFilter##Stock(ScheduleOrderDetail scheduleOrderDetail) = stockFilter##Stock(scheduleOrder(scheduleOrderDetail));
-    name###stockFilter##Stock 'Склад поставщика' (ScheduleOrderDetail scheduleOrderDetail) = name(stockFilter##Stock(scheduleOrderDetail));
+    supplierStock(ScheduleOrderDetail scheduleOrderDetail) = supplierStock(scheduleOrder(scheduleOrderDetail));
+    nameSupplierStock 'Склад поставщика' (ScheduleOrderDetail scheduleOrderDetail) = name(supplierStock(scheduleOrderDetail));
 
 //    customerStockScheduleOrderDetail(scheduleOrderDetail) = customerStockScheduleOrder(scheduleOrderScheduleOrderDetail(scheduleOrderDetail));
 //    nameCustomerStockScheduleOrderDetail 'Склад покупателя' (scheduleOrderDetail) = nameStock(customerStockScheduleOrderDetail(scheduleOrderDetail));
@@ -386,26 +377,26 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
     scheduleOrderDetail = DATA ScheduleOrderDetail(UserOrder);
     quantityOrders 'Кол-во заказов' (scheduleOrderDetail) =
-        GROUP SUM 1 IF stockFilter##Stock[Order](UserOrder userOrder)==stockFilter##Stock(ScheduleOrderDetail scheduleOrderDetail) AND
+        GROUP SUM 1 IF supplierStock[Order](UserOrder userOrder)==supplierStock(ScheduleOrderDetail scheduleOrderDetail) AND
                        customerStock[Order](userOrder)==customerStock(scheduleOrderDetail) AND
                        shipmentDate(userOrder)==dateSupply(scheduleOrderDetail) AND
                        date[Order](userOrder)==dateOrder(scheduleOrderDetail) AND
                        isOpened(scheduleOrderDetail)
                BY scheduleOrderDetail PERSISTENT;
                
-    lastScheduleOrderDetail###stockFilter##Customer (d,s,ss,c,cs) = 
+    lastScheduleOrderDetailSupplierCustomer (d,s,ss,c,cs) = 
         GROUP LAST ScheduleOrderDetail sd
-               BY DATE d, stockFilter(sd), stockFilter##Stock(sd), customer(sd), customerStock(sd)
+               BY DATE d, supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)
                ORDER dateOrder(sd), sd 
                WHERE dateOrder(sd) <= (d AS DATE) AND isOpened(sd);             
-    isLast (ScheduleOrderDetail sd,DATE d)= lastScheduleOrderDetail###stockFilter##Customer(d,stockFilter(sd), stockFilter##Stock(sd), customer(sd), customerStock(sd)) == sd;           
+    isLast (ScheduleOrderDetail sd,DATE d)= lastScheduleOrderDetailSupplierCustomer(d,supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;           
 
-    lastScheduleOrderDetail###stockFilter##Customer (s,ss,c,cs) = 
+    lastScheduleOrderDetailSupplierCustomer (s,ss,c,cs) = 
         GROUP LAST ScheduleOrderDetail sd
-               BY stockFilter(sd), stockFilter##Stock(sd), customer(sd), customerStock(sd)
+               BY supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)
                ORDER dateOrder(sd), sd 
                WHERE isOpened(sd);             
-    isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetail###stockFilter##Customer(stockFilter(sd), stockFilter##Stock(sd), customer(sd), customerStock(sd)) == sd;   
+    isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetailSupplierCustomer(supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;   
 
     overCreate = ACTION ABSTRACT LIST (UserOrder);
     isRecommended = DATA LOCAL BOOLEAN (UserOrder);
@@ -420,9 +411,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             shipmentDate(o) <- dateSupply(scheduleOrderDetail);
             shipmentTime(o) <- currentTime();
             nextShipmentDate(o) <- dateSupplyNext(scheduleOrderDetail);
-            stockFilter(o) <- stockFilter(scheduleOrderDetail);
+            supplier(o) <- supplier(scheduleOrderDetail);
             customer(o) <- customer(scheduleOrderDetail);
-            stockFilter##Stock(o) <- stockFilter##Stock(scheduleOrderDetail);
+            supplierStock(o) <- supplierStock(scheduleOrderDetail);
             customerStock(o) <- customerStock(scheduleOrderDetail);
             IF confirmed() THEN {
                 isRecommended(o) <- TRUE;
@@ -430,8 +421,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             IF operation(scheduleOrderDetail) THEN
                 operation(o) <- operation(scheduleOrderDetail)
             ELSE
-                IF countOperation###stockFilter##Customer###stockFilter##Customer(stockFilter(o), customer(o), stockFilter##Stock(o), customerStock(o), currentUser()) == 1 THEN 
-                    operation(o) <- defaultOperation###stockFilter##Customer###stockFilter##Customer(stockFilter(o), customer(o), stockFilter##Stock(o), customerStock(o), currentUser());
+                IF countOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser()) == 1 THEN 
+                    operation(o) <- defaultOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser());
                     
             IF defaultPriceListType(operation(o)) THEN
                 priceListType(o) <- defaultPriceListType(operation(o)); 
@@ -442,7 +433,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }
     } TOOLBAR;
     @defineDocumentDetailActions(scheduleOrder, ScheduleOrderDetail);
-    @defineDocumentDialogStock(scheduleOrder, supplierFilter, stockFilter, );
+    @defineDocumentDialogStock(scheduleOrder, supplierFilter, supplier, );
 
     @defineDocumentDialogSupplierCustomerLegalEntity(scheduleOrder, supplierFilter, customerFilter);
        
@@ -476,8 +467,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     FORM scheduleOrder 'График поставок'##sign
         OBJECTS s=ScheduleOrder FIXED PANEL
-        PROPERTIES (s) name###stockFilter ON CHANGE change###stockFilter###supplierFilter(s), 
-                       name###stockFilter##Stock ON CHANGE change###stockFilter##Stock###supplierFilter(s), 
+        PROPERTIES (s) nameSupplier ON CHANGE changeSupplier###supplierFilter(s), 
+                       nameSupplierStock ON CHANGE changeSupplierStock###supplierFilter(s), 
                        nameCustomer ON CHANGE changeCustomer###customerFilter(s), nameOperation,
                        startDate, endDate, nameType, 
                        overPeriod SHOWIF toShowGenDayMonth(s), inAllMonth SHOWIF toShowGenDayMonth(s), dayBefore,
@@ -517,7 +508,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES (sd) isClosed, dateOrder, dateSupply
         PROPERTIES (sd) READONLY monthInDate, DOWInDate,
-                        name###stockFilter, name###stockFilter##Stock,
+                        nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock,
                         nameOperation
         PROPERTIES (sd) createScheduleUser, deletesd=DELETESESSION
@@ -549,8 +540,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                     caption = 'Поставщик';
                     type = COLUMNS;
                     columns = 1;
-                    MOVE PROPERTY(name###stockFilter(s));
-                    MOVE PROPERTY(name###stockFilter##Stock(s));
+                    MOVE PROPERTY(nameSupplier(s));
+                    MOVE PROPERTY(nameSupplierStock(s));
                 }
                 
                 NEW secondContainer{
@@ -637,8 +628,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     overCopy = ACTION ABSTRACT LIST (ScheduleOrder, ScheduleOrder);
     copy 'Копировать'(ScheduleOrder scheduleOrder) = ACTION NEWSESSION {
         FOR ADDOBJ o = ScheduleOrder DO {
-            stockFilter(o) <- stockFilter(scheduleOrder);
-            stockFilter##Stock(o) <- stockFilter##Stock(scheduleOrder);
+            supplier(o) <- supplier(scheduleOrder);
+            supplierStock(o) <- supplierStock(scheduleOrder);
             customer(o) <- customer(scheduleOrder);
 //            customerStockScheduleOrder(o) <- customerStockScheduleOrder(scheduleOrder);
             type(o) <- type(scheduleOrder);
@@ -668,28 +659,28 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     edit 'Редактировать' = ACTION EDITFORM ScheduleOrder TOOLBAR;
     edit 'Редактировать' (ScheduleOrderDetail detail) = ACTION edit(scheduleOrder(detail)) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
-    addScheduleOrder###stockFilter##Customer 'Добавить'##sign(LegalEntity stockFilter, LegalEntity customer) = ACTION NESTEDSESSION {
+    addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = ACTION NESTEDSESSION {
         FOR ADDOBJ s = ScheduleOrder DO {
-            stockFilter(s) <- supplier;
+            supplier(s) <- supplier;
             customer(s) <- customer;
 
             FORM scheduleOrder OBJECTS s = s MANAGESESSION DOCKEDMODAL;
         }
     } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
-    addScheduleOrder###stockFilter##Customer(LegalEntity supplier, LegalEntity customer) += ACTION addScheduleOrder###stockFilter##Customer(supplier, customer);
+    addScheduleOrderSupplierCustomer(LegalEntity supplier, LegalEntity customer) += ACTION addScheduleOrderSupplierCustomer(supplier, customer);
 
-    stockFilter = DATA LOCAL LegalEntity();
-    name###stockFilter 'Поставщик' = name(stockFilter());
+    supplier = DATA LOCAL LegalEntity();
+    nameSupplier 'Поставщик' = name(supplier());
     customer = DATA LOCAL LegalEntity();
     nameCustomer 'Покупатель' = name(customer());
-    stockFilter##Stock = DATA LOCAL Stock();
-    name###stockFilter##Stock 'Склад поставщика' = name(stockFilter##Stock());
+    supplierStock = DATA LOCAL Stock();
+    nameSupplierStock 'Склад поставщика' = name(supplierStock());
     customerStock = DATA LOCAL Stock();
     nameCustomerStock 'Склад покупателя' = name(customerStock());
 
-    CONSTRAINT stockFilter() AND stockFilter##Stock() AND NOT in(stockFilter(), stockFilter##Stock())
-        CHECKED BY stockFilter##Stock[] MESSAGE 'Поставщик и склад поставщика для графика заказов не имеют связи';
+    CONSTRAINT supplier() AND supplierStock() AND NOT in(supplier(), supplierStock())
+        CHECKED BY supplierStock[] MESSAGE 'Поставщик и склад поставщика для графика заказов не имеют связи';
 
     CONSTRAINT customer() AND customerStock() AND NOT in(customer(), customerStock())
         CHECKED BY customerStock[] MESSAGE 'Покупатель и склад покупателя для графика заказов не имеют связи';
@@ -699,12 +690,12 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
         OBJECTS d=DATE FIXED PANEL
         PROPERTIES dv=OBJVALUE(d)
-        PROPERTIES () name###stockFilter, nameCustomer, name###stockFilter##Stock, nameCustomerStock
+        PROPERTIES () nameSupplier, nameCustomer, nameSupplierStock, nameCustomerStock
 
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES (sd) READONLY BACKGROUND  background(sd) isClosed, dateOrder, dateSupply,
                         monthInDate, DOWInDate,
-                        name###stockFilter, name###stockFilter##Stock,
+                        nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock, nameOperation, quantityOrders
         PROPERTIES (sd) createScheduleUser, edit
         PROPERTIES (sd) close  SHOWIF isOpened (sd), open  SHOWIF isClosed (sd)
@@ -713,8 +704,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                     
         ORDER BY dateSupply(sd)
 
-        FILTERS stockFilter(sd) == stockFilter() OR (sd IS ScheduleOrderDetail AND NOT stockFilter()),
-                stockFilter##Stock(sd) == stockFilter##Stock() OR (sd IS ScheduleOrderDetail AND NOT stockFilter##Stock()),
+        FILTERS supplier(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
+                supplierStock(sd) == supplierStock() OR (sd IS ScheduleOrderDetail AND NOT supplierStock()),
                 customer(sd) == customer() OR (sd IS ScheduleOrderDetail AND NOT customer()),
                 customerStock(sd) == customerStock() OR (sd IS ScheduleOrderDetail AND NOT customerStock())
 
@@ -726,7 +717,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
              
         OBJECTS o = Order
         PROPERTIES (o) READONLY isPosted, number, series, date, time,
-                                name###stockFilter, name###stockFilter##Stock, nameCustomer, nameCustomerStock,
+                                nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
                                 countOrderDetail, quantityOrderDetail, sumOrderDetail,
                                 VATSumOrderDetail, invoiceSumOrderDetail, shipmentDate, shipmentTime, 
                                 closeDate, note            
@@ -736,8 +727,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES (o) close[UserOrder] FORCE PANEL TOOLBAR SHOWIF isOpened(o)
         PROPERTIES (o) open FORCE PANEL TOOLBAR SHOWIF isClosed(o)
             
-        FILTERS stockFilter(o) == stockFilter() OR (o IS Order AND NOT stockFilter()),
-                stockFilter##Stock(o) == stockFilter##Stock() OR (o IS Order AND NOT stockFilter##Stock()),
+        FILTERS supplier(o) == supplier() OR (o IS Order AND NOT supplier()),
+                supplierStock(o) == supplierStock() OR (o IS Order AND NOT supplierStock()),
                 customer(o) == customer() OR (o IS Order AND NOT customer()),
                 customerStock(o) == customerStock() OR (o IS Order AND NOT customerStock())            
         
@@ -762,8 +753,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         NEW header {
             type = CONTAINERH;
             MOVE PROPERTY(dv);
-            MOVE PROPERTY(name###stockFilter());
-            MOVE PROPERTY(name###stockFilter##Stock());
+            MOVE PROPERTY(nameSupplier());
+            MOVE PROPERTY(nameSupplierStock());
             MOVE PROPERTY(nameCustomer());
             MOVE PROPERTY(nameCustomerStock());
         }
@@ -780,26 +771,20 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         }    
         MOVE functions.box;
     }
-    @extendFormFilterAccessStock(ScheduleOrderDetail, sd, scheduleOrderDetails, supplierStock, supplierFilter);
-    @extendFormFilterAccessLegalEntity(ScheduleOrderDetail, sd, scheduleOrderDetails, supplier, supplierFilter);
-
-    @extendFormFilterAccessStock(ScheduleOrderDetail, sd, scheduleOrderDetails, customerStock, customerFilter);
-    @extendFormFilterAccessLegalEntity(ScheduleOrderDetail, sd, scheduleOrderDetails, customer, customerFilter);
+    @extendFormFilterAccessStock(ScheduleOrderDetail, sd, scheduleOrderDetails, stockFilter##Stock, company);
+    @extendFormFilterAccessLegalEntity(ScheduleOrderDetail, sd, scheduleOrderDetails, stockFilter, company);
     
-    @extendFormFilterAccessStock(Order, o, scheduleOrderDetails, supplierStock, supplierFilter);
-    @extendFormFilterAccessLegalEntity(Order, o, scheduleOrderDetails, supplier, supplierFilter);    
-    
-    @extendFormFilterAccessStock(Order, o, scheduleOrderDetails, customerStock, customerFilter);
-    @extendFormFilterAccessLegalEntity(Order, o, scheduleOrderDetails, customer, customerFilter);
+    @extendFormFilterAccessStock(Order, o, scheduleOrderDetails, stockFilter##Stock, company);
+    @extendFormFilterAccessLegalEntity(Order, o, scheduleOrderDetails, stockFilter, company);
 
     FORM scheduleOrders 'Графики поставок'
 
         OBJECTS d=DATE FIXED PANEL
         PROPERTIES dv=OBJVALUE(d)
-        PROPERTIES () name###stockFilter, nameCustomer, name###stockFilter##Stock, nameCustomerStock
+        PROPERTIES () nameSupplier, nameCustomer, nameSupplierStock, nameCustomerStock
 
         OBJECTS s=ScheduleOrder
-        PROPERTIES(s) READONLY name###stockFilter, name###stockFilter##Stock,
+        PROPERTIES(s) READONLY nameSupplier, nameSupplierStock,
                       nameCustomer, nameType
 
         PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
@@ -807,7 +792,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES(sd) READONLY isClosed, dateOrder, dateSupply,
                        monthInDate, DOWInDate,
-                       name###stockFilter, name###stockFilter##Stock,
+                       nameSupplier, nameSupplierStock,
                        nameCustomer, nameCustomerStock
         PROPERTIES (sd) close  SHOWIF isOpened (sd), open  SHOWIF isClosed (sd)
         FILTERGROUP openFilter
@@ -815,8 +800,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             
         ORDER BY dateSupply(sd)
 
-        FILTERS stockFilter(sd) == stockFilter() OR (sd IS ScheduleOrderDetail AND NOT stockFilter()),
-                stockFilter##Stock(sd) == stockFilter##Stock() OR (sd IS ScheduleOrderDetail AND NOT stockFilter##Stock()),
+        FILTERS supplier(sd) == supplier() OR (sd IS ScheduleOrderDetail AND NOT supplier()),
+                supplierStock(sd) == supplierStock() OR (sd IS ScheduleOrderDetail AND NOT supplierStock()),
                 customer(sd) == customer() OR (sd IS ScheduleOrderDetail AND NOT customer()),
                 customerStock(sd) == customerStock() OR (sd IS ScheduleOrderDetail AND NOT customerStock())
 
@@ -831,8 +816,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         NEW header {
             type = CONTAINERH;
             MOVE PROPERTY(dv);
-            MOVE PROPERTY(name###stockFilter());
-            MOVE PROPERTY(name###stockFilter##Stock());
+            MOVE PROPERTY(nameSupplier());
+            MOVE PROPERTY(nameSupplierStock());
             MOVE PROPERTY(nameCustomer());
             MOVE PROPERTY(nameCustomerStock());
         }
@@ -881,15 +866,15 @@ DESIGN legalEntity {
     }
 }
 
-META defineScheduleOrderDashboard(sign, filterSupplier, filterCustomer)
+META defineScheduleOrderDashboard(sign, stockFilter)
 
-countRemaining 'Кол-во оставшихся заказов'##sign (scheduleOrder,date) = GROUP SUM 1 IF dateSupply(ScheduleOrderDetail d) >= (DATE date AS DATE) 
-                                                                                        BY scheduleOrder(d), date; 
-lastScheduleOrderSupplierCustomer (s,ss,c,cs) = 
-    GROUP LAST ScheduleOrder scheduleOrder IF endDate(scheduleOrder) AND in(scheduleOrder, Stock customerStock)
-           BY supplier(scheduleOrder), supplierStock(scheduleOrder), customer(scheduleOrder), customerStock
-           ORDER endDate(scheduleOrder), scheduleOrder 
-           WHERE scheduleOrder IS ScheduleOrder;  
+    countRemaining 'Кол-во оставшихся заказов'##sign (scheduleOrder,date) = GROUP SUM 1 IF dateSupply(ScheduleOrderDetail d) >= (DATE date AS DATE) 
+                                                                                            BY scheduleOrder(d), date; 
+    lastScheduleOrderSupplierCustomer (s,ss,c,cs) = 
+        GROUP LAST ScheduleOrder scheduleOrder IF endDate(scheduleOrder) AND in(scheduleOrder, Stock customerStock)
+               BY supplier(scheduleOrder), supplierStock(scheduleOrder), customer(scheduleOrder), customerStock
+               ORDER endDate(scheduleOrder), scheduleOrder 
+               WHERE scheduleOrder IS ScheduleOrder;  
                                                                                                                                                                                        
 //isLastScheduleOrder 'Последний график' (s)= 
 //    lastScheduleOrderSupplierStockCustomerStock(supplierScheduleOrder(s),supplierStockScheduleOrder(s),customerScheduleOrder(s),customerStockScheduleOrder(s)) ==s;
@@ -953,19 +938,8 @@ lastScheduleOrderSupplierCustomer (s,ss,c,cs) =
         }
         MOVE functions.box;
     }
-    @extendFormFilterAccessStock(scheduleOrder, s, scheduleOrderDashboard, supplierStock, filterSupplier);
-    @extendFormFilterAccessLegalEntity(scheduleOrder, s, scheduleOrderDashboard, supplier, filterSupplier);
-    @extendFormFilterAccessStock(scheduleOrder, ss, scheduleOrderDashboard, supplierStock, filterSupplier);
-    @extendFormFilterAccessLegalEntity(scheduleOrder, ss, scheduleOrderDashboard, supplier, filterSupplier);    
-    
-    @extendFormFilterAccessLegalEntity(scheduleOrder, s, scheduleOrderDashboard, customer, filterCustomer);    
-    @extendFormFilterAccessLegalEntity(scheduleOrder, ss, scheduleOrderDashboard, customer, filterCustomer); 
-    countStocks (order)= GROUP SUM 1 IF in(ScheduleOrder order,Stock stock)
-        BY order;       
-    countAccess###filterCustomer##EmployeeStock (order)= GROUP SUM 1 IF access###filterCustomer(currentUser(),Stock stock) AND in(ScheduleOrder order,stock)
-        BY order;
-    EXTEND FORM scheduleOrderDashboard FILTERS countAccess###filterCustomer##EmployeeStock(s) OR NOT countStocks(s);
-    EXTEND FORM scheduleOrderDashboard FILTERS countAccess###filterCustomer##EmployeeStock(ss) OR NOT countStocks(ss);
+    @extendFormFilterAccessLegalEntity(ScheduleOrder, s, scheduleOrderDashboard, stockFilter, company);
+    @extendFormFilterAccessLegalEntity(ScheduleOrder, ss, scheduleOrderDashboard, stockFilter, company);    
     
 END
 

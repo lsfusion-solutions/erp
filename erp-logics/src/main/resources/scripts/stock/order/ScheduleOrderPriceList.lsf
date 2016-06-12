@@ -21,11 +21,9 @@ META addScheduleOrder(filter, cap, filterStock)
     addScheduleOrder###filter 'Добавить'(LegalEntity filter, Stock stock) = ACTION {
         FOR ADDOBJ o = ScheduleOrder DO {
             filter(o) <- filter;
-            filter##Stock(o) <- default###filter##Stock(currentUser(), filter(o))
-                WHERE countAccess###filter##Stock (currentUser(), filter(o)) == 1;
+            filter##Stock(o) <- defaultStock(filter(o)) WHERE countStocks(filter(o)) == 1;
                                 
             customer(o) <- legalEntity(stock);
-//            customerStockScheduleOrder(o) <- stock;   
             dataIn(o,stock) <- TRUE;                    
             
             FORM scheduleOrder OBJECTS s=o MANAGESESSION DOCKEDMODAL;
@@ -65,6 +63,5 @@ META addScheduleOrder(filter, cap, filterStock)
             }
         }
     }
-    @extendFormFilterLegalEntityAccess(l, scheduleOrderDashboard, filter);
     @extendFormFilterStockAccess(st, scheduleOrderDashboard, filterStock);
 END
