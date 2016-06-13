@@ -1,8 +1,19 @@
 MODULE PurchaseShipmentTax;
 
-REQUIRE PurchaseShipment, SkuLedgerTax;
+REQUIRE PurchaseShipment, SkuLedgerTax, PurchaseOperation;
 
 NAMESPACE Purchase;
 
-VAT (ShipmentBatch b) += VAT(invoiceDetail(shipmentDetail(b)));
-valueVAT (ShipmentBatch b) += valueVAT(invoiceDetail(shipmentDetail(b)));
+notUseDetailVAT 'Не использовать НДС строки накладной для НДС партии' = DATA BOOLEAN (Purchase.Operation);
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) notUseDetailVAT
+;
+
+DESIGN Purchase.operation {
+    createContainer {
+        MOVE PROPERTY(notUseDetailVAT(o));
+    }
+}
+
+VAT (ShipmentBatch b) += VAT(invoiceDetail(shipmentDetail(b))) IF NOT notUseDetailVAT(operation(invoiceDetail(shipmentDetail(b))));
+valueVAT (ShipmentBatch b) += valueVAT(invoiceDetail(shipmentDetail(b))) IF NOT notUseDetailVAT(operation(invoiceDetail(shipmentDetail(b))));
