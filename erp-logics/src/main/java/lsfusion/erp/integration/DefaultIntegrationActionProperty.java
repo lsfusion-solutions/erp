@@ -38,6 +38,11 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
     }
 
     @Override
+    protected boolean allowNulls() {
+        return true;
+    }
+
+    @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
