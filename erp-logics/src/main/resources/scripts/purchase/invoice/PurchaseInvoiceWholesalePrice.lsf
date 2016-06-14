@@ -53,6 +53,8 @@ overBasePrice = ABSTRACT NUMERIC[14,2] (InvoiceDetail);
 overBasePrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail);
 overBasePrice (UserInvoiceDetail detail) += overBasePrice(detail);
 
+extraWholesalePrice = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+
 basePrice (InvoiceDetail detail) = OVERRIDE price(detail), overBasePrice(detail) PERSISTENT;
 basePrice (UserInvoiceDetail detail) = OVERRIDE price(detail), overBasePrice(detail) PERSISTENT;
 
@@ -61,7 +63,7 @@ wholesaleMarkup(UserInvoiceDetail detail) <- markup(wholesaleCalcPriceListType(d
          CHANGED(sku(detail));
 
 wholesalePrice(UserInvoiceDetail detail) <- round((basePrice(detail) * (wholesaleMarkup(detail) + 100)/ 100),
-                                                                    roundCondition(wholesaleCalcPriceListType(detail))) //currencyUserInvoiceDetail(detail))
+                                                                    roundCondition(wholesaleCalcPriceListType(detail))) (+) extraWholesalePrice(detail)
     WHEN CHANGED(basePrice(detail)) OR
          CHANGED(wholesaleMarkup(detail)) OR
          CHANGED(wholesaleCalcPriceListType(detail)) OR
@@ -86,10 +88,10 @@ changeWholesaleMarkup (UserInvoiceDetail detail) = ACTION {
     IF requestedNumeric() THEN {
         wholesaleMarkup(detail) <- requestedNumeric();
         wholesalePrice(detail) <- round((basePrice(detail) * (wholesaleMarkup(detail) + 100)/ 100),
-                                                                            roundCondition(wholesaleCalcPriceListType(detail)));
+                                                                            roundCondition(wholesaleCalcPriceListType(detail))) (+) extraWholesalePrice(detail);
     } ELSE {
         wholesaleMarkup(detail) <- NULL;
-        wholesalePrice(detail) <- basePrice(detail);  
+        wholesalePrice(detail) <- basePrice(detail) (+) extraWholesalePrice(detail);  
     }
 } 
 
