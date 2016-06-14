@@ -791,6 +791,28 @@ META defineDocumentInterfaceHeaderItemSum (object, prefixA, prefixB)
     @defineDocumentHeaderItemSum (user###object, prefixA, prefixB);
 END
 
+META defineDocumentHeaderItemSumCustomNS (object, detail, prefixA, prefixB, NS)
+    prefixB###sumItem###detail 'Сумма, товар' (object) =
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isItem(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
+    prefixB###sumContainer###detail 'Сумма, тара' (object) =
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isContainer(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
+    prefixB###sumCharge###detail 'Сумма услуг' (object) =
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isCharge(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
+    prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object) =
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isNotCharge(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
+    prefixB###sumNotItem###detail 'Сумма кроме товара' (object) =
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isNotItem(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
+    prefixB###sumNotContainer###detail 'Сумма кроме тары' (object) =
+        GROUP SUM prefixA###sum(NS.###detail idetail) IF isNotContainer(NS.sku(idetail))
+            BY NS.object(idetail) IN documentSum;
+
+END
+
 //-  Суммы по товару, таре, услугам по двум объектам (первый из них документ)
 META defineDocumentHeaderItemSumDoubleCustom (object1, object2, detail, prefixA, prefixB, prefixC, object2Prop)
     prefixB###sum###detail 'Сумма, товар' (object1, object2) =
