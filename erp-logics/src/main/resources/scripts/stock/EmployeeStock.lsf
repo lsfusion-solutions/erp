@@ -221,17 +221,11 @@ nameStocks 'Подразделения' (committee) =
 countAccessCompanyStock (employee, legalEntity) = GROUP SUM 1 
     IF in(LegalEntity legalEntity, Stock stock) AND active(stock) AND accessCompany(Employee employee, stock)
         BY employee, legalEntity;
-
-dataDefaultCompanyStock = GROUP AGGR Stock stock BY legalEntity(stock) IF dataDefaultCompany(stock);
  
-minDefaultCompanyStock 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP MIN Stock stock 
+defaultCompanyStock 'Склад по умолчанию (компания)' (employee, legalEntity)= GROUP MIN Stock stock 
     IF in(LegalEntity legalEntity, stock) AND active(stock) AND accessCompany(Employee employee, stock)
         BY employee, legalEntity;
                                                                                     
-defaultCompanyStock 'Склад по умолчанию (компания)'(Employee employee, LegalEntity legalEntity) = 
-    OVERRIDE minDefaultCompanyStock(employee, legalEntity), 
-    dataDefaultCompanyStock(legalEntity);                                                                                  
-
 // Для документа, у которого задан склад
 META extendFormFilterAccessStock(object, concrete, form, stockProp, filter)
     EXTEND FORM form FILTERS access###filter(currentUser(),stockProp(concrete)) OR NOT stockProp(concrete);

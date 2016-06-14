@@ -107,8 +107,20 @@ user 'Отм.' = ABSTRACT BOOLEAN (LegalEntity, Stock) PERSISTENT;
 in 'Отм.' (LegalEntity legalEntity, Stock stock) = (legalEntity(stock) == legalEntity) OR user(legalEntity, stock);
 isDefault 'Свой склад' (LegalEntity legalEntity, Stock stock) = legalEntity(stock) == legalEntity;
 
+default 'По умолч.' = DATA BOOLEAN (Stock); 
+dataDefaultStock = GROUP AGGR Stock stock BY legalEntity(stock) WHERE default(stock);
+
 countStocks (legalEntity) = GROUP SUM 1 IF in(LegalEntity legalEntity, Stock stock) BY legalEntity;
-defaultStock 'Склад по умолчанию' (legalEntity)= GROUP MIN Stock stock IF in(LegalEntity legalEntity, stock) BY legalEntity;
+minStock 'Первый склад' (legalEntity)= GROUP MIN Stock stock IF in(LegalEntity legalEntity, stock) BY legalEntity;
+
+defaultStock 'Склад по умолчанию' (LegalEntity l) = OVERRIDE minStock(l) IF countStocks(l) == 1, dataDefaultStock(l);
+
+META deriveDocumentLegalEntityDefaultStock(cls, property, form)
+    WHEN SESSION FORMS form CHANGED(property(cls o)) AND NOT CHANGED(property##Stock(o)) AND NOT in(property(o), property##Stock(o)) DO {
+        property##Stock(o) <- defaultStock(property(o));
+    }
+END
+
 
 currency (Stock stock) = currency(legalEntity(stock)) PERSISTENT;
 language (Stock stock) = language(legalEntity(stock)) PERSISTENT;
@@ -245,8 +257,6 @@ address 'Адрес' (stock) = ABSTRACT VARISTRING[100] (Stock) PERSISTENT;
 mainAddress (Stock poi) += address(poi);
 
 email 'E-mail для заказов' (stock) = ABSTRACT VARSTRING[300] (Stock) PERSISTENT MINCHARWIDTH 30 PREFCHARWIDTH 50;
-
-dataDefaultCompany 'По умолч.' = DATA BOOLEAN (Stock); 
 
 //latitudeStock 'Координата X' = DATA NUMERIC[10,5](Stock);
 //longitudeStock 'Координата Y' = DATA NUMERIC[10,5](Stock);
