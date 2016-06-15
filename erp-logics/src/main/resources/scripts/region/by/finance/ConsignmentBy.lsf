@@ -148,7 +148,7 @@ fullNamePayer 'Наим-ие заказчика' (Consignment consignment) =
 
 GROUP carConsignment 'Автомобиль' : base;
 
-defaultTruck = ABSTRACT Truck(Consignment);
+defaultTruck = ABSTRACT CASE OVERRIDE FIRST Truck (Consignment);
 dataTruck = ABSTRACT Truck(Consignment);
 truck(Consignment consignment) = OVERRIDE defaultTruck(consignment), dataTruck(consignment);  
 
@@ -204,7 +204,7 @@ dataTrailer = ABSTRACT VARSTRING[100] (Consignment);
 trailer 'Прицеп' (Consignment consignment) = OVERRIDE trailer(truck(consignment)),
                                                      dataTrailer(consignment) IN carConsignment;
 
-driver = ABSTRACT Driver(Consignment);
+driver = ABSTRACT CASE OVERRIDE FIRST Employee(Consignment);
 dataEmployee = ABSTRACT Employee(Consignment);
 
 dataNameDriver = DATA VARSTRING[30] (Consignment);
@@ -1480,6 +1480,25 @@ END
 // ------------------------------------- Отпуск товара --------------------------------- //
 
 GROUP invoiceConsignment 'Накладная' : base;
+
+truck= DATA Truck (LegalEntity);
+nameTruck 'Автомобиль' (LegalEntity l) =name(truck(l)); 
+
+driver= DATA Employee (LegalEntity);
+nameDriver 'Водитель' (LegalEntity l) =shortName(driver(l)); 
+
+EXTEND FORM legalEntity 
+    PROPERTIES(l) nameTruck, nameDriver
+;
+DESIGN legalEntity {
+    extendContainer {
+        NEW consignment {
+            caption = 'Оформление накладных';
+            MOVE PROPERTY (nameTruck(l));
+            MOVE PROPERTY (nameDriver(l)); 
+        }
+    }
+}
 
 nameConsigmentLegalEntity 'Наименование юр. лица' = DATA VARSTRING[200] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
 overFullNameSupplier(Consignment consignment) += nameConsigmentLegalEntity(supplierStock(consignment));
