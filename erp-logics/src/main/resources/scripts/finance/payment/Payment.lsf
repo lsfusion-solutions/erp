@@ -2,6 +2,8 @@ MODULE Payment;
 
 REQUIRE Bank, Document, LegalEntity, Numerator, PaymentLedger, PaymentOperation;
 
+PRIORITY PaymentOperation;
+
 CLASS Payment 'Платеж' : PaymentLedger;
 TABLE payment(Payment); 
 
@@ -93,6 +95,9 @@ idOperation 'ID операции' = id(operation(Payment Payment));
 
 background 'Цвет' (Payment payment, DATE date) = RGB(255,160,160) IF date(payment) > date;
 
+operation = DATA LOCAL Operation();
+nameOperation 'Операция' = name(operation());
+
 partyA = DATA LOCAL LegalEntity();
 namePartyA 'Организация (поставщик)' = name(partyA());
 partyB = DATA LOCAL LegalEntity();
@@ -179,6 +184,9 @@ DESIGN payment {
 @deriveDocumentOperationLegalEntity(payment, beneficiary, payment);
 
 //----------------------------------------- Копирование платежей ----------------------------------------------------//
+
+overCopy = ACTION ABSTRACT LIST (Payment, Payment); 
+
 copyData(Payment payment, Payment p) = ACTION {
     operation(p) <- operation(payment);
     isReturn(p) <- isReturn(payment);
@@ -188,6 +196,8 @@ copyData(Payment payment, Payment p) = ACTION {
     payer(p) <- payer(payment);
     beneficiary(p) <- beneficiary(payment);
     sum(p) <- sum(payment);
+    
+    overCopy(payment, p);
 }
     
 copy 'Копировать'(Payment payment) = ACTION NEWSESSION {
@@ -207,7 +217,7 @@ filterDateTo (Payment p) = date(p) <= filterPaymentDateTo() OR (p IS Payment AND
     
 FORM payments 'Платежи'
 
-    PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, namePartyA, namePartyB
+    PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, nameOperation, namePartyA, namePartyB
 
     OBJECTS p = Payment LAST
     PROPERTIES(p) READONLYIF isReadonly() isPosted, isReturn, order, number, series,
@@ -221,8 +231,9 @@ FORM payments 'Платежи'
 
     ORDER BY date(p), order(p)
 
-    FILTERS payer(p) == partyB() OR (p IS Payment AND NOT partyB()),
-            beneficiary(p) == partyA() OR (p IS Payment AND NOT partyA()),
+    FILTERS operation(p) == operation() OR NOT operation(),
+            payer(p) == partyB() OR NOT partyB(),
+            beneficiary(p) == partyA() OR NOT partyA(),
             filterDateFrom(p), filterDateTo(p)
 
 ;
