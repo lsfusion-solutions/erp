@@ -215,19 +215,37 @@ filterDateFrom (Payment p) = date(p) >= filterPaymentDateFrom() OR (p IS Payment
 filterPaymentDateTo 'Дата по' = DATA LOCAL NESTED DATE ();
 filterDateTo (Payment p) = date(p) <= filterPaymentDateTo() OR (p IS Payment AND NOT filterPaymentDateTo());         
     
+    
+@defineDocumentHeaderClosed(Payment);
+
+@defineDocumentClosedConstraint(Payment);
+    
+overShowEdit = ABSTRACT BOOLEAN (Payment);
+overShowDelete = ABSTRACT BOOLEAN (Payment);
+skipShowEdit = ABSTRACT BOOLEAN (Payment);
+skipShowDelete = ABSTRACT BOOLEAN (Payment);
+
+
+overPreventClose = ABSTRACT BOOLEAN (Payment);
+overPreventOpen = ABSTRACT BOOLEAN (Payment);
+showClose (Payment p) = isOpened(p) AND NOT overPreventClose(p);   
+showOpen (Payment p) = isClosed(p) AND NOT overPreventOpen(p);   
+    
+    
 FORM payments 'Платежи'
 
     PROPERTIES() filterPaymentDateFrom, filterPaymentDateTo, nameOperation, namePartyA, namePartyB
 
     OBJECTS p = Payment LAST
-    PROPERTIES(p) READONLYIF isReadonly() isPosted, isReturn, order, number, series,
+    PROPERTIES(p) READONLYIF isReadonly() isClosed, isPosted, isReturn, order, number, series,
                   date, time, namePayer, nameAccountFrom, nameBeneficiary, nameAccountTo,
                   nameCurrencyAccountTo, sum, note, nameOperation 
 
     PROPERTIES(p) READONLY TODRAW p FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                                 postedNameUser, postedTime, postedHostnameComputer 
-
-    PROPERTIES(p) ADDFORM, EDITFORM, deletep=DELETE FORCE PANEL TOOLBAR, copy
+    PROPERTIES(p) ADDFORM, EDITFORM SHOWIF overShowEdit(p)
+    PROPERTIES (p) close SHOWIF showClose(p), open SHOWIF showOpen(p)
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR  SHOWIF overShowDelete(p), copy
 
     ORDER BY date(p), order(p)
 
@@ -259,9 +277,20 @@ DESIGN payments {
 }
 
 @extendFormEditable(payments);
+@extendFormFilterRoleAccess(payment, p, payments);
+EXTEND FORM payments
+    FILTERGROUP paymentfilters6 FILTER 'Открыт' isOpened(p) 'F6' DEFAULT
+;
 
 NAVIGATOR {
     paymentNavigator {
         ADD payments;
     }
 }
+
+//-- Запрет на изменение документа другим пользователем
+@defineOperationChangesDocument(payment, Payment, preventChangesDocument, created);
+
+overShowEdit (Payment p) += showEditDeleteUser(p) AND isOpened(p) AND NOT skipShowEdit(p);
+overShowDelete (Payment p) += showEditDeleteUser(p) AND isOpened(p)AND NOT skipShowDelete(p); 
+overPreventClose (Payment p) += preventCloseDocument(currentUser(), operation(p));
