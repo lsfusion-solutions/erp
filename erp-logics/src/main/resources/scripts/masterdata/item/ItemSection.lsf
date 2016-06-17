@@ -28,3 +28,17 @@ DESIGN item {
 overCopy(Item old, Item new) += ACTION {
     dataIn(s, new) <- dataIn(s, old);
 }
+
+checkSection 'Проверять ограничения секции №3 и товаров из группы ПСП'  = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () checkSection 
+;
+DESIGN options {
+    items {
+        MOVE PROPERTY (checkSection());
+    }
+}
+
+CONSTRAINT dataIn(section('3'), Item i) AND itemGroup(i) AND NOT isParent(itemGroup('КАУ014725'), i)  AND checkSection()
+    MESSAGE 'Для товаров не входящих в группу ПСП запрещено задавать секцию №3 (Продукция общепита).';
