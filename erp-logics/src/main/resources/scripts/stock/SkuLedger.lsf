@@ -360,6 +360,8 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     
     currentBalance 'Текущий остаток'###caption (batch, stock) = GROUP SUM signedQuantityActive(SkuLedger ledger, Batch batch)
                                                                                            BY batch, stock(ledger) PERSISTENT;
+    negativeBalance (Batch batch, Stock stock) = currentBalance(batch, stock) < 0;
+    
     skuCurrentBalance (Batch batch, Stock stock) = sku(batch) IF currentBalance(batch, stock) PERSISTENT;
     INDEX skuCurrentBalance(Batch batch, Stock stock), stock;
     prevCurrentBalance 'Текущий остаток'###caption (Batch batch, Stock stock) = PREV(currentBalance(batch, stock));
@@ -1256,7 +1258,7 @@ FORM currentBalanceBatchStock 'Текущие остатки по партиям
        
     OBJECTS           stb=(st=Stock, bt=Batch)
     PROPERTIES        READONLY nameSku(bt), stockName = name(st) SHOWIF multipleStores(), documentNameSku(bt) SHOWIF useDocumentNameSku()
-    PROPERTIES        READONLY currentBalance(bt, st)
+    PROPERTIES        READONLY currentBalance(bt, st) BACKGROUND negativeBalance(bt, st)
     PROPERTIES(bt)    READONLY number, series, dateTime, nameSupplier, name, id, shippedQuantity, cost, expiryDate
     FILTERS           isParent(sk, bt),
                       IF multipleStores() THEN 

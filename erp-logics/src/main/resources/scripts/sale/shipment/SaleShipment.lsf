@@ -240,12 +240,25 @@ EXTEND FORM invoices
 ;
 
 DESIGN invoices {
-    documentHistory { 
-        historyTabs {
-             NEW detailShipmentLog{
-                 caption = 'По строкам (поставка)';
-                 MOVE dsLog.box;
-             }
-        }
-    }    
+    historyTabs {
+         NEW detailShipmentLog{
+             caption = 'По строкам (поставка)';
+             MOVE dsLog.box;
+         }
+    }
+}
+ 
+EXTEND FORM userInvoice
+    OBJECTS dsLog = DocumentDetailLog FIXED GRID
+    PROPERTIES (dsLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity, price, nameUser, dateTime, note
+    FILTERS document(dsLog) == invoiceShipment(i)
+;
+
+DESIGN userInvoice {
+    historyTabs {
+         NEW detailShipmentLog{
+             caption = 'По строкам (поставка)';
+             MOVE dsLog.box;
+         }
+    }
 } 
