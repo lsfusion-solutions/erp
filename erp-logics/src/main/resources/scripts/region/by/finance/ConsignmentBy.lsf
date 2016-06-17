@@ -363,7 +363,11 @@ changeGoodsAccepted(Consignment consignment) = ACTION {
         REQUEST VARSTRING[150] INPUT;
         goodsAccepted(consignment) <- requestedString();           
     }        
-}
+}   
+
+sealNumberSupplier 'Номер пломбы грузоотправителя' = ABSTRACT VARSTRING[50] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+sealNumberCustomer 'Номер пломбы грузополучателя' = ABSTRACT VARSTRING[50] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+
 // ------------------------------------- Погрузочно-разгрузочные работы --------------------------------- //
 
 GROUP loadingConsignment 'ПРР' : base;
@@ -741,6 +745,7 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##nameIssuanceExecutedConsignment=nameIssuanceExecuted,
                        prefix##forwarderConsignment=forwarder, prefix##warrantConsignment=warrant, 
                        prefix##warrantHolderConsignment=warrantHolder, prefix##goodsAcceptedConsignment=overGoodsAccepted,
+                       prefix##sealNumberSupplier= sealNumberSupplier, prefix##sealNumberCustomer= sealNumberCustomer,  
                        prefix##overNameLoadingExecuterConsignment=overNameLoadingExecuter, prefix##nameWayOfLoadingConsignment=nameWayOfLoading, 
                        prefix##overNameUnloadingExecuterConsignment=overNameUnloadingExecuter, prefix##nameWayOfUnloadingConsignment=nameWayOfUnloading, 
                        prefix##codeLoadingConsignment=codeLoading,
@@ -952,7 +957,8 @@ FORM consignment 'Атрибуты накладной'
                    
     PROPERTIES(c)  shipmentBase,
                    nameIssuanceAllowed ON CHANGE changeIssuanceAllowed(c), nameIssuanceExecuted ON CHANGE changeIssuanceExecuted(c),
-                   forwarder ON CHANGE changeForwarder(c), overGoodsAccepted ON CHANGE changeGoodsAccepted(c)
+                   forwarder ON CHANGE changeForwarder(c), overGoodsAccepted ON CHANGE changeGoodsAccepted(c),
+                   sealNumberSupplier, sealNumberCustomer  
 
     PROPERTIES(c) SHOWIF showTTN1(c)
                    nameTruck ON CHANGE changeTruck(c), ownerTruck ON CHANGE changeOwnerTruck(c), trailer ON CHANGE changeTrailer(c), 
@@ -1170,7 +1176,9 @@ META defineConsignmentHeaderInner (object, class)
     warrant 'По доверенности (номер, дата)' (object) = DATA VARSTRING[30] (class) IN issuanceConsignment;
     warrantHolder 'По доверенности выданной (наименование орг-ии)' (object) = DATA VARSTRING[200] (class) IN issuanceConsignment;
 
-    goodsAccepted 'Принял грузополучатель' (object) = DATA VARSTRING[150] (class) IN issuanceConsignment;
+    goodsAccepted 'Принял грузополучатель' (object) = DATA VARSTRING[150] (class) IN issuanceConsignment;    
+    sealNumberSupplier (object) = DATA VARSTRING[50] (class) IN issuanceConsignment;
+    sealNumberCustomer (object) = DATA VARSTRING[50] (class)IN issuanceConsignment;
 
     loadingExecuter (object) = DATA LegalEntity(class);
     wayOfLoading (object) = DATA WayOfLoading(class);
@@ -1222,6 +1230,8 @@ META defineConsignmentAbstractHeaderInner(object, class)
     warrantHolder 'По доверенности выданной (наименование орг-ии)' (object) = ABSTRACT VARSTRING[200] (class) IN issuanceConsignment;
 
     goodsAccepted 'Принял грузополучатель' (object) = ABSTRACT VARSTRING[150] (class) IN issuanceConsignment;
+    sealNumberSupplier (object) = ABSTRACT VARSTRING[50] (class) IN issuanceConsignment;
+    sealNumberCustomer (object) = ABSTRACT VARSTRING[50] (class)IN issuanceConsignment;
 
     loadingExecuter (object) = ABSTRACT LegalEntity(class);
     wayOfLoading (object) = ABSTRACT WayOfLoading(class);
@@ -1287,6 +1297,8 @@ META implementConsignmentHeader (concrete)
     warrantHolder[Consignment] (concrete consignment) += warrantHolder (consignment);
 
     goodsAccepted[Consignment] (concrete consignment) += goodsAccepted (consignment);
+    sealNumberSupplier [Consignment] (concrete consignment) += sealNumberSupplier(consignment);
+    sealNumberCustomer [Consignment] (concrete consignment) += sealNumberCustomer(consignment);
 
     loadingExecuter[Consignment] (concrete consignment) += loadingExecuter (consignment);
     wayOfLoading[Consignment] (concrete consignment) += wayOfLoading (consignment);
@@ -1335,6 +1347,8 @@ META implementConsignmentHeaderData (concrete) // без OVERRIDE для dataArr
     warrantHolder[Consignment] (concrete consignment) += warrantHolder (consignment);
 
     goodsAccepted[Consignment] (concrete consignment) += goodsAccepted (consignment);
+    sealNumberSupplier [Consignment] (concrete consignment) += sealNumberSupplier(consignment);
+    sealNumberCustomer [Consignment] (concrete consignment) += sealNumberCustomer(consignment);
 
     loadingExecuter[Consignment] (concrete consignment) += loadingExecuter (consignment);
     wayOfLoading[Consignment] (concrete consignment) += wayOfLoading (consignment);
@@ -1378,6 +1392,8 @@ META implementConsignmentDocumentHeader (concrete, object, prefix)
     warrantHolder (###object concrete) += warrantHolder (concrete);
 
     goodsAccepted (###object concrete) += goodsAccepted (concrete);
+    sealNumberSupplier (###object concrete) += sealNumberSupplier(concrete);
+    sealNumberCustomer (###object concrete) += sealNumberCustomer(concrete);
 
     loadingExecuter (###object concrete) += loadingExecuter (concrete);
     wayOfLoading (###object concrete) += wayOfLoading (concrete);
@@ -1426,6 +1442,8 @@ META implementConsignmentDocumentHeaderPrefix (concrete, object, NS)
     warrantHolder[NS.NS] (NS concrete) += warrantHolder (concrete);
 
     goodsAccepted[NS.NS] (NS concrete) += goodsAccepted (concrete);
+    sealNumberSupplier [NS.NS] (NS concrete) += sealNumberSupplier(concrete);
+    sealNumberCustomer [NS.NS] (NS concrete) += sealNumberCustomer(concrete);
 
     loadingExecuter[NS.NS] (NS concrete) += loadingExecuter (concrete);
     wayOfLoading[NS.NS] (NS concrete) += wayOfLoading (concrete);
