@@ -587,9 +587,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[100]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
                 terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject.object, session, (DataObject) terminalDocumentObject);
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
-                String result = session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
-                session.close();
-                return result;
+                return session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
 
             } else return "-1";
 

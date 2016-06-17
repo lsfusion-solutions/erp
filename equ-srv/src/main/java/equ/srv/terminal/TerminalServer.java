@@ -546,7 +546,9 @@ public class TerminalServer extends MonitorServer {
     }
 
     protected String importTerminalDocumentDetail(String idTerminalDocument, DataObject userObject, List<List<Object>> terminalDocumentDetailList, boolean emptyDocument) throws RemoteException, SQLException {
-        return terminalHandlerInterface.importTerminalDocument(createSession(), getStack(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+        try(DataSession session = createSession()) {
+            return terminalHandlerInterface.importTerminalDocument(session, getStack(), userObject, idTerminalDocument, terminalDocumentDetailList, emptyDocument);
+        }
     }
 
     private void writeByte(DataOutputStream outToClient, byte b) throws IOException {
