@@ -287,8 +287,8 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 ImportKey<?> supplierStockKey = new ImportKey((CustomClass) findClass("Stock"),
                         findProperty("stock[VARSTRING[100]]").getMapping(idSupplierStockField));
                 keys.add(supplierStockKey);
-                props.add(new ImportProperty(idSupplierStockField, findProperty("supplierStock[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
-                        object(findClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
+//                props.add(new ImportProperty(idSupplierStockField, findProperty("supplierStock[UserInvoiceDetail]").getMapping(userInvoiceDetailKey),
+//                        object(findClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
                     props.add(new ImportProperty(idSupplierStockField, findProperty("supplierStock[UserInvoice]").getMapping(invoiceKey),
                             object(findClass("Stock")).getMapping(supplierStockKey), getReplaceOnlyNull(defaultColumns, "idSupplierStock")));
                 fields.add(idSupplierStockField);
@@ -298,17 +298,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             }
 
             if (supplierStockObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) supplierStockObject, findProperty("supplierStock[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+//                props.add(new ImportProperty((DataObject) supplierStockObject, findProperty("supplierStock[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                     props.add(new ImportProperty((DataObject) supplierStockObject, findProperty("supplierStock[UserInvoice]").getMapping(invoiceKey)));
             }
 
             if (customerObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) customerObject, findProperty("customer[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+//                props.add(new ImportProperty((DataObject) customerObject, findProperty("customer[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                     props.add(new ImportProperty((DataObject) customerObject, findProperty("customer[UserInvoice]").getMapping(invoiceKey)));
             }
 
             if (customerStockObject instanceof DataObject) {
-                props.add(new ImportProperty((DataObject) customerStockObject, findProperty("customerStock[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
+//                props.add(new ImportProperty((DataObject) customerStockObject, findProperty("customerStock[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
                     props.add(new ImportProperty((DataObject) customerStockObject, findProperty("customerStock[UserInvoice]").getMapping(invoiceKey)));
             }
 
