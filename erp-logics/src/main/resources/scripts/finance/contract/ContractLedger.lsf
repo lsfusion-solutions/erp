@@ -27,7 +27,7 @@ META defineContractLedgerPrefix (caption, prefix)
 
     description 'Название документа' (contract###prefix##Ledger) = ABSTRACT VARSTRING[200] (Contract###prefix##Ledger) PERSISTENT;
 
-    sum 'Сумма' (contract###prefix##Ledger) = ABSTRACT NUMERIC[16,2] (Contract###prefix##Ledger) PERSISTENT;
+    sum 'Сумма' (contract###prefix##Ledger) = ABSTRACT NUMERIC[18,4] (Contract###prefix##Ledger) PERSISTENT;
 
     currentBalance###prefix 'Текущая задолженность'###caption (contract)=
         GROUP SUM sum(Contract###prefix##Ledger contract###prefix##Ledger) IF active(contract###prefix##Ledger)
@@ -91,13 +91,13 @@ META implementContractPrepaymentLedgerInner(object, classPrefix, sumProp, contra
     description(###object##ContractLedger object##ContractLedger) += description(object(object##ContractLedger));
     sum(###object##ContractLedger object##ContractLedger) +=
         IF currency(object(object##ContractLedger)) != currency(contractProp(object(object##ContractLedger))) THEN 
-            NUMERIC[16,2](sumProp(object(object##ContractLedger)) * 
+            NUMERIC[18,4](sumProp(object(object##ContractLedger)) * 
                           rateOn(typeExchange(contractProp(object(object##ContractLedger))), 
                                                                               currency((object(object##ContractLedger))),
                                                                               date(object(object##ContractLedger))) * 
                           percent(paymentPeriod(object##ContractLedger)) / 100.0)
         ELSE 
-            NUMERIC[16,2](sumProp(object(object##ContractLedger)) * percent(paymentPeriod(object##ContractLedger)) / 100.0);
+            NUMERIC[18,4](sumProp(object(object##ContractLedger)) * percent(paymentPeriod(object##ContractLedger)) / 100.0);
     descriptionPaymentDatesPercent 'Дата оплаты'  = GROUP CONCAT 
         (toDateDDMMYYYY(date(###object##ContractLedger l)) +'-'+ percent(paymentPeriod(l)) +'%') , ', '
             BY object(l)
@@ -148,7 +148,7 @@ descriptionPaymentCondition 'Условия оплаты' (InContractLedger ledg
 isReturn 'Возвратный' = ABSTRACT BOOLEAN (OutContractLedger) PERSISTENT;
 
 TABLE outContractLedgerInContractLedger (OutContractLedger, InContractLedger);
-cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[16,2] (OutContractLedger, InContractLedger) @@denomination;
+cost 'Оплачено из документа' (outContractLedger, inContractLedger) = DATA NUMERIC[18,4] (OutContractLedger, InContractLedger) @@denomination;
 costedOutContractLedger 'Оплачено по документу' (inContractLedger) =
     GROUP SUM cost(OutContractLedger outContractLedger, InContractLedger inContractLedger) IF
     active(inContractLedger) AND active(outContractLedger)
