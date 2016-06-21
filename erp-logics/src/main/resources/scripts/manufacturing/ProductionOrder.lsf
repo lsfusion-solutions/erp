@@ -223,7 +223,7 @@ multiplierCalc (ProductDetail d) =
 costPrice 'Себестоимость изделия' = DATA NUMERIC[14,2] (ProductDetail);
 
 
-sum 'Сумма изделия' = DATA NUMERIC[16,2] (ProductDetail);
+sum 'Сумма изделия' = DATA NUMERIC[16,2] (ProductDetail) @@denomination;
 sum(ProductDetail productDetail) <-
     NUMERIC[16,2](round((quantity(productDetail) * price(productDetail)), currency(productDetail)))
     WHEN CHANGED (quantity(productDetail)) OR
@@ -285,7 +285,7 @@ CONSTRAINT product(ComponentDetail componentDetail) AND bruttoSku(componentDetai
 @defineDocumentDetailQuantityCustomPrefix(componentDetail, BOM, ' в спецификации'); //-- первичное свойство
 
 @defineDocumentDetailPriceCustomPrefix (componentDetail, , );
-cost 'Себестоимость' = DATA NUMERIC[14,2] (ComponentDetail);
+cost 'Себестоимость' = DATA NUMERIC[14,2] (ComponentDetail) @@denomination;
 
 // Замены
 @defineDocumentDetailSkuCustomPrefix (componentDetail, Sku, substitute, ' (замена)');
@@ -534,8 +534,8 @@ bruttoSubstituteQuantity (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail
        order(componentDetail) PERSISTENT;                                                                                                                                   
                                                                                                                                  
 // цены по товару
-dataBruttoPrice 'Цена' = DATA NUMERIC[14,2] (Sku, Order);
-cost 'Себестоимость' = DATA NUMERIC[14,2] (Sku, Order);
+dataBruttoPrice 'Цена' = DATA NUMERIC[14,2] (Sku, Order) @@denomination;
+cost 'Себестоимость' = DATA NUMERIC[14,2] (Sku, Order) @@denomination;
 
 WHEN SESSION (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order)) OR CHANGED(dateTime(order)) OR SET(quantityComponentDetail(Sku sku, order)))
              AND quantityComponentDetail(sku, order) AND NOT CHANGED(dataBruttoPrice(sku, order)) AND PriceListType pt == priceListType(order) NOINLINE (pt) DO

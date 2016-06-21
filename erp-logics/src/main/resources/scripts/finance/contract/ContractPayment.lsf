@@ -7,7 +7,7 @@ EXTEND CLASS Payment;
 contract 'Контракт' (payment) = DATA Contract (Payment);
 seriesNumberContract 'Номер договора' (Payment payment) = seriesNumber(contract(payment));
 
-currencyContract(Payment payment) = currency(contract(payment));
+currencyContract(Payment payment) = currency(contract(payment)) PERSISTENT @@currency;
 nameCurrencyContract 'Валюта' (Payment payment) = name(currencyContract(payment));
 
 typeExchangeContract (payment) = DATA TypeExchange (Payment);
@@ -23,7 +23,7 @@ rateExchangeContract (Payment payment) <- OVERRIDE 1.0 IF payment IS Payment AND
          CHANGED(contract(payment)) OR
          CHANGED(currencyAccountTo(payment));
 
-sumContract 'Сумма платежа по контракту' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16;
+sumContract 'Сумма платежа по контракту' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16 @@denominationCurrency;
 sumContract(Payment payment) <- IF NOT currencyContract(payment) == currencyAccountTo(payment)
                                THEN rateExchangeContract(payment)*sum(payment)
                                ELSE sum(payment)

@@ -48,11 +48,11 @@ numberDocument 'Номер документа' (ledger) = ABSTRACT VARSTRING[28]
 quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (SaleLedger) PERSISTENT;
 
 price 'Цена продажи' (ledger) = ABSTRACT NUMERIC[16,4] (SaleLedger);// todo: PERSISTENT;
-sum 'Сумма продажи' (ledger) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT;
+sum 'Сумма продажи' (ledger) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT @@denomination;
 
 discountSum 'Сумма скидки' (d) = ABSTRACT NUMERIC[16,2] (SaleLedger) PERSISTENT;
 
-costSum 'Себестоимость продажи' (ledger) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,3] (SaleLedger) PERSISTENT;
+costSum 'Себестоимость продажи' (ledger) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,3] (SaleLedger) PERSISTENT @@denomination;
 
 customer (ledger) = ABSTRACT LegalEntity (SaleLedger) PERSISTENT INDEXED;
 nameCustomer 'Покупатель' (SaleLedger ledger) = name(customer(ledger));
@@ -92,16 +92,16 @@ quantitySold (sku, stock, date) = GROUP SUM quantity(SaleLedger ledger) IF activ
     BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
 
 costSumSold (sku, stock, date) = GROUP SUM costSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate @@denomination;
 
 markupSumSold (sku, stock, date) = GROUP SUM markupSum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate @@denomination;
 
 sumVATSold (sku, stock, date) = GROUP SUM sumVAT(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate @@denomination;
 
 sumSold (sku, stock, date) = GROUP SUM sum(SaleLedger ledger) IF active(ledger)
-    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate;
+    BY sku(ledger), stock(ledger), date(ledger) PERSISTENT TABLE soldSkuStockDate @@denomination;
 
 //по складу, покупателю и SKU
 quantitySold (sku, stock, customer, date) = GROUP SUM quantity(SaleLedger ledger) IF active(ledger)
@@ -192,16 +192,16 @@ quantitySold (batch, stock, date) = GROUP SUM cost(SaleLedger ledger, Batch batc
     BY batch, stock(ledger), date(ledger) PERSISTENT;
 
 costSumSold (batch, stock, date) = GROUP SUM costSum(SaleLedger ledger, Batch batch) 
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT @@denomination;
 
 markupSumSold (batch, stock, date) = GROUP SUM markupSum(SaleLedger ledger, Batch batch) 
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT @@denomination;
 
 sumVATSold (batch, stock, date) = GROUP SUM sumVAT(SaleLedger ledger, Batch batch)  
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT @@denomination;
 
 sumSold (batch, stock, date) = GROUP SUM sum(SaleLedger ledger, Batch batch)  
-    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT;       
+    IF active(ledger) BY batch, stock(ledger), date(ledger) PERSISTENT @@denomination;       
     
 //по складу и Batch за интервал
     

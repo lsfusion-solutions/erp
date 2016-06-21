@@ -63,12 +63,12 @@ count 'Кол-во' (invoice, complianceGroup) =
 
 // ------------------------------- Затраты на сертификацию ----------------------------- //
 
-compliancePrice 'Сертификация (ед.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail);
-compliancePrice 'Сертификация (ед.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
+compliancePrice 'Сертификация (ед.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail) @@denomination;
+compliancePrice 'Сертификация (ед.)' = DATA NUMERIC[14,2](UserInvoiceDetail) @@denomination;
 compliancePrice(UserInvoiceDetail detail) += compliancePrice(detail);
 
-complianceSum 'Сертификация сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail);
-complianceSum 'Сертификация сумма' = DATA NUMERIC[16,2](UserInvoiceDetail) INDEXED;
+complianceSum 'Сертификация сумма' = ABSTRACT NUMERIC[16,2](InvoiceDetail) @@denomination;
+complianceSum 'Сертификация сумма' = DATA NUMERIC[16,2](UserInvoiceDetail) INDEXED @@denomination;
 complianceSum(UserInvoiceDetail detail) += complianceSum(detail);
 
 complianceSum(UserInvoiceDetail d) <- quantity(d) * compliancePrice(d) WHEN CHANGED(quantity(d)) OR CHANGED(compliancePrice(d));
@@ -198,7 +198,7 @@ EXTEND FORM compliance
 
 //-------------------------------------- Расписывание затрат по сертификату ----------------------------------------------//
 
-sum 'Стоимость' = DATA NUMERIC[16,2](Compliance);
+sum 'Стоимость' = DATA NUMERIC[16,2](Compliance) @@denomination;
 sumRound 'Стоимость (округление)' (Compliance c) = sum(c) (-) complianceSumUserInvoiceDetail(c);
 
 calcComplianceSum 'Сертификация' (UserInvoiceDetail d) =

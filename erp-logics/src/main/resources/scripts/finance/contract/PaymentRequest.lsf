@@ -51,12 +51,12 @@ nameCurrencyAccountTo 'Валюта счета' (PaymentRequest paymentRequest) 
 CONSTRAINT beneficiary(PaymentRequest paymentRequest) != legalEntity(accountTo(paymentRequest))
     CHECKED BY accountTo[PaymentRequest] MESSAGE 'Организация счета должна совпадать с бенефициаром';
 
-sum 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest) PREFCHARWIDTH 16;
+sum 'Сумма' (paymentRequest) = DATA NUMERIC[16,2] (PaymentRequest) PREFCHARWIDTH 16 @@denomination;
 
 description 'Название документа' = 'Платежное требование ' + seriesNumber(PaymentRequest paymentRequest) + ' от ' + date(paymentRequest) + ' ' + nameBeneficiary(paymentRequest) PERSISTENT;
 
 TABLE paymentRequestInContractLedger (PaymentRequest, InContractLedger);
-cost 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) PERSISTENT;
+cost 'Сумма требования' (paymentRequest, inContractLedger) = DATA NUMERIC[16,2] (PaymentRequest, InContractLedger) @@denomination;
 requested 'Выставлено требований' (inContractLedger) =
     GROUP SUM cost(PaymentRequest paymentRequest, InContractLedger inContractLedger) IF isPosted(paymentRequest)
     BY inContractLedger PERSISTENT;

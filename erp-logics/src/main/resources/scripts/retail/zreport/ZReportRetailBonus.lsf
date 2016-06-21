@@ -4,10 +4,10 @@ REQUIRE ZReportDiscountCard, RetailBonus, ZReportSkuLedger, PricingZReport;
 
 NAMESPACE ZReport;
 
-bonusSum 'Начислено бонусов' = DATA NUMERIC[16,2] (ReceiptSaleDetail);
-bonusSum 'Начислено бонусов' = DATA NUMERIC[16,2] (ReceiptReturnDetail);
+bonusSum 'Начислено бонусов' = DATA NUMERIC[16,2] (ReceiptSaleDetail) @@denomination;
+bonusSum 'Начислено бонусов' = DATA NUMERIC[16,2] (ReceiptReturnDetail) @@denomination;
 
-bonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
+bonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) @@denomination;
 bonusSum(ReceiptSaleDetail d) += bonusSum(d);
 bonusSum(ReceiptReturnDetail d) += bonusSum(d);
 
@@ -19,8 +19,8 @@ signedBonusSum(ReceiptReturnDetail d) += -bonusSum(d);
 
 signedBonusSum 'Начислено бонусов' (Receipt r) = GROUP SUM signedBonusSum(ReceiptDetail d) BY receipt(d);
 
-bonusPaid 'Оплачено бонусами' = DATA NUMERIC[16,2] (ReceiptSaleDetail);
-bonusPaid 'Оплачено бонусами' = DATA NUMERIC[16,2] (ReceiptReturnDetail);
+bonusPaid 'Оплачено бонусами' = DATA NUMERIC[16,2] (ReceiptSaleDetail) @@denomination;
+bonusPaid 'Оплачено бонусами' = DATA NUMERIC[16,2] (ReceiptReturnDetail) @@denomination;
 
 extraSum(ReceiptSaleDetail detail) += bonusPaid(detail);
 extraSum(ReceiptReturnDetail detail) += bonusPaid(detail);
@@ -32,7 +32,7 @@ extraDiscountSum(ReceiptSaleDetail d) += bonusPaid(d);
 
 bonusPaid 'Оплачено бонусами' (Receipt r) = GROUP SUM bonusPaid(ReceiptDetail d) BY receipt(d);
 
-signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
+signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT @@denomination;
 signedBonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 signedBonusPaid(ReceiptReturnDetail d) += -bonusPaid(d);
 
@@ -59,8 +59,8 @@ bonusPaidSaleReceiptDetailSale 'Сумма бонусов (продажи)' (rec
     BY receipt (receiptDetail) IN documentSum;
 bonusPaidReturnReceiptDetailReturn 'Сумма бонусов (возврат)' (receipt) = GROUP SUM bonusPaid(ReceiptReturnDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum;
-bonusPaidReceiptDetail 'Сумма бонусов' (Receipt receipt) = bonusPaidSaleReceiptDetailSale(receipt) (-) bonusPaidReturnReceiptDetailReturn(receipt) PERSISTENT;
-bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP SUM bonusPaidReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
+bonusPaidReceiptDetail 'Сумма бонусов' (Receipt receipt) = bonusPaidSaleReceiptDetailSale(receipt) (-) bonusPaidReturnReceiptDetailReturn(receipt) PERSISTENT @@denomination;
+bonusPaidReceiptDetail 'Сумма бонусов Z-отчета' (zReport) = GROUP SUM bonusPaidReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum @@denomination;
 extraDiscountSumReceiptDetail(ZReport zReport) += bonusPaidReceiptDetail(zReport);
 
 EXTEND FORM zReports

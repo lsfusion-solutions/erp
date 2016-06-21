@@ -6,7 +6,9 @@ REQUIRE RetailCRM;
 
 @defineOption(useBonus, 'Использовать бонусы', BOOLEAN, discountCards);
 
-@defineOption(minBonusSum, 'Минимальная сумма строки чека при оплате бонусами', NUMERIC[14,2], discountCards);
+minBonusSum 'Минимальная сумма строки чека при оплате бонусами' = DATA NUMERIC[14,2] () COMPLEX @@denomination;
+EXTEND FORM options PROPERTIES() minBonusSum;
+DESIGN options { discountCards { MOVE PROPERTY(minBonusSum()); } }
 
 //Бонусы
 useBonus 'Использовать бонусы' = DATA BOOLEAN (Promotion);
@@ -42,7 +44,7 @@ CLASS BonusLedger 'Начисление бонусов';
 
 date 'Дата' = DATA DATE (BonusLedger);
 date (BonusLedger ledger) <- currentDate() WHEN SET(ledger IS BonusLedger);
-sum 'Сумма' = DATA NUMERIC[16,2] (BonusLedger);
+sum 'Сумма' = DATA NUMERIC[16,2] (BonusLedger) @@denomination;
 note 'Описание' = DATA VARSTRING[100] (BonusLedger);
 discountCard = DATA DiscountCard (BonusLedger) NOT NULL DELETE;
 typeBonusLedger = DATA TypeBonusLedger (BonusLedger) NOT NULL;

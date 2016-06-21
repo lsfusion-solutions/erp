@@ -66,13 +66,13 @@ sumGrossWeightTon 'Вес брутто, т' (InvoiceDetail d) = round6(sumGrossW
 @defineDocumentAbstractHeaderCurrency (invoice);
 @defineDocumentDetailCurrency (invoice, invoiceDetail);
 
-price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT @@denominationCurrency;
 
 @defineDocumentAbstractDetailDataSumCustomPrefix (invoiceDetail, , );
 @defineDocumentHeaderSum(invoice);
 @defineDocumentHeaderItemQuantityPrefix(invoice, , );
 
-invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT @@denominationCurrency;
 
 @defineDocumentAbstractDetailVAT(invoice, , );
 @defineDocumentAbstractDetailVATDataSumCustom (invoiceDetail, invoice);
@@ -287,8 +287,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
 //    @defineDocumentDetailGrossWeight(invoice, sku);
 
-    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+    price 'Цена' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT @@denominationCurrency;
+    price 'Цена' = DATA NUMERIC[16,4] (UserInvoiceDetail) @@denominationCurrency;
     price (UserInvoiceDetail invoiceDetail) += price(invoiceDetail);
     
     price[Invoice.InvoiceDetail](InvoiceDetail detail) += price(detail);
@@ -332,8 +332,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     VAT[Invoice.InvoiceDetail](InvoiceDetail detail) += VAT(detail);
     valueVAT[Invoice.InvoiceDetail](InvoiceDetail detail) += valueVAT(detail);
 
-    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
-    invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserInvoiceDetail);
+    invoicePrice 'Цена с НДС' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT @@denominationCurrency;
+    invoicePrice 'Цена с НДС' = DATA NUMERIC[16,4] (UserInvoiceDetail) @@denominationCurrency;
     invoicePrice (UserInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetail);
 
     invoicePrice[Invoice.InvoiceDetail](InvoiceDetail detail) += invoicePrice(detail);
@@ -354,11 +354,25 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @deriveDocumentDetailPriceListTypeAgreement(userInvoice, priceListTypePrefix); // записываем вид цены из соглашения
 //    @deriveDocumentDetailPricePriceListTypeVAT (userInvoice, stockProp); // записываем цены с НДС и без НДС на основе priceListType
 
-    @defineDocumentInterfaceDetailDataSum(invoice); // объявляем сумму без НДС
+    // объявляем сумму без НДС
+    sum 'Сумма' = ABSTRACT NUMERIC[16,2] (InvoiceDetail) PERSISTENT @@denominationCurrency;
+    sum 'Сумма' = DATA NUMERIC[16,2] (UserInvoiceDetail) @@denominationCurrency;
+    sum (UserInvoiceDetail detail) += sum(detail);
+        
     @deriveDocumentDetailSumCustomRoundPrefix(userInvoiceDetail, , currency, quantity, priceRound);
     sum[Invoice.InvoiceDetail](InvoiceDetail detail) += sum(detail);
 
-    @defineDocumentInterfaceDetailVATDataSum (invoice, invoice); // объявляем свойства суммы НДС и суммы с НДС
+
+    // объявляем свойства суммы НДС и суммы с НДС
+    VATSum 'Сумма НДС' (invoiceDetail) = ABSTRACT NUMERIC[16,2] (InvoiceDetail) PERSISTENT @@denominationCurrency;
+    invoiceSum 'Сумма с НДС' (invoiceDetail) = ABSTRACT NUMERIC[16,2] (InvoiceDetail) PERSISTENT @@denominationCurrency;
+    
+    VATSum 'Сумма НДС' (userInvoiceDetail) = DATA NUMERIC[16,2] (UserInvoiceDetail) @@denominationCurrency;
+    invoiceSum 'Сумма с НДС' (userInvoiceDetail) = DATA NUMERIC[16,2] (UserInvoiceDetail) @@denominationCurrency;
+    
+    VATSum (UserInvoiceDetail invoiceDetail) += VATSum(invoiceDetail);
+    invoiceSum (UserInvoiceDetail invoiceDetail) += invoiceSum (invoiceDetail);
+    
     @deriveDocumentDetailVATDataSum(userInvoice); // записываем сумму НДС
     @deriveDocumentDetailVATPrefixSum(userInvoice, invoice); // записываем сумму с НДС
 
@@ -1193,8 +1207,8 @@ META defineInvoiceHomeCurrency(dumb)
 
     dateRateExchange(UserInvoice i) <- date[Invoice](i) WHEN CHANGED (date[Invoice](i));
 
-    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PERSISTENT;
-    rateExchange 'Курс' = DATA NUMERIC[14,6](UserInvoice);
+    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](Invoice) PERSISTENT @@denominationRate;
+    rateExchange 'Курс' = DATA NUMERIC[14,6](UserInvoice) @@denominationRate;
     rateExchange(UserInvoice i) += rateExchange(i);
 
     WHEN SESSION FORMS userInvoice CHANGED (dateRateExchange(UserInvoice i)) OR
@@ -1205,14 +1219,14 @@ META defineInvoiceHomeCurrency(dumb)
                                                                    dateRateExchange(i));
     }
 
-    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT;
+    rateExchange 'Курс' = ABSTRACT NUMERIC[14,6](InvoiceDetail) PERSISTENT @@denominationRate;
 
-    dataRateExchange 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail);
+    dataRateExchange 'Курс' = DATA NUMERIC[14,6](UserInvoiceDetail) @@denominationRate;
     rateExchange 'Курс' (UserInvoiceDetail d) = OVERRIDE rateExchange(userInvoice(d)),  dataRateExchange(d);
     rateExchange(UserInvoiceDetail d) += rateExchange(d);
 
-    homePrice 'Цена (конв.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail) PERSISTENT;
-    homePrice 'Цена (конв.)' = DATA NUMERIC[14,2](UserInvoiceDetail);
+    homePrice 'Цена (конв.)' = ABSTRACT NUMERIC[14,2](InvoiceDetail) PERSISTENT @@denomination;
+    homePrice 'Цена (конв.)' = DATA NUMERIC[14,2](UserInvoiceDetail) @@denomination;
     homePrice(UserInvoiceDetail d) += homePrice(d);
     
     overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      

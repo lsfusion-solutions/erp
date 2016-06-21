@@ -255,14 +255,14 @@ costSum 'Сумма поставщика без НДС' = GROUP SUM costSum(SkuL
 // ---------------------------- Учетные цены и суммы ------------------------------- //
 
 // сумма операции
-sum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (InSkuLedger) PERSISTENT;
-sum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (OutSkuLedger) PERSISTENT;
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (InSkuLedger) PERSISTENT @@denomination;
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (OutSkuLedger) PERSISTENT @@denomination;
 
 sum 'Сумма' = MULTI sum[InSkuLedger](SkuLedger ledger),
-                             sum[OutSkuLedger](ledger) PERSISTENT;
+                             sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
                               
 signedSum 'Сумма' (SkuLedger ledger) = MULTI sum[InSkuLedger](ledger),
-                                            -sum[OutSkuLedger](ledger) PERSISTENT;
+                                            -sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
                                             
 signedPrice 'Цена' (SkuLedger ledger)= NUMERIC[14,2](signedSum(ledger) / signedQuantity(ledger));                                            
 
@@ -472,25 +472,25 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     balanceB 'Остаток (до)' (SkuLedger ledger) = balanceB(sku(ledger), stock(ledger), dateTime(ledger));
     // ---------------------------- Суммы по товару -------------------------------- //
 
-    signedSumActive(SkuLedger ledger) = signedSum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+    signedSumActive(SkuLedger ledger) = signedSum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT @@denomination;
     currentSum 'Сумма остатка'###caption (sku, stock) =
         GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT;
     //-- по дате
-    sumInActive(InSkuLedger ledger) = sum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+    sumInActive(InSkuLedger ledger) = sum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT @@denomination;
     sumIn (sku, stock, date) =
-        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
+        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
 
-    sumOutActive(OutSkuLedger ledger)  = sum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+    sumOutActive(OutSkuLedger ledger)  = sum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT @@denomination;
     sumOut (sku, stock, date) =
-        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
+        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
 
     sum (Sku sku, Stock stock, DATE date) = sumIn(sku, stock, date)
                                                          (+)
-                                                         sumOut(sku, stock, date) PERSISTENT;
+                                                         sumOut(sku, stock, date) PERSISTENT @@denomination;
 
     signedSum (Sku sku, Stock stock, DATE date) = sumIn(sku, stock, date)
                                                                (-)
-                                                               sumOut(sku, stock, date) PERSISTENT;
+                                                               sumOut(sku, stock, date) PERSISTENT @@denomination;
 
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)

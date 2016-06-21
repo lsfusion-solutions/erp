@@ -5,25 +5,28 @@ REQUIRE ZReport,SkuLedger;
 //---------------------- Продажа ----------------//
 CLASS ReceiptSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE ReceiptSaleSkuLedger (ReceiptSaleSkuLedger);
-TABLE departmentStoreSkuDatePrice(DepartmentStore, Sku, DATE, NUMERIC[14,2]);
+TABLE departmentStoreSkuDatePrice(DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 
 quantityReceiptSaleDetail 'Кол-во' (department, sku, date, price) = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 sumReceiptSaleDetail 'Сумма' (department, sku, date, price) = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT @@denomination;
 discountSumReceiptSaleDetail 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSum(ReceiptSaleDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 countReceiptSaleDetail (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 
-VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[14,2]);
+VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[14,2] price)) DO {
     VATReceiptSaleDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
 
-//INDEX sku(ReceiptSaleDetail d), dateZReport(d);
-//
-@defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
+departmentStore = DATA DepartmentStore (ReceiptSaleSkuLedger) INDEXED;
+sku = DATA Sku (ReceiptSaleSkuLedger);
+date = DATA DATE (ReceiptSaleSkuLedger);
+price = DATA NUMERIC[14,2] (ReceiptSaleSkuLedger) @@denomination;
+
+@defineAggregationCustom(departmentStoreReceiptSaleSkuLedger, skuReceiptSaleSkuLedger, dateReceiptSaleSkuLedger, priceReceiptSaleSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
 
 INDEX sku(ReceiptSaleSkuLedger o), departmentStore(o);
 INDEX price(ReceiptSaleSkuLedger o), departmentStore(o), date(o);
@@ -68,20 +71,25 @@ CLASS ReceiptReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSk
 TABLE ReceiptReturnSkuLedger (ReceiptReturnSkuLedger);
 
 quantityReceiptReturnDetail 'Кол-во' (department, sku, date, price) = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 sumReceiptReturnDetail 'Сумма' (department, sku, date, price) = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT @@denomination;
 discountSumReceiptReturnDetail 'Сумма скидки' (department, sku, date, price) = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 countReceiptReturnDetail  (department, sku, date, price) = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
-    BY departmentStore(d), sku(d), dateZReport(d), price(d) PERSISTENT;
+    BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 
-VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[14,2]);
+VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
 WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[14,2] price)) DO {
     VATReceiptReturnDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
 
-@defineAggregationClass (departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);
+departmentStore = DATA DepartmentStore (ReceiptReturnSkuLedger) INDEXED;
+sku = DATA Sku (ReceiptReturnSkuLedger);
+date = DATA DATE (ReceiptReturnSkuLedger);
+price = DATA NUMERIC[14,2] (ReceiptReturnSkuLedger) @@denomination;
+
+@defineAggregationCustom(departmentStoreReceiptReturnSkuLedger, skuReceiptReturnSkuLedger, dateReceiptReturnSkuLedger, priceReceiptReturnSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);
 
 INDEX sku(ReceiptReturnSkuLedger o), departmentStore(o);
 INDEX price(ReceiptReturnSkuLedger o), departmentStore(o), date(o);

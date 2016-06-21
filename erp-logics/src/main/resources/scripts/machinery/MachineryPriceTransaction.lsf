@@ -184,7 +184,7 @@ in 'Вкл' = DATA BOOLEAN (MachineryPriceTransaction, Barcode);
 name 'Наименование' = DATA VARSTRING[255] (MachineryPriceTransaction, Barcode);
 name(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE RIGHT;
 
-price 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode);
+price 'Цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode) @@denomination;
 price(MachineryPriceTransaction t, Barcode barcode)  => in(t, barcode) RESOLVE RIGHT;
 
 // Текущие загруженные штрихкоды
@@ -1176,6 +1176,8 @@ expiryDays 'Срок годности в днях' = expiryDays(sku(Barcode barc
 @defineMachineryPriceTransactionAttribute(expiryDays, 'Срок годности в днях', INTEGER);
 
 dataMinPrice 'Минимальная цена' = ABSTRACT NUMERIC[14,2] (Barcode, Stock);
-@defineMachineryPriceTransactionAttributeStock(dataMinPrice, 'Минимальная цена', NUMERIC[14,2]);
 
+dataMinPrice 'Минимальная цена' = DATA NUMERIC[14,2] (MachineryPriceTransaction, Barcode) @@denomination;
+dataMinPrice(MachineryPriceTransaction t, Barcode barcode) => in(t, barcode) RESOLVE RIGHT;
+@defineMachineryPriceTransactionAttributeStockAction(dataMinPrice, 'Минимальная цена', );
 minPrice(MachineryPriceTransaction m, Barcode b) =  MIN dataMinPrice(m, b), price(m, b);
