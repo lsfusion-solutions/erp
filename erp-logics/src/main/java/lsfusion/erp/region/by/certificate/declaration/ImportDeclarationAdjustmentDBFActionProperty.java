@@ -149,12 +149,18 @@ public class ImportDeclarationAdjustmentDBFActionProperty extends DefaultImportD
                 if (g471 != null) {
                     switch (g471) {
                         case "2010":
-                            homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
-                            BigDecimal extraDutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
-                            if (dutySum == null)
-                                dutySum = extraDutySum;
-                            else if (extraDutySum != null)
-                                dutySum = dutySum.add(extraDutySum);
+                            String g475 = trim(getDBFFieldValue(dbfFile, "G475", charset));
+                            if(g475 != null && g475.equals("УМ")) {
+                                homeSum = BigDecimal.ZERO;
+                                dutySum = BigDecimal.ZERO;
+                            } else {
+                                homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
+                                BigDecimal extraDutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
+                                if (dutySum == null)
+                                    dutySum = extraDutySum;
+                                else if (extraDutySum != null)
+                                    dutySum = dutySum.add(extraDutySum);
+                            }
                             break;
                         case "5010":
                             if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
