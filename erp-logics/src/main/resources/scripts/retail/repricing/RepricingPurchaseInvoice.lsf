@@ -47,7 +47,7 @@ prevRetailPricingPriceB 'Цена розничная до' (InvoiceDetail detail
 //        BY sku(d), departmentStore(d), price(d), dateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime) = 
-    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND abs(price - (sum(l) / quantity(l))) < 80 // todo : деноминация !!!!
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND abs(price - (sum(l) / quantity(l))) < (IF currentDate() >= denominationDate() THEN 0.01 ELSE 80) // todo : деноминация !!!!
           BY sku(l), stock(l), price, fromDateTime;
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime) = 
@@ -70,7 +70,7 @@ filterToRepricing 'Фильтр' (Invoice invoice, Stock department, DATETIME ti
 //        BY sku(d), departmentStore(d), price(d), fromDateTime, toDateTime; 
 
 calcSkuLedgerAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime, toDateTime) = 
-    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (sum(l) / quantity(l))) < 80 // todo : деноминация !!!!
+    GROUP SUM quantity(SkuLedger l) IF dateTime(l) >= fromDateTime AND dateTime(l) <= toDateTime AND abs(price - (sum(l) / quantity(l))) < (IF currentDate() >= denominationDate() THEN 0.01 ELSE 80) // todo : деноминация !!!!
           BY sku(l), stock(l), price, fromDateTime, toDateTime;
            
 calcRepricingAhead 'Кол-во движения по старой цене' (sku, stock, price, fromDateTime, toDateTime) = 
