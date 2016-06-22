@@ -843,6 +843,36 @@ META defineDocumentInterfaceHeaderItemSumDouble (object1, object2, prefixA, pref
     @defineDocumentHeaderItemSumDouble (object1, object2, prefixA, prefixB, prefixC, object2Prop);
     @defineDocumentHeaderItemSumDouble (user###object1, object2, prefixA, prefixB, prefixC, object2Prop);
 END
+//-- с условием
+META defineDocumentHeaderItemSumDoubleCustomExtra (object1, object2, detail, prefixA, prefixB, prefixC, object2Prop, extraProp)
+    prefixB###sum###detail 'Сумма, товар' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF extraProp(idetail) BY object1(idetail), object2Prop(idetail) IN documentSum;
+    prefixB###sumItem###detail 'Сумма, товар' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF isItem(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
+    prefixB###sumContainer###detail 'Сумма, тара' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF isContainer(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
+    prefixB###sumCharge###detail 'Сумма услуг' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF isCharge(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
+    prefixB###sumNotCharge###detail 'Сумма кроме услуг' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotCharge(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
+    prefixB###sumNotItem###detail 'Сумма кроме товара' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotItem(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
+    prefixB###sumNotContainer###detail 'Сумма кроме тары' (object1, object2) =
+        GROUP SUM prefixA###sum(###detail idetail) IF isNotContainer(sku(idetail)) AND extraProp(idetail)
+            BY object1(idetail), object2Prop(idetail) IN documentSum;
+END
+META defineDocumentHeaderItemSumDoubleExtra (object1, object2, prefixA, prefixB, prefixC, object2Prop, extraProp)
+    @defineDocumentHeaderItemSumDoubleCustomExtra(object1, object2, object1##Detail, prefixA, prefixB, prefixC, object2Prop, extraProp);
+END
+META defineDocumentInterfaceHeaderItemSumDoubleExtra (object1, object2, prefixA, prefixB, prefixC, object2Prop, extraProp)
+    @defineDocumentHeaderItemSumDoubleExtra (object1, object2, prefixA, prefixB, prefixC, object2Prop, extraProp);
+    @defineDocumentHeaderItemSumDoubleExtra (user###object1, object2, prefixA, prefixB, prefixC, object2Prop, extraProp);
+END
 
 //-  Суммы по товару, таре, услугам по трем объектам (первый из них документ)
 META defineDocumentHeaderItemSumTripleCustom (object1, object2, object3, detail, prefixA, prefixB, prefixC, prefixD, object2Prop, object3Prop)

@@ -35,6 +35,16 @@ extraChargeSum 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice
 extraChargeSum 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice, UserInvoiceDetail) @@denomination;
 extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 
+changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = ACTION {
+    REQUEST NUMERIC[16,2] INPUT;
+    IF requestedNumeric() THEN {
+        extraChargeSum(i,d) <- requestedNumeric();
+        extraChargePrice(i,d) <- NUMERIC[14,2](extraChargeSum(i,d)/quantity(d));
+    } ELSE {
+        extraChargePrice(i,d) <- NULL;
+    }
+}
+
 extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[16,2](round(quantity(d) * extraChargePrice(i,d), currency(i)))
                 WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
@@ -114,7 +124,8 @@ EXTEND FORM userInvoice
                    price, sum, numberVAT, valueVAT, invoicePrice,
                    VATSum, invoiceSum, sumNetWeight, 
                    sumGrossWeight
-    PROPERTIES(i,uid) SHOWIF showExtraCharge(i) extraChargePrice BACKGROUND backgroundExtraChargeInvoice(), extraChargeSum BACKGROUND backgroundExtraChargeInvoice()                               
+    PROPERTIES(i,uid) SHOWIF showExtraCharge(i) extraChargePrice BACKGROUND backgroundExtraChargeInvoice(), 
+                    extraChargeSum BACKGROUND backgroundExtraChargeInvoice() ON CHANGE changeExtraChargeSum(i,uid)                             
     FILTERS inExtraCharge(i,uid)   
                                         
     PROPERTIES SHOWIF showExtraCharge(i) toWeightExtraCharge(i), extraChargeSumUserInvoiceDetail(i) BACKGROUND backgroundExtraChargeInvoice(),
