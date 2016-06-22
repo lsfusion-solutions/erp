@@ -276,7 +276,19 @@ nameSkuTypeSku 'Тип товара' (PageInventoryDetail d) = nameSkuType(sku(d
 
 @defineDocumentDetailQuantity(pageInventory);
 @defineDocumentDetailPrice(pageInventory);
-@defineDocumentDetailSum(pageInventory);
+
+@defineDocumentDetailDataSum(pageInventory);
+@deriveDocumentDetailSum(pageInventory, quantity);
+migratedPageInventorySum = DATA BOOLEAN();
+onStarted() += ACTION {
+    IF NOT migratedPageInventorySum() THEN {
+        applyOnlyData();
+        sum (PageInventoryDetail d) <- NUMERIC[16,2](round((quantity(d) * price(d)), currency(d)));
+        migratedPageInventorySum() <- TRUE;
+        apply();
+        applyAll();
+    }
+}
 
 @defineDocumentHeaderQuantity(pageInventory);
 @defineDocumentHeaderSum(pageInventory);
