@@ -293,10 +293,11 @@ onStarted() += ACTION {
 @defineDocumentHeaderQuantity(pageInventory);
 @defineDocumentHeaderSum(pageInventory);
 
-price (PageInventoryDetail detail)  <- IF batch(detail)
+WHEN SESSION CHANGED(sku(detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail)) DO {
+    price (PageInventoryDetail detail)  <- IF batch(detail)
                 THEN prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
-                ELSE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail))
-                WHEN CHANGED(sku(detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail));
+                ELSE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
+}
 
 replace(Sku s, Batch b) += ACTION { sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
 // -------------------------------------------- Сличительная ведомость ----------------------------------------------- //
@@ -874,16 +875,12 @@ overReplace(Sku s, Sku d) += ACTION {
 sumItemAccountB 'Сумма по ТО, товар' = DATA NUMERIC[16,2] (CollationSheet) @@denomination;
 sumContainerAccountB 'Сумма по ТО, тара' = DATA NUMERIC[16,2] (CollationSheet) @@denomination;
 recalculateSumAccountB 'Пересчитать остатки по ТО'(CollationSheet c) = ACTION {
-    sumItemAccountB(c) <- sumItemAccountBDocumentLedger(stock(c), dateTime(c));
-    sumContainerAccountB (c) <- sumContainerAccountBDocumentLedger(stock(c), dateTime(c));
+    sumItemAccountB(c) <- prevSumItemAccountBDocumentLedger(stock(c), dateTime(c));
+    sumContainerAccountB (c) <- prevSumContainerAccountBDocumentLedger(stock(c), dateTime(c));
 }
 
 WHEN SESSION CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
     recalculateSumAccountB(c);
-
-WHEN CHANGED(stock(CollationSheet c)) OR CHANGED(dateTime(c)) DO
-    recalculateSumAccountB(c);
-
 
 sumItemAccountShortage = sumItemAccountB(CollationSheet collationSheet) (-) 
                                           sumItemPageInventoryDetail (collationSheet); 
