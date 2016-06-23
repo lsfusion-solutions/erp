@@ -262,17 +262,17 @@ DESIGN orderSkuLedgerNotDate {
 @extendFormFilterStockAccess(st, orderSkuLedgerNotDate);
  
 META defineReserveSku(detail, stockProp)
-    showReserveSkuStock 'Показать резерв товара по складу' (###detail detail) = ACTION FORM orderSkuLedgerNotDate OBJECTS sk = sku(detail), st = stockProp(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
-    showReserveSku 'Показать резерв товара' (###detail detail) = ACTION FORM orderSkuLedgerStocksNotDate OBJECTS sk = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
+    showReserveSkuStock 'Показать резерв товара по складу' (###detail detail) = ACTION NEWSESSION { FORM orderSkuLedgerNotDate OBJECTS sk = sku(detail), st = stockProp(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
+    showReserveSku 'Показать резерв товара' (###detail detail) = ACTION NEWSESSION { FORM orderSkuLedgerStocksNotDate OBJECTS sk = sku(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
 END
 META defineReserveSku(detail)
-    showReserveSkuStock 'Показать резерв товара по складу' (###detail detail) = ACTION FORM orderSkuLedgerNotDate OBJECTS sk = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
-    showReserveSku 'Показать резерв товара' (###detail detail) = ACTION FORM orderSkuLedgerStocksNotDate OBJECTS sk = sku(detail) NEWSESSION MODAL SHORTCUT nameSku[###detail];
+    showReserveSkuStock 'Показать резерв товара по складу' (###detail detail) = ACTION NEWSESSION { FORM orderSkuLedgerNotDate OBJECTS sk = sku(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
+    showReserveSku 'Показать резерв товара' (###detail detail) = ACTION NEWSESSION FORM { orderSkuLedgerStocksNotDate OBJECTS sk = sku(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
 END
     
-showReserveSku 'Показать резерв' (Sku sku) = ACTION  FORM orderSkuLedgerStocksNotDate OBJECTS  sk = sku NEWSESSION MODAL SHORTCUT name[Sku];
+showReserveSku 'Показать резерв' (Sku sku) = ACTION NEWSESSION { FORM orderSkuLedgerStocksNotDate OBJECTS  sk = sku MANAGESESSION MODAL; } SHORTCUT name[Sku];
 
-showReserveSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock) = ACTION FORM orderSkuLedgerNotDate OBJECTS sk = sku, st = stock NEWSESSION MODAL;
+showReserveSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock) = ACTION NEWSESSION { FORM orderSkuLedgerNotDate OBJECTS sk = sku, st = stock MANAGESESSION MODAL; }
 showBalanceReserveSku(Sku sku, Stock stock) += ACTION showReserveSku(sku, stock); 
   
 FORM orderSkuLedger 'Резерв по позициям на дату'
@@ -669,9 +669,9 @@ META extendFormDocumentSkuOrderLedgerOver(object, form, concrete, stockProp)
 
     reviewReserve 'Резерв' (Sku sku, ###object object) = ACTION {
         IF dateTime(object) THEN {
-            FORM orderSkuLedger OBJECTS t=dateTime(object), st = stockProp(object), sk = sku NEWSESSION MODAL;
+            NEWSESSION { FORM orderSkuLedger OBJECTS t=dateTime(object), st = stockProp(object), sk = sku MANAGESESSION MODAL; }
         } ELSE {
-            FORM orderSkuLedgerNotDate OBJECTS st=stockProp(object), sk = sku NEWSESSION MODAL;
+            NEWSESSION { FORM orderSkuLedgerNotDate OBJECTS st=stockProp(object), sk = sku MANAGESESSION MODAL; }
         }
     }     
     @defineReserveSku(object###Detail, stockProp);     
@@ -796,9 +796,9 @@ META extendFormDocumentSkuStockOrderLedgerOver(object, form, concrete, stockProp
 
     reviewReserve 'Резерв' (Sku sku, Stock stock, ###object object) = ACTION {
         IF shipmentDateTime(object) THEN {
-            FORM orderSkuLedger OBJECTS t=shipmentDateTime(object), st=stock, sk = sku NEWSESSION MODAL;
+            NEWSESSION { FORM orderSkuLedger OBJECTS t=shipmentDateTime(object), st=stock, sk = sku MANAGESESSION MODAL; }
         } ELSE {
-            FORM orderSkuLedgerNotDate OBJECTS st=stock, sk = sku NEWSESSION MODAL;
+            NEWSESSION { FORM orderSkuLedgerNotDate OBJECTS st=stock, sk = sku MANAGESESSION MODAL; }
         }        
     }  
     @defineReserveSku(object###Detail, stockProp); 
