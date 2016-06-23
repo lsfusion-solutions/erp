@@ -84,7 +84,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
 
                 if (importColumns != null && fileExtension != null) {
 
-                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(false, true, fileExtension + " Files", fileExtension);
+                    CustomStaticFormatFileClass valueClass = CustomStaticFormatFileClass.get(true, true, fileExtension + " Files", fileExtension);
                     ObjectValue objectValue = context.requestUserData(valueClass, null);
                     if (objectValue != null) {
                         Map<String, byte[]> fileList = valueClass.getNamedFiles(objectValue.getValue());
