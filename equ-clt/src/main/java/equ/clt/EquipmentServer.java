@@ -71,6 +71,7 @@ public class EquipmentServer {
 
     private Integer transactionThreadCount;
     private boolean mergeBatches = false;
+    private boolean disableSales = false;
 
     public EquipmentServer(final String sidEquipmentServer, final String serverHost, final int serverPort, final String serverDB) {
         
@@ -130,11 +131,13 @@ public class EquipmentServer {
                             if(remote.enabledStopListInfo())
                                 processStopListConsumer.scheduleIfNotScheduledYet();
 
-                            if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay || sendSalesDelayCounter == -1) {
-                                sendSalesConsumer.scheduleIfNotScheduledYet();
-                                sendSalesDelayCounter = 0;
-                            } else {
-                                sendSalesDelayCounter++;
+                            if(!disableSales) {
+                                if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay || sendSalesDelayCounter == -1) {
+                                    sendSalesConsumer.scheduleIfNotScheduledYet();
+                                    sendSalesDelayCounter = 0;
+                                } else {
+                                    sendSalesDelayCounter++;
+                                }
                             }
 
                             if(remote.enabledSoftCheckInfo())
@@ -156,8 +159,10 @@ public class EquipmentServer {
                         processTransactionThread = null;
                         processStopListThread.interrupt();
                         processStopListThread = null;
-                        sendSalesThread.interrupt();
-                        sendSalesThread = null;
+                        if(sendSalesThread != null) {
+                            sendSalesThread.interrupt();
+                            sendSalesThread = null;
+                        }
                         sendSoftCheckThread.interrupt();
                         sendSoftCheckThread = null;
                         sendTerminalDocumentThread.interrupt();
@@ -242,23 +247,25 @@ public class EquipmentServer {
         processStopListThread.setDaemon(true);
         processStopListThread.start();
 
-        sendSalesConsumer = new Consumer() {
-            @Override
-            void runTask() throws Exception{
-                try {
-                    sendSalesInfo(remote, sidEquipmentServer);
-                } catch (ConnectException e) {
-                    needReconnect = true;
-                } catch (UnmarshalException e) {
-                    if(e.getCause() instanceof InvalidClassException)
-                        sendSalesLogger.error("API changed! InvalidClassException");
-                    throw e;
+        if(!disableSales) {
+            sendSalesConsumer = new Consumer() {
+                @Override
+                void runTask() throws Exception {
+                    try {
+                        sendSalesInfo(remote, sidEquipmentServer);
+                    } catch (ConnectException e) {
+                        needReconnect = true;
+                    } catch (UnmarshalException e) {
+                        if (e.getCause() instanceof InvalidClassException)
+                            sendSalesLogger.error("API changed! InvalidClassException");
+                        throw e;
+                    }
                 }
-            }
-        };
-        sendSalesThread = new Thread(sendSalesConsumer);
-        sendSalesThread.setDaemon(true);
-        sendSalesThread.start();
+            };
+            sendSalesThread = new Thread(sendSalesConsumer);
+            sendSalesThread.setDaemon(true);
+            sendSalesThread.start();
+        }
 
         sendSoftCheckConsumer = new Consumer() {
             @Override
@@ -782,6 +789,10 @@ public class EquipmentServer {
 
     public void setMergeBatches(boolean mergeBatches) {
         this.mergeBatches = mergeBatches;
+    }
+
+    public void setDisableSales(boolean disableSales) {
+        this.disableSales = disableSales;
     }
 
     public Integer getTransactionThreadCount() {
