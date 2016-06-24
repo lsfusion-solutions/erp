@@ -35,6 +35,9 @@ extraChargeSum 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice
 extraChargeSum 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice, UserInvoiceDetail) @@denomination;
 extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 
+extraChargePrice(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
+extraChargeSum(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
+
 changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = ACTION {
     REQUEST NUMERIC[16,2] INPUT;
     IF requestedNumeric() THEN {
@@ -197,7 +200,7 @@ FORM extraCharge 'Доп услуги'
     OBJECTS i = Invoice
     PROPERTIES (i) READONLY date, time, nameOperation, nameSupplier, nameSupplierStock
     PROPERTIES (i,d) READONLY BACKGROUND backgroundChargeInvoice() extraChargePrice, extraChargeSum
-    FILTERS extraChargeSum(i,d),
+    FILTERS extraChargePrice(i,d) OR extraChargeSum(i,d),
             isPosted(i)
     ORDER BY date(i)
 ;
