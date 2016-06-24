@@ -100,12 +100,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 }
                 boolean action = price != null && oldPrice != null && price.compareTo(oldPrice) == 0;
 
-                /*boolean action = barcode.equals("1");
-                String nameSkuBarcode = barcode.equals("1") ? "Товар 1 со скидкой" : "Товар 2 без скидки";
-                BigDecimal price = barcode.equals("1") ? BigDecimal.valueOf(5000) : BigDecimal.valueOf(10000);
-                BigDecimal oldPrice = BigDecimal.valueOf(12000);*/
+                Date denominationDate = (Date) terminalHandlerLM.findProperty("denominationDate[]").read(session);
+                long currentDate = Calendar.getInstance().getTimeInMillis();
+                boolean terminalDenominate = denominationDate != null && denominationDate.getTime() <= currentDate;
 
-                return action ?
+                if(terminalDenominate)
+                    return action ?
+                            String.format("<html><body bgcolor=\"#FFFF00\">Наименование: <b>%s</b><br/><b><font color=\"#FF0000\">Акция</font></b> Цена: <b>%s</b>, Скидка: <b>%s</b></body></html>",
+                                    nameSkuBarcode, String.valueOf(price.doubleValue()), String.valueOf(oldPrice.doubleValue() - price.doubleValue()))
+                            : String.format("<html><body>Наименование: <b>%s</b><br/>Цена: <b>%s</b></body></html>",
+                            nameSkuBarcode, price == null ? "0" : String.valueOf(price.doubleValue()));
+                else
+                    return action ?
                         String.format("<html><body bgcolor=\"#FFFF00\">Наименование: <b>%s</b><br/><b><font color=\"#FF0000\">Акция</font></b> Цена: <b>%s</b>, Скидка: <b>%s</b></body></html>",
                         nameSkuBarcode, String.valueOf(price.longValue()), String.valueOf(oldPrice.longValue() - price.longValue()))
                         : String.format("<html><body>Наименование: <b>%s</b><br/>Цена: <b>%s</b></body></html>",
