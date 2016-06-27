@@ -79,7 +79,7 @@ sidOrigin2Country (Batch batch) = sidOrigin2(country(batch));
 stock (batch) = ABSTRACT Stock (Batch) PERSISTENT INDEXED ;
 nameStock 'Склад' (Batch batch) = name(stock(batch));
 
-cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[14,2] (Batch) PERSISTENT;
+cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) PERSISTENT;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
 description 'Описание' (batch) = ABSTRACT VARSTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
@@ -255,8 +255,8 @@ costSum 'Сумма поставщика без НДС' = GROUP SUM costSum(SkuL
 // ---------------------------- Учетные цены и суммы ------------------------------- //
 
 // сумма операции
-sum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (InSkuLedger) PERSISTENT @@denomination;
-sum 'Сумма' (ledger) = ABSTRACT NUMERIC[16,2] (OutSkuLedger) PERSISTENT @@denomination;
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (InSkuLedger) PERSISTENT @@denomination;
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (OutSkuLedger) PERSISTENT @@denomination;
 
 sum 'Сумма' = MULTI sum[InSkuLedger](SkuLedger ledger),
                              sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
@@ -264,7 +264,7 @@ sum 'Сумма' = MULTI sum[InSkuLedger](SkuLedger ledger),
 signedSum 'Сумма' (SkuLedger ledger) = MULTI sum[InSkuLedger](ledger),
                                             -sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
                                             
-signedPrice 'Цена' (SkuLedger ledger)= NUMERIC[14,2](signedSum(ledger) / signedQuantity(ledger));                                            
+signedPrice 'Цена' (SkuLedger ledger)= NUMERIC[18,4](signedSum(ledger) / signedQuantity(ledger));                                            
 
 // ---------------------------- Остаток по товару -------------------------------- //
 
@@ -355,7 +355,7 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
 
     signedQuantityActive(SkuLedger ledger, Batch batch) = signedCost(ledger, batch) IF active(ledger) PERSISTENT;
     
-    signedActiveCostSum 'Себестоимость' (SkuLedger ledger, Batch batch) = NUMERIC[16,3](signedQuantityActive(ledger, batch) * cost(batch));
+    signedActiveCostSum 'Себестоимость' (SkuLedger ledger, Batch batch) = NUMERIC[16,4](signedQuantityActive(ledger, batch) * cost(batch));
     signedActiveCostSum 'Себестоимость' = GROUP SUM signedActiveCostSum(SkuLedger ledger, Batch batch) BY ledger;
     
     currentBalance 'Текущий остаток'###caption (batch, stock) = GROUP SUM signedQuantityActive(SkuLedger ledger, Batch batch)
