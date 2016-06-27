@@ -386,7 +386,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
             putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
             putField(dbfFile, CECUCOD, cashRegister.section, 25, append); //секция, "600358416 MF"
-            putField(dbfFile, CEOPCURO, "BYR 974 1", 25, append); //валюта
+            putField(dbfFile, CEOPCURO, getCurrencyCode(transaction.denominationStage), 25, append); //валюта
             for (CashRegisterItemInfo item : transaction.itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
 
@@ -427,6 +427,10 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             if (dbfFile != null)
                 dbfFile.close();
         }
+    }
+
+    private String getCurrencyCode(String denominationStage) {
+        return denominationStage != null && denominationStage.endsWith("after") ? "BYN 933 1" : "BYR 974 1";
     }
 
     @Override
