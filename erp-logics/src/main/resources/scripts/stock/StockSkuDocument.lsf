@@ -1474,7 +1474,7 @@ WHEN (INTEGER x== [ = GROUP SUM 1 IF SET(DocumentDetail d IS DocumentDetail) BY 
     }
 }
 
-WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND NOT disableDocumentLog() NOINLINE DO {
+WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY PREV(document(d))](Document o) AND o IS Document AND NOT disableDocumentLog() NOINLINE DO {
     FOR ADDOBJ d = DocumentLog DO {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
@@ -1493,7 +1493,7 @@ WHEN INTEGER x==[= GROUP SUM 1 IF DROPPED(DocumentDetail d IS DocumentDetail) BY
     }
 }
 
-WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o))) IF NOT disableDocumentLog()  DO {
+WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
@@ -1512,7 +1512,7 @@ WHEN (CHANGED(supplierStock(Document o)) AND PREV(supplierStock(o))) IF NOT disa
     }
 }
 
-WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o))) IF NOT disableDocumentLog()  DO {
+WHEN (CHANGED(customerStock(Document o)) AND PREV(customerStock(o)) AND o IS Document) IF NOT disableDocumentLog()  DO {
     FOR ADDOBJ d = DocumentLog DO {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
@@ -1576,7 +1576,7 @@ document = DATA Document (DocumentDetailLog) INDEXED;
 
 index 'Номер строки' = DATA INTEGER (DocumentDetailLog);        
 
-numberDocument 'Номер документа' = DATA VARSTRING[28] (DocumentDetailLog);
+numberDocument 'Номер документа' = DATA VARSTRING[28] (DocumentDetailLog) INDEXED;
 seriesDocument 'Серия документа' = DATA STRING[2] (DocumentDetailLog);
 dateDocument 'Дата документа' = DATA DATE(DocumentDetailLog);
 typeDocument 'Тип документа' = DATA ISTRING[100] (DocumentDetailLog); 
@@ -1637,7 +1637,7 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         numberDocument(l) <- PREV(number(document(d)));
         seriesDocument(l) <- PREV(series(document(d)));
         dateDocument(l) <- PREV(date(document(d)));
-        typeDocument(l) <- prevObjectClassName(document(d));
+        typeDocument(l) <- prevObjectClassName(PREV(document(d)));
         sku(l) <- PREV(sku(d));
         quantity(l) <- PREV(quantity(d));
         price(l) <- PREV(price(d));
