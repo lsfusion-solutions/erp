@@ -7,36 +7,33 @@ NAMESPACE Repricing;
 skipRepricingPriceLimit = ABSTRACT BOOLEAN (Sku);
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) += ACTION {
     LOCAL limitPrice = NUMERIC[14,2] (Sku);
-    IF currentDate() >= denominationDate() THEN {
-        limitPrice(Sku sku) <- IF markup(priceLimitPriceListType(d), sku) > 1 THEN
-                                    round([= X*(Y+100.0)*(Z+100.0)/10000.0](
-                                          prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
-                                          markup(priceLimitPriceListType(d), sku),
-                                          valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku))
-                               ELSE
-                                    IF markup(priceLimitPriceListType(d), sku) > 0.3 THEN
-                                        markup(priceLimitPriceListType(d), sku)
-                                    ELSE
-                                        round([= (X+Y)*(Z+100.0)/100.0](
-                                            prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
-                                            markup(priceLimitPriceListType(d), sku),
-                                            valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
-    
-    } ELSE {
-        limitPrice(Sku sku) <- IF markup(priceLimitPriceListType(d), sku) > 3000 THEN
-                                    markup(priceLimitPriceListType(d), sku)
-                              ELSE
-                                    round(
-                                    IF markup(priceLimitPriceListType(d), sku) > 100 THEN
-                                    [= (X+Y)*(Z+100)/100](
-                                        prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
-                                        markup(priceLimitPriceListType(d), sku),
-                                        valueVAT(sku, d))
-                                    ELSE [= X*(Y+100)*(Z+100)/10000](
-                                        prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
-                                        markup(priceLimitPriceListType(d), sku),
-                                        valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
-    }
-    
+//    todo : перед деноминацией
+//    limitPrice(Sku sku) <- IF markup(priceLimitPriceListType(d), sku) > 1 THEN
+//                                round([= X*(Y+100.0)*(Z+100.0)/10000.0](
+//                                      prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
+//                                      markup(priceLimitPriceListType(d), sku),
+//                                      valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku))
+//                           ELSE
+//                                IF markup(priceLimitPriceListType(d), sku) > 0.3 THEN
+//                                    markup(priceLimitPriceListType(d), sku)
+//                                ELSE
+//                                    round([= (X+Y)*(Z+100.0)/100.0](
+//                                        prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
+//                                        markup(priceLimitPriceListType(d), sku),
+//                                        valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
+
+    limitPrice(Sku sku) <- IF markup(priceLimitPriceListType(d), sku) > 3000 THEN
+                                markup(priceLimitPriceListType(d), sku)
+                          ELSE
+                                round(
+                                IF markup(priceLimitPriceListType(d), sku) > 100 THEN
+                                [= (X+Y)*(Z+100)/100](
+                                    prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
+                                    markup(priceLimitPriceListType(d), sku),
+                                    valueVAT(sku, d))
+                                ELSE [= X*(Y+100)*(Z+100)/10000](
+                                    prevPriceA(basePriceListType(priceLimitPriceListType(d)), sku, d, dt),
+                                    markup(priceLimitPriceListType(d), sku),
+                                    valueVAT(sku, d)), roundCondition(priceLimitPriceListType(d), sku)) WHERE managementRetailPrice(sku);
     managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
 }
