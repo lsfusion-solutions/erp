@@ -295,7 +295,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 
                 String handlerModelGroupMachinery = (String) equLM.findProperty("handlerModel[GroupMachinery]").read(session, groupMachineryObject);
                 String nameModelGroupMachinery = (String) equLM.findProperty("nameModel[GroupMachinery]").read(session, groupMachineryObject);
-                String denominationStageGroupMachinery = (String) cashRegisterLM.findProperty("nameDenominationStage[GroupMachinery]").read(session, groupMachineryObject);
+                String denominationStageGroupMachinery = trim((String) cashRegisterLM.findProperty("nameDenominationStage[GroupMachinery]").read(session, groupMachineryObject));
 
                 ValueExpr transactionExpr = transactionObject.getExpr();
                 KeyExpr barcodeExpr = new KeyExpr("barcode");
