@@ -34,6 +34,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
             String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
+            denominationStage = denominationStage == null ? null : denominationStage.trim();
 
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);

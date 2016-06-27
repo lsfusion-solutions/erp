@@ -28,6 +28,7 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
+            denominationStage = denominationStage == null ? null : denominationStage.trim();
 
             Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5, denominationStage));
             if (result instanceof Double) {

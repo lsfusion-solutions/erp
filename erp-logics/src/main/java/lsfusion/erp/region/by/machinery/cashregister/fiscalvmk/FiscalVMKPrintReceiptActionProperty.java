@@ -61,7 +61,8 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
-                String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);;
+                String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
+                denominationStage = denominationStage == null ? null : denominationStage.trim();
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsDiscount = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsDiscountCurrentCashRegister[]").read(context) != null);
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {

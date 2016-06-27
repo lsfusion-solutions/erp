@@ -105,7 +105,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                 return null;
             if (!FiscalVMK.discountItem(item, denominationStage))
                 return null;
-            DecimalFormat formatter = getFormatter();
+            DecimalFormat formatter = getFormatter(denominationStage);
             if(item.bonusSum != 0)
                 FiscalVMK.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
             if(item.bonusPaid != 0)
@@ -128,8 +128,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         return receiptNumber;
     }
 
-    private DecimalFormat getFormatter() {
-        DecimalFormat formatter = new DecimalFormat("#,###.00");
+    private DecimalFormat getFormatter(String denominationStage) {
+        boolean denominated = denominationStage != null && denominationStage.endsWith("after");
+        DecimalFormat formatter = denominated ? new DecimalFormat("#,###.##") : new DecimalFormat("#,###.00");
+        if(denominated)
+            formatter.setMinimumFractionDigits(2);
         DecimalFormatSymbols symbols = formatter.getDecimalFormatSymbols();
         symbols.setGroupingSeparator('`');
         formatter.setDecimalFormatSymbols(symbols);

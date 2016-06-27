@@ -29,7 +29,8 @@ public class FiscalVMKServiceInOutActionProperty extends ScriptingActionProperty
         try {
             DataObject cashOperationObject = context.getDataKeyValue(cashOperationInterface);
 
-            String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);;
+            String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
+            denominationStage = denominationStage == null ? null : denominationStage.trim();
 
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());

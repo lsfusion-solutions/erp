@@ -33,7 +33,8 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
             DataObject invoiceObject = context.getDataKeyValue(invoiceInterface);
             DataObject paymentObject = context.getDataKeyValue(paymentInterface);
 
-            String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);;
+            String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
+            denominationStage = denominationStage == null ? null : denominationStage.trim();
 
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
