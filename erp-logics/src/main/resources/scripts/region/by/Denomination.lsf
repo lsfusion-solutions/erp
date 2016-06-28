@@ -58,7 +58,7 @@ runSQLWithLock(TEXT text, TEXT table) = ACTION {
 }
 
 denominateZReport(INTEGER threads, BOOLEAN vacuum) = ACTION
-    NEWEXECUTOR FOR startsWith(sid(Table t), 'ZReport_') == 1 AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NOCLOSE {
+    NEWEXECUTOR FOR startsWith(sid(Table t), 'ZReport_') == 1 AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NEWSQL {
         applyOnlyData();
         
         printToLog(currentDateTime() + ': start denomination table ' + sid(t));
@@ -90,7 +90,7 @@ denominate(INTEGER threads, BOOLEAN zreport, BOOLEAN vacuum, BOOLEAN disableReca
     vacuum(Table all) <- 3 WHERE NOT denominationFilter(all);
     APPLY {}
     
-    NEWEXECUTOR FOR sid(Table t) AND (NOT startsWith(sid(t), 'ZReport_') == 1 AND NOT zreport OR zreport) AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NOCLOSE {
+    NEWEXECUTOR FOR sid(Table t) AND (NOT startsWith(sid(t), 'ZReport_') == 1 AND NOT zreport OR zreport) AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NEWSQL {
         applyOnlyData();
         
         printToLog(currentDateTime() + ': start denomination table ' + sid(t));
