@@ -32,8 +32,8 @@ expiryDate(UserShipmentDetail detail) <- prevExpiryDate(batch(detail)) WHEN CHAN
 
 @defineInvoiceShipmentBatch();
 
-overCostPrice(d) = ABSTRACT NUMERIC[14,2] (ShipmentDetail);
-extraCostPrice(d) = ABSTRACT NUMERIC[14,2] (ShipmentDetail);
+overCostPrice(d) = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
+extraCostPrice(d) = ABSTRACT NUMERIC[16,4] (ShipmentDetail);
 costPrice(ShipmentDetail d) = OVERRIDE price(d), overCostPrice(d), extraCostPrice(d);
 
 isShipped = shipped(Invoice invoice) OR NOT quantityNotChargeInvoiceDetail(invoice) > 0.0;
@@ -158,10 +158,10 @@ EXTEND FORM userShipment
 @extendFormDocumentBatchOrderLedgerAll(userShipment, userShipment, s);
 
 // ------------------------------- Расчет учетной цены для поставки ------------------------ //
-calcShipmentPrice = ABSTRACT CASE OVERRIDE FIRST NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
+calcShipmentPrice = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
 calcShipmentPrice (UserInvoiceDetail detail) += WHEN costPrice(detail) THEN costPrice(detail);
 
-extraShipmentPrice = ABSTRACT NUMERIC[14,2] (UserInvoiceDetail) PERSISTENT;
+extraShipmentPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT;
 
 // Цены учетные
 shipmentPrice(UserInvoiceDetail detail) <- calcShipmentPrice(detail) (+) extraShipmentPrice(detail) WHEN
