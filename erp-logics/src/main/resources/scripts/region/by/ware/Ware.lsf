@@ -58,8 +58,38 @@ isParent (WareGroup wareGroup, Ware ware) = isParent(wareGroup(ware), wareGroup)
 
 TABLE wareDate(Ware, DATE);
 
-@defineHistorizable(price, , 'Цена', NUMERIC[16,4], ware, nameWare, base);
+dataPrice 'Цена' = DATA NUMERIC[16,4] (Ware, DATE) IN base @@denomination;
 
+price 'Цена' (ware, date) = GROUP LAST  dataPrice(Ware ware, DATE dateIn)
+                                                                     BY    ware, DATE date
+                                                                     ORDER dateIn
+                                                                     WHERE dataPrice(ware, dateIn) AND dateIn <= (date AS DATE) IN base;
+
+overPrice 'Цена' = OVERRIDE price(Ware ware, DATE date), dataPrice(ware, date) IN base;
+
+price 'Цена' (Ware ware) = price(ware, currentDate()) IN base;
+
+FORM addPriceWare 'Цена'
+    OBJECTS a=Ware FIXED PANEL, d=DATE FIXED PANEL
+    PROPERTIES name(a) READONLY, OBJVALUE(d), dataPrice(a, d)
+;
+DESIGN addPriceWare {
+    PROPERTY(name(a)) { focusable = FALSE; }
+}
+
+addPrice 'Добавить' (Ware ware) = ACTION FORM addPriceWare OBJECTS a = ware MODAL TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+
+FORM dialogPriceWare 'Цена'
+    OBJECTS a=Ware FIXED PANEL, d=DATE
+    PROPERTIES name(a) READONLY, addPrice(a) TODRAW d FORCE PANEL, OBJVALUE(d) READONLY, dataPrice(a, d)
+    FILTERS dataPrice(a, d)
+;
+DESIGN dialogPriceWare {
+    PROPERTY(name(a)) { focusable = FALSE; }
+}
+
+dialogPrice 'Цена' (Ware ware) = ACTION FORM dialogPriceWare OBJECTS a = ware MODAL SHORTCUT price[Ware] ASONCHANGE price[Ware];
+    
 VAT 'НДС' = DATA Range (Ware, Country);
 numberVAT 'НДС, номер' (Ware w, Country c) = number(VAT(w, c));
 

@@ -14,7 +14,7 @@ typeExchangeContract (payment) = DATA TypeExchange (Payment);
 typeExchangeContract (Payment payment) <- typeExchange(contract(payment))
     WHEN CHANGED(contract(payment));
 nameTypeExchangeContract 'Тип обмена' (Payment payment) = name(typeExchangeContract(payment));
-rateExchangeContract 'Курс' (payment) = DATA NUMERIC[15,8] (Payment) PREFCHARWIDTH 15;
+rateExchangeContract 'Курс' (payment) = DATA NUMERIC[15,8] (Payment) PREFCHARWIDTH 15 @@denominationRate;
 rateExchangeContract (Payment payment) <- OVERRIDE 1.0 IF payment IS Payment AND currencyContract(payment) == currencyAccountTo(payment) AND NOT typeExchangeContract(payment),
                                                   rateOn(typeExchangeContract(payment), currencyAccountTo(payment), date(payment)) IF currencyContract(payment) != currencyAccountTo(payment)
     WHEN CHANGED(currencyContract(payment)) OR

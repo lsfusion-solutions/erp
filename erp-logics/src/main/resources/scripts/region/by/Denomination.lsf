@@ -1,6 +1,6 @@
 MODULE Denomination;
 
-REQUIRE Reflection, SQLUtils, Machinery, Utils;
+REQUIRE Reflection, SQLUtils, Machinery, Utils, Backup, PriceListLedger;
 
 countDedomination = GROUP SUM 1 IF annotation(TableColumn p) == 'denomination' BY table(p);
 countCurrency = GROUP SUM 1 IF annotation(TableColumn p) == 'denominationCurrency' BY table(p);
@@ -13,7 +13,17 @@ denominationFilter(Table t) = countAnnotation(t)
                                       OR sid(t) == 'Currency_rateExchange'
                                       OR sid(t) == 'PriceList_priceListDetailDataPriceListType' 
                                       OR sid(t) == 'PriceList_priceListLedgerLedgerPriceListTypeStock'
-                                      OR sid(t) == 'PriceList_priceListLedgerLedgerPriceListType';
+                                      OR sid(t) == 'PriceList_priceListLedgerLedgerPriceListType'
+                                      OR sid(t) == 'PriceList_calcPriceListTypeGroup'
+                                      OR sid(t) == 'PriceList_calcPriceListTypeSku';
+
+skipDenomination(Table t) = sid(t) == 'ZReport_receiptDetail'
+                          OR sid(t) == 'ZReport_receiptSaleDetail' 
+                          OR sid(t) == 'ZReport_receiptSection'
+                          OR sid(t) == 'ZReport_payment'
+                          OR sid(t) == 'ZReport_receipt';
+
+priceListTypesBy = GROUP CONCAT  TEXT (LedgerPriceListType t) IF t IS LedgerPriceListType AND (shortName(currency(t)) == 'BLR' OR NOT currency(t)),',';
 
 denominationStart 'Старт деноминации' = DATA DATETIME (Table);
 denominationEnd 'Окончание деноминации' = DATA DATETIME (Table);
@@ -49,114 +59,125 @@ doVacuum() = ACTION NEWSESSION {
     applyAll();
 }
 
-runSQLWithLock(TEXT text, TEXT table) = ACTION {
-    APPLY {
-        runSQL( CONCAT '\n', 
-                'LOCK ' + table + '; ',
-                text + '; ');
-    }
-}
 
 denominateZReport(INTEGER threads, BOOLEAN vacuum) = ACTION
-    NEWEXECUTOR FOR startsWith(sid(Table t), 'ZReport_') == 1 AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NEWSQL {
+    NEWEXECUTOR FOR skipDenomination(Table t) AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NEWSQL {
         applyOnlyData();
         
         printToLog(currentDateTime() + ': start denomination table ' + sid(t));
-        denominationStart(t) <- currentDateTime();
-        APPLY {}
         
-        IF countDedomination(t) THEN 
-            runSQLWithLock( 'UPDATE ' + sid(t) + ' SET \n' +
+        APPLY {
+            denominationStart(t) <- currentDateTime();
+        }
+        APPLY {
+            IF countDedomination(t) THEN 
+                runSQL( 'LOCK ' + sid(t) + '; \n' +
+                        'UPDATE ' + sid(t) + ' SET \n' +
                         [= GROUP CONCAT '   ' + sid(TableColumn p) + ' = ' + sid(p) + ' / 10000.0'  IF annotation( p) == 'denomination', ', \n' BY table(p)](t)
-                    , sid(t)
-                  );
-         
-        denominationEnd(t) <- currentDateTime();
-        APPLY {}
+                      );
+             
+            denominationEnd(t) <- currentDateTime();
+        }
+        
         printToLog(currentDateTime() + ': end denomination table ' + sid(t));
         
         IF vacuum AS BOOLEAN THEN doVacuum();
         applyAll();
     }} THREADS threads;
 
-priceListTypesBy = GROUP CONCAT  TEXT (PriceListType t) IF t IS PriceListType AND (shortName(currency(t)) == 'BLR' OR NOT currency(t)),',';
+denominate(INTEGER threads, BOOLEAN zreport, BOOLEAN vacuum, BOOLEAN disableRecalculate) = ACTION {
 
-denominate(INTEGER threads, BOOLEAN zreport, BOOLEAN vacuum, BOOLEAN disableRecalculate ) = ACTION {
-    
     denominationStart(Table all) <- NULL WHERE NOT denominationEnd(all);
-    denominationStart(Table all) <- currentDateTime() WHERE NOT denominationFilter(all);
-    denominationEnd(Table all) <- currentDateTime() WHERE NOT denominationFilter(all);
-    vacuum(Table all) <- NULL WHERE NOT denominationEnd(all) OR vacuum(all) == 1;
+    denominationStart(Table all) <- currentDateTime() WHERE NOT denominationFilter(all) AND NOT denominationStart(all);
+    denominationEnd(Table all) <- currentDateTime() WHERE NOT denominationFilter(all) AND NOT denominationEnd(all);
+    vacuum(Table all) <- NULL WHERE vacuum(all) == 1;
     vacuum(Table all) <- 3 WHERE NOT denominationFilter(all);
     APPLY {}
     
-    NEWEXECUTOR FOR sid(Table t) AND (NOT startsWith(sid(t), 'ZReport_') == 1 AND NOT zreport OR zreport) AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NEWSQL {
+    NEWEXECUTOR FOR sid(Table t) AND (NOT skipDenomination(t) AND NOT zreport OR zreport) AND NOT denominationEnd(t) ORDER orderDen(t) DO NEWTHREAD { NEWSESSION NEWSQL {
         applyOnlyData();
-        
-        printToLog(currentDateTime() + ': start denomination table ' + sid(t));
         
         IF vacuum AS BOOLEAN THEN doVacuum();
         
-        denominationStart(t) <- currentDateTime();
-        APPLY {}
+        printToLog(currentDateTime() + ': start denomination table ' + sid(t));
         
-        //обновляем поля независимые от валюты
-        IF countDedomination(t) THEN 
-            runSQLWithLock( 'UPDATE ' + sid(t) + ' SET \n' +
-                    (CONCAT ', \n' , 
-                        [= GROUP CONCAT TEXT ('   ' + sid(TableColumn p) + ' = ' + sid(p) + ' / 10000.0')  IF annotation( p) == 'denomination', ', \n' BY table(p)](t),
-                        ('key3 = key3 / 10000.0' IF sid(t) == 'ReceiptSkuLedger_departmentStoreSkuDatePrice')), //цена в ключе
-                    sid(t)
-                  );
-        
-        //поля зависимые от валюты обновляем по связи с currency только для белорусского рубля
-        IF countCurrency(t) THEN {
-            denominationStart(t) <- currentDateTime(); //вторая транзакция в таблице, нужно обновить начало для упаковки
-            APPLY {}
-            runSQLWithLock( 'UPDATE ' + sid(t) + ' SET \n' +
-                    [= GROUP CONCAT TEXT ('   ' + sid(TableColumn p) + ' = ' + sid(p) + ' / 10000.0')  IF annotation( p) == 'denominationCurrency', ', \n' BY table(p)](t) +
-                    ' FROM currency_currency t1 ' +
-                        ' WHERE '+  currencyField(t) + ' = t1.key0 AND t1.currency_shortname_currency = \'BLR\'',
-                    sid(t)
-                  );
-         }
-                  
-        //курсы делим если > 10
-        FOR table(TableColumn p) == t AND annotation(p) == 'denominationRate' DO
-            runSQLWithLock( 'UPDATE ' + sid(t) + ' SET ' + sid(p) + ' = ' + sid(p) + ' / 10000.0 WHERE '+ sid(p) + ' > 10.0', sid(t) );
-            
-        IF sid(t) == 'Currency_rateExchange' THEN 
-            runSQLWithLock( 'UPDATE currency_rateexchange SET currency_rate_typeexchange_currency_date = currency_rate_typeexchange_currency_date / 10000.0 WHERE currency_rate_typeexchange_currency_date > 10.0', 'Currency_rateExchange' );
-        
-        
-        
-        //прайслисты через ссылку на PriceListType                   
-        IF sid(t) == 'PriceList_priceListDetailDataPriceListType' THEN
-            runSQLWithLock( 'UPDATE PriceList_priceListDetailDataPriceListType t SET ' +
-                        '   PriceList_price_UserPriceListDetail_DataPriceListType = PriceList_price_UserPriceListDetail_DataPriceListType / 10000.0 ' +
-                        '   WHERE t.key1 IN (' + priceListTypesBy() + ')'
-                  , 'PriceList_priceListDetailDataPriceListType'
-                  );
-
-        //принудительное деление 
-        IF sid(t) == 'PriceList_priceListLedgerLedgerPriceListTypeStock' THEN {
-            runSQLWithLock( 'UPDATE PriceList_priceListLedgerLedgerPriceListTypeStock t SET \n' +
-                        'PriceList_price_PriceListLedger_LedgerPriceListType_Stock = PriceList_price_PriceListLedger_LedgerPriceListType_Stock / 10000.0 \n'  +
-                        '   WHERE t.key1 IN (' + priceListTypesBy() + ')',
-                  'PriceList_priceListLedgerLedgerPriceListTypeStock'
-                  );
+        APPLY {        
+            denominationStart(t) <- currentDateTime();
         }
-        IF sid(t) == 'PriceList_priceListLedgerLedgerPriceListType' THEN {
-            runSQLWithLock( 'UPDATE PriceList_priceListLedgerLedgerPriceListType t SET \n' +
+        
+        APPLY {
+            
+            runSQL('LOCK ' + sid(t) + ';');
+            
+            //обновляем поля независимые от валюты
+            IF countDedomination(t) THEN 
+                runSQL( 'UPDATE ' + sid(t) + ' SET \n' +
+                        (CONCAT ', \n' , 
+                            [= GROUP CONCAT TEXT ('   ' + sid(TableColumn p) + ' = ' + sid(p) + ' / 10000.0')  IF annotation( p) == 'denomination', ', \n' BY table(p)](t),
+                            ('key3 = key3 / 10000.0' IF sid(t) == 'ReceiptSkuLedger_departmentStoreSkuDatePrice')) //цена в ключе
+                      );
+            
+            //поля зависимые от валюты обновляем по связи с currency только для белорусского рубля
+            IF countCurrency(t) THEN {
+                runSQL( 'UPDATE ' + sid(t) + ' SET \n' +
+                        [= GROUP CONCAT TEXT ('   ' + sid(TableColumn p) + ' = ' + sid(p) + ' / 10000.0')  IF annotation( p) == 'denominationCurrency', ', \n' BY table(p)](t) +
+                        ' FROM currency_currency t1 ' +
+                        ' WHERE '+  currencyField(t) + ' = t1.key0 AND t1.currency_shortname_currency = \'BLR\''
+                      );
+             }
+                      
+            //курсы делим если > 10
+            FOR table(TableColumn p) == t AND annotation(p) == 'denominationRate' DO
+                runSQL( 'UPDATE ' + sid(t) + ' SET ' + sid(p) + ' = ' + sid(p) + ' / 10000.0 WHERE '+ sid(p) + ' > 10.0');
+                
+            IF sid(t) == 'Currency_rateExchange' THEN 
+                runSQL( 'UPDATE currency_rateexchange SET currency_rate_typeexchange_currency_date = currency_rate_typeexchange_currency_date / 10000.0 WHERE currency_rate_typeexchange_currency_date > 10.0' );
+            
+            
+            
+            //прайслисты через ссылку на PriceListType                   
+            IF sid(t) == 'PriceList_priceListDetailDataPriceListType' THEN
+                runSQL( 'UPDATE PriceList_priceListDetailDataPriceListType t SET ' +
+                        '   PriceList_price_PriceListDetail_DataPriceListType = PriceList_price_PriceListDetail_DataPriceListType / 10000.0, \n' +
+                        '   PriceList_price_UserPriceListDetail_DataPriceListType = PriceList_price_UserPriceListDetail_DataPriceListType / 10000.0 \n' +
+                        '   WHERE t.key1 IN (' + priceListTypesBy() + ')'
+                      );
+    
+            //принудительное деление 
+            IF sid(t) == 'PriceList_priceListLedgerLedgerPriceListTypeStock' THEN {
+                runSQL( 'UPDATE PriceList_priceListLedgerLedgerPriceListTypeStock t SET \n' +
+                        '   PriceList_price_PriceListLedger_LedgerPriceListType_Stock = PriceList_price_PriceListLedger_LedgerPriceListType_Stock / 10000.0 \n'  +
+                        '   WHERE t.key1 IN (' + priceListTypesBy() + ')'
+                      );
+            }
+            IF sid(t) == 'PriceList_priceListLedgerLedgerPriceListType' THEN {
+                runSQL( 'UPDATE PriceList_priceListLedgerLedgerPriceListType t SET \n' +
                         '   PriceList_price_PriceListLedger_LedgerPriceListType = PriceList_price_PriceListLedger_LedgerPriceListType / 10000.0, \n'  +
                         '   PriceList_price_PriceListLedger_SystemLedgerPriceListType = PriceList_price_PriceListLedger_SystemLedgerPriceListType / 10000.0 \n'  +
-                        '   WHERE t.key1 IN (' + priceListTypesBy() + ')',
-                  'PriceList_priceListLedgerLedgerPriceListType'
-                  );
+                        '   WHERE t.key1 IN (' + priceListTypesBy() + ')'
+                      );
+            }
+            
+            //предельные надбавки на овощи
+            IF sid(t) == 'PriceList_calcPriceListTypeGroup' THEN {
+                runSQL( 'UPDATE PriceList_calcPriceListTypeGroup t SET \n' +
+                        '   PriceList_dataMarkup_CalcPriceListType_Group = PriceList_dataMarkup_CalcPriceListType_Group / 10000.0 \n'  +
+                        '   WHERE PriceList_dataMarkup_CalcPriceListType_Group >= 300.0'
+                      );
+            }
+            
+            IF sid(t) == 'PriceList_calcPriceListTypeSku' THEN {
+                runSQL( 'UPDATE PriceList_calcPriceListTypeSku t SET \n' +
+                        '   PriceList_dataMarkup_CalcPriceListType_Sku = PriceList_dataMarkup_CalcPriceListType_Sku / 10000.0 \n'  +
+                        '   WHERE PriceList_dataMarkup_CalcPriceListType_Sku >= 300.0'
+                      );
+            }
+        
         }
         
-        denominationEnd(t) <- currentDateTime();
-        APPLY {}
+        APPLY {
+            denominationEnd(t) <- currentDateTime();
+        }
         printToLog(currentDateTime() + ': end denomination table ' + sid(t));
         
         IF vacuum AS BOOLEAN THEN doVacuum();
@@ -185,13 +206,18 @@ denominate(INTEGER threads, BOOLEAN zreport, BOOLEAN vacuum, BOOLEAN disableReca
     FOR name(RoundCondition rc) == 'До 100 рублей' DO
         DELETE PriceInterval p WHERE roundCondition(p) == rc;
         
-    FOR Table t == table('Currency_currency') DO NEWSESSION {recalculateColumnsAggregations(t);};
-        
     //переводим оборудование
     denominationStage(GroupMachinery groupMachinery) <- DenominationStage.fusion WHERE NOT denominationStage(groupMachinery) == DenominationStage.after;
     
-    //убераем пересчет не числовых агрегаций
+    //убираем пересчет не числовых агрегаций
     notRecalculate(TableColumn c) <- TRUE WHERE NOT startsWith(return(property(c)), 'NUMERIC') AND disableRecalculate; 
         
     APPLY {}  
 } 
+
+
+denominateLite() = ACTION {
+    makeBackup();
+    denominate(4, TRUE, TRUE, NULL);
+    recalculateMultiThreadAction(4, NULL);
+}
