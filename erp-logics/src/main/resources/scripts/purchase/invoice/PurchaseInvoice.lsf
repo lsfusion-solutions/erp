@@ -113,10 +113,10 @@ incomePrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvoice(detail)) 
 incomeSum(invoice) = GROUP SUM incomePrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
 // todo : переделать на обычный +, чтобы incomePriceInvoiceDetail суммировался с остальными через OVERRIDE, 0
-costPrice(InvoiceDetail detail) = NUMERIC[14,2] (incomePrice(detail) (+) extraCostPrice(detail) (+)
+costPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+)
                                                 customCostPrice(detail) (+) certificateCostPrice(detail)) IF incomePrice(detail);
 
-costPrice(UserInvoiceDetail detail) = NUMERIC[14,2] (incomePrice(detail) (+) extraCostPrice(detail) (+)
+costPrice(UserInvoiceDetail detail) = NUMERIC[16,4] (incomePrice(detail) (+) extraCostPrice(detail) (+)
                                                     customCostPrice(detail) (+) certificateCostPrice(detail)) IF incomePrice(detail);
 
 //-- Суммы
@@ -356,7 +356,7 @@ EXTEND CLASS SystemLedgerPriceListType { rateExchangeStockPriceListType 'Кур�
 batch (SystemLedgerPriceListType type, Stock stock) += WHEN type == SystemLedgerPriceListType.rateExchangeStockPriceListType AND isCompany(stock)
                                                THEN priceBatchLedger(stock);
 in (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN isHomeCurrency(ledger) AND type == SystemLedgerPriceListType.rateExchangeStockPriceListType THEN TRUE;
-price (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN isHomeCurrency(ledger) AND type == SystemLedgerPriceListType.rateExchangeStockPriceListType THEN NUMERIC[14,2](rateExchange(ledger));
+price (InvoiceDetail ledger, SystemLedgerPriceListType type) += WHEN isHomeCurrency(ledger) AND type == SystemLedgerPriceListType.rateExchangeStockPriceListType THEN NUMERIC[16,4](rateExchange(ledger));
 
 NAVIGATOR {
     purchasePurchaseNavigator {

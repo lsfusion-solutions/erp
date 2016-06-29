@@ -27,28 +27,28 @@ overCopy(UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {
 backgroupExtraChargeInvoiceUser = ABSTRACT COLOR (InvoiceDetail);
 
 TABLE invoiceUserInvoiceDetail(Invoice, UserInvoiceDetail);
-extraChargePrice 'Цена доп. услуг за ед.' = ABSTRACT NUMERIC[14,2] (Invoice, InvoiceDetail);
-extraChargePrice 'Цена доп. услуг за ед.' = DATA NUMERIC[14,2] (Invoice, UserInvoiceDetail) @@denomination;
+extraChargePrice 'Цена доп. услуг за ед.' = ABSTRACT NUMERIC[16,4] (Invoice, InvoiceDetail);
+extraChargePrice 'Цена доп. услуг за ед.' = DATA NUMERIC[16,4] (Invoice, UserInvoiceDetail) @@denomination;
 extraChargePrice (Invoice i,UserInvoiceDetail d) += extraChargePrice(i,d);
 
-extraChargeSum 'Сумма доп. услуг' = ABSTRACT NUMERIC[16,2] (Invoice, InvoiceDetail);
-extraChargeSum 'Сумма доп. услуг' = DATA NUMERIC[16,2] (Invoice, UserInvoiceDetail) @@denomination;
+extraChargeSum 'Сумма доп. услуг' = ABSTRACT NUMERIC[18,4] (Invoice, InvoiceDetail);
+extraChargeSum 'Сумма доп. услуг' = DATA NUMERIC[18,4] (Invoice, UserInvoiceDetail) @@denomination;
 extraChargeSum (Invoice i,UserInvoiceDetail d) += extraChargeSum(i,d);
 
 extraChargePrice(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 extraChargeSum(Invoice i, UserInvoiceDetail d) => inExtraCharge(i, d) RESOLVE RIGHT;
 
 changeExtraChargeSum(Invoice i, UserInvoiceDetail d) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
+    REQUEST NUMERIC[18,4] INPUT;
     IF requestedNumeric() THEN {
         extraChargeSum(i,d) <- requestedNumeric();
-        extraChargePrice(i,d) <- NUMERIC[14,2](extraChargeSum(i,d)/quantity(d));
+        extraChargePrice(i,d) <- NUMERIC[16,4](extraChargeSum(i,d)/quantity(d));
     } ELSE {
         extraChargePrice(i,d) <- NULL;
     }
 }
 
-extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[16,2](round(quantity(d) * extraChargePrice(i,d), currency(i)))
+extraChargeSum (Invoice i, UserInvoiceDetail d) <- NUMERIC[18,4](round(quantity(d) * extraChargePrice(i,d), currency(i)))
                 WHEN DO CHANGED(quantity(d)) OR CHANGED (extraChargePrice(i,d)) OR CHANGED(currency(i));
 
 extraChargeSumInvoiceDetail 'Сумма доп. услуг (расписанная)' = GROUP SUM extraChargeSum(Invoice i,InvoiceDetail d) BY i;
@@ -155,7 +155,7 @@ EXTEND FORM invoices
     PROPERTIES READONLY BACKGROUND backgroundExtraChargeInvoice() nameSuppliers(i) , seriesNumberSuppliers(i) 
 ;
 
-calcChargeSum(Invoice i) = NUMERIC[16,2](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
+calcChargeSum(Invoice i) = NUMERIC[18,4](IF isHomeCurrency(i) THEN homeSumInvoiceDetail(i) ELSE sumInvoiceDetail(i));
 
 fillExtraChargePriceUser 'Расписать услуги'(Invoice i) = ACTION {
     IF currency(i) THEN {    
@@ -239,7 +239,7 @@ FORM extraChargeParams 'Параметры'
     OBJECTS c = Currency FIXED PANEL 
     PROPERTIES SELECTOR shortName(c)    
     
-    OBJECTS nu = NUMERIC[16,2] FIXED PANEL 
+    OBJECTS nu = NUMERIC[18,4] FIXED PANEL 
     PROPERTIES val = OBJVALUE (nu)    
 ;
 DESIGN extraChargeParams {
@@ -285,7 +285,7 @@ createExtraChargeUser 'Накладная (закупка) доп. услуги'
     LOCAL o = Operation();
     LOCAL s = LegalEntity(); 
     LOCAL sk = Sku();
-    LOCAL nu = NUMERIC[16,2] ();
+    LOCAL nu = NUMERIC[18,4] ();
     LOCAL c = Currency();
         
     o() <- NULL;

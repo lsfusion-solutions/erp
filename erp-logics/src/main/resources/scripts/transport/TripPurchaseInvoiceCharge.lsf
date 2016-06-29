@@ -4,15 +4,15 @@ REQUIRE PurchaseInvoiceCharge, TripInvoice;
 
 NAMESPACE  Trip;
 
-sumCharge 'Сумма услуг' = DATA NUMERIC[16,2] (Trip) PREFCHARWIDTH 15 @@denomination;
+sumCharge 'Сумма услуг' = DATA NUMERIC[18,4] (Trip) PREFCHARWIDTH 15 @@denomination;
 
 sumGrossWeightPurchaseInvoiced 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetail(UserInvoice invoice) IF invoice IS Purchase.UserInvoice BY trip(invoice);
-calcGrossSum 'Сумма услуг' (Purchase.Invoice invoice, Trip trip)= NUMERIC[16,2](sumCharge(trip)* 
+calcGrossSum 'Сумма услуг' (Purchase.Invoice invoice, Trip trip)= NUMERIC[18,4](sumCharge(trip)* 
                                                         sumGrossWeightInvoiceDetail(invoice) /
                                                         (sumGrossWeightPurchaseInvoiced(trip) IF sumGrossWeightPurchaseInvoiced(trip)!=0.0));
 
 signChargeInvoices 'Расписать сумму услуг'(Trip trip) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
+    REQUEST NUMERIC[18,4] INPUT;
     IF requestedNumeric() THEN {
         sumCharge(trip) <- requestedNumeric();
         FOR trip(UserInvoice invoice)==trip AND invoice IS Purchase.UserInvoice DO {

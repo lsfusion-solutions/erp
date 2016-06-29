@@ -49,7 +49,7 @@ shipmentQuantity 'Кол-во (поставлено)' (ledger) = ABSTRACT NUMERI
 price 'Цена без НДС' (ledger) = ABSTRACT NUMERIC[16,4] (PurchaseLedger) PERSISTENT @@denominationCurrency;
 
 
-sum 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[16,2] (PurchaseLedger) PERSISTENT @@denominationCurrency; 
+sum 'Сумма покупки с НДС' (ledger) = ABSTRACT NUMERIC[18,4] (PurchaseLedger) PERSISTENT @@denominationCurrency; 
 
 currency = ABSTRACT Currency (PurchaseLedger) PERSISTENT @@currency;
 nameCurrency 'Валюта' = name(currency(PurchaseLedger ledger));
@@ -121,12 +121,12 @@ costSum 'Себестоимость' = GROUP SUM cost(PurchaseLedger ledger, Bat
 
 //CONSTRAINT quantityPurchaseLedger(purchaseLedger) == 0 MESSAGE 'ошибка: Количество покупки не должно быть равно нулю';
 
-averagePrice 'Цена покупки (средняя) с НДС' (PurchaseLedger purchaseLedger) = NUMERIC[14,2](sum(purchaseLedger)/quantity(purchaseLedger) IF quantity(purchaseLedger) != 0);
+averagePrice 'Цена покупки (средняя) с НДС' (PurchaseLedger purchaseLedger) = NUMERIC[16,4](sum(purchaseLedger)/quantity(purchaseLedger) IF quantity(purchaseLedger) != 0);
 
 VAT (ledger) = ABSTRACT Range (PurchaseLedger) PERSISTENT;
 valueVAT 'НДС, %' (PurchaseLedger ledger) = valueRate(VAT(ledger), date(ledger));
 
-sumVAT 'Сумма НДС' (PurchaseLedger ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
+sumVAT 'Сумма НДС' (PurchaseLedger ledger) = NUMERIC[18,4]([= X*Y/(100+Y)](
         sum(ledger), valueVAT(ledger)));
 
 

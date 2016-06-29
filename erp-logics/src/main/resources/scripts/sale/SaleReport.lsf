@@ -66,19 +66,19 @@ toDate 'Дата по' = DATA DATE (SaleReport) IN documentHeader;
 toDate 'Дата по' (SaleReportDetail d)= toDate(saleReport(d));
 
 quantity 'Кол-во' = DATA NUMERIC[14,3] (SaleReportDetail);
-price 'Цена' = DATA NUMERIC[14,2] (SaleReportDetail) @@denomination;
+price 'Цена' = DATA NUMERIC[16,4] (SaleReportDetail) @@denomination;
 
 VAT = DATA Range (SaleReportDetail);
 numberVAT 'НДС, номер' (SaleReportDetail d) = number(VAT(d));
 valueVAT 'НДС, %' = DATA NUMERIC[10,5] (SaleReportDetail);
 
-sum 'Сумма поставщика' = DATA NUMERIC[16,2] (SaleReportDetail) @@denomination;
-VATSum 'Сумма НДС поставщика' = DATA NUMERIC[16,2] (SaleReportDetail) @@denomination;
-invoiceSum 'Сумма поставщика с НДС' = DATA NUMERIC[16,2] (SaleReportDetail) @@denomination;
+sum 'Сумма поставщика' = DATA NUMERIC[18,4] (SaleReportDetail) @@denomination;
+VATSum 'Сумма НДС поставщика' = DATA NUMERIC[18,4] (SaleReportDetail) @@denomination;
+invoiceSum 'Сумма поставщика с НДС' = DATA NUMERIC[18,4] (SaleReportDetail) @@denomination;
 
-sumBalanceB 'Остаток с НДС (начало)' = DATA NUMERIC[16,2] (SaleReportDetail) @@denomination;
-sumBalanceA 'Остаток с НДС (конец)' = DATA NUMERIC[16,2] (SaleReportDetail) @@denomination;
-sumReturn 'Возврат с НДС' = DATA NUMERIC[16,2] (SaleReportDetail) @@denomination;
+sumBalanceB 'Остаток с НДС (начало)' = DATA NUMERIC[18,4] (SaleReportDetail) @@denomination;
+sumBalanceA 'Остаток с НДС (конец)' = DATA NUMERIC[18,4] (SaleReportDetail) @@denomination;
+sumReturn 'Возврат с НДС' = DATA NUMERIC[18,4] (SaleReportDetail) @@denomination;
 
 quantityBalanceB 'Остаток количество (начало)' = DATA NUMERIC[16,5] (SaleReportDetail);
 quantityBalanceA 'Остаток количество (конец)' = DATA NUMERIC[16,5] (SaleReportDetail);
@@ -150,13 +150,13 @@ fillData 'Заполнить данные'(SaleReport report) = ACTION {
                 VAT(d) <- OVERRIDE VAT(invoiceDetail(batch)), VAT(sku(batch));
                 valueVAT(d) <- OVERRIDE valueVAT(invoiceDetail(batch)), valueVAT(sku(batch));
                 
-                sum(d) <- NUMERIC[16,2](round(quantity(d) * price(d), currency(d)));
-                VATSum(d) <- NUMERIC[14,2](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
-                invoiceSum(d) <- NUMERIC[14,2](sum(d) (+) VATSum(d));  
+                sum(d) <- NUMERIC[18,4](round(quantity(d) * price(d), currency(d)));
+                VATSum(d) <- NUMERIC[16,4](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
+                invoiceSum(d) <- NUMERIC[16,4](sum(d) (+) VATSum(d));  
                                                                                                                                                        
-                sumBalanceB(d) <- NUMERIC[14,2](round(balanceB(batch, companyStock(report), fromDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
-                sumBalanceA(d) <- NUMERIC[14,2](round(balanceA(batch, companyStock(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
-                sumReturn(d) <- NUMERIC[14,2](round(quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));
+                sumBalanceB(d) <- NUMERIC[16,4](round(balanceB(batch, companyStock(report), fromDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
+                sumBalanceA(d) <- NUMERIC[16,4](round(balanceA(batch, companyStock(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
+                sumReturn(d) <- NUMERIC[16,4](round(quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));
                                                                                                                                                                                                                                                                                                                 
                 quantityBalanceB(d) <- balanceB(batch, companyStock(report), fromDate(report));
                 quantityBalanceA(d) <- balanceA(batch, companyStock(report), toDate(report));
@@ -177,13 +177,13 @@ fillData 'Заполнить данные'(SaleReport report) = ACTION {
                 VAT(d) <- OVERRIDE VAT(invoiceDetail(batch)), VAT(sku(batch));
                 valueVAT(d) <- OVERRIDE valueVAT(invoiceDetail(batch)), valueVAT(sku(batch));
                 
-                sum(d) <- NUMERIC[16,2](round(quantity(d) * price(d), currency(d)));
-                VATSum(d) <- NUMERIC[14,2](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
-                invoiceSum(d) <- NUMERIC[14,2](sum(d) (+) VATSum(d));     
+                sum(d) <- NUMERIC[18,4](round(quantity(d) * price(d), currency(d)));
+                VATSum(d) <- NUMERIC[16,4](round(sum(d) * valueVAT(d) / 100.0, currency(d)));                                                                                                                                      
+                invoiceSum(d) <- NUMERIC[16,4](sum(d) (+) VATSum(d));     
                                                                                                                                                     
-                sumBalanceB(d) <- NUMERIC[14,2](round(balanceBCompanyFrom(batch, company(report), fromDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
-                sumBalanceA(d) <- NUMERIC[14,2](round(balanceACompanyTo(batch, company(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                                          
-                sumReturn(d) <- NUMERIC[14,2](round(quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));
+                sumBalanceB(d) <- NUMERIC[16,4](round(balanceBCompanyFrom(batch, company(report), fromDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                         
+                sumBalanceA(d) <- NUMERIC[16,4](round(balanceACompanyTo(batch, company(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));                                                                                                                                                          
+                sumReturn(d) <- NUMERIC[16,4](round(quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report)) * price(d) * (100 (+) valueVAT(d)) / 100.0, currency(d)));
                                                                                                                                                                           
                 quantityBalanceB(d) <- balanceBCompanyFrom(batch, company(report), fromDate(report));                                                                                                                                         
                 quantityBalanceA(d) <- balanceACompanyTo(batch, company(report), toDate(report)); 

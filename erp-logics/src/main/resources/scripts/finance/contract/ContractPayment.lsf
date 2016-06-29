@@ -23,7 +23,7 @@ rateExchangeContract (Payment payment) <- OVERRIDE 1.0 IF payment IS Payment AND
          CHANGED(contract(payment)) OR
          CHANGED(currencyAccountTo(payment));
 
-sumContract 'Сумма платежа по контракту' (payment) = DATA NUMERIC[16,2] (Payment) PREFCHARWIDTH 16 @@denominationCurrency;
+sumContract 'Сумма платежа по контракту' (payment) = DATA NUMERIC[18,4] (Payment) PREFCHARWIDTH 16 @@denominationCurrency;
 sumContract(Payment payment) <- IF NOT currencyContract(payment) == currencyAccountTo(payment)
                                THEN rateExchangeContract(payment)*sum(payment)
                                ELSE sum(payment)
@@ -92,7 +92,7 @@ sum[OutContractLedger](Payment outContractLedger) += IF isReturn(outContractLedg
 //------------------------------------------- Actions --------------------------------------------------------------//
 
 setRateExchangeContract(Payment payment) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
+    REQUEST NUMERIC[18,4] INPUT;
     ASSIGN rateExchangeContract(payment) <- requestedNumeric()/sum(payment);
 }
 

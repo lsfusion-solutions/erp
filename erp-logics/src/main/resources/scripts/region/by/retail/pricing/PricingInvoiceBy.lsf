@@ -12,13 +12,13 @@ META defineInvoicePricingByAggregation(dumb)
     markupPrice(UserInvoiceDetail detail) <- retailMarkupSum(detail)/(pricingQuantity(detail) IF pricingQuantity(detail)!=0)
                     WHEN CHANGED(retailMarkupSum(detail)) OR CHANGED (pricingQuantity(detail));
 
-    calcRetailUserInvoiceDetail(UserInvoiceDetail userInvoiceDetail, NUMERIC[20,7] markupPrice)  = round(NUMERIC[14,2]([= (X (+) Y)*(Z+100)/100](
+    calcRetailUserInvoiceDetail(UserInvoiceDetail userInvoiceDetail, NUMERIC[20,7] markupPrice)  = round(NUMERIC[16,4]([= (X (+) Y)*(Z+100)/100](
         pricingPrice(userInvoiceDetail) IF markupPrice IS NUMERIC[20,7],
         markupPrice AS NUMERIC[20,7] IF userInvoiceDetail IS UserInvoiceDetail,
         valueRetailVAT(userInvoiceDetail))), roundConditionMarkupPrice());                    
                     
     changeMarkupPrice(UserInvoiceDetail userInvoiceDetail) = ACTION {
-        REQUEST NUMERIC[14,2] INPUT;
+        REQUEST NUMERIC[16,4] INPUT;
 
         IF requestedNumeric() THEN {
             retailPrice(userInvoiceDetail) <- calcRetailUserInvoiceDetail(userInvoiceDetail, requestedNumeric());

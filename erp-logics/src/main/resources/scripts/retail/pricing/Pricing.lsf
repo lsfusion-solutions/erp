@@ -320,7 +320,7 @@ META changeDocumentDetailMarkupCustomPrefix(detail, prefixA, prefixB, prefixC, p
         value###prefixD##VAT(detail));
 
     change###prefixA##Price(###detail detail) = ACTION {
-        REQUEST NUMERIC[14,2] INPUT;
+        REQUEST NUMERIC[16,4] INPUT;
 
         IF requestedNumeric() THEN {
             prefixA###price(detail) <- requestedNumeric();
@@ -333,7 +333,7 @@ END
 
 META changeDocumentDetailPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
 
-    calc###prefixA##Price(###detail detail)  = round(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    calc###prefixA##Price(###detail detail)  = round(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
         prefixB###price(detail),
         prefixD###markup(detail),
         value###prefixD##VAT(detail))), prefixCondition###roundCondition(detail));
@@ -356,7 +356,7 @@ END
 //-- С учетом предельных надбавок
 
 META changeDocumentDetailLimitPriceCustomPrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixCondition)
-    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    calc###prefixA###price###detail(detail)  = roundPriceRoundCondition(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
         prefixB###price###detail(detail),
         prefixC###markup###detail(detail),
         value###prefixD###VAT###detail(detail))), prefixCondition###roundCondition###detail(detail));
@@ -387,7 +387,7 @@ META changeDocumentDetailMarkupPrefixInner(detail, prefixA, prefixB, prefixC, pr
         value###prefixE###VAT###detail(detail));
 
     change###prefixA###price###detail = ACTION (detail) {
-        REQUEST NUMERIC[14,2] INPUT;
+        REQUEST NUMERIC[16,4] INPUT;
 
         IF requestedNumeric() THEN {
             ASSIGN prefixA###price###detail(detail) <- requestedNumeric();
@@ -401,13 +401,13 @@ END
 
 META changeDocumentDetailPricePrefix(detail, prefixA, prefixB, prefixC, prefixD, prefixE, prefixF)
 
-    calc###prefixB##Price(###detail detail)  = round(NUMERIC[14,2]([= X*(Y+100)*(Z+100)/10000](
+    calc###prefixB##Price(###detail detail)  = round(NUMERIC[16,4]([= X*(Y+100)*(Z+100)/10000](
         prefixD##Price(detail),
         prefixE###markup(detail),
         value###prefixE##VAT(detail))), roundCondition(detail));
 
     change###prefixA##Price(###detail detail) = ACTION {
-        REQUEST NUMERIC[14,2] INPUT;
+        REQUEST NUMERIC[16,4] INPUT;
 
         IF requestedNumeric() THEN {
             prefixA##Price(detail) <- requestedNumeric();
@@ -545,7 +545,7 @@ CONSTRAINT isPosted(PricingDetail d) AND disallowLinePricings() AND NOT retailPr
     MESSAGE 'Для строки акта расценки должна быть задана розничная цена'; 
 
 // Объявление действий, которые будут срабатывать по изменению надбавки и розничной цены
-overLimitPrice = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
+overLimitPrice = ABSTRACT NUMERIC[16,4] (UserPricingDetail);
 @changeDocumentDetailMarkupCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
 @changeDocumentDetailPriceCustomPrefix(userPricingDetail, retail, pricing, retail, retail);
 
@@ -906,7 +906,7 @@ WHEN SESSION FORMS userPricing // цены берем на начало сесс
     retailPriceListType(detail) <- calcRetailCalcPriceListType(detail);
 
 // Проставление надбавки и розничной цены при изменении sku, склада, времени, вида цен, цены расценки, НДС в форме userPricing
-//overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[14,2] (UserPricingDetail);
+//overLimitPriceUserPricingDetail = ABSTRACT NUMERIC[16,4] (UserPricingDetail);
 //
 //minRetailPriceUserPricingDetail 'Минимальная розничная цена' (detail)= MIN roundPriceRoundCondition([= X*(Y+100)*(Z+100)/10000](
 //                                                                        pricingPriceUserPricingDetail(detail),

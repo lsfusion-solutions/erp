@@ -220,12 +220,12 @@ multiplierCalc (ProductDetail d) =
 
 // Цены изделий
 @defineDocumentDetailPriceCustomPrefix (productDetail, , ' изделия');
-costPrice 'Себестоимость изделия' = DATA NUMERIC[14,2] (ProductDetail);
+costPrice 'Себестоимость изделия' = DATA NUMERIC[16,4] (ProductDetail);
 
 
-sum 'Сумма изделия' = DATA NUMERIC[16,2] (ProductDetail) @@denomination;
+sum 'Сумма изделия' = DATA NUMERIC[18,4] (ProductDetail) @@denomination;
 sum(ProductDetail productDetail) <-
-    NUMERIC[16,2](round((quantity(productDetail) * price(productDetail)), currency(productDetail)))
+    NUMERIC[18,4](round((quantity(productDetail) * price(productDetail)), currency(productDetail)))
     WHEN CHANGED (quantity(productDetail)) OR
          CHANGED (price(productDetail)) OR
          CHANGED (currency(productDetail));
@@ -285,7 +285,7 @@ CONSTRAINT product(ComponentDetail componentDetail) AND bruttoSku(componentDetai
 @defineDocumentDetailQuantityCustomPrefix(componentDetail, BOM, ' в спецификации'); //-- первичное свойство
 
 @defineDocumentDetailPriceCustomPrefix (componentDetail, , );
-cost 'Себестоимость' = DATA NUMERIC[14,2] (ComponentDetail) @@denomination;
+cost 'Себестоимость' = DATA NUMERIC[16,4] (ComponentDetail) @@denomination;
 
 // Замены
 @defineDocumentDetailSkuCustomPrefix (componentDetail, Sku, substitute, ' (замена)');
@@ -534,8 +534,8 @@ bruttoSubstituteQuantity (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail
        order(componentDetail) PERSISTENT;                                                                                                                                   
                                                                                                                                  
 // цены по товару
-dataBruttoPrice 'Цена' = DATA NUMERIC[14,2] (Sku, Order) @@denomination;
-cost 'Себестоимость' = DATA NUMERIC[14,2] (Sku, Order) @@denomination;
+dataBruttoPrice 'Цена' = DATA NUMERIC[16,4] (Sku, Order) @@denomination;
+cost 'Себестоимость' = DATA NUMERIC[16,4] (Sku, Order) @@denomination;
 
 WHEN SESSION (CHANGED(priceListType(Order order)) OR CHANGED(componentsStock(order)) OR CHANGED(dateTime(order)) OR SET(quantityComponentDetail(Sku sku, order)))
              AND quantityComponentDetail(sku, order) AND NOT CHANGED(dataBruttoPrice(sku, order)) AND PriceListType pt == priceListType(order) NOINLINE (pt) DO
@@ -762,10 +762,10 @@ calcCost 'Себестоимость расчетная' (ProductDetail d)= IF c
 
 calcPremiumPrice 'Цена расчетная (с надбавками)' (ProductDetail productDetail) =
     IF roundCondition(calcPriceListType(productDetail), sku(productDetail)) THEN
-        NUMERIC[14,2](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
+        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
                                                roundCondition(calcPriceListType(productDetail), sku(productDetail))))
     ELSE
-        NUMERIC[14,2](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
+        NUMERIC[16,4](round(componentsPrice(productDetail) * multiplierCalc(productDetail),
                                          currency(productDetail)));
                                          
 // Изменение надбавок при вводе пользователем процента
@@ -777,7 +777,7 @@ changeValueMarkup (ProductDetail detail) = ACTION {
 }
 
 changeComponentsPrice (ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[14,2] INPUT;
+    REQUEST NUMERIC[16,4] INPUT;
     IF requestedNumeric() THEN {
         componentsPrice (detail) <- requestedNumeric();
         changeValueMarkup(detail);
@@ -849,7 +849,7 @@ changeValueProductsPrice (ProductDetail detail) = ACTION {
                                                                                              
 overChangeProductsPrice = ACTION ABSTRACT LIST (ProductDetail);
 changeProductsPrice (ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[14,2] INPUT;
+    REQUEST NUMERIC[16,4] INPUT;
     IF requestedNumeric() THEN {
         price (detail) <- requestedNumeric();
         IF notRecalculateMarkupOrder(detail) THEN {
@@ -1005,13 +1005,13 @@ DESIGN multiplier {
 
 fillSubstitutePriceFromTo 'Использовать цену'(Order order, Sku sku, Sku skuSubstitute) = ACTION {
     IF multiplierSubstituteTo(sku, skuSubstitute) THEN {
-        dataBruttoPrice(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order));
-        cost(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, skuSubstitute)*calcCost(skuSubstitute,priceStock(order)));
+        dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order));
+        cost(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*calcCost(skuSubstitute,priceStock(order)));
     } ELSE {
         FORM multiplier MODAL; 
         IF formResult() == FormResult.ok THEN {
-            dataBruttoPrice(sku, order) <- NUMERIC[14,2](chosenNumeric('nu')*priceStock(skuSubstitute,order));
-            cost(sku, order) <- NUMERIC[14,2](chosenNumeric('nu')*calcCost(skuSubstitute,priceStock(order)));
+            dataBruttoPrice(sku, order) <- NUMERIC[16,4](chosenNumeric('nu')*priceStock(skuSubstitute,order));
+            cost(sku, order) <- NUMERIC[16,4](chosenNumeric('nu')*calcCost(skuSubstitute,priceStock(order)));
         }
     }        
 } TOOLBAR;  
@@ -1041,16 +1041,16 @@ fillSubstitutePriceMaxFrom 'Исп. max цену'(Order order, Sku sku) = ACTION
     sku() <- NULL;
     sku() <- maxSubstituteSkuPrice(sku, order);
     
-    dataBruttoPrice(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();     
-    cost(sku, order) <- NUMERIC[14,2](calcCost(sku(),priceStock(order))) WHERE sku();   
+    dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();     
+    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order))) WHERE sku();   
 };  
 fillSubstitutePriceMinFrom 'Исп. min цену'(Order order, Sku sku) = ACTION {
     LOCAL sku = Sku ();
     sku() <- NULL;
     sku() <- minSubstituteSkuPrice(sku, order);
 
-    dataBruttoPrice(sku, order) <- NUMERIC[14,2](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();      
-    cost(sku, order) <- NUMERIC[14,2](calcCost(sku(),priceStock(order))) WHERE sku();   
+    dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, sku())*priceStock(sku(),order)) WHERE sku();      
+    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order))) WHERE sku();   
        
 };   
 
@@ -1076,8 +1076,8 @@ fillSubstitutePriceMaxBalanceFrom 'Исп. цену большего остат�
     LOCAL sku = Sku();
     sku() <- NULL;
     sku() <- maxSkuBalanceSubstitute (sku, order);
-    dataBruttoPrice(sku, order) <- NUMERIC[14,2](priceStock(sku(),order)*multiplierSubstituteTo(sku, sku())) WHERE sku();     
-    cost(sku, order) <- NUMERIC[14,2](calcCost(sku(),priceStock(order))) WHERE sku();   
+    dataBruttoPrice(sku, order) <- NUMERIC[16,4](priceStock(sku(),order)*multiplierSubstituteTo(sku, sku())) WHERE sku();     
+    cost(sku, order) <- NUMERIC[16,4](calcCost(sku(),priceStock(order))) WHERE sku();   
      
 }; 
 fillSubstitutePriceMaxBalance 'Исп. цену большего остатка'(Order order) = ACTION {
@@ -1367,8 +1367,8 @@ WHEN SESSION FORMS order DROPPED (multiplier(bruttoSku(ComponentDetail detail), 
 calc(PriceListType pt, ComponentDetail detail) =  OVERRIDE dataBruttoPrice(sku(detail), order(detail)), 
                                                               prevPriceB(pt,batch(detail),componentsStock(order(detail)),dateTime(order(detail)));
 
-calcPrice = ABSTRACT OVERRIDE FIRST NUMERIC[14,2] (PriceListType, ComponentDetail);
-calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[14,2](calc(pt,d)); 
+calcPrice = ABSTRACT OVERRIDE FIRST NUMERIC[16,4] (PriceListType, ComponentDetail);
+calcPrice(PriceListType pt, ComponentDetail d) += NUMERIC[16,4](calc(pt,d)); 
 
 WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), order(detail))) OR 
                           CHANGED(batch(detail)) OR 

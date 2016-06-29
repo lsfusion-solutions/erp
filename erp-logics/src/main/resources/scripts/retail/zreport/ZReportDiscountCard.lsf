@@ -36,11 +36,11 @@ EXTEND FORM zReports
 
 posSum 'Сумма продаж' (discountCard) = GROUP SUM sumReceiptDetail (Receipt receipt) BY discountCard(receipt) PERSISTENT @@denomination;
 posReturnSum 'Сумма возвратов' (discountCard) = GROUP SUM sum(ReceiptReturnDetail d) IF NOT discountCard[ReceiptDetail](d) BY discountCard(receiptSale(d)) PERSISTENT @@denomination; 
-signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT @@denomination;
+signedTransferSum 'Сумма переводов' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT @@denomination;
 
 cumulativeSum 'Накопленная сумма (основная)' (DiscountCard discountCard) = initialSum(discountCard) (+) posSum(discountCard) (-) posReturnSum(discountCard) (+) signedTransferSum(discountCard) PERSISTENT @@denomination;
 
-externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT @@denomination;
+externalSum 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT @@denomination;
 totalSum 'Накопленная сумма' (DiscountCard d) = cumulativeSum(d) (+) externalSum(d); 
 prevTotalSum 'Накопленная сумма' (DiscountCard d) = PREV(totalSum(d)); 
 
@@ -50,7 +50,7 @@ dateFirstUse 'Дата первого использования'=  GROUP MIN da
 
 discountCard = DATA DiscountCard (DiscountCard);
 numberDiscountCard 'Номер дисконтной карты для перевода' (DiscountCard d) = number(discountCard(d)); 
-transferSum 'Сумма перевода' = DATA NUMERIC[16,2] (DiscountCard) @@denomination;
+transferSum 'Сумма перевода' = DATA NUMERIC[18,4] (DiscountCard) @@denomination;
 
 totalTransferSum 'Сумма переводов' = GROUP SUM transferSum(DiscountCard d) BY discountCard(d);
 
@@ -125,7 +125,7 @@ showTransferSum() = numberDiscountCardInput() AND NOT numberDiscountCardInputNew
 notShowTransferSum() = NOT showTransferSum();
 
 changeTransferSum (DiscountCard dc) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
+    REQUEST NUMERIC[18,4] INPUT;
     IF NOT requestedNumeric() > prevTotalSum(dc) AND NOT requestedNumeric() < 0.0 THEN
         transferSum(dc) <- requestedNumeric()
     ELSE 

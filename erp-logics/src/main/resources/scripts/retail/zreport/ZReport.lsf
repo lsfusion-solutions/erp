@@ -288,11 +288,11 @@ changeDescriptionSale = ACTION ABSTRACT LIST (ReceiptReturnDetail);
 // Количества и суммы
 
 quantity 'Количество' (receiptDetail) = DATA NUMERIC[14,3] (ReceiptSaleDetail);
-price 'Цена' (receiptDetail) = DATA NUMERIC[14,2] (ReceiptSaleDetail) @@denomination;
-sum 'Сумма' (receiptDetail) = DATA NUMERIC[16,2] (ReceiptSaleDetail) @@denomination;
+price 'Цена' (receiptDetail) = DATA NUMERIC[16,4] (ReceiptSaleDetail) @@denomination;
+sum 'Сумма' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptSaleDetail) @@denomination;
 discountPercent 'Процент скидки' (receiptDetail) = DATA NUMERIC[6,2] (ReceiptSaleDetail);
 discountPercent (receipt)= GROUP SUM 1 IF discountPercent(ReceiptSaleDetail detail) BY receipt[ReceiptDetail](detail);
-discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[16,2] (ReceiptSaleDetail) @@denomination;
+discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptSaleDetail) @@denomination;
 
 priceSum 'Сумма без скидки' = round(quantity(ReceiptSaleDetail detail) * price(detail), roundCondition(departmentStore(detail)));
 
@@ -305,7 +305,7 @@ priceSum 'Сумма без скидки' = round(quantity(ReceiptSaleDetail det
 calcDiscountSum (ReceiptSaleDetail detail) = round(priceSum(detail) * discountPercent (detail) / 100,
                                                roundDiscountCondition(departmentStore(detail)));
 
-extraDiscountSum = ABSTRACT NUMERIC[16,2] (ReceiptSaleDetail);
+extraDiscountSum = ABSTRACT NUMERIC[18,4] (ReceiptSaleDetail);
 calcSum (ReceiptSaleDetail detail) = priceSum(detail) (-) discountSum(detail) (-) extraDiscountSum(detail);
 sum (ReceiptSaleDetail detail) <- calcSum(detail)
     WHEN CHANGED (quantity(detail)) OR
@@ -316,9 +316,9 @@ sum (ReceiptSaleDetail detail) <- calcSum(detail)
          CHANGED (departmentStore(detail));
 
 quantity 'Количество' (receiptDetail) = DATA NUMERIC[14,3] (ReceiptReturnDetail);
-price 'Цена' (receiptDetail) = DATA NUMERIC[14,2] (ReceiptReturnDetail) @@denomination;
-sum 'Сумма' (receiptDetail) = DATA NUMERIC[16,2] (ReceiptReturnDetail) @@denomination;
-discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[16,2] (ReceiptReturnDetail) @@denomination;
+price 'Цена' (receiptDetail) = DATA NUMERIC[16,4] (ReceiptReturnDetail) @@denomination;
+sum 'Сумма' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptReturnDetail) @@denomination;
+discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptReturnDetail) @@denomination;
 
 quantityReturned 'Возвращено' (saleDetail) = GROUP SUM quantity(ReceiptReturnDetail returnDetail) BY receiptSaleDetail(returnDetail) PERSISTENT;
 CONSTRAINT quantityReturned(ReceiptSaleDetail detail) > quantity (detail) MESSAGE 'Количество возвратов по строке чека превышает проданное количество';
@@ -354,17 +354,17 @@ quantity 'Количество' = ABSTRACT NUMERIC[14,3] (ReceiptDetail) PERSIST
 quantity(ReceiptReturnDetail detail) += quantity(detail);
 quantity(ReceiptSaleDetail detail) += quantity(detail);
 
-price 'Цена' = ABSTRACT NUMERIC[14,2] (ReceiptDetail) PERSISTENT @@denomination;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (ReceiptDetail) PERSISTENT @@denomination;
 price(ReceiptReturnDetail detail) += price(detail);
 price(ReceiptSaleDetail detail) += price(detail);
 
 INDEX sku(ReceiptDetail d), price(d);
 
-sum 'Сумма' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT @@denomination;
+sum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
 sum(ReceiptReturnDetail detail) += sum(detail);
 sum(ReceiptSaleDetail detail) += sum(detail);
 
-discountSum 'Сумма скидки' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT @@denomination;
+discountSum 'Сумма скидки' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
 discountSum(ReceiptSaleDetail d) += discountSum(d);
 discountSum(ReceiptReturnDetail d) += discountSum(d);
 
@@ -378,7 +378,7 @@ sumReceiptSaleDetail 'Сумма продажи' (receipt) = GROUP SUM sum(Recei
 sumReceiptReturnDetail 'Сумма возврата' (receipt) = GROUP SUM sum(ReceiptReturnDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum PERSISTENT @@denomination;
 
-signedSum 'Сумма' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT @@denomination;
+signedSum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
 signedSum(ReceiptReturnDetail detail) += -sum(detail);
 signedSum(ReceiptSaleDetail detail) += sum(detail);
 
@@ -386,7 +386,7 @@ signedQuantity 'Количество' = ABSTRACT NUMERIC[14,3] (ReceiptDetail) P
 signedQuantity(ReceiptReturnDetail detail) += -quantity(detail);
 signedQuantity(ReceiptSaleDetail detail) += quantity(detail);
 
-signedDiscountSum = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
+signedDiscountSum = ABSTRACT NUMERIC[18,4] (ReceiptDetail);
 signedDiscountSum(ReceiptReturnDetail detail) += -discountSum(detail);
 signedDiscountSum(ReceiptSaleDetail detail) += discountSum(detail);
 
@@ -400,11 +400,11 @@ sumReceiptDetail 'Сумма чека' (ReceiptDetail receiptDetail) = sumReceip
 
 discountSumSaleReceiptDetailSale 'Сумма скидки (продажи)' (receipt) = GROUP SUM discountSum(ReceiptSaleDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum;
-discountSumSale 'Сумма скидки (продажи) по чеку' (receipt) = DATA NUMERIC[16,2] (Receipt) @@denomination;
+discountSumSale 'Сумма скидки (продажи) по чеку' (receipt) = DATA NUMERIC[18,4] (Receipt) @@denomination;
 
 discountSumReturnReceiptDetailReturn 'Сумма скидки (возврат)' (receipt) = GROUP SUM discountSum(ReceiptReturnDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum;
-discountSumReturn 'Сумма скидки (возврат) по чеку' (receipt) = DATA NUMERIC[16,2] (Receipt) @@denomination;
+discountSumReturn 'Сумма скидки (возврат) по чеку' (receipt) = DATA NUMERIC[18,4] (Receipt) @@denomination;
 
 discountSumReceiptDetail 'Сумма скидки' (Receipt receipt) = discountSumSaleReceiptDetailSale(receipt) (-) discountSumReturnReceiptDetailReturn(receipt) PERSISTENT @@denomination;
 discountSum 'Сумма скидки по чеку' (Receipt receipt) = discountSumSale(receipt) (-) discountSumReturn(receipt);
@@ -457,7 +457,7 @@ onStarted() += ACTION {
     }    
 }
 
-sumVAT 'Сумма НДС' (d) = DATA NUMERIC[16,2] (ReceiptDetail) @@denomination;
+sumVAT 'Сумма НДС' (d) = DATA NUMERIC[18,4] (ReceiptDetail) @@denomination;
 calcSumVAT 'Сумма НДС' (ReceiptDetail d) = round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d));
 // пока делаем не сессионным событием, чтобы быстрее принималось
 WHEN CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d)) DO {
@@ -546,7 +546,7 @@ namePaymentMeans 'Форма оплаты' (Payment payment) = staticCaption(pay
 
 number 'Номер платежа' (payment) = DATA INTEGER (Payment);
 
-sum 'Сумма платежа' (payment) = DATA NUMERIC[16,2] (Payment) @@denomination;
+sum 'Сумма платежа' (payment) = DATA NUMERIC[18,4] (Payment) @@denomination;
 
 sumPayment 'Сумма платежа' (receipt) = GROUP SUM sum(Payment payment) BY receipt(payment);
 

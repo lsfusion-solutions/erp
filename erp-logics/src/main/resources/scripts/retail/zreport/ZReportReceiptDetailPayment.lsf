@@ -5,7 +5,7 @@ REQUIRE ZReport;
 NAMESPACE ZReport;
 
 TABLE receiptDetailPayment(ReceiptDetail, Payment);
-sum 'Расписано для строки чека' = DATA NUMERIC[16,2] (ReceiptDetail, Payment) @@denomination;
+sum 'Расписано для строки чека' = DATA NUMERIC[18,4] (ReceiptDetail, Payment) @@denomination;
 CONSTRAINT sum(ReceiptDetail d, Payment p) AND receipt(d) != receipt(p)
     MESSAGE 'Несоответствие чека строки и платежа';
 
@@ -15,11 +15,11 @@ EXTEND FORM zReports
 
 calculateSumReceiptDetailPayment 'Расписать платежи по строкам' (Receipt receipt) = ACTION {
     sum(ReceiptDetail d, Payment p) <- NULL WHERE receipt(d) == receipt AND receipt(p) == receipt; 
-    LOCAL left = NUMERIC[16,2] (ReceiptDetail);
+    LOCAL left = NUMERIC[18,4] (ReceiptDetail);
     left(ReceiptDetail d) <- sum(d) IF receipt(d) == receipt;
     
     FOR receipt(Payment p) == receipt ORDER DESC paymentMeans(p) DO {
-        LOCAL sum = NUMERIC[16,2]();
+        LOCAL sum = NUMERIC[18,4]();
         sum() <- sum(p);
         FOR left(ReceiptDetail d) DO {
             IF sum() > 0 THEN {
@@ -50,7 +50,7 @@ sumSkuReceiptDetail 'Сумма по товарам' (zReport, paymentMeans, ran
 sumVATSkuReceiptDetail 'Сумма НДС по товарам' (ZReport zReport, PaymentMeans paymentMeans, Range range) = (round0(
     [= GROUP SUM calcSumVAT(ReceiptDetail detail, Payment payment) IF sku(detail) 
         BY zReport(detail), paymentMeans(payment), VAT(detail)](zReport, paymentMeans, range)));
-sumVATSkuReceiptDetail 'Сумма НДС по товарам' (ZReport zReport, Range range)= NUMERIC[16,2]([=GROUP SUM sumVATSkuReceiptDetail(ZReport zReport, PaymentMeans paymentMeans, Range range) BY zReport, range](zReport, range));
+sumVATSkuReceiptDetail 'Сумма НДС по товарам' (ZReport zReport, Range range)= NUMERIC[18,4]([=GROUP SUM sumVATSkuReceiptDetail(ZReport zReport, PaymentMeans paymentMeans, Range range) BY zReport, range](zReport, range));
 
 sumCashSkuReceiptDetail 'Сумма (нал.) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansCash, range);
 sumCardSkuReceiptDetail 'Сумма (безнал.) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansCard, range);

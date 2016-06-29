@@ -70,10 +70,10 @@ incomeManufacturingPrice (UserInvoiceDetail detail) = IF isHomeCurrency(userInvo
                                                         ELSE price(detail);
 incomeManufacturingSum(invoice) = GROUP SUM incomeManufacturingPrice(UserInvoiceDetail detail) * quantity(detail) BY userInvoice(detail);
 
-costManufacturingPrice(InvoiceDetail detail) = NUMERIC[14,2] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
+costManufacturingPrice(InvoiceDetail detail) = NUMERIC[16,4] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
                                                             customCostPrice(detail) (+) certificateCostPrice(detail));
 
-costManufacturingPrice(UserInvoiceDetail detail) = NUMERIC[14,2] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
+costManufacturingPrice(UserInvoiceDetail detail) = NUMERIC[16,4] (incomeManufacturingPrice(detail) (+) extraCostPrice(detail) (+)
                                                                 customCostPrice(detail) (+) certificateCostPrice(detail));
 
 @defineDocumentInterfaceProperty (invoice, showManufacturingPrice, 'Цена изготовителя');
@@ -150,7 +150,7 @@ baseReverseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturing
 
 skipChangeManufacturingPrice 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
 calcReversePrice(UserInvoiceDetail d) =     
-    round(NUMERIC[14,2](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
+    round(NUMERIC[16,4](manufacturingPrice (d) * (100.0 (+) manufacturingMarkup(d))/100), currency(d));  
 
 updateManufacturingPrice(UserInvoiceDetail d) = ACTION {
     IF reverseManufacturingPrice(d) THEN {
@@ -181,7 +181,7 @@ calcManufacturingMarkup(UserInvoiceDetail d) =
     NUMERIC[8,3]((manufacturingPrice(d) * 100.0 / calcBaseManufacturingPrice(d)) - 100.0);
 
 changeManufacturingPrice(UserInvoiceDetail d) = ACTION {
-    REQUEST NUMERIC[14,2] INPUT;
+    REQUEST NUMERIC[16,4] INPUT;
 
     IF requestedNumeric() THEN {
         manufacturingPrice(d) <- requestedNumeric();      

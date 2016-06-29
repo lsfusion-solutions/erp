@@ -31,7 +31,7 @@ isPosted 'Закрыт' = ABSTRACT BOOLEAN (CashDocument);
 CLASS ABSTRACT IncomeCashOrder 'ПКО': CashDocument;
 CLASS ABSTRACT OutcomeCashOrder 'РКО': CashDocument;
 
-sumCash 'Сумма' = ABSTRACT NUMERIC[16,2] (IncomeCashOrder) IN documentSum;
+sumCash 'Сумма' = ABSTRACT NUMERIC[18,4] (IncomeCashOrder) IN documentSum;
 isPrinted 'Напечатан' = DATA BOOLEAN (IncomeCashOrder);
 isNotPrinted 'Не распечатан' (IncomeCashOrder incomeCashOrder) =
     incomeCashOrder IS IncomeCashOrder  AND NOT isPrinted(incomeCashOrder);
@@ -53,7 +53,7 @@ sumIncomeCashOrder 'Сумма ПКО на дату/время' (DepartmentStore
     curSumIncomeCashOrder(departmentStore) (-)
     sumAIncomeCashOrder(departmentStore, date);
 
-sumCash 'Сумма' = ABSTRACT NUMERIC[16,2] (OutcomeCashOrder) IN documentSum;
+sumCash 'Сумма' = ABSTRACT NUMERIC[18,4] (OutcomeCashOrder) IN documentSum;
 
 curSumOutcomeCashOrder 'Текущая сумма РКО' (departmentStore) =
     GROUP SUM sumCash(OutcomeCashOrder outcomeCashOrder) IF isPosted(outcomeCashOrder)
@@ -104,7 +104,7 @@ numberCashRegister 'Касса' (CashOperation cashOperation) = npp(cashRegister
 fiscalService 'Движение денег в фискальном регистраторе' (cashOperation) = ACTION ABSTRACT LIST (CashOperation) CONFIRM;
 fiscalServiceCashRegister 'Движение денег в фискальном регистраторе' (CashOperation cashOperation) = ACTION IF cashRegister(cashOperation) == currentCashRegister() THEN fiscalService(cashOperation);
 
-sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[16,2] (CashOperation);
+sum 'Сумма' (cashOperation) = ABSTRACT NUMERIC[18,4] (CashOperation);
 
 isComplete 'Фискализировано' = DATA BOOLEAN (CashOperation);
 
@@ -141,7 +141,7 @@ addressStock 'Адрес (Отдел магазина)' (IncomeCashOperation inc
 
 country (IncomeCashOperation incomeCashOperation) = country(departmentStore(incomeCashOperation));
 
-sumCash 'Сумма внесения' = DATA NUMERIC[16,2] (IncomeCashOperation) IN documentSum @@denomination;
+sumCash 'Сумма внесения' = DATA NUMERIC[18,4] (IncomeCashOperation) IN documentSum @@denomination;
 basis 'Основание' (IncomeCashOperation incomeCashOperation) =
     'Внесение денег №' + seriesNumber(incomeCashOperation) + ' с кассы ' + numberCashRegister(incomeCashOperation) + ' от ' + date(incomeCashOperation) IN documentPrm;
 
@@ -206,7 +206,7 @@ addressStock 'Адрес (Отдел магазина)' (OutcomeCashOperation ou
 
 country (OutcomeCashOperation outcomeCashOperation) = country(departmentStore(outcomeCashOperation));
                 
-sumCash 'Сумма изъятия' = DATA NUMERIC[16,2] (OutcomeCashOperation) IN documentSum @@denomination;
+sumCash 'Сумма изъятия' = DATA NUMERIC[18,4] (OutcomeCashOperation) IN documentSum @@denomination;
 basis 'Основание' (OutcomeCashOperation outcomeCashOperation) =
     'Изъятие денег №' + seriesNumber(outcomeCashOperation) + ' с кассы ' + numberCashRegister(outcomeCashOperation) + ' от ' + date(outcomeCashOperation) IN documentPrm;
 
@@ -240,7 +240,7 @@ cashRegister[CashOperation](OutcomeCashOperation outcomeCashOperation) += cashRe
 
 //------------------------------ Формы ---------------------------------------------------------------------------//
 
-sumCashForIncomeOperation 'Сумма внесения денег' = DATA LOCAL NUMERIC[16,2] (CashRegister);
+sumCashForIncomeOperation 'Сумма внесения денег' = DATA LOCAL NUMERIC[18,4] (CashRegister);
 doNotFiscalisation 'Не фискализировать' = DATA LOCAL BOOLEAN (CashRegister);
 
 FORM addIncomeCashOperation 'Внесение денег'
@@ -341,7 +341,7 @@ addIncomeCashOperationForm 'Внесение денег' () = ACTION NEWSESSION 
 
 edit 'Редактировать' (incomeCashOperation) = ACTION EDITFORM IncomeCashOperation;
 
-sumCashForOutcomeOperation 'Сумма изъятия денег' = DATA LOCAL NUMERIC[16,2] (CashRegister);
+sumCashForOutcomeOperation 'Сумма изъятия денег' = DATA LOCAL NUMERIC[18,4] (CashRegister);
 
 FORM addOutcomeCashOperation 'Изъятие денег'
 

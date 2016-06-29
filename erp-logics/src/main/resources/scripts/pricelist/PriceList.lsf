@@ -288,7 +288,7 @@ currentPrice 'Действующая цена' (UserPriceListDetail priceListDet
         prevPriceA(priceListType, sku(priceListDetail), stock, fromDateTime(priceListDetail));
 
 // Рассчитываем цены для строк
-viewPrice 'Цена' = DATA LOCAL NUMERIC[14,2] (UserPriceListDetail, PriceListType);
+viewPrice 'Цена' = DATA LOCAL NUMERIC[16,4] (UserPriceListDetail, PriceListType);
 
 updateViewPriceDetail(UserPriceListDetail d, PriceListType t, Stock s) = ACTION {
     viewPrice(d, t) <- currentPrice(d, t, s);
@@ -661,7 +661,7 @@ WHEN SESSION FORMS userPriceList CHANGED(show(userPriceList(UserPriceListDetail 
 
 // Оптимизация с преподсчетом видов цен в сессионное свойство
 
-//viewCurrentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' = DATA LOCAL NUMERIC[14,2] (UserPriceListDetail, DataPriceListType, Stock);
+//viewCurrentPricePriceListDetailDataPriceListTypeStock 'Действующая цена' = DATA LOCAL NUMERIC[16,4] (UserPriceListDetail, DataPriceListType, Stock);
 //
 //currentUserPriceList = DATA LOCAL UserPriceList ();
 //setCurrentUserPriceList (u) = ACTION currentUserPriceList() <- u;
@@ -907,7 +907,7 @@ changeMarkUpChosenSku 'Изменить цену для отмеченных с�
                       BY userPriceList(priceListDetail)](userPriceList) THEN
             MESSAGE 'Выберите хотя бы одну позицию'
         ELSE {
-            LOCAL prev = NUMERIC[14,2] (UserPriceListDetail);
+            LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
             IF chosenObject('pt') != chosenObject('nt') AND in[UserPriceList,DataPriceListType](userPriceList, chosenObject('pt')) THEN {
                 prev(UserPriceListDetail detail) <- price[UserPriceListDetail,DataPriceListType](detail, chosenObject('pt'))
                                      WHERE userPriceList(detail) == userPriceList;
@@ -974,7 +974,7 @@ DESIGN userPriceList{
 changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = ACTION {
     FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
     IF formResult() == FormResult.ok THEN {
-        LOCAL prev = NUMERIC[14,2] (UserPriceListDetail);
+        LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
         IF chosenObject('pt') != chosenObject('nt') AND in[UserPriceList,DataPriceListType](userPriceList, chosenObject('pt')) THEN {
             prev(UserPriceListDetail detail) <- price[UserPriceListDetail,DataPriceListType](detail, chosenObject('pt'))
                                  WHERE userPriceList(detail) == userPriceList;

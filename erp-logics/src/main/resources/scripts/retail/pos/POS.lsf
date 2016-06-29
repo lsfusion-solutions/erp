@@ -17,7 +17,7 @@ EXTEND FORM zReports PROPERTIES(b) fiscalSkip;
 
 POSPriceListType (Receipt receipt) = OVERRIDE priceListType(groupCashRegister(receipt)), priceListType(discountCard(receipt));
 
-overPrice = ABSTRACT NUMERIC[14,2] (Sku, Receipt, DATETIME); 
+overPrice = ABSTRACT NUMERIC[16,4] (Sku, Receipt, DATETIME); 
 
 POSPrice 'Цена в кассе' (Sku sku, Receipt receipt, DATETIME dateTime) =
     IF usePriceList(groupCashRegister(receipt)) THEN
@@ -53,7 +53,7 @@ closedCurrentZReport() = NOT currentZReport();
 //posReturnSumDiscountCard 'Сумма возвратов' (discountCard) = GROUP SUM sumReceiptReturnDetail(d) IF NOT discountCardReceiptDetail(d) BY discountCardReceipt(receiptSaleReceiptReturnDetail(d)) PERSISTENT; 
 //cumulativeSumDiscountCard 'Накопленная сумма (основная)' (discountCard) = initialSumDiscountCard(discountCard) (+) posSumDiscountCard(discountCard) (-) posReturnSumDiscountCard(discountCard) PERSISTENT;
 //
-//externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+//externalSumDiscountCard 'Дополнительные накопления' (discountCard) = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT;
 //totalSumDiscountCard 'Накопленная сумма' (d) = cumulativeSumDiscountCard(d) (+) externalSumDiscountCard(d); 
 //
 //EXTEND FORM discountCards
@@ -104,7 +104,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
     promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
     discountSum(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
 
-//    LOCAL maxSalePriceSku = NUMERIC[14,2] (Sku);
+//    LOCAL maxSalePriceSku = NUMERIC[16,4] (Sku);
 //    maxSalePriceSku(sku) <- maxSalePriceReceiptSku(receipt, sku);
 
     FOR PromotionGroup promotionGroup IS PromotionGroup DO {
@@ -437,10 +437,10 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
 
 //Оплата бонусами
 
-toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[16,2] (Receipt);
+toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[18,4] (Receipt);
 
 changeToPayBonuses (Receipt r) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
+    REQUEST NUMERIC[18,4] INPUT;
     IF requestedNumeric() THEN {
         bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == r;
         CASE WHEN requestedNumeric() < 0.0 THEN 
@@ -1023,7 +1023,7 @@ currentZReportUseBonus() = currentZReport() AND useBonus();
 bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) <= totalBonuses(r));
 
 changeBonusPaid (ReceiptDetail d) = ACTION {
-    REQUEST NUMERIC[16,2] INPUT;
+    REQUEST NUMERIC[18,4] INPUT;
     IF requestedNumeric() THEN {
         CASE WHEN requestedNumeric() < 0.0 THEN 
                 MESSAGE 'Сумма бонусов не может быть отрицательной'

@@ -25,7 +25,7 @@ TABLE intervalReportDetail (IntervalReportDetail);
 
 //--
 
-sum 'Верхний порог суммы' = DATA NUMERIC[16,2] (IntervalReport) NOT NULL DELETE @@denomination;
+sum 'Верхний порог суммы' = DATA NUMERIC[18,4] (IntervalReport) NOT NULL DELETE @@denomination;
 
 @defineDocumentRelation (receiptReport, IntervalReport, '');
 
@@ -102,8 +102,8 @@ groupType (ReceiptReport o) <- SystemGroupType.skuGroupType WHEN SET(o IS Receip
 countBon 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
 countBonDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
 countSelectedBonDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReport) IN documentSum;
-sumBon 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum @@denomination;
-sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReport) IN documentSum @@denomination;
+sumBon 'Ср. сумма чека' = DATA NUMERIC[18,4] (ReceiptReport) IN documentSum @@denomination;
+sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[18,4] (ReceiptReport) IN documentSum @@denomination;
 
 store = DATA Store (ReceiptReportDetail);
 nameStore 'Магазин' (ReceiptReportDetail d) = name(store(d));
@@ -111,14 +111,14 @@ nameStore 'Магазин' (ReceiptReportDetail d) = name(store(d));
 countBon 'Кол-во чеков' = DATA NUMERIC[14,3] (ReceiptReportDetail);
 countBonDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
 countSelectedBonDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (ReceiptReportDetail);
-sumBon 'Ср. сумма чека' = DATA NUMERIC[16,2] (ReceiptReportDetail) @@denomination;
-sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (ReceiptReportDetail) @@denomination;
+sumBon 'Ср. сумма чека' = DATA NUMERIC[18,4] (ReceiptReportDetail) @@denomination;
+sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[18,4] (ReceiptReportDetail) @@denomination;
 
 countBon 'Кол-во чеков' = DATA NUMERIC[14,3] (IntervalReportDetail);
 countBonDetail 'Ср. кол-во позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
 countSelectedBonDetail 'Ср. кол-во выб. позиций в чеке' = DATA NUMERIC[14,3] (IntervalReportDetail);
-sumBon 'Ср. сумма чека' = DATA NUMERIC[16,2] (IntervalReportDetail) @@denomination;
-sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[16,2] (IntervalReportDetail) @@denomination;
+sumBon 'Ср. сумма чека' = DATA NUMERIC[18,4] (IntervalReportDetail) @@denomination;
+sumSelectedBonDetail 'Ср. сумма выб. позиций в чеке' = DATA NUMERIC[18,4] (IntervalReportDetail) @@denomination;
             
             
 in (ReceiptReport r, ReceiptDetail d) = 
@@ -175,8 +175,8 @@ fillData 'Заполнить данные'(ReceiptReport report) = ACTION {
     countBon(report) <- NUMERIC[14,3](calcCountBon(report));
     countBonDetail(report) <- NUMERIC[14,3](calcCountBonDetail(report) /(countBon(report)));        
     countSelectedBonDetail(report) <- NUMERIC[14,3](calcIn(report) /(countBon(report)));        
-    sumBon(report) <- NUMERIC[16,2](calcSumBonDetail(report)/(countBon(report)));        
-    sumSelectedBonDetail(report) <- NUMERIC[16,2](calcSumSelectedBonDetail(report)/(calcIn(report)));    
+    sumBon(report) <- NUMERIC[18,4](calcSumBonDetail(report)/(countBon(report)));        
+    sumSelectedBonDetail(report) <- NUMERIC[18,4](calcSumSelectedBonDetail(report)/(calcIn(report)));    
     
     
     FOR in(Store store,report) ADDOBJ d = ReceiptReportDetail DO {
@@ -186,8 +186,8 @@ fillData 'Заполнить данные'(ReceiptReport report) = ACTION {
         countBon(d) <- NUMERIC[14,3](countBon(store, report));
         countBonDetail(d) <- NUMERIC[14,3](countBonDetail(store, report) /(countBon(d)));
         countSelectedBonDetail(d) <- NUMERIC[14,3](in(report, store) /(countBon(d)));        
-        sumBon(d) <- NUMERIC[16,2](sumBonDetail(store, report)/(countBon(d)));
-        sumSelectedBonDetail(d) <- NUMERIC[16,2](sumSelectedBonDetail(store, report)/(in(report, store)));
+        sumBon(d) <- NUMERIC[18,4](sumBonDetail(store, report)/(countBon(d)));
+        sumSelectedBonDetail(d) <- NUMERIC[18,4](sumSelectedBonDetail(store, report)/(in(report, store)));
         
         FOR receiptReport(IntervalReport interval) == report ADDOBJ dd = IntervalReportDetail DO {
             intervalReport(dd) <- interval;
@@ -197,8 +197,8 @@ fillData 'Заполнить данные'(ReceiptReport report) = ACTION {
             countBon(dd) <- NUMERIC[14,3](countBon(store, report, interval));
             countBonDetail(dd) <- NUMERIC[14,3](countBonDetail(store, report, interval) /(countBon(dd)));
             countSelectedBonDetail(dd) <- NUMERIC[14,3](in(report, store,interval) /(countBon(dd)));        
-            sumBon(dd) <- NUMERIC[16,2](sumBonDetail(store, report, interval)/(countBon(dd)));
-            sumSelectedBonDetail(dd) <- NUMERIC[16,2](sumSelectedBonDetail(store, report,interval)/(in(report, store,interval)));            
+            sumBon(dd) <- NUMERIC[18,4](sumBonDetail(store, report, interval)/(countBon(dd)));
+            sumSelectedBonDetail(dd) <- NUMERIC[18,4](sumSelectedBonDetail(store, report,interval)/(in(report, store,interval)));            
             
         }        
     }        

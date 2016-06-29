@@ -202,7 +202,7 @@ sumItem (Output ledger) += sumItemOutputDetail(ledger);
 sumContainer (Output ledger) += sumContainerOutputDetail(ledger);
 
 // Проводим по регистру
-overCostPrice = ABSTRACT NUMERIC[14,2] (OutputDetail);
+overCostPrice = ABSTRACT NUMERIC[16,4] (OutputDetail);
 costPrice(OutputDetail d) = OVERRIDE price(d), overCostPrice(d);
 
 @implementBatch(OutputDetail, sku, stock, costPrice);
@@ -230,10 +230,10 @@ name(OutputDetail batch) += VARISTRING[200](CONCAT '', STRING[10](date(batch)), 
 @defineDocumentDetailQuantityCustomPrefix (productDetail, output, '(произведено)');
 outputQuantity(ProductDetail detail) <- quantity(detail) WHEN CHANGED(quantity(detail));
 
-outputProductsSum 'Сумма произведенного изделия' = DATA NUMERIC[16,2] (ProductDetail) @@denomination;
+outputProductsSum 'Сумма произведенного изделия' = DATA NUMERIC[18,4] (ProductDetail) @@denomination;
 
-calcOutputSum = ABSTRACT OVERRIDE FIRST NUMERIC[16,2] (ProductDetail);
-calcOutputSum(ProductDetail productDetail) += NUMERIC[16,2](round((outputQuantity(productDetail) * price(productDetail)), currency(productDetail))); 
+calcOutputSum = ABSTRACT OVERRIDE FIRST NUMERIC[18,4] (ProductDetail);
+calcOutputSum(ProductDetail productDetail) += NUMERIC[18,4](round((outputQuantity(productDetail) * price(productDetail)), currency(productDetail))); 
 outputProductsSum(ProductDetail productDetail) <-
     calcOutputSum(productDetail)
     WHEN CHANGED (outputQuantity(productDetail)) OR

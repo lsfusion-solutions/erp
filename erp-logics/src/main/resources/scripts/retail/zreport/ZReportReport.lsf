@@ -63,7 +63,7 @@ countReceiptDetail (zReport) = GROUP SUM countReceiptDetail(Receipt receipt) BY 
 countReceiptDetail 'Кол-во позиций чеков в магазине за период' (departmentStore, date) =
     GROUP SUM countReceiptDetail(ZReport zReport) IF isPosted(zReport) BY departmentStore(zReport), date(zReport);
 averageCountReceiptDetail 'Среднее кол-во позиций в чеке в магазине за париод' (DepartmentStore departmentStore, DATE date) = 
-    NUMERIC[14,2](countReceiptDetail(departmentStore, date)) / NUMERIC[14,2](countReceipt(departmentStore, date));
+    NUMERIC[16,4](countReceiptDetail(departmentStore, date)) / NUMERIC[16,4](countReceipt(departmentStore, date));
     
 countReceipt (Stock stock)= name(stock) + ' (кол-во чеков)';        
 averageSumReceipt (Stock stock)= name(stock) + ' (cредняя сумма чека)';        
@@ -84,7 +84,7 @@ countFiscalReceiptStocks 'Кол-во фискальных чеков за де�
 averageSumReceiptStocks 'Средняя сумма чека в магазине за день' (DATE date) =     sumReceiptDetailZReportStocks(date) / countReceiptStocks(date);    
 countReceiptDetailStocks 'Кол-во позиций чеков в магазине за период' = GROUP SUM countReceiptDetail(DepartmentStore st,DATE dt) IF inReport(st) BY dt;
 sumReceiptDetailZReport 'Сумма Z-отчета' = GROUP SUM sumReceiptDetailZReport(DepartmentStore st,DATE dt) IF inReport(st) BY dt;
-averageCountReceiptDetailStocks 'Среднее кол-во позиций в чеке в магазине за париод' (DATE date) =  NUMERIC[14,2](countReceiptDetailStocks(date)) / NUMERIC[14,2](countReceiptStocks(date));
+averageCountReceiptDetailStocks 'Среднее кол-во позиций в чеке в магазине за париод' (DATE date) =  NUMERIC[16,4](countReceiptDetailStocks(date)) / NUMERIC[16,4](countReceiptStocks(date));
 
 allStocks 'Только итоги' = DATA LOCAL BOOLEAN ();
 showProperty = DepartmentStore ds IS DepartmentStore AND NOT allStocks();
@@ -223,14 +223,14 @@ NAVIGATOR {
     }
 }
 
-divider 'Диапозон суммы'  = DATA LOCAL NUMERIC[16,2] ();
+divider 'Диапозон суммы'  = DATA LOCAL NUMERIC[18,4] ();
 
 divider 'Диапозон суммы' (Receipt r)  = INTEGER (sumReceiptDetail(r) / divider())*divider();
 
-filterReceiptSumFrom 'Сумма с' = DATA LOCAL NUMERIC[16,2] ();
+filterReceiptSumFrom 'Сумма с' = DATA LOCAL NUMERIC[18,4] ();
 filterSumFrom (Receipt r) = sumReceiptDetail(r) >= filterReceiptSumFrom() OR (r IS Receipt AND NOT filterReceiptSumFrom());   
 
-filterReceiptSumTo 'Сумма по' = DATA LOCAL NUMERIC[16,2] ();
+filterReceiptSumTo 'Сумма по' = DATA LOCAL NUMERIC[18,4] ();
 filterSumTo (Receipt r) = sumReceiptDetail(r) <= filterReceiptSumTo() OR (r IS Receipt AND NOT filterReceiptSumTo());   
 
 FORM receiptListPeriod 'Реестр чеков'

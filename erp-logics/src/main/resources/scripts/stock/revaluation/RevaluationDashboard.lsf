@@ -34,15 +34,15 @@ createManagementRevaluation 'Создать переоценку'(NUMERIC[8,2] n
                 batch(rd) <- batch;
                 quantity(rd) <- balanceB(batch,stock,time);
                 manufacturingMarkup(rd) <- manufacturingMarkupInvoiceDetail(batch);
-                manufacturingPrice(rd) <- NUMERIC[14,2](calcManufacturingPrice(rd));
-                price(rd) <-NUMERIC[14,2](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup[RevaluationDetail](rd))/100,2));
+                manufacturingPrice(rd) <- NUMERIC[16,4](calcManufacturingPrice(rd));
+                price(rd) <-NUMERIC[16,4](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup[RevaluationDetail](rd))/100,2));
         }
         FORM userRevaluation  OBJECTS p = r MANAGESESSION DOCKEDMODAL NOCANCEL;
     }
 };
 
 WHEN SESSION FORMS userRevaluation CHANGED(calcBaseManufacturingPrice(RevaluationDetail rd)) DO {
-    price[UserRevaluationDetail](rd) <-NUMERIC[14,2](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup(rd))/100,2));
+    price[UserRevaluationDetail](rd) <-NUMERIC[16,4](Utils.round(calcBaseManufacturingPrice (rd) * (100.0 (+) manufacturingMarkup(rd))/100,2));
 }
 
 FORM revaluationDashboard 'Переоценка за счет изменения курса'  

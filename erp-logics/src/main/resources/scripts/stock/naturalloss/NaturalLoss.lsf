@@ -293,7 +293,7 @@ quantitySaleDepartment 'Продано' (sku, stock, dateFrom, dateTo, subNatura
               AND subNaturalLossGroup(country(stock(ledger)), sku(ledger)) == subNaturalLossGroup(subNaturalLossGroupDetail)
               BY sku(ledger), stock(ledger), dateFrom, dateTo, subNaturalLossGroupDetail, price(ledger);              
 
-sum 'Сумма' (naturalLossDetail) = DATA NUMERIC[16,2] (NaturalLossDetail) @@denomination;
+sum 'Сумма' (naturalLossDetail) = DATA NUMERIC[18,4] (NaturalLossDetail) @@denomination;
 sum (NaturalLossDetail naturalLossDetail) <- price(naturalLossDetail) * quantity(naturalLossDetail)
     WHEN CHANGED(price(naturalLossDetail)) OR
          CHANGED(quantity(naturalLossDetail));
@@ -315,7 +315,7 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
                                                     dateFrom(naturalLoss),
                                                     dateTo(naturalLoss),
                                                     SubNaturalLossGroupDetail subNaturalLossGroupDetail,
-                                                    NUMERIC[14,2] price) > 0 ORDER name(sku), subNaturalLossGroupDetail
+                                                    NUMERIC[16,4] price) > 0 ORDER name(sku), subNaturalLossGroupDetail
           DO {
           FOR ADDOBJ d = NaturalLossDetail DO {
               naturalLoss(d) <- naturalLoss;
@@ -331,7 +331,7 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
               subNaturalDetail(d) <- subNaturalLossGroupDetail;
               percent(d) <- percent(subNaturalLossGroupDetail);
               quantity (d) <- percent(d) * quantityLoss(d) /100;
-              price(d) <- NUMERIC[14,2](price);
+              price(d) <- NUMERIC[16,4](price);
               sum (d) <- price(d) * quantity(d);
           }
     }

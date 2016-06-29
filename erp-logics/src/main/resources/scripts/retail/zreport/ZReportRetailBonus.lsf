@@ -4,35 +4,35 @@ REQUIRE ZReportDiscountCard, RetailBonus, ZReportSkuLedger, PricingZReport;
 
 NAMESPACE ZReport;
 
-bonusSum 'Начислено бонусов' = DATA NUMERIC[16,2] (ReceiptSaleDetail) @@denomination;
-bonusSum 'Начислено бонусов' = DATA NUMERIC[16,2] (ReceiptReturnDetail) @@denomination;
+bonusSum 'Начислено бонусов' = DATA NUMERIC[18,4] (ReceiptSaleDetail) @@denomination;
+bonusSum 'Начислено бонусов' = DATA NUMERIC[18,4] (ReceiptReturnDetail) @@denomination;
 
-bonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) @@denomination;
+bonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) @@denomination;
 bonusSum(ReceiptSaleDetail d) += bonusSum(d);
 bonusSum(ReceiptReturnDetail d) += bonusSum(d);
 
 bonusSum 'Начислено бонусов' (Receipt r) = GROUP SUM bonusSum(ReceiptDetail d) BY receipt(d);
 
-signedBonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT;
+signedBonusSum 'Начислено бонусов' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT;
 signedBonusSum(ReceiptSaleDetail d) += bonusSum(d);
 signedBonusSum(ReceiptReturnDetail d) += -bonusSum(d);
 
 signedBonusSum 'Начислено бонусов' (Receipt r) = GROUP SUM signedBonusSum(ReceiptDetail d) BY receipt(d);
 
-bonusPaid 'Оплачено бонусами' = DATA NUMERIC[16,2] (ReceiptSaleDetail) @@denomination;
-bonusPaid 'Оплачено бонусами' = DATA NUMERIC[16,2] (ReceiptReturnDetail) @@denomination;
+bonusPaid 'Оплачено бонусами' = DATA NUMERIC[18,4] (ReceiptSaleDetail) @@denomination;
+bonusPaid 'Оплачено бонусами' = DATA NUMERIC[18,4] (ReceiptReturnDetail) @@denomination;
 
 extraSum(ReceiptSaleDetail detail) += bonusPaid(detail);
 extraSum(ReceiptReturnDetail detail) += bonusPaid(detail);
 
-bonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[16,2] (ReceiptDetail);
+bonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[18,4] (ReceiptDetail);
 bonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 bonusPaid(ReceiptReturnDetail d) += bonusPaid(d);
 extraDiscountSum(ReceiptSaleDetail d) += bonusPaid(d);
 
 bonusPaid 'Оплачено бонусами' (Receipt r) = GROUP SUM bonusPaid(ReceiptDetail d) BY receipt(d);
 
-signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[16,2] (ReceiptDetail) PERSISTENT @@denomination;
+signedBonusPaid 'Оплачено бонусами' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
 signedBonusPaid(ReceiptSaleDetail d) += bonusPaid(d);
 signedBonusPaid(ReceiptReturnDetail d) += -bonusPaid(d);
 
@@ -72,14 +72,14 @@ cumulativeBonuses 'Накоплено бонусов' (DiscountCard dc) = GROUP 
 returnBonusSum = GROUP SUM bonusSum(ReceiptReturnDetail rrd) BY receiptSaleDetail(rrd) PERSISTENT;
 blockedBonuses 'Заблокировано бонусов' (DiscountCard dc) = 
     GROUP SUM (bonusSum(ReceiptSaleDetail rsd) (-) returnBonusSum(rsd)) IF date(rsd) > subtract(currentDate(), blockDaysBonus()) BY discountCard(rsd);
-externalBlockedBonuses 'Дополнительные заблокированные бонусы' = ABSTRACT NUMERIC[16,2] (DiscountCard);  
+externalBlockedBonuses 'Дополнительные заблокированные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard);  
 totalBlockedBonuses 'Всего заблокировано бонусов' (DiscountCard dc)= blockedBonuses(dc) (+) externalBlockedBonuses(dc);
 
 paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
 
 availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
 
-externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[16,2] (DiscountCard) PERSISTENT;
+externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT;
 totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d);
 prevTotalBonuses 'Доступно бонусов' (DiscountCard d) = PREV(totalBonuses(d));
 

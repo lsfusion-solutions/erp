@@ -17,16 +17,16 @@ countReceiptSaleDetail (department, sku, date, price) = GROUP SUM 1 IF isPosted(
     BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 
 VATReceiptSaleDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
-WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[14,2] price)) DO {
+WHEN SET(quantityReceiptSaleDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[16,4] price)) DO {
     VATReceiptSaleDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
 
 departmentStore = DATA DepartmentStore (ReceiptSaleSkuLedger) INDEXED;
 sku = DATA Sku (ReceiptSaleSkuLedger);
 date = DATA DATE (ReceiptSaleSkuLedger);
-price = DATA NUMERIC[14,2] (ReceiptSaleSkuLedger) @@denomination;
+price = DATA NUMERIC[16,4] (ReceiptSaleSkuLedger) @@denomination;
 
-@defineAggregationCustom(departmentStoreReceiptSaleSkuLedger, skuReceiptSaleSkuLedger, dateReceiptSaleSkuLedger, priceReceiptSaleSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
+@defineAggregationCustom(departmentStoreReceiptSaleSkuLedger, skuReceiptSaleSkuLedger, dateReceiptSaleSkuLedger, priceReceiptSaleSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[16,4], receiptSaleSkuLedger, ReceiptSaleSkuLedger, countReceiptSaleDetail);
 
 INDEX sku(ReceiptSaleSkuLedger o), departmentStore(o);
 INDEX price(ReceiptSaleSkuLedger o), departmentStore(o), date(o);
@@ -43,7 +43,7 @@ skip[SkuLedger] (ReceiptSaleSkuLedger ledger) += date(ledger) < startDateGroupCa
                            skuType(sku(ledger)) == SkuType.skuTypeCharge;
 
 quantity[OutFIFOSkuLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
-sum[OutSkuLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[16,2](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger))
+sum[OutSkuLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger))
     (+) discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 
 //---------------------- SaleLedger ----------------//
@@ -58,10 +58,10 @@ description[SaleLedger] (ReceiptSaleSkuLedger ledger) += VARSTRING[200]('Про�
 cost(ReceiptSaleSkuLedger ledger, Batch batch) +=  cost[SkuLedger,Batch](ledger, batch) IF ledger IS ReceiptSaleSkuLedger;
 quantity[SaleLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 VAT (ReceiptSaleSkuLedger ledger) += VATReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger));
-sum[SaleLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[16,2](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
+sum[SaleLedger] (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 price (ReceiptSaleSkuLedger ledger) += price(ledger);
 
-discountSum (ReceiptSaleSkuLedger ledger) += NUMERIC[16,2](discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
+discountSum (ReceiptSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSaleDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 
 costSum (ReceiptSaleSkuLedger ledger) += WHEN ledger IS ReceiptSaleSkuLedger THEN costSum[SkuLedger](ledger);
 
@@ -80,16 +80,16 @@ countReceiptReturnDetail  (department, sku, date, price) = GROUP SUM 1 IF isPost
     BY departmentStore(d), sku(d), dateZReport(d), NUMERIC[18,6](price(d)) PERSISTENT;
 
 VATReceiptReturnDetail = DATA Range (DepartmentStore, Sku, DATE, NUMERIC[18,6]);
-WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[14,2] price)) DO {
+WHEN SET(quantityReceiptReturnDetail(DepartmentStore department, Sku sku, DATE date, NUMERIC[16,4] price)) DO {
     VATReceiptReturnDetail (department, sku, date, price) <- VAT (sku, country(department));
 }
 
 departmentStore = DATA DepartmentStore (ReceiptReturnSkuLedger) INDEXED;
 sku = DATA Sku (ReceiptReturnSkuLedger);
 date = DATA DATE (ReceiptReturnSkuLedger);
-price = DATA NUMERIC[14,2] (ReceiptReturnSkuLedger) @@denomination;
+price = DATA NUMERIC[16,4] (ReceiptReturnSkuLedger) @@denomination;
 
-@defineAggregationCustom(departmentStoreReceiptReturnSkuLedger, skuReceiptReturnSkuLedger, dateReceiptReturnSkuLedger, priceReceiptReturnSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[14,2], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);
+@defineAggregationCustom(departmentStoreReceiptReturnSkuLedger, skuReceiptReturnSkuLedger, dateReceiptReturnSkuLedger, priceReceiptReturnSkuLedger, departmentStore, DepartmentStore, sku, Sku, date, DATE, price, NUMERIC[16,4], receiptReturnSkuLedger, ReceiptReturnSkuLedger, countReceiptReturnDetail);
 
 INDEX sku(ReceiptReturnSkuLedger o), departmentStore(o);
 INDEX price(ReceiptReturnSkuLedger o), departmentStore(o), date(o);
@@ -105,7 +105,7 @@ description[DataSkuLedger] (ReceiptReturnSkuLedger ledger) += VARSTRING[200]('В
 skip[SkuLedger] (ReceiptReturnSkuLedger ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
 
 quantity[InLIFOSkuLedger] (ReceiptReturnSkuLedger ledger) += NUMERIC[14,3](quantityReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
-sum[InSkuLedger] (ReceiptReturnSkuLedger ledger) += NUMERIC[16,2](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger))
+sum[InSkuLedger] (ReceiptReturnSkuLedger ledger) += NUMERIC[18,4](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger))
     (+) discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 
 //---------------------- SaleLedger ----------------//
@@ -121,8 +121,8 @@ cost(ReceiptReturnSkuLedger ledger, Batch batch) += -cost[SkuLedger,Batch](ledge
 quantity[SaleLedger] (ReceiptReturnSkuLedger ledger) += -NUMERIC[14,3](quantityReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 VAT (ReceiptReturnSkuLedger ledger) += VATReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger));
 price (ReceiptReturnSkuLedger ledger) += price(ledger);
-sum[SaleLedger] (ReceiptReturnSkuLedger ledger) += -NUMERIC[16,2](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
-discountSum (ReceiptReturnSkuLedger ledger) += -NUMERIC[16,2](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
+sum[SaleLedger] (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](sumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
+discountSum (ReceiptReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(departmentStore(ledger), sku(ledger), date(ledger), price(ledger)));
 costSum (ReceiptReturnSkuLedger ledger) += WHEN ledger IS ReceiptReturnSkuLedger THEN -costSum[SkuLedger](ledger);
 
 isReceiptDetail (SaleLedger d) = d IS ReceiptSaleSkuLedger OR d IS ReceiptReturnSkuLedger;

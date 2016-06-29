@@ -69,8 +69,8 @@ sumSold 'Сумма продажи валюта' (TypeExchange typeExchange, Sal
 
 CONSTRAINT quantity(SaleLedger l) == 0 AND active(l) MESSAGE 'ошибка: Количество продажи не должно быть равно нулю';
 
-averagePrice 'Цена продажи (средняя)' (SaleLedger saleLedger) = NUMERIC[14,2](sum(saleLedger) / quantity(saleLedger));
-averageDiscountPrice 'Цена продажи (средняя) полная' (SaleLedger saleLedger) = NUMERIC[14,2]((sum(saleLedger) (+) discountSum(saleLedger))/quantity(saleLedger));
+averagePrice 'Цена продажи (средняя)' (SaleLedger saleLedger) = NUMERIC[16,4](sum(saleLedger) / quantity(saleLedger));
+averageDiscountPrice 'Цена продажи (средняя) полная' (SaleLedger saleLedger) = NUMERIC[16,4]((sum(saleLedger) (+) discountSum(saleLedger))/quantity(saleLedger));
 
 averagePriceSold 'Цена продажи (валюта)' (TypeExchange typeExchange, SaleLedger saleLedger)= averagePrice (saleLedger)*
     rateOn(typeExchange, currency(stock(saleLedger)), date(saleLedger));
@@ -78,7 +78,7 @@ averagePriceSold 'Цена продажи (валюта)' (TypeExchange typeExch
 VAT (ledger) = ABSTRACT Range (SaleLedger) PERSISTENT;
 valueVAT 'НДС, %' (SaleLedger ledger) = valueRate(VAT(ledger), date(ledger)) PERSISTENT;
 
-sumVAT 'Сумма НДС' (SaleLedger ledger) = NUMERIC[16,2]([= X*Y/(100+Y)](
+sumVAT 'Сумма НДС' (SaleLedger ledger) = NUMERIC[18,4]([= X*Y/(100+Y)](
         sum(ledger), valueVAT(ledger)));
 
 markupSum 'Надбавка' (SaleLedger ledger) = sum(ledger) (-) sumVAT(ledger) (-) costSum(ledger);
@@ -182,10 +182,10 @@ cost 'Расписано из партии' = ABSTRACT NUMERIC[16,5] (SaleLedger
 coeff 'Удельный вес' (SaleLedger ledger, Batch batch) =
     NUMERIC[22,8](cost(ledger, batch) / quantity(ledger));
 
-sum 'Сумма продажи' (SaleLedger ledger, Batch batch) = NUMERIC[16,2](sum(ledger) * coeff(ledger, batch));
-costSum 'Себестоимость' (SaleLedger ledger, Batch batch) = NUMERIC[16,2](cost(ledger, batch) * cost(batch));
-sumVAT 'Сумма НДС' (SaleLedger s,Batch b) = NUMERIC[16,2](sum(s,b) * valueVAT(b) / (100 + valueVAT(b)));
-markupSum 'Надбавка' (SaleLedger ledger, Batch batch) = NUMERIC[16,2](sum(ledger, batch) - sumVAT(ledger, batch) - costSum(ledger, batch));
+sum 'Сумма продажи' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](sum(ledger) * coeff(ledger, batch));
+costSum 'Себестоимость' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](cost(ledger, batch) * cost(batch));
+sumVAT 'Сумма НДС' (SaleLedger s,Batch b) = NUMERIC[18,4](sum(s,b) * valueVAT(b) / (100 + valueVAT(b)));
+markupSum 'Надбавка' (SaleLedger ledger, Batch batch) = NUMERIC[18,4](sum(ledger, batch) - sumVAT(ledger, batch) - costSum(ledger, batch));
 
 //по складу и Batch на дату
 quantitySold (batch, stock, date) = GROUP SUM cost(SaleLedger ledger, Batch batch) IF active(ledger)

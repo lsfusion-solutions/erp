@@ -11,8 +11,8 @@ percReturnDiscount '% отпускной цены поставщика при в
 
 @defineDocumentInterfaceProperty (invoice, showPercReturnDiscount, '% отпускной цены поставщика при возврате');
 
-percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[14,2] (InvoiceDetail) PERSISTENT;
-percReturnDiscountPrice '% отпускной цены поставщика при возврате' = DATA NUMERIC[14,2] (UserInvoiceDetail);
+percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
+percReturnDiscountPrice '% отпускной цены поставщика при возврате' = DATA NUMERIC[16,4] (UserInvoiceDetail);
 percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
 
 //percReturnDiscountPrice (UserInvoiceDetail d) <- percReturnDiscount(contractSku(d), sku(d))
@@ -23,9 +23,9 @@ percReturnDiscountPrice (UserInvoiceDetail d) += percReturnDiscountPrice(d);
 @defineDocumentInterfaceDetailPricePrefix (invoice, full, ' (полная)');
 
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND sku(d) AND showPercReturnDiscount(d) THEN  
-                                                     round(NUMERIC[14,2](prevPriceB(t,sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
+                                                     round(NUMERIC[16,4](prevPriceB(t,sku(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
 prevList (PriceListType t, UserInvoiceDetail d) += WHEN t IS PriceListType AND percReturnDiscountPrice(d) AND batch(d) AND showPercReturnDiscount(d) THEN  
-                                                     round(NUMERIC[14,2](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
+                                                     round(NUMERIC[16,4](prevPriceB(t,batch(d),customerStock(d),dateTime(d)) * (percReturnDiscountPrice(d)) / 100.0), defaultRoundCondition(currency(d)));
                                                     
 WHEN SESSION FORMS userInvoice GOAFTER valueVAT[UserInvoiceDetail] // цены берем на начало сессии, а не этого event'а
         (((CHANGED(customerStock(UserInvoiceDetail d)) OR
@@ -57,7 +57,7 @@ changePercReturnDiscountPrice (UserInvoiceDetail d) = ACTION {
     REQUEST NUMERIC[8,3] INPUT;
     IF requestedNumeric() THEN { 
         percReturnDiscountPrice (d) <- requestedNumeric();        
-        price(d) <- round(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
+        price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
         invoicePrice(d) <- prevListPVAT (priceListType(d), d);
     } ELSE {
         percReturnDiscountPrice(d) <- NULL;
@@ -66,10 +66,10 @@ changePercReturnDiscountPrice (UserInvoiceDetail d) = ACTION {
 }
 
 changeFullPrice (UserInvoiceDetail d) = ACTION {
-    REQUEST NUMERIC[14,2] INPUT;
+    REQUEST NUMERIC[16,4] INPUT;
     IF requestedNumeric() THEN { 
         fullPrice (d) <- requestedNumeric();        
-        price(d) <- round(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE percReturnDiscountPrice(d); 
+        price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE percReturnDiscountPrice(d); 
         invoicePrice(d) <- prevListPVAT (priceListType(d), d);
     } ELSE {
         fullPrice(d) <- NULL;
@@ -81,7 +81,7 @@ WHEN SESSION FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CH
                                                 OR (SET(showPercReturnDiscount(userInvoice(d)))) DO {
     IF NOT PREV(percReturnDiscountPrice (d)) THEN 
         percReturnDiscountPrice (d) <- percReturnDiscount(contractSku(d), sku(d));                                               
-    price(d) <- round(NUMERIC[14,2](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
+    price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
     invoicePrice(d) <- prevListPVAT (priceListType(d), d);    
 }
 
