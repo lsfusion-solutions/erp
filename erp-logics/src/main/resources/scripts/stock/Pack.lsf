@@ -64,6 +64,9 @@ END
 
 META defineDocumentPack(object, detail, f)
 
+    skipChangePackQuantity = ABSTRACT CASE BOOLEAN (User###object###Detail);
+    skipChangeQuantity = ABSTRACT CASE BOOLEAN (User###object###Detail);
+
     // Объявляем галочку по, которой будут показываться колонки с упаковкой
     @defineDocumentInterfaceProperty (object, showPack, 'Упаковка');
 
@@ -83,14 +86,18 @@ META defineDocumentPack(object, detail, f)
     changeAmountPackUser(###detail detail) = ACTION {
         REQUEST NUMERIC[14,3] INPUT;
         ASSIGN amountPack[User###detail](detail) <- requestedNumeric();
-        ASSIGN quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
+        IF NOT skipChangeQuantity(detail) THEN {
+            ASSIGN quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
+        }        
         EXEC overChangeAmountPackUser(detail);
     }
 
     changePackQuantity(User###detail detail) = ACTION {
         REQUEST NUMERIC[14,3] INPUT;
         ASSIGN packQuantity(detail) <- requestedNumeric();
-        ASSIGN quantity(detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail));
+        IF NOT skipChangeQuantity(detail) THEN {
+            ASSIGN quantity(detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail));
+        }        
     }
 
     // Расширяем формы
@@ -128,7 +135,8 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
         IF detail###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
                 ASSIGN packQuantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
-                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail###stockProp(sku, object, stock);
+                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
+                                        WHERE detail == detail###stockProp(sku, object, stock) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
             } ELSE {
                 FOR detail###stockProp(sku, object, stock) == ###detail d DO
                     DELETE d;
@@ -154,7 +162,8 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
         IF detail###stockProp(sku, object, stock) THEN {
             IF requestedNumeric() THEN {
                 ASSIGN amountPack(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
-                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail###stockProp(sku, object, stock) AND packQuantity(detail);
+                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
+                                        WHERE detail == detail###stockProp(sku, object, stock) AND packQuantity(detail) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
             } ELSE {
                 ASSIGN amountPack(###detail detail) <- NULL WHERE detail == detail###stockProp(sku, object, stock);
             }
@@ -194,7 +203,8 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
         IF detail(sku, object) THEN {
             IF requestedNumeric() THEN {
                 packQuantity(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
-                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object);
+                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND NOT skipChangeQuantity(detail(sku, object));
+                                
             } ELSE {
                 FOR detail(sku, object) == ###detail d DO 
                     DELETE d;
@@ -214,7 +224,7 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
         IF detail(sku, object) THEN {
             IF requestedNumeric() THEN {
                 amountPack(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
-                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND packQuantity(detail);
+                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND packQuantity(detail) AND NOT skipChangeQuantity(detail(sku, object));
             } ELSE {
                 amountPack(###detail detail) <- NULL WHERE detail == detail(sku, object);
             }

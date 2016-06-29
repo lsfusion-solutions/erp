@@ -85,6 +85,9 @@ CONSTRAINT filterInvoiceCustomer() AND filterInvoiceCustomerStock() AND NOT in(f
 
 //------------------------------ Ввод в упаковках -----------------------------//
 
+//skipChangePackQuantity = ABSTRACT CASE BOOLEAN (Sku, UserInvoice);
+//skipChangeQuantity = ABSTRACT CASE BOOLEAN (Sku, UserInvoice);
+
 @defineDocumentPack(invoice, i);
 packQuantity[Invoice.InvoiceDetail](InvoiceDetail detail) += packQuantity(detail);
 DESIGN userInvoice {
@@ -102,7 +105,7 @@ DESIGN userInvoice {
 @extendFormDocumentPackSku(userInvoice, userInvoice, i);
 
 overChangeQuantityValueSku(UserInvoiceDetail detail) += ACTION {
-    IF packBarcode(sku(detail)) THEN {
+    IF packBarcode(sku(detail)) AND NOT skipChangePackQuantity(detail) THEN {
         ASSIGN packQuantity(detail) <- quantity(detail)/amountPack(detail);
     }
 }
