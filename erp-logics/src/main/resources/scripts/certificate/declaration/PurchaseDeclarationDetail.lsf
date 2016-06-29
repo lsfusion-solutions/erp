@@ -264,10 +264,39 @@ showDeclaration 'Таможенные платежи' = ABSTRACT BOOLEAN(Invoice
 showDeclaration 'Таможенные платежи' = DATA BOOLEAN(UserInvoice) IN documentPrm;
 showDeclaration(UserInvoice invoice) += showDeclaration(invoice);
 
+allowedChangeCustomsGroup 'Разрешено менять ТН ВЭД в карточке товара из формы Накладная (закупка)' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () allowedChangeCustomsGroup 
+;
+DESIGN options {
+    customs {
+        MOVE PROPERTY(allowedChangeCustomsGroup()); 
+    }    
+}
+
+changeCustomsGroup (UserInvoiceDetail d) = ACTION {
+    REQUEST OBJECT cg
+    IF customsGroup(d) THEN {            
+        FORM customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d), cg = customsGroup(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
+    } ELSE {
+        FORM customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
+    }
+    IF formResult() == FormResult.ok THEN {
+        customsGroup(d) <- requestedObject();
+        customsGroup(Country country, Sku sku) <- requestedObject() WHERE country == country(d) AND sku == sku(d) AND allowedChangeCustomsGroup();
+        
+    } ELSE IF formResult() == FormResult.drop THEN {
+        customsGroup(d) <- NULL;
+        customsGroup(Country country, Sku sku) <- NULL WHERE country == country(d) AND sku == sku(d) AND allowedChangeCustomsGroup();
+    }     
+}
+
+
+
 EXTEND FORM userInvoice
     PROPERTIES(i) BACKGROUND backgroundCustoms() showDeclaration
     PROPERTIES(d) BACKGROUND backgroundCustoms() SHOWIF showDeclaration(i) BEFORE numberVAT(d)
-        codeCustomsGroup, nameVATCustomsException, 
+        codeCustomsGroup ON CHANGE changeCustomsGroup(d), nameVATCustomsException, 
         dutyPrice, dutySum, registrationPrice, registrationSum, VATPrice, customsVATSum
 ;
 DESIGN userInvoice {
