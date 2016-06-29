@@ -94,6 +94,9 @@ wholesaleMarkupPharmacy 'Оптовая надбавка' (Batch batch, NUMERIC[
 retailMarkupPharmacy 'Розничная надбавка' (Sku sku, NUMERIC[14,2] price, DATE date) =  retailMarkupPharmacy(pharmacyPriceGroup(sku), price, date);
 retailMarkupPharmacy 'Розничная надбавка' (Batch batch, NUMERIC[14,2] price, DATE date) =  retailMarkupPharmacy(sku(batch), price, date);
 
+isActive 'Действующий' (PharmacyPriceInterval interval) = 
+    (toDatePharmacy(interval) >= currentDate() OR NOT toDatePharmacy(interval)) AND fromDatePharmacy(interval) <= currentDate();
+
 FORM pharmacyMarkups 'Типы лекарственных средств'
 
     OBJECTS g=PharmacyPriceGroup
@@ -106,6 +109,8 @@ FORM pharmacyMarkups 'Типы лекарственных средств'
                wholesaleMarkup(i), retailMarkup(i)
     PROPERTIES(i) ADDOBJ, DELETESESSION
     FILTERS    pharmacyGroupPharmacy(i)==g
+    FILTERGROUP isActive
+        FILTER 'Действующие' isActive(i) DEFAULT
     ORDER BY pricePharmacy(i)
 
     OBJECTS nu=NUMERIC[14,3] FIXED PANEL
