@@ -103,7 +103,7 @@ FORM userAdjustment 'Изменение остатков'
                    countUserAdjustmentDetail, quantityUserAdjustmentDetail, sumUserAdjustmentDetail
 
     OBJECTS d = UserAdjustmentDetail
-    PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
+    PROPERTIES (d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE batchDialog(d), quantity, price, sum,
                    nameStock, ADDOBJ, deleted = DELETESESSION
 
@@ -247,7 +247,7 @@ FORM adjustments 'Изменения остатков'
     PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserAdjustment](i)
 
     OBJECTS d = AdjustmentDetail
-    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
+    PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
                    nameBatch, quantity, price, sum, nameStock
 
     FILTERS adjustment(d) == i
@@ -407,15 +407,17 @@ adjustment 'Название документа' (AdjustmentSkuDetail adjustment
 
 batch(AdjustmentSkuDetail ledger) += batch(ledger);
 
+skipSkuLedger = ABSTRACT BOOLEAN (AdjustmentSkuDetail);
+
 EXTEND CLASS OutAdjustmentSkuDetail : OutFIFOSkuLedger;
-quantity (OutAdjustmentSkuDetail ledger) += -quantity(ledger);
+quantity (OutAdjustmentSkuDetail ledger) += -quantity(ledger) IF NOT skipSkuLedger(ledger);
 @implementSkuLedgerOutFIFOBatchBalance(outAdjustmentSkuDetail, stock);
-sum (OutAdjustmentSkuDetail ledger) += -sum(ledger);
+sum (OutAdjustmentSkuDetail ledger) += -sum(ledger) IF NOT skipSkuLedger(ledger);
 
 EXTEND CLASS InAdjustmentSkuDetail : InLIFOSkuLedger;
-quantity (InAdjustmentSkuDetail ledger) += quantity(ledger);
+quantity (InAdjustmentSkuDetail ledger) += quantity(ledger) IF NOT skipSkuLedger(ledger);
 @implementSkuLedgerInLIFOBatchBalance(inAdjustmentSkuDetail, stock);
-sum (InAdjustmentSkuDetail ledger) += sum(ledger);
+sum (InAdjustmentSkuDetail ledger) += sum(ledger) IF NOT skipSkuLedger(ledger);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (AdjustmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserAdjustmentDetail d) = ACTION NEWSESSION {
