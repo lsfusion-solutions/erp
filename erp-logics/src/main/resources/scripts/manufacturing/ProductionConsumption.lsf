@@ -149,7 +149,9 @@ consumedSum (ComponentDetail componentDetail) <- calcConsumedSum(componentDetail
                 WHEN DO CHANGED(consumedQuantity(componentDetail)) OR CHANGED (price(componentDetail)) OR CHANGED(currency(componentDetail));
 
 consumedSumComponentDetail 'Сумма списанных компонент' (order) = GROUP SUM consumedSum(ComponentDetail detail) BY order(detail) IN documentSum;
+consumedSumComponentDetail 'Сумма списанных компонент' (order,BOM) = GROUP SUM consumedSum(ComponentDetail detail) BY order(detail), BOM(detail) IN documentSum;
 consumedQuantityComponentDetail 'Кол-во списанных компонент' (order) = GROUP SUM consumedQuantity(ComponentDetail detail) BY order(detail) IN documentSum;
+consumedQuantityComponentDetail 'Кол-во списанных компонент' (order, BOM) = GROUP SUM consumedQuantity(ComponentDetail detail) BY order(detail), BOM(detail) IN documentSum;
 
 // Расчет количеств компонент для произведенных изделий
 quantityOutput 'Кол-во изделий в заказе (произведенных)' (product, order) = GROUP SUM outputQuantity(ProductDetail productDetail)
@@ -836,16 +838,25 @@ CONSTRAINT (CHANGED(sku(Product p)) OR CHANGED(quantity(p)) OR CHANGED(pricePerc
                
 //-- Допустимые отклонения по цене и сумме для разруба
 
-fromOutputQuantity(Order order) = consumedQuantityComponentDetail(order)*( 100.0 - percQuantity(operation(order)))/100.0;
-toOutputQuantity(Order order) = consumedQuantityComponentDetail(order)*( 100.0 + percQuantity(operation(order)))/100.0;
-
-CONSTRAINT percQuantity(operation(Order o)) AND isPosted(o) AND outputQuantityProductDetail(o) AND consumedQuantityComponentDetail(o)
-    AND NOT (outputQuantityProductDetail(o) >=fromOutputQuantity(o) AND outputQuantityProductDetail(o) <=toOutputQuantity(o))
-        MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по количеству.';
-
-fromOutputProductsSum(Order order) = consumedSumComponentDetail(order)*( 100.0 - percSum(operation(order)))/100.0;
-toOutputProductsSum(Order order) = consumedSumComponentDetail(order)*( 100.0 + percSum(operation(order)))/100.0;
+//fromOutputQuantity(Order order) = consumedQuantityComponentDetail(order)*( 100.0 - percQuantity(operation(order)))/100.0;
+//toOutputQuantity(Order order) = consumedQuantityComponentDetail(order)*( 100.0 + percQuantity(operation(order)))/100.0;
+//CONSTRAINT percQuantity(operation(Order o)) AND isPosted(o) AND outputQuantityProductDetail(o) AND consumedQuantityComponentDetail(o)
+//    AND NOT (outputQuantityProductDetail(o) >=fromOutputQuantity(o) AND outputQuantityProductDetail(o) <=toOutputQuantity(o))
+//        MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по количеству.';
+//fromOutputProductsSum(Order order) = consumedSumComponentDetail(order)*( 100.0 - percSum(operation(order)))/100.0;
+//toOutputProductsSum(Order order) = consumedSumComponentDetail(order)*( 100.0 + percSum(operation(order)))/100.0;       
+//CONSTRAINT percSum(operation(Order o)) AND isPosted(o) AND consumedSumComponentDetail(o) AND outputProductsSumProductDetail(o)
+//    AND NOT (outputProductsSumProductDetail(o) >= fromOutputProductsSum(o) AND outputProductsSumProductDetail(o) <= toOutputProductsSum(o))
+//        MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по сумме.';
         
-CONSTRAINT percSum(operation(Order o)) AND isPosted(o) AND consumedSumComponentDetail(o) AND outputProductsSumProductDetail(o)
-    AND NOT (outputProductsSumProductDetail(o) >= fromOutputProductsSum(o) AND outputProductsSumProductDetail(o) <= toOutputProductsSum(o))
+fromOutputQuantity(ProductDetail pd) = consumedQuantityComponentDetail(order(pd), BOM(pd))*(100.0 - percQuantity(operation(pd)))/100.0;
+toOutputQuantity(ProductDetail pd) = consumedQuantityComponentDetail(order(pd), BOM(pd))*(100.0 + percQuantity(operation(pd)))/100.0;      
+CONSTRAINT percQuantity(operation(ProductDetail pd)) AND isPosted(pd) AND outputQuantityProductDetail(order(pd),BOM(pd)) AND consumedQuantityComponentDetail(order(pd),BOM(pd))
+    AND NOT (outputQuantityProductDetail(order(pd),BOM(pd)) >=fromOutputQuantity(pd) AND outputQuantityProductDetail(order(pd),BOM(pd)) <=toOutputQuantity(pd))
+        MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по количеству.';
+        
+fromOutputProductsSum(ProductDetail pd) = consumedSumComponentDetail(order(pd), BOM(pd))*( 100.0 - percSum(operation(pd)))/100.0;
+toOutputProductsSum(ProductDetail pd) = consumedSumComponentDetail(order(pd), BOM(pd))*( 100.0 + percSum(operation(pd)))/100.0;       
+CONSTRAINT percSum(operation(ProductDetail pd)) AND isPosted(pd) AND consumedSumComponentDetail(order(pd), BOM(pd)) AND outputProductsSumProductDetail(order(pd), BOM(pd))
+    AND NOT (outputProductsSumProductDetail(order(pd), BOM(pd)) >= fromOutputProductsSum(pd) AND outputProductsSumProductDetail(order(pd), BOM(pd)) <= toOutputProductsSum(pd))
         MESSAGE 'Внимание!!! Отклонение между компонентом и изделиями не попадает в допустимый процент по сумме.';
