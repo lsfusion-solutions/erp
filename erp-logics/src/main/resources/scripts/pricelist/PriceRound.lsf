@@ -28,8 +28,8 @@ TABLE priceInterval (PriceInterval);
 
 roundCondition = DATA RoundCondition(PriceInterval) NOT NULL DELETE;
 
-from 'от' = DATA NUMERIC[14,3](PriceInterval) IN base;
-to 'до' = DATA NUMERIC[14,3](PriceInterval) IN base;
+from 'от' = DATA NUMERIC[16,4](PriceInterval) IN base;
+to 'до' = DATA NUMERIC[16,4](PriceInterval) IN base;
 modifier 'Округлённая цена интервала' = DATA NUMERIC[16,4](PriceInterval) IN base;
 
 integer 'Целое' (price, RoundCondition roundCondition) = floor(price / denominatorPrice(roundCondition));
@@ -39,7 +39,7 @@ fraction 'Дробное' (price, RoundCondition roundCondition) = price -
 
 modifierPriceInterval (price, roundCondition) =
     GROUP LAST modifier(PriceInterval interval)
-          BY NUMERIC[14,3] price AS NUMERIC[14,3], roundCondition(interval)
+          BY NUMERIC[16,4] price AS NUMERIC[16,4], roundCondition(interval)
           ORDER interval
           WHERE fraction(price, roundCondition(interval)) >= from(interval) AND
                 fraction(price, roundCondition(interval)) < to(interval);
@@ -68,7 +68,7 @@ FORM priceIntervals 'Округления цен'
     OBJECTS p=PriceInterval
     PROPERTIES(p) from, to, modifier, ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR
 
-    OBJECTS nu=NUMERIC[14,3] FIXED PANEL
+    OBJECTS nu=NUMERIC[16,4] FIXED PANEL
     PROPERTIES val = OBJVALUE(nu)
     PROPERTIES(nu, rc) READONLY round
 
