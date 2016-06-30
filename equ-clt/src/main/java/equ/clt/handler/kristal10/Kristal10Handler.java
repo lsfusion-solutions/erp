@@ -411,15 +411,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         boolean ignoreFileLocks = kristalSettings != null && kristalSettings.getIgnoreFileLock() != null && kristalSettings.getIgnoreFileLock();
 
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
+        Set<String> directorySet = new HashSet<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.directory != null && c.number != null && c.handlerModel != null && c.handlerModel.endsWith("Kristal10Handler")) {
                 directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
+                directorySet.add(c.directory);
             }
         }
 
         List<CashDocument> cashDocumentList = new ArrayList<>();
         List<String> readFiles = new ArrayList<>();
-        for (String directory : directoryCashRegisterMap.keySet()) {
+        for (String directory : directorySet) {
 
             String exchangeDirectory = directory + "/reports/";
 
@@ -1009,9 +1011,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                 zReportSumMap.put(idZReport, Arrays.asList((Object) kristalSum, numberCashRegister, numberZReport, idZReport));
 
                             }
-                            File successDir = new File(file.getParent() + "/success/");
+                            String dir = file.getParent() + "/success-" + new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "/";
+                            File successDir = new File(dir);
                             if (successDir.exists() || successDir.mkdirs())
-                                FileCopyUtils.copy(file, new File(file.getParent() + "/success/" + file.getName()));
+                                FileCopyUtils.copy(file, new File(dir + file.getName()));
                             if(!file.delete())
                                 file.deleteOnExit();
                         }
