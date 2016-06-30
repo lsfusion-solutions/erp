@@ -59,48 +59,48 @@ limitPrice (UserInvoiceDetail detail) =
                                                     limitMarkup(detail),
                                                     valueRetailVAT(detail)), roundCondition(priceLimitPriceListType(customerStock(detail)), sku(detail)));
 
-WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND limitMarkup(d) > 3000 AND limitMarkup(d) < retailPrice(d) DO {
-    retailPrice(d) <- limitMarkup(d);
-    retailMarkup(d) <- calcRetailMarkup(d);;
-}
-
-WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND limitMarkup(d) <= 3000 AND limitMarkup(d) > 100 AND limitMarkupPrice(d) < retailPrice(d) DO {
-    retailPrice(d) <- limitMarkupPrice(d);
-    retailMarkup(d) <- calcRetailMarkup(d);
-}
-
-WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
-            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPrice(d) AND limitMarkup(d) <= 100 AND limitPrice(d) < retailPrice(d) DO {
-    retailPrice(d) <- limitPrice(d);
-    retailMarkup(d) <- calcRetailMarkup(d);
-}
-
-// todo : перед деноминацией
 //WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
 //            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-//             showLimitPrice(d) AND limitMarkup(d) > 0.3 AND limitMarkup(d) <= 1 AND limitMarkup(d) < retailPrice(d) DO {
+//             showLimitPrice(d) AND limitMarkup(d) > 3000 AND limitMarkup(d) < retailPrice(d) DO {
 //    retailPrice(d) <- limitMarkup(d);
 //    retailMarkup(d) <- calcRetailMarkup(d);;
 //}
 //
 //WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
 //            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-//             showLimitPrice(d) AND limitMarkup(d) <= 0.3 AND limitMarkupPrice(d) < retailPrice(d) DO {
+//             showLimitPrice(d) AND limitMarkup(d) <= 3000 AND limitMarkup(d) > 100 AND limitMarkupPrice(d) < retailPrice(d) DO {
 //    retailPrice(d) <- limitMarkupPrice(d);
 //    retailMarkup(d) <- calcRetailMarkup(d);
 //}
 //
 //WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
 //            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-//             showLimitPrice(d) AND limitMarkup(d) > 1 AND limitPrice(d) < retailPrice(d) DO {
+//             showLimitPrice(d) AND limitMarkup(d) <= 100 AND limitPrice(d) < retailPrice(d) DO {
 //    retailPrice(d) <- limitPrice(d);
 //    retailMarkup(d) <- calcRetailMarkup(d);
 //}
+
+// todo : перед деноминацией
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPrice(d) AND limitMarkup(d) > 0.3 AND limitMarkup(d) <= 1 AND limitMarkup(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitMarkup(d);
+    retailMarkup(d) <- calcRetailMarkup(d);;
+}
+
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPrice(d) AND limitMarkup(d) <= 0.3 AND limitMarkupPrice(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitMarkupPrice(d);
+    retailMarkup(d) <- calcRetailMarkup(d);
+}
+
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(limitBasePrice(d)) OR CHANGED(limitMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPrice(d) AND limitMarkup(d) > 1 AND limitPrice(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitPrice(d);
+    retailMarkup(d) <- calcRetailMarkup(d);
+}
 
 showLimitPrice(InvoicePricing pricing) += showLimitPrice(invoice(pricing));
 limitMarkup(InvoicePricingDetail detail) += limitMarkup(invoiceDetail(detail));
