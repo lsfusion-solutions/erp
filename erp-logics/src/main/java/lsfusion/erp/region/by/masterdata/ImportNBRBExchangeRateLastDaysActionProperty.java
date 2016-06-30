@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.masterdata;
 
-
+import com.google.common.base.Throwables;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -8,7 +8,7 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.jdom.JDOMException;
+import org.json.JSONException;
 
 import java.io.IOException;
 import java.sql.Date;
@@ -42,14 +42,8 @@ public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExch
                         shortNameCurrency, context);
             }
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (JDOMException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
+            throw Throwables.propagate(e);
         }
 
     }

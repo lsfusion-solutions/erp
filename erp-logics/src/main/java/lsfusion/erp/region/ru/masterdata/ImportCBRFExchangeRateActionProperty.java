@@ -1,5 +1,6 @@
 package lsfusion.erp.region.ru.masterdata;
 
+import com.google.common.base.Throwables;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
@@ -55,14 +56,8 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
             if (cbrfDateFrom != null && cbrfDateTo != null && extraSIDCurrency != null)
                 importExchanges(cbrfDateFrom, cbrfDateTo, extraSIDCurrency, context);
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (JDOMException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | JDOMException | ParseException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
 
     }
@@ -94,7 +89,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
             ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
                     findProperty("currencyShortName[STRING[3]]").getMapping(homeCurrencyField));
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
 
             props.add(new ImportProperty(typeExchangeRUField, findProperty("name[TypeExchange]").getMapping(typeExchangeRUKey)));
             props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeRUKey),
@@ -106,7 +101,7 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
                     object(findClass("Currency")).getMapping(currencyKey)));
             props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
-            List<List<Object>> data = new ArrayList<List<Object>>();
+            List<List<Object>> data = new ArrayList<>();
             for (Exchange e : exchangesList) {
                 data.add(Arrays.asList((Object) "ЦБРФ (RUB)", "ЦБРФ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
             }
@@ -123,15 +118,15 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
     private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String extraSIDCurrency, ExecutionContext context) throws IOException, JDOMException, ParseException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         SAXBuilder builder = new SAXBuilder();
 
-        List<Exchange> exchangesList = new ArrayList<Exchange>();
+        List<Exchange> exchangesList = new ArrayList<>();
 
         Document document = builder.build(new URL("http://www.cbr.ru/scripts/XML_val.asp?d=0").openStream());
         Element rootNode = document.getRootElement();
         List list = rootNode.getChildren("Item");
 
-        for (int i = 0; i < list.size(); i++) {
+        for (Object aList : list) {
 
-            Element node = (Element) list.get(i);
+            Element node = (Element) aList;
 
             String id = node.getAttributeValue("ID");
 
@@ -145,9 +140,9 @@ public class ImportCBRFExchangeRateActionProperty extends ScriptingActionPropert
 
                 String shortNameCurrency = (String) findProperty("shortName[Currency]").read(context, new DataObject(findProperty("currencyExtraSID[STRING[6]]").read(context, new DataObject(extraSIDCurrency)), (ConcreteClass) findClass("Currency")));
 
-                for (int j = 0; j < exchangeList.size(); j++) {
+                for (Object anExchangeList : exchangeList) {
 
-                    Element exchangeNode = (Element) exchangeList.get(j);
+                    Element exchangeNode = (Element) anExchangeList;
 
                     BigDecimal value = new BigDecimal(Double.valueOf(exchangeNode.getChildText("Value").replace(",", ".")) / Double.valueOf(exchangeNode.getChildText("Nominal")));
 

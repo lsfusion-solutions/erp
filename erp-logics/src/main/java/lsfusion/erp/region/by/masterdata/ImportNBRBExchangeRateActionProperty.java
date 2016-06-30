@@ -1,6 +1,6 @@
 package lsfusion.erp.region.by.masterdata;
 
-
+import lsfusion.erp.integration.DefaultIntegrationActionProperty;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.ValueClass;
@@ -8,19 +8,18 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
-import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.JDOMException;
-import org.jdom.input.SAXBuilder;
+import org.json.JSONArray;
+import org.json.JSONException;
+import org.json.JSONObject;
 
-import java.io.IOException;
+import java.io.*;
 import java.math.BigDecimal;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.ParseException;
@@ -29,7 +28,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 
-public class ImportNBRBExchangeRateActionProperty extends ScriptingActionProperty {
+public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActionProperty {
 
     public ImportNBRBExchangeRateActionProperty(ScriptingLogicsModule LM, ValueClass valueClass) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, valueClass);
@@ -43,10 +42,10 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, JDOMException, SQLException, ParseException, SQLHandledException {
+    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
 
 
-        List<Exchange> exchangesList = importExchangesFromXML(dateFrom, dateTo, shortNameCurrency);
+        List<Exchange> exchangesList = importExchangesFromXMLDenominated(dateFrom, dateTo, shortNameCurrency);
 
         if (exchangesList != null) {
 
@@ -70,7 +69,7 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
             ImportKey<?> homeCurrencyKey = new ImportKey((ConcreteCustomClass) findClass("Currency"),
                     findProperty("currencyShortName[STRING[3]]").getMapping(homeCurrencyField));
 
-            List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
+            List<ImportProperty<?>> props = new ArrayList<>();
 
             props.add(new ImportProperty(typeExchangeBYRField, findProperty("name[TypeExchange]").getMapping(typeExchangeBYRKey)));
             props.add(new ImportProperty(homeCurrencyField, findProperty("currency[TypeExchange]").getMapping(typeExchangeBYRKey),
@@ -82,7 +81,7 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
                     object(findClass("Currency")).getMapping(currencyKey)));
             props.add(new ImportProperty(foreignRateField, findProperty("rate[TypeExchange,Currency,DATE]").getMapping(typeExchangeForeignKey, homeCurrencyKey, dateField)));
 
-            List<List<Object>> data = new ArrayList<List<Object>>();
+            List<List<Object>> data = new ArrayList<>();
             for (Exchange e : exchangesList) {
                 data.add(Arrays.asList((Object) "НБРБ (BYR)", "НБРБ (" + e.currencyID + ")", e.currencyID, e.homeCurrencyID, e.exchangeRate, new BigDecimal(1 / e.exchangeRate.doubleValue()), e.date));
             }
@@ -97,35 +96,32 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
         }
     }
 
-    private List<Exchange> importExchangesFromXML(Date dateFrom, Date dateTo, String shortNameCurrency) throws IOException, JDOMException, ParseException {
-        SAXBuilder builder = new SAXBuilder();
+    private List<Exchange> importExchangesFromXMLDenominated(Date dateFrom, Date dateTo, String shortNameCurrency) throws IOException, ParseException, JSONException {
 
-        List<Exchange> exchangesList = new ArrayList<Exchange>();
+        List<Exchange> exchangesList = new ArrayList<>();
 
-        Document document = builder.build(new URL("http://www.nbrb.by/Services/XmlExRatesRef.aspx").openStream());
-        Element rootNode = document.getRootElement();
-        List list = rootNode.getChildren("Currency");
+        JSONArray document = readJsonFromUrl("http://www.nbrb.by/APITest/ExRates/Currencies");
+        for (int i = 0; i < document.length(); i++) {
+            JSONObject jsonObject = document.getJSONObject(i);
 
-        for (int i = 0; i < list.size(); i++) {
-
-            Element node = (Element) list.get(i);
-
-            String charCode = node.getChildText("CharCode");
-            String id = node.getAttributeValue("Id");
+            String charCode = jsonObject.getString("Cur_Abbreviation");
 
             if (shortNameCurrency.equals(charCode)) {
-                Document exchangeDocument = builder.build(new URL("http://www.nbrb.by/Services/XmlExRatesDyn.aspx?curId=" + id
-                        + "&fromDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateFrom)
-                        + "&toDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateTo)).openStream());
-                Element exchangeRootNode = exchangeDocument.getRootElement();
-                List exchangeList = exchangeRootNode.getChildren("Record");
+                String id = jsonObject.getString("Cur_ID");
+                BigDecimal scale = new BigDecimal(jsonObject.getString("Cur_Scale"));
 
-                for (int j = 0; j < exchangeList.size(); j++) {
+                JSONArray exchangeDocument = readJsonFromUrl("http://www.nbrb.by/APITest/ExRates/Rates/Dynamics/" + id
+                        + "?startDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateFrom)
+                        + "&endDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateTo));
 
-                    Element exchangeNode = (Element) exchangeList.get(j);
+                for (int j = 0; j < exchangeDocument.length(); j++) {
 
-                    exchangesList.add(new Exchange(charCode, "BLR", new Date(DateUtils.parseDate(exchangeNode.getAttributeValue("Date"), new String[]{"MM/dd/yyyy"}).getTime()),
-                            new BigDecimal(exchangeNode.getChildText("Rate"))));
+                    JSONObject exchangeNode = exchangeDocument.getJSONObject(j);
+
+                    BigDecimal rate = new BigDecimal(exchangeNode.getString("Cur_OfficialRate"));
+
+                    exchangesList.add(new Exchange(charCode, "BLR", new Date(DateUtils.parseDate(exchangeNode.getString("Date"), new String[]{"yyyy-MM-dd'T'HH:mm:ss"}).getTime()),
+                            safeDivide(rate, scale, 6)));
                 }
                 if (exchangesList.size() > 0)
                     return exchangesList;
@@ -134,5 +130,20 @@ public class ImportNBRBExchangeRateActionProperty extends ScriptingActionPropert
         return exchangesList;
     }
 
+    public JSONArray readJsonFromUrl(String url) throws IOException, JSONException {
+        try (InputStream is = new URL(url).openStream()) {
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is, Charset.forName("UTF-8")));
+            String jsonText = readAll(rd);
+            return new JSONArray(jsonText);
+        }
+    }
 
+    private String readAll(Reader rd) throws IOException {
+        StringBuilder sb = new StringBuilder();
+        int cp;
+        while ((cp = rd.read()) != -1) {
+            sb.append((char) cp);
+        }
+        return sb.toString();
+    }
 }
