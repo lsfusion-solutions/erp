@@ -1004,10 +1004,18 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                             Date startDate = cashRegister == null ? null : cashRegister.startDate;
                                             String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
-                                            BigDecimal discountSumReceipt = denominateDivideType2(readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM"), denominationStage);
                                             long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
                                             Date dateReceipt = new Date(dateTimeReceipt);
                                             Time timeReceipt = new Time(dateTimeReceipt);
+
+                                            //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
+                                            //такие чеки пойдут на 999 группу касс - 254 кассу
+                                            if((denominationStage != null && denominationStage.endsWith("after")) || (numberCashRegister != null && numberCashRegister.equals(254))) {
+                                                long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
+                                                denominationStage = dateTimeReceipt <= denominationDate ? "Machinery_DenominationStage.fusion" : denominationStage;
+                                            }
+
+                                            BigDecimal discountSumReceipt = denominateDivideType2(readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM"), denominationStage);
 
                                             List receiptDetailsList = ((Element) gangNode).getChildren("GOOD");
                                             List paymentsList = ((Element) gangNode).getChildren("PAYMENT");
@@ -1079,6 +1087,13 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
                                                 Date startDate = cashRegister == null ? null : cashRegister.startDate;
                                                 String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
+                                                //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
+                                                //такие чеки пойдут на 999 группу касс - 254 кассу
+                                                if((denominationStage != null && denominationStage.endsWith("after")) || (numberCashRegister != null && numberCashRegister.equals(254))) {
+                                                    long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
+                                                    denominationStage = dateTimeReceipt <= denominationDate ? "Machinery_DenominationStage.fusion" : denominationStage;
+                                                }
 
                                                 List receiptDetailsList = (receiptElement).getChildren("POS");
                                                 List paymentsList = (receiptElement).getChildren("PAY");
