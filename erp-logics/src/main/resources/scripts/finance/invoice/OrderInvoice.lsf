@@ -224,7 +224,9 @@ META defineOrderInvoice(sign, stockProp)
             }
         }
     }
-    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) THEN priceOrderDetail(d);
+    
+    skipDeriveOrderPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
+    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND NOT skipDeriveOrderPrice(d) THEN priceOrderDetail(d);
     
     fillHeader(UserInvoice userInvoice, Order order) = ACTION {
         date(userInvoice) <- currentDate();
