@@ -26,6 +26,7 @@ import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.*;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -72,7 +73,15 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         price = (BigDecimal) terminalHandlerLM.findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
                     quantity = (BigDecimal) terminalHandlerLM.findProperty("currentBalance[Sku,Stock]").read(session, skuObject, stockObject);
                 }
-                String priceValue = price == null ? "0" : String.valueOf(price.doubleValue()).replace(",", ".");
+                String priceValue = null;
+                if(price != null) {
+                    price = price.setScale(2, BigDecimal.ROUND_HALF_UP);
+                    DecimalFormat df = new DecimalFormat();
+                    df.setMaximumFractionDigits(2);
+                    df.setMinimumFractionDigits(0);
+                    df.setGroupingUsed(false);
+                    priceValue = df.format(price).replace(",", ".");
+                }
                 return Arrays.asList(barcode, nameSkuBarcode, priceValue,
                         quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", "", "", "", isWeight);
             } else return null;
