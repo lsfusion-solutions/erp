@@ -796,6 +796,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             DbfRecord rec;
             Map<Integer, Integer> numberReceiptDetailMap = new HashMap<>();
             List<SalesInfo> curSalesInfoList = new ArrayList<>();
+            String section = null;
             while ((rec = reader.read()) != null) {
                 rec.setStringCharset(Charset.forName(charset));
                 if (!rec.isDeleted()) {
@@ -804,7 +805,9 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                     Date dateReceipt = getJDBFDateFieldValue(rec, "TEDOCINS");
                     Time timeReceipt = getJDBFTimeFieldValue(rec, "TEDOCINS");
                     String barcodeItem = getJDBFFieldValue(rec, "CEOBIDE");
-                    String section = getJDBFFieldValue(rec, "CESUCOD");
+                    String curSection = getJDBFFieldValue(rec, "CESUCOD");
+                    if(curSection != null)
+                        section = curSection;
 
                     CashRegisterInfo cashRegister = sectionCashRegisterMap.get(section);
                     Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
@@ -842,14 +845,14 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                 break;
                             case "ВСЕГО":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT");
+                                    salesInfo.sumCash = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"), denominationStage);
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
                                 break;
                             case "ВОЗВРАТ":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"));
+                                    salesInfo.sumCash = denominateDivideType2(safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")), denominationStage);
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
