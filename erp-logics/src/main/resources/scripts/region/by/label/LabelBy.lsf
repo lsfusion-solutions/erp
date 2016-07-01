@@ -7,13 +7,15 @@ NAMESPACE Label;
 denominationDivider = IF currentDate() < denominationDate() THEN 10000.0 ELSE 1.0;
 denominationMultiplier = IF currentDate() < denominationDate() THEN 1.0 ELSE 10000.0;
 
-priceRubB 'Рубли' (LabelTransactionDetail d) = divideInteger(price(d), denominationDivider());
+trunc = FORMULA 'trunc($1)';
+
+priceRubB 'Рубли' (LabelTransactionDetail d) = IF currentDate() < denominationDate() THEN divideInteger(price(d), denominationDivider()) ELSE trunc(price(d));
 priceKopB 'Копейки' (LabelTransactionDetail d) = lpad((OVERRIDE '' IF priceRubB(d), VARSTRING[2](round0(abs(priceRubB(d) (-) round2(price(d) / denominationDivider()))*100.0))), 2, '0');
 
-retailPriceRubB 'Рубли (цена до)' (LabelTransactionDetail d) = divideInteger(retailPrice(d), denominationDivider());
+retailPriceRubB 'Рубли (цена до)' (LabelTransactionDetail d) = IF currentDate() < denominationDate() THEN divideInteger(retailPrice(d), denominationDivider()) ELSE trunc(retailPrice(d));
 retailPriceKopB 'Копейки (цена до)' (LabelTransactionDetail d) = lpad((OVERRIDE '' IF retailPriceRubB(d), VARSTRING[2](round0(abs(retailPriceRubB(d) (-) round2(retailPrice(d) / denominationDivider()))*100.0))), 2, '0');
 
-discountPriceRubB 'Рубли (скидка)' (LabelTransactionDetail d) = divideInteger(discountSum(d), denominationDivider());
+discountPriceRubB 'Рубли (скидка)' (LabelTransactionDetail d) = IF currentDate() < denominationDate() THEN divideInteger(discountSum(d), denominationDivider()) ELSE trunc(discountSum(d));
 discountPriceKopB 'Копейки (скидка)' (LabelTransactionDetail d) = lpad((OVERRIDE '' IF discountPriceRubB(d), VARSTRING[2](round0(abs(discountPriceRubB(d) (-) round2(discountSum(d) / denominationDivider()))*100.0))), 2, '0');
 
 
