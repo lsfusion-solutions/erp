@@ -26,9 +26,9 @@ public abstract class MachineryHandler<T extends TransactionInfo, M extends Mach
         else if (denominationStage == null || denominationStage.trim().endsWith("before")) {
             return value.intValue();
         } else if (denominationStage.trim().endsWith("fusion")) {
-            return (int) (value.doubleValue() * 10000);
+            return value.multiply(BigDecimal.valueOf(10000)).intValue();
         } else
-            return (int) (value.doubleValue() * 100);
+            return value.multiply(BigDecimal.valueOf(100)).intValue();
     }
 
     //цена передаётся как BigDecimal
