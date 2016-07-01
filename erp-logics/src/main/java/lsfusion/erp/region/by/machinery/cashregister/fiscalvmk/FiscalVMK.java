@@ -9,6 +9,7 @@ import org.apache.log4j.*;
 import java.io.*;
 import java.math.BigDecimal;
 import java.math.BigInteger;
+import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
 
@@ -166,7 +167,7 @@ public class FiscalVMK {
     public static boolean totalCash(BigDecimal sum, String denominationStage) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(Math.abs(sum.doubleValue()), denominationStage);
+        double sumValue = makeDenomination(sum.abs(), denominationStage);
         logAction("vmk_oplat", 0, sumValue, 0);
         return vmkDLL.vmk.vmk_oplat(0, sumValue, 0/*"00000000"*/);
     }
@@ -174,7 +175,7 @@ public class FiscalVMK {
     public static boolean totalCard(BigDecimal sum, String denominationStage) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(Math.abs(sum.doubleValue()), denominationStage);
+        double sumValue = makeDenomination(sum.abs(), denominationStage);
         logAction("vmk_oplat", 1, sumValue, 0);
         return vmkDLL.vmk.vmk_oplat(1, sumValue, 0/*"00000000"*/);
     }
@@ -183,7 +184,7 @@ public class FiscalVMK {
         if (sum == null)
             return true;
         try {
-            double sumValue = makeDenomination(sum.doubleValue(), denominationStage);
+            double sumValue = makeDenomination(sum, denominationStage);
             if (giftCardAsDiscount) {
                 logAction("vmk_discountpi", "Сертификат", sumValue, 3);
                 return vmkDLL.vmk.vmk_discountpi(getBytes("Сертификат"), sumValue, 3);
@@ -198,7 +199,7 @@ public class FiscalVMK {
     }
 
     public static boolean total(BigDecimal sumPayment, Integer typePayment, String denominationStage) {
-        double sumPaymentValue = makeDenomination(Math.abs(sumPayment.doubleValue()), denominationStage);
+        double sumPaymentValue = makeDenomination(sumPayment.abs(), denominationStage);
         logAction("vmk_oplat", typePayment, sumPaymentValue, 0);
         if (!vmkDLL.vmk.vmk_oplat(typePayment, sumPaymentValue, 0/*"00000000"*/))
             return false;
@@ -224,7 +225,7 @@ public class FiscalVMK {
             checkErrors(true);
     }
 
-    public static boolean inOut(Double sum, String denominationStage) {
+    public static boolean inOut(BigDecimal sum, String denominationStage) {
         double sumValue = makeDenomination(sum, denominationStage);
         if (sumValue > 0) {
             logAction("vmk_vnes", sumValue);
@@ -245,7 +246,7 @@ public class FiscalVMK {
 
     public static void displayText(ReceiptItem item) {
         try {
-            String firstLine = " " + toStr(item.quantity) + "x" + String.valueOf(item.price);
+            String firstLine = " " + toStr(item.quantity) + "x" + toStr(item.price);
             int length = 16 - Math.min(16, firstLine.length());
             firstLine = item.name.substring(0, Math.min(length, item.name.length())) + firstLine;
             String secondLine = String.valueOf(item.sumPos);
@@ -264,8 +265,8 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item, String denominationStage) {
         try {
-            double price = makeDenomination(Math.abs(item.price), denominationStage);
-            double sum = makeDenomination(item.sumPos - item.articleDiscSum + item.bonusPaid, denominationStage);
+            double price = makeDenomination(item.price.abs(), denominationStage);
+            double sum = makeDenomination(BigDecimal.valueOf(item.sumPos - item.articleDiscSum + item.bonusPaid), denominationStage);
             logAction("vmk_sale", item.barcode, item.name, price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
             return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
                     price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
@@ -274,9 +275,9 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItemPayment(double sumPayment, String denominationStage) {
+    public static boolean registerItemPayment(BigDecimal sumPayment, String denominationStage) {
         try {
-            double sum = makeDenomination(Math.abs(sumPayment), denominationStage);
+            double sum = makeDenomination(sumPayment, denominationStage);
             logAction("vmk_sale", "", "ОПЛАТА", sum, 1 /*отдел*/, 1, 0);
             return vmkDLL.vmk.vmk_sale(getBytes(""), getBytes("ОПЛАТА"), sum, 1 /*отдел*/, 1.0, 0.0);
         } catch (UnsupportedEncodingException e) {
@@ -285,7 +286,7 @@ public class FiscalVMK {
     }
     
     public static boolean discountItem(ReceiptItem item, String denominationStage) {
-        double discSum = makeDenomination(item.articleDiscSum - item.bonusPaid, denominationStage); //articleDiscSum is negative, bonusPaid is positive
+        double discSum = makeDenomination(BigDecimal.valueOf(item.articleDiscSum - item.bonusPaid), denominationStage); //articleDiscSum is negative, bonusPaid is positive
         if (discSum == 0)
             return true;
         boolean discount = discSum < 0;
@@ -302,7 +303,7 @@ public class FiscalVMK {
             return true;
         boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
         try {
-            double sumDisc =  makeDenomination(Math.abs(receipt.sumDisc.doubleValue()), denominationStage);
+            double sumDisc =  makeDenomination(receipt.sumDisc.abs(), denominationStage);
             logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", sumDisc, discount ? 3 : 1);
             return vmkDLL.vmk.vmk_discountpi(getBytes(discount ? "Скидка" : "Наценка"), sumDisc, discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
@@ -335,6 +336,19 @@ public class FiscalVMK {
         return isInt ? String.valueOf((int) value) : String.valueOf(value);
     }
 
+    public static String toStr(BigDecimal value) {
+        String result = null;
+        if (value != null) {
+            value = value.setScale(2, BigDecimal.ROUND_HALF_UP);
+            DecimalFormat df = new DecimalFormat();
+            df.setMaximumFractionDigits(2);
+            df.setMinimumFractionDigits(2);
+            df.setGroupingUsed(false);
+            result = df.format(value).replace(",", ".");
+        }
+        return result;
+    }
+
     public static int checkErrors(Boolean throwException) {
         logAction("vmk_lasterror");
         Integer lastError = vmkDLL.vmk.vmk_lasterror();
@@ -363,13 +377,13 @@ public class FiscalVMK {
         return Integer.parseInt(result.split(",")[1]);
     }
 
-    public static double getCashSum(Boolean throwException, String denominationStage) {
+    public static BigDecimal getCashSum(Boolean throwException, String denominationStage) {
         byte[] buffer = new byte[50];
         logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
             checkErrors(throwException);
         String result = Native.toString(buffer, "cp1251");
-        return makeNomination(Double.parseDouble(result.split(",")[2]), denominationStage);
+        return makeNomination(new BigDecimal(result.split(",")[2]), denominationStage);
     }
 
     public static void logReceipt(ReceiptInstance receipt, Integer numberReceipt) {
@@ -380,7 +394,7 @@ public class FiscalVMK {
             String dateTime = new SimpleDateFormat("yyyyMMddHHmmss").format(Calendar.getInstance().getTime());
             for(ReceiptItem item : receipt.receiptSaleList) {
                 sw.write(String.format("%s|%s|1|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s\r\n", dateTime, numberReceipt,
-                        trimToEmpty(item.barcode), item.name, item.price, item.quantity, item.sumPos, item.articleDiscSum,
+                        trimToEmpty(item.barcode), item.name, toStr(item.price), item.quantity, item.sumPos, item.articleDiscSum,
                         item.isGiftCard ? "1" : "0", trim(receipt.sumDisc), trim(receipt.sumCard), trim(receipt.sumCash),
                         trim(receipt.sumGiftCard), trim(receipt.sumTotal)));
             }
@@ -420,20 +434,24 @@ public class FiscalVMK {
         return (value + "\0").getBytes("cp1251");
     }
 
-    private static double makeDenomination(double value, String denominationStage) {
+    private static double makeDenomination(BigDecimal value, String denominationStage) {
+        return makeDenominationBigDecimal(value, denominationStage).doubleValue();
+    }
+
+    private static BigDecimal makeDenominationBigDecimal(BigDecimal value, String denominationStage) {
         if (denominationStage == null || denominationStage.trim().endsWith("before")) {
-            return value / 100;
+            return value.divide(BigDecimal.valueOf(100), 2);
         } else if (denominationStage.trim().endsWith("fusion")) {
-            return value * 100;
+            return value.multiply(BigDecimal.valueOf(100));
         } else
             return value;
     }
 
-    private static double makeNomination(double value, String denominationStage) {
+    private static BigDecimal makeNomination(BigDecimal value, String denominationStage) {
         if (denominationStage == null || denominationStage.trim().endsWith("before")) {
-            return value * 100;
+            return value.multiply(BigDecimal.valueOf(100));
         } else if (denominationStage.trim().endsWith("fusion")) {
-            return value / 100;
+            return value.divide(value, 2);
         } else
             return value;
     }

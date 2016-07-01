@@ -1,10 +1,11 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import java.io.Serializable;
+import java.math.BigDecimal;
 
 public class ReceiptItem implements Serializable {
     public boolean isGiftCard;
-    public double price;
+    public BigDecimal price;
     public double quantity;
     public String barcode;
     public String name;
@@ -13,7 +14,7 @@ public class ReceiptItem implements Serializable {
     public double bonusSum;
     public double bonusPaid;
 
-    public ReceiptItem(boolean isGiftCard, double price, double quantity, String barcode, String name, double sumPos,
+    public ReceiptItem(boolean isGiftCard, BigDecimal price, double quantity, String barcode, String name, double sumPos,
                        double articleDiscSum, double bonusSum, double bonusPaid) {
         this.isGiftCard = isGiftCard;
         this.price = price;

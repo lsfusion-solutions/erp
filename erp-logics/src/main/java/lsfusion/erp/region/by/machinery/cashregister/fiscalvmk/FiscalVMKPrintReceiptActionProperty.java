@@ -124,8 +124,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
                     String typeReceiptDetail = (String) receiptDetailValues.get("typeReceiptDetail");
                     Boolean isGiftCard = typeReceiptDetail != null && typeReceiptDetail.equals("Сертификат");
-                    BigDecimal priceValue = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
-                    double price = priceValue == null ? 0 : priceValue.doubleValue();
+                    BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
                     BigDecimal quantitySaleValue = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
                     double quantitySale = quantitySaleValue == null ? 0.0 : quantitySaleValue.doubleValue();
                     BigDecimal quantityReturnValue = (BigDecimal) receiptDetailValues.get("quantityReceiptReturnDetail");

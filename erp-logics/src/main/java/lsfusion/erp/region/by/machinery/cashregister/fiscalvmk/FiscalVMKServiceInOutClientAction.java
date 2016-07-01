@@ -33,7 +33,7 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
 
             FiscalVMK.opensmIfClose();
 
-            if (!FiscalVMK.inOut(sum.doubleValue(), denominationStage))
+            if (!FiscalVMK.inOut(sum, denominationStage))
                 return "Недостаточно наличных в кассе";
             else {
                 if(!FiscalVMK.openDrawer())

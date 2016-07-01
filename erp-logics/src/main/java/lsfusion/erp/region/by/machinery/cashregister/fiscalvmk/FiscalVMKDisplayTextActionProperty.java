@@ -50,8 +50,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 String barcode = (String) findProperty("idBarcode[ReceiptDetail]").read(session, receiptDetailObject);
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal priceValue = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                double price = priceValue == null ? 0 : priceValue.doubleValue();
+                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
                 BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
                 double sum = sumValue == null ? 0 : sumValue.doubleValue();
                 BigDecimal articleDiscSumValue = (BigDecimal) findProperty("discountSum[ReceiptDetail]").read(session, receiptDetailObject);
@@ -60,7 +59,7 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate,
-                        new ReceiptItem(false, price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
+                        new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
                 if (result != null)
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }

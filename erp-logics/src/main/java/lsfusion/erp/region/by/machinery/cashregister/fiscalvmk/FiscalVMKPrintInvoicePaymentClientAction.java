@@ -66,7 +66,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
 
         Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
 
-        if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment.doubleValue(), denominationStage))
+        if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment, denominationStage))
             return null;
 
         if (!FiscalVMK.subtotal())

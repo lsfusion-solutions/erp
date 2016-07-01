@@ -31,8 +31,8 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
             denominationStage = denominationStage == null ? null : denominationStage.trim();
 
             Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5, denominationStage));
-            if (result instanceof Double) {
-                context.requestUserInteraction(new MessageClientAction(String.valueOf(new BigDecimal((Double)result)), "Сумма наличных в кассе"));
+            if (result instanceof BigDecimal) {
+                context.requestUserInteraction(new MessageClientAction(FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
                 context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
             }
