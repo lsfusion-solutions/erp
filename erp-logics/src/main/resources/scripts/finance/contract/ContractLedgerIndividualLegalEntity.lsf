@@ -116,21 +116,26 @@ addPayment 'Погасить задолженность'(InContractLedger ledger
             dataFiscalType(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;  
             type(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;            
             
-            IF fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister())) THEN {          
-                apply();            
-            }
-            ELSE {
-                IF model(groupCashRegister(currentCashRegister())) THEN {
-                    check();
-                    IF NOT canceled() THEN {
-                        printReceipt(ledger, p); 
-                        IF printReceiptResult() THEN {
-                            zReport(p) <- currentZReport();                        
-                            apply();
-                        }    
-                    }              
-                } 
-            }                                      
+            IF NOT sum(p) > maxSumPaymentReceipt() THEN { 
+                IF fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister())) THEN {          
+                    apply();            
+                }
+                ELSE {
+                    IF model(groupCashRegister(currentCashRegister())) THEN {
+                        check();
+                        IF NOT canceled() THEN {
+                            printReceipt(ledger, p); 
+                            IF printReceiptResult() THEN {
+                                zReport(p) <- currentZReport();                        
+                                apply();
+                            }    
+                        }              
+                    } 
+                }  
+            }   ELSE {
+                MESSAGE 'Нельзя вводить сумму платежа по чеку больше разрешенной';
+                cancel();
+            }                                                  
         }
     }    
 }
@@ -150,21 +155,26 @@ addReturnPayment 'Вернуть предоплату'(InContractLedger ledger) 
             dataFiscalType(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;
             type(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;
             
-            IF fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister())) THEN {
-                apply();            
-            }
-            ELSE {
-                IF model(groupCashRegister(currentCashRegister())) THEN {
-                    check();
-                    IF NOT canceled() THEN {
-                        printReturnReceipt(ledger, p); 
-                        IF printReceiptResult() THEN {
-                            zReport(p) <- currentZReport();                    
-                            apply();
-                        }    
-                    }              
-                } 
-            }                                      
+            IF NOT sum(p) > maxSumPaymentReceipt() THEN {
+                IF fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister())) THEN {
+                    apply();            
+                }
+                ELSE {
+                    IF model(groupCashRegister(currentCashRegister())) THEN {
+                        check();
+                        IF NOT canceled() THEN {
+                            printReturnReceipt(ledger, p); 
+                            IF printReceiptResult() THEN {
+                                zReport(p) <- currentZReport();                    
+                                apply();
+                            }    
+                        }              
+                    } 
+                }  
+            }   ELSE {
+                MESSAGE 'Нельзя вводить сумму платежа по чеку больше разрешенной';
+                cancel();
+            }                                                     
         }
     }    
 }
