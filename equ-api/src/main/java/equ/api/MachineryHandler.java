@@ -38,7 +38,7 @@ public abstract class MachineryHandler<T extends TransactionInfo, M extends Mach
 
     //цена передаётся как BigDecimal
     public BigDecimal denominateDivideType2(BigDecimal value, String denominationStage) {
-        return denominationStage != null && denominationStage.endsWith("fusion") ? value.divide(new BigDecimal(10000), 2, BigDecimal.ROUND_HALF_UP) : value;
+        return value == null ? null : (denominationStage != null && denominationStage.endsWith("fusion") ? value.divide(new BigDecimal(10000), 2, BigDecimal.ROUND_HALF_UP) : value);
     }
 
     public double denominateDivideType2(double value, String denominationStage) {
