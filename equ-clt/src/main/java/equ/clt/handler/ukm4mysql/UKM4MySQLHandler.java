@@ -767,10 +767,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         idBarcode = idBarcode.substring(2, 7);
                     String idItem = rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
-                    BigDecimal price = denominateDivideType2(rs.getBigDecimal(9), denominationStage); //i.price
-                    BigDecimal sum = denominateDivideType2(rs.getBigDecimal(10), denominationStage); //i.total
+                    BigDecimal price = rs.getBigDecimal(9) == null ? null : denominateDivideType2(rs.getBigDecimal(9), denominationStage); //i.price
+                    BigDecimal sum = rs.getBigDecimal(10) == null ? null : denominateDivideType2(rs.getBigDecimal(10), denominationStage); //i.total
                     Integer position = rs.getInt(11) + 1;
-                    BigDecimal realAmount = denominateDivideType2(rs.getBigDecimal(12), denominationStage); //i.real_amount
+                    BigDecimal realAmount = rs.getBigDecimal(12) == null ? null : denominateDivideType2(rs.getBigDecimal(12), denominationStage); //i.real_amount
                     String idSection = rs.getString(13);
 
                     Map<Integer, BigDecimal> paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
@@ -787,9 +787,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         Time timeZReport = rs.getTime(21); //s.date
                         //String idEmployee = loginMap.get(login);
 
-                        BigDecimal sumCash = denominateDivideType2(paymentEntry.get(0), denominationStage);
-                        BigDecimal sumCard = denominateDivideType2(paymentEntry.get(1), denominationStage);
-                        BigDecimal sumGiftCard = denominateDivideType2(paymentEntry.get(2), denominationStage);
+                        BigDecimal sumCash = paymentEntry.get(0) == null ? null : denominateDivideType2(paymentEntry.get(0), denominationStage);
+                        BigDecimal sumCard = paymentEntry.get(1) == null ? null : denominateDivideType2(paymentEntry.get(1), denominationStage);
+                        BigDecimal sumGiftCard = paymentEntry.get(2) == null ? null : denominateDivideType2(paymentEntry.get(2), denominationStage);
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                         BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
