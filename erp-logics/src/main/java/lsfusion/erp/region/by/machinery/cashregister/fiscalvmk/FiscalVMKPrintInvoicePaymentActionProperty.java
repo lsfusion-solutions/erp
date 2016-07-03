@@ -5,6 +5,7 @@ import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
@@ -53,7 +54,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             }
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true, denominationStage));
-            findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : null, context);
+            findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
