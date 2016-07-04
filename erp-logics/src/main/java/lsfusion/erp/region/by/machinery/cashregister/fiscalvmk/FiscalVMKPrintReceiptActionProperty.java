@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -163,8 +164,10 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                         findProperty("number[Receipt]").change(result, context, receiptObject);
                         context.apply();
                         findAction("createCurrentReceipt[]").execute(context);
-                    } else
+                    } else {
+                        ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                    }
                 }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

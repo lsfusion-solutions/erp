@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -53,8 +54,10 @@ public class FiscalVMKUpdateDataActionProperty extends ScriptingActionProperty {
                 String result = (String) context.requestUserInteraction(new FiscalVMKUpdateDataClientAction(ip, comPort, baudRate));
                 if (result == null)
                     context.apply();
-                else
+                else {
+                    ServerLoggers.systemLogger.error("FiscalVMKUpdateData Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                }
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);

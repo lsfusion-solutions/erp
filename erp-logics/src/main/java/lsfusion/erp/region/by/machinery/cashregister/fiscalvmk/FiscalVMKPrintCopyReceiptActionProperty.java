@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -28,6 +29,7 @@ public class FiscalVMKPrintCopyReceiptActionProperty extends ScriptingActionProp
 
             String result = (String) context.requestUserInteraction(new FiscalVMKPrintCopyReceiptClientAction(ip, comPort, baudRate));
             if (result != null) {
+                ServerLoggers.systemLogger.error("FiscalVMKPrintCopyReceipt Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 

@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -54,6 +55,8 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             }
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true, denominationStage));
+            if(result != null)
+                ServerLoggers.systemLogger.error("FiscalVMKPrintInvoicePayment Error: " + result);
             findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {

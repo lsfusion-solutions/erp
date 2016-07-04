@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -29,8 +30,10 @@ public class FiscalVMKXReportActionProperty extends ScriptingActionProperty {
             if (result == null) {
                 context.apply();
             }
-            else
+            else {
+                ServerLoggers.systemLogger.error("FiscalVMKXReport Error: " + result);
                 context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+            }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }

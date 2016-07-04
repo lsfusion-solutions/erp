@@ -451,7 +451,7 @@ public class FiscalVMK {
         if (denominationStage == null || denominationStage.trim().endsWith("before")) {
             return value.multiply(BigDecimal.valueOf(100));
         } else if (denominationStage.trim().endsWith("fusion")) {
-            return value.divide(value, 2);
+            return value.divide(BigDecimal.valueOf(100), 2);
         } else
             return value;
     }

@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -22,7 +23,7 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
+            //DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
 
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
@@ -34,6 +35,7 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
             if (result instanceof BigDecimal) {
                 context.requestUserInteraction(new MessageClientAction(FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
+                ServerLoggers.systemLogger.error("FiscalVMKCashSum Error: " + result);
                 context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
             }
 
