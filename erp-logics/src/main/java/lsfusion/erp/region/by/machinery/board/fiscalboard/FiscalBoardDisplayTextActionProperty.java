@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
+import com.google.common.base.Throwables;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -13,6 +14,7 @@ import lsfusion.server.session.DataSession;
 
 import java.math.BigDecimal;
 import java.sql.SQLException;
+import java.text.DecimalFormat;
 import java.util.Iterator;
 
 public class FiscalBoardDisplayTextActionProperty extends ScriptingActionProperty {
@@ -42,31 +44,27 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
                 name = name == null ? "" : name;
                 BigDecimal quantityValue = (BigDecimal) findProperty("quantity[ReceiptDetail]").read(session, receiptDetailObject);
                 double quantity = quantityValue == null ? 0.0 : quantityValue.doubleValue();
-                BigDecimal priceValue = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
-                long price = priceValue == null ? 0 : priceValue.longValue();
-                BigDecimal sumValue = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
-                long sum = sumValue == null ? 0 : sumValue.longValue();
+                BigDecimal price = (BigDecimal) findProperty("price[ReceiptDetail]").read(session, receiptDetailObject);
+                BigDecimal sum = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(session, (DataObject) receiptObject);
 
                 String[] lines = generateText(price, quantity, sum, name, 20);
 
                 context.requestUserInteraction(new FiscalBoardDisplayTextClientAction(lines[0], lines[1], baudRateBoard, comPortBoard));
 
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw Throwables.propagate(e);
         }
     }
 
-    private static String[] generateText(long price, double quantity, long sum, String nameItem, int len) {
-        String firstLine = " " + toStr(quantity) + "x" + String.valueOf(price);
+    private static String[] generateText(BigDecimal price, double quantity, BigDecimal sum, String nameItem, int len) {
+        String firstLine = " " + toStr(quantity) + "x" + toStr(price);
         int length = len - Math.min(len, firstLine.length());
         String name = nameItem.substring(0, Math.min(length, nameItem.length()));
         while ((name + firstLine).length() < 20)
             name = name + " ";
         firstLine = name + firstLine;
-        String secondLine = String.valueOf(sum);
+        String secondLine = toStr(sum);
         while (secondLine.length() < (len - 5))
             secondLine = " " + secondLine;
         secondLine = "ИТОГ:" + secondLine;
@@ -76,6 +74,19 @@ public class FiscalBoardDisplayTextActionProperty extends ScriptingActionPropert
     private static String toStr(double value) {
         boolean isInt = (value - (int) value) == 0;
         return isInt ? String.valueOf((int) value) : String.valueOf(value);
+    }
+
+    public static String toStr(BigDecimal value) {
+        String result = null;
+        if (value != null) {
+            value = value.setScale(2, BigDecimal.ROUND_HALF_UP);
+            DecimalFormat df = new DecimalFormat();
+            df.setMaximumFractionDigits(2);
+            df.setMinimumFractionDigits(2);
+            df.setGroupingUsed(false);
+            result = df.format(value).replace(",", ".");
+        }
+        return result == null ? "0.00" : result;
     }
 
     protected String trim(String input) {
