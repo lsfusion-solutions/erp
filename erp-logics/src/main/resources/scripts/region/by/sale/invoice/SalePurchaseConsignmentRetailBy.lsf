@@ -45,20 +45,20 @@ overPrice(InvoiceDetail d) += WHEN useRetailPrice(d)
     THEN 
         IF createPurchasePricing(invoice(d)) 
             THEN
-                IF useVAT(d) THEN NUMERIC[16,4](round0((purchaseRetailPrice(d) (-) purchaseRetailVATSum(d)/quantity[ConsignmentDetail](d)))) 
+                IF useVAT(d) THEN NUMERIC[16,4](round((purchaseRetailPrice(d) (-) purchaseRetailVATSum(d)/quantity[ConsignmentDetail](d)), currency(d))) 
                 ELSE purchaseRetailPrice(d)
             ELSE
-                IF useVAT(d) THEN NUMERIC[16,4](round0((retailPrice(d) (-) retailVATSum(d)/quantity[ConsignmentDetail](d)))) 
+                IF useVAT(d) THEN NUMERIC[16,4](round((retailPrice(d) (-) retailVATSum(d)/quantity[ConsignmentDetail](d)), currency(d))) 
                 ELSE retailPrice(d);
                          
 overSum(InvoiceDetail d) += WHEN  useRetailPrice(d)
     THEN 
         IF createPurchasePricing(invoice(d)) 
             THEN
-                IF useVAT(d) THEN NUMERIC[18,4](round0(overPrice(d)) * purchasePricingQuantity(d))
+                IF useVAT(d) THEN NUMERIC[18,4](round(overPrice(d), currency(d)) * purchasePricingQuantity(d))
                 ELSE purchaseRetailSum(d)
             ELSE
-                IF useVAT(d) THEN NUMERIC[18,4](round0(overPrice(d)) * pricingQuantity(d))
+                IF useVAT(d) THEN NUMERIC[18,4](round(overPrice(d), currency(d)) * pricingQuantity(d))
                 ELSE retailSum(d);  
                   
 useEmptyVAT (InvoiceDetail d) += WHEN useRetailPrice(d) THEN  useEmptyVAT(d);
