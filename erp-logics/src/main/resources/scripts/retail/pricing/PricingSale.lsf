@@ -22,7 +22,7 @@ WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
               CHANGED(supplierStock(detail)) OR
               (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
               CHANGED(batch(detail))) AND NOT CHANGED(supplierPrice (detail)) DO {
-    supplierPrice (detail)  <- IF batch(detail) 
+    supplierPrice (detail)  <- round2(IF batch(detail) 
                                                     THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                                    batch(detail),
                                                                                                    supplierStock(detail),
@@ -30,7 +30,7 @@ WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR
                                                     ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
                                                                                                  sku(detail),
                                                                                                  supplierStock(detail),
-                                                                                                 dateTime(detail));
+                                                                                                 dateTime(detail)));
 }
  
 WHEN SESSION (CHANGED(sku(UserInvoiceDetail detail)) OR

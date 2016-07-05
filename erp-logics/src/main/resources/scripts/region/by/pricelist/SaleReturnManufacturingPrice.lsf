@@ -15,7 +15,20 @@ includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (s
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
 
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userInvoice, manufacturingPriceStockPriceListType, manufacturing, sku, supplierStock);
+manufacturingPrice (UserInvoiceDetail detail)  <- round2(IF batch(detail)
+
+                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                               batch(detail),
+                                                                                               supplierStock(detail),
+                                                                                               dateTime(detail))
+                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                             sku(detail),
+                                                                                             supplierStock(detail),
+                                                                                             dateTime(detail)))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(supplierStock(detail)) OR
+                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                                                     CHANGED(batch(detail));
 
 overRecalculatedPrice(UserInvoiceDetail detail) += ACTION {
     ASSIGN manufacturingPrice(detail) <- manufacturingPrice(invoiceDetail(detail));
