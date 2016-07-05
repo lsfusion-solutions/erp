@@ -550,6 +550,21 @@ END
 
 // ---------------------------------- Диалоги по выбору складов поставщиков/компаний/покупателей когда есть организация --------------------------- //
 
+FORM stocksCompany 'Собственные склады'
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a)
+
+    OBJECTS s = Stock
+    PROPERTIES(s) READONLY id, stockName = name, nameLegalEntity, nameCountry, address
+    PROPERTIES(s)          edit
+    ORDER BY stockName
+    FILTERS isParent(sg, s) OR (s IS Stock AND NOT sg),
+            isCompany(s)
+    FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT        
+;
+
 FORM companyStocks 'Склады'
     OBJECTS l = LegalEntity FIXED PANEL
 
