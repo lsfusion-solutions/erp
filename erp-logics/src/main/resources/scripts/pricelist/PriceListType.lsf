@@ -398,18 +398,20 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
                                                                      dateTime(detail));
 
     prevListMVAT (PriceListType priceListType, ###detail detail) =
+        round2(
         IF includeVAT(priceListType)
             THEN
-                round(prevList(priceListType, detail) * 100.0 /(100.0 + calcValueVAT(detail)), currency(detail))
+                prevList(priceListType, detail) * 100.0 /(100.0 + calcValueVAT(detail))
             ELSE
-                prevList(priceListType, detail);
+                prevList(priceListType, detail));
 
     prevListPVAT (PriceListType priceListType, ###detail detail) =
+        round2(
         IF includeVAT(priceListType)
             THEN
                 prevList(priceListType, detail)
             ELSE
-                prevList(priceListType, detail) * (100.0 + calcValueVAT(detail)) / 100.0;
+                prevList(priceListType, detail) * (100.0 + calcValueVAT(detail)) / 100.0);
 
     WHEN SESSION FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR

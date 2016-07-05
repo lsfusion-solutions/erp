@@ -476,7 +476,7 @@ META defineDocumentDetailNumberVATOnChangeCustom (detail, stockProp)
             FORM rangeDialog OBJECTS c = country###stockProp(detail) DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
             VAT (detail) <- requestedObject();
-            invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail))/100;
+            invoicePrice (detail) <- round2(price (detail) * (100 + calcValueVAT(detail))/100);
         } ELSE IF formResult() == FormResult.drop THEN {
             VAT(detail) <- NULL;
             invoicePrice(detail) <- price (detail);
@@ -494,7 +494,7 @@ META defineDocumentDetailValueVATOnChangeCustom (detail)
         REQUEST NUMERIC[10,5] INPUT;
         valueVAT (detail) <- requestedNumeric();
         VAT(detail) <- valueCurrentVAT(countrySupplierStock(detail), requestedNumeric());
-        invoicePrice (detail) <- price (detail) * (100 + requestedNumeric())/100;
+        invoicePrice (detail) <- round2(price (detail) * (100 + requestedNumeric())/100);
     }
 END
 
@@ -507,7 +507,7 @@ META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
     changeInvoicePrice (###detail detail) = ACTION {
         REQUEST NUMERIC[16,4] INPUT;
         invoicePrice (detail) <- requestedNumeric();
-        price (detail) <- invoicePrice (detail) * 100/(100 + calcValueVAT(detail));
+        price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail)));
     }
 END
 
