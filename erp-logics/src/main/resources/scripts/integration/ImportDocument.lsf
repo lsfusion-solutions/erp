@@ -96,21 +96,8 @@ CLASS ImportTypeDetail 'Свойство' {
 }
 TABLE ImportTypeDetail(ImportTypeDetail);
 
-// todo : delete in future releases 
-property 'Свойство (устар.)' (ImportTypeDetail) = DATA VARSTRING[100] (ImportTypeDetail);
-
 prop 'Свойство' (ImportTypeDetail) = DATA Property (ImportTypeDetail);
 canonicalNameProp 'Свойство' (ImportTypeDetail d) = canonicalName(prop(d));
-migrateProp = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportDocumentPropertyActionProperty' (ImportTypeDetail);
-propsMigrated() = DATA BOOLEAN ();
-migrateProps() = ACTION {
-    IF NOT propsMigrated() THEN {
-        FOR property(ImportTypeDetail d) DO
-            migrateProp(d);
-        propsMigrated() <- TRUE;
-    }
-}
-onStarted() += ACTION migrateProps();
 
 key 'Ключ' (ImportTypeDetail) = DATA CustomKeyType (ImportTypeDetail);
 nameKey (ImportTypeDetail ImportTypeDetail) = staticName(key(ImportTypeDetail));
@@ -178,13 +165,13 @@ idStock (StockMappingEntry stockMappingEntry) = id(stock(stockMappingEntry));
 
 FORM importTypeDetails
     OBJECTS itd = ImportTypeDetail
-    PROPERTIES(itd) staticCaption READONLY, property, canonicalNameProp, captionKey
+    PROPERTIES(itd) staticCaption READONLY, canonicalNameProp, captionKey
     DIALOG ImportTypeDetail OBJECT itd
 ;
 
 FORM importTypeDetail 'Свойство импорта'
     OBJECTS itd = ImportTypeDetail FIXED PANEL
-    PROPERTIES(itd) staticCaption, property, canonicalNameProp, captionKey
+    PROPERTIES(itd) staticCaption, canonicalNameProp, captionKey
     EDIT ImportTypeDetail OBJECT itd
 ;
 
@@ -228,7 +215,7 @@ FORM importType 'Тип импорта'
     FILTERS importType(s) == i
               
     OBJECTS d = ImportTypeDetail
-    PROPERTIES(d) staticCaption READONLY, property, canonicalNameProp, captionKey
+    PROPERTIES(d) staticCaption READONLY, canonicalNameProp, captionKey
     PROPERTIES(i,d) index, replaceOnlyNull                   
     PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
     EDIT ImportType OBJECT i

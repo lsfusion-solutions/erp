@@ -447,30 +447,12 @@ overValueVAT(ReceiptDetail d) += valueRate(VAT(d), date(d));
 WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO {
     valueVAT(d) <- overValueVAT(d);
 }
-// todo: после запуска у  всех клиентов удалить
-isDataValueVATReceiptDetail = DATA BOOLEAN ();
-onStarted() += ACTION {
-    IF NOT isDataValueVATReceiptDetail() THEN {
-        valueVAT(ReceiptDetail d) <- valueRate(VAT(d), date(d));    
-        isDataValueVATReceiptDetail() <- TRUE;
-        apply();
-    }    
-}
 
 sumVAT 'Сумма НДС' (d) = DATA NUMERIC[18,4] (ReceiptDetail) @@denomination;
 calcSumVAT 'Сумма НДС' (ReceiptDetail d) = round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d));
 // пока делаем не сессионным событием, чтобы быстрее принималось
 WHEN CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d)) DO {
     sumVAT(d) <- calcSumVAT(d);
-}
-
-isSumVATReceiptDetail = DATA BOOLEAN ();
-onStarted() += ACTION {
-    IF NOT isSumVATReceiptDetail() THEN {
-        sumVAT(ReceiptDetail d) <- round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d));    
-        isSumVATReceiptDetail() <- TRUE;
-        apply();
-    }    
 }
 
 signedSumVAT 'Сумма НДС' (ReceiptDetail d) = IF d IS ReceiptReturnDetail THEN -sumVAT(d) ELSE sumVAT(d);

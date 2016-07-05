@@ -47,21 +47,8 @@ CLASS ImportUserPriceListTypeDetail 'Свойство (импорт прайс-�
 }
 TABLE importPriceListTypeDetail(ImportUserPriceListTypeDetail);
 
-// todo : delete in future releases 
-propertyImport 'Свойство (устар.)' = DATA VARSTRING[100] (ImportUserPriceListTypeDetail);
-
 propImport 'Свойство' (ImportTypeDetail) = DATA Property (ImportUserPriceListTypeDetail);
 canonicalNamePropImport 'Свойство' (ImportUserPriceListTypeDetail d) = canonicalName(propImport(d));
-migratePropImport = ACTION CUSTOM 'lsfusion.erp.integration.universal.MigrateImportUserPriceListPropertyActionProperty' (ImportUserPriceListTypeDetail);
-propsMigrated() = DATA BOOLEAN ();
-migrateProps() = ACTION {
-    IF NOT propsMigrated() THEN {
-        FOR propertyImport(ImportUserPriceListTypeDetail d) DO
-            migratePropImport(d);
-        propsMigrated() <- TRUE;
-    }
-}
-onStarted() += ACTION migrateProps();
 
 keyImport 'Ключ' = DATA CustomKeyType (ImportUserPriceListTypeDetail);
 nameKeyImport 'Ключ' (ImportUserPriceListTypeDetail importTypeDetail) = staticName(keyImport(importTypeDetail));
@@ -136,13 +123,13 @@ FORM customKeyTypes 'Ключи свойства'
 
 FORM importUserPriceListTypeDetails
     OBJECTS itd = ImportUserPriceListTypeDetail
-    PROPERTIES(itd) staticCaption READONLY, propertyImport, canonicalNamePropImport, captionKeyImport
+    PROPERTIES(itd) staticCaption READONLY, canonicalNamePropImport, captionKeyImport
     DIALOG ImportUserPriceListTypeDetail OBJECT itd
 ;
 
 FORM importUserPriceListTypeDetail 'Свойство импорта'
     OBJECTS itd = ImportUserPriceListTypeDetail FIXED PANEL
-    PROPERTIES(itd) staticCaption, propertyImport, canonicalNamePropImport, captionKeyImport
+    PROPERTIES(itd) staticCaption, canonicalNamePropImport, captionKeyImport
     EDIT ImportUserPriceListTypeDetail OBJECT itd
 ;
 
@@ -171,7 +158,7 @@ FORM importUserPriceListType 'Тип импорта'
     PROPERTIES(i) autoImport, autoImportDirectory FORCE PANEL SHOWIF autoImport(i)
                    
     OBJECTS d = ImportUserPriceListTypeDetail
-    PROPERTIES(d) staticCaption READONLY, propertyImport, canonicalNamePropImport, captionKeyImport
+    PROPERTIES(d) staticCaption READONLY, canonicalNamePropImport, captionKeyImport
     PROPERTIES(i,d) index, replaceOnlyNull 
     PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
                       

@@ -279,16 +279,6 @@ nameSkuTypeSku 'Тип товара' (PageInventoryDetail d) = nameSkuType(sku(d
 
 @defineDocumentDetailDataSum(pageInventory);
 @deriveDocumentDetailSum(pageInventory, quantity);
-migratedPageInventorySum = DATA BOOLEAN();
-onStarted() += ACTION {
-    IF NOT migratedPageInventorySum() THEN {
-        applyOnlyData();
-        sum (PageInventoryDetail d) <- NUMERIC[18,4](round((quantity(d) * price(d)), currency(d)));
-        migratedPageInventorySum() <- TRUE;
-        apply();
-        applyAll();
-    }
-}
 
 @defineDocumentHeaderQuantity(pageInventory);
 @defineDocumentHeaderSum(pageInventory);
@@ -480,17 +470,6 @@ recalculateBalance 'Заполнить остатки' (Inventory inventory) = A
     }
     overRecalculateBalance(inventory);
 } CONFIRM IN inventoryAction;
-
-isNewExplicitBatchLedger = DATA BOOLEAN ();
-onStarted() += ACTION {
-    IF NOT isNewExplicitBatchLedger() THEN {
-        sumBalance(CollationSheet collationSheet, Batch batch)
-                    <- NUMERIC[18,4](round(quantityBalance(collationSheet, batch)*priceBalance(collationSheet, batch),currency(stock(collationSheet))));
-        isNewExplicitBatchLedger() <- TRUE;
-        apply();
-    }
-}
-
 
 overPriceBalance = ABSTRACT NUMERIC[16,4](CollationSheet, Sku);
 recalculatePrice 'Пересчитать цены в сличительной ведомости' (CollationSheet collationSheet) = ACTION {
@@ -922,16 +901,6 @@ DESIGN operation {
 }
 
 showAccountSums = typeOfAddition(CollationSheet c)==TypeOfAddition.remains AND isShortageStockDocument(inventory(c)) PERSISTENT;
-
-migratedAccountSum = DATA BOOLEAN();
-onStarted() += ACTION {
-    IF NOT migratedAccountSum() THEN {
-        FOR showAccountSums(CollationSheet c) DO {
-            recalculateSumAccountB(c);
-        }
-        migratedAccountSum() <- TRUE;
-    }
-}
 
 accountSumItemBalance = IF showAccountSums(CollationSheet collationSheet)
                                                             THEN sumItemAccountB(collationSheet)
