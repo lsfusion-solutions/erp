@@ -100,7 +100,7 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
 
         List<Exchange> exchangesList = new ArrayList<>();
 
-        JSONArray document = readJsonFromUrl("http://www.nbrb.by/APITest/ExRates/Currencies");
+        JSONArray document = readJsonFromUrl("http://www.nbrb.by/API/ExRates/Currencies");
         for (int i = 0; i < document.length(); i++) {
             JSONObject jsonObject = document.getJSONObject(i);
 
@@ -110,7 +110,7 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
                 String id = jsonObject.getString("Cur_ID");
                 BigDecimal scale = new BigDecimal(jsonObject.getString("Cur_Scale"));
 
-                JSONArray exchangeDocument = readJsonFromUrl("http://www.nbrb.by/APITest/ExRates/Rates/Dynamics/" + id
+                JSONArray exchangeDocument = readJsonFromUrl("http://www.nbrb.by/API/ExRates/Rates/Dynamics/" + id
                         + "?startDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateFrom)
                         + "&endDate=" + new SimpleDateFormat("MM/dd/yyyy").format(dateTo));
 
