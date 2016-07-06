@@ -327,25 +327,25 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     @defineDocumentInterfaceDetailExpiryDate(invoice);
     @defineDocumentInterfaceDetailManufactureDate(invoice);
     
-    overExpiryDate = ABSTRACT DATE (InvoiceDetail);
-    calcExpiryDate (InvoiceDetail d) = OVERRIDE 
-        (IF expiryMonth(sku[UserInvoiceDetail](d)) 
+    overExpiryDate = ABSTRACT DATE (UserInvoiceDetail);
+    calcExpiryDate (UserInvoiceDetail d) = OVERRIDE 
+        (IF expiryMonth(sku(d)) 
             THEN sumMonth(manufactureDate(d), expiryMonth(sku(d)))
             ELSE sum(manufactureDate(d), expiryDays(sku(d)))),
         overExpiryDate(d);
         
-    WHEN SESSION FORMS userInvoice (CHANGED(manufactureDate(InvoiceDetail d)) OR CHANGED(sku[UserInvoiceDetail](d))) AND NOT batch[UserInvoiceDetail](d) AND manufactureDate(d) DO {
-        expiryDate[UserInvoiceDetail](d) <- calcExpiryDate(d);            
+    WHEN SESSION FORMS userInvoice (CHANGED(manufactureDate(UserInvoiceDetail d)) OR CHANGED(sku(d))) AND NOT batch(d) AND manufactureDate(d) DO {
+        expiryDate(d) <- calcExpiryDate(d);            
     } 
-    overManufactureDate = ABSTRACT DATE (InvoiceDetail);
-    calcManufactureDate (InvoiceDetail d) = OVERRIDE 
-        (IF expiryMonth(sku[UserInvoiceDetail](d)) 
+    overManufactureDate = ABSTRACT DATE (UserInvoiceDetail);
+    calcManufactureDate (UserInvoiceDetail d) = OVERRIDE 
+        (IF expiryMonth(sku(d)) 
             THEN sumMonth(expiryDate(d), -expiryMonth(sku(d)))
             ELSE sum(expiryDate(d), -expiryDays(sku(d)))),
         overManufactureDate(d);     
            
-    WHEN SESSION FORMS userInvoice (CHANGED(expiryDate(InvoiceDetail d)) OR CHANGED(sku[UserInvoiceDetail](d))) AND NOT batch[UserInvoiceDetail](d) AND expiryDate(d) DO {
-        manufactureDate[UserInvoiceDetail](d) <- calcManufactureDate(d);            
+    WHEN SESSION FORMS userInvoice (CHANGED(expiryDate(UserInvoiceDetail d)) OR CHANGED(sku(d))) AND NOT batch(d) AND expiryDate(d) DO {
+        manufactureDate(d) <- calcManufactureDate(d);            
     }            
 
     conformityShipmentDateInvoices 'Соответствие даты поставки с датой накладной '##sign = DATA BOOLEAN ();

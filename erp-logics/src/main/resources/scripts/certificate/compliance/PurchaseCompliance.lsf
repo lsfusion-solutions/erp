@@ -5,7 +5,15 @@ REQUIRE Compliance, PurchaseCertificate;
 NAMESPACE Purchase;
 
 @defineDocumentCertificate(compliance, invoice, i, 'Сертификат соответствия');
-@deriveDocumentPurchaseCertificate(compliance, invoice, customerStock, data);
+
+WHEN SESSION (CHANGED(batch(UserInvoiceDetail detail)) OR
+              CHANGED (sku(detail)) OR
+              CHANGED (customerStock(detail))) AND NOT autoDeriveLastCertificate() DO {
+    dataCompliance(detail)  <- IF batch(detail) 
+                                  THEN prevCompliance(batch(detail))
+                                  ELSE prevCompliance(prevLastOrderBatch(sku(detail), customerStock(detail)));
+              
+}
 fromDateCompliance 'Дата с' (InvoiceDetail detail) = fromDate(compliance(detail));
 toDateCompliance 'Дата по' (InvoiceDetail detail) = toDate(compliance(detail));
 
