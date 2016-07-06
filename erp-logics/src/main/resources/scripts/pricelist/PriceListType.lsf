@@ -13,7 +13,7 @@ TABLE priceListType(PriceListType);
 
 name 'Наименование' = ABSTRACT VARISTRING[100](PriceListType);
 
-includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) PERSISTENT;
+includeVAT 'Цена с НДС' = ABSTRACT BOOLEAN (PriceListType) PERSISTENT COMPLEX;
 
 priceB 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME);
 priceA 'Цена' = ABSTRACT NUMERIC[16,4] (PriceListType, Sku, Stock, DATETIME);
@@ -420,15 +420,31 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
              CHANGED(batch(d)) OR
              CHANGED(sku(d))))
              AND NOT CHANGED(price(d)) 
-             AND PriceListType pt == priceListType(d) AND sku(d) NOINLINE (pt) DO {
-        price(d) <- prevListMVAT (pt, d);
-        invoicePrice(d) <- prevListPVAT (pt, d);
+             AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) NOINLINE (pt) DO {
+        price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
+        invoicePrice(d) <- round2(prevList(pt, d));
     }
-    
+
+    WHEN SESSION FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
+            (((CHANGED(stockProp(###detail d)) OR
+             CHANGED(dateTime(d))) AND NOT isPosted(d)) OR
+             (CHANGED(priceListType(d)) OR
+             CHANGED(batch(d)) OR
+             CHANGED(sku(d))))
+             AND NOT CHANGED(price(d)) 
+             AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
+        price(d) <- round2(prevList(pt, d));
+        invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+    }
+
     recalculatePrice###detail 'Пересчитать цены'() = ACTION {
-        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) NOINLINE (pt) DO {
-            price(d) <- prevListMVAT (pt, d);
-            invoicePrice(d) <- prevListPVAT (pt, d);
+        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
+            price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
+            invoicePrice(d) <- round2(prevList(pt, d));
+        }
+        FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
+            price(d) <- round2(prevList(pt, d));
+            invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
         }
     } SHORTCUT price[###detail];
 
