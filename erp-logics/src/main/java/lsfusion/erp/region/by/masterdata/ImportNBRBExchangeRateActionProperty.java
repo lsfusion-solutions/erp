@@ -42,10 +42,10 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
     }
 
-    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
+    protected void importExchanges(Date dateFrom, Date dateTo, String shortNameCurrency, ExecutionContext context, boolean denominate) throws ScriptingErrorLog.SemanticErrorException, IOException, SQLException, ParseException, SQLHandledException, JSONException {
 
 
-        List<Exchange> exchangesList = importExchangesFromXMLDenominated(dateFrom, dateTo, shortNameCurrency);
+        List<Exchange> exchangesList = importExchangesFromXMLDenominated(dateFrom, dateTo, shortNameCurrency, denominate);
 
         if (exchangesList != null) {
 
@@ -96,7 +96,7 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
         }
     }
 
-    private List<Exchange> importExchangesFromXMLDenominated(Date dateFrom, Date dateTo, String shortNameCurrency) throws IOException, ParseException, JSONException {
+    private List<Exchange> importExchangesFromXMLDenominated(Date dateFrom, Date dateTo, String shortNameCurrency, boolean denominate) throws IOException, ParseException, JSONException {
 
         List<Exchange> exchangesList = new ArrayList<>();
 
@@ -119,6 +119,8 @@ public class ImportNBRBExchangeRateActionProperty extends DefaultIntegrationActi
                     JSONObject exchangeNode = exchangeDocument.getJSONObject(j);
 
                     BigDecimal rate = new BigDecimal(exchangeNode.getString("Cur_OfficialRate"));
+                    if(denominate)
+                        rate = safeDivide(rate, 10000);
 
                     exchangesList.add(new Exchange(charCode, "BLR", new Date(DateUtils.parseDate(exchangeNode.getString("Date"), new String[]{"yyyy-MM-dd'T'HH:mm:ss"}).getTime()),
                             safeDivide(rate, scale, 6)));

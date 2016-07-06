@@ -37,8 +37,15 @@ public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNB
             Date nbrbDateFrom = (Date) findProperty("importNBRBExchangeRateDateFrom[]").read(context);
             Date nbrbDateTo = (Date) findProperty("importNBRBExchangeRateDateTo[]").read(context);
 
-            if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null)
-                importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context);
+
+            if (nbrbDateFrom != null && nbrbDateTo != null && shortNameCurrency != null) {
+                Date separationDate = new Date(2016 - 1900, 5, 30); //30.06.2016
+                Date denominationDate = new Date(2016 - 1900, 6, 1); //01.07.2016
+                if(nbrbDateFrom.getTime() <= separationDate.getTime() && nbrbDateTo.getTime() > separationDate.getTime()) {
+                    importExchanges(nbrbDateFrom, separationDate, shortNameCurrency, context, true);
+                    importExchanges(denominationDate, nbrbDateTo, shortNameCurrency, context, false);
+                }
+            }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
             throw Throwables.propagate(e);

@@ -38,8 +38,15 @@ public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExch
             long currentTime = Calendar.getInstance().getTimeInMillis();
             Integer days = (Integer) findProperty("importNBRBExchangeRateDaysCount[]").read(context);
             if (shortNameCurrency != null && days != null && days > 0) {
-                importExchanges(new Date(currentTime - (long) days * 24 * 3600 * 1000), new Date(currentTime),
-                        shortNameCurrency, context);
+                Date separationDate = new Date(2016 - 1900, 5, 30); //30.06.2016
+                Date denominationDate = new Date(2016 - 1900, 6, 1); //01.07.2016
+                Date dateFrom = new Date(currentTime - (long) days * 24 * 3600 * 1000);
+                Date dateTo = new Date(currentTime);
+                if(dateFrom.getTime() <= separationDate.getTime() && dateTo.getTime() > separationDate.getTime()) {
+                    importExchanges(dateFrom, separationDate, shortNameCurrency, context, true);
+                    importExchanges(denominationDate, dateTo, shortNameCurrency, context, false);
+                }
+
             }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | ParseException | JSONException e) {
