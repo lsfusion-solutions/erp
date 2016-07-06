@@ -3,7 +3,15 @@ MODULE DisparityManufacturingPrice;
 REQUIRE Disparity, PurchaseManufacturingPrice;
 
 @defineDocumentDetailPriceCustomPrefix(disparityDetail, curInputManufacturing, ' изготовителя до');
-@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
+//@deriveDocumentDetailPriceSystemLedgerPriceListType(disparity, manufacturingPriceStockPriceListType, curInputManufacturing, sku, stock);
+
+curInputManufacturingPrice (DisparityDetail detail)  <- round2(prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                        sku(detail),
+                                                                                        stock(detail),
+                                                                                        dateTime(detail)))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     CHANGED(dateTime(detail));
 
 @defineDocumentDetailPriceCustomPrefix(disparityDetail, afterInputManufacturing, ' изготовителя после');
 

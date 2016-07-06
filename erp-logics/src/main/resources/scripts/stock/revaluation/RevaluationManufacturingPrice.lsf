@@ -6,7 +6,23 @@ NAMESPACE Revaluation;
 
 //-- До
 @defineDocumentInterfaceDetailPriceCustomPrefix(revaluationDetail, curManufacturing, ' изготовителя до');
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRevaluation, manufacturingPriceStockPriceListType, curManufacturing, sku, stock);
+//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRevaluation, manufacturingPriceStockPriceListType, curManufacturing, sku, stock);
+
+curManufacturingPrice (UserRevaluationDetail detail)  <- round2(IF batch(detail)
+
+                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                               batch(detail),
+                                                                                               stock(detail),
+                                                                                               dateTime(detail))
+                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                             sku(detail),
+                                                                                             stock(detail),
+                                                                                             dateTime(detail)))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(stock(detail)) OR
+                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                                                     CHANGED(batch(detail));
+                                                         
 @defineDocumentInterfaceDetailDataSumPrefix (revaluation, curManufacturing, ' изготовителя до');
 @deriveDocumentDetailSumPrefix(userRevaluation, curManufacturing, currency, quantity);
 
