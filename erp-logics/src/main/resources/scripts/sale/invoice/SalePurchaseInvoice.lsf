@@ -121,7 +121,7 @@ fillInvoice 'Заполнить на основе накладной'(Purchase.U
                                    t = date(userInvoice) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL saleInvoice = Invoice();
-        ASSIGN saleInvoice() <- chosenObject('o');
+        saleInvoice() <- chosenObject('o');
 
         FOR invoice(InvoiceDetail invoiceDetail) == saleInvoice() ADDOBJ d = Purchase.UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
@@ -236,10 +236,8 @@ time(PurchaseInvoice invoice) += time(invoice);
 
 @defineDocumentAggregationStockPrefix(invoice, purchaseInvoice, supplier, 'Склад поставщика', , );
 supplierStock(PurchaseInvoice invoice) += supplierStock(invoice);
-dataSupplierStock(PurchaseInvoiceDetail invoiceDetail) += dataSupplierStock(invoiceDetail(invoiceDetail));
 @defineDocumentAggregationStockPrefix(invoice, purchaseInvoice, customer, 'Склад покупателя', , );
 customerStock(PurchaseInvoice invoice) += customerStock(invoice);
-dataCustomerStock(PurchaseInvoiceDetail invoiceDetail) += dataCustomerStock(invoiceDetail(invoiceDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(invoice, purchaseInvoice, supplier, 'Поставщик', , );
 supplier(PurchaseInvoice invoice) += supplier(invoice);
@@ -347,42 +345,40 @@ moveUserInvoice 'Накладная (закупка)'(Invoice invoice) =  ACTION
 
     FOR ADDOBJ i = Purchase.UserInvoice DO {
 
-        ASSIGN agreement(i) <- agreement(invoice);
-        ASSIGN priceListType(i) <- priceListType(invoice);
-        ASSIGN supplier(i) <- supplier(invoice);
-        ASSIGN customer(i) <- customer(invoice);
-        ASSIGN supplierStock(i) <- supplierStock(invoice);
-        ASSIGN customerStock(i) <- customerStock(invoice);
-        ASSIGN number(i) <- number(invoice);
-        ASSIGN series(i) <- series(invoice);
-        ASSIGN note(i) <- note(invoice);
-        ASSIGN currency(i) <- currency(invoice);
-        ASSIGN contractSku(i) <- contractSku(invoice);
-        ASSIGN isCommission(i) <- isCommission(invoice);
-        ASSIGN showPack(i) <- showPack(invoice);
-        ASSIGN operation(i) <- operation(invoice); // todo: может так надо purchaseOperationInvoice(invoice)
+        agreement(i) <- agreement(invoice);
+        priceListType(i) <- priceListType(invoice);
+        supplier(i) <- supplier(invoice);
+        customer(i) <- customer(invoice);
+        supplierStock(i) <- supplierStock(invoice);
+        customerStock(i) <- customerStock(invoice);
+        number(i) <- number(invoice);
+        series(i) <- series(invoice);
+        note(i) <- note(invoice);
+        currency(i) <- currency(invoice);
+        contractSku(i) <- contractSku(invoice);
+        isCommission(i) <- isCommission(invoice);
+        showPack(i) <- showPack(invoice);
+        operation(i) <- operation(invoice); // todo: может так надо purchaseOperationInvoice(invoice)
         EXEC overFillInvoice(i, invoice);
 
         FOR invoice(InvoiceDetail detail)==invoice ADDOBJ d = Purchase.UserInvoiceDetail DO {
 
-            ASSIGN userInvoice(d) <- i;
-            ASSIGN invoiceDetail(d) <- detail;
+            userInvoice(d) <- i;
+            invoiceDetail(d) <- detail;
 
-            ASSIGN priceListType(d) <- priceListType(detail);
-            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
-            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
+            priceListType(d) <- priceListType(detail);
 
-            ASSIGN sku(d) <- sku(detail);
-            ASSIGN quantity (d) <- quantity(detail);
-            ASSIGN VAT (d) <- VAT(detail);
-            ASSIGN price (d) <- price(detail);
-            ASSIGN invoicePrice (d) <- invoicePrice(detail);
+            sku(d) <- sku(detail);
+            quantity (d) <- quantity(detail);
+            VAT (d) <- VAT(detail);
+            price (d) <- price(detail);
+            invoicePrice (d) <- invoicePrice(detail);
 
-            ASSIGN barcodePack (d) <- barcodePack(detail);
-            ASSIGN amountPack (d) <- amountPack(detail);
-            ASSIGN packQuantity (d) <- packQuantity(detail);
+            barcodePack (d) <- barcodePack(detail);
+            amountPack (d) <- amountPack(detail);
+            packQuantity (d) <- packQuantity(detail);
 
-            ASSIGN batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
+            batch(d) <- batch(detail) WHERE NOT notUseBatchPurchaseInvoice(operation(invoice));
             EXEC overFillInvoice(d,detail);
         }
 

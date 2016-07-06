@@ -114,8 +114,6 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentInterfaceDataStock(shipment, stock, 'Склад покупателя', customer);
     supplierStock[Shipment.Shipment](Shipment shipment) += supplierStock(shipment);
     customerStock[Shipment.Shipment](Shipment shipment) += customerStock(shipment);
-    dataSupplierStock[Shipment.ShipmentDetail](ShipmentDetail detail) += dataSupplierStock(detail);
-    dataCustomerStock[Shipment.ShipmentDetail](ShipmentDetail detail) += dataCustomerStock(detail);
 
     CONSTRAINT supplier(UserShipment userShipment) AND supplierStock(userShipment) AND NOT
     in(supplier(userShipment), supplierStock(userShipment))
@@ -191,7 +189,6 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineBarcodeSku(userShipmentDetail); //-- показываем по нажатию правой клавиши все штрихкоды для товара
     
     @defineDocumentDialogSupplierCustomerStock(userShipment, supplierFilter, customerFilter);
-    @defineDocumentDialogSupplierCustomerStockDetail(userShipmentDetail, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerLegalEntity(userShipment, supplierFilter, customerFilter);
 
     @defineMovementPriceSku(shipmentDetail, stockProp###stock); //-- показываем по нажатию правой клавиши изменение цены товара
@@ -218,57 +215,57 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     addDetailBarcodeUserShipmentDetail(UserShipment shipment, STRING[15] barcode, ShipmentDimension dimension) = ACTION {
         LOCAL dialogBarcodeSku = Sku ();
-        ASSIGN dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
+        dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
 
         IF dialogBarcodeSku() IS Sku THEN {
             LOCAL dialogBarcodeDetail = UserShipmentDetail();
-            ASSIGN dialogBarcodeDetail() <- IF dimension IS ShipmentDimension
+            dialogBarcodeDetail() <- IF dimension IS ShipmentDimension
                                                 THEN userShipmentDetail(shipment, dialogBarcodeSku(), dimension)
                                                 ELSE userShipmentDetail(shipment, dialogBarcodeSku());
 
 
             IF dialogBarcodeDetail() IS UserShipmentDetail THEN {
-                ASSIGN quantity(UserShipmentDetail detail) <-
+                quantity(UserShipmentDetail detail) <-
                     quantity(detail) (+) (amount(barcode(barcode, date(shipment))) IF detail IS UserShipmentDetail)
                     WHERE detail == dialogBarcodeDetail();
-                EXEC seek(dialogBarcodeDetail());
+                seek(dialogBarcodeDetail());
             } ELSE {
                 FOR ADDOBJ w = UserShipmentDetail DO {
-                    ASSIGN userShipment(w) <- shipment;
-                    ASSIGN sku(w) <- dialogBarcodeSku();
-                    ASSIGN quantity(w) <- amount(barcode(barcode, date(shipment)));
-                    EXEC seek(w);
+                    userShipment(w) <- shipment;
+                    sku(w) <- dialogBarcodeSku();
+                    quantity(w) <- amount(barcode(barcode, date(shipment)));
+                    seek(w);
                 }
             }
-            EXEC setAddedUser(dialogBarcodeSku());
+            setAddedUser(dialogBarcodeSku());
         } ELSE {
             FORM emptyBarcodeSkus MODAL;
             IF formResult() == FormResult.ok THEN {
                 FOR Object s == chosenObject('s') DO {
-                    ASSIGN dialogBarcodeSku() <- s;
+                    dialogBarcodeSku() <- s;
                     FOR ADDOBJ br = Barcode DO {
-                        ASSIGN id(br) <- barcode;
-                        ASSIGN dataDate(br) <- currentDate();
-                        ASSIGN sku(br) <- s;
+                        id(br) <- barcode;
+                        dataDate(br) <- currentDate();
+                        sku(br) <- s;
                         FOR ADDOBJ w = UserShipmentDetail DO {
-                            ASSIGN userShipment(w) <- shipment;
-                            ASSIGN sku(w) <- s;
-                            ASSIGN quantity(w) <- amount(br);
-                            EXEC seek(w);
+                            userShipment(w) <- shipment;
+                            sku(w) <- s;
+                            quantity(w) <- amount(br);
+                            seek(w);
                         }
                     }
                 }
             } ELSE {
-                EXEC createSkuBarcode(barcode, date(shipment));
-                ASSIGN dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
+                createSkuBarcode(barcode, date(shipment));
+                dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
             }
-            EXEC setAddedUser(dialogBarcodeSku());
+            setAddedUser(dialogBarcodeSku());
         }
     }
 
     changeAddDetailInputBarcodeDimensionUserShipmentDetail(UserShipment userShipment) = ACTION {
         REQUEST STRING[15] INPUT;
-        EXEC addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(requestedString()), shipmentDimension(userShipment));
+        addDetailBarcodeUserShipmentDetail(userShipment, processedBarcode(requestedString()), shipmentDimension(userShipment));
     };
     addDetailInputBarcodeDimensionUserShipmentDetail 'Ввод штрихкода :' (userShipment) = DATA LOCAL STRING[15] (UserShipment) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'
                                                                             ON CHANGE changeAddDetailInputBarcodeDimensionUserShipmentDetail(userShipment);
@@ -296,7 +293,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku BACKGROUND backgroundSku(d), 
                         nameSku BACKGROUND backgroundSku(d), shortNameUOMSku
         PROPERTIES (d) quantity, price, sum, manufactureDate, expiryDate,
-                       name###stockProp##Stock[ShipmentDetail] ON CHANGE changeData###stockProp##Stock###filter(d), ADDOBJ, deletesd=DELETESESSION
+                       name###stockProp##Stock[ShipmentDetail], ADDOBJ, deletesd=DELETESESSION
         ORDER BY index(d)
 
         PROPERTIES(s) TODRAW d fillDocument, addDetailDialogSkuStockUserShipmentDetail,
@@ -409,26 +406,25 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
 
     copy 'Копировать'(Shipment shipment) = ACTION NEWSESSION {
         FOR ADDOBJ s = UserShipment DO {
-            ASSIGN supplier(s) <- supplier(shipment);
-            ASSIGN supplierStock(s) <- supplierStock(shipment);
-            ASSIGN customer(s) <- customer(shipment);
-            ASSIGN customerStock(s) <- customerStock(shipment);
-            ASSIGN currency(s) <- currency(shipment);
-            ASSIGN note(s) <- note(shipment);
+            supplier(s) <- supplier(shipment);
+            supplierStock(s) <- supplierStock(shipment);
+            customer(s) <- customer(shipment);
+            customerStock(s) <- customerStock(shipment);
+            currency(s) <- currency(shipment);
+            note(s) <- note(shipment);
 
-            EXEC overCopy(shipment, s);
+            overCopy(shipment, s);
 
             FOR shipment(ShipmentDetail shipmentDetail) == shipment DO {
                 FOR ADDOBJ d=UserShipmentDetail DO {
-                    ASSIGN userShipment(d) <- s;
-                    ASSIGN sku(d) <- sku(shipmentDetail);
-                    ASSIGN quantity(d) <- quantity(shipmentDetail);
-                    ASSIGN price(d) <- price(shipmentDetail);
-                    ASSIGN expiryDate(d) <- expiryDate(shipmentDetail);
-                    ASSIGN manufactureDate(d) <- manufactureDate(shipmentDetail);
-                    ASSIGN data###stockProp##Stock(d) <- data###stockProp##Stock(shipmentDetail);
+                    userShipment(d) <- s;
+                    sku(d) <- sku(shipmentDetail);
+                    quantity(d) <- quantity(shipmentDetail);
+                    price(d) <- price(shipmentDetail);
+                    expiryDate(d) <- expiryDate(shipmentDetail);
+                    manufactureDate(d) <- manufactureDate(shipmentDetail);
                     
-                    EXEC overCopy(d, shipmentDetail);
+                    overCopy(d, shipmentDetail);
                 }
             }
 
@@ -442,15 +438,14 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     copy 'Копировать'(UserShipmentDetail detail) = ACTION {
         FOR ADDOBJ d = UserShipmentDetail DO {          
 
-            ASSIGN userShipment(d) <- userShipment(detail);
-            ASSIGN sku(d) <- sku(detail);
-            ASSIGN quantity(d) <- quantity(detail);
-            ASSIGN price(d) <- price(detail);
-            ASSIGN data###stockProp##Stock(d) <- data###stockProp##Stock(detail);
-            ASSIGN expiryDate(d) <- expiryDate(detail);
-            ASSIGN manufactureDate(d) <- manufactureDate(detail);
+            userShipment(d) <- userShipment(detail);
+            sku(d) <- sku(detail);
+            quantity(d) <- quantity(detail);
+            price(d) <- price(detail);
+            expiryDate(d) <- expiryDate(detail);
+            manufactureDate(d) <- manufactureDate(detail);
             
-            EXEC overCopy(d, detail);                              
+            overCopy(d, detail);                              
         }
     } TOOLBAR;
     
@@ -678,6 +673,4 @@ END
 META defineShipmentStockDestination(fromStockProp, toStockProp)
     fromStock(Shipment shipment) += fromStockProp(shipment);
     toStock(Shipment shipment) += toStockProp(shipment);
-    dataFromStock(ShipmentDetail detail) += data###fromStockProp(detail);
-    dataToStock(ShipmentDetail detail) += data###toStockProp(detail);
 END

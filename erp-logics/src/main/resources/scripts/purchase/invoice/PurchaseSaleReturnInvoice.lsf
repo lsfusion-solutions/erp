@@ -113,11 +113,11 @@ fillInvoice 'Заполнить на основе накладной (закуп
                                    t = date(userInvoice) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL saleReturnInvoice = Invoice();
-        ASSIGN saleReturnInvoice() <- chosenObject('o');
+        saleReturnInvoice() <- chosenObject('o');
 
         FOR invoice(InvoiceDetail invoiceDetail) == saleReturnInvoice() ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
-            ASSIGN userInvoice(d) <- userInvoice;
-            ASSIGN invoiceDetail(d) <- invoiceDetail;
+            userInvoice(d) <- userInvoice;
+            invoiceDetail(d) <- invoiceDetail;
             setPropertiesPurchaseReturnSaleReturn(d, invoiceDetail);
         }
     }
@@ -214,10 +214,8 @@ time(SaleReturnInvoice invoice) += time(invoice);
 
 @defineDocumentAggregationStockPrefix(invoice, saleReturnInvoice, supplier, 'Склад поставщика', , );
 supplierStock(SaleReturnInvoice invoice) += supplierStock(invoice);
-dataSupplierStock(SaleReturnInvoiceDetail invoiceDetail) += dataSupplierStock(invoiceDetail(invoiceDetail));
 @defineDocumentAggregationStockPrefix(invoice, saleReturnInvoice, customer, 'Склад покупателя', , );
 customerStock(SaleReturnInvoice invoice) += customerStock(invoice);
-dataCustomerStock(SaleReturnInvoiceDetail invoiceDetail) += dataCustomerStock(invoiceDetail(invoiceDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(invoice, saleReturnInvoice, supplier, 'Поставщик', , );
 supplier(SaleReturnInvoice invoice) += supplier(invoice);
@@ -269,8 +267,8 @@ invoicePrice(SaleReturnInvoiceDetail invoiceDetail) += invoicePrice(invoiceDetai
 VATSum(SaleReturnInvoiceDetail invoiceDetail) += VATSum(invoiceDetail(invoiceDetail));
 invoiceSum(SaleReturnInvoiceDetail invoiceDetail) += invoiceSum(invoiceDetail(invoiceDetail));
 
-edit(SaleReturnInvoice invoice) += ACTION EXEC edit(invoice(invoice));
-close(SaleReturnInvoice invoice) += ACTION EXEC close(invoice(invoice));
+edit(SaleReturnInvoice invoice) += ACTION edit(invoice(invoice));
+close(SaleReturnInvoice invoice) += ACTION close(invoice(invoice));
 edit(SaleReturnInvoiceDetail invoiceDetail) += ACTION edit(invoiceDetail(invoiceDetail));
 createdUser(SaleReturnInvoice invoice) += createdUser(invoice(invoice));
 
@@ -324,42 +322,40 @@ moveUserInvoice 'Накладная (продажа-возврат)'(Invoice inv
 
     FOR ADDOBJ i = SaleReturn.UserInvoice DO {
 
-        ASSIGN agreement(i) <- agreement(invoice);
-        ASSIGN priceListType(i) <- priceListType(invoice);
-        ASSIGN supplier(i) <- supplier(invoice);
-        ASSIGN customer(i) <- customer(invoice);
-        ASSIGN supplierStock(i) <- supplierStock(invoice);
-        ASSIGN customerStock(i) <- customerStock(invoice);
-        ASSIGN number(i) <- number(invoice);
-        ASSIGN series(i) <- series(invoice);
-        ASSIGN note(i) <- note(invoice);
-        ASSIGN currency(i) <- currency(invoice);
-        ASSIGN contractSku(i) <- contractSku(invoice);
-        ASSIGN isCommission(i) <- isCommission(invoice);
-        ASSIGN showPack(i) <- showPack(invoice);
-        ASSIGN operation(i) <- operation(invoice);
-        EXEC overFillInvoice(i, invoice);
+        agreement(i) <- agreement(invoice);
+        priceListType(i) <- priceListType(invoice);
+        supplier(i) <- supplier(invoice);
+        customer(i) <- customer(invoice);
+        supplierStock(i) <- supplierStock(invoice);
+        customerStock(i) <- customerStock(invoice);
+        number(i) <- number(invoice);
+        series(i) <- series(invoice);
+        note(i) <- note(invoice);
+        currency(i) <- currency(invoice);
+        contractSku(i) <- contractSku(invoice);
+        isCommission(i) <- isCommission(invoice);
+        showPack(i) <- showPack(invoice);
+        operation(i) <- operation(invoice);
+        overFillInvoice(i, invoice);
 
         FOR invoice(InvoiceDetail detail)==invoice ADDOBJ d = SaleReturn.UserInvoiceDetail DO {
 
-            ASSIGN userInvoice(d) <- i;
-            ASSIGN invoiceDetail(d) <-detail; 
-            ASSIGN priceListType(d) <- priceListType(detail);
-            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
-            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
+            userInvoice(d) <- i;
+            invoiceDetail(d) <-detail; 
+            priceListType(d) <- priceListType(detail);
 
-            ASSIGN sku(d) <- sku(detail);
-            ASSIGN quantity (d) <- quantity(detail);
-            ASSIGN VAT (d) <- VAT(detail);
-            ASSIGN price (d) <- price(detail);
-            ASSIGN invoicePrice (d) <- invoicePrice(detail);
+            sku(d) <- sku(detail);
+            quantity (d) <- quantity(detail);
+            VAT (d) <- VAT(detail);
+            price (d) <- price(detail);
+            invoicePrice (d) <- invoicePrice(detail);
 
-            ASSIGN barcodePack (d) <- barcodePack(detail);
-            ASSIGN amountPack (d) <- amountPack(detail);
-            ASSIGN packQuantity (d) <- packQuantity(detail);
+            barcodePack (d) <- barcodePack(detail);
+            amountPack (d) <- amountPack(detail);
+            packQuantity (d) <- packQuantity(detail);
 
-            ASSIGN batch(d) <- batch(detail);
-            EXEC overFillInvoice(d,detail);
+            batch(d) <- batch(detail);
+            overFillInvoice(d,detail);
         }
 
     FORM SaleReturn.userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL NOCANCEL;

@@ -188,8 +188,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceDataStock(order, stock, 'Склад покупателя', customer);
     supplierStock[Order.Order](Order order) += supplierStock(order);
     customerStock[Order.Order](Order order) += customerStock(order);
-    dataSupplierStock[Order.OrderDetail](OrderDetail detail) += dataSupplierStock(detail);
-    dataCustomerStock[Order.OrderDetail](OrderDetail detail) += dataCustomerStock(detail);
 
     CONSTRAINT supplier(UserOrder userOrder) AND supplierStock(userOrder) AND NOT
                in(supplier(userOrder), supplierStock(userOrder))
@@ -249,33 +247,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     closeDate(UserOrder order) <- OVERRIDE sum(shipmentDate(order), quantityDaysCloseOrders(stockProp##Stock(order))), overCloseDate(order)
             WHEN CHANGED(shipmentDate(order)) OR CHANGED(stockProp##Stock(order)) OR CHANGED(overCloseDate(order));    
 
-//    isDataClosedOrder 'Закрыт' = ABSTRACT BOOLEAN(Order);
-//    isDataClosedUserOrder 'Закрыт' = DATA BOOLEAN(UserOrder);
-//    isDataClosedOrder(order) += isDataClosedUserOrder(order);
-//
-//    isDataClosedOrderDetail 'Закрыт' = ABSTRACT BOOLEAN(OrderDetail);
-//    isDataClosedUserOrderDetail 'Закрыт' = DATA BOOLEAN(UserOrderDetail);
-//    isDataClosedOrderDetail(order) += isDataClosedUserOrderDetail(order);
-
     WHEN SET (closeDate(UserOrder order) <= currentDate()) DO isClosed(order) <- TRUE;
-//    isClosedOrderDetail 'Закрыт' (detail) = OVERRIDE defaultClosedOrderDetail(detail),
-//                                                     isDataClosedOrder(orderOrderDetail(detail)),
-//                                                     isDataClosedOrderDetail(detail);
-//    countClosedOrderDetailOrder (order) = GROUP SUM 1 IF isClosedOrderDetail(detail) AND isPostedOrderDetail(detail) BY orderOrderDetail(detail);
-//    isClosedOrder 'Закрыт' (order) =  countClosedOrderDetailOrder(order) == countOrderDetailOrder(order);
-//
-//    defaultClosedUserOrderDetail(detail) = closeDateUserOrderDetail(detail) < currentDate();
-//    isClosedUserOrderDetail 'Закрыт' (detail) = OVERRIDE defaultClosedUserOrderDetail(detail),
-//                                                         isDataClosedUserOrder(userOrderUserOrderDetail(detail)),
-//                                                         isDataClosedUserOrderDetail(detail);
-//    countClosedUserOrderDetailUserOrder (userOrder) = GROUP SUM 1 IF isClosedUserOrderDetail(detail) AND isPostedUserOrderDetail(detail) BY userOrderUserOrderDetail(detail);
-//    isClosedUserOrder 'Закрыт' (userOrder) =  countClosedUserOrderDetailUserOrder(userOrder) == countUserOrderDetailUserOrder(userOrder);
-
-//    isOpenedUserOrder 'Не закрыт' (o) = isPostedUserOrder(o) AND NOT isClosedUserOrder(o) PERSISTENT;
-//
-//    closeUserOrder 'Закрыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isPostedUserOrder(o) AND NOT isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- TRUE; } TOOLBAR CONFIRM;
-//
-//    openUserOrder 'Открыть' (o) = ACTION (o) NEWSESSION AUTOAPPLY { IF isClosedUserOrder(o) THEN ASSIGN isDataClosedUserOrder(o) <- NULL; } TOOLBAR CONFIRM;
 
     @defineDocumentInterfaceDescription(order, 'Заказ'###sign);
     description[Order.Order](Order order) += description(order);    
@@ -404,7 +376,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineMovementPriceSku(userOrderDetail, stockProp###stock); //-- показываем по нажатию правой клавиши  изменение цены товара
 
     @defineDocumentDialogSupplierCustomerStock(userOrder, supplierFilter, customerFilter);
-    @defineDocumentDialogSupplierCustomerStockDetail(userOrderDetail, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
     
     backgroundQuantity 'Цвет'  (d)= ABSTRACT CASE COLOR (UserOrderDetail);
@@ -450,7 +421,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundSku(d),
                        invoicePrice ON CHANGE changeInvoicePrice(d) BACKGROUND backgroundSku(d),
                        VATSum BACKGROUND backgroundSku(d), invoiceSum BACKGROUND backgroundSku(d),
-                       name###stockProp##Stock ON CHANGE changeData###stockProp##Stock###filter(d) BACKGROUND backgroundSku(d), 
+                       name###stockProp##Stock BACKGROUND backgroundSku(d), 
                        shipmentDate BACKGROUND backgroundSku(d), shipmentTime BACKGROUND backgroundSku(d), 
                        closeDate BACKGROUND backgroundSku(d), ADDOBJ, deleteod = DELETESESSION
         ORDER BY index(d)
@@ -461,10 +432,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
 
         EVENTS
             ON OK overPrePost(o)
-
-//        HINTTABLE LIST dateTimeUserOrderDetail, skuUserOrderDetail, supplierStockUserOrderDetail, customerStockUserOrderDetail,
-//                       priceListTypeUserOrderDetail, currencyUserOrderDetail,
-//                       priceUserOrderDetail, VATUserOrderDetail, valueVATUserOrderDetail, invoicePriceUserOrderDetail
 
         EDIT UserOrder OBJECT o
     ;
@@ -607,23 +574,22 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     overCopy = ACTION ABSTRACT LIST (Order, UserOrder);
     copy 'Копировать'(Order order) = ACTION NEWSESSION {
         FOR ADDOBJ o = UserOrder DO {
-            ASSIGN supplier(o) <- supplier(order);
-            ASSIGN supplierStock(o) <- supplierStock(order);
-            ASSIGN customer(o) <- customer(order);
-            ASSIGN customerStock(o) <- customerStock(order);
-            ASSIGN currency(o) <- currency(order);
-            ASSIGN agreement(o) <- agreement(order);
-            ASSIGN priceListType(o) <- priceListType(order);
-            ASSIGN note(o) <- note(order);
+            supplier(o) <- supplier(order);
+            supplierStock(o) <- supplierStock(order);
+            customer(o) <- customer(order);
+            customerStock(o) <- customerStock(order);
+            currency(o) <- currency(order);
+            agreement(o) <- agreement(order);
+            priceListType(o) <- priceListType(order);
+            note(o) <- note(order);
 
             EXEC overCopy(order, o);
 
             FOR order(OrderDetail orderDetail) == order DO {
                 FOR ADDOBJ d=UserOrderDetail DO {
-                    ASSIGN userOrder(d) <- o;
-                    ASSIGN sku(d) <- sku(orderDetail);
-                    ASSIGN quantity(d) <- quantity(orderDetail);
-                    ASSIGN data###stockProp##Stock(d) <- data###stockProp##Stock(orderDetail);
+                    userOrder(d) <- o;
+                    sku(d) <- sku(orderDetail);
+                    quantity(d) <- quantity(orderDetail);
                     
                     EXEC overCopy(d, orderDetail);
                 }
@@ -643,7 +609,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
             price(d) <- price(detail);
-            data###stockProp##Stock(d) <- data###stockProp##Stock(detail);
             priceListType(d) <- priceListType(detail);      
             shipmentDataDate(d) <- shipmentDataDate(detail);         
             shipmentDataTime(d) <- shipmentDataTime(detail);        
@@ -823,8 +788,6 @@ META implementOrderDestination(fromProp, toProp)
     to(Order order) += toProp(order);
     fromStock(Order order) += fromProp##Stock(order);
     toStock(Order order) += toProp##Stock(order);
-    dataFromStock(OrderDetail detail) += data###fromProp##Stock(detail);
-    dataToStock(OrderDetail detail) += data###toProp##Stock(detail);
 END
 
 // Партии приход
@@ -863,9 +826,9 @@ META defineOrderBatchDialog(dumb)
         FORM dialogBatch OBJECTS sk = sku(userOrderDetail) DIALOG SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
-            ASSIGN batch(userOrderDetail) <- chosenObject('bt');
+            batch(userOrderDetail) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batch(userOrderDetail) <- NULL;
+            batch(userOrderDetail) <- NULL;
         }
     }
 
@@ -888,9 +851,9 @@ META defineOrderBatchDialogStock(stockProp, dialog)
                                      sk = sku(d) DIALOG SHOWDROP;        
         }
         IF formResult() == FormResult.ok THEN {
-            ASSIGN batch(d) <- chosenObject('bt');
+            batch(d) <- chosenObject('bt');
         } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batch(d) <- NULL;
+            batch(d) <- NULL;
         }
 
     };

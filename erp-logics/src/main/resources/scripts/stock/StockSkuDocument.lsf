@@ -233,8 +233,6 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
     quantity###detail 'Кол-во товара в документе' (batch, object) = GROUP SUM quantity(###detail detail)
         BY batchProp(detail), object(detail);
 
-//    backgroundQuantityBatch###object 'Цвет' (batch, object) = RGB(255,128,128) IF quantity###detail###batchProp###object(batch, object) AND NOT
-//        (quantity###detail###batchProp###object(batch, object) <= currentBalanceBatch###object(batch, object));
     backgroundQuantity 'Цвет' (batch, object) = ABSTRACT CASE COLOR (Batch, ###object);  
 
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
@@ -252,7 +250,6 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
             IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
                 FOR ADDOBJ d = ###detail DO {
                     object(d) <- object;
-                    stockProp###stockClass (d) <- stockProp###stockClass(object);
                     skuProp(d) <- skuProp(batch);
                     batchProp(d) <- batch;
                     quantity (d) <- requestedNumeric();
@@ -717,7 +714,6 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                    object(d) <- object;
-                   data###stockProp (d) <- stockProp;
                    skuProp(d) <- sku;
                    stockExtra(d) <- stockExtra;
                    quantity (d) <- requestedNumeric();
@@ -849,8 +845,6 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
     quantitySupplier 'Итого' (batch, object, stockProp) = GROUP SUM quantity(###detail detail)
         BY batchProp(detail), object(detail), stockProp(detail);
 
-//    backgroundQuantityBatch###object###Stock 'Цвет' (batch, object, stock) = RGB(255,128,128) IF quantityBatch###object###stockProp(batch, object, stock) AND NOT
-//        (quantityBatch###object###stockProp(batch, object, stock) <= currentBalanceBatchStock(batch, stock));
     backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
 
     changeQuantityValueCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION {
@@ -865,7 +859,6 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
             IF requestedNumeric() THEN {
                 FOR ADDOBJ d = ###detail DO {
                    object(d) <- object;
-                   data###stockProp (d) <- stockProp;
                    skuProp(d) <- skuProp(batch);
                    batchProp(d) <- batch;
                    stockExtra(d) <- stockExtra;

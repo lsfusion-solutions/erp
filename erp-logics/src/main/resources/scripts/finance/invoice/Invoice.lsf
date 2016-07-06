@@ -195,8 +195,6 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentInterfaceDataStock(invoice, stock, 'Склад покупателя', customer);
     supplierStock[Invoice.Invoice](Invoice invoice) += supplierStock(invoice);
     customerStock[Invoice.Invoice](Invoice invoice) += customerStock(invoice);
-    dataSupplierStock[Invoice.InvoiceDetail](InvoiceDetail detail) += dataSupplierStock(detail);
-    dataCustomerStock[Invoice.InvoiceDetail](InvoiceDetail detail) += dataCustomerStock(detail);
     stock[Invoice.InvoiceDetail](InvoiceDetail detail) += stockProp##Stock(detail);
     CONSTRAINT supplier(UserInvoice userInvoice) AND supplierStock(userInvoice) AND NOT
     in(supplier(userInvoice), supplierStock(userInvoice))
@@ -443,21 +441,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
 
     @defineMovementPriceSku(invoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши изменение цены товара
     @defineMovementPriceSku(userInvoiceDetail, stockProp###stock); //-- показываем по нажатию правой клавиши  изменение цены товара
-//    fillDocumentInvoice 'Подбор документа' = ACTION (userInvoice) {
-//        FORM documents MODAL;
-//        IF formResult() == FormResult.ok THEN {
-//            LOCAL chosenDocument = Document();
-//            ASSIGN chosenDocument() <- chosenObject('d');
-//            FOR documentDocumentDetail(documentDetail) == chosenDocument() ADDOBJ i = UserInvoiceDetail DO {
-//                ASSIGN userInvoiceUserInvoiceDetail(i) <- userInvoice;
-//                ASSIGN skuInvoiceDetail(i) <- skuDocumentDetail(documentDetail);
-//                ASSIGN quantityInvoiceDetail(i) <- quantityDocumentDetail(documentDetail);
-//                ASSIGN priceInvoiceDetail(i) <- priceDocumentDetail(documentDetail);
-//            }
-//        }
-//    } TOOLBAR;
+
     @defineDocumentDialogSupplierCustomerStock(userInvoice, supplierFilter, customerFilter);
-    @defineDocumentDialogSupplierCustomerStockDetail(userInvoiceDetail, supplierFilter, customerFilter);
     @defineDocumentDialogSupplierCustomerLegalEntity(userInvoice, supplierFilter, customerFilter);
 
 // --------------------------- Формы ---------------------------------- //
@@ -642,29 +627,27 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     
     copy 'Копировать'(Invoice invoice) = ACTION NEWSESSION {
         FOR ADDOBJ i = UserInvoice DO {
-            ASSIGN supplier(i) <- supplier(invoice);
-            ASSIGN supplierStock(i) <- supplierStock(invoice);
-            ASSIGN customer(i) <- customer(invoice);
-            ASSIGN customerStock(i) <- customerStock(invoice);
-            ASSIGN contractSku(i) <- contractSku(invoice);
-            ASSIGN isCommission(i) <- isCommission(invoice);
-            ASSIGN currency(i) <- currency(invoice);
-            ASSIGN agreement(i) <- agreement(invoice);
-            ASSIGN priceListType(i) <- priceListType(invoice);
-            ASSIGN note(i) <- note(invoice);
-            //ASSIGN createShipmentUserInvoice(i) <- createShipmentUserInvoice(invoice);
+            supplier(i) <- supplier(invoice);
+            supplierStock(i) <- supplierStock(invoice);
+            customer(i) <- customer(invoice);
+            customerStock(i) <- customerStock(invoice);
+            contractSku(i) <- contractSku(invoice);
+            isCommission(i) <- isCommission(invoice);
+            currency(i) <- currency(invoice);
+            agreement(i) <- agreement(invoice);
+            priceListType(i) <- priceListType(invoice);
+            note(i) <- note(invoice);
 
-            EXEC overCopy(invoice, i);
+            overCopy(invoice, i);
 
             FOR invoice(InvoiceDetail invoiceDetail) == invoice DO {
                 FOR ADDOBJ d=UserInvoiceDetail DO {
-                    ASSIGN userInvoice(d) <- i;
-                    ASSIGN sku(d) <- sku(invoiceDetail);
-                    ASSIGN quantity(d) <- quantity(invoiceDetail);
-                    ASSIGN price(d) <- price(invoiceDetail);
-                    ASSIGN data###stockProp##Stock(d) <- data###stockProp##Stock(invoiceDetail);
+                    userInvoice(d) <- i;
+                    sku(d) <- sku(invoiceDetail);
+                    quantity(d) <- quantity(invoiceDetail);
+                    price(d) <- price(invoiceDetail);
                     
-                    EXEC overCopy(d, invoiceDetail);
+                    overCopy(d, invoiceDetail);
                 }
             }
 
@@ -682,7 +665,6 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
             price(d) <- price(detail);
-            data###stockProp##Stock(d) <- data###stockProp##Stock(detail);
             priceListType(d) <- priceListType(detail);
             invoicePrice(d) <- invoicePrice(detail);
             
@@ -1079,11 +1061,11 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
     overRecalculatedPrice = ACTION ABSTRACT LIST (nsret.UserInvoiceDetail);
     recalculatedPrice(UserInvoiceDetail detail) = ACTION {    //todo: необходимо сделать, чтобы ACTION вызывался после пересчета цены от партии
         IF invoiceDetail(detail) THEN {
-            ASSIGN price(detail) <-  price(invoiceDetail(detail));
-            ASSIGN invoicePrice[InvoiceDetail](detail) <-  invoicePrice(invoiceDetail(detail));
-            ASSIGN invoicePrice(detail) <-  invoicePrice(invoiceDetail(detail));
-            ASSIGN VAT(detail) <- VAT(invoiceDetail(detail));
-            EXEC overRecalculatedPrice(detail);
+            price(detail) <-  price(invoiceDetail(detail));
+            invoicePrice[InvoiceDetail](detail) <-  invoicePrice(invoiceDetail(detail));
+            invoicePrice(detail) <-  invoicePrice(invoiceDetail(detail));
+            VAT(detail) <- VAT(invoiceDetail(detail));
+            overRecalculatedPrice(detail);
         }
     }
         WHEN SESSION FORMS userInvoice
@@ -1167,8 +1149,6 @@ END
 META defineInvoiceStockDestination(fromStockProp, toStockProp)
     fromStock(Invoice invoice) += fromStockProp(invoice);
     toStock(Invoice invoice) += toStockProp(invoice);
-    dataFromStock(InvoiceDetail detail) += data###fromStockProp(detail);
-    dataToStock(InvoiceDetail detail) += data###toStockProp(detail);
 END
 
 // вторая валюта
@@ -1280,15 +1260,15 @@ END
 META defineInvoicePayment(dumb)
 
     addPaymentInvoice 'Оплатить'(InContractLedger invoice) = ACTION {
-        ASSIGN currentInContractLedger() <- invoice;
+        currentInContractLedger() <- invoice;
         FOR ADDOBJ p = Payment DO{
-            ASSIGN contract(p) <- contractSku[UserInvoice](invoice);
-            ASSIGN date(p) <- currentDate();
-            ASSIGN time(p) <- currentTime();
-            ASSIGN payer(p) <- customer[UserInvoice](invoice);
-            ASSIGN beneficiary(p) <- supplier[UserInvoice](invoice);
-            ASSIGN sum(p) <- invoiceSumUserInvoiceDetail(invoice);
-            ASSIGN cost(p, invoice) <- sumContract(p);
+            contract(p) <- contractSku[UserInvoice](invoice);
+            date(p) <- currentDate();
+            time(p) <- currentTime();
+            payer(p) <- customer[UserInvoice](invoice);
+            beneficiary(p) <- supplier[UserInvoice](invoice);
+            sum(p) <- invoiceSumUserInvoiceDetail(invoice);
+            cost(p, invoice) <- sumContract(p);
             FORM payment OBJECTS p=p MODAL;
             IF NOT formResult() == FormResult.ok THEN {
                 DELETE p;
@@ -1297,7 +1277,7 @@ META defineInvoicePayment(dumb)
     }
 
     editInvoice 'Редактировать'(Payment payment, InContractLedger invoice) = ACTION {
-        ASSIGN currentInContractLedger() <- invoice;
+        currentInContractLedger() <- invoice;
         FORM payment OBJECTS p=payment MODAL;
     }
 

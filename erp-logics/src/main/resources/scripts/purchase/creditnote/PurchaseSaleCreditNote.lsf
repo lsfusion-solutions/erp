@@ -38,9 +38,8 @@ FORM creditNoteCreditNotes 'Акты расхождения'
     OBJECTS d = CreditNoteDetail
 
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
-//    PROPERTIES (d) READONLY SHOWIF showPackCreditNote(o) idBarcodePackCreditNoteDetail, shortNameUOMPackCreditNoteDetail, amountPackCreditNoteDetail, packQuantityCreditNoteDetail
     PROPERTIES (d) READONLY quantity, price, sum, numberVAT, valueVAT,
-                            VATSum, invoiceSum//, nameSupplierStockCreditNoteDetail, nameCustomerStockCreditNoteDetail
+                            VATSum, invoiceSum
 
     FILTERS creditNote(d) == o
 ;
@@ -69,10 +68,6 @@ DESIGN creditNoteCreditNotes {
                 }
                 MOVE t.box;
             }
-//            NEW headerBox2 {
-//                type = CONTAINERH;
-//                
-//            }
             MOVE o.box {fill = 1;}
             NEW documentDetail {
                 fill = 1;
@@ -99,20 +94,16 @@ fillCreditNote 'Заполнить на основе акта расхожден
                                    t = date(userCreditNote) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL purchaseCreditNote = CreditNote();
-        ASSIGN purchaseCreditNote() <- chosenObject('o');
+        purchaseCreditNote() <- chosenObject('o');
 
         FOR creditNote(CreditNoteDetail creditNoteDetail) == purchaseCreditNote() ADDOBJ d = Sale.UserCreditNoteDetail DO {
-            ASSIGN userCreditNote(d) <- userCreditNote;
-            ASSIGN sku(d) <- sku(creditNoteDetail);
-            ASSIGN batch(d) <- batch(creditNoteDetail);
-//            ASSIGN Sale.barcodePackUserCreditNoteDetail(d) <- barcodePackCreditNoteDetail(creditNoteDetail);
-//            ASSIGN Sale.amountPackUserCreditNoteDetail(d) <- amountPackCreditNoteDetail(creditNoteDetail);
-//            ASSIGN Sale.packQuantityUserCreditNoteDetail(d) <- packQuantityCreditNoteDetail(creditNoteDetail);
-            ASSIGN quantity (d) <- quantity(creditNoteDetail);
-            ASSIGN VAT(d) <- VAT(creditNoteDetail);
-            ASSIGN valueVAT(d) <- valueVAT(creditNoteDetail);
-            ASSIGN price(d) <- price(creditNoteDetail);
-//            ASSIGN Sale.creditNotePriceUserCreditNoteDetail(d) <- creditNotePriceCreditNoteDetail(creditNoteDetail);
+            userCreditNote(d) <- userCreditNote;
+            sku(d) <- sku(creditNoteDetail);
+            batch(d) <- batch(creditNoteDetail);
+            quantity (d) <- quantity(creditNoteDetail);
+            VAT(d) <- VAT(creditNoteDetail);
+            valueVAT(d) <- valueVAT(creditNoteDetail);
+            price(d) <- price(creditNoteDetail);
         }
     }
 } IN Sale.creditNote; // 
@@ -211,11 +202,6 @@ purchaseCreditNotes 'Накладные (закупка)' (sale) = GROUP CONCAT 
 
 relationSale 'Связь' (sale) = GROUP SUM quantityCreditNoteDetail (CreditNote purchase, Sale.CreditNote sale) BY sale PERSISTENT;
 
-//creditNotedCreditNoteDetail 'Кол-во (выписано)' (creditNoteDetail) = GROUP SUM Sale.quantityCreditNoteDetail(detail) IF Sale.isPostedCreditNoteDetail(detail)
-//                                                                   BY creditNoteDetailCreditNoteDetail(detail) PERSISTENT;
-//
-//toCreditNotedCreditNoteDetail 'Не выписано' (creditNoteDetail) = quantityCreditNoteDetail (creditNoteDetail) (-) creditNotedCreditNoteDetail(creditNoteDetail);
-
 EXTEND FORM Sale.userCreditNote
     PROPERTIES(c) fillCreditNote, purchaseCreditNotes READONLY
 ;
@@ -245,15 +231,9 @@ time(SaleCreditNote creditNote) += time(creditNote);
 supplierStock(SaleCreditNote creditNote) += IF returnContractSku(creditNote(creditNote))
                                                 THEN customerStock(creditNote)
                                                 ELSE supplierStock(creditNote);
-dataSupplierStock(SaleCreditNoteDetail d) += IF returnContractSku(creditNote(creditNoteDetail(d)))
-                                                THEN dataCustomerStock(creditNoteDetail(d))
-                                                ELSE dataSupplierStock(creditNoteDetail(d));
 customerStock(SaleCreditNote creditNote) += IF returnContractSku(creditNote(creditNote))
                                                 THEN supplierStock(creditNote)
                                                 ELSE customerStock(creditNote);
-dataCustomerStock(SaleCreditNoteDetail d) += IF returnContractSku(creditNote(creditNoteDetail(d)))
-                                                THEN dataSupplierStock(creditNoteDetail(d))
-                                                ELSE dataCustomerStock(creditNoteDetail(d));
 
 supplier(SaleCreditNote creditNote) += IF returnContractSku(creditNote(creditNote))
                                                 THEN customer(creditNote)
@@ -277,12 +257,6 @@ note(SaleCreditNote creditNote) += noteCreditNote(creditNote);
 
 currency  (SaleCreditNote saleCreditNote) = currency(creditNote(saleCreditNote));
 currency (SaleCreditNote creditNote) += currency(creditNote);
-
-//agreementSaleCreditNote  (saleCreditNote) = agreementCreditNote(creditNoteSaleCreditNote(saleCreditNote));
-//Sale.agreementCreditNote (creditNote) += agreementSaleCreditNote(creditNote);
-//
-//priceListTypeSaleCreditNote  (saleCreditNote) = priceListTypeCreditNote(creditNoteSaleCreditNote(saleCreditNote));
-//Sale.priceListTypeCreditNote (creditNote) += priceListTypeSaleCreditNote(creditNote);
 
 @defineDocumentDescription(saleCreditNote, SaleCreditNoteDetail, 'Акт расхождения на основе акта расхождения');
 description (SaleCreditNote creditNote) += description(creditNote);
@@ -312,77 +286,7 @@ invoiceSum(SaleCreditNoteDetail creditNoteDetail) += invoiceSum(creditNoteDetail
 
 edit(SaleCreditNote creditNote) += ACTION EXEC edit(creditNote(creditNote));
 
-//Sale.showPackCreditNote(creditNote) +=  showPackCreditNote(creditNoteSaleCreditNote(creditNote));
-//Sale.barcodePackCreditNoteDetail(creditNoteDetail) += barcodePackCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
-//Sale.amountPackCreditNoteDetail(creditNoteDetail) +=  amountPackCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
-//Sale.packQuantityCreditNoteDetail(creditNoteDetail) +=  packQuantityCreditNoteDetail(creditNoteDetailSaleCreditNoteDetail(creditNoteDetail));
-
 creditNoteDetail(SaleCreditNoteDetail creditNoteDetail) += creditNoteDetail(creditNoteDetail);
-
-//------------------------------ Создание агрегированных объектов через операции -----------------------------//
-
-//// -- Операция
-//createSaleCreditNoteOperation 'Накладная (закупка) ' = DATA BOOLEAN (Operation);
-//
-//EXTEND FORM operation
-//    PROPERTIES(o) createSaleCreditNoteOperation
-//;
-//DESIGN operation {
-//    saleContainer {
-//        ADD PROPERTY(createSaleCreditNoteOperation) BEFORE PROPERTY(nameSaleOperationOperation);
-//    }
-//}
-//
-//@deriveDocumentOperationProperty(UserCreditNote, createSaleCreditNote){
-//    createSaleCreditNoteUserCreditNote (o) <- createSaleCreditNoteOperation(operationUserCreditNote(o))
-//        WHEN CHANGED(operationUserCreditNote(o));
-//};
-//
-//@defineDocumentInterfaceOperationPrefix (creditNote, sale, Sale, ' (закупка)'){
-//    @defineDocumentOperationInterfaceHeaderPrefix(creditNote, sale, Sale, ' (закупка)'){
-//        @defineDocumentOperationAbstractHeaderPrefix(creditNote, sale, Sale, ' (закупка)'){
-//            saleOperationCreditNote = ABSTRACT Sale.Operation (CreditNote) PERSISTENT;
-//            nameSaleOperationCreditNote 'Операция (закупка)' = Sale.nameOperation(saleOperationCreditNote(creditNote));
-//            idSaleOperationCreditNote 'ID операции (закупка)' = Sale.idOperation(saleOperationCreditNote(creditNote));
-//        };
-//        @defineDocumentOperationHeaderPrefix(userCreditNote, sale, Sale, ' (закупка)'){
-//            saleOperationUserCreditNote = DATA Sale.Operation (UserCreditNote);
-//            nameSaleOperationUserCreditNote 'Операция (закупка)' = Sale.nameOperation(saleOperationUserCreditNote(userCreditNote));
-//            idSaleOperationUserCreditNote 'ID операции (закупка)' = Sale.idOperation(saleOperationUserCreditNote(userCreditNote));
-//        };
-//        saleOperationCreditNote(creditNote) += saleOperationUserCreditNote(creditNote);
-//    };
-//    @defineDocumentOperationDetailPrefix(creditNote, sale, Sale, ' (закупка)'){
-//        @defineDocumentOperationDetailPrefix(creditNote, creditNoteDetail, sale, Sale, ' (закупка)'){
-//            saleOperationCreditNoteDetail (idetail) = saleOperationCreditNote(creditNoteCreditNoteDetail(idetail));
-//            nameSaleOperationCreditNoteDetail 'Операция (закупка)' (idetail) = Sale.nameOperation(saleOperationCreditNoteDetail(idetail));
-//            idSaleOperationCreditNoteDetail 'ID операции (закупка)' (idetail) = Sale.idOperation(saleOperationCreditNoteDetail(idetail));
-//        };
-//    };
-//    @defineDocumentOperationDetailPrefix(userCreditNote, sale, Sale, ' (закупка)'){
-//        @defineDocumentOperationDetailPrefix(userCreditNote, userCreditNoteDetail, sale, Sale, ' (закупка)'){
-//            saleOperationUserCreditNoteDetail (idetail) = saleOperationUserCreditNote(userCreditNoteUserCreditNoteDetail(idetail));
-//            nameSaleOperationUserCreditNoteDetail 'Операция (закупка)' (idetail) = Sale.nameOperation(saleOperationUserCreditNoteDetail(idetail));
-//            idSaleOperationUserCreditNoteDetail 'ID операции (закупка)' (idetail) = Sale.idOperation(saleOperationUserCreditNoteDetail(idetail));
-//        };
-//    };
-//};
-//
-//// Записываем операцию для закупки по умолчанию из операции
-//saleOperationUserCreditNote (creditNote) <- saleOperationOperation(operationUserCreditNote(creditNote))
-//    WHEN CHANGED(operationUserCreditNote(creditNote));
-//
-//Sale.operationCreditNote(creditNote) += saleOperationCreditNote(creditNoteSaleCreditNote(creditNote));
-//
-//EXTEND FORM userCreditNote
-//    PROPERTIES(i) BACKGROUND backgroundSaleCreditNote(i) SHOWIF createSaleCreditNoteUserCreditNote(i) nameSaleOperationUserCreditNote
-//
-//;
-//DESIGN userCreditNote {
-//    headerCreateSale {
-//        ADD PROPERTY(nameSaleOperationUserCreditNote) AFTER PROPERTY(createSaleCreditNoteUserCreditNote);
-//    }
-//}
 
 //-- Действие
 
@@ -393,41 +297,29 @@ moveUserCreditNote 'Акт расхождения (продажа)'(CreditNote c
 
     FOR ADDOBJ i = Sale.UserCreditNote DO {
 
-//        ASSIGN Sale.agreementUserCreditNote(i) <- agreementCreditNote(creditNote);
-//        ASSIGN Sale.priceListTypeUserCreditNote(i) <- priceListTypeCreditNote(creditNote);
-        ASSIGN supplier(i) <- supplier(creditNote);
-        ASSIGN customer(i) <- customer(creditNote);
-        ASSIGN supplierStock(i) <- supplierStock(creditNote);
-        ASSIGN customerStock(i) <- customerStock(creditNote);
-        ASSIGN number(i) <- number(creditNote);
-        ASSIGN series(i) <- series(creditNote);
-        ASSIGN note(i) <- note(creditNote);
-        ASSIGN currency(i) <- currency(creditNote);
-        ASSIGN contractSku(i) <- contractSku(creditNote);
-        ASSIGN isCommission(i) <- isCommission(creditNote);
-//        ASSIGN Sale.showPackUserCreditNote(i) <- showPackCreditNote(creditNote);
-        ASSIGN operation(i) <- operation(creditNote);
+        supplier(i) <- supplier(creditNote);
+        customer(i) <- customer(creditNote);
+        supplierStock(i) <- supplierStock(creditNote);
+        customerStock(i) <- customerStock(creditNote);
+        number(i) <- number(creditNote);
+        series(i) <- series(creditNote);
+        note(i) <- note(creditNote);
+        currency(i) <- currency(creditNote);
+        contractSku(i) <- contractSku(creditNote);
+        isCommission(i) <- isCommission(creditNote);
+        operation(i) <- operation(creditNote);
         EXEC overFillCreditNote(i, creditNote);
 
         FOR creditNote(CreditNoteDetail detail)==creditNote ADDOBJ d = Sale.UserCreditNoteDetail DO {
 
-            ASSIGN userCreditNote(d) <- i;
+            userCreditNote(d) <- i;
 
-//            ASSIGN Sale.priceListTypeUserCreditNoteDetail(d) <- priceListTypeCreditNoteDetail(detail);
-            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
-            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
+            sku(d) <- sku(detail);
+            quantity (d) <- quantity(detail);
+            VAT (d) <- VAT(detail);
+            price (d) <- price(detail);
 
-            ASSIGN sku(d) <- sku(detail);
-            ASSIGN quantity (d) <- quantity(detail);
-            ASSIGN VAT (d) <- VAT(detail);
-            ASSIGN price (d) <- price(detail);
-//            ASSIGN Sale.creditNotePriceUserCreditNoteDetail (d) <- creditNotePriceCreditNoteDetail(detail);
-
-//            ASSIGN Sale.barcodePackUserCreditNoteDetail (d) <- barcodePackCreditNoteDetail(detail);
-//            ASSIGN Sale.amountPackUserCreditNoteDetail (d) <- amountPackCreditNoteDetail(detail);
-//            ASSIGN Sale.packQuantityUserCreditNoteDetail (d) <- packQuantityCreditNoteDetail(detail);
-
-            ASSIGN batch(d) <- batch(detail);
+            batch(d) <- batch(detail);
             EXEC overFillCreditNote(d,detail);
         }
 

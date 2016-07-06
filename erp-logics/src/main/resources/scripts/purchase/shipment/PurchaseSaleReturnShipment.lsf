@@ -47,10 +47,6 @@ DESIGN userShipment {
     }
 }
 
-//EXTEND FORM shipments
-//    PROPERTIES(s) READONLYIF isReadonly() BACKGROUND backgroundPurchaseShipment(s) SHOWIF createPurchaseShipment(s) purchaseShipmentDateShipment,
-//                  purchaseShipmentTimeShipment
-//;
 //--  Связь поставки с поставкой
 
 shipmentDetail = ABSTRACT ShipmentDetail (SaleReturn.ShipmentDetail) PERSISTENT INDEXED;
@@ -101,10 +97,8 @@ time(SaleReturnShipment shipment) += saleReturnShipmentTime(shipment(shipment));
 
 @defineDocumentAggregationStockPrefix(shipment, saleReturnShipment, supplier, 'Склад поставщика', , );
 supplierStock(SaleReturnShipment shipment) += supplierStock(shipment);
-dataSupplierStock(SaleReturnShipmentDetail shipmentDetail) += dataSupplierStock(shipmentDetail(shipmentDetail));
 @defineDocumentAggregationStockPrefix(shipment, saleReturnShipment, customer, 'Склад покупателя', , );
 customerStock(SaleReturnShipment shipment) += customerStock(shipment);
-dataCustomerStock(SaleReturnShipmentDetail shipmentDetail) += dataCustomerStock(shipmentDetail(shipmentDetail));
 
 @defineDocumentAggregationLegalEntityPrefix(shipment, saleReturnShipment, supplier, 'Поставщик', , );
 supplier(SaleReturnShipment shipment) += supplier(shipment);
@@ -235,21 +229,21 @@ fillShipment 'Заполнить на основе поставки (закуп�
                                    ss = supplierStock(userShipment), cs = customerStock(userShipment) MODAL;
     IF formResult() == FormResult.ok THEN {
         LOCAL saleShipment = Shipment();
-        ASSIGN saleShipment() <- chosenObject('o');
+        saleShipment() <- chosenObject('o');
 
         FOR shipment(ShipmentDetail shipmentDetail) == saleShipment() ADDOBJ d = SaleReturn.UserShipmentDetail DO {
-            ASSIGN userShipment(d) <- userShipment;
-            ASSIGN shipmentDetail(d) <- shipmentDetail;
+            userShipment(d) <- userShipment;
+            shipmentDetail(d) <- shipmentDetail;
 
-            ASSIGN price(d) <- price(shipmentDetail);
+            price(d) <- price(shipmentDetail);
 
-            ASSIGN sku(d) <- sku(shipmentDetail);
-            ASSIGN batch(d) <- batch(shipmentDetail);
-            ASSIGN quantity (d) <- quantity(shipmentDetail);
+            sku(d) <- sku(shipmentDetail);
+            batch(d) <- batch(shipmentDetail);
+            quantity (d) <- quantity(shipmentDetail);
 
-            ASSIGN barcodePack(d) <- barcodePack(shipmentDetail);
-            ASSIGN amountPack(d) <- amountPack(shipmentDetail);
-            ASSIGN packQuantity(d) <- packQuantity(shipmentDetail);
+            barcodePack(d) <- barcodePack(shipmentDetail);
+            amountPack(d) <- amountPack(shipmentDetail);
+            packQuantity(d) <- packQuantity(shipmentDetail);
         }
     }
 } IN shipment;
@@ -267,43 +261,36 @@ EXTEND FORM SaleReturn.shipments
 
 //-- Действие
 
-//overFillShipmentUserShipmentShipment = ACTION ABSTRACT LIST (userShipment, shipment);
-//overFillShipmentUserShipmentDetailShipmentDetail = ACTION ABSTRACT LIST (userDetail, detail);
-
 moveUserShipment 'Поставка (закупка-возврат)'(Shipment shipment) =  ACTION NEWSESSION{
 
     FOR ADDOBJ s = SaleReturn.UserShipment DO {
 
-        ASSIGN supplier(s) <- supplier(shipment);
-        ASSIGN customer(s) <- customer(shipment);
-        ASSIGN supplierStock(s) <- supplierStock(shipment);
-        ASSIGN customerStock(s) <- customerStock(shipment);
-        ASSIGN number(s) <- number(shipment);
-        ASSIGN series(s) <- series(shipment);
-        ASSIGN note(s) <- note(shipment);
-        ASSIGN currency(s) <- currency(shipment);
+        supplier(s) <- supplier(shipment);
+        customer(s) <- customer(shipment);
+        supplierStock(s) <- supplierStock(shipment);
+        customerStock(s) <- customerStock(shipment);
+        number(s) <- number(shipment);
+        series(s) <- series(shipment);
+        note(s) <- note(shipment);
+        currency(s) <- currency(shipment);
 
-        ASSIGN showPack(s) <- showPack(shipment);
-        ASSIGN operation(s) <- operation(shipment);
-//        EXEC overFillShipmentUserShipmentShipment(s, shipment);
+        showPack(s) <- showPack(shipment);
+        operation(s) <- operation(shipment);
 
         FOR shipment(ShipmentDetail detail)==shipment ADDOBJ d = SaleReturn.UserShipmentDetail DO {
 
-            ASSIGN userShipment(d) <- s;
-            ASSIGN shipmentDetail(d) <- detail;
-            ASSIGN dataSupplierStock(d) <- dataSupplierStock(detail);
-            ASSIGN dataCustomerStock(d) <- dataCustomerStock(detail);
+            userShipment(d) <- s;
+            shipmentDetail(d) <- detail;
 
-            ASSIGN sku(d) <- sku(detail);
-            ASSIGN quantity (d) <- quantity(detail);
-            ASSIGN price (d) <- price(detail);
+            sku(d) <- sku(detail);
+            quantity (d) <- quantity(detail);
+            price (d) <- price(detail);
 
-            ASSIGN barcodePack (d) <- barcodePack(detail);
-            ASSIGN amountPack (d) <- amountPack(detail);
-            ASSIGN packQuantity (d) <- packQuantity(detail);
+            barcodePack (d) <- barcodePack(detail);
+            amountPack (d) <- amountPack(detail);
+            packQuantity (d) <- packQuantity(detail);
 
-            ASSIGN batch(d) <- batch(detail);
-//            EXEC overFillShipmentUserShipmentDetailShipmentDetail(d,detail);
+            batch(d) <- batch(detail);
         }
 
     FORM SaleReturn.userShipment OBJECTS s = s MANAGESESSION DOCKEDMODAL NOCANCEL;
