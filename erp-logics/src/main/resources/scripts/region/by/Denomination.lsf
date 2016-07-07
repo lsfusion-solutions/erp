@@ -221,3 +221,55 @@ denominateLite() = ACTION {
     denominate(4, TRUE, TRUE, NULL);
     recalculateMultiThreadAction(4, NULL);
 }
+
+currentBalanceOldBase 'Текущий остаток (старая база)' = DATA LOCAL NESTED NUMERIC[16,5](Sku, Stock);
+currentSumOldBase 'Сумма остатка (старая база)' = DATA LOCAL NESTED NUMERIC[18,4](Sku, Stock);
+
+connectionString 'Строка подключения к старой базе (host/base?user=user&password=password)' = DATA VARSTRING[255]();
+
+EXTEND FORM options
+    PROPERTIES connectionString();
+    
+DESIGN options {
+    commons {
+        MOVE PROPERTY (connectionString());
+    }
+}
+
+loadBalanceOldBase 'Получить остаток из старой базы'() = ACTION {
+    LOCAL file = CUSTOMFILE ();
+    
+    LOCAL key0 = INTEGER (INTEGER );
+    LOCAL key1 = INTEGER (INTEGER );
+    
+    LOCAL balance = NUMERIC[16,5](INTEGER );
+    LOCAL sum = NUMERIC[18,4](INTEGER );
+    
+    // 192.168.1.226/vitalur?user=postgres&password=11111
+    READ 'jdbc:postgresql://' + connectionString() + '@SELECT key0, key1, Stock_currentBalance_Sku_Stock, Stock_currentSum_Sku_Stock ' +
+        'FROM Stock_skuStock WHERE Stock_currentBalance_Sku_Stock IS NOT NULL OR Stock_currentSum_Sku_Stock IS NOT NULL' TO file;
+    
+    IMPORT JDBC TO key0, key1, balance, sum FROM file();
+    
+    currentBalanceOldBase(Sku s, Stock st) <- NULL ;
+    currentSumOldBase(Sku s, Stock st) <- NULL ;
+    
+    FOR INTEGER (Sku s) == key0(i) AND INTEGER (Stock st) == key1(i) DO {
+        currentBalanceOldBase(s, st) <- balance(i) WHERE balance(i) != 0.0;
+        currentSumOldBase(s, st) <- sum(i) WHERE sum(i) != 0.0 ;
+    }
+}
+
+EXTEND FORM balanceSkuStock 
+    PROPERTIES (s, st) READONLY currentBalanceOldBase, currentSumOldBase
+    PROPERTIES () loadBalanceOldBase
+;
+    
+DESIGN balanceSkuStock {
+    ledger.box {
+        NEW action {
+            caption = 'Действия';
+            MOVE PROPERTY (loadBalanceOldBase());
+        }
+    }
+}
