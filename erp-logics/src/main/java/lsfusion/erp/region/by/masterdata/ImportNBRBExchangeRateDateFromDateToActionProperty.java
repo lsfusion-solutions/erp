@@ -44,6 +44,8 @@ public class ImportNBRBExchangeRateDateFromDateToActionProperty extends ImportNB
                 if(nbrbDateFrom.getTime() <= separationDate.getTime() && nbrbDateTo.getTime() > separationDate.getTime()) {
                     importExchanges(nbrbDateFrom, separationDate, shortNameCurrency, context, true);
                     importExchanges(denominationDate, nbrbDateTo, shortNameCurrency, context, false);
+                } else {
+                    importExchanges(nbrbDateFrom, nbrbDateTo, shortNameCurrency, context,  nbrbDateFrom.getTime() < separationDate.getTime());
                 }
             }
 

@@ -45,6 +45,8 @@ public class ImportNBRBExchangeRateLastDaysActionProperty extends ImportNBRBExch
                 if(dateFrom.getTime() <= separationDate.getTime() && dateTo.getTime() > separationDate.getTime()) {
                     importExchanges(dateFrom, separationDate, shortNameCurrency, context, true);
                     importExchanges(denominationDate, dateTo, shortNameCurrency, context, false);
+                } else {
+                    importExchanges(dateFrom, dateTo, shortNameCurrency, context, dateFrom.getTime() < separationDate.getTime());
                 }
 
             }
