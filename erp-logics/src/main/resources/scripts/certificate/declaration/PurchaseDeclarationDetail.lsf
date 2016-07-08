@@ -44,7 +44,7 @@ typeExchange(Declaration d) <- defaultTypeExchange(customsZone(d)) WHEN CHANGED(
 CONSTRAINT currency(typeExchange(Declaration declaration)) != homeCurrency(declaration)
     CHECKED BY typeExchange[Declaration] MESSAGE 'Тип обмена должен соответствовать расчётной валюте';
 
-rateExchange 'Курс накладных' = DATA NUMERIC[14,3](Declaration) @@denominationRate;
+rateExchange 'Курс накладных' = DATA NUMERIC[14,6](Declaration) @@denominationRate;
 dataDateExchange  = DATA DATE(Declaration);
 dateExchange 'Дата (курс накладных)'= OVERRIDE date(Declaration d), dataDateExchange(d);
 
@@ -55,7 +55,7 @@ rateExchange(Declaration declaration) <- calcRateExchange(declaration) WHEN CHAN
                                                                                       CHANGED (typeExchange(declaration)) OR
                                                                                       CHANGED (currency(declaration));
 
-rateExchangeCustomsZone 'Курс платежей' = DATA NUMERIC[14,3](Declaration) @@denominationRate;
+rateExchangeCustomsZone 'Курс платежей' = DATA NUMERIC[14,6](Declaration) @@denominationRate;
 calcRateExchangeCustomsZone 'Курс платежей' = rateOn(typeExchange(Declaration declaration), currencyCustomsZone(declaration), date(declaration));
 rateExchangeCustomsZone(Declaration declaration) <- calcRateExchangeCustomsZone(declaration) WHEN CHANGED (date(declaration)) OR
                                                                                                             CHANGED (typeExchange(declaration)) OR
