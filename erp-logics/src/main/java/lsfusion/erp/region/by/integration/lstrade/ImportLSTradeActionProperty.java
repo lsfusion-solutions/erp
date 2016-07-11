@@ -98,13 +98,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
                 new ImportActionProperty(LM).makeImport(importData, context);
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException(e);
-        } catch (xBaseJException e) {
-            throw new RuntimeException(e);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (ParseException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | ParseException | IOException | xBaseJException e) {
             throw new RuntimeException(e);
         }
     }
@@ -119,8 +113,8 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
 
-        data = new ArrayList<ItemGroup>();
-        itemGroups = new ArrayList<String>();
+        data = new ArrayList<>();
+        itemGroups = new ArrayList<>();
 
         String groupTop = "ВСЕ";
         if (!parents)
@@ -189,7 +183,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
-        List<Ware> data = new ArrayList<Ware>();
+        List<Ware> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
             importFile.read();
@@ -215,7 +209,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
             return null;
         }
 
-        List<UOM> data = new ArrayList<UOM>();
+        List<UOM> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
             itemsImportFile.read();
@@ -234,12 +228,12 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         checkFileExistence(itemsPath);
         checkFileExistence(quantityPath);
 
-        Set<String> barcodes = new HashSet<String>();
+        Set<String> barcodes = new HashSet<>();
 
         DBF quantityImportFile = new DBF(quantityPath);
         int totalRecordCount = quantityImportFile.getRecordCount();
 
-        Map<String, BigDecimal> quantities = new HashMap<String, BigDecimal>();
+        Map<String, BigDecimal> quantities = new HashMap<>();
 
         for (int i = 0; i < totalRecordCount; i++) {
             quantityImportFile.read();
@@ -260,7 +254,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
             return null;
         }
 
-        List<Item> data = new ArrayList<Item>();
+        List<Item> data = new ArrayList<>();
 
         int recordCount = (numberOfItems != null && numberOfItems != 0 && numberOfItems < totalRecordCount) ? numberOfItems : totalRecordCount;
         for (int i = 0; i < recordCount; i++) {
@@ -312,7 +306,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
     private List<UserInvoiceDetail> importUserInvoicesFromDBF(String sprcontPath, String ostnPath) throws
             IOException, xBaseJException, ParseException, ScriptingErrorLog.SemanticErrorException {
 
-        Map<String, String> contractSupplierMap = new HashMap<String, String>();
+        Map<String, String> contractSupplierMap = new HashMap<>();
 
         if (new File(sprcontPath).exists()) {
 
@@ -333,8 +327,8 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(ostnPath);
         int totalRecordCount = importFile.getRecordCount();
 
-        List<UserInvoiceDetail> data = new ArrayList<UserInvoiceDetail>();
-        Map<String, String> userInvoiceSupplierMap = new HashMap<String, String>();
+        List<UserInvoiceDetail> data = new ArrayList<>();
+        Map<String, String> userInvoiceSupplierMap = new HashMap<>();
 
         for (int i = 0; i < totalRecordCount; i++) {
             importFile.read();
@@ -379,7 +373,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         checkFileExistence(postvarPath);
         checkFileExistence(strvarPath);
 
-        Map<String, Object[]> postvarMap = new HashMap<String, Object[]>();
+        Map<String, Object[]> postvarMap = new HashMap<>();
 
         DBF importPostvarFile = new DBF(postvarPath);
         int totalRecordCount = importPostvarFile.getRecordCount();
@@ -395,7 +389,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
             postvarMap.put(idSupplier + idItem, new Object[]{price, date});
         }
 
-        List<PriceListStore> data = new ArrayList<PriceListStore>();
+        List<PriceListStore> data = new ArrayList<>();
 
         DBF importStrvarFile = new DBF(strvarPath);
         totalRecordCount = importStrvarFile.getRecordCount();
@@ -431,7 +425,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
 
         checkFileExistence(postvarPath);
 
-        List<PriceList> data = new ArrayList<PriceList>();
+        List<PriceList> data = new ArrayList<>();
 
         DBF importPostvarFile = new DBF(postvarPath);
         int totalRecordCount = importPostvarFile.getRecordCount();
@@ -461,7 +455,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
 
-        List<LegalEntity> data = new ArrayList<LegalEntity>();
+        List<LegalEntity> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
 
@@ -506,7 +500,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
 
-        List<Warehouse> data = new ArrayList<Warehouse>();
+        List<Warehouse> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
 
@@ -533,7 +527,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         checkFileExistence(path);
 
         DBF importStores = new DBF(pathStores);
-        Map<String, String> storeDepartmentStoreMap = new HashMap<String, String>();
+        Map<String, String> storeDepartmentStoreMap = new HashMap<>();
         for (int i = 0; i < importStores.getRecordCount(); i++) {
 
             importStores.read();
@@ -544,7 +538,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
 
-        List<DepartmentStore> data = new ArrayList<DepartmentStore>();
+        List<DepartmentStore> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
 
@@ -570,7 +564,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
 
-        List<Bank> data = new ArrayList<Bank>();
+        List<Bank> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
 
@@ -593,7 +587,7 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         DBF importFile = new DBF(path);
         int recordCount = importFile.getRecordCount();
 
-        List<RateWaste> data = new ArrayList<RateWaste>();
+        List<RateWaste> data = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
 
@@ -615,8 +609,8 @@ public class ImportLSTradeActionProperty extends DefaultImportDBFActionProperty 
         int recordCount = importFile.getRecordCount();
         String shortNameCurrency = "BLR";
 
-        List<Contract> contractsList = new ArrayList<Contract>();
-        List<String> idContracts = new ArrayList<String>();
+        List<Contract> contractsList = new ArrayList<>();
+        List<String> idContracts = new ArrayList<>();
 
         for (int i = 0; i < recordCount; i++) {
 

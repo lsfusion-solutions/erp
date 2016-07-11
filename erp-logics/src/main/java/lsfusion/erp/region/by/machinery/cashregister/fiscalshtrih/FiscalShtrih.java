@@ -279,7 +279,7 @@ public class FiscalShtrih {
     }
 
     public static Map<Integer, Integer> getTaxRanges() {
-        Map<Integer, Integer> result = new HashMap<Integer, Integer>();
+        Map<Integer, Integer> result = new HashMap<>();
         for (int i = 1; i <= 4; i++)
             result.put(readTaxRange(i), i);
         return result;

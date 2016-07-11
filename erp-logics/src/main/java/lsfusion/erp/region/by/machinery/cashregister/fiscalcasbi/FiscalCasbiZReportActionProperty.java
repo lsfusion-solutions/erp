@@ -43,9 +43,7 @@ public class FiscalCasbiZReportActionProperty extends ScriptingActionProperty {
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }

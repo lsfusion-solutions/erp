@@ -76,13 +76,7 @@ public class ImportExcelAllActionProperty extends ScriptingActionProperty {
                     new ImportActionProperty(LM).makeImport(importData, context);
                 }
             }
-        } catch (BiffException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (ParseException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (IOException e) {
-            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (BiffException | ScriptingErrorLog.SemanticErrorException | IOException | ParseException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
         }
     }

@@ -48,9 +48,7 @@ public class SearchImageArticleActionProperty extends DefaultImageArticleActionP
             findProperty("startImage[]").change((Object)null, context);
             findProperty("articleImage[]").change((Object)null, context);
 
-        } catch (SQLException e) {
-            throw Throwables.propagate(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }
     }

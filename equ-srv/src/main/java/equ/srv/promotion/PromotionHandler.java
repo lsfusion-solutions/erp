@@ -50,7 +50,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                     //PromotionTime
                     KeyExpr htcPromotionTimeExpr = new KeyExpr("htcPromotionTime");
                     ImRevMap<Object, KeyExpr> htcPromotionTimeKeys = MapFact.singletonRev((Object) "htcPromotionTime", htcPromotionTimeExpr);
-                    QueryBuilder<Object, Object> htcPromotionTimeQuery = new QueryBuilder<Object, Object>(htcPromotionTimeKeys);
+                    QueryBuilder<Object, Object> htcPromotionTimeQuery = new QueryBuilder<>(htcPromotionTimeKeys);
 
                     String[] htcPromotionTimeNames = new String[]{"isStopHTCPromotionTime", "idHTCPromotionTime", "captionDayHTCPromotionTime",
                             "numberDayHTCPromotionTime", "beginTimeHTCPromotionTime", "endTimeHTCPromotionTime", "percentHTCPromotionTime"};
@@ -63,7 +63,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> htcPromotionTimeResult = htcPromotionTimeQuery.execute(session);
 
-                    List<PromotionTime> htcPromotionTimeList = new ArrayList<PromotionTime>();
+                    List<PromotionTime> htcPromotionTimeList = new ArrayList<>();
                     for (int i = 0, size = htcPromotionTimeResult.size(); i < size; i++) {
                         ImMap<Object, Object> entryValue = htcPromotionTimeResult.getValue(i);
                         boolean isStopHTCPromotionTime = entryValue.get("isStopHTCPromotionTime") != null;
@@ -82,7 +82,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                     //PromotionQuantity
                     KeyExpr htcPromotionQuantityExpr = new KeyExpr("htcPromotionQuantity");
                     ImRevMap<Object, KeyExpr> htcPromotionQuantityKeys = MapFact.singletonRev((Object) "htcPromotionQuantity", htcPromotionQuantityExpr);
-                    QueryBuilder<Object, Object> htcPromotionQuantityQuery = new QueryBuilder<Object, Object>(htcPromotionQuantityKeys);
+                    QueryBuilder<Object, Object> htcPromotionQuantityQuery = new QueryBuilder<>(htcPromotionQuantityKeys);
 
                     String[] htcPromotionQuantityNames = new String[]{"isStopHTCPromotionQuantity", "idHTCPromotionQuantity", "barcodeItemHTCPromotionQuantity",
                             "idItemHTCPromotionQuantity", "quantityHTCPromotionQuantity", "percentHTCPromotionQuantity"};
@@ -95,7 +95,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> htcPromotionQuantityResult = htcPromotionQuantityQuery.execute(session);
 
-                    List<PromotionQuantity> htcPromotionQuantityList = new ArrayList<PromotionQuantity>();
+                    List<PromotionQuantity> htcPromotionQuantityList = new ArrayList<>();
                     for (int i = 0, size = htcPromotionQuantityResult.size(); i < size; i++) {
                         ImMap<Object, Object> entryValue = htcPromotionQuantityResult.getValue(i);
                         boolean isStopHTCPromotionQuantity = entryValue.get("isStopHTCPromotionQuantity") != null;
@@ -114,7 +114,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
                     //PromotionSum
                     KeyExpr htcPromotionSumExpr = new KeyExpr("htcPromotionSum");
                     ImRevMap<Object, KeyExpr> htcPromotionSumKeys = MapFact.singletonRev((Object) "htcPromotionSum", htcPromotionSumExpr);
-                    QueryBuilder<Object, Object> htcPromotionSumQuery = new QueryBuilder<Object, Object>(htcPromotionSumKeys);
+                    QueryBuilder<Object, Object> htcPromotionSumQuery = new QueryBuilder<>(htcPromotionSumKeys);
 
                     String[] htcPromotionSumNames = new String[]{"isStopHTCPromotionSum", "idHTCPromotionSum", "sumHTCPromotionSum", "percentHTCPromotionSum"};
                     LCP[] htcPromotionSumProperties = HTCPromotionLM.findProperties("isStop[HTCPromotionSum]", "id[HTCPromotionSum]", "sum[HTCPromotionSum]", "percent[HTCPromotionSum]");
@@ -125,7 +125,7 @@ public class PromotionHandler extends RmiServer implements PromotionInterface, I
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> htcPromotionSumResult = htcPromotionSumQuery.execute(session);
 
-                    List<PromotionSum> htcPromotionSumList = new ArrayList<PromotionSum>();
+                    List<PromotionSum> htcPromotionSumList = new ArrayList<>();
                     for (int i = 0, size = htcPromotionSumResult.size(); i < size; i++) {
                         ImMap<Object, Object> entryValue = htcPromotionSumResult.getValue(i);
                         boolean isStopHTCPromotionSum = entryValue.get("isStopHTCPromotionSum") != null;

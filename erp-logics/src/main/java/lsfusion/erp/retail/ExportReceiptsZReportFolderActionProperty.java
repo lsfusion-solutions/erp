@@ -29,9 +29,7 @@ public class ExportReceiptsZReportFolderActionProperty extends ExportReceiptsZRe
                 export(context, zReportObject, pathExportReceipts, false);
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
 

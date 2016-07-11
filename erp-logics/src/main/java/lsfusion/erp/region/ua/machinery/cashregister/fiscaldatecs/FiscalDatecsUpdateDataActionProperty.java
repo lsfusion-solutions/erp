@@ -42,7 +42,7 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
             KeyExpr groupCashRegisterExpr = new KeyExpr("groupCashRegister");
             ImRevMap<Object, KeyExpr> operatorKeys = MapFact.toRevMap((Object)"customUser", customUserExpr, "groupCashRegister", groupCashRegisterExpr);
 
-            QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<Object, Object>(operatorKeys);
+            QueryBuilder<Object, Object> operatorQuery = new QueryBuilder<>(operatorKeys);
             operatorQuery.addProperty("operatorNumberGroupCashRegisterCustomUser", findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), groupCashRegisterExpr, customUserExpr));
             operatorQuery.addProperty("firstNameContact", findProperty("firstName[Contact]").getExpr(context.getModifier(), customUserExpr));
             operatorQuery.addProperty("lastNameContact", findProperty("lastName[Contact]").getExpr(context.getModifier(), customUserExpr));
@@ -50,7 +50,7 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
             operatorQuery.and(findProperty("operatorNumber[GroupCashRegister,CustomUser]").getExpr(context.getModifier(), operatorQuery.getMapExprs().get("groupCashRegister"), operatorQuery.getMapExprs().get("customUser")).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> operatorResult = operatorQuery.execute(session);
-            List<UpdateDataOperator> operatorList = new ArrayList<UpdateDataOperator>();
+            List<UpdateDataOperator> operatorList = new ArrayList<>();
             for (ImMap<Object, Object> operatorValues : operatorResult.valueIt()) {
                 Integer number = (Integer) operatorValues.get("operatorNumberGroupCashRegisterCustomUser");
                 String firstNameContact = (String) operatorValues.get("firstNameContact");
@@ -59,14 +59,14 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
                     operatorList.add(new UpdateDataOperator(number, (firstNameContact==null ? "" : firstNameContact.trim()) + " " + (lastNameContact==null ? "" : lastNameContact.trim())));
             }
 
-            List<UpdateDataTaxRate> taxRateList = new ArrayList<UpdateDataTaxRate>();
+            List<UpdateDataTaxRate> taxRateList = new ArrayList<>();
             ObjectValue countryObject = findProperty("countryCurrentCashRegister[]").readClasses(session);
             DataObject taxVATObject = ((ConcreteCustomClass) findClass("Tax")).getDataObject("taxVAT");
             KeyExpr rangeExpr = new KeyExpr("range");
             KeyExpr taxExpr = new KeyExpr("tax");
             ImRevMap<Object, KeyExpr> rangeKeys = MapFact.toRevMap((Object) "range", rangeExpr, "tax", taxExpr);
 
-            QueryBuilder<Object, Object> rangeQuery = new QueryBuilder<Object, Object>(rangeKeys);
+            QueryBuilder<Object, Object> rangeQuery = new QueryBuilder<>(rangeKeys);
             rangeQuery.addProperty("numberRange", findProperty("number[Range]").getExpr(context.getModifier(), rangeExpr));
             rangeQuery.addProperty("valueCurrentRateRange", findProperty("valueCurrentRate[Range]").getExpr(context.getModifier(), rangeExpr));
             rangeQuery.addProperty("countryRange", findProperty("country[Range]").getExpr(context.getModifier(), rangeExpr));
@@ -90,9 +90,7 @@ public class FiscalDatecsUpdateDataActionProperty extends ScriptingActionPropert
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
 

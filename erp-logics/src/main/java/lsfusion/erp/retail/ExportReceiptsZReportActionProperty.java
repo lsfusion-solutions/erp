@@ -68,7 +68,7 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
 
         try {
 
-            List<DataObject> receiptObjectsList = new ArrayList<DataObject>();
+            List<DataObject> receiptObjectsList = new ArrayList<>();
 
             DataSession session = context.getSession();
 
@@ -80,7 +80,7 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
 
             String[] receiptNames = new String[]{"numberReceipt", "dateTimeReceipt", "discountSumReceipt", "noteReceipt"};
             LCP<?>[] receiptProperties = findProperties("number[Receipt]", "dateTime[Receipt]", "discountSum[Receipt]", "note[Receipt]");
-            QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<Object, Object>(receiptKeys);
+            QueryBuilder<Object, Object> receiptQuery = new QueryBuilder<>(receiptKeys);
             for (int j = 0; j < receiptProperties.length; j++) {
                 receiptQuery.addProperty(receiptNames[j], receiptProperties[j].getExpr(session.getModifier(), receiptExpr));
             }
@@ -118,7 +118,7 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
                 LCP[] receiptDetailProperties = findProperties("type[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
                         "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
                         "discountSum[ReceiptDetail]", "discountPercent[ReceiptSaleDetail]", "sku[ReceiptDetail]");
-                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
+                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(session.getModifier(), receiptDetailExpr));
                 }
@@ -163,7 +163,7 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
 
                         KeyExpr promotionConditionExpr = new KeyExpr("promotionCondition");
                         ImRevMap<Object, KeyExpr> promotionConditionKeys = MapFact.singletonRev((Object) "promotionCondition", promotionConditionExpr);
-                        QueryBuilder<Object, Object> promotionConditionQuery = new QueryBuilder<Object, Object>(promotionConditionKeys);
+                        QueryBuilder<Object, Object> promotionConditionQuery = new QueryBuilder<>(promotionConditionKeys);
                         String[] receiptDetailPromotionConditionNames = new String[]{"quantityReceiptSaleDetailPromotionCondition",
                                 "promotionSumReceiptSaleDetailPromotionCondition", "setUserPromotionReceiptSaleDetailPromotionCondition"};
                         LCP[] receiptDetailPromotionConditionProperties = new LCP[]{zReportRetailCRMLM.findProperty("quantity[ReceiptSaleDetail,PromotionCondition]"),
@@ -200,7 +200,7 @@ public abstract class ExportReceiptsZReportActionProperty extends DefaultExportA
                 KeyExpr paymentExpr = new KeyExpr("payment");
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
-                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
+                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(session.getModifier(), paymentExpr));
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("namePaymentMeans[Payment]").getExpr(session.getModifier(), paymentExpr));
                 paymentQuery.addProperty("sidPaymentTypePayment", findProperty("sidPaymentType[Payment]").getExpr(session.getModifier(), paymentExpr));

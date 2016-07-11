@@ -86,9 +86,9 @@ public class ImportFormularActionProperty extends ScriptingActionProperty {
 
         int columnCount = rsmd.getColumnCount();
 
-        List<List<Object>> data = new ArrayList<List<Object>>();
+        List<List<Object>> data = new ArrayList<>();
         while (rs.next()) {
-            List<Object> row = new ArrayList<Object>();
+            List<Object> row = new ArrayList<>();
             for (int i = 0; i < columnCount; i++)
                 row.add(rs.getObject(i));
             data.add(row);

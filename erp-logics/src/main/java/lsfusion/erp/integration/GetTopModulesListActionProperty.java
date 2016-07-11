@@ -21,14 +21,14 @@ public class GetTopModulesListActionProperty extends ScriptingActionProperty {
 
         BusinessLogics<?> BL = context.getBL();
 
-        Map<String, Integer> degree = new HashMap<String, Integer>();
+        Map<String, Integer> degree = new HashMap<>();
         for (LogicsModule module : BL.getLogicModules()) {
             degree.put(module.getName(), 0);
         }
 
         Map<String, Set<String>> graph = BL.buildModuleGraph();
 
-        List<ScriptingLogicsModule> topModulesList = new ArrayList<ScriptingLogicsModule>();
+        List<ScriptingLogicsModule> topModulesList = new ArrayList<>();
         int count = 0;
         for (LogicsModule module : BL.getLogicModules()) {
             if (graph.get(module.getName()).size() == 0) {

@@ -41,9 +41,7 @@ public class FiscalDatecsServiceInOutActionProperty extends ScriptingActionPrope
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }
 
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
     }

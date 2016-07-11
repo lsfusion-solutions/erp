@@ -60,7 +60,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
     private Map<DataObject, List<Object>> readAttachmentMap(ExecutionContext context) throws SQLException, SQLHandledException {
 
-        Map<DataObject, List<Object>> attachmentMap = new HashMap<DataObject, List<Object>>();
+        Map<DataObject, List<Object>> attachmentMap = new HashMap<>();
 
         try {
 
@@ -72,7 +72,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
                 KeyExpr attachmentEmailExpr = new KeyExpr("attachmentEmail");
                 ImRevMap<Object, KeyExpr> emailKeys = MapFact.toRevMap((Object) "email", emailExpr, "attachmentEmail", attachmentEmailExpr);
 
-                QueryBuilder<Object, Object> emailQuery = new QueryBuilder<Object, Object>(emailKeys);
+                QueryBuilder<Object, Object> emailQuery = new QueryBuilder<>(emailKeys);
                 emailQuery.addProperty("fileAttachmentEmail", findProperty("file[AttachmentEmail]").getExpr(attachmentEmailExpr));
                 emailQuery.addProperty("nameAttachmentEmail", findProperty("name[AttachmentEmail]").getExpr(attachmentEmailExpr));
 
@@ -115,9 +115,9 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
             if (data != null) {
 
-                List<ImportProperty<?>> props = new ArrayList<ImportProperty<?>>();
-                List<ImportField> fields = new ArrayList<ImportField>();
-                List<ImportKey<?>> keys = new ArrayList<ImportKey<?>>();
+                List<ImportProperty<?>> props = new ArrayList<>();
+                List<ImportField> fields = new ArrayList<>();
+                List<ImportKey<?>> keys = new ArrayList<>();
 
                 ImportField seriesNumberUserOrderField = new ImportField(findProperty("seriesNumber[UserOrder]"));
                 ImportKey<?> userOrderKey = new ImportKey((CustomClass) findClass("Purchase.UserOrder"),
@@ -165,7 +165,7 @@ public class ImportEmailOrderActionProperty extends DefaultImportXLSXActionPrope
 
     private List<List<Object>> importOrderFromXLSX(byte[] file, Integer firstRow, String numberCell, String quantityColumnValue) throws IOException, ParseException {
 
-        List<List<Object>> result = new ArrayList<List<Object>>();
+        List<List<Object>> result = new ArrayList<>();
 
         Pattern p = Pattern.compile("(\\w+)(\\d+)");
         Matcher m = p.matcher(numberCell);

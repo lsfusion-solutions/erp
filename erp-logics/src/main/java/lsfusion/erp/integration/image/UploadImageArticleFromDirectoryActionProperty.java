@@ -64,7 +64,6 @@ public class UploadImageArticleFromDirectoryActionProperty extends ScriptingActi
                 }
             }
         } catch (ScriptingErrorLog.SemanticErrorException ignored) {
-        } catch (FileNotFoundException ignored) {
         } catch (IOException ignored) {
         }
 

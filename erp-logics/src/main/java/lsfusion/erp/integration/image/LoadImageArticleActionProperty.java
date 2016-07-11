@@ -39,9 +39,7 @@ public class LoadImageArticleActionProperty extends DefaultImageArticleActionPro
                 findProperty("image[Article]").change(IOUtils.getFileBytes(file), context, articleObject);
                 file.delete();
             }
-        } catch (IOException e) {
-            e.printStackTrace();
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (IOException | ScriptingErrorLog.SemanticErrorException e) {
             e.printStackTrace();
         }
     }

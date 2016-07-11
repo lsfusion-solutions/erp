@@ -32,14 +32,14 @@ public class EasyCSVHandler {
         @Override
         public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionCashRegisterInfo> transactionInfoList) throws IOException {
 
-            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<Integer, SendTransactionBatch>();
+            Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
             for(TransactionCashRegisterInfo transactionInfo : transactionInfoList) {
 
                 Exception exception = null;
                 try {
 
-                    List<String> directoriesList = new ArrayList<String>();
+                    List<String> directoriesList = new ArrayList<>();
                     for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
                         if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
                             directoriesList.add(cashRegisterInfo.port.trim());

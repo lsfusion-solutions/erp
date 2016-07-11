@@ -24,7 +24,7 @@ public class CreateExcelTemplateAllActionProperty extends ScriptingActionPropert
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            Map<String, byte[]> files = new HashMap<String, byte[]>();
+            Map<String, byte[]> files = new HashMap<>();
             files.putAll(new CreateExcelTemplateUOMsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateItemsActionProperty(LM).createFile());
             files.putAll(new CreateExcelTemplateGroupItemsActionProperty(LM).createFile());
@@ -39,8 +39,6 @@ public class CreateExcelTemplateAllActionProperty extends ScriptingActionPropert
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
         } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (RowsExceededException e) {
             throw new RuntimeException(e);
         } catch (WriteException e) {
             throw new RuntimeException(e);

@@ -458,7 +458,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
 
     protected BigDecimal getDBFBigDecimalFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
         String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
-        return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new BigDecimal(result.replace(",", "."));
+        return (result == null || result.isEmpty() || (zeroIsNull && Double.valueOf(result).equals(0d))) ? null : new BigDecimal(result.replace(",", "."));
     }
 
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
@@ -467,7 +467,7 @@ public class UKM4Handler extends CashRegisterHandler<UKM4SalesBatch> {
     
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset, Boolean zeroIsNull, String defaultValue) throws UnsupportedEncodingException {
         String result = getDBFFieldValue(importFile, fieldName, charset, zeroIsNull, defaultValue);
-        return (result == null || (zeroIsNull && Double.valueOf(result).equals(new Double(0)))) ? null : new Double(result).intValue();
+        return (result == null || (zeroIsNull && Double.valueOf(result).equals(0d))) ? null : new Double(result).intValue();
     }
 
     protected Date getDBFDateFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException, ParseException {

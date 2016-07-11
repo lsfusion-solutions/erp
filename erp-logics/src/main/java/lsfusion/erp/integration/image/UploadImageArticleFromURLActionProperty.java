@@ -49,8 +49,6 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
             }
         } catch (ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
-        } catch (FileNotFoundException e) {
-            throw Throwables.propagate(e);
         } catch (IOException e) {
             throw Throwables.propagate(e);
         }

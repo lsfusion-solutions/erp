@@ -99,7 +99,7 @@ public class DefaultImportXLSActionProperty extends DefaultImportActionProperty 
     }
 
     protected Map<String, byte[]> getXLSImageMap(Sheet sheet) {
-        Map<String, byte[]> imageMap = new HashMap<String, byte[]>();
+        Map<String, byte[]> imageMap = new HashMap<>();
         int count = sheet.getNumberOfImages();
         for (int i = 0; i < count; i++) {
             Image image = sheet.getDrawing(i); 

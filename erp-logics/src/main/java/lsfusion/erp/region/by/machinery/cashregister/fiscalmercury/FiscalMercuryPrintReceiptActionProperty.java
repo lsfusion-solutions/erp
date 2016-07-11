@@ -57,12 +57,12 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 BigDecimal sumCard = null;
                 BigDecimal sumCash = null;
                 BigDecimal sumGiftCard = null;
-                List<String> giftCardNumbers = new ArrayList<String>();
+                List<String> giftCardNumbers = new ArrayList<>();
 
                 KeyExpr paymentExpr = new KeyExpr("payment");
                 ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object) "payment", paymentExpr);
 
-                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
+                QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
                 paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
                 paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
                 if (giftCardLM != null)
@@ -90,7 +90,7 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
                 ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object) "receiptDetail", receiptDetailExpr);
 
-                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
+                QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 String[] rdNames = new String[]{"nameSkuReceiptDetail", "typeReceiptDetail", "quantityReceiptDetail",
                         "quantityReceiptSaleDetail", "quantityReceiptReturnDetail", "priceReceiptDetail",
                         "idBarcodeReceiptDetail", "sumReceiptDetail", "discountSumReceiptDetail"};
@@ -103,8 +103,8 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                 receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
-                List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
-                List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
+                List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
+                List<ReceiptItem> receiptReturnItemList = new ArrayList<>();
                 for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
                     BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
                     BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
@@ -152,9 +152,7 @@ public class FiscalMercuryPrintReceiptActionProperty extends ScriptingActionProp
                     }
                 }
             }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
 

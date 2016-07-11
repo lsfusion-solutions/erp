@@ -82,7 +82,7 @@ public class OverJDBField extends JDBField {
             }
             if (obj instanceof Boolean) {
                 Boolean boolean1 = (Boolean) obj;
-                return boolean1.booleanValue() ? "Y" : "N";
+                return boolean1 ? "Y" : "N";
             } else {
                 throw new JDBFException("Expected a Boolean, got " + obj.getClass() +
                         ".");

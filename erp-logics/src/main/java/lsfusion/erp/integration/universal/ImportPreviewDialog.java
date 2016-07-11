@@ -68,7 +68,7 @@ public class ImportPreviewDialog extends JDialog {
     }
 
     private void onOk() {
-        result = new HashMap<String, String>();
+        result = new HashMap<>();
         for (Object[] row : table.getCheckTableModel().data) {
             String oldArticle = (String) row[0];
             String newArticle = oldArticle + ".";

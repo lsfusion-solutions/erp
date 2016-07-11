@@ -42,8 +42,6 @@ public class ExportExcelAllActionProperty extends ScriptingActionProperty {
 
         } catch (IOException e) {
             throw new RuntimeException(e);
-        } catch (RowsExceededException e) {
-            throw new RuntimeException(e);
         } catch (WriteException e) {
             throw new RuntimeException(e);
         }

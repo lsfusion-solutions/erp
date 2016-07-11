@@ -59,7 +59,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             KeyExpr paymentExpr = new KeyExpr("payment");
             ImRevMap<Object, KeyExpr> paymentKeys = MapFact.singletonRev((Object)"payment", paymentExpr);
 
-            QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<Object, Object>(paymentKeys);
+            QueryBuilder<Object, Object> paymentQuery = new QueryBuilder<>(paymentKeys);
             paymentQuery.addProperty("sumPayment", findProperty("sum[Payment]").getExpr(context.getModifier(), paymentExpr));
             paymentQuery.addProperty("paymentMeansPayment", findProperty("paymentMeans[Payment]").getExpr(context.getModifier(), paymentExpr));
 
@@ -78,7 +78,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             KeyExpr receiptDetailExpr = new KeyExpr("receiptDetail");
             ImRevMap<Object, KeyExpr> receiptDetailKeys = MapFact.singletonRev((Object)"receiptDetail", receiptDetailExpr);
 
-            QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<Object, Object>(receiptDetailKeys);
+            QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
             receiptDetailQuery.addProperty("nameSkuReceiptDetail", findProperty("nameSku[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailExpr));
             receiptDetailQuery.addProperty("quantityReceiptSaleDetail", findProperty("quantity[ReceiptSaleDetail]").getExpr(context.getModifier(), receiptDetailExpr));
             receiptDetailQuery.addProperty("quantityReceiptReturnDetail", findProperty("quantity[ReceiptReturnDetail]").getExpr(context.getModifier(), receiptDetailExpr));
@@ -92,8 +92,8 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
             receiptDetailQuery.and(findProperty("receipt[ReceiptDetail]").getExpr(context.getModifier(), receiptDetailQuery.getMapExprs().get("receiptDetail")).compare(receiptObject.getExpr(), Compare.EQUALS));
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> receiptDetailResult = receiptDetailQuery.execute(context);
-            List<ReceiptItem> receiptSaleItemList = new ArrayList<ReceiptItem>();
-            List<ReceiptItem> receiptReturnItemList = new ArrayList<ReceiptItem>();
+            List<ReceiptItem> receiptSaleItemList = new ArrayList<>();
+            List<ReceiptItem> receiptReturnItemList = new ArrayList<>();
             for (ImMap<Object, Object> receiptDetailValues : receiptDetailResult.valueIt()) {
                 BigDecimal price = (BigDecimal) receiptDetailValues.get("priceReceiptDetail");
                 BigDecimal quantitySale = (BigDecimal) receiptDetailValues.get("quantityReceiptSaleDetail");
@@ -126,9 +126,7 @@ public class FiscalCasbiPrintReceiptActionProperty extends ScriptingActionProper
                 else
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
             }   }
-        } catch (SQLException e) {
-            throw new RuntimeException(e);
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw new RuntimeException(e);
         }
 
