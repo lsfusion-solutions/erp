@@ -33,7 +33,7 @@ META  defineShipmentWriteOffOperation (NS)
 
 END
 
-META defineShipmentWriteOff (stockProp, batchProp, sign)   
+META defineShipmentWriteOff (stockProp, batchProp, sign, NS)   
         
     //---------------------------------- Extend Invoice ------------------------------------//
     @defineDocumentInterfaceProperty (invoice, createPurchaseWriteOff, 'Создать акт списания');
@@ -182,18 +182,7 @@ META defineShipmentWriteOff (stockProp, batchProp, sign)
     
     //--  Связь поставки и акта списания
     shipmentDetail = ABSTRACT ShipmentDetail (WriteOffDetail) PERSISTENT;
-//    shipmentDetail = DATA ShipmentDetail (UserWriteOffDetail);
-//    shipmentDetail(UserWriteOffDetail writeOffDetail) += shipmentDetail(writeOffDetail);
-//    
-//    CONSTRAINT batch[WriteOffDetail](UserWriteOffDetail detail) != batchProp(shipmentDetail(detail)) OR
-//               stock(writeOff(detail)) != stockProp###stock(shipmentDetail(detail)) OR
-//               sku[WriteOffDetail](detail) != sku(shipmentDetail(detail))
-//        CHECKED BY shipmentDetail[UserWriteOffDetail]
-//            MESSAGE 'Склад, партия и товар в поставке и акте списания должны соответствовать друг другу';
-    
-    
     descriptionIndexShipmentDetail 'Строка поставки' (WriteOffDetail detail) = descriptionIndex(shipmentDetail(detail));
-//    descriptionIndexShipmentDetail 'Строка поставки' (UserWriteOffDetail detail) = descriptionIndex(shipmentDetail(detail));
     
     quantityWriteOffDetail (shipment, writeOff) = GROUP SUM quantity(WriteOffDetail writeOffDetail) BY shipment(shipmentDetail(writeOffDetail)), writeOff(writeOffDetail);
     
@@ -245,94 +234,8 @@ META defineShipmentWriteOff (stockProp, batchProp, sign)
     calcWriteOffPrice 'Цена (списания)' (ShipmentDetail detail) = price(detail) IF calcWriteOffQuantity(detail);
     calcWriteOffSum 'Сумма (списания)' (ShipmentDetail detail) = round(calcWriteOffQuantity(detail)*calcWriteOffPrice(detail),currency(detail));
     
-    // Создание поставки на основе инвойса //
-    
-//    FORM writeOffShipments 'Поставки'
-//        OBJECTS st = Stock FIXED PANEL
-//        PROPERTIES (st) READONLY name
-//    
-//        OBJECTS s = Shipment
-//        PROPERTIES (s) READONLY isPosted, number, series, date, time,
-//                                nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock,
-//                                nameCurrency, countShipmentDetail, quantityShipmentDetail, sumShipmentDetail,
-//                                note
-//        OBJECTS d = ShipmentDetail
-//        PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
-//                                quantity, price, sum,
-//                                nameCustomerStock
-//        PROPERTIES (d) READONLY BACKGROUND backgroundWritten(s) calcWriteOffQuantity, calcWriteOffPrice,  calcWriteOffSum
-//    
-//        FILTERS shipment(d) == s,
-//                stockProp###stock(s) == st
-//            FILTERGROUP writeOffDetail
-//                FILTER 'Поставки без списания' notWrittenOff(s) 'F11' DEFAULT
-//    
-//    //    DIALOG Shipment OBJECT s
-//    ;
-//    
-//    DESIGN writeOffShipments {
-//        main {
-//            preferredSize = (1024, 768);
-//            NEW documentContainer BEFORE functions.box {
-//                fill = 1;
-//                type = CONTAINERV;
-//    
-//                NEW headerBox {
-//                    type = CONTAINERH;
-//                    MOVE st.box {caption = 'Склад';};
-//                }
-//                MOVE s.box;
-//                NEW documentDetail {
-//                    type = TABBED;
-//                    fill = 1;
-//                    MOVE d.box {
-//                        caption = 'Спецификация';
-//                    }
-//                    NEW printTab {
-//                        fill = 1;
-//                        caption = 'Печатные формы';
-//                        NEW printContainer {
-//                            fill = 1;
-//                            caption = 'Печать';
-//                            type = CONTAINERV;
-//                        }
-//                    }
-//                }
-//            }
-//        }
-//    }
-//    
-//    fillShipment 'Заполнить на основе поставки '###sign (UserWriteOff userWriteOff) =  ACTION {
-//        FORM writeOffShipments OBJECTS st = stock(userWriteOff) MODAL;
-//        IF formResult() == FormResult.ok THEN {
-//            LOCAL purchaseShipment = Shipment();
-//            ASSIGN purchaseShipment() <- chosenObject('s');
-//    
-//            FOR shipment(ShipmentDetail shipmentDetail) == purchaseShipment() AND
-//                stockProp###stock(shipmentDetail) == stock(userWriteOff) AND
-//                calcWriteOffQuantity(shipmentDetail) AND NOT writeOffQuantity(shipmentDetail)
-//                ADDOBJ d = UserWriteOffDetail DO {
-//                    ASSIGN userWriteOff(d) <- userWriteOff;
-//                    ASSIGN shipmentDetail(d) <- shipmentDetail;
-//                    ASSIGN batch(d) <- batchProp(shipmentDetail); // может лучше так ledgerBatch
-//    
-//                    ASSIGN sku(d) <- sku(shipmentDetail);
-//                    ASSIGN quantity (d) <- calcWriteOffQuantity(shipmentDetail);
-//                    ASSIGN price(d) <- calcWriteOffPrice(shipmentDetail);
-//    //                ASSIGN sumUserWriteOffDetail(d) <- calcSumWriteOffShipmentDetail(shipmentDetail);
-//            }
-//        }
-//    } IN shipment;
-//    
-//    EXTEND FORM userWriteOff
-//        PROPERTIES(w) fillShipment, shipments READONLY
-//        PROPERTIES(d) READONLY descriptionIndexShipmentDetail BEFORE deletewd
-//    ;
-//    DESIGN userWriteOff { headerCreateDetail{ MOVE w.shipment {type = CONTAINERH;}}}
-    
     EXTEND FORM writeOffs
-//        PROPERTIES(w) READONLY shipments
-        PROPERTIES(d) READONLY descriptionIndexShipmentDetail
+        PROPERTIES(d) READONLY descriptionIndexShipmentDetail##NS = descriptionIndexShipmentDetail
     ;
     
     //-- агр. объект
