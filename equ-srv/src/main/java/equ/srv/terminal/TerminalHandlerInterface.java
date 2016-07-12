@@ -10,6 +10,8 @@ import java.util.List;
 
 public interface TerminalHandlerInterface {
 
+    List<Object> readHostPort(DataSession session) throws RemoteException, SQLException;
+
     List<String> readItem(DataSession session, DataObject user, String barcode) throws RemoteException, SQLException;
 
     String readItemHtml(DataSession session, String barcode, String idStock) throws RemoteException, SQLException;

@@ -62,9 +62,6 @@ public class TerminalServer extends MonitorServer {
     private TerminalHandlerInterface terminalHandlerInterface;
     private LogicsInstance logicsInstance;
 
-    protected BusinessLogics BL;
-    protected ScriptingLogicsModule terminalLM;
-
     protected static byte stx = 0x02;
     protected static byte etx = 0x03;
     protected byte esc = 0x1B;
@@ -91,10 +88,20 @@ public class TerminalServer extends MonitorServer {
     protected void onStarted(LifecycleEvent event) {
         if (getDbManager().isServer()) {
             assert terminalHandlerInterface != null;
+
+            try {
+                List<Object> hostPort = terminalHandlerInterface.readHostPort(createSession());
+                if(hostPort.get(0) != null && hostPort.get(1) != null) {
+                    host = (String) hostPort.get(0);
+                    port = (Integer) hostPort.get(1);
+                }
+            } catch (RemoteException | SQLException e) {
+                logger.error("Error reading Terminal Server settings");
+            }
+
             assert host != null;
             assert port != null;
-            BL = logicsInstance.getBusinessLogics();
-            terminalLM = getLogicsInstance().getBusinessLogics().getModule("Terminal");
+
             logger.info("Binding Terminal Server.");
             started = true;
             listenToPort();

@@ -26,12 +26,19 @@ EXTEND FORM groupsTerminal
 currentRetailPricingPrice 'Розничная цена' (Barcode barcode, Stock stock) =
     price[PriceListLedger,LedgerPriceListType](currentRetailPricingPriceListLedger(sku(barcode), stock), SystemLedgerPriceListType.retailPricingPriceListType);     
     
+hostTerminalServer 'Хост' = DATA VARSTRING[30] ();
+portTerminalServer 'Порт' = DATA INTEGER ();    
 useCurrentPriceInTerminal 'Загружать в терминал текущие цены' = DATA BOOLEAN ();
 EXTEND FORM options
-    PROPERTIES() useCurrentPriceInTerminal
+    PROPERTIES() hostTerminalServer, portTerminalServer, useCurrentPriceInTerminal
 ;
 DESIGN options {
     machinery {
-        MOVE PROPERTY(useCurrentPriceInTerminal());
+        NEW terminalServer {
+            caption = 'Настройки ТСД';
+            MOVE PROPERTY(hostTerminalServer());
+            MOVE PROPERTY(portTerminalServer());
+            MOVE PROPERTY(useCurrentPriceInTerminal());
+        }
     }
 }    

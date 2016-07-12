@@ -52,6 +52,20 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     @Override
+    public List<Object> readHostPort(DataSession session) throws RemoteException, SQLException {
+        try {
+            ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
+            if (terminalHandlerLM != null) {
+                String host = (String) terminalHandlerLM.findProperty("hostTerminalServer[]").read(session);
+                Integer port = (Integer) terminalHandlerLM.findProperty("portTerminalServer[]").read(session);
+                return Arrays.asList((Object) host, port);
+            } else return new ArrayList<>();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public List<String> readItem(DataSession session, DataObject user, String barcode) throws RemoteException, SQLException {
         try {
             ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
