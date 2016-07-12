@@ -825,28 +825,51 @@ DESIGN movementPriceSkuStocks {
 }
 
 META defineMovementPriceSku(detail, stockProp)
-    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = sku(detail), st = stockProp(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
-    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = ACTION NEWSESSION { FORM movementPriceSkuStocks OBJECTS s = sku(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
+    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = ACTION
+        FOR s == sku(detail) AND st == stockProp(detail) DO
+            NEWSESSION FORM movementPriceSkuStock OBJECTS s = s, st = st MODAL
+    SHORTCUT nameSku[###detail];
+    
+    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = ACTION
+        FOR s == sku(detail) DO 
+            NEWSESSION FORM movementPriceSkuStocks OBJECTS s = s MODAL
+    SHORTCUT nameSku[###detail];
 END
 META defineMovementPriceSku(detail)
-    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = sku(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
-    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = ACTION NEWSESSION { FORM movementPriceSkuStocks OBJECTS s = sku(detail) MANAGESESSION MODAL; } SHORTCUT nameSku[###detail];
+    showMovementPriceSkuStock 'Показать изменение цены товара по складу' (###detail detail) = ACTION
+        FOR s == sku(detail) DO
+            NEWSESSION FORM movementPriceSkuStock OBJECTS s = s MODAL
+    SHORTCUT nameSku[###detail];
+    
+    showMovementPriceSkuStocks 'Показать изменение цены товара' (###detail detail) = ACTION
+        FOR s == sku(detail) DO
+            NEWSESSION FORM movementPriceSkuStocks OBJECTS s = s MODAL
+    SHORTCUT nameSku[###detail];
 END
 
-showMovementPriceSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = sku, st = stock MANAGESESSION MODAL; }
+showMovementPriceSku 'Показать изменение цены товара по складу' (Sku sku, Stock stock) = ACTION NEWSESSION FORM movementPriceSkuStock OBJECTS s = sku, st = stock MODAL;
 showBalancePriceSku(Sku sku, Stock stock) += ACTION showMovementPriceSku(sku, stock); 
-showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Sku sku) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = sku MANAGESESSION MODAL; }
-showMovementPriceStocks 'Показать изменение цены товара' (Sku sku) = ACTION NEWSESSION { FORM movementPriceSkuStocks OBJECTS s = sku MANAGESESSION MODAL; } SHORTCUT name[Sku];
+showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Sku sku) = ACTION NEWSESSION FORM movementPriceSkuStock OBJECTS s = sku MODAL;
+showMovementPriceStocks 'Показать изменение цены товара' (Sku sku) = ACTION NEWSESSION FORM movementPriceSkuStocks OBJECTS s = sku MODAL SHORTCUT name[Sku];
 
-showMovementPriceSku 'Показать изменение цены товара по складу' (Batch batch, Stock stock) = ACTION FORM movementPriceSkuStock OBJECTS s = sku(batch), st = stock MODAL;
-showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Batch batch) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = sku(batch) MANAGESESSION MODAL; } SHORTCUT nameSku[Batch];
-showMovementPriceStocks 'Показать изменение цены товара' (Batch batch) = ACTION NEWSESSION { FORM movementPriceSkuStocks OBJECTS s = sku(batch) MANAGESESSION MODAL; } SHORTCUT nameSku[Batch];
+showMovementPriceSku 'Показать изменение цены товара по складу' (Batch batch, Stock stock) = ACTION
+    FOR s == sku(batch) DO
+        NEWSESSION FORM movementPriceSkuStock OBJECTS s = s, st = stock MODAL;
 
-showMovementPriceSkuStock 'Показать изменение цены товара по складу возникновения партии' (Batch batch) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = sku(batch), st = stock(batch) MANAGESESSION MODAL; } SHORTCUT nameSku[Batch];
+showMovementPriceSkuStocks 'Показать изменение цены товара по складу' (Batch batch) = ACTION
+    FOR s == sku(batch) DO 
+        NEWSESSION FORM movementPriceSkuStock OBJECTS s = s MODAL
+SHORTCUT nameSku[Batch];
 
-//@defineMovementPriceSku(batch, stock){
-//    showMovementPriceSkuStockBatch 'Показать изменение цены товара по складу' (batch) = ACTION NEWSESSION { FORM movementPriceSkuStock OBJECTS s = skuBatch(batch), st = stockBatch(batch) MANAGESESSION MODAL; } SHORTCUT nameSkuBatch;
-//}; //-- показываем по нажатию правой клавиши  изменение цены товара
+showMovementPriceStocks 'Показать изменение цены товара' (Batch batch) = ACTION
+    FOR s == sku(batch) DO
+        NEWSESSION FORM movementPriceSkuStocks OBJECTS s = s MODAL
+SHORTCUT nameSku[Batch];
+
+showMovementPriceSkuStock 'Показать изменение цены товара по складу возникновения партии' (Batch batch) = ACTION
+    FOR s == sku(batch) AND st == stock(batch) DO
+        NEWSESSION FORM movementPriceSkuStock OBJECTS s = s, st = st MODAL
+SHORTCUT nameSku[Batch];
 
 @extendFormFilterStockAccess(st, movementPriceSkuStock);
 @extendFormFilterStockAccess(st, movementPriceSkuStocks);
