@@ -283,10 +283,12 @@ nameSkuTypeSku 'Тип товара' (PageInventoryDetail d) = nameSkuType(sku(d
 @defineDocumentHeaderQuantity(pageInventory);
 @defineDocumentHeaderSum(pageInventory);
 
-WHEN SESSION CHANGED(sku(PageInventoryDetail detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail)) DO {
-    price (detail)  <- IF batch(detail)
-                THEN prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
-                ELSE prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
+WHEN SESSION CHANGED(sku(PageInventoryDetail detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail)) AND batch(detail) DO {
+    price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail));
+}
+
+WHEN SESSION CHANGED(sku(PageInventoryDetail detail)) OR CHANGED(batch(detail)) OR CHANGED (dateTime(detail)) AND NOT batch(detail) DO {
+    price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
 }
 
 replace(Sku s, Batch b) += ACTION { sku(PageInventoryDetail detail) <- s WHERE batch(detail) == b;} 
