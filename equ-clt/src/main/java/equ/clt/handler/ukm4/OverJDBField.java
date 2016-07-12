@@ -27,23 +27,23 @@ public class OverJDBField extends JDBField {
             }
             if (obj instanceof Number) {
                 Number number = (Number) obj;
-                StringBuffer stringbuffer = new StringBuffer(getLength());
+                StringBuilder stringBuilder = new StringBuilder(getLength());
                 for (int i = 0; i < getLength(); i++) {
-                    stringbuffer.append("#");
+                    stringBuilder.append("#");
 
                 }
                 if (getDecimalCount() > 0) {
-                    stringbuffer.setCharAt(getLength() - getDecimalCount() - 1, '.');
+                    stringBuilder.setCharAt(getLength() - getDecimalCount() - 1, '.');
                 }
-                DecimalFormat decimalformat = new DecimalFormat(stringbuffer.toString());
+                DecimalFormat decimalformat = new DecimalFormat(stringBuilder.toString());
                 String s1 = decimalformat.format(number);
                 int k = getLength() - s1.length();
                 if (k < 0) {
                     throw new JDBFException("Value " + number +
-                            " cannot fit in pattern: '" + stringbuffer +
+                            " cannot fit in pattern: '" + stringBuilder +
                             "'.");
                 }
-                StringBuffer stringbuffer2 = new StringBuffer(k);
+                StringBuilder stringbuffer2 = new StringBuilder(k);
                 for (int l = 0; l < k; l++) {
                     stringbuffer2.append(" ");
 
@@ -64,12 +64,12 @@ public class OverJDBField extends JDBField {
                     throw new JDBFException("'" + obj + "' is longer than " + getLength() +
                             " characters.");
                 }
-                StringBuffer stringbuffer1 = new StringBuffer(getLength() - s.length());
+                StringBuilder stringBuilder1 = new StringBuilder(getLength() - s.length());
                 for (int j = 0; j < getLength() - s.length(); j++) {
-                    stringbuffer1.append(' ');
+                    stringBuilder1.append(' ');
 
                 }
-                return s + stringbuffer1;
+                return s + stringBuilder1;
             } else {
                 throw new JDBFException("Expected a String, got " + obj.getClass() +
                         ".");

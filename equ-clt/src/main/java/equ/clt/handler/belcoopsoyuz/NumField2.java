@@ -6,11 +6,17 @@ package equ.clt.handler.belcoopsoyuz; /**
 
 //заявлено, что в последней версии NumField2 уже не нужен, но на деле NumField вместо дробного числа записывает только целую часть
 
-import java.io.*;
-import java.nio.*;
-import java.text.*;
-import org.xBaseJ.*;
-import org.xBaseJ.fields.*;
+import org.xBaseJ.DBF;
+import org.xBaseJ.Util;
+import org.xBaseJ.fields.FloatField;
+import org.xBaseJ.fields.NumField;
+import org.xBaseJ.xBaseJException;
+
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.nio.ByteBuffer;
+import java.text.DecimalFormat;
+import java.text.DecimalFormatSymbols;
 
 
 public class NumField2 extends NumField
@@ -49,7 +55,7 @@ public class NumField2 extends NumField
   {
     String inString = Double.toString(inDouble);
     
-    StringBuffer formatString = new StringBuffer(getLength());
+    StringBuilder formatString = new StringBuilder(getLength());
     for (int j=0; j<getLength(); j++)
   		{ formatString.append("#"); }
     if (getDecimalPositionCount()>0)

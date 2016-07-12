@@ -14,7 +14,6 @@ import org.apache.poi.util.IOUtils;
 
 import java.io.File;
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
@@ -47,9 +46,7 @@ public class UploadImageArticleFromURLActionProperty extends DefaultImageArticle
                 imageFile.delete();
 
             }
-        } catch (ScriptingErrorLog.SemanticErrorException e) {
-            throw Throwables.propagate(e);
-        } catch (IOException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
             throw Throwables.propagate(e);
         }
 

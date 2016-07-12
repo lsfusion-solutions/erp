@@ -132,17 +132,24 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
         List<String> bigDecimalFields = Arrays.asList("amountPackBarcode", "netWeightItem", "grossWeightItem", "alcoholSupplierType");
 
         List<String> dateFields = Collections.singletonList("dateTo");
-        
-        if (fileExtension.equals("DBF"))
-            userPriceListDetailList = importUserPriceListsFromDBF(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
-        else if (fileExtension.equals("XLS"))
-            userPriceListDetailList = importUserPriceListsFromXLS(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
-        else if (fileExtension.equals("XLSX"))
-            userPriceListDetailList = importUserPriceListsFromXLSX(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
-        else if (fileExtension.equals("CSV"))
-            userPriceListDetailList = importUserPriceListsFromCSV(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
-        else
-            userPriceListDetailList = null;
+
+        switch (fileExtension) {
+            case "DBF":
+                userPriceListDetailList = importUserPriceListsFromDBF(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                break;
+            case "XLS":
+                userPriceListDetailList = importUserPriceListsFromXLS(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                break;
+            case "XLSX":
+                userPriceListDetailList = importUserPriceListsFromXLSX(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                break;
+            case "CSV":
+                userPriceListDetailList = importUserPriceListsFromCSV(file, userPriceListObject, settings, priceColumns, defaultColumns, customColumns, stringFields, bigDecimalFields, dateFields, dateDocument);
+                break;
+            default:
+                userPriceListDetailList = null;
+                break;
+        }
 
         boolean result = importUserPriceListDetails(context, userPriceListDetailList, settings, priceColumns.keySet(), defaultColumns, customColumns, userPriceListObject, apply)
                 && (settings.getQuantityAdjustmentColumn() == null || importAdjustmentDetails(context, userPriceListDetailList, settings.getStockObject(), settings.getItemKeyType(), apply));

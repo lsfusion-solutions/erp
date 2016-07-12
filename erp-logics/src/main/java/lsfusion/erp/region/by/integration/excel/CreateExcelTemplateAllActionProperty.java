@@ -1,7 +1,6 @@
 package lsfusion.erp.region.by.integration.excel;
 
 import jxl.write.WriteException;
-import jxl.write.biff.RowsExceededException;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -38,9 +37,7 @@ public class CreateExcelTemplateAllActionProperty extends ScriptingActionPropert
 
             context.delayUserInterfaction(new ExportFileClientAction(files));
 
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        } catch (WriteException e) {
+        } catch (IOException | WriteException e) {
             throw new RuntimeException(e);
         }
     }
