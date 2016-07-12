@@ -78,6 +78,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                 new OverJDBField("P_AVT", 'C', 3, 0), new OverJDBField("SER_P", 'C', 2, 0)
         };
 
+        boolean useNotDenominatedSum = findProperty("useNotDenominatedSum[]").read(context) != null;
+
         KeyExpr generalLedgerExpr = new KeyExpr("GeneralLedger");
         KeyExpr dimensionTypeExpr = new KeyExpr("DimensionType");
 
@@ -149,7 +151,9 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             String idCredit = (String) resultValues.get("idCreditGeneralLedger").getValue(); //K_SCHK
             idCredit = idCredit == null ? null : trim(idCredit.replace(".", ""), 5);
 
-            BigDecimal sumGeneralLedger = (BigDecimal) resultValues.get("sumGeneralLedger").getValue(); //N_SUM                                
+            BigDecimal sumGeneralLedger = (BigDecimal) resultValues.get("sumGeneralLedger").getValue(); //N_SUM
+            if(useNotDenominatedSum)
+                sumGeneralLedger = safeMultiply(sumGeneralLedger, 10000);
             String idOperationGeneralLedger = trim((String) resultValues.get("idOperationGeneralLedger").getValue(), 3); //K_OP  
             
             String nameDebit = (String) resultValues.get("idDebitGeneralLedgerDimensionType").getValue();
