@@ -46,12 +46,17 @@ bankingDays 'Банковских дней'(PaymentPeriod p) = bankingDays(payme
 
 description(PaymentPeriod paymentPeriod) =
     countDays(paymentPeriod) + (IF bankingDays(paymentPeriod) THEN ' банковских дн.' ELSE ' календарных дн.')+  ' ( ' + percent(paymentPeriod) + ' %)';
-
+shortDescription(PaymentPeriod paymentPeriod) =
+    countDays(paymentPeriod) + (IF bankingDays(paymentPeriod) THEN ' б.д.' ELSE ' к.д.')+  ' ( ' + percent(paymentPeriod) + ' %)';
 
 descriptionPeriod 'Условия оплаты' (paymentCondition) =
     GROUP CONCAT description(PaymentPeriod paymentPeriod) IF paymentCondition(paymentPeriod) == PaymentCondition paymentCondition, ', '
                 BY paymentCondition
                 ORDER paymentPeriod MINCHARWIDTH 20 PREFCHARWIDTH 30;
+shortDescriptionPeriod 'Условия оплаты' (paymentCondition) =
+    GROUP CONCAT shortDescription(PaymentPeriod paymentPeriod) IF paymentCondition(paymentPeriod) == PaymentCondition paymentCondition, ', '
+                BY paymentCondition
+                ORDER paymentPeriod MINCHARWIDTH 20 PREFCHARWIDTH 30;                
 
 //descriptionPaymentCondition 'Условия оплаты' (paymentCondition) =
 //    OVERRIDE 'По факту реализации' IF paymentCondition IS PaymentCondition , 
@@ -61,6 +66,13 @@ description 'Условия оплаты' (PaymentCondition paymentCondition) = 
     WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN descriptionPeriod(paymentCondition)
     WHEN paymentCondition IS PaymentCondition THEN staticCaption(type(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
 paymentConditionDescription = GROUP MAX PaymentCondition c BY description(c);
+
+shortDescription 'Условия оплаты' (PaymentCondition paymentCondition) = CASE 
+    WHEN isRequirementType(paymentCondition) THEN 'Требование '+ shortDescriptionPeriod(paymentCondition)
+    WHEN type(paymentCondition) == AgreementPaymentType.prepayment THEN shortDescriptionPeriod(paymentCondition)
+    WHEN paymentCondition IS PaymentCondition THEN staticCaption(type(paymentCondition)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+    
+
 // Бонусы
 
 
