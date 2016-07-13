@@ -3,10 +3,12 @@ package equ.clt.handler.bizerba;
 import equ.api.MachineryInfo;
 import equ.api.SendTransactionBatch;
 import equ.api.StopListInfo;
+import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -32,5 +34,10 @@ public class BizerbaBCIIHandler extends BizerbaHandler {
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
         sendStopListInfo(stopListInfo, machineryInfoList, charset, encode);
+    }
+
+    @Override
+    public Integer getTarePercent(ScalesItemInfo item) {
+        return item.extraPercent == null ? 0 : item.extraPercent.multiply(BigDecimal.valueOf(100)).intValue();
     }
 }

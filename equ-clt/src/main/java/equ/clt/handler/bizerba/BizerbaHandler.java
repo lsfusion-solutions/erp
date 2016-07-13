@@ -529,7 +529,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
             String idBarcode = item.idBarcode != null && scales.weightCodeGroupScales != null && item.idBarcode.length() == 5 ? ("0" + scales.weightCodeGroupScales + item.idBarcode + "00000") : item.idBarcode;
             Integer tareWeight = 0;
-            Integer tarePercent = 0;
+            Integer tarePercent = getTarePercent(item);
             command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + idBarcode
                     + separator + "HBA1" + item.daysExpiry + separator + "HBA20" + separator + "TARA" + tareWeight + separator + "TAPR" + tarePercent
                     + separator + "KLGE" + priceOverflow + separator + altCommand + "PLTE" + captionItem + separator;
@@ -542,6 +542,10 @@ public abstract class BizerbaHandler extends ScalesHandler {
             sendCommand(errors, port, command1, charset, scales.port, encode);
             return receiveReply(errors, port, charset, scales.port);
         }
+    }
+
+    public Integer getTarePercent(ScalesItemInfo item) {
+        return 0;
     }
 
     private String synchronizeTime(List<String> errors, TCPPort port, String charset, String ip, boolean encode) throws CommunicationException, InterruptedException, IOException {
