@@ -707,8 +707,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 Integer idReceipt = rs.getInt(2); //receipt_header
                 String key = String.valueOf(cash_id) + "/" + String.valueOf(idReceipt);
                 Integer paymentType = rs.getInt(3); //payment_id
-                if(paymentType.equals(2) || paymentType.equals(3))
-                    paymentType = 1; //1, 2 и 3 - безнал
+                if(paymentType.equals(2)/* || paymentType.equals(3)*/)
+                    paymentType = 1; //1 и 2 - безнал, 3 - сертификат
                 BigDecimal amount = rs.getBigDecimal(4);
                 Integer receiptType = rs.getInt(5); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
@@ -789,7 +789,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                         BigDecimal sumCash = paymentEntry.get(0) == null ? null : denominateDivideType2(paymentEntry.get(0), denominationStage);
                         BigDecimal sumCard = paymentEntry.get(1) == null ? null : denominateDivideType2(paymentEntry.get(1), denominationStage);
-                        BigDecimal sumGiftCard = paymentEntry.get(2) == null ? null : denominateDivideType2(paymentEntry.get(2), denominationStage);
+                        BigDecimal sumGiftCard = paymentEntry.get(3) == null ? null : denominateDivideType2(paymentEntry.get(3), denominationStage);
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                         BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
