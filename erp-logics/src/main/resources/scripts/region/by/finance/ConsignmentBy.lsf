@@ -173,6 +173,25 @@ changeTruck(Consignment consignment) = ACTION {
     }        
 }
 
+pickTuck 'Выбрать автомобиль из справочника' (Consignment consignment) = ACTION{
+    REQUEST OBJECT t FORM trucks DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        dataTruck(consignment) <- requestedObject();
+        dataNameTruck(consignment) <- NULL;
+    } ELSE IF formResult() == FormResult.drop THEN {
+        dataTruck(consignment) <- NULL;
+    }
+} SHORTCUT nameTruck[Consignment];
+
+editTuck 'Ввести автомобиль' (Consignment consignment) = ACTION{
+    FORM dialogString OBJECTS s = nameTruck(consignment) DIALOG SHOWDROP;
+    
+    IF formResult() == FormResult.ok THEN {
+        dataNameTruck(consignment) <- chosenString('s');
+    } 
+} SHORTCUT nameTruck[Consignment];
+
+
 CLASS OwnerTrackType 'Владелец автомобиля' {
     supplier 'Грузоотправитель',
     customer 'Грузополучатель'
