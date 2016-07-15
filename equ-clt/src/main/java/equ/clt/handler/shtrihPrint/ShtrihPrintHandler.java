@@ -149,6 +149,7 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                         }
 
                                                         if (error == 0) {
+                                                            processTransactionLogger.info("Shtrih: sending item " + item.pluNumber);
                                                             int result = setPLUDataEx(itemErrors, port, item.pluNumber, barcode, firstName, secondName,
                                                                     item.price, shelfLife, groupCode, messageNumber, expiryDate, item.splitItem ? 0 : 1, transaction.denominationStage);
                                                             if (result != 0)
@@ -195,7 +196,9 @@ public class ShtrihPrintHandler extends ScalesHandler {
                                                             }
 
                                                             if (error == 0) {
-                                                                int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, BigDecimal.valueOf(999999),
+                                                                processTransactionLogger.info("Shtrih: resetting item " + i);
+                                                                BigDecimal price = BigDecimal.valueOf(transaction.denominationStage != null || transaction.denominationStage.contains("after") ? 9999.99 : 999999);
+                                                                int result = setPLUDataEx(itemErrors, port, i, i, firstLine, secondLine, price,
                                                                         0, 0, i, new Date(2001 - 1900, 0, 1), 0, transaction.denominationStage);
                                                                 if (result != 0)
                                                                     error = result;
