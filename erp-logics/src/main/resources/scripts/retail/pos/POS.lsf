@@ -542,7 +542,7 @@ changeBatch 'Изменить партию строки чека'(ReceiptDetail 
 
 focusQuantity = ACTION ABSTRACT LIST (ReceiptDetail); 
 
-createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, STRING[15] barcode) = ACTION {
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, VARSTRING[15] barcode) = ACTION {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -566,7 +566,7 @@ defaultBatch 'Партия по умолчанию' (sku, stock, receipt) =
                                  BY batch(d), receipt(d)] (batch, Receipt receipt)) > 0
           BY sku(batch), stock, receipt; 
 
-createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, STRING[15] barcode) = ACTION {
+createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, VARSTRING[15] barcode) = ACTION {
     FOR ADDOBJ d = ReceiptSaleDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -595,13 +595,13 @@ GROUP receiptSaleAction 'Продажа' : public;
 
 // По штрихкоду
 consumedChangeBarcodeSaleReceipt = DATA LOCAL BOOLEAN();
-preProcessBarcode = ACTION ABSTRACT LIST (STRING[15], Receipt);
-overChangeBarcodeSale = ACTION ABSTRACT LIST FIRST (STRING[15], Receipt);
+preProcessBarcode = ACTION ABSTRACT LIST (VARSTRING[15], Receipt);
+overChangeBarcodeSale = ACTION ABSTRACT LIST FIRST (VARSTRING[15], Receipt);
 
 changeBarcodeSale(Receipt receipt) = ACTION {
-    REQUEST STRING[15] INPUT;
+    REQUEST VARSTRING[15] INPUT;
     consumedChangeBarcodeSaleReceipt() <- NULL;
-    LOCAL barcode = STRING[15] ();
+    LOCAL barcode = VARSTRING[15] ();
     barcode() <- processedBarcode(requestedString());
     preProcessBarcode(barcode(), receipt);
     overChangeBarcodeSale(barcode(), receipt);
@@ -754,7 +754,7 @@ DESIGN options {
     }    
 }
 
-createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, STRING[15] barcode) = ACTION {
+createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, VARSTRING[15] barcode) = ACTION {
     FOR ADDOBJ d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
@@ -886,8 +886,8 @@ searchSkuReturn 'Поиск'(Receipt receipt) = ACTION {
 
 // Дисконтные карты
 
-overChangeBarcodeDiscountCard(STRING[15] string, Receipt receipt) = ACTION {
-    IF discountString(string) AND receipt IS Receipt AND string IS STRING[15] AND NOT consumedChangeBarcodeSaleReceipt() THEN {
+overChangeBarcodeDiscountCard(VARSTRING[15] string, Receipt receipt) = ACTION {
+    IF discountString(string) AND receipt IS Receipt AND string IS VARSTRING[15] AND NOT consumedChangeBarcodeSaleReceipt() THEN {
         IF dateTo(discountString(string)) < date(receipt) THEN
             MESSAGE 'Закончился срок действия карты'
         ELSE
@@ -896,7 +896,7 @@ overChangeBarcodeDiscountCard(STRING[15] string, Receipt receipt) = ACTION {
     }
 } TOOLBAR;
 
-overChangeBarcodeSale(STRING[15] string, Receipt receipt) += ACTION overChangeBarcodeDiscountCard(string, receipt);
+overChangeBarcodeSale(VARSTRING[15] string, Receipt receipt) += ACTION overChangeBarcodeDiscountCard(string, receipt);
 
 FORM inputDiscountCardNumberReceipt 'Ввод номера дисконтной карты'
     OBJECTS (n = VARSTRING[28], s = STRING[2]) FIXED PANEL
@@ -1081,7 +1081,7 @@ FORM POS
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
 
-    OBJECTS bs = STRING[15] FIXED PANEL
+    OBJECTS bs = VARSTRING[15] FIXED PANEL
     PROPERTIES(bs) SHOWIF currentZReport() barcodeSale = OBJVALUE ON CHANGE changeBarcodeSale(r) EVENTID 'SCANNER'
 
     OBJECTS pc = PromotionCondition FIXED GRID

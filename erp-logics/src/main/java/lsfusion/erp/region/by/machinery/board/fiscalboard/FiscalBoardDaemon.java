@@ -166,7 +166,7 @@ public class FiscalBoardDaemon extends MonitorServer implements InitializingBean
                 int textLength = 44;
                 int gapLength = 8; //передаётся 2 строки по 30 символов, но показывается только по 22
                 Date date = new Date(Calendar.getInstance().getTime().getTime());
-                ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcode[STRING[15],DATE]").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
+                ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcode[VARSTRING[15],DATE]").readClasses(session, new DataObject(idBarcode.substring(2)), new DataObject(date, DateClass.instance));
                 if (skuObject instanceof NullValue) {
                     String notFound = "Штрихкод не найден";
                     while (notFound.length() < textLength)

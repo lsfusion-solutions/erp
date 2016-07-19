@@ -8,8 +8,8 @@ giftCardAsDiscount 'Пробивать сертификат как скидку'
 giftCardAsDiscountCurrentCashRegister 'Пробивать сертификат как скидку' = giftCardAsDiscount(groupCashRegister(currentCashRegister()));
 
 //продажа подарочных сертификатов
-overChangeBarcodeGiftCard(STRING[15] string, Receipt receipt) = ACTION {
-    IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS STRING[15] THEN {
+overChangeBarcodeGiftCard(VARSTRING[15] string, Receipt receipt) = ACTION {
+    IF giftCardSeriesNumber(string) AND receipt IS Receipt AND string IS VARSTRING[15] THEN {
         LOCAL giftCard = GiftCard();
         giftCard() <- giftCardSeriesNumber(string);
 
@@ -29,14 +29,14 @@ overChangeBarcodeGiftCard(STRING[15] string, Receipt receipt) = ACTION {
     }
 } TOOLBAR;
 
-overChangeBarcodeSale(STRING[15] string, Receipt receipt) += ACTION overChangeBarcodeGiftCard(string, receipt);
+overChangeBarcodeSale(VARSTRING[15] string, Receipt receipt) += ACTION overChangeBarcodeGiftCard(string, receipt);
 
 // Оплата сертификатом
 
 addPaymentGiftCard 'Оплатить сертификатом'(Receipt receipt) = ACTION {
     FOR ADDOBJ pg = PaymentGiftCard DO {
         FORM barcodeInput MODAL;
-        IF formResult() == FormResult.ok AND isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS STRING[15] AND 
+        IF formResult() == FormResult.ok AND isSold(giftCardSeriesNumber(barcodeInput())) AND barcodeInput() IS VARSTRING[15] AND 
            NOT isExpiredDate(giftCardSeriesNumber(barcodeInput())) THEN {
             LOCAL giftCard = GiftCard();
             giftCard() <- giftCardSeriesNumber(barcodeInput());
