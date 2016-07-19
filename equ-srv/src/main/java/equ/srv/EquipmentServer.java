@@ -1983,6 +1983,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         List<SalesInfo> data = start < finish ? salesInfoList.subList(start, finish) : new ArrayList<SalesInfo>();
                         start = finish;
+                        int left = salesInfoList.size() - finish;
                         if (!notNullNorEmpty(data))
                             return null;
 
@@ -2360,7 +2361,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         session.setKeepLastAttemptCountMap(true);
                         String result = session.applyMessage(getBusinessLogics(), stack);
                         if (result == null) {
-                            logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), timeStart, sidEquipmentServer);
+                            logCompleteMessage(stack, session, data, dataSale.size() + dataReturn.size() + dataGiftCard.size(), left, timeStart, sidEquipmentServer);
                         } else
                             return result;
                     }
@@ -2372,9 +2373,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
     
-    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         
-        String message = formatCompleteMessage(mainSession, data, dataSize, timeStart);
+        String message = formatCompleteMessage(mainSession, data, dataSize, left, timeStart);
         
         try (DataSession session = getDbManager().createSession()) {
             ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
@@ -2386,12 +2387,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
     }
     
-    private String formatCompleteMessage(DataSession session, List<SalesInfo> data, int dataSize, Timestamp timeStart) {
+    private String formatCompleteMessage(DataSession session, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart) {
 
         String conflicts = session.getLastAttemptCountMap();
         Timestamp timeFinish = getCurrentTimestamp();
-        String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s",  
-                (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize);
+        String message = String.format("Затрачено времени: %s с (%s - %s)\nЗагружено записей: %s, Осталось записей: %s",
+                (timeFinish.getTime() - timeStart.getTime())/1000, formatDateTime(timeStart), formatDateTime(timeFinish), dataSize, left);
         if(conflicts != null)
             message += "\nКонфликты: " + conflicts;
 
