@@ -836,6 +836,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             Calendar cal = Calendar.getInstance();
                             cal.setTime(entry.dateTo);
                             cal.add(Calendar.DATE, 1);
+                            sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
                             String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
                             String cashIdWhere = null;
@@ -850,6 +851,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                             statement = conn.createStatement();
                             String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
                                     (cashIdWhere == null ? "" : cashIdWhere);
+                            sendSalesLogger.info("UKM4 RequestSalesInfo: " + query);
                             statement.execute(query);
                             succeededRequests.add(entry.requestExchange);
                         }
