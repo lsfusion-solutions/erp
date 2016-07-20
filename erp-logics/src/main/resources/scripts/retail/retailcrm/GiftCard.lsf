@@ -201,7 +201,19 @@ sumGiftCard 'Сумма подарочных сертификатов в чек�
 CONSTRAINT sumGiftCard(Receipt receipt) > sumReceiptDetail(receipt) 
     CHECKED BY sumGiftCard[Receipt] MESSAGE 'Сумма сертификатов не может превышать всего суммы чека';
 
-CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) 
+allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES allowPartiallyPayGiftCard()
+;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(allowPartiallyPayGiftCard());
+    }
+}
+
+CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) AND NOT allowPartiallyPayGiftCard() 
     MESSAGE 'Сумма оплаты сертификатом должна быть равно цене сертификата';
 
 used (giftCard) =
