@@ -1413,7 +1413,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         Integer nppMachinery = (Integer) result.getValue(j).get("nppMachinery").getValue();
                         String denominationStage = trim((String) result.getValue(j).get("denominationStage").getValue());
 
-                        cashRegisterSet.add(new CashRegisterInfo(null, nppMachinery, null, null, directoryMachinery, denominationStage, null, null));
+                        ConcreteClass machineryClass = result.getKey(j).get("machinery").objectClass;
+                        ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
+                        if(machineryClass != null && machineryClass.equals(cashRegisterClass))
+                            cashRegisterSet.add(new CashRegisterInfo(null, nppMachinery, null, null, directoryMachinery, denominationStage, null, null));
                         putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
                     }
 
