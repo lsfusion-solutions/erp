@@ -50,10 +50,13 @@ CLASS UserAdjustmentDetail 'Строка изменения остатков (п
 id = DATA VARSTRING[100] (UserAdjustmentDetail);
 userAdjustmentDetail (id, userAdjustment) = GROUP AGGR UserAdjustmentDetail userAdjustmentDetail BY id(userAdjustmentDetail), userAdjustment(userAdjustmentDetail) WHERE userAdjustmentDetail IS UserAdjustmentDetail;
 
-price (UserAdjustmentDetail detail)  <- IF batch(detail)
-                THEN priceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail))
-                ELSE priceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail))
-                WHEN CHANGED(sku(detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail));
+WHEN SESSION (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND batch(detail) DO {
+    price (detail)  <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, batch(detail), stock(detail), dateTime(detail));
+}
+
+WHEN SESSION (CHANGED(sku(UserAdjustmentDetail detail)) OR CHANGED(batch(detail)) OR CHANGED(stock(detail)) OR CHANGED (dateTime(detail))) AND NOT batch(detail) DO {
+    price (detail) <- prevPriceB(SystemLedgerPriceListType.accountPriceListType, sku(detail), stock(detail), dateTime(detail));
+}
 
 @defineDocumentInterfaceDetailDataSum(adjustment);
 @deriveDocumentDetailSum(userAdjustment, quantity);
