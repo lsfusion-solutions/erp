@@ -364,6 +364,8 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             NumField2 NEOPNDS = new NumField2("NEOPNDS", 6, 2);
             CharField CECUCOD = new CharField("CECUCOD", 25);
             CharField FORMAT = new CharField("FORMAT", 10);
+            CharField CESUCOD = new CharField("CESUCOD", 25);
+            NumField2 NEASPRIC = new NumField2("NEASPRIC", 13, 2);
 
             if (append) {
                 Util.setxBaseJProperty("ignoreMissingMDX", "true");
@@ -371,7 +373,8 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             } else {
                 dbfFile = new DBF(baseFile.getAbsolutePath(), DBF.DBASEIV, true, charset);
                 dbfFile.addField(new Field[]{CEUNIKEY, CEDOCCOD, CEOBIDE, CEOBMEA, MEOBNAM,
-                        NEOBFREE, NEOPLOS, NERECOST, CEOPCURO, NEOPPRIC, NEOPPRIE, NEOPNDS, FORMAT, CECUCOD});
+                        NEOBFREE, NEOPLOS, NERECOST, CEOPCURO, NEOPPRIC, NEOPPRIE, NEOPNDS, FORMAT,
+                        CECUCOD, CESUCOD, NEASPRIC});
             }
 
             Set<String> usedBarcodes = new HashSet<>();
@@ -410,6 +413,8 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         putNumField(dbfFile, NEOPNDS, item.vat, append);
                         putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
                         putNumField(dbfFile, NEOBFREE, item.balance == null ? BigDecimal.ZERO : item.balance, append); //остаток
+                        putField(dbfFile, CESUCOD, item.section, 25, append);
+                        putNumField(dbfFile, NEASPRIC, item.minPrice, append);
 
                         if (recordNumber != null)
                             dbfFile.update();
