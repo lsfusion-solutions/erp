@@ -84,3 +84,18 @@ DESIGN discountCard {
         MOVE l.box;
     }
 }
+
+// Перевод бонусов
+
+EXTEND CLASS TypeBonusLedger {
+    transfer 'Перевод с другой карты'
+}
+
+transferCard = DATA DiscountCard (BonusLedger) INDEXED;
+seriesNumberTransferCard 'Номер карты перевода' (BonusLedger l) = seriesNumber(transferCard(l));
+
+EXTEND FORM discountCard
+    PROPERTIES(l) seriesNumberTransferCard
+;
+
+transferBonusLedger (DiscountCard c) = GROUP AGGR BonusLedger l BY transferCard(l);

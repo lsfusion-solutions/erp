@@ -77,7 +77,8 @@ totalBlockedBonuses 'Всего заблокировано бонусов' (Disc
 
 paidBonuses 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail rd) BY discountCard(rd) PERSISTENT;
 
-availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT; 
+availableBonuses 'Доступно бонусов (основная)' (DiscountCard dc) = cumulativeBonuses(dc) (+) sumBonusLedger(dc) (-) blockedBonuses(dc) (-) paidBonuses(dc) PERSISTENT;
+prevAvailableBonuses (DiscountCard dc) = PREV(availableBonuses(dc)); 
 
 externalBonuses 'Дополнительные бонусы' = ABSTRACT NUMERIC[18,4] (DiscountCard) PERSISTENT;
 totalBonuses 'Доступно бонусов' (DiscountCard d) = availableBonuses(d) (+) externalBonuses(d);
@@ -119,3 +120,21 @@ DESIGN discountCard {
 EXTEND FORM discountCards
     PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, externalBlockedBonuses, totalBlockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
 ;
+
+// Перевод бонусов
+
+WHEN SESSION FORMS discountCard SETCHANGED(transferCard(BonusLedger l)) DO {
+    sum(l) <- availableBonuses(transferCard(l));
+}
+
+WHEN SETCHANGED(discountCard(DiscountCard d)) AND NOT transferBonusLedger(d) DO {
+    FOR ADDOBJ l = BonusLedger DO {
+        discountCard(l) <- discountCard(d);
+        typeBonusLedger(l) <- TypeBonusLedger.transfer;
+        transferCard(l) <- d;
+    }
+}
+
+WHEN (CHANGED(totalBonuses(DiscountCard d)) OR CHANGED(discountCard(d))) AND discountCard(d) AND BonusLedger l == transferBonusLedger(d) DO {
+    sum(l) <- prevTotalBonuses(d);
+}
