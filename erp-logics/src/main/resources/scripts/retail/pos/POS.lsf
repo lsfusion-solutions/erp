@@ -98,6 +98,7 @@ isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receip
 // оптимизация
 possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, sku(ReceiptSaleDetail detail)) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
 
+overCalculatePromotions = ACTION ABSTRACT LIST (Receipt);
 calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION {
 
     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- NULL WHERE receipt(detail) == receipt;
@@ -253,12 +254,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 
     IF useBonus() THEN
         bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == receipt;
+        
+    overCalculatePromotions(receipt);
 }
 
 WHEN SESSION FORMS zReport
     CHANGED(discountCard(Receipt r)) DO {
         calculatePromotions(r);
-        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r AND useBonus();    
+//        bonusSum(ReceiptSaleDetail detail) <- round(promotionBonusSum(detail), roundDiscountCondition(departmentStore(detail))) WHERE receipt(detail) == r AND useBonus();    
         bonusSum(ReceiptReturnDetail detail) <- bonusSum(overReceiptSaleDetail(detail)) WHERE receipt(detail) == r AND useBonus();    
     }
 
