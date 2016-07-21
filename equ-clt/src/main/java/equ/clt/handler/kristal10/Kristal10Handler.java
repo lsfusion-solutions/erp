@@ -745,6 +745,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         });
         
         Set<String> ids = new HashSet<>();
+        Set<String> usedBarcodes = new HashSet<>();
         if (filesList == null || filesList.length == 0)
             sendSalesLogger.info("Kristal10: No checks found in " + exchangeDirectory);
         else {
@@ -873,7 +874,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     boolean isGiftCard = false;
                                     if (barcode != null && barcode.length() == 3 && !barcode.equals("666")) {
                                         isGiftCard = true;
+                                        while(usedBarcodes.contains(dateTimeReceipt + "/" + count)) {
+                                            count++;
+                                        }
                                         barcode = dateTimeReceipt + "/" + count;
+                                        usedBarcodes.add(barcode);
                                     }
 
                                     BigDecimal quantity = readBigDecimalXMLAttribute(positionEntryNode, "count");
