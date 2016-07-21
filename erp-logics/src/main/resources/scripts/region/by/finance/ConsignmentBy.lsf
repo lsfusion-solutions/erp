@@ -482,13 +482,6 @@ price 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d)
                                                         THEN (OVERRIDE dataPrice(d), overPrice(d))
                                                         ELSE invoicePrice(d);
 
-shipmentPrice 'Цена поставщика' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-purchaseRetailPrice 'Цена розничная' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-
-retailMarkup 'Надбавка розн.' (d) = ABSTRACT NUMERIC[14,3] (ConsignmentDetail);
-wholesaleMarkup 'Надбавка опт.' (d) = ABSTRACT NUMERIC[16,3] (ConsignmentDetail);
-
-
 invoiceSum 'Сумма с НДС' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
 dataSum 'Стоимость' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
 overSum 'Стоимость' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
@@ -518,20 +511,6 @@ sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = OVERRIDE dataSumInvoic
                                                                         overSumInvoice(d),
                                                                         over2SumInvoice(d);
                                                                          
-sumShipment 'Сумма учётная' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-
-sumShipmentContainer 'Сумма тары' (consignment) = ABSTRACT NUMERIC[18,4] (Consignment);
-sumShipmentItem 'Сумма товаров' (consignment) = ABSTRACT NUMERIC[18,4] (Consignment);
-
-sumRetailVAT 'Сумма НДС' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-
-sumRetailContainer 'Сумма тары' (consignment) = ABSTRACT NUMERIC[18,4] (Consignment);
-sumRetailItem 'Сумма товаров' (consignment) = ABSTRACT NUMERIC[18,4] (Consignment);
-
-sumWholesaleMarkup 'Надбавка' (consignment) = ABSTRACT NUMERIC[18,4] (Consignment);
-
-sumRetail 'Сумма розничная' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-
 dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
 overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
 roundPack 'Количество знаков после запятой для грузовых мест' = ABSTRACT INTEGER (ConsignmentDetail);
@@ -612,21 +591,8 @@ sumVATIaW (ConsignmentDetail detail) = OVERRIDE sumVAT(detail), overSumVATIaW(de
 sumVATConsignmentDetail 'Сумма НДС (всего)' (consignment) = GROUP SUM sumVATIaW(ConsignmentDetail d) IF NOT skip(d)
                                                             BY consignment(d) IN sumConsignment;
 //
-//sumInvoiceIaWConsignmentDetail 'Сумма с НДС' (d) = sumInvoiceConsignmentDetail(d) (+) wareSumConsignmentDetail(d);
-overSumInvoiceIaW = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-sumInvoiceIaW (ConsignmentDetail detail) = OVERRIDE sumInvoice(detail), overSumInvoiceIaW(detail);
-
-sumInvoiceConsignmentDetail 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumInvoiceIaW(ConsignmentDetail d) IF NOT skip(d)
+sumInvoiceConsignmentDetail 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumInvoice(ConsignmentDetail d) IF NOT skip(d)
                                                             BY consignment(d) IN sumConsignment;
-
-sumShipmentConsignmentDetail 'Сумма учётная' (consignment) = GROUP SUM sumShipment(ConsignmentDetail d) IF NOT skip(d)
-                                                                               BY consignment(d) IN sumConsignment;
-
-sumRetailVATConsignmentDetail 'Сумма НДС' (consignment) = GROUP SUM sumRetailVAT(ConsignmentDetail d) IF NOT skip(d)
-                                                                            BY consignment(d) IN sumConsignment;
-
-sumRetailConsignmentDetail 'Сумма c НДС (всего)' (consignment) = GROUP SUM sumRetail(ConsignmentDetail d) IF NOT skip(d)
-                                                                                   BY consignment(d) IN sumConsignment;
 
 //----------проверка на заполнение атрибутов ---------
 
