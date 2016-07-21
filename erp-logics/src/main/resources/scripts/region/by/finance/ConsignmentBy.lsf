@@ -563,25 +563,7 @@ shortNameCurrency 'Валюта' (Consignment consignment) = shortName(currency(
 documentNameCurrency 'Валюта (сокр.)' (Consignment consignment) = documentName(currency(consignment));
 isCurrency 'Выбрана валюта' (Consignment consignment) = TRUE IF currency(consignment);
 
-//// Посуда на возврате
-isWare 'Возврат поставщику' (consignment) = ABSTRACT BOOLEAN (Consignment);
-//wareSumConsignmentDetailConsignment 'Сумма посуды с НДС' (consignment) = ABSTRACT NUMERIC[16,4] (Consignment);
-supplierSumConsignmentDetail 'Сумма поставщика без НДС' (consignment) = ABSTRACT NUMERIC[16,4] (Consignment);
-//
-//wareConsignmentDetail (d) = ABSTRACT Ware (ConsignmentDetail);
-//nameWareConsignmentDetail 'Посуда' (d) = nameWare(wareConsignmentDetail(d));
-//warePriceConsignmentDetail 'Цена посуды с НДС' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-//wareSumConsignmentDetail 'Сумма посуды с НДС' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-//valueWareRangeConsignmentDetail 'НДС посуды, %' (d) = ABSTRACT NUMERIC[6,2] (ConsignmentDetail);
-//wareVATSumConsignmentDetail 'Сумма НДС по посуде' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-//wareSupplierPriceConsignmentDetail 'Цена посуды без НДС' (d) =  ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-//wareSupplierSumConsignmentDetail 'Сумма посуды без НДС' (d) =  ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-//
-//sumIaWConsignmentDetail 'Сумма с посудой без НДС' (d) = sumConsignmentDetail(d) (+) wareSupplierSumConsignmentDetail(d);
-overSumIaW = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-sumIaW (ConsignmentDetail detail) = OVERRIDE sum(detail), overSumIaW(detail);
-
-sumConsignmentDetail 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sumIaW(ConsignmentDetail d) IF NOT skip(d)
+sumConsignmentDetail 'Сумма с посудой без НДС (всего)' (consignment) = GROUP SUM sum(ConsignmentDetail d) IF NOT skip(d)
                                                             BY consignment(d) IN sumConsignment;
 //
 //sumVATIaWConsignmentDetail 'Сумма НДС' (d) = sumVATConsignmentDetail(d) (+) wareVATSumConsignmentDetail(d);
@@ -627,7 +609,7 @@ META defineConsignmentFormSimple(form, caption)
                        sumInvoiceConsignmentDetail,
                        UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
                        fullNameSupplier, fullNameCustomer, extraDescriptionSupplier, extraDescriptionCustomer, number, series, seriesNumber, countConsignmentDetail,
-                       isWare, isCustomsFlow, printDetailCustomsFlow, isCurrency, shortNameCurrency,
+                       isCustomsFlow, printDetailCustomsFlow, isCurrency, shortNameCurrency,
                        note, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
@@ -656,7 +638,7 @@ META defineConsignmentFormSimpleExtra(form, caption)
                        sumInvoiceConsignmentDetail,
                        UNPCustomer, UNPSupplier, addressSupplier, addressCustomer,
                        fullNameSupplier, fullNameCustomer, extraDescriptionSupplier, extraDescriptionCustomer, number, series, seriesNumber, countConsignmentDetail,
-                       isWare, isCustomsFlow, isCurrency, shortNameCurrency,
+                       isCustomsFlow, isCurrency, shortNameCurrency,
                        note, documentNameCurrency, countPages, useEmptyVATConsignmentDetail
         PROPERTIES()   TODRAW c countRowsSimpleVertical, countRowsSimpleHorizontal
         OBJECTS d=ConsignmentDetail
@@ -744,7 +726,6 @@ META defineExtendConsignmentForm(form, prefix) // добавляем свойс�
                        prefix##sumVATConsignmentDetailConsignment=sumVATConsignmentDetail, 
                        prefix##sumInvoiceConsignmentDetailConsignment=sumInvoiceConsignmentDetail,
                        prefix##countConsignmentDetailConsignment=countConsignmentDetail, 
-                       prefix##supplierSumConsignmentDetailConsignment=supplierSumConsignmentDetail,
                        prefix##seriesConsignment=series, prefix##numberConsignment=number, prefix##seriesNumberConsignment=seriesNumber, 
                        prefix##isCustomsFlowConsignment=isCustomsFlow, 
                        prefix##isCurrencyConsignment=isCurrency, prefix##shortNameCurrencyConsignment=shortNameCurrency,
