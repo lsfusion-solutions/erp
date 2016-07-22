@@ -108,6 +108,9 @@ signedQuantity 'Кол-во' (InvoiceDetail d) = IF in(d) THEN quantity(d) ELSE 
 
 @defineDocumentAbstractContract(Invoice, contractSku);
 // наш склад
+stock = ABSTRACT Stock(Invoice);   
+nameStock 'Склад' (Invoice i) = name(stock(i));
+
 stock = ABSTRACT Stock(InvoiceDetail) PERSISTENT;   
 nameStock 'Склад' (InvoiceDetail d) = name(stock(d));
 
@@ -196,6 +199,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     supplierStock[Invoice.Invoice](Invoice invoice) += supplierStock(invoice);
     customerStock[Invoice.Invoice](Invoice invoice) += customerStock(invoice);
     stock[Invoice.InvoiceDetail](InvoiceDetail detail) += stockProp##Stock(detail);
+    stock[Invoice.Invoice](Invoice invoice) += stockProp##Stock(invoice);
     CONSTRAINT supplier(UserInvoice userInvoice) AND supplierStock(userInvoice) AND NOT
     in(supplier(userInvoice), supplierStock(userInvoice))
         CHECKED BY supplierStock[UserInvoice]
