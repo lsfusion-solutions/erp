@@ -237,7 +237,11 @@ addPrePayment 'Внести предоплату'(LegalEntity legalEntity) = ACT
     localPaymentCondition() <- paymentCondition('0');
     localSupplier() <- legalEntity(currentUser());
 
-    FORM legalEntityPayment OBJECTS l = localSupplier(), pc = localPaymentCondition() MODAL;
+    IF localSupplier() THEN {
+        FORM legalEntityPayment OBJECTS l = localSupplier(), pc = localPaymentCondition() MODAL;    
+    } ELSE {
+        FORM legalEntityPayment OBJECTS pc = localPaymentCondition() MODAL;    
+    }
     IF formResult() == FormResult.ok THEN {
         FOR ADDOBJ p = Payment.Payment DO{
             date(p) <- chosenDate('dt');
