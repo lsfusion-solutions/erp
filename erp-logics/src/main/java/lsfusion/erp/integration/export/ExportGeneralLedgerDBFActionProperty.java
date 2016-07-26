@@ -72,9 +72,9 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                 new OverJDBField("K_ANAD2", 'C', 100, 0), new OverJDBField("K_ANAD3", 'C', 100, 0),
 
                 new OverJDBField("K_ANAK1", 'C', 100, 0), new OverJDBField("K_ANAK2", 'C', 100, 0),
-                new OverJDBField("K_ANAK3", 'C', 100, 0), new OverJDBField("N_SUM", 'N', 17, 2),
-                new OverJDBField("K_MAT", 'C', 12, 0), new OverJDBField("N_MAT", 'N', 17, 3),
-                new OverJDBField("N_DSUM", 'N', 15, 2), new OverJDBField("KOD_ISP", 'C', 2, 0),
+                new OverJDBField("K_ANAK3", 'C', 100, 0), new OverJDBField("N_SUM", 'N', 17, 2, true),
+                new OverJDBField("K_MAT", 'C', 12, 0), new OverJDBField("N_MAT", 'N', 17, 3, true),
+                new OverJDBField("N_DSUM", 'N', 15, 2, true), new OverJDBField("KOD_ISP", 'C', 2, 0),
                 new OverJDBField("P_AVT", 'C', 3, 0), new OverJDBField("SER_P", 'C', 2, 0)
         };
 
