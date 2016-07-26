@@ -20,7 +20,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
-import org.apache.commons.io.FileUtils;
 import org.jsoup.Connection;
 import org.jsoup.HttpStatusException;
 import org.jsoup.Jsoup;
@@ -28,11 +27,10 @@ import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
 import org.jsoup.nodes.Node;
 import org.jsoup.select.Elements;
+import org.silvertunnel_ng.netlib.adapter.url.NetlibURLStreamHandlerFactory;
 import org.silvertunnel_ng.netlib.api.NetFactory;
 import org.silvertunnel_ng.netlib.api.NetLayer;
 import org.silvertunnel_ng.netlib.api.NetLayerIDs;
-import org.silvertunnel_ng.netlib.api.util.TcpipNetAddress;
-import org.silvertunnel_ng.netlib.util.HttpUtil;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -43,10 +41,10 @@ import java.util.*;
 
 public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
-    String mainPage = "http://e-dostavka.by";
-    String mainPage2 = "e-dostavka.by";
-    String itemGroupPattern = "http:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
-    String itemPattern = "http:\\/\\/e-dostavka\\.by\\/catalog\\/\\d+_\\d+\\.html";
+    String mainPage = "//e-dostavka.by";
+    String httpsMainPage = "https://e-dostavka.by";
+    String itemGroupPattern = "\\/\\/e-dostavka\\.by\\/catalog\\/\\d+\\.html";
+    String itemPattern = "\\/\\/e-dostavka\\.by\\/catalog\\/item_\\d+\\.html";
     String userAgent = "Mozilla/5.0 (Windows NT 6.2; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/32.0.1667.0 Safari/537.36";
 
     public ImportEurooptActionProperty(ScriptingLogicsModule LM) throws ScriptingErrorLog.SemanticErrorException {
@@ -356,9 +354,9 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             }
                             if (importUserPriceLists) {
                                 if(price.size() >= 1)
-                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt_p", "Евроопт (акция)", price.get(0), true));
                                 if(price.size() >= 2)
-                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
+                                    userPriceListsList.add(Arrays.asList((Object) idPriceList, "euroopt", idPriceList + "/" + idPriceListDetail, idBarcode, "euroopt", "Евроопт", price.get(1), true));
                                 idPriceListDetail++;
                             }
                             //to avoid duplicates
@@ -373,8 +371,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                         String brandItem = null;
                         BigDecimal netWeight = null;
                         String UOMItem = null;
-                        BigDecimal quantityPack = null;
-                        String idBarcodePack = null;
+//                        BigDecimal quantityPack = null;
+//                        String idBarcodePack = null;
                         for (Node attribute : descriptionAttributes) {
                             if (((Element) attribute).children().size() == 2) {
                                 String type = parseChild((Element) attribute, 0);
@@ -393,12 +391,12 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                                         UOMItem = split.length >= 2 ? split[1] : null;
                                         break;
                                     case "Кол-во товара в заводской таре:":
-                                        try {
-                                            quantityPack = new BigDecimal(value);
-                                        } catch (Exception e) {
-                                            quantityPack = null;
-                                        }
-                                        idBarcodePack = idBarcode + "pack";
+//                                        try {
+//                                            quantityPack = new BigDecimal(value);
+//                                        } catch (Exception e) {
+//                                            quantityPack = null;
+//                                        }
+//                                        idBarcodePack = idBarcode + "pack";
                                         break;
                                 }
                             }
@@ -466,8 +464,8 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                             ServerLoggers.importLogger.info(idBarcode == null ? "No barcode, item skipped" : "Not in base, item skipped");
                         }
                     }
-                    if (imageItem != null)
-                        imageItem.delete();
+                    if (imageItem != null && !imageItem.delete())
+                        imageItem.deleteOnExit();
                 }
                 i++;
             }
@@ -491,14 +489,18 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
             if(priceElement != null) {
                 Elements oldPriceElement = priceElement.getElementsByClass("Old_price");
                 String oldPriceValue = oldPriceElement == null || !redPrice ? null : oldPriceElement.text().replace(" ", "");
-                oldPrice = oldPriceValue == null || oldPriceValue.isEmpty() ? null : new BigDecimal(oldPriceValue);
+                oldPrice = formatPrice(oldPriceValue);
                 String priceValue = (oldPriceElement != null && oldPriceElement.size() != 0 ? priceElement.text().replace(oldPriceElement.first().text(), "") : priceElement.text()).replace(" ", "");
-                newPrice = priceValue == null || priceValue.isEmpty() ? null : new BigDecimal(priceValue);
+                newPrice = formatPrice(priceValue);
             }
         } catch (Exception e) {
             newPrice = null;
         }
         return oldPrice == null ? Arrays.asList(null, newPrice) : Arrays.asList(newPrice, oldPrice);
+    }
+
+    private BigDecimal formatPrice(String value) {
+        return value == null || value.isEmpty() ? null : new BigDecimal(value.replace("р", "").replace("к.", ""));
     }
 
     private Set<String> getItemURLSet() throws IOException {
@@ -583,7 +585,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         if(doc != null) {
             for (Element url : doc.getElementsByTag("a")) {
                 String href = url.attr("href");
-                if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href)) {
+                if (href != null && href.matches(itemGroupPattern) && !itemGroupsSet.contains(href.replace(mainPage, ""))) {
                     ServerLoggers.importLogger.info(String.format("Import Euroopt: preparing item group page #%s: %s", itemGroupsSet.size() + 1, href));
                     itemGroupsSet.add(href.replace(mainPage, ""));
                 }
@@ -639,14 +641,13 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         while (count > 0) {
             try {
                 Thread.sleep(50);
-                
-                // prepare parameters
-                TcpipNetAddress httpServerNetAddress = new TcpipNetAddress(mainPage2, 80);
-                long timeoutInMs = 5000;
+                URLConnection urlConnection = getTorConnection(lowerNetLayer, url);
 
-                // do the request and wait for the response
-                byte[] responseBody = new HttpUtil().get(lowerNetLayer, httpServerNetAddress, url, timeoutInMs);
-                return Jsoup.parse(new ByteArrayInputStream(responseBody), "utf-8", "");
+                // receive the response
+                try(InputStream responseBodyIS = urlConnection.getInputStream()) {
+                    return Jsoup.parse(responseBodyIS, "utf-8", "");
+                }
+
             } catch (HttpStatusException e) {
                 count--;
                 if(count <= 0)
@@ -663,7 +664,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         while (count > 0) {
             try {
                 Thread.sleep(50);
-                Connection connection = Jsoup.connect(url);
+                Connection connection = Jsoup.connect("http:" + url);
                 connection.timeout(0);
                 connection.userAgent(userAgent);
                 return connection.get();
@@ -682,7 +683,7 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
         if(url == null) return null;
         File file;
         try {
-            URLConnection connection = new URL(url).openConnection();
+            URLConnection connection = new URL("http:" + url).openConnection();
             InputStream input = connection.getInputStream();
             byte[] buffer = new byte[4096];
             int n;
@@ -703,18 +704,22 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
 
         int count = 2;
         while (count > 0) {
-            File file = null;
+            File file;
             try {
                 Thread.sleep(50);
+                URLConnection urlConnection = getTorConnection(lowerNetLayer, url);
 
-                // prepare parameters
-                TcpipNetAddress httpServerNetAddress = new TcpipNetAddress(mainPage2, 80);
-                long timeoutInMs = 5000;
-
-                // do the request and wait for the response
-                byte[] responseBody = new HttpUtil().get(lowerNetLayer, httpServerNetAddress, url, timeoutInMs);
-                file = File.createTempFile("image", ".tmp");
-                FileUtils.writeByteArrayToFile(file, responseBody);
+                // receive the response
+                try(InputStream responseBodyIS = urlConnection.getInputStream()) {
+                    file = File.createTempFile("image", ".tmp");
+                    try(FileOutputStream outputStream = new FileOutputStream(file)) {
+                        int read;
+                        byte[] bytes = new byte[1024];
+                        while ((read = responseBodyIS.read(bytes)) != -1) {
+                            outputStream.write(bytes, 0, read);
+                        }
+                    }
+                }
 
             } catch (HttpStatusException e) {
                 file = null;
@@ -728,6 +733,20 @@ public class ImportEurooptActionProperty extends DefaultImportActionProperty {
                 return file;
         }
         return null;
+    }
+
+    private URLConnection getTorConnection(NetLayer lowerNetLayer, String url) throws IOException {
+        // prepare URL handling on top of the lowerNetLayer
+        NetlibURLStreamHandlerFactory factory = new NetlibURLStreamHandlerFactory(false);
+        // the following method could be called multiple times
+        // to change layer used by the factory over the time:
+        factory.setNetLayerForHttpHttpsFtp(lowerNetLayer);
+
+        // send request with POST data
+        URLConnection urlConnection = new URL(null, httpsMainPage + url, factory.createURLStreamHandler("https")).openConnection();
+        urlConnection.setDoOutput(true);
+        urlConnection.connect();
+        return urlConnection;
     }
 
     private BigDecimal parseBigDecimalWeight(String input) {
