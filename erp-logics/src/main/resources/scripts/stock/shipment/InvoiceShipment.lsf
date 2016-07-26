@@ -89,13 +89,13 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
         invoiceDetail(d) <- invoiceDetail(detail);             
     }   
 
-    CONSTRAINT supplier[ShipmentDetail](UserShipmentDetail detail) != supplier(invoiceDetail(detail))
+    CONSTRAINT supplier(UserShipmentDetail detail) != supplier(invoiceDetail(detail))
         CHECKED BY invoiceDetail[UserShipmentDetail]
             MESSAGE 'Поставщик в накладной и поставке должны соответствовать друг другу';
-    CONSTRAINT customer[ShipmentDetail](UserShipmentDetail detail) != customer(invoiceDetail(detail))
+    CONSTRAINT customer(UserShipmentDetail detail) != customer(invoiceDetail(detail))
         CHECKED BY invoiceDetail[UserShipmentDetail]
             MESSAGE 'Покупатель в накладной и поставке должны соответствовать друг другу';
-    CONSTRAINT sku[ShipmentDetail](UserShipmentDetail detail) != sku(invoiceDetail(detail))
+    CONSTRAINT sku(UserShipmentDetail detail) != sku(invoiceDetail(detail))
         CHECKED BY invoiceDetail[UserShipmentDetail]
             MESSAGE 'Товар в накладной и поставке должны соответствовать друг другу';
 
@@ -210,7 +210,7 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
                 ADDOBJ d = UserShipmentDetail DO {
                     userShipment(d) <- userShipment;
                     invoiceDetail(d) <- invoiceDetail;
-                    order(d) <- order(invoiceDetail);
+                    orderDetail(d) <- orderDetail(invoiceDetail);
 
                     sku(d) <- sku(invoiceDetail);
 
@@ -474,8 +474,8 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     @defineDocumentDescription(invoiceShipment, InvoiceShipmentDetail, 'Поставка на основе накладной'###sign);
     description (InvoiceShipment shipment) += description(shipment);
 
-    @defineDocumentAggregationDetailProperty (invoice, invoiceShipment, order, 'Заказ');
-    order (InvoiceShipmentDetail shipmentDetail) += order(shipmentDetail);
+    @defineDocumentAggregationDetailProperty (invoice, invoiceShipment, orderDetail, 'Заказ');
+    orderDetail (InvoiceShipmentDetail shipmentDetail) += orderDetail(shipmentDetail);
 
     @defineDocumentAggregationDetailSku(invoice, invoiceShipment, sku);
     sku(InvoiceShipmentDetail shipmentDetail) +=  sku(shipmentDetail);
@@ -555,7 +555,7 @@ META defineInvoiceShipmentAction (sign)
             FOR invoice(InvoiceDetail detail) == invoice  ADDOBJ d = UserShipmentDetail DO {
                 userShipment(d) <- s;
                 invoiceDetail(d) <- detail;
-                order(d) <- order(detail);
+                orderDetail(d) <- orderDetail(detail);
 
                 sku(d) <- sku(detail);
                 quantity (d) <- toShip(detail);

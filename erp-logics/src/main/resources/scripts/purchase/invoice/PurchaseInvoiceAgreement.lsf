@@ -165,8 +165,8 @@ EXTEND FORM userOrder
 ;     
 
 //
-maxDeviationPriceOrder 'Макс. цена' (InvoiceDetail d) = maxDeviationPrice(maxOrderDetail(sku(d), order(d)));
-minDeviationPriceOrder 'Мин. цена' (InvoiceDetail d) = minDeviationPrice(maxOrderDetail(sku(d), order(d))); 
+maxDeviationPriceOrder 'Макс. цена' (InvoiceDetail d) = maxDeviationPrice(orderDetail(d));
+minDeviationPriceOrder 'Мин. цена' (InvoiceDetail d) = minDeviationPrice(orderDetail(d)); 
 
 agreementsPrice 'Цена из соглашения' (InvoiceDetail d) =
     prevPriceB(priceListType(d), sku(d), customerStock(d), supplier(d), dateTime(d));
@@ -181,8 +181,8 @@ minDeviationPrice 'Мин. цена' (InvoiceDetail d) = (100.0 - percDeviationD
                                                         agreementsPrice(d) /
                                                         100.0; 
                                                          
-overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF order(d) THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
-overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF order(d) THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
+overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF orderDetail(d) THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
+overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
                                                                                                                       
 skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);                                                                                                                     
 
@@ -223,7 +223,7 @@ EXTEND FORM agreement
     PROPERTIES(a) deviationNotOrderInvoice 
 ;
 
-CONSTRAINT isPosted(InvoiceDetail d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(maxOrderDetail(d))    
+CONSTRAINT isPosted(InvoiceDetail d) AND deviationNotOrderInvoice(agreement(invoice(d))) AND NOT isPosted(orderDetail(d))    
     MESSAGE 'Накладную запрещено оприходовать без заказа';   
 
 
@@ -249,8 +249,8 @@ EXTEND FORM userOrder
 
 //--
 
-maxDeviationQuantityOrder 'Макс. к-во' (InvoiceDetail d) = maxDeviationQuantity(maxOrderDetail(sku(d), order(d)));
-minDeviationQuantityOrder 'Мин. к-во' (InvoiceDetail d) = minDeviationQuantity(maxOrderDetail(sku(d), order(d))); 
+maxDeviationQuantityOrder 'Макс. к-во' (InvoiceDetail d) = maxDeviationQuantity(orderDetail(d));
+minDeviationQuantityOrder 'Мин. к-во' (InvoiceDetail d) = minDeviationQuantity(orderDetail(d)); 
 
 percDeviationUpPriceOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) AND showPercDeviationUpPrice(agreement(o)) BY i;  
 percDeviationDownPriceOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) AND showPercDeviationDownPrice(agreement(o)) BY i;  

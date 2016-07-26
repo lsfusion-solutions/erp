@@ -9,15 +9,9 @@ createdUser = DATA LOCAL BOOLEAN (Invoice, Order);
 createUserInvoice 'Создать накладную' = ACTION ABSTRACT LIST (Order);
 createUserInvoicePosted 'Создать проведенную накладную' = ACTION ABSTRACT LIST (Order);
 
-order = ABSTRACT Order (InvoiceDetail) PERSISTENT INDEXED;
+orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT INDEXED;
 
-TABLE orderSku (Order, Sku);
-invoicedInvoiceDetail 'Выписано накладных' (order, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
-                                                           BY order(invoiceDetail), sku(invoiceDetail) PERSISTENT;
-invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = PARTITION UNGROUP invoicedInvoiceDetail
-                                                          LIMIT STRICT quantity (orderDetail)
-                                                          BY order(orderDetail), sku(orderDetail)
-                                                          ORDER orderDetail PERSISTENT;
+invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail d) IF isPosted(d) BY orderDetail(d) PERSISTENT;
                                                           
 invoicedOrderDetail 'Кол-во (выписано)' = GROUP SUM invoiced(OrderDetail detail) BY order(detail) PERSISTENT;                                                         
 
@@ -25,7 +19,7 @@ toInvoice 'Не выписано' (OrderDetail orderDetail) = quantity (orderDet
 toInvoice 'Не выписано' (order) = GROUP SUM 1 IF toInvoice(OrderDetail orderDetail) > 0 BY order(orderDetail) PERSISTENT;
 
 quantity (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail)
-                                               BY order(invoiceDetail),
+                                               BY order(orderDetail(invoiceDetail)),
                                                   invoice(invoiceDetail);
 
 seriesNumberOrder 'Заказы' = GROUP CONCAT seriesNumber(Order order) IF quantity (order, Invoice invoice), ','
@@ -37,8 +31,6 @@ noteOrder 'Примечание (заказ)' = GROUP CONCAT note(Order order) I
                                               ORDER order MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 GROUP orders 'Приемка по заказам' : base;
-
-quantityInvoiceDetail (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY order(invoiceDetail), invoice(invoiceDetail);
 
 // -------------- Создание накладной на основе заказа (для абстрактного заказа) ------------------------ // 
 
@@ -74,32 +66,51 @@ createMultiUserInvoice 'Создать накладную'(Order order) = ACTION
 
 //--  Связь с заказом
 
+migratedOrderDetail = DATA BOOLEAN ();
+overMigrateOrderDetail = ACTION ABSTRACT LIST ();
+
+onStarted() += ACTION {
+    IF NOT migratedOrderDetail() THEN {
+        migratedOrderDetail() <- TRUE;
+        setNoCancelInTransaction();
+        overMigrateOrderDetail();
+        apply();
+        dropNoCancelInTransaction();
+    }
+}
+
 META defineOrderInvoice(sign, stockProp)
 
-    order = ABSTRACT Order (InvoiceDetail) PERSISTENT;
-    INDEX order(InvoiceDetail id), sku(id);
-    order[Invoice.InvoiceDetail] (InvoiceDetail invoiceDetail) += order(invoiceDetail);
+    orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT;
+    INDEX orderDetail(InvoiceDetail id), sku(id);
+    orderDetail[Invoice.InvoiceDetail] (InvoiceDetail invoiceDetail) += orderDetail(invoiceDetail);
 
-    order = DATA Order(UserInvoiceDetail) INDEXED;
-    order(UserInvoiceDetail invoiceDetail) += order(invoiceDetail);
-    
+    orderDetail = DATA OrderDetail (UserInvoiceDetail) INDEXED;
+    orderDetail(UserInvoiceDetail invoiceDetail) += orderDetail(invoiceDetail);
+
     overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      
-        order(d) <- order(detail);
+        orderDetail(d) <- orderDetail(detail);
     }  
 
-    CONSTRAINT supplier[InvoiceDetail](UserInvoiceDetail invoiceDetail) != supplier(order(invoiceDetail)) OR
-               customer(invoiceDetail) != customer(order(invoiceDetail))
-        CHECKED BY order[UserInvoiceDetail]
-            MESSAGE 'Поставщик и покупатель в заказе и накладной должны соответствовать друг другу';
+    CONSTRAINT supplier(UserInvoiceDetail detail) != supplier(orderDetail(detail))
+        CHECKED BY orderDetail[UserInvoiceDetail]
+            MESSAGE 'Поставщик в заказе и накладной должны соответствовать друг другу';
+    CONSTRAINT customer(UserInvoiceDetail detail) != customer(orderDetail(detail))
+        CHECKED BY orderDetail[UserInvoiceDetail]
+            MESSAGE 'Покупатель в заказе и накладнй должны соответствовать друг другу';
+    CONSTRAINT sku(UserInvoiceDetail detail) != sku(orderDetail(detail))
+        CHECKED BY orderDetail[UserInvoiceDetail]
+            MESSAGE 'Товар в заказе и накладной должны соответствовать друг другу';
+
 
     GROUP order 'Информация о заказе' : public;
 
-    descriptionOrder 'Заказ' (InvoiceDetail invoiceDetail) = description(order(invoiceDetail)) IN order;
-    descriptionOrder 'Заказ' (UserInvoiceDetail userInvoiceDetail) = description(order(userInvoiceDetail)) IN order;
+    descriptionOrder 'Заказ' (InvoiceDetail invoiceDetail) = description(orderDetail(invoiceDetail)) IN order;
+    descriptionOrder 'Заказ' (UserInvoiceDetail userInvoiceDetail) = description(orderDetail(userInvoiceDetail)) IN order;
 
-    quantityInvoiceDetail (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY order(invoiceDetail), invoice(invoiceDetail);
-    countInvoiceDetail(order, invoice) = GROUP SUM 1 BY order(InvoiceDetail invoiceDetail), invoice(invoiceDetail);
-    orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF countInvoiceDetail(order, Invoice invoice) , ', '
+    quantityInvoiceDetail (order, invoice) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY order(orderDetail(invoiceDetail)), invoice(invoiceDetail);
+    countInvoiceDetail(order, invoice) = GROUP SUM 1 BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail);
+    orders 'Заказы' (invoice) = GROUP CONCAT VARSTRING[255](description(Order order)) IF quantityInvoiceDetail(order, Invoice invoice) , ', '
                                              BY invoice
                                              ORDER order
                                              IN order MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
@@ -109,13 +120,9 @@ META defineOrderInvoice(sign, stockProp)
                                              ORDER invoice
                                              IN invoice MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
 
-    TABLE orderSku (Order, Sku);
-    invoicedInvoiceDetail 'Выписано накладных' (order, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
-                                                               BY order(invoiceDetail), sku(invoiceDetail) PERSISTENT;
-    invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = PARTITION UNGROUP invoicedInvoiceDetail
-                                                              LIMIT STRICT quantity (orderDetail)
-                                                              BY order(orderDetail), sku(orderDetail)
-                                                              ORDER orderDetail PERSISTENT;
+    invoiced 'Кол-во (выписано)' (OrderDetail orderDetail) = GROUP SUM quantity(InvoiceDetail invoiceDetail) IF isPosted(invoiceDetail)
+                                                               BY orderDetail(invoiceDetail) PERSISTENT;
+                                                               
     invoicedOrderDetail 'Кол-во (выписано)' (order) = GROUP SUM invoiced(OrderDetail orderDetail) BY order(orderDetail) IN documentSum;
 
     toInvoice 'Не выписано' (OrderDetail orderDetail) = quantity (orderDetail) (-) invoiced(orderDetail);
@@ -124,18 +131,9 @@ META defineOrderInvoice(sign, stockProp)
 
     backgroundInvoice 'Цвет' (Order order) = RGB(175, 255, 175) IF order IS Order;
 
-    maxOrderDetail (InvoiceDetail d) = maxOrderDetail(sku(d), order(d)) PERSISTENT INDEXED;
-    quantityOrder 'К-во заказа' (InvoiceDetail d) = quantity(maxOrderDetail(d)); 
-    priceOrder 'Цена заказа' (InvoiceDetail d) = price(maxOrderDetail(d));
+    quantityOrder 'К-во заказа' (InvoiceDetail d) = quantity(orderDetail(d)); 
+    priceOrder 'Цена заказа' (InvoiceDetail d) = price(orderDetail(d));
 
-    maxOrderDetailBatch (InvoiceDetail d) = maxOrderDetail(batch(d), order(d)) PERSISTENT INDEXED;
-    priceOrderBatch (InvoiceDetail d) = price(maxOrderDetailBatch(d));
-    
-    orderDetail (InvoiceDetail d) = OVERRIDE maxOrderDetail(d), maxOrderDetailBatch(d) PERSISTENT INDEXED;
-    priceOrderDetail (InvoiceDetail d) = price(orderDetail(d));
-
-    orderDetail (UserInvoiceDetail d) = orderDetail(d) IF d IS UserInvoiceDetail PERSISTENT;
-    
     // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
     inSupplier (order, supplierStock) = GROUP SUM 1 IF supplierStock(OrderDetail orderDetail) == Stock supplierStock BY order(orderDetail), supplierStock;
@@ -179,7 +177,7 @@ META defineOrderInvoice(sign, stockProp)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
-                    order(d) <- order;
+                    orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
                     batch(d) <- batch;
                     quantity (d) <- toInvoice(batch, orderDetail);
@@ -192,7 +190,7 @@ META defineOrderInvoice(sign, stockProp)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
-                    order(d) <- order;
+                    orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
                     batch(d) <- batch(orderDetail);
                     quantity (d) <- PREV(toInvoice(orderDetail));
@@ -207,7 +205,7 @@ META defineOrderInvoice(sign, stockProp)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
-                    order(d) <- order;
+                    orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
                     batch(d) <- batch(orderDetail);
                     quantity (d) <- toInvoice(orderDetail);
@@ -227,7 +225,7 @@ META defineOrderInvoice(sign, stockProp)
     }
     
     skipDeriveOrderPrice = ABSTRACT BOOLEAN (UserInvoiceDetail);
-    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND NOT skipDeriveOrderPrice(d) THEN priceOrderDetail(d);
+    prevList (PriceListType t, UserInvoiceDetail d) += WHEN t == priceListType(d) AND orderDetail(d) AND NOT notFillPriceInvoiceOrder(operation(d)) AND NOT skipDeriveOrderPrice(d) THEN priceOrder(d);
     
     fillHeader(UserInvoice userInvoice, Order order) = ACTION {
         date(userInvoice) <- currentDate();
@@ -243,7 +241,6 @@ META defineOrderInvoice(sign, stockProp)
         agreement(userInvoice) <- agreement(order) WHERE agreement(order);
         priceListType(userInvoice) <- priceListType(order) WHERE priceListType(order);
         contractSku(userInvoice) <- contractSku(order) WHERE contractSku(order);
-//        ASSIGN isCommissionUserInvoice(userInvoice) <- isCommissionOrder(order) WHERE isCommissionOrder(order);
 
         operation(userInvoice) <- operation(order) WHERE operation(order);
         date(userInvoice) <- shipmentDate(order) WHERE isShipmentDate(operation(order)) AND shipmentDate(order); 
@@ -366,9 +363,6 @@ META defineOrderInvoice(sign, stockProp)
                 customerStock(o) == customerStockInvoiceOrder() OR (o IS Order AND NOT customerStockInvoiceOrder()),
                 inSupplier(o, supplierStockInvoiceOrder()) OR (o IS Order AND NOT supplierStockInvoiceOrder()),
                 operation(o) == operationInvoiceOrder() OR (o IS Order AND NOT operationInvoiceOrder())
-//        FILTERGROUP order
-//            FILTER 'Заказы с невыписанными товарами со склада' 'F10' toInvoiceOrderDetailStockOrder(s, o) DEFAULT
-//            FILTER 'Заказы со склада' 'F9' countOrderDetailStockOrder(s, o)
 
         OBJECTS d = OrderDetail
         PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
@@ -376,9 +370,6 @@ META defineOrderInvoice(sign, stockProp)
                         numberVAT, valueVAT, VATSum, invoiceSum,
                         name###stockProp##Stock
         FILTERS order(d) == o
-//        FILTERGROUP orderDetail
-//            FILTER 'Строки с невыписанными товарами со склада' 'F10' stockProp###stockOrderDetail(d) == stockProp###stockInvoiceOrder() AND toInvoiceOrderDetail(d) > 0 DEFAULT
-//            FILTER 'Строки со склада' 'F9' stockProp###stockOrderDetail(d) == stockProp###stockInvoiceOrder()
     ;
 
     DESIGN invoiceOrders {
@@ -430,8 +421,38 @@ META defineOrderInvoice(sign, stockProp)
         }
     } IN order;
 
+    FORM selectOrderDetail 'Выбрать строку заказа'
+        OBJECTS i = InvoiceDetail FIXED PANEL
+        OBJECTS d = OrderDetail
+        PROPERTIES(d) READONLY number, series, date, time, nameSupplierStock, nameCustomerStock
+        FILTERGROUP supplierStock
+            FILTER 'По складу поставщика' supplierStock(d) == supplierStock(i) DEFAULT
+            FILTER 'По поставщику' supplier(d) == supplier(i)
+        FILTERGROUP customerStock
+            FILTER 'По складу покупателя' customerStock(d) == customerStock(i) DEFAULT
+            FILTER 'По покупателю' customer(d) == customer(i)
+        FILTERGROUP opened
+            FILTER 'Открытые' isOpened(d) DEFAULT
+        FILTERS isPosted(d),
+                sku(d) == sku(i)
+    ;
+    changeOrder (UserInvoiceDetail d) = ACTION {
+        IF orderDetail(d) THEN
+            REQUEST OBJECT d
+                FORM selectOrderDetail OBJECTS i = d, d = orderDetail(d) DIALOG SHOWDROP
+        ELSE
+            REQUEST OBJECT d
+                FORM selectOrderDetail OBJECTS i = d DIALOG SHOWDROP;
+
+        IF formResult() == FormResult.ok THEN {
+            orderDetail(d) <- chosenObject('d');
+        } ELSE IF formResult() == FormResult.drop THEN {
+            orderDetail(d) <- NULL;
+        }
+                
+    }
     EXTEND FORM userInvoice
-        PROPERTIES (d)  descriptionOrder AFTER invoiceSum(d)
+        PROPERTIES (d)  descriptionOrder AFTER invoiceSum(d) ON CHANGE changeOrder(d)
     ;
 
 
@@ -482,7 +503,7 @@ META defineOrderInvoice(sign, stockProp)
         PROPERTIES(o,i) BACKGROUND backgroundInvoice(o) include BEFORE isPosted(o)
     ;
     
-    relationInvoiceDetail (order, invoice) = GROUP SUM 1 BY order(InvoiceDetail invoiceDetail), invoice(invoiceDetail);
+    relationInvoiceDetail (order, invoice) = GROUP SUM 1 BY order(orderDetail(InvoiceDetail invoiceDetail)), invoice(invoiceDetail);
     notRelationInvoiceDetailOrder 'Включенные заказы, но по которым не созданы строки' (invoice)= GROUP SUM 1 
         IF include(Order order, UserInvoice invoice) AND NOT  relationInvoiceDetail(order, invoice) BY invoice; 
         
@@ -509,7 +530,7 @@ META defineOrderInvoice(sign, stockProp)
                 IF (confirmed()) THEN {  
                     FOR relationInvoiceDetail(Order order, userInvoice) AND NOT include[Order,UserInvoice](order, userInvoice) DO {
                         
-                        DELETE UserInvoiceDetail d WHERE userInvoice(d) == userInvoice AND order(d) == order;     
+                        DELETE UserInvoiceDetail d WHERE userInvoice(d) == userInvoice AND order(orderDetail(d)) == order;     
                         userInvoice(order) <- NULL;                         
                     }                                   
                 }                       
@@ -517,13 +538,12 @@ META defineOrderInvoice(sign, stockProp)
         }                 
     } IN orders;
 
-    defaultOrder (sku, userInvoice) = GROUP MAX Order order IF include(order, UserInvoice userInvoice) 
-        AND order(OrderDetail detail)==order
+    defaultOrderDetail (sku, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
         BY sku(detail), userInvoice;
 
     connectOrder 'Привязать строку накладной к заказу'(UserInvoiceDetail detail) = ACTION {
-        order(detail) <- defaultOrder(sku(detail), userInvoice(detail)) 
-                                                    WHERE defaultOrder(sku(detail), userInvoice(detail));
+        orderDetail(detail) <- defaultOrderDetail(sku(detail), userInvoice(detail)) 
+                                                    WHERE defaultOrderDetail(sku(detail), userInvoice(detail));
     } SHORTCUT descriptionOrder[UserInvoiceDetail];
 
     connectOrder 'Привязать все строки накладной к заказам'(UserInvoice userInvoice) = ACTION {
@@ -533,7 +553,7 @@ META defineOrderInvoice(sign, stockProp)
     } SHORTCUT descriptionOrder[UserInvoiceDetail];
 
     WHEN SESSION FORMS userInvoice
-        CHANGED(sku(UserInvoiceDetail detail)) AND NOT order(detail)       
+        CHANGED(sku(UserInvoiceDetail detail)) AND NOT orderDetail(detail)       
             DO EXEC connectOrder(detail);
 
     EXTEND FORM userInvoice
@@ -571,120 +591,8 @@ META defineOrderInvoice(sign, stockProp)
     overCreateMultiUserInvoice(Order o)+= ACTION createMultiUserInvoice(o);
 
     // автомтатическое закрытие заказов
-    WHEN SET(order(InvoiceDetail d) AND isPosted(d)) AND autoCloseOrders(stockProp###stock(d)) AND NOT isClosed(order(d)) DO
-        isClosed(UserOrder o) <- TRUE WHERE o == order(d);
-
-//-- агр.объект
-
-    // todo : временно отключено из-за тормозов при вводе количества в подборе, так как строка заказов может начать влиять на партии
-//    @defineDocumentInterfaceDetailQuantityPrefix (order, invoice, ' (выписано)');
-//    invoiceQuantityUserOrderDetail(detail) <- quantityUserOrderDetail(detail) WHEN CHANGED(quantityUserOrderDetail(detail));
-//    @defineDocumentInterfaceProperty (order, createInvoice, 'Создать накладную');
-//
-//
-//    showInvoiceOrder (order) =  order IS Order AND NOT createInvoiceOrder(order);
-//    
-//    EXTEND FORM userOrder
-//        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) createInvoiceUserOrder
-//        PROPERTIES(o) BACKGROUND backgroundInvoiceOrder(o) SHOWIF createInvoiceUserOrder(o) seriesNumberContractSkuUserOrder, isCommissionUserOrder
-//
-//        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityUserOrderDetail SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-//        PROPERTIES(d) invoiceQuantityUserOrderDetail AFTER quantityUserOrderDetail SHOWIF createInvoiceUserOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-//    ;
-//    DESIGN userOrder {
-//        headerCreateDocuments {
-//            NEW headerInvoice {
-//                type = CONTAINERH;
-//                caption = 'Накладная';
-//                ADD PROPERTY(createInvoiceUserOrder);
-//                ADD PROPERTY(seriesNumberContractSkuUserOrder);
-//                ADD PROPERTY(isCommissionUserOrder);
-//            }
-//        }
-//    }
-//
-//    EXTEND FORM orders
-//        PROPERTIES(o) READONLYIF isReadonly() AFTER nameAgreementOrder(o) BACKGROUND backgroundInvoiceOrder(o) isCommissionOrder, seriesNumberContractSkuOrder
-//
-//        PROPERTIES(d) READONLY invoicedOrderDetail AFTER quantityOrderDetail SHOWIF showInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-//        PROPERTIES(d) invoiceQuantityOrderDetail AFTER quantityOrderDetail SHOWIF createInvoiceOrder(o) BACKGROUND backgroundInvoiceOrder(o)
-//    ;
-//    EXTEND FORM invoiceOrders
-//        PROPERTIES (d) READONLY BACKGROUND backgroundInvoiceOrder(o)  toInvoiceOrderDetail
-//    ;
-
-//    CLASS OrderInvoice 'Накладная на основе заказа'###sign : Invoice;
-//    CLASS OrderInvoiceDetail 'Строка накладной на основе заказа'###sign : InvoiceDetail;
-//
-//    @defineDocumentTables(orderInvoice);
-//
-//    @defineDocumentAggregation(order, orderInvoice, createInvoiceOrder);
-//
-//    invoiceInvoiceDetail(detail) += orderInvoiceOrderInvoiceDetail(detail);
-//
-//    @defineDocumentDetailIndex(orderInvoice);
-//
-//    dateInvoice(invoice) += dateOrderInvoice(invoice);
-//    timeInvoice(invoice) += timeOrderInvoice(invoice);
-//
-//    @defineDocumentAggregationStockPrefix(order, orderInvoice, supplierStock, 'Склад поставщика', , );
-//    supplierStockInvoice(invoice) += supplierStockOrderInvoice(invoice);
-//    dataSupplierStockInvoiceDetail(invoiceDetail) += dataSupplierStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    @defineDocumentAggregationStockPrefix(order, orderInvoice, customerStock, 'Склад покупателя', , );
-//    customerStockInvoice(invoice) += customerStockOrderInvoice(invoice);
-//    dataCustomerStockInvoiceDetail(invoiceDetail) += dataCustomerStockOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//
-//    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, supplier, 'Поставщик', , );
-//    supplierInvoice(invoice) += supplierOrderInvoice(invoice);
-//    @defineDocumentAggregationLegalEntityPrefix(order, orderInvoice, customer, 'Покупатель', , );
-//    customerInvoice(invoice) += customerOrderInvoice(invoice);
-//
-//    @defineDocumentAggregationPosted(order, orderInvoice);
-//    isPostedInvoice(invoice) += isPostedOrderInvoice(invoice);
-//    
-//    @defineDocumentAggregationClosed(order, orderInvoice);
-//    isClosedInvoice(invoice) += isClosedOrderInvoice(invoice);    
-//
-//    numberOrderInvoice 'Номер документа' (orderInvoice) = numberOrder(orderOrderInvoice(orderInvoice));
-//    numberInvoice(invoice) += numberOrderInvoice(invoice);
-//
-//    seriesOrderInvoice 'Серия документа' (orderInvoice) = seriesOrder(orderOrderInvoice(orderInvoice));
-//    seriesInvoice(invoice) += seriesOrderInvoice(invoice);
-//
-//    seriesNumberOrderInvoice 'Серия/номер документа' (orderInvoice) = seriesNumberOrder(orderOrderInvoice(orderInvoice));
-//
-//    noteInvoiceOrderInvoice 'Примечание' (orderInvoice) = noteOrder(orderOrderInvoice(orderInvoice));
-//    noteInvoice(invoice) += noteInvoiceOrderInvoice(invoice);
-//
-//    currencyOrderInvoice  (orderInvoice) = currencyOrder(orderOrderInvoice(orderInvoice));
-//    currencyInvoice (invoice) += currencyOrderInvoice(invoice);
-//
-//    priceListTypeInvoice(invoice) += priceListTypeOrder(orderOrderInvoice(invoice));
-//    agreementInvoice(invoice) += agreementOrder(orderOrderInvoice(invoice));
-//    contractSkuInvoice(invoice) += contractSkuOrder(orderOrderInvoice(invoice));
-//    isCommissionInvoice (invoice) += isCommissionOrder(orderOrderInvoice(invoice));
-//
-////    @defineDocumentDescription(orderInvoice, OrderInvoiceDetail, 'Накладная на основе заказа'###sign);
-////    descriptionInvoice (invoice) += descriptionOrderInvoice(invoice);
-//
-//    @defineDocumentAggregationDetailSku(order, orderInvoice, sku);
-//    skuInvoiceDetail(invoiceDetail) +=  skuOrderInvoiceDetail(invoiceDetail);
-//
-//    priceListTypeInvoiceDetail(detail) += priceListTypeOrderDetail(orderDetailOrderInvoiceDetail(detail));
-//
-//
-//    quantityInvoiceDetail(invoiceDetail) += invoiceQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    priceInvoiceDetail(invoiceDetail) += priceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    sumInvoiceDetail(invoiceDetail) += sumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    VATInvoiceDetail(invoiceDetail) += VATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    valueVATInvoiceDetail(invoiceDetail) += valueVATOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    invoicePriceInvoiceDetail(invoiceDetail) += invoicePriceOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    invoiceSumInvoiceDetail(invoiceDetail) += invoiceSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    VATSumInvoiceDetail(invoiceDetail) += VATSumOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//
-//    orderInvoiceDetail(invoiceDetail) += orderOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//
-//    editInvoice(invoice) += ACTION EXEC editOrder(orderOrderInvoice(invoice));
+    WHEN SET(order(orderDetail(InvoiceDetail d)) AND isPosted(d)) AND autoCloseOrders(stockProp###stock(d)) AND NOT isClosed(order(orderDetail(d))) DO
+        isClosed(UserOrder o) <- TRUE WHERE o == order(orderDetail(d));
 
 END
 
@@ -697,12 +605,6 @@ META defineOrderInvoicePack (showPackage)
             packQuantity (i) <- quantity(i) / (amountPack(i) IF amountPack(i) != 0);
         }
     }
-
-//    showPackInvoice(invoice) += showPackOrder(orderOrderInvoice(invoice));
-//    barcodePackInvoiceDetail(invoiceDetail) +=  barcodePackOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    amountPackInvoiceDetail(invoiceDetail) +=  amountPackOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-//    packQuantityInvoiceDetail(invoiceDetail) +=  packQuantityOrderDetail(orderDetailOrderInvoiceDetail(invoiceDetail));
-
 END
 
 META defineInvoiceOrder(sign, NS, batchProp, legalProp, stockProp)

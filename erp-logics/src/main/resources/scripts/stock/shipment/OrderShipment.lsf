@@ -12,21 +12,23 @@ backgroundShipped 'Цвет' (Order order) = RGB(255, 224, 255) IF order IS Orde
 
 META defineOrderShipment(sign, stockProp)
 
-    order = ABSTRACT Order (ShipmentDetail) PERSISTENT INDEXED;
-    order = DATA Order (UserShipmentDetail);
-    order(UserShipmentDetail shipmentDetail) += order(shipmentDetail);
+    orderDetail = ABSTRACT OrderDetail (ShipmentDetail) PERSISTENT INDEXED;
+    orderDetail = DATA OrderDetail (UserShipmentDetail);
+    orderDetail(UserShipmentDetail shipmentDetail) += orderDetail(shipmentDetail);
+    
+    order(ShipmentDetail d) = order(orderDetail(d));
     
     overCopy[UserShipmentDetail,UserShipmentDetail](UserShipmentDetail d, UserShipmentDetail detail) += ACTION {      
-        order(d) <- order(detail);             
+        orderDetail(d) <- orderDetail(detail);             
     } 
 
-    CONSTRAINT supplier(UserShipmentDetail shipmentDetail) != supplier(order(shipmentDetail)) OR
-               customer(shipmentDetail) != customer(order(shipmentDetail))
-        CHECKED BY order[UserShipmentDetail]
+    CONSTRAINT supplier(UserShipmentDetail shipmentDetail) != supplier(orderDetail(shipmentDetail)) OR
+               customer(shipmentDetail) != customer(orderDetail(shipmentDetail))
+        CHECKED BY orderDetail[UserShipmentDetail]
             MESSAGE 'Поставщик и покупатель в заказе и поставке должны соответствовать друг другу';
 
-    descriptionOrder 'Заказ' (ShipmentDetail shipmentDetail) = description(order(shipmentDetail)) IN order;
-    descriptionOrder 'Заказ' (UserShipmentDetail userShipmentDetail) = description(order(userShipmentDetail)) IN order;
+    descriptionOrder 'Заказ' (ShipmentDetail shipmentDetail) = description(orderDetail(shipmentDetail)) IN order;
+    descriptionOrder 'Заказ' (UserShipmentDetail userShipmentDetail) = description(orderDetail(userShipmentDetail)) IN order;
 
     quantityShipmentDetail (order, shipment) = GROUP SUM quantity(ShipmentDetail shipmentDetail) BY order(shipmentDetail), shipment(shipmentDetail);
     quantityShipmentDetail (Order order, Shipment shipment) += quantityShipmentDetail (order, shipment);
@@ -42,12 +44,8 @@ META defineOrderShipment(sign, stockProp)
 
 //-- Подсчет поставленного к-ва по заказу
 
-    shippedShipmentDetail 'Кол-во (поставлено)' (order, sku) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
-                                                      BY order(shipmentDetail), sku(shipmentDetail) PERSISTENT;
-    shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = PARTITION UNGROUP shippedShipmentDetail
-                                                              LIMIT STRICT quantity (orderDetail)
-                                                              BY order(orderDetail), sku(orderDetail)
-                                                              ORDER orderDetail PERSISTENT;
+    shipped 'Кол-во (поставлено)' (OrderDetail orderDetail) = GROUP SUM quantity(ShipmentDetail shipmentDetail) IF isPosted(shipmentDetail)
+                                                                                                                    BY orderDetail(shipmentDetail) PERSISTENT;
                                                               
     shipped(OrderDetail d) += shipped(d);
     toShip 'Не поставлено' (OrderDetail orderDetail) = IF (quantity (orderDetail) (-) shipped(orderDetail)) > 0.0 
@@ -128,10 +126,10 @@ META defineOrderShipment(sign, stockProp)
                 toShip(orderDetail) > 0
                 AND in(orderDetail, userShipment)
                 ADDOBJ d = UserShipmentDetail DO {
-                    ASSIGN userShipment(d) <- userShipment;
-                    ASSIGN order(d) <- saleOrder();
-                    ASSIGN sku(d) <- sku(orderDetail);
-                    ASSIGN quantity (d) <- toShip(orderDetail);
+                    userShipment(d) <- userShipment;
+                    orderDetail(d) <- orderDetail;
+                    sku(d) <- sku(orderDetail);
+                    quantity (d) <- toShip(orderDetail);
 
                     EXEC overFillOrder(d, orderDetail);
             }
