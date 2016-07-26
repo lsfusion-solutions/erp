@@ -86,6 +86,9 @@ META defineOrderInvoice(sign, stockProp)
     CONSTRAINT sku(UserInvoiceDetail detail) != sku(orderDetail(detail))
         CHECKED BY orderDetail[UserInvoiceDetail]
             MESSAGE 'Товар в заказе и накладной должны соответствовать друг другу';
+            
+    WHEN SESSION CHANGED(sku(UserInvoiceDetail detail)) AND NOT CHANGED(orderDetail(detail)) DO
+        orderDetail(detail) <- NULL;
 
 
     GROUP order 'Информация о заказе' : public;
