@@ -6,86 +6,39 @@ NAMESPACE Sale;
 
 
 useRetailPrice 'Использовать розничные цены в ТТН (отгрузка на магазин)' = DATA BOOLEAN (Operation);
-useVAT 'Печатать НДС в ТТН (отгрузка на магазин)' = DATA BOOLEAN (Operation);
-useEmptyVAT 'Печатать пустой НДС в ТТН (отгрузка на магазин)' = DATA BOOLEAN (Operation);
+useRetailPrice 'Использовать розн. цены в ТТН' (InvoiceDetail invoiceDetail) = useRetailPrice(operation(invoice(invoiceDetail)));
 
 EXTEND FORM operation
     PROPERTIES(o) useRetailPrice
-    PROPERTIES(o) SHOWIF useRetailPrice(o) useVAT, useEmptyVAT
 ;
 DESIGN operation {
     consignment {
         MOVE PROPERTY(useRetailPrice(o));
-        MOVE PROPERTY(useVAT(o));
-        MOVE PROPERTY(useEmptyVAT(o));
-    }
-}
-@defineDocumentInterfaceProperty (invoice, useRetailPrice, 'Использовать розн. цены в ТТН');
-@deriveDocumentOperationProperty(UserInvoice, useRetailPrice);
-@defineDocumentInterfaceProperty (invoice, useVAT, 'Печатать НДС в ТТН');
-@deriveDocumentOperationProperty(UserInvoice, useVAT);
-
-@defineDocumentInterfaceProperty (invoice, useEmptyVAT, 'Печатать пустой НДС в ТТН');
-@deriveDocumentOperationProperty(UserInvoice, useEmptyVAT);
-
-EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundPurchaseRetail(i) useRetailPrice
-    PROPERTIES(i) SHOWIF useRetailPrice(i) BACKGROUND backgroundPurchaseRetail(i)
-                  useVAT, useEmptyVAT[Invoice]                 
-;
-DESIGN userInvoice {
-    headerCreateSalePricing  {
-        MOVE PROPERTY(useRetailPrice(i));
-        MOVE PROPERTY(useVAT(i));
-        MOVE PROPERTY(useEmptyVAT(i));
     }
 }
          
-overPrice(InvoiceDetail d) += WHEN useRetailPrice(d)
-    THEN 
-        IF createPurchasePricing(invoice(d)) 
-            THEN
-                IF useVAT(d) THEN NUMERIC[16,4](round((purchaseRetailPrice(d) (-) purchaseRetailVATSum(d)/quantity[ConsignmentDetail](d)), currency(d))) 
-                ELSE purchaseRetailPrice(d)
-            ELSE
-                IF useVAT(d) THEN NUMERIC[16,4](round((retailPrice(d) (-) retailVATSum(d)/quantity[ConsignmentDetail](d)), currency(d))) 
-                ELSE retailPrice(d);
+dataPrice(InvoiceDetail d) += WHEN useRetailPrice(d) THEN 
+                                    IF createPurchasePricing(d) 
+                                        THEN purchaseRetailPrice(d)
+                                        ELSE retailPrice(d);
                          
-overSum(InvoiceDetail d) += WHEN  useRetailPrice(d)
-    THEN 
-        IF createPurchasePricing(invoice(d)) 
-            THEN
-                IF useVAT(d) THEN NUMERIC[18,4](round(overPrice(d), currency(d)) * purchasePricingQuantity(d))
-                ELSE purchaseRetailSum(d)
-            ELSE
-                IF useVAT(d) THEN NUMERIC[18,4](round(overPrice(d), currency(d)) * pricingQuantity(d))
-                ELSE retailSum(d);  
-                  
-useEmptyVAT (InvoiceDetail d) += WHEN useRetailPrice(d) THEN  useEmptyVAT(d);
-                     
-overVat(InvoiceDetail d) += WHEN useRetailPrice(d) 
-    THEN 
-        IF createPurchasePricing(invoice(d)) 
-            THEN
-                IF useVAT(d) THEN valuePurchaseRetailVAT(d)
-                ELSE  0.0 IF d IS InvoiceDetail
-            ELSE
-                IF useVAT(d) THEN valueRetailVAT(d)
-                ELSE  0.0 IF d IS InvoiceDetail;
+dataSum(InvoiceDetail d) += WHEN useRetailPrice(d) THEN 
+                                    IF createPurchasePricing(d) 
+                                        THEN purchaseRetailSum(d) (-) purchaseRetailVATSum(d)
+                                        ELSE retailSum(d) (-) retailVATSum(d);
+
+dataVAT(InvoiceDetail d) += WHEN useRetailPrice(d) THEN 
+                                    IF createPurchasePricing(d) 
+                                        THEN valuePurchaseRetailVAT(d)
+                                        ELSE valueRetailVAT(d);
                 
-overSumVAT(InvoiceDetail d) += WHEN useRetailPrice(d) 
-    THEN 
-        IF createPurchasePricing(invoice(d)) 
-            THEN
-                IF useVAT(d) THEN purchaseRetailSum(d) (-) overSum(d)  
-                ELSE 0.0 IF d IS InvoiceDetail
-            ELSE
-                IF useVAT(d) THEN retailSum(d) (-) overSum(d)  
-                ELSE 0.0 IF d IS InvoiceDetail;
+dataSumVAT(InvoiceDetail d) += WHEN useRetailPrice(d) THEN 
+                                    IF createPurchasePricing(d) 
+                                        THEN purchaseRetailVATSum(d)  
+                                        ELSE retailVATSum(d);  
         
-overSumInvoice(InvoiceDetail d) += WHEN useRetailPrice(d) 
-        THEN 
-            IF createPurchasePricing(invoice(d)) 
-                THEN purchaseRetailSum(d)
-                ELSE retailSum(d);
+dataSumInvoice(InvoiceDetail d) += WHEN useRetailPrice(d) THEN 
+                                    IF createPurchasePricing(d) 
+                                        THEN purchaseRetailSum(d)
+                                        ELSE retailSum(d);
 

@@ -5,58 +5,12 @@ REQUIRE PricingPurchaseReturn, PurchaseSaleReturnInvoice, ConsignmentBy;
 NAMESPACE PurchaseReturn;
 
 useRetailPrice 'Использовать розничные цены в ТТН (возврат из магазина)' = DATA BOOLEAN (Purchase.Operation);
-useVAT 'Печатать НДС в ТТН (возврат из магазина)' = DATA BOOLEAN (Purchase.Operation);
-useEmptyVAT 'Печатать пустой НДС в ТТН (возврат из магазина)' = DATA BOOLEAN (Purchase.Operation);
+useRetailPrice 'Использовать розн. цены в ТТН' (InvoiceDetail invoiceDetail) = useRetailPrice(operation(invoice(invoiceDetail)));
 
-EXTEND FORM Purchase.operation
-    PROPERTIES(o) useRetailPrice
-    PROPERTIES(o) SHOWIF useRetailPrice(o) useVAT
-;
-DESIGN Purchase.operation {
-    saleReturnContainer {
-        MOVE PROPERTY(useRetailPrice(o)) AFTER PROPERTY(nameSaleReturnOperation(o));
-        MOVE PROPERTY(useVAT(o)) AFTER PROPERTY(useRetailPrice(o));
-    }
-}
-@defineDocumentInterfaceProperty (invoice, useRetailPrice, 'Использовать розн. цены в ТТН');
-@deriveDocumentOperationProperty(UserInvoice, useRetailPrice);
-@defineDocumentInterfaceProperty (invoice, useVAT, 'Печатать НДС в ТТН');
-@deriveDocumentOperationProperty(UserInvoice, useVAT);
-
-@defineDocumentInterfaceProperty (invoice, useEmptyVAT, 'Печатать пустой НДС в ТТН');
-@deriveDocumentOperationProperty(UserInvoice, useEmptyVAT);
-
-EXTEND FORM userInvoice
-    PROPERTIES(i) BACKGROUND backgroundRetail(i) useRetailPrice
-    PROPERTIES(i) SHOWIF useRetailPrice(i) BACKGROUND backgroundRetail(i)
-                  useVAT, useEmptyVAT                 
-;
-DESIGN userInvoice {
-    headerCreatePricing  {
-        MOVE PROPERTY(useRetailPrice(i));
-        MOVE PROPERTY(useVAT(i));
-        MOVE PROPERTY(useEmptyVAT(i));
-    }
-}
-
-overPrice(InvoiceDetail d) += WHEN useRetailPrice(d) 
-    THEN    
-        IF useVAT(d) THEN NUMERIC[16,4](round0((retailPrice(d) (-) retailVATSum(d)/quantity[ConsignmentDetail](d)))) 
-        ELSE retailPrice(d);         
-overSum(InvoiceDetail d) += WHEN  useRetailPrice(d)
-    THEN 
-        IF useVAT(d) THEN NUMERIC[18,4](round0(overPrice(d))*pricingQuantity(d))
-        ELSE retailSum(d);    
+dataPrice(InvoiceDetail d) += WHEN useRetailPrice(d) THEN retailPrice(d);         
+dataSum(InvoiceDetail d) += WHEN useRetailPrice(d) THEN retailSum(d) (-) retailVATSum(d);    
           
-useEmptyVAT (InvoiceDetail d) += WHEN useRetailPrice(d) THEN  useEmptyVAT(d);            
-            
-overVat(InvoiceDetail d) += WHEN useRetailPrice(d) 
-    THEN 
-        IF useVAT(d) THEN valueRetailVAT(d)
-        ELSE  0.0 IF d IS InvoiceDetail;
-overSumVAT(InvoiceDetail d) += WHEN useRetailPrice(d) 
-    THEN 
-        IF useVAT(d) THEN retailSum(d) (-) overSum(d)  
-        ELSE 0.0 IF d IS InvoiceDetail; 
-overSumInvoice(InvoiceDetail d) += WHEN useRetailPrice(d) 
-    THEN retailSum(d);
+dataVAT(InvoiceDetail d) += WHEN useRetailPrice(d) THEN valueRetailVAT(d);
+dataSumVAT(InvoiceDetail d) += WHEN useRetailPrice(d) THEN retailVATSum(d);
+
+dataSumInvoice(InvoiceDetail d) += WHEN useRetailPrice(d) THEN retailSum(d);

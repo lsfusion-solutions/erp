@@ -473,44 +473,37 @@ dataQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDet
 overQuantity 'Количество' (d) = ABSTRACT NUMERIC[16,5] (ConsignmentDetail);
 quantity 'Количество' (ConsignmentDetail d) = OVERRIDE dataQuantity(d), overQuantity(d);
 
-invoicePrice 'Цена с НДС' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-isInvoicePrice 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT BOOLEAN (ConsignmentDetail);
+// Базовые абстрактные свойства
+dataPrice 'Цена' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (ConsignmentDetail);
+dataInvoicePrice 'Цена с НДС' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (ConsignmentDetail);
 
-dataPrice 'Цена' (d) = ABSTRACT NUMERIC[16,4] (ConsignmentDetail);
-overPrice 'Цена' (d) = ABSTRACT CASE NUMERIC[16,4] (ConsignmentDetail);
-price 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d) 
-                                                        THEN (OVERRIDE dataPrice(d), overPrice(d))
-                                                        ELSE invoicePrice(d);
+dataSum 'Стоимость' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4] (ConsignmentDetail);
+dataVAT 'НДС, %' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[10,5] (ConsignmentDetail);
+dataSumVAT 'Сумма НДС' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4] (ConsignmentDetail);
+dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4] (ConsignmentDetail);
 
-invoiceSum 'Сумма с НДС' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-dataSum 'Стоимость' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-overSum 'Стоимость' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
-sum 'Стоимость' (ConsignmentDetail d) = IF NOT isInvoicePrice(d)  
-                                                            THEN (OVERRIDE dataSum(d), overSum(d))
-                                                            ELSE invoiceSum(d);
+// С учетом "переключений"
 
-notVat 'Не надо проставлять ставку' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);  
-useEmptyVAT 'Печатать пустой строку с НДС' (d) = ABSTRACT CASE BOOLEAN (ConsignmentDetail);     
-                                                                                                                       
-useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d);                                                                                                                       
-                                                              
-dataVat 'НДС, %' (d) = ABSTRACT NUMERIC[10,5] (ConsignmentDetail);
-overVat 'НДС, %' (d) = ABSTRACT CASE NUMERIC[10,5] (ConsignmentDetail);
-vat 'НДС, %' (ConsignmentDetail d) = (OVERRIDE dataVat(d),
-                                                             overVat(d)) IF NOT notVat(d);
+isInvoicePrice 'Печатать в качестве цены цену с НДС' (d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);
+price 'Цена' (ConsignmentDetail d) = IF NOT isInvoicePrice(d) THEN dataPrice(d) ELSE dataInvoicePrice(d);
 
-dataSumVAT 'Сумма НДС' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
+switchSum (ConsignmentDetail d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);
+sum 'Стоимость' (ConsignmentDetail d) = IF NOT switchSum(d) THEN dataSum(d) ELSE dataSumInvoice(d);
+
+useEmptyVAT 'Нет НДС' (d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);     
+useEmptyVATConsignmentDetail = GROUP SUM 1 IF useEmptyVAT(ConsignmentDetail d) BY consignment(d); // todo : рефакторить
+vat 'НДС, %' (ConsignmentDetail d) = dataVAT(d) IF NOT useEmptyVAT(d);
+sumVAT 'Сумма НДС' (ConsignmentDetail d) = dataSumVAT(d) IF NOT useEmptyVAT(d);
+
+switchSumInvoice (ConsignmentDetail d) = ABSTRACT CASE OVERRIDE FIRST BOOLEAN (ConsignmentDetail);
+sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = IF NOT switchSumInvoice(d) THEN dataSumInvoice(d) ELSE dataSum(d);
+
+// ---------------- Устаревшие свойства, которые надо вырезать
+
 overSumVAT 'Сумма НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
-sumVAT 'Сумма НДС' (ConsignmentDetail d) = OVERRIDE dataSumVAT(d),
-                                                                   overSumVAT(d);
 
-dataSumInvoice 'Сумма с НДС' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-overSumInvoice 'Сумма с НДС' (d) = ABSTRACT CASE NUMERIC[18,4] (ConsignmentDetail);
-over2SumInvoice 'Сумма с НДС' (d) = ABSTRACT NUMERIC[18,4] (ConsignmentDetail);
-sumInvoice 'Сумма с НДС' (ConsignmentDetail d) = OVERRIDE dataSumInvoice(d),
-                                                                        overSumInvoice(d),
-                                                                        over2SumInvoice(d);
-                                                                         
+// ---------------- Остальные свойства                                                                        
+                                                                        
 dataPackQuantity 'Количество грузовых мест' (d) = ABSTRACT NUMERIC[21,6] (ConsignmentDetail);
 overPackQuantity 'Количество грузовых мест' (d) = ABSTRACT CASE NUMERIC[21,6] (ConsignmentDetail);
 roundPack 'Количество знаков после запятой для грузовых мест' = ABSTRACT INTEGER (ConsignmentDetail);

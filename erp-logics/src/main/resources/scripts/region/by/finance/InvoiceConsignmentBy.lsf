@@ -7,23 +7,7 @@ NAMESPACE Invoice;
 
 @defineConsignmentAbstractHeader(invoice);
 @implementConsignmentHeader (Invoice);
-//@implementConsignmentDetail (invoice){
-//    @implementConsignmentDetail (invoice, sku, batch){
-//    @implementConsignmentDetailInner (invoice, Invoice, sku, batch){
-//    EXTEND CLASS InvoiceDetail : ConsignmentDetail;
-//    
-//    index[ConsignmentDetail] (InvoiceDetail d) += index (d);
-//    consignment (InvoiceDetail d) += invoice (d);
-//    skip (InvoiceDetail d) += skipConsignment (d);
-//    sku[ConsignmentDetail] (InvoiceDetail d) += sku (d);
-//    batch[ConsignmentDetail] (InvoiceDetail d) += batch (d);    
-//    quantity[ConsignmentDetail] (InvoiceDetail d) += quantity (d);
-//
-//    dataPackQuantity (InvoiceDetail d) += packQuantity (d);
-//    dataGrossWeight (InvoiceDetail d) += sumGrossWeight (d);
-//};
-//};
-//};
+
 
 EXTEND CLASS InvoiceDetail : ConsignmentDetail;
 
@@ -45,15 +29,14 @@ customerStock[Consignment] (Invoice consignment) += toStock(consignment);
 
 dataCurrency (Invoice consignment) += currency(consignment);
 
-dataPrice (InvoiceDetail detail) += price(detail);
-invoicePrice[ConsignmentDetail](InvoiceDetail detail) += invoicePrice(detail);
-invoiceSum[ConsignmentDetail](InvoiceDetail detail) += invoiceSum(detail);
+dataPrice (InvoiceDetail detail) += WHEN detail IS InvoiceDetail THEN price(detail);
+dataInvoicePrice[ConsignmentDetail](InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN invoicePrice(detail);
 
-dataSum (InvoiceDetail detail) += sum(detail);
-dataVat (InvoiceDetail detail) += valueVAT(detail);
+dataSum (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN sum(detail);
+dataVAT (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN valueVAT(detail);
 
-dataSumVAT (InvoiceDetail detail) += VATSum(detail);
-dataSumInvoice (InvoiceDetail detail) += invoiceSum(detail);
+dataSumVAT (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN VATSum(detail);
+dataSumInvoice (InvoiceDetail detail) +=  WHEN detail IS InvoiceDetail THEN invoiceSum(detail);
 dataNote[ConsignmentDetail] (InvoiceDetail detail) += note(detail);
 extraDescription[ConsignmentDetail] (InvoiceDetail detail) += extraDescription(detail);
 

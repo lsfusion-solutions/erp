@@ -142,29 +142,18 @@ supplierStock (Order consignment) += componentsStock(consignment);
 overPackQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Order);
 packQuantity (Order c) += WHEN c IS Order THEN overPackQuantity(c);
 
-//overFullNameSupplierConsignment(consignment) += VARISTRING[150](CONCAT ' ', fullNameComponentsLegalEntityStockOrder(consignment), addressComponentsLegalEntityStockOrder(consignment));
-//overAddressSupplierConsignment(consignment) += VARISTRING[150](CONCAT ' ', nameComponentsStockOrder(consignment), addressComponentsStockOrder(consignment));
-
-
 dataCustomer (Order consignment) += productsLegalEntityStock(consignment);
 customerStock (Order consignment) += productsStock(consignment);
-//overFullNameCustomerConsignment(consignment) += VARISTRING[150](CONCAT ' ', fullNameProductsLegalEntityStockOrder(consignment), addressProductsLegalEntityStockOrder(consignment));
-//overAddressCustomerConsignment(consignment) += VARISTRING[150](CONCAT ' ', nameProductsStockOrder(consignment), addressProductsStockOrder(consignment));
 
 dataCurrency (Order consignment) += currencyProduct(consignment);
 
-dataPrice (ProductDetail detail) += price(detail);
-invoicePrice(ProductDetail detail) += price(detail);
-invoiceSum(ProductDetail detail) += outputProductsSum(detail);
+dataPrice (ProductDetail detail) += WHEN detail IS ProductDetail THEN price(detail);
 
-dataSum (ProductDetail detail) += outputProductsSum(detail);
-dataVat (ProductDetail detail) += valueVAT(detail);
+dataSum (ProductDetail detail) += WHEN detail IS ProductDetail THEN outputProductsSum(detail);
+dataVAT (ProductDetail detail) += WHEN detail IS ProductDetail THEN valueVAT(detail);
 
-dataSumVAT (ProductDetail detail) += retVATSum(detail);
-dataSumInvoice (ProductDetail detail) += outputProductsSum(detail);
-//noteConsignmentDetail (detail) += noteProductDetail(detail);
-//extraDescriptionConsignmentDetail (detail) += extraDescriptionProductDetail(detail);
-
+dataSumVAT (ProductDetail detail) += WHEN detail IS ProductDetail THEN retVATSum(detail);
+dataSumInvoice (ProductDetail detail) += WHEN detail IS ProductDetail THEN outputProductsSum(detail);
 
 overShipmentBase(Order order) <- (CONCAT '', 'Заказ № ', seriesNumber(order)+' ', 'от '+toDateDDMMYYYY(date(order))) WHEN CHANGED(date(order)) OR CHANGED(seriesNumber(order));
 

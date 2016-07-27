@@ -1,0 +1,92 @@
+MODULE PurchaseShipmentSonsignmentBy;
+
+REQUIRE PurchaseShipment, ConsignmentBy;
+
+NAMESPACE Purchase;
+
+//-- ТТН-1 по поставке
+
+@defineConsignmentHeader (shipment);
+@implementConsignmentHeaderData (Shipment);
+
+dataSupplier (Shipment c) += supplier(c);
+supplierStock[Consignment] (Shipment c) += supplierStock(c);
+
+dataCustomer (Shipment c) += customer(c);
+customerStock[Consignment] (Shipment c) += customerStock(c);
+
+dataCurrency(Shipment c) += currency(c);
+
+overPackQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Shipment);
+packQuantity (Shipment c) += WHEN c IS Shipment THEN overPackQuantity(c);
+
+EXTEND CLASS ShipmentDetail : ConsignmentDetail;
+
+consignment (ShipmentDetail d) += shipment (d);
+dataSku[ConsignmentDetail] (ShipmentDetail d) += sku (d);
+index[ConsignmentDetail] (ShipmentDetail d) += index (d);
+batch[ConsignmentDetail] (ShipmentDetail d) += batch (d);
+dataQuantity[ConsignmentDetail] (ShipmentDetail d) += quantity (d);
+
+dataGrossWeight (ShipmentDetail d) += sumGrossWeight[UserInvoiceDetail](invoiceDetail(d));
+
+dataPrice (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN price(d);
+dataSum (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(d);
+useEmptyVAT(ShipmentDetail d) += WHEN d IS ShipmentDetail THEN TRUE;
+dataSumInvoice (ShipmentDetail d) += WHEN d IS ShipmentDetail THEN sum(d);
+
+@deriveConsignmentPropertyALL(shipment, supplierStock);
+                                                                                  
+EXTEND FORM  shipments
+    PROPERTIES (s)  FORCE PANEL printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB,
+                     printAttach, printSimpleHorizontal, editAttributes,
+                     printSimpleVertical, printSimpleAttach,
+                     printVertical, printHorizontal, printAttachXLS
+;
+
+DESIGN shipments {
+    printTab {
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(s)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(s));
+                MOVE PROPERTY(printSimpleHorizontal(s));
+                MOVE PROPERTY(printSimpleAttach(s));
+            }
+        }
+        NEW consignmentRow2 {
+            align = LEADING;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(s));
+            MOVE PROPERTY(printVerticalAB(s));
+            MOVE PROPERTY(printHorizontalA(s));
+            MOVE PROPERTY(printVerticalB(s));
+            MOVE PROPERTY(printHorizontalB(s));
+            MOVE PROPERTY(printAttach(s));      
+            MOVE PROPERTY(printVertical(s));  
+            MOVE PROPERTY(printHorizontal(s));
+        }
+        NEW export {
+            type = CONTAINERH;
+            caption = 'Экспорт';  
+            MOVE PROPERTY(printAttachXLS(s));                
+        }
+    }
+}
