@@ -332,8 +332,8 @@ nameCompanyA 'Организация' (LedgerPriceListType type, Sku sku, Stock 
 
 @defineLastLedgerPriceListTypeSkuStock(fromDateTime, 'Дата/время с');
 
-price (PriceListLedger ledger, LedgerPriceListType type, Batch batch) = 
-    price(ledger, type) IF in(ledger, batch); 
+price (PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch) = 
+    price(ledger, type, stock) IF in(ledger, batch); 
 
 active(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch) =
     active(ledger, type, stock) AND in(ledger, batch);
@@ -344,34 +344,34 @@ active(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batc
 activePriceListLedgerB (type, batch, stock, dateTime) =
     GROUP LAST PriceListLedger ledger
         BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn
-        ORDER fromDateTime(ledger), ledger
-        WHERE active(ledger, type, stock, batch) AND price(ledger, type, batch) AND
-              fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
+        ORDER fromDateTime(ledger, type, stock), ledger
+        WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
+              fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn;
 
 activePriceListLedgerA  (type, batch, stock, dateTime) =
     GROUP LAST PriceListLedger ledger
         BY LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTimeIn
-        ORDER fromDateTime(ledger), ledger
-        WHERE active(ledger, type, stock, batch) AND price(ledger, type, batch) AND
-              fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
+        ORDER fromDateTime(ledger, type, stock), ledger
+        WHERE active(ledger, type, stock, batch) AND price(ledger, type, stock, batch) AND
+              fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn;
 
 priceB 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
     IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
-        [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
-               BY type, batch, Stock stock, DATETIME dateTimeIn
-               ORDER fromDateTime(ledger), ledger
+        [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch)
+               BY type, batch, stock, DATETIME dateTimeIn
+               ORDER fromDateTime(ledger, type, stock), ledger
                WHERE active(ledger, type, stock, batch) AND
-                     fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn] (type, batch, stock, dateTime)
+                     fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn] (type, batch, stock, dateTime)
     ELSE
         priceB(type, sku(batch), stock, dateTime) COMPLEX;
 
 priceA 'Цена' (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
     IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
-        [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
-               BY type, batch, Stock stock, DATETIME dateTimeIn
-               ORDER fromDateTime(ledger), ledger
+        [= GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch)
+               BY type, batch, stock, DATETIME dateTimeIn
+               ORDER fromDateTime(ledger, type, stock), ledger
                WHERE active(ledger, type, stock, batch) AND
-                     fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn] (type, batch, stock, dateTime)
+                     fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn] (type, batch, stock, dateTime)
     ELSE
         priceA(type, sku(batch), stock, dateTime) COMPLEX;
 
@@ -383,27 +383,27 @@ prevPriceA 'Цена (пред.)' (LedgerPriceListType type, Sku sku, Stock stoc
 
 //-- Только от партии
 priceBBatch 'Цена' (type, batch, stock, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
-        BY type, batch, Stock stock, DATETIME dateTimeIn
-        ORDER fromDateTime(ledger), ledger
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch)
+        BY type, batch, stock, DATETIME dateTimeIn
+        ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND
-            fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
+            fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
 priceABatch 'Цена' (type, batch, stock, dateTime) =
-    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Batch batch)
-        BY type, batch, Stock stock, DATETIME dateTimeIn
-        ORDER fromDateTime(ledger), ledger
+    GROUP LAST price(PriceListLedger ledger, LedgerPriceListType type, Stock stock, Batch batch)
+        BY type, batch, stock, DATETIME dateTimeIn
+        ORDER fromDateTime(ledger, type, stock), ledger
         WHERE active(ledger, type, stock, batch) AND
-            fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn COMPLEX;
+            fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
 META defineLastLedgerPriceListTypeBatchStock(property, caption)
     property##B caption (LedgerPriceListType type, Batch batch, Stock stock, DATETIME dateTime) =
         IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
             [= GROUP LAST property(PriceListLedger ledger) IF in(ledger, Batch batch)
                    BY LedgerPriceListType type, batch, Stock stock, DATETIME dateTimeIn
-                   ORDER fromDateTime(ledger), ledger
+                   ORDER fromDateTime(ledger, type, stock), ledger
                    WHERE active(ledger, type, stock, batch) AND
-                        fromDateTime(ledger) < dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn](type, batch, stock, dateTime)
+                        fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn](type, batch, stock, dateTime)
         ELSE
             property##B(type, sku(batch), stock, dateTime) COMPLEX;
 
@@ -411,9 +411,9 @@ META defineLastLedgerPriceListTypeBatchStock(property, caption)
         IF batch(type, stock) AND NOT skipBatch(type, stock, batch) THEN
             [= GROUP LAST property(PriceListLedger ledger) IF in(ledger, Batch batch)
                    BY LedgerPriceListType type, batch, Stock stock, DATETIME dateTimeIn
-                   ORDER fromDateTime(ledger), ledger
+                   ORDER fromDateTime(ledger, type, stock), ledger
                    WHERE active(ledger, type, stock, batch) AND
-                        fromDateTime(ledger) <= dateTimeIn AND NOT toDateTime(ledger) < dateTimeIn](type, batch, stock, dateTime)
+                        fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn](type, batch, stock, dateTime)
         ELSE
             property##A(type, sku(batch), stock, dateTime) COMPLEX;
 END
