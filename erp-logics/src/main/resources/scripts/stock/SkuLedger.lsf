@@ -198,16 +198,11 @@ quantity 'Кол-во' (InSkuLedger ledger) = MULTI quantity[Batch](ledger),
 
 quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (OutFIFOSkuLedger) PERSISTENT;
 
-quantityOut 'Кол-во' (OutFIFOSkuLedger ledger) = MULTI quantity(ledger) PERSISTENT;
-
-quantity 'Кол-во' (DataSkuLedger ledger) = MULTI quantity[InLIFOSkuLedger](ledger),
-                                                quantity[OutFIFOSkuLedger](ledger) PERSISTENT;
-
 quantity 'Кол-во' (SkuLedger ledger) = MULTI quantity[InSkuLedger](ledger),
-                                            quantityOut(ledger) PERSISTENT;
+                                            quantity[OutFIFOSkuLedger](ledger) PERSISTENT;
 
 signedQuantity 'Кол-во' (SkuLedger ledger) = MULTI quantity[InSkuLedger](ledger),
-                                                  -quantityOut(ledger) PERSISTENT;
+                                                  -quantity[OutFIFOSkuLedger](ledger) PERSISTENT;
 
 // -------------------------------------------- Расчет себестоимости -------------------------------------- //
 
@@ -293,11 +288,11 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     countLedger 'Кол-во движений'###caption (sku, stock) =
         GROUP SUM 1 IF signedQuantityActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT TABLE extraSkuStock;
 
-    quantityInActive(InSkuLedger ledger) = quantity(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+    quantityInActive(InSkuLedger ledger) = quantity(ledger) IF active(ledger);
     quantityIn (sku, stock, date) =
         GROUP SUM quantityInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
 
-    quantityOutActive(OutFIFOSkuLedger ledger) = quantityOut(ledger) IF isPosted[SkuLedger](ledger) AND NOT skip(ledger) PERSISTENT;
+    quantityOutActive(OutFIFOSkuLedger ledger) = quantity(ledger) IF active(ledger);
     quantityOut (sku, stock, date) =
         GROUP SUM quantityOutActive(OutFIFOSkuLedger ledger) BY sku[SkuLedger](ledger), stock[SkuLedger](ledger), date[SkuLedger](ledger) PERSISTENT;
 
@@ -476,11 +471,11 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     currentSum 'Сумма остатка'###caption (sku, stock) =
         GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT;
     //-- по дате
-    sumInActive(InSkuLedger ledger) = sum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT @@denomination;
+    sumInActive(InSkuLedger ledger) = sum(ledger) IF active(ledger);
     sumIn (sku, stock, date) =
         GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
 
-    sumOutActive(OutSkuLedger ledger)  = sum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT @@denomination;
+    sumOutActive(OutSkuLedger ledger)  = sum(ledger) IF active(ledger);
     sumOut (sku, stock, date) =
         GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
 
@@ -519,21 +514,6 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     sumRecASku 'Сумма на конец дня (всего)' (group, stock, date) =
         GROUP SUM sumA (Sku sku, Stock stock, DATE date) IF isParent(Group group, sku)
         BY group, stock, date;
-
-    //-- по дате/время
-    sumIn (sku, stock, dateTime) =
-        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), dateTime(ledger);
-
-    sumOut (sku, stock, dateTime) =
-        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), dateTime(ledger);
-
-    sum (Sku sku, Stock stock, DATETIME dateTime) = sumIn(sku, stock, dateTime)
-                                                         (+)
-                                                         sumOut(sku, stock, dateTime);
-
-    signedSum (Sku sku, Stock stock, DATETIME dateTime) = sumIn(sku, stock, dateTime)
-                                                               (-)
-                                                               sumOut(sku, stock, dateTime);
 
     // без учета текущей даты/времени
     sumB 'Сумма (до)'###caption (Sku sku, Stock stock, DATETIME dateTime) = currentSum(sku, stock)
