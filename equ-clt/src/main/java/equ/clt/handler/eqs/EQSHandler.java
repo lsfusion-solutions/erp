@@ -92,7 +92,7 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                     ps.setString(4, trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
                     ps.setString(6, trim(item.idItemGroup, 10)); //grp, Код группы товара
-                    ps.setInt(7, item.splitItem ? 16 : 0); //flags, Флаги - бит 0 - разрешение дробного количества
+                    ps.setInt(7, item.splitItem ? 1 : 0); //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
                     ps.setDate(9, item.expiryDate); //exp, Срок годности
                     ps.setInt(10, item.splitItem ? 1 : 0); //weight, Флаг весового товара (1 – весовой, 0 – нет)
@@ -283,8 +283,8 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
 
                         Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
 
-                        boolean isSale = flags < 32;
-                        boolean isReturn = flags >= 32;
+                        boolean isSale = flags % 2 == 1;
+                        boolean isReturn = flags % 2 == 1;
                         Date dateReceipt = rs.getDate(12); // r.date
                         Time timeReceipt = rs.getTime(12); //r.date
 
