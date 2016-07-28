@@ -644,6 +644,9 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
             String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
             String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
+            Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
+            Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
+            Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
 
             if(connectionString == null) {
                 processTransactionLogger.error("No exportConnectionString in ukm4MySQLSettings found");
@@ -654,7 +657,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 try {
                     conn = DriverManager.getConnection(connectionString, user, password);
 
-                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap);
+                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments);
 
                 } finally {
                     if (conn != null)
@@ -665,6 +668,20 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             throw Throwables.propagate(e);
         }
         return salesBatch;
+    }
+
+    private Set<Integer> parsePayments(String payments) {
+        Set<Integer> paymentsSet = new HashSet<>();
+        try {
+            if (payments != null && !payments.isEmpty()) {
+                for (String payment : payments.split(",")) {
+                    paymentsSet.add(Integer.parseInt(payment.trim()));
+                }
+            }
+        } catch (Exception e) {
+            sendSalesLogger.error("UKM: invalid payment settings: " + payments);
+        }
+        return paymentsSet;
     }
 
 //    private Map<Integer, String> readLoginMap(Connection conn) throws SQLException {
@@ -691,7 +708,8 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 //        return loginMap;
 //    }
 
-    private Map<String, Map<Integer, BigDecimal>> readPaymentMap(Connection conn) throws SQLException {
+    private Map<String, Map<Integer, BigDecimal>> readPaymentMap(Connection conn, Set<Integer> cashPayments,
+                                                                 Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
 
         Map<String, Map<Integer, BigDecimal>> paymentMap = new HashMap<>();
 
@@ -706,9 +724,13 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 Integer cash_id = rs.getInt(1); //cash_id
                 Integer idReceipt = rs.getInt(2); //receipt_header
                 String key = String.valueOf(cash_id) + "/" + String.valueOf(idReceipt);
-                Integer paymentType = rs.getInt(3); //payment_id
-                if(paymentType.equals(2)/* || paymentType.equals(3)*/)
-                    paymentType = 1; //1 и 2 - безнал, 3 - сертификат
+                Integer paymentType = rs.getInt(3);//payment_id
+                if(cashPayments.contains(paymentType)) //нал
+                    paymentType = 0;
+                else if(cardPayments.contains(paymentType)) //безнал
+                    paymentType = 1;
+                else if(giftCardPayments.contains(paymentType)) //сертификат
+                    paymentType = 2;
                 BigDecimal amount = rs.getBigDecimal(4);
                 Integer receiptType = rs.getInt(5); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
@@ -730,13 +752,14 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
         return paymentMap;
     }
 
-    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap) throws SQLException {
+    private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
+                                                     Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
         Set<Pair<Integer, Integer>> receiptSet = new HashSet<>();
-        Map<String, Map<Integer, BigDecimal>> paymentMap = readPaymentMap(conn);
+        Map<String, Map<Integer, BigDecimal>> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments);
 
         if(paymentMap != null) {
             Statement statement = null;
@@ -789,7 +812,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
                         BigDecimal sumCash = paymentEntry.get(0) == null ? null : denominateDivideType2(paymentEntry.get(0), denominationStage);
                         BigDecimal sumCard = paymentEntry.get(1) == null ? null : denominateDivideType2(paymentEntry.get(1), denominationStage);
-                        BigDecimal sumGiftCard = paymentEntry.get(3) == null ? null : denominateDivideType2(paymentEntry.get(3), denominationStage);
+                        BigDecimal sumGiftCard = paymentEntry.get(2) == null ? null : denominateDivideType2(paymentEntry.get(2), denominationStage);
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                         BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
