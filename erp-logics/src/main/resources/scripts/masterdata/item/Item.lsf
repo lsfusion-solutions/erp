@@ -146,6 +146,22 @@ TABLE itemGroupItem (ItemGroup, Item);
 
 isParent (ItemGroup itemGroup, Item item) = isParent(itemGroup(item), itemGroup) PERSISTENT;
 
+
+checkIsLeafItemGroup 'Товар должен быть привязан к нижнему узлу основного классификатора' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES checkIsLeafItemGroup ()
+;
+DESIGN options {
+    items {
+        MOVE PROPERTY (checkIsLeafItemGroup ());
+    }
+}
+
+CONSTRAINT CHANGED(itemGroup(Item i)) AND itemGroup(i) AND NOT isLeaf(itemGroup(i)) AND checkIsLeafItemGroup()
+    CHECKED BY itemGroup[Item]
+    MESSAGE 'Запрещено привязывать товар к промежуточным узлам основного классификатора';
+
 // ------------------ Дополнительные группы --------------- //
 TABLE customGroupTypeItem(CustomGroupType, Item);
 TABLE sessionCustomGroupTypeItem(Session, CustomGroupType, Item);
