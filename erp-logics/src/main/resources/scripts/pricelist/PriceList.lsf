@@ -1332,38 +1332,6 @@ equals (PriceList priceList1, PriceList priceList2) = company(priceList1) == com
                                                     countSku (priceList1, priceList2) == countSkus(priceList2) AND
                                                     priceList1 != priceList2;
 
-//FORM test 'Test'
-//    OBJECTS p1 = PriceList FIXED PANEL
-//    PROPERTIES(p1) READONLY numberPriceList
-//
-//    OBJECTS d1 = PriceListDetail
-//    PROPERTIES(d1) READONLY idBarcodeSkuPriceListDetail, nameSkuPriceListDetail
-//    FILTERS priceListPriceListDetail(d1) == p1
-//
-//    OBJECTS p2 = PriceList FIXED PANEL
-//    PROPERTIES(p2) READONLY numberPriceList
-//
-//    OBJECTS d2 = PriceListDetail
-//    PROPERTIES(d2) READONLY idBarcodeSkuPriceListDetail, nameSkuPriceListDetail
-//    FILTERS priceListPriceListDetail(d2) == p2
-//;
-//
-//DESIGN test {
-//    NEW topContainer{
-//        type = CONTAINERH;
-//        NEW leftContainer{
-//            type = CONTAINERV;
-//            ADD p1.box;
-//            ADD d1.box;
-//        }
-//        NEW rightContainer{
-//            type = CONTAINERV;
-//            ADD p2.box;
-//            ADD d2.box;
-//        }
-//    }
-//    ADD functions.box;
-//}
 
 findEqualsPriceLists 'Найти дубликаты прайсов'() = ACTION {
     FOR UserPriceList p1 IS UserPriceList NOINLINE DO {
@@ -1381,3 +1349,11 @@ EXTEND FORM migrationData
 ;
 
 countPriceListDetail 'Кол-во строк' (sku, priceList) = GROUP SUM 1 BY sku(PriceListDetail d), priceList(d);
+
+priceLimit 'Максимально допустимая цена' = DATA NUMERIC[16,4] (Currency);
+
+EXTEND FORM currency
+    PROPERTIES priceLimit(c);
+    
+CONSTRAINT SETCHANGED (price(PriceListDetail d, DataPriceListType t) OR isPosted(d)) AND isPosted(d) AND price(d,t) > priceLimit(currency(t))
+    MESSAGE 'Превышена максимально допустимая для валюты цена ';
