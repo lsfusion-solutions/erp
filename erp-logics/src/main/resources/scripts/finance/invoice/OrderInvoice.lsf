@@ -526,12 +526,17 @@ META defineOrderInvoice(sign, stockProp)
         }                 
     } IN orders;
 
+    defaultOrderDetail (batch, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
+        BY batch(detail), userInvoice;
+
     defaultOrderDetail (sku, userInvoice) = GROUP MAX OrderDetail detail IF include(order(detail), UserInvoice userInvoice) 
         BY sku(detail), userInvoice;
+    
+    defaultOrderDetail(UserInvoiceDetail detail) = OVERRIDE defaultOrderDetail(sku(detail), userInvoice(detail)), defaultOrderDetail(batch(detail), userInvoice(detail));
 
     connectOrder 'Привязать строку накладной к заказу'(UserInvoiceDetail detail) = ACTION {
-        orderDetail(detail) <- defaultOrderDetail(sku(detail), userInvoice(detail)) 
-                                                    WHERE defaultOrderDetail(sku(detail), userInvoice(detail));
+        orderDetail(detail) <- defaultOrderDetail(detail) 
+                                                    WHERE defaultOrderDetail(detail);
     } SHORTCUT descriptionOrder[UserInvoiceDetail];
 
     connectOrder 'Привязать все строки накладной к заказам'(UserInvoice userInvoice) = ACTION {
@@ -541,7 +546,7 @@ META defineOrderInvoice(sign, stockProp)
     } SHORTCUT descriptionOrder[UserInvoiceDetail];
 
     WHEN SESSION FORMS userInvoice
-        CHANGED(sku(UserInvoiceDetail detail)) AND NOT orderDetail(detail)       
+        (CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(batch(detail))) AND NOT orderDetail(detail)       
             DO EXEC connectOrder(detail);
 
     EXTEND FORM userInvoice
