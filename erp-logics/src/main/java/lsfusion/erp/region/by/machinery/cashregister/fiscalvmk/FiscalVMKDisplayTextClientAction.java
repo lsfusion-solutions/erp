@@ -26,11 +26,15 @@ public class FiscalVMKDisplayTextClientAction implements ClientAction {
         FiscalVMK.init();
         try {
 
-            FiscalVMK.openPort(ip, comPort, baudRate);
+            if(FiscalVMK.safeOpenPort(ip, comPort, baudRate, 5000)) {
 
-            FiscalVMK.displayText(receiptItem);
+                FiscalVMK.displayText(receiptItem);
 
-            FiscalVMK.closePort();
+                FiscalVMK.closePort();
+
+            } else {
+                return "VMK: open port timeout";
+            }
 
         } catch (RuntimeException e) {
             return FiscalVMK.getError(true);

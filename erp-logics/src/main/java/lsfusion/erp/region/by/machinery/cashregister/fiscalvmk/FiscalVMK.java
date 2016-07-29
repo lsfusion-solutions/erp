@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
+import com.google.common.base.Throwables;
 import com.sun.jna.Library;
 import com.sun.jna.Native;
 import com.sun.jna.ptr.ByReference;
@@ -12,6 +13,7 @@ import java.math.BigInteger;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 import java.util.Calendar;
+import java.util.concurrent.*;
 
 import static lsfusion.base.BaseUtils.trimToEmpty;
 
@@ -114,6 +116,30 @@ public class FiscalVMK {
         logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
         if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
             checkErrors(true);
+    }
+
+    public static boolean safeOpenPort(final String ip, final int comPort, final int baudRate, final int timeout) {
+        try {
+            final Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable() {
+                @Override
+                public Boolean call() throws Exception {
+                    logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
+                    if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
+                        checkErrors(true);
+                    return true;
+                }
+            });
+
+            boolean result = false;
+            try {
+                result = future.get(timeout, TimeUnit.MILLISECONDS);
+            } catch (TimeoutException e) {
+                future.cancel(true);
+            }
+            return result;
+        } catch (InterruptedException | ExecutionException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     public static void closePort() {
