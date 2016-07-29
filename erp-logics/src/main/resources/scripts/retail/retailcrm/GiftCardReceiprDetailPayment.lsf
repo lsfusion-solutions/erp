@@ -1,0 +1,14 @@
+MODULE GiftCardReceiprDetailPayment;
+
+REQUIRE ZReportReceiptDetailPayment, GiftCard;
+
+NAMESPACE GiftCard;
+
+sumCard 'Сумма (карточка)' (giftCard) = GROUP SUM sum(sold(GiftCard giftCard), Payment payment) IF 
+    paymentMeans(paymentType(payment))==  PaymentMeans.paymentMeansCard AND isPosted[ReceiptDetail](sold(giftCard)) BY giftCard;
+
+EXTEND FORM giftCards
+    PROPERTIES(g) READONLY sumCard
+;
+
+sumGiftCardReceiptDetail 'Сумма (сертификат) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansGiftCard, range);

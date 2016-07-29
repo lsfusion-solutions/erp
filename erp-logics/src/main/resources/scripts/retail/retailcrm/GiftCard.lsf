@@ -1,6 +1,6 @@
 MODULE GiftCard;
 
-REQUIRE ZReportReceiptDetailPayment;
+REQUIRE ZReport;
 
 //подарочные сертификаты
 CLASS GiftCard 'Подарочный сертификат';
@@ -34,6 +34,7 @@ description 'Описание' = ABSTRACT VARSTRING[15] (GiftCardLedger);
 
 //продажа подарочных сертификатов
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, GiftCardLedger;
+TABLE receiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail);
 
 @defineExternalizable(receiptGiftCardSaleDetail, VARSTRING[100]);
 
@@ -181,6 +182,7 @@ NAVIGATOR {
 
 //использование подарочных сертификатов при оплате
 CLASS PaymentGiftCard : Payment, GiftCardLedger;
+TABLE paymentGiftCard(PaymentGiftCard);
 
 @defineExternalizable(paymentGiftCard, VARSTRING[100]);
 
@@ -228,14 +230,11 @@ isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) <
 nameDepartmentStoreUsed 'Где использован' (GiftCard giftCard) = nameDepartmentStore(receipt(used(giftCard)));
 numberReceiptUsed 'Номер чека' (GiftCard giftCard) = number(receipt(sold(giftCard)));
 
-sumCard 'Сумма (карточка)' (giftCard) = GROUP SUM sum(sold(GiftCard giftCard), Payment payment) IF 
-    paymentMeans(paymentType(payment))==  PaymentMeans.paymentMeansCard AND isPosted[ReceiptDetail](sold(giftCard)) BY giftCard;
 
 EXTEND FORM giftCards
     PROPERTIES(g) READONLY BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
                   numberReceiptUsed 
     PROPERTIES(g) READONLY AFTER expiryDays(g) expireDate  
-    PROPERTIES(g) READONLY sumCard    
 
     FILTERGROUP filter1
         FILTER 'Просрочен' expireDate(g) < currentDate() 'F10'
@@ -257,10 +256,6 @@ sumGiftCardPayment 'Сумма продаж (сертификат)' (receipt) = 
 sumGiftCardPayment 'Сумма продаж (сертификат)' (zReport) = GROUP SUM sumGiftCardPayment(Receipt r) BY zReport(r) IN documentSum;
 
 minGiftCardPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansGiftCard;
-
-sumGiftCardReceiptDetail 'Сумма (сертификат) по товарам' (ZReport zReport, Range range) = sumSkuReceiptDetail(zReport, PaymentMeans.paymentMeansGiftCard, range);
-sumGiftCardReceiptDetail 'Сумма (сертификат) по товарам' (zReport) = GROUP SUM  sumGiftCardReceiptDetail(ZReport zReport, Range range) BY zReport;
-sumVATGiftCardReceiptDetail 'Сумма НДС (сертификат) по товарам' (ZReport zReport, Range range) = sumVATSkuReceiptDetail(zReport, PaymentMeans.paymentMeansGiftCard, range);
 
 EXTEND FORM zReports
     PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumGiftCardPayment
