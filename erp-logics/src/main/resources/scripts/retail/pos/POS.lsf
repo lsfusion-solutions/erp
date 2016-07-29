@@ -15,19 +15,20 @@ fiscalSkip 'Отключить ФР' (receipt) = DATA BOOLEAN (Receipt);
 
 EXTEND FORM zReports PROPERTIES(b) fiscalSkip;
 
-POSPriceListType (Receipt receipt) = OVERRIDE priceListType(groupCashRegister(receipt)), priceListType(discountCard(receipt));
+POSPriceListType (Receipt receipt) = OVERRIDE priceListType(groupCashRegister(receipt)), priceListType(discountCard(receipt)) COMPLEX;
 
 overPrice = ABSTRACT NUMERIC[16,4] (Sku, Receipt, DATETIME); 
 
+usePriceList (Receipt receipt) = usePriceList(groupCashRegister(receipt)) COMPLEX; 
 POSPrice 'Цена в кассе' (Sku sku, Receipt receipt, DATETIME dateTime) =
-    IF usePriceList(groupCashRegister(receipt)) THEN
+    IF usePriceList(receipt) THEN
         priceA(POSPriceListType(receipt), sku, departmentStore(receipt), dateTime)
     ELSE
         overPrice(sku, receipt, dateTime); 
 currentPOSPrice 'Текущая цена' (Sku sku, Receipt receipt) = POSPrice(sku, receipt, currentDateTime());
 
 POSPrice 'Цена в кассе' (Batch batch, Receipt receipt, DATETIME dateTime) =
-    IF usePriceList(groupCashRegister(receipt)) THEN
+    IF usePriceList(receipt) THEN
         priceA(POSPriceListType(receipt), batch, departmentStore(receipt), dateTime)
     ELSE
         overPrice(sku(batch), receipt, dateTime); 
