@@ -104,7 +104,21 @@ replace(Sku s, Batch b) += ACTION { sku(UserRepricingDetail detail) <- s WHERE b
 @defineMovementPriceSku(userRepricingDetail, departmentStore); //-- показываем по нажатию правой клавиши  изменение цены товара
 
 // Автоматическое заполнение цен до
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, supplierPricingPriceListType, cur, sku, departmentStore);
+curPrice (UserRepricingDetail detail)  <- round2(IF batch(detail)
+
+                                                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                               batch(detail),
+                                                                                               departmentStore(detail),
+                                                                                               dateTime(detail))
+                                                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                                                                                             sku(detail),
+                                                                                             departmentStore(detail),
+                                                                                             dateTime(detail)))
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(departmentStore(detail)) OR
+                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                                                     CHANGED(batch(detail));
+
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch(userRepricing, retailPricingPriceListType, curRetail, sku, departmentStore);
 
 // Автоматическое проставление надбавок
@@ -351,7 +365,7 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
     CONFIRM 'Может, Вы, хотите пересчитать и цены (после)?';
     
     FOR userRepricing(UserRepricingDetail d) == repricing DO {
-        curPrice(d) <- IF batch(d)                                          
+        curPrice(d) <- round2(IF batch(d)                                          
                 THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
                             batch(d),
                             departmentStore(d),
@@ -359,7 +373,7 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
                 ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
                             sku(d),
                             departmentStore(d),
-                            dateTime(d));
+                            dateTime(d)));
                                                            
 //        curVATUserRepricingDetail(d) <- curVATUserRepricingDetail(d);
 //        valueCurVATUserRepricingDetail(d) <- valueCurVATUserRepricingDetail(d);
