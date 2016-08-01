@@ -27,10 +27,10 @@ backgroundGreenTea 'Зеленого чая' (Batch b) = RGB(204,255,204) IF b I
 backgroundSky 'Небесный' (Batch b) = RGB(127,199,255) IF b IS Batch;  
 
 dbalanceB 'Остаток на начало дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
-dcostB 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dVATSumB 'НДС поставщика на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dSumB 'Сумма поставщика с НДС на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-daccountSumB 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dcostB 'Себестоимость на начало дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
+dVATSumB 'НДС поставщика на начало дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
+dSumB 'Сумма поставщика с НДС на начало дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
+daccountSumB 'Учетная сумма на начало дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
         
 dquantitySold 'Продано за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);  
 dcostSumSold 'Себестоимость проданного за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);   
@@ -42,10 +42,10 @@ dsumSold 'Продано за интервал (сумма)' = DATA LOCAL NUMERI
 daverageMarkupSold 'Средний процент надбавки' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);  
    
 dbalanceA 'Остаток на конец дня' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);
-dcostA 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dVATSumA 'НДС поставщика на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-dSumA 'Сумма поставщика с НДС на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
-daccountSumA 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);                     
+dcostA 'Себестоимость на конец дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
+dVATSumA 'НДС поставщика на конец дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
+dSumA 'Сумма поставщика с НДС на конец дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);
+daccountSumA 'Учетная сумма на конец дня' = DATA LOCAL NUMERIC[18,4] (Batch, Stock);                     
     
 dmoved = DATA LOCAL BOOLEAN (Batch, Stock);
 
@@ -54,13 +54,13 @@ overFillPropertyFromTo = ACTION ABSTRACT LIST (DATE, DATE);
 fillPropertyBatchStockFromTo 'Заполнить данные'(DATE dFrom,DATE dTo)  = ACTION {
     dbalanceB(Batch bb,Stock sts) <- balanceB(bb,sts,dFrom) 
         WHERE inBatchReport(sts);
-    dcostB(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceB(bb,sts) * cost(bb)) 
+    dcostB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * cost(bb)) 
         WHERE inBatchReport(sts); 
-    dVATSumB(Batch bb, Stock sts) <- NUMERIC[15,3](dcostB(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
+    dVATSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
         WHERE inBatchReport(sts);
-    dSumB(Batch bb, Stock sts) <- NUMERIC[15,3](dcostB(bb, sts) (+) dVATSumB(bb, sts))
+    dSumB(Batch bb, Stock sts) <- NUMERIC[18,4](dcostB(bb, sts) (+) dVATSumB(bb, sts))
         WHERE inBatchReport(sts);         
-    daccountSumB(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceB(bb,sts) * accountPriceB(bb,sts,dFrom)) 
+    daccountSumB(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceB(bb,sts) * accountPriceB(bb,sts,dFrom)) 
         WHERE inBatchReport(sts); 
 //--            
     dquantitySold(Batch bb,Stock sts) <- quantitySold(bb,sts,dFrom,dTo) 
@@ -80,13 +80,13 @@ fillPropertyBatchStockFromTo 'Заполнить данные'(DATE dFrom,DATE d
     //--
     dbalanceA(Batch bb,Stock sts) <- balanceA(bb,sts,dTo) 
         WHERE inBatchReport(sts);
-    dcostA(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceA(bb,sts) * cost(bb))
+    dcostA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * cost(bb))
         WHERE inBatchReport(sts); 
-    dVATSumA(Batch bb, Stock sts) <- NUMERIC[15,3](dcostA(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
+    dVATSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) * valueVAT(sts, bb, date(bb)) / 100.0)
         WHERE inBatchReport(sts);
-    dSumA(Batch bb, Stock sts) <- NUMERIC[15,3](dcostA(bb, sts) (+) dVATSumA(bb, sts))
+    dSumA(Batch bb, Stock sts) <- NUMERIC[18,4](dcostA(bb, sts) (+) dVATSumA(bb, sts))
         WHERE inBatchReport(sts);           
-    daccountSumA(Batch bb,Stock sts) <- NUMERIC[15,3](dbalanceA(bb,sts) * accountPriceA(bb,sts,dTo))
+    daccountSumA(Batch bb,Stock sts) <- NUMERIC[18,4](dbalanceA(bb,sts) * accountPriceA(bb,sts,dTo))
         WHERE inBatchReport(sts); 
     
     dmoved(Batch bb, Stock sts) <- dquantitySold(bb,sts) OR dbalanceB(bb,sts) OR dbalanceA(bb,sts);
