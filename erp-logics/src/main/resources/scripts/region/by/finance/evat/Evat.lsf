@@ -1,0 +1,231 @@
+MODULE EVAT;
+
+REQUIRE System, Finance, LegalEntityBy, Item;
+
+CLASS EVAT 'Электронный счёт-фактура';
+TABLE evat(EVAT);
+
+CLASS EVATStatus 'Статус' {
+    original 'Исходный',
+    fixed 'Исправленный',
+    additional 'Дополнительный',
+    additionalNoRef 'Дополнительный без ссылки',
+    cancelled 'Отменённый'
+}
+
+FORM evatStatuses
+    OBJECTS e = EVATStatus
+    PROPERTIES(e) READONLY staticCaption
+    DIALOG EVATStatus OBJECT e
+;
+
+generateXMLAction 'Сгенерировать XML' = ACTION CUSTOM 'lsfusion.erp.region.by.finance.evat.GenerateXMLEVATActionProperty'(EVAT); 
+
+formExportFile() = DATA LOCAL CUSTOMFILE ();
+
+status = DATA EVATStatus (EVAT);
+nameStatus 'Статус' (EVAT evat) = staticName(status(evat));
+captionStatus 'Статус' (EVAT evat) = staticCaption(status(evat));
+
+number 'Номер' = DATA VARSTRING[100] (EVAT);
+invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
+date 'Дата совершения операции' = DATA DATE (EVAT);
+dateCancelled 'Дата аннулирования' = DATA DATE (EVAT);
+sendToRecipient 'Отобразить получателю' = DATA BOOLEAN (EVAT);
+numberInvoicePrincipal 'Номер ЭСЧФ комитента' = DATA VARSTRING[100] (EVAT);
+dateInvoicePrincipal 'Дата ЭСЧФ комитента' = DATA DATE (EVAT);
+numberInvoiceVendor 'Номер ЭСЧФ продавца' = DATA VARSTRING[100] (EVAT);
+dateInvoiceVendor 'Дата ЭСЧФ продавца' = DATA DATE (EVAT);
+
+declarationSupplier 'Регистрационный номер выпуска товаров поставщика' = DATA VARSTRING[100] (EVAT);
+dateReleaseSupplier 'Дата выпуска товаров поставщика' = DATA DATE (EVAT);
+dateActualExportSupplier 'Дата разрешения на убытие товаров поставщика' = DATA DATE (EVAT);
+numberTaxesSupplier 'Номер заявления о ввозе товаров и уплате косвенных налогов поставщика' = DATA VARSTRING[100] (EVAT);
+dateTaxesSupplier 'Дата заявления поставщика о ввозе товаров и уплате косвенных налогов поставщика' = DATA DATE (EVAT);
+
+declarationCustomer 'Регистрационный номер выпуска товаров получателя' = DATA VARSTRING[100] (EVAT);
+numberTaxesCustomer 'Номер заявления о ввозе товаров и уплате косвенных налогов получателя' = DATA VARSTRING[100] (EVAT);
+dateTaxesCustomer 'Дата заявления получателя о ввозе товаров и уплате косвенных налогов получателя' = DATA DATE (EVAT);
+dateImportCustomer 'Дата ввоза товаров получателя' = DATA DATE (EVAT);
+
+numberContract 'Номер договора на поставку товара' = DATA VARSTRING[100] (EVAT);
+dateContract 'Дата договора на поставку товара' = DATA DATE (EVAT);
+codeDocType 'Код вида документа' = DATA VARSTRING[100] (EVAT);
+valueDocType 'Название вида документа' = DATA VARSTRING[100] (EVAT);
+blankCodeDoc 'Код типа бланка' = DATA VARSTRING[100] (EVAT);
+seriesDoc 'Серия' = DATA VARSTRING[100] (EVAT);
+numberDoc 'Номер' = DATA VARSTRING[100] (EVAT);
+descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[100] (EVAT);
+unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
+
+//Поставщик
+supplier 'Поставщик' = DATA LegalEntity(EVAT);
+nameSupplier 'Поставщик' (EVAT evat) = name(supplier(evat));
+idSupplier 'Поставщик' (EVAT evat) = id(supplier(evat));
+addressSupplier 'Адрес поставщика' (EVAT evat) = address(supplier(evat));
+dependentPersonSupplier 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);
+residentsOfOffshoreSupplier ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
+specialDealGoodsSupplier 'Спец. сделка' = DATA BOOLEAN (EVAT);
+bigCompanySupplier 'Крупный плательщик (поставщик)' = DATA BOOLEAN (EVAT);
+countryCodeSupplier 'Код страны поставщика' (EVAT evat) = sid(country(supplier(evat)));
+unpSupplier 'УНП поставщика' (EVAT evat) = UNP(supplier(evat));
+
+//Получатель
+customer 'Получатель' = DATA LegalEntity(EVAT);
+nameCustomer 'Получатель' (EVAT evat) = name(customer(evat));
+idCustomer 'Получатель' (EVAT evat) = id(customer(evat));
+addressCustomer 'Адрес получателя' (EVAT evat) = address(customer(evat));
+dependentPersonCustomer 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);
+residentsOfOffshoreCustomer ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
+specialDealGoodsCustomer 'Спец. сделка' = DATA BOOLEAN (EVAT);
+bigCompanyCustomer 'Крупный плательщик (получатель)' = DATA BOOLEAN (EVAT);
+countryCodeCustomer 'Код страны получателя' (EVAT evat) = sid(country(customer(evat)));
+unpCustomer 'УНП получателя' (EVAT evat) = UNP(customer(evat));
+
+//Товар
+in 'Вкл.' = DATA BOOLEAN (Item, EVAT);
+codeOced 'Код видов деятельности (ОКЭД)' = DATA VARSTRING[100] (Item, EVAT);
+quantity 'Количество' = DATA NUMERIC[16,5] (Item, EVAT); 
+price 'Цена' = DATA NUMERIC[16,5] (Item, EVAT);
+sum 'Сумма' = DATA NUMERIC[16,5] (Item, EVAT);
+exciseSum 'Сумма акциза' = DATA NUMERIC[16,5] (Item, EVAT);
+vatRate 'Ставка НДС' = DATA NUMERIC[16,5] (Item, EVAT);
+vatSum 'Сумма НДС' = DATA NUMERIC[16,5] (Item, EVAT);
+sumWithVAT 'Сумма с НДС' = DATA NUMERIC[16,5] (Item, EVAT);
+
+CLASS DescriptionType 'Описание' {
+    deductionInFull 'Вычет в полном объеме',
+    vatExcemption 'Освобождение от НДС',
+    outsideRB 'Реализация за пределами Республики Беларусь',
+    importVAT 'Ввозной НДС'
+}
+
+FORM descriptionTypes
+    OBJECTS d = DescriptionType
+    PROPERTIES(d) READONLY staticCaption
+    DIALOG DescriptionType OBJECT d
+;
+
+descriptionType = DATA DescriptionType(Item, EVAT);
+nameDescriptionType (Item item, EVAT evat) = staticName(descriptionType(item, evat));
+captionDescriptionType 'Описание' (Item item, EVAT evat)= staticCaption(descriptionType(item, evat));
+
+totalSum 'Сумма (всего)'(EVAT evat) = GROUP SUM sum(Item item, EVAT evat) BY evat;  
+totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP SUM exciseSum(Item item, EVAT evat) BY evat;  
+totalVATSum 'Сумма НДС (всего)' (EVAT evat) = GROUP SUM vatSum(Item item, EVAT evat) BY evat;  
+totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumWithVAT(Item item, EVAT evat) BY evat;  
+
+FORM evat 'Электронный счёт-фактура'
+    OBJECTS e=EVAT FIXED PANEL
+    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, 
+                  bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
+                  bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
+                  numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
+                  dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
+                  nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
+                  numberContract, dateContract, codeDocType, valueDocType, blankCodeDoc, seriesDoc, numberDoc, descriptionDoc, 
+                  totalSum, totalExciseSum, totalVATSum, totalSumWithVAT, generateXMLAction
+    OBJECTS s=LegalEntity FIXED PANEL, c=LegalEntity FIXED PANEL
+    PROPERTIES(s) id, UNP, address
+    PROPERTIES(c) id, UNP, address
+    OBJECTS i = Item
+    PROPERTIES(i,e) in, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(i) name
+    FILTERS s==supplier(e), c==customer(e)
+    FILTERGROUP filters FILTER 'Отмеченные товары' in(i, e) 'F9' DEFAULT
+    EDIT EVAT OBJECT e
+;
+
+DESIGN evat {
+    MOVE PROPERTY(captionStatus(e));
+    MOVE PROPERTY(nameSupplier(e));
+    MOVE PROPERTY(nameCustomer(e));
+    MOVE PROPERTY(generateXMLAction(e));
+    NEW top {
+        type = TABBED;
+        fill = 1;
+        NEW general {
+            caption = 'Общие';
+            fill = 1;
+            MOVE PROPERTY(unpSender(e));
+            MOVE PROPERTY(number(e));
+            MOVE PROPERTY(date(e));
+            MOVE PROPERTY(invoice(e));
+            MOVE PROPERTY(dateCancelled(e));
+            MOVE PROPERTY(sendToRecipient(e));
+        }
+        NEW supplier{
+            caption = 'Поставщик';
+            fill = 1;
+            MOVE s.box;   
+            MOVE PROPERTY(bigCompanySupplier(e));
+            MOVE PROPERTY(dependentPersonSupplier(e));
+            MOVE PROPERTY(residentsOfOffshoreSupplier(e));
+            MOVE PROPERTY(specialDealGoodsSupplier(e));
+            MOVE PROPERTY(numberInvoicePrincipal(e));
+            MOVE PROPERTY(dateInvoicePrincipal(e));
+            MOVE PROPERTY(numberInvoiceVendor(e));
+            MOVE PROPERTY(dateInvoiceVendor(e));
+            MOVE PROPERTY(declarationSupplier(e));
+            MOVE PROPERTY(dateReleaseSupplier(e));
+            MOVE PROPERTY(dateActualExportSupplier(e));
+            MOVE PROPERTY(numberTaxesSupplier(e));
+            MOVE PROPERTY(dateTaxesSupplier(e));
+        }
+        NEW customer{
+            caption = 'Получатель';
+            fill = 1;
+            MOVE c.box;   
+            MOVE PROPERTY(bigCompanyCustomer(e));
+            MOVE PROPERTY(dependentPersonCustomer(e));
+            MOVE PROPERTY(residentsOfOffshoreCustomer(e));
+            MOVE PROPERTY(specialDealGoodsCustomer(e));
+            MOVE PROPERTY(declarationCustomer(e));
+            MOVE PROPERTY(numberTaxesCustomer(e));
+            MOVE PROPERTY(dateTaxesCustomer(e));
+            MOVE PROPERTY(dateImportCustomer(e));
+        }           
+        NEW deliveryCondition {
+            caption = 'Условия поставки';
+            fill = 1;
+            MOVE PROPERTY(numberContract(e));
+            MOVE PROPERTY(dateContract(e));
+            MOVE PROPERTY(codeDocType(e));
+            MOVE PROPERTY(valueDocType(e));
+            MOVE PROPERTY(blankCodeDoc(e));
+            MOVE PROPERTY(seriesDoc(e));
+            MOVE PROPERTY(numberDoc(e));
+            MOVE PROPERTY(descriptionDoc(e));
+        }
+        NEW roster {
+            caption = 'Данные по товарам';
+            fill = 1;
+            MOVE PROPERTY(totalSum(e));
+            MOVE PROPERTY(totalExciseSum(e));
+            MOVE PROPERTY(totalVATSum(e));
+            MOVE PROPERTY(totalSumWithVAT(e));            
+            MOVE i.box;
+        }
+    }
+
+    MOVE functions.box;
+}
+
+FORM evats 'Электронные счета-фактуры'
+    OBJECTS e = EVAT
+    PROPERTIES(e) READONLY captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
+                  dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
+                  nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum, totalExciseSum, totalVATSum, totalSumWithVAT, generateXMLAction
+    PROPERTIES(e) ADDFORM, EDITFORM, DELETE
+    OBJECTS i = Item
+    PROPERTIES(i,e) in, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(i) name
+    FILTERGROUP filters FILTER 'Отмеченные товары' in(i, e) 'F9' DEFAULT
+    DIALOG EVAT OBJECT e
+;
+
+NAVIGATOR {
+    financeNavigator {
+        ADD evats;
+    }
+}
