@@ -311,13 +311,13 @@ public class FiscalVMK {
         }
     }
     
-    public static boolean discountItem(ReceiptItem item, String denominationStage) {
+    public static boolean discountItem(ReceiptItem item, String numberDiscountCard, String denominationStage) {
         double discSum = makeDenomination(BigDecimal.valueOf(item.articleDiscSum - item.bonusPaid), denominationStage); //articleDiscSum is negative, bonusPaid is positive
         if (discSum == 0)
             return true;
         boolean discount = discSum < 0;
         try {
-            logAction("vmk_discount", discount ? "Скидка" : "Наценка", Math.abs(discSum), discount ? 3 : 1);
+            logAction("vmk_discount", discount ? "Скидка" : "Наценка", Math.abs(discSum), discount ? 3 : 1, "discountCard: " + numberDiscountCard);
             return vmkDLL.vmk.vmk_discount(getBytes(discount ? "Скидка" : "Наценка"), Math.abs(discSum), discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;
@@ -330,7 +330,7 @@ public class FiscalVMK {
         boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
         try {
             double sumDisc =  makeDenomination(receipt.sumDisc.abs(), denominationStage);
-            logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", sumDisc, discount ? 3 : 1);
+            logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", sumDisc, discount ? 3 : 1, "discountCard: " + receipt.numberDiscountCard);
             return vmkDLL.vmk.vmk_discountpi(getBytes(discount ? "Скидка" : "Наценка"), sumDisc, discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
             return false;

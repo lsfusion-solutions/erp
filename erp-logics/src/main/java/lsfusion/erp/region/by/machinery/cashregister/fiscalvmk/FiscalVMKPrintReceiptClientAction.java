@@ -103,7 +103,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         for (ReceiptItem item : receiptList) {
             if (!FiscalVMK.registerItem(item, denominationStage))
                 return null;
-            if (!FiscalVMK.discountItem(item, denominationStage))
+            if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard, denominationStage))
                 return null;
             DecimalFormat formatter = getFormatter(denominationStage);
             if(item.bonusSum != 0)
