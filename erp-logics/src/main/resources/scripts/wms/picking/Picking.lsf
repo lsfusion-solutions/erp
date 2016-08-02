@@ -4,7 +4,6 @@ REQUIRE System,
         Historizable,
         Numerator,
         Document,
-        Bin,
         Stock,
         PickingOrder,
         OrderLedger,
@@ -32,7 +31,6 @@ overNumber = ABSTRACT VARSTRING[28](Picking);
 @showDocumentInterfaceDetailBatch(picking);
 @defineDocumentInterfaceDetailBatch(picking, batch);
 replace(Sku s, Batch b) += ACTION { sku(UserPickingDetail detail) <- s WHERE batch(detail) == b;}
-@defineDocumentInterfaceDetailBin(picking);
 
 @defineDocumentInterfaceHeaderQuantity(picking);
 
@@ -91,7 +89,7 @@ FORM userPicking 'Комплектация'
     OBJECTS d = UserPickingDetail
     PROPERTIES (d) index
     PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku,
-                   nameBatch ON CHANGE changeBatch(d), nameBin
+                   nameBatch ON CHANGE changeBatch(d)
     PROPERTIES (d) quantity, ADDOBJ, DELETESESSION
 
     PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingDetail,
@@ -152,7 +150,7 @@ addUserPicking 'Добавить' = ACTION ADDFORM UserPicking;
 edit 'Редактировать' (userPicking) = ACTION EDITFORM UserPicking;
 edit(UserPicking picking) += ACTION edit(picking);
 
-
+overCopy = ACTION ABSTRACT (UserPickingDetail, PickingDetail);
 copy 'Копировать'(Picking picking) = ACTION NEWSESSION {
     FOR ADDOBJ o = UserPicking DO {
 
@@ -161,11 +159,11 @@ copy 'Копировать'(Picking picking) = ACTION NEWSESSION {
 
         FOR picking(PickingDetail pickingDetail) == picking DO {
             FOR ADDOBJ d=UserPickingDetail DO {
-                ASSIGN userPicking(d) <- o;
-                ASSIGN sku(d) <- sku(pickingDetail);
-                ASSIGN quantity(d) <- quantity(pickingDetail);
-                ASSIGN batch(d) <- batch(pickingDetail);
-                ASSIGN bin(d) <- bin(pickingDetail);
+                userPicking(d) <- o;
+                sku(d) <- sku(pickingDetail);
+                quantity(d) <- quantity(pickingDetail);
+                batch(d) <- batch(pickingDetail);
+                overCopy(d, pickingDetail);
             }
         }
 
@@ -191,7 +189,7 @@ FORM pickings 'Комплектации'
 
     OBJECTS d=PickingDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, nameBin, quantity
+                   nameBatch, quantity
     FILTERS picking(d) == o
     DIALOG Picking OBJECT o
 ;
@@ -286,6 +284,7 @@ pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255]
 //                                         IN order
                                          MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
 
+overFillUserPicking = ACTION ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
 moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = ACTION NEWSESSION {
     FOR ADDOBJ p = UserPicking DO {
         pickingOrder(p) <- pickingOrder;
@@ -295,7 +294,7 @@ moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = ACTION N
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
             batch(d) <- batch(detail);
-            bin(d) <- bin(detail);
+            overFillUserPicking(d, detail);
         }
         FORM userPicking OBJECTS o=p MANAGESESSION DOCKEDMODAL;
     }
@@ -326,7 +325,7 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
 
     OBJECTS d=PickingOrderDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, nameBin, quantity
+                   nameBatch, quantity
     FILTERS pickingOrder(d) == o,
             stock(o) == s
 ;
@@ -342,7 +341,7 @@ fillUserPickingOrder 'Заполнить на основании заказа н
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
             batch(d) <- batch(detail);
-            bin(d) <- bin(detail);
+            overFillUserPicking(d, detail);
         }
     }
 } IN pickingOrders;
@@ -464,7 +463,7 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = AC
                 sku(d) <- sku(detail);
                 quantity(d) <- quantity(detail);
                 batch(d) <- batch(detail);
-                bin(d) <- bin(detail);
+                overFillUserPicking(d, detail);
             }
         }
     }
@@ -486,7 +485,7 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = 
                 sku(d) <- sku(detail);
                 quantity(d) <- quantity(detail);
                 batch(d) <- batch(detail);
-                bin(d) <- bin(detail);
+                overFillUserPicking(d, detail);
             }
             FORM userPicking OBJECTS o=p MANAGESESSION DOCKEDMODAL;
         }
@@ -534,7 +533,7 @@ FORM printPickingOrder 'Заказ на комплектацию'
 
     OBJECTS d=PickingOrderDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, nameBin, quantity
+                   nameBatch, quantity
     FILTERS pickingOrder(d) == o
 ;
 

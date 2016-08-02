@@ -1,6 +1,6 @@
 MODULE OrderPickingOrder;
 
-REQUIRE Picking, Order, Bin;
+REQUIRE Picking, Order;
 
 NAMESPACE Order;
 
@@ -121,9 +121,6 @@ sku(OrderPickingOrderDetail detail) += sku(detail);
 quantity(OrderPickingOrderDetail detail) += quantity(orderDetail(detail));
 batch(OrderPickingOrderDetail detail) += batch(orderDetail(detail));
 
-@defineDocumentAbstractDetailBin(order);
-bin(OrderPickingOrderDetail detail) += bin(orderDetail(detail));
-
 order(OrderPickingOrder pickingOrder) += order(pickingOrder);
 edit(OrderPickingOrder pickingOrder) += ACTION EXEC edit(order(pickingOrder));
 
@@ -185,17 +182,6 @@ META defineOrderPickingOrder(sign, stockProp)
             }
         }
     }
-    //-------------------- Ячейки -----------------------//
-
-    @defineDocumentInterfaceDetailBin(order);
-    bin[Order.OrderDetail](OrderDetail d) += bin(d);
-    
-    @extendFormInterfaceDetailBin(order, o, , quantity);
-
-    @deriveDocumentOperationProperty(UserOrder, showBin);
-    
-    countUserOrderDetail 'Кол-во строк' = GROUP SUM 1 BY userOrder(UserOrderDetail d), bin(d);
-    quantity 'Кол-во' = GROUP SUM quantity(UserOrderDetail d) BY userOrder(d), bin(d);
 
     // ---------------------- Разбиение заказа на несколько комплектаций ------------------- //
     
@@ -206,64 +192,8 @@ META defineOrderPickingOrder(sign, stockProp)
     pickingNumber(UserOrderDetail d) += pickingNumber(d);
     pickingNumber[Order.OrderDetail] (OrderDetail d) += pickingNumber(d);
     
-    pickingNumber 'Номер комплектации' = GROUP MAX pickingNumber(UserOrderDetail d) BY userOrder(d), bin(d);
-    changePickingNumber(UserOrder o, Bin b) = ACTION {
-        REQUEST INTEGER INPUT;
-        pickingNumber(UserOrderDetail d) <- requestedInteger() WHERE userOrder(d) == o AND bin(d) == b;
-    }
-
     pickingOrderCount 'Кол-во комплектаций' = DATA INTEGER (UserOrder);
     pickingOrderCount(UserOrder o) <- 1 WHEN SET(o IS UserOrder);
-
-    calculatePickingNumber(UserOrder o) = ACTION {
-        LOCAL countDetail = INTEGER();
-        countDetail() <- (countUserOrderDetail(o) + pickingOrderCount(o) - 1) / pickingOrderCount(o);
-
-        LOCAL pickingNumber = INTEGER();
-        pickingNumber() <- 1;
-        
-        LOCAL quantity = INTEGER();
-        quantity() <- 0;
-        
-        FOR countUserOrderDetail(o, Bin b) ORDER name(b) DO {
-            pickingNumber(UserOrderDetail d) <- pickingNumber() WHERE userOrder(d) == o AND bin(d) == b;
-            quantity() <- quantity() + countUserOrderDetail(o, b);
-            IF (quantity() >= countDetail()) THEN {
-                quantity() <- 0;
-                pickingNumber() <- pickingNumber() + 1;
-            }
-        }   
-    }
-
-    changePickingOrderCount(UserOrder o) = ACTION {
-        REQUEST INTEGER INPUT;
-        pickingOrderCount(o) <- MIN (MAX requestedInteger(), 1), 5;
-        calculatePickingNumber(o);
-    }
-    
-    EXTEND FORM userOrder
-        PROPERTIES(o) SHOWIF createPickingOrder(o) pickingOrderCount ON CHANGE changePickingOrderCount(o) 
-        
-        PROPERTIES(d) SHOWIF createPickingOrder(o) pickingNumber AFTER nameBin(d)
-         
-        OBJECTS bn = Bin FIXED GRID
-        PROPERTIES(bn) READONLY SHOWIF createPickingOrder(o)    name 
-        PROPERTIES(o, bn) SHOWIF createPickingOrder(o)          countUserOrderDetail READONLY, quantity READONLY, 
-                                                                         pickingNumber ON CHANGE changePickingNumber(o, bn)
-        FILTERS quantity(o, bn)
-        ORDER BY name(bn)
-    ;
-    
-    DESIGN userOrder {
-        headerPicking {
-            MOVE PROPERTY(pickingOrderCount(o));
-        }
-        specification.box {
-            MOVE bn.box {
-                caption = 'Комплектация';
-            }
-        }
-    }
 
     //-------------------- Расширяем операции свойством по созданию заказа на комплектацию -----------------------//
 

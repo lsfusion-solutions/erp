@@ -6,7 +6,6 @@ REQUIRE System,
         Numerator,
         Document,
         Barcode,
-        Bin,
         Stock,
         StockMovement,
         WMS,
@@ -43,7 +42,6 @@ CLASS UserPickingOrderDetail 'Строка заказа на комплекта�
 @defineDocumentInterfaceDetailQuantity(pickingOrder);
 
 @defineDocumentInterfaceDetailBatch(pickingOrder, batch);
-@defineDocumentInterfaceDetailBin(pickingOrder);
 
 @defineDocumentInterfaceHeaderQuantity(pickingOrder);
 
@@ -104,7 +102,7 @@ FORM userPickingOrder 'Заказ на комплектацию'
     OBJECTS d = UserPickingOrderDetail
     PROPERTIES (d) index
     PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku,
-                   nameBatch ON CHANGE changeBatch(d), nameBin
+                   nameBatch ON CHANGE changeBatch(d)
     PROPERTIES (d) quantity, ADDOBJ, DELETESESSION
 
     PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingOrderDetail,
@@ -164,19 +162,20 @@ edit 'Редактировать' (userOrder) = ACTION EDITFORM UserPickingOrder
 edit(UserPickingOrder order) += ACTION edit(order);
 
 
+overCopy = ACTION ABSTRACT LIST (UserPickingOrderDetail, PickingOrderDetail);
 copy 'Копировать'(PickingOrder order) = ACTION NEWSESSION {
     FOR ADDOBJ o = UserPickingOrder DO {
 
-        ASSIGN stock(o) <- stock(order);
-        ASSIGN note(o) <- note(order);
+        stock(o) <- stock(order);
+        note(o) <- note(order);
 
         FOR pickingOrder(PickingOrderDetail orderDetail) == order DO {
             FOR ADDOBJ d=UserPickingOrderDetail DO {
-                ASSIGN userPickingOrder(d) <- o;
-                ASSIGN sku(d) <- sku(orderDetail);
-                ASSIGN quantity(d) <- quantity(orderDetail);
-                ASSIGN batch(d) <- batch(orderDetail);
-                ASSIGN bin(d) <- bin(orderDetail);
+                userPickingOrder(d) <- o;
+                sku(d) <- sku(orderDetail);
+                quantity(d) <- quantity(orderDetail);
+                batch(d) <- batch(orderDetail);
+                overCopy(d, orderDetail);
             }
         }
 
@@ -200,7 +199,7 @@ FORM pickingOrders 'Заказы на комплектацию'
 
     OBJECTS d=PickingOrderDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
-                   nameBatch, nameBin, quantity
+                   nameBatch, quantity
     FILTERS pickingOrder(d) == o
     DIALOG PickingOrder OBJECT o
 ;
@@ -252,7 +251,7 @@ DESIGN pickingOrders {
 
 NAVIGATOR {
     WMSNavigator {
-        NEW pickingNavigator 'Комплектация' BEFORE binNavigator {
+        NEW pickingNavigator 'Комплектация' {
             ADD pickingOrders;
         }
     }
