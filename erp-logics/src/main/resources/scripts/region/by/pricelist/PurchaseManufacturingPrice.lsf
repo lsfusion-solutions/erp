@@ -145,8 +145,8 @@ addCostPriceToManufacturingPrice(UserInvoice invoice) <- addCostPriceToManufactu
 calcBaseManufacturingPrice (UserInvoiceDetail detail) = IF addCostPriceToManufacturingPrice(userInvoice(detail)) THEN costManufacturingPrice(detail)
                                         ELSE incomeManufacturingPrice(detail);
 
-baseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) * (100.0 (+) manufacturingMarkup(detail))/100;
-baseReverseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) / (100.0 (+) manufacturingMarkup(detail))*100;
+baseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) * (100.0 + manufacturingMarkup(detail))/100;
+baseReverseManufacturingPrice (UserInvoiceDetail detail) = calcBaseManufacturingPrice (detail) / (100.0 + manufacturingMarkup(detail))*100;
 
 skipChangeManufacturingPrice 'Пропустить' = ABSTRACT BOOLEAN (UserInvoiceDetail);
 calcReversePrice(UserInvoiceDetail d) =     
@@ -170,8 +170,8 @@ overChangePrice (UserInvoiceDetail d) += ACTION {
 }
 
 ON SESSION FORMS userInvoice {
-    FOR ((CHANGED(calcBaseManufacturingPrice(InvoiceDetail d)) AND NOT reverseManufacturingPrice[UserInvoiceDetail](d)) OR CHANGED(manufacturingMarkup[UserInvoiceDetail](d)) OR CHANGED(roundCondition(manufacturingCalcPriceListType(d)))) 
-        AND NOT CHANGED(manufacturingPrice[UserInvoiceDetail](d)) AND NOT skipChangeManufacturingPrice(d) DO {
+    FOR ((CHANGED(calcBaseManufacturingPrice(UserInvoiceDetail d)) AND NOT reverseManufacturingPrice(d)) OR CHANGED(manufacturingMarkup(d))) 
+        AND NOT CHANGED(manufacturingPrice(d)) AND NOT skipChangeManufacturingPrice(d) DO {
         
         updateManufacturingPrice(d);
     }   
