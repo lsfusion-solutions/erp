@@ -7,6 +7,7 @@ import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
+import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -314,26 +315,22 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         rosterElement.setAttribute("totalVat", getString(totalVATSum));
         rosterElement.setAttribute("totalCost", getString(totalSum));
 
-        KeyExpr itemExpr = new KeyExpr("item");
-        ImRevMap<Object, KeyExpr> itemKeys = MapFact.singletonRev((Object) "item", itemExpr);
+        KeyExpr evatDetailExpr = new KeyExpr("evatDetail");
+        ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
 
-        QueryBuilder<Object, Object> itemQuery = new QueryBuilder<>(itemKeys);
-        String[] itemNames = new String[]{"name", "idBarcode", "shortNameUOM"};
-        LCP[] itemProperties = findProperties("name[Item]", "idBarcode[Item]", "shortNameUOM[Item]");
-        for (int i = 0; i < itemProperties.length; i++) {
-            itemQuery.addProperty(itemNames[i], itemProperties[i].getExpr(itemExpr));
+        QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
+        String[] evatDetailNames = new String[]{"name", "idBarcode", "shortNameUOM", "codeOCed",
+                "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
+        LCP[] evatDetailProperties = findProperties("name[EVATDetail]", "idBarcode[EVATDetail]", "shortNameUOM[EVATDetail]", "codeOced[EVATDetail]",
+                "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]", "vatRate[EVATDetail]", "vatSum[EVATDetail]",
+                "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
+        for (int i = 0; i < evatDetailProperties.length; i++) {
+            evatDetailQuery.addProperty(evatDetailNames[i], evatDetailProperties[i].getExpr(evatDetailExpr));
         }
-        String[] itemEVATNames = new String[]{"codeOCed", "quantity", "price", "sum", "exciseSum",
-                "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
-        LCP[] itemEVATProperties = findProperties("codeOced[Item, EVAT]", "quantity[Item, EVAT]", "price[Item, EVAT]", "sum[Item, EVAT]", "exciseSum[Item, EVAT]",
-                "vatRate[Item, EVAT]", "vatSum[Item, EVAT]", "sumWithVAT[Item, EVAT]", "nameDescriptionType[Item, EVAT]");
-        for (int i = 0; i < itemEVATProperties.length; i++) {
-            itemQuery.addProperty(itemEVATNames[i], itemEVATProperties[i].getExpr(itemExpr, evatObject.getExpr()));
-        }
-        itemQuery.and(findProperty("in[Item, EVAT]").getExpr(itemExpr, evatObject.getExpr()).getWhere());
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> itemResult = itemQuery.execute(context);
+        evatDetailQuery.and(findProperty("evat[EVATDetail]").getExpr(evatDetailExpr).compare(evatObject.getExpr(), Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> evatDetailResults = evatDetailQuery.execute(context);
         int count = 0;
-        for (ImMap<Object, Object> entry : itemResult.values()) {
+        for (ImMap<Object, Object> entry : evatDetailResults.values()) {
             count++;
             String name = trim((String) entry.get("name"));
             String idBarcode = trim((String) entry.get("idBarcode"));

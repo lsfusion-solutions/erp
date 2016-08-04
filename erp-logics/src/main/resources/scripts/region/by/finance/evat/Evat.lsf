@@ -83,15 +83,22 @@ countryCodeCustomer 'Код страны получателя' (EVAT evat) = sid
 unpCustomer 'УНП получателя' (EVAT evat) = UNP(customer(evat));
 
 //Товар
-in 'Вкл.' = DATA BOOLEAN (Item, EVAT);
-codeOced 'Код видов деятельности (ОКЭД)' = DATA VARSTRING[100] (Item, EVAT);
-quantity 'Количество' = DATA NUMERIC[16,5] (Item, EVAT); 
-price 'Цена' = DATA NUMERIC[16,5] (Item, EVAT);
-sum 'Сумма' = DATA NUMERIC[16,5] (Item, EVAT);
-exciseSum 'Сумма акциза' = DATA NUMERIC[16,5] (Item, EVAT);
-vatRate 'Ставка НДС' = DATA NUMERIC[16,5] (Item, EVAT);
-vatSum 'Сумма НДС' = DATA NUMERIC[16,5] (Item, EVAT);
-sumWithVAT 'Сумма с НДС' = DATA NUMERIC[16,5] (Item, EVAT);
+CLASS EVATDetail 'Строка электронного счёта-фактуры';
+TABLE evatDetail(EVATDetail);
+
+evat = DATA EVAT (EVATDetail);
+sku 'Товар' = DATA Sku(EVATDetail);
+name 'Наименование' (EVATDetail evatDetail) = name(sku(evatDetail));
+idBarcode 'Штрихкод' (EVATDetail evatDetail) = idBarcode(sku(evatDetail));
+shortNameUOM 'Ед. изм.' (EVATDetail evatDetail) = shortNameUOM(sku(evatDetail));
+codeOced 'Код видов деятельности (ОКЭД)' = DATA VARSTRING[100] (EVATDetail);
+quantity 'Количество' = DATA NUMERIC[16,5] (EVATDetail); 
+price 'Цена' = DATA NUMERIC[16,5] (EVATDetail);
+sum 'Сумма' = DATA NUMERIC[16,5] (EVATDetail);
+exciseSum 'Сумма акциза' = DATA NUMERIC[16,5] (EVATDetail);
+vatRate 'Ставка НДС' = DATA NUMERIC[16,5] (EVATDetail);
+vatSum 'Сумма НДС' = DATA NUMERIC[16,5] (EVATDetail);
+sumWithVAT 'Сумма с НДС' = DATA NUMERIC[16,5] (EVATDetail);
 
 CLASS DescriptionType 'Описание' {
     deductionInFull 'Вычет в полном объеме',
@@ -106,14 +113,14 @@ FORM descriptionTypes
     DIALOG DescriptionType OBJECT d
 ;
 
-descriptionType = DATA DescriptionType(Item, EVAT);
-nameDescriptionType (Item item, EVAT evat) = staticName(descriptionType(item, evat));
-captionDescriptionType 'Описание' (Item item, EVAT evat)= staticCaption(descriptionType(item, evat));
+descriptionType = DATA DescriptionType(EVATDetail);
+nameDescriptionType (EVATDetail evatDetail) = staticName(descriptionType(evatDetail));
+captionDescriptionType 'Описание' (EVATDetail evatDetail)= staticCaption(descriptionType(evatDetail));
 
-totalSum 'Сумма (всего)'(EVAT evat) = GROUP SUM sum(Item item, EVAT evat) BY evat;  
-totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP SUM exciseSum(Item item, EVAT evat) BY evat;  
-totalVATSum 'Сумма НДС (всего)' (EVAT evat) = GROUP SUM vatSum(Item item, EVAT evat) BY evat;  
-totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumWithVAT(Item item, EVAT evat) BY evat;  
+totalSum 'Сумма (всего)'(EVAT evat) = GROUP SUM sum(EVATDetail evatDetail) IF evat(evatDetail) == EVAT evat BY evat;  
+totalExciseSum 'Сумма акциза (всего)' (EVAT evat) = GROUP SUM exciseSum(EVATDetail evatDetail)  IF evat(evatDetail) == EVAT evat BY evat;
+totalVATSum 'Сумма НДС (всего)' (EVAT evat) = GROUP SUM vatSum(EVATDetail evatDetail)  IF evat(evatDetail) == EVAT evat BY evat;
+totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumWithVAT(EVATDetail evatDetail)  IF evat(evatDetail) == EVAT evat BY evat;
 
 FORM evat 'Электронный счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
@@ -128,11 +135,9 @@ FORM evat 'Электронный счёт-фактура'
     OBJECTS s=LegalEntity FIXED PANEL, c=LegalEntity FIXED PANEL
     PROPERTIES(s) id, UNP, address
     PROPERTIES(c) id, UNP, address
-    OBJECTS i = Item
-    PROPERTIES(i,e) in, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
-    PROPERTIES(i) name
-    FILTERS s==supplier(e), c==customer(e)
-    FILTERGROUP filters FILTER 'Отмеченные товары' in(i, e) 'F9' DEFAULT
+    OBJECTS d = EVATDetail
+    PROPERTIES(d) name, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
+    FILTERS s==supplier(e), c==customer(e), evat(d) == e
     EDIT EVAT OBJECT e
 ;
 
@@ -204,7 +209,7 @@ DESIGN evat {
             MOVE PROPERTY(totalExciseSum(e));
             MOVE PROPERTY(totalVATSum(e));
             MOVE PROPERTY(totalSumWithVAT(e));            
-            MOVE i.box;
+            MOVE d.box;
         }
     }
 
@@ -217,10 +222,9 @@ FORM evats 'Электронные счета-фактуры'
                   dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
                   nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum, totalExciseSum, totalVATSum, totalSumWithVAT, generateXMLAction
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE
-    OBJECTS i = Item
-    PROPERTIES(i,e) in, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
-    PROPERTIES(i) name
-    FILTERGROUP filters FILTER 'Отмеченные товары' in(i, e) 'F9' DEFAULT
+    OBJECTS d = EVATDetail
+    PROPERTIES(d) name, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
 ;
 
