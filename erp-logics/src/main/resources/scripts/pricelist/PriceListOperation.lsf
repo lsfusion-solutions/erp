@@ -157,7 +157,10 @@ DESIGN operation {
     }
 }
 
-WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND NOT doNotSetStocksUserPriceList(operation(priceList)) DO {
+skipSetStocks = DATA LOCAL BOOLEAN (UserPriceList);
+
+WHEN SESSION CHANGED(operation(UserPriceList priceList)) AND NOT doNotSetStocksUserPriceList(operation(priceList))
+    AND NOT skipSetStocks(priceList) DO {
     allStocks(priceList) <- allStocks(operation(priceList));
     dataIn(priceList, StockGroup stockGroup) <- dataIn(stockGroup, operation(priceList));
     dataIn(priceList, Stock stock) <- dataIn(stock, operation(priceList));
