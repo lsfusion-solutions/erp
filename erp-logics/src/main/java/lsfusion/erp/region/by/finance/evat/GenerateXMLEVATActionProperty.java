@@ -21,6 +21,7 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import org.jdom.Document;
 import org.jdom.Element;
+import org.jdom.Namespace;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -60,31 +61,40 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String unpSender = trim((String) findProperty("unpSender[EVAT]").read(context, evatObject));
 
+            Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
+            Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
+            Namespace xsi = Namespace.getNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
+
             Element rootElement = new Element("issuance");
+            rootElement.setNamespace(xmlns);
+            rootElement.addNamespaceDeclaration(xs);
+            rootElement.addNamespaceDeclaration(xsi);
             setAttribute(rootElement, "sender", unpSender);
             Document doc = new Document(rootElement);
             doc.setRootElement(rootElement);
 
-            rootElement.addContent(createGeneralElement(context, evatObject, status));
+            Namespace namespace = rootElement.getNamespace();
+
+            rootElement.addContent(createGeneralElement(context, evatObject, status, namespace));
 
             switch (status) {
                 case "original":
                 case "fixed":
                 case "additionalNoRef":
-                    rootElement.addContent(createProviderElement(context, evatObject));
-                    rootElement.addContent(createRecipientElement(context, evatObject));
-                    rootElement.addContent(createSenderReceiverElement(context, evatObject));
-                    rootElement.addContent(createDeliveryConditionElement(context, evatObject));
-                    rootElement.addContent(createRosterElement(context, evatObject));
+                    rootElement.addContent(createProviderElement(context, evatObject, namespace));
+                    rootElement.addContent(createRecipientElement(context, evatObject, namespace));
+                    rootElement.addContent(createSenderReceiverElement(context, evatObject, namespace));
+                    rootElement.addContent(createDeliveryConditionElement(context, evatObject, namespace));
+                    rootElement.addContent(createRosterElement(context, evatObject, namespace));
                     break;
                 case "additional":
-                    rootElement.addContent(createRosterElement(context, evatObject));
+                    rootElement.addContent(createRosterElement(context, evatObject, namespace));
                 case "cancelled":
                     break;
             }
 
             tmpFile = File.createTempFile("evat", "xml");
-            outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "utf-8"), "utf-8");
+            outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
             context.delayUserInterfaction(new ExportFileClientAction("evat.xml", IOUtils.getFileBytes(tmpFile)));
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
@@ -124,7 +134,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Element generalElement = new Element("general");
 
         String number = trim((String)findProperty("number[EVAT]").read(context, evatObject));
@@ -135,45 +145,46 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
         switch (status) {
             case "original":
-                addStringElement(generalElement, "number", number);
-                addStringElement(generalElement, "dateIssuance", dateIssuance);
-                addStringElement(generalElement, "dateTransaction", dateTransaction);
-                addStringElement(generalElement, "documentType", "ORIGINAL");
+                addStringElement(namespace, generalElement, "number", number);
+                addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
+                addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
+                addStringElement(namespace, generalElement, "documentType", "ORIGINAL");
                 break;
             case "fixed":
-                addStringElement(generalElement, "dateIssuance", dateIssuance);
-                addStringElement(generalElement, "dateTransaction", dateTransaction);
-                addStringElement(generalElement, "documentType", "FIXED");
-                addStringElement(generalElement, "invoice", invoice);
-                addStringElement(generalElement, "dateCancelled", dateCancelled);
+                addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
+                addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
+                addStringElement(namespace, generalElement, "documentType", "FIXED");
+                addStringElement(namespace, generalElement, "invoice", invoice);
+                addStringElement(namespace, generalElement, "dateCancelled", dateCancelled);
                 break;
             case "additional":
                 boolean sendToRecipient = findProperty("sendToRecipient[EVAT]").read(context, evatObject) != null;
 
-                addStringElement(generalElement, "number", number);
-                addStringElement(generalElement, "dateIssuance", dateIssuance);
-                addStringElement(generalElement, "dateTransaction", dateTransaction);
-                addStringElement(generalElement, "documentType", "ADDITIONAL");
-                addStringElement(generalElement, "invoice", invoice);
-                addBooleanElement(generalElement, "sendToRecipient", sendToRecipient);
+                addStringElement(namespace, generalElement, "number", number);
+                addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
+                addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
+                addStringElement(namespace, generalElement, "documentType", "ADDITIONAL");
+                addStringElement(namespace, generalElement, "invoice", invoice);
+                addBooleanElement(namespace, generalElement, "sendToRecipient", sendToRecipient);
                 break;
             case "additionalNoRef":
-                addStringElement(generalElement, "number", number);
-                addStringElement(generalElement, "dateIssuance", dateIssuance);
-                addStringElement(generalElement, "dateTransaction", dateTransaction);
-                addStringElement(generalElement, "documentType", "ADD_NO_REFERENCE");
+                addStringElement(namespace, generalElement, "number", number);
+                addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
+                addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
+                addStringElement(namespace, generalElement, "documentType", "ADD_NO_REFERENCE");
                 break;
             case "cancelled":
-                addStringElement(generalElement, "invoice", invoice);
-                addStringElement(generalElement, "documentType", "ORIGINAL");
-                addStringElement(generalElement, "dateCancelled", dateCancelled);
+                addStringElement(namespace, generalElement, "invoice", invoice);
+                addStringElement(namespace, generalElement, "documentType", "ORIGINAL");
+                addStringElement(namespace, generalElement, "dateCancelled", dateCancelled);
                 break;
         }
+        generalElement.setNamespace(namespace);
         return generalElement;
     }
 
     //parent: rootElement
-    private Element createProviderElement(ExecutionContext context, DataObject evatObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createProviderElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         boolean dependentPerson = findProperty("dependentPersonSupplier[EVAT]").read(context, evatObject) != null;
         boolean residentsOfOffshore = findProperty("residentsOfOffshoreSupplier[EVAT]").read(context, evatObject) != null;
@@ -195,27 +206,28 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String dateTaxes = formatDate((Date) findProperty("dateTaxesSupplier[EVAT]").read(context, evatObject));
 
         Element providerElement = new Element("provider");
-        addStringElement(providerElement, "providerStatus", "SELLER");
-        addBooleanElement(providerElement, "dependentPerson", dependentPerson);
-        addBooleanElement(providerElement, "residentsOfOffshore", residentsOfOffshore);
-        addBooleanElement(providerElement, "specialDealGoods", specialDealGoods);
-        addBooleanElement(providerElement, "bigCompany", bigCompany);
-        addStringElement(providerElement, "countryCode", countryCode);
-        addStringElement(providerElement, "unp", unp);
-        addStringElement(providerElement, "branchCode", idSupplier);
-        addStringElement(providerElement, "name", name);
-        addStringElement(providerElement, "address", address);
-        providerElement.addContent(createNumberDateElement("principal", numberInvoicePrincipal, dateInvoicePrincipal));
-        providerElement.addContent(createNumberDateElement("vendor", numberInvoiceVendor, dateInvoiceVendor));
-        addStringElement(providerElement, "declaration", declaration);
-        addStringElement(providerElement, "dateRelease", dateRelease);
-        addStringElement(providerElement, "dateActualExport", dateActualExport);
-        providerElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes));
+        addStringElement(namespace, providerElement, "providerStatus", "SELLER");
+        addBooleanElement(namespace, providerElement, "dependentPerson", dependentPerson);
+        addBooleanElement(namespace, providerElement, "residentsOfOffshore", residentsOfOffshore);
+        addBooleanElement(namespace, providerElement, "specialDealGoods", specialDealGoods);
+        addBooleanElement(namespace, providerElement, "bigCompany", bigCompany);
+        addStringElement(namespace, providerElement, "countryCode", countryCode);
+        addStringElement(namespace, providerElement, "unp", unp);
+        addStringElement(namespace, providerElement, "branchCode", idSupplier);
+        addStringElement(namespace, providerElement, "name", name);
+        addStringElement(namespace, providerElement, "address", address);
+        providerElement.addContent(createNumberDateElement("principal", numberInvoicePrincipal, dateInvoicePrincipal, namespace));
+        providerElement.addContent(createNumberDateElement("vendor", numberInvoiceVendor, dateInvoiceVendor, namespace));
+        addStringElement(namespace, providerElement, "declaration", declaration);
+        addStringElement(namespace, providerElement, "dateRelease", dateRelease);
+        addStringElement(namespace, providerElement, "dateActualExport", dateActualExport);
+        providerElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+        providerElement.setNamespace(namespace);
         return providerElement;
     }
 
     //parent: rootElement
-    private Element createRecipientElement(ExecutionContext context, DataObject evatObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createRecipientElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         boolean dependentPerson = findProperty("dependentPersonCustomer[EVAT]").read(context, evatObject) != null;
         boolean residentsOfOffshore = findProperty("residentsOfOffshoreCustomer[EVAT]").read(context, evatObject) != null;
@@ -232,24 +244,25 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String dateImport = formatDate((Date) findProperty("dateImportCustomer[EVAT]").read(context, evatObject));
 
         Element recipientElement = new Element("recipient");
-        addStringElement(recipientElement, "recipientStatus", "CUSTOMER");
-        addBooleanElement(recipientElement, "dependentPerson", dependentPerson);
-        addBooleanElement(recipientElement, "residentsOfOffshore", residentsOfOffshore);
-        addBooleanElement(recipientElement, "specialDealGoods", specialDealGoods);
-        addBooleanElement(recipientElement, "bigCompany", bigCompany);
-        addStringElement(recipientElement, "countryCode", countryCode);
-        addStringElement(recipientElement, "unp", unp);
-        addStringElement(recipientElement, "branchCode", idCustomer);
-        addStringElement(recipientElement, "name", name);
-        addStringElement(recipientElement, "address", address);
-        addStringElement(recipientElement, "declaration", declaration);
-        recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes));
-        addStringElement(recipientElement, "dateImport", dateImport);
+        addStringElement(namespace, recipientElement, "recipientStatus", "CUSTOMER");
+        addBooleanElement(namespace, recipientElement, "dependentPerson", dependentPerson);
+        addBooleanElement(namespace, recipientElement, "residentsOfOffshore", residentsOfOffshore);
+        addBooleanElement(namespace, recipientElement, "specialDealGoods", specialDealGoods);
+        addBooleanElement(namespace, recipientElement, "bigCompany", bigCompany);
+        addStringElement(namespace, recipientElement, "countryCode", countryCode);
+        addStringElement(namespace, recipientElement, "unp", unp);
+        addStringElement(namespace, recipientElement, "branchCode", idCustomer);
+        addStringElement(namespace, recipientElement, "name", name);
+        addStringElement(namespace, recipientElement, "address", address);
+        addStringElement(namespace, recipientElement, "declaration", declaration);
+        recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+        addStringElement(namespace, recipientElement, "dateImport", dateImport);
+        recipientElement.setNamespace(namespace);
         return recipientElement;
     }
 
     //parent: rootElement
-    private Element createSenderReceiverElement(ExecutionContext context, DataObject evatObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createSenderReceiverElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String countryCodeSupplier = trim((String) findProperty("countryCodeSupplier[EVAT]").read(context, evatObject));
         String unpSupplier = trim((String) findProperty("unpSupplier[EVAT]").read(context, evatObject));
         String nameSupplier = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
@@ -261,17 +274,18 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String addressCustomer = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
 
         Element senderReceiverElement = new Element("senderReceiver");
-        Element consignorsElement = new Element("consignors");
-        consignorsElement.addContent(createLegalEntityElement("consignor", countryCodeSupplier, unpSupplier, nameSupplier, addressSupplier));
+        Element consignorsElement = new Element("consignors", namespace);
+        consignorsElement.addContent(createLegalEntityElement("consignor", countryCodeSupplier, unpSupplier, nameSupplier, addressSupplier, namespace));
         senderReceiverElement.addContent(consignorsElement);
-        Element consigneesElement = new Element("consignees");
-        consigneesElement.addContent(createLegalEntityElement("consignee", countryCodeCustomer, unpCustomer, nameCustomer, addressCustomer));
+        Element consigneesElement = new Element("consignees", namespace);
+        consigneesElement.addContent(createLegalEntityElement("consignee", countryCodeCustomer, unpCustomer, nameCustomer, addressCustomer, namespace));
         senderReceiverElement.addContent(consigneesElement);
+        senderReceiverElement.setNamespace(namespace);
         return senderReceiverElement;
     }
 
     //parent: rootElement
-    private Element createDeliveryConditionElement(ExecutionContext context, DataObject evatObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createDeliveryConditionElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
         String contractDate = formatDate((Date) findProperty("dateContract[EVAT]").read(context, evatObject));
@@ -283,26 +297,27 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String description = trim((String) findProperty("descriptionDoc[EVAT]").read(context, evatObject));
 
         Element deliveryConditionElement = new Element("deliveryCondition");
-        Element contractElement = createNumberDateElement("contract", contractNumber, contractDate);
-        Element documentsElement = new Element("documents");
-        Element documentElement = new Element("document");
-        Element docTypeElement = new Element("docType");
-        addStringElement(docTypeElement, "code", codeDocType);
-        addStringElement(docTypeElement, "value", valueDocType);
+        Element contractElement = createNumberDateElement("contract", contractNumber, contractDate, namespace);
+        Element documentsElement = new Element("documents", namespace);
+        Element documentElement = new Element("document", namespace);
+        Element docTypeElement = new Element("docType", namespace);
+        addStringElement(namespace, docTypeElement, "code", codeDocType);
+        addStringElement(namespace, docTypeElement, "value", valueDocType);
         documentElement.addContent(docTypeElement);
-        addStringElement(documentElement, "date", contractDate);
-        addStringElement(documentElement, "blankCode", blankCode);
-        addStringElement(documentElement, "seria", series);
-        addStringElement(documentElement, "number", number);
+        addStringElement(namespace, documentElement, "date", contractDate);
+        addStringElement(namespace, documentElement, "blankCode", blankCode);
+        addStringElement(namespace, documentElement, "seria", series);
+        addStringElement(namespace, documentElement, "number", number);
         documentsElement.addContent(documentElement);
         contractElement.addContent(documentsElement);
         deliveryConditionElement.addContent(contractElement);
-        addStringElement(deliveryConditionElement, "description", description);
+        addStringElement(namespace, deliveryConditionElement, "description", description);
+        deliveryConditionElement.setNamespace(namespace);
         return deliveryConditionElement;
     }
 
     //parent: rootElement
-    private Element createRosterElement(ExecutionContext context, DataObject evatObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createRosterElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
         BigDecimal totalSum = (BigDecimal) findProperty("totalSum[EVAT]").read(context, evatObject);
         BigDecimal totalExciseSum = (BigDecimal) findProperty("totalExciseSum[EVAT]").read(context, evatObject);
@@ -346,43 +361,46 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String description = getDescription(getLastPart(trim((String) entry.get("nameDescriptionType"))));
 
-            Element rosterItemElement = new Element("rosterItem");
-            addStringElement(rosterItemElement, "number", getString(count));
-            addStringElement(rosterItemElement, "name", name);
-            addStringElement(rosterItemElement, "code", idBarcode);
-            addStringElement(rosterItemElement, "code_oced", getString(codeOced));
-            addStringElement(rosterItemElement, "units", shortNameUOM);
-            addBigDecimalElement(rosterItemElement, "count", quantity);
-            addBigDecimalElement(rosterItemElement, "price", price);
-            addBigDecimalElement(rosterItemElement, "cost", sum);
-            addBigDecimalElement(rosterItemElement, "summaExcise", exciseSum);
-            Element vatElement = new Element("vat");
-            addBigDecimalElement(vatElement, "rate", vatRate);
-            addStringElement(vatElement, "rateType", vatRate != null && vatRate.equals(BigDecimal.ZERO) ? "ZERO" : "DECIMAL");
-            addBigDecimalElement(vatElement, "summaVat", vatSum);
+            Element rosterItemElement = new Element("rosterItem", namespace);
+            addStringElement(namespace, rosterItemElement, "number", getString(count));
+            addStringElement(namespace, rosterItemElement, "name", name);
+            addStringElement(namespace, rosterItemElement, "code", idBarcode);
+            addStringElement(namespace, rosterItemElement, "code_oced", getString(codeOced));
+            addStringElement(namespace, rosterItemElement, "units", shortNameUOM);
+            addBigDecimalElement(namespace, rosterItemElement, "count", quantity);
+            addBigDecimalElement(namespace, rosterItemElement, "price", price);
+            addBigDecimalElement(namespace, rosterItemElement, "cost", sum);
+            addBigDecimalElement(namespace, rosterItemElement, "summaExcise", exciseSum);
+            Element vatElement = new Element("vat", namespace);
+            addBigDecimalElement(namespace, vatElement, "rate", vatRate);
+            addStringElement(namespace, vatElement, "rateType", vatRate != null && vatRate.equals(BigDecimal.ZERO) ? "ZERO" : "DECIMAL");
+            addBigDecimalElement(namespace, vatElement, "summaVat", vatSum);
             rosterItemElement.addContent(vatElement);
-            addBigDecimalElement(rosterItemElement, "costVat", sumWithVat);
-            Element descriptionsElement = new Element("descriptions");
-            addStringElement(descriptionsElement, "description", description);
+            addBigDecimalElement(namespace, rosterItemElement, "costVat", sumWithVat);
+            Element descriptionsElement = new Element("descriptions", namespace);
+            addStringElement(namespace, descriptionsElement, "description", description);
             rosterItemElement.addContent(descriptionsElement);
             rosterElement.addContent(rosterItemElement);
         }
+        rosterElement.setNamespace(namespace);
         return rosterElement;
     }
 
-    private Element createNumberDateElement(String name, String numberInvoice, String dateInvoice) {
+    private Element createNumberDateElement(String name, String numberInvoice, String dateInvoice, Namespace namespace) {
         Element element = new Element(name);
-        addStringElement(element, "number", numberInvoice);
-        addStringElement(element, "date", dateInvoice);
+        addStringElement(namespace, element, "number", numberInvoice);
+        addStringElement(namespace, element, "date", dateInvoice);
+        element.setNamespace(namespace);
         return element;
     }
 
-    private Element createLegalEntityElement(String name, String countryCode, String unp, String nameLegalEntity, String address) {
+    private Element createLegalEntityElement(String name, String countryCode, String unp, String nameLegalEntity, String address, Namespace namespace) {
         Element element = new Element(name);
-        addStringElement(element, "countryCode", countryCode);
-        addStringElement(element, "unp", unp);
-        addStringElement(element, "name", nameLegalEntity);
-        addStringElement(element, "address", address);
+        addStringElement(namespace, element, "countryCode", countryCode);
+        addStringElement(namespace, element, "unp", unp);
+        addStringElement(namespace, element, "name", nameLegalEntity);
+        addStringElement(namespace, element, "address", address);
+        element.setNamespace(namespace);
         return element;
     }
 
