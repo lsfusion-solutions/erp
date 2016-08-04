@@ -325,10 +325,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         BigDecimal totalSumWithVAT = (BigDecimal) findProperty("totalSumWithVAT[EVAT]").read(context, evatObject);
 
         Element rosterElement = new Element("roster");
-        rosterElement.setAttribute("totalCostVat", getString(totalSumWithVAT));
-        rosterElement.setAttribute("totalExcise", getString(totalExciseSum));
-        rosterElement.setAttribute("totalVat", getString(totalVATSum));
-        rosterElement.setAttribute("totalCost", getString(totalSum));
+        rosterElement.setAttribute("totalCostVat", getZeroString(totalSumWithVAT));
+        rosterElement.setAttribute("totalExcise", getZeroString(totalExciseSum));
+        rosterElement.setAttribute("totalVat", getZeroString(totalVATSum));
+        rosterElement.setAttribute("totalCost", getZeroString(totalSum));
 
         KeyExpr evatDetailExpr = new KeyExpr("evatDetail");
         ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
@@ -410,5 +410,9 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
     private String getString(Object value) {
         return value == null ? null : String.valueOf(value);
+    }
+    
+    private String getZeroString(Object value) {
+        return value == null ? "0" : String.valueOf(value);
     }
 }

@@ -1,0 +1,56 @@
+MODULE SaleInvoiceEvat;
+
+REQUIRE SaleInvoice, EVAT;
+
+NAMESPACE Sale;
+
+eVAT 'Создавать ЭСЧФ' = DATA BOOLEAN (Operation);
+EXTEND FORM operation
+    PROPERTIES(o) eVAT
+;
+
+createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DATE dTo) = ACTION {
+    FOR eVAT(operation(Invoice i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
+        status(e) <- EVATStatus.original;
+        
+        number(e) <- VARSTRING[100](i);
+        date(e) <- date(i);
+        
+        numberContract (e) <- number(contractSku(i));
+        dateContract (e) <- dateFrom(contractSku(i));
+        codeDocType (e) <- '603';
+        blankCodeDoc (e) <- '402861';
+        seriesDoc(e) <- series(i);
+        numberDoc(e) <- number(i);
+        unpSender(e) <- UNP(supplier(i));
+        
+        //Поставщик
+        supplier(e) <- supplier(i);
+        
+        //Получатель
+        customer(e) <- customer(i);
+        
+        FOR invoice(InvoiceDetail id) == i ADDOBJ ed = EVATDetail DO {
+            evat(ed) <- e;
+
+            sku(ed) <- sku(id);
+            quantity(ed) <- quantity(id); 
+            price(ed) <- price(id);
+            sum(ed) <- sum(id);
+            vatRate(ed) <- valueVAT(id);
+            vatSum(ed) <- VATSum(id);
+            sumWithVAT(ed) <- invoiceSum(id);
+            
+            IF valueVAT(id) == 0 THEN
+                descriptionType(ed) <- DescriptionType.vatExcemption
+            ELSE
+                descriptionType(ed) <- DescriptionType.deductionInFull;
+        } 
+    } 
+}
+
+EXTEND FORM evats
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES OBJVALUE(dFrom) TOOLBAR TODRAW e, OBJVALUE(dTo) TOOLBAR TODRAW e
+    PROPERTIES createEVATSaleInvoice(dFrom, dTo) TOOLBAR TODRAW e
+;
