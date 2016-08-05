@@ -300,6 +300,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
         String contractDate = formatDate((Date) findProperty("dateContract[EVAT]").read(context, evatObject));
+        String date = formatDate((Date) findProperty("date[EVAT]").read(context, evatObject));
         Integer codeDocType = (Integer) findProperty("codeDocType[EVAT]").read(context, evatObject);
         String valueDocType = trim((String) findProperty("valueDocType[EVAT]").read(context, evatObject));
         String blankCode = trim((String) findProperty("blankCodeDoc[EVAT]").read(context, evatObject));
@@ -315,7 +316,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addIntegerElement(namespace, docTypeElement, "code", codeDocType);
         addStringElement(namespace, docTypeElement, "value", valueDocType);
         documentElement.addContent(docTypeElement);
-        addStringElement(namespace, documentElement, "date", contractDate);
+        addStringElement(namespace, documentElement, "date", date);
         addStringElement(namespace, documentElement, "blankCode", blankCode);
         addStringElement(namespace, documentElement, "seria", series);
         addStringElement(namespace, documentElement, "number", number);
