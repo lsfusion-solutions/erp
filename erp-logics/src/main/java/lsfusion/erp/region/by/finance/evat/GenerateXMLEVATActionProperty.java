@@ -384,7 +384,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addBigDecimalElement(namespace, rosterItemElement, "summaExcise", exciseSum);
             Element vatElement = new Element("vat", namespace);
             addBigDecimalElement(namespace, vatElement, "rate", vatRate);
-            addStringElement(namespace, vatElement, "rateType", vatRate != null && vatRate.equals(BigDecimal.ZERO) ? "ZERO" : "DECIMAL");
+            addStringElement(namespace, vatElement, "rateType", vatRate != null && vatRate.compareTo(BigDecimal.ZERO) == 0 ? "ZERO" : "DECIMAL");
             addBigDecimalElement(namespace, vatElement, "summaVat", vatSum);
             rosterItemElement.addContent(vatElement);
             addBigDecimalElement(namespace, rosterItemElement, "costVat", sumWithVat);
