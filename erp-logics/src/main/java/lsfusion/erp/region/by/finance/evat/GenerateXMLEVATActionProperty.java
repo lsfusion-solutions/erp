@@ -345,7 +345,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
 
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
-        String[] evatDetailNames = new String[]{"name", "code", "shortNameUOM", "codeOCed",
+        String[] evatDetailNames = new String[]{"name", "code", "shortNameUOM", "codeOced",
                 "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
         LCP[] evatDetailProperties = findProperties("name[EVATDetail]", "code[EVATDetail]", "shortNameUOM[EVATDetail]", "codeOced[EVATDetail]",
                 "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]", "vatRate[EVATDetail]", "vatSum[EVATDetail]",
