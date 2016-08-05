@@ -31,6 +31,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
+import java.util.Calendar;
 import java.util.Iterator;
 
 public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionProperty {
@@ -61,6 +62,13 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String unpSender = trim((String) findProperty("unpSender[EVAT]").read(context, evatObject));
 
+            String number = trim((String) findProperty("number[EVAT]").read(context, evatObject));
+            while (number.length() < 10)
+                number = "0" + number;
+            Integer year = Calendar.getInstance().getTime().getYear() + 1900;
+
+            String documentNumber = unpSender + "-" + year + "-" + number;
+
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
             Namespace xsi = Namespace.getNamespace("xsi", "http://www.w3.org/2001/XMLSchema-instance");
@@ -75,7 +83,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             Namespace namespace = rootElement.getNamespace();
 
-            rootElement.addContent(createGeneralElement(context, evatObject, status, namespace));
+            rootElement.addContent(createGeneralElement(context, evatObject, status, documentNumber, namespace));
 
             switch (status) {
                 case "original":
@@ -95,7 +103,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             tmpFile = File.createTempFile("evat", "xml");
             outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
-            context.delayUserInterfaction(new ExportFileClientAction("evat.xml", IOUtils.getFileBytes(tmpFile)));
+            context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", IOUtils.getFileBytes(tmpFile)));
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
@@ -134,18 +142,18 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, String documentNumber, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Element generalElement = new Element("general");
 
-        String number = trim((String)findProperty("number[EVAT]").read(context, evatObject));
-        String invoice = trim((String)findProperty("invoice[EVAT]").read(context, evatObject));
+        String number = trim((String) findProperty("number[EVAT]").read(context, evatObject));
+        String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
         String dateIssuance = formatDate(new Date(System.currentTimeMillis()));
-        String dateTransaction = formatDate((Date)findProperty("date[EVAT]").read(context, evatObject));
-        String dateCancelled = formatDate((Date)findProperty("dateCancelled[EVAT]").read(context, evatObject));
+        String dateTransaction = formatDate((Date) findProperty("date[EVAT]").read(context, evatObject));
+        String dateCancelled = formatDate((Date) findProperty("dateCancelled[EVAT]").read(context, evatObject));
 
         switch (status) {
             case "original":
-                addStringElement(namespace, generalElement, "number", number);
+                addStringElement(namespace, generalElement, "number", documentNumber);
                 addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
                 addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
                 addStringElement(namespace, generalElement, "documentType", "ORIGINAL");
@@ -216,8 +224,9 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addStringElement(namespace, providerElement, "branchCode", idSupplier);
         addStringElement(namespace, providerElement, "name", name);
         addStringElement(namespace, providerElement, "address", address);
-        providerElement.addContent(createNumberDateElement("principal", numberInvoicePrincipal, dateInvoicePrincipal, namespace));
-        providerElement.addContent(createNumberDateElement("vendor", numberInvoiceVendor, dateInvoiceVendor, namespace));
+        //с ними не проходит
+        //providerElement.addContent(createNumberDateElement("principal", numberInvoicePrincipal, dateInvoicePrincipal, namespace));
+        //providerElement.addContent(createNumberDateElement("vendor", numberInvoiceVendor, dateInvoiceVendor, namespace));
         addStringElement(namespace, providerElement, "declaration", declaration);
         addStringElement(namespace, providerElement, "dateRelease", dateRelease);
         addStringElement(namespace, providerElement, "dateActualExport", dateActualExport);
@@ -289,7 +298,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
         String contractDate = formatDate((Date) findProperty("dateContract[EVAT]").read(context, evatObject));
-        String codeDocType = trim((String) findProperty("codeDocType[EVAT]").read(context, evatObject));
+        Integer codeDocType = (Integer) findProperty("codeDocType[EVAT]").read(context, evatObject);
         String valueDocType = trim((String) findProperty("valueDocType[EVAT]").read(context, evatObject));
         String blankCode = trim((String) findProperty("blankCodeDoc[EVAT]").read(context, evatObject));
         String series = trim((String) findProperty("seriesDoc[EVAT]").read(context, evatObject));
@@ -301,7 +310,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         Element documentsElement = new Element("documents", namespace);
         Element documentElement = new Element("document", namespace);
         Element docTypeElement = new Element("docType", namespace);
-        addStringElement(namespace, docTypeElement, "code", codeDocType);
+        addIntegerElement(namespace, docTypeElement, "code", codeDocType);
         addStringElement(namespace, docTypeElement, "value", valueDocType);
         documentElement.addContent(docTypeElement);
         addStringElement(namespace, documentElement, "date", contractDate);
@@ -349,7 +358,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             count++;
             String name = trim((String) entry.get("name"));
             String idBarcode = trim((String) entry.get("idBarcode"));
-            String shortNameUOM = trim((String) entry.get("shortNameUOM")); //должен быть Integer
+            String shortNameUOM = null;//trim((String) entry.get("shortNameUOM")); //должен быть Integer
             Integer codeOced = (Integer) entry.get("codeOced");
             BigDecimal quantity = (BigDecimal) entry.get("quantity");
             BigDecimal price = (BigDecimal) entry.get("price");
