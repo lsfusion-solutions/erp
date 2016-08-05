@@ -230,7 +230,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addStringElement(namespace, providerElement, "declaration", declaration);
         addStringElement(namespace, providerElement, "dateRelease", dateRelease);
         addStringElement(namespace, providerElement, "dateActualExport", dateActualExport);
-        providerElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+        if(numberTaxes != null)
+            providerElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
         providerElement.setNamespace(namespace);
         return providerElement;
     }
@@ -264,7 +265,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addStringElement(namespace, recipientElement, "name", name);
         addStringElement(namespace, recipientElement, "address", address);
         addStringElement(namespace, recipientElement, "declaration", declaration);
-        recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+        if(numberTaxes != null)
+            recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
         addStringElement(namespace, recipientElement, "dateImport", dateImport);
         recipientElement.setNamespace(namespace);
         return recipientElement;
