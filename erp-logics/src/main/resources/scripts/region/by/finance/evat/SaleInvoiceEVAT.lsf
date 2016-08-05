@@ -1,6 +1,6 @@
 MODULE SaleInvoiceEvat;
 
-REQUIRE SaleInvoice, EVAT;
+REQUIRE SaleInvoice, EVAT, CustomsGroup;
 
 NAMESPACE Sale;
 
@@ -13,12 +13,11 @@ createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DA
     FOR eVAT(operation(Invoice i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
         status(e) <- EVATStatus.original;
         
-        number(e) <- VARSTRING[100](i);
         date(e) <- date(i);
         
         numberContract (e) <- number(contractSku(i));
         dateContract (e) <- dateFrom(contractSku(i));
-        codeDocType (e) <- '603';
+        codeDocType (e) <- 603;
         blankCodeDoc (e) <- '402861';
         seriesDoc(e) <- series(i);
         numberDoc(e) <- number(i);
@@ -26,17 +25,21 @@ createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DA
         
         //Поставщик
         supplier(e) <- supplier(i);
+        branchCodeSupplier(e) <- branchCode(supplierStock(i));
         
         //Получатель
         customer(e) <- customer(i);
+        branchCodeCustomer(e) <- branchCode(customerStock(i));
         
         FOR invoice(InvoiceDetail id) == i ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
 
             sku(ed) <- sku(id);
+            code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(defaultCountry(), sku(id));
             quantity(ed) <- quantity(id); 
             price(ed) <- price(id);
             sum(ed) <- sum(id);
+            exciseSum(ed) <- 0;
             vatRate(ed) <- valueVAT(id);
             vatSum(ed) <- VATSum(id);
             sumWithVAT(ed) <- invoiceSum(id);
@@ -47,6 +50,7 @@ createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DA
                 descriptionType(ed) <- DescriptionType.deductionInFull;
         } 
     } 
+    APPLY {};
 }
 
 EXTEND FORM evats

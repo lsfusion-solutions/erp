@@ -1,6 +1,13 @@
 MODULE EVAT;
 
-REQUIRE System, Finance, LegalEntityBy, Item;
+REQUIRE System, Finance, LegalEntityBy, Item, Warehouse;
+
+// Атрибуты для счет-фактуры
+
+branchCode 'Код подразделения (для ЭСЧФ)' = DATA INTEGER (Warehouse);
+EXTEND FORM warehouse
+    PROPERTIES(w) branchCode
+;
 
 CLASS EVAT 'Электронный счёт-фактура';
 TABLE evat(EVAT);
@@ -27,7 +34,9 @@ status = DATA EVATStatus (EVAT);
 nameStatus 'Статус' (EVAT evat) = staticName(status(evat));
 captionStatus 'Статус' (EVAT evat) = staticCaption(status(evat));
 
-number 'Номер' = DATA VARSTRING[100] (EVAT) NOT NULL;
+@defineNumbered(EVAT);
+@defineNumeratedDefault(EVAT, 'ЭСЧФ', 'ЭС');
+
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
 date 'Дата совершения операции' = DATA DATE (EVAT);
 dateCancelled 'Дата аннулирования' = DATA DATE (EVAT);
@@ -86,7 +95,7 @@ unpCustomer 'УНП получателя' (EVAT evat) = UNP(customer(evat));
 CLASS EVATDetail 'Строка электронного счёта-фактуры';
 TABLE evatDetail(EVATDetail);
 
-evat = DATA EVAT (EVATDetail);
+evat = DATA EVAT (EVATDetail) NOT NULL DELETE;
 sku 'Товар' = DATA Sku(EVATDetail);
 name 'Наименование' (EVATDetail evatDetail) = name(sku(evatDetail));
 code 'Код ТНВЭД' = DATA VARSTRING[10] (EVATDetail);
@@ -224,9 +233,9 @@ FORM evats 'Электронные счета-фактуры'
                   dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
                   nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
     PROPERTIES(e) generateXMLAction TOOLBAR
-    PROPERTIES(e) ADDFORM, EDITFORM, DELETE
+    PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(d) READONLY name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
 ;
