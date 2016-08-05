@@ -61,7 +61,7 @@ unpSender 'Субъект хозяйствования, составляющий
 //Поставщик
 supplier 'Поставщик' = DATA LegalEntity(EVAT);
 nameSupplier 'Поставщик' (EVAT evat) = name(supplier(evat));
-idSupplier 'Поставщик' (EVAT evat) = id(supplier(evat));
+branchCodeSupplier 'Код филиала поставщика' = DATA INTEGER (EVAT);
 addressSupplier 'Адрес поставщика' (EVAT evat) = address(supplier(evat));
 dependentPersonSupplier 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);
 residentsOfOffshoreSupplier ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
@@ -73,7 +73,7 @@ unpSupplier 'УНП поставщика' (EVAT evat) = UNP(supplier(evat));
 //Получатель
 customer 'Получатель' = DATA LegalEntity(EVAT);
 nameCustomer 'Получатель' (EVAT evat) = name(customer(evat));
-idCustomer 'Получатель' (EVAT evat) = id(customer(evat));
+branchCodeCustomer 'Код филиала получателя' = DATA INTEGER (EVAT);
 addressCustomer 'Адрес получателя' (EVAT evat) = address(customer(evat));
 dependentPersonCustomer 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);
 residentsOfOffshoreCustomer ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
@@ -89,7 +89,7 @@ TABLE evatDetail(EVATDetail);
 evat = DATA EVAT (EVATDetail);
 sku 'Товар' = DATA Sku(EVATDetail);
 name 'Наименование' (EVATDetail evatDetail) = name(sku(evatDetail));
-idBarcode 'Штрихкод' (EVATDetail evatDetail) = idBarcode(sku(evatDetail));
+code 'Код ТНВЭД' = DATA VARSTRING[10] (EVATDetail);
 shortNameUOM 'Ед. изм.' (EVATDetail evatDetail) = shortNameUOM(sku(evatDetail));
 codeOced 'Код видов деятельности (ОКЭД)' = DATA VARSTRING[100] (EVATDetail);
 quantity 'Количество' = DATA NUMERIC[16,5] (EVATDetail); 
@@ -128,15 +128,16 @@ FORM evat 'Электронный счёт-фактура'
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
-                  dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
-                  nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
+                  dateInvoiceVendor, nameSupplier, branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
+                   numberTaxesSupplier, dateTaxesSupplier,
+                  nameCustomer, branchCodeCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
                   numberContract, dateContract, codeDocType, valueDocType, blankCodeDoc, seriesDoc, numberDoc, descriptionDoc, 
                   totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
     OBJECTS s=LegalEntity FIXED PANEL, c=LegalEntity FIXED PANEL
     PROPERTIES(s) id, UNP, address
     PROPERTIES(c) id, UNP, address
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
+    PROPERTIES(d) name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
     FILTERS s==supplier(e), c==customer(e), evat(d) == e
     EDIT EVAT OBJECT e
 ;
@@ -170,6 +171,7 @@ DESIGN evat {
             MOVE PROPERTY(dateInvoicePrincipal(e));
             MOVE PROPERTY(numberInvoiceVendor(e));
             MOVE PROPERTY(dateInvoiceVendor(e));
+            MOVE PROPERTY(branchCodeSupplier(e));
             MOVE PROPERTY(declarationSupplier(e));
             MOVE PROPERTY(dateReleaseSupplier(e));
             MOVE PROPERTY(dateActualExportSupplier(e));
@@ -184,6 +186,7 @@ DESIGN evat {
             MOVE PROPERTY(dependentPersonCustomer(e));
             MOVE PROPERTY(residentsOfOffshoreCustomer(e));
             MOVE PROPERTY(specialDealGoodsCustomer(e));
+            MOVE PROPERTY(branchCodeCustomer(e));
             MOVE PROPERTY(declarationCustomer(e));
             MOVE PROPERTY(numberTaxesCustomer(e));
             MOVE PROPERTY(dateTaxesCustomer(e));
@@ -223,7 +226,7 @@ FORM evats 'Электронные счета-фактуры'
     PROPERTIES(e) generateXMLAction TOOLBAR
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(d) name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
 ;

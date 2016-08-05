@@ -201,12 +201,12 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String countryCode = trim((String) findProperty("countryCodeSupplier[EVAT]").read(context, evatObject));
         String unp = trim((String) findProperty("unpSupplier[EVAT]").read(context, evatObject));
         String name = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
-        String idSupplier = trim((String) findProperty("idSupplier[EVAT]").read(context, evatObject));
+        Integer branchCodeSupplier = (Integer) findProperty("branchCodeSupplier[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressSupplier[EVAT]").read(context, evatObject));
-        String numberInvoicePrincipal = trim((String) findProperty("numberInvoicePrincipal[EVAT]").read(context, evatObject));
-        String dateInvoicePrincipal = formatDate((Date) findProperty("dateInvoicePrincipal[EVAT]").read(context, evatObject));
-        String numberInvoiceVendor = trim((String) findProperty("numberInvoiceVendor[EVAT]").read(context, evatObject));
-        String dateInvoiceVendor = formatDate((Date) findProperty("dateInvoiceVendor[EVAT]").read(context, evatObject));
+        //String numberInvoicePrincipal = trim((String) findProperty("numberInvoicePrincipal[EVAT]").read(context, evatObject));
+        //String dateInvoicePrincipal = formatDate((Date) findProperty("dateInvoicePrincipal[EVAT]").read(context, evatObject));
+        //String numberInvoiceVendor = trim((String) findProperty("numberInvoiceVendor[EVAT]").read(context, evatObject));
+        //String dateInvoiceVendor = formatDate((Date) findProperty("dateInvoiceVendor[EVAT]").read(context, evatObject));
         String declaration = trim((String) findProperty("declarationSupplier[EVAT]").read(context, evatObject));
         String dateRelease = formatDate((Date) findProperty("dateReleaseSupplier[EVAT]").read(context, evatObject));
         String dateActualExport = formatDate((Date) findProperty("dateActualExportSupplier[EVAT]").read(context, evatObject));
@@ -221,7 +221,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addBooleanElement(namespace, providerElement, "bigCompany", bigCompany);
         addStringElement(namespace, providerElement, "countryCode", countryCode);
         addStringElement(namespace, providerElement, "unp", unp);
-        addStringElement(namespace, providerElement, "branchCode", idSupplier);
+        addIntegerElement(namespace, providerElement, "branchCode", branchCodeSupplier);
         addStringElement(namespace, providerElement, "name", name);
         addStringElement(namespace, providerElement, "address", address);
         //с ними не проходит
@@ -246,7 +246,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String countryCode = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
         String unp = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
         String name = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
-        String idCustomer = trim((String) findProperty("idCustomer[EVAT]").read(context, evatObject));
+        Integer branchCodeCustomer = (Integer) findProperty("branchCodeCustomer[EVAT]").read(context, evatObject);
         String address = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
         String declaration = trim((String) findProperty("declarationCustomer[EVAT]").read(context, evatObject));
         String numberTaxes = trim((String) findProperty("numberTaxesCustomer[EVAT]").read(context, evatObject));
@@ -261,7 +261,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addBooleanElement(namespace, recipientElement, "bigCompany", bigCompany);
         addStringElement(namespace, recipientElement, "countryCode", countryCode);
         addStringElement(namespace, recipientElement, "unp", unp);
-        addStringElement(namespace, recipientElement, "branchCode", idCustomer);
+        addIntegerElement(namespace, recipientElement, "branchCode", branchCodeCustomer);
         addStringElement(namespace, recipientElement, "name", name);
         addStringElement(namespace, recipientElement, "address", address);
         addStringElement(namespace, recipientElement, "declaration", declaration);
@@ -347,7 +347,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
         String[] evatDetailNames = new String[]{"name", "idBarcode", "shortNameUOM", "codeOCed",
                 "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
-        LCP[] evatDetailProperties = findProperties("name[EVATDetail]", "idBarcode[EVATDetail]", "shortNameUOM[EVATDetail]", "codeOced[EVATDetail]",
+        LCP[] evatDetailProperties = findProperties("name[EVATDetail]", "code[EVATDetail]", "shortNameUOM[EVATDetail]", "codeOced[EVATDetail]",
                 "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]", "vatRate[EVATDetail]", "vatSum[EVATDetail]",
                 "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
         for (int i = 0; i < evatDetailProperties.length; i++) {
@@ -359,8 +359,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         for (ImMap<Object, Object> entry : evatDetailResults.values()) {
             count++;
             String name = trim((String) entry.get("name"));
-            String idBarcode = trim((String) entry.get("idBarcode"));
-            String shortNameUOM = null;//trim((String) entry.get("shortNameUOM")); //должен быть Integer
+            String code = trim((String) entry.get("code"));
+            //String shortNameUOM = trim((String) entry.get("shortNameUOM")); //должен быть Integer
             Integer codeOced = (Integer) entry.get("codeOced");
             BigDecimal quantity = (BigDecimal) entry.get("quantity");
             BigDecimal price = (BigDecimal) entry.get("price");
@@ -375,9 +375,9 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             Element rosterItemElement = new Element("rosterItem", namespace);
             addStringElement(namespace, rosterItemElement, "number", getString(count));
             addStringElement(namespace, rosterItemElement, "name", name);
-            addStringElement(namespace, rosterItemElement, "code", idBarcode);
+            addStringElement(namespace, rosterItemElement, "code", code);
             addStringElement(namespace, rosterItemElement, "code_oced", getString(codeOced));
-            addStringElement(namespace, rosterItemElement, "units", shortNameUOM);
+            //addStringElement(namespace, rosterItemElement, "units", shortNameUOM);
             addBigDecimalElement(namespace, rosterItemElement, "count", quantity);
             addBigDecimalElement(namespace, rosterItemElement, "price", price);
             addBigDecimalElement(namespace, rosterItemElement, "cost", sum);
