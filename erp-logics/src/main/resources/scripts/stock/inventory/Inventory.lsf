@@ -1032,6 +1032,37 @@ quantity (InInventorySkuDetail ledger) += quantity(ledger);
 sum (InInventorySkuDetail ledger) += sum(ledger);
 stockDocumentLedger(InInventorySkuDetail ledger) += collationSheet(ledger);
 
+// Показываем форму по каким партиям произошло расписывание
+
+currentBalance 'Текущий остаток' (CollationSheet cs, Batch b) = currentBalance(b, stock(cs));
+
+FORM collationSheetBatches 'Партии'
+    OBJECTS cs = CollationSheet FIXED PANEL 
+    OBJECTS s = Sku FIXED PANEL
+    
+    OBJECTS d = InventorySkuDetail FIXED GRID
+    PROPERTIES(d) READONLY dateTime, description, quantity, costed
+    FILTERS sku(d) == s, collationSheet(d) == cs
+    
+    OBJECTS b = Batch
+    PROPERTIES(b) READONLY dateTime, name
+    PROPERTIES(cs, b) READONLY currentBalance
+    PROPERTIES(d, b) cost
+    FILTERS sku(b) == s,
+            countLedger(b, stock(cs))
+    ORDER BY dateTime(b)
+;
+
+DESIGN collationSheetBatches {
+    b.box {
+        fill = 2;
+    }
+}
+
+showCost 'Расписывание по партиям' (CollationSheet cs, Sku s) = ACTION {
+    FORM collationSheetBatches OBJECTS cs = cs, s = s MODAL;
+}
+
 //---------------------------- Изменение остатка инвентаризации batch----------------------------//
 
 CLASS ABSTRACT InventoryBatchDetail 'Изменение остатка инвентаризации' : DataSkuLedger;
@@ -1478,7 +1509,7 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS          i=Sku FIXED GRID
     PROPERTIES(i) READONLY                      idBarcode, iNameSku = name, id
-    PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage
+    PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage ON SHORTCUT showCost(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
                                                 priceBalance BACKGROUND differentPrice(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) sumPageInventoryDetail, sumBalance, sumShortage
