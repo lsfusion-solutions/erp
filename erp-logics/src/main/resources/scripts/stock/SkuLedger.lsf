@@ -479,10 +479,6 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     sumOut (sku, stock, date) =
         GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
 
-    sum (Sku sku, Stock stock, DATE date) = sumIn(sku, stock, date)
-                                                         (+)
-                                                         sumOut(sku, stock, date) PERSISTENT @@denomination;
-
     signedSum (Sku sku, Stock stock, DATE date) = sumIn(sku, stock, date)
                                                                (-)
                                                                sumOut(sku, stock, date) PERSISTENT @@denomination;
@@ -597,9 +593,6 @@ balance (Sku item, Stock departmentStore, DATE date, LONG period) =
 signedQuantity = GROUP SUM signedCost (SkuLedger ledger, Batch batch) IF isPosted(ledger)
                                      BY batch, stock(ledger), date(ledger) PERSISTENT; 
                                      
-quantity = GROUP SUM cost (SkuLedger ledger, Batch batch) IF isPosted(ledger)
-                                     BY batch, stock(ledger), date(ledger) PERSISTENT;                                      
-
 // без учета текущей даты/времени
 balanceB 'Остаток на начало дня' (Batch batch, Stock stock, DATE date) = currentBalance(batch, stock)
     (-) [= GROUP SUM signedQuantity(Batch batch, Stock stock, DATE dateIn) IF dateIn >= DATE date
