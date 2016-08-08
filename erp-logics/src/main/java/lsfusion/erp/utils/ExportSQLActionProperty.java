@@ -24,15 +24,17 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     List<String> keyColumns;
     String connectionStringProperty;
     boolean truncate;
+    boolean noInsert;
 
     public ExportSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
-                                   List<String> keyColumns, String connectionStringProperty, boolean truncate) {
+                                   List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
         super(LM);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;
         this.keyColumns = keyColumns;
         this.connectionStringProperty = connectionStringProperty;
         this.truncate = truncate;
+        this.noInsert = noInsert;
     }
 
     @Override
@@ -114,8 +116,10 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         }
                     } else {
                         ps = conn.prepareStatement(
-                                String.format("UPDATE %s SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
-                                        idForm, set, wheres, idForm, columns, params));
+                                noInsert ?
+                                        String.format("UPDATE %s SET %s WHERE %s", idForm, set, wheres) :
+                                        String.format("UPDATE %s SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
+                                                idForm, set, wheres, idForm, columns, params));
 
                         for (int k = 0; k < rows.size(); k++) {
                             List<Object> row = rows.get(k);
