@@ -128,7 +128,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                             for (i = 0; i < paramLength; i++) {
                                 Object value = row.get(i);
                                 setObject(ps, i + 1, value);
-                                if(noInsert = false)
+                                if(!noInsert)
                                     setObject(ps, i + paramLength + keyColumns.size() + 1, value);
                             }
                             for (int j = 0; j < keyColumns.size(); j++) {
