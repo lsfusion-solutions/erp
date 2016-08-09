@@ -14,6 +14,7 @@ import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -31,8 +32,7 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.SQLException;
 import java.text.SimpleDateFormat;
-import java.util.Calendar;
-import java.util.Iterator;
+import java.util.*;
 
 public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionProperty {
 
@@ -51,10 +51,23 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     private void sendEVAT(ExecutionContext context, DataObject evatObject) {
-        generateXML(context, evatObject);
+        generateXML(context, evatObject, true);
     }
 
-    private void generateXML(ExecutionContext context, DataObject evatObject) {
+    protected Map<Integer, File> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<Integer, File> files = new HashMap<>();
+        KeyExpr evatExpr = new KeyExpr("evat");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.and(findProperty("in[EVAT]").getExpr(context.getModifier(), evatExpr).getWhere());
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
+        for (ImMap<Object, DataObject> entry : result.keys()) {
+            files.put((Integer) entry.get("evat").getValue(), generateXML(context, entry.get("evat"), false));
+        }
+        return files;
+    }
+
+    protected File generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
         File tmpFile = null;
         try {
 
@@ -103,12 +116,14 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             tmpFile = File.createTempFile("evat", "xml");
             outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
-            context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", IOUtils.getFileBytes(tmpFile)));
+            if(choosePath)
+                context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", IOUtils.getFileBytes(tmpFile)));
+            return tmpFile;
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
         } finally {
-            if (tmpFile != null && !tmpFile.delete())
+            if (choosePath && tmpFile != null && !tmpFile.delete())
                 tmpFile.deleteOnExit();
         }
     }

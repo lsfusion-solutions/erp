@@ -26,7 +26,20 @@ FORM evatStatuses
     DIALOG EVATStatus OBJECT e
 ;
 
+serviceUrlEVAT 'Адрес  WSDL (EVAT)' = DATA VARSTRING[100] (Computer);
+serviceUrlEVAT 'Адрес WSDL (EVAT)' () = serviceUrlEVAT(currentComputer()); 
+pathEVAT 'Путь к jar и xsd (EVAT)' = DATA VARSTRING[100] (Computer);
+pathEVAT 'Путь к jar и xsd (EVAT)' () = pathEVAT(currentComputer()); 
+passwordEVAT 'Пароль (EVAT)' = DATA VARSTRING[100] (Computer) ECHO;
+passwordEVAT 'Пароль (EVAT)' () = passwordEVAT(currentComputer()); 
+
+EXTEND FORM computer PROPERTIES(c) serviceUrlEVAT, pathEVAT, passwordEVAT;
+EXTEND FORM computers PROPERTIES(c) READONLY serviceUrlEVAT, pathEVAT, passwordEVAT;
+
 generateXMLAction 'Сгенерировать XML' = ACTION CUSTOM 'lsfusion.erp.region.by.finance.evat.GenerateXMLEVATActionProperty'(EVAT); 
+evatAction = ACTION CUSTOM 'lsfusion.erp.region.by.finance.evat.EVATActionProperty'(INTEGER); 
+signAndSend 'Сгенерировать, подписать и отправить' (EVAT evat) = ACTION { evatAction(0); }
+listAndGet 'Скачать ЭСЧФ с портала' (EVAT evat) = ACTION { evatAction(1); }
 
 formExportFile() = DATA LOCAL CUSTOMFILE ();
 
@@ -37,6 +50,9 @@ captionStatus 'Статус' (EVAT evat) = staticCaption(status(evat));
 @defineNumbered(EVAT);
 @defineNumeratedDefault(EVAT, 'ЭСЧФ', 'ЭС');
 
+result 'Ответ сервера' = DATA TEXT (EVAT);
+
+in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
 date 'Дата совершения операции' = DATA DATE (EVAT);
 dateCancelled 'Дата аннулирования' = DATA DATE (EVAT);
@@ -133,7 +149,7 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 
 FORM evat 'Электронный счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
-    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, 
+    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, result,
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
@@ -167,6 +183,7 @@ DESIGN evat {
             MOVE PROPERTY(invoice(e));
             MOVE PROPERTY(dateCancelled(e));
             MOVE PROPERTY(sendToRecipient(e));
+            MOVE PROPERTY(result(e));
         }
         NEW supplier{
             caption = 'Поставщик';
@@ -229,10 +246,11 @@ DESIGN evat {
 
 FORM evats 'Электронные счета-фактуры'
     OBJECTS e = EVAT
+    PROPERTIES(e) in
     PROPERTIES(e) READONLY captionStatus, unpSender, number, invoice, date, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
                   dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
                   nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
-    PROPERTIES(e) generateXMLAction TOOLBAR
+    PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend//, listAndGet
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     OBJECTS d = EVATDetail
     PROPERTIES(d) READONLY name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
