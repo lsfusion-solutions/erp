@@ -110,7 +110,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             //<plugin-property key="plu-number" value="4">
                             Element extraPluginProperty = new Element("plugin-property");
                             setAttribute(extraPluginProperty, "key", "plu-number");
-                            setAttribute(extraPluginProperty, "value", idItem);
+                            setAttribute(extraPluginProperty, "value", removeZeroes(idItem));
                             good.addContent(extraPluginProperty);
 
                             rootElement.addContent(good);
@@ -227,6 +227,15 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         }
         processTransactionLogger.info(String.format("Kristal10: starting to wait for deletion %s files", fileMap.size()));
         return waitForDeletion(fileMap, failedTransactionMap, emptyTransactionSet);
+    }
+
+    private String removeZeroes(String value) {
+        if(value != null) {
+            while(value.startsWith("0")) {
+                value = value.substring(1);
+            }
+        }
+        return value;
     }
 
     private void addProductType(Element good, ItemInfo item, List<String> tobaccoGroups) {
