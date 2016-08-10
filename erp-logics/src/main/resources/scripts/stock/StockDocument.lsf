@@ -483,9 +483,21 @@ META implementStockDocumentLedgerOut (concrete, stockProp, NS)
 END
 documentsClosedDate 'Дата закрытия документов' = DATA DATE(Stock);
 
-CONSTRAINT (CHANGED(date(StockDocumentLedger d)) OR CHANGED(sum(d)) OR CHANGED(isPosted(d))) AND date(d) < documentsClosedDate(stock(d))
+allowChangeStockDocumentClosed 'Разрешить корректировать документы до даты закрытия' = DATA BOOLEAN (CustomUser);
+EXTEND FORM customUser
+    PROPERTIES(u) allowChangeStockDocumentClosed
+;
+
+CONSTRAINT (CHANGED(date(StockDocumentLedger d)) OR CHANGED(sum(d)) OR CHANGED(active(d))) 
+            AND documentsClosedDate(stock(d)) AND NOT date(d) >= documentsClosedDate(stock(d)) AND active(d) 
+            AND NOT allowChangeStockDocumentClosed(currentUser())
     MESSAGE 'Запрещено создавать документы для склада до даты закрытия';
- 
+
+CONSTRAINT (DROPPED(StockDocumentLedger d IS StockDocumentLedger)) 
+            AND documentsClosedDate(PREV(stock(d))) AND NOT PREV(date(d)) >= documentsClosedDate(PREV(stock(d))) AND PREV(active(d)) 
+            AND NOT allowChangeStockDocumentClosed(currentUser())
+    MESSAGE 'Запрещено удалять документы для склада до даты закрытия';
+
 closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock) = ACTION {
     documentsClosedDate(stock) <- sum(date,1);
     FOR stock(StockDocumentLedger ledger) == stock AND date(ledger) <= date AND isOpened(ledger) DO {
@@ -642,7 +654,7 @@ FORM stockDocuments 'Учетный документ'
                             nameStock
     PROPERTIES (i) READONLY countUserStockDocumentDetail, sumContainer, sumItem, sum 
     PROPERTIES (i) READONLYIF isReadonly() note
-    PROPERTIES (i) FORCE PANEL TOOLBAR ADDFORM, EDITFORM, DELETESESSION
+    PROPERTIES (i) FORCE PANEL TOOLBAR ADDFORM, EDITFORM, DELETE
     
     PROPERTIES (i) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
