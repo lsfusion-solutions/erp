@@ -61,6 +61,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 boolean brandIsManufacturer = kristalSettings != null && kristalSettings.getBrandIsManufacturer() != null && kristalSettings.getBrandIsManufacturer();
                 boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
                 boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+                boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
@@ -101,7 +102,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             //parent: rootElement
                             Element good = new Element("good");
 
-                            String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem);
+                            String barcodeItem = transformBarcode(item.idBarcode, weightCode, item.passScalesItem, skipWeightPrefix);
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                             setAttribute(good, "marking-of-the-good", idItem);
@@ -506,6 +507,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
         List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
 
         for (String directory : directorySet) {
@@ -537,7 +539,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                     //parent: rootElement
                     Element good = new Element("good");
-                    idBarcode = transformBarcode(idBarcode, null, false);
+                    idBarcode = transformBarcode(idBarcode, null, false, skipWeightPrefix);
                     setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
                     addStringElement(good, "name", item.name);
 
@@ -1082,9 +1084,9 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 
-    private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem) {
+    private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem, boolean skipWeightPrefix) {
         //временное решение для весовых товаров
-        return passScalesItem && idBarcode.length() <= 6 && weightCode != null ? (weightCode + idBarcode) : idBarcode;
+        return passScalesItem && idBarcode.length() <= 6 && weightCode != null && !skipWeightPrefix ? (weightCode + idBarcode) : idBarcode;
     }
 
     private String transformUPCBarcode(String idBarcode, String transformUPCBarcode) {

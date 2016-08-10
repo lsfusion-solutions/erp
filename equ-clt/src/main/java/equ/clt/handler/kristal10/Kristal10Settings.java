@@ -9,6 +9,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean brandIsManufacturer;
     private Boolean seasonIsCountry;
     private Boolean idItemInMarkingOfTheGood;
+    private Boolean skipWeightPrefix;
     private Boolean useShopIndices;
     private Boolean ignoreSalesDepartmentNumber;
     private Boolean useIdItemInRestriction;
@@ -46,6 +47,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setIdItemInMarkingOfTheGood(Boolean idItemInMarkingOfTheGood) {
         this.idItemInMarkingOfTheGood = idItemInMarkingOfTheGood;
+    }
+
+    public Boolean getSkipWeightPrefix() {
+        return skipWeightPrefix;
+    }
+
+    public void setSkipWeightPrefix(Boolean skipWeightPrefix) {
+        this.skipWeightPrefix = skipWeightPrefix;
     }
 
     public Boolean getUseShopIndices() {
