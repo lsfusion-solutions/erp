@@ -106,6 +106,13 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             String idItem = idItemInMarkingOfTheGood ? item.idItem : barcodeItem;
 
                             setAttribute(good, "marking-of-the-good", idItem);
+
+                            //<plugin-property key="plu-number" value="4">
+                            Element extraPluginProperty = new Element("plugin-property");
+                            setAttribute(extraPluginProperty, "key", "plu-number");
+                            setAttribute(extraPluginProperty, "value", idItem);
+                            good.addContent(extraPluginProperty);
+
                             rootElement.addContent(good);
 
                             //parent: rootElement
