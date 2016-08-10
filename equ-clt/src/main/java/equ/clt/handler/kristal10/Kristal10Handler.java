@@ -110,7 +110,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             //<plugin-property key="plu-number" value="4">
                             Element extraPluginProperty = new Element("plugin-property");
                             setAttribute(extraPluginProperty, "key", "plu-number");
-                            setAttribute(extraPluginProperty, "value", removeZeroes(idItem));
+                            setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
                             good.addContent(extraPluginProperty);
 
                             rootElement.addContent(good);
