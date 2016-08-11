@@ -51,6 +51,7 @@ numberSkuPurchaseReserve 'Кол-во товаров' (supplier, stock, priceLis
 
 limitRecommendedQuantity = ABSTRACT VALUE OVERRIDE BOOLEAN (Sku, UserOrder);
 
+MOQ 'MOQ' = ABSTRACT NUMERIC[16,5] (Sku);
 overRecommendedQuantity = ACTION ABSTRACT LIST (UserOrderDetail,Sku); 
 fillRecommendedQuantityStock 'Заполнить рекомендуемым'(UserOrder userOrder) = ACTION {
     LOCAL in = BOOLEAN (Sku);
@@ -62,7 +63,7 @@ fillRecommendedQuantityStock 'Заполнить рекомендуемым'(Use
         ADDOBJ d = UserOrderDetail DO {
             userOrder(d) <- userOrder;
             sku(d) <- sku;
-            quantity (d) <- IF amountPack(sku) > 0 THEN ceil(r, amountPack(sku)) ELSE (IF split(sku) THEN r ELSE ceil(r)) ;
+            quantity (d) <- IF (MIN MOQ(sku), amountPack(sku)) > 0 THEN ceil(r, (MIN MOQ(sku), amountPack(sku))) ELSE (IF split(sku) THEN r ELSE ceil(r)) ;
             overRecommendedQuantity(d,sku);
         }
 } TOOLBAR CONFIRM;
