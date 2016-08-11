@@ -428,8 +428,11 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
 
             if(!deleteSuccessfulFiles) {
                 try {
-                    if (makeDirsIfNeeded(f.getParent() + "/success/"))
-                        FileCopyUtils.copy(f, new File(f.getParent() + "/success/" + f.getName()));
+                    if (makeDirsIfNeeded(f.getParent() + "/success/")) {
+                        String directory = f.getParent() + "/success/" + new SimpleDateFormat("yyyy-MM-dd").format(Calendar.getInstance().getTime()) + "/";
+                        if (makeDirsIfNeeded(directory))
+                            FileCopyUtils.copy(f, new File(directory + f.getName()));
+                    }
                 } catch (IOException e) {
                     throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be copied to success files", e);
                 }
