@@ -137,7 +137,6 @@ nameBatch 'Партия' (SkuLedger l) = name(batch(l));
 //---------------------------- Количественные регистры (конкретная реализация) ----------------------------------------//
 
 dateTime 'Дата/время' = ABSTRACT DATETIME (DataSkuLedger) PERSISTENT INDEXED;
-date 'Дата' (DataSkuLedger ledger) = toDate(dateTime(ledger)) PERSISTENT;
 
 isPosted 'Проведен' = ABSTRACT BOOLEAN (DataSkuLedger) PERSISTENT;
 
@@ -250,8 +249,8 @@ costSum 'Сумма поставщика без НДС' = GROUP SUM costSum(SkuL
 // ---------------------------- Учетные цены и суммы ------------------------------- //
 
 // сумма операции
-sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (InSkuLedger) PERSISTENT @@denomination;
-sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (OutSkuLedger) PERSISTENT @@denomination;
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (InSkuLedger);
+sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (OutSkuLedger);
 
 sum 'Сумма' = MULTI sum[InSkuLedger](SkuLedger ledger),
                              sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
@@ -1148,7 +1147,7 @@ FORM balanceSkuStock 'Остатки на дату'
 
     OBJECTS bil=SkuLedger
     PROPERTIES(bil) READONLY dateTime, description, nameBatch,
-                    signedQuantity, signedPrice, signedSum
+                    signedQuantity, signedPrice, signedSum, skip
     FILTERS isPosted(bil) AND sku(bil)==s AND stock(bil)==st
     ORDER BY dateTime(bil) DESC
 
