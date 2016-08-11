@@ -242,15 +242,16 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id, zreport FROM history WHERE new = 1";
+            String query = "SELECT type, ecr, doc, barcode, code, qty, price, amount, discount, department, flags, date, id, zreport, payment FROM history WHERE new = 1";
             ResultSet rs = statement.executeQuery(query);
 
             int position = 0;
             List<SalesInfo> currentSalesInfoList = new ArrayList<>();
+            Set<Integer> currentReadRecordSet = new HashSet<>();
             while (rs.next()) {
 
                 Integer id = rs.getInt(13);
-                readRecordSet.add(id);
+                currentReadRecordSet.add(id);
                 Integer type = rs.getInt(1); //type, Тип операции: 1. 2. Закрытие смены 3. Внесение 4. Выдача 5. Открытие чека 6. Регистрация 7. Оплата 8. Закрытие чека
                 Integer numberReceipt = rs.getInt(3); //doc, Номер чека
                 switch (type) {
@@ -271,7 +272,7 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                         CashRegisterInfo cashRegister = machineryMap.get(cash_id);
                         Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
-                        String numberZReport = rs.getString(14);
+                        String numberZReport = rs.getString(14); //zReport
 
                         String idBarcode = rs.getString(4); //barcode, Штрих-код товара
                         String idItem = String.valueOf(rs.getLong(5)); //code, Код товара
@@ -283,31 +284,45 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
 
                         Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
 
-                        boolean isSale = flags % 2 == 1;
-                        boolean isReturn = flags % 2 == 1;
+                        boolean isSale = !getBit(flags, 0);
+                        boolean isReturn = getBit(flags, 0);
                         Date dateReceipt = rs.getDate(12); // r.date
                         Time timeReceipt = rs.getTime(12); //r.date
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
 
-                        currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
-                                dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
-                                null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
-                                price, isSale ? sum : sum.negate(), discountSum, null, null,
-                                position, null, idSection));
+                        boolean isDiscount = getBit(flags, 1);
+                        boolean discountRecord = idBarcode.isEmpty() && isDiscount;
+                        if(discountRecord) {
+                            for(SalesInfo s : currentSalesInfoList) {
+                                s.discountSumReceipt = discountSum;
+                            }
+                        } else {
+                            currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
+                                    dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
+                                    null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
+                                    price, isSale ? sum : sum.negate(), discountSum, null, null,
+                                    position, null, idSection));
+                        }
                         break;
                     case 7: //Оплата
                         BigDecimal sumPayment = rs.getBigDecimal(8); //amount, Сумма
-                        Integer typePayment = rs.getInt(13); //Payment, Номер оплаты
+                        Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
                         for (SalesInfo salesInfo : currentSalesInfoList) {
                             if (typePayment == 0)
-                                salesInfo.sumCash = sumPayment;
+                                salesInfo.sumCash = safeAdd(salesInfo.sumCash, sumPayment);
                             else if (typePayment == 1)
-                                salesInfo.sumCard = sumPayment;
+                                salesInfo.sumCard = safeAdd(salesInfo.sumCard, sumPayment);
+                            else if (typePayment == 2)
+                                salesInfo.sumGiftCard = safeAdd(salesInfo.sumGiftCard, sumPayment);
+                            else
+                                salesInfo.sumCash = safeAdd(salesInfo.sumCash, sumPayment);
                         }
                         break;
                     case 8: //Закрытие чека
                         salesInfoList.addAll(currentSalesInfoList);
+                        readRecordSet.addAll(currentReadRecordSet);
+                        currentReadRecordSet = new HashSet<>();
                         break;
                 }
             }
@@ -320,6 +335,10 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                 statement.close();
         }
         return new EQSSalesBatch(salesInfoList, readRecordSet);
+    }
+
+    boolean getBit(int n, int k) {
+        return ((n >> k) & 1) == 1;
     }
 
     @Override
@@ -445,5 +464,12 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
     protected String trim(String input, Integer length, String defaultValue) {
         return input == null ? defaultValue : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
     }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
 
 }
