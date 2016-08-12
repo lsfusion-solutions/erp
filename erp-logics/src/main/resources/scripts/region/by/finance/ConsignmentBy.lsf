@@ -153,7 +153,7 @@ dataTruck = ABSTRACT Truck(Consignment);
 truck(Consignment consignment) = OVERRIDE defaultTruck(consignment), dataTruck(consignment);  
 
 dataNameTruck = DATA VARSTRING[70](Consignment);
-nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE name(truck(consignment)), dataNameTruck(consignment) IN carConsignment;
+nameTruck 'Автомобиль' (Consignment consignment) = OVERRIDE name(truck(consignment)), dataNameTruck(consignment) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
 skipTruck 'Пропустить проверку автомобиля' = ABSTRACT CASE BOOLEAN (Consignment);
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
@@ -221,14 +221,14 @@ ownerTruck 'Владелец автомобиля' (Consignment consignment) = O
 
 dataTrailer = ABSTRACT VARSTRING[100] (Consignment);
 trailer 'Прицеп' (Consignment consignment) = OVERRIDE trailer(truck(consignment)),
-                                                     dataTrailer(consignment) IN carConsignment;
+                                                     dataTrailer(consignment) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
 
 driver = ABSTRACT CASE OVERRIDE FIRST Employee(Consignment);
 dataEmployee = ABSTRACT Employee(Consignment);
 
 dataNameDriver = DATA VARSTRING[30] (Consignment);
 nameDriver 'Водитель' (Consignment consignment) = OVERRIDE shortName(driver(consignment)),
-                                                          shortName(dataEmployee(consignment)), dataNameDriver(consignment) IN carConsignment;
+                                                          shortName(dataEmployee(consignment)), dataNameDriver(consignment) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
 skipDriver 'Пропустить проверку водителя' = ABSTRACT CASE BOOLEAN (Consignment);
                                                           
 changeDriver(Consignment consignment) = ACTION {
@@ -251,7 +251,7 @@ dataWaybill 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Co
 
 waybill 'Путевой лист' (consignment) = ABSTRACT STRING[30] (Consignment);
 
-overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE waybill(consignment), dataWaybill(consignment) IN carConsignment;
+overWaybill 'Путевой лист' (Consignment consignment) = OVERRIDE waybill(consignment), dataWaybill(consignment) MINCHARWIDTH 15 PREFCHARWIDTH 30 IN carConsignment;
 skipWaybill 'Пропустить проверку путевого листа' = ABSTRACT CASE BOOLEAN (Consignment);
 
 // Склад погрузки
@@ -260,7 +260,7 @@ nameSupplierStock 'Склад погрузки' (Consignment consignment) = name
 
 dataAddressSupplierStock 'Пункт погрузки' (consignment) = ABSTRACT VARSTRING[150] (Consignment);
 addressSupplierStock 'Пункт погрузки' (Consignment consignment) = OVERRIDE address(supplierStock(consignment)),
-                                                                          dataAddressSupplierStock (consignment) IN carConsignment;
+                                                                          dataAddressSupplierStock (consignment) MINCHARWIDTH 40 PREFCHARWIDTH 50 IN carConsignment;
 
 // Склад разгрузки
 customerStock (consignment) = ABSTRACT Stock (Consignment);
@@ -268,9 +268,9 @@ nameCustomerStock 'Склад разгрузки' (Consignment consignment) = na
 
 dataAddressCustomerStock 'Пункт разгрузки' (consignment) = ABSTRACT VARSTRING[150] (Consignment) IN carConsignment;
 addressCustomerStock 'Пункт разгрузки' (Consignment consignment) = OVERRIDE address(customerStock(consignment)),
-                                                                           dataAddressCustomerStock (consignment) IN carConsignment;
+                                                                           dataAddressCustomerStock (consignment) MINCHARWIDTH 40 PREFCHARWIDTH 50 IN carConsignment;
 
-readdressing 'Переадресовка' (consignment) = ABSTRACT VARSTRING[50] (Consignment) IN carConsignment;
+readdressing 'Переадресовка' (consignment) = ABSTRACT VARSTRING[50] (Consignment) MINCHARWIDTH 40 PREFCHARWIDTH 50 IN carConsignment;
 
 // ------------------------------------- Отпуск товара --------------------------------- //
 
@@ -945,51 +945,67 @@ FORM consignment 'Атрибуты накладной'
 ;
 
 DESIGN consignment {
-    main {
-        preferredSize = (1024, 768);
-
-        NEW header {
-            caption = 'Шапка документа';
-            type = CONTAINERH;
-            MOVE PROPERTY(nameSupplierStock(c));
-            MOVE PROPERTY(number(c));
-            MOVE PROPERTY(series(c));
-            MOVE PROPERTY(date(c));
+    preferredSize = (1024, 768);
+    NEW pane {
+        fill = 1;
+        type = TABBED;
+        NEW mainTab {
+            caption = 'Основная информация';
+            NEW header {
+                caption = 'Шапка документа';
+                type = CONTAINERH;
+                MOVE PROPERTY(nameSupplierStock(c));
+                MOVE PROPERTY(number(c));
+                MOVE PROPERTY(series(c));
+                MOVE PROPERTY(date(c));
+            }
+        
+            NEW supplier {
+                caption = 'Грузоотправитель';
+                type = CONTAINERH;
+                MOVE PROPERTY(fullNameSupplier(c));
+                MOVE PROPERTY(UNPSupplier(c));
+                MOVE PROPERTY(addressSupplier(c));
+            }
+        
+            NEW customer {
+                caption = 'Грузополучатель';
+                type = CONTAINERH;
+                MOVE PROPERTY(fullNameCustomer(c));
+                MOVE PROPERTY(UNPCustomer(c));
+                MOVE PROPERTY(addressCustomer(c));
+            }
+        
+            NEW payer {
+                caption = 'Заказчик ';
+                type = CONTAINERH;
+                MOVE PROPERTY(fullNamePayer(c));
+                MOVE PROPERTY(UNPPayer(c));
+                MOVE PROPERTY(addressPayer(c));
+            }
+            MOVE c.carConsignment {
+                columns = 3;
+            }
+            MOVE c.issuanceConsignment {
+                columns = 2;
+            }
+            MOVE c.loadingConsignment {
+                columns = 3;
+            }
+            
+            NEW misc {
+                caption = 'Дополнительно';
+                
+                type = CONTAINERH;
+                MOVE PROPERTY (note(c));
+                MOVE PROPERTY (shortNameCurrency(c));
+        
+                MOVE PROPERTY(countPages(c));
+            }
         }
 
-        NEW supplier {
-            caption = 'Грузоотправитель';
-            type = CONTAINERH;
-            MOVE PROPERTY(fullNameSupplier(c));
-            MOVE PROPERTY(UNPSupplier(c));
-            MOVE PROPERTY(addressSupplier(c));
-        }
-
-        NEW customer {
-            caption = 'Грузополучатель';
-            type = CONTAINERH;
-            MOVE PROPERTY(fullNameCustomer(c));
-            MOVE PROPERTY(UNPCustomer(c));
-            MOVE PROPERTY(addressCustomer(c));
-        }
-
-        NEW payer {
-            caption = 'Заказчик ';
-            type = CONTAINERH;
-            MOVE PROPERTY(fullNamePayer(c));
-            MOVE PROPERTY(UNPPayer(c));
-            MOVE PROPERTY(addressPayer(c));
-        }
-        MOVE c.carConsignment {
-            columns = 3;
-        }
-        MOVE c.issuanceConsignment {
-            columns = 2;
-        }
-        MOVE c.loadingConsignment {
-            columns = 3;
-        }
         NEW sum {
+            caption = 'Суммы';
             type = CONTAINERH;
             MOVE c.sumConsignment {
                 columns = 4;
@@ -1001,26 +1017,18 @@ DESIGN consignment {
                 MOVE PROPERTY(sumVATConsignmentDetail(c));
                 MOVE PROPERTY(sumInvoiceConsignmentDetail(c));
             }
-            NEW columnReight{
-                caption = 'Приложение';
-                MOVE PROPERTY(countPages(c));
-            }
+
         }
-        NEW misc {
-            caption = 'Дополнительно';
-            
-            type = CONTAINERH;
-            MOVE PROPERTY (note(c));
-            MOVE PROPERTY (shortNameCurrency(c));
-        }
-    }
         
-    MOVE d.box {
-        PROPERTY(order(d)) {
-            preferredCharWidth = 30;
-            minimumCharWidth = 10;
-        }
-    };
+        MOVE d.box {
+            caption = 'Спецификация';
+            PROPERTY(order(d)) {
+                preferredCharWidth = 30;
+                minimumCharWidth = 10;
+            }
+        };
+        
+    }
     MOVE functions.box;
 }
 
