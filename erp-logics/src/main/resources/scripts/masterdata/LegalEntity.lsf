@@ -228,6 +228,8 @@ replace = ACTION ABSTRACT LIST (LegalEntity, LegalEntity);
 preReplace = ACTION ABSTRACT LIST (LegalEntity, LegalEntity);
 
 replace 'Объединить'(LegalEntity legalEntity) = ACTION {
+    setNoEventsInTransaction();
+    
     FORM confirmReplaceLegalEntity OBJECTS l=legalEntity MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR in(LegalEntity l) AND legalEntity IS LegalEntity AND NOT isCompany(l) AND NOT isCompany(legalEntity)DO {
@@ -244,6 +246,8 @@ replace 'Объединить'(LegalEntity legalEntity) = ACTION {
     } ELSE {
         in(LegalEntity l) <- NULL WHERE in(l);           
     }
+    
+    dropNoEventsInTransaction();
 } CONFIRM;
 
 // ---------------------------------------- Формы для ввода компаний ------------------------------------- //
