@@ -510,9 +510,10 @@ META defineOperationRole(dumb)
 
     in 'Отм' (UserRole role, Operation operation) =
         OVERRIDE allRoles(operation) AND role IS UserRole, dataIn(role, operation);
-
+    
+    TABLE userOperation (User, Operation);
     in (User user, Operation operation) = allRoles(operation) AND user IS User OR 
-                                        dataIn(mainRole(user), operation);
+                                        dataIn(mainRole(user), operation) PERSISTENT;
     in(User user, Operation operation) += in(user, operation);
     countOperations (user) = GROUP SUM 1 IF in(User user, Operation operation) BY user;
     countUsers = GROUP SUM 1 IF in (User user, Operation operation) BY operation;
@@ -558,16 +559,26 @@ META extendFormFilterRole(concrete, form)
     EXTEND FORM form FILTERS in(currentUser(), concrete);
 END
 
+showEmptyOperation 'Показывать записи с пустой операцией' = DATA BOOLEAN () COMPLEX;
+EXTEND FORM options
+    PROPERTIES() showEmptyOperation
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY(showEmptyOperation());
+    }
+}
 META extendFormFilterRoleAccessPrefix(object, concrete, form, prefix)
     EXTEND FORM form FILTERS (in(currentUser(), operation(concrete))) OR 
-                             (NOT operation(concrete));
+                             (showEmptyOperation() AND NOT operation(concrete));
 END
+
 META extendFormFilterRoleAccess(object, concrete, form)
     @extendFormFilterRoleAccessPrefix(object, concrete, form, );    
 END
 META extendFormFilterRoleAccessNSPrefix(object, concrete, form, prefix, NS)
     EXTEND FORM form FILTERS (in(currentUser(), operation(concrete))) OR 
-                             (NOT operation(concrete));
+                             (showEmptyOperation() AND NOT operation(concrete));
 END
 META extendFormFilterRoleAccessNS(object, concrete, form, NS)
     @extendFormFilterRoleAccessNSPrefix(object, concrete, form, , NS);    
