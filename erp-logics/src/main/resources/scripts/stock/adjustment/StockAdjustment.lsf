@@ -332,7 +332,7 @@ DESIGN userAdjustment{
     }
 }
 EXTEND FORM adjustments
-    PROPERTIES(i) READONLY nameOperation AFTER nameStock(i)
+    PROPERTIES(i) READONLYIF isReadonly() nameOperation AFTER nameStock(i)
 ;
 
 //---------------------------- Изменение остатка sku----------------------------//
@@ -727,12 +727,29 @@ createBatchUserAdjustment 'Документ пересорта'(Stock stock) = A
 //-- Для всех складов
 overCreateBatchUserAdjustment = ACTION ABSTRACT LIST (UserAdjustment);
 
+defaultOperationBatch 'Операция для документа пересорта по партиям' = DATA Operation ();
+nameDefaultOperationBatch 'Операция для документа пересорта по партиям' = name(defaultOperationBatch());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultOperationBatch
+;
+
+DESIGN options {
+    pane {
+        NEW stockAdjustment {
+            caption = 'Изменение остатков';
+            MOVE PROPERTY(nameDefaultOperationBatch());
+        }
+    }
+}
+
 createBatchUserAdjustment 'Документ пересорта'() = ACTION {
     FOR inAdjustment(Stock st) ADDOBJ a = UserAdjustment DO {  
         stock(a) <- st;
         date(a) <- currentDate();
         time(a) <- currentTime();  
         isPosted(a) <- TRUE;
+        operation(a) <- defaultOperationBatch();
         
         overCreateBatchUserAdjustment(a);
         
