@@ -567,6 +567,7 @@ CONSTRAINT pricePageInventoryDetail(CollationSheet collationSheet, Sku sku) != p
 //---------------------------- Итоги по описям (Batch) ----------------------------//
 notBatchQuantityPageInventoryDetail (CollationSheet cs, Sku sku) = GROUP SUM quantity(PageInventoryDetail d) IF NOT batch(d) BY collationSheet(d), sku(d);
 countNotBatchPageInventoryDetail = GROUP SUM 1 IF sku(PageInventoryDetail d)  AND NOT batch(d) BY collationSheet(d);
+isSkuBatch(CollationSheet cs) = isBatch(cs) AND countNotBatchPageInventoryDetail(cs) PERSISTENT COMPLEX; 
 
 calcQuantityPageInventoryDetail 'Кол-во по описям' (collationSheet, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
@@ -596,9 +597,9 @@ priceMinPageInventoryDetail 'Цена по описям' (collationSheet, batch)
 
 detailSumPageInventoryDetail 'Сумма по описям' (collationSheet, batch) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
-batchSumPageInventoryDetail (CollationSheet cs, Batch batch) =  NUMERIC[18,4](round(quantityPageInventoryDetail(cs, batch) * pricePageInventoryDetail(cs, batch), currency(stock(cs)))); 
+batchSumPageInventoryDetail (CollationSheet cs, Batch batch) =  NUMERIC[18,4](round2(quantityPageInventoryDetail(cs, batch) * pricePageInventoryDetail(cs, batch))); 
    
-sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs, Batch batch) = IF isBatch(cs) AND countNotBatchPageInventoryDetail(cs)
+sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs, Batch batch) = IF isSkuBatch(cs)
     THEN batchSumPageInventoryDetail(cs,batch)
     ELSE detailSumPageInventoryDetail(cs,batch);
     
@@ -634,7 +635,7 @@ quantityPageInventoryDetail 'Кол-во по описям' (collationSheet) =
 //sumPageInventoryDetail 'Сумма по описям' (collationSheet) =
 //    GROUP SUM sum(PageInventoryDetail pageInventoryDetail) BY collationSheet(pageInventoryDetail) PERSISTENT;
 
-sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs) = IF isBatch(cs) AND countNotBatchPageInventoryDetail(cs)
+sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs) = IF isSkuBatch(cs)
     THEN [ = GROUP SUM batchSumPageInventoryDetail(CollationSheet cs, Batch batch) BY cs] (cs)
     ELSE [ = GROUP SUM sum(PageInventoryDetail d) BY collationSheet(d)](cs) PERSISTENT;
     
@@ -1984,16 +1985,15 @@ CONSTRAINT isPosted(inventory(PageInventoryDetail d)) AND isBatch(inventory(d)) 
     MESSAGE 'В инвентаризации по партиям не должно быть строк описи без партий.';     
 
 batchQuantity 'Расписано по партиям' = GROUP SUM quantityPageInventoryDetail(CollationSheet cs, Batch bt) BY cs, sku(bt);
-showBatchQuantity (CollationSheet cs) = isBatch(cs) AND countNotBatchPageInventoryDetail(cs); 
 backgroundQuantity(CollationSheet cs, Sku sk) += WHEN 
-    isBatch(cs) AND countNotBatchPageInventoryDetail(cs) AND quantityPageInventoryDetail(cs, sk) AND NOT batchQuantity(cs,sk) == quantityPageInventoryDetail(cs,sk) THEN RGB(255,0,0);
+    isSkuBatch(cs) AND quantityPageInventoryDetail(cs, sk) AND NOT batchQuantity(cs,sk) == quantityPageInventoryDetail(cs,sk) THEN RGB(255,0,0);
 EXTEND FORM inventory
-    PROPERTIES (cs,i) batchQuantity READONLY SHOWIF showBatchQuantity(cs) 
+    PROPERTIES (cs,i) batchQuantity READONLY SHOWIF isSkuBatch(cs) 
 ;
 
 overRecalculateBalance(Inventory in) += ACTION {
     FOR inventory(CollationSheet cs) == in DO {
-        IF isBatch(cs) AND countNotBatchPageInventoryDetail(cs) THEN {
+        IF isSkuBatch(cs) THEN {
             
             IF isPartly(in) AND isRemains(in) THEN {
                 partitionQuantity(cs, Batch bt) <- calcPartitionQuantity(cs,bt) WHERE include(inventory(cs), sku(bt)); 
