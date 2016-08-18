@@ -259,6 +259,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentInterfaceAgreement(order);
     @deriveDocumentHeaderAgreement (userOrder, supplier, customer, 'заказ'###sign, NS);
 
+    maxAgreementInSku (order) = GROUP MAX Agreement agreement IF in(agreement,sku(UserOrderDetail d)) 
+        AND fromDateTime(agreement) <= dateTime(d) AND NOT (toDateTime(agreement) < dateTime(d))
+        AND inSupplier(agreement, supplier(d)) AND inCustomer(agreement, customer(d))
+            BY userOrder(d);
+
     @defineDocumentInterfaceDetailSku(order, sku);
     INDEX sku(OrderDetail d), customerStock(d);
     sku[Order.OrderDetail](OrderDetail detail) += sku(detail);
