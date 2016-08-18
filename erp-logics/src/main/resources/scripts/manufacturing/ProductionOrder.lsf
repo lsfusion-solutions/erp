@@ -517,6 +517,7 @@ createForRecComponents 'Заполнить из спецификации (рек
 // ---------------- Подбор цен и замен для sku --------------------------- //
 
 TABLE skuOrder(Sku, Order);
+TABLE substituteSkuOrder(Sku, Order);                                                                   
 
 // --- Основной компонент --- //
 bruttoQuantity 'Количество брутто' (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail)
@@ -527,11 +528,11 @@ bruttoNotSubstituteQuantity 'Количество без замены' (sku, ord
     IF NOT substituteQuantity(componentDetail)
     BY bruttoSku(componentDetail),
        order(componentDetail) PERSISTENT;                                                                     
-                                                                   
+
 bruttoSubstituteQuantity (sku, order) = GROUP SUM bruttoQuantity(ComponentDetail componentDetail) 
     IF substituteQuantity(componentDetail)
     BY bruttoSku(componentDetail),
-       order(componentDetail) PERSISTENT;                                                                                                                                   
+       order(componentDetail) PERSISTENT TABLE substituteSkuOrder;                                                                                                                                   
                                                                                                                                  
 // цены по товару
 dataBruttoPrice 'Цена' = DATA NUMERIC[16,4] (Sku, Order) @@denomination;
@@ -552,12 +553,12 @@ WHEN SESSION (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(
     cost (sku, order) <- calcCost(sku, componentsStock(order));
     
 // --- Замена --- //
-substitute = DATA Sku (Sku, Order);
+substitute = DATA Sku (Sku, Order) TABLE substituteSkuOrder;
 nameSubstitute 'Замена' (Sku sku, Order order) = name(substitute(sku, order));
 
-substituteQuantity 'Кол-во замены' = DATA NUMERIC[14,3] (Sku, Order);
+substituteQuantity 'Кол-во замены' = DATA NUMERIC[14,3] (Sku, Order) TABLE substituteSkuOrder;
 overSubstituteQuantity 'Кол-во' = OVERRIDE bruttoQuantity(Sku sku, Order order), substituteQuantity(sku, order);
-multiplier 'Коэффициент замены' = DATA NUMERIC[8,3] (Sku, Order);
+multiplier 'Коэффициент замены' = DATA NUMERIC[8,3] (Sku, Order) TABLE substituteSkuOrder;
 
 //--
 stockSubstitutesSku = DATA LOCAL Stock ();
