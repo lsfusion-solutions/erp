@@ -161,6 +161,14 @@ name(InputDisparityDetail batch) += VARISTRING[200](CONCAT '', STRING[10](date(d
 supplier = supplier(disparityDetail(InputDisparityDetail detail));
 supplier(InputDisparityDetail batch) += supplier(batch);
 
+supplierStock = DATA Stock (DisparityDetail);
+supplierStock(DisparityDetail detail) <- prevSupplierStock(batch(detail)) WHEN CHANGED(batch(detail));
+supplierStock = supplierStock(disparityDetail(InputDisparityDetail detail));
+supplierStock(InputDisparityDetail batch) += supplierStock(batch);
+
+//CONSTRAINT supplier(DisparityDetail d) AND supplierStock(d) AND NOT in(supplier(d), supplierStock(d))
+//    MESSAGE 'Поставщик и склад поставщика в строке изменения сортности не имеют связи';
+
 @implementSystemLedgerPriceListTypeBatch(account, InputDisparityDetail, supplier, stock);   
 
 
