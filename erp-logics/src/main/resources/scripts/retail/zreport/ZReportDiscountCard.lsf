@@ -135,14 +135,14 @@ changeTransferSum (DiscountCard dc) = ACTION {
         MESSAGE 'Нельзя переводить сумму больше суммы накопленний';           
 }
 
-FORM tranferDiscountCards 'Перевод накоплений'
+FORM transferDiscountCards 'Перевод накоплений'
     OBJECTS dc = DiscountCard FIXED PANEL
     PROPERTIES(dc) READONLY nameLegalEntity, seriesNumber, prevTotalSum
     PROPERTIES(dc) transferSum SHOWIF showTransferSum() ON CHANGE changeTransferSum(dc)
     PROPERTIES(dc) totalTransferSum SHOWIF notShowTransferSum()
 ;
 
-DESIGN tranferDiscountCards {
+DESIGN transferDiscountCards {
     NEW topContainer {
         type = CONTAINERV;
         MOVE PROPERTY(nameLegalEntity(dc)){
@@ -176,12 +176,12 @@ DESIGN tranferDiscountCards {
 }
 
 overTransferDiscountCards = ACTION ABSTRACT LIST (DiscountCard, DiscountCard); 
-tranferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
+transferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
     FORM numberDiscountCardInput MODAL;
     IF formResult() == FormResult.ok THEN {
         FOR DiscountCard card == discountString(numberDiscountCardInput()) DO { 
             transferSum(card) <- prevTotalSum(card);
-            FORM tranferDiscountCards OBJECTS dc = card MODAL;
+            FORM transferDiscountCards OBJECTS dc = card MODAL;
             IF formResult() == FormResult.ok THEN {
                 FORM numberDiscountCardInputNew MODAL;
                 IF formResult() == FormResult.ok THEN {
@@ -190,7 +190,7 @@ tranferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
                         dateTo(card) <- currentDate();
                         legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
                         overTransferDiscountCards(newCard, card);
-                        FORM tranferDiscountCards OBJECTS dc = newCard MODAL;
+                        FORM transferDiscountCards OBJECTS dc = newCard MODAL;
                         IF formResult() == FormResult.ok THEN {
                             apply();
                             MESSAGE 'Замена карты была успешно проведена';
