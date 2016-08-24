@@ -1377,8 +1377,9 @@ WHEN SESSION FORMS order (CHANGED(dataBruttoPrice(sku(ComponentDetail detail), o
                           CHANGED(dateTime(order(detail)))) AND
                           PriceListType pt == priceListType(order(detail)) NOINLINE (pt) DO
     price (detail) <- calcPrice(pt, detail); 
-         
-calcCost = OVERRIDE cost(sku(ComponentDetail detail), order(detail)), cost(batch(detail));    
+
+additionalCost = ABSTRACT NUMERIC[16,4](ComponentDetail);         
+calcCost = (OVERRIDE cost(sku(ComponentDetail detail), order(detail)), cost(batch(detail))) (+) additionalCost(detail);    
 WHEN SESSION FORMS order CHANGED(cost(sku(ComponentDetail detail), order(detail))) OR CHANGED(batch(detail)) DO
     cost (detail) <- calcCost(detail);           
        
