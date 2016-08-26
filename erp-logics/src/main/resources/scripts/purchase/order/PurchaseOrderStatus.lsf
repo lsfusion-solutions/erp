@@ -147,10 +147,10 @@ logSendDocumentOrder(Purchase.Order o) = ACTION FOR ADDOBJ d = DocumentLog DO {
     FORM printOrderXLS OBJECTS o = o EXPORT XLSX;
     file(d) <- formExportFile();
 }
-emailCustomer 'Отправить заказ поставщику' (Purchase.Order order)= ACTION {
+emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order)= ACTION {
     IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
         NEWSESSION {
-            IF isPosted(order) THEN MESSAGE NOWAIT 'Заказ в статусе "В работе" или выше, статус изменен не будет ';
+            IF isPosted(order) THEN MESSAGE NOWAIT 'Заказ №' +number(order)+ ': заказ в статусе "В работе" или выше, статус изменен не будет ';
             isSent[Order](order) <- TRUE;
             IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
             sentDateTime[Order](order) <- currentDateTime();
@@ -162,11 +162,20 @@ emailCustomer 'Отправить заказ поставщику' (Purchase.Ord
         }
 
     } ELSE {
-        MESSAGE 'У поставщика не задан e-mail';
+        MESSAGE 'Заказ №' +number(order)+ ': у поставщика не задан e-mail';
     }
 } TOOLBAR;
 
-EXTEND FORM orders 
+emailCustomer 'Отправить заказы поставщикам' (Purchase.Order order)= ACTION {
+    selected(order) <- TRUE;
+    
+    FOR selected(Order o) DO 
+        emailCustomerSingle(o);
+        
+    selected(Order o) <- NULL;
+} TOOLBAR;
+
+EXTEND FORM orders
     PROPERTIES(o) emailCustomer  
 ; 
 DESIGN orders {
