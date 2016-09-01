@@ -775,11 +775,11 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             try {
                 statement = conn.createStatement();
                 String query = "SELECT i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
-                        " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.code, rip.value" +
+                        " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.value" +
                         " FROM receipt_item AS i" +
                         " JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
                         " JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id" +
-                        " JOIN receipt_item_properties AS rip ON i.id = rip.receipt_item" +
+                        " LEFT JOIN receipt_item_properties AS rip ON i.id = rip.receipt_item AND rip.code = '$GiftCard_Number$' " +
                         " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
                 ResultSet rs = statement.executeQuery(query);
 
@@ -820,13 +820,10 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         Time timeZReport = rs.getTime(21); //s.date
                         //String idEmployee = loginMap.get(login);
 
-                        boolean isGiftCard = false;
-                        String giftCardCode = rs.getString(22); //rip.code
-                        String giftCardValue = rs.getString(23); //rip.value
-                        if(giftCardCode.equals("$GiftCard_Number$")) {
+                        String giftCardValue = rs.getString(22); //rip.value
+                        boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
+                        if(isGiftCard)
                             idBarcode = giftCardValue;
-                            isGiftCard = true;
-                        }
 
                         BigDecimal sumCash = denominateDivideType2(paymentEntry.sumCash, denominationStage);
                         BigDecimal sumCard = denominateDivideType2(paymentEntry.sumCard, denominationStage);
