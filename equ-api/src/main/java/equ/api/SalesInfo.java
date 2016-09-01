@@ -5,6 +5,8 @@ import java.math.BigDecimal;
 import java.sql.Date;
 import java.sql.Time;
 import java.text.SimpleDateFormat;
+import java.util.HashMap;
+import java.util.Map;
 
 public class SalesInfo implements Serializable {
     public boolean isGiftCard;
@@ -21,7 +23,7 @@ public class SalesInfo implements Serializable {
     public String lastNameContact;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
-    public BigDecimal sumGiftCard;
+    public Map<String, BigDecimal> sumGiftCardMap;
     public String barcodeItem;
     public String idItem;
     public Integer itemObject;
@@ -43,6 +45,20 @@ public class SalesInfo implements Serializable {
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                      String idSection) {
+        this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
+                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, (Map<String, BigDecimal>) null/*sumGiftCardMap*/, barcodeItem, idItem, itemObject,
+                idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
+                discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection);
+        setSumGiftCardMap(sumGiftCard);
+    }
+
+    public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
+                     Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
+                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, BigDecimal> sumGiftCardMap, String barcodeItem,
+                     String idItem, Integer itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
+                     BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
+                     BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
+                     String idSection) {
         this.isGiftCard = isGiftCard;
         this.nppGroupMachinery = nppGroupMachinery;
         this.nppMachinery = nppMachinery;
@@ -57,7 +73,7 @@ public class SalesInfo implements Serializable {
         this.lastNameContact = lastNameContact;
         this.sumCard = sumCard;
         this.sumCash = sumCash;
-        this.sumGiftCard = sumGiftCard;
+        this.sumGiftCardMap = sumGiftCardMap;
         this.barcodeItem = barcodeItem;
         this.idItem = idItem;
         this.itemObject = itemObject;
@@ -71,6 +87,12 @@ public class SalesInfo implements Serializable {
         this.numberReceiptDetail = numberReceiptDetail;
         this.filename = filename;
         this.idSection = idSection;
+    }
+
+    private void setSumGiftCardMap(BigDecimal sumGiftCard) {
+        Map<String, BigDecimal> sumGiftCardMap = new HashMap<>();
+        sumGiftCardMap.put(null, sumGiftCard);
+        this.sumGiftCardMap = sumGiftCardMap;
     }
 
     //startDate - для обратной совместимости

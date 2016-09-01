@@ -708,15 +708,15 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 //        return loginMap;
 //    }
 
-    private Map<String, Map<Integer, BigDecimal>> readPaymentMap(Connection conn, Set<Integer> cashPayments,
+    private Map<String, Payment> readPaymentMap(Connection conn, Set<Integer> cashPayments,
                                                                  Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
 
-        Map<String, Map<Integer, BigDecimal>> paymentMap = new HashMap<>();
+        Map<String, Payment> paymentMap = new HashMap<>();
 
         Statement statement = null;
         try {
             statement = conn.createStatement();
-            String query = "select p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type " +
+            String query = "select p.cash_id, p.receipt_header, p.payment_id, p.amount, r.type, p.card_number " +
                     "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " +
                     "where r.ext_processed = 0 AND r.result = 0 AND p.type != 3"; // type 3 это сдача
             ResultSet rs = statement.executeQuery(query);
@@ -735,12 +735,21 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                 Integer receiptType = rs.getInt(5); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                 amount = isReturn ? amount.negate() : amount;
+                String giftCard = rs.getString(6); //p.card_number
+                if(giftCard.isEmpty())
+                    giftCard = null;
 
-                Map<Integer, BigDecimal> paymentEntry = paymentMap.get(key);
-                if(paymentEntry == null)
-                    paymentEntry = new HashMap<>();
-                BigDecimal sum = paymentEntry.get(paymentType);
-                paymentEntry.put(paymentType, sum == null ? amount : sum.add(amount));
+                Payment paymentEntry = paymentMap.get(key);
+                if (paymentEntry == null)
+                    paymentEntry = new Payment();
+                if (paymentType == 0)
+                    paymentEntry.sumCash = safeAdd(paymentEntry.sumCash, amount);
+                else if (paymentType == 1) {
+                    paymentEntry.sumCard = safeAdd(paymentEntry.sumCard, amount);
+                } else if (paymentType == 2) {
+                    BigDecimal sumGiftCard = paymentEntry.sumGiftCardMap.get(giftCard);
+                    paymentEntry.sumGiftCardMap.put(giftCard, safeAdd(sumGiftCard, amount));
+                }
                 paymentMap.put(key, paymentEntry);
             }
         } catch (SQLException e) {
@@ -759,17 +768,18 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
         Set<Pair<Integer, Integer>> receiptSet = new HashSet<>();
-        Map<String, Map<Integer, BigDecimal>> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments);
+        Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments);
 
         if(paymentMap != null) {
             Statement statement = null;
             try {
                 statement = conn.createStatement();
                 String query = "SELECT i.store, i.cash_number, i.cash_id, i.id, i.receipt_header, i.var, i.item, i.total_quantity, i.price, i.total," +
-                        " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date" +
+                        " i.position, i.real_amount, i.stock_id, r.type, r.shift_open, r.global_number, r.date, r.cash_id, r.id, r.login, s.date, rip.code, rip.value" +
                         " FROM receipt_item AS i" +
                         " JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
                         " JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id" +
+                        " JOIN receipt_item_properties AS rip ON i.id = rip.receipt_item" +
                         " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
                 ResultSet rs = statement.executeQuery(query);
 
@@ -796,7 +806,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                     BigDecimal realAmount = rs.getBigDecimal(12) == null ? null : denominateDivideType2(rs.getBigDecimal(12), denominationStage); //i.real_amount
                     String idSection = rs.getString(13);
 
-                    Map<Integer, BigDecimal> paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
+                    Payment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
                     if (paymentEntry != null && totalQuantity != null) {
                         Integer receiptType = rs.getInt(14); //r.type
                         boolean isSale = receiptType == 0 || receiptType == 8;
@@ -810,16 +820,27 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         Time timeZReport = rs.getTime(21); //s.date
                         //String idEmployee = loginMap.get(login);
 
-                        BigDecimal sumCash = paymentEntry.get(0) == null ? null : denominateDivideType2(paymentEntry.get(0), denominationStage);
-                        BigDecimal sumCard = paymentEntry.get(1) == null ? null : denominateDivideType2(paymentEntry.get(1), denominationStage);
-                        BigDecimal sumGiftCard = paymentEntry.get(2) == null ? null : denominateDivideType2(paymentEntry.get(2), denominationStage);
+                        boolean isGiftCard = false;
+                        String giftCardCode = rs.getString(22); //rip.code
+                        String giftCardValue = rs.getString(23); //rip.value
+                        if(giftCardCode.equals("$GiftCard_Number$")) {
+                            idBarcode = giftCardValue;
+                            isGiftCard = true;
+                        }
+
+                        BigDecimal sumCash = denominateDivideType2(paymentEntry.sumCash, denominationStage);
+                        BigDecimal sumCard = denominateDivideType2(paymentEntry.sumCard, denominationStage);
+                        Map<String, BigDecimal> sumGiftCardMap = new HashMap<>();
+                        for(Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
+                            sumGiftCardMap.put(entry.getKey(), denominateDivideType2(entry.getValue(), denominationStage));
+                        }
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                         BigDecimal discountSumReceiptDetail = safeSubtract(sum, realAmount);
                         if(totalQuantity != null) {
-                            salesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
+                            salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, null/*idEmployee*/,
-                                    null, null, sumCard, sumCash, sumGiftCard, idBarcode, idItem, null, null, totalQuantity,
+                                    null, null, sumCard, sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null,
                                     position, null, idSection));
                             receiptSet.add(Pair.create(idReceipt, cash_id));
@@ -988,5 +1009,21 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
             return null;
         else
             return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
+    }
+
+    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+        if (operand1 == null && operand2 == null)
+            return null;
+        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
+    }
+
+    private class Payment {
+        BigDecimal sumCash;
+        BigDecimal sumCard;
+        Map<String, BigDecimal> sumGiftCardMap;
+
+        public Payment() {
+            this.sumGiftCardMap = new HashMap<>();
+        }
     }
 }

@@ -2042,18 +2042,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
                         }
 
-                        ImportField idPaymentField = new ImportField(zReportLM.findProperty("id[Payment]"));
-                        ImportField sidTypePaymentField = new ImportField(zReportLM.findProperty("sid[PaymentType]"));
-                        ImportField sumPaymentField = new ImportField(zReportLM.findProperty("sum[Payment]"));
-                        ImportField numberPaymentField = new ImportField(zReportLM.findProperty("number[Payment]"));
-
                         ImportField seriesNumberDiscountCardField = discountCardLM == null ? null : new ImportField(discountCardLM.findProperty("seriesNumber[DiscountCard]"));
                         ImportField idSectionField = zReportSectionLM == null ? null : new ImportField(zReportSectionLM.findProperty("id[Section]"));
 
                         List<ImportProperty<?>> saleProperties = new ArrayList<>();
                         List<ImportProperty<?>> returnProperties = new ArrayList<>();
                         List<ImportProperty<?>> giftCardProperties = new ArrayList<>();
-                        List<ImportProperty<?>> paymentProperties = new ArrayList<>();
 
                         ImportKey<?> zReportKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport"), zReportLM.findProperty("zReport[VARSTRING[100]]").getMapping(idZReportField));
                         ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("CashRegister"), zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField));
@@ -2210,8 +2204,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         List<List<Object>> dataReturn = new ArrayList<>();
                         List<List<Object>> dataGiftCard = new ArrayList<>();
 
-                        List<List<Object>> dataPayment = new ArrayList<>();
-
                         Map<Object, String> barcodeMap = new HashMap<>();
                         for (SalesInfo sale : data) {
 
@@ -2264,15 +2256,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     row.add(sale.idSection);
                                 }
                                 dataSale.add(row);
-                            }
-                            if (sale.sumCash != null && sale.sumCash.doubleValue() != 0) {
-                                dataPayment.add(Arrays.<Object>asList(idReceipt + "1", idReceipt, "cash", sale.sumCash, 1));
-                            }
-                            if (sale.sumCard != null && sale.sumCard.doubleValue() != 0) {
-                                dataPayment.add(Arrays.<Object>asList(idReceipt + "2", idReceipt, "card", sale.sumCard, 2));
-                            }
-                            if (sale.sumGiftCard != null && sale.sumGiftCard.doubleValue() != 0) {
-                                dataPayment.add(Arrays.<Object>asList(idReceipt + "3", idReceipt, "giftcard", sale.sumGiftCard, 3));
                             }
                         }
 
@@ -2345,21 +2328,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             new IntegrationService(session, new ImportTable(giftCardImportFields, dataGiftCard), giftCardKeys, giftCardProperties).synchronize(true);
                         }
 
-                        ImportKey<?> paymentKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("ZReport.Payment"), zReportLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentField));
-                        ImportKey<?> paymentTypeKey = new ImportKey((ConcreteCustomClass) zReportLM.findClass("PaymentType"), zReportLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentField));
-                        paymentProperties.add(new ImportProperty(idPaymentField, zReportLM.findProperty("id[Payment]").getMapping(paymentKey)));
-                        paymentProperties.add(new ImportProperty(sumPaymentField, zReportLM.findProperty("sum[Payment]").getMapping(paymentKey)));
-                        paymentProperties.add(new ImportProperty(numberPaymentField, zReportLM.findProperty("number[Payment]").getMapping(paymentKey)));
-                        paymentProperties.add(new ImportProperty(sidTypePaymentField, zReportLM.findProperty("paymentType[Payment]").getMapping(paymentKey),
-                                zReportLM.object(zReportLM.findClass("PaymentType")).getMapping(paymentTypeKey)));
-                        paymentProperties.add(new ImportProperty(idReceiptField, zReportLM.findProperty("receipt[Payment]").getMapping(paymentKey),
-                                zReportLM.object(zReportLM.findClass("Receipt")).getMapping(receiptKey)));
+                        EquipmentServerImport.importPayment(getBusinessLogics(), session, data, startDate, timeId);
 
-                        List<ImportField> paymentImportFields = Arrays.asList(idPaymentField, idReceiptField, sidTypePaymentField,
-                                sumPaymentField, numberPaymentField);
+                        EquipmentServerImport.importPaymentGiftCard(getBusinessLogics(), session, data, startDate, timeId);
 
-                        new IntegrationService(session, new ImportTable(paymentImportFields, dataPayment), Arrays.asList(paymentKey, paymentTypeKey, receiptKey),
-                                paymentProperties).synchronize(true);
 
                         session.setKeepLastAttemptCountMap(true);
                         String result = session.applyMessage(getBusinessLogics(), stack);

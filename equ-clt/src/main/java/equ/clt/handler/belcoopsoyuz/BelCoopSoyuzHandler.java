@@ -840,12 +840,12 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                         switch (type) {
                             case "ТОВАР":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, quantityReceiptDetail,
                                         priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
                                 break;
                             case "ТОВАР ВОЗВРАТ":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, safeNegate(quantityReceiptDetail),
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, safeNegate(quantityReceiptDetail),
                                         priceReceiptDetail, safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
                                 break;
                             case "ВСЕГО":

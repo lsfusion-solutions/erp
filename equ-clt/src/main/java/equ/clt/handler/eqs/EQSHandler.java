@@ -300,7 +300,7 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                         } else {
                             currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, cash_id, numberZReport,
                                     dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null,
-                                    null, null, null, null, null, idBarcode, idItem, null, null, totalQuantity,
+                                    null, null, null, null, (BigDecimal) null, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? sum : sum.negate(), discountSum, null, null,
                                     position, null, idSection));
                         }
@@ -313,8 +313,10 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                                 salesInfo.sumCash = safeAdd(salesInfo.sumCash, sumPayment);
                             else if (typePayment == 1)
                                 salesInfo.sumCard = safeAdd(salesInfo.sumCard, sumPayment);
-                            else if (typePayment == 2)
-                                salesInfo.sumGiftCard = safeAdd(salesInfo.sumGiftCard, sumPayment);
+                            else if (typePayment == 2) {
+                                BigDecimal sumGiftCard = salesInfo.sumGiftCardMap.get(null);
+                                salesInfo.sumGiftCardMap.put(null, safeAdd(sumGiftCard, sumPayment));
+                            }
                             else
                                 salesInfo.sumCash = safeAdd(salesInfo.sumCash, sumPayment);
                         }
