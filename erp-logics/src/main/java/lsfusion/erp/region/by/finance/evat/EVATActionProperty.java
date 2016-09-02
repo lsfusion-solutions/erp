@@ -2,6 +2,7 @@ package lsfusion.erp.region.by.finance.evat;
 
 import lsfusion.base.ExceptionUtils;
 import lsfusion.interop.action.MessageClientAction;
+import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
@@ -31,6 +32,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
+            ServerLoggers.importLogger.info("EVAT: action started");
             Integer type = (Integer) context.getDataKeyValue(typeInterface).getValue();
             if (type != null) {
                 String serviceUrl = (String) findProperty("serviceUrlEVAT[]").read(context);
@@ -41,6 +43,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         if (passwordEVAT != null) {
                             switch (type) {
                                 case 0:
+                                    ServerLoggers.importLogger.info("EVAT: sendAndSign called");
                                     sendAndSign(serviceUrl, pathEVAT, passwordEVAT, type, context);
                                     break;
                                 case 1:
@@ -63,12 +66,17 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
     }
 
     private void sendAndSign(String serviceUrl, String pathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        ServerLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<Integer, File> files = generateXMLs(context);
+        ServerLoggers.importLogger.info("EVAT: generated xmls: " + files.size());
         if (!(files.isEmpty())) {
+            ServerLoggers.importLogger.info("EVAT: client action started");
             List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, serviceUrl, pathEVAT, passwordEVAT, type));
+            ServerLoggers.importLogger.info("EVAT: client action finished");
             String error = "";
             if (!result.isEmpty()) {
                 for (List<Object> entry : result) {
+                    ServerLoggers.importLogger.info("EVAT: reading result started");
                     Integer evat = (Integer) entry.get(0);
                     String message = (String) entry.get(1);
                     Boolean isError = (Boolean) entry.get(2);
@@ -76,8 +84,11 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         error += message + "\n";
                     try(DataSession session = context.createSession()) {
                         findProperty("result[EVAT]").change(message, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
-                        session.apply(context);
+                        String applyResult = session.applyMessage(context);
+                        if(applyResult != null)
+                            ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
                     }
+                    ServerLoggers.importLogger.info("EVAT: reading result finished");
                 }
             }
             if (error.isEmpty())

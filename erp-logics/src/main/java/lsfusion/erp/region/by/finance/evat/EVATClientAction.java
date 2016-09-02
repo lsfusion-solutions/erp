@@ -64,22 +64,25 @@ public class EVATClientAction implements ClientAction {
     }
 
     private List<List<Object>> signAndSend() {
+        ServerLoggers.importLogger.info("EVAT: client action signAndSend");
         List<List<Object>>  result = new ArrayList<>();
 
         String xsdPath = path + "/xsd";
         File archiveDir = new File(path + "/archive");
 
         URL url = getClass().getClassLoader().getResource("");
+        ServerLoggers.importLogger.info("EVAT: url: " + url);
         if(url != null) {
             // Создание экземпляра класса доступа к порталу
             EVatService service = null;
 
             try {
                 service = initService();
-
+                ServerLoggers.importLogger.info("EVAT: initService finished");
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
-
+                    ServerLoggers.importLogger.info("EVAT: archiveDir created");
                     for (Map.Entry<Integer, File> entry : files.entrySet()) {
+                        ServerLoggers.importLogger.info("EVAT: send file started");
                         Integer evat = entry.getKey();
                         File file = entry.getValue();
 
@@ -135,7 +138,7 @@ public class EVATClientAction implements ClientAction {
                                 }
 
                                 //конец непроверенного кода
-
+                            ServerLoggers.importLogger.info("EVAT: send file finished");
                         }
                     }
                 } else {
