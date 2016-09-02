@@ -421,8 +421,8 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
              CHANGED(sku(d))))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) NOINLINE (pt) DO {
-        price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
-        invoicePrice(d) <- round2(prevList(pt, d));
+        price(d) <- prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d));
+        invoicePrice(d) <- prevList(pt, d);
     }
 
     WHEN SESSION FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
@@ -433,18 +433,18 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
              CHANGED(sku(d))))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
-        price(d) <- round2(prevList(pt, d));
-        invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+        price(d) <- prevList(pt, d);
+        invoicePrice(d) <- prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0;
     }
 
     recalculatePrice###detail 'Пересчитать цены'() = ACTION {
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
-            price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
-            invoicePrice(d) <- round2(prevList(pt, d));
+            price(d) <- prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d));
+            invoicePrice(d) <- prevList(pt, d);
         }
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
-            price(d) <- round2(prevList(pt, d));
-            invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+            price(d) <- prevList(pt, d);
+            invoicePrice(d) <- prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0;
         }
     } SHORTCUT price[###detail];
 
