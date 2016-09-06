@@ -138,3 +138,10 @@ WHEN SETCHANGED(discountCard(DiscountCard d)) AND NOT transferBonusLedger(d) DO 
 WHEN (CHANGED(totalBonuses(DiscountCard d)) OR CHANGED(discountCard(d))) AND discountCard(d) AND BonusLedger l == transferBonusLedger(d) DO {
     sum(l) <- prevTotalBonuses(d);
 }
+
+bonusPaid (ReceiptReturnDetail detail) <- round2(quantity(detail) * bonusPaid(receiptSaleDetail(detail)) / quantity(receiptSaleDetail(detail))) IF receiptSaleDetail(detail)
+                                           WHEN CHANGED(quantity(detail)) OR
+                                                CHANGED(receiptSaleDetail(detail));
+bonusSum (ReceiptReturnDetail detail) <- round2(quantity(detail) * bonusSum(receiptSaleDetail(detail)) / quantity(receiptSaleDetail(detail))) IF receiptSaleDetail(detail)
+                                           WHEN CHANGED(quantity(detail)) OR
+                                                CHANGED(receiptSaleDetail(detail));
