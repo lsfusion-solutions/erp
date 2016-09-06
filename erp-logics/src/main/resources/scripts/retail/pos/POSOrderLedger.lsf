@@ -1,0 +1,8 @@
+MODULE POSOrderLedger;
+
+REQUIRE POS, OrderLedger;
+
+NAMESPACE POS;
+
+incorrectReceipt(Receipt r) += WHEN overBanNegativeBatch(departmentStore(r)) AND [= GROUP SUM 1 IF [= GROUP SUM quantity(ReceiptSaleDetail d) BY batch(d), receipt(d)](Batch b, Receipt r) > prevCurrentBalance(b, departmentStore(r)) BY r](r) THEN 'Продаваемое количество по партии больше текущего остатка';
+

@@ -354,7 +354,7 @@ prePost(Receipt receipt) = ACTION {
     time(receipt) <- currentTime();
 }
 
-incorrectBalanceBatchReceipt (Receipt r) = GROUP SUM 1 IF [= GROUP SUM quantity(ReceiptSaleDetail d) BY batch(d), receipt(d)](Batch b, Receipt r) > prevCurrentBalance(b, departmentStore(r)) BY r; 
+incorrectReceipt = ABSTRACT CASE TEXT (Receipt);
 
 post 'Смешанный платеж'(Receipt receipt) = ACTION {
     IF (bonusPaid(receipt) OR bonusSum(receipt)) AND NOT discountCard(receipt) AND NOT [=GROUP SUM 1 IF discountCard(ReceiptReturnDetail d) BY receipt(d)](receipt) THEN {
@@ -365,8 +365,8 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
         RETURN;
     } 
-    IF incorrectBalanceBatchReceipt(receipt) THEN {
-        MESSAGE 'Продаваемое количество по партии больше текущего остатка';
+    IF incorrectReceipt(receipt) THEN {
+        MESSAGE incorrectReceipt(receipt);
         RETURN;
     } 
     prePost(receipt);
@@ -402,10 +402,11 @@ postCard 'Карточкой'(Receipt receipt) = ACTION {
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';    
         RETURN;
     } 
-    IF incorrectBalanceBatchReceipt(receipt) THEN {
-        MESSAGE 'Продаваемое количество по партии больше текущего остатка';
+    IF incorrectReceipt(receipt) THEN {
+        MESSAGE incorrectReceipt(receipt);
         RETURN;
-    } 
+    }
+     
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
         FOR ADDOBJ p = Payment DO {
@@ -432,8 +433,8 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
         MESSAGE 'Нельзя оплачивать бонусами больше, чем доступно бонусов на дисконтной карте';      
         RETURN;
     }
-    IF incorrectBalanceBatchReceipt(receipt) THEN {
-        MESSAGE 'Продаваемое количество по партии больше текущего остатка';
+    IF incorrectReceipt(receipt) THEN {
+        MESSAGE incorrectReceipt(receipt);
         RETURN;
     } 
     
