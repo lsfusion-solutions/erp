@@ -1,6 +1,6 @@
 MODULE ArticleStickerDashboard;
 
-REQUIRE ItemSizeMapping, ArticleTranslateDashboard, Label;
+REQUIRE ItemSizeMapping, ArticleTranslateDashboard, Label, StockArticle;
 
 NAMESPACE Item;
 
@@ -92,6 +92,9 @@ checkInCurrentUser(ItemGroup itemGroup) = ACTION {
 inPurchase = GROUP SUM 1 IF inPurchase(invoice(Purchase.InvoiceDetail d), currentUser()) BY sku(d); 
 
 FORM articleStickerDashboard 'Стикеровка'
+
+    PROPERTIES() multipleStores
+
     OBJECTS u = User FIXED PANEL 
     FILTERS u == currentUser()
     
@@ -106,17 +109,30 @@ FORM articleStickerDashboard 'Стикеровка'
         FILTER 'Не обработан' recCountNotStickerArticles(g) 'F6'          
     
     OBJECTS dep=DepartmentStore FIXED PANEL     
-    PROPERTIES(dep)  SELECTOR name
+    PROPERTIES(dep) name SELECTOR SHOWIF singleStore()
+
+    TREE stockTree b = STRING[3], sg = StockGroup PARENT parent, ts = DepartmentStore
+    PROPERTIES READONLY SHOWIF multipleStores() OBJVALUE(b), sgTreeName = name(sg), tsTreeName = name(ts)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(b),
+            stockGroup(ts) == sg,
+            isCompany(ts)                  
                   
-    OBJECTS a=Article   
-    PROPERTIES(a) READONLY nameBrand, id, canonicalNameItemGroup FORCE PANEL, caption, 
+    OBJECTS sta=(a=Article, st=DepartmentStore)   
+    PROPERTIES(a) READONLY id, nameBrand, canonicalNameItemGroup FORCE PANEL, caption, 
                    composition, nameUOM
+    PROPERTIES READONLY name(st) SHOWIF multipleStores()                  
     PROPERTIES(a) BACKGROUND hintEditableBackground() nameCollection, nameManufacturer, nameLabelType ON CHANGE changeDefaultLabelType(a), compositionSticker, 
                    servicePeriod, guaranteePeriod, additionalDescription, manual,
                    extraInformation, safetyInformation, warningInformation, notRefundable, washingRequired, isEAC
                    
     PROPERTIES(a) completedSticker ON CHANGE changeCompletedSticker(a)
     PROPERTIES(a) EDITFORM
+    FILTERS       IF multipleStores() THEN 
+                    st == ts AND sg IS StockGroup OR isParent(sg, st) AND NOT ts OR st IS DepartmentStore AND NOT sg AND NOT ts
+                  ELSE 
+                    st == dep,
+                  isCompany(st) OR NOT multipleStores()    
 
     FILTERGROUP attributesFilters
         FILTER 'Без атрибутов' nullSticker(a) 'F7'
@@ -130,7 +146,7 @@ FORM articleStickerDashboard 'Стикеровка'
 
     FILTERGROUP translateFilters
         FILTER 'Не обработан' notCompletedSticker(a) 'F9' DEFAULT
-        FILTER 'Обработан' completedSticker(a) 'F8'
+        FILTER 'Обработан' completedSticker(a) 'F8'             
 
     OBJECTS i=Item
     PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoice, idBarcode, id, 
@@ -169,7 +185,12 @@ DESIGN articleStickerDashboard {
             MOVE PROPERTY(seriesNumberDateInvoicesCurrentUser());
             MOVE PROPERTY(selectPurchaseInvoicesCurrentUser());
         }
-        MOVE dep.box { caption = 'Отдел магазина для проверки ценников'; }
+        NEW depContainer{
+            caption = 'Отдел магазина для проверки ценников';
+            type = CONTAINERH;
+            MOVE PROPERTY (multipleStores());            
+            MOVE dep.box;
+        }
     }
     NEW pane {
         type = SPLITH;
@@ -177,9 +198,12 @@ DESIGN articleStickerDashboard {
         NEW tree3{
             type = SPLITV;
             fill = 1;
-            MOVE groupTree.tree.box {fill = 2;}
+            NEW boxContainer{
+                type = SPLITV;
+                MOVE stockTree.tree.box { caption = 'Склады'; }            
+                MOVE groupTree.tree.box;                
+            }
             NEW imageBox3 {
-                fill = 3;
                 caption = 'Изображение';                     
                 MOVE PROPERTY(image(i)) {                           
                     caption = '';
@@ -192,7 +216,7 @@ DESIGN articleStickerDashboard {
             type = SPLITV;
             NEW row4111 {
                 fill = 2;                      
-                MOVE a.box {
+                MOVE sta.box {
                     defaultComponent = TRUE;                                      
                 }
             }    
@@ -227,20 +251,20 @@ completeArticleStickerDashboard 'Подтвердить все'() = ACTION {
     LOCAL k = INTEGER ();
     k() <- 0;
     
-    FOR [= FILTER articleStickerDashboard.a](Article article) AND nullSticker(article) DO{   
+    FOR [= FILTER articleStickerDashboard.sta](Article article, DepartmentStore dep) AND nullSticker(article) DO{   
         k() <- k() + 1;              
     }    
     IF k() > 0 THEN {
         MESSAGE 'Для артикула не задан тип ценника ('+k()+' шт.)';
     } ELSE {
-        FOR [= FILTER articleStickerDashboard.a](Article article) DO {
+        FOR [= FILTER articleStickerDashboard.sta](Article article, DepartmentStore dep) DO {
             completedSticker(Item item) <- TRUE WHERE article(item) == article;
         }
     }      
 } TOOLBAR CONFIRM;
 
 EXTEND FORM  articleStickerDashboard
-    PROPERTIES() TODRAW a completeArticleStickerDashboard FORCE PANEL
+    PROPERTIES() TODRAW sta completeArticleStickerDashboard FORCE PANEL
 ;
 
 // --------- Заполнение по матрице соответствия      
@@ -313,7 +337,7 @@ mapAllFootLengthStickerItem 'Заполнить длину стопы для в�
 } SHORTCUT footLength[Item];  
 
 mapAllIsEACArticle 'Заполнить "EAC" для всех по наименованию'() = ACTION {
-   FOR [= FILTER articleStickerDashboard.a](Article a)  DO 
+   FOR [= FILTER articleStickerDashboard.sta](Article a, DepartmentStore dep)  DO 
        mapIsEAC(a);
 } SHORTCUT isEAC[Article]; 
                             
@@ -325,23 +349,27 @@ NAVIGATOR {
 
 // ------------------------------------- Печать примера ценника --------------------------- //
      
-inLabel 'Отм.' = DATA LOCAL BOOLEAN (Article); 
+inLabel 'Отм.' = DATA LOCAL BOOLEAN (Article, DepartmentStore); 
 EXTEND FORM articleStickerDashboard
-    PROPERTIES(a) inLabel BEFORE id(a)
+    PROPERTIES(a, st) inLabel BEFORE id(a)
+    
+    FILTERGROUP inArticleFilter
+        FILTER 'Отмеченные' inLabel(a, st) 'F11'        
 ;
 
-countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabel(Article a);
-countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabel(Article a) BY defaultLabelType(a)](LabelType type);
+countInLabelArticles 'Кол-во отм.' = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st);
+countLabelTypeArticles  = GROUP SUM 1 IF [= GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) BY defaultLabelType(a)](LabelType type);
+countInDepartmentStores = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) BY st;
 
 dataLastBatch = ABSTRACT Batch (Sku);
 
-createSnapshotPricing 'Пример ценника'(Article article, DepartmentStore department) = ACTION {
+createSnapshotPricing 'Пример ценника'(Article article) = ACTION {
     IF countInLabelArticles() THEN {
         IF countLabelTypeArticles() == 1 THEN {
-            FOR ADDOBJ t = LabelTransaction DO {          
-                departmentStore(t) <- department;
-                labelType(t) <-  [=GROUP MAX defaultLabelType(Article a) IF inLabel(a)]();
-                FOR article (Item item) == Article a AND inLabel(a)  ADDOBJ d = LabelTransactionDetail DO {
+            FOR countInDepartmentStores(DepartmentStore st) ADDOBJ t = LabelTransaction DO {          
+                departmentStore(t) <- st;
+                labelType(t) <- [=GROUP MAX defaultLabelType(Article a) IF inLabel(a, DepartmentStore st)]();
+                FOR article (Item item) == Article a AND inLabel(a, st)  ADDOBJ d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         sku(d) <- item;
                         batch(d) <- OVERRIDE lastBatch(item), dataLastBatch(item);
@@ -360,8 +388,8 @@ createSnapshotPricing 'Пример ценника'(Article article, DepartmentS
             MESSAGE 'Отмечены артикулы с разными типами ценников';
         }
     } ELSE {
-        FOR ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
-            departmentStore(t) <- department;
+        FOR countInDepartmentStores(DepartmentStore st) ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
+            departmentStore(t) <- st;
             labelType(t) <- defaultLabelType(article);
             FOR article (Item item) ==article  ADDOBJ d = LabelTransactionDetail DO {
                     labelTransaction(d) <- t;
@@ -382,7 +410,7 @@ createSnapshotPricing 'Пример ценника'(Article article, DepartmentS
 } TOOLBAR;
 
 EXTEND FORM articleStickerDashboard
-    PROPERTIES(a, dep) createSnapshotPricing FORCE PANEL TOOLBAR
+    PROPERTIES(a) createSnapshotPricing FORCE PANEL TOOLBAR
     PROPERTIES(a) READONLY AFTER id(a) idItemGroup
     PROPERTIES(i) READONLY AFTER id(i) idItemGroup
 ;
