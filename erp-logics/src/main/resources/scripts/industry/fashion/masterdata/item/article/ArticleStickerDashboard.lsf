@@ -363,7 +363,7 @@ countInDepartmentStores = GROUP SUM 1 IF inLabel(Article a, DepartmentStore st) 
 
 dataLastBatch = ABSTRACT Batch (Sku);
 
-createSnapshotPricing 'Пример ценника'(Article article) = ACTION {
+createSnapshotPricing 'Пример ценника'(Article article, DepartmentStore dep) = ACTION {
     IF countInLabelArticles() THEN {
         IF countLabelTypeArticles() == 1 THEN {
             FOR countInDepartmentStores(DepartmentStore st) ADDOBJ t = LabelTransaction DO {          
@@ -388,8 +388,8 @@ createSnapshotPricing 'Пример ценника'(Article article) = ACTION {
             MESSAGE 'Отмечены артикулы с разными типами ценников';
         }
     } ELSE {
-        FOR countInDepartmentStores(DepartmentStore st) ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
-            departmentStore(t) <- st;
+        FOR ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
+            departmentStore(t) <- dep;
             labelType(t) <- defaultLabelType(article);
             FOR article (Item item) ==article  ADDOBJ d = LabelTransactionDetail DO {
                     labelTransaction(d) <- t;
@@ -410,7 +410,7 @@ createSnapshotPricing 'Пример ценника'(Article article) = ACTION {
 } TOOLBAR;
 
 EXTEND FORM articleStickerDashboard
-    PROPERTIES(a) createSnapshotPricing FORCE PANEL TOOLBAR
+    PROPERTIES(a, st) createSnapshotPricing FORCE PANEL TOOLBAR
     PROPERTIES(a) READONLY AFTER id(a) idItemGroup
     PROPERTIES(i) READONLY AFTER id(i) idItemGroup
 ;
