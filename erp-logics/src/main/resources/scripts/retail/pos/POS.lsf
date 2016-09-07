@@ -76,7 +76,8 @@ promotionDiscountSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail,
 promotionBonusSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) IF useBonus(condition)
                                                BY detail;
 
-in (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
+skip (Promotion promotion) = DATA LOCAL BOOLEAN (Promotion);
+inCalc (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
                                           date(receipt) >= dateFrom(promotion) AND date(receipt) <= dateTo(promotion) AND
                                           NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
                                           NOT sumReceiptDetail(receipt) < minSumBill(promotion) AND NOT sumReceiptDetail(receipt) > maxSumBill(promotion)
@@ -84,6 +85,8 @@ in (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
                                           AND NOT totalSum (receipt, promotion) < minCumulativeSum(promotion) AND NOT totalSum (receipt, promotion) > maxCumulativeSum(promotion)
                                           AND NOT (hasDiscountCard(promotion) AND NOT in(promotion, discountCard(receipt)))
                                           AND NOT (noDiscountCard(promotion) AND discountCard(receipt));
+
+in (Receipt receipt, Promotion promotion) = inCalc(receipt, promotion) AND NOT skip(promotion);
 
 inReceiptSale (ReceiptDetail receiptDetail, PromotionCondition promotionCondition) =
     in(receipt(receiptDetail), promotion(promotionCondition))
@@ -98,6 +101,7 @@ isAppliedPromotion 'Акция применяется' (ReceiptSaleDetail receip
 // оптимизация
 possible = GROUP SUM 1 IF in(PromotionCondition promotionCondition, sku(ReceiptSaleDetail detail)) IF quantity(detail) BY receipt(detail), promotion(promotionCondition);
 
+beforeCalculatePromotions = ACTION ABSTRACT LIST (Receipt);
 overCalculatePromotions = ACTION ABSTRACT LIST (Receipt);
 calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION {
 
@@ -108,6 +112,8 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 //    LOCAL maxSalePriceSku = NUMERIC[16,4] (Sku);
 //    maxSalePriceSku(sku) <- maxSalePriceReceiptSku(receipt, sku);
 
+    beforeCalculatePromotions(receipt);
+    
     FOR PromotionGroup promotionGroup IS PromotionGroup DO {
 //        LOCAL leftSku = NUMERIC[14,3] (Sku);
 //        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
