@@ -2225,6 +2225,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                         sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
                                         idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
                                         sale.priceReceiptDetail, sale.sumReceiptDetail);
+                                if (zReportSectionLM != null) {
+                                    row = new ArrayList<>(row);
+                                    row.add(sale.idSection);
+                                }
                                 dataGiftCard.add(row);
                             } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
                                 //return 3
@@ -2297,7 +2301,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 idEmployeeField, firstNameContactField, lastNameContactField, idReceiptField, numberReceiptField,
                                 idReceiptDetailField, numberReceiptDetailField, idGiftCardField,
                                 priceReceiptGiftCardSaleDetailField, sumReceiptGiftCardSaleDetailField);
-
+                        if (zReportSectionLM != null) {
+                            giftCardImportFields = new ArrayList<>(giftCardImportFields);
+                            giftCardImportFields.add(idSectionField);
+                        }
+                        
                         //sale 5
                         List<ImportKey<?>> saleKeys = Arrays.asList(zReportKey, cashRegisterKey, receiptKey, receiptSaleDetailKey, skuKey, employeeKey);
                         if (discountCardLM != null) {
