@@ -2200,6 +2200,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                     zReportLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
                         }
 
+                        if(zReportSectionLM != null) {
+                            giftCardProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("id[Section]").getMapping(sectionKey), true));
+                            giftCardProperties.add(new ImportProperty(idSectionField, zReportSectionLM.findProperty("section[ReceiptDetail]").getMapping(receiptGiftCardSaleDetailKey),
+                                    zReportSectionLM.object(zReportSectionLM.findClass("Section")).getMapping(sectionKey)));
+                        }
+
                         List<List<Object>> dataSale = new ArrayList<>();
                         List<List<Object>> dataReturn = new ArrayList<>();
                         List<List<Object>> dataGiftCard = new ArrayList<>();
