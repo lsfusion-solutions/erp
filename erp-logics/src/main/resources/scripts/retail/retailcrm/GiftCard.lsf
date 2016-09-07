@@ -63,7 +63,7 @@ sold (giftCard) =
         BY giftCard(detail) WHERE detail IS ReceiptGiftCardSaleDetail;
         
 isSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN TRUE;
-dateSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN date(receipt(sold(giftCard)));
+dateSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN date(sold(giftCard));
 departmentStoreSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN departmentStore(receipt(sold(giftCard)));
 
 type(ReceiptGiftCardSaleDetail detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
@@ -228,9 +228,9 @@ used (giftCard) =
     GROUP AGGR PaymentGiftCard payment
         BY giftCard(payment) WHERE payment IS PaymentGiftCard;
 isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
-dateUsed 'Дата использования' (GiftCard giftCard) = toDate(dateTime(receipt(used(giftCard))));
+dateUsed 'Дата использования' (GiftCard giftCard) = date(receipt(used(giftCard)));
 
-expireDate 'Дата истечения' (GiftCard giftCard) = sum(toDate(dateTime(receipt(sold(giftCard)))), expiryDays(giftCard));
+expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard));
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
 
 nameDepartmentStoreUsed 'Где использован' (GiftCard giftCard) = nameDepartmentStore(receipt(used(giftCard)));
