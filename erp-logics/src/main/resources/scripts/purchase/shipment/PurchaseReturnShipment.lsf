@@ -131,11 +131,43 @@ EXTEND FORM userShipment
 // Для поставки
 @deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userShipment, accountPriceListType, sku, customerStock);
 
+extraShipmentPrice = ABSTRACT NUMERIC[16,4] (UserInvoiceDetail) PERSISTENT @@denomination;
+
 // Для накладной
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, customerStock);
-//shipmentPriceUserInvoiceDetail(detail) <- calcShipmentPriceUserInvoiceDetail(detail) (+) extraShipmentPriceUserInvoiceDetail(detail) WHEN
-//    (CHANGED(calcShipmentPriceUserInvoiceDetail(detail)) OR CHANGED(extraShipmentPriceUserInvoiceDetail(detail)) OR CHANGED(createShipmentUserInvoiceDetail(detail)))
-//        AND createShipmentUserInvoiceDetail(detail);
+calcShipmentPrice(UserInvoiceDetail detail) = IF batch(detail)
+
+                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                                                                   batch(detail),
+                                                                                                   customerStock(detail),
+                                                                                                   dateTime(detail))
+                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+                                                                                                 sku(detail),
+                                                                                                 customerStock(detail),
+                                                                                                 dateTime(detail));
+shipmentPrice (UserInvoiceDetail detail)  <- calcShipmentPrice(detail) (+) extraShipmentPrice(detail)
+                                                WHEN DO CHANGED(sku(detail)) OR
+                                                     CHANGED(customerStock(detail)) OR
+                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+                                                     CHANGED(batch(detail)) OR 
+                                                     CHANGED(extraShipmentPrice(detail));                                                                                                 
+
+//@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, customerStock){
+//    shipmentPrice (UserInvoiceDetail detail)  <- IF batch(detail)
+//
+//                                                    THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+//                                                                                                   batch(detail),
+//                                                                                                   customerStock(detail),
+//                                                                                                   dateTime(detail))
+//                                                    ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType,
+//                                                                                                 sku(detail),
+//                                                                                                 customerStock(detail),
+//                                                                                                 dateTime(detail))
+//                                                    WHEN DO CHANGED(sku(detail)) OR
+//                                                         CHANGED(customerStock(detail)) OR
+//                                                         (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+//                                                         CHANGED(batch(detail));
+//};
+
 
 // ------------------------------- Проведение по товарному отчету ------------------------ //
 @implementStockDocumentLedgerOut(Shipment, customerStock);
