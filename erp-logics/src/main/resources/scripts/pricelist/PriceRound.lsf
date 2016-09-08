@@ -39,19 +39,19 @@ fraction 'Дробное' (price, RoundCondition roundCondition) = price -
 
 modifierPriceInterval (price, roundCondition) =
     GROUP LAST modifier(PriceInterval interval)
-          BY NUMERIC[16,4] price AS NUMERIC[16,4], roundCondition(interval)
+          BY NUMERIC[22,10] price AS NUMERIC[22,10], roundCondition(interval)
           ORDER interval
           WHERE fraction(price, roundCondition(interval)) >= from(interval) AND
                 fraction(price, roundCondition(interval)) < to(interval);
 
 
 round (NUMERIC[16,4] price, RoundCondition roundCondition) = NUMERIC[16,4](
-    IF (price AS NUMERIC[16,4]) > minPrice(roundCondition) AND modifierPriceInterval(price, roundCondition)
+    IF (price AS NUMERIC[22,10]) > minPrice(roundCondition) AND modifierPriceInterval(price, roundCondition)
         THEN
             integer(price, roundCondition) * denominatorPrice(roundCondition) +
             modifierPriceInterval(price, roundCondition)
         ELSE
-            Utils.round(price AS NUMERIC[16,4], priceRound(roundCondition))
+            Utils.round(price AS NUMERIC[22,10], priceRound(roundCondition))
     ) COMPLEX; // для COMPLEX
 
 round(price, Currency currency) = Utils.round(price, defaultRound(currency));
