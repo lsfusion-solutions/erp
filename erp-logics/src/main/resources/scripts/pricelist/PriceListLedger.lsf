@@ -798,6 +798,69 @@ DESIGN movementPriceSkuStock {
     MOVE functions.box;
 }
 
+// --
+dialogSupplier = DATA LOCAL LegalEntity (Sku, Stock);
+nameDialogSupplier 'Поставщик' = name(dialogSupplier(Sku sku, Stock stock));
+
+relationCompany(s,st,c) = GROUP SUM 1 IF sku(PriceListLedger pl) == Sku s AND isPosted(pl) AND active(pl)
+    AND in(pl,Stock st) BY s,st,company(pl);
+
+CONSTRAINT dialogSupplier(Sku s,Stock st) AND NOT isSupplier(dialogSupplier(s,st))
+    CHECKED BY dialogSupplier[Sku,Stock] MESSAGE 'Выбран организация, которая не является поставщиком';
+CONSTRAINT dialogSupplier(Sku s,Stock st) AND NOT relationCompany(s,st,dialogSupplier(s,st))
+    CHECKED BY dialogSupplier[Sku,Stock] MESSAGE 'Выбран организация, по которой нет истории изменения по данному товару';
+
+FORM movementPriceSkuStockSupplier 'Изменение цены товара по складу и поставщику'
+    OBJECTS s = Sku FIXED PANEL
+    PROPERTIES(s) READONLY name
+
+    OBJECTS st = Stock FIXED PANEL
+    PROPERTIES(st) SELECTOR name
+    PROPERTIES(s,st) nameDialogPriceListType, nameDialogSupplier
+
+    OBJECTS pp = (t = LedgerPriceListType, pl = PriceListLedger)
+    PROPERTIES READONLY FORCE GRID name[PriceListType](t),  description(pl), nameCompany(pl), fromDateTime(pl, t, st), toDateTime(pl, t, st),
+                        price(pl, t, st) 
+    PROPERTIES(pl) edit                     
+    ORDER BY name(t), fromDateTime(pl, t, st)
+
+    FILTERS sku(pl, t, st) == s,
+            active(pl, t, st),
+            (t IS PriceListType AND NOT dialogPriceListType(s,st)) OR dialogPriceListType(s,st) == t,
+            (pl IS PriceListLedger AND NOT dialogSupplier(s,st)) OR dialogSupplier(s,st) == company(pl)
+
+;
+DESIGN movementPriceSkuStockSupplier {
+    main {
+        preferredSize = (1024, 768);
+        NEW topContainer{
+            type = CONTAINERH;
+            NEW left {
+                type = CONTAINERV;
+                MOVE s.box;
+                NEW dialog1 {
+                    caption = 'Вид цен';
+                    MOVE PROPERTY(nameDialogPriceListType(s,st));
+                }
+            }
+            NEW reight {
+                type = CONTAINERV;
+                MOVE st.box;
+                NEW dialog2 {
+                    caption = 'Поставщик';
+                    MOVE PROPERTY(nameDialogSupplier(s,st));
+                }
+            }
+            
+        }
+
+        MOVE pp.box;
+        PROPERTY(name(s)) { focusable = FALSE;}
+        PROPERTY(name(t)) { caption = 'Вид цен';}
+    }
+    MOVE functions.box;
+}
+
 //--
 FORM movementPriceSkuStocks 'Изменение цены товара'
     OBJECTS s = Sku FIXED PANEL
@@ -873,7 +936,7 @@ SHORTCUT nameSku[Batch];
 
 @extendFormFilterStockAccess(st, movementPriceSkuStock);
 @extendFormFilterStockAccess(st, movementPriceSkuStocks);
-
+@extendFormFilterStockAccess(st, movementPriceSkuStockSupplier);
 
 filterReportStock  = DATA LOCAL Stock ();
 nameFilterReportStock 'Склад' = name(filterReportStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
