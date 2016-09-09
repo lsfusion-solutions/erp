@@ -7,7 +7,6 @@ import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
-import lsfusion.server.ServerLoggers;
 
 import javax.management.modelmbean.XMLParseException;
 import java.io.*;
@@ -32,20 +31,22 @@ public class EVATClientAction implements ClientAction {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public Map<Integer, File> files;
+    public Map<Integer, byte[]> files;
     public String serviceUrl; //"https://ws.vat.gov.by:443/InvoicesWS/services/InvoicesPort?wsdl"
     public String path; //"c:/Program Files/Avest/AvJCEProv";
+    public String exportPath; //"c:/Program Files/Avest/AvJCEProv/archive";
     public String password; //"191217635";
     public int type;
 
-    public EVATClientAction(String serviceUrl, String path, String password, int type) {
-        this(new HashMap<Integer, File>(), serviceUrl, path, password, type);
+    public EVATClientAction(String serviceUrl, String path, String exportPath, String password, int type) {
+        this(new HashMap<Integer, byte[]>(), serviceUrl, path, exportPath, password, type);
     }
 
-    public EVATClientAction(Map<Integer, File> files, String serviceUrl, String path, String password, int type) {
+    public EVATClientAction(Map<Integer, byte[]> files, String serviceUrl, String path, String exportPath, String password, int type) {
         this.files = files;
         this.serviceUrl = serviceUrl;
         this.path = path;
+        this.exportPath = exportPath;
         this.password = password;
         this.type = type;
     }
@@ -64,33 +65,33 @@ public class EVATClientAction implements ClientAction {
     }
 
     private List<List<Object>> signAndSend() {
-        ServerLoggers.importLogger.info("EVAT: client action signAndSend");
+        System.out.println("EVAT: client action signAndSend");
         List<List<Object>>  result = new ArrayList<>();
 
         String xsdPath = path + "/xsd";
-        File archiveDir = new File(path + "/archive");
+        File archiveDir = new File(exportPath == null ? (path + "/archive") : exportPath );
 
         URL url = getClass().getClassLoader().getResource("");
-        ServerLoggers.importLogger.info("EVAT: url: " + url);
+        System.out.println("EVAT: url: " + url);
         if(url != null) {
             // Создание экземпляра класса доступа к порталу
             EVatService service = null;
 
             try {
                 service = initService();
-                ServerLoggers.importLogger.info("EVAT: initService finished");
+                System.out.println("EVAT: initService finished");
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
-                    ServerLoggers.importLogger.info("EVAT: archiveDir created");
-                    for (Map.Entry<Integer, File> entry : files.entrySet()) {
-                        ServerLoggers.importLogger.info("EVAT: send file started");
+                    System.out.println("EVAT: archiveDir created");
+                    for (Map.Entry<Integer, byte[]> entry : files.entrySet()) {
+                        System.out.println("EVAT: send file started");
                         Integer evat = entry.getKey();
-                        File file = entry.getValue();
+                        byte[] file = entry.getValue();
 
                         // Создание электронного документа
                         AvEDoc eDoc = service.createEDoc();
 
                         // Загрузка электронной счет-фактуры НДС
-                        eDoc.getDocument().load(readFile(file));
+                        eDoc.getDocument().load(file);
 
                         // Проверка счет-фактуры НДС на соответствие XSD схеме
                         byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
@@ -101,7 +102,7 @@ public class EVATClientAction implements ClientAction {
 
                             eDoc.sign();
                             byte[] signedDocument = eDoc.getEncoded();
-                                File signedFile = new File(archiveDir, file.getName() + ".sgn.xml");
+                                File signedFile = new File(archiveDir, "EVAT" + evat  + ".sgn.xml");
 
                                 // Сохранение файла с подписанным электронным документом
                                 writeFile(signedFile, signedDocument);
@@ -112,33 +113,33 @@ public class EVATClientAction implements ClientAction {
                                 // Загрузка электронного документа на автоматизированный сервис
                                 // портала и получение квитанции о приёме
                                 AvETicket ticket = service.sendEDoc(eDoc);
-                                ServerLoggers.importLogger.info("SignAndSend EVAT: Ответ сервера получен");
+                                System.out.println("SignAndSend EVAT: Ответ сервера получен");
 
                                 // Проверка квитанции
                                 if (ticket.accepted()) {
-                                    ServerLoggers.importLogger.info("SignAndSend EVAT: Ticket is accepted");
+                                    System.out.println("SignAndSend EVAT: Ticket is accepted");
                                     String resultMessage = ticket.getMessage();
 
-                                    File ticketFile = new File(archiveDir, file.getName() + ".ticket.xml");
+                                    File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
                                     // Сохранение квитанции в файл
                                     writeFile(ticketFile, ticket.getEncoded());
 
-                                    ServerLoggers.importLogger.info("Ответ сервера проверен. Cчет/фактура принята в обработку. "
+                                    System.out.println("Ответ сервера проверен. Cчет/фактура принята в обработку. "
                                             + "Сообщение сервера: " + resultMessage);
                                     result.add(Arrays.asList((Object) evat, resultMessage, false));
 
                                 } else {
-                                    ServerLoggers.importLogger.info("SignAndSend EVAT: Ticket is not accepted");
+                                    System.out.println("SignAndSend EVAT: Ticket is not accepted");
                                     AvError err = ticket.getLastError();
-                                    File ticketFile = new File(archiveDir, file.getName() + ".ticket.error.xml");
+                                    File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
                                     // Сохранение квитанции в файл
                                     writeFile(ticketFile, ticket.getEncoded());
-                                    ServerLoggers.importLogger.error(err.getMessage());
+                                    System.out.println(err.getMessage());
                                     result.add(Arrays.asList((Object) evat, err.getMessage(), true));
                                 }
 
                                 //конец непроверенного кода
-                            ServerLoggers.importLogger.info("EVAT: send file finished");
+                            System.out.println("EVAT: send file finished");
                         }
                     }
                 } else {

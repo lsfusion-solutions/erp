@@ -37,6 +37,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
             if (type != null) {
                 String serviceUrl = (String) findProperty("serviceUrlEVAT[]").read(context);
                 String pathEVAT = (String) findProperty("pathEVAT[]").read(context);
+                String exportPathEVAT = (String) findProperty("exportPathEVAT[]").read(context);
                 String passwordEVAT = (String) findProperty("passwordEVAT[]").read(context);
                 if (serviceUrl != null) {
                     if (pathEVAT != null) {
@@ -44,10 +45,10 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                             switch (type) {
                                 case 0:
                                     ServerLoggers.importLogger.info("EVAT: sendAndSign called");
-                                    sendAndSign(serviceUrl, pathEVAT, passwordEVAT, type, context);
+                                    sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type, context);
                                     break;
                                 case 1:
-                                    listAndGet(serviceUrl, pathEVAT, passwordEVAT, type, context);
+                                    listAndGet(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type, context);
                                     break;
                             }
                         } else {
@@ -65,13 +66,13 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private void sendAndSign(String serviceUrl, String pathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         ServerLoggers.importLogger.info("EVAT: generateXMLs started");
-        Map<Integer, File> files = generateXMLs(context);
+        Map<Integer, byte[]> files = generateXMLs(context);
         ServerLoggers.importLogger.info("EVAT: generated xmls: " + files.size());
         if (!(files.isEmpty())) {
             ServerLoggers.importLogger.info("EVAT: client action started");
-            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, serviceUrl, pathEVAT, passwordEVAT, type));
+            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type));
             ServerLoggers.importLogger.info("EVAT: client action finished");
             String error = "";
             if (!result.isEmpty()) {
@@ -100,8 +101,8 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private void listAndGet(String serviceUrl, String pathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        String result = (String) context.requestUserInteraction(new EVATClientAction(serviceUrl, pathEVAT, passwordEVAT, type));
+    private void listAndGet(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        String result = (String) context.requestUserInteraction(new EVATClientAction(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type));
         if(result != null)
             context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
         else

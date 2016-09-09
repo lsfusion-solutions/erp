@@ -54,8 +54,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         generateXML(context, evatObject, true);
     }
 
-    protected Map<Integer, File> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<Integer, File> files = new HashMap<>();
+    protected Map<Integer, byte[]> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<Integer, byte[]> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
@@ -67,7 +67,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return files;
     }
 
-    protected File generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
+    protected byte[] generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
         File tmpFile = null;
         try {
 
@@ -116,9 +116,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             tmpFile = File.createTempFile("evat", "xml");
             outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
+            byte[] fileData = IOUtils.getFileBytes(tmpFile);
             if(choosePath)
-                context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", IOUtils.getFileBytes(tmpFile)));
-            return tmpFile;
+                context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
+            return fileData;
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
