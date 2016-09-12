@@ -1,0 +1,154 @@
+MODULE  ProductionOutputCompliance;
+
+REQUIRE ProductionOutput, Compliance;
+
+NAMESPACE Production;
+
+EXTEND FORM userOutput
+    OBJECTS dc = UserOutputDetail
+    PROPERTIES (dc) index, idBarcodeSku, nameSku, DELETESESSION
+    FILTERS userOutput(dc) == o
+;
+
+DESIGN userOutput{
+    specification.box{
+        type = TABBED;
+        NEW certificateContainer AFTER d.box {
+            caption = 'Сертификаты';
+            NEW headerCertificateContainer { type = CONTAINERH; }
+            MOVE dc.box;
+        }
+    }
+}
+
+EXTEND FORM outputs
+    OBJECTS dc = OutputDetail
+    PROPERTIES(dc) READONLY index, idBarcodeSku, nameSku
+                            
+    FILTERS output(dc) == o
+;
+
+DESIGN outputs{
+    documentDetail{
+        NEW certificateContainer AFTER d.box {
+            caption = 'Сертификаты';
+            NEW headerCertificateContainer;
+            MOVE dc.box;
+        }
+    }
+}
+
+compliance = ABSTRACT Compliance (OutputDetail);
+descriptionCompliance 'Сертификат соответствия' (OutputDetail detail) = description(compliance(detail));
+
+compliance = DATA Compliance (UserOutput);
+descriptionCompliance 'Сертификат соответствия' (UserOutput output) = description(compliance(output));
+
+dataCompliance = DATA Compliance (UserOutputDetail);
+compliance (UserOutputDetail detail) =
+    OVERRIDE compliance(userOutput(detail)), dataCompliance(detail);
+compliance(UserOutputDetail detail) += compliance(detail);
+
+descriptionCompliance 'Сертификат соответствия' (UserOutputDetail detail) = description(compliance(detail));
+
+backgroupComplianceUser = ABSTRACT COLOR (OutputDetail);
+
+EXTEND FORM userOutput
+    PROPERTIES(o) descriptionCompliance
+    PROPERTIES(d) BACKGROUND backgroupComplianceUser(d) descriptionCompliance
+    PROPERTIES(dc) BACKGROUND backgroupComplianceUser(dc) descriptionCompliance
+;
+
+DESIGN userOutput {
+    headerCertificateContainer {
+        MOVE PROPERTY(descriptionCompliance(o));
+    }
+}
+
+EXTEND FORM outputs
+    PROPERTIES(d) READONLY descriptionCompliance
+    PROPERTIES(dc) READONLY descriptionCompliance
+;
+
+//CONSTRAINT dataComplianceUserOutputDetail(d) AND skuUserOutputDetail(d) AND NOT inSkuCompliance(skuUserOutputDetail(d), dataComplianceUserOutputDetail(d))
+//    CHECKED BY dataComplianceUserOutputDetail
+//    MESSAGE 'Для строки производства задано удостоверение качества, которое не имеет связи с товаром строки производтсва';
+//    
+//CONSTRAINT complianceOutputDetail(d) AND skuOutputDetail(d) AND NOT inSkuCompliance(skuOutputDetail(d), complianceOutputDetail(d))
+//    MESSAGE 'Для строки производства задано удостоверение качества, которое не имеет связи с товаром строки производтсва';
+    
+compliance[Batch] (OutputDetail batch) += compliance(batch);
+
+//--
+
+EXTEND FORM order
+    OBJECTS dc = ProductDetail
+    PROPERTIES (dc) index, idBarcodeSku, nameSku, DELETESESSION
+    FILTERS order(dc) == o
+;
+
+DESIGN order{
+    tabContainer{
+        NEW certificateContainer {
+            caption = 'Сертификаты';
+            NEW headerCertificateContainer { type = CONTAINERH; }
+            MOVE dc.box;
+        }
+    }
+}
+
+EXTEND FORM orders
+    OBJECTS dc = ProductDetail
+    PROPERTIES(dc) READONLY index, idBarcodeSku, nameSku
+                            
+    FILTERS order(dc) == o
+;
+
+DESIGN orders{
+    documentDetail{
+        NEW certificateContainer AFTER pd.box {
+            caption = 'Сертификаты';
+            NEW headerCertificateContainer;
+            MOVE dc.box;
+        }
+    }
+}
+
+dataCompliance = DATA Compliance (ProductDetail);
+descriptionDataCompliance 'Сертификат соответствия' (ProductDetail detail) = description(dataCompliance(detail));
+
+compliance = DATA Compliance (Order);
+descriptionCompliance 'Сертификат соответствия' (Order o) = description(compliance(o));
+
+compliance (ProductDetail detail) =
+    OVERRIDE compliance(order(detail)), dataCompliance(detail);
+descriptionCompliance 'Сертификат соответствия' (ProductDetail detail) = description(compliance(detail));
+
+
+backgroupCompliance = ABSTRACT COLOR (ProductDetail);
+
+EXTEND FORM order
+    PROPERTIES(o) descriptionCompliance
+    PROPERTIES(pd) BACKGROUND backgroupCompliance(pd) descriptionCompliance
+    PROPERTIES(dc) BACKGROUND backgroupCompliance(dc) descriptionCompliance
+;
+
+DESIGN order {
+    headerCertificateContainer {
+        MOVE PROPERTY(descriptionCompliance(o));
+    }
+}
+
+EXTEND FORM orders
+    PROPERTIES(pd) READONLY descriptionCompliance
+    PROPERTIES(dc) READONLY descriptionCompliance
+;
+
+//CONSTRAINT dataComplianceProductDetail(d) AND skuProductDetail(d) AND NOT inSkuCompliance(skuProductDetail(d), dataComplianceProductDetail(d))
+//    CHECKED BY dataComplianceProductDetail
+//    MESSAGE 'Для строки изделия производственного заказа задано удостоверение качества, которое не имеет связи с товаром строки изделия производтсвенного заказа';
+//    
+//CONSTRAINT complianceProductDetail(d) AND skuProductDetail(d) AND NOT inSkuCompliance(skuProductDetail(d), complianceProductDetail(d))
+//    MESSAGE 'Для строки изделия производственного заказа задано удостоверение качества, которое не имеет связи с товаром строки изделия производтсвенного заказа';
+
+compliance(OrderOutputDetail outputDetail) += compliance(productDetail(outputDetail));
