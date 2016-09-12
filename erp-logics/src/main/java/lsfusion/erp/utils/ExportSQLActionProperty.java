@@ -20,6 +20,7 @@ import java.util.*;
 
 public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
     String idForm; //idForm = table
+    String table;
     String idGroupObject;
     List<String> keyColumns;
     String connectionStringProperty;
@@ -28,11 +29,17 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
 
     public ExportSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
                                    List<String> keyColumns, String connectionStringProperty, boolean truncate, boolean noInsert) {
+        this(LM, idForm, idGroupObject, keyColumns, connectionStringProperty, idForm, truncate, noInsert);
+    }
+
+    public ExportSQLActionProperty(ScriptingLogicsModule LM, String idForm, String idGroupObject,
+                                   List<String> keyColumns, String connectionStringProperty, String table, boolean truncate, boolean noInsert) {
         super(LM);
         this.idForm = idForm;
         this.idGroupObject = idGroupObject;
         this.keyColumns = keyColumns;
         this.connectionStringProperty = connectionStringProperty;
+        this.table = table;
         this.truncate = truncate;
         this.noInsert = noInsert;
     }
@@ -99,7 +106,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         Statement statement = null;
                         try {
                             statement = conn.createStatement();
-                            statement.execute("TRUNCATE TABLE [" + idForm + "]");
+                            statement.execute("TRUNCATE TABLE [" + table + "]");
                             conn.commit();
                         } finally {
                             if (statement != null)
@@ -107,7 +114,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                         }
                     }
                     if (wheres.isEmpty()) {
-                        ps = conn.prepareStatement(String.format("INSERT INTO [%s](%s) VALUES (%s)", idForm, columns, params));
+                        ps = conn.prepareStatement(String.format("INSERT INTO [%s](%s) VALUES (%s)", table, columns, params));
                         for (List<Object> row : rows) {
                             for (int i = 0; i < paramLength; i++) {
                                 setObject(ps, i + 1, row.get(i));
@@ -117,9 +124,9 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                     } else {
                         ps = conn.prepareStatement(
                                 noInsert ?
-                                        String.format("UPDATE [%s] SET %s WHERE %s", idForm, set, wheres) :
+                                        String.format("UPDATE [%s] SET %s WHERE %s", table, set, wheres) :
                                         String.format("UPDATE [%s] SET %s WHERE %s IF @@ROWCOUNT=0 INSERT INTO %s(%s) VALUES (%s)",
-                                                idForm, set, wheres, idForm, columns, params));
+                                                table, set, wheres, table, columns, params));
 
                         for (int k = 0; k < rows.size(); k++) {
                             List<Object> row = rows.get(k);
