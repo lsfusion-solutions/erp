@@ -65,6 +65,7 @@ sold (giftCard) =
 isSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN TRUE;
 dateSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN date(receipt(sold(giftCard)));
 departmentStoreSold(GiftCard giftCard) += WHEN sold(giftCard) IS ReceiptGiftCardSaleDetail THEN departmentStore(receipt(sold(giftCard)));
+numberReceiptSold 'Номер чека (продажа)' (GiftCard giftCard) = number(receipt(sold(giftCard)));
 
 type(ReceiptGiftCardSaleDetail detail) += 'Сертификат' IF detail IS ReceiptGiftCardSaleDetail;
 quantity(ReceiptGiftCardSaleDetail detail) += 1.0 IF detail IS ReceiptGiftCardSaleDetail;
@@ -169,8 +170,7 @@ DESIGN giftCard {
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY number, series, date, 
-                           dateSold, nameDepartmentStoreSold, expiryDays, price
+    PROPERTIES(g) READONLY number, series, date, dateSold, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
@@ -234,9 +234,9 @@ expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(gift
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
 
 nameDepartmentStoreUsed 'Где использован' (GiftCard giftCard) = nameDepartmentStore(receipt(used(giftCard)));
-numberReceiptUsed 'Номер чека' (GiftCard giftCard) = number(receipt(sold(giftCard)));
-numberZReportUsed 'Номер z-отчета' (GiftCard giftCard) = number(zReport(receipt(sold(giftCard))));
-dateZReportUsed 'Дата z-отчета' (GiftCard giftCard) = date(zReport(receipt(sold(giftCard))));
+numberReceiptUsed 'Номер чека (погашение)' (GiftCard giftCard) = number(receipt(used(giftCard)));
+numberZReportUsed 'Номер z-отчета' (GiftCard giftCard) = number(zReport(receipt(used(giftCard))));
+dateZReportUsed 'Дата z-отчета' (GiftCard giftCard) = date(zReport(receipt(used(giftCard))));
 
 EXTEND FORM giftCards
     PROPERTIES(g) READONLY BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
