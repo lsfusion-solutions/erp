@@ -73,7 +73,7 @@ public class EVATClientAction implements ClientAction {
 
         URL url = getClass().getClassLoader().getResource("");
         System.out.println("EVAT: url: " + url);
-        if(url != null) {
+//        if(url != null) {
             // Создание экземпляра класса доступа к порталу
             EVatService service = null;
 
@@ -151,7 +151,7 @@ public class EVATClientAction implements ClientAction {
             } finally {
                 disconnect(service);
             }
-        }
+//        }
         return result;
     }
 
