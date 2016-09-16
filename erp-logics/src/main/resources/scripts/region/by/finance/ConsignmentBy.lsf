@@ -211,13 +211,17 @@ TABLE ownerTrackType (OwnerTrackType);
 
 ownerTrackType 'Владелец автомобиля' = ABSTRACT OwnerTrackType (Consignment);
 
-dataOwnerTruck 'Владелец автомобиля' = DATA VARISTRING[200] (Consignment);
+//dataOwnerTruck 'Владелец автомобиля' = DATA VARISTRING[200] (Consignment);
 
-ownerTruck 'Владелец автомобиля' (Consignment consignment) = OVERRIDE  (CASE 
+//ownerTruck 'Владелец автомобиля' (Consignment consignment) = OVERRIDE  (CASE 
+//    WHEN supplier(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.supplier THEN 'Грузоотправитель'
+//    WHEN customer(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.customer THEN 'Грузополучатель'
+//    ELSE 
+//    OVERRIDE nameLegalEntity(truck(consignment)), owner(truck(consignment))), dataOwnerTruck(consignment)  IN carConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+
+ownerTruck 'Владелец автомобиля' (Consignment consignment) = CASE 
     WHEN supplier(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.supplier THEN 'Грузоотправитель'
-    WHEN customer(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.customer THEN 'Грузополучатель'
-    ELSE 
-    OVERRIDE nameLegalEntity(truck(consignment)), owner(truck(consignment))), dataOwnerTruck(consignment)  IN carConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
+    WHEN customer(consignment) == legalEntity(truck(consignment)) OR ownerTrackType(consignment) == OwnerTrackType.customer THEN 'Грузополучатель';
 
 dataTrailer = ABSTRACT VARSTRING[100] (Consignment);
 trailer 'Прицеп' (Consignment consignment) = OVERRIDE trailer(truck(consignment)),
@@ -902,7 +906,16 @@ META changeConsignment(property, classType, request)
     }
 END
 
-@changeConsignment(ownerTruck,VARISTRING[200],requestedString);
+//@changeConsignment(ownerTruck,VARISTRING[200],requestedString){
+//    changeOwnerTruck(Consignment c) = ACTION {
+//        REQUEST VARISTRING[200] INPUT;
+//            IF requestedString() THEN {
+//                dataOwnerTruck(c) <- requestedString();
+//            }ELSE {
+//                dataOwnerTruck(c) <- NULL;
+//            }
+//    }
+//};
 @changeConsignment(trailer,VARSTRING[100],requestedString);
 @changeConsignment(waybill,VARSTRING[20],requestedString);
 @changeConsignment(addressSupplierStock,VARSTRING[150],requestedString);
@@ -921,7 +934,8 @@ FORM consignment 'Атрибуты накладной'
                    sealNumberSupplier, sealNumberCustomer  
 
     PROPERTIES(c) SHOWIF showTTN1(c)
-                   nameTruck ON CHANGE changeTruck(c), ownerTruck ON CHANGE changeOwnerTruck(c), trailer ON CHANGE changeTrailer(c), 
+                   nameTruck ON CHANGE changeTruck(c), //ownerTruck ON CHANGE changeOwnerTruck(c), 
+                   trailer ON CHANGE changeTrailer(c), 
                    nameDriver ON CHANGE changeDriver(c), overWaybill ON CHANGE changeWaybill(c),
                    addressSupplierStock ON CHANGE changeAddressSupplierStock(c), addressCustomerStock ON CHANGE changeAddressCustomerStock(c), readdressing,
                    warrant, warrantHolder, overNameLoadingExecuter, nameWayOfLoading, codeLoading,
