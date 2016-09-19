@@ -71,7 +71,23 @@ includeVAT(UserInvoiceDetail detail) <-  fixedPrice(sku(detail)) WHEN CHANGED (s
 
 @defineDocumentInterfaceDetailMPVATCustomPrefix (invoiceDetail, manufacturing, );
                                                          
-@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatchExtra(userInvoice, manufacturingPriceStockPriceListType, manufacturing, sku, customerStock);
+prevListSkuManufacturingPrice = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,4] (UserInvoiceDetail);
+prevListBatchManufacturingPrice = ABSTRACT VALUE OVERRIDE FIRST NUMERIC[16,4] (UserInvoiceDetail);
+
+prevListBatchManufacturingPrice(UserInvoiceDetail detail) += prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                                       batch(detail),
+                                                                                                       customerStock(detail),
+                                                                                                       dateTime(detail));
+prevListSkuManufacturingPrice(UserInvoiceDetail detail) += prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.manufacturingPriceStockPriceListType,
+                                                                                             sku(detail),
+                                                                                             customerStock(detail),
+                                                                                             dateTime(detail));
+
+WHEN SESSION CHANGED(sku(UserInvoiceDetail detail)) OR CHANGED(customerStock(detail)) OR CHANGED(dateTime(detail)) OR CHANGED(batch(detail)) DO {
+    manufacturingPrice (detail)  <- round2(IF batch(detail)    
+                                                    THEN prevListBatchManufacturingPrice(detail)
+                                                    ELSE prevListSkuManufacturingPrice(detail));
+}
 
 overRecalculatedPrice(UserInvoiceDetail detail) += ACTION {
     manufacturingPrice(detail) <- manufacturingPrice(invoiceDetail(detail));
