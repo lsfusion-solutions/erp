@@ -822,7 +822,7 @@ public class UKM4MySQLHandler extends CashRegisterHandler<UKM4MySQLSalesBatch> {
                         " FROM receipt_item AS i" +
                         " JOIN receipt AS r ON i.receipt_header = r.id AND i.cash_id = r.cash_id" +
                         " JOIN shift AS s ON r.shift_open = s.id AND r.cash_id = s.cash_id" +
-                        " LEFT JOIN receipt_item_properties AS rip ON i.id = rip.receipt_item AND rip.code = '$GiftCard_Number$' " +
+                        " LEFT JOIN receipt_item_properties AS rip ON i.cash_id = rip.cash_id AND i.id = rip.receipt_item AND rip.code = '$GiftCard_Number$' " +
                         " WHERE r.ext_processed = 0 AND r.result = 0 AND i.type = 0";
                 ResultSet rs = statement.executeQuery(query);
 
