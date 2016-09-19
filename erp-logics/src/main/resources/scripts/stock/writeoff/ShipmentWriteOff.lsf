@@ -43,9 +43,18 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     writeOffOperation (UserInvoice i) <- writeOffOperation(operation(i))
         WHEN CHANGED(operation(i));
     
-    @defineDocumentInterfaceDetailQuantityPrefix (invoice, writeOff, ' списания');
-    @defineDocumentInterfaceDetailPricePrefix(invoice, writeOff, ' списания');
-    @defineDocumentInterfaceDetailDataSumPrefix (invoice, writeOff, ' списания');
+    writeOffQuantity 'Кол-во списания' = ABSTRACT NUMERIC[16,5] (InvoiceDetail);
+    writeOffQuantity 'Кол-во списания' = DATA NUMERIC[16,5] (UserInvoiceDetail);
+    writeOffQuantity (UserInvoiceDetail invoiceDetail) += writeOffQuantity(invoiceDetail);
+
+    writeOffPrice 'Цена списания' = ABSTRACT NUMERIC[16,4] (InvoiceDetail);
+    writeOffPrice 'Цена списания' = DATA NUMERIC[16,4] (UserInvoiceDetail) @@denomination;
+    writeOffPrice (UserInvoiceDetail invoiceDetail) += writeOffPrice(invoiceDetail);
+
+    writeOffSum 'Сумма списания' = ABSTRACT NUMERIC[18,4] (InvoiceDetail);
+    writeOffSum 'Сумма списания' = DATA NUMERIC[18,4] (UserInvoiceDetail) @@denomination;
+    writeOffSum (UserInvoiceDetail invoiceDetail) += writeOffSum(invoiceDetail);
+
     @deriveDocumentDetailSumPrefix(userInvoice, writeOff, currency, writeOffQuantity);
     @defineDocumentInterfaceHeaderSumPrefix (invoice, writeOff, ' списания');
     @defineDocumentInterfaceHeaderWriteOffCommittee(invoice, stockProp###stock);
@@ -127,9 +136,18 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     writeOffOperation(UserShipment s) <- writeOffOperation(operation(s))
         WHEN CHANGED(operation(s));
     
-    @defineDocumentInterfaceDetailQuantityPrefix (shipment, writeOff, ' (списания)');
-    @defineDocumentInterfaceDetailPricePrefix(shipment, writeOff, ' (списания)');
-    @defineDocumentInterfaceDetailDataSumPrefix (shipment, writeOff, ' (списания)');
+    writeOffQuantity 'Кол-во (списания)' = ABSTRACT NUMERIC[16,5] (ShipmentDetail);
+    writeOffQuantity 'Кол-во (списания)' = DATA NUMERIC[16,5] (UserShipmentDetail);
+    writeOffQuantity (UserShipmentDetail shipmentDetail) += writeOffQuantity(shipmentDetail);
+
+    writeOffPrice 'Цена (списания)' = ABSTRACT NUMERIC[16,4] (ShipmentDetail) @@denomination;
+    writeOffPrice 'Цена (списания)' = DATA NUMERIC[16,4] (UserShipmentDetail) @@denomination;
+    writeOffPrice (UserShipmentDetail shipmentDetail) += writeOffPrice(shipmentDetail);
+
+    writeOffSum 'Сумма (списания)' = ABSTRACT NUMERIC[18,4] (ShipmentDetail) @@denomination;
+    writeOffSum 'Сумма (списания)' = DATA NUMERIC[18,4] (UserShipmentDetail) @@denomination;
+    writeOffSum (UserShipmentDetail shipmentDetail) += writeOffSum(shipmentDetail);
+
     @deriveDocumentDetailSumPrefix(userShipment, writeOff, currency, writeOffQuantity);
     @defineDocumentInterfaceHeaderSumPrefix (shipment, writeOff, ' (списания)');
     @defineDocumentInterfaceHeaderWriteOffCommittee(shipment, stockProp###stock);
@@ -191,7 +209,7 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
                                                     ORDER writeOff IN shipment MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
     
     writtenOff 'Кол-во (списания)' (shipmentDetail) = GROUP SUM quantity(WriteOffDetail writeOffDetail) IF isPosted(writeOffDetail)
-                                                                       BY shipmentDetail(writeOffDetail) PERSISTENT;
+                                                                       BY shipmentDetail(writeOffDetail);
     writtenOff (shipment)= GROUP SUM writtenOff(ShipmentDetail shipmentDetail) BY shipment(shipmentDetail);
     notWrittenOff 'Поставки без списания' (Shipment shipment) = shipment IS Shipment AND NOT writtenOff (shipment);
     
@@ -240,7 +258,7 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     
     //-- агр. объект
     
-    needToWritten (ShipmentDetail shipmentDetail) = writeOffQuantity(shipmentDetail) AND createPurchaseWriteOff(shipmentDetail) PERSISTENT;
+    needToWritten (ShipmentDetail shipmentDetail) = writeOffQuantity(shipmentDetail) AND createPurchaseWriteOff(shipmentDetail);
     
     needToWritten (shipment)= GROUP SUM 1 IF needToWritten(ShipmentDetail shipmentDetail)
         BY shipment(shipmentDetail) PERSISTENT;
