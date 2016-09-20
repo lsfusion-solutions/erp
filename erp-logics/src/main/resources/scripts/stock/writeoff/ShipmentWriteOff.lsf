@@ -75,16 +75,21 @@ META defineShipmentWriteOff (stockProp, batchProp, sign, NS)
     nameWriteOffRate 'Норма отходов' (UserInvoiceDetail userInvoiceDetail) = name(writeOffRate(userInvoiceDetail));
     percentWriteOffRate 'Норма отходов,%' (invoiceDetail)= DATA NUMERIC[10,3] (UserInvoiceDetail);
     
-    writeOffRate(UserInvoiceDetail detail) <- writeOffRate(country###stockProp###stock(detail), sku(detail)) WHEN
-        (CHANGED(country###stockProp###stock(detail)) OR CHANGED(sku(detail))) AND createPurchaseWriteOff(detail);
+    WHEN SESSION (SETCHANGED(country###stockProp###stock(UserInvoiceDetail detail)) OR 
+                  SETCHANGED(sku(detail)) OR
+                  SET(createPurchaseWriteOff(detail))) AND createPurchaseWriteOff(detail) DO
+        writeOffRate(detail) <- writeOffRate(country###stockProp###stock(detail), sku(detail));
+                  
+    WHEN SESSION CHANGED(writeOffRate(UserInvoiceDetail detail)) DO
+        percentWriteOffRate(detail) <- percent(writeOffRate(detail));
     
-    percentWriteOffRate (UserInvoiceDetail detail) <- percent(writeOffRate(detail)) WHEN
-        CHANGED(writeOffRate(detail)) AND createPurchaseWriteOff(detail);
+    WHEN SESSION (CHANGED(shipmentQuantity(UserInvoiceDetail detail)) OR
+                  CHANGED(percentWriteOffRate (detail))) DO
+        writeOffQuantity (detail) <- round3(shipmentQuantity(detail) * percentWriteOffRate (detail)/100);
     
-    writeOffQuantity (UserInvoiceDetail detail) <- round3(shipmentQuantity(detail)*percentWriteOffRate (detail)/100)   WHEN
-        (CHANGED(shipmentQuantity(detail)) OR CHANGED(percentWriteOffRate (detail))) AND createPurchaseWriteOff(detail);
-    
-    writeOffPrice (UserInvoiceDetail detail) <- shipmentPrice(detail) WHEN CHANGED(shipmentPrice(detail)) AND createPurchaseWriteOff(detail);
+1    WHEN SESSION (CHANGED(shipmentPrice(UserInvoiceDetail detail)) OR
+                  CHANGED(writeOffQuantity(detail))) AND writeOffQuantity(detail) DO 
+        writeOffPrice (detail) <- shipmentPrice(detail);
     
     writeOffRate (UserInvoiceDetail detail) += writeOffRate(detail);
     percentWriteOffRate (UserInvoiceDetail detail) += percentWriteOffRate(detail);
