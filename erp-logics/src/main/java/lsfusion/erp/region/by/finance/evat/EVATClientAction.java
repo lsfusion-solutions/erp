@@ -247,11 +247,13 @@ public class EVATClientAction implements ClientAction {
         addPath(path + "/avjavasecprovintf.jar");
         addPath(path + "/avoids.jar");
         addPath(path + "/avjceprovlib-avtoken-shared.jar");
+        addPath(path + "/avjavaseckit.jar");
+        addPath(path + "/avstores.jar"); //ради него задублирован CustomAvCertStoreProvider
 
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
         Security.addProvider(new AvTLSProvider());
-        Security.addProvider(new AvCertStoreProvider());
+        Security.addProvider(new CustomAvCertStoreProvider());
 
         EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector(password));
         service.login();
