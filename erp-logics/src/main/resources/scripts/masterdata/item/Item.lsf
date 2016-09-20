@@ -1718,7 +1718,11 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
     IF copy() THEN {
         FOR ADDOBJ i = Item DO {
             copyDataItem(skuAdded(currentUser()), i);
-            id(Barcode b) <- barcode WHERE sku(b) == i AND primary(b);
+            FOR ADDOBJ bc = Barcode DO { //коприрование шк сейчас включено только для шк упаковки
+                id(bc) <- barcode;
+                dataDate(bc) <- date;
+                sku(bc) <- i;
+            }
             FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
         }
     } ELSE {
