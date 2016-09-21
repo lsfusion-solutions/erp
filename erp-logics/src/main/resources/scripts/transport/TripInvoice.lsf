@@ -13,17 +13,19 @@ countInvoice 'Кол-во накладных в рейсе' (trip) = GROUP SUM 1
 
 quantityInvoiced 'Кол-во в накладных' (trip, sku) = GROUP SUM quantity(InvoiceDetail invoiceDetail) BY trip(invoice(invoiceDetail)), sku(invoiceDetail);
 
+invoiceSum 'Сумма с НДС накладных' (trip) = GROUP SUM invoiceSumInvoiceDetail(Invoice invoice) BY trip(invoice);
+
 grossWeightInvoiced 'Суммарный вес накладных' (trip) = GROUP SUM sumGrossWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
 netWeightInvoiced 'Суммарный вес накладных (нетто)' (trip) = GROUP SUM sumNetWeightInvoiceDetail(Invoice invoice) BY trip(invoice);
 
 EXTEND FORM trip
 
-    PROPERTIES (t) READONLY grossWeightInvoiced
+    PROPERTIES (t) READONLY grossWeightInvoiced, invoiceSum
 
     OBJECTS i=Invoice
     PROPERTIES (t, i) in
     PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, 
-                   nameToStock, sumGrossWeightInvoiceDetail, sumNetWeightInvoiceDetail
+                   nameToStock, invoiceSumInvoiceDetail, sumGrossWeightInvoiceDetail, sumNetWeightInvoiceDetail
     PROPERTIES (i) edit SHOWIF isOpened(i)
     FILTERGROUP filterDateInvoice
         FILTER 'Текущие' date(i) <= date(t) 'F9' DEFAULT
@@ -42,6 +44,7 @@ EXTEND FORM trip
 
 DESIGN trip {
     headerSum {
+        MOVE PROPERTY(invoiceSum(t));
         MOVE PROPERTY(grossWeightInvoiced(t));
     }
 
@@ -61,9 +64,9 @@ DESIGN trip {
 }
 
 EXTEND FORM trips
-    PROPERTIES (t) READONLY grossWeightInvoiced
+    PROPERTIES (t) READONLY grossWeightInvoiced, invoiceSum
     OBJECTS i=Invoice
-    PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, nameToStock
+    PROPERTIES (i) READONLY number, series, date, nameFrom, nameFromStock, nameTo, nameToStock, invoiceSumInvoiceDetail
     FILTERS in(t, i)
 ;
 
