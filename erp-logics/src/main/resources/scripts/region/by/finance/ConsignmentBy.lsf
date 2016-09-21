@@ -114,7 +114,8 @@ dataSupplier = ABSTRACT LegalEntity (Consignment);
 overSupplier = ABSTRACT LegalEntity (Consignment);
 supplier (Consignment consignment)= OVERRIDE dataSupplier(consignment), overSupplier(consignment);
 
-UNPSupplier 'УНП отправителя' (Consignment consignment) = UNP(supplier(consignment));
+overUNPSupplier 'УНП получателя' = ABSTRACT VARSTRING[9] (Consignment);
+UNPSupplier 'УНП отправителя' (Consignment consignment) = OVERRIDE UNP(supplier(consignment)), overUNPSupplier(consignment);
 overAddressSupplier = ABSTRACT VARISTRING[150] (Consignment);
 addressSupplier 'Юр. адрес отправителя' (Consignment consignment) =
     OVERRIDE address(supplier(consignment), date(consignment)), overAddressSupplier(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
@@ -127,7 +128,8 @@ dataCustomer = ABSTRACT LegalEntity (Consignment);
 overCustomer = ABSTRACT LegalEntity (Consignment);
 customer (Consignment consignment)= OVERRIDE dataCustomer(consignment), overCustomer(consignment);
 
-UNPCustomer 'УНП получателя' (Consignment consignment) = UNP(customer(consignment));
+overUNPCustomer 'УНП получателя' = ABSTRACT VARSTRING[9] (Consignment);
+UNPCustomer 'УНП получателя' (Consignment consignment) = OVERRIDE UNP(customer(consignment)), overUNPCustomer(consignment);
 overAddressCustomer = ABSTRACT VARISTRING[150] (Consignment);
 addressCustomer 'Юр. адрес получателя' (Consignment consignment) =
     OVERRIDE address(customer(consignment), date(consignment)), overAddressCustomer(consignment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
@@ -1499,6 +1501,10 @@ DESIGN legalEntity {
         }
     }
 }
+
+UNPLegalEntity 'УНП получателя' = DATA VARSTRING[9] (Stock) IN invoiceConsignment PREFCHARWIDTH 30; 
+overUNPSupplier(Consignment consignment) += UNPLegalEntity(supplierStock(consignment));
+overUNPCustomer(Consignment consignment) += UNPLegalEntity(customerStock(consignment));
 
 nameConsigmentLegalEntity 'Наименование юр. лица' = DATA VARSTRING[200] (Stock) IN invoiceConsignment PREFCHARWIDTH 30;
 overFullNameSupplier(Consignment consignment) += nameConsigmentLegalEntity(supplierStock(consignment));
