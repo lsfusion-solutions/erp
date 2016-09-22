@@ -28,7 +28,8 @@ public class EVATHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> signAndSend(Map<Integer, byte[]> files, String serviceUrl, String path, String exportPath, String password) {
+    public List<List<Object>> 
+    signAndSend(Map<Integer, byte[]> files, String serviceUrl, String path, String exportPath, String password) {
         System.out.println("EVAT: client action signAndSend");
         List<List<Object>>  result = new ArrayList<>();
 
