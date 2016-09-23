@@ -54,15 +54,24 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         generateXML(context, evatObject, true);
     }
 
-    protected Map<Integer, byte[]> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<Integer, byte[]> files = new HashMap<>();
+    protected Map<String, Map<Integer, byte[]>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<Integer, byte[]>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.addProperty("unp", findProperty("unpSupplier[EVAT]").getExpr(context.getModifier(), evatExpr));
         query.and(findProperty("in[EVAT]").getExpr(context.getModifier(), evatExpr).getWhere());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
-        for (ImMap<Object, DataObject> entry : result.keys()) {
-            files.put((Integer) entry.get("evat").getValue(), generateXML(context, entry.get("evat"), false));
+        for (int i = 0; i < result.values().size(); i++) {
+            DataObject evatObject = result.getKey(i).get("evat");
+            String unp = (String) result.getValue(i).get("unp").getValue();
+            if(unp != null) {
+                Map<Integer, byte[]> filesEntry = files.get(unp);
+                if(filesEntry == null)
+                    filesEntry = new HashMap<>();
+                filesEntry.put((Integer) evatObject.getValue(), generateXML(context, evatObject, false));
+                files.put(unp, filesEntry);
+            }
         }
         return files;
     }
@@ -75,7 +84,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String unpSender = trim((String) findProperty("unpSender[EVAT]").read(context, evatObject));
 
-            String number = trim((String) findProperty("number[EVAT]").read(context, evatObject));
+            String number = trim((String) findProperty("number[EVAT]").read(context, evatObject), "");
             while (number.length() < 10)
                 number = "0" + number;
             Integer year = Calendar.getInstance().getTime().getYear() + 1900;

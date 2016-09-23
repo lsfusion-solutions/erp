@@ -68,8 +68,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
 
     private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         ServerLoggers.importLogger.info("EVAT: generateXMLs started");
-        Map<Integer, byte[]> files = generateXMLs(context);
-        ServerLoggers.importLogger.info("EVAT: generated xmls: " + files.size());
+        Map<String, Map<Integer, byte[]>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
             ServerLoggers.importLogger.info("EVAT: client action started");
             List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type));

@@ -6,6 +6,7 @@ import by.avest.edoc.client.*;
 import by.avest.edoc.tool.KeyInteractiveSelector;
 import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
+import lsfusion.server.ServerLoggers;
 
 import javax.management.modelmbean.XMLParseException;
 import java.io.*;
@@ -28,26 +29,29 @@ public class EVATHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> 
-    signAndSend(Map<Integer, byte[]> files, String serviceUrl, String path, String exportPath, String password) {
+    public List<List<Object>> signAndSend(Map<String, Map<Integer, byte[]>> files, String serviceUrl, String path, String exportPath, String password) {
         System.out.println("EVAT: client action signAndSend");
-        List<List<Object>>  result = new ArrayList<>();
+        List<List<Object>> result = new ArrayList<>();
 
         String xsdPath = path + "/xsd";
-        File archiveDir = new File(exportPath == null ? (path + "/archive") : exportPath );
+        File archiveDir = new File(exportPath == null ? (path + "/archive") : exportPath);
 
         URL url = getClass().getClassLoader().getResource("");
         System.out.println("EVAT: url: " + url);
-//        if(url != null) {
+
+        for (Map.Entry<String, Map<Integer, byte[]>> filesEntry : files.entrySet()) {
+            String unp = filesEntry.getKey();
+            ServerLoggers.importLogger.info(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
+
             // Создание экземпляра класса доступа к порталу
             EVatService service = null;
 
             try {
-                service = initService(serviceUrl, password);
+                service = initService(serviceUrl, unp, password);
                 System.out.println("EVAT: initService finished");
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
                     System.out.println("EVAT: archiveDir created");
-                    for (Map.Entry<Integer, byte[]> entry : files.entrySet()) {
+                    for (Map.Entry<Integer, byte[]> entry : filesEntry.getValue().entrySet()) {
                         System.out.println("EVAT: send file started");
                         Integer evat = entry.getKey();
                         byte[] file = entry.getValue();
@@ -62,48 +66,48 @@ public class EVATHandler {
                         byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
                         boolean isDocumentValid = eDoc.getDocument().validateXML(xsdSchema);
                         if (!isDocumentValid) {
-                            result.add(Arrays.asList((Object) evat, "Структура документа не отвечает XSD схеме", true));
+                            result.add(Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", evat), true));
                         } else {
 
                             eDoc.sign();
                             byte[] signedDocument = eDoc.getEncoded();
-                                File signedFile = new File(archiveDir, "EVAT" + evat  + ".sgn.xml");
+                            File signedFile = new File(archiveDir, "EVAT" + evat + ".sgn.xml");
 
-                                // Сохранение файла с подписанным электронным документом
-                                writeFile(signedFile, signedDocument);
+                            // Сохранение файла с подписанным электронным документом
+                            writeFile(signedFile, signedDocument);
 
-                                //далее - код по отправке документа, который не проверялся на работоспособность, чтобы
-                                //случайно ничего никуда не отправить
+                            //далее - код по отправке документа, который не проверялся на работоспособность, чтобы
+                            //случайно ничего никуда не отправить
 
-                                // Загрузка электронного документа на автоматизированный сервис
-                                // портала и получение квитанции о приёме
-                                AvETicket ticket = service.sendEDoc(eDoc);
-                                System.out.println("SignAndSend EVAT: Ответ сервера получен");
+                            // Загрузка электронного документа на автоматизированный сервис
+                            // портала и получение квитанции о приёме
+                            AvETicket ticket = service.sendEDoc(eDoc);
+                            System.out.println("SignAndSend EVAT: Ответ сервера получен");
 
-                                // Проверка квитанции
-                                if (ticket.accepted()) {
-                                    System.out.println("SignAndSend EVAT: Ticket is accepted");
-                                    String resultMessage = ticket.getMessage();
+                            // Проверка квитанции
+                            if (ticket.accepted()) {
+                                System.out.println("SignAndSend EVAT: Ticket is accepted");
+                                String resultMessage = ticket.getMessage();
 
-                                    File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
-                                    // Сохранение квитанции в файл
-                                    writeFile(ticketFile, ticket.getEncoded());
+                                File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
+                                // Сохранение квитанции в файл
+                                writeFile(ticketFile, ticket.getEncoded());
 
-                                    System.out.println("Ответ сервера проверен. Cчет/фактура принята в обработку. "
-                                            + "Сообщение сервера: " + resultMessage);
-                                    result.add(Arrays.asList((Object) evat, resultMessage, false));
+                                System.out.println("Ответ сервера проверен. Cчет/фактура принята в обработку. "
+                                        + "Сообщение сервера: " + resultMessage);
+                                result.add(Arrays.asList((Object) evat, resultMessage, false));
 
-                                } else {
-                                    System.out.println("SignAndSend EVAT: Ticket is not accepted");
-                                    AvError err = ticket.getLastError();
-                                    File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
-                                    // Сохранение квитанции в файл
-                                    writeFile(ticketFile, ticket.getEncoded());
-                                    System.out.println(err.getMessage());
-                                    result.add(Arrays.asList((Object) evat, err.getMessage(), true));
-                                }
+                            } else {
+                                System.out.println("SignAndSend EVAT: Ticket is not accepted");
+                                AvError err = ticket.getLastError();
+                                File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
+                                // Сохранение квитанции в файл
+                                writeFile(ticketFile, ticket.getEncoded());
+                                System.out.println(err.getMessage());
+                                result.add(Arrays.asList((Object) evat, err.getMessage(), true));
+                            }
 
-                                //конец непроверенного кода
+                            //конец непроверенного кода
                             System.out.println("EVAT: send file finished");
                         }
                     }
@@ -116,20 +120,20 @@ public class EVATHandler {
             } finally {
                 disconnect(service);
             }
-//        }
+        }
         return result;
     }
 
-    public String listAndGet(String path, String serviceUrl, String password) {
+    public String listAndGet(String path, String serviceUrl, String unp, String password) {
         String result = null;
 
         try {
 
             File docFolder = new File(path + "/in");
-            if(docFolder.exists() || docFolder.mkdirs()) {
+            if (docFolder.exists() || docFolder.mkdirs()) {
 
                 // Создание экземпляра класса доступа к порталу
-                EVatService service = initService(serviceUrl, password);
+                EVatService service = initService(serviceUrl, unp, password);
 
                 // Чтение даты последнего запроса списка счетов-фактур на портале
                 Date fromDate;
@@ -207,7 +211,7 @@ public class EVATHandler {
         return result;
     }
 
-    private EVatService initService(String serviceUrl, String password) throws UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, AvDocException, InvalidAlgorithmParameterException, KeyManagementException {
+    private EVatService initService(String serviceUrl, String unp, String password) throws UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, AvDocException, InvalidAlgorithmParameterException, KeyManagementException {
 
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
@@ -215,7 +219,7 @@ public class EVATHandler {
         Security.addProvider(new AvCertStoreProvider());
 
         EVatService service = new EVatService(serviceUrl, new KeyInteractiveSelector());
-        service.login("PASSWORD_KEY=" + password);
+        service.login((unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password);
         service.connect();
         return service;
     }
