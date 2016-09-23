@@ -20,19 +20,14 @@ public class BarcodeUtils {
             return null;
         
         try {
-            if (barcode.length() == 12) {     
-                if(maybeUPC) //UPC
+            if (barcode.length() == 12) {
+                String upc = "0" + barcode; //UPC
+                if (upc.equals(appendEAN13(upc.substring(0, 12))))
+                    return barcode;
+                if(maybeUPC)
                     return "0" + barcode;
                 else { //EAN-13
-                    int checkSum = 0;
-                    for (int i = 0; i <= 10; i = i + 2) {
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
-                        checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
-                    }
-                    checkSum %= 10;
-                    if (checkSum != 0)
-                        checkSum = 10 - checkSum;
-                    return barcode.concat(String.valueOf(checkSum));
+                    return appendEAN13(barcode);
                 }
             } else if (barcode.length() == 7) {  //EAN-8
                 int checkSum = 0;
@@ -49,5 +44,17 @@ public class BarcodeUtils {
         } catch (Exception e) {
             return barcode;
         }
+    }
+
+    private static String appendEAN13(String barcode) {
+        int checkSum = 0;
+        for (int i = 0; i <= 10; i = i + 2) {
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+        }
+        checkSum %= 10;
+        if (checkSum != 0)
+            checkSum = 10 - checkSum;
+        return barcode.concat(String.valueOf(checkSum));
     }
 }
