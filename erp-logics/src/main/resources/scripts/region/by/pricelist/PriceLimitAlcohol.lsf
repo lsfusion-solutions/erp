@@ -1,0 +1,207 @@
+MODULE PriceLimitAlcohol;
+
+REQUIRE PriceList, ItemFood;
+
+
+CLASS AlcoholLimit 'Минимальные цены на алкоголь';
+CLASS AlcoholLimitDetail 'Строка минимальных цен на алкоголь';
+
+@defineDocument(alcoholLimit);
+@deriveDocumentHeaderTimePrefix(AlcoholLimit, );
+
+@defineDocumentPosted(alcoholLimit);
+
+volume 'Объем, л' = DATA NUMERIC[9,3] (AlcoholLimitDetail) NOT NULL;
+alcoholLimitDetail = GROUP AGGR AlcoholLimitDetail d BY volume(d);
+
+value 'Содержание алкоголя, %' = DATA NUMERIC[8,3] (Alcohol);
+
+EXTEND FORM attributesItem
+    PROPERTIES (alcohol) READONLY value;
+    
+EXTEND FORM alcohols
+    PROPERTIES (t) READONLY value;
+    
+EXTEND FORM alcohol 
+    PROPERTIES (t) value;
+
+basePrice 'Цена за 1 л' = DATA NUMERIC[16,5](AlcoholLimit);
+basePrice 'Цена за 1 л'(AlcoholLimitDetail d) = basePrice(alcoholLimit(d));
+
+baseAlcohol = DATA Alcohol(AlcoholLimit) NOT NULL;
+nameBaseAlcohol 'Эталонное содержание алкоголя' (AlcoholLimit h) = name(baseAlcohol(h));
+baseAlcohol (AlcoholLimitDetail d) = baseAlcohol(alcoholLimit(d));
+
+roundCondition  = DATA RoundCondition(AlcoholLimit);
+nameRoundCondition 'Условия округления'(AlcoholLimit h) = name(roundCondition(h));
+roundCondition (AlcoholLimitDetail h) = roundCondition(alcoholLimit(h));
+
+minPrice 'Минимальная цена'(AlcoholLimitDetail d, Alcohol a) = round(volume(d) * basePrice(d) / value(baseAlcohol(d)) * value(a), roundCondition(d));
+
+FORM alcoholLimit 'Минимальные цены на алкоголь'
+
+    OBJECTS r = AlcoholLimit FIXED PANEL
+    PROPERTIES (r) isPosted, date, time, basePrice, nameBaseAlcohol, nameRoundCondition, note
+                                                              
+    PROPERTIES (r) READONLY countAlcoholLimitDetail       
+
+    OBJECTS a = Alcohol FIXED GRID
+    PROPERTIES (a) value
+    
+    OBJECTS d = AlcoholLimitDetail
+    PROPERTIES (d) volume, basePrice
+    PROPERTIES (d, a) minPrice COLUMNS (a) HEADER name(a)
+    ORDER BY value(a)
+    FILTERS value(a)
+                
+    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
+
+    PROPERTIES(r) TODRAW d deleteAlcoholLimitDetail
+    
+    FILTERS alcoholLimit(d) == r
+    
+    EVENTS
+        ON OK prePost(r)
+
+    EDIT AlcoholLimit OBJECT r
+;
+
+DESIGN alcoholLimit {
+    main {
+        preferredSize = (1024, 768);
+        NEW header.box {
+            type = CONTAINERH;
+
+            NEW headerParams {
+                fill = 1;
+                type = CONTAINERV;
+                MOVE r.documentHeader {
+                    type = CONTAINERV;
+                    NEW first {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (isPosted(r));
+                        MOVE PROPERTY(date(r));
+                        MOVE PROPERTY(time(r));                 
+                    }
+                    NEW second {
+                        type = CONTAINERH;
+                        MOVE PROPERTY (basePrice(r));
+                        MOVE PROPERTY(nameBaseAlcohol(r));
+                        MOVE PROPERTY(nameRoundCondition(r));                 
+                    }
+                                                                                                                      
+                }
+                MOVE r.documentPrm;
+            }
+            MOVE r.documentSum {
+                columns = 1;
+            }
+        }
+        NEW specification.box {
+            fill = 1;
+            MOVE d.box {
+                caption = 'Спецификация';
+            }
+            PROPERTY (value(a)){
+                hide = TRUE;
+            }
+        }
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }
+        MOVE functions.box;
+
+    }
+}
+
+copy 'Копировать' (AlcoholLimit alco)= ACTION  {
+    NEWSESSION {
+        FOR ADDOBJ a = AlcoholLimit DO {
+            basePrice(a) <- basePrice(alco);
+            baseAlcohol(a) <- baseAlcohol(alco);
+            roundCondition(a) <- roundCondition(alco);
+            FOR alco == alcoholLimit(AlcoholLimitDetail alcoDet) ADDOBJ d = AlcoholLimitDetail DO {
+                alcoholLimit(d) <- a;
+                volume(d) <- volume(alcoDet);
+            }
+            
+            FORM alcoholLimit OBJECTS r = a MANAGESESSION DOCKEDMODAL NOCANCEL;
+        }
+    }
+} EDITKEY 'F5' TOOLBAR;
+
+FORM alcoholLimits 'Минимальные цены на алкоголь'
+
+    OBJECTS r = AlcoholLimit 
+    PROPERTIES (r) READONLY isPosted, date, time,basePrice, nameBaseAlcohol, nameRoundCondition, note        
+    PROPERTIES (r) READONLY countAlcoholLimitDetail
+    
+    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer,
+                    postedNameUser, postedTime, postedHostnameComputer 
+    
+    OBJECTS a = Alcohol FIXED GRID
+    PROPERTIES (a) value
+    
+    OBJECTS d = AlcoholLimitDetail
+    PROPERTIES (d) READONLY volume, basePrice
+    PROPERTIES (d, a) READONLY minPrice COLUMNS (a) HEADER name(a)
+    ORDER BY value(a)
+    FILTERS value(a)
+
+    FILTERS alcoholLimit(d) == r
+                
+    DIALOG AlcoholLimit OBJECT r
+;
+DESIGN alcoholLimits {
+    main {
+        preferredSize = (1024, 768);
+        PROPERTY (deleter) {
+            askConfirm = TRUE;
+        }
+
+        NEW documentContainer BEFORE functions.box {
+            fill = 1;
+
+            type = SPLITV;
+            MOVE r.box;    
+
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+                PROPERTY (value(a)){ hide = TRUE; }
+                MOVE d.box {
+                    fill = 1;
+                    caption = 'Спецификация';
+                }
+                NEW documentHistory {
+                    caption = 'История';
+                    type = CONTAINERV;
+
+                    MOVE r.created;
+                    MOVE r.posted;
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+                NEW actionContainer {
+                    caption = 'Действия';
+                    type = CONTAINERH;
+                    NEW createdContainer {
+                        caption = 'Создание на основе';
+                    }
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    priceListDocuments{
+        ADD alcoholLimits;
+    }
+}

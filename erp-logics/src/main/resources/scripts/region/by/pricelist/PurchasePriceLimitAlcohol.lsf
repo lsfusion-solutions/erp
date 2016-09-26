@@ -1,0 +1,17 @@
+MODULE PurchasePriceLimitAlcohol;
+
+REQUIRE PriceLimitAlcohol, PricingPurchase;
+
+NAMESPACE Purchase;
+
+minAlcoholLimitPrice = GROUP LAST minPrice(AlcoholLimitDetail ad, Alcohol a) 
+                                                BY UserInvoiceDetail d
+                                                ORDER dateTime(ad), ad
+                                                WHERE isPosted(ad) AND dateTime(ad) <= dateTime(d) AND volume(sku(d)) == volume(ad) AND alcohol(sku(d)) == a;
+
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            SETCHANGED(retailPrice(UserInvoiceDetail d))
+            AND minAlcoholLimitPrice(d) > retailPrice(d) DO {
+    retailPrice(d) <- minAlcoholLimitPrice(d);
+    retailMarkup(d) <- calcRetailMarkup(d);
+}
