@@ -6,6 +6,7 @@ import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
+import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.ObjectEntity;
@@ -16,15 +17,14 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
+import org.apache.commons.net.ftp.FTP;
+import org.apache.commons.net.ftp.FTPClient;
 
 import java.io.*;
 import java.sql.SQLException;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
-
-import org.apache.commons.net.ftp.FTP;
-import org.apache.commons.net.ftp.FTPClient;
 
 public abstract class ExportCSVActionProperty extends DefaultExportActionProperty {
     String idForm;
@@ -137,7 +137,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 for (int i = 0; i < propertyDrawsList.size(); i++) {
                     PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
                     if (instance.toDraw != null) {
-                        headerString += instance.propertyObject.property.caption + separator;
+                        headerString += ThreadLocalContext.localize(instance.propertyObject.property.caption) + separator;
                     }
                 }
                 headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());
