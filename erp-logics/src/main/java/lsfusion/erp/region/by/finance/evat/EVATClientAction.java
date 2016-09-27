@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.finance.evat;
 
+import lsfusion.base.SystemUtils;
 import lsfusion.interop.action.ClientAction;
 import lsfusion.interop.action.ClientActionDispatcher;
 
@@ -38,9 +39,9 @@ public class EVATClientAction implements ClientAction {
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
         if(!initialized) {
             String libraryPath = System.getProperty("java.library.path");
-            String path32 = path + "/win32";
-            if(libraryPath != null && !libraryPath.contains(path32))
-                System.setProperty("java.library.path", path32 + (libraryPath.isEmpty() ? "" : (";" + libraryPath)));
+            String libPath = path + (SystemUtils.is64Arch() ? "/win64" : "/win32");
+            if(libraryPath != null && !libraryPath.contains(libPath))
+                System.setProperty("java.library.path", libPath + (libraryPath.isEmpty() ? "" : (";" + libraryPath)));
             System.setProperty("by.avest.loader.shared", "true");
 
             addPath(path + "/avjavasecprov-shared.jar");

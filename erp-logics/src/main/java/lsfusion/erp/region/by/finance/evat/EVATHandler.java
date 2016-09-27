@@ -217,7 +217,7 @@ public class EVATHandler {
         Security.addProvider(new AvTLSProvider());
         Security.addProvider(new AvCertStoreProvider());
 
-        EVatService service = new EVatService(serviceUrl, new KeyInteractiveSelector());
+        EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector());
         service.login((unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password);
         service.connect();
         return service;
