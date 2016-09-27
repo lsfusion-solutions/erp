@@ -6,7 +6,6 @@ import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
-import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.ObjectEntity;
@@ -137,7 +136,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
                 for (int i = 0; i < propertyDrawsList.size(); i++) {
                     PropertyDrawInstance instance = ((PropertyDrawEntity) propertyDrawsList.get(i)).getInstance(formInstance.instanceFactory);
                     if (instance.toDraw != null) {
-                        headerString += ThreadLocalContext.localize(instance.propertyObject.property.caption) + separator;
+                        headerString += instance.propertyObject.property.caption.toString() + separator;
                     }
                 }
                 headerString = headerString.isEmpty() ? headerString : headerString.substring(0, headerString.length() - separator.length());

@@ -5,7 +5,6 @@ import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.interop.form.ReportGenerationData;
 import lsfusion.server.classes.ValueClass;
-import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
 import lsfusion.server.form.entity.ObjectEntity;
@@ -164,7 +163,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                     String fieldValue = null;
                     for (PropertyDrawView property : properties) {
                         if (property.getSID().equals(field)) {
-                            fieldValue = ThreadLocalContext.localize(property.getCaption());
+                            fieldValue = property.getCaption().toString();
                             break;
                         }
                     }                    
