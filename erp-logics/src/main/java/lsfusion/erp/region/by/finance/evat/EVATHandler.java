@@ -6,7 +6,6 @@ import by.avest.edoc.client.*;
 import by.avest.edoc.tool.KeyInteractiveSelector;
 import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
-import lsfusion.server.ServerLoggers;
 
 import javax.management.modelmbean.XMLParseException;
 import java.io.*;
@@ -41,7 +40,7 @@ public class EVATHandler {
 
         for (Map.Entry<String, Map<Integer, byte[]>> filesEntry : files.entrySet()) {
             String unp = filesEntry.getKey();
-            ServerLoggers.importLogger.info(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
+            System.out.println(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
 
             // Создание экземпляра класса доступа к порталу
             EVatService service = null;
