@@ -6,7 +6,7 @@ NAMESPACE Sale;
 
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
-createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DATE dTo) = ACTION {
+createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
         status(e) <- EVATStatus.original;
         
@@ -31,8 +31,9 @@ createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DA
         FOR invoice(InvoiceDetail id) == i ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
 
-            sku(ed) <- sku(id);
+            name(ed) <- nameSku(id);
             code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(defaultCountry(), sku(id));
+            shortNameUOM(ed) <- shortNameUOM(sku(id));
             quantity(ed) <- quantity(id); 
             price(ed) <- price(id);
             sum(ed) <- sum(id);
@@ -51,7 +52,11 @@ createEVATSaleInvoice 'Создать ЭСЧФ (Продажа)' (DATE dFrom, DA
 } CONFIRM;
 
 EXTEND FORM evats
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
-    PROPERTIES OBJVALUE(dFrom) TOOLBAR TODRAW e, OBJVALUE(dTo) TOOLBAR TODRAW e
     PROPERTIES createEVATSaleInvoice(dFrom, dTo) TOOLBAR TODRAW e
 ;
+
+DESIGN evats {
+    generate {
+        MOVE PROPERTY(createEVATSaleInvoice(dFrom, dTo));
+    }
+}

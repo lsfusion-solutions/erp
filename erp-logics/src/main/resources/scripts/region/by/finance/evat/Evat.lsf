@@ -114,10 +114,9 @@ CLASS EVATDetail 'Строка электронного счёта-фактур�
 TABLE evatDetail(EVATDetail);
 
 evat = DATA EVAT (EVATDetail) NOT NULL DELETE;
-sku 'Товар' = DATA Sku(EVATDetail);
-name 'Наименование' (EVATDetail evatDetail) = name(sku(evatDetail));
+name 'Наименование' = DATA VARSTRING[255] (EVATDetail);
 code 'Код ТНВЭД' = DATA VARSTRING[10] (EVATDetail);
-shortNameUOM 'Ед. изм.' (EVATDetail evatDetail) = shortNameUOM(sku(evatDetail));
+shortNameUOM 'Ед. изм.' (EVATDetail evatDetail) = DATA VARISTRING[100] (EVATDetail);
 codeOced 'Код видов деятельности (ОКЭД)' = DATA VARSTRING[100] (EVATDetail);
 quantity 'Количество' = DATA NUMERIC[16,5] (EVATDetail); 
 price 'Цена' = DATA NUMERIC[16,5] (EVATDetail);
@@ -258,7 +257,36 @@ FORM evats 'Электронные счета-фактуры'
     PROPERTIES(d) READONLY name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
 ;
+
+DESIGN evats {
+    NEW pane AFTER e.box{
+        type = TABBED;
+        fill = 1;
+        
+        MOVE d.box {
+            
+        }
+        NEW actions {
+            caption = 'Действия';
+            MOVE dates.box {
+                PROPERTY(dFrom) {
+                    caption = 'Дата с';
+                }
+                PROPERTY(dTo) {
+                    caption = 'Дата по';
+                }
+            }
+            NEW generate {
+                caption = 'Генерация ЭСЧФ';
+            }
+        }
+        
+    }
+}
 
 NAVIGATOR {
     financeNavigator {
