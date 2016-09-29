@@ -4,7 +4,7 @@ REQUIRE PurchaseDeclarationDetail, EVAT;
 
 NAMESPACE Purchase;
 
-createEVATDeclaration 'Таможенные декларации' (DATE dFrom, DATE dTo) = ACTION {
+createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
     FOR date(Declaration d) >= dFrom AND date(d) <= dTo ADDOBJ e = EVAT DO {
         status(e) <- EVATStatus.original;
         
@@ -14,16 +14,16 @@ createEVATDeclaration 'Таможенные декларации' (DATE dFrom, D
 //        dateContract (e) <- dateFrom(contractSku(i));
         codeDocType (e) <- 603;
         blankCodeDoc (e) <- '402861';
-        seriesDoc(e) <- series(d);
+        seriesDoc(e) <- OVERRIDE ' ', series(d);
         numberDoc(e) <- number(d);
-        unpSender(e) <- UNP(legalEntity(d));
+        unpSender(e) <- UNP(l);
         
         //Поставщик
-        supplier(e) <- legalEntity(d);
+        supplier(e) <- [= GROUP MIN supplier(InvoiceDetail d) BY declaration(d)](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
         
         //Получатель
-        customer(e) <- legalEntity(d);
+        customer(e) <- l;
 //        branchCodeCustomer(e) <- branchCode(customerStock(i));
         
         FOR declaration(DeclarationDetail id) == d ADDOBJ ed = EVATDetail DO {
@@ -32,28 +32,25 @@ createEVATDeclaration 'Таможенные декларации' (DATE dFrom, D
             name(ed) <- nameCustoms(id);
             code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(id);
             quantity(ed) <- quantity(id); 
-            price(ed) <- price(id);
-            sum(ed) <- homeSum(id);
+//            price(ed) <- price(id);
+            sum(ed) <- homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;
             vatRate(ed) <- percentVAT(id);
             vatSum(ed) <- VATSum(id);
             sumWithVAT(ed) <- homeSum(id) (+) VATSum(id);
             
-            IF percentVAT(id) == 0 THEN
-                descriptionType(ed) <- DescriptionType.vatExcemption
-            ELSE
-                descriptionType(ed) <- DescriptionType.deductionInFull;
+            descriptionType(ed) <- DescriptionType.importVAT;
         } 
     } 
     APPLY {};
 } CONFIRM;
 
 EXTEND FORM evats
-    PROPERTIES createEVATDeclaration(dFrom, dTo) TOOLBAR TODRAW e
+    PROPERTIES createEVATDeclaration(l, dFrom, dTo) TOOLBAR TODRAW e
 ;
 
 DESIGN evats {
     generate {
-        MOVE PROPERTY(createEVATDeclaration(dFrom, dTo));
+        MOVE PROPERTY(createEVATDeclaration(l, dFrom, dTo));
     }
 }

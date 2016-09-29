@@ -1,0 +1,55 @@
+MODULE ZReportEVAT;
+
+REQUIRE ZReport, EVAT, CustomsGroup;
+
+NAMESPACE ZReport;
+
+createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
+    FOR ADDOBJ e = EVAT DO {
+        status(e) <- EVATStatus.original;
+        
+        date(e) <- dTo;
+        
+        codeDocType (e) <- 603;
+        blankCodeDoc (e) <- '402861';
+        seriesDoc(e) <- 'РК';
+        numberDoc(e) <- VARSTRING[100](dTo);
+        unpSender(e) <- UNP(l);
+        
+        //Поставщик
+        supplier(e) <- l;
+//        branchCodeSupplier(e) <- branchCode(supplierStock(i));
+        
+        //Получатель
+        customer(e) <- l;
+//        branchCodeCustomer(e) <- branchCode(customerStock(i));
+        
+        FOR [= GROUP SUM sum(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) ADDOBJ ed = EVATDetail DO {
+            evat(ed) <- e;
+
+            name(ed) <- name(sku);
+            code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(defaultCountry(), sku);
+            shortNameUOM(ed) <- shortNameUOM(sku);
+            quantity(ed) <- [= GROUP SUM quantity(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo); 
+            vatRate(ed) <- valueVAT(sku, defaultCountry(), dTo);
+            vatSum(ed) <- [= GROUP SUM sumVAT(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
+            sumWithVAT(ed) <- [= GROUP SUM sum(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
+            descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE DescriptionType.deductionInFull;  
+        } 
+        exciseSum(EVATDetail d) <- 0 WHERE evat(d) == e;
+        sum(EVATDetail d) <- sumWithVAT(d) (-) vatSum(d) WHERE evat(d) == e;
+        price(EVATDetail d) <- sumWithVAT(d) / quantity(d) WHERE evat(d) == e;
+    } 
+    APPLY {};
+} CONFIRM;
+
+EXTEND FORM evats
+    PROPERTIES createEVATZReport(l, dFrom, dTo) TOOLBAR TODRAW e
+;
+
+DESIGN evats {
+    generate {
+        MOVE PROPERTY(name(l));
+        MOVE PROPERTY(createEVATZReport(l, dFrom, dTo));
+    }
+}
