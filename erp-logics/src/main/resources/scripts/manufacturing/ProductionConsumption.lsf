@@ -268,22 +268,13 @@ fillOrder 'Заполнить на основе производственног
     }
 } IN order;
 
+operation = ABSTRACT Operation(Consumption);
+
 // Товарный отчет
 @implementStockDocumentLedgerOutOver(Consumption, stock);
-
+operation[StockDocumentLedger] (Consumption ledger) += operation(ledger);
 typeStockDocumentLedger 'Тип процесса' (ledger) = ABSTRACT VARSTRING[50] (Consumption) PERSISTENT;
 sumItemOutStockDocumentLedger 'Сумма расхода, товар' (ledger) = ABSTRACT NUMERIC[18,4] (Consumption) PERSISTENT;
-
-//EXTEND CLASS Consumption : OutStockDocumentLedger;
-//numberStockDocumentLedgerConsumption = ABSTRACT VARSTRING[28] (Consumption) PERSISTENT;
-//seriesStockDocumentLedgerConsumption = ABSTRACT STRING[2] (Consumption) PERSISTENT;
-//seriesStockDocumentLedger (ledger) += OVERRIDE seriesConsumption(ledger), seriesStockDocumentLedgerConsumption(ledger);
-//numberStockDocumentLedger (ledger) += OVERRIDE numberConsumption(ledger), numberStockDocumentLedgerConsumption(ledger);
-//dateTimeStockDocumentLedger (ledger) += dateTimeConsumption(ledger);
-//isPostedStockDocumentLedger (ledger) += isPostedConsumption(ledger);
-//isClosedStockDocumentLedger (ledger) += isClosedConsumption(ledger);
-//stockStockDocumentLedger (ledger) += stockConsumption(ledger);
-//descriptionStockDocumentLedger (ledger) += descriptionConsumption(ledger);
 
 type(Consumption l) += OVERRIDE 'Списание сырья (пр-во)' IF l IS Consumption, typeStockDocumentLedger(l);
 sumItem (Consumption ledger) += OVERRIDE sumItemConsumptionDetail(ledger), sumItemOutStockDocumentLedger(ledger);
@@ -383,7 +374,7 @@ sum(OrderConsumptionDetail consumptionDetail) += consumedSum(componentDetail(con
 edit(OrderConsumption consumption) += ACTION edit(order(consumption));
 close(OrderConsumption consumption) += ACTION isClosed(Order o) <- TRUE WHERE o == order(consumption);
 
-defaultOperationDocument(OrderConsumptionDetail consumptionDetail) += operation(componentDetail(consumptionDetail));
+operation(OrderConsumption output) += operation(order(output));
 // --------------------------- Формы Списания ---------------------------------
 
 FORM userConsumption 'Списание сырья'

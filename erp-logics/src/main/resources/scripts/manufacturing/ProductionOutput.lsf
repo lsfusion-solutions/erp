@@ -195,8 +195,11 @@ fillOrder 'Заполнить на основе производственног
     }
 } IN order;
 
+operation = ABSTRACT Operation (Output);
+
 // Товарный отчет
 @implementStockDocumentLedgerIncOver(Output, stock);
+operation[StockDocumentLedger] (Output ledger) += operation(ledger);
 type(Output l) += 'Производство' IF l IS Output;
 sumItem (Output ledger) += sumItemOutputDetail(ledger);
 sumContainer (Output ledger) += sumContainerOutputDetail(ledger);
@@ -350,7 +353,7 @@ close(OrderOutput output) += ACTION isClosed(Order o) <- TRUE WHERE o == order(o
 
 valueVAT (OrderOutputDetail batch) += valueVAT(productDetail(batch)) IF VATProduct(productDetail(batch));
 
-defaultOperationDocument(OrderOutputDetail outputDetail) += operation(productDetail(outputDetail));
+operation(OrderOutput output) += operation(order(output));
 
 // --------------------------- Формы Списания ---------------------------------
 
