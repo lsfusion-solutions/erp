@@ -109,6 +109,10 @@ sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GeneralLedger) PERSISTENT @@denominat
 sum 'Сумма' = DATA NUMERIC[18,4] (UserGeneralLedger)  @@denomination;
 sum (UserGeneralLedger generalLedger) += sum (generalLedger);
 
+quantity 'Кол-во'= ABSTRACT NUMERIC[16,5] (GeneralLedger) PERSISTENT;
+quantity 'Кол-во'= DATA NUMERIC[16,5] (UserGeneralLedger);
+quantity (UserGeneralLedger generalLedger) += quantity (generalLedger);
+
 description 'Описание' = ABSTRACT VARISTRING[350] (GeneralLedger) PERSISTENT MINCHARWIDTH 40 PREFCHARWIDTH 80;
 description 'Описание' = DATA VARSTRING[255] (UserGeneralLedger) MINCHARWIDTH 40 PREFCHARWIDTH 80;
 description (UserGeneralLedger generalLedger) += description (generalLedger);
@@ -217,7 +221,7 @@ DESIGN GLAccounts {
 FORM userGeneralLedger 'Проводка'
     OBJECTS g=UserGeneralLedger FIXED PANEL
     PROPERTIES(g) nameLegalEntity, nameGLDocument, description, date, time,
-                  idDebit, idCredit, sum
+                  idDebit, idCredit, quantity, sum
 
     EVENTS
         ON OK prePost(g)
@@ -262,6 +266,7 @@ copy 'Копировать'(GeneralLedger generalLedger) = ACTION NEWSESSION {
         ASSIGN legalEntity(g) <- legalEntity(generalLedger);
         ASSIGN description(g) <- description(generalLedger);
         ASSIGN sum(g) <- sum(generalLedger);
+        ASSIGN quantity(g) <- quantity(generalLedger);
         ASSIGN credit(g) <- credit(generalLedger);
         ASSIGN debit(g) <- debit(generalLedger);
 
@@ -278,7 +283,7 @@ FORM generalLedgers 'Проводки'
     OBJECTS g = GeneralLedger
     PROPERTIES(g)  READONLY isPosted FORCE GRID, dateTime, nameLegalEntity, nameGLDocument,
                    idOperation, description, numberGLDocument, seriesGLDocument, idDebit,
-                   idCredit, sum
+                   idCredit, quantity, sum
     ORDER BY dateTime(g), nameGLDocument(g)
 //    todo : не работает поскольку для абстрактного свойства не задано ни одной реализации
 //    PROPERTIES(g)  editGLDocumentGeneralLedger
@@ -413,7 +418,7 @@ META extendFormGeneralLedgerDocument (form, filter, container)
     EXTEND FORM form
         OBJECTS g=GeneralLedger
         PROPERTIES(g) READONLY description, idDebit, idDimensionsDebit, dimensionsDebit, 
-                                idCredit, idDimensionsCredit, dimensionsCredit, sum
+                                idCredit, idDimensionsCredit, dimensionsCredit, quantity, sum
     
         FILTERS GLDocument(g) == filter
     ;
