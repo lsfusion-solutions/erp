@@ -24,21 +24,33 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = ACTIO
         customer(e) <- l;
 //        branchCodeCustomer(e) <- branchCode(customerStock(i));
         
-        FOR [= GROUP SUM sum(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) ADDOBJ ed = EVATDetail DO {
+        FOR [= GROUP SUM sum(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- name(sku);
             code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(defaultCountry(), sku);
             shortNameUOM(ed) <- shortNameUOM(sku);
-            quantity(ed) <- [= GROUP SUM quantity(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo); 
+            quantity(ed) <- [= GROUP SUM quantity(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo); 
             vatRate(ed) <- valueVAT(sku, defaultCountry(), dTo);
-            vatSum(ed) <- [= GROUP SUM sumVAT(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
-            sumWithVAT(ed) <- [= GROUP SUM sum(ReceiptDetail d) IF date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
+            vatSum(ed) <- [= GROUP SUM sumVAT(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
+            sumWithVAT(ed) <- [= GROUP SUM sum(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
+            descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE DescriptionType.deductionInFull;  
+        } 
+
+        FOR [= GROUP SUM signedSum(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) ADDOBJ ed = EVATDetail DO {
+            evat(ed) <- e;
+
+            name(ed) <- name(sku);
+            code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(defaultCountry(), sku);
+            shortNameUOM(ed) <- shortNameUOM(sku);
+            quantity(ed) <- [= GROUP SUM quantity(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo); 
+            vatRate(ed) <- valueVAT(sku, defaultCountry(), dTo);
+            vatSum(ed) <- [= GROUP SUM -sumVAT(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
+            sumWithVAT(ed) <- [= GROUP SUM -sum(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](sku, dFrom, dTo);
             descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE DescriptionType.deductionInFull;  
         } 
         exciseSum(EVATDetail d) <- 0 WHERE evat(d) == e;
         sum(EVATDetail d) <- sumWithVAT(d) (-) vatSum(d) WHERE evat(d) == e;
-        price(EVATDetail d) <- sumWithVAT(d) / quantity(d) WHERE evat(d) == e;
     } 
     APPLY {};
 } CONFIRM;
