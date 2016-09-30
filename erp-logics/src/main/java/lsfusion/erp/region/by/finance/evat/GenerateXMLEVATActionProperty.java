@@ -239,6 +239,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     //parent: rootElement
     private Element createProviderElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
+        String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusSupplier[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonSupplier[EVAT]").read(context, evatObject) != null;
         boolean residentsOfOffshore = findProperty("residentsOfOffshoreSupplier[EVAT]").read(context, evatObject) != null;
         boolean specialDealGoods = findProperty("specialDealGoodsSupplier[EVAT]").read(context, evatObject) != null;
@@ -259,7 +260,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String dateTaxes = formatDate((Date) findProperty("dateTaxesSupplier[EVAT]").read(context, evatObject));
 
         Element providerElement = new Element("provider");
-        addStringElement(namespace, providerElement, "providerStatus", "SELLER");
+        addStringElement(namespace, providerElement, "providerStatus",  getProviderStatus(legalEntityStatus, "SELLER"));
         addBooleanElement(namespace, providerElement, "dependentPerson", dependentPerson);
         addBooleanElement(namespace, providerElement, "residentsOfOffshore", residentsOfOffshore);
         addBooleanElement(namespace, providerElement, "specialDealGoods", specialDealGoods);
@@ -284,6 +285,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     //parent: rootElement
     private Element createRecipientElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
 
+        String legalEntityStatus = trim((String) findProperty("nameLegalEntityStatusCustomer[EVAT]").read(context, evatObject));
         boolean dependentPerson = findProperty("dependentPersonCustomer[EVAT]").read(context, evatObject) != null;
         boolean residentsOfOffshore = findProperty("residentsOfOffshoreCustomer[EVAT]").read(context, evatObject) != null;
         boolean specialDealGoods = findProperty("specialDealGoodsCustomer[EVAT]").read(context, evatObject) != null;
@@ -299,7 +301,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String dateImport = formatDate((Date) findProperty("dateImportCustomer[EVAT]").read(context, evatObject));
 
         Element recipientElement = new Element("recipient");
-        addStringElement(namespace, recipientElement, "recipientStatus", "CUSTOMER");
+        addStringElement(namespace, recipientElement, "recipientStatus", getProviderStatus(legalEntityStatus, "CUSTOMER"));
         addBooleanElement(namespace, recipientElement, "dependentPerson", dependentPerson);
         addBooleanElement(namespace, recipientElement, "residentsOfOffshore", residentsOfOffshore);
         addBooleanElement(namespace, recipientElement, "specialDealGoods", specialDealGoods);
@@ -478,5 +480,29 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             number = "0" + number;
         Integer year = Calendar.getInstance().getTime().getYear() + 1900;
         return unp + "-" + year + "-" + number;
+    }
+
+    private String getProviderStatus(String status, String defaultStatus) {
+        if(status != null) {
+            if (status.endsWith("seller"))
+                return "SELLER";
+            else if(status.endsWith("consignor"))
+                return "CONSIGNOR";
+            else if(status.endsWith("commissionaire"))
+                return "COMMISSIONAIRE";
+            else if(status.endsWith("taxDeductionPayer"))
+                return "TAX_DEDUCTION_PAYER";
+            else if(status.endsWith("trustee"))
+                return "TRUSTEE";
+            else if(status.endsWith("foreignOrganization"))
+                return "FOREIGN_ORGANIZATION";
+            else if(status.endsWith("agent"))
+                return "AGENT";
+            else if(status.endsWith("developer"))
+                return "DEVELOPER";
+            else if(status.endsWith("tornoversOnSalePayer"))
+                return "TURNOVERS_ON_SALE_PAYER";
+        }
+        return defaultStatus;
     }
 }

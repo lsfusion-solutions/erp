@@ -26,6 +26,24 @@ FORM evatStatuses
     DIALOG EVATStatus OBJECT e
 ;
 
+CLASS LegalEntityStatus 'Статус' {
+    seller 'Продавец',
+    consignor 'Комитент',
+    commissionaire 'Комиссионер',
+    taxDeductionPayer 'Плательщик, передающий налоговые вычеты',
+    trustee 'Доверительный управляющий',
+    foreignOrganization 'Иностранная организация',
+    agent 'Посредник',
+    developer 'Заказчик (застройщик)',
+    tornoversOnSalePayer 'Плательщик, передающий обороты по реализации'
+}
+
+FORM legalEntityStatuses
+    OBJECTS p = LegalEntityStatus
+    PROPERTIES(p) READONLY staticCaption
+    DIALOG LegalEntityStatus OBJECT p
+;
+
 serviceUrlEVAT 'Адрес  WSDL (EVAT)' = DATA VARSTRING[100] (Computer);
 serviceUrlEVAT 'Адрес WSDL (EVAT)' () = serviceUrlEVAT(currentComputer()); 
 pathEVAT 'Путь к jar и xsd (EVAT)' = DATA VARSTRING[100] (Computer);
@@ -98,6 +116,9 @@ specialDealGoodsSupplier 'Спец. сделка' = DATA BOOLEAN (EVAT);
 bigCompanySupplier 'Крупный плательщик (поставщик)' = DATA BOOLEAN (EVAT);
 countryCodeSupplier 'Код страны поставщика' (EVAT evat) = sid(country(supplier(evat)));
 unpSupplier 'УНП поставщика' (EVAT evat) = UNP(supplier(evat));
+legalEntityStatusSupplier 'Статус поставщика' = DATA LegalEntityStatus (EVAT);
+nameLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticName(legalEntityStatusSupplier(evat));
+captionLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticCaption(legalEntityStatusSupplier(evat));
 
 //Получатель
 customer 'Получатель' = DATA LegalEntity(EVAT);
@@ -110,7 +131,9 @@ specialDealGoodsCustomer 'Спец. сделка' = DATA BOOLEAN (EVAT);
 bigCompanyCustomer 'Крупный плательщик (получатель)' = DATA BOOLEAN (EVAT);
 countryCodeCustomer 'Код страны получателя' (EVAT evat) = sid(country(customer(evat)));
 unpCustomer 'УНП получателя' (EVAT evat) = UNP(customer(evat));
-
+legalEntityStatusCustomer 'Статус получателя' = DATA LegalEntityStatus (EVAT);
+nameLegalEntityStatusCustomer 'Статус получателя' (EVAT evat) = staticName(legalEntityStatusCustomer(evat));
+captionLegalEntityStatusCustomer 'Статус получателя' (EVAT evat) = staticCaption(legalEntityStatusCustomer(evat));
 //Товар
 CLASS EVATDetail 'Строка электронного счёта-фактуры';
 TABLE evatDetail(EVATDetail);
@@ -153,8 +176,8 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
     PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, result, serverStatus,
-                  bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
-                  bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
+                  captionLegalEntityStatusSupplier, bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
+                  captionLegalEntityStatusCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
                   dateInvoiceVendor, nameSupplier, branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
                    numberTaxesSupplier, dateTaxesSupplier,
@@ -193,6 +216,7 @@ DESIGN evat {
             caption = 'Поставщик';
             fill = 1;
             MOVE s.box;   
+            MOVE PROPERTY(captionLegalEntityStatusSupplier(e));
             MOVE PROPERTY(bigCompanySupplier(e));
             MOVE PROPERTY(dependentPersonSupplier(e));
             MOVE PROPERTY(residentsOfOffshoreSupplier(e));
@@ -212,6 +236,7 @@ DESIGN evat {
             caption = 'Получатель';
             fill = 1;
             MOVE c.box;   
+            MOVE PROPERTY(captionLegalEntityStatusCustomer(e));
             MOVE PROPERTY(bigCompanyCustomer(e));
             MOVE PROPERTY(dependentPersonCustomer(e));
             MOVE PROPERTY(residentsOfOffshoreCustomer(e));
