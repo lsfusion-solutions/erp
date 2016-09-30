@@ -15,7 +15,8 @@ import java.util.Map;
 public class EVATClientAction implements ClientAction {
     public static boolean initialized;
 
-    public Map<String, Map<Integer, byte[]>> files;
+    public Map<String, Map<Integer, byte[]>> files; //signAndSend
+    public Map<String, Map<Integer, String>> invoices; //getStatus
     public String serviceUrl; //"https://ws.vat.gov.by:443/InvoicesWS/services/InvoicesPort?wsdl"
     public String path; //"c:/Program Files/Avest/AvJCEProv";
     public String exportPath; //"c:/Program Files/Avest/AvJCEProv/archive";
@@ -23,11 +24,12 @@ public class EVATClientAction implements ClientAction {
     public int type;
 
     public EVATClientAction(String serviceUrl, String path, String exportPath, String password, int type) {
-        this(new HashMap<String, Map<Integer, byte[]>>(), serviceUrl, path, exportPath, password, type);
+        this(new HashMap<String, Map<Integer, byte[]>>(), new HashMap<String, Map<Integer, String>>(), serviceUrl, path, exportPath, password, type);
     }
 
-    public EVATClientAction(Map<String, Map<Integer, byte[]>> files, String serviceUrl, String path, String exportPath, String password, int type) {
+    public EVATClientAction(Map<String, Map<Integer, byte[]>> files, Map<String, Map<Integer, String>> invoices, String serviceUrl, String path, String exportPath, String password, int type) {
         this.files = files;
+        this.invoices = invoices;
         this.serviceUrl = serviceUrl;
         this.path = path;
         this.exportPath = exportPath;
@@ -60,6 +62,8 @@ public class EVATClientAction implements ClientAction {
             case 0:
                 return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password);
             case 1:
+                return new EVATHandler().getStatus(invoices, serviceUrl, password);
+            case 2:
                 return new EVATHandler().listAndGet(path, serviceUrl, null, password);
             default:
                 return null;

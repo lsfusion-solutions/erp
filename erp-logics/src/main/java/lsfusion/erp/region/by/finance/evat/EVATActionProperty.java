@@ -13,7 +13,6 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
-import java.io.File;
 import java.sql.SQLException;
 import java.util.Iterator;
 import java.util.List;
@@ -48,6 +47,10 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                                     sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type, context);
                                     break;
                                 case 1:
+                                    ServerLoggers.importLogger.info("EVAT: getStatus called");
+                                    getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type, context);
+                                    break;
+                                case 2:
                                     listAndGet(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type, context);
                                     break;
                             }
@@ -71,7 +74,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         Map<String, Map<Integer, byte[]>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
             ServerLoggers.importLogger.info("EVAT: client action started");
-            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type));
+            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type));
             ServerLoggers.importLogger.info("EVAT: client action finished");
             String error = "";
             if (!result.isEmpty()) {
@@ -96,7 +99,34 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
             else
                 context.delayUserInteraction(new MessageClientAction(error, "Ошибка"));
         } else {
-            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного файла", "Ошибка"));
+            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
+        }
+    }
+
+    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        Map<String, Map<Integer, String>> invoices = getInvoices(context);
+        if (!(invoices.isEmpty())) {
+            ServerLoggers.importLogger.info("EVAT: client action started");
+            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, type));
+            ServerLoggers.importLogger.info("EVAT: client action finished");
+            String resultMessage = "";
+            if (!result.isEmpty()) {
+                for (List<Object> entry : result) {
+                    Integer evat = (Integer) entry.get(0);
+                    String message = (String) entry.get(1);
+                    ServerLoggers.importLogger.info("EVAT: reading result started");
+                    resultMessage += message + "\n";
+                    try(DataSession session = context.createSession()) {
+                        findProperty("serverStatus[EVAT]").change(message, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
+                        String applyResult = session.applyMessage(context);
+                        if(applyResult != null)
+                            ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
+                    }
+                }
+            }
+            context.delayUserInteraction(new MessageClientAction(resultMessage, "EVAT"));
+        } else {
+            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
         }
     }
 

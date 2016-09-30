@@ -54,6 +54,30 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         generateXML(context, evatObject, true);
     }
 
+    protected Map<String, Map<Integer, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<Integer, String>> evatMap = new HashMap<>();
+        KeyExpr evatExpr = new KeyExpr("evat");
+        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
+        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+        query.addProperty("unp", findProperty("unpSupplier[EVAT]").getExpr(context.getModifier(), evatExpr));
+        query.addProperty("number", findProperty("number[EVAT]").getExpr(context.getModifier(), evatExpr));
+        query.and(findProperty("in[EVAT]").getExpr(context.getModifier(), evatExpr).getWhere());
+        ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
+        for (int i = 0; i < result.values().size(); i++) {
+            DataObject evatObject = result.getKey(i).get("evat");
+            String unp = (String) result.getValue(i).get("unp").getValue();
+            String number = (String) result.getValue(i).get("number").getValue();
+            if (unp != null && number != null) {
+                Map<Integer, String> invoiceNumbers = evatMap.get(unp);
+                if (invoiceNumbers == null)
+                    invoiceNumbers = new HashMap<>();
+                invoiceNumbers.put((Integer) evatObject.getValue(), getFullNumber(unp, number));
+                evatMap.put(unp, invoiceNumbers);
+            }
+        }
+        return evatMap;
+    }
+
     protected Map<String, Map<Integer, byte[]>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Integer, byte[]>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
@@ -85,11 +109,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             String unpSender = trim((String) findProperty("unpSender[EVAT]").read(context, evatObject));
 
             String number = trim((String) findProperty("number[EVAT]").read(context, evatObject), "");
-            while (number.length() < 10)
-                number = "0" + number;
-            Integer year = Calendar.getInstance().getTime().getYear() + 1900;
-
-            String documentNumber = unpSender + "-" + year + "-" + number;
+            String documentNumber = getFullNumber(unpSender, number);
 
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
@@ -451,5 +471,12 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     
     private String getZeroString(Object value) {
         return value == null ? "0" : String.valueOf(value);
+    }
+
+    private String getFullNumber(String unp, String number) {
+        while (number.length() < 10)
+            number = "0" + number;
+        Integer year = Calendar.getInstance().getTime().getYear() + 1900;
+        return unp + "-" + year + "-" + number;
     }
 }

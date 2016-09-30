@@ -42,7 +42,6 @@ public class EVATHandler {
             String unp = filesEntry.getKey();
             System.out.println(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
 
-            // Создание экземпляра класса доступа к порталу
             EVatService service = null;
 
             try {
@@ -123,6 +122,47 @@ public class EVATHandler {
         return result;
     }
 
+    public List<List<Object>> getStatus(Map<String, Map<Integer, String>> invoices, String serviceUrl, String password) {
+        System.out.println("EVAT: client action getStatus");
+        List<List<Object>> result = new ArrayList<>();
+
+        URL url = getClass().getClassLoader().getResource("");
+        System.out.println("EVAT: url: " + url);
+
+        EVatService service = null;
+
+        try {
+
+            for(Map.Entry<String, Map<Integer, String>> entry : invoices.entrySet()) {
+                String unp = entry.getKey();
+                Map<Integer, String> invoicesMap = entry.getValue();
+
+
+                service = initService(serviceUrl, unp, password);
+                System.out.println("EVAT: initService finished");
+
+                for(Map.Entry<Integer, String> invoiceEntry : invoicesMap.entrySet()) {
+                    Integer evat = invoiceEntry.getKey();
+                    String invoiceNumber = invoiceEntry.getValue();
+                    AvEStatus status = service.getStatus(invoiceNumber);
+                    System.out.println("Получен статус счета-фактуры \"" + invoiceNumber + "\"");
+
+                    // Проверка ЭЦП электронного документа
+                    String message = status.verify() ?
+                            String.format("Статус: %s. Сообщение: %s Дата изменения статуса: %s", status.getStatus(), status.getMessage(), status.getSince()) :
+                            String.format("EVAT number %s. Ошибка: получен некорректный статус - %s", invoiceNumber, status.getLastError().getMessage());
+                    System.out.println(message);
+                    result.add(Arrays.asList((Object) evat, message));
+                }
+            }
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        } finally {
+            disconnect(service);
+        }
+        return result;
+    }
+
     public String listAndGet(String path, String serviceUrl, String unp, String password) {
         String result = null;
 
@@ -131,7 +171,6 @@ public class EVATHandler {
             File docFolder = new File(path + "/in");
             if (docFolder.exists() || docFolder.mkdirs()) {
 
-                // Создание экземпляра класса доступа к порталу
                 EVatService service = initService(serviceUrl, unp, password);
 
                 // Чтение даты последнего запроса списка счетов-фактур на портале
@@ -211,12 +250,12 @@ public class EVATHandler {
     }
 
     private EVatService initService(String serviceUrl, String unp, String password) throws UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, AvDocException, InvalidAlgorithmParameterException, KeyManagementException {
-
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
         Security.addProvider(new AvTLSProvider());
         Security.addProvider(new AvCertStoreProvider());
 
+        // Создание экземпляра класса доступа к порталу
         EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector());
         service.login((unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password);
         service.connect();

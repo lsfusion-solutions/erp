@@ -41,7 +41,8 @@ EXTEND FORM computers PROPERTIES(c) READONLY serviceUrlEVAT, pathEVAT, exportPat
 generateXMLAction 'Сгенерировать XML' = ACTION CUSTOM 'lsfusion.erp.region.by.finance.evat.GenerateXMLEVATActionProperty'(EVAT); 
 evatAction = ACTION CUSTOM 'lsfusion.erp.region.by.finance.evat.EVATActionProperty'(INTEGER); 
 signAndSend 'Сгенерировать, подписать и отправить' (EVAT evat) = ACTION { evatAction(0); }
-listAndGet 'Скачать ЭСЧФ с портала' (EVAT evat) = ACTION { evatAction(1); }
+getStatus 'Получить статус ЭСЧФ' () = ACTION { evatAction(1); }
+listAndGet 'Скачать ЭСЧФ с портала' (EVAT evat) = ACTION { evatAction(2); }
 
 formExportFile() = DATA LOCAL CUSTOMFILE ();
 
@@ -53,6 +54,7 @@ captionStatus 'Статус' (EVAT evat) = staticCaption(status(evat));
 @defineNumeratedDefault(EVAT, 'ЭСЧФ', 'ЭС');
 
 result 'Ответ сервера' = DATA TEXT (EVAT);
+serverStatus 'Статус на сервере' = DATA TEXT (EVAT);
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
@@ -150,7 +152,7 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
-    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, result,
+    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, result, serverStatus,
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
@@ -185,6 +187,7 @@ DESIGN evat {
             MOVE PROPERTY(dateCancelled(e));
             MOVE PROPERTY(sendToRecipient(e));
             MOVE PROPERTY(result(e));
+            MOVE PROPERTY(serverStatus(e));
         }
         NEW supplier{
             caption = 'Поставщик';
@@ -251,7 +254,8 @@ FORM evats 'Электронные счета-фактуры'
     PROPERTIES(e) READONLY captionStatus, unpSender, number, invoice, date, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
                   dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
                   nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
-    PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend//, listAndGet
+    PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend
+    PROPERTIES() TOOLBAR TODRAW e getStatus
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     OBJECTS d = EVATDetail
     PROPERTIES(d) READONLY name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
