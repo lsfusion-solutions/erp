@@ -98,7 +98,7 @@ public class EquipmentServerImport {
                     int i = 0;
                     for (Map.Entry<String, BigDecimal> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
                         String idPayment = idReceipt + String.valueOf(3 + i);
-                        if(!ids.contains(idPayment)) {
+                        if(!ids.contains(idPayment) && giftCardEntry.getValue() != null) {
                             dataPaymentGiftCard.add(Arrays.<Object>asList(idPayment, idReceipt, "giftcard", giftCardEntry.getValue(), 3 + i, giftCardEntry.getKey()));
                             ids.add(idPayment);
                             i++;
