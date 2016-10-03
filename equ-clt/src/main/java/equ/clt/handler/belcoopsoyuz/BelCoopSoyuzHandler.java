@@ -3,6 +3,7 @@ package equ.clt.handler.belcoopsoyuz;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.HandlerUtils;
 import net.iryndin.jdbf.core.DbfRecord;
 import net.iryndin.jdbf.reader.DbfReader;
 import org.apache.commons.net.ftp.FTP;
@@ -824,7 +825,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                     BigDecimal sumReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"), denominationStage);
                     BigDecimal discountSum1ReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSDELC"), denominationStage);
                     BigDecimal discountSum2ReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPPDELC"), denominationStage);
-                    BigDecimal discountSumReceiptDetail = safeNegate(safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
+                    BigDecimal discountSumReceiptDetail = HandlerUtils.safeNegate(HandlerUtils.safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
 
                     Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
                     numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
@@ -845,8 +846,8 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                 break;
                             case "ТОВАР ВОЗВРАТ":
                                 curSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, nppMachinery, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt,
-                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, safeNegate(quantityReceiptDetail),
-                                        priceReceiptDetail, safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
+                                        timeReceipt, idEmployee, null, null, null/*sumCard*/, null/*sumCash*/, (BigDecimal) null, barcodeItem, null, null, idSaleReceiptReceiptReturnDetail, HandlerUtils.safeNegate(quantityReceiptDetail),
+                                        priceReceiptDetail, HandlerUtils.safeNegate(sumReceiptDetail), discountSumReceiptDetail, null, null/*idDiscountCard*/, numberReceiptDetail, null, idSection));
                                 break;
                             case "ВСЕГО":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
@@ -857,7 +858,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                                 break;
                             case "ВОЗВРАТ":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = denominateDivideType2(safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")), denominationStage);
+                                    salesInfo.sumCash = denominateDivideType2(HandlerUtils.safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")), denominationStage);
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
@@ -889,16 +890,6 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
-    }
-
-    protected BigDecimal safeNegate(BigDecimal operand) {
-        return operand == null ? null : operand.negate();
     }
 
     protected String trim(String input, Integer length) {

@@ -6,6 +6,7 @@ import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
+import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 
@@ -249,7 +250,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                         BigDecimal price = denominateDivideType2((BigDecimal) entry.get(7), denominationStage); //PRICE
                                         String numberDocumentDetail = (String) entry.get(8); //npp
                                         String commentDocument = (String) entry.get(9); //PRIM
-                                        BigDecimal sum = safeMultiply(quantity, price);
+                                        BigDecimal sum = HandlerUtils.safeMultiply(quantity, price);
                                         String idDocumentDetail = idDocument + numberDocumentDetail;
 
                                         if (quantity != null && !quantity.equals(BigDecimal.ZERO))
@@ -634,12 +635,6 @@ public class LSTerminalHandler extends TerminalHandler {
                 }
         }
         return isLocked;
-    }
-
-    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
-            return null;
-        else return operand1.multiply(operand2);
     }
 
     protected boolean listNotEmpty(List list) {

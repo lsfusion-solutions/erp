@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -214,7 +215,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                                         lastCode = code;
                                                     }
 
-                                                    String group = item.idItemGroup == null ? null : trim(item.idItemGroup.replace("_", ""), 6);
+                                                    String group = item.idItemGroup == null ? null : HandlerUtils.trim(item.idItemGroup.replace("_", ""), 6);
                                                     if (lastGroup == null || !lastGroup.equals(group)) {
                                                         putField(dbfFile, GROUP, group, append);
                                                         lastGroup = group;
@@ -226,8 +227,8 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                                     }
 
                                                     if (lastName == null || !lastName.equals(item.name)) {
-                                                        putField(dbfFile, PRODUCT_ID, trim(item.name, 64), append);
-                                                        putField(dbfFile, TABLO_ID, trim(item.name, 20), append);
+                                                        putField(dbfFile, PRODUCT_ID, HandlerUtils.trim(item.name, 64), append);
+                                                        putField(dbfFile, TABLO_ID, HandlerUtils.trim(item.name, 20), append);
                                                         lastName = item.name;
                                                     }
 
@@ -792,7 +793,7 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
                                     BigDecimal sumReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset), denominationStage);
                                     BigDecimal discountSumReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset), denominationStage);
                                     BigDecimal discountSumReceipt = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset), denominationStage);
-                                    discountSumReceiptDetail = safeAdd(discountSumReceiptDetail, discountSumReceipt);
+                                    discountSumReceiptDetail = HandlerUtils.safeAdd(discountSumReceiptDetail, discountSumReceipt);
 
                                     Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
                                     numberReceiptDetail = numberReceiptDetail == null ? 1 : (numberReceiptDetail + 1);
@@ -934,12 +935,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
     protected Integer getDBFIntegerFieldValue(DBF importFile, String fieldName, String charset) throws UnsupportedEncodingException {
         String result = getDBFFieldValue(importFile, fieldName, charset);
         return result == null ? null : new Double(result).intValue();
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
     
     protected String trim(String input, Integer length) {

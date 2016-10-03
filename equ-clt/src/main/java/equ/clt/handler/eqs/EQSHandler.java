@@ -3,6 +3,7 @@ package equ.clt.handler.eqs;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -86,12 +87,12 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                                 " cancelled=VALUES(cancelled), updecr=VALUES(updecr)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setString(1, trim(item.idDepartmentStore, 10)); //store, код торговой точки
-                    ps.setString(2, trim(item.idBarcode, 20)); //barcode, Штрих-код товара
-                    ps.setString(3, trim(item.idItem, 20)); //art, Артикул
-                    ps.setString(4, trim(item.name, 50)); //description, Наименование товара
+                    ps.setString(1, HandlerUtils.trim(item.idDepartmentStore, 10)); //store, код торговой точки
+                    ps.setString(2, HandlerUtils.trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                    ps.setString(3, HandlerUtils.trim(item.idItem, 20)); //art, Артикул
+                    ps.setString(4, HandlerUtils.trim(item.name, 50)); //description, Наименование товара
                     ps.setInt(5, 1); //department, Номер отдела
-                    ps.setString(6, trim(item.idItemGroup, 10)); //grp, Код группы товара
+                    ps.setString(6, HandlerUtils.trim(item.idItemGroup, 10)); //grp, Код группы товара
                     ps.setInt(7, item.splitItem ? 1 : 0); //flags, Флаги - бит 0 - разрешение дробного количества
                     ps.setBigDecimal(8, item.price == null ? BigDecimal.ZERO : item.price); //price, Цена товара
                     ps.setDate(9, item.expiryDate); //exp, Срок годности
@@ -143,9 +144,9 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                     for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
                         if (item.idBarcode != null) {
                             for (String idStock : stopListInfo.idStockSet) {
-                                ps.setString(1, trim(idStock, 10)); //store, код торговой точки
-                                ps.setString(2, trim(item.idBarcode, 20)); //barcode, Штрих-код товара
-                                ps.setString(3, trim(item.idItem, 20)); //art, Артикул
+                                ps.setString(1, HandlerUtils.trim(idStock, 10)); //store, код торговой точки
+                                ps.setString(2, HandlerUtils.trim(item.idBarcode, 20)); //barcode, Штрих-код товара
+                                ps.setString(3, HandlerUtils.trim(item.idItem, 20)); //art, Артикул
                                 ps.setInt(4, stopListInfo.exclude ? 0 : 1); //cancelled, Флаг блокировки товара. 1 – заблокирован, 0 – нет
                                 ps.setLong(5, 4294967295L); //UpdEcr, Флаг обновления* КСА
                                 ps.addBatch();
@@ -310,15 +311,15 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                         Integer typePayment = rs.getInt(15); //Payment, Номер оплаты
                         for (SalesInfo salesInfo : currentSalesInfoList) {
                             if (typePayment == 0)
-                                salesInfo.sumCash = safeAdd(salesInfo.sumCash, sumPayment);
+                                salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
                             else if (typePayment == 1)
-                                salesInfo.sumCard = safeAdd(salesInfo.sumCard, sumPayment);
+                                salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sumPayment);
                             else if (typePayment == 2) {
                                 BigDecimal sumGiftCard = salesInfo.sumGiftCardMap.get(null);
-                                salesInfo.sumGiftCardMap.put(null, safeAdd(sumGiftCard, sumPayment));
+                                salesInfo.sumGiftCardMap.put(null, HandlerUtils.safeAdd(sumGiftCard, sumPayment));
                             }
                             else
-                                salesInfo.sumCash = safeAdd(salesInfo.sumCash, sumPayment);
+                                salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sumPayment);
                         }
                         break;
                     case 8: //Закрытие чека
@@ -458,20 +459,4 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
     public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
         return null;
     }
-
-    protected String trim(String input, Integer length) {
-        return trim(input, length, null);
-    }
-
-    protected String trim(String input, Integer length, String defaultValue) {
-        return input == null ? defaultValue : (length == null || length >= input.trim().length() ? input.trim() : input.trim().substring(0, length));
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
-    }
-
-
 }

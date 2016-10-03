@@ -3,6 +3,7 @@ package equ.clt.handler.atol;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.springframework.util.FileCopyUtils;
@@ -394,7 +395,7 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                                     String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                                    BigDecimal sumCashDocument = denominateDivideType2(isOutputCashDocument ? safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11), denominationStage);
+                                    BigDecimal sumCashDocument = denominateDivideType2(isOutputCashDocument ? HandlerUtils.safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11), denominationStage);
                                     currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt,
                                             nppGroupMachinery, numberCashRegister, sumCashDocument));
 
@@ -516,11 +517,11 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                                     if (paymentType != null) {
                                         switch (paymentType) {
                                             case 2:
-                                                salesInfo.sumCard = safeAdd(salesInfo.sumCard, sum);
+                                                salesInfo.sumCard = HandlerUtils.safeAdd(salesInfo.sumCard, sum);
                                                 break;
                                             case 1:
                                             default:
-                                                salesInfo.sumCash = safeAdd(salesInfo.sumCash, sum);
+                                                salesInfo.sumCash = HandlerUtils.safeAdd(salesInfo.sumCash, sum);
                                                 break;
                                         }
                                     }
@@ -544,8 +545,8 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
                             BigDecimal sumReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 11), denominationStage);
                             String numberZReport = getStringValue(entry, 13);
                             BigDecimal discountedSumReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 14), denominationStage);
-                            BigDecimal discountSumReceiptDetail = denominateDivideType2(safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
-                                    safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail), denominationStage);
+                            BigDecimal discountSumReceiptDetail = denominateDivideType2(HandlerUtils.safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
+                                    HandlerUtils.safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail), denominationStage);
                             String barcodeItem = getStringValue(entry, 18);
 
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
@@ -624,22 +625,5 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
 
     private Time getTimeValue(String[] entry, int index) throws ParseException {
         return entry.length >= (index + 1) ? new Time(DateUtils.parseDate(entry[index], new String[]{"HH:mm:ss"}).getTime()) : null;
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
-    }
-
-    protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else
-            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
-    }
-
-    protected BigDecimal safeNegate(BigDecimal operand) {
-        return operand == null ? null : operand.negate();
     }
 }

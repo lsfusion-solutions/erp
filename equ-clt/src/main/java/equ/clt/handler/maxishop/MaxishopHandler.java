@@ -2,6 +2,7 @@ package equ.clt.handler.maxishop;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.HandlerUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
 import org.xBaseJ.fields.*;
@@ -187,7 +188,7 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
                                     BigDecimal quantityReceiptDetail = new BigDecimal(new String(importFile.getField("JFQUANT").getBytes(), "Cp1251").trim());
                                     BigDecimal priceReceiptDetail = new BigDecimal(new String(importFile.getField("JFPRICE").getBytes(), "Cp1251").trim());
                                     BigDecimal discountSumReceiptDetail = new BigDecimal(new String(importFile.getField("JFDISCSUM").getBytes(), "Cp1251").trim());
-                                    BigDecimal sumReceiptDetail = roundSales(safeSubtract(safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
+                                    BigDecimal sumReceiptDetail = roundSales(HandlerUtils.safeSubtract(HandlerUtils.safeMultiply(priceReceiptDetail, quantityReceiptDetail), discountSumReceiptDetail), 10);
 
                                     if (!oldReceiptNumber.equals(receiptNumber)) {
                                         numberReceiptDetail = 1;
@@ -266,18 +267,5 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     private BigDecimal roundSales(BigDecimal value, Integer roundSales) {
         Integer round = roundSales != null ? roundSales : 50;
         return BigDecimal.valueOf(Math.round(value.doubleValue() / round) * round);
-    }
-
-    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
-            return null;
-        else return operand1.multiply(operand2);
-    }
-
-    protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else
-            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 }

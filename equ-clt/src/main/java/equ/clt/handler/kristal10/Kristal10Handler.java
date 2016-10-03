@@ -3,6 +3,7 @@ package equ.clt.handler.kristal10;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
 import org.jdom.Attribute;
 import org.jdom.Document;
@@ -833,17 +834,17 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                         sum = (sum != null && !isSale) ? sum.negate() : sum;
                                         switch (paymentType) {
                                             case "CashPaymentEntity":
-                                                sumCash = safeAdd(sumCash, sum);
+                                                sumCash = HandlerUtils.safeAdd(sumCash, sum);
                                                 break;
                                             case "CashChangePaymentEntity":
-                                                sumCash = safeSubtract(sumCash, sum);
+                                                sumCash = HandlerUtils.safeSubtract(sumCash, sum);
                                                 break;
                                             case "ExternalBankTerminalPaymentEntity":
                                             case "BankCardPaymentEntity":
-                                                sumCard = safeAdd(sumCard, sum);
+                                                sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                 break;
                                             case "GiftCardPaymentEntity":
-                                                sumGiftCard = safeAdd(sumGiftCard, sum);
+                                                sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
                                                 break;
                                         }
                                     }
@@ -919,7 +920,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                                     BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(positionEntryNode, "cost"), denominationStage);
                                     BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(positionEntryNode, "amount"), denominationStage);
                                     sumReceiptDetail = (sumReceiptDetail != null && !isSale) ? sumReceiptDetail.negate() : sumReceiptDetail;
-                                    currentPaymentSum = safeAdd(currentPaymentSum, sumReceiptDetail);
+                                    currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
                                     BigDecimal discountSumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(positionEntryNode, "discountValue"), denominationStage);
                                     //discountSumReceiptDetail = (discountSumReceiptDetail != null && !isSale) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
                                     Integer numberReceiptDetail = readIntegerXMLAttribute(positionEntryNode, "order");
@@ -958,10 +959,10 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             }
 
                             //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                            BigDecimal sum = safeAdd(safeAdd(sumCard, sumCash), sumGiftCard);
+                            BigDecimal sum = HandlerUtils.safeAdd(HandlerUtils.safeAdd(sumCard, sumCash), sumGiftCard);
                             if (sum == null || sum.compareTo(currentPaymentSum) < 0)
                                 for (SalesInfo salesInfo : currentSalesInfoList) {
-                                    salesInfo.sumCash = safeSubtract(safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
+                                    salesInfo.sumCash = HandlerUtils.safeSubtract(HandlerUtils.safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
                                 }
 
                             salesInfoList.addAll(currentSalesInfoList);
@@ -1030,7 +1031,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
 
                                 BigDecimal sumSale = denominateDivideType2(readBigDecimalXMLValue(zReportNode, "amountByPurchaseFiscal"), denominationStage);
                                 BigDecimal sumReturn = denominateDivideType2(readBigDecimalXMLValue(zReportNode, "amountByReturnFiscal"), denominationStage);
-                                BigDecimal kristalSum = safeSubtract(sumSale, sumReturn);
+                                BigDecimal kristalSum = HandlerUtils.safeSubtract(sumSale, sumReturn);
                                 zReportSumMap.put(idZReport, Arrays.asList((Object) kristalSum, numberCashRegister, numberZReport, idZReport));
 
                             }
@@ -1085,19 +1086,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         xmlOutput.output(doc, fw);
         fw.close();
         return file;
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
-    }
-
-    protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else
-            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 
     private String transformBarcode(String idBarcode, String weightCode, boolean passScalesItem, boolean skipWeightPrefix) {

@@ -6,6 +6,7 @@ import equ.api.SendTransactionBatch;
 import equ.api.SoftCheckInfo;
 import equ.api.TransactionInfo;
 import equ.api.terminal.*;
+import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
 import org.xBaseJ.DBF;
@@ -193,7 +194,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                 String number = getDBFFieldValue(dbfFile, "NOMPOS", charset);
                                 BigDecimal price = denominateDivideType2(getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset), denominationStage);
                                 BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
-                                BigDecimal sum = safeMultiply(price, quantity);
+                                BigDecimal sum = HandlerUtils.safeMultiply(price, quantity);
                                 String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
                                 String idDocumentDetail = idDocument + "/" + i;
                                 count++;
@@ -627,12 +628,6 @@ public class InventoryTechHandler extends TerminalHandler {
             dbfFile.getField(field.getName()).put(value == null ? "null" : value);
         else
             field.put(value == null ? "null" : value);
-    }
-
-    protected BigDecimal safeMultiply(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null || operand1.doubleValue() == 0 || operand2 == null || operand2.doubleValue() == 0)
-            return null;
-        else return operand1.multiply(operand2);
     }
 
     protected boolean listNotEmpty(List list) {

@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.FileAppender;
 import org.apache.log4j.Level;
@@ -1028,9 +1029,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                             for (Object paymentNode : paymentsList) {
                                                 Element paymentElement = (Element) paymentNode;
                                                 if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Наличный расчет")) {
-                                                    sumCash = safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
+                                                    sumCash = HandlerUtils.safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
                                                 } else if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Безналичный слип")) {
-                                                    sumCard = safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
+                                                    sumCard = HandlerUtils.safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
                                                 }
                                             }
 
@@ -1048,7 +1049,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
                                                 BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "PRICE"), denominationStage);
                                                 BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA"), denominationStage);
-                                                currentPaymentSum = safeAdd(currentPaymentSum, sumReceiptDetail);
+                                                currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
                                                 numberReceiptDetail++;
 
                                                 if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
@@ -1058,10 +1059,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                             }
 
                                             //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                            BigDecimal sum = safeAdd(sumCard, sumCash);
+                                            BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
                                             if (sum == null || sum.compareTo(currentPaymentSum) < 0)
                                                 for (SalesInfo salesInfo : currentSalesInfoList) {
-                                                    salesInfo.sumCash = safeSubtract(currentPaymentSum, sumCard);
+                                                    salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
                                                 }
 
                                             salesInfoList.addAll(currentSalesInfoList);
@@ -1107,9 +1108,9 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     Element paymentElement = (Element) paymentNode;
                                                     String payment = paymentElement.getAttributeValue("PAYTYPE");
                                                     if (payment.equals("0")) {
-                                                        sumCash = safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
+                                                        sumCash = HandlerUtils.safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
                                                     } else if (payment.equals("1") || payment.equals("3")) {
-                                                        sumCard = safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
+                                                        sumCard = HandlerUtils.safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
                                                     }
                                                 }
 
@@ -1131,7 +1132,7 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                     BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
                                                     BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "PRICEWITHOUTDISC"), denominationStage);
                                                     BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA"), denominationStage);
-                                                    currentPaymentSum = safeAdd(currentPaymentSum, sumReceiptDetail);
+                                                    currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
                                                     BigDecimal discountSumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM"), denominationStage);
                                                     discountSumReceiptDetail = (discountSumReceiptDetail != null && quantity != null && quantity.compareTo(BigDecimal.ZERO) < 0) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
                                                     Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
@@ -1153,10 +1154,10 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                                                 }
 
                                                 //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                                BigDecimal sum = safeAdd(sumCard, sumCash);
+                                                BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
                                                 if (sum == null || sum.compareTo(currentPaymentSum) < 0)
                                                     for (SalesInfo salesInfo : currentSalesInfoList) {
-                                                        salesInfo.sumCash = safeSubtract(currentPaymentSum, sumCard);
+                                                        salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
                                                     }
 
                                                 salesInfoList.addAll(currentSalesInfoList);
@@ -1257,19 +1258,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
         } else
             idItemGroup = idItemGroup.substring(0, idItemGroup.length() - 1);
         return idItemGroup;
-    }
-
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
-    }
-
-    protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
-        if (operand1 == null && operand2 == null)
-            return null;
-        else
-            return (operand1 == null ? operand2.negate() : (operand2 == null ? operand1 : operand1.subtract((operand2))));
     }
 
     private BigDecimal readBigDecimalXMLAttribute(Element element, String field) {
