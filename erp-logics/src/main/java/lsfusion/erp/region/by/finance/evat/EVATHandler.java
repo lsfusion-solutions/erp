@@ -6,6 +6,7 @@ import by.avest.edoc.client.*;
 import by.avest.edoc.tool.KeyInteractiveSelector;
 import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
+import org.apache.commons.io.FileUtils;
 
 import javax.management.modelmbean.XMLParseException;
 import java.io.*;
@@ -50,9 +51,12 @@ public class EVATHandler {
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
                     System.out.println("EVAT: archiveDir created");
                     for (Map.Entry<Integer, byte[]> entry : filesEntry.getValue().entrySet()) {
-                        System.out.println("EVAT: send file started");
                         Integer evat = entry.getKey();
                         byte[] file = entry.getValue();
+
+                        System.out.println("EVAT: save file before sending");
+                        File originalFile = new File(archiveDir, "EVAT" + evat +".xml");
+                        FileUtils.writeByteArrayToFile(originalFile, file);
 
                         // Создание электронного документа
                         AvEDoc eDoc = service.createEDoc();
