@@ -534,7 +534,8 @@ public class AstronHandler extends CashRegisterHandler<AstronSalesBatch> {
                         case 3: //Возвращенная товарная позиция
                             String idBarcode = rs.getString(9); //SALESBARC
                             String idItem = String.valueOf(rs.getInt(10)); //SALESCODE
-                            BigDecimal totalQuantity = HandlerUtils.safeDivide(rs.getBigDecimal(11), 1000); //SALESCOUNT
+                            boolean isWeight = rs.getInt(15) == 0; //SALESTYPE
+                            BigDecimal totalQuantity = HandlerUtils.safeDivide(rs.getBigDecimal(11), isWeight ? 1000 : 1); //SALESCOUNT
                             BigDecimal price = HandlerUtils.safeDivide(rs.getBigDecimal(12), 100); //SALESPRICE
                             BigDecimal sumReceiptDetail = HandlerUtils.safeDivide(rs.getBigDecimal(13), 100); //SALESSUM
                             BigDecimal discountSumReceiptDetail = HandlerUtils.safeDivide(rs.getBigDecimal(14), 100); //SALESDISC
