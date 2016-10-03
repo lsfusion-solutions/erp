@@ -15,7 +15,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
         codeDocType (e) <- 603;
         blankCodeDoc (e) <- '402861';
-        seriesDoc(e) <- OVERRIDE ' ', series(d);
+        seriesDoc(e) <- OVERRIDE 'ДК', series(d);
         numberDoc(e) <- number(d);
         unpSender(e) <- UNP(l);
         
@@ -35,14 +35,26 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             code(ed) <- OVERRIDE '0000000000', codeCustomsGroup(id);
 //            quantity(ed) <- quantity(id); 
 //            price(ed) <- price(id);
-            sum(ed) <- homeSum(id) (+) dutySum(id);
+            sum(ed) <- round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;
             vatRate(ed) <- percentVAT(id);
-            vatSum(ed) <- VATSum(id);
-            sumWithVAT(ed) <- homeSum(id) (+) VATSum(id);
+            vatSum(ed) <- 0; // VATSum(id);
+            sumWithVAT(ed) <- 0; // homeSum(id) (+) VATSum(id);
             
             descriptionType(ed) <- DescriptionType.importVAT;
-        } 
+        }
+        FOR NUMERIC[16,5] vatSum == [= GROUP SUM VATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) ADDOBJ ed = EVATDetail DO {
+            evat(ed) <- e;
+            name(ed) <- 'Сумма НДС, уплаченная при ввозе';
+            code(ed) <- [= GROUP MAX OVERRIDE '0000000000', codeCustomsGroup(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, vat);
+            sum(ed) <- 0;
+            exciseSum(ed) <- 0;
+            vatRate(ed) <- vat;
+            vatSum(ed) <- vatSum;
+            sumWithVAT(ed) <- 0;
+            
+            descriptionType(ed) <- DescriptionType.importVAT;
+        }
     } 
     APPLY {};
 } CONFIRM;
