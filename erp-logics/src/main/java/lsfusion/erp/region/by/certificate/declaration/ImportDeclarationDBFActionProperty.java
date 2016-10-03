@@ -155,18 +155,22 @@ public class ImportDeclarationDBFActionProperty extends DefaultImportDBFActionPr
                 if (g471 != null) {
                     switch (g471) {
                         case "2010":
-                            //String g4731 = trim(getDBFFieldValue(dbfFile, "G4731", charset));
-                            //if (g4731 == null || !g4731.equals("ЕВРО")) {
+                            String g4731 = trim(getDBFFieldValue(dbfFile, "G4731", charset));
+                            if (g4731 == null || !g4731.equals("ЕВРО")) {
                                 homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
-                                BigDecimal extraDutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
-                                if (dutySum == null)
-                                    dutySum = extraDutySum;
-                                else if (extraDutySum != null)
-                                    dutySum = dutySum.add(extraDutySum);
-                            //}
+                            }
+                            BigDecimal extraDutySum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
+                            if (dutySum == null)
+                                dutySum = extraDutySum;
+                            else if (extraDutySum != null)
+                                dutySum = dutySum.add(extraDutySum);
                             break;
                         case "5010":
-                            if (homeSum == null) homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
+                            if (homeSum == null) {
+                                homeSum = getDBFBigDecimalFieldValue(dbfFile, "G472", charset);
+                                if (homeSum != null && dutySum != null)
+                                    homeSum = homeSum.subtract(dutySum);
+                            }
                             VATSum = getDBFBigDecimalFieldValue(dbfFile, "G474", charset);
                             break;
                         case "1010":
