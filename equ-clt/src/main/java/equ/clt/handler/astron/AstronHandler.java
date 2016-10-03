@@ -235,7 +235,7 @@ public class AstronHandler extends CashRegisterHandler<AstronSalesBatch> {
                     setObject(ps, true, 5, offset); //ISDEFAULT
                     setObject(ps, idUOM, 6, offset); //UNITID
                     setObject(ps, "", 7, offset); //QUANTMASK
-                    setObject(ps, "", 8, offset); //PACKDTYPE
+                    setObject(ps, item.passScalesItem ? 0 : 1, 8, offset); //PACKDTYPE
                     setObject(ps, HandlerUtils.trim(item.name, "", 50), 9, offset); //PACKNAME
                     setObject(ps, "0", 10, offset); //DELFLAG
                     setObject(ps, "1", 11, offset); //UPDATENUM
