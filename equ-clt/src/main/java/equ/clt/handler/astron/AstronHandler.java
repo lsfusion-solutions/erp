@@ -407,11 +407,14 @@ public class AstronHandler extends CashRegisterHandler<AstronSalesBatch> {
             try {
                 conn = getConnection(connectionString, user, password);
 
-                processStopListLogger.info("astron: executing stopLists, table art");
-                ps = conn.prepareStatement(String.format("UPDATE [ART] SET DELFLAG = %s WHERE ARTID=?", stopListInfo.exclude ? "0" : "1"));
+                processStopListLogger.info("astron: executing stopLists, table packprc");
+                ps = conn.prepareStatement(String.format("UPDATE [PACKPRC] SET DELFLAG = %s WHERE PACKID=? AND PRCLEVELID=?", stopListInfo.exclude ? "0" : "1"));
                 for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                    ps.setObject(1, item.idItem); //ARTID
-                    ps.addBatch();
+                    for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
+                        ps.setObject(1, item.idItem); //PACKID
+                        ps.setObject(2, nppGroupMachinery); //PRCLEVELID
+                        ps.addBatch();
+                    }
                 }
                 ps.executeBatch();
                 conn.commit();
