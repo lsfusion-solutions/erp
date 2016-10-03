@@ -133,8 +133,11 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 case "additionalNoRef":
                     rootElement.addContent(createProviderElement(context, evatObject, namespace));
                     rootElement.addContent(createRecipientElement(context, evatObject, namespace));
-                    rootElement.addContent(createSenderReceiverElement(context, evatObject, namespace));
-                    rootElement.addContent(createDeliveryConditionElement(context, evatObject, namespace));
+                    boolean skipDeliveryCondition = findProperty("skipDeliveryCondition[EVAT]").read(context, evatObject) != null;
+                    if(!skipDeliveryCondition) {
+                        rootElement.addContent(createSenderReceiverElement(context, evatObject, namespace));
+                        rootElement.addContent(createDeliveryConditionElement(context, evatObject, namespace));
+                    }
                     rootElement.addContent(createRosterElement(context, evatObject, namespace));
                     break;
                 case "additional":
