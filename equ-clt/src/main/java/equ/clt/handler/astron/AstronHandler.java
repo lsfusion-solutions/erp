@@ -160,8 +160,8 @@ public class AstronHandler extends CashRegisterHandler<AstronSalesBatch> {
                 setObject(ps, parseGroup(item.extIdItemGroup), 2, offset); //GRPID
                 setObject(ps, item.vat == null ? "0" : item.vat, 3, offset); //TAXGRPID
                 setObject(ps, item.idItem, 4, offset); //ARTCODE
-                setObject(ps, item.name, 5, offset); //ARTNAME
-                setObject(ps, item.name, 6, offset); //ARTSNAME
+                setObject(ps, HandlerUtils.trim(item.name, "", 50), 5, offset); //ARTNAME
+                setObject(ps, HandlerUtils.trim(item.name, "", 50), 6, offset); //ARTSNAME
                 setObject(ps, "0", 7, offset); //DELFLAG
                 setObject(ps, "1", 8, offset); //UPDATENUM
 
