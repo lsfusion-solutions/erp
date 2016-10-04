@@ -396,19 +396,18 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
 
         QueryBuilder<Object, Object> evatDetailQuery = new QueryBuilder<>(evatDetailKeys);
-        String[] evatDetailNames = new String[]{"name", "code", "shortNameUOM", "codeOced",
+        String[] evatDetailNames = new String[]{"objValue", "name", "code", "shortNameUOM", "codeOced",
                 "quantity", "price", "sum", "exciseSum", "vatRate", "vatSum", "sumWithVAT", "nameDescriptionType"};
-        LCP[] evatDetailProperties = findProperties("name[EVATDetail]", "code[EVATDetail]", "shortNameUOM[EVATDetail]", "codeOced[EVATDetail]",
-                "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]", "vatRate[EVATDetail]", "vatSum[EVATDetail]",
-                "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
+        LCP[] evatDetailProperties = findProperties("objValue[EVATDetail]", "name[EVATDetail]", "code[EVATDetail]", "shortNameUOM[EVATDetail]",
+                "codeOced[EVATDetail]", "quantity[EVATDetail]", "price[EVATDetail]", "sum[EVATDetail]", "exciseSum[EVATDetail]",
+                "vatRate[EVATDetail]", "vatSum[EVATDetail]", "sumWithVAT[EVATDetail]", "nameDescriptionType[EVATDetail]");
         for (int i = 0; i < evatDetailProperties.length; i++) {
             evatDetailQuery.addProperty(evatDetailNames[i], evatDetailProperties[i].getExpr(evatDetailExpr));
         }
         evatDetailQuery.and(findProperty("evat[EVATDetail]").getExpr(evatDetailExpr).compare(evatObject.getExpr(), Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> evatDetailResults = evatDetailQuery.execute(context);
-        int count = 0;
-        for (ImMap<Object, Object> entry : evatDetailResults.values()) {
-            count++;
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> evatDetailResults = evatDetailQuery.execute(context, MapFact.singletonOrder((Object) "objValue", false));
+        for (int i = 0, size = evatDetailResults.size(); i < size; i++) {
+            ImMap<Object, Object> entry = evatDetailResults.getValue(i);
             String name = trim((String) entry.get("name"));
             String code = trim((String) entry.get("code"));
             //String shortNameUOM = trim((String) entry.get("shortNameUOM")); //должен быть Integer
@@ -424,7 +423,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             String description = getDescription(getLastPart(trim((String) entry.get("nameDescriptionType"))));
 
             Element rosterItemElement = new Element("rosterItem", namespace);
-            addStringElement(namespace, rosterItemElement, "number", getString(count));
+            addStringElement(namespace, rosterItemElement, "number", getString(i + 1));
             addStringElement(namespace, rosterItemElement, "name", name);
             addStringElement(namespace, rosterItemElement, "code", code);
             addStringElement(namespace, rosterItemElement, "code_oced", getString(codeOced));
@@ -473,7 +472,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     private String getString(Object value) {
         return value == null ? null : String.valueOf(value);
     }
-    
+
     private String getZeroString(Object value) {
         return value == null ? "0" : String.valueOf(value);
     }
@@ -486,24 +485,24 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     private String getProviderStatus(String status, String defaultStatus) {
-        if(status != null) {
+        if (status != null) {
             if (status.endsWith("seller"))
                 return "SELLER";
-            else if(status.endsWith("consignor"))
+            else if (status.endsWith("consignor"))
                 return "CONSIGNOR";
-            else if(status.endsWith("commissionaire"))
+            else if (status.endsWith("commissionaire"))
                 return "COMMISSIONAIRE";
-            else if(status.endsWith("taxDeductionPayer"))
+            else if (status.endsWith("taxDeductionPayer"))
                 return "TAX_DEDUCTION_PAYER";
-            else if(status.endsWith("trustee"))
+            else if (status.endsWith("trustee"))
                 return "TRUSTEE";
-            else if(status.endsWith("foreignOrganization"))
+            else if (status.endsWith("foreignOrganization"))
                 return "FOREIGN_ORGANIZATION";
-            else if(status.endsWith("agent"))
+            else if (status.endsWith("agent"))
                 return "AGENT";
-            else if(status.endsWith("developer"))
+            else if (status.endsWith("developer"))
                 return "DEVELOPER";
-            else if(status.endsWith("tornoversOnSalePayer"))
+            else if (status.endsWith("tornoversOnSalePayer"))
                 return "TURNOVERS_ON_SALE_PAYER";
         }
         return defaultStatus;
