@@ -283,13 +283,22 @@ isPositiveReport 'Только со знаком "+"' (StatisticReport r)= isPos
 reportKind = DATA ReportKind (StatisticReport);
 nameReportKind 'Вид отчета'(StatisticReport r) = staticCaption(reportKind(r));
 
+in 'Отм' = DATA BOOLEAN (StatisticReport, StatisticReport); // (new , reports)
+isPeriod 'Суммарный за один и тот же период' = DATA BOOLEAN (StatisticReport);
+countIn = GROUP SUM 1 IF in(StatisticReport new, StatisticReport report) BY new;
+
+selectReports 'Отчеты' (report) =
+    GROUP CONCAT seriesNumber(StatisticReport report) IF in(StatisticReport new, report),'; '
+    BY new 
+    ORDER seriesNumber(report), report  MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
 isStock(StatisticReport r) = reportKind(r) == ReportKind.stock;
-isStockThing(StatisticReport r) = isStock(r) AND notSumReport(statisticReportType(r));
-isStockSum(StatisticReport r) = isStock(r) AND isSumReport(statisticReportType(r));
+isStockThing(StatisticReport r) = isStock(r) AND notSumReport(statisticReportType(r)) AND NOT countIn(r);
+isStockSum(StatisticReport r) = isStock(r) AND isSumReport(statisticReportType(r)) AND NOT countIn(r);
 
 isRegion(StatisticReport r) = reportKind(r) == ReportKind.region;
-isRegionThing(StatisticReport r) = isRegion(r) AND notSumReport(statisticReportType(r));
-isRegionSum(StatisticReport r) = isRegion(r) AND isSumReport(statisticReportType(r));
+isRegionThing(StatisticReport r) = isRegion(r) AND notSumReport(statisticReportType(r)) AND NOT countIn(r);
+isRegionSum(StatisticReport r) = isRegion(r) AND isSumReport(statisticReportType(r)) AND NOT countIn(r);
 
 isConsolidate(StatisticReport r) = reportKind(r) == ReportKind.consolidate;
 notConsolidate(StatisticReport r) = reportKind(r) != ReportKind.consolidate;
@@ -641,6 +650,7 @@ DESIGN statisticReport {
 }
 
 in 'Отм' = DATA LOCAL NESTED BOOLEAN (StatisticReport);
+countIn = GROUP SUM 1 IF in(StatisticReport r);
 
 balance = GROUP LAST balance(StatisticReportDetail d) 
     BY stock(d), statisticGroup(d) 
@@ -679,7 +689,7 @@ createSumReport 'Создать суммарный отчет'()= ACTION NEWSESS
         MESSAGE 'Выбраны отчеты разных видов';
         RETURN;
     }
-    IF NOT [=GROUP SUM 1 IF in(StatisticReport r)]() THEN {
+    IF NOT countIn() THEN {
         MESSAGE 'Не выбраны отчеты для объединения';
         RETURN;
     }
@@ -717,6 +727,77 @@ createSumReport 'Создать суммарный отчет'()= ACTION NEWSESS
     }
     in(StatisticReport r) <- NULL;
 } 
+
+FORM selectSatisticReport 'Выбор отчетов'
+    
+    OBJECTS r = StatisticReport FIXED PANEL 
+    
+    OBJECTS ri = StatisticReport 
+    
+    PROPERTIES (r,ri) in
+    PROPERTIES (ri) READONLY number, series, date, time, name, nameStockRegion,  nameStatisticReportType,                   
+                    fromDate, toDate, note, nameStatisticGroupType   
+
+    PROPERTIES (ri) READONLY countStatisticReportDetail     
+    FILTERS statisticReportType(r) == statisticReportType(ri),
+            r != ri,
+            (fromDate(r) == fromDate(ri) AND toDate(r) == toDate(ri) AND isPeriod(r)) OR (fromDate(ri) >= fromDate(r)  AND toDate(ri) <= toDate(r) AND NOT isPeriod(r))
+    FILTERGROUP selects
+        FILTER 'Отмеченные' in (r, ri) 'F10'         
+;
+changeReports (StatisticReport r) = ACTION FORM selectSatisticReport OBJECTS r = r MODAL;
+
+
+fillSumReport 'Заполнить данные'(StatisticReport s)= ACTION  {
+
+    IF NOT countIn(s) THEN {
+        MESSAGE 'Не выбраны отчеты для объединения';
+        RETURN;
+    }
+    IF [ = GROUP SUM 1 IF in(StatisticReport s, StatisticReport report) AND statisticReportType(s) == statisticReportType(report) BY s ](s) != countIn(s) THEN {
+        MESSAGE 'Выбраны отчеты разных типов';
+        RETURN;
+    }
+    sold(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == s;
+    soldResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == s;
+    balance(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == s;
+    balanceResident(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == s;
+        
+    soldSum(StatisticReportDetail d) <- NULL WHERE statisticReport(d) == s;
+    soldSumResident(StatisticReportDetail d) <-  NULL WHERE statisticReport(d) == s;
+    balanceSum(StatisticReportDetail d) <-  NULL WHERE statisticReport(d) == s;
+    
+    //--------------
+    sold(StatisticReportDetail d) <- [=GROUP SUM sold(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+    soldResident(StatisticReportDetail d) <- [=GROUP SUM soldResident(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;            
+    soldSum(StatisticReportDetail d) <-  [=GROUP SUM soldSum(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+    soldSumResident(StatisticReportDetail d) <-  [=GROUP SUM soldSumResident(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+    
+    IF isPeriod(s) THEN {
+        balance(StatisticReportDetail d) <- [=GROUP SUM balance(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceResident(StatisticReportDetail d) <- [=GROUP SUM balanceResident(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceSum(StatisticReportDetail d) <-  [=GROUP SUM balanceSum(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+    } ELSE {
+        balance(StatisticReportDetail d) <- [=GROUP SUM balance(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) AND toDate(s) == toDate(statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceResident(StatisticReportDetail d) <- [=GROUP SUM balanceResident(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) AND toDate(s) == toDate(statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;
+        balanceSum(StatisticReportDetail d) <-  [=GROUP SUM balanceSum(StatisticReportDetail d) IF in(StatisticReport s, statisticReport(d)) AND toDate(s) == toDate(statisticReport(d)) BY s, statisticGroup(d)](s, statisticGroup(d)) WHERE statisticReport(d) == s;    
+    }
+} 
+
+EXTEND FORM statisticReport    
+    PROPERTIES isPeriod(r), selectReports(r) ON CHANGE changeReports(r), fillSumReport(r) SHOWIF countIn(r) FORCE PANEL TOOLBAR TODRAW d
+;
+
+DESIGN statisticReport {
+    headerParams {
+        NEW sum {
+            caption = 'Дополнительные параметры';
+            type = CONTAINERH;
+            MOVE PROPERTY (isPeriod(r));
+            MOVE PROPERTY (selectReports(r));
+        }                                 
+    }
+}
 
 FORM statisticReports 'Статистические отчеты'
 
