@@ -18,12 +18,15 @@ import java.security.UnrecoverableKeyException;
 import java.security.cert.CertificateException;
 
 public class CustomKeyInteractiveSelector extends PersonalKeyManager {
+    int certIndex;
+
     public CustomKeyInteractiveSelector(KeyStore ks) {
         super(ks);
     }
 
-    public CustomKeyInteractiveSelector() throws UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
+    public CustomKeyInteractiveSelector(int certIndex) throws UnrecoverableKeyException, KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
         super(getDefaultKS());
+        this.certIndex = certIndex;
     }
 
     private static KeyStore getDefaultKS() throws KeyStoreException, NoSuchAlgorithmException, CertificateException, IOException {
@@ -52,7 +55,7 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
         }
 
         return aliases[this.promptAliasIndex(aliases)];*/
-        return aliases[0];
+        return aliases[Math.max(certIndex, aliases.length - 1)];
     }
 
     /*private int promptAliasIndex(String[] aliases) throws IOException {

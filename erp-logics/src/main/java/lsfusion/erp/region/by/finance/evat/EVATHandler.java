@@ -29,7 +29,7 @@ public class EVATHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> signAndSend(Map<String, Map<Integer, byte[]>> files, String serviceUrl, String path, String exportPath, String password) {
+    public List<List<Object>> signAndSend(Map<String, Map<Integer, byte[]>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
         System.out.println("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
@@ -46,7 +46,7 @@ public class EVATHandler {
             EVatService service = null;
 
             try {
-                service = initService(serviceUrl, unp, password);
+                service = initService(serviceUrl, unp, password, certIndex);
                 System.out.println("EVAT: initService finished");
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
                     System.out.println("EVAT: archiveDir created");
@@ -126,7 +126,7 @@ public class EVATHandler {
         return result;
     }
 
-    public List<List<Object>> getStatus(Map<String, Map<Integer, String>> invoices, String serviceUrl, String password) {
+    public List<List<Object>> getStatus(Map<String, Map<Integer, String>> invoices, String serviceUrl, String password, int certIndex) {
         System.out.println("EVAT: client action getStatus");
         List<List<Object>> result = new ArrayList<>();
 
@@ -142,7 +142,7 @@ public class EVATHandler {
                 Map<Integer, String> invoicesMap = entry.getValue();
 
 
-                service = initService(serviceUrl, unp, password);
+                service = initService(serviceUrl, unp, password, certIndex);
                 System.out.println("EVAT: initService finished");
 
                 for(Map.Entry<Integer, String> invoiceEntry : invoicesMap.entrySet()) {
@@ -167,7 +167,7 @@ public class EVATHandler {
         return result;
     }
 
-    public String listAndGet(String path, String serviceUrl, String unp, String password) {
+    public String listAndGet(String path, String serviceUrl, String unp, String password, int certIndex) {
         String result = null;
 
         try {
@@ -175,7 +175,7 @@ public class EVATHandler {
             File docFolder = new File(path + "/in");
             if (docFolder.exists() || docFolder.mkdirs()) {
 
-                EVatService service = initService(serviceUrl, unp, password);
+                EVatService service = initService(serviceUrl, unp, password, certIndex);
 
                 // Чтение даты последнего запроса списка счетов-фактур на портале
                 Date fromDate;
@@ -253,14 +253,14 @@ public class EVATHandler {
         return result;
     }
 
-    private EVatService initService(String serviceUrl, String unp, String password) throws UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, AvDocException, InvalidAlgorithmParameterException, KeyManagementException {
+    private EVatService initService(String serviceUrl, String unp, String password, int certIndex) throws UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, AvDocException, InvalidAlgorithmParameterException, KeyManagementException {
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
         Security.addProvider(new AvTLSProvider());
         Security.addProvider(new AvCertStoreProvider());
 
         // Создание экземпляра класса доступа к порталу
-        EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector());
+        EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector(certIndex));
         service.login((unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password);
         service.connect();
         return service;

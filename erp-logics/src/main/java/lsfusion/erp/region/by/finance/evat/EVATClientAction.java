@@ -21,19 +21,22 @@ public class EVATClientAction implements ClientAction {
     public String path; //"c:/Program Files/Avest/AvJCEProv";
     public String exportPath; //"c:/Program Files/Avest/AvJCEProv/archive";
     public String password; //"191217635";
+    public int certIndex;
     public int type;
 
-    public EVATClientAction(String serviceUrl, String path, String exportPath, String password, int type) {
-        this(new HashMap<String, Map<Integer, byte[]>>(), new HashMap<String, Map<Integer, String>>(), serviceUrl, path, exportPath, password, type);
+    public EVATClientAction(String serviceUrl, String path, String exportPath, String password, int certIndex, int type) {
+        this(new HashMap<String, Map<Integer, byte[]>>(), new HashMap<String, Map<Integer, String>>(), serviceUrl, path, exportPath, password, certIndex, type);
     }
 
-    public EVATClientAction(Map<String, Map<Integer, byte[]>> files, Map<String, Map<Integer, String>> invoices, String serviceUrl, String path, String exportPath, String password, int type) {
+    public EVATClientAction(Map<String, Map<Integer, byte[]>> files, Map<String, Map<Integer, String>> invoices, String serviceUrl,
+                            String path, String exportPath, String password, int certIndex, int type) {
         this.files = files;
         this.invoices = invoices;
         this.serviceUrl = serviceUrl;
         this.path = path;
         this.exportPath = exportPath;
         this.password = password;
+        this.certIndex = certIndex;
         this.type = type;
     }
 
@@ -60,11 +63,11 @@ public class EVATClientAction implements ClientAction {
 
         switch (type) {
             case 0:
-                return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password);
+                return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certIndex);
             case 1:
-                return new EVATHandler().getStatus(invoices, serviceUrl, password);
+                return new EVATHandler().getStatus(invoices, serviceUrl, password, certIndex);
             case 2:
-                return new EVATHandler().listAndGet(path, serviceUrl, null, password);
+                return new EVATHandler().listAndGet(path, serviceUrl, null, password, certIndex);
             default:
                 return null;
         }
