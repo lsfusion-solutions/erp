@@ -1,6 +1,7 @@
 package lsfusion.erp.region.by.finance.evat;
 
 import com.google.common.base.Throwables;
+import lsfusion.base.BaseUtils;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -387,10 +388,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         BigDecimal totalSumWithVAT = (BigDecimal) findProperty("totalSumWithVAT[EVAT]").read(context, evatObject);
 
         Element rosterElement = new Element("roster");
-        rosterElement.setAttribute("totalCostVat", getZeroString(totalSumWithVAT));
-        rosterElement.setAttribute("totalExcise", getZeroString(totalExciseSum));
-        rosterElement.setAttribute("totalVat", getZeroString(totalVATSum));
-        rosterElement.setAttribute("totalCost", getZeroString(totalSum));
+        rosterElement.setAttribute("totalCostVat", bigDecimalToString(totalSumWithVAT, ""));
+        rosterElement.setAttribute("totalExcise", bigDecimalToString(totalExciseSum, ""));
+        rosterElement.setAttribute("totalVat", bigDecimalToString(totalVATSum, ""));
+        rosterElement.setAttribute("totalCost", bigDecimalToString(totalSum, ""));
 
         KeyExpr evatDetailExpr = new KeyExpr("evatDetail");
         ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
@@ -429,15 +430,15 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addStringElement(namespace, rosterItemElement, "code_oced", getString(codeOced));
             //addStringElement(namespace, rosterItemElement, "units", shortNameUOM);
             addBigDecimalElement(namespace, rosterItemElement, "count", quantity);
-            addBigDecimalElement(namespace, rosterItemElement, "price", price);
-            addBigDecimalElement(namespace, rosterItemElement, "cost", sum);
-            addBigDecimalElement(namespace, rosterItemElement, "summaExcise", exciseSum);
+            addStringElement(namespace, rosterItemElement, "price", bigDecimalToString(price));
+            addStringElement(namespace, rosterItemElement, "cost", bigDecimalToString(sum));
+            addStringElement(namespace, rosterItemElement, "summaExcise", bigDecimalToString(exciseSum));
             Element vatElement = new Element("vat", namespace);
-            addBigDecimalElement(namespace, vatElement, "rate", vatRate);
+            addStringElement(namespace, vatElement, "rate", bigDecimalToString(vatRate));
             addStringElement(namespace, vatElement, "rateType", vatRate != null && vatRate.compareTo(BigDecimal.ZERO) == 0 ? "ZERO" : "DECIMAL");
-            addBigDecimalElement(namespace, vatElement, "summaVat", vatSum);
+            addStringElement(namespace, vatElement, "summaVat", bigDecimalToString(vatSum));
             rosterItemElement.addContent(vatElement);
-            addBigDecimalElement(namespace, rosterItemElement, "costVat", sumWithVat);
+            addStringElement(namespace, rosterItemElement, "costVat", bigDecimalToString(sumWithVat));
             Element descriptionsElement = new Element("descriptions", namespace);
             addStringElement(namespace, descriptionsElement, "description", description);
             rosterItemElement.addContent(descriptionsElement);
@@ -473,8 +474,12 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return value == null ? null : String.valueOf(value);
     }
 
-    private String getZeroString(Object value) {
-        return value == null ? "0" : String.valueOf(value);
+    private String bigDecimalToString(BigDecimal value) {
+        return bigDecimalToString(value, null);
+    }
+
+    private String bigDecimalToString(BigDecimal value, String defaultValue) {
+        return value == null ? defaultValue : BaseUtils.bigDecimalToString("#,##0.####", value);
     }
 
     private String getFullNumber(String unp, String number) {
