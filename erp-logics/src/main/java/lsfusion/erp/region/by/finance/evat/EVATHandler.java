@@ -3,7 +3,6 @@ package lsfusion.erp.region.by.finance.evat;
 import by.avest.certstore.AvCertStoreProvider;
 import by.avest.crypto.pkcs11.provider.ProviderFactory;
 import by.avest.edoc.client.*;
-import by.avest.edoc.tool.KeyInteractiveSelector;
 import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
 import org.apache.commons.io.FileUtils;
@@ -51,67 +50,7 @@ public class EVATHandler {
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
                     System.out.println("EVAT: archiveDir created");
                     for (Map.Entry<Integer, byte[]> entry : filesEntry.getValue().entrySet()) {
-                        Integer evat = entry.getKey();
-                        byte[] file = entry.getValue();
-
-                        System.out.println("EVAT: save file before sending");
-                        File originalFile = new File(archiveDir, "EVAT" + evat +".xml");
-                        FileUtils.writeByteArrayToFile(originalFile, file);
-
-                        // Создание электронного документа
-                        AvEDoc eDoc = service.createEDoc();
-
-                        // Загрузка электронной счет-фактуры НДС
-                        eDoc.getDocument().load(file);
-
-                        // Проверка счет-фактуры НДС на соответствие XSD схеме
-                        byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
-                        boolean isDocumentValid = eDoc.getDocument().validateXML(xsdSchema);
-                        if (!isDocumentValid) {
-                            result.add(Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", evat), true));
-                        } else {
-
-                            eDoc.sign();
-                            byte[] signedDocument = eDoc.getEncoded();
-                            File signedFile = new File(archiveDir, "EVAT" + evat + ".sgn.xml");
-
-                            // Сохранение файла с подписанным электронным документом
-                            writeFile(signedFile, signedDocument);
-
-                            //далее - код по отправке документа, который не проверялся на работоспособность, чтобы
-                            //случайно ничего никуда не отправить
-
-                            // Загрузка электронного документа на автоматизированный сервис
-                            // портала и получение квитанции о приёме
-                            AvETicket ticket = service.sendEDoc(eDoc);
-                            System.out.println("SignAndSend EVAT: Ответ сервера получен");
-
-                            // Проверка квитанции
-                            if (ticket.accepted()) {
-                                System.out.println("SignAndSend EVAT: Ticket is accepted");
-                                String resultMessage = ticket.getMessage();
-
-                                File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
-                                // Сохранение квитанции в файл
-                                writeFile(ticketFile, ticket.getEncoded());
-
-                                System.out.println("Ответ сервера проверен. Cчет/фактура принята в обработку. "
-                                        + "Сообщение сервера: " + resultMessage);
-                                result.add(Arrays.asList((Object) evat, resultMessage, false));
-
-                            } else {
-                                System.out.println("SignAndSend EVAT: Ticket is not accepted");
-                                AvError err = ticket.getLastError();
-                                File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
-                                // Сохранение квитанции в файл
-                                writeFile(ticketFile, ticket.getEncoded());
-                                System.out.println(err.getMessage());
-                                result.add(Arrays.asList((Object) evat, err.getMessage(), true));
-                            }
-
-                            //конец непроверенного кода
-                            System.out.println("EVAT: send file finished");
-                        }
+                        result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, 0));
                     }
                 } else {
                     result.add(Arrays.<Object>asList(0, "Unable to create archive directory", true));
@@ -122,6 +61,82 @@ public class EVATHandler {
             } finally {
                 disconnect(service);
             }
+        }
+        return result;
+    }
+
+    private List<Object> sendFile(byte[] file, Integer evat, EVatService service, File archiveDir, String xsdPath,
+                                  String serviceUrl, String unp, String password, Integer certIndex, Integer errorsCount)
+            throws CertificateException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyStoreException, KeyManagementException, AvDocException, InvalidAlgorithmParameterException, IOException {
+        List<Object> result;
+        try {
+            System.out.println(String.format("EVAT %s: save file before sending", evat));
+            File originalFile = new File(archiveDir, "EVAT" + evat + ".xml");
+            FileUtils.writeByteArrayToFile(originalFile, file);
+
+            // Создание электронного документа
+            AvEDoc eDoc = service.createEDoc();
+
+            // Загрузка электронной счет-фактуры НДС
+            eDoc.getDocument().load(file);
+
+            // Проверка счет-фактуры НДС на соответствие XSD схеме
+            byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
+            boolean isDocumentValid = eDoc.getDocument().validateXML(xsdSchema);
+            if (!isDocumentValid) {
+                result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", evat), true);
+            } else {
+
+                eDoc.sign();
+                byte[] signedDocument = eDoc.getEncoded();
+                File signedFile = new File(archiveDir, "EVAT" + evat + ".sgn.xml");
+
+                // Сохранение файла с подписанным электронным документом
+                writeFile(signedFile, signedDocument);
+
+                //далее - код по отправке документа, который не проверялся на работоспособность, чтобы
+                //случайно ничего никуда не отправить
+
+                // Загрузка электронного документа на автоматизированный сервис
+                // портала и получение квитанции о приёме
+                AvETicket ticket = service.sendEDoc(eDoc);
+
+                // Проверка квитанции
+                if (ticket.accepted()) {
+                    System.out.println(String.format("EVAT %s: SignAndSend. Ticket is accepted", evat));
+                    String resultMessage = ticket.getMessage();
+
+                    File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
+                    // Сохранение квитанции в файл
+                    writeFile(ticketFile, ticket.getEncoded());
+
+                    System.out.println("Ответ сервера проверен. Cчет/фактура принята в обработку. "
+                            + "Сообщение сервера: " + resultMessage);
+                    result = Arrays.asList((Object) evat, resultMessage, false);
+
+                } else {
+                    System.out.println(String.format("EVAT %s: SignAndSend. Ticket is not accepted", evat));
+                    AvError err = ticket.getLastError();
+                    File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
+                    // Сохранение квитанции в файл
+                    writeFile(ticketFile, ticket.getEncoded());
+                    System.out.println(err.getMessage());
+                    result = Arrays.asList((Object) evat, err.getMessage(), true);
+                }
+
+                //конец непроверенного кода
+                System.out.println(String.format("EVAT %s: send file finished", evat));
+            }
+
+        } catch (Exception e) {
+            System.out.println(String.format("EVAT %s: Error occurred (errors count %s)", evat, errorsCount + 1));
+            if(errorsCount < 5) {
+                errorsCount++;
+                service = initService(serviceUrl, unp, password, certIndex);
+                return sendFile(file, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, errorsCount);
+
+            } else
+                return Arrays.asList((Object) evat, e.getMessage(), true);
         }
         return result;
     }
