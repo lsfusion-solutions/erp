@@ -17,12 +17,13 @@ public class GeneralLedger {
     public String anak1;
     public String anak2;
     public String anak3;
+    public BigDecimal quantityGeneralLedger;
     public BigDecimal sumGeneralLedger;
 
     public GeneralLedger(Date dateGeneralLedger, String numberGeneralLedger, String seriesGeneralLedger, String descriptionGeneralLedger,
                          String idOperationGeneralLedger, String idDebitGeneralLedger, String idCreditGeneralLedger,
                          String anad1, String anad2, String anad3, String anak1, String anak2, String anak3, 
-                         BigDecimal sumGeneralLedger) {
+                         BigDecimal quantityGeneralLedger, BigDecimal sumGeneralLedger) {
         this.dateGeneralLedger = dateGeneralLedger;
         this.numberGeneralLedger = numberGeneralLedger;
         this.seriesGeneralLedger = seriesGeneralLedger;
@@ -36,6 +37,7 @@ public class GeneralLedger {
         this.anak1 = anak1;
         this.anak2 = anak2;
         this.anak3 = anak3;
+        this.quantityGeneralLedger = quantityGeneralLedger;
         this.sumGeneralLedger = sumGeneralLedger;
     }
 }

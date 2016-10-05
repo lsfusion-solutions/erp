@@ -90,10 +90,10 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
 
         String[] generalLedgerNames = new String[]{"dateGeneralLedger", "numberGLDocument", "seriesGLDocument",
                 "descriptionGeneralLedger", "idDebitGeneralLedger", "idCreditGeneralLedger", "sumGeneralLedger",
-                "idOperationGeneralLedger"};
+                "quantityGeneralLedger", "idOperationGeneralLedger"};
         LCP[] generalLedgerProperties = findProperties("date[GeneralLedger]", "numberGLDocument[GeneralLedger]", "seriesGLDocument[GeneralLedger]",
                 "description[GeneralLedger]", "idDebit[GeneralLedger]", "idCredit[GeneralLedger]", "sum[GeneralLedger]",
-                "idOperation[GeneralLedger]");
+                "quantity[GeneralLedger]", "idOperation[GeneralLedger]");
         for (int j = 0; j < generalLedgerProperties.length; j++) {
             generalLedgerQuery.addProperty(generalLedgerNames[j], generalLedgerProperties[j].getExpr(generalLedgerExpr));
         }
@@ -154,8 +154,10 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             BigDecimal sumGeneralLedger = (BigDecimal) resultValues.get("sumGeneralLedger").getValue(); //N_SUM
             if(useNotDenominatedSum)
                 sumGeneralLedger = safeMultiply(sumGeneralLedger, 10000);
-            String idOperationGeneralLedger = trim((String) resultValues.get("idOperationGeneralLedger").getValue(), 3); //K_OP  
-            
+            String idOperationGeneralLedger = trim((String) resultValues.get("idOperationGeneralLedger").getValue(), 3); //K_OP
+
+            BigDecimal quantityGeneralLedger = (BigDecimal) resultValues.get("quantityGeneralLedger").getValue(); //N_MAT
+
             String nameDebit = (String) resultValues.get("idDebitGeneralLedgerDimensionType").getValue();
             Integer orderDebit = (Integer) resultValues.get("orderDebitGeneralLedgerDimensionType").getValue();
             if (orderDebit != null) {
@@ -178,7 +180,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             }
 
             generalLedgerMap.put(generalLedgerObject, Arrays.asList((Object) dateGeneralLedger, numberGeneralLedger,
-                    description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger, seriesGeneralLedger));
+                    description, idDebit, idCredit, sumGeneralLedger, idOperationGeneralLedger, seriesGeneralLedger, quantityGeneralLedger));
         }
 
         File dbfFile = File.createTempFile("export", "dbf");
@@ -191,7 +193,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             generalLedgerList.add(new GeneralLedger((Date) values.get(0), (String) values.get(1), (String) values.get(7), (String) values.get(2),
                     (String) values.get(6), (String) values.get(3), (String) values.get(4), debit1Map.get(key),
                     debit2Map.get(key), debit3Map.get(key), credit1Map.get(key), credit2Map.get(key),
-                    credit3Map.get(key), (BigDecimal) values.get(5)));
+                    credit3Map.get(key), (BigDecimal) values.get(8), (BigDecimal) values.get(5)));
         }
         
         Collections.sort(generalLedgerList, COMPARATOR);
@@ -199,7 +201,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         for(GeneralLedger gl : generalLedgerList) {
         dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
                 gl.idOperationGeneralLedger, gl.idDebitGeneralLedger, gl.idCreditGeneralLedger, gl.anad1, gl.anad2, //9 
-                gl.anad3, gl.anak1, gl.anak2, gl.anak3, gl.sumGeneralLedger, null, null, 0, "00", "TMC", gl.seriesGeneralLedger}); //20
+                gl.anad3, gl.anak1, gl.anak2, gl.anak3, gl.sumGeneralLedger, null, gl.quantityGeneralLedger, 0, "00", "TMC", gl.seriesGeneralLedger}); //20
         }
         dbfwriter.close();
 
