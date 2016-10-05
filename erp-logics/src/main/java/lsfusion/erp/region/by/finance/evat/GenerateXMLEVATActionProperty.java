@@ -388,10 +388,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         BigDecimal totalSumWithVAT = (BigDecimal) findProperty("totalSumWithVAT[EVAT]").read(context, evatObject);
 
         Element rosterElement = new Element("roster");
-        rosterElement.setAttribute("totalCostVat", bigDecimalToString(totalSumWithVAT, ""));
-        rosterElement.setAttribute("totalExcise", bigDecimalToString(totalExciseSum, ""));
-        rosterElement.setAttribute("totalVat", bigDecimalToString(totalVATSum, ""));
-        rosterElement.setAttribute("totalCost", bigDecimalToString(totalSum, ""));
+        rosterElement.setAttribute("totalCostVat", bigDecimalToString(totalSumWithVAT, "0"));
+        rosterElement.setAttribute("totalExcise", bigDecimalToString(totalExciseSum, "0"));
+        rosterElement.setAttribute("totalVat", bigDecimalToString(totalVATSum, "0"));
+        rosterElement.setAttribute("totalCost", bigDecimalToString(totalSum, "0"));
 
         KeyExpr evatDetailExpr = new KeyExpr("evatDetail");
         ImRevMap<Object, KeyExpr> evatDetailKeys = MapFact.singletonRev((Object) "evatDetail", evatDetailExpr);
@@ -479,7 +479,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     private String bigDecimalToString(BigDecimal value, String defaultValue) {
-        return value == null ? defaultValue : BaseUtils.bigDecimalToString("#,##0.####", value);
+        return value == null ? defaultValue : BaseUtils.bigDecimalToString("##0.####", value).replace(",", ".");
     }
 
     private String getFullNumber(String unp, String number) {
