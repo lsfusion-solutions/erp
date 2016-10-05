@@ -10,8 +10,8 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         
         date(e) <- date(d);
         
-        numberContract (e) <- number([= GROUP MIN contractSku(InvoiceDetail d) BY declaration(d)](d));
-        dateContract (e) <- dateFrom([= GROUP MIN contractSku(InvoiceDetail d) BY declaration(d)](d));
+        numberContract (e) <- number([= GROUP MIN contractSku(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        dateContract (e) <- dateFrom([= GROUP MIN contractSku(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
         
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
         codeDocType (e) <- 609;
@@ -20,7 +20,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         unpSender(e) <- UNP(l);
         
         //Поставщик
-        supplier(e) <- [= GROUP MIN supplier(InvoiceDetail d) BY declaration(d)](d);
+        supplier(e) <- [= GROUP MIN supplier(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
         
         //Получатель
