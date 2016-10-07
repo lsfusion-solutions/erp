@@ -202,16 +202,16 @@ negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContr
               BY outContractLedger
               ORDER DESC dateTime(inContractLedger), inContractLedger;
               
-overWriteFIFO = ACTION ABSTRACT LIST (OutContractLedger);
+skipCost = ABSTRACT BOOLEAN (OutContractLedger); 
 writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
-
-    cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
-    IF isReturn(outContractLedger) THEN {
-        cost(outContractLedger, InContractLedger inContractLedger) <- -negativeSumInLIFO(outContractLedger, inContractLedger);
-    } ELSE {
-        cost(outContractLedger, InContractLedger inContractLedger) <- sumInFIFO(outContractLedger, inContractLedger);
+    IF NOT skipCost(outContractLedger) THEN {
+        cost(outContractLedger, InContractLedger inContractLedger) <- NULL;
+        IF isReturn(outContractLedger) THEN {
+            cost(outContractLedger, InContractLedger inContractLedger) <- -negativeSumInLIFO(outContractLedger, inContractLedger);
+        } ELSE {
+            cost(outContractLedger, InContractLedger inContractLedger) <- sumInFIFO(outContractLedger, inContractLedger);
+        }
     }
-    overWriteFIFO(outContractLedger);
 }
 
 writeFIFOApply 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
@@ -301,7 +301,7 @@ writeNotCostedOutContractLedgerFIFOApply 'Расписать все неразн
 
     APPLY SINGLE {
         LOCAL changed = BOOLEAN (OutContractLedger);
-        changed(OutContractLedger l) <- TRUE IF isCosted(l) AND isPosted(l);
+        changed(OutContractLedger l) <- TRUE IF isCosted(l) AND isPosted(l) AND NOT skipCost(l);
         
         cost(OutContractLedger ol, InContractLedger il) <- NULL WHERE changed(ol) AND costedInContractLedger(ol);
         
