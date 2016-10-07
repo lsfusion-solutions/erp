@@ -26,6 +26,20 @@ FORM evatStatuses
     DIALOG EVATStatus OBJECT e
 ;
 
+CLASS EVATServerStatus 'Статус на сервере' {
+    notFound 'NOT_FOUND',
+    denied 'DENIED',
+    completed 'COMPLETED',
+    completedSigned 'COMPLETED_SIGNED'
+}
+
+FORM evatServerStatuses
+    OBJECTS e = EVATServerStatus
+    PROPERTIES(e) READONLY staticCaption
+    DIALOG EVATServerStatus OBJECT e
+;
+
+
 CLASS LegalEntityStatus 'Статус' {
     seller 'Продавец',
     consignor 'Комитент',
@@ -73,8 +87,14 @@ captionStatus 'Статус' (EVAT evat) = staticCaption(status(evat));
 @defineNumbered(EVAT);
 @defineNumeratedDefault(EVAT, 'ЭСЧФ', 'ЭС');
 
+exported 'Выгружен' = DATA BOOLEAN (EVAT);
 result 'Ответ сервера' = DATA TEXT (EVAT);
-serverStatus 'Статус на сервере' = DATA TEXT (EVAT);
+
+//rename to serverStatus
+statusServerStatus = DATA EVATServerStatus (EVAT);
+nameServerStatus 'Статус на сервере'(EVAT e) = staticName(statusServerStatus(e));  
+captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(statusServerStatus(e));  
+
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
@@ -179,7 +199,7 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
-    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, result, serverStatus,
+    PROPERTIES(e) captionStatus, unpSender, number, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
                   captionLegalEntityStatusSupplier, bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   captionLegalEntityStatusCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
@@ -214,7 +234,8 @@ DESIGN evat {
             MOVE PROPERTY(dateCancelled(e));
             MOVE PROPERTY(sendToRecipient(e));
             MOVE PROPERTY(result(e));
-            MOVE PROPERTY(serverStatus(e));
+            MOVE PROPERTY(captionServerStatus(e));
+            MOVE PROPERTY(exported(e));
         }
         NEW supplier{
             caption = 'Поставщик';
@@ -281,9 +302,10 @@ DESIGN evat {
 FORM evats 'Электронные счета-фактуры'
     OBJECTS e = EVAT
     PROPERTIES(e) in
-    PROPERTIES(e) READONLY captionStatus, unpSender, number, invoice, date, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
-                  dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier, numberTaxesSupplier, dateTaxesSupplier,
-                  nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
+    PROPERTIES(e) READONLY exported, captionStatus, unpSender, number, invoice, date, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
+                  dateInvoicePrincipal, numberInvoiceVendor, dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
+                  numberTaxesSupplier, dateTaxesSupplier, nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum,
+                  totalExciseSum, totalVATSum, totalSumWithVAT
     PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend
     PROPERTIES() TOOLBAR TODRAW e getStatus
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
