@@ -114,11 +114,11 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
                             good.addContent(extraPluginProperty);
 
-                            //<plugin-property value="1" key="good-for-days"/>
+                            //<plugin-property value="1" key="composition"/>
                             if(item.expiryDate != null) {
                                 Element expiryDateProperty = new Element("plugin-property");
-                                setAttribute(expiryDateProperty, "key", "good-for-days");
-                                setAttribute(expiryDateProperty, "value", formatDate(item.expiryDate));
+                                setAttribute(expiryDateProperty, "key", "composition");
+                                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate));
                                 good.addContent(expiryDateProperty);
                             }
 
