@@ -25,15 +25,18 @@ edit 'Редактировать регистр' = ACTION ABSTRACT LIST (GLDocum
 onlineGeneralLedger 'Создавать проводки онлайн' = DATA BOOLEAN () IN generalLedger COMPLEX;
 reportinGeneralLedger 'Запретить редактировать проводки после отчетного периода' = DATA BOOLEAN () IN generalLedger;
 dateReportingGeneralLedger 'Дата отчетного периода' = DATA DATE () IN generalLedger;
+dataMaxDateGeneralLedger 'Максимальная дата формирование проводок' = DATA DATE ();
+maxDateGeneralLedger 'Максимальная дата формирование проводок' = OVERRIDE 2040_12_31, dataMaxDateGeneralLedger();
 
 EXTEND FORM options
-    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger
+    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger, maxDateGeneralLedger
 ;
 DESIGN options {
     pane {
         NEW generalLedger  {
             type = CONTAINERV;
             caption = 'Проводки';
+            MOVE PROPERTY (maxDateGeneralLedger());            
             MOVE PROPERTY (onlineGeneralLedger());
             MOVE PROPERTY (reportinGeneralLedger());
             MOVE PROPERTY (dateReportingGeneralLedger());
@@ -519,7 +522,7 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
     createUserGeneralLedgerALL##idGL###object1###object2 'Создать проводки'(DATE dateProp) = ACTION {     
-        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= maxDateGeneralLedger() ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;
             legalEntity(u) <- companyProp(object1);
             isPosted(u) <- isPosted(object1);
