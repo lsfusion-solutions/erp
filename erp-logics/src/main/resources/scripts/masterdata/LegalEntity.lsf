@@ -327,7 +327,7 @@ DESIGN legalEntity {
     }
 }
 
-FORM legalEntities 'Организации'
+FORM dialogLegalEntities 'Организации'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
     PROPERTIES READONLY lgTreeName = name(lg)
@@ -347,6 +347,47 @@ FORM legalEntities 'Организации'
     DIALOG LegalEntity OBJECT l
 ;
 
+DESIGN dialogLegalEntities {
+    main {
+        preferredSize = (1024, 768);
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            
+            MOVE legalEntityGroupTree.tree.box{
+                caption = 'Группы организаций';
+            }
+            MOVE l.box {
+                fill = 3;
+                l.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+        MOVE functions.box;
+    }
+}
+
+FORM legalEntities 'Организации'
+
+    TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
+    PROPERTIES READONLY lgTreeName = name(lg)
+    PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
+
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) in
+    PROPERTIES(l) READONLYIF isReadonly() nameL = name, id SHOWIF showIDs(), fullName, shortNameOwnership,
+                                          nameLegalEntityGroup
+    PROPERTIES(l) READONLYIF isReadonly() address, phone, email
+    PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replace FORCE PANEL TOOLBAR 
+    ORDER BY nameL
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
+    FILTERS isParent(legalEntityGroup(l), lg) OR
+            l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
+            l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
+;
+
 DESIGN legalEntities {
     main {
         preferredSize = (1024, 768);
@@ -356,6 +397,9 @@ DESIGN legalEntities {
             
             MOVE legalEntityGroupTree.tree.box{
                 caption = 'Группы организаций';
+                PROPERTY(deletelg){
+                    askConfirm = TRUE;
+                }
             }
             MOVE l.box {
                 fill = 3;
