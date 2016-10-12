@@ -68,14 +68,17 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                 new OverJDBField("D_VV", 'D', 8, 0), new OverJDBField("DOK", 'C', 8, 0),
                 new OverJDBField("VNDOK", 'C', 8, 0), new OverJDBField("TEXTPR", 'C', 60, 0),
                 new OverJDBField("K_OP", 'C', 3, 0), new OverJDBField("K_SCHD", 'C', 5, 0),
-                new OverJDBField("K_SCHK", 'C', 5, 0), new OverJDBField("K_ANAD1", 'C', 100, 0),
-                new OverJDBField("K_ANAD2", 'C', 100, 0), new OverJDBField("K_ANAD3", 'C', 100, 0),
+                new OverJDBField("K_SCHK", 'C', 5, 0), //7
 
+                new OverJDBField("K_ANAD1", 'C', 100, 0), new OverJDBField("K_ANAD2", 'C', 100, 0),
+                new OverJDBField("K_ANAD3", 'C', 100, 0), new OverJDBField("K_ANAD4", 'C', 100, 0),
                 new OverJDBField("K_ANAK1", 'C', 100, 0), new OverJDBField("K_ANAK2", 'C', 100, 0),
-                new OverJDBField("K_ANAK3", 'C', 100, 0), new OverJDBField("N_SUM", 'N', 17, 2, true),
+                new OverJDBField("K_ANAK3", 'C', 100, 0), new OverJDBField("K_ANAK4", 'C', 100, 0), //15
+
+                new OverJDBField("N_SUM", 'N', 17, 2, true),
                 new OverJDBField("K_MAT", 'C', 12, 0), new OverJDBField("N_MAT", 'N', 17, 3, true),
                 new OverJDBField("N_DSUM", 'N', 15, 2, true), new OverJDBField("KOD_ISP", 'C', 2, 0),
-                new OverJDBField("P_AVT", 'C', 3, 0), new OverJDBField("SER_P", 'C', 2, 0)
+                new OverJDBField("P_AVT", 'C', 3, 0), new OverJDBField("SER_P", 'C', 2, 0) //22
         };
 
         boolean useNotDenominatedSum = findProperty("useNotDenominatedSum[]").read(context) != null;
@@ -131,9 +134,11 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
         Map<DataObject, String> debit1Map = new HashMap<>(); //K_ANAD1
         Map<DataObject, String> debit2Map = new HashMap<>();  //K_ANAD2
         Map<DataObject, String> debit3Map = new HashMap<>();   //K_ANAD3
+        Map<DataObject, String> debit4Map = new HashMap<>();   //K_ANAD4
         Map<DataObject, String> credit1Map = new HashMap<>(); //K_ANAK1
         Map<DataObject, String> credit2Map = new HashMap<>();  //K_ANAK2
         Map<DataObject, String> credit3Map = new HashMap<>();  //K_ANAK3
+        Map<DataObject, String> credit4Map = new HashMap<>();  //K_ANAK4
 
         for (int i = 0, size = generalLedgerResult.size(); i < size; i++) {
 
@@ -167,6 +172,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                     debit2Map.put(generalLedgerObject, nameDebit);
                 else if (orderDebit == 3)
                     debit3Map.put(generalLedgerObject, nameDebit);
+                else if(orderDebit == 4)
+                    debit4Map.put(generalLedgerObject, nameDebit);
             }
             String nameCredit = (String) resultValues.get("idCreditGeneralLedgerDimensionType").getValue();
             Integer orderCredit = (Integer) resultValues.get("orderCreditGeneralLedgerDimensionType").getValue();
@@ -177,6 +184,8 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
                     credit2Map.put(generalLedgerObject, nameCredit);
                 else if (orderCredit == 3)
                     credit3Map.put(generalLedgerObject, nameCredit);
+                else if (orderCredit == 4)
+                    credit4Map.put(generalLedgerObject, nameCredit);
             }
 
             generalLedgerMap.put(generalLedgerObject, Arrays.asList((Object) dateGeneralLedger, numberGeneralLedger,
@@ -191,17 +200,19 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             DataObject key = entry.getKey();
             List<Object> values = entry.getValue();
             generalLedgerList.add(new GeneralLedger((Date) values.get(0), (String) values.get(1), (String) values.get(7), (String) values.get(2),
-                    (String) values.get(6), (String) values.get(3), (String) values.get(4), debit1Map.get(key),
-                    debit2Map.get(key), debit3Map.get(key), credit1Map.get(key), credit2Map.get(key),
-                    credit3Map.get(key), (BigDecimal) values.get(8), (BigDecimal) values.get(5)));
+                    (String) values.get(6), (String) values.get(3), (String) values.get(4),
+                    debit1Map.get(key), debit2Map.get(key), debit3Map.get(key), debit4Map.get(key),
+                    credit1Map.get(key), credit2Map.get(key), credit3Map.get(key), credit4Map.get(key),
+                    (BigDecimal) values.get(8), (BigDecimal) values.get(5)));
         }
         
         Collections.sort(generalLedgerList, COMPARATOR);
 
         for(GeneralLedger gl : generalLedgerList) {
         dbfwriter.addRecord(new Object[]{gl.dateGeneralLedger, gl.numberGeneralLedger, null, gl.descriptionGeneralLedger, //4
-                gl.idOperationGeneralLedger, gl.idDebitGeneralLedger, gl.idCreditGeneralLedger, gl.anad1, gl.anad2, //9 
-                gl.anad3, gl.anak1, gl.anak2, gl.anak3, gl.sumGeneralLedger, null, gl.quantityGeneralLedger, 0, "00", "TMC", gl.seriesGeneralLedger}); //20
+                gl.idOperationGeneralLedger, gl.idDebitGeneralLedger, gl.idCreditGeneralLedger, //7
+                gl.anad1, gl.anad2, gl.anad3, gl.anad4, gl.anak1, gl.anak2, gl.anak3, gl.anak4, //15,
+                gl.sumGeneralLedger, null, gl.quantityGeneralLedger, 0, "00", "TMC", gl.seriesGeneralLedger}); //22
         }
         dbfwriter.close();
 
