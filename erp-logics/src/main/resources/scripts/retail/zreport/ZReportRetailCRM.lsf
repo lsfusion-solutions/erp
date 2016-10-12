@@ -15,10 +15,10 @@ idPromotionConditions 'Коды акций' (d) = GROUP CONCAT id(PromotionCondi
                                                       BY d
                                                       ORDER p;
                                                       
-namePromotionConditions 'Названия акций' (d) = GROUP CONCAT name(PromotionCondition p) IF quantity(ReceiptSaleDetail d, p),
+namePromotionConditions 'Названия акций' (d) = OVERRIDE 'Не определено', [=GROUP CONCAT name(PromotionCondition p) IF quantity(ReceiptSaleDetail d, p),
                                                       ','
                                                       BY d
-                                                      ORDER p MINCHARWIDTH 20 PREFCHARWIDTH 20;
+                                                      ORDER p](d) MINCHARWIDTH 20 PREFCHARWIDTH 20;
                                                       
 prevTotalSum 'Накопленная сумма' (Receipt receipt) = OVERRIDE 0.00 IF receipt IS Receipt, [= PREV(totalSum(DiscountCard discountCard))](discountCard(receipt));
 totalSum (Receipt receipt, Promotion promotion) = IF useCurrentReceipt(promotion) THEN totalSum(discountCard(receipt))
