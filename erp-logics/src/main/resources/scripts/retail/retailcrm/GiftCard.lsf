@@ -37,6 +37,9 @@ seriesNumber 'Серия/Номер' = ABSTRACT VARSTRING[30] (GiftCardLedger);
 sum 'Сумма' = ABSTRACT NUMERIC[18,4] (GiftCardLedger);
 description 'Описание' = ABSTRACT VARSTRING[15] (GiftCardLedger);
 
+edit 'Редактировать' = ACTION ABSTRACT LIST (GiftCardLedger) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+show 'Просмотреть' = ACTION ABSTRACT LIST (GiftCardLedger) TOOLBAR;
+
 //продажа подарочных сертификатов
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, GiftCardLedger;
 TABLE receiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail);
@@ -89,7 +92,14 @@ description(ReceiptGiftCardSaleDetail detail) += 'Продажа' IF detail IS R
 edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
     FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKEDMODAL;
 }
-edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);
+ZReport.edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);
+
+show(ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
+    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKEDMODAL READONLY;
+}
+
+edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);  
+show(ReceiptGiftCardSaleDetail d) += ACTION show(d);  
 
 //генерация подарочных сертификатов
 FORM generationGiftCards 'Генерация подарочных сертификатов'
@@ -176,6 +186,8 @@ FORM giftCards 'Подарочные сертификаты'
 
     OBJECTS l = GiftCardLedger
     PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description
+    PROPERTIES (l) show //edit                    
+                    
     ORDER BY dateTime(l)
     FILTERS giftCard(l) == g
 ;
@@ -201,6 +213,21 @@ dateTime(PaymentGiftCard payment) += dateTime(receipt(payment)) IF payment IS Pa
 seriesNumber(PaymentGiftCard payment) += seriesNumber(giftCard(payment));
 sum(PaymentGiftCard payment) += sum[Payment](payment) IF payment IS PaymentGiftCard;
 description(PaymentGiftCard payment) += 'Погашение' IF payment IS PaymentGiftCard;
+
+edit(PaymentGiftCard d) = ACTION NEWSESSION {
+    IF d IS PaymentGiftCard THEN {
+        FORM zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKEDMODAL;
+    }
+    
+}
+GiftCard.edit[GiftCardLedger](PaymentGiftCard d) += ACTION GiftCard.edit[PaymentGiftCard](d);  
+
+show(PaymentGiftCard d) = ACTION NEWSESSION {
+    IF d IS PaymentGiftCard THEN {
+        FORM zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKEDMODAL READONLY;
+    }
+}
+show(PaymentGiftCard d) += ACTION show(d);  
 
 sumGiftCard 'Сумма подарочных сертификатов в чеке' (receipt) =
     GROUP SUM sum[Payment](PaymentGiftCard payment) IF payment IS PaymentGiftCard
