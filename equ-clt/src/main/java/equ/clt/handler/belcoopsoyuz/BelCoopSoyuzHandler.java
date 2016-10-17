@@ -771,6 +771,7 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
             Integer port = (Integer) properties.get(3);
             String remoteFile = (String) properties.get(4);
             FTPClient ftpClient = new FTPClient();
+            ftpClient.setConnectTimeout(60000); //1 minute = 60 sec
             try {
 
                 ftpClient.connect(server, port);
