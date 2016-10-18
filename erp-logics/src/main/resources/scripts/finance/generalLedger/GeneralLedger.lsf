@@ -25,7 +25,7 @@ edit 'Редактировать регистр' = ACTION ABSTRACT LIST (GLDocum
 onlineGeneralLedger 'Создавать проводки онлайн' = DATA BOOLEAN () IN generalLedger COMPLEX;
 reportinGeneralLedger 'Запретить редактировать проводки после отчетного периода' = DATA BOOLEAN () IN generalLedger;
 dateReportingGeneralLedger 'Дата отчетного периода' = DATA DATE () IN generalLedger;
-dataMaxDateGeneralLedger 'Максимальная дата формирование проводок' = DATA DATE ();
+dataMaxDateGeneralLedger 'Конец отчетного периода' = DATA DATE ();
 maxDateGeneralLedger 'Максимальная дата формирование проводок' = OVERRIDE 2040_12_31, dataMaxDateGeneralLedger();
 
 EXTEND FORM options
@@ -36,10 +36,13 @@ DESIGN options {
         NEW generalLedger  {
             type = CONTAINERV;
             caption = 'Проводки';
-            MOVE PROPERTY (maxDateGeneralLedger());            
             MOVE PROPERTY (onlineGeneralLedger());
             MOVE PROPERTY (reportinGeneralLedger());
-            MOVE PROPERTY (dateReportingGeneralLedger());
+            NEW period {
+                type = CONTAINERH;
+                MOVE PROPERTY (dateReportingGeneralLedger());
+                MOVE PROPERTY (maxDateGeneralLedger());            
+            }
         }
     }
 }
@@ -441,12 +444,11 @@ END
 
 // ----------------------------------------------- Метакод по созданию проводок через ACTION -------------------------------------------- //
 
-createGeneralLedger  = ACTION ABSTRACT LIST (DATE);
 createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (DATE,DATE); 
 
-createGeneralLedger 'Создать проводки c даты отчетного периода'() = ACTION {
-    DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dateReportingGeneralLedger();
-    EXEC createGeneralLedger(dateReportingGeneralLedger());
+createGeneralLedger 'Создать проводки за отчетный период'() = ACTION {
+    DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dateReportingGeneralLedger() AND date(ud) <= dataMaxDateGeneralLedger();
+    createGeneralLedgerFromTo(dateReportingGeneralLedger(), dataMaxDateGeneralLedger());
     apply();
 } IN generalLedger;
 
@@ -465,22 +467,6 @@ DESIGN options {
 META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
     overCreate###idGL###object = ACTION ABSTRACT LIST (UserGeneralLedger);  
 
-    createUserGeneralLedgerALL###idGL###object 'Создать проводки'(DATE dateProp) = ACTION {     
-        FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= maxDateGeneralLedger() ADDOBJ u = UserGeneralLedger DO  {
-            GLDocument(u) <- object;
-            legalEntity(u) <- companyProp(object);
-            isPosted(u) <- isPosted(object);
-            description(u) <- descriptionProp(object);
-            dateProp(u) <- dateProp(object);
-            timeProp(u) <- timeProp(object);
-            debit(u) <- GLAccountIdTypeIdGLAccount(accountType, debitV);
-            credit(u) <- GLAccountIdTypeIdGLAccount(accountType, creditV);
-            sum(u) <- NUMERIC[18,4](property(object));   
-            
-            EXEC overCreate###idGL###object(u); 
-        }    
-    }
-    createGeneralLedger(DATE date) += ACTION createUserGeneralLedgerALL###idGL###object(date);
     createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(DATE dateProp, DATE dateProp##To) = ACTION {     
         FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object;
@@ -521,23 +507,6 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
 
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
-    createUserGeneralLedgerALL##idGL###object1###object2 'Создать проводки'(DATE dateProp) = ACTION {     
-        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= maxDateGeneralLedger() ADDOBJ u = UserGeneralLedger DO  {
-            GLDocument(u) <- object1;
-            legalEntity(u) <- companyProp(object1);
-            isPosted(u) <- isPosted(object1);
-            descriptionProp(u) <- descriptionProp(object1, object2);
-            dateProp(u) <- dateProp(object1);
-            timeProp(u) <- timeProp(object1);
-            debit(u) <- GLAccountIdTypeIdGLAccount(accountType, debitV);
-            credit(u) <- GLAccountIdTypeIdGLAccount(accountType, creditV);
-            sum(u) <- NUMERIC[18,4](property(object1, object2));   
-            
-            EXEC overCreate##idGL###object1###object2(u,object2);
-            EXEC overCreate##idGL###object1###object2(u); 
-        }    
-    }
-    createGeneralLedger(DATE date) += ACTION createUserGeneralLedgerALL##idGL###object1###object2(date);
     
     createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(DATE dateProp,DATE dateProp##To) = ACTION {     
         FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
