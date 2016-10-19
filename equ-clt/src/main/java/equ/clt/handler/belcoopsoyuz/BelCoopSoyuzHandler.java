@@ -979,8 +979,12 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
         long timeFieldMillis = buf.getInt();
         long dateFieldDays = buf.getInt();
 
-        // Convert to Java date by converting days to milliseconds and adjusting to Java epoch.
-        return new Date(dateFieldDays * DAY_TO_MILLIS_FACTOR - BASE_FOXPRO_MILLIS + timeFieldMillis);
+        //Дата-время хранятся в FoxPro как 2 Integer. Время хранится как число миллисекунд. К примеру, 9 часов по Минску
+        //хранятся как 9 часов по UTC (12 по Минску), поэтому при чтении мы отнимаем смещение +3 и получаем в итоге
+        //правильные 6 часов по UTC (9 часов по Минску)
+        Calendar calendar = Calendar.getInstance();
+        calendar.setTime(new Date(dateFieldDays * DAY_TO_MILLIS_FACTOR - BASE_FOXPRO_MILLIS + timeFieldMillis - calendar.get(Calendar.ZONE_OFFSET)));
+        return new Date(calendar.getTime().getTime());
     }
 
 
