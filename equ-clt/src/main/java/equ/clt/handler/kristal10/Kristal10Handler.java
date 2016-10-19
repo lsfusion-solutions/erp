@@ -118,7 +118,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             if(item.expiryDate != null) {
                                 Element expiryDateProperty = new Element("plugin-property");
                                 setAttribute(expiryDateProperty, "key", "composition");
-                                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate));
+                                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy"));
                                 good.addContent(expiryDateProperty);
                             }
 
@@ -599,7 +599,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                     Element priceEntry = new Element("price-entry");
                     setAttribute(priceEntry, "price", 1);
                     setAttribute(priceEntry, "deleted", "true");
-                    addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom));
+                    addStringElement(priceEntry, "begin-date", formatDate(stopListInfo.dateFrom, "yyyy-MM-dd"));
                     addStringElement(priceEntry, "number", "1");
                     good.addContent(priceEntry);
 
@@ -722,8 +722,8 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
         return null;
     }
 
-    private String formatDate(Date date) {
-        return new SimpleDateFormat("yyyy-MM-dd").format(date);
+    private String formatDate(Date date, String format) {
+        return new SimpleDateFormat(format).format(date);
     }
 
 //    private String formatTime(Time time) {
