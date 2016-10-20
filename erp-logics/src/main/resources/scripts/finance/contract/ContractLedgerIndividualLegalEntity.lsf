@@ -118,7 +118,7 @@ addPayment 'Погасить задолженность'(InContractLedger ledger
             type(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;            
             
             IF NOT sum(p) > maxSumPaymentReceipt() THEN { 
-                IF fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister())) THEN {          
+                IF (fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister()))) AND currentCashRegister() THEN {          
                     apply();            
                 }
                 ELSE {
@@ -132,6 +132,9 @@ addPayment 'Погасить задолженность'(InContractLedger ledger
                             }    
                         }              
                     } 
+                    ELSE {
+                        cancel();
+                    }
                 }  
             }   ELSE {
                 MESSAGE 'Нельзя вводить сумму платежа по чеку больше разрешенной';
@@ -158,7 +161,7 @@ addReturnPayment 'Вернуть предоплату'(InContractLedger ledger) 
             type(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;
             
             IF NOT sum(p) > maxSumPaymentReceipt() THEN {
-                IF fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister())) THEN {
+                IF (fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister()))) AND currentCashRegister() THEN {
                     apply();            
                 }
                 ELSE {
@@ -172,6 +175,9 @@ addReturnPayment 'Вернуть предоплату'(InContractLedger ledger) 
                             }    
                         }              
                     } 
+                    ELSE {
+                        cancel();
+                    }
                 }  
             }   ELSE {
                 MESSAGE 'Нельзя вводить сумму платежа по чеку больше разрешенной';
