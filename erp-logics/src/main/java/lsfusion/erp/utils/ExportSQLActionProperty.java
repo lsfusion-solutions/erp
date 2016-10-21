@@ -57,7 +57,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
 
                 FormEntity formEntity = findForm(idForm);
                 FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
-                        context.getSession(), true, false, false, false, false, null);
+                        context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
                 FormData formData = formInstance.getFormData(0);
 
                 List<List<Object>> rows = new ArrayList<>();
