@@ -471,7 +471,7 @@ deleteSelect 'Очистить все' () = ACTION {
 countSelectedLabelTransactions (t)  =   GROUP SUM 1 IF select(LabelTransactionDetail d) BY labelTransaction(d);
 
 printLabelTransactionDetails 'Печать ценников'()  = ACTION {
-    IF countSelectLabelTransactionDetails() THEN NEWSESSION NESTED select[LabelTransactionDetail] {
+    IF countSelectLabelTransactionDetails() THEN NEWSESSION NESTED (select[LabelTransactionDetail]) {
         FOR countSelectedLabelTransactions(t)  DO {
             skipPrint(LabelTransactionDetail d) <- TRUE WHERE labelTransaction(d) ==t AND NOT select(d);
             print(t);
@@ -1036,7 +1036,7 @@ DESIGN options {
 }
 createSelectedSkuStockLabelTransaction 'Распечатать ценники'() = ACTION {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
-        NEWSESSION NESTED select[Sku,Stock] {
+        NEWSESSION NESTED (select[Sku,Stock]) {
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock] (DepartmentStore stock) AND stock IS DepartmentStore DO {        
                 select(Sku sku, LabelType labelType, stock) <- select(sku, stock) AND in(labelType, sku, stock);   
                 createLabelTransaction(stock);
@@ -1065,7 +1065,7 @@ DESIGN selectLabelTypes { main{ preferredSize = (600, 400); } }
 
 createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники'() = ACTION {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {            
-        NEWSESSION NESTED select[Sku,Stock] {
+        NEWSESSION NESTED (select[Sku,Stock]) {
 
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
                 FORM selectLabelTypes OBJECTS ds =  stock MODAL;
@@ -1095,7 +1095,7 @@ EXTEND  FORM currentBalanceSkuStock
 
 printSelectedSkuLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = ACTION {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
-        NEWSESSION NESTED select[Sku] {
+        NEWSESSION NESTED (select[Sku]) {
             select(Sku sku, LabelType labelType, departmentStore) <- select(sku) AND in(labelType, sku, departmentStore);   
             createLabelTransaction(departmentStore);
             apply();
@@ -1109,7 +1109,7 @@ printSelectedSkuLabelTransaction 'Распечатать ценники'(Departm
 } TOOLBAR;
 printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore) = ACTION {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN  { 
-        NEWSESSION NESTED select[Sku] {
+        NEWSESSION NESTED (select[Sku]) {
             FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;  
             IF formResult() == FormResult.ok THEN {       
                 IF NOT countSelectType() THEN {

@@ -972,7 +972,7 @@ DESIGN options {
     }
 }
 
-createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = ACTION NEWSESSION NESTED select[Sku] {
+createSelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = ACTION NEWSESSION NESTED (select[Sku]) {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN {
         createMachineryPriceTransactionSnapshot() <- TRUE;
         createMachineryPriceTransaction(Sku sku) <- TRUE IF select(sku);
@@ -991,13 +991,13 @@ createSelectedSkuPriceTransactionDocument 'Загрузить в оборудо�
 } TOOLBAR ;
 
 createApplySelectedSkuPriceTransactionDocument 'Загрузить в оборудование'(Stock stock) = ACTION {
-    APPLY NESTED select[Sku] {};
+    APPLY NESTED (select[Sku]) {};
     IF NOT canceled() THEN {
         createSelectedSkuPriceTransactionDocument(stock);
     }
 }
 
-createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'() = ACTION NEWSESSION NESTED select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku] {
+createSelectedSkuStockPriceTransactionDocument 'Загрузить в оборудование'() = ACTION NEWSESSION NESTED (select[Sku,Stock], createMachineryPriceTransactionSnapshot[], createMachineryPriceTransaction[Sku]) {
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](Stock stock) DO {
             createMachineryPriceTransactionSnapshot() <- TRUE;
