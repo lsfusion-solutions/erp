@@ -35,7 +35,7 @@ public class FiscalVMK {
     
     public interface vmkDLL extends Library {
 
-        vmkDLL vmk = (vmkDLL) Native.loadLibrary("vmk", vmkDLL.class);
+        vmkDLL vmk = (vmkDLL) Native.loadLibrary("vmkd", vmkDLL.class);
 
         Integer vmk_lasterror();
 
