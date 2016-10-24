@@ -96,7 +96,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                     df.setGroupingUsed(false);
                     priceValue = df.format(price).replace(",", ".");
                 }
-                return Arrays.asList(barcode, nameSkuBarcode, priceValue,
+                return Arrays.asList(barcode, nameSkuBarcode, priceValue == null ? "0" : priceValue,
                         quantity == null ? "0" : String.valueOf(quantity.longValue()), "", "", "", "", "", isWeight);
             } else return null;
 
