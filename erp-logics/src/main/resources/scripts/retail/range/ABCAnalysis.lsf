@@ -1,0 +1,353 @@
+MODULE ABCAnalysis;
+
+REQUIRE Store,SaleLedger, Retail;
+
+CLASS ABCType 'Тип отчета' {
+    sum 'По выручке',
+    markup 'По доходу',
+    quantity 'По количеству'
+};
+
+TABLE ABCType (ABCType);
+
+isSum (ABCType type) = type == ABCType.sum;
+isMarkupSum (ABCType type) = type == ABCType.markup;
+isQuantity (ABCType type) = type == ABCType.quantity;
+
+FORM ABCType 'Тип отчета'
+    OBJECTS ct = ABCType FIXED PANEL
+    PROPERTIES(ct) staticCaption
+    EDIT ABCType OBJECT ct
+;
+
+FORM ABCTypes 'Тип отчета'
+    OBJECTS ct = ABCType
+    PROPERTIES(ct) READONLY staticCaption
+//    PROPERTIES(ct) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    ORDER BY staticCaption(ct)
+    DIALOG ABCType OBJECT ct
+;
+
+dataInSession 'Отм.' = DATA LOCAL BOOLEAN (Group);
+
+levelParent (group) = GROUP MIN level(Group group, Group parent) IF dataInSession(parent)
+    BY group;
+nearestParentGroupInSession (Group g) =  group(g, levelParent(g));
+nearestInSession (Group g) =
+    dataInSession(nearestParentGroupInSession(g)) PERSISTENT;
+
+inParent (Group group) = TRUE IF levelParent(group);
+
+inSession 'Отм.' (Group group) = OVERRIDE
+    inParent(group),
+    dataInSession(group);
+
+sessionConcatGroups 'Группы' (groupType) =
+    GROUP CONCAT name(Group group) IF inSession(group) AND NOT inSession(parent(group)),'; '
+    BY groupType(group);
+    
+
+quantityChildWithSession (g) = GROUP SUM 1 IF dataInSession(Group child) AND isParent(child, Group parent) BY parent PERSISTENT;
+quantityParentWithSession (g) = GROUP SUM 1 IF dataInSession(Group parent) AND isParent(Group child, parent) BY child PERSISTENT;                                                                        
+                                                                           
+backgroundInSession 'Цвет' (Group g) = CASE 
+    WHEN dataInSession(g) THEN RGB(0,0,0)
+    WHEN nearestInSession(g) THEN RGB(230,248,250) 
+    WHEN quantityChildWithSession (g) != descendantNumber(g) AND NOT quantityParentWithSession (g) THEN RGB(203,203,203);
+  
+  
+  
+countInSessionSkuGroups  = GROUP SUM 1 IF dataInSession(Group g) BY groupType(g);
+
+resetSelectedGroups  'Сбросить отмеченные'() = ACTION {
+    dataInSession(Group g) <- NULL WHERE g IS Group ;    
+}  
+selectLeaf  'Отметить листья'(GroupType t) = ACTION {
+    dataInSession(Group g)<- TRUE WHERE groupType(g) == t AND isLeaf(g); 
+} 
+select 'Отм.' = DATA LOCAL BOOLEAN (Stock);
+countSelectStocks = GROUP SUM 1 IF select(Stock l);
+nameSelectStocks 'Склады' = GROUP CONCAT name(Stock st) IF select(st),', ' MINCHARWIDTH 30 PREFCHARWIDTH 50;
+idSelectStocks 'Склады' = GROUP CONCAT id(Stock st) IF select(st),', ' MINCHARWIDTH 30 PREFCHARWIDTH 50;
+            
+//--
+
+markupSumSold 'Доход'(groupType, group, dateFrom, dateTo) =
+    GROUP SUM markupSumSold(Sku sk, Stock st, DATE df, DATE dt) IF  isParent(Group g, sk) AND inSession(group(GroupType groupType, sk)) AND select(st)
+    BY groupType, g, df, dt;
+                                                   
+quantitySold 'Кол-во'(groupType, group, dateFrom, dateTo) =
+    GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF  isParent(Group g, sk) AND inSession(group(GroupType groupType, sk)) AND select(st)
+    BY groupType, g, df, dt;
+                                                       
+sumSold 'Выручка'(groupType, group, dateFrom, dateTo) =
+    GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF  isParent(Group g, sk) AND inSession(group(GroupType groupType, sk)) AND select(st)
+    BY groupType, g, df, dt; 
+                                               
+//--
+                                               
+markupSumSold 'Доход'(groupType, dateFrom, dateTo) =
+    GROUP SUM markupSumSold(Sku sk, Stock st, DATE df, DATE dt) IF inSession(group(GroupType groupType, sk))  AND select(st)
+    BY groupType, df, dt;
+                                                   
+quantitySold 'Кол-во'(groupType, dateFrom, dateTo) =
+    GROUP SUM quantitySold(Sku sk, Stock st, DATE df, DATE dt) IF inSession(group(GroupType groupType, sk))  AND select(st)
+    BY groupType, df, dt;
+                                                       
+sumSold 'Выручка'(groupType, dateFrom, dateTo) =
+    GROUP SUM sumSold(Sku sk, Stock st, DATE df, DATE dt) IF inSession(group(GroupType groupType, sk))  AND select(st)
+    BY groupType, df, dt;                                                 
+                                               
+                                               
+
+ab 'AB, %' = DATA NUMERIC[8,3]();
+bc 'BC, %' = DATA NUMERIC[8,3]();
+
+EXTEND FORM options
+    PROPERTIES () ab, bc
+;
+DESIGN options {
+    pane{
+        NEW abc{
+            caption = 'ABC-анализ';
+            fill = 1;
+            type = CONTAINERH;
+            MOVE PROPERTY (ab());
+            MOVE PROPERTY (bc());        
+        }
+
+    }
+}
+
+
+markupSumSold 'Доход' = DATA LOCAL NUMERIC[18,4] (GroupType) MINCHARWIDTH 15;
+quantitySold 'Кол-во' = DATA LOCAL NUMERIC[18,4] (GroupType) MINCHARWIDTH 15;
+sumSold 'Выручка' = DATA LOCAL NUMERIC[18,4] (GroupType) MINCHARWIDTH 15;
+
+percOrder 'Процент накопленный' = DATA LOCAL NUMERIC[18,4] (Group);
+markupSumSold 'Доход' = DATA LOCAL NUMERIC[18,4] (Group);
+quantitySold 'Кол-во' = DATA LOCAL NUMERIC[18,4] (Group);
+sumSold 'Выручка' = DATA LOCAL NUMERIC[18,4] (Group);
+
+percMarkupSold 'ВД, %' (Group g) = round2(markupSumSold(g)*100.00 / sumSold(g)); 
+percMarkupSold 'ВД, %' (GroupType t) = round2(markupSumSold(t)*100.00 / sumSold(t)); 
+   
+percInSumSold 'Удельный вес выручка, %'  (GroupType t,Group g) = round2(sumSold(g)*100.00 / sumSold(t));                                         
+percInMarkupSumSold 'Удельный вес доход, %'  (GroupType t,Group g) = round2(markupSumSold(g)*100.00 / markupSumSold(t));  
+percInQuantitySold 'Удельный вес кол-во, %'  (GroupType t,Group g) = round2(quantitySold(g)*100.00 / quantitySold(t));
+ 
+averagePrice 'Средняя розничная цена' (Group g) = round2(sumSold(g) / quantitySold(g)); 
+averageMarkup 'Средняя надбавка' (Group g) = round2(markupSumSold(g) / quantitySold(g)); 
+averageDaysSum 'Средняя дневная выручка' (Group g, DATE df, DATE dt) = round2(sumSold(g) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
+averageDaysMarkupSum 'Средний дневной доход' (Group g, DATE df, DATE dt) = round2(markupSumSold(g) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
+averageDaysQuantity 'Среднее дневное кол-во продаж' (Group g, DATE df, DATE dt) = round2(quantitySold(g) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
+ 
+averagePrice 'Средняя розничная цена' (GroupType t) = round2(sumSold(t) / quantitySold(t));  
+averageMarkup 'Средняя надбавка' (GroupType t) = round2(markupSumSold(t) / quantitySold(t)); 
+averageDaysSum 'Средняя дневная выручка' (GroupType t, DATE df, DATE dt) = round2(sumSold(t) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
+averageDaysMarkupSum 'Средний дневной доход' (GroupType t, DATE df, DATE dt) = round2(markupSumSold(t) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
+averageDaysQuantity 'Среднее дневное кол-во продаж' (GroupType t, DATE df, DATE dt) = round2(quantitySold(t) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
+
+status 'Рейтинг' (Group g) = CASE 
+    WHEN  percOrder(g) <= ab() THEN 'A'
+    WHEN  percOrder(g) <= bc() AND percOrder(g) > ab() THEN 'B'
+    WHEN  percOrder(g) THEN 'C'
+;
+backgroundStatus(Group g) = CASE 
+    WHEN  percOrder(g) <= ab() THEN RGB(204,255,204)
+    WHEN  percOrder(g) <= bc() AND percOrder(g) > ab() THEN RGB(255, 250, 205)
+    WHEN  percOrder(g) THEN  RGB(255,238,238)
+;
+fillProperty 'Заполнить' (GroupType t, ABCType type, DATE df, DATE dt) = ACTION {
+    IF countSelectStocks() AND countInSessionSkuGroups(t) THEN {
+        percOrder(Group g) <- NULL;
+        markupSumSold(Group g) <- NULL;
+        quantitySold(Group g) <- NULL;
+        sumSold(Group g) <- NULL;
+        
+        markupSumSold(t) <- NULL;
+        quantitySold(t) <- NULL;
+        sumSold(t) <- NULL;               
+    
+        markupSumSold(Group g) <- NUMERIC[18,4](markupSumSold(t,g,df,dt)) WHERE inSession(g) AND groupType(g) == t;
+        quantitySold(Group g) <- NUMERIC[18,4](quantitySold(t,g,df,dt)) WHERE inSession(g) AND groupType(g) == t;
+        sumSold(Group g) <- NUMERIC[18,4](sumSold(t,g,df,dt)) WHERE inSession(g) AND groupType(g) == t;
+        
+        markupSumSold(t) <- NUMERIC[18,4](markupSumSold(t,df,dt));
+        quantitySold(t) <- NUMERIC[18,4](quantitySold(t,df,dt));
+        sumSold(t) <- NUMERIC[18,4](sumSold(t,df,dt));    
+        
+        
+                    
+        LOCAL sum = NUMERIC[18,4] ();
+        sum() <- 0.0; 
+        IF type == ABCType.sum THEN {
+            FOR inSession(Group g) AND groupType(g) == t ORDER DESC sumSold(g), name(g) DO {
+                sum() <- sum() (+) sumSold(g);
+                percOrder(g) <- NUMERIC[18,4](sum()*100.00 / sumSold(t));
+            }    
+        }
+        IF type == ABCType.markup THEN {
+            FOR inSession(Group g) AND groupType(g) == t ORDER DESC markupSumSold(g), name(g) DO {
+                sum() <- sum() (+) markupSumSold(g);
+                percOrder(g) <- NUMERIC[18,4](sum()*100.00 / markupSumSold(t));
+            }    
+        }
+        IF type == ABCType.quantity THEN {
+            FOR inSession(Group g) AND groupType(g) == t ORDER DESC quantitySold(g), name(g) DO {
+                sum() <- sum() (+) quantitySold(g);
+                percOrder(g) <- NUMERIC[18,4](sum()*100.00 / quantitySold(t));
+            }    
+        }     
+    } ELSE {
+        MESSAGE 'Не выбраны группы или склады';
+    }
+   
+}
+
+deleteProperty 'Сбросить' () = ACTION {
+    percOrder(Group g) <- NULL;
+    markupSumSold(Group g) <- NULL;
+    quantitySold(Group g) <- NULL;
+    sumSold(Group g) <- NULL;
+    
+    markupSumSold(GroupType t) <- NULL;
+    quantitySold(GroupType t) <- NULL;
+    sumSold(GroupType t) <- NULL; 
+       
+    formRefresh();   
+}
+
+FORM abcAnalysisPrint 'ABC-анализ'
+
+    OBJECTS dates = (df = DATE, dt = DATE, t = GroupType, type= ABCType) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(df), valTo = OBJVALUE(dt)   
+        
+    PROPERTIES(t) SELECTOR name
+    PROPERTIES (t) quantitySold, sumSold, markupSumSold, averagePrice, averageMarkup, percMarkupSold
+    PROPERTIES (t,df,dt) averageDaysSum, averageDaysMarkupSum, averageDaysQuantity        
+
+    PROPERTIES (type) READONLY staticCaption, isSum, isQuantity, isMarkupSum
+     
+    PROPERTIES nameSelectStocks(), ab(), bc()    
+    
+    OBJECTS gg=Group 
+    PROPERTIES READONLY  order(gg), id(gg), name(gg)
+    FILTERS groupType(gg) == t,
+            inSession(gg),
+            percOrder(gg), 
+            sumSold(gg)  OR quantitySold(gg) OR markupSumSold(gg)
+
+    PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold, averagePrice, averageMarkup
+    PROPERTIES (gg) READONLY percOrder, status
+    PROPERTIES (t,gg) READONLY percInSumSold, percInMarkupSumSold, percInQuantitySold
+    PROPERTIES (gg,df,dt) averageDaysSum, averageDaysMarkupSum, averageDaysQuantity
+        
+    ORDER BY percOrder(gg) 
+
+;
+abcAnalysisPrint 'Печать' (GroupType t, ABCType type, DATE dateFrom, DATE dateTo) =
+    ACTION FORM abcAnalysisPrint OBJECTS df = dateFrom, dt = dateTo, t = t, type = type PRINT  IMAGE 'print.png' IN print;
+
+FORM abcAnalysis 'ABC-анализ'
+
+    OBJECTS dates = (df = DATE, dt = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(df), valTo = OBJVALUE(dt)   
+    
+    TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
+    PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
+    ORDER BY sgTreeName
+    FILTERS stringEqualsAll(a), countCompanyStock(sg)
+    
+    OBJECTS st = Stock 
+    PROPERTIES (st) READONLY name
+    PROPERTIES (st) select
+    FILTERS isCompany(st),
+            st IS DepartmentStore,
+            isParent(sg, st) OR (st IS Stock AND NOT sg)
+    FILTERGROUP select
+        FILTER 'Отмеченные' select(st) 
+            
+    OBJECTS t = GroupType FIXED PANEL 
+    PROPERTIES(t) SELECTOR name
+    PROPERTIES (t) quantitySold, sumSold, markupSumSold
+    
+    OBJECTS type= ABCType FIXED PANEL 
+    PROPERTIES (type) SELECTOR staticCaption
+    
+    TREE groupTree g=Group PARENT parent   
+    PROPERTIES READONLY  order(g), name(g)
+    PROPERTIES (g) inSession BACKGROUND backgroundInSession(g)
+    PROPERTIES  FORCE PANEL TOOLBAR TODRAW g resetSelectedGroups(), selectLeaf(t)
+    ORDER BY order(g), name(g)
+    FILTERS groupType(g) == t
+    
+    OBJECTS gg=Group 
+    PROPERTIES READONLY  order(gg), id(gg), name(gg)
+    FILTERS groupType(gg) == t,
+            inSession(gg),
+            percOrder(gg), 
+            sumSold(gg)  OR quantitySold(gg) OR markupSumSold(gg)
+
+    PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold, averagePrice, percOrder, status BACKGROUND backgroundStatus(gg)
+    PROPERTIES (t,gg) READONLY percInSumSold, percInMarkupSumSold, percInQuantitySold
+    
+    ORDER BY percOrder(gg) 
+    
+    PROPERTIES  FORCE PANEL TOOLBAR TODRAW gg fillProperty(t,type,df,dt), abcAnalysisPrint(t,type,df,dt)
+    
+    EVENTS ON CHANGE df deleteProperty() 
+    EVENTS ON CHANGE dt deleteProperty() 
+    EVENTS ON CHANGE t deleteProperty()  
+    EVENTS ON CHANGE type deleteProperty() 
+;
+DESIGN abcAnalysis {
+    main {
+        NEW header { 
+            caption = 'Шапка';
+            type = CONTAINERH;
+            MOVE dates.box;
+            MOVE st.box;
+            MOVE t.box;
+            MOVE type.box {
+                MOVE PROPERTY (staticCaption(type)){ caption = 'Наименование';}
+            }
+        }
+        NEW sum {
+            caption = 'Итоги';
+            type = CONTAINERH;
+            MOVE PROPERTY (quantitySold(t)) { minimumCharWidth = 15; preferredCharWidth = 17;}
+            MOVE PROPERTY (sumSold(t)) { minimumCharWidth = 15; preferredCharWidth = 17;}
+            MOVE PROPERTY (markupSumSold(t)) { minimumCharWidth = 15; preferredCharWidth = 17;}
+        }
+        NEW tab {
+            fill = 1;
+            type = TABBED;
+            NEW param {
+                caption = 'Параметры';
+                type = SPLITV ;   
+                NEW param1{
+                    fill = 1;
+                    type = SPLITH;
+                    caption = 'Склады';
+                    MOVE stockTree.tree.box;
+                    MOVE st.box;
+                }
+                MOVE groupTree.tree.box{caption = 'Группы';}
+            }
+            
+            MOVE gg.box{caption = 'Результат'; }
+        }
+         
+    }
+    MOVE functions.box;
+}
+
+
+NAVIGATOR {
+    retailNavigator {
+        NEW abcNavigator 'ABC-анализ' {
+            ADD abcAnalysis;
+        }
+    }
+}
