@@ -229,14 +229,14 @@ show(PaymentGiftCard d) = ACTION NEWSESSION {
 }
 show(PaymentGiftCard d) += ACTION show(d);  
 
+allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
+
 sumGiftCard 'Сумма подарочных сертификатов в чеке' (receipt) =
     GROUP SUM sum[Payment](PaymentGiftCard payment) IF payment IS PaymentGiftCard
     BY receipt(payment);
     
-CONSTRAINT sumGiftCard(Receipt receipt) > sumReceiptDetail(receipt) 
-    CHECKED BY sumGiftCard[Receipt] MESSAGE 'Сумма сертификатов не может превышать всего суммы чека';
-
-allowPartiallyPayGiftCard 'Разрешить гасить сертификат частично' = DATA BOOLEAN ();
+CONSTRAINT sumGiftCard(Receipt receipt) > sumReceiptDetail(receipt) AND NOT allowPartiallyPayGiftCard()
+    CHECKED BY sumGiftCard[Receipt] MESSAGE 'Сумма сертификатов не может превышать суммы всего чека';
 
 EXTEND FORM options
     PROPERTIES allowPartiallyPayGiftCard()
