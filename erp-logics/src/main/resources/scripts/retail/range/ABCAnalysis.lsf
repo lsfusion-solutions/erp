@@ -2,6 +2,8 @@ MODULE ABCAnalysis;
 
 REQUIRE Store,SaleLedger, Retail;
 
+round4 (number) = round(number, 4);
+
 CLASS ABCType 'Тип отчета' {
     sum 'По выручке',
     markup 'По доходу',
@@ -23,7 +25,6 @@ FORM ABCType 'Тип отчета'
 FORM ABCTypes 'Тип отчета'
     OBJECTS ct = ABCType
     PROPERTIES(ct) READONLY staticCaption
-//    PROPERTIES(ct) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     ORDER BY staticCaption(ct)
     DIALOG ABCType OBJECT ct
 ;
@@ -103,8 +104,11 @@ sumSold 'Выручка'(groupType, dateFrom, dateTo) =
 ab 'AB, %' = DATA NUMERIC[8,3]();
 bc 'BC, %' = DATA NUMERIC[8,3]();
 
+best 'Количество топ лучших' = DATA INTEGER ();
+worst 'Количество топ худших' = DATA INTEGER ();
+
 EXTEND FORM options
-    PROPERTIES () ab, bc
+    PROPERTIES () ab, bc, best, worst
 ;
 DESIGN options {
     pane{
@@ -113,7 +117,10 @@ DESIGN options {
             fill = 1;
             type = CONTAINERH;
             MOVE PROPERTY (ab());
-            MOVE PROPERTY (bc());        
+            MOVE PROPERTY (bc());
+            MOVE PROPERTY (best());
+            MOVE PROPERTY (worst());                    
+                    
         }
 
     }
@@ -124,7 +131,6 @@ markupSumSold 'Доход' = DATA LOCAL NUMERIC[18,4] (GroupType) MINCHARWIDTH 1
 quantitySold 'Кол-во' = DATA LOCAL NUMERIC[18,4] (GroupType) MINCHARWIDTH 15;
 sumSold 'Выручка' = DATA LOCAL NUMERIC[18,4] (GroupType) MINCHARWIDTH 15;
 
-percOrder 'Процент накопленный' = DATA LOCAL NUMERIC[18,4] (Group);
 markupSumSold 'Доход' = DATA LOCAL NUMERIC[18,4] (Group);
 quantitySold 'Кол-во' = DATA LOCAL NUMERIC[18,4] (Group);
 sumSold 'Выручка' = DATA LOCAL NUMERIC[18,4] (Group);
@@ -132,9 +138,9 @@ sumSold 'Выручка' = DATA LOCAL NUMERIC[18,4] (Group);
 percMarkupSold 'ВД, %' (Group g) = round2(markupSumSold(g)*100.00 / sumSold(g)); 
 percMarkupSold 'ВД, %' (GroupType t) = round2(markupSumSold(t)*100.00 / sumSold(t)); 
    
-percInSumSold 'Удельный вес выручка, %'  (GroupType t,Group g) = round2(sumSold(g)*100.00 / sumSold(t));                                         
-percInMarkupSumSold 'Удельный вес доход, %'  (GroupType t,Group g) = round2(markupSumSold(g)*100.00 / markupSumSold(t));  
-percInQuantitySold 'Удельный вес кол-во, %'  (GroupType t,Group g) = round2(quantitySold(g)*100.00 / quantitySold(t));
+percInSumSold 'Удельный вес выручка, %'  (GroupType t,Group g) = round4(sumSold(g)*100.00 / sumSold(t));                                         
+percInMarkupSumSold 'Удельный вес доход, %'  (GroupType t,Group g) = round4(markupSumSold(g)*100.00 / markupSumSold(t));  
+percInQuantitySold 'Удельный вес кол-во, %'  (GroupType t,Group g) = round4(quantitySold(g)*100.00 / quantitySold(t));
  
 averagePrice 'Средняя розничная цена' (Group g) = round2(sumSold(g) / quantitySold(g)); 
 averageMarkup 'Средняя надбавка' (Group g) = round2(markupSumSold(g) / quantitySold(g)); 
@@ -148,19 +154,76 @@ averageDaysSum 'Средняя дневная выручка' (GroupType t, DATE
 averageDaysMarkupSum 'Средний дневной доход' (GroupType t, DATE df, DATE dt) = round2(markupSumSold(t) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
 averageDaysQuantity 'Среднее дневное кол-во продаж' (GroupType t, DATE df, DATE dt) = round2(quantitySold(t) / NUMERIC[18,4](daysInclBetweenDates(df,dt))); 
 
-status 'Рейтинг' (Group g) = CASE 
-    WHEN  percOrder(g) <= ab() THEN 'A'
-    WHEN  percOrder(g) <= bc() AND percOrder(g) > ab() THEN 'B'
-    WHEN  percOrder(g) THEN 'C'
+//-- Лучшие
+indexSumBest 'Номер п/п' (Group g)= PARTITION SUM 1 IF sumSold(g) BY groupType(g) ORDER DESC sumSold(g), name(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+indexMarkupBest 'Номер п/п' (Group g)= PARTITION SUM 1 IF markupSumSold(g) BY groupType(g) ORDER DESC markupSumSold(g), name(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+indexQuantityBest 'Номер п/п' (Group g)= PARTITION SUM 1 IF quantitySold(g) BY groupType(g) ORDER DESC quantitySold(g), name(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+
+partitionSumBest  (Group g)= PARTITION SUM sumSold(g) BY groupType(g) ORDER indexSumBest(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+partitionMarkupBest  (Group g)= PARTITION SUM markupSumSold(g) BY groupType(g) ORDER indexMarkupBest(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+partitionQuantityBest (Group g)= PARTITION SUM quantitySold(g) BY groupType(g) ORDER indexQuantityBest(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+
+sumBest = GROUP SUM sumSold(Group g) IF indexSumBest(g) <= best() BY groupType(g); 
+markupBest = GROUP SUM markupSumSold(Group g) IF indexMarkupBest(g) <= best() BY groupType(g); 
+quantityBest = GROUP SUM sumSold(Group g) IF indexQuantityBest(g) <= best() BY groupType(g); 
+
+percInSumBest 'Уд. вес' (GroupType t, Group g) = round4(sumSold(g)*100.00 / sumBest(t)); 
+percInMarkupBest 'Уд. вес'(GroupType t, Group g) = round4(markupSumSold(g)*100.00 / markupBest(t)); 
+percInQuantityBest 'Уд. вес' (GroupType t, Group g) = round4(quantitySold(g)*100.00 / quantityBest(t)); 
+
+percOrderInSumBest 'Накопленный процент' (GroupType t, Group g) = round4(partitionSumBest(g)*100.00 / sumBest(t)); 
+percOrderInMarkupBest 'Накопленный процент'(GroupType t, Group g) = round4(partitionMarkupBest(g)*100.00 / markupBest(t)); 
+percOrderInQuantityBest 'Накопленный процент' (GroupType t, Group g) = round4(partitionQuantityBest(g)*100.00 / quantityBest(t)); 
+
+percOrderSum 'Накопленный процент' (GroupType t, Group g) = round4(partitionSumBest(g)*100.00 / sumSold(t)); 
+percOrderMarkup 'Накопленный процент'(GroupType t, Group g) = round4(partitionMarkupBest(g)*100.00 / markupSumSold(t)); 
+percOrderQuantity 'Накопленный процент' (GroupType t, Group g) = round4(partitionQuantityBest(g)*100.00 / quantitySold(t)); 
+
+index '№ п/п' (Group g, ABCType type) = CASE 
+    WHEN isSum(type) THEN indexSumBest(g)
+    WHEN isMarkupSum(type) THEN indexMarkupBest(g)    
+    WHEN isQuantity(type) THEN indexQuantityBest(g)
 ;
-backgroundStatus(Group g) = CASE 
-    WHEN  percOrder(g) <= ab() THEN RGB(204,255,204)
-    WHEN  percOrder(g) <= bc() AND percOrder(g) > ab() THEN RGB(255, 250, 205)
-    WHEN  percOrder(g) THEN  RGB(255,238,238)
+
+percOrder 'Накопленный процент' (GroupType t, Group g, ABCType type) = CASE 
+    WHEN isSum(type) THEN percOrderSum(t,g)
+    WHEN isMarkupSum(type) THEN percOrderMarkup(t,g)    
+    WHEN isQuantity(type) THEN percOrderQuantity(t,g)
 ;
+
+status 'Рейтинг' (GroupType t, Group g, ABCType type) = CASE 
+    WHEN  percOrder(t,g,type) <= ab() THEN 'A'
+    WHEN  percOrder(t,g,type) <= bc() AND percOrder(t,g,type) > ab() THEN 'B'
+    WHEN  percOrder(t,g,type) THEN 'C'
+;
+backgroundStatus(GroupType t, Group g, ABCType type) = CASE 
+    WHEN  percOrder(t,g,type) <= ab() THEN RGB(204,255,204)
+    WHEN  percOrder(t,g,type) <= bc() AND percOrder(t,g,type) > ab() THEN RGB(255, 250, 205)
+    WHEN  percOrder(t,g,type) THEN  RGB(255,238,238)
+;
+//-- Худшие
+indexSumWorst  (Group g)= PARTITION SUM 1 IF sumSold(g) BY groupType(g) ORDER sumSold(g), name(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+indexMarkupWorst  (Group g)= PARTITION SUM 1 IF markupSumSold(g) BY groupType(g) ORDER markupSumSold(g), name(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+indexQuantityWorst (Group g)= PARTITION SUM 1 IF quantitySold(g) BY groupType(g) ORDER quantitySold(g), name(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+
+partitionSumWorst  (Group g)= PARTITION SUM  sumSold(g) BY groupType(g) ORDER indexSumWorst(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+partitionMarkupWorst  (Group g)= PARTITION SUM markupSumSold(g) BY groupType(g) ORDER indexMarkupWorst(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+partitionQuantityWorst (Group g)= PARTITION SUM quantitySold(g) BY groupType(g) ORDER indexQuantityWorst(g)  MINCHARWIDTH 3 MINCHARWIDTH 6;
+
+sumWorst = GROUP SUM sumSold(Group g) IF indexSumWorst(g) <= worst() BY groupType(g); 
+markupWorst = GROUP SUM markupSumSold(Group g) IF indexMarkupWorst(g) <= worst() BY groupType(g); 
+quantityWorst = GROUP SUM quantitySold(Group g) IF indexQuantityWorst(g) <= worst() BY groupType(g); 
+
+percInSumWorst(GroupType t, Group g) = round4(sumSold(g)*100.00 / sumWorst(t)); 
+percInMarkupWorst(GroupType t, Group g) = round4(markupSumSold(g)*100.00 / markupWorst(t)); 
+percInQuantityWorst(GroupType t, Group g) = round4(quantitySold(g)*100.00 / quantityWorst(t)); 
+
+percOrderInSumWorst 'Накопленный процент' (GroupType t, Group g) = round4(partitionSumWorst(g)*100.00 / sumWorst(t)); 
+percOrderInMarkupWorst 'Накопленный процент'(GroupType t, Group g) = round4(partitionMarkupWorst(g)*100.00 / markupWorst(t)); 
+percOrderInQuantityWorst 'Накопленный процент' (GroupType t, Group g) = round4(partitionQuantityWorst(g)*100.00 / quantityWorst(t)); 
+
 fillProperty 'Заполнить' (GroupType t, ABCType type, DATE df, DATE dt) = ACTION {
     IF countSelectStocks() AND countInSessionSkuGroups(t) THEN {
-        percOrder(Group g) <- NULL;
         markupSumSold(Group g) <- NULL;
         quantitySold(Group g) <- NULL;
         sumSold(Group g) <- NULL;
@@ -175,30 +238,8 @@ fillProperty 'Заполнить' (GroupType t, ABCType type, DATE df, DATE dt) 
         
         markupSumSold(t) <- NUMERIC[18,4](markupSumSold(t,df,dt));
         quantitySold(t) <- NUMERIC[18,4](quantitySold(t,df,dt));
-        sumSold(t) <- NUMERIC[18,4](sumSold(t,df,dt));    
-        
-        
-                    
-        LOCAL sum = NUMERIC[18,4] ();
-        sum() <- 0.0; 
-        IF type == ABCType.sum THEN {
-            FOR inSession(Group g) AND groupType(g) == t ORDER DESC sumSold(g), name(g) DO {
-                sum() <- sum() (+) sumSold(g);
-                percOrder(g) <- NUMERIC[18,4](sum()*100.00 / sumSold(t));
-            }    
-        }
-        IF type == ABCType.markup THEN {
-            FOR inSession(Group g) AND groupType(g) == t ORDER DESC markupSumSold(g), name(g) DO {
-                sum() <- sum() (+) markupSumSold(g);
-                percOrder(g) <- NUMERIC[18,4](sum()*100.00 / markupSumSold(t));
-            }    
-        }
-        IF type == ABCType.quantity THEN {
-            FOR inSession(Group g) AND groupType(g) == t ORDER DESC quantitySold(g), name(g) DO {
-                sum() <- sum() (+) quantitySold(g);
-                percOrder(g) <- NUMERIC[18,4](sum()*100.00 / quantitySold(t));
-            }    
-        }     
+        sumSold(t) <- NUMERIC[18,4](sumSold(t,df,dt));                    
+                        
     } ELSE {
         MESSAGE 'Не выбраны группы или склады';
     }
@@ -206,7 +247,6 @@ fillProperty 'Заполнить' (GroupType t, ABCType type, DATE df, DATE dt) 
 }
 
 deleteProperty 'Сбросить' () = ACTION {
-    percOrder(Group g) <- NULL;
     markupSumSold(Group g) <- NULL;
     quantitySold(Group g) <- NULL;
     sumSold(Group g) <- NULL;
@@ -218,7 +258,7 @@ deleteProperty 'Сбросить' () = ACTION {
     formRefresh();   
 }
 
-FORM abcAnalysisPrint 'ABC-анализ'
+FORM abcAnalysisPrint 'ABC анализ'
 
     OBJECTS dates = (df = DATE, dt = DATE, t = GroupType, type= ABCType) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(df), valTo = OBJVALUE(dt)   
@@ -232,24 +272,25 @@ FORM abcAnalysisPrint 'ABC-анализ'
     PROPERTIES nameSelectStocks(), ab(), bc()    
     
     OBJECTS gg=Group 
-    PROPERTIES READONLY  order(gg), id(gg), name(gg)
+    PROPERTIES READONLY  id(gg), name(gg)
     FILTERS groupType(gg) == t,
             inSession(gg),
-            percOrder(gg), 
+            percOrder(t,gg,type), 
             sumSold(gg)  OR quantitySold(gg) OR markupSumSold(gg)
 
     PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold, averagePrice, averageMarkup
-    PROPERTIES (gg) READONLY percOrder, status
+    
     PROPERTIES (t,gg) READONLY percInSumSold, percInMarkupSumSold, percInQuantitySold
     PROPERTIES (gg,df,dt) averageDaysSum, averageDaysMarkupSum, averageDaysQuantity
-        
-    ORDER BY percOrder(gg) 
+    PROPERTIES index(gg,type)
+    ORDER BY index(gg,type) 
+    PROPERTIES (t,gg,type) percOrder, status   
 
 ;
-abcAnalysisPrint 'Печать' (GroupType t, ABCType type, DATE dateFrom, DATE dateTo) =
+abcAnalysisPrint 'ABC анализ' (GroupType t, ABCType type, DATE dateFrom, DATE dateTo) =
     ACTION FORM abcAnalysisPrint OBJECTS df = dateFrom, dt = dateTo, t = t, type = type PRINT  IMAGE 'print.png' IN print;
 
-FORM abcAnalysis 'ABC-анализ'
+FORM abcAnalysis 'ABC анализ'
 
     OBJECTS dates = (df = DATE, dt = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(df), valTo = OBJVALUE(dt)   
@@ -283,23 +324,30 @@ FORM abcAnalysis 'ABC-анализ'
     FILTERS groupType(g) == t
     
     OBJECTS gg=Group 
-    PROPERTIES READONLY  order(gg), id(gg), name(gg)
+    PROPERTIES READONLY  index(gg,type), id(gg), name(gg)
     FILTERS groupType(gg) == t,
             inSession(gg),
-            percOrder(gg), 
+            percOrder(t,gg,type), 
             sumSold(gg)  OR quantitySold(gg) OR markupSumSold(gg)
 
-    PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold, averagePrice, percOrder, status BACKGROUND backgroundStatus(gg)
-    PROPERTIES (t,gg) READONLY percInSumSold, percInMarkupSumSold, percInQuantitySold
-    
-    ORDER BY percOrder(gg) 
+    PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,gg) READONLY percInSumSold SHOWIF isSum(type), 
+                               percInMarkupSumSold SHOWIF isMarkupSum(type), 
+                               percInQuantitySold SHOWIF isQuantity(type)
+    PROPERTIES (t,gg,type) percOrder, status BACKGROUND backgroundStatus(t,gg,type)   
+    PROPERTIES (gg) READONLY   averagePrice 
+    PROPERTIES (gg,df,dt) READONLY averageDaysSum SHOWIF isSum(type),
+                                   averageDaysMarkupSum SHOWIF isMarkupSum(type), 
+                                   averageDaysQuantity SHOWIF isQuantity(type)                                                                                                               
+                            
+    ORDER BY index(gg,type) 
     
     PROPERTIES  FORCE PANEL TOOLBAR TODRAW gg fillProperty(t,type,df,dt), abcAnalysisPrint(t,type,df,dt)
     
     EVENTS ON CHANGE df deleteProperty() 
     EVENTS ON CHANGE dt deleteProperty() 
     EVENTS ON CHANGE t deleteProperty()  
-    EVENTS ON CHANGE type deleteProperty() 
 ;
 DESIGN abcAnalysis {
     main {
@@ -346,8 +394,169 @@ DESIGN abcAnalysis {
 
 NAVIGATOR {
     retailNavigator {
-        NEW abcNavigator 'ABC-анализ' {
+        NEW abcNavigator 'ABC анализ' {
             ADD abcAnalysis;
         }
     }
 }
+statusSumBest 'Рейтинг' (GroupType t, Group g) = CASE 
+    WHEN  percOrderInSumBest(t,g) <= ab() THEN 'A'
+    WHEN  percOrderInSumBest(t,g) <= bc() AND percOrderInSumBest(t,g) > ab() THEN 'B'
+    WHEN  percOrderInSumBest(t,g) THEN 'C'
+;
+statusMarkupBest 'Рейтинг' (GroupType t, Group g) = CASE
+    WHEN  percOrderInMarkupBest(t,g) <= ab() THEN 'A'
+    WHEN  percOrderInMarkupBest(t,g) <= bc() AND percOrderInMarkupBest(t,g) > ab() THEN 'B'
+    WHEN  percOrderInMarkupBest(t,g) THEN 'C'
+;
+statusQuantityBest 'Рейтинг' (GroupType t, Group g) = CASE
+    WHEN  percOrderInQuantityBest(t,g) <= ab() THEN 'A'
+    WHEN  percOrderInQuantityBest(t,g) <= bc() AND percOrderInQuantityBest(t,g) > ab() THEN 'B'
+    WHEN  percOrderInQuantityBest(t,g) THEN 'C'
+;
+//--
+statusSumWorst 'Рейтинг' (GroupType t, Group g) = CASE 
+    WHEN  percOrderInSumWorst(t,g) <= ab() THEN 'A'
+    WHEN  percOrderInSumWorst(t,g) <= bc() AND percOrderInSumWorst(t,g) > ab() THEN 'B'
+    WHEN  percOrderInSumWorst(t,g) THEN 'C'
+;
+statusMarkupWorst 'Рейтинг' (GroupType t, Group g) = CASE
+    WHEN  percOrderInMarkupWorst(t,g) <= ab() THEN 'A'
+    WHEN  percOrderInMarkupWorst(t,g) <= bc() AND percOrderInMarkupWorst(t,g) > ab() THEN 'B'
+    WHEN  percOrderInMarkupWorst(t,g) THEN 'C'
+;
+statusQuantityWorst 'Рейтинг' (GroupType t, Group g) = CASE
+    WHEN  percOrderInQuantityWorst(t,g) <= ab() THEN 'A'
+    WHEN  percOrderInQuantityWorst(t,g) <= bc() AND percOrderInQuantityWorst(t,g) > ab() THEN 'B'
+    WHEN  percOrderInQuantityWorst(t,g) THEN 'C'
+;
+
+FORM abcBestPrint 'Топ лучших'
+
+    OBJECTS dates = (df = DATE, dt = DATE, t = GroupType, type= ABCType) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(df), valTo = OBJVALUE(dt)    
+
+    PROPERTIES (type) READONLY staticCaption, isSum, isQuantity, isMarkupSum
+                
+    PROPERTIES(t) SELECTOR name
+    PROPERTIES (t) sumWorst, markupWorst, quantityWorst, sumBest, markupBest, quantityBest
+     
+    PROPERTIES nameSelectStocks(), ab(), bc(), best(), worst()    
+    
+    // выручка
+    OBJECTS gg=Group 
+    PROPERTIES READONLY  indexSumBest(gg), id(gg), name(gg)
+    FILTERS groupType(gg) == t,
+            inSession(gg),
+            sumSold(gg)  OR quantitySold(gg) OR markupSumSold(gg),
+            indexSumBest(gg) <= best()
+    ORDER BY indexSumBest(gg)
+    PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,gg) READONLY percInSumBest, percOrderInSumBest
+
+    PROPERTIES (t,gg) statusSumBest 
+    PROPERTIES (gg) READONLY   averagePrice 
+    PROPERTIES (gg,df,dt) READONLY averageDaysSum    
+    
+    // доход
+    OBJECTS ggg=Group 
+    PROPERTIES READONLY  indexMarkupBest(ggg), id(ggg), name(ggg)
+    FILTERS groupType(ggg) == t,
+            inSession(ggg),
+            sumSold(ggg)  OR quantitySold(ggg) OR markupSumSold(ggg),
+            indexMarkupBest(ggg) <= best()
+    ORDER BY indexMarkupBest(ggg)
+    PROPERTIES (ggg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,ggg) READONLY percInMarkupBest, percOrderInMarkupBest
+
+    PROPERTIES (t,ggg) statusMarkupBest 
+    PROPERTIES (ggg) READONLY   averagePrice 
+    PROPERTIES (ggg,df,dt) READONLY averageDaysMarkupSum  
+     
+    // кол-во
+    OBJECTS g=Group 
+    PROPERTIES READONLY  indexQuantityBest(g), id(g), name(g)
+    FILTERS groupType(g) == t,
+            inSession(g),
+            sumSold(g)  OR quantitySold(g) OR markupSumSold(g),
+            indexQuantityBest(g) <= best()
+    ORDER BY indexQuantityBest(g)
+    PROPERTIES (g) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,g) READONLY percInQuantityBest, percOrderInQuantityBest
+
+    PROPERTIES (t,g) statusQuantityBest 
+    PROPERTIES (g) READONLY   averagePrice 
+    PROPERTIES (g,df,dt) READONLY averageDaysQuantity       
+;
+abcBestPrint 'Топ лучших' (GroupType t, ABCType type, DATE dateFrom, DATE dateTo) =
+    ACTION FORM abcBestPrint OBJECTS df = dateFrom, dt = dateTo, t = t, type = type PRINT  IMAGE 'print.png' IN print;
+    
+FORM abcWorstPrint 'Топ худших'
+
+    OBJECTS dates = (df = DATE, dt = DATE, t = GroupType, type= ABCType) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(df), valTo = OBJVALUE(dt)    
+
+    PROPERTIES (type) READONLY staticCaption, isSum, isQuantity, isMarkupSum  
+        
+    PROPERTIES(t) SELECTOR name
+    PROPERTIES (t) sumWorst, markupWorst, quantityWorst, sumBest, markupBest, quantityBest
+     
+    PROPERTIES nameSelectStocks(), ab(), bc(), best(), worst()    
+    
+    // выручка
+    OBJECTS gg=Group 
+    PROPERTIES READONLY  indexSumWorst(gg), id(gg), name(gg)
+    FILTERS groupType(gg) == t,
+            inSession(gg),
+            sumSold(gg)  OR quantitySold(gg) OR markupSumSold(gg),
+            indexSumWorst(gg) <= worst()
+    ORDER BY indexSumWorst(gg)
+    PROPERTIES (gg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,gg) READONLY percInSumWorst, percOrderInSumWorst
+
+    PROPERTIES (t,gg) statusSumWorst 
+    PROPERTIES (gg) READONLY   averagePrice 
+    PROPERTIES (gg,df,dt) READONLY averageDaysSum    
+    
+    // доход
+    OBJECTS ggg=Group 
+    PROPERTIES READONLY  indexMarkupWorst(ggg), id(ggg), name(ggg)
+    FILTERS groupType(ggg) == t,
+            inSession(ggg),
+            sumSold(ggg)  OR quantitySold(ggg) OR markupSumSold(ggg),
+            indexMarkupWorst(ggg) <= worst()
+    ORDER BY indexMarkupWorst(ggg)
+    PROPERTIES (ggg) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,ggg) READONLY percInMarkupWorst, percOrderInMarkupWorst
+
+    PROPERTIES (t,ggg) statusMarkupWorst 
+    PROPERTIES (ggg) READONLY   averagePrice 
+    PROPERTIES (ggg,df,dt) READONLY averageDaysMarkupSum  
+     
+    // кол-во
+    OBJECTS g=Group 
+    PROPERTIES READONLY  indexQuantityWorst(g), id(g), name(g)
+    FILTERS groupType(g) == t,
+            inSession(g),
+            sumSold(g)  OR quantitySold(g) OR markupSumSold(g),
+            indexQuantityWorst(g) <= worst()
+    ORDER BY indexQuantityWorst(g)
+    PROPERTIES (g) READONLY quantitySold, sumSold, markupSumSold, percMarkupSold
+
+    PROPERTIES (t,g) READONLY percInQuantityWorst, percOrderInQuantityWorst
+
+    PROPERTIES (t,g) statusQuantityWorst 
+    PROPERTIES (g) READONLY   averagePrice 
+    PROPERTIES (g,df,dt) READONLY averageDaysQuantity       
+;
+abcWorstPrint 'Топ худших' (GroupType t, ABCType type, DATE dateFrom, DATE dateTo) =
+    ACTION FORM abcWorstPrint OBJECTS df = dateFrom, dt = dateTo, t = t, type = type PRINT  IMAGE 'print.png' IN print;
+    
+EXTEND FORM abcAnalysis 
+    PROPERTIES  FORCE PANEL TOOLBAR TODRAW gg abcBestPrint(t,type,df,dt), abcWorstPrint(t,type,df,dt)
+;

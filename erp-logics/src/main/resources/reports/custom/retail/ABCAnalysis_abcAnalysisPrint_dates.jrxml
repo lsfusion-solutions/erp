@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <!-- Created with Jaspersoft Studio version 6.2.0.final using JasperReports Library version 6.2.0  -->
-<!-- 2016-10-26T14:40:50 -->
+<!-- 2016-10-27T10:26:06 -->
 <jasperReport xmlns="http://jasperreports.sourceforge.net/jasperreports" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://jasperreports.sourceforge.net/jasperreports http://jasperreports.sourceforge.net/xsd/jasperreport.xsd" name="dates" pageWidth="555" pageHeight="782" columnWidth="555" leftMargin="0" rightMargin="0" topMargin="0" bottomMargin="0" uuid="9db99973-9ede-48c2-8f7f-1048bbe930f9">
 	<property name="com.jaspersoft.studio.unit." value="pixel"/>
 	<property name="com.jaspersoft.studio.unit.pageHeight" value="pixel"/>
@@ -48,7 +48,6 @@
 	<field name="isQuantity(type)" class="java.lang.Boolean"/>
 	<field name="isMarkupSum(type)" class="java.lang.Boolean"/>
 	<field name="gg.object" class="java.lang.Integer"/>
-	<field name="order(gg)" class="java.lang.Integer"/>
 	<field name="id(gg)" class="java.lang.String"/>
 	<field name="name(gg)" class="java.lang.String"/>
 	<field name="quantitySold(gg)" class="java.math.BigDecimal"/>
@@ -57,8 +56,8 @@
 	<field name="percMarkupSold(gg)" class="java.math.BigDecimal"/>
 	<field name="averagePrice(gg)" class="java.math.BigDecimal"/>
 	<field name="averageMarkup(gg)" class="java.math.BigDecimal"/>
-	<field name="percOrder(gg)" class="java.math.BigDecimal"/>
-	<field name="status(gg)" class="java.lang.String"/>
+	<field name="percOrder(t,gg,type)" class="java.math.BigDecimal"/>
+	<field name="status(t,gg,type)" class="java.lang.String"/>
 	<field name="percInSumSold(t,gg)" class="java.math.BigDecimal"/>
 	<field name="percInMarkupSumSold(t,gg)" class="java.math.BigDecimal"/>
 	<field name="percInQuantitySold(t,gg)" class="java.math.BigDecimal"/>
@@ -70,6 +69,16 @@
 	<field name="percMarkupSold(t)" class="java.math.BigDecimal"/>
 	<field name="averageDaysQuantity(gg,df,dt)" class="java.math.BigDecimal"/>
 	<field name="averageDaysQuantity(t,df,dt)" class="java.math.BigDecimal"/>
+	<variable name="npp" class="java.lang.Integer" calculation="Count">
+		<variableExpression><![CDATA[0]]></variableExpression>
+		<initialValueExpression><![CDATA[new Integer(1)]]></initialValueExpression>
+	</variable>
+	<variable name="a" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[($F{isSum(type)}!=null?$F{averageDaysSum(gg,df,dt)}:($F{isQuantity(type)}!=null?$F{averageDaysQuantity(gg,df,dt)}:($F{isMarkupSum(type)}!=null?$F{averageDaysMarkupSum(gg,df,dt)}:new BigDecimal(0))))]]></variableExpression>
+	</variable>
+	<variable name="p" class="java.math.BigDecimal" calculation="Sum">
+		<variableExpression><![CDATA[$F{averagePrice(gg)}]]></variableExpression>
+	</variable>
 	<group name="captionGroup101357">
 		<groupExpression><![CDATA[String.valueOf($F{type.object})+" "+String.valueOf($F{dt.object})+" "+String.valueOf($F{t.object})+" "+String.valueOf($F{df.object})]]></groupExpression>
 	</group>
@@ -262,8 +271,7 @@
 				<textElement textAlignment="Center" verticalAlignment="Top">
 					<font fontName="lsf.TimesNewRoman" size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[($F{isSum(type)}!=null?"Средняя дневная выручка":($F{isQuantity(type)}!=null?"Среднее дневное кол-во продаж":($F{isMarkupSum(type)}!=null?"Средний дневной ВД":"")))
-]]></textFieldExpression>
+				<textFieldExpression><![CDATA[($F{isSum(type)}!=null?"Средняя дневная выручка":($F{isQuantity(type)}!=null?"Среднее дневное кол-во продаж":($F{isMarkupSum(type)}!=null?"Средний дневной ВД":"")))]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true">
 				<reportElement style="GroupCellStyle1" stretchType="RelativeToBandHeight" x="515" y="0" width="40" height="18" uuid="9c1d276f-04df-44a6-8ef5-485bf4c40b1b">
@@ -295,7 +303,7 @@
 		</band>
 	</pageHeader>
 	<detail>
-		<band height="14">
+		<band height="14" splitType="Prevent">
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="0" y="0" width="160" height="14" uuid="2804280a-bbc7-4d50-9330-ae9fe9920a0d">
 					<property name="com.jaspersoft.studio.unit.width" value="pixel"/>
@@ -348,7 +356,7 @@
 				<textElement textAlignment="Right">
 					<font fontName="lsf.TimesNewRoman" size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[$F{percOrder(gg)}]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$F{percOrder(t,gg,type)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="430" y="0" width="35" height="14" uuid="a5bd536d-e3e4-49d3-af3b-28947dd4c68a">
@@ -357,7 +365,7 @@
 				<textElement textAlignment="Center">
 					<font fontName="lsf.TimesNewRoman" size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[$F{status(gg)}]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$F{status(t,gg,type)}]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="345" y="0" width="40" height="14" uuid="2838c24a-ee67-4716-b3d8-460fcc90ff75"/>
@@ -371,7 +379,7 @@
 				<textElement textAlignment="Right">
 					<font fontName="lsf.TimesNewRoman" size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[($F{isSum(type)}!=null?$F{averageDaysSum(gg,df,dt)}:($F{isQuantity(type)}!=null?$F{averageDaysQuantity(gg,df,dt)}:($F{isMarkupSum(type)}!=null?$F{averageDaysMarkupSum(gg,df,dt)}:0)))]]></textFieldExpression>
+				<textFieldExpression><![CDATA[($F{isSum(type)}!=null?$F{averageDaysSum(gg,df,dt)}:($F{isQuantity(type)}!=null?$F{averageDaysQuantity(gg,df,dt)}:($F{isMarkupSum(type)}!=null?$F{averageDaysMarkupSum(gg,df,dt)}:new BigDecimal(0))))]]></textFieldExpression>
 			</textField>
 		</band>
 	</detail>
@@ -422,7 +430,7 @@
 				<textElement textAlignment="Right">
 					<font fontName="lsf.TimesNewRoman" size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[$F{averagePrice(t)}]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$V{p}.divide(new BigDecimal($V{npp}),BigDecimal.ROUND_HALF_UP)]]></textFieldExpression>
 			</textField>
 			<textField isStretchWithOverflow="true" pattern="#,##0.00" isBlankWhenNull="true">
 				<reportElement style="GroupCellStyle1" positionType="Float" stretchType="RelativeToBandHeight" x="385" y="0" width="45" height="14" uuid="368f7df4-3b20-4104-b950-80c66bc2a703"/>
@@ -452,7 +460,7 @@
 				<textElement textAlignment="Right">
 					<font fontName="lsf.TimesNewRoman" size="8"/>
 				</textElement>
-				<textFieldExpression><![CDATA[($F{isSum(type)}!=null?$F{averageDaysSum(t,df,dt)}:($F{isQuantity(type)}!=null?$F{averageDaysQuantity(t,df,dt)}:($F{isMarkupSum(type)}!=null?$F{averageDaysMarkupSum(t,df,dt)}:0)))]]></textFieldExpression>
+				<textFieldExpression><![CDATA[$V{a}.divide(new BigDecimal($V{npp}),BigDecimal.ROUND_HALF_UP)]]></textFieldExpression>
 			</textField>
 		</band>
 	</summary>
