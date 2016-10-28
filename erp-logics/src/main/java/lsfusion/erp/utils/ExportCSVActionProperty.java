@@ -48,8 +48,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
             if (idForm != null && idGroupObject != null) {
 
                 FormEntity formEntity = findForm(idForm);
-                FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
-                        context.getSession(), false, FormSessionScope.OLDSESSION, false, false, false, null);
+                FormInstance formInstance = context.createFormInstance(formEntity, context);
 
                 if (valuesMap != null)
                     for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())

@@ -56,8 +56,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                 String url = (String) findProperty(connectionStringProperty).read(context);
 
                 FormEntity formEntity = findForm(idForm);
-                FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
-                        context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
+                FormInstance formInstance = context.createFormInstance(formEntity, context);
                 FormData formData = formInstance.getFormData(0);
 
                 List<List<Object>> rows = new ArrayList<>();

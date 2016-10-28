@@ -91,8 +91,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
             if (idForm != null && idGroupObject != null) {
 
                 FormEntity formEntity = findForm(idForm);
-                FormInstance formInstance = context.createFormInstance(formEntity, MapFact.<ObjectEntity, DataObject>EMPTY(),
-                        context.getSession(), true, FormSessionScope.OLDSESSION, false, false, false, null);
+                FormInstance formInstance = context.createFormInstance(formEntity, context);
                 ImOrderSet<PropertyDrawView> properties = formEntity.getRichDesign().getPropertiesList();
 
                 if (valuesMap != null)
