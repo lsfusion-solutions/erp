@@ -67,6 +67,10 @@ CONSTRAINT country(ownership(LegalEntity legalEntity)) != country(legalEntity)
 
 fullName 'Полное наименование' = DATA VARISTRING[200] (LegalEntity) IN law MINCHARWIDTH 50 PREFCHARWIDTH 50;
 
+setFullName 'Заполнить из наименования' (LegalEntity l) = ACTION {
+    fullName(l) <- CONCAT ' ', nameOwnership(l), name(l);
+}
+
 @defineHistorizable(address, , 'Юридический адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
 @defineHistorizable(postAddress, , 'Почтовый адрес', VARSTRING[150], legalEntity, nameLegalEntity, law);
 
@@ -256,7 +260,7 @@ FORM legalEntity 'Организация'
     OBJECTS l=LegalEntity FIXED PANEL
     PROPERTIES(l)  name, nameLegalEntityGroup, nameOwnership, shortNameOwnership,
                    nameCountry, nameLanguage, nameCurrency, inactive
-    PROPERTIES(l)  SHOWIF toShow(l) fullName,
+    PROPERTIES(l)  SHOWIF toShow(l) fullName ON SHORTCUT setFullName(l),
                    address, postAddress, nameCustomUserChief, nameCustomUserBooker, phone,
                    email, site, contacts
     PROPERTIES(l)  isSupplier, isCompany, isCustomer, id SHOWIF showIDs()
