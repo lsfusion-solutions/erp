@@ -1,15 +1,12 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImOrderSet;
 import lsfusion.interop.form.ReportGenerationData;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
-import lsfusion.server.form.entity.ObjectEntity;
 import lsfusion.server.form.instance.FormInstance;
-import lsfusion.server.form.instance.FormSessionScope;
 import lsfusion.server.form.view.PropertyDrawView;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
@@ -91,7 +88,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
             if (idForm != null && idGroupObject != null) {
 
                 FormEntity formEntity = findForm(idForm);
-                FormInstance formInstance = context.createFormInstance(formEntity, context);
+                FormInstance formInstance = context.createFormInstance(formEntity);
                 ImOrderSet<PropertyDrawView> properties = formEntity.getRichDesign().getPropertiesList();
 
                 if (valuesMap != null)

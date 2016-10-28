@@ -1,14 +1,12 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.erp.integration.DefaultExportActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
-import lsfusion.server.form.entity.ObjectEntity;
 import lsfusion.server.form.entity.PropertyDrawEntity;
 import lsfusion.server.form.instance.*;
 import lsfusion.server.logics.DataObject;
@@ -48,7 +46,7 @@ public abstract class ExportCSVActionProperty extends DefaultExportActionPropert
             if (idForm != null && idGroupObject != null) {
 
                 FormEntity formEntity = findForm(idForm);
-                FormInstance formInstance = context.createFormInstance(formEntity, context);
+                FormInstance formInstance = context.createFormInstance(formEntity);
 
                 if (valuesMap != null)
                     for (Map.Entry<String, DataObject> entry : valuesMap.entrySet())

@@ -1,14 +1,11 @@
 package lsfusion.erp.utils;
 
 import com.google.common.base.Throwables;
-import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImList;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.form.entity.FormEntity;
-import lsfusion.server.form.entity.ObjectEntity;
 import lsfusion.server.form.entity.PropertyDrawEntity;
 import lsfusion.server.form.instance.*;
-import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -56,7 +53,7 @@ public abstract class ExportSQLActionProperty extends ScriptingActionProperty {
                 String url = (String) findProperty(connectionStringProperty).read(context);
 
                 FormEntity formEntity = findForm(idForm);
-                FormInstance formInstance = context.createFormInstance(formEntity, context);
+                FormInstance formInstance = context.createFormInstance(formEntity);
                 FormData formData = formInstance.getFormData(0);
 
                 List<List<Object>> rows = new ArrayList<>();
