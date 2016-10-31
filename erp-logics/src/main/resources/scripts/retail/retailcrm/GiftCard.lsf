@@ -47,6 +47,9 @@ sold = GROUP AGGR SaleGiftCard detail
         BY giftCard(detail) WHERE detail IS SaleGiftCard;
 
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
+CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g))
+    MESSAGE 'Запрещено удалять проданные сертификаты';
+    
 dateSold 'Дата продажи' (GiftCard g) = DATE (dateTime(sold(g))) PERSISTENT;
 departmentStoreSold 'Где продан' (GiftCard g) = departmentStore(sold(g));
 nameDepartmentStoreSold 'Где продан' (GiftCard g) = nameDepartmentStore(sold(g));
@@ -251,8 +254,11 @@ EXTEND FORM options
 ;
 
 DESIGN options {
-    commons {
-        MOVE PROPERTY(allowPartiallyPayGiftCard());
+    pane{
+        NEW giftCards {
+            caption = 'Подарочные сертификаты';
+            MOVE PROPERTY(allowPartiallyPayGiftCard());
+        }
     }
 }
 
