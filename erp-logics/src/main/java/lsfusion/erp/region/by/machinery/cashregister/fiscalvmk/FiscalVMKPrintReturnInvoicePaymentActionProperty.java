@@ -55,7 +55,7 @@ public class FiscalVMKPrintReturnInvoicePaymentActionProperty extends ScriptingA
             
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, false, denominationStage));
             if(result == null)
-                findProperty("printReceiptResult[]").change(DataObject.TRUE, context);
+                findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {
                 ServerLoggers.systemLogger.error("FiscalVMKPrintReturnInvoicePayment Error: " + result);
                 findProperty("printReceiptResult[]").change((Object) null, context);

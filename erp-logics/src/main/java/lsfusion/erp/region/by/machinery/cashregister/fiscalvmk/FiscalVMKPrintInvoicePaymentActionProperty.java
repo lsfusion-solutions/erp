@@ -57,7 +57,7 @@ public class FiscalVMKPrintInvoicePaymentActionProperty extends ScriptingActionP
             Object result = context.requestUserInteraction(new FiscalVMKPrintInvoicePaymentClientAction(ip, comPort, baudRate, placeNumber, null, sumPayment, typePayment, true, denominationStage));
             if(result != null)
                 ServerLoggers.systemLogger.error("FiscalVMKPrintInvoicePayment Error: " + result);
-            findProperty("printReceiptResult[]").change(DataObject.create(result == null), context);
+            findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);
             
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
