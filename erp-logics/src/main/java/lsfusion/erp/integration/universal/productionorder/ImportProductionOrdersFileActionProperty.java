@@ -32,7 +32,7 @@ public class ImportProductionOrdersFileActionProperty extends ImportDocumentActi
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-
+        super.executeCustom(context);
         try {
 
             DataSession session = context.getSession();

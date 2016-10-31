@@ -30,7 +30,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-
+        super.executeCustom(context);
         try {
 
             ObjectValue importTypeObject = findProperty("importTypeUserInvoices[]").readClasses(context);

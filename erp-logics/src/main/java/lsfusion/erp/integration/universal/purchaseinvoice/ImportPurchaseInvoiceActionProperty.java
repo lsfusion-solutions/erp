@@ -61,7 +61,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-
+        super.executeCustom(context);
         try {
 
             DataSession session = context.getSession();
@@ -331,6 +331,17 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idBatch"));
 
+            ImportField idImportCodeField = null;
+            if(skuImportCodeLM != null) {
+                idImportCodeField = new ImportField(skuImportCodeLM.findProperty("id[ImportCode]"));
+                ImportKey<?> importCodeKey = new ImportKey((CustomClass) skuImportCodeLM.findClass("ImportCode"),
+                        skuImportCodeLM.findProperty("importCode[VARSTRING[100]]").getMapping(idImportCodeField));
+                props.add(new ImportProperty(idImportCodeField, skuImportCodeLM.findProperty("id[ImportCode]").getMapping(importCodeKey)));
+                fields.add(idImportCodeField);
+                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
+                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idImportCode"));
+            }
+
             ImportField dataIndexUserInvoiceDetailField = new ImportField(findProperty("dataIndex[UserInvoiceDetail]"));
             props.add(new ImportProperty(dataIndexUserInvoiceDetailField, findProperty("dataIndex[UserInvoiceDetail]").getMapping(userInvoiceDetailKey)));
             fields.add(dataIndexUserInvoiceDetailField);
@@ -342,9 +353,27 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
             for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                 data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("idItem"));
 
-            String replaceField = (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
-            LCP iGroupAggr = getItemKeyGroupAggr(keyType);
-            ImportField iField = (keyType == null || keyType.equals("item")) ? idItemField : keyType.equals("barcode") ? idBarcodeSkuField : idBatchField;
+            String replaceField;
+            LCP iGroupAggr;
+            ImportField iField;
+            if(keyType == null || keyType.equals("item")) {
+                replaceField = "idItem";
+                iGroupAggr = findProperty("item[VARSTRING[100]]");
+                iField = idItemField;
+            } else if(keyType.equals("barcode")) {
+                replaceField = "barcodeItem";
+                iGroupAggr = findProperty("skuBarcode[STRING[15]]");
+                iField = idBarcodeSkuField;
+            } else if(skuImportCodeLM != null && keyType.equals("importCode")) {
+                replaceField = "idImportCode";
+                iGroupAggr = skuImportCodeLM.findProperty("skuImportCode[STRING[100]]");
+                iField = idImportCodeField;
+            } else {
+                replaceField = "batch";
+                iGroupAggr = findProperty("skuBatch[VARSTRING[100]]");
+                iField = idBatchField;
+            }
+
             ImportKey<?> itemKey = new ImportKey((CustomClass) findClass("Item"),
                     iGroupAggr.getMapping(iField));
             keys.add(itemKey);
@@ -665,7 +694,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
         //as in ImportDocument.lsf, CLASS ImportTypeDetail
         List<String> stringFields = Arrays.asList("idSupplier", "idSupplierStock", "currencyDocument", "idItem", "idItemGroup",
-                "barcodeItem", "originalCustomsGroupItem", "idBatch", "idBox", "nameBox", "captionItem", "originalCaptionItem", 
+                "barcodeItem", "originalCustomsGroupItem", "idBatch", "idImportCode", "idBox", "nameBox", "captionItem", "originalCaptionItem",
                 "UOMItem", "idManufacturer", "nameManufacturer", "sidOrigin2Country", "nameCountry", "nameOriginCountry", 
                 "importCountryBatch", "idCustomerStock", "contractPrice", "pharmacyPriceGroupItem", "valueVAT", "seriesPharmacy", 
                 "numberCompliance", "declaration", "idArticle", "captionArticle", "originalCaptionArticle", "idColor",

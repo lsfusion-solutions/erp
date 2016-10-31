@@ -30,6 +30,8 @@ import java.util.*;
 
 public abstract class ImportDocumentActionProperty extends ImportUniversalActionProperty {
 
+    protected ScriptingLogicsModule skuImportCodeLM = null;
+
     public static int IMPORT_RESULT_OK = 1;
     public static int IMPORT_RESULT_EMPTY = 0;
     public static int IMPORT_RESULT_ERROR = -1;
@@ -48,6 +50,7 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
+        skuImportCodeLM = context.getBL().getModule("SkuImportCode");
     }
 
     protected List<LinkedHashMap<String, ImportColumnDetail>> readImportColumns(DataSession session, ObjectValue importTypeObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -139,11 +142,17 @@ public abstract class ImportDocumentActionProperty extends ImportUniversalAction
     }
 
     public String getItemKeyColumn(String keyType) {
-        return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : "idBatch";
+        return (keyType == null || keyType.equals("item")) ? "idItem" : keyType.equals("barcode") ? "barcodeItem" : keyType.equals("importCode") ? "idImportCode": "idBatch";
     }
     
     public LCP getItemKeyGroupAggr(String keyType) throws ScriptingErrorLog.SemanticErrorException {
-        return findProperty((keyType == null || keyType.equals("item")) ? "item[VARSTRING[100]]" : keyType.equals("barcode") ? "skuBarcode[STRING[15]]" : "skuBatch[VARSTRING[100]]");
+        if(keyType == null || keyType.equals("item"))
+            return findProperty("item[VARSTRING[100]]");
+        else if(keyType.equals("barcode"))
+            return findProperty("skuBarcode[STRING[15]]");
+        else if(skuImportCodeLM != null && keyType.equals("importCode"))
+            return skuImportCodeLM.findProperty("importCode[STRING[100]]");
+        else return findProperty("skuBatch[VARSTRING[100]]");
     }
 
     protected void addDataField(List<ImportProperty<?>> props, List<ImportField> fields, Map<String, ImportColumnDetail> importColumns, LCP sidProperty, String nameField, ImportKey<?> key) throws ScriptingErrorLog.SemanticErrorException {

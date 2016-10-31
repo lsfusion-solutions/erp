@@ -49,7 +49,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
     @Override
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
-
+        super.executeCustom(context);
         try {
 
             DataSession session = context.getSession();
