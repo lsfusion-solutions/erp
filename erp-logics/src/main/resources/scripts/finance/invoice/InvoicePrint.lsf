@@ -1,0 +1,32 @@
+MODULE InvoicePrint;
+
+REQUIRE LegalEntity, Bank, Invoice;
+
+NAMESPACE Invoice;
+
+
+@defineDocumentAccount(invoice, supplier, ' поставщика');
+
+@defineDocumentAccount(invoice, customer, ' покупателя');
+
+FORM printInvoice 'Счет-фактура (печать)'
+    OBJECTS o = Invoice FIXED PANEL
+    PROPERTIES (o) READONLY nameSupplier, fullNameSupplier, nameSupplierStock, addressSupplier,  taxNumberSupplier,
+                   numberAccountSupplier, nameBankSupplier, addressBankSupplier,
+                   departmentBankSupplier, CBUBankSupplier, MFOBankSupplier, phoneSupplier,
+                   nameCustomer, fullNameCustomer, nameCustomerStock, addressCustomer, 
+                   numberAccountCustomer, nameBankCustomer, addressBankCustomer,
+                   departmentBankCustomer, CBUBankCustomer, MFOBankCustomer, phoneCustomer,
+                   number, series, seriesNumber, date, time, currency,
+                   nameCurrency, note, countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail,
+                   VATSumInvoiceDetail, invoiceSumInvoiceDetail, descriptionContractSku
+
+    OBJECTS d = InvoiceDetail
+    PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
+                   idBarcodeSku, quantity,
+                   price, sum, numberVAT,
+                   valueVAT,  VATSum, invoiceSum
+    FILTERS invoice(d) == o
+;
+
+print 'Счет-фактура' (Invoice invoice) = ACTION FORM printInvoice OBJECTS o = invoice PRINT  IMAGE 'print.png' IN print;

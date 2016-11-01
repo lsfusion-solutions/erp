@@ -1,6 +1,6 @@
 MODULE GiftCardSaleInvoice;
 
-REQUIRE GiftCard, SaleShipment;
+REQUIRE GiftCard, SaleShipment, InvoicePrint, SaleInvoiceConsignmentBy;
 
 NAMESPACE GiftCard;
 
@@ -64,35 +64,33 @@ DESIGN Sale.operation {
 
 isGiftCard(Sale.Invoice i) = isGiftCard(operation(i));
 
-quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Item);
-
 in 'Отм' = DATA LOCAL BOOLEAN (GiftCard);
 quantityInvoiceGiftCardSaleDetail 'Кол-во сертификатов в документе'  = 
     GROUP SUM NUMERIC[16,5](1) IF giftCard(InvoiceGiftCardSaleDetail gd)
           BY  sku(giftCard(gd)), invoice(gd);
-toShip 'Подобрать' (Sku i, Sale.UserInvoice o) = quantityUserInvoiceDetail(i, o)(-) 
-                                                                (NUMERIC[16,5]([ = GROUP SUM 1 IF in(GiftCard c) BY sku(c)](i)) IF o IS Sale.UserInvoice) (-)
+toShip 'Подобрать' (Sku i, Sale.Invoice o) = quantityInvoiceDetail(i, o)(-) 
+                                                                (NUMERIC[16,5]([ = GROUP SUM 1 IF in(GiftCard c) BY sku(c)](i)) IF o IS Sale.Invoice) (-)
                                                                 quantityInvoiceGiftCardSaleDetail(i,o);
                                                                 
-backgroundToShip (Sku i, Sale.UserInvoice o) = CASE
+backgroundToShip (Sku i, Sale.Invoice o) = CASE
     WHEN toShip(i,o) <0 THEN RGB (255,0,0)  
     WHEN toShip(i,o) >0 THEN RGB(255, 250, 205)  
 ;
 
 FORM dialogGiftCard 'Подбор подарочных сертификатов'
-    OBJECTS o = Sale.UserInvoice FIXED  PANEL
+    OBJECTS o = Sale.Invoice FIXED  PANEL
     
     OBJECTS i = Item
     PROPERTIES(i) READONLY caption, id
     PROPERTIES(i, o) READONLY toShip BACKGROUND backgroundToShip(i,o)   
-    FILTERS skuType(i) == SkuType.skuTypeGiftCard,
-            quantityUserInvoiceDetail(i,o)            
+    FILTERS skuType(i) == SkuType.skuTypeGiftCard, 
+            quantityInvoiceDetail(i,o)            
     
     OBJECTS g=GiftCard                                 
     PROPERTIES (g) in
     PROPERTIES (g) READONLY number, date, idBarcode, nameSku
 
-    FILTERS NOT dateSold(g)
+    FILTERS NOT isSold(g)
     
     FILTERGROUP sku FILTER 'По номиналу' sku(g) == i 'F10' DEFAULT
 ;
@@ -113,24 +111,20 @@ DESIGN dialogGiftCard {
     MOVE functions.box;
 }
 
-fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.UserInvoice invoice) = ACTION {
-    IF NOT supplierStock(invoice) THEN {
-        MESSAGE 'Не выбран склад поставщика';
-    } ELSE {
-        in(GiftCard g) <- NULL;
-        FORM dialogGiftCard OBJECTS o = invoice MODAL;
-        IF formResult() == FormResult.ok THEN {
-            FOR in(GiftCard g) ADDOBJ gd = InvoiceGiftCardSaleDetail DO {
-                invoice(gd) <- invoice;
-                giftCard(gd) <- g;
-            }    
-        }   
-    }      
+fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = ACTION {
+    in(GiftCard g) <- NULL;
+    FORM dialogGiftCard OBJECTS o = invoice MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR in(GiftCard g) ADDOBJ gd = InvoiceGiftCardSaleDetail DO {
+            invoice(gd) <- invoice;
+            giftCard(gd) <- g;
+        }    
+    }   
 } TOOLBAR;
 
 
-CONSTRAINT isGiftCard(Sale.UserInvoice o) AND isPosted(o) AND quantityUserInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
-    (quantityUserInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
+CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND quantityInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
+    (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
         MESSAGE 'Количетсво товара не соответствует количеству сертификатов';
 
 EXTEND FORM Sale.userInvoice
@@ -157,3 +151,251 @@ show(InvoiceGiftCardSaleDetail d) = ACTION NEWSESSION {
     FORM Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKEDMODAL READONLY;
 }
 show(InvoiceGiftCardSaleDetail d) += ACTION show(d);  
+
+//рабочий стол
+
+giftCardLegalEntityGroup = DATA LegalEntityGroup ();
+nameGiftCardLegalEntityGroup 'Группа организаций для покупателей сертификатов' = name(giftCardLegalEntityGroup());
+
+EXTEND FORM options PROPERTIES() nameGiftCardLegalEntityGroup;
+DESIGN options { giftCards { MOVE PROPERTY(nameGiftCardLegalEntityGroup()); } }
+
+beforeApplyCustomer(LegalEntity l) = ACTION {
+    fullName(l) <- name(l);
+}
+
+changeAddress (LegalEntity l) = ACTION {
+    REQUEST VARSTRING[150] INPUT ;
+    IF requestedString() THEN {
+        dataAddress(l, d) <- requestedString() WHERE d == 2001_01_01;
+    } ELSE 
+        dataAddress(l, d) <- NULL;
+}
+
+changePhone (LegalEntity l) = ACTION {
+    REQUEST VARSTRING[100] INPUT ;
+    IF requestedString() THEN {
+        dataPhone(l, d) <- requestedString() WHERE d == 2001_01_01;
+    } ELSE 
+        dataPhone(l, d) <- NULL;
+}
+
+
+changeAccount (LegalEntity l) = ACTION {
+    REQUEST VARSTRING[50] INPUT ;
+    IF NOT account(l) THEN {
+        FOR ADDOBJ a = Bank.Account DO {
+            number(a) <- requestedString();
+            legalEntity(a) <- l;
+            userAccount(l) <- a;
+        }
+    } ELSE 
+        number(a) <- requestedString() WHERE a == account(l);
+}
+
+FORM GiftCardSaleCustomer 'Покупатель'
+    OBJECTS l=LegalEntity FIXED PANEL
+    PROPERTIES(l) name
+    PROPERTIES(l) address ON CHANGE changeAddress(l), phone ON CHANGE changePhone(l)
+    PROPERTIES(l) numberAccount ON CHANGE changeAccount(l), nameBank
+    
+    EVENTS 
+        ON APPLY BEFORE beforeApplyCustomer(l)
+;
+
+DESIGN GiftCardSaleCustomer{
+    MOVE PROPERTY (name(l));
+    MOVE PROPERTY (address(l));
+    MOVE PROPERTY (phone(l));
+    MOVE PROPERTY (numberAccount(l));
+    MOVE PROPERTY (nameBank(l));
+    MOVE functions.box;
+}
+
+addCustomer 'Добавить'() = ACTION NEWSESSION {
+    FOR ADDOBJ  l = LegalEntity DO {
+        legalEntityGroup(l) <- giftCardLegalEntityGroup();
+        isCustomer(l) <- TRUE;
+        
+        FORM GiftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
+    }
+    
+} IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
+
+editCustomer 'Редактировать' (LegalEntity l) = ACTION NEWSESSION {
+        FORM GiftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
+} IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+
+FORM giftCardLegalEntitys 'Покупатели'
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) READONLY nameL = name, id SHOWIF showIDs(), nameLegalEntityGroup
+    PROPERTIES(l) READONLY address, phone
+    PROPERTIES addCustomer() TODRAW l, editCustomer(l)
+    ORDER BY nameL
+    
+    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
+    FILTERS giftCardLegalEntityGroup() == legalEntityGroup(l)
+;
+
+quantity 'Кол-во' = DATA LOCAL NUMERIC[16,5] (Item);
+customer = DATA LOCAL LegalEntity ();
+nameCustomer 'Покупатель'= name(customer());
+
+changeCustomer() = ACTION {
+    REQUEST OBJECT l FORM giftCardLegalEntitys DIALOG;       
+    customer() <- requestedObject();
+}
+
+FORM skuGift 'Номиналы подарочных сертификатов'
+    PROPERTIES () nameCustomer ON CHANGE changeCustomer()
+
+    OBJECTS i = Item
+    PROPERTIES(i) READONLY caption, id
+    PROPERTIES(i) quantity
+    
+    FILTERS skuType(i) == SkuType.skuTypeGiftCard
+;
+
+DESIGN skuGift { 
+    preferredSize = (600, 400);
+    MOVE PROPERTY (nameCustomer());
+    MOVE i.box;
+    MOVE functions.box;
+}
+
+
+addGiftCardInvoice 'Продажа сертификатов'() = ACTION NEWSESSION {
+    quantity(Item i) <- NULL;
+    
+    FORM skuGift MODAL;
+    IF formResult() == FormResult.ok THEN {
+        FOR ADDOBJ o = Sale.UserInvoice DO {
+            operation(o) <- [=GROUP MIN Sale.Operation o IF isGiftCard(o)]();
+            supplier(o) <- defaultSupplier(operation(o)) WHERE countSupplier(operation(o)) == 1;
+            supplierStock(o) <- defaultCompanyStock(currentUser(), supplier(o))
+                IF countAccessCompanyStock (currentUser(), supplier(o)) == 1;
+
+            customer(o) <- customer();
+            
+            priceListType(o) <- defaultPriceListType(operation(o)) 
+                        IF defaultPriceListType(operation(o));
+                                                         
+             date(o) <- currentDate();
+             time(o) <- currentTime();
+                        
+            FOR quantity(Item i) ADDOBJ d = Sale.UserInvoiceDetail DO {
+                userInvoice(d) <- o;
+                sku(d) <- i;
+                quantity(d) <- quantity(i);
+                priceListType(d) <- priceListType(o);
+                      
+                price(d) <- round2(prevList(priceListType(d), d) );
+                invoicePrice(d) <- round2(prevList(priceListType(d), d) );
+    
+            }  
+            FORM Sale.userInvoice OBJECTS i=o MANAGESESSION DOCKEDMODAL NOCANCEL; 
+        }
+    }    
+} TOOLBAR IMAGE 'add.png';
+
+
+shiped 'Отпуск сертификатов покупателю'(Sale.UserInvoice invoice) = ACTION NEWSESSION {
+    createShipment(invoice) <- TRUE;
+    shipmentDate(invoice) <- currentDate();
+    shipmentTime(invoice) <- currentTime();
+    
+    fillDetailDialogSkuGiftCard(invoice);
+    
+    APPLY {}
+} TOOLBAR;
+
+FORM saleGiftCardDashboard 'Выписка подарочных сертификатов' 
+    OBJECTS i = Sale.Invoice LAST
+    PROPERTIES (i) READONLY isClosed 
+                            
+    PROPERTIES (i) READONLY BACKGROUND backgroundDraft(i) isPosted, number, series, date, time                                
+    PROPERTIES (i) READONLY nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency
+    PROPERTIES (i) READONLY countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail
+    PROPERTIES (i) READONLY note
+
+    PROPERTIES ()  addGiftCardInvoice TODRAW i
+    PROPERTIES (i) edit SHOWIF overShowEdit(i), copy, shiped 
+
+    PROPERTIES (i) print FORCE PANEL 
+
+    OBJECTS d = Sale.InvoiceDetail
+    PROPERTIES (d) READONLY index
+    PROPERTIES (d) READONLY BACKGROUND backgroundSkuDetail(d) idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, namePriceListType, price, sum,
+                   numberVAT, valueVAT, VATSum, invoiceSum
+    ORDER BY index(d)
+
+    FILTERS invoice(d) == i
+    FILTERS isGiftCard(i)
+;
+
+DESIGN saleGiftCardDashboard {
+    NEW documentContainer BEFORE functions.box {
+        fill = 1;
+        type = SPLITV;
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+
+            MOVE d.box {
+                fill = 1;
+                caption = 'Спецификация';
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    type = CONTAINERV;
+                    MOVE i.print;
+                }
+            }
+        }
+    }
+}
+
+NAVIGATOR {
+    retailDashboardNavigator{
+        ADD saleGiftCardDashboard;
+    }
+}
+
+//выписка накладных
+EXTEND FORM  saleGiftCardDashboard
+    PROPERTIES(i) FORCE PANEL editAttributes
+    PROPERTIES(i) FORCE PANEL SHOWIF showTN2(i) READONLYIF banPrint(i)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach, printSimpleVerticalAttach, printSimpleHorizontalAttach
+;
+
+DESIGN saleGiftCardDashboard {
+    printTab {
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(i)) {
+                    alignment = STRETCH;
+                }
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(i));
+                MOVE PROPERTY(printSimpleHorizontal(i));
+                MOVE PROPERTY(printSimpleAttach(i));
+                MOVE PROPERTY(printSimpleVerticalAttach(i));
+                MOVE PROPERTY(printSimpleHorizontalAttach(i));
+            }
+        } 
+    }
+}
