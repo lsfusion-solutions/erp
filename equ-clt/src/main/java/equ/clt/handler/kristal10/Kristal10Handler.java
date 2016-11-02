@@ -118,7 +118,7 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                             if(item.expiryDate != null) {
                                 Element expiryDateProperty = new Element("plugin-property");
                                 setAttribute(expiryDateProperty, "key", "composition");
-                                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy"));
+                                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
                                 good.addContent(expiryDateProperty);
                             }
 
