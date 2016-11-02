@@ -144,12 +144,14 @@ calcShipmentPrice(UserInvoiceDetail detail) = IF batch(detail)
                                                                                                  sku(detail),
                                                                                                  customerStock(detail),
                                                                                                  dateTime(detail));
-shipmentPrice (UserInvoiceDetail detail)  <- calcShipmentPrice(detail) (+) extraShipmentPrice(detail)
-                                                WHEN DO CHANGED(sku(detail)) OR
-                                                     CHANGED(customerStock(detail)) OR
-                                                     (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
-                                                     CHANGED(batch(detail)) OR 
-                                                     CHANGED(extraShipmentPrice(detail));                                                                                                 
+
+WHEN SESSION CHANGED(sku(UserInvoiceDetail detail)) OR 
+             CHANGED(customerStock(detail)) OR 
+             (CHANGED(dateTime(detail)) AND NOT isPosted(detail)) OR
+             CHANGED(batch(detail)) OR 
+             CHANGED(extraShipmentPrice(detail)) DO {   
+    shipmentPrice (detail)  <- calcShipmentPrice(detail) (+) extraShipmentPrice(detail);
+}                                                                                                 
 
 //@deriveDocumentDetailPriceSystemLedgerPriceListTypeBatch (userInvoice, accountPriceListType, shipment, , sku, customerStock){
 //    shipmentPrice (UserInvoiceDetail detail)  <- IF batch(detail)
