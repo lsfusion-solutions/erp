@@ -294,6 +294,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         boolean residentsOfOffshore = findProperty("residentsOfOffshoreCustomer[EVAT]").read(context, evatObject) != null;
         boolean specialDealGoods = findProperty("specialDealGoodsCustomer[EVAT]").read(context, evatObject) != null;
         boolean bigCompany = findProperty("bigCompanyCustomer[EVAT]").read(context, evatObject) != null;
+        boolean noCustomer = findProperty("noCustomer[EVAT]").read(context, evatObject) != null;
         String countryCode = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
         String unp = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
         String name = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
@@ -310,15 +311,17 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         addBooleanElement(namespace, recipientElement, "residentsOfOffshore", residentsOfOffshore);
         addBooleanElement(namespace, recipientElement, "specialDealGoods", specialDealGoods);
         addBooleanElement(namespace, recipientElement, "bigCompany", bigCompany);
-        addStringElement(namespace, recipientElement, "countryCode", countryCode);
-        addStringElement(namespace, recipientElement, "unp", unp);
-        addIntegerElement(namespace, recipientElement, "branchCode", branchCodeCustomer);
-        addStringElement(namespace, recipientElement, "name", name);
-        addStringElement(namespace, recipientElement, "address", address);
-        addStringElement(namespace, recipientElement, "declaration", declaration);
-        if(numberTaxes != null)
-            recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
-        addStringElement(namespace, recipientElement, "dateImport", dateImport);
+        if (!noCustomer) {
+            addStringElement(namespace, recipientElement, "countryCode", countryCode);
+            addStringElement(namespace, recipientElement, "unp", unp);
+            addIntegerElement(namespace, recipientElement, "branchCode", branchCodeCustomer);
+            addStringElement(namespace, recipientElement, "name", name);
+            addStringElement(namespace, recipientElement, "address", address);
+            addStringElement(namespace, recipientElement, "declaration", declaration);
+            if (numberTaxes != null)
+                recipientElement.addContent(createNumberDateElement("taxes", numberTaxes, dateTaxes, namespace));
+            addStringElement(namespace, recipientElement, "dateImport", dateImport);
+        }
         recipientElement.setNamespace(namespace);
         return recipientElement;
     }
