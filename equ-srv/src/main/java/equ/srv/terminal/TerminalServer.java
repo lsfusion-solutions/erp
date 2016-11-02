@@ -65,8 +65,6 @@ public class TerminalServer extends MonitorServer {
     protected static byte stx = 0x02;
     protected static byte etx = 0x03;
     protected byte esc = 0x1B;
-    private String host;
-    private Integer port;
 
     public void setLogicsInstance(LogicsInstance logicsInstance) {
         this.logicsInstance = logicsInstance;
@@ -91,20 +89,18 @@ public class TerminalServer extends MonitorServer {
 
             try {
                 List<Object> hostPort = terminalHandlerInterface.readHostPort(createSession());
-                if(hostPort.get(0) != null && hostPort.get(1) != null) {
-                    host = (String) hostPort.get(0);
-                    port = (Integer) hostPort.get(1);
+                if (hostPort.get(0) != null && hostPort.get(1) != null) {
+                    String host = (String) hostPort.get(0);
+                    Integer port = (Integer) hostPort.get(1);
+                    logger.info("Binding Terminal Server.");
+                    started = true;
+                    listenToPort(host, port);
+                } else {
+                    logger.info("Terminal Server disabled, no host/port settings found");
                 }
             } catch (RemoteException | SQLException e) {
                 logger.error("Error reading Terminal Server settings");
             }
-
-            assert host != null;
-            assert port != null;
-
-            logger.info("Binding Terminal Server.");
-            started = true;
-            listenToPort();
         } else {
             logger.info("Terminal Server disabled, change serverComputer() to enable");
         }
@@ -131,7 +127,7 @@ public class TerminalServer extends MonitorServer {
         return "terminal";
     }
 
-    public void listenToPort() {
+    public void listenToPort(String host, Integer port) {
         final ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, this);
         ServerSocket serverSocket = null;
         try {
@@ -164,22 +160,6 @@ public class TerminalServer extends MonitorServer {
 
     protected DataSession createSession() throws SQLException {
         return getDbManager().createSession();
-    }
-
-    public void setPort(Integer port) {
-        this.port = port;
-    }
-
-    public Integer getPort() {
-        return port;
-    }
-
-    public void setHost(String host) {
-        this.host = host;
-    }
-
-    public String getHost() {
-        return host;
     }
 
     public class SocketCallable implements Callable {
