@@ -149,6 +149,9 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 case "COMPLETED_SIGNED":
                     id = "completedSigned";
                     break;
+                case "IN_PROGRESS":
+                    id = "inProgress";
+                    break;
                 default:
                     ServerLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", evat, value));
             }
