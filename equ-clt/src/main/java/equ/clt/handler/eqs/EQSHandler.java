@@ -281,6 +281,7 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                         BigDecimal price = rs.getBigDecimal(7); //price, Цена
                         BigDecimal sum = rs.getBigDecimal(8); //amount, Сумма
                         BigDecimal discountSum = HandlerUtils.safeNegate(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
+                        sum = HandlerUtils.safeSubtract(sum, discountSum);
                         String idSection = rs.getString(10); //department, Номер отдела
 
                         Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
