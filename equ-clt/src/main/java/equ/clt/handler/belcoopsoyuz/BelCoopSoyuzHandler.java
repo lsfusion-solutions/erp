@@ -3,6 +3,7 @@ package equ.clt.handler.belcoopsoyuz;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import net.iryndin.jdbf.core.DbfRecord;
 import net.iryndin.jdbf.reader.DbfReader;
@@ -33,7 +34,7 @@ import java.util.*;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
-public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBatch> {
+public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuzSalesBatch> {
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -439,23 +440,6 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
         return denominationStage != null && denominationStage.endsWith("after") ? "BYN 933 1" : "BYR 974 1";
     }
 
-    @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-    }
-
-    @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-        return null;
-    }
-
     private void putField(DBF dbfFile, Field field, String value, int length, boolean append) throws xBaseJException {
         value = value == null ? "null" : value;
         while (value.length() < length)
@@ -585,44 +569,6 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-    }
-
-    @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
-        return null;
-    }
-
-    @Override
-    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-    }
-
-    @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-
     }
 
     @Override
@@ -886,11 +832,6 @@ public class BelCoopSoyuzHandler extends CashRegisterHandler<BelCoopSoyuzSalesBa
                 throw Throwables.propagate(e);
             }
         }
-    }
-
-    @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
     }
 
     protected String trim(String input, Integer length) {

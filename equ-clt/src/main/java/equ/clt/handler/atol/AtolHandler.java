@@ -3,6 +3,7 @@ package equ.clt.handler.atol;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
@@ -18,7 +19,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
+public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
@@ -318,21 +319,6 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
     }
 
     @Override
-    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         try {
@@ -422,31 +408,6 @@ public class AtolHandler extends CashRegisterHandler<AtolSalesBatch> {
         } catch (FileNotFoundException | ParseException e) {
             throw Throwables.propagate(e);
         }
-    }
-
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {       
-    }
-
-    @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-    }
-
-    @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-        return null;
     }
 
     @Override

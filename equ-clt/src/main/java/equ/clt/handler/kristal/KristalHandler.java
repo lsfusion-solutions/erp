@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import com.google.common.collect.Lists;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.FileAppender;
@@ -29,7 +30,7 @@ import java.util.*;
 import static org.apache.commons.lang3.StringUtils.trim;
 import static org.apache.commons.lang3.StringUtils.trimToEmpty;
 
-public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
+public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch> {
 
     protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
@@ -675,16 +676,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
     }
 
     @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
     public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
 
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
@@ -758,10 +749,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 sendSalesLogger.info(String.format("Kristal: found %s CashDocument(s)", result.size()));
         }
         return new CashDocumentBatch(result, null);
-    }
-
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
     }
 
     @Override
@@ -893,10 +880,6 @@ public class KristalHandler extends CashRegisterHandler<KristalSalesBatch> {
                 throw new RuntimeException(cantCreateFileMessage(flagCashierFile));
             }
         }
-    }
-
-    @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
     }
 
     @Override

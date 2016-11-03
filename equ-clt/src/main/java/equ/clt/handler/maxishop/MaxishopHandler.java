@@ -2,6 +2,7 @@ package equ.clt.handler.maxishop;
 
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.xBaseJ.DBF;
 import org.xBaseJ.Util;
@@ -16,7 +17,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
+public class MaxishopHandler extends DefaultCashRegisterHandler<MaxishopSalesBatch> {
 
     public MaxishopHandler() {
     }
@@ -123,32 +124,6 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {        
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-        
-    }
-
-    @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-    }
-
-    @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
         Map<Integer, String> cashRegisterDirectories = new HashMap<>();
         for (CashRegisterInfo cashRegister : cashRegisterInfoList) {
@@ -213,20 +188,6 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
     }
 
     @Override
-    public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                 Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
-    }
-
-    @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
-        return null;
-    }
-
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {        
-    }
-
-    @Override
     public void finishReadingSalesInfo(MaxishopSalesBatch salesBatch) {
         for (String readFile : salesBatch.readFiles) {
             File f = new File(readFile.substring(0, readFile.length() - 3) + "OUT");
@@ -236,26 +197,6 @@ public class MaxishopHandler extends CashRegisterHandler<MaxishopSalesBatch> {
             if (!f.delete())
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
         }
-    }
-
-    @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
-        return null;
-    }
-
-    @Override
-    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-        return null;
     }
 
     class DBFFilter implements FilenameFilter {

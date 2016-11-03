@@ -4,6 +4,7 @@ import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
@@ -30,7 +31,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 
-public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
+public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -443,15 +444,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
         }
     }
 
-    @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-    }
-
-    @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-        return null;
-    }
-
     private File sendPromotionTimeFile(List<PromotionTime> promotionTimeList, String directory, File cachedTimeFile) throws IOException, xBaseJException {
         if(promotionTimeList != null && !promotionTimeList.isEmpty()) {
             File timeFile = new File(directory + "/Timenew.dbf");
@@ -613,44 +605,6 @@ public class HTCHandler extends CashRegisterHandler<HTCSalesBatch> {
             brokenDirectoriesMap.put(directory, new RuntimeException(exception));
         }
         return exception == null ? null : new RuntimeException(exception);
-    }
-
-    @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-    }
-
-    @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
-        return null;
-    }
-
-    @Override
-    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-    }
-
-    @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-
     }
 
     @Override

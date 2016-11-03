@@ -3,6 +3,7 @@ package equ.clt.handler.kristal10;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
 import org.jdom.Attribute;
@@ -27,7 +28,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
+public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
@@ -342,10 +343,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
     }
 
     @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-    }
-
-    @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
         for (RequestExchange entry : requestExchangeList) {
@@ -419,16 +416,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 throw new RuntimeException("The file " + f.getAbsolutePath() + " can not be deleted");
             }
         }
-    }
-
-    @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        return null;
     }
 
     @Override
@@ -707,19 +694,6 @@ public class Kristal10Handler extends CashRegisterHandler<Kristal10SalesBatch> {
                 }
             }
         }
-    }
-
-    @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-    }
-
-    @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-        return null;
     }
 
     private String formatDate(Date date, String format) {

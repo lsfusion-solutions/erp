@@ -3,6 +3,7 @@ package equ.clt.handler.eqs;
 import com.google.common.base.Throwables;
 import equ.api.*;
 import equ.api.cashregister.*;
+import equ.clt.handler.DefaultCashRegisterHandler;
 import equ.clt.handler.HandlerUtils;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
@@ -15,7 +16,7 @@ import java.text.ParseException;
 import java.text.SimpleDateFormat;
 import java.util.*;
 
-public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
+public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
@@ -116,11 +117,6 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
     }
 
     @Override
-    public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-
-    }
-
-    @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         if (!stopListInfo.exclude) {
             EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
@@ -171,23 +167,6 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                 }
             }
         }
-    }
-
-    @Override
-    public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
-    }
-
-    @Override
-    public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-    }
-
-    @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-        return null;
     }
 
     @Override
@@ -394,15 +373,6 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
     }
 
     @Override
-    public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
-        return null;
-    }
-
-    @Override
-    public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {
-    }
-
-    @Override
     public void finishReadingSalesInfo(EQSSalesBatch salesBatch) {
 
         EQSSettings EQSSettings = springContext.containsBean("eqsSettings") ? (EQSSettings) springContext.getBean("eqsSettings") : null;
@@ -439,25 +409,5 @@ public class EQSHandler extends CashRegisterHandler<EQSSalesBatch> {
                 }
             }
         }
-    }
-
-    @Override
-    public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
-        return null;
-    }
-
-    @Override
-    public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-        return null;
-    }
-
-    @Override
-    public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-        return null;
     }
 }

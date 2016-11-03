@@ -5,6 +5,7 @@ import equ.api.cashregister.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.clt.handler.DefaultCashRegisterHandler;
 
 import java.io.*;
 import java.math.BigDecimal;
@@ -20,7 +21,7 @@ public class EasyCSVHandler {
 
     }
 
-    public class EasyCashRegisterCSVHandler extends CashRegisterHandler<SalesBatch> {
+    public class EasyCashRegisterCSVHandler extends DefaultCashRegisterHandler<SalesBatch> {
 
         public EasyCashRegisterCSVHandler() {
         }
@@ -69,72 +70,7 @@ public class EasyCSVHandler {
         }
 
         @Override
-        public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {           
-        }
-
-        @Override
-        public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
-        }
-
-        @Override
-        public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
-        }
-
-        @Override
-        public void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException {
-        }
-
-        @Override
-        public void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException {
-        }
-
-        @Override
-        public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException {
-            return null;
-        }
-
-        @Override
-        public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) {
-            return null;
-        }
-
-        @Override
-        public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
-                                     Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
-        }
-
-        @Override
-        public CashDocumentBatch readCashDocumentInfo(List<CashRegisterInfo> cashRegisterInfoList, Set<String> cashDocumentSet) throws ClassNotFoundException {
-            return null;
-        }
-
-        @Override
-        public void finishReadingCashDocumentInfo(CashDocumentBatch cashDocumentBatch) {            
-        }
-
-        @Override
         public void finishReadingSalesInfo(SalesBatch salesBatch) {
-            //To change body of implemented methods use File | Settings | File Templates.
-        }
-
-        @Override
-        public Map<String, Timestamp> requestSucceededSoftCheckInfo(Set<String> directorySet) {
-            return null;
-        }
-
-        @Override
-        public List<List<Object>> checkZReportSum(Map<String, List<Object>> zReportSumMap, List<List<Object>> cashRegisterList) throws ClassNotFoundException, SQLException {
-            return null;
-        }
-
-        @Override
-        public Map<String, List<Object>> readExtraCheckZReport(List<CashRegisterInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
-            return null;
-        }
-
-        @Override
-        public ExtraCheckZReportBatch compareExtraCheckZReport(Map<String, List<Object>> handlerZReportSumMap, Map<String, BigDecimal> baseZReportSumMap) throws ClassNotFoundException, SQLException {
-            return null;
         }
     }
 
