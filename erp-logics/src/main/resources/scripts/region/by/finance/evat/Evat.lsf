@@ -302,6 +302,9 @@ DESIGN evat {
 }
 
 FORM evats 'Электронные счета-фактуры'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
+
     OBJECTS e = EVAT
     PROPERTIES(e) in
     PROPERTIES(e) READONLY exported, captionStatus, captionServerStatus, unpSender, number, invoice, date, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
@@ -312,14 +315,12 @@ FORM evats 'Электронные счета-фактуры'
     PROPERTIES() TOOLBAR TODRAW e getStatus
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(e) DELETESESSION
+    FILTERS date(e) >= dFrom, date(e) <= dTo
      
     OBJECTS d = EVATDetail
     PROPERTIES(d) READONLY name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
-
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
-    PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
 
     OBJECTS l = LegalEntity FIXED PANEL
     PROPERTIES(l) name SELECTOR
@@ -327,23 +328,23 @@ FORM evats 'Электронные счета-фактуры'
 ;
 
 DESIGN evats {
+    NEW filters BEFORE e.box {
+        MOVE dates.box {
+            PROPERTY(dFrom) {
+                caption = 'Дата с';
+            }
+            PROPERTY(dTo) {
+                caption = 'Дата по';
+            }
+        }
+    }
     NEW pane AFTER e.box{
         type = TABBED;
         fill = 1;
         
-        MOVE d.box {
-            
-        }
+        MOVE d.box;
         NEW actions {
             caption = 'Действия';
-            MOVE dates.box {
-                PROPERTY(dFrom) {
-                    caption = 'Дата с';
-                }
-                PROPERTY(dTo) {
-                    caption = 'Дата по';
-                }
-            }
             MOVE l.box;
             NEW generate {
                 caption = 'Генерация ЭСЧФ';
