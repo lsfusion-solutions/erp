@@ -67,6 +67,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule cashRegisterLM;
     private ScriptingLogicsModule cashRegisterItemLM;
     private ScriptingLogicsModule collectionLM;
+    private ScriptingLogicsModule deleteBarcodeLM;
     private ScriptingLogicsModule discountCardLM;
     private ScriptingLogicsModule equipmentLM;
     private ScriptingLogicsModule equipmentCashRegisterLM;
@@ -135,6 +136,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         cashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
         collectionLM = getBusinessLogics().getModule("Collection");
+        deleteBarcodeLM = getBusinessLogics().getModule("DeleteBarcode");
         discountCardLM = getBusinessLogics().getModule("DiscountCard");
         equipmentLM = getBusinessLogics().getModule("Equipment");
         equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
@@ -935,6 +937,26 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         }
        
         return stopListInfoList;
+    }
+
+    @Override
+    public boolean enabledDeleteBarcodeInfo() throws RemoteException, SQLException {
+        return deleteBarcodeLM != null;
+    }
+
+    @Override
+    public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws RemoteException, SQLException {
+        return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(getBusinessLogics(), getDbManager());
+    }
+
+    @Override
+    public void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) throws RemoteException, SQLException {
+        DeleteBarcodeEquipmentServer.errorDeleteBarcodeReport(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery, exception);
+    }
+
+    @Override
+    public void succeedDeleteBarcode(Integer nppGroupMachinery) throws RemoteException, SQLException {
+        DeleteBarcodeEquipmentServer.succeedDeleteBarcode(getBusinessLogics(), getDbManager(), getStack(), nppGroupMachinery);
     }
 
     private Map<String, Map<String, Set<MachineryInfo>>> getStockMap(DataSession session) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {

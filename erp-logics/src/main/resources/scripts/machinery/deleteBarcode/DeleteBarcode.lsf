@@ -1,0 +1,44 @@
+MODULE DeleteBarcode;
+
+REQUIRE System, Machinery;
+
+CLASS DeleteBarcode 'Запрос удаления штрихкода';
+TABLE deleteBarcode(DeleteBarcode);
+
+groupMachinery = DATA GroupMachinery(DeleteBarcode) NOT NULL;
+nppGroupMachinery (DeleteBarcode d) = npp(groupMachinery(d)); 
+nameGroupMachinery 'Группа оборудования' (DeleteBarcode d) = name(groupMachinery(d)); 
+nameModelGroupMachinery 'Модель оборудования' (DeleteBarcode d) = nameModel(groupMachinery(d)); 
+handlerModelGroupMachinery (DeleteBarcode d) = handlerModel(groupMachinery(d)); 
+succeeded 'Выполнен' = DATA BOOLEAN (DeleteBarcode); 
+dateTimeSucceeded 'Дата выполнения' = DATA DATETIME (DeleteBarcode);
+barcode 'Штрихкод' = DATA VARSTRING[100] (DeleteBarcode) NOT NULL;
+
+succeedDeleteBarcode(INTEGER nppGroupMachinery) = ACTION {
+    succeeded(DeleteBarcode deleteBarcode) <- TRUE WHERE groupMachinery(deleteBarcode) == groupMachineryNpp(nppGroupMachinery);
+    dateTimeSucceeded(DeleteBarcode deleteBarcode) <- currentDateTime() WHERE groupMachinery(deleteBarcode) == groupMachineryNpp(nppGroupMachinery);
+}
+
+CLASS DeleteBarcodeError 'Ошибка';
+TABLE deleteBarcodeError (DeleteBarcodeError);
+
+data 'Сообщение об ошибке' = DATA VARSTRING[200] (DeleteBarcodeError) IN base;
+date 'Время возникновения' = DATA DATETIME (DeleteBarcodeError) IN base;
+errorTrace 'След исключения' = DATA TEXT (DeleteBarcodeError) IN base;
+
+FORM deleteBarcodes 'Запросы удаления штрихкодов'
+
+    OBJECTS d = DeleteBarcode
+    PROPERTIES (d) nameGroupMachinery, nameModelGroupMachinery
+    PROPERTIES (d) READONLY succeeded, dateTimeSucceeded
+    PROPERTIES (d) barcode, ADDOBJ
+    
+    OBJECTS e = DeleteBarcodeError
+    PROPERTIES(e) READONLY data, date, errorTrace
+;
+
+NAVIGATOR {
+    machineryExport {
+        ADD deleteBarcodes;
+    }
+}

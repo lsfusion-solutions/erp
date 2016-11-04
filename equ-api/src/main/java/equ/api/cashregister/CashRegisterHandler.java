@@ -15,6 +15,8 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
 
     public abstract void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException;
 
+    public abstract void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException;
+
     public abstract void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException;
 
     public abstract void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException;

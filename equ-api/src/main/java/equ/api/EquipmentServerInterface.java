@@ -36,6 +36,12 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     void errorStopListReport(String numberStopList, Exception exception) throws RemoteException, SQLException;
     void succeedStopList(String numberStopList, Set<String> idStockSet) throws RemoteException, SQLException;
 
+    //processDeleteBarcode consumer
+    boolean enabledDeleteBarcodeInfo() throws RemoteException, SQLException;
+    List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws RemoteException, SQLException;
+    void errorDeleteBarcodeReport(Integer nppGroupMachinery, Exception exception) throws RemoteException, SQLException;
+    void succeedDeleteBarcode(Integer nppGroupMachinery) throws RemoteException, SQLException;
+
     List<CashRegisterInfo> readCashRegisterInfo(String sidEquipmentServer) throws RemoteException, SQLException;
 
     //sendTerminalDocument consumer

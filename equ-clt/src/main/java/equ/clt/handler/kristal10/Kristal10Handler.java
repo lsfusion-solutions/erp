@@ -633,6 +633,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     }
 
     @Override
+    public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+        //пока непонятно, ждём пояснений, какую xml отправлять
+    }
+
+    @Override
     public void sendDiscountCardList(List<DiscountCard> discountCardList, RequestExchange requestExchange) throws IOException {
 
         Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();

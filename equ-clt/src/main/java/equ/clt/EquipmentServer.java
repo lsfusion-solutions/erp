@@ -35,22 +35,26 @@ public class EquipmentServer {
     private Thread thread;
 
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+    private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+    private final static Logger processDeleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
     protected final static Logger sendSoftCheckLogger = Logger.getLogger("SoftCheckLogger");
     protected final static Logger sendTerminalDocumentLogger = Logger.getLogger("TerminalDocumentLogger");
     protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
     protected final static Logger logger = Logger.getLogger(EquipmentServer.class);
     
-    Map<String, Object> handlerMap = new HashMap<>();
+    static Map<String, Object> handlerMap = new HashMap<>();
     EquipmentServerSettings equipmentServerSettings;
 
     TaskPool taskPool;
     Consumer processTransactionConsumer;
     Thread processTransactionThread;
 
-    Consumer processStopListConsumer;
-    Thread processStopListThread;
+    private Consumer processStopListConsumer;
+    private Thread processStopListThread;
+
+    private Consumer processDeleteBarcodeConsumer;
+    private Thread processDeleteBarcodeThread;
 
     Consumer sendSalesConsumer;
     Thread sendSalesThread;
@@ -131,6 +135,9 @@ public class EquipmentServer {
                             if(remote.enabledStopListInfo())
                                 processStopListConsumer.scheduleIfNotScheduledYet();
 
+                            if(remote.enabledDeleteBarcodeInfo())
+                                processDeleteBarcodeConsumer.scheduleIfNotScheduledYet();
+
                             if(!disableSales) {
                                 if (sendSalesDelay == 0 || sendSalesDelayCounter >= sendSalesDelay || sendSalesDelayCounter == -1) {
                                     sendSalesConsumer.scheduleIfNotScheduledYet();
@@ -159,6 +166,8 @@ public class EquipmentServer {
                         processTransactionThread = null;
                         processStopListThread.interrupt();
                         processStopListThread = null;
+                        processDeleteBarcodeThread.interrupt();
+                        processDeleteBarcodeThread = null;
                         if(sendSalesThread != null) {
                             sendSalesThread.interrupt();
                             sendSalesThread = null;
@@ -233,7 +242,7 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    processStopListInfo(remote);
+                    StopListEquipmentServer.processStopListInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -246,6 +255,24 @@ public class EquipmentServer {
         processStopListThread = new Thread(processStopListConsumer);
         processStopListThread.setDaemon(true);
         processStopListThread.start();
+
+        processDeleteBarcodeConsumer = new Consumer() {
+            @Override
+            void runTask() throws Exception{
+                try {
+                    DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote);
+                } catch (ConnectException e) {
+                    needReconnect = true;
+                } catch (UnmarshalException e) {
+                    if(e.getCause() instanceof InvalidClassException)
+                        processDeleteBarcodeLogger.error("API changed! InvalidClassException");
+                    throw e;
+                }
+            }
+        };
+        processDeleteBarcodeThread = new Thread(processDeleteBarcodeConsumer);
+        processDeleteBarcodeThread.setDaemon(true);
+        processDeleteBarcodeThread.start();
 
         if(!disableSales) {
             sendSalesConsumer = new Consumer() {
@@ -321,32 +348,6 @@ public class EquipmentServer {
         machineryExchangeThread.setDaemon(true);
         machineryExchangeThread.start();
 
-    }
-
-    private void processStopListInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
-        processStopListLogger.info("Process StopListInfo");
-        List<StopListInfo> stopListInfoList = remote.readStopListInfo();
-        for (StopListInfo stopListInfo : stopListInfoList) {
-            boolean succeeded = true;
-            for (Map.Entry<String, Set<MachineryInfo>> entry : stopListInfo.handlerMachineryMap.entrySet()) {
-                Set<MachineryInfo> machineryInfoSet = entry.getValue();
-                try {
-                    Object clsHandler = getHandler(entry.getKey(), remote);
-                    if (clsHandler instanceof CashRegisterHandler)
-                        ((CashRegisterHandler) clsHandler).sendStopListInfo(stopListInfo, getDirectorySet(machineryInfoSet));
-                    else if (clsHandler instanceof ScalesHandler) {
-                        ((ScalesHandler) clsHandler).sendStopListInfo(stopListInfo, machineryInfoSet);
-                    }
-                } catch (Exception e) {
-                    remote.errorStopListReport(stopListInfo.number, e);
-                    succeeded = false;
-                }
-            }
-            if (succeeded)
-                remote.succeedStopList(stopListInfo.number, stopListInfo.idStockSet);
-        }
-        if(!stopListInfoList.isEmpty())
-            processStopListLogger.info(String.format("Processed %s StopListInfo", stopListInfoList.size()));
     }
 
     private Set<String> getDirectorySet(Set<MachineryInfo> machineryInfoSet) {
@@ -721,7 +722,7 @@ public class EquipmentServer {
         }
     }
 
-    private Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {
+    static Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {
         if(handlerModel == null) return null;
         Object clsHandler;
         if (handlerMap.containsKey(handlerModel))
@@ -770,6 +771,8 @@ public class EquipmentServer {
             processTransactionThread.interrupt();
         if(processStopListThread != null)
             processStopListThread.interrupt();
+        if(processDeleteBarcodeThread != null)
+            processDeleteBarcodeThread.interrupt();
         if(sendSalesThread != null)
             sendSalesThread.interrupt();
         if(sendSoftCheckThread != null)

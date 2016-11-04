@@ -19,9 +19,10 @@ import java.util.*;
 
 public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesBatch> {
 
-    protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
-    protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
-    protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
+    private final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
+    private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    private final static Logger deleteBarcodeLogger = Logger.getLogger("DeleteBarcodeLogger");
 
     private FileSystemXmlApplicationContext springContext;
 
@@ -45,9 +46,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Class.forName("com.mysql.jdbc.Driver");
 
                 UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString(); //"jdbc:mysql://172.16.0.35/import"
-                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
-                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
+                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
+                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
+                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
@@ -67,7 +68,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Exception exception = null;
                         try {
 
-                            if(version == null)
+                            if (version == null)
                                 version = getVersion(conn);
 
                             if (!skipItems) {
@@ -99,7 +100,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             }
 
                             version++;
-                            if(!skipBarcodes) {
+                            if (!skipBarcodes) {
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
                                 exportPriceListVar(conn, transaction, weightCode, version, transaction.denominationStage);
                             }
@@ -234,7 +235,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
-        if(transaction.itemsList != null) {
+        if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
             try {
@@ -278,7 +279,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private void exportStocks(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
-        if(transaction.itemsList != null) {
+        if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
             try {
@@ -290,7 +291,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     if (item.section != null) {
                         for (String stock : item.section.split(",")) {
-                            if(!sections.contains(stock)) {
+                            if (!sections.contains(stock)) {
                                 sections.add(stock);
                                 String[] splitted = stock.split("\\|");
                                 Integer id = Integer.parseInt(splitted[0]);
@@ -404,7 +405,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
         try {
-            if(transaction.nppGroupMachinery != null) {
+            if (transaction.nppGroupMachinery != null) {
                 ps = conn.prepareStatement(
                         "INSERT INTO pricetype_store_pricelist (pricetype, store, pricelist, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE pricelist=VALUES(pricelist), deleted=VALUES(deleted)");
                 ps.setInt(1, 123); //pricetype
@@ -455,6 +456,28 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
+    private void exportVarDeleteBarcode(Connection conn, List<String> barcodeList, int version) throws SQLException {
+        PreparedStatement ps = null;
+        try {
+            ps = conn.prepareStatement(
+                    "INSERT INTO var (id, version, deleted) VALUES (?, ?, ?) " +
+                            "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
+            for (String barcode : barcodeList) {
+                ps.setString(1, HandlerUtils.trim(barcode, 40)); //id
+                ps.setInt(2, version); //version
+                ps.setInt(3, 1); //deleted
+                ps.addBatch();
+            }
+            ps.executeBatch();
+            conn.commit();
+        } catch (Exception e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (ps != null)
+                ps.close();
+        }
+    }
+
     private void exportSignals(Connection conn, TransactionCashRegisterInfo transaction, int version, boolean ignoreSnapshot, int timeout, boolean wait) throws SQLException {
         conn.setAutoCommit(true);
         Statement statement = null;
@@ -465,7 +488,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     (transaction != null && transaction.snapshot && !ignoreSnapshot) ? "cumm" : "incr", version);
             statement.executeUpdate(sql);
 
-            if(wait) {
+            if (wait) {
                 int count = 0;
                 while (!waitForSignalExecution(conn, version)) {
                     if (count > (timeout / 5)) {
@@ -509,7 +532,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             int count = 0;
             while (!versionMap.isEmpty()) {
                 versionMap = waitForSignalsExecution(conn, versionMap);
-                if(!versionMap.isEmpty()) {
+                if (!versionMap.isEmpty()) {
                     if (count > (timeout / 5)) {
                         String message = String.format("data was sent to db but signal record(s) %s was not deleted", versionMap.keySet());
                         processTransactionLogger.error(message);
@@ -536,16 +559,16 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         Statement statement = null;
         try {
             String inVersions = "";
-            for(Integer version : versionMap.keySet())
+            for (Integer version : versionMap.keySet())
                 inVersions += (inVersions.isEmpty() ? "" : ",") + version;
 
             statement = conn.createStatement();
             String sql = "SELECT version FROM `signal` WHERE version IN (" + inVersions + ")";
             ResultSet resultSet = statement.executeQuery(sql);
             Map<Integer, Integer> result = new HashMap<>();
-            while(resultSet.next()) {
+            while (resultSet.next()) {
                 Integer version = resultSet.getInt(1);
-                 result.put(version, versionMap.get(version));
+                result.put(version, versionMap.get(version));
             }
             return result;
         } catch (Exception e) {
@@ -643,6 +666,39 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     @Override
+    public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
+        try {
+            if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
+                Class.forName("com.mysql.jdbc.Driver");
+
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
+                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
+                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
+                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
+                timeout = timeout == null ? 300 : timeout;
+
+                if (connectionString == null) {
+                    deleteBarcodeLogger.error("No importConnectionString in ukm4MySQLSettings found");
+                } else {
+                    try (Connection conn = DriverManager.getConnection(connectionString, user, password)) {
+                        conn.setAutoCommit(false);
+                        Integer version = getVersion(conn) + 1;
+
+                        deleteBarcodeLogger.info("ukm4 mysql: deleteBarcode, table var");
+                        exportVarDeleteBarcode(conn, deleteBarcodeInfo.barcodeList, version);
+
+                        processTransactionLogger.info("ukm4 mysql: deleteBarcode, table signal");
+                        exportSignals(conn, null, version, false, timeout, true);
+                    }
+                }
+            }
+        } catch (ClassNotFoundException | SQLException e) {
+            throw Throwables.propagate(e);
+        }
+    }
+
+    @Override
     public SalesBatch readSalesInfo(String directory, List<CashRegisterInfo> cashRegisterInfoList) throws IOException, ParseException {
 
         UKM4MySQLSalesBatch salesBatch = null;
@@ -651,7 +707,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         Map<Integer, CashRegisterInfo> machineryMap = new HashMap<>();
         for (CashRegisterInfo c : cashRegisterInfoList) {
             if (c.handlerModel != null && c.handlerModel.endsWith("UKM4MySQLHandler")) {
-                if(c.number != null && c.numberGroup != null)
+                if (c.number != null && c.numberGroup != null)
                     machineryMap.put(c.number, c);
                 if (c.weightCodeGroupCashRegister != null) {
                     weightCode = c.weightCodeGroupCashRegister;
@@ -671,7 +727,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCardPayments());
             Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
 
-            if(connectionString == null) {
+            if (connectionString == null) {
                 processTransactionLogger.error("No exportConnectionString in ukm4MySQLSettings found");
             } else {
 
@@ -707,32 +763,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         return paymentsSet;
     }
 
-//    private Map<Integer, String> readLoginMap(Connection conn) throws SQLException {
-//
-//        Map<Integer, String> loginMap = new HashMap<>();
-//
-//        Statement statement = null;
-//        try {
-//            statement = conn.createStatement();
-//            String query = "select id, user_id from login";
-//            ResultSet rs = statement.executeQuery(query);
-//            while(rs.next()) {
-//                Integer id = rs.getInt(1);
-//                String idEmployee = String.valueOf(rs.getInt(2));
-//
-//                loginMap.put(id, idEmployee);
-//            }
-//        } catch (SQLException e) {
-//            throw Throwables.propagate(e);
-//        } finally {
-//            if (statement != null)
-//                statement.close();
-//        }
-//        return loginMap;
-//    }
-
     private Map<String, Payment> readPaymentMap(Connection conn, Set<Integer> cashPayments,
-                                                                 Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
+                                                Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
 
         Map<String, Payment> paymentMap = new HashMap<>();
 
@@ -743,23 +775,23 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     "from receipt_payment p left join receipt r on p.cash_id = r.cash_id and p.receipt_header = r.id " +
                     "where r.ext_processed = 0 AND r.result = 0 AND p.type != 3"; // type 3 это сдача
             ResultSet rs = statement.executeQuery(query);
-            while(rs.next()) {
+            while (rs.next()) {
                 Integer cash_id = rs.getInt(1); //cash_id
                 Integer idReceipt = rs.getInt(2); //receipt_header
                 String key = String.valueOf(cash_id) + "/" + String.valueOf(idReceipt);
                 Integer paymentType = rs.getInt(3);//payment_id
-                if(cashPayments.contains(paymentType)) //нал
+                if (cashPayments.contains(paymentType)) //нал
                     paymentType = 0;
-                else if(cardPayments.contains(paymentType)) //безнал
+                else if (cardPayments.contains(paymentType)) //безнал
                     paymentType = 1;
-                else if(giftCardPayments.contains(paymentType)) //сертификат
+                else if (giftCardPayments.contains(paymentType)) //сертификат
                     paymentType = 2;
                 BigDecimal amount = rs.getBigDecimal(4);
                 Integer receiptType = rs.getInt(5); //r.type
                 boolean isReturn = receiptType == 1 || receiptType == 4 || receiptType == 9;
                 amount = isReturn ? amount.negate() : amount;
                 String giftCard = rs.getString(6); //p.card_number
-                if(giftCard.isEmpty())
+                if (giftCard.isEmpty())
                     giftCard = null;
 
                 Payment paymentEntry = paymentMap.get(key);
@@ -793,7 +825,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         Set<Pair<Integer, Integer>> receiptSet = new HashSet<>();
         Map<String, Payment> paymentMap = readPaymentMap(conn, cashPayments, cardPayments, giftCardPayments);
 
-        if(paymentMap != null) {
+        if (paymentMap != null) {
             Statement statement = null;
             try {
                 statement = conn.createStatement();
@@ -845,19 +877,19 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                         String giftCardValue = rs.getString(22); //rip.value
                         boolean isGiftCard = giftCardValue != null && !giftCardValue.isEmpty();
-                        if(isGiftCard)
+                        if (isGiftCard)
                             idBarcode = giftCardValue;
 
                         BigDecimal sumCash = denominateDivideType2(paymentEntry.sumCash, denominationStage);
                         BigDecimal sumCard = denominateDivideType2(paymentEntry.sumCard, denominationStage);
                         Map<String, BigDecimal> sumGiftCardMap = new HashMap<>();
-                        for(Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
+                        for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
                             sumGiftCardMap.put(entry.getKey(), denominateDivideType2(entry.getValue(), denominationStage));
                         }
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
                         BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sum, realAmount);
-                        if(totalQuantity != null) {
+                        if (totalQuantity != null) {
                             salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, null/*idEmployee*/,
                                     null, null, sumCard, sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
@@ -904,7 +936,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
 
                             String cashIdWhere = null;
-                            if(!entry.cashRegisterSet.isEmpty()) {
+                            if (!entry.cashRegisterSet.isEmpty()) {
                                 cashIdWhere = "AND cash_id IN (";
                                 for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
                                     cashIdWhere += cashRegister.number == null ? "" : (cashRegister.number + ",");
@@ -969,7 +1001,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 e.printStackTrace();
             } finally {
                 try {
-                    if(ps != null)
+                    if (ps != null)
                         ps.close();
                     if (conn != null)
                         conn.close();
@@ -979,7 +1011,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    protected Long parseGroup(String idItemGroup) {
+    private Long parseGroup(String idItemGroup) {
         try {
             return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup.replaceAll("[^0-9]", ""));
         } catch (Exception e) {
@@ -992,7 +1024,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         BigDecimal sumCard;
         Map<String, BigDecimal> sumGiftCardMap;
 
-        public Payment() {
+        Payment() {
             this.sumGiftCardMap = new HashMap<>();
         }
     }
