@@ -194,7 +194,6 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     private Element createGeneralElement(ExecutionContext context, DataObject evatObject, String status, String documentNumber, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Element generalElement = new Element("general");
 
-        String number = trim((String) findProperty("number[EVAT]").read(context, evatObject));
         String invoice = trim((String) findProperty("invoice[EVAT]").read(context, evatObject));
         String dateIssuance = formatDate(new Date(System.currentTimeMillis()));
         String dateTransaction = formatDate((Date) findProperty("date[EVAT]").read(context, evatObject));
@@ -217,7 +216,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             case "additional":
                 boolean sendToRecipient = findProperty("sendToRecipient[EVAT]").read(context, evatObject) != null;
 
-                addStringElement(namespace, generalElement, "number", number);
+                addStringElement(namespace, generalElement, "number", documentNumber);
                 addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
                 addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
                 addStringElement(namespace, generalElement, "documentType", "ADDITIONAL");
@@ -225,7 +224,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 addBooleanElement(namespace, generalElement, "sendToRecipient", sendToRecipient);
                 break;
             case "additionalNoRef":
-                addStringElement(namespace, generalElement, "number", number);
+                addStringElement(namespace, generalElement, "number", documentNumber);
                 addStringElement(namespace, generalElement, "dateIssuance", dateIssuance);
                 addStringElement(namespace, generalElement, "dateTransaction", dateTransaction);
                 addStringElement(namespace, generalElement, "documentType", "ADD_NO_REFERENCE");
