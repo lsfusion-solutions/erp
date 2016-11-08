@@ -10,11 +10,10 @@ import org.apache.commons.io.FileUtils;
 import javax.management.modelmbean.XMLParseException;
 import java.io.*;
 import java.net.URL;
-import java.security.*;
-import java.security.cert.CertificateException;
-import java.text.ParseException;
+import java.security.Security;
 import java.text.SimpleDateFormat;
 import java.util.*;
+import java.util.List;
 
 public class EVATHandler {
 
@@ -62,7 +61,7 @@ public class EVATHandler {
 
     private List<Object> sendFile(byte[] file, Integer evat, EVatService service, File archiveDir, String xsdPath,
                                   String serviceUrl, String unp, String password, Integer certIndex, Integer errorsCount)
-            throws CertificateException, UnrecoverableKeyException, NoSuchAlgorithmException, KeyStoreException, KeyManagementException, AvDocException, InvalidAlgorithmParameterException, IOException {
+            throws Exception {
         List<Object> result;
         try {
             System.out.println(String.format("EVAT %s: save file before sending", evat));
@@ -125,7 +124,7 @@ public class EVATHandler {
 
         } catch (Exception e) {
             System.out.println(String.format("EVAT %s: Error occurred (errors count %s)", evat, errorsCount + 1));
-            if(errorsCount < 5) {
+            if (errorsCount < 5) {
                 errorsCount++;
                 service = initService(serviceUrl, unp, password, certIndex);
                 return sendFile(file, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, errorsCount);
@@ -147,13 +146,13 @@ public class EVATHandler {
 
         try {
 
-            for(Map.Entry<String, Map<Integer, String>> entry : invoices.entrySet()) {
+            for (Map.Entry<String, Map<Integer, String>> entry : invoices.entrySet()) {
                 String unp = entry.getKey();
                 Map<Integer, String> invoicesMap = entry.getValue();
 
                 service = initService(serviceUrl, unp, password, certIndex);
 
-                for(Map.Entry<Integer, String> invoiceEntry : invoicesMap.entrySet()) {
+                for (Map.Entry<Integer, String> invoiceEntry : invoicesMap.entrySet()) {
                     Integer evat = invoiceEntry.getKey();
                     String invoiceNumber = invoiceEntry.getValue();
                     AvEStatus status = service.getStatus(invoiceNumber);
@@ -174,93 +173,7 @@ public class EVATHandler {
         return result;
     }
 
-    public String listAndGet(String path, String serviceUrl, String unp, String password, int certIndex) {
-        String result = null;
-
-        try {
-
-            File docFolder = new File(path + "/in");
-            if (docFolder.exists() || docFolder.mkdirs()) {
-
-                EVatService service = initService(serviceUrl, unp, password, certIndex);
-
-                // Чтение даты последнего запроса списка счетов-фактур на портале
-                Date fromDate;
-                Properties properties = new Properties();
-                File file = new File(docFolder, "ListEDocuments.dat");
-                if (file.exists() || file.createNewFile()) {
-
-                    try (FileInputStream fileInput = new FileInputStream(file)) {
-                        properties.load(fileInput);
-                    }
-
-                    String fromDateStr = properties.getProperty("fromDate");
-                    if (fromDateStr != null) {
-                        fromDate = string2Date(fromDateStr);
-                    } else {
-                        // Дата последнего запроса не сохранена в файл, запрашиваем за
-                        // последние 365 дней
-                        Calendar cal = Calendar.getInstance();
-                        cal.add(Calendar.DATE, -365);
-                        fromDate = cal.getTime();
-                    }
-
-                    // Получение списка поступивщих счетов-фактур НДС
-                    AvEList list = service.getList(fromDate);
-                    // Проверка ЭЦП электронного документа
-                    boolean isValid = list.verify();
-                    if (isValid) {
-
-                        for (int i = 0; i < list.getCount(); i++) {
-                            String invoiceNum = list.getItemAttribute(i, "document/number");
-
-                            // Получение электронного документа счет-фактуры по номеру
-                            AvEDoc eDocXml = service.getEDoc(invoiceNum);
-
-                            // Проверка ЭЦП электронного документа
-                            isValid = eDocXml.verify();
-                            if (isValid) {
-
-                                // Сохранение электронного документа в файл
-                                File docFile = new File(docFolder, "invoice-" + invoiceNum + "-verified.xml");
-                                writeFile(docFile, eDocXml.getEncoded());
-
-                                // Сохранение счет-фактуры НДС в файл
-                                File issuanceFile = new File(docFolder, "invoice-" + invoiceNum + ".xml");
-                                writeFile(issuanceFile, eDocXml.getDocument().getEncoded());
-                            } else {
-                                // Сохранение электронного документа в файл
-                                writeFile(new File(docFolder, "ERROR-invoice-" + invoiceNum + ".xml"), eDocXml.getEncoded());
-                                result = "Ошибка: получена некорректная счет-фактура с номером " + invoiceNum + ": " + eDocXml.getLastError().getMessage();
-                            }
-                        }
-
-                    } else {
-                        result = "Ошибка: получен некорректный список поступивших счетов-фактур";
-                    }
-
-                    // Сохранение даты получения списка счетов-фактур для следующего запуска
-                    Date toDate = list.getToDate();
-                    properties.setProperty("fromDate", date2String(toDate));
-                    try (FileOutputStream out = new FileOutputStream(new File(docFolder, "ListEDocuments.dat"))) {
-                        properties.store(out, "");
-                    }
-
-                    disconnect(service);
-
-                } else {
-                    result = "Unable to create ListEDocuments file";
-                }
-            } else {
-                result = "Unable to create in directory";
-            }
-        } catch (Exception e) {
-            result = "Ошибка: " + e.getMessage();
-        }
-        return result;
-    }
-
-    private EVatService initService(String serviceUrl, String unp, String password, int certIndex) throws UnrecoverableKeyException, CertificateException, NoSuchAlgorithmException, KeyStoreException, IOException, AvDocException, InvalidAlgorithmParameterException, KeyManagementException {
+    private EVatService initService(String serviceUrl, String unp, String password, int certIndex) throws Exception {
         System.out.println("EVAT: initService started");
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
@@ -326,13 +239,5 @@ public class EVATHandler {
         try (DataOutputStream os = new DataOutputStream(new FileOutputStream(file))) {
             os.write(data);
         }
-    }
-
-    public static Date string2Date(String date) throws ParseException {
-        return sdf.parse(date);
-    }
-
-    public static String date2String(Date date) {
-        return sdf.format(date);
     }
 }

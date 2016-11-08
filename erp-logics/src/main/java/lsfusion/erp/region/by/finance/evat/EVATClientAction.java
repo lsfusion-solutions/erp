@@ -11,6 +11,7 @@ import java.net.URL;
 import java.net.URLClassLoader;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.ExecutionException;
 
 public class EVATClientAction implements ClientAction {
     public static boolean initialized;
@@ -61,15 +62,10 @@ public class EVATClientAction implements ClientAction {
             initialized = true;
         }
 
-        switch (type) {
-            case 0:
-                return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certIndex);
-            case 1:
-                return new EVATHandler().getStatus(invoices, serviceUrl, password, certIndex);
-            case 2:
-                return new EVATHandler().listAndGet(path, serviceUrl, null, password, certIndex);
-            default:
-                return null;
+        try {
+            return new EVATWorker(files, invoices, serviceUrl, path, exportPath, password, certIndex, type).execute();
+        } catch (InterruptedException | ExecutionException e) {
+            return null;
         }
     }
 

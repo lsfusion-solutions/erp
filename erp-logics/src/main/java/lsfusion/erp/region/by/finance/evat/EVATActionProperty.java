@@ -52,9 +52,6 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                                     ServerLoggers.importLogger.info("EVAT: getStatus called");
                                     getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type, context);
                                     break;
-                                case 2:
-                                    listAndGet(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type, context);
-                                    break;
                             }
                         } else {
                             context.delayUserInteraction(new MessageClientAction("Не указан пароль", "Ошибка"));
@@ -158,13 +155,5 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
             serverStatusObject = id == null ? null : findProperty("nameStatic").readClasses(session, new DataObject("EVAT_EVATServerStatus." + id));
         }
         return serverStatusObject;
-    }
-
-    private void listAndGet(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        String result = (String) context.requestUserInteraction(new EVATClientAction(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
-        if(result != null)
-            context.delayUserInteraction(new MessageClientAction(result, "Ошибка"));
-        else
-            context.delayUserInteraction(new MessageClientAction("ЭСЧФ загружены в папку in", "EVAT"));
     }
 }
