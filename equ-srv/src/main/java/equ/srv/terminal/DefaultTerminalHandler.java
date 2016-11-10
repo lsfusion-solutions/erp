@@ -611,12 +611,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ImportTable table = new ImportTable(fields, terminalDocumentDetailList);
 
+                ServerLoggers.importLogger.info("start importing terminal document " + idTerminalDocument);                
                 IntegrationService service = new IntegrationService(session, table, keys, props);
                 service.synchronize(true, false);
 
                 ObjectValue terminalDocumentObject = terminalHandlerLM.findProperty("terminalDocument[VARSTRING[100]]").readClasses(session, session.getModifier(), session.getQueryEnv(), new DataObject(idTerminalDocument));
                 terminalHandlerLM.findProperty("createdUser[TerminalDocument]").change(userObject.object, session, (DataObject) terminalDocumentObject);
                 terminalHandlerLM.findAction("process[TerminalDocument]").execute(session, stack, terminalDocumentObject);
+                ServerLoggers.importLogger.info("start applying terminal document " + idTerminalDocument);
                 return session.applyMessage(getLogicsInstance().getBusinessLogics(), stack);
 
             } else return "-1";

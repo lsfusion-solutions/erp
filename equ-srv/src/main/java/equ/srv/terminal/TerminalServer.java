@@ -289,6 +289,7 @@ public class TerminalServer extends MonitorServer {
                                                         priceDocumentDetail, commentDocumentDetail, parseDate(dateDocumentDetail)));
                                             }
                                         }
+                                        logger.info("receiving document number " + document[2] + " : " + params.size() + " records");
                                         boolean emptyDocument = terminalDocumentDetailList.isEmpty();
                                         if(emptyDocument)
                                             terminalDocumentDetailList.add(Arrays.asList((Object) idDocument, numberDocument, idTerminalDocumentType, ana1, ana2, comment));
@@ -414,7 +415,7 @@ public class TerminalServer extends MonitorServer {
                 logger.info(String.format("Command %s: answer sent", command));
                 Thread.sleep(1000);
                 return null;
-            } catch (Exception e) {
+            } catch (Throwable e) {
                 logger.error("Error occured: ", e);
             } finally {
                 try {
