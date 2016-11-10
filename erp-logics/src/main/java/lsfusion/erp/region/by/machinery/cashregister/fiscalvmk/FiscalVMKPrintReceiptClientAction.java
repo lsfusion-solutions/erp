@@ -106,10 +106,14 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard, denominationStage))
                 return null;
             DecimalFormat formatter = getFormatter(denominationStage);
-            if(item.bonusSum != 0.0)
+            if(item.bonusSum != 0.0) {
+                FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
                 FiscalVMK.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
-            if(item.bonusPaid != 0.0)
+            }
+            if(item.bonusPaid != 0.0) {
+                FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
                 FiscalVMK.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+            }
         }
 
         if (!FiscalVMK.subtotal())

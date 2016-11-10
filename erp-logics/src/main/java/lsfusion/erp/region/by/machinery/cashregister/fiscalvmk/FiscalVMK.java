@@ -169,6 +169,10 @@ public class FiscalVMK {
         return true;
     }
 
+    static void simpleLogAction(String msg) {
+        logger.info(msg);
+    }
+
     public static boolean printFiscalText(String msg) {
         try {
         if(msg != null && !msg.isEmpty()) {
