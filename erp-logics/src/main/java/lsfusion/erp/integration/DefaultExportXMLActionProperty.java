@@ -65,6 +65,11 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
             parent.addContent(new Element(id).setText(value));
     }
 
+    protected void addIntegerElement(Element parent, String id, Integer value) {
+        if (value != null)
+            parent.addContent(new Element(id).setText(String.valueOf(value)));
+    }
+
     protected void addIntegerElement(Namespace namespace, Element parent, String id, Integer value) {
         if (value != null)
             parent.addContent(new Element(id, namespace).setText(String.valueOf(value)));
