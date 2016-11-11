@@ -557,6 +557,8 @@ FORM chooseBatchReceipt 'Выбор партии'
         
 ;
 
+overChangeBatch = ACTION ABSTRACT LIST (ReceiptDetail);
+
 changeBatch 'Изменить партию строки чека'(ReceiptDetail detail) = ACTION {
     IF explicitBatchLedger(receipt(detail)) THEN {
         FORM chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail DIALOG;
@@ -564,6 +566,7 @@ changeBatch 'Изменить партию строки чека'(ReceiptDetail 
             batch(detail) <- chosenObject('bt');
             price[ReceiptSaleDetail](detail) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt(detail));
         }
+        overChangeBatch(detail);
     }
 }
 
@@ -615,6 +618,7 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
                 } ELSE
                     DELETE d;
             }
+        overChangeBatch(d);    
     }
 }
 
@@ -1009,7 +1013,7 @@ prevCurrentBalance (Sku sku, Receipt receipt) = prevCurrentBalance(sku, departme
 prevCurrentBalanceSku 'Тек. остаток' (ReceiptDetail receiptDetail) = prevCurrentBalance(sku(receiptDetail), receipt(receiptDetail));
 prevCurrentBalanceSku 'Тек. остаток' (ReceiptDetail receiptDetail, Stock stock) = prevCurrentBalance(sku(receiptDetail), stock);
 
-prevCurrentBalance (Batch batch, Receipt receipt) = prevCurrentBalance(batch, departmentStore(receipt));
+prevCurrentBalance 'Тек. остаток' (Batch batch, Receipt receipt) = prevCurrentBalance(batch, departmentStore(receipt));
 prevCurrentBalanceBatch 'Тек. остаток' (ReceiptDetail receiptDetail) = prevCurrentBalance(batch(receiptDetail), receipt(receiptDetail));
 
 closedCurrentZReportMessage '' = 'Не открыт Z-отчет';

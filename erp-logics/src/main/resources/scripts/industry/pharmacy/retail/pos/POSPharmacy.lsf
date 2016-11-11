@@ -1,0 +1,134 @@
+MODULE POSPharmacy;
+
+REQUIRE POS, StockPharmacy, ItemPharmacy;
+
+NAMESPACE POS;
+
+quantity 'Кол-во расход' = GROUP SUM quantity(ReceiptSaleDetail receiptDetail)
+        BY batch(receiptDetail), receipt(receiptDetail);
+
+receiptDetail =  GROUP MAX (ReceiptSaleDetail receiptDetail)
+    BY batch(receiptDetail), receipt(receiptDetail);
+        
+changeQuantityValue (Batch batch, Receipt receipt) =  ACTION {
+    IF receiptDetail(batch, receipt) THEN {
+        IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+            quantity(ReceiptSaleDetail receiptDetail) <- requestedNumeric() WHERE receiptDetail == receiptDetail(batch, receipt);
+        } ELSE {
+            FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+            FOR ADDOBJ d = ReceiptSaleDetail DO {
+                receipt(d) <- receipt;
+                sku(d) <- sku(batch);
+                batch(d) <- batch;
+                quantity (d) <- requestedNumeric();
+                price(d) <- currentPOSPrice(batch, receipt);
+            }
+        }
+    }
+}     
+        
+changeQuantity(Batch batch, Receipt receipt) = ACTION {
+    REQUEST NUMERIC[16,5] INPUT;
+    changeQuantityValue(batch, receipt);
+}
+
+backgroundQuantity (Batch batch, Receipt receipt) = IF quantity(batch, receipt) > prevCurrentBalance(batch, receipt)
+    THEN RGB(255,128,128);
+
+needPrescription 'Рецепт' (Batch batch) = needPrescription(sku(batch));    
+prescriptionMessage (Batch batch) = IF needPrescription(batch) THEN 'Требуется рецепт';
+
+backgroundExpiryDate = ABSTRACT COLOR (Batch, Receipt);           
+            
+EXTEND FORM POS
+    OBJECTS bt = Batch FIXED GRID
+    PROPERTIES (bt) READONLY prevNameSku, needPrescription, prescriptionMessage TODRAW d FORCE PANEL SHOWIF needPrescription(bt)
+    PROPERTIES (bt, r) quantityReceiptGrid = quantity ON CHANGE changeQuantity(bt, r) BACKGROUND backgroundQuantity(bt, r) QUICKFILTER prevNameSku(bt)
+    PROPERTIES (bt, r) READONLY prevCurrentBalance, currentPOSPrice
+    PROPERTIES (bt) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
+    ORDER BY prevNameSku(bt)
+    FILTERS prevCurrentBalance(bt, r)
+    FILTERGROUP balance
+        FILTER 'В чеке' quantity(bt, r)   
+;
+
+changeAnalogueQuantity(Batch batch, Receipt receipt) = ACTION {
+    REQUEST NUMERIC[16,5] INPUT;
+    changeQuantityValue(batch, receipt);
+    FOCUS POS.quantityReceiptGrid;
+    SEEK POS.bt = batch;
+}
+
+EXTEND FORM POS
+    OBJECTS bt1 = Batch FIXED GRID
+    PROPERTIES (bt1) READONLY prevNameSku
+    PROPERTIES (bt1, r) quantity ON CHANGE changeAnalogueQuantity(bt1, r) BACKGROUND backgroundQuantity(bt1, r)
+    PROPERTIES (bt1, r) READONLY prevCurrentBalance, currentPOSPrice
+    PROPERTIES (bt1) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry
+    FILTERS prevCurrentBalance(bt1, r), substance(bt)==substance(bt1) AND NOT sku(bt)==sku(bt1)
+    ORDER BY prevNameSku(bt1)        
+;
+    
+DESIGN POS {
+    NEW tabbed BEFORE center {
+        type = TABBED;
+        fill = 1;
+        MOVE bt.box{
+            bt.grid {
+                quickSearch = TRUE;
+            }
+            caption = 'Остатки';
+            PROPERTY(prevNameSku(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 20; preferredCharWidth = 40;}
+            PROPERTY(quantityReceiptGrid) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4;}
+            PROPERTY(prevCurrentBalance(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(currentPOSPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
+            PROPERTY(expiryDate(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
+            PROPERTY(seriesPharmacy(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
+            PROPERTY(nameManufacturer(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
+            PROPERTY(nameCountry(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
+            PROPERTY(nameSubstance(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 20;}
+            REMOVE bt.toolbar;
+        }
+        MOVE d.box;
+    }
+    pane {
+        MOVE bt1.box BEFORE pc.box {
+            caption = 'Аналоги';
+            REMOVE bt1.toolbar;
+            PROPERTY(prevNameSku(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 20; preferredCharWidth = 40;}
+            PROPERTY(quantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4;}
+            PROPERTY(prevCurrentBalance(bt1, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(currentPOSPrice(bt1, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
+            PROPERTY(expiryDate(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
+            PROPERTY(seriesPharmacy(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
+            PROPERTY(nameManufacturer(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
+            PROPERTY(nameCountry(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
+        } 
+    }
+    north {
+        NEW prescription AFTER r.receiptReturnAction {
+            caption = 'Рецепт';
+            type = CONTAINERH;
+            alignment = STRETCH;
+            MOVE PROPERTY(prescriptionMessage(bt)) {
+                caption = ''; focusable = FALSE; font = 'bold 24'; foreground = #952828;           
+            }
+        }
+    }
+    s.box {
+        caption = 'Остатки на других аптеках';
+    }
+    REMOVE PROPERTY(searchBatchSale(r));
+    REMOVE PROPERTY(nameBatchPanel);
+}
+
+overChangeBatch(ReceiptDetail d) += ACTION {
+    FOCUS POS.quantityReceiptGrid;
+    SEEK POS.bt = batch(d);
+};
+
+
