@@ -1,0 +1,64 @@
+MODULE TopBy;
+
+REQUIRE System, EDI, Integration, Warehouse, Store;
+
+loginTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
+passwordTopBy 'Пароль TopBy' = DATA VARSTRING[100] () ECHO;
+hostTopBy 'Хост' = DATA VARSTRING[100] ();
+portTopBy 'Порт' = DATA INTEGER ();
+
+EXTEND FORM integrationData
+    PROPERTIES() loginTopBy, passwordTopBy, hostTopBy, portTopBy
+;
+    
+DESIGN integrationData {
+    pane {
+        NEW vs {
+            caption = 'TopBy';
+            MOVE PROPERTY(loginTopBy());
+            MOVE PROPERTY(passwordTopBy());
+            MOVE PROPERTY(hostTopBy());
+            MOVE PROPERTY(portTopBy());
+        }
+    }
+}
+
+GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
+legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity legalEntity BY GLN(legalEntity);
+GLNSupplier(EOrder e) = GLN(supplier(e));
+GLNCustomer(EOrder e) = GLN(customer(e));
+EXTEND FORM legalEntity PROPERTIES(l) GLN;
+EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN;
+
+GLN 'GLN' = DATA VARSTRING[13] (Stock);
+stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
+GLNSupplierStock(EOrder e) = GLN(supplierStock(e));
+GLNCustomerStock(EOrder e) = GLN(customerStock(e));
+EXTEND FORM warehouse PROPERTIES(w) GLN;
+EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
+EXTEND FORM departmentStore PROPERTIES(d) GLN;
+EXTEND FORM departmentStores PROPERTIES(d) READONLY GLN;
+
+send 'Отправить' = ACTION CUSTOM 'lsfusion.erp.region.by.integration.edi.topby.SendEOrderActionProperty' (EOrder);
+
+EXTEND FORM eOrders
+PROPERTIES(o) send FORCE PANEL TOOLBAR
+;
+
+//REQUIRE PurchaseInvoice, Item, LegalEntityBy, Warehouse;
+//
+//maxMessageNumber = DATA INTEGER (); 
+//
+//GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
+//legalGLN (legalEntity) = GROUP AGGR LegalEntity legalEntity BY GLN(legalEntity);
+//GLNSupplier(UserInvoice invoice) = GLN(supplier(invoice));
+//GLNCustomer(UserInvoice invoice) = GLN(customer(invoice));
+//EXTEND FORM legalEntity PROPERTIES(l) GLN;
+//EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN;
+//
+//GLN 'GLN' = DATA VARSTRING[13] (Stock);
+//stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
+//EXTEND FORM warehouse PROPERTIES(w) GLN;
+//EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
+//
+//isCancelled 'Отменена' = DATA BOOLEAN (Purchase.UserInvoice);

@@ -1,0 +1,85 @@
+MODULE EDI;
+
+REQUIRE LegalEntity, Barcode, PurchaseInvoice;
+
+CLASS ABSTRACT EOrder 'EDI Заказ';
+TABLE eOrder(EOrder); 
+
+EXTEND CLASS Purchase.UserOrder : EOrder;
+
+isClosed 'Закрыт' = ABSTRACT BOOLEAN (EOrder);
+isClosed(Purchase.UserOrder o) += Purchase.isClosed(o);
+
+isOpened = ABSTRACT BOOLEAN (EOrder);
+isOpened(Purchase.UserOrder o) += Purchase.isOpened(o);
+
+dateTime 'Дата/время документа' = ABSTRACT DATETIME (EOrder);
+dateTime(Purchase.UserOrder o) += Purchase.dateTime[UserOrder](o);
+
+number 'Номер' = ABSTRACT VARSTRING[28] (EOrder);
+number(Purchase.UserOrder o) += Purchase.number(o);
+
+supplier 'Поставщик' = ABSTRACT LegalEntity (EOrder);
+supplier(Purchase.UserOrder o) += Purchase.supplier(o);
+nameSupplier 'Поставщик' (EOrder o) = name(supplier(o));
+
+supplierStock 'Склад поставщика' = ABSTRACT Stock (EOrder);
+supplierStock(Purchase.UserOrder o) += Purchase.supplierStock(o);
+nameSupplierStock 'Склад поставщика' (EOrder o) = name(supplierStock(o));
+
+customer 'Покупатель' = ABSTRACT LegalEntity (EOrder);
+customer(Purchase.UserOrder o) += Purchase.customer(o);
+nameCustomer 'Покупатель' (EOrder o) = name(customer(o));
+
+customerStock 'Склад покупателя' = ABSTRACT Stock (EOrder);
+customerStock(Purchase.UserOrder o) += Purchase.customerStock(o);
+nameCustomerStock 'Склад покупателя' (EOrder o) = name(customerStock(o));
+
+CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
+TABLE eOrderDetail(EOrderDetail); 
+
+EXTEND CLASS Purchase.UserOrderDetail : EOrderDetail;
+
+order = ABSTRACT EOrder(EOrderDetail);
+order(Purchase.UserOrderDetail o) += Purchase.userOrder(o);
+
+sku = ABSTRACT Sku(EOrderDetail);
+sku(Purchase.UserOrderDetail o) += Purchase.sku(o);
+nameSku 'Наименование' (EOrderDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderDetail o) = idBarcode(sku(o));
+
+extraCodeUOM 'Ед. изм. (EDI)' = DATA VARSTRING[10] (UOM);
+extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDetail o) = extraCodeUOM(UOM(sku(o)));
+EXTEND FORM UOMs PROPERTIES(u) READONLY extraCodeUOM;
+EXTEND FORM UOM PROPERTIES(u) extraCodeUOM;
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (EOrderDetail);
+quantity(Purchase.UserOrderDetail o) += Purchase.quantity(o);
+
+price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
+price(Purchase.UserOrderDetail o) += Purchase.price(o);
+
+FORM eOrders
+OBJECTS o = EOrder
+PROPERTIES(o) isClosed, dateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+PROPERTIES(o) FORCE PANEL TOOLBAR ADDOBJ, DELETE
+
+OBJECTS d = EOrderDetail
+PROPERTIES(d) idBarcode, nameSku, extraCodeUOMSku, quantity, price
+PROPERTIES(d) FORCE PANEL TOOLBAR ADDOBJ, DELETE
+
+FILTERS order(d) == o
+FILTERGROUP orderfilters6 FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+;
+
+NAVIGATOR {
+    financeNavigator {
+        ADD eOrders;
+    }
+}
+
+CLASS EOrderResponse;
+TABLE eOrderResponse(EOrderResponse);
+
+CLASS EDispatchAdvice;
+TABLE eDispatchAdvice(EDispatchAdvice);
