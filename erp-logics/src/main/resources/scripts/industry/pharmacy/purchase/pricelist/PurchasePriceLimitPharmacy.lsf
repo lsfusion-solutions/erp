@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimitPharmacy;
 
-REQUIRE PricingPharmacy, PricingPurchase, PurchaseManufacturingPrice, PricingPriceLimit;
+REQUIRE PricingPriceLimitPharmacy, PricingPurchase, PurchaseManufacturingPrice, PricingPriceLimit;
 
 NAMESPACE Purchase;
 
@@ -15,20 +15,6 @@ WHEN SESSION FORMS userInvoice
               SET(showLimitPharmacyPrice(detail)))
              AND showLimitPharmacyPrice(detail) DO {   
     limitPharmacyMarkup(detail) <- retailMarkupPharmacy(sku(detail), NUMERIC[16,4](manufacturingPrice(detail)), date(detail));
-}
-
-//----------------------------------------------- Операции -----------------------------------------------------//
-// Вид цены для расценки для операции
-showLimitPharmacyPrice 'Предельная розн. надбавка' = DATA BOOLEAN(Pricing.Operation) IN documentPrm;
-
-EXTEND FORM Pricing.operation
-    PROPERTIES(o) showLimitPharmacyPrice
-;
-
-DESIGN Pricing.operation {
-    showContainer {
-        MOVE PROPERTY(showLimitPharmacyPrice(o));
-    }
 }
 
 // Записываем необходимо ли показывать предельную надбавку по умолчанию из операции расценки, заданной для операции закупка
@@ -56,7 +42,8 @@ EXTEND FORM invoices
 //расчет предельной цены
 limitPharmacyPrice (UserInvoiceDetail detail) =
                                        round(
-                                           [= X*(Y+100.0)*(Z+100.0)/10000.0](
+                                           [= (A + B*C/100.0)*(100.0 + D)/100.0](
+                                                    price(detail),
                                                     manufacturingPrice(detail),
                                                     limitPharmacyMarkup(detail),
                                                     valueRetailVAT(detail)), limitRetailMarkupPharmacyCondition());
@@ -68,4 +55,7 @@ WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail]
         retailPrice(d) <- limitPharmacyPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
     }
-}                                                                
+}
+
+showLimitPharmacyPrice(InvoicePricing pricing) += showLimitPharmacyPrice(invoice(pricing));
+limitPharmacyMarkup(InvoicePricingDetail detail) += limitPharmacyMarkup(invoiceDetail(detail));   
