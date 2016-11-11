@@ -1,0 +1,72 @@
+MODULE RepricingPriceLimitPharmacy;
+
+REQUIRE RepricingManufacturingPrice, PricingPharmacy;
+
+NAMESPACE Repricing;
+
+//------------------ Предельные надбавки ----------------------//
+
+@defineDocumentInterfaceProperty (repricing, showLimitPharmacyPrice, 'Предельная надбавка');
+@defineDocumentInterfaceDetailMarkupPrefix (repricing, limitPharmacy, ' предельная');
+
+WHEN SESSION FORMS userRepricing 
+             (CHANGED(manufacturingPrice(UserRepricingDetail detail)) OR
+              CHANGED(sku(detail)) OR CHANGED(date(detail)) OR
+              SET(showLimitPharmacyPrice(detail)))
+             AND showLimitPharmacyPrice(detail) DO {
+    limitPharmacyMarkup[RepricingDetail](detail) <- retailMarkupPharmacy(sku(detail), NUMERIC[16,4](manufacturingPrice(detail)), date(detail));
+}
+
+//----------------------------------------------- Операции -----------------------------------------------------//
+
+// Вид цены для расценки для операции
+@defineDocumentHeaderProperty (operation, showLimitPharmacyPrice, 'Предельная надбавка');
+
+EXTEND FORM operation
+    PROPERTIES(o) showLimitPharmacyPrice
+;
+
+DESIGN operation {
+    showContainer {
+        MOVE PROPERTY(showLimitPharmacyPrice(o));
+    }
+}
+
+// Записываем необходимо ли показывать предельную надбавку по умолчанию из операции расценки, заданной для операции закупка
+showLimitPharmacyPrice (UserRepricing invoice) <- showLimitPharmacyPrice(operation(invoice))
+    WHEN CHANGED(operation(invoice));
+
+EXTEND FORM userRepricing
+    PROPERTIES(p) showLimitPharmacyPrice
+    PROPERTIES(d) SHOWIF showLimitPharmacyPrice(p) BEFORE markup(d) limitPharmacyMarkup
+;
+DESIGN userRepricing{
+    p.documentPrm {
+        MOVE PROPERTY (showLimitPharmacyPrice(p));
+    }
+}
+
+EXTEND FORM repricings
+    PROPERTIES(d) READONLY SHOWIF showLimitPharmacyPrice(p) BEFORE markup(d) limitPharmacyMarkup
+;
+
+limitPharmacyPrice (UserRepricingDetail detail) =
+                                       round(
+                                           [= (A + B*C/100.0)*(100.0 + D)/100.0](
+                                                    price(detail),
+                                                    manufacturingPrice(detail),
+                                                    limitPharmacyMarkup(detail),
+                                                    valueVAT(detail)), limitRetailMarkupPharmacyCondition());                                               
+
+WHEN SESSION FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
+            (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitPharmacyMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPharmacyPrice(d) AND limitPharmacyPrice(d) < retailPrice(d) DO {
+    retailPrice(d) <- limitPharmacyPrice(d);
+     
+    markup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                       retailPrice(d),
+                                                       repricingPrice(d),
+                                                       valueVAT(d));
+}
+
+
