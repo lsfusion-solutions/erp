@@ -35,11 +35,11 @@ DESIGN Pricing.operation {
 showLimitPharmacyPrice (UserInvoice invoice) <- showLimitPharmacyPrice(pricingOperation(invoice))
     WHEN CHANGED(operation(invoice));
 
-showIfLimitPrice = showLimitPharmacyPrice (UserInvoice invoice) AND createPricing(invoice);
+showIfLimitPharmacyPrice = showLimitPharmacyPrice (UserInvoice invoice) AND createPricing(invoice);
 
 EXTEND FORM userInvoice
     PROPERTIES(i) showLimitPharmacyPrice SHOWIF createPricing(i) BACKGROUND backgroundRetail(i)
-    PROPERTIES(pd) SHOWIF showIfLimitPrice(i) BEFORE retailMarkup(pd) limitPharmacyMarkup BACKGROUND backgroundRetail(i)
+    PROPERTIES(pd) SHOWIF showIfLimitPharmacyPrice(i) BEFORE retailMarkup(pd) limitPharmacyMarkup BACKGROUND backgroundRetail(i)
 ;
 
 DESIGN userInvoice{
@@ -54,7 +54,7 @@ EXTEND FORM invoices
 ;
 
 //расчет предельной цены
-limitPrice (UserInvoiceDetail detail) =
+limitPharmacyPrice (UserInvoiceDetail detail) =
                                        round(
                                            [= X*(Y+100.0)*(Z+100.0)/10000.0](
                                                     manufacturingPrice(detail),
@@ -64,11 +64,8 @@ limitPrice (UserInvoiceDetail detail) =
 WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(manufacturingPrice(d)) OR CHANGED(sku(d))  OR CHANGED(price(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
              showLimitPharmacyPrice(d) NOINLINE DO {
-    IF limitPrice(d) < retailPrice(d) THEN {
-        retailPrice(d) <- limitPrice(d);
+    IF limitPharmacyPrice(d) < retailPrice(d) THEN {
+        retailPrice(d) <- limitPharmacyPrice(d);
         retailMarkup(d) <- calcRetailMarkup(d);
     }
-}
-                                                    
-showLimitPrice(InvoicePricing pricing) += showLimitPharmacyPrice(invoice(pricing));
-limitMarkup(InvoicePricingDetail detail) += limitPharmacyMarkup(invoiceDetail(detail));                                                                                
+}                                                                
