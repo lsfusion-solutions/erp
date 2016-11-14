@@ -1,6 +1,6 @@
 MODULE RepricingPriceLimitPharmacy;
 
-REQUIRE RepricingManufacturingPrice, PricingPharmacy;
+REQUIRE RepricingManufacturingPrice, PricingPharmacy, RepricingPharmacy, RepricingPriceDivider;
 
 NAMESPACE Repricing;
 
@@ -50,13 +50,17 @@ EXTEND FORM repricings
     PROPERTIES(d) READONLY SHOWIF showLimitPharmacyPrice(p) BEFORE markup(d) limitPharmacyMarkup
 ;
 
-limitPharmacyPrice (UserRepricingDetail detail) =
+calcLimitPharmacyPrice (UserRepricingDetail detail) =
                                        round(
                                            [= (A + B*C/100.0)*(100.0 + D)/100.0](
                                                     price(detail),
                                                     manufacturingPrice(detail),
                                                     limitPharmacyMarkup(detail),
-                                                    valueVAT(detail)), limitRetailMarkupPharmacyCondition());                                               
+                                                    valueVAT(detail)), limitRetailMarkupPharmacyCondition());
+                                                                                                   
+limitPharmacyPrice (UserRepricingDetail detail) = IF blisterAmount(detail) 
+    THEN round(calcLimitPharmacyPrice(detail)/blisterAmount(detail), limitRetailMarkupPharmacyCondition())*blisterAmount(detail)
+    ELSE calcLimitPharmacyPrice(detail);                                                                                                       
 
 WHEN SESSION FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
             (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitPharmacyMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 

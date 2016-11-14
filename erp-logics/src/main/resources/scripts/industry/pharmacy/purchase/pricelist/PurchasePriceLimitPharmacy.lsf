@@ -1,6 +1,6 @@
 MODULE PurchasePriceLimitPharmacy;
 
-REQUIRE PricingPriceLimitPharmacy, PricingPurchase, PurchaseManufacturingPrice, PricingPriceLimit;
+REQUIRE PricingPriceLimitPharmacy, PricingPurchasePharmacy, PurchaseManufacturingPrice, PricingPriceLimit;
 
 NAMESPACE Purchase;
 
@@ -40,13 +40,19 @@ EXTEND FORM invoices
 ;
 
 //расчет предельной цены
-limitPharmacyPrice (UserInvoiceDetail detail) =
+calcLimitPharmacyPrice (UserInvoiceDetail detail) = 
                                        round(
                                            [= (A + B*C/100.0)*(100.0 + D)/100.0](
                                                     price(detail),
                                                     manufacturingPrice(detail),
                                                     limitPharmacyMarkup(detail),
                                                     valueRetailVAT(detail)), limitRetailMarkupPharmacyCondition());
+                                                    
+limitPharmacyPrice (UserInvoiceDetail detail) =
+    IF blisterAmount(detail) 
+        THEN round(calcLimitPharmacyPrice(detail)/blisterAmount(detail), limitRetailMarkupPharmacyCondition())*blisterAmount(detail)
+        ELSE calcLimitPharmacyPrice(detail)   
+;
 
 WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(manufacturingPrice(d)) OR CHANGED(sku(d))  OR CHANGED(price(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 

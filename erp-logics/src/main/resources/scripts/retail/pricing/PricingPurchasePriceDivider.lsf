@@ -1,0 +1,14 @@
+MODULE PricingPurchasePriceDivider;
+
+REQUIRE PricingPurchase;
+
+NAMESPACE Purchase;
+
+priceDivider = ABSTRACT INTEGER (UserInvoiceDetail);
+
+WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
+            (SETCHANGED(retailPrice(UserInvoiceDetail d)) OR CHANGED(sku(d)) OR CHANGED(priceDivider(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             priceDivider(d) NOINLINE DO {
+        retailPrice(d) <- round(retailPrice(d)/priceDivider(d), roundCondition(retailPriceListType(d), sku(d)))*priceDivider(d);
+        retailMarkup(d) <- calcRetailMarkup(d);
+}
