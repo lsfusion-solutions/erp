@@ -18,6 +18,7 @@ dateTime(Purchase.UserOrder o) += Purchase.dateTime[UserOrder](o);
 
 number 'Номер' = ABSTRACT VARSTRING[28] (EOrder);
 number(Purchase.UserOrder o) += Purchase.number(o);
+eOrder (number) = GROUP AGGR EOrder e BY number(e);
 
 supplier 'Поставщик' = ABSTRACT LegalEntity (EOrder);
 supplier(Purchase.UserOrder o) += Purchase.supplier(o);
@@ -59,10 +60,15 @@ quantity(Purchase.UserOrderDetail o) += Purchase.quantity(o);
 price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
 price(Purchase.UserOrderDetail o) += Purchase.price(o);
 
-FORM eOrders
+//--------------------------------------Уведомление об отгрузке EDI-----------------------------------------//
+CLASS EOrderDespatchAdvice 'Уведомление об отгрузке EDI';
+TABLE eOrderDespatchAdvice(EOrderDespatchAdvice);
+
+
+
+FORM eOrders 'Заказы EDI'
 OBJECTS o = EOrder
 PROPERTIES(o) isClosed, dateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
-PROPERTIES(o) FORCE PANEL TOOLBAR ADDOBJ, DELETE
 
 OBJECTS d = EOrderDetail
 PROPERTIES(d) idBarcode, nameSku, extraCodeUOMSku, quantity, price
@@ -72,14 +78,22 @@ FILTERS order(d) == o
 FILTERGROUP orderfilters6 FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
 ;
 
-NAVIGATOR {
-    financeNavigator {
-        ADD eOrders;
+DESIGN eOrders {
+    main {
+        MOVE o.box;
+        NEW tab {
+            fill = 1;
+            type = TABBED;
+            MOVE d.box;
+        }
+        MOVE functions.box;
     }
 }
 
-CLASS EOrderResponse;
-TABLE eOrderResponse(EOrderResponse);
-
-CLASS EDispatchAdvice;
-TABLE eDispatchAdvice(EDispatchAdvice);
+NAVIGATOR {
+    financeNavigator {
+        NEW edi 'EDI' {
+            ADD eOrders;
+        }
+    }
+}
