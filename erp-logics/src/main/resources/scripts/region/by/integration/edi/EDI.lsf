@@ -1,51 +1,37 @@
 MODULE EDI;
 
-REQUIRE LegalEntity, Barcode, PurchaseInvoice;
+REQUIRE LegalEntity, Barcode, Store, Warehouse;
 
 CLASS ABSTRACT EOrder 'EDI Заказ';
 TABLE eOrder(EOrder); 
 
-EXTEND CLASS Purchase.UserOrder : EOrder;
+exported 'Экспортирован' = DATA BOOLEAN (EOrder);
 
 isClosed 'Закрыт' = ABSTRACT BOOLEAN (EOrder);
-isClosed(Purchase.UserOrder o) += Purchase.isClosed(o);
-
 isOpened = ABSTRACT BOOLEAN (EOrder);
-isOpened(Purchase.UserOrder o) += Purchase.isOpened(o);
-
 dateTime 'Дата/время документа' = ABSTRACT DATETIME (EOrder);
-dateTime(Purchase.UserOrder o) += Purchase.dateTime[UserOrder](o);
 
 number 'Номер' = ABSTRACT VARSTRING[28] (EOrder);
-number(Purchase.UserOrder o) += Purchase.number(o);
 eOrder (number) = GROUP AGGR EOrder e BY number(e);
 
 supplier 'Поставщик' = ABSTRACT LegalEntity (EOrder);
-supplier(Purchase.UserOrder o) += Purchase.supplier(o);
 nameSupplier 'Поставщик' (EOrder o) = name(supplier(o));
 
 supplierStock 'Склад поставщика' = ABSTRACT Stock (EOrder);
-supplierStock(Purchase.UserOrder o) += Purchase.supplierStock(o);
 nameSupplierStock 'Склад поставщика' (EOrder o) = name(supplierStock(o));
 
 customer 'Покупатель' = ABSTRACT LegalEntity (EOrder);
-customer(Purchase.UserOrder o) += Purchase.customer(o);
 nameCustomer 'Покупатель' (EOrder o) = name(customer(o));
 
 customerStock 'Склад покупателя' = ABSTRACT Stock (EOrder);
-customerStock(Purchase.UserOrder o) += Purchase.customerStock(o);
 nameCustomerStock 'Склад покупателя' (EOrder o) = name(customerStock(o));
 
 CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
 TABLE eOrderDetail(EOrderDetail); 
 
-EXTEND CLASS Purchase.UserOrderDetail : EOrderDetail;
-
 order = ABSTRACT EOrder(EOrderDetail);
-order(Purchase.UserOrderDetail o) += Purchase.userOrder(o);
 
 sku = ABSTRACT Sku(EOrderDetail);
-sku(Purchase.UserOrderDetail o) += Purchase.sku(o);
 nameSku 'Наименование' (EOrderDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderDetail o) = idBarcode(sku(o));
 
@@ -55,17 +41,30 @@ EXTEND FORM UOMs PROPERTIES(u) READONLY extraCodeUOM;
 EXTEND FORM UOM PROPERTIES(u) extraCodeUOM;
 
 quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (EOrderDetail);
-quantity(Purchase.UserOrderDetail o) += Purchase.quantity(o);
-
 price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
-price(Purchase.UserOrderDetail o) += Purchase.price(o);
+
+GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
+legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity legalEntity BY GLN(legalEntity);
+GLNSupplier(EOrder e) = GLN(supplier(e));
+GLNCustomer(EOrder e) = GLN(customer(e));
+EXTEND FORM legalEntity PROPERTIES(l) GLN;
+EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN;
+
+GLN 'GLN' = DATA VARSTRING[13] (Stock);
+stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
+GLNSupplierStock(EOrder e) = GLN(supplierStock(e));
+GLNCustomerStock(EOrder e) = GLN(customerStock(e));
+EXTEND FORM warehouse PROPERTIES(w) GLN;
+EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
+EXTEND FORM departmentStore PROPERTIES(d) GLN;
+EXTEND FORM departmentStores PROPERTIES(d) READONLY GLN;
 
 FORM eOrders 'Заказы EDI'
 OBJECTS o = EOrder
-PROPERTIES(o) isClosed, dateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
 
 OBJECTS d = EOrderDetail
-PROPERTIES(d) idBarcode, nameSku, extraCodeUOMSku, quantity, price
+PROPERTIES(d) READONLY idBarcode, nameSku, extraCodeUOMSku, quantity, price
 PROPERTIES(d) FORCE PANEL TOOLBAR ADDOBJ, DELETE
 
 FILTERS order(d) == o
@@ -84,10 +83,146 @@ DESIGN eOrders {
     }
 }
 
+//-----------------------------------------Сообщение по заказу EDI-----------------------------------------//
+CLASS EOrderMessage 'Сообщение по заказу EDI';
+TABLE eOrderMessage(EOrderMessage);
+
+number 'Номер' = DATA VARSTRING[24] (EOrderMessage);
+eOrderMessage (number) = GROUP AGGR EOrderMessage e BY number(e);
+eOrder 'Заказ' = DATA EOrder (EOrderMessage); //NOT NULL
+numberEOrder 'Заказ' (EOrderMessage m) = number(eOrder(m));
+dateTime 'Дата/время сообщения' = DATA DATETIME (EOrderMessage);
+code 'Код сообщения' = DATA VARSTRING[10] (EOrderMessage);
+description 'Текст сообщения' = DATA VARSTRING[200] (EOrderMessage);
+
+EXTEND FORM eOrders
+OBJECTS m = EOrderMessage
+PROPERTIES(m) READONLY numberEOrder, dateTime, code, description
+FILTERS eOrder(m) == o
+ORDER BY dateTime(m);
+
+DESIGN eOrders {
+    tab {
+        MOVE m.box;
+    }
+}
+
+//-----------------------------------------Ответ по заказу EDI----------------------------------------------//
+CLASS EOrderResponse 'Ответ по заказу EDI';
+TABLE eOrderResponse(EOrderResponse);
+
+CLASS EOrderResponseType 'Тип ответа' {
+    changed 'Принят с  изменениями',
+    cancelled 'Не принят',
+    accepted 'Принят без изменений'
+}
+
+dateTime 'Дата/время документа' = DATA DATETIME (EOrderResponse);
+number 'Номер' = DATA VARSTRING[28] (EOrderResponse);
+eOrderResponse (number) = GROUP AGGR EOrderResponse e BY number(e);
+responseType 'Тип ответа' = DATA EOrderResponseType (EOrderResponse);
+captionResponseType 'Тип ответа' (EOrderResponse e) = staticCaption(responseType(e));
+
+eOrder 'Заказ' = DATA EOrder (EOrderResponse);
+numberEOrder 'Номер заказа' (EOrderResponse e) = number(eOrder(e));
+deliveryDateTime 'Дата/время доставки' = DATA DATETIME (EOrderResponse);
+
+supplier 'Поставщик' = DATA LegalEntity (EOrderResponse);
+nameSupplier 'Поставщик' (EOrderResponse o) = name(supplier(o));
+
+customer 'Покупатель' = DATA LegalEntity (EOrderResponse);
+nameCustomer 'Покупатель' (EOrderResponse o) = name(customer(o));
+customerStock 'Склад покупателя' = DATA Stock (EOrderResponse);
+nameCustomerStock 'Склад покупателя' (EOrderResponse o) = name(customerStock(o));
+
+CLASS EOrderResponseDetail 'Строка ответа по заказу EDI';
+TABLE eOrderResponseDetail(EOrderResponseDetail); 
+@defineExternalizable(eOrderResponseDetail, VARSTRING[100]);
+
+CLASS EOrderResponseDetailAction 'Решение' {
+    added 'Добавление',
+    changed 'Изменение',
+    accepted 'Принято без изменений',
+    cancelled 'Не принято'
+}
+
+orderResponse = DATA EOrderResponse(EOrderResponseDetail);
+sku = DATA Sku(EOrderResponseDetail);
+nameSku 'Наименование' (EOrderResponseDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderResponseDetail o) = idBarcode(sku(o));
+extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderResponseDetail o) = extraCodeUOM(UOM(sku(o)));
+
+action 'Решение' (EOrderResponseDetail) = DATA EOrderResponseDetailAction (EOrderResponseDetail);
+captionAction 'Решение' (EOrderResponseDetail e) = staticCaption(action(e));
+quantityOrdered 'Кол-во (заказано)' = DATA NUMERIC[16,5] (EOrderResponseDetail);
+quantityAccepted 'Кол-во (принято)' = DATA NUMERIC[16,5] (EOrderResponseDetail);
+priceNoNDS 'Цена без НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+priceNDS 'Цена с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+
+FORM eOrderResponses 'Ответы по Заказам EDI'
+OBJECTS o = EOrderResponse
+PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
+
+OBJECTS d = EOrderResponseDetail
+PROPERTIES(d) READONLY idBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, priceNoNDS, priceNDS
+
+FILTERS orderResponse(d) == o
+;
+
+//--------------------------------------Уведомление об отгрузке EDI-----------------------------------------//
+CLASS EOrderDespatchAdvice 'Уведомление об отгрузке EDI';
+TABLE eOrderDespatchAdvice(EOrderDespatchAdvice);
+
+dateTime 'Дата/время документа' = DATA DATETIME (EOrderDespatchAdvice);
+number 'Номер' = DATA VARSTRING[28] (EOrderDespatchAdvice);
+eOrderDespatchAdvice (number) = GROUP AGGR EOrderDespatchAdvice e BY number(e);
+
+deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA VARSTRING[28] (EOrderDespatchAdvice);
+deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EOrderDespatchAdvice);
+
+eOrder 'Заказ' = DATA EOrder (EOrderDespatchAdvice);
+numberEOrder 'Номер заказа' (EOrderDespatchAdvice e) = number(eOrder(e));
+deliveryDateTime 'Дата/время доставки' = DATA DATETIME (EOrderDespatchAdvice);
+
+supplier 'Поставщик' = DATA LegalEntity (EOrderDespatchAdvice);
+nameSupplier 'Поставщик' (EOrderDespatchAdvice o) = name(supplier(o));
+
+customer 'Покупатель' = DATA LegalEntity (EOrderDespatchAdvice);
+nameCustomer 'Покупатель' (EOrderDespatchAdvice o) = name(customer(o));
+customerStock 'Склад покупателя' = DATA Stock (EOrderDespatchAdvice);
+nameCustomerStock 'Склад покупателя' (EOrderDespatchAdvice o) = name(customerStock(o));
+
+CLASS EOrderDespatchAdviceDetail 'Строка ответа по заказу EDI';
+TABLE eOrderEOrderDespatchAdviceDetail(EOrderDespatchAdviceDetail); 
+@defineExternalizable(eOrderDespatchAdviceDetail, VARSTRING[100]);
+
+orderDespatchAdvice = DATA EOrderDespatchAdvice(EOrderDespatchAdviceDetail);
+sku = DATA Sku(EOrderDespatchAdviceDetail);
+nameSku 'Наименование' (EOrderDespatchAdviceDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderDespatchAdviceDetail o) = idBarcode(sku(o));
+extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDespatchAdviceDetail o) = extraCodeUOM(UOM(sku(o)));
+quantityOrdered 'Кол-во заказываемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+quantityDespatch 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+
+lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+
+FORM eOrderDespatchAdvices 'Уведомления об отгрузке EDI'
+OBJECTS o = EOrderDespatchAdvice
+PROPERTIES(o) READONLY dateTime, number, numberEOrder, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
+
+OBJECTS d = EOrderDespatchAdviceDetail
+PROPERTIES(d) READONLY idBarcode, nameSku, quantityOrdered, quantityDespatch, lineItemPrice, lineItemAmountWithoutCharges
+
+FILTERS orderDespatchAdvice(d) == o
+;
+
 NAVIGATOR {
     financeNavigator {
         NEW edi 'EDI' {
             ADD eOrders;
+            ADD eOrderResponses;
+            ADD eOrderDespatchAdvices;
         }
     }
 }

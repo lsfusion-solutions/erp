@@ -112,8 +112,17 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
                 switch (requestResult) {
                     case OK:
+                        String message;
+                        try(DataSession session = context.createSession()) {
+                            findProperty("exported[EOrder]").change(true, session, eOrderObject);
+                            message = session.applyMessage(context);
+                        }
+                        if(message != null) {
+                            ServerLoggers.importLogger.error("SendEOrder: " + message);
+                            context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s: %s", documentNumber, message), "Экспорт"));
+                        }
                         ServerLoggers.importLogger.info(String.format("SendEOrder %s: request succeeded", documentNumber));
-                        context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s успешно выгружен", documentNumber), "Экспорт"));
+                        context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s выгружен", documentNumber), "Экспорт"));
                         break;
                     case AUTHORISATION_ERROR:
                         ServerLoggers.importLogger.error(String.format("SendEOrder %s: invalid login-password", documentNumber));
@@ -204,7 +213,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
             DecimalFormat df = new DecimalFormat();
             df.setMaximumFractionDigits(fractionDigits);
             df.setGroupingUsed(false);
-            result = df.format(value);
+            result = df.format(value).replace(",", ".");
         }
         return result;
     }

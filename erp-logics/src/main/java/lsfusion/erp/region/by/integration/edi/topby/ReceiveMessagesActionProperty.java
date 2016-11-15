@@ -40,54 +40,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
 
         try {
-            String loginTopBy = (String) findProperty("loginTopBy[]").read(context); //9999564564541
-            String passwordTopBy = (String) findProperty("passwordTopBy[]").read(context); //9u06Av
-            String hostTopBy = (String) findProperty("hostTopBy[]").read(context); //topby.by
-            Integer portTopBy = (Integer) findProperty("portTopBy[]").read(context); //2011
-            if (loginTopBy != null && passwordTopBy != null && hostTopBy != null && portTopBy != null) {
-
-                Element rootElement = new Element("Envelope", soapenvNamespace);
-                rootElement.setNamespace(soapenvNamespace);
-                rootElement.addNamespaceDeclaration(soapenvNamespace);
-                rootElement.addNamespaceDeclaration(topNamespace);
-
-                Document doc = new Document(rootElement);
-                doc.setRootElement(rootElement);
-
-                //parent: rootElement
-                Element headerElement = new Element("Header", soapenvNamespace);
-                rootElement.addContent(headerElement);
-
-                //parent: rootElement
-                Element bodyElement = new Element("Body", soapenvNamespace);
-                rootElement.addContent(bodyElement);
-
-                //parent: bodyElement
-                Element sendDocumentElement = new Element("GetDocuments", topNamespace);
-                bodyElement.addContent(sendDocumentElement);
-
-                addStringElement(topNamespace, sendDocumentElement, "username", loginTopBy);
-                addStringElement(topNamespace, sendDocumentElement, "password", passwordTopBy);
-
-                String url = String.format("http://%s:%s/DmcService", hostTopBy, portTopBy);
-
-                String xml = new XMLOutputter().outputString(doc);
-                HttpResponse httpResponse = sendRequest(hostTopBy, portTopBy, loginTopBy, passwordTopBy, url, xml, null);
-                ServerLoggers.importLogger.info("ReceiveMessages %s request sent");
-                String responseMessage = getResponseMessage(httpResponse);
-                RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
-                switch (requestResult) {
-                    case OK:
-                        importMessages(context, responseMessage);
-                        break;
-                    case AUTHORISATION_ERROR:
-                        ServerLoggers.importLogger.error("ReceiveMessages %s: invalid login-password");
-                        context.delayUserInteraction(new MessageClientAction("Заказ %s не выгружен: ошибка авторизации", "Экспорт"));
-                        break;
-                    case UNKNOWN_ERROR:
-                        ServerLoggers.importLogger.error("ReceiveMessages %s: unknown error");
-                        context.delayUserInteraction(new MessageClientAction("Заказ %s не выгружен: неизвестная ошибка", "Экспорт"));
-                }
+            String login = (String) findProperty("loginTopBy[]").read(context); //9999564564541
+            String password = (String) findProperty("passwordTopBy[]").read(context); //9u06Av
+            String host = (String) findProperty("hostTopBy[]").read(context); //topby.by
+            Integer port = (Integer) findProperty("portTopBy[]").read(context); //2011
+            if (login != null && password != null && host != null && port != null) {
+                receiveMessages(context, login, password, host, port);
             } else {
                 ServerLoggers.importLogger.info("ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction("Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
@@ -98,8 +56,54 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    private void importMessages(ExecutionContext context, String responseMessage) throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void receiveMessages(ExecutionContext context, String login, String password, String host, int port)
+            throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        Element rootElement = new Element("Envelope", soapenvNamespace);
+        rootElement.setNamespace(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(topNamespace);
 
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        //parent: rootElement
+        Element headerElement = new Element("Header", soapenvNamespace);
+        rootElement.addContent(headerElement);
+
+        //parent: rootElement
+        Element bodyElement = new Element("Body", soapenvNamespace);
+        rootElement.addContent(bodyElement);
+
+        //parent: bodyElement
+        Element sendDocumentElement = new Element("GetDocuments", topNamespace);
+        bodyElement.addContent(sendDocumentElement);
+
+        addStringElement(topNamespace, sendDocumentElement, "username", login);
+        addStringElement(topNamespace, sendDocumentElement, "password", password);
+
+        String url = String.format("http://%s:%s/DmcService", host, port);
+
+        String xml = new XMLOutputter().outputString(doc);
+        HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+        ServerLoggers.importLogger.info("ReceiveMessages %s request sent");
+        String responseMessage = getResponseMessage(httpResponse);
+        RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
+        switch (requestResult) {
+            case OK:
+                importMessages(context, login, password, host, port, responseMessage);
+                break;
+            case AUTHORISATION_ERROR:
+                ServerLoggers.importLogger.error("ReceiveMessages %s: invalid login-password");
+                context.delayUserInteraction(new MessageClientAction("Заказ %s не выгружен: ошибка авторизации", "Экспорт"));
+                break;
+            case UNKNOWN_ERROR:
+                ServerLoggers.importLogger.error("ReceiveMessages %s: unknown error");
+                context.delayUserInteraction(new MessageClientAction("Заказ %s не выгружен: неизвестная ошибка", "Экспорт"));
+        }
+    }
+
+    private void importMessages(ExecutionContext context, String login, String password, String host, Integer port, String responseMessage) throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        List<String> succeededList = new ArrayList<>();
         List<List<Object>> dataMessage = new ArrayList<>();
         List<List<Object>> dataOrderResponse = new ArrayList<>();
         int countOrderResponse = 0;
@@ -126,6 +130,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
                                 String subXML = new String(Base64.decode(documentData.getChildText("Data", topNamespace).getBytes()));
                                 String documentType = documentData.getChildText("DocumentType", topNamespace);
+                                String documentId = documentData.getChildText("Id", topNamespace);
 
                                 switch (documentType) {
                                     case "systemMessage":
@@ -150,7 +155,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                         break;
                                     }
                                 }
-
+                                succeededList.add(documentId);
                             }
                         }
                     }
@@ -158,9 +163,20 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             }
         }
 
-        importOrderMessages(context, dataMessage);
-        importOrderResponses(context, dataOrderResponse, countOrderResponse);
-        importDespatchAdvices(context, dataDespatchAdvice, countDespatchAdvice);
+        if(!succeededList.isEmpty()) {
+            boolean succeeded = importOrderMessages(context, dataMessage);
+            if (succeeded)
+                succeeded = importOrderResponses(context, dataOrderResponse, countOrderResponse);
+            if (succeeded)
+                succeeded = importDespatchAdvices(context, dataDespatchAdvice, countDespatchAdvice);
+            if (succeeded) {
+                for (String documentId : succeededList) {
+                    confirmDocumentReceived(context, documentId, login, password, host, port);
+                }
+            }
+        } else {
+            context.delayUserInteraction(new MessageClientAction("Не найдено новых сообщений", "Импорт"));
+        }
     }
 
     private List<Object> parseOrderMessage(String message) throws IOException, JDOMException {
@@ -281,12 +297,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private String getResponseType(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String value = id == null ? null : id.equals("4") ? "changed" : id.equals("27") ? "cancelled" : id.equals("29") ? "accepted" : null;
-        return value == null ? null : ("TopBy_EOrderResponseType." + value.toLowerCase());
+        return value == null ? null : ("EDI_EOrderResponseType." + value.toLowerCase());
     }
 
     private String getAction(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String value = id == null ? null : id.equals("1") ? "added" : id.equals("3") ? "changed" : id.equals("5") ? "accepted" : id.equals("7") ? "cancelled" : null;
-        return value == null ? null : ("TopBy_EOrderResponseDetailAction." + value.toLowerCase());
+        return value == null ? null : ("EDI_EOrderResponseDetailAction." + value.toLowerCase());
     }
 
     private boolean importOrderResponses(ExecutionContext context, List<List<Object>> data, int count) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -571,6 +587,53 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             }
         }
         return result;
+    }
+
+    private void confirmDocumentReceived(ExecutionContext context, String documentId, String login, String password,
+                                          String host, Integer port) throws IOException, JDOMException {
+
+        Element rootElement = new Element("Envelope", soapenvNamespace);
+        rootElement.setNamespace(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(soapenvNamespace);
+        rootElement.addNamespaceDeclaration(topNamespace);
+
+        Document doc = new Document(rootElement);
+        doc.setRootElement(rootElement);
+
+        //parent: rootElement
+        Element headerElement = new Element("Header", soapenvNamespace);
+        rootElement.addContent(headerElement);
+
+        //parent: rootElement
+        Element bodyElement = new Element("Body", soapenvNamespace);
+        rootElement.addContent(bodyElement);
+
+        //parent: bodyElement
+        Element confirmDocumentReceivedElement = new Element("ConfirmDocumentReceived", topNamespace);
+        bodyElement.addContent(confirmDocumentReceivedElement);
+
+        addStringElement(topNamespace, confirmDocumentReceivedElement, "username", login);
+        addStringElement(topNamespace, confirmDocumentReceivedElement, "password", password);
+        addStringElement(topNamespace, confirmDocumentReceivedElement, "documentId", documentId);
+
+        String url = String.format("http://%s:%s/DmcService", host, port);
+
+        String xml = new XMLOutputter().outputString(doc);
+        HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
+        ServerLoggers.importLogger.info(String.format("ConfirmDocumentReceived request sent for document %s", documentId));
+        RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "ConfirmDocumentReceived");
+        switch (requestResult) {
+            case OK:
+                ServerLoggers.importLogger.info(String.format("ConfirmDocumentReceived document %s: request succeeded", documentId));
+                break;
+            case AUTHORISATION_ERROR:
+                ServerLoggers.importLogger.error(String.format("ConfirmDocumentReceived document %s: invalid login-password", documentId));
+                context.delayUserInteraction(new MessageClientAction(String.format("Документ %s не помечен как обработанный: ошибка авторизации", documentId), "Экспорт"));
+                break;
+            case UNKNOWN_ERROR:
+                ServerLoggers.importLogger.error(String.format("ConfirmDocumentReceived document %s: unknown error", documentId));
+                context.delayUserInteraction(new MessageClientAction(String.format("Документ %s не помечен как обработанный", documentId), "Экспорт"));
+        }
     }
 
     private Timestamp parseTimestamp(String value) {
