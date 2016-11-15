@@ -65,7 +65,8 @@ public class EVATClientAction implements ClientAction {
         try {
             return new EVATWorker(files, invoices, serviceUrl, path, exportPath, password, certIndex, type).execute();
         } catch (InterruptedException | ExecutionException e) {
-            return null;
+            e.printStackTrace();
+            return e.getMessage();
         }
     }
 

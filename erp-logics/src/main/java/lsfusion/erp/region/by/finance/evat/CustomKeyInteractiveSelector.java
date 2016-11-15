@@ -55,7 +55,7 @@ public class CustomKeyInteractiveSelector extends PersonalKeyManager {
         }
 
         return aliases[this.promptAliasIndex(aliases)];*/
-        return aliases[Math.max(certIndex, aliases.length - 1)];
+        return aliases[Math.min(certIndex, aliases.length - 1)];
     }
 
     /*private int promptAliasIndex(String[] aliases) throws IOException {

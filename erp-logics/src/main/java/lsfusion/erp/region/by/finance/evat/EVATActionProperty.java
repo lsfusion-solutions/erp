@@ -72,25 +72,30 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         ServerLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<String, Map<Integer, byte[]>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
-            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
+            Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
             String error = "";
-            if (!result.isEmpty()) {
-                for (List<Object> entry : result) {
-                    ServerLoggers.importLogger.info("EVAT: reading result started");
-                    Integer evat = (Integer) entry.get(0);
-                    String message = (String) entry.get(1);
-                    Boolean isError = (Boolean) entry.get(2);
-                    if(isError)
-                        error += message + "\n";
-                    try(DataSession session = context.createSession()) {
-                        findProperty("result[EVAT]").change(message, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
-                        findProperty("exported[EVAT]").change(isError ? null : true, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
-                        String applyResult = session.applyMessage(context);
-                        if(applyResult != null)
-                            ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
+            if(evatResult instanceof List) {
+                List<List<Object>> result = (List<List<Object>>) evatResult;
+                if (!result.isEmpty()) {
+                    for (List<Object> entry : result) {
+                        ServerLoggers.importLogger.info("EVAT: reading result started");
+                        Integer evat = (Integer) entry.get(0);
+                        String message = (String) entry.get(1);
+                        Boolean isError = (Boolean) entry.get(2);
+                        if (isError)
+                            error += message + "\n";
+                        try (DataSession session = context.createSession()) {
+                            findProperty("result[EVAT]").change(message, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
+                            findProperty("exported[EVAT]").change(isError ? null : true, session, new DataObject(evat, (ConcreteClass) findClass("EVAT")));
+                            String applyResult = session.applyMessage(context);
+                            if (applyResult != null)
+                                ServerLoggers.importLogger.info("EVAT: apply result: " + applyResult);
+                        }
+                        ServerLoggers.importLogger.info("EVAT: reading result finished");
                     }
-                    ServerLoggers.importLogger.info("EVAT: reading result finished");
                 }
+            } else {
+                error = (String) evatResult;
             }
             if (error.isEmpty())
                 context.delayUserInteraction(new MessageClientAction("Выгрузка завершена успешно", "EVAT"));
@@ -104,26 +109,31 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
     private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Map<String, Map<Integer, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
-            List<List<Object>> result = (List<List<Object>>) context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
-            String resultMessage = "";
-            if (!result.isEmpty()) {
-                for (List<Object> entry : result) {
-                    Integer evat = (Integer) entry.get(0);
-                    String message = (String) entry.get(1);
-                    String status = (String) entry.get(2);
-                    ServerLoggers.importLogger.info(String.format("EVAT %s: reading result started", evat));
-                    resultMessage += String.format("EVAT %s: %s\n", evat, message);
-                    try(DataSession session = context.createSession()) {
-                        DataObject evatObject = new DataObject(evat, (ConcreteClass) findClass("EVAT"));
-                        findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(session, status, evat).getValue(), session, evatObject);
-                        findProperty("result[EVAT]").change(message, session, evatObject);
-                        String applyResult = session.applyMessage(context);
-                        if(applyResult != null)
-                            resultMessage += String.format("EVAT %s: %s\n", applyResult, message);
+            Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
+            if(evatResult instanceof List) {
+                List<List<Object>> result = (List<List<Object>>) evatResult;
+                String resultMessage = "";
+                if (!result.isEmpty()) {
+                    for (List<Object> entry : result) {
+                        Integer evat = (Integer) entry.get(0);
+                        String message = (String) entry.get(1);
+                        String status = (String) entry.get(2);
+                        ServerLoggers.importLogger.info(String.format("EVAT %s: reading result started", evat));
+                        resultMessage += String.format("EVAT %s: %s\n", evat, message);
+                        try (DataSession session = context.createSession()) {
+                            DataObject evatObject = new DataObject(evat, (ConcreteClass) findClass("EVAT"));
+                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(session, status, evat).getValue(), session, evatObject);
+                            findProperty("result[EVAT]").change(message, session, evatObject);
+                            String applyResult = session.applyMessage(context);
+                            if (applyResult != null)
+                                resultMessage += String.format("EVAT %s: %s\n", applyResult, message);
+                        }
                     }
                 }
+                context.delayUserInteraction(new MessageClientAction(resultMessage, "EVAT"));
+            } else {
+                context.delayUserInteraction(new MessageClientAction((String) evatResult, "Ошибка"));
             }
-            context.delayUserInteraction(new MessageClientAction(resultMessage, "EVAT"));
         } else {
             context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
         }
