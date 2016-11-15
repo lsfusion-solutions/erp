@@ -1036,7 +1036,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                                 numberReceiptDetail++;
 
                                                 if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                    currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister), numberCashRegister,
+                                                    currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister, fileName), numberCashRegister,
                                                             numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, (BigDecimal) null, barcode,
                                                             idItem, null, null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null));
                                             }
@@ -1130,7 +1130,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                                         discountCard = null;
 
                                                     if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                        currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister),
+                                                        currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister, fileName),
                                                                 numberCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee,
                                                                 null, null, sumCard, sumCash, (BigDecimal) null, barcode, idItem, null, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
                                                                 null, discountCard, numberReceiptDetail, fileName, null));
@@ -1166,13 +1166,15 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 new KristalSalesBatch(salesInfoList, filePathList);
     }
 
-    private Integer getNppGroupMachinery(Map<String, CashRegisterInfo> directoryGroupCashRegisterMap, String directory, Integer numberCashRegister) {
+    private Integer getNppGroupMachinery(Map<String, CashRegisterInfo> directoryGroupCashRegisterMap, String directory, Integer numberCashRegister, String file) {
         CashRegisterInfo result = directoryGroupCashRegisterMap.get(directory + "_" + numberCashRegister);
         if(result == null)
-            directoryGroupCashRegisterMap.get(directory.toUpperCase() + "_" + numberCashRegister);
+            result = directoryGroupCashRegisterMap.get(directory.toUpperCase() + "_" + numberCashRegister);
         if(result == null)
-            directoryGroupCashRegisterMap.get(directory.toLowerCase() + "_" + numberCashRegister);
-        return result == null ? null : result.numberGroup;
+            result = directoryGroupCashRegisterMap.get(directory.toLowerCase() + "_" + numberCashRegister);
+        if(result == null)
+            throw new RuntimeException(String.format("Kristal: nppGroupMachinery not found. directory : %s, numberCashRegister %s, file %s", directory, numberCashRegister, file));
+        return result.numberGroup;
     }
 
     private boolean makeDirsIfNeeded(String directory) {
