@@ -6,7 +6,6 @@ import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.CustomClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.integration.*;
-import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -24,7 +23,6 @@ import org.jdom.output.XMLOutputter;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
-import java.sql.Date;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.text.SimpleDateFormat;
@@ -104,7 +102,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         List<List<Object>> dataMessage = new ArrayList<>();
         List<List<Object>> dataOrderResponse = new ArrayList<>();
+        int countOrderResponse = 0;
         List<List<Object>> dataDespatchAdvice = new ArrayList<>();
+        int countDespatchAdvice = 0;
 
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
@@ -125,16 +125,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                 Element documentData = (Element) documentDataObject;
 
                                 String subXML = new String(Base64.decode(documentData.getChildText("Data", topNamespace).getBytes()));
-                                //String id = documentData.getChildText("Id");
-                                //String documentDate = documentData.getChildText("DocumentDate");
-                                //String modifiedDate = documentData.getChildText("ModifiedDate");
-                                //String documentNumber = documentData.getChildText("DocumentNumber");
-                                //String filename = documentData.getChildText("Filename");
                                 String documentType = documentData.getChildText("DocumentType", topNamespace);
-                                //String readOnWeb = documentData.getChildText("ReadOnWeb");
-                                //String gotByAgent = documentData.getChildText("GotByAgent");
-                                //String approvalStatus = documentData.getChildText("ApprovalStatus");
-                                //String processingStatus = documentData.getChildText("ProcessingStatus");
 
                                 switch (documentType) {
                                     case "systemMessage":
@@ -143,17 +134,21 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                             dataMessage.add(orderMessage);
                                         break;
                                     case "ordrsp": {
-                                        List<List<Object>> orderResponseMessage = parseOrderResponse(context, subXML);
-                                        if (orderResponseMessage != null)
-                                            dataOrderResponse.addAll(orderResponseMessage);
+                                        List<List<Object>> orderResponse = parseOrderResponse(subXML);
+                                        if (orderResponse != null) {
+                                            dataOrderResponse.addAll(orderResponse);
+                                            countOrderResponse++;
+                                        }
                                         break;
                                     }
-//                                    case "desadv": {
-//                                        List<Object> despatchAdviceMessage = parseDespatchAdviceMessage(subXML);
-//                                        if (despatchAdviceMessage != null)
-//                                            dataDespatchAdvice.add(despatchAdviceMessage);
-//                                        break;
-//                                    }
+                                    case "desadv": {
+                                        List<List<Object>> despatchAdvice = parseDespatchAdvice(subXML);
+                                        if (despatchAdvice != null) {
+                                            dataDespatchAdvice.addAll(despatchAdvice);
+                                            countDespatchAdvice++;
+                                        }
+                                        break;
+                                    }
                                 }
 
                             }
@@ -164,7 +159,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
 
         importOrderMessages(context, dataMessage);
-        importOrderResponses(context, dataOrderResponse);
+        importOrderResponses(context, dataOrderResponse, countOrderResponse);
+        importDespatchAdvices(context, dataDespatchAdvice, countDespatchAdvice);
     }
 
     private List<Object> parseOrderMessage(String message) throws IOException, JDOMException {
@@ -173,7 +169,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Element rootNode = document.getRootElement();
 
         String number = rootNode.getChildText("documentNumber");
-        Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"), "yyyy-MM-dd'T'HH:mm:ss");
+        Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
 
         Element reference = rootNode.getChild("reference");
         String documentType = reference.getChildText("documentType");
@@ -249,25 +245,21 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return result;
     }
 
-    private List<List<Object>> parseOrderResponse(ExecutionContext context, String orderResponse) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private List<List<Object>> parseOrderResponse(String orderResponse) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> result = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
 
         String number = rootNode.getChildText("documentNumber");
-        Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"), "yyyy-MM-dd'T'HH:mm:ss");
+        Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
         String responseType = rootNode.getChildText("function");
-        String responseTypeObject = getResponseType(context, responseType);
+        String responseTypeObject = getResponseType(responseType);
         String buyerGLN = rootNode.getChildText("buyerGLN");
-        //String buyerName = rootNode.getChildText("buyerName");
         String destinationGLN = rootNode.getChildText("destinationGLN");
-        //String destinationName = rootNode.getChildText("destinationName");
         String supplierGLN = rootNode.getChildText("supplierGLN");
-        //String supplierName = rootNode.getChildText("supplierName");
         String orderNumber = rootNode.getChildText("orderNumber");
-        //String orderDate = rootNode.getChildText("orderDate");
-        Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"), "yyyy-MM-dd'T'HH:mm:ss");
+        Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -275,8 +267,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String barcode = lineElement.getChildText("GTIN");
             String id = number + "/" + i++;
             String action = lineElement.getChildText("action");
-            String actionObject = getAction(context, action);
-            //String fullName = lineElement.getChildText("fullName");
+            String actionObject = getAction(action);
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
             BigDecimal quantityAccepted = parseBigDecimal(lineElement.getChildText("quantityAccepted"));
             BigDecimal priceNoNDS = parseBigDecimal(lineElement.getChildText("priceNoNDS"));
@@ -288,51 +279,23 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return result;
     }
 
-    private String getResponseType(ExecutionContext context, String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String value = null;
-        if (id != null) {
-            switch (id) {
-                case "4":
-                    value = "changed";
-                    break;
-                case "27":
-                    value = "cancelled";
-                    break;
-                case "29":
-                    value = "accepted";
-                    break;
-            }
-        }
+    private String getResponseType(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String value = id == null ? null : id.equals("4") ? "changed" : id.equals("27") ? "cancelled" : id.equals("29") ? "accepted" : null;
         return value == null ? null : ("TopBy_EOrderResponseType." + value.toLowerCase());
     }
 
-    private String getAction(ExecutionContext context, String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String value = null;
-        if (id != null) {
-            switch (id) {
-                case "1":
-                    value = "added";
-                    break;
-                case "3":
-                    value = "changed";
-                    break;
-                case "5":
-                    value = "accepted";
-                    break;
-                case "7":
-                    value = "cancelled";
-                    break;
-            }
-        }
+    private String getAction(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String value = id == null ? null : id.equals("1") ? "added" : id.equals("3") ? "changed" : id.equals("5") ? "accepted" : id.equals("7") ? "cancelled" : null;
         return value == null ? null : ("TopBy_EOrderResponseDetailAction." + value.toLowerCase());
     }
 
-    private boolean importOrderResponses(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private boolean importOrderResponses(ExecutionContext context, List<List<Object>> data, int count) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         boolean result = true;
         if (!data.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
+
             ImportField numberEOrderResponseField = new ImportField(findProperty("number[EOrderResponse]"));
             ImportKey<?> eOrderResponseKey = new ImportKey((CustomClass) findClass("EOrderResponse"),
                     findProperty("eOrderResponse[VARSTRING[24]]").getMapping(numberEOrderResponseField));
@@ -445,8 +408,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 session.popVolatileStats();
 
                 if (message == null) {
-                    ServerLoggers.importLogger.info(String.format("Import %s EOrderResponses succeeded", data.size()));
-                    context.delayUserInteraction(new MessageClientAction(String.format("Загружено ответов по заказам: %s", data.size()), "Импорт"));
+                    ServerLoggers.importLogger.info(String.format("Import %s EOrderResponses succeeded", count));
+                    context.delayUserInteraction(new MessageClientAction(String.format("Загружено ответов по заказам: %s", count), "Импорт"));
                 } else {
                     ServerLoggers.importLogger.info("Import EOrderResponses error: " + message);
                     context.delayUserInteraction(new MessageClientAction(message, "Ошибка"));
@@ -457,9 +420,162 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return result;
     }
 
-    private Timestamp parseTimestamp(String value, String pattern) {
+    private List<List<Object>> parseDespatchAdvice(String orderResponse) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+        List<List<Object>> result = new ArrayList<>();
+        SAXBuilder builder = new SAXBuilder();
+        Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
+        Element rootNode = document.getRootElement();
+
+        String number = rootNode.getChildText("documentNumber");
+        Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
+        String deliveryNoteNumber = rootNode.getChildText("deliveryNoteNumber");
+        Timestamp deliveryNoteDateTime = parseTimestamp(rootNode.getChildText("deliveryNoteDate"));
+        String buyerGLN = rootNode.getChildText("buyerGLN");
+        String destinationGLN = rootNode.getChildText("destinationGLN");
+        String supplierGLN = rootNode.getChildText("supplierGLN");
+        String orderNumber = rootNode.getChildText("orderNumber");
+        Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
+
+        int i = 1;
+        for (Object line : rootNode.getChildren("line")) {
+            Element lineElement = (Element) line;
+            String barcode = lineElement.getChildText("GTIN");
+            String id = number + "/" + i++;
+            BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
+            BigDecimal quantityDespatch = parseBigDecimal(lineElement.getChildText("quantityDespatch"));
+            BigDecimal lineItemPrice = parseBigDecimal(lineElement.getChildText("lineItemPrice"));
+            BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountWithoutCharges"));
+            result.add(Arrays.<Object>asList(number, dateTime, deliveryNoteNumber, deliveryNoteDateTime, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                    deliveryDateTimeFirst, id, barcode, quantityOrdered, quantityDespatch, lineItemPrice, lineItemAmountWithoutCharges));
+        }
+        return result;
+    }
+
+    private boolean importDespatchAdvices(ExecutionContext context, List<List<Object>> data, int count) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        boolean result = true;
+        if (!data.isEmpty()) {
+            List<ImportProperty<?>> props = new ArrayList<>();
+            List<ImportField> fields = new ArrayList<>();
+            List<ImportKey<?>> keys = new ArrayList<>();
+
+            ImportField numberEOrderDespatchAdviceField = new ImportField(findProperty("number[EOrderDespatchAdvice]"));
+            ImportKey<?> eOrderDespatchAdviceKey = new ImportKey((CustomClass) findClass("EOrderDespatchAdvice"),
+                    findProperty("eOrderDespatchAdvice[VARSTRING[24]]").getMapping(numberEOrderDespatchAdviceField));
+            keys.add(eOrderDespatchAdviceKey);
+            props.add(new ImportProperty(numberEOrderDespatchAdviceField, findProperty("number[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(numberEOrderDespatchAdviceField);
+
+            ImportField dateTimeEOrderDespatchAdviceField = new ImportField(findProperty("dateTime[EOrderDespatchAdvice]"));
+            props.add(new ImportProperty(dateTimeEOrderDespatchAdviceField, findProperty("dateTime[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(dateTimeEOrderDespatchAdviceField);
+
+            ImportField deliveryNoteNumberEOrderDespatchAdviceField = new ImportField(findProperty("deliveryNoteNumber[EOrderDespatchAdvice]"));
+            props.add(new ImportProperty(deliveryNoteNumberEOrderDespatchAdviceField, findProperty("deliveryNoteNumber[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(deliveryNoteNumberEOrderDespatchAdviceField);
+
+            ImportField deliveryNoteDateTimeEOrderDespatchAdviceField = new ImportField(findProperty("deliveryNoteDateTime[EOrderDespatchAdvice]"));
+            props.add(new ImportProperty(deliveryNoteDateTimeEOrderDespatchAdviceField, findProperty("deliveryNoteDateTime[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(deliveryNoteDateTimeEOrderDespatchAdviceField);
+
+            ImportField GLNSupplierEOrderDespatchAdviceField = new ImportField(findProperty("GLN[LegalEntity]"));
+            ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
+                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNSupplierEOrderDespatchAdviceField));
+            supplierKey.skipKey = true;
+            keys.add(supplierKey);
+            props.add(new ImportProperty(GLNSupplierEOrderDespatchAdviceField, findProperty("supplier[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
+                    object(findClass("LegalEntity")).getMapping(supplierKey)));
+            fields.add(GLNSupplierEOrderDespatchAdviceField);
+
+            ImportField GLNCustomerEOrderDespatchAdviceField = new ImportField(findProperty("GLN[LegalEntity]"));
+            ImportKey<?> customerKey = new ImportKey((CustomClass) findClass("LegalEntity"),
+                    findProperty("legalEntityGLN[VARSTRING[13]]").getMapping(GLNCustomerEOrderDespatchAdviceField));
+            customerKey.skipKey = true;
+            keys.add(customerKey);
+            props.add(new ImportProperty(GLNCustomerEOrderDespatchAdviceField, findProperty("customer[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
+                    object(findClass("LegalEntity")).getMapping(customerKey)));
+            fields.add(GLNCustomerEOrderDespatchAdviceField);
+
+            ImportField GLNCustomerStockEOrderDespatchAdviceField = new ImportField(findProperty("GLN[Stock]"));
+            ImportKey<?> customerStockKey = new ImportKey((CustomClass) findClass("Stock"),
+                    findProperty("stockGLN[VARSTRING[13]]").getMapping(GLNCustomerStockEOrderDespatchAdviceField));
+            customerStockKey.skipKey = true;
+            keys.add(customerStockKey);
+            props.add(new ImportProperty(GLNCustomerStockEOrderDespatchAdviceField, findProperty("customerStock[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
+                    object(findClass("Stock")).getMapping(customerStockKey)));
+            fields.add(GLNCustomerStockEOrderDespatchAdviceField);
+
+            ImportField numberEOrderField = new ImportField(findProperty("number[EOrder]"));
+            ImportKey<?> eOrderKey = new ImportKey((CustomClass) findClass("EOrder"),
+                    findProperty("eOrder[VARSTRING[28]]").getMapping(numberEOrderField));
+            eOrderKey.skipKey = true;
+            keys.add(eOrderKey);
+            props.add(new ImportProperty(numberEOrderField, findProperty("eOrder[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey),
+                    object(findClass("EOrder")).getMapping(eOrderKey)));
+            fields.add(numberEOrderField);
+
+            ImportField deliveryDateTimeEOrderDespatchAdviceField = new ImportField(findProperty("deliveryDateTime[EOrderDespatchAdvice]"));
+            props.add(new ImportProperty(deliveryDateTimeEOrderDespatchAdviceField, findProperty("deliveryDateTime[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(deliveryDateTimeEOrderDespatchAdviceField);
+
+            ImportField idEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[EOrderDespatchAdviceDetail]"));
+            ImportKey<?> eOrderDespatchAdviceDetailKey = new ImportKey((CustomClass) findClass("EOrderDespatchAdviceDetail"),
+                    findProperty("eOrderDespatchAdviceDetail[VARSTRING[100]]").getMapping(idEOrderDespatchAdviceDetailField));
+            keys.add(eOrderDespatchAdviceDetailKey);
+            props.add(new ImportProperty(numberEOrderField, findProperty("orderDespatchAdvice[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
+                    object(findClass("EOrderDespatchAdvice")).getMapping(eOrderDespatchAdviceKey)));
+            props.add(new ImportProperty(idEOrderDespatchAdviceDetailField, findProperty("id[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(idEOrderDespatchAdviceDetailField);
+
+            ImportField barcodeEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
+            ImportKey<?> skuKey = new ImportKey((CustomClass) findClass("Sku"),
+                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
+            skuKey.skipKey = true;
+            keys.add(skuKey);
+            props.add(new ImportProperty(barcodeEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
+                    object(findClass("Sku")).getMapping(skuKey)));
+            fields.add(barcodeEOrderDespatchAdviceDetailField);
+
+            ImportField quantityOrderedEOrderDespatchAdviceDetailField = new ImportField(findProperty("quantityOrdered[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(quantityOrderedEOrderDespatchAdviceDetailField, findProperty("quantityOrdered[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(quantityOrderedEOrderDespatchAdviceDetailField);
+
+            ImportField quantityDespatchEOrderDespatchAdviceDetailField = new ImportField(findProperty("quantityDespatch[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(quantityDespatchEOrderDespatchAdviceDetailField, findProperty("quantityDespatch[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(quantityDespatchEOrderDespatchAdviceDetailField);
+
+            ImportField lineItemPriceEOrderDespatchAdviceDetailField = new ImportField(findProperty("lineItemPrice[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(lineItemPriceEOrderDespatchAdviceDetailField, findProperty("lineItemPrice[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(lineItemPriceEOrderDespatchAdviceDetailField);
+
+            ImportField lineItemAmountWithoutChargesEOrderDespatchAdviceDetailField = new ImportField(findProperty("lineItemAmountWithoutCharges[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(lineItemAmountWithoutChargesEOrderDespatchAdviceDetailField, findProperty("lineItemAmountWithoutCharges[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(lineItemAmountWithoutChargesEOrderDespatchAdviceDetailField);
+
+            ImportTable table = new ImportTable(fields, data);
+
+            try (DataSession session = context.createSession()) {
+                session.pushVolatileStats("EDI_DA");
+                IntegrationService service = new IntegrationService(session, table, keys, props);
+                service.synchronize(true, false);
+                String message = session.applyMessage(context);
+                session.popVolatileStats();
+
+                if (message == null) {
+                    ServerLoggers.importLogger.info(String.format("Import %s EOrderDespatchAdvices succeeded", count));
+                    context.delayUserInteraction(new MessageClientAction(String.format("Загружено уведомлений об отгрузке: %s", count), "Импорт"));
+                } else {
+                    ServerLoggers.importLogger.info("Import EOrderDespatchAdvices error: " + message);
+                    context.delayUserInteraction(new MessageClientAction(message, "Ошибка"));
+                    result = false;
+                }
+            }
+        }
+        return result;
+    }
+
+    private Timestamp parseTimestamp(String value) {
         try {
-            return new Timestamp(new SimpleDateFormat(pattern).parse(value).getTime());
+            return new Timestamp(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime());
         } catch (Exception e) {
             return null;
         }

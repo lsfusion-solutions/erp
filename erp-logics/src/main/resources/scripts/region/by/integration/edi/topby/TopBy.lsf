@@ -134,10 +134,59 @@ PROPERTIES(d) READONLY idBarcode, nameSku, captionAction, quantityOrdered, quant
 FILTERS orderResponse(d) == o
 ;
 
+//--------------------------------------Уведомление об отгрузке EDI-----------------------------------------//
+CLASS EOrderDespatchAdvice 'Уведомление об отгрузке EDI';
+TABLE eOrderDespatchAdvice(EOrderDespatchAdvice);
+
+dateTime 'Дата/время документа' = DATA DATETIME (EOrderDespatchAdvice);
+number 'Номер' = DATA VARSTRING[28] (EOrderDespatchAdvice);
+eOrderDespatchAdvice (number) = GROUP AGGR EOrderDespatchAdvice e BY number(e);
+
+deliveryNoteNumber 'Серия и номер бумажной накладной' = DATA VARSTRING[28] (EOrderDespatchAdvice);
+deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATETIME (EOrderDespatchAdvice);
+
+eOrder 'Заказ' = DATA EOrder (EOrderDespatchAdvice);
+numberEOrder 'Номер заказа' (EOrderDespatchAdvice e) = number(eOrder(e));
+deliveryDateTime 'Дата/время доставки' = DATA DATETIME (EOrderDespatchAdvice);
+
+supplier 'Поставщик' = DATA LegalEntity (EOrderDespatchAdvice);
+nameSupplier 'Поставщик' (EOrderDespatchAdvice o) = name(supplier(o));
+
+customer 'Покупатель' = DATA LegalEntity (EOrderDespatchAdvice);
+nameCustomer 'Покупатель' (EOrderDespatchAdvice o) = name(customer(o));
+customerStock 'Склад покупателя' = DATA Stock (EOrderDespatchAdvice);
+nameCustomerStock 'Склад покупателя' (EOrderDespatchAdvice o) = name(customerStock(o));
+
+CLASS EOrderDespatchAdviceDetail 'Строка ответа по заказу EDI';
+TABLE eOrderEOrderDespatchAdviceDetail(EOrderDespatchAdviceDetail); 
+@defineExternalizable(eOrderDespatchAdviceDetail, VARSTRING[100]);
+
+orderDespatchAdvice = DATA EOrderDespatchAdvice(EOrderDespatchAdviceDetail);
+sku = DATA Sku(EOrderDespatchAdviceDetail);
+nameSku 'Наименование' (EOrderDespatchAdviceDetail o) = name(sku(o));
+idBarcode 'Штрихкод' (EOrderDespatchAdviceDetail o) = idBarcode(sku(o));
+extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDespatchAdviceDetail o) = extraCodeUOM(UOM(sku(o)));
+quantityOrdered 'Кол-во заказываемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+quantityDespatch 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
+
+lineItemPrice 'Цена за единицу товара' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+lineItemAmountWithoutCharges 'Стоимость товарной позиции без НДС' = DATA NUMERIC[16,4] (EOrderDespatchAdviceDetail);
+
+FORM eOrderDespatchAdvices 'Уведомления об отгрузке EDI'
+OBJECTS o = EOrderDespatchAdvice
+PROPERTIES(o) READONLY dateTime, number, numberEOrder, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
+
+OBJECTS d = EOrderDespatchAdviceDetail
+PROPERTIES(d) READONLY idBarcode, nameSku, quantityOrdered, quantityDespatch, lineItemPrice, lineItemAmountWithoutCharges
+
+FILTERS orderDespatchAdvice(d) == o
+;
+
 NAVIGATOR {
     financeNavigator {
         edi {
             ADD eOrderResponses;
+            ADD eOrderDespatchAdvices;
         }
     }
 }
