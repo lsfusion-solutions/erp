@@ -13,6 +13,7 @@ import org.apache.log4j.Logger;
 import org.apache.log4j.PatternLayout;
 import org.jdom.Document;
 import org.jdom.Element;
+import org.jdom.JDOMException;
 import org.jdom.input.SAXBuilder;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 import org.springframework.util.FileCopyUtils;
@@ -954,202 +955,15 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     if (isFileLocked(file)) {
                         sendSalesLogger.info("Kristal: " + fileName + " is locked");
                     } else {
-                        SAXBuilder builder = new SAXBuilder();
 
-                        Document document;
-                        try (FileReader fileReader = new FileReader(file)) {
-                            document = builder.build(fileReader);
+                        try {
+                            salesInfoList.addAll(readSalesFile(file, fileName, directoryCashRegisterMap, directory, transformUPCBarcode, notDetailed, useIdItem, useCheckNumber));
+                        } catch (Exception e) {
+                            sendSalesLogger.error(String.format("Exception while reading file %s, retry in 1 second", fileName), e);
+                            Thread.sleep(1000);
+                            salesInfoList.addAll(readSalesFile(file, fileName, directoryCashRegisterMap, directory, transformUPCBarcode, notDetailed, useIdItem, useCheckNumber));
                         }
-                        Element rootNode = document.getRootElement();
-                        List daysList = rootNode.getChildren("DAY");
 
-                        for (Object dayNode : daysList) {
-
-                            List shopsList = ((Element) dayNode).getChildren("SHOP");
-
-                            for (Object shopNode : shopsList) {
-
-                                List cashesList = ((Element) shopNode).getChildren("CASH");
-
-                                for (Object cashNode : cashesList) {
-
-                                    Integer numberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
-                                    List gangsList = ((Element) cashNode).getChildren("GANG");
-
-                                    if (notDetailed) {
-
-                                        //not detailed
-
-                                        for (Object gangNode : gangsList) {
-
-                                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
-
-                                            Integer numberReceipt = readIntegerXMLAttribute((Element) gangNode, "CHEQUENUMBERFIRST");//всё пишем по номеру первого чека
-
-                                            CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
-                                            String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
-                                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
-                                            String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
-
-                                            long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
-                                            Date dateReceipt = new Date(dateTimeReceipt);
-                                            Time timeReceipt = new Time(dateTimeReceipt);
-
-                                            //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
-                                            //такие чеки пойдут на 999 группу касс - 254 кассу
-                                            if((denominationStage != null && denominationStage.endsWith("after")) || (numberCashRegister != null && numberCashRegister.equals(254))) {
-                                                long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
-                                                denominationStage = dateTimeReceipt <= denominationDate ? "Machinery_DenominationStage.fusion" : denominationStage;
-                                            }
-
-                                            BigDecimal discountSumReceipt = denominateDivideType2(readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM"), denominationStage);
-
-                                            List receiptDetailsList = ((Element) gangNode).getChildren("GOOD");
-                                            List paymentsList = ((Element) gangNode).getChildren("PAYMENT");
-
-                                            BigDecimal sumCard = BigDecimal.ZERO;
-                                            BigDecimal sumCash = BigDecimal.ZERO;
-                                            for (Object paymentNode : paymentsList) {
-                                                Element paymentElement = (Element) paymentNode;
-                                                if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Наличный расчет")) {
-                                                    sumCash = HandlerUtils.safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
-                                                } else if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Безналичный слип")) {
-                                                    sumCard = HandlerUtils.safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
-                                                }
-                                            }
-
-                                            List<SalesInfo> currentSalesInfoList = new ArrayList<>();
-                                            BigDecimal currentPaymentSum = BigDecimal.ZERO;
-                                            Integer numberReceiptDetail = 0;
-                                            for (Object receiptDetailNode : receiptDetailsList) {
-
-                                                Element receiptDetailElement = (Element) receiptDetailNode;
-
-                                                String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
-                                                if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
-                                                    barcode = barcode.substring(2, 7);
-                                                String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
-                                                BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
-                                                BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "PRICE"), denominationStage);
-                                                BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA"), denominationStage);
-                                                currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
-                                                numberReceiptDetail++;
-
-                                                if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                    currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister, fileName), numberCashRegister,
-                                                            numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, (BigDecimal) null, barcode,
-                                                            idItem, null, null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null));
-                                            }
-
-                                            //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                            BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                            if (sum == null || sum.compareTo(currentPaymentSum) < 0)
-                                                for (SalesInfo salesInfo : currentSalesInfoList) {
-                                                    salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
-                                                }
-
-                                            salesInfoList.addAll(currentSalesInfoList);
-                                        }
-                                    } else {
-
-                                        //detailed
-
-                                        for (Object gangNode : gangsList) {
-
-                                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
-                                            List receiptsList = ((Element) gangNode).getChildren("HEAD");
-
-                                            for (Object receiptNode : receiptsList) {
-
-                                                Element receiptElement = (Element) receiptNode;
-
-                                                Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
-                                                //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
-                                                long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
-                                                Date dateReceipt = new Date(dateTimeReceipt);
-                                                Time timeReceipt = new Time(dateTimeReceipt);
-                                                String idEmployee = receiptElement.getAttributeValue("CASSIR");
-
-                                                CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
-                                                String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
-                                                Date startDate = cashRegister == null ? null : cashRegister.startDate;
-                                                String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
-
-                                                //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
-                                                //такие чеки пойдут на 999 группу касс - 254 кассу
-                                                if((denominationStage != null && denominationStage.endsWith("after")) || (numberCashRegister != null && numberCashRegister.equals(254))) {
-                                                    long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
-                                                    denominationStage = dateTimeReceipt <= denominationDate ? "Machinery_DenominationStage.fusion" : denominationStage;
-                                                }
-
-                                                List receiptDetailsList = (receiptElement).getChildren("POS");
-                                                List paymentsList = (receiptElement).getChildren("PAY");
-
-                                                BigDecimal sumCard = BigDecimal.ZERO;
-                                                BigDecimal sumCash = BigDecimal.ZERO;
-                                                for (Object paymentNode : paymentsList) {
-                                                    Element paymentElement = (Element) paymentNode;
-                                                    String payment = paymentElement.getAttributeValue("PAYTYPE");
-                                                    if (payment.equals("0")) {
-                                                        sumCash = HandlerUtils.safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
-                                                    } else if (payment.equals("1") || payment.equals("3")) {
-                                                        sumCard = HandlerUtils.safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
-                                                    }
-                                                }
-
-                                                List<SalesInfo> currentSalesInfoList = new ArrayList<>();
-                                                BigDecimal currentPaymentSum = BigDecimal.ZERO;
-                                                for (Object receiptDetailNode : receiptDetailsList) {
-
-                                                    Element receiptDetailElement = (Element) receiptDetailNode;
-                                                    
-                                                    String barcode;
-                                                    String idItem = null;
-                                                    if (useIdItem) {
-                                                        barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
-                                                        idItem = receiptDetailElement.getAttributeValue("CODE");
-                                                    } else
-                                                        barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("CODE"), transformUPCBarcode);
-                                                    if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
-                                                        barcode = barcode.substring(2, 7);
-                                                    BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
-                                                    BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "PRICEWITHOUTDISC"), denominationStage);
-                                                    BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA"), denominationStage);
-                                                    currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
-                                                    BigDecimal discountSumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM"), denominationStage);
-                                                    discountSumReceiptDetail = (discountSumReceiptDetail != null && quantity != null && quantity.compareTo(BigDecimal.ZERO) < 0) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail; 
-                                                    Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
-
-                                                    String discountCard = null;
-                                                    List discountCardList = receiptDetailElement.getChildren("DSC");
-                                                    for (Object card : discountCardList) {
-                                                        if(discountCard == null || discountCard.isEmpty())
-                                                            discountCard = ((Element) card).getAttributeValue("CARDNUMBER");
-                                                    }
-                                                    if (discountCard != null && discountCard.isEmpty())
-                                                        discountCard = null;
-
-                                                    if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
-                                                        currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister, fileName),
-                                                                numberCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee,
-                                                                null, null, sumCard, sumCash, (BigDecimal) null, barcode, idItem, null, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
-                                                                null, discountCard, numberReceiptDetail, fileName, null));
-                                                }
-
-                                                //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                                                BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                                if (sum == null || sum.compareTo(currentPaymentSum) < 0)
-                                                    for (SalesInfo salesInfo : currentSalesInfoList) {
-                                                        salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
-                                                    }
-
-                                                salesInfoList.addAll(currentSalesInfoList);
-                                            }
-                                        }
-                                    }
-                                }
-                            }
-                        }
                     }
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
@@ -1164,6 +978,208 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
                 new KristalSalesBatch(salesInfoList, filePathList);
+    }
+
+    private List<SalesInfo> readSalesFile(File file, String fileName, Map<String, CashRegisterInfo> directoryCashRegisterMap, String directory,
+                                 String transformUPCBarcode, boolean notDetailed, boolean useIdItem, boolean useCheckNumber) throws IOException, JDOMException, ParseException {
+        List<SalesInfo> salesInfoList = new ArrayList<>();
+        SAXBuilder builder = new SAXBuilder();
+
+        Document document;
+        try (FileReader fileReader = new FileReader(file)) {
+            document = builder.build(fileReader);
+        }
+        Element rootNode = document.getRootElement();
+        List daysList = rootNode.getChildren("DAY");
+
+        for (Object dayNode : daysList) {
+
+            List shopsList = ((Element) dayNode).getChildren("SHOP");
+
+            for (Object shopNode : shopsList) {
+
+                List cashesList = ((Element) shopNode).getChildren("CASH");
+
+                for (Object cashNode : cashesList) {
+
+                    Integer numberCashRegister = readIntegerXMLAttribute((Element) cashNode, "CASHNUMBER");
+                    List gangsList = ((Element) cashNode).getChildren("GANG");
+
+                    if (notDetailed) {
+
+                        //not detailed
+
+                        for (Object gangNode : gangsList) {
+
+                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
+
+                            Integer numberReceipt = readIntegerXMLAttribute((Element) gangNode, "CHEQUENUMBERFIRST");//всё пишем по номеру первого чека
+
+                            CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                            String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
+                            Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                            String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
+                            long dateTimeReceipt = DateUtils.parseDate(((Element) gangNode).getAttributeValue("GANGDATESTART"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
+                            Date dateReceipt = new Date(dateTimeReceipt);
+                            Time timeReceipt = new Time(dateTimeReceipt);
+
+                            //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
+                            //такие чеки пойдут на 999 группу касс - 254 кассу
+                            if((denominationStage != null && denominationStage.endsWith("after")) || (numberCashRegister != null && numberCashRegister.equals(254))) {
+                                long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
+                                denominationStage = dateTimeReceipt <= denominationDate ? "Machinery_DenominationStage.fusion" : denominationStage;
+                            }
+
+                            BigDecimal discountSumReceipt = denominateDivideType2(readBigDecimalXMLAttribute((Element) gangNode, "DISCSUMM"), denominationStage);
+
+                            List receiptDetailsList = ((Element) gangNode).getChildren("GOOD");
+                            List paymentsList = ((Element) gangNode).getChildren("PAYMENT");
+
+                            BigDecimal sumCard = BigDecimal.ZERO;
+                            BigDecimal sumCash = BigDecimal.ZERO;
+                            for (Object paymentNode : paymentsList) {
+                                Element paymentElement = (Element) paymentNode;
+                                if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Наличный расчет")) {
+                                    sumCash = HandlerUtils.safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
+                                } else if (paymentElement.getAttributeValue("PAYMENTTYPE").equals("Безналичный слип")) {
+                                    sumCard = HandlerUtils.safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "SUMMASALE"), denominationStage));
+                                }
+                            }
+
+                            List<SalesInfo> currentSalesInfoList = new ArrayList<>();
+                            BigDecimal currentPaymentSum = BigDecimal.ZERO;
+                            Integer numberReceiptDetail = 0;
+                            for (Object receiptDetailNode : receiptDetailsList) {
+
+                                Element receiptDetailElement = (Element) receiptDetailNode;
+
+                                String barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
+                                if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
+                                    barcode = barcode.substring(2, 7);
+                                String idItem = useIdItem ? receiptDetailElement.getAttributeValue("CODE") : null;
+                                BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
+                                BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "PRICE"), denominationStage);
+                                BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA"), denominationStage);
+                                currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
+                                numberReceiptDetail++;
+
+                                if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
+                                    currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister, fileName), numberCashRegister,
+                                            numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, (BigDecimal) null, barcode,
+                                            idItem, null, null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null));
+                            }
+
+                            //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
+                            BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
+                            if (sum == null || sum.compareTo(currentPaymentSum) < 0)
+                                for (SalesInfo salesInfo : currentSalesInfoList) {
+                                    salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
+                                }
+
+                            salesInfoList.addAll(currentSalesInfoList);
+                        }
+                    } else {
+
+                        //detailed
+
+                        for (Object gangNode : gangsList) {
+
+                            String numberZReport = ((Element) gangNode).getAttributeValue("GANGNUMBER");
+                            List receiptsList = ((Element) gangNode).getChildren("HEAD");
+
+                            for (Object receiptNode : receiptsList) {
+
+                                Element receiptElement = (Element) receiptNode;
+
+                                Integer numberReceipt = readIntegerXMLAttribute(receiptElement, useCheckNumber ? "CK_NUMBER" : "ID");
+                                //BigDecimal discountSumReceipt = readBigDecimalXMLAttribute(receiptElement, "DISCSUMM");
+                                long dateTimeReceipt = DateUtils.parseDate(receiptElement.getAttributeValue("DATEOPERATION"), new String[]{"dd.MM.yyyy HH:mm:ss"}).getTime();
+                                Date dateReceipt = new Date(dateTimeReceipt);
+                                Time timeReceipt = new Time(dateTimeReceipt);
+                                String idEmployee = receiptElement.getAttributeValue("CASSIR");
+
+                                CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
+                                String weightCode = cashRegister == null ? null : cashRegister.weightCodeGroupCashRegister;
+                                Date startDate = cashRegister == null ? null : cashRegister.startDate;
+                                String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
+
+                                //hack: чеки с датой до 1 июля идут в старых ценах, даже если касса уже деноминирована
+                                //такие чеки пойдут на 999 группу касс - 254 кассу
+                                if((denominationStage != null && denominationStage.endsWith("after")) || (numberCashRegister != null && numberCashRegister.equals(254))) {
+                                    long denominationDate = new Date(2016 - 1900, 6, 1).getTime(); //01.07.2016
+                                    denominationStage = dateTimeReceipt <= denominationDate ? "Machinery_DenominationStage.fusion" : denominationStage;
+                                }
+
+                                List receiptDetailsList = (receiptElement).getChildren("POS");
+                                List paymentsList = (receiptElement).getChildren("PAY");
+
+                                BigDecimal sumCard = BigDecimal.ZERO;
+                                BigDecimal sumCash = BigDecimal.ZERO;
+                                for (Object paymentNode : paymentsList) {
+                                    Element paymentElement = (Element) paymentNode;
+                                    String payment = paymentElement.getAttributeValue("PAYTYPE");
+                                    if (payment.equals("0")) {
+                                        sumCash = HandlerUtils.safeAdd(sumCash, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
+                                    } else if (payment.equals("1") || payment.equals("3")) {
+                                        sumCard = HandlerUtils.safeAdd(sumCard, denominateDivideType2(readBigDecimalXMLAttribute(paymentElement, "DOCSUMM"), denominationStage));
+                                    }
+                                }
+
+                                List<SalesInfo> currentSalesInfoList = new ArrayList<>();
+                                BigDecimal currentPaymentSum = BigDecimal.ZERO;
+                                for (Object receiptDetailNode : receiptDetailsList) {
+
+                                    Element receiptDetailElement = (Element) receiptDetailNode;
+
+                                    String barcode;
+                                    String idItem = null;
+                                    if (useIdItem) {
+                                        barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("BARCODE"), transformUPCBarcode);
+                                        idItem = receiptDetailElement.getAttributeValue("CODE");
+                                    } else
+                                        barcode = transformUPCBarcode(receiptDetailElement.getAttributeValue("CODE"), transformUPCBarcode);
+                                    if (barcode != null && weightCode != null && (barcode.length() == 13 || barcode.length() == 7) && barcode.startsWith(weightCode))
+                                        barcode = barcode.substring(2, 7);
+                                    BigDecimal quantity = readBigDecimalXMLAttribute(receiptDetailElement, "QUANTITY");
+                                    BigDecimal price = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "PRICEWITHOUTDISC"), denominationStage);
+                                    BigDecimal sumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "SUMMA"), denominationStage);
+                                    currentPaymentSum = HandlerUtils.safeAdd(currentPaymentSum, sumReceiptDetail);
+                                    BigDecimal discountSumReceiptDetail = denominateDivideType2(readBigDecimalXMLAttribute(receiptDetailElement, "DISCSUMM"), denominationStage);
+                                    discountSumReceiptDetail = (discountSumReceiptDetail != null && quantity != null && quantity.compareTo(BigDecimal.ZERO) < 0) ? discountSumReceiptDetail.negate() : discountSumReceiptDetail;
+                                    Integer numberReceiptDetail = readIntegerXMLAttribute(receiptDetailElement, "POSNUMBER");
+
+                                    String discountCard = null;
+                                    List discountCardList = receiptDetailElement.getChildren("DSC");
+                                    for (Object card : discountCardList) {
+                                        if(discountCard == null || discountCard.isEmpty())
+                                            discountCard = ((Element) card).getAttributeValue("CARDNUMBER");
+                                    }
+                                    if (discountCard != null && discountCard.isEmpty())
+                                        discountCard = null;
+
+                                    if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
+                                        currentSalesInfoList.add(new SalesInfo(false, getNppGroupMachinery(directoryCashRegisterMap, directory, numberCashRegister, fileName),
+                                                numberCashRegister, numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee,
+                                                null, null, sumCard, sumCash, (BigDecimal) null, barcode, idItem, null, null, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
+                                                null, discountCard, numberReceiptDetail, fileName, null));
+                                }
+
+                                //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
+                                BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
+                                if (sum == null || sum.compareTo(currentPaymentSum) < 0)
+                                    for (SalesInfo salesInfo : currentSalesInfoList) {
+                                        salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
+                                    }
+
+                                salesInfoList.addAll(currentSalesInfoList);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        return salesInfoList;
     }
 
     private Integer getNppGroupMachinery(Map<String, CashRegisterInfo> directoryGroupCashRegisterMap, String directory, Integer numberCashRegister, String file) {
