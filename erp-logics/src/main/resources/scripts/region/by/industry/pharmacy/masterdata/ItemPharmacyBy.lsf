@@ -375,102 +375,84 @@ EXTEND FORM priceListTypes
     PROPERTIES() addWholesalePharmacyPriceListType TODRAW pt FORCE PANEL
 ;
 
-////---------------- специальный тип цены (розница)-----------------//
+// ----------------------------------- Обязательный и основной перечень ----------------------------------- //
+CLASS PharmacyAdditionalGroupType {
+    compalsory 'Обязательные ЛС',
+    base 'Основные ЛС'    
+}: GroupType;
+TABLE pharmacyAdditionalGroupType (PharmacyAdditionalGroupType);
+
+name(PharmacyAdditionalGroupType group)+=VARISTRING[100](staticCaption(group)) IF group IS PharmacyAdditionalGroupType;
+
+CLASS PharmacyCompalsoryGroup 'Группа обязательного перечня': Group;
+TABLE pharmacyCompalsoryGroup(PharmacyCompalsoryGroup);
+
+name 'Наименование' = DATA VARISTRING[50](PharmacyCompalsoryGroup);
+@defineExternalizable(pharmacyCompalsoryGroup, VARSTRING[100]);
+name(PharmacyCompalsoryGroup group) += name(group);
+groupType(PharmacyCompalsoryGroup group) += PharmacyAdditionalGroupType.compalsory IF group IS PharmacyCompalsoryGroup;
+
+minBalance 'Минимальный остаток' = DATA NUMERIC[16,5](PharmacyCompalsoryGroup);
+
+FORM pharmacyCompalsoryGroup 'Группа обязательного перечня'
+    OBJECTS g = PharmacyCompalsoryGroup FIXED PANEL
+    PROPERTIES(g) name, id, minBalance
+    EDIT PharmacyCompalsoryGroup OBJECT g 
+;
+
+FORM pharmacyCompalsoryGroups 'Группы обязательного перечня'
+    OBJECTS g = PharmacyCompalsoryGroup
+    PROPERTIES(g) READONLYIF isReadonly() name, id, minBalance
+    PROPERTIES (g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES () isEditable
+    ORDER BY name(g)
+    DIALOG PharmacyCompalsoryGroup OBJECT g
+;
+
+@defineObjectItemAttribute(pharmacyCompalsoryGroup, PharmacyCompalsoryGroup, name, 'Группа обязательного перечня', itemPharmacy);
+
 //
-//CLASS RetailPharmacyPriceListType 'Розничная цена на медтовары' : PriceListType;
-//
-//nameRetailPharmacyPriceListType 'Наименование' = DATA VARISTRING[50](RetailPharmacyPriceListType);
-//namePriceListType(type) += nameRetailPharmacyPriceListType(type) IF type IS RetailPharmacyPriceListType;
-//
-//basePriceListTypeRetailPharmacyPriceListType(type) = DATA LedgerPriceListType (RetailPharmacyPriceListType);
-//nameBasePriceListTypeRetailPharmacyPriceListType 'Базовый вид цены' (type) = nameBasePriceListType(basePriceListTypeRetailPharmacyPriceListType(type));
-//
-//ledgerPriceListTypePriceListType(type) += basePriceListTypeRetailPharmacyPriceListType(type) AS LedgerPriceListType;
-//
-//calcPriceListTypeRetailPharmacyPriceListType = DATA CalcPriceListType (RetailPharmacyPriceListType);
-//nameCalcPriceListTypeRetailPharmacyPriceListType 'Вид цены с основной наценкой' (type) = namePriceListType(calcPriceListTypeRetailPharmacyPriceListType(type));
-//
-//@defineDocumentHeaderCurrency(retailPharmacyPriceListType);
-//currencyPriceListType(pharmacyPriceListType) += currencyRetailPharmacyPriceListType(pharmacyPriceListType);
-//
-////---цена товара
-//markupRetailBPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
-//    retailMarkupPharmacySkuPriceDate(sku,
-//                                     priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-//                                     DATE(dateTime));
-//markupRetailAPharmacyPriceListTypeSkuStockDateTime 'Предельная надбавка' (type, sku, stock, dateTime) =
-//    retailMarkupPharmacySkuPriceDate(sku,
-//                                     priceABasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-//                                     DATE(dateTime));
-//
-//maxPriceRetailBPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
-//    round((100 + markupRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
-//          priceBBasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
-//maxPriceRetailAPharmacyPriceListTypeSkuStockDateTime 'Предельная цена' (type, sku, stock, dateTime) =
-//    round((100 + markupRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) *
-//          priceABasePriceListTypeSkuStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime)/100, 0);
-//
-//priceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-//    NUMERIC[16,4] (MIN priceBCalcPriceListTypeSkuStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-//                       maxPriceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
-//priceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) =
-//    NUMERIC[16,4] (MIN priceACalcPriceListTypeSkuStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), sku, stock, dateTime),
-//                       maxPriceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime)) COMPLEX;
-//
-//priceBPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceRetailBPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-//priceAPriceListTypeSkuStockDateTime(type, sku, stock, dateTime) += priceRetailAPharmacyPriceListTypeSkuStockDateTime(type, sku, stock, dateTime);
-//
-////---цена партии
-//markupRetailBPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
-//    retailMarkupPharmacyBatchPriceDate(batch,
-//                                       priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-//                                       DATE(dateTime));
-//markupRetailAPharmacyPriceListTypeBatchStockDateTime 'Предельная надбавка' (type, batch, stock, dateTime) =
-//    retailMarkupPharmacyBatchPriceDate(batch,
-//                                       priceABasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-//                                       DATE(dateTime));
-//
-//maxPriceRetailBPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
-//    round((100 + markupRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
-//          priceBBasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime) / 100, 0);
-//maxPriceRetailAPharmacyPriceListTypeBatchStockDateTime 'Предельная цена' (type, batch, stock, dateTime) =
-//    round((100 + markupRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime))*
-//          priceABasePriceListTypeBatchStockDateTime(basePriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime) / 100, 0);
-//
-//priceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-//    NUMERIC[16,4] (MIN priceBCalcPriceListTypeBatchStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-//                       maxPriceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
-//priceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) =
-//    NUMERIC[16,4] (MIN priceACalcPriceListTypeBatchStockDateTime(calcPriceListTypeRetailPharmacyPriceListType(type), batch, stock, dateTime),
-//                       maxPriceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime));
-//
-//priceBPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceRetailBPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-//priceAPriceListTypeBatchStockDateTime(type, batch, stock, dateTime) += priceRetailAPharmacyPriceListTypeBatchStockDateTime(type, batch, stock, dateTime);
-//
-//FORM retailPharmacyPriceListType 'Розничная цена на медтовары'
-//    OBJECTS p = RetailPharmacyPriceListType FIXED PANEL
-//    PROPERTIES(p) nameRetailPharmacyPriceListType, nameCurrencyRetailPharmacyPriceListType,
-//                  nameBasePriceListTypeRetailPharmacyPriceListType, nameCalcPriceListTypeRetailPharmacyPriceListType
-//
-//    EDIT RetailPharmacyPriceListType OBJECT p
-//;
-//
-//DESIGN retailPharmacyPriceListType {
-//    p.box {
-//        ADD PROPERTY(nameRetailPharmacyPriceListType);
-//        ADD PROPERTY(nameCurrencyRetailPharmacyPriceListType);
-//        ADD PROPERTY(nameBasePriceListTypeRetailPharmacyPriceListType);
-//        ADD PROPERTY(nameCalcPriceListTypeRetailPharmacyPriceListType);
-//    }
-//}
-//
-//addRetailPharmacyPriceListType 'Добавить розн.цену на медтовары' = ACTION ADDFORM RetailPharmacyPriceListType;
-//editRetailPharmacyPriceListType 'Редактировать' = ACTION EDITFORM RetailPharmacyPriceListType;
-//editPriceListType(priceListType) += ACTION editRetailPharmacyPriceListType(priceListType);
-//
-//EXTEND FORM priceListTypes
-//    PROPERTIES() addRetailPharmacyPriceListType TODRAW pt FORCE PANEL
-//;
+CLASS PharmacyBaseGroup 'Группа основного перечня': Group;
+TABLE pharmacyBaseGroup(PharmacyBaseGroup);
+name 'Наименование' = DATA VARISTRING[50](PharmacyBaseGroup);
+@defineExternalizable(pharmacyBaseGroup, VARSTRING[100]);
+name(PharmacyBaseGroup group) += name(group);
+groupType(PharmacyBaseGroup group) += PharmacyAdditionalGroupType.base IF group IS PharmacyBaseGroup;
+
+FORM pharmacyBaseGroup 'Группа основного перечня'
+    OBJECTS g = PharmacyBaseGroup FIXED PANEL
+    PROPERTIES(g) name, id
+    EDIT PharmacyBaseGroup OBJECT g 
+;
+
+FORM pharmacyBaseGroups 'Группы основного перечня'
+    OBJECTS g = PharmacyBaseGroup
+    PROPERTIES(g) READONLYIF isReadonly() name, id
+    PROPERTIES (g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES () isEditable
+    ORDER BY name(g)
+    DIALOG PharmacyBaseGroup OBJECT g
+;
+
+@defineObjectItemAttribute(pharmacyBaseGroup, PharmacyBaseGroup, name, 'Группа основного перечня', itemPharmacy);
+
+EXTEND FORM item 
+    PROPERTIES (i) namePharmacyCompalsoryGroup SHOWIF showPharmacyCompalsoryGroup(i),
+                   namePharmacyBaseGroup SHOWIF showPharmacyBaseGroup(i) 
+;
+
+EXTEND FORM items 
+    PROPERTIES (i) namePharmacyCompalsoryGroup AFTER namePharmacyPriceGroup(i) SHOWIF showPharmacyCompalsoryGroup(i) READONLYIF isReadonly(), 
+                   namePharmacyBaseGroup AFTER namePharmacyPriceGroup(i) SHOWIF showPharmacyBaseGroup(i) READONLYIF isReadonly() 
+;
+
+NAVIGATOR {
+    skuNavigator {
+        ADD pharmacyCompalsoryGroups;
+        ADD pharmacyBaseGroups;
+    }
+}
+
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultPharmacyPriceGroup 'Добавить Типы лекарственных средств'(VARISTRING[50] iname, VARSTRING[100] isid) = ACTION {

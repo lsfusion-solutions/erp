@@ -1,0 +1,77 @@
+MODULE StoreReportsPharmacyBy;
+
+REQUIRE ItemPharmacyBy, StockReports, Store, OrderLedger;
+
+NAMESPACE StoreReports;
+
+//отчет по обязательному перечню
+currentBalance 'Текущий остаток' = GROUP SUM currentBalance(Sku sku, Stock stock)
+    BY pharmacyCompalsoryGroup(sku), stock;
+    
+availableQuantity 'Доступное количество' = GROUP SUM availableQuantity(Sku sku, Stock stock)
+    BY pharmacyCompalsoryGroup(sku), stock;    
+    
+notEnoughBalance (PharmacyCompalsoryGroup group, Stock stock) = currentBalance(group, stock) < minBalance(group) OR
+    (minBalance(group) AND NOT currentBalance(group, stock));
+notEnougAvailableQuantity (PharmacyCompalsoryGroup group, Stock stock) = availableQuantity(group, stock) < minBalance(group) OR 
+    (minBalance(group) AND NOT availableQuantity(group, stock)); 
+      
+currentBalance 'Текущий остаток' = GROUP SUM currentBalance(Sku sku, Stock stock)
+    BY pharmacyBaseGroup(sku), stock;
+    
+availableQuantity 'Доступное количество' = GROUP SUM availableQuantity(Sku sku, Stock stock)
+    BY pharmacyBaseGroup(sku), stock;        
+    
+FORM currentBalanceCompalsoryGroups 'Остатки по обязательному перечню'
+     OBJECTS s = DepartmentStore FIXED PANEL
+     PROPERTIES(s) name SELECTOR
+     
+     OBJECTS g = PharmacyCompalsoryGroup FIXED GRID
+     PROPERTIES (g) READONLY name, minBalance
+     PROPERTIES (g, s) READONLY currentBalance, availableQuantity
+     ORDER BY name(g)
+     FILTERGROUP enough
+         FILTER 'Остаток меньше нормы' notEnoughBalance(g, s)
+         FILTER 'Доступно меньше нормы' notEnougAvailableQuantity(g, s)
+     
+     OBJECTS i = Item FIXED GRID
+     PROPERTIES (i) READONLY name ON SHORTCUT showBalanceMovementSku(i, s) ON SHORTCUT showBalancePriceSku(i, s) ON SHORTCUT showBalanceReserveSku(i, s), 
+                             idBarcode, nameCountry, nameSubstance, nameManufacturer, nameSupplierLastOrderBatch
+     FILTERGROUP balance
+         FILTER 'С остатком' currentBalance(i, s)                       
+                             
+     PROPERTIES (i, s) currentBalance, availableQuantity
+     ORDER BY name(i)
+     FILTERS pharmacyCompalsoryGroup(i)==g
+ ;
+
+FORM currentBalanceBaseGroups 'Остатки по основному перечню'
+    OBJECTS s = DepartmentStore FIXED PANEL
+    PROPERTIES(s) name SELECTOR
+    
+    OBJECTS g = PharmacyBaseGroup FIXED GRID
+    PROPERTIES (g) READONLY name
+    PROPERTIES (g, s) READONLY currentBalance, availableQuantity
+    ORDER BY name(g)
+    FILTERGROUP enough
+        FILTER 'Без остатка' NOT currentBalance(g, s)
+    
+    OBJECTS i = Item FIXED GRID
+    PROPERTIES (i) READONLY name ON SHORTCUT showBalanceMovementSku(i, s) ON SHORTCUT showBalancePriceSku(i, s) ON SHORTCUT showBalanceReserveSku(i, s), 
+                            idBarcode, nameCountry, nameSubstance, nameManufacturer, nameSupplierLastOrderBatch
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(i, s)                       
+                            
+    PROPERTIES (i, s) currentBalance, availableQuantity
+    ORDER BY name(i)
+    FILTERS pharmacyBaseGroup(i)==g
+;
+
+NAVIGATOR {
+    stockNavigator {
+        stockReports {
+            ADD currentBalanceCompalsoryGroups;
+            ADD currentBalanceBaseGroups;
+        }
+    }
+}
