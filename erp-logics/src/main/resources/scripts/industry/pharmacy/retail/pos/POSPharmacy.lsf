@@ -39,6 +39,39 @@ changeQuantity(Batch batch, Receipt receipt) = ACTION {
 backgroundQuantity (Batch batch, Receipt receipt) = IF quantity(batch, receipt) > prevCurrentBalance(batch, receipt)
     THEN RGB(255,128,128);
 
+//продажа блистеров
+blisterAmount 'Кол-во блистеров' (Batch batch) = blisterAmount(sku(batch));
+
+blisterQuantity 'Кол-во блистеров' (Batch batch, Receipt receipt) = round0(quantity(batch, receipt)*blisterAmount(batch));
+
+readOnlyBlisterQuantity (Batch batch, Receipt receipt) = receipt IS Receipt AND NOT blisterAmount(batch);
+
+backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 236, 199) IF receipt IS Receipt AND blisterAmount(batch);
+
+changeBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
+    REQUEST INTEGER INPUT;
+    IF receiptDetail(batch, receipt) THEN {
+        IF (requestedInteger() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedInteger() != 0) THEN {
+            quantity(ReceiptSaleDetail receiptDetail) <- NUMERIC[16,5](round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5)) WHERE receiptDetail == receiptDetail(batch, receipt);
+//            sum(ReceiptSaleDetail receiptDetail) <-round2((price(receiptDetail)/blisterAmount(batch))*requestedInteger()) WHERE receiptDetail == receiptDetail(batch, receipt);
+        } ELSE {
+            FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF (requestedInteger() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedInteger() != 0) THEN {
+            FOR ADDOBJ d = ReceiptSaleDetail DO {
+                receipt(d) <- receipt;
+                sku(d) <- sku(batch);
+                batch(d) <- batch;
+                quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5));
+                price(d) <- currentPOSPrice(batch, receipt);
+//                sum(d) <-round((price(d)/blisterAmount(batch))*requestedInteger(), roundCondition(departmentStore(d)));
+            }
+        }
+    }
+}
+
 needPrescription 'Рецепт' (Batch batch) = needPrescription(sku(batch));    
 prescriptionMessage (Batch batch) = IF needPrescription(batch) THEN 'Требуется рецепт';
 
@@ -48,6 +81,7 @@ EXTEND FORM POS
     OBJECTS bt = Batch FIXED GRID
     PROPERTIES (bt) READONLY prevNameSku, needPrescription, prescriptionMessage TODRAW d FORCE PANEL SHOWIF needPrescription(bt)
     PROPERTIES (bt, r) quantityReceiptGrid = quantity ON CHANGE changeQuantity(bt, r) BACKGROUND backgroundQuantity(bt, r) QUICKFILTER prevNameSku(bt)
+    PROPERTIES (bt, r) blisterQuantity ON CHANGE changeBlisterQuantity(bt, r) READONLYIF readOnlyBlisterQuantity(bt, r) BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt, r) READONLY prevCurrentBalance, currentPOSPrice
     PROPERTIES (bt) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
     ORDER BY prevNameSku(bt)
@@ -55,6 +89,13 @@ EXTEND FORM POS
     FILTERGROUP balance
         FILTER 'В чеке' quantity(bt, r)   
 ;
+
+changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
+    REQUEST INTEGER INPUT;
+    changeBlisterQuantity(batch, receipt);
+    FOCUS POS.quantityReceiptGrid;
+    SEEK POS.bt = batch;
+}
 
 changeAnalogueQuantity(Batch batch, Receipt receipt) = ACTION {
     REQUEST NUMERIC[16,5] INPUT;
@@ -67,6 +108,7 @@ EXTEND FORM POS
     OBJECTS bt1 = Batch FIXED GRID
     PROPERTIES (bt1) READONLY prevNameSku
     PROPERTIES (bt1, r) quantity ON CHANGE changeAnalogueQuantity(bt1, r) BACKGROUND backgroundQuantity(bt1, r)
+    PROPERTIES (bt1, r) blisterQuantity ON CHANGE changeAnalogueBlisterQuantity(bt1, r) READONLYIF readOnlyBlisterQuantity(bt1, r) BACKGROUND backgroundBlisterQuantity(bt1, r)
     PROPERTIES (bt1, r) READONLY prevCurrentBalance, currentPOSPrice
     PROPERTIES (bt1) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry
     FILTERS prevCurrentBalance(bt1, r), substance(bt)==substance(bt1) AND NOT sku(bt)==sku(bt1)
@@ -83,30 +125,34 @@ DESIGN POS {
             }
             caption = 'Остатки';
             PROPERTY(prevNameSku(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 20; preferredCharWidth = 40;}
-            PROPERTY(quantityReceiptGrid) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4;}
-            PROPERTY(prevCurrentBalance(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(quantityReceiptGrid) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
+            PROPERTY(blisterQuantity(bt, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(prevCurrentBalance(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
             PROPERTY(currentPOSPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
-            PROPERTY(expiryDate(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
-            PROPERTY(seriesPharmacy(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
-            PROPERTY(nameManufacturer(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
-            PROPERTY(nameCountry(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
-            PROPERTY(nameSubstance(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 20;}
+            PROPERTY(expiryDate(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
+            PROPERTY(seriesPharmacy(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
+            PROPERTY(nameManufacturer(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
+            PROPERTY(nameCountry(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
+            PROPERTY(nameSubstance(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 20;}
             REMOVE bt.toolbar;
         }
-        MOVE d.box;
+        MOVE d.box {
+            PROPERTY(quantityGrid){pattern = '#,##0.###';}
+        }
     }
     pane {
         MOVE bt1.box BEFORE pc.box {
             caption = 'Аналоги';
             REMOVE bt1.toolbar;
             PROPERTY(prevNameSku(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 20; preferredCharWidth = 40;}
-            PROPERTY(quantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4;}
-            PROPERTY(prevCurrentBalance(bt1, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(quantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
+            PROPERTY(blisterQuantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
+            PROPERTY(prevCurrentBalance(bt1, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
             PROPERTY(currentPOSPrice(bt1, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
-            PROPERTY(expiryDate(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
-            PROPERTY(seriesPharmacy(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
-            PROPERTY(nameManufacturer(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
-            PROPERTY(nameCountry(bt1)) { focusable = TRUE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
+            PROPERTY(expiryDate(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
+            PROPERTY(seriesPharmacy(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
+            PROPERTY(nameManufacturer(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
+            PROPERTY(nameCountry(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
         } 
     }
     north {
