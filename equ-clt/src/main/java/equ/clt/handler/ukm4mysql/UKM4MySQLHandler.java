@@ -63,6 +63,13 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                         String weightCode = transaction.weightCodeGroupCashRegister;
 
+                        String section = null;
+                        for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                            if(cashRegister.section != null)
+                                section = cashRegister.section;
+                        }
+                        String departmentNumber = getDepartmentNumber(transaction, section);
+
                         Connection conn = DriverManager.getConnection(connectionString, user, password);
 
                         Exception exception = null;
@@ -80,16 +87,16 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 exportItems(conn, transaction, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
-                                exportItemsStocks(conn, transaction, version);
+                                exportItemsStocks(conn, transaction, departmentNumber, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table stocks", transaction.id));
-                                exportStocks(conn, transaction, version);
+                                exportStocks(conn, transaction, departmentNumber, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist", transaction.id));
                                 exportPriceList(conn, transaction, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricetype_store_pricelist", transaction.id));
-                                exportPriceTypeStorePriceList(conn, transaction, version);
+                                exportPriceTypeStorePriceList(conn, transaction, departmentNumber, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
                                 exportVar(conn, transaction, weightCode, version);
@@ -234,7 +241,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportItemsStocks(Connection conn, TransactionCashRegisterInfo transaction, String departmentNumber, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -247,7 +254,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (item.section != null) {
                         for (String stock : item.section.split(",")) {
                             String[] splitted = stock.split("\\|");
-                            ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                            ps.setString(1, departmentNumber); //store
                             ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
                             ps.setInt(3, Integer.parseInt(splitted[0])); //stock
                             ps.setInt(4, version); //version
@@ -257,7 +264,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     }
                     if (item.deleteSection != null) {
                         for (String stock : item.deleteSection.split(",")) {
-                            ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                            ps.setString(1, departmentNumber); //store
                             ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
                             ps.setInt(3, Integer.parseInt(stock)); //stock
                             ps.setInt(4, version); //version
@@ -278,7 +285,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportStocks(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportStocks(Connection conn, TransactionCashRegisterInfo transaction, String departmentNumber, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -296,7 +303,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 String[] splitted = stock.split("\\|");
                                 Integer id = Integer.parseInt(splitted[0]);
                                 String name = splitted.length > 1 ? splitted[1] : null;
-                                ps.setString(1, String.valueOf(transaction.departmentNumberGroupCashRegister)); //store
+                                ps.setString(1, departmentNumber); //store
                                 ps.setInt(2, id); //id
                                 ps.setString(3, HandlerUtils.trim(name, 80)); //name
                                 ps.setInt(4, version); //version
@@ -401,7 +408,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportPriceTypeStorePriceList(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportPriceTypeStorePriceList(Connection conn, TransactionCashRegisterInfo transaction, String departmentNumber, int version) throws SQLException {
         conn.setAutoCommit(false);
         PreparedStatement ps = null;
         try {
@@ -409,7 +416,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 ps = conn.prepareStatement(
                         "INSERT INTO pricetype_store_pricelist (pricetype, store, pricelist, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE pricelist=VALUES(pricelist), deleted=VALUES(deleted)");
                 ps.setInt(1, 123); //pricetype
-                ps.setString(2, String.valueOf(transaction.departmentNumberGroupCashRegister != null ? transaction.departmentNumberGroupCashRegister : transaction.nppGroupMachinery)); //store
+                ps.setString(2, String.valueOf(departmentNumber != null ? departmentNumber : transaction.nppGroupMachinery)); //store
                 ps.setInt(3, transaction.nppGroupMachinery); //pricelist
                 ps.setInt(4, version); //version
                 ps.setInt(5, 0); //deleted
@@ -577,6 +584,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             if (statement != null)
                 statement.close();
         }
+    }
+
+    private String getDepartmentNumber(TransactionCashRegisterInfo transaction, String section) {
+       return section != null ? section : String.valueOf(transaction.departmentNumberGroupCashRegister);
     }
 
     private String makeBarcode(String idBarcode, boolean passScalesItem, String weightCode) {
