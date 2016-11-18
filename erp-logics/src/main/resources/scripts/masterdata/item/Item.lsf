@@ -735,6 +735,9 @@ value(Item item, StringItemAttribute attribute) += value(item, attribute);
 
 META defineStringItemAttribute(attribute, type, caption, group)
     @definePrimitiveItemAttribute(attribute, type, caption, group);
+    WHEN SESSION FORMS item, items SETCHANGED (attribute(Item i)) AND trimAttributes() DO {
+        attribute(i) <- trim(attribute(i));
+    } 
 END
 
 // Целое число
@@ -859,10 +862,12 @@ META defineItemAttributeForm(attribute, formProperty, caption, group)
 END
 
 deleteUnusedAttributes 'Удалить неиспользуемые атрибуты' = ACTION ABSTRACT LIST();
-EXTEND FORM options PROPERTIES() deleteUnusedAttributes;
+trimAttributes 'Удалять пробелы в начале и в конце наименования атрибутов' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES() deleteUnusedAttributes, trimAttributes;
 DESIGN options {
     items {
         MOVE PROPERTY(deleteUnusedAttributes());
+        MOVE PROPERTY(trimAttributes());
     }
 };
 
@@ -971,20 +976,21 @@ META defineItemFilterValue(object, captionProp, o)
         FORM object###session OBJECTS gg = gg MODAL;    
         IF formResult() == FormResult.ok THEN {
             LOCAL loc = ###object();
-            loc() <- NULL;
-            NEWSESSION NESTED (chosenString, loc) {
-                IF object##Name(chosenString('v')) THEN {
-                    dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(chosenString('v'));
+            LOCAL localName = VARISTRING[100]();
+            localName() <- IF trimAttributes() THEN trim(chosenString('v')) ELSE chosenString('v');
+            NEWSESSION NESTED (localName, loc) {
+                IF object##Name(localName()) THEN {
+                    dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(localName());
                 } ELSE {
                     FOR ADDOBJ p = ###object DO {
-                        name(p) <- chosenString('v');
+                        name(p) <- localName();
                         dataIn(p, gg) <- TRUE;
                         loc() <- p;
                     }
                 }
                 APPLY NESTED LOCAL {};
             }
-            SEEK object##s###session.t = (IF object##Name(chosenString('v')) THEN object##Name(chosenString('v')) ELSE loc());
+            SEEK object##s###session.t = (IF object##Name(localName()) THEN object##Name(localName()) ELSE loc());
         }
     } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
     
