@@ -15,6 +15,7 @@ public class UKM4MySQLSettings implements Serializable{
     private Boolean skipItems;
     private Boolean skipBarcodes;
     private Boolean useBarcodeAsId;
+    private Boolean appendBarcode;
 
     public UKM4MySQLSettings() {
     }
@@ -105,5 +106,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setUseBarcodeAsId(Boolean useBarcodeAsId) {
         this.useBarcodeAsId = useBarcodeAsId;
+    }
+
+    public Boolean getAppendBarcode() {
+        return appendBarcode;
+    }
+
+    public void setAppendBarcode(Boolean appendBarcode) {
+        this.appendBarcode = appendBarcode;
     }
 }

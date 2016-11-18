@@ -739,6 +739,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCardPayments());
             Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
             boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
+            boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
             if (connectionString == null) {
                 processTransactionLogger.error("No exportConnectionString in ukm4MySQLSettings found");
@@ -749,7 +750,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     conn = DriverManager.getConnection(connectionString, user, password);
 
-                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, useBarcodeAsId);
+                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, useBarcodeAsId, appendBarcode);
 
                 } finally {
                     if (conn != null)
@@ -831,7 +832,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
-                                                     boolean useBarcodeAsId) throws SQLException {
+                                                     boolean useBarcodeAsId, boolean appendBarcode) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
@@ -864,10 +865,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                     //Integer id = rs.getInt(4); //i.id
                     Integer idReceipt = rs.getInt(5); //i.receipt_header
-                    String idBarcode = useBarcodeAsId ? rs.getString(7) : rs.getString(6); //i.var
+                    String idBarcode = useBarcodeAsId ? rs.getString(7) : rs.getString(6); //i.item : i.var
+                    idBarcode = appendBarcode ? appendCheckDigitToBarcode(idBarcode, 5) : idBarcode;
                     if (idBarcode != null && weightCode != null && (idBarcode.length() == 13 || idBarcode.length() == 7) && idBarcode.startsWith(weightCode))
                         idBarcode = idBarcode.substring(2, 7);
-                    String idItem = rs.getString(7); //i.item
+                    String idItem = useBarcodeAsId && appendBarcode ? appendCheckDigitToBarcode(rs.getString(7), 5) : rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
                     BigDecimal price = rs.getBigDecimal(9) == null ? null : denominateDivideType2(rs.getBigDecimal(9), denominationStage); //i.price
                     BigDecimal sum = rs.getBigDecimal(10) == null ? null : denominateDivideType2(rs.getBigDecimal(10), denominationStage); //i.total
@@ -1031,6 +1033,43 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         } catch (Exception e) {
             return (long) 0;
         }
+    }
+
+    private String appendCheckDigitToBarcode(String barcode, Integer minLength) {
+
+        if (barcode == null || (minLength != null && barcode.length() < minLength))
+            return null;
+
+        try {
+            if (barcode.length() == 12) {
+                return appendEAN13(barcode);
+            } else if (barcode.length() == 7) {  //EAN-8
+                int checkSum = 0;
+                for (int i = 0; i <= 6; i = i + 2) {
+                    checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i))) * 3;
+                    checkSum += i == 6 ? 0 : Integer.valueOf(String.valueOf(barcode.charAt(i + 1)));
+                }
+                checkSum %= 10;
+                if (checkSum != 0)
+                    checkSum = 10 - checkSum;
+                return barcode.concat(String.valueOf(checkSum));
+            } else
+                return barcode;
+        } catch (Exception e) {
+            return barcode;
+        }
+    }
+
+    private String appendEAN13(String barcode) {
+        int checkSum = 0;
+        for (int i = 0; i <= 10; i = i + 2) {
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i)));
+            checkSum += Integer.valueOf(String.valueOf(barcode.charAt(i + 1))) * 3;
+        }
+        checkSum %= 10;
+        if (checkSum != 0)
+            checkSum = 10 - checkSum;
+        return barcode.concat(String.valueOf(checkSum));
     }
 
     private class Payment {
