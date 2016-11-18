@@ -53,6 +53,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
+                boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
 
                 if (connectionString == null) {
                     processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
@@ -84,7 +85,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 exportClassif(conn, transaction, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
-                                exportItems(conn, transaction, version);
+                                exportItems(conn, transaction, useBarcodeAsId, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
                                 exportItemsStocks(conn, transaction, departmentNumber, version);
@@ -205,7 +206,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, int version) throws SQLException {
+    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -216,7 +217,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setString(1, HandlerUtils.trim(item.idItem, 40)); //id
+                    ps.setString(1, HandlerUtils.trim(useBarcodeAsId ? item.idBarcode : item.idItem, 40)); //id
                     ps.setString(2, HandlerUtils.trim(item.name, "", 40)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, HandlerUtils.trim(item.shortNameUOM, "", 40)); //measure
@@ -737,6 +738,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
             Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCardPayments());
             Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
+            boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
 
             if (connectionString == null) {
                 processTransactionLogger.error("No exportConnectionString in ukm4MySQLSettings found");
@@ -747,7 +749,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 try {
                     conn = DriverManager.getConnection(connectionString, user, password);
 
-                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments);
+                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, useBarcodeAsId);
 
                 } finally {
                     if (conn != null)
@@ -828,7 +830,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
-                                                     Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments) throws SQLException {
+                                                     Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
+                                                     boolean useBarcodeAsId) throws SQLException {
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
@@ -861,7 +864,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                     //Integer id = rs.getInt(4); //i.id
                     Integer idReceipt = rs.getInt(5); //i.receipt_header
-                    String idBarcode = rs.getString(6); //i.var
+                    String idBarcode = useBarcodeAsId ? rs.getString(7) : rs.getString(6); //i.var
                     if (idBarcode != null && weightCode != null && (idBarcode.length() == 13 || idBarcode.length() == 7) && idBarcode.startsWith(weightCode))
                         idBarcode = idBarcode.substring(2, 7);
                     String idItem = rs.getString(7); //i.item

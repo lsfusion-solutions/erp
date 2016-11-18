@@ -14,6 +14,7 @@ public class UKM4MySQLSettings implements Serializable{
     private Integer timeout;
     private Boolean skipItems;
     private Boolean skipBarcodes;
+    private Boolean useBarcodeAsId;
 
     public UKM4MySQLSettings() {
     }
@@ -96,5 +97,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setSkipBarcodes(Boolean skipBarcodes) {
         this.skipBarcodes = skipBarcodes;
+    }
+
+    public Boolean getUseBarcodeAsId() {
+        return useBarcodeAsId;
+    }
+
+    public void setUseBarcodeAsId(Boolean useBarcodeAsId) {
+        this.useBarcodeAsId = useBarcodeAsId;
     }
 }
