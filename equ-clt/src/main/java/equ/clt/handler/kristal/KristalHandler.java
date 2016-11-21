@@ -965,15 +965,18 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         }
 
                     }
+                    filePathList.add(file.getAbsolutePath());
+                } catch (FileNotFoundException e) {
+                    sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                 } catch (Throwable e) {
                     sendSalesLogger.error("File: " + file.getAbsolutePath(), e);
                     if (makeDirsIfNeeded(file.getParent() + "/error/")) {
                         FileCopyUtils.copy(file, new File(file.getParent() + "/error/" + file.getName()));
-                        if(!file.delete())
+                        if (!file.delete())
                             file.deleteOnExit();
                     }
+                    filePathList.add(file.getAbsolutePath());
                 }
-                filePathList.add(file.getAbsolutePath());
             }
         }
         return (salesInfoList.isEmpty() && filePathList.isEmpty()) ? null :
