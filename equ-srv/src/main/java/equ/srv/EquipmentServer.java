@@ -2759,10 +2759,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             try (DataSession session = getDbManager().createSession()) {
                 ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(equipmentServer));
                 if (equipmentServerObject instanceof DataObject) {
+                    Time timeFrom = (Time) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
+                    Time timeTo = (Time) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
                     Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
                     Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                     Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
-                    return new EquipmentServerSettings(delay, numberAtATime, sendSalesDelay);
+                    return new EquipmentServerSettings(timeFrom, timeTo, delay, numberAtATime, sendSalesDelay);
                 } else return null;
             }
         } catch (Exception e) {

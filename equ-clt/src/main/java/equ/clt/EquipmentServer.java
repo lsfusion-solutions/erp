@@ -5,7 +5,6 @@ import equ.api.cashregister.*;
 import equ.api.scales.ScalesHandler;
 import equ.api.terminal.*;
 import lsfusion.base.OrderedMap;
-import lsfusion.base.Pair;
 import lsfusion.interop.DaemonThreadFactory;
 import lsfusion.interop.remote.RMIUtils;
 import org.apache.log4j.Logger;
@@ -119,6 +118,9 @@ public class EquipmentServer {
                                             millis = equipmentServerSettings.delay;
                                         if(equipmentServerSettings.sendSalesDelay != null)
                                             sendSalesDelay = equipmentServerSettings.sendSalesDelay;
+                                        if(equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null)
+                                            logger.info(String.format("EquipmentServer %s time to run: from %s to %s",
+                                                    sidEquipmentServer, equipmentServerSettings.timeFrom, equipmentServerSettings.timeTo));
                                     }
 
                                     initDaemonThreads(remote, sidEquipmentServer, millis);
@@ -206,9 +208,11 @@ public class EquipmentServer {
         processTransactionConsumer = new Consumer() {
             @Override
             void runTask() throws Exception {
-                processTransactionLogger.info("ReadTransactionInfo started");
-                taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
-                processTransactionLogger.info("ReadTransactionInfo finished");
+                if(isTimeToRun()) {
+                    processTransactionLogger.info("ReadTransactionInfo started");
+                    taskPool.addTasks(remote.readTransactionInfo(sidEquipmentServer));
+                    processTransactionLogger.info("ReadTransactionInfo finished");
+                }
             }
         };
         processTransactionThread = new Thread(processTransactionConsumer);
@@ -242,7 +246,8 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    StopListEquipmentServer.processStopListInfo(remote);
+                    if(isTimeToRun())
+                        StopListEquipmentServer.processStopListInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -260,7 +265,8 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote);
+                    if(isTimeToRun())
+                        DeleteBarcodeEquipmentServer.processDeleteBarcodeInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -279,7 +285,8 @@ public class EquipmentServer {
                 @Override
                 void runTask() throws Exception {
                     try {
-                        sendSalesInfo(remote, sidEquipmentServer);
+                        if(isTimeToRun())
+                            sendSalesInfo(remote, sidEquipmentServer);
                     } catch (ConnectException e) {
                         needReconnect = true;
                     } catch (UnmarshalException e) {
@@ -298,7 +305,8 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    sendSoftCheckInfo(remote);
+                    if(isTimeToRun())
+                        sendSoftCheckInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -316,7 +324,8 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    sendTerminalDocumentInfo(remote, sidEquipmentServer);
+                    if(isTimeToRun())
+                        sendTerminalDocumentInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -334,7 +343,8 @@ public class EquipmentServer {
             @Override
             void runTask() throws Exception{
                 try {
-                    processMachineryExchange(remote, sidEquipmentServer);
+                    if(isTimeToRun())
+                        processMachineryExchange(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -350,13 +360,31 @@ public class EquipmentServer {
 
     }
 
-    private Set<String> getDirectorySet(Set<MachineryInfo> machineryInfoSet) {
-        Set<String> directorySet = new HashSet<>();
-        for(MachineryInfo machinery : machineryInfoSet) {
-            if(machinery.directory != null)
-                directorySet.add(machinery.directory);
+    private boolean isTimeToRun() {
+        boolean start = true;
+        if(equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
+            if(equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0)
+                start = false;
+            else {
+                Calendar currentCal = Calendar.getInstance();
+
+                Calendar calendarFrom = Calendar.getInstance();
+                calendarFrom.setTime(equipmentServerSettings.timeFrom);
+                calendarFrom.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
+                calendarFrom.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
+                calendarFrom.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+
+                Calendar calendarTo = Calendar.getInstance();
+                calendarTo.setTime(equipmentServerSettings.timeTo);
+                calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
+                calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
+                calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+
+                start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
+            }
+
         }
-        return directorySet;
+        return start;
     }
 
     private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
