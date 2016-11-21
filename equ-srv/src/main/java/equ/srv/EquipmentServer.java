@@ -750,9 +750,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
-                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard"};
+                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard",
+                        "typeDiscountCard", "firstNameContact", "lastNameContact", "middleNameContact", "birthdayContact"};
                 LCP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "number[DiscountCard]", "name[DiscountCard]",
-                        "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]");
+                        "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]",
+                        "type[DiscountCard]", "firstNameHttpServerContact[DiscountCard]", "lastNameHttpServerContact[DiscountCard]",
+                        "middleNameHttpServerContact[DiscountCard]", "birthdayHttpServerContact[DiscountCard]");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
@@ -778,9 +781,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     BigDecimal initialSumDiscountCard = (BigDecimal) row.get("initialSumDiscountCard");
                     Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
                     Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
-
+                    String typeDiscountCard = (String) row.get("typeDiscountCard");
+                    String firstNameContact = (String) row.get("firstNameContact");
+                    String lastNameContact = (String) row.get("lastNameContact");
+                    String middleNameContact = (String) row.get("middleNameContact");
+                    Date birthdayContact = (Date) row.get("birthdayContact");
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
-                            percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard));
+                            percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard,
+                            typeDiscountCard, firstNameContact, lastNameContact, middleNameContact, birthdayContact));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);
