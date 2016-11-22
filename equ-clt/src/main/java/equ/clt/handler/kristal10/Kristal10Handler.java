@@ -709,7 +709,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 setAttribute(client, "mobile-phone", d.phoneContact);
                                 setAttribute(client, "email", d.emailContact);
                                 if(d.agreeSubscribeContact)
-                                    setAttribute(client, "send-by-email ", true);
+                                    setAttribute(client, "send-by-email", true);
                                 setAttribute(client, "isCompleted", d.isCompleted);
                                 internalCard.addContent(client);
 
