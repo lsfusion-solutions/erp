@@ -760,6 +760,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
                 discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
+                discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
                 Integer idFrom = parseInt(idDiscountCardFrom);
                 if (idFrom != null)
                     discountCardQuery.and(discountCardLM.findProperty("intId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idFrom).getExpr(), Compare.GREATER_EQUALS));
@@ -1425,9 +1426,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     ImRevMap<Object, KeyExpr> machineryKeys = MapFact.singletonRev((Object) "machinery", machineryExpr);
                     QueryBuilder<Object, Object> machineryQuery = new QueryBuilder<>(machineryKeys);
 
-                    String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery", "denominationStage"};
+                    String[] machineryNames = new String[]{"overDirectoryMachinery", "idStockMachinery", "nppMachinery", "handlerModelMachinery", "denominationStage"};
                     LCP[] machineryProperties = machineryPriceTransactionLM.findProperties("overDirectory[Machinery]", "idStock[Machinery]",
-                            "npp[Machinery]", "nameDenominationStage[Machinery]");
+                            "npp[Machinery]", "handlerModel[Machinery]", "nameDenominationStage[Machinery]");
                     for (int j = 0; j < machineryProperties.length; j++) {
                         machineryQuery.addProperty(machineryNames[j], machineryProperties[j].getExpr(machineryExpr));
                     }
@@ -1441,12 +1442,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String directoryMachinery = trim((String) result.getValue(j).get("overDirectoryMachinery").getValue());
                         idStock = trim((String) result.getValue(j).get("idStockMachinery").getValue());
                         Integer nppMachinery = (Integer) result.getValue(j).get("nppMachinery").getValue();
+                        String handlerModelMachinery = trim((String) result.getValue(j).get("handlerModelMachinery").getValue());
                         String denominationStage = trim((String) result.getValue(j).get("denominationStage").getValue());
 
                         ConcreteClass machineryClass = result.getKey(j).get("machinery").objectClass;
                         ValueClass cashRegisterClass = cashRegisterLM == null ? null : cashRegisterLM.findClass("CashRegister");
                         if(machineryClass != null && machineryClass.equals(cashRegisterClass))
-                            cashRegisterSet.add(new CashRegisterInfo(null, nppMachinery, null, null, directoryMachinery, denominationStage, null, null));
+                            cashRegisterSet.add(new CashRegisterInfo(null, nppMachinery, handlerModelMachinery, null, directoryMachinery, denominationStage, null, null));
                         putDirectoryStockMap(directoryStockMap, directoryMachinery, idStock);
                     }
 

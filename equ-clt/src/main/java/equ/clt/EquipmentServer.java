@@ -711,10 +711,16 @@ public class EquipmentServer {
 
                                     //DiscountCard
                                     else if (requestExchange.isDiscountCard()) {
-                                        List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange.idDiscountCardFrom, requestExchange.idDiscountCardTo);
-                                        if (discountCardList != null && !discountCardList.isEmpty())
-                                            ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange);
-                                        remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                        Set<String> handlerSet = new HashSet<>();
+                                        for(CashRegisterInfo cashRegisterInfo : requestExchange.cashRegisterSet) {
+                                            handlerSet.add(cashRegisterInfo.handlerModel);
+                                        }
+                                        if(handlerSet.contains(handlerModel)) {
+                                            List<DiscountCard> discountCardList = remote.readDiscountCardList(requestExchange.idDiscountCardFrom, requestExchange.idDiscountCardTo);
+                                            if (discountCardList != null && !discountCardList.isEmpty())
+                                                ((CashRegisterHandler) clsHandler).sendDiscountCardList(discountCardList, requestExchange);
+                                            remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
+                                        }
                                     }
 
                                     //Promotion

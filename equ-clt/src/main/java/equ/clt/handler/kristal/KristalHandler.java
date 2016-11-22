@@ -804,34 +804,42 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         KristalSettings kristalSettings = springContext.containsBean("kristalSettings") ? (KristalSettings) springContext.getBean("kristalSettings") : null;
         String importPrefixPath = kristalSettings != null ? kristalSettings.getImportPrefixPath() : null;
 
+        Set<String> directorySet = new HashSet<>();
+        for (CashRegisterInfo c : requestExchange.cashRegisterSet) {
+            if (c.directory != null && c.handlerModel != null && c.handlerModel.endsWith("KristalHandler")) {
+                directorySet.add(c.directory);
+            }
+        }
+
         for (String directory : requestExchange.directoryStockMap.keySet()) {
+            if (directorySet.contains(directory)) {
+                String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
+                makeDirsIfNeeded(exchangeDirectory);
 
-            String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
-            makeDirsIfNeeded(exchangeDirectory);
+                //discountCard.txt
+                File discCardFile = new File(exchangeDirectory + "disccard.txt");
+                File flagDiscCardFile = new File(exchangeDirectory + "WAITDISCCARD");
+                if (discCardFile.exists() && flagDiscCardFile.exists() && !flagDiscCardFile.delete()) {
+                    throw new RuntimeException(existFilesMessage(discCardFile, flagDiscCardFile));
+                } else if (flagDiscCardFile.createNewFile()) {
+                    machineryExchangeLogger.info("Kristal: creating DISCCARD file " + discCardFile.getAbsolutePath());
+                    PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
 
-            //discountCard.txt
-            File discCardFile = new File(exchangeDirectory + "disccard.txt");
-            File flagDiscCardFile = new File(exchangeDirectory + "WAITDISCCARD");
-            if (discCardFile.exists() && flagDiscCardFile.exists() && !flagDiscCardFile.delete()) {
-                throw new RuntimeException(existFilesMessage(discCardFile, flagDiscCardFile));
-            } else if (flagDiscCardFile.createNewFile()) {
-                machineryExchangeLogger.info("Kristal: creating DISCCARD file " + discCardFile.getAbsolutePath());
-                PrintWriter writer = new PrintWriter(new OutputStreamWriter(new FileOutputStream(discCardFile), "windows-1251"));
-
-                for (DiscountCard card : discountCardList) {
-                    boolean active = requestExchange.startDate == null || (card.dateFromDiscountCard != null && card.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
-                    if (active) {
-                        String record = String.format("+|%s|%s|1|%s|%s|3", trimToEmpty(card.numberDiscountCard), trimToEmpty(card.nameDiscountCard),
-                                card.percentDiscountCard == null ? 0 : card.percentDiscountCard.intValue(), formatCardNumber(card.idDiscountCard));
-                        writer.println(record);
+                    for (DiscountCard card : discountCardList) {
+                        boolean active = requestExchange.startDate == null || (card.dateFromDiscountCard != null && card.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
+                        if (active) {
+                            String record = String.format("+|%s|%s|1|%s|%s|3", trimToEmpty(card.numberDiscountCard), trimToEmpty(card.nameDiscountCard),
+                                    card.percentDiscountCard == null ? 0 : card.percentDiscountCard.intValue(), formatCardNumber(card.idDiscountCard));
+                            writer.println(record);
+                        }
                     }
-                }
-                writer.close();
+                    writer.close();
 
-                machineryExchangeLogger.info("Kristal: waiting for deletion of DISCCARD file " + discCardFile.getAbsolutePath());
-                waitForDeletion(discCardFile, flagDiscCardFile);
-            } else {
-                throw new RuntimeException(cantCreateFileMessage(flagDiscCardFile));
+                    machineryExchangeLogger.info("Kristal: waiting for deletion of DISCCARD file " + discCardFile.getAbsolutePath());
+                    waitForDeletion(discCardFile, flagDiscCardFile);
+                } else {
+                    throw new RuntimeException(cantCreateFileMessage(flagDiscCardFile));
+                }
             }
         }
     }
