@@ -680,28 +680,31 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     }
 
                     for (DiscountCard d : discountCardList) {
-                        //parent: rootElement
-                        Element internalCard = new Element("internal-card");
-                        Double percent = d.percentDiscountCard == null ? 0 : d.percentDiscountCard.doubleValue();
-                        String guid = discountCardPercentTypeMap.get(percent);
-                        if(d.numberDiscountCard != null) {
-                            setAttribute(internalCard, "number", d.numberDiscountCard);
-                            setAttribute(internalCard, "amount", d.initialSumDiscountCard == null ? "0.00" : denominateMultiplyType2(d.initialSumDiscountCard, denominationStage));
-                            setAttribute(internalCard, "expiration-date", d.dateToDiscountCard == null ? "2050-12-03" : d.dateToDiscountCard);
-                            setAttribute(internalCard, "status",
-                                    d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
-                            setAttribute(internalCard, "deleted", "false");
-                            setAttribute(internalCard, "card-type-guid", d.typeDiscountCard != null ? d.typeDiscountCard : (guid != null ? guid : "0"));
+                        boolean active = requestExchange.startDate == null || (d.dateFromDiscountCard != null && d.dateFromDiscountCard.compareTo(requestExchange.startDate) >= 0);
+                        if(active) {
+                            //parent: rootElement
+                            Element internalCard = new Element("internal-card");
+                            Double percent = d.percentDiscountCard == null ? 0 : d.percentDiscountCard.doubleValue();
+                            String guid = discountCardPercentTypeMap.get(percent);
+                            if (d.numberDiscountCard != null) {
+                                setAttribute(internalCard, "number", d.numberDiscountCard);
+                                setAttribute(internalCard, "amount", d.initialSumDiscountCard == null ? "0.00" : denominateMultiplyType2(d.initialSumDiscountCard, denominationStage));
+                                setAttribute(internalCard, "expiration-date", d.dateToDiscountCard == null ? "2050-12-03" : d.dateToDiscountCard);
+                                setAttribute(internalCard, "status",
+                                        d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
+                                setAttribute(internalCard, "deleted", "false");
+                                setAttribute(internalCard, "card-type-guid", d.typeDiscountCard != null ? d.typeDiscountCard : (guid != null ? guid : "0"));
 
-                            Element client = new Element("client");
-                            setAttribute(client, "guid", d.numberDiscountCard);
-                            setAttribute(client, "last-name", d.lastNameContact);
-                            setAttribute(client, "first-name", d.firstNameContact);
-                            setAttribute(client, "middle-name", d.middleNameContact);
-                            setAttribute(client, "birth-date", formatDate(d.birthdayContact, "yyyy-MM-dd"));
-                            internalCard.addContent(client);
+                                Element client = new Element("client");
+                                setAttribute(client, "guid", d.numberDiscountCard);
+                                setAttribute(client, "last-name", d.lastNameContact);
+                                setAttribute(client, "first-name", d.firstNameContact);
+                                setAttribute(client, "middle-name", d.middleNameContact);
+                                setAttribute(client, "birth-date", formatDate(d.birthdayContact, "yyyy-MM-dd"));
+                                internalCard.addContent(client);
 
-                            rootElement.addContent(internalCard);
+                                rootElement.addContent(internalCard);
+                            }
                         }
                     }
                     exportXML(doc, exchangeDirectory, "catalog-cards");
