@@ -33,6 +33,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     protected final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
     protected final static Logger processStopListLogger = Logger.getLogger("StopListLogger");
     protected final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+    protected final static Logger machineryExchangeLogger = Logger.getLogger("MachineryExchangeLogger");
 
     String encoding = "utf-8";
 
@@ -658,7 +659,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                 String exchangeDirectory = directory.trim() + "/products/source/";
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
-                    processStopListLogger.info(String.format("Kristal10: Send DiscountCards to %s", exchangeDirectory));
+                    machineryExchangeLogger.info(String.format("Kristal10: Send DiscountCards to %s", exchangeDirectory));
 
                     Element rootElement = new Element("cards-catalog");
                     Document doc = new Document(rootElement);
