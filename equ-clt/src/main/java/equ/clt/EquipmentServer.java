@@ -441,7 +441,7 @@ public class EquipmentServer {
             }
         } catch (Throwable e) {
             sendSalesLogger.error("Equipment server error: ", e);
-            remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+            remote.errorEquipmentServerReport(sidEquipmentServer, e);
         }
     }
 
@@ -663,7 +663,7 @@ public class EquipmentServer {
                     }
                 } catch (Throwable e) {
                     sendTerminalDocumentLogger.error("Equipment server error: ", e);
-                    remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+                    remote.errorEquipmentServerReport(sidEquipmentServer, e);
                     return;
                 }
             }
@@ -743,7 +743,7 @@ public class EquipmentServer {
                         }
                     } catch (Throwable e) {
                         machineryExchangeLogger.error("Equipment server error: ", e);
-                        remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
                         return;
                     }
                 }
@@ -1100,7 +1100,7 @@ public class EquipmentServer {
 
         private void errorEquipmentServerReport(Exception e) {
             try {
-                remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+                remote.errorEquipmentServerReport(sidEquipmentServer, e);
             } catch (Exception ignored) {
             }
         }
