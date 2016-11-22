@@ -26,7 +26,7 @@ EXTEND FORM generationGiftCards
 
 DESIGN generationGiftCards {
     topContainer{
-        MOVE PROPERTY(name(n)) {caption = 'SKU';};
+        MOVE PROPERTY(name(s)) {caption = 'SKU';};
     }
 }
 
@@ -190,25 +190,61 @@ changeAccount (LegalEntity l) = ACTION {
             userAccount(l) <- a;
         }
     } ELSE 
-        number(a) <- requestedString() WHERE a == account(l);
+        number(Bank.Account a) <- requestedString() WHERE a == account(l);
 }
 
-FORM GiftCardSaleCustomer 'Покупатель'
+changeBank (LegalEntity l) = ACTION {
+    REQUEST OBJECT b FORM banks;
+    IF NOT account(l) THEN {
+        FOR ADDOBJ a = Bank.Account DO {
+            bank(a) <- requestedObject();
+            legalEntity(a) <- l;
+            userAccount(l) <- a;
+        }
+    } ELSE 
+        bank(Bank.Account a) <- requestedObject() WHERE a == account(l);
+}
+
+defaultContract(LegalEntity l) = defaultContractSkuSupplierCustomer(defaultCompany(), l, currentDate());
+
+dateFromContract 'Дата'(LegalEntity l) = dateFrom(defaultContract(l));
+changeDateFromContract (LegalEntity l) = ACTION {
+    REQUEST DATE INPUT ;
+    IF requestedDate() THEN {
+        dateFrom(UserContractSku c) <- requestedDate() WHERE c == defaultContract(l);
+    }
+}
+
+numberContract 'Номер'(LegalEntity l) = number(defaultContract(l));
+changeNumberContract(LegalEntity l) = ACTION {
+    REQUEST VARISTRING[28] INPUT ;
+    IF requestedString() THEN {
+        number(UserContractSku c) <- requestedString() WHERE c == defaultContract(l);
+    }
+}
+
+FORM giftCardSaleCustomer 'Покупатель'
     OBJECTS l=LegalEntity FIXED PANEL
     PROPERTIES(l) name
     PROPERTIES(l) address ON CHANGE changeAddress(l), phone ON CHANGE changePhone(l)
-    PROPERTIES(l) numberAccount ON CHANGE changeAccount(l), nameBank
+    PROPERTIES(l) numberAccount ON CHANGE changeAccount(l), nameBank ON CHANGE changeBank(l)
+    PROPERTIES (l)dateFromContract ON CHANGE changeDateFromContract(l), numberContract ON CHANGE changeNumberContract(l)
     
     EVENTS 
         ON APPLY BEFORE beforeApplyCustomer(l)
 ;
 
-DESIGN GiftCardSaleCustomer{
+DESIGN giftCardSaleCustomer{
     MOVE PROPERTY (name(l));
     MOVE PROPERTY (address(l));
     MOVE PROPERTY (phone(l));
     MOVE PROPERTY (numberAccount(l));
     MOVE PROPERTY (nameBank(l));
+    NEW contract {
+        caption = 'Договор';
+        MOVE PROPERTY (dateFromContract(l));
+        MOVE PROPERTY (numberContract(l));
+    }
     MOVE functions.box;
 }
 
@@ -217,23 +253,29 @@ addCustomer 'Добавить'() = ACTION NEWSESSION {
         legalEntityGroup(l) <- giftCardLegalEntityGroup();
         isCustomer(l) <- TRUE;
         
-        FORM GiftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
+        FOR ADDOBJ uc = UserContractSku DO {
+            supplier(uc) <- defaultCompany();
+            customer(uc) <- l;
+            currency(uc) <- defaultCurrency();
+            dateFrom(uc) <- currentDate();
+            isDataDefault(uc) <- TRUE ;
+        }
+        
+        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
     }
     
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
 editCustomer 'Редактировать' (LegalEntity l) = ACTION NEWSESSION {
-        FORM GiftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
+        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
 } IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM giftCardLegalEntitys 'Покупатели'
     OBJECTS l=LegalEntity
-    PROPERTIES(l) READONLY nameL = name, id SHOWIF showIDs(), nameLegalEntityGroup
-    PROPERTIES(l) READONLY address, phone
+    PROPERTIES(l) READONLY name, address, phone, numberAccount, nameBank, dateFromContract, numberContract
     PROPERTIES addCustomer() TODRAW l, editCustomer(l)
-    ORDER BY nameL
+    ORDER BY name(l)
     
-    FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT
     FILTERS giftCardLegalEntityGroup() == legalEntityGroup(l)
 ;
 
@@ -309,11 +351,19 @@ shiped 'Отпуск сертификатов покупателю'(Sale.UserInv
     APPLY {}
 } TOOLBAR;
 
+statusShipment 'Статус выписки' = CASE 
+    WHEN createShipment(Sale.Invoice i) AND isPosted(i) THEN 'Выписана' 
+    WHEN isPosted(i) THEN 'Не выписана'
+    WHEN i IS Sale.Invoice THEN 'В обработке' MINCHARWIDTH 10 PREFCHARWIDTH 15;
+    
+backgroundShipment 'Цвет' (Sale.Invoice o)= RGB(212,255,212) IF isPosted(o) AND createShipment(o);  
+
 FORM saleGiftCardDashboard 'Выписка подарочных сертификатов' 
     OBJECTS i = Sale.Invoice LAST
     PROPERTIES (i) READONLY isClosed 
                             
-    PROPERTIES (i) READONLY BACKGROUND backgroundDraft(i) isPosted, number, series, date, time                                
+    PROPERTIES (i) READONLY BACKGROUND backgroundDraft(i) isPosted, number, series, date, time    
+    PROPERTIES (i) READONLY statusShipment BACKGROUND backgroundShipment(i)
     PROPERTIES (i) READONLY nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, nameCurrency
     PROPERTIES (i) READONLY countInvoiceDetail, quantityInvoiceDetail, sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail
     PROPERTIES (i) READONLY note
@@ -332,12 +382,26 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
 
     FILTERS invoice(d) == i
     FILTERS isGiftCard(i)
+    
+    OBJECTS l=LegalEntity
+    PROPERTIES(l) READONLY name, address, phone, numberAccount, nameBank, dateFromContract, numberContract
+    PROPERTIES addCustomer() TODRAW l, editCustomer(l)
+    ORDER BY name(l)
+    
+    FILTERS giftCardLegalEntityGroup() == legalEntityGroup(l)
 ;
 
 DESIGN saleGiftCardDashboard {
     NEW documentContainer BEFORE functions.box {
         fill = 1;
         type = SPLITV;
+        NEW header{
+            fill = 1;
+            type = TABBED;
+            MOVE i.box{caption = 'Счета-фактуры';};
+            MOVE l.box{caption = 'Покупатели';};
+        }
+        
         NEW documentDetail {
             fill = 1;
             type = TABBED;
