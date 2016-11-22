@@ -737,7 +737,8 @@ public class EquipmentServer {
                                     }
                                 }
                             } catch (Exception e) {
-                                remote.errorEquipmentServerReport(sidEquipmentServer, e.fillInStackTrace());
+                                machineryExchangeLogger.error("Equipment server error: ", e);
+                                remote.errorEquipmentServerReport(sidEquipmentServer, e);
                             }
                         }
                     } catch (Throwable e) {
