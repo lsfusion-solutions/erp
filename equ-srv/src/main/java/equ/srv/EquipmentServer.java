@@ -751,11 +751,14 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
                 String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
                         "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard",
-                        "typeDiscountCard", "firstNameContact", "lastNameContact", "middleNameContact", "birthdayContact"};
+                        "typeDiscountCard", "firstNameContact", "lastNameContact", "middleNameContact", "birthdayContact",
+                        "sexContact", "cityContact", "streetContact", "phoneContact", "emailContact", "agreeSubscribeContact"};
                 LCP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "number[DiscountCard]", "name[DiscountCard]",
                         "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]",
                         "type[DiscountCard]", "firstNameHttpServerContact[DiscountCard]", "lastNameHttpServerContact[DiscountCard]",
-                        "middleNameHttpServerContact[DiscountCard]", "birthdayHttpServerContact[DiscountCard]");
+                        "middleNameHttpServerContact[DiscountCard]", "birthdayHttpServerContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]",
+                        "cityHttpServerContact[DiscountCard]", "streetHttpServerContact[DiscountCard]", "phoneHttpServerContact[DiscountCard]",
+                        "emailHttpServerContact[DiscountCard]", "agreeSubscribeHttpServerContact[DiscountCard]");
                 for (int i = 0; i < discountCardProperties.length; i++) {
                     discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
                 }
@@ -787,9 +790,16 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     String lastNameContact = (String) row.get("lastNameContact");
                     String middleNameContact = (String) row.get("middleNameContact");
                     Date birthdayContact = (Date) row.get("birthdayContact");
+                    Integer sexContact = (Integer) row.get("sexContact");
+                    String cityContact = (String) row.get("cityContact");
+                    String streetContact = (String) row.get("streetContact");
+                    String phoneContact = (String) row.get("phoneContact");
+                    String emailContact = (String) row.get("emailContact");
+                    boolean agreeSubscribeContact = row.get("agreeSubscribeContact") != null;
                     discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
                             percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard,
-                            typeDiscountCard, firstNameContact, lastNameContact, middleNameContact, birthdayContact));
+                            typeDiscountCard, firstNameContact, lastNameContact, middleNameContact, birthdayContact,
+                            sexContact, cityContact, streetContact, phoneContact, emailContact, agreeSubscribeContact, true));
                 }
             } catch (Exception e) {
                 throw Throwables.propagate(e);

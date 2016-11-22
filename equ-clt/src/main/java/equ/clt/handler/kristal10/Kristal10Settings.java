@@ -21,6 +21,7 @@ public class Kristal10Settings implements Serializable{
     private Integer cleanOldFilesDays;
     private String discountCardPercentType;
     private Map<Double, String> discountCardPercentTypeMap = new HashMap();
+    private String discountCardDirectory;
 
     public Kristal10Settings() {
     }
@@ -155,5 +156,13 @@ public class Kristal10Settings implements Serializable{
 
     public void setCleanOldFilesDays(Integer cleanOldFilesDays) {
         this.cleanOldFilesDays = cleanOldFilesDays;
+    }
+
+    public String getDiscountCardDirectory() {
+        return discountCardDirectory;
+    }
+
+    public void setDiscountCardDirectory(String discountCardDirectory) {
+        this.discountCardDirectory = discountCardDirectory;
     }
 }

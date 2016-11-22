@@ -650,6 +650,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
         Map<Double, String> discountCardPercentTypeMap = kristalSettings != null ? kristalSettings.getDiscountCardPercentTypeMap() : new HashMap<Double, String>();
+        String discountCardDirectory = kristalSettings != null ? kristalSettings.getDiscountCardDirectory() : null;
 
         if (!discountCardList.isEmpty()) {
             for (String directory : requestExchange.directoryStockMap.keySet()) {
@@ -657,7 +658,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory);
                 String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
-                String exchangeDirectory = directory.trim() + "/products/source/";
+                String exchangeDirectory = directory.trim() + (discountCardDirectory != null ? discountCardDirectory : "/products/source/");
                 if (new File(exchangeDirectory).exists() || new File(exchangeDirectory).mkdirs()) {
                     machineryExchangeLogger.info(String.format("Kristal10: Send DiscountCards to %s", exchangeDirectory));
 
@@ -701,6 +702,15 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 setAttribute(client, "first-name", d.firstNameContact);
                                 setAttribute(client, "middle-name", d.middleNameContact);
                                 setAttribute(client, "birth-date", formatDate(d.birthdayContact, "yyyy-MM-dd"));
+                                if(d.sexContact != null)
+                                    setAttribute(client, "sex", d.sexContact == 0 ? "MALE" : "FEMALE");
+                                setAttribute(client, "city", d.cityContact);
+                                setAttribute(client, "street", d.streetContact);
+                                setAttribute(client, "mobile-phone", d.phoneContact);
+                                setAttribute(client, "email", d.emailContact);
+                                if(d.agreeSubscribeContact)
+                                    setAttribute(client, "send-by-email ", true);
+                                setAttribute(client, "isCompleted", d.isCompleted);
                                 internalCard.addContent(client);
 
                                 rootElement.addContent(internalCard);
