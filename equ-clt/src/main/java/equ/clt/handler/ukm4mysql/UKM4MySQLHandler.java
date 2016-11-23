@@ -749,7 +749,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 try {
                     conn = DriverManager.getConnection(connectionString, user, password);
-
+                    checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, useBarcodeAsId, appendBarcode);
 
                 } finally {
@@ -828,6 +828,29 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 statement.close();
         }
         return paymentMap;
+    }
+
+    private void checkIndices(Connection conn) throws SQLException {
+        Statement statement = null;
+        try {
+            statement = conn.createStatement();
+            String query = "SELECT COUNT(1) IndexIsThere FROM INFORMATION_SCHEMA.STATISTICS WHERE table_schema=DATABASE() AND table_name='receipt' AND index_name='ext_processed_index'";
+            ResultSet rs = statement.executeQuery(query);
+
+            while (rs.next()) {
+                boolean indexExists = rs.getInt(1) > 0;
+                if (!indexExists) {
+                    statement = conn.createStatement();
+                    statement.execute("CREATE INDEX ext_processed_index ON receipt(ext_processed);");
+                }
+            }
+
+        } catch (SQLException e) {
+            throw Throwables.propagate(e);
+        } finally {
+            if (statement != null)
+                statement.close();
+        }
     }
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
