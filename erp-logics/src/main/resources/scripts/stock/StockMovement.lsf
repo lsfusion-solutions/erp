@@ -10,10 +10,17 @@ currentAccountPriceA 'Цена учетная' (Sku sku, Stock stock) = prevPric
 accountPriceA 'Цена учетная' (Sku sku, Stock stock, SkuLedger ledger) = prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock, dateTime(ledger));
 accountPriceA 'Цена учетная' (Sku sku, SkuLedger ledger)= prevPriceA[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.accountPriceListType, sku, stock(ledger), dateTime(ledger));
 
+filterSkuLedgerDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (SkuLedger i) = date(i) >= filterSkuLedgerDateFrom() OR (i IS SkuLedger AND NOT filterSkuLedgerDateFrom());      
+
+filterSkuLedgerDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (SkuLedger i) = date(i) <= filterSkuLedgerDateTo() OR (i IS SkuLedger AND NOT filterSkuLedgerDateTo());   
+
 FORM movementSku 'Движение товара'
     OBJECTS s = Sku FIXED PANEL
     PROPERTIES(s) READONLY name
-
+    PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
+    
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument, nameStock,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, 
@@ -23,8 +30,29 @@ FORM movementSku 'Движение товара'
     ORDER BY dateTime(bil)
     FILTERS sku(bil) == s,
             isPosted(bil),
-            isCompanyStock(bil)
+            isCompanyStock(bil),
+            filterDateFrom(bil),
+            filterDateTo(bil)
 ;
+DESIGN movementSku {
+    main {
+        NEW header {
+            type = CONTAINERH;
+            MOVE s.box{
+                MOVE PROPERTY (name(s));
+            }
+            NEW filter {
+                caption = 'Фильтры';
+                type = CONTAINERH;
+                MOVE PROPERTY (filterSkuLedgerDateFrom());
+                MOVE PROPERTY (filterSkuLedgerDateTo());
+            }
+        }
+        MOVE bil.box;
+    }
+    MOVE functions.box;
+}
+
 @extendFormFilterAccessStock(SkuLedger, bil, movementSku, stock, company);
 
 FORM movementSkuStock 'Движение товара по складу'
@@ -34,6 +62,8 @@ FORM movementSkuStock 'Движение товара по складу'
     OBJECTS st = Stock FIXED PANEL
     PROPERTIES(st) SELECTOR name
 
+    PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
+    
     OBJECTS bil = SkuLedger
     PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice,
@@ -44,13 +74,21 @@ FORM movementSkuStock 'Движение товара по складу'
     FILTERS sku(bil) == s,
             isPosted(bil),
             stock(bil)==st,
-            isCompany(st)
+            isCompany(st),
+            filterDateFrom(bil),
+            filterDateTo(bil)            
 ;
 DESIGN movementSkuStock {
     NEW topContainer{
         type = CONTAINERH;
         MOVE s.box;
         MOVE st.box;
+        NEW filter {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY (filterSkuLedgerDateFrom());
+            MOVE PROPERTY (filterSkuLedgerDateTo());
+        }
     }
     MOVE bil.box;
     MOVE functions.box;
