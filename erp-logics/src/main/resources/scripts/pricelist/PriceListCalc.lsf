@@ -54,6 +54,17 @@ nearestMarkup 'Расчетная надбавка, %' (CalcPriceListType calcPr
 markup 'Надбавка, %' (CalcPriceListType type, Group group) =
     OVERRIDE nearestMarkup(type, group), dataMarkup(type, group) PERSISTENT;
     
+                                                                     
+quantityChildWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group child) AND isParent(child, Group parent) BY parent, type PERSISTENT;
+quantityParentWithMarkup  = GROUP SUM 1 IF dataMarkup(CalcPriceListType type, Group parent) AND isParent(Group child, parent) BY child, type PERSISTENT;                                                                        
+
+backgroundMarkup 'Цвет' (CalcPriceListType type, Group group) = CASE 
+    WHEN dataMarkup(type, group) THEN RGB(230,248,250) 
+//    WHEN nearestMarkup(type, group) THEN RGB(230,248,250) 
+    WHEN quantityChildWithMarkup (group, type) != descendantNumber(group) AND NOT quantityParentWithMarkup (group, type) THEN RGB(203,203,203);
+    
+    
+    
 extraMarkup = ABSTRACT NUMERIC[8,2] (CalcPriceListType, Sku);  
     
 overMarkup 'Надбавка, % (перегруженная)' = OVERRIDE 
@@ -119,7 +130,7 @@ priceA(CalcPriceListType type, Batch batch, Stock stock, DATETIME dateTime) += p
 
 // ------------------------------------- Формы ---------------------------------- //
 
-backgroundMarkup 'Цвет' (CalcPriceListType calcPriceListType, Group group) = RGB(255,160,160) IF dataMarkup(calcPriceListType, group);
+//backgroundMarkup 'Цвет' (CalcPriceListType calcPriceListType, Group group) = RGB(255,160,160) IF dataMarkup(calcPriceListType, group);
 
 FORM calcPriceListType 'Расчетный вид цен'
     OBJECTS c = CalcPriceListType FIXED PANEL
@@ -131,7 +142,7 @@ FORM calcPriceListType 'Расчетный вид цен'
     FILTERS groupType(g) == groupType(c)
     ORDER BY order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
-    PROPERTIES(c, g) dataMarkup , nearestMarkup, nameDataRoundCondition, nameNearestRoundConditionCalc READONLY 
+    PROPERTIES(c, g) dataMarkup , nearestMarkup BACKGROUND backgroundMarkup(c,g), nameDataRoundCondition, nameNearestRoundConditionCalc READONLY 
 
     OBJECTS s = Sku
     PROPERTIES(s) READONLY name, idBarcode
