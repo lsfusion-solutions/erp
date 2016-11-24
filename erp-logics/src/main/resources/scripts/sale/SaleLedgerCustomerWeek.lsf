@@ -1,0 +1,188 @@
+MODULE SaleLedgerCustomerWeek;
+
+REQUIRE SaleLedger;
+
+NAMESPACE SaleLedger;
+
+quantitySold 'Продано за неделю (кол-во)'  = GROUP SUM
+        quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND isCompany(stock)
+        BY sku, customer, extractWeek(date), dateFrom, dateTo;
+quantitySold 'Продано за неделю (кол-во)'  = GROUP SUM
+        quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND isCompany(stock)
+        BY customer, extractWeek(date), dateFrom, dateTo;
+quantitySoldTotal 'Продано итого (кол-во)'  = GROUP SUM
+        quantitySold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND isCompany(stock)
+        BY sku, customer, dateFrom, dateTo;       
+ 
+         
+inReport 'Вкл.' = DATA LOCAL BOOLEAN (Stock);
+
+sessionConcatStocks 'Склады' () =
+    GROUP CONCAT name(Stock st) IF inReport(st),', ' MINCHARWIDTH 50 PREFCHARWIDTH 80;
+    
+
+FORM selectStock 'Выбор складов'
+    TREE stockTree sg = StockGroup PARENT parent
+    PROPERTIES READONLY sgTreeName = name(sg)
+
+    OBJECTS st = Stock FIXED GRID
+    PROPERTIES (st) READONLY inReport EDITABLE, name, id SHOWIF showIDs()
+    FILTERS countCompanyStock(sg),
+            isCompany(st),
+            isParent(sg, st)
+    
+    FILTERGROUP select FILTER 'Отмеченные' inReport(st) 'F9' 
+;
+DESIGN selectStock {
+    main {
+        preferredSize = (1024, 768);
+        NEW top {
+            fill = 1;
+            type = SPLITH;
+            MOVE stockTree.tree.box;
+            MOVE st.box {fill = 2.5;}
+        }
+        MOVE functions.box;
+    }
+}
+
+selectStocks '' () = ACTION FORM selectStock MODAL ;
+
+
+
+sumSoldSelect 'Продано за неделю (сумма)'  = GROUP SUM
+        sumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY customer, extractWeek(date), dateFrom, dateTo;
+sumSoldSelect 'Продано за неделю (сумма)'  = GROUP SUM
+        sumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY customer, dateFrom, dateTo;
+sumSoldSelect 'Продано за неделю (сумма)'  = GROUP SUM
+        sumSold(Sku sku, Stock stock, LegalEntity customer, DATE date) IF date >= DATE dateFrom AND date <= DATE dateTo AND inReport(stock)
+        BY extractWeek(date), dateFrom, dateTo;
+                        
+weekString = FORMULA STRING[4] 'CAST($1 AS character(4))' FIXEDCHARWIDTH 4;
+
+FORM saleSkuStockCustomer 'Продажи клиентам по неделям'
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    
+    OBJECTS cu = LegalEntity FIXED PANEL 
+    PROPERTIES (cu) SELECTOR name
+    FILTERS isCustomer(cu)
+
+    OBJECTS w = INTEGER FIXED GRID
+    FILTERS quantitySold(cu, w, dFrom, dTo)
+
+
+
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
+    OBJECTS           s=Sku
+    PROPERTIES        READONLY name(s), id(s)//, idBarcode(s)
+
+    FILTERS           isParent(sk, s),                    
+                      quantitySoldTotal(s, cu, dFrom, dTo)
+    ORDER BY          name(s)
+
+    PROPERTIES        READONLY quantitySold(s, cu, w, dFrom, dTo)  COLUMNS (w) HEADER weekString (w),
+                      quantitySoldTotal(s, cu, dFrom, dTo)
+
+    PROPERTIES() sessionConcatStocks ON CHANGE selectStocks()
+                          
+    OBJECTS w1 = INTEGER FIXED GRID   
+    FILTERS sumSoldSelect(w1, dFrom, dTo)
+     
+    OBJECTS cu1 = LegalEntity 
+    PROPERTIES (cu1) READONLY name, id
+    PROPERTIES        READONLY sumSoldSelect(cu1, w1, dFrom, dTo)  COLUMNS (w1) HEADER weekString (w1),
+                      sumSoldSelect(cu1, dFrom, dTo)   
+                       
+    FILTERS isCustomer(cu1),
+            sumSoldSelect(cu1, dFrom, dTo)
+////            
+//    TREE skuTree1 sk1 = SkuGroup PARENT parent
+//    PROPERTIES READONLY order(sk1), name(sk1)
+//    ORDER BY order(sk1), name(sk1)
+//    FILTERGROUP inactive1 FILTER 'Активные' active(sk1) 'F5' DEFAULT
+
+    OBJECTS           s1=Sku
+    PROPERTIES        READONLY name(s1), id(s1), idBarcode(s1)
+
+    FILTERS           isParent(sk, s1),                    
+                      quantitySoldTotal(s1, cu1, dFrom, dTo)
+    ORDER BY          name(s1)
+
+    PROPERTIES        READONLY quantitySold(s1, cu1, w1, dFrom, dTo)  COLUMNS (w1) HEADER weekString (w1),
+                      quantitySoldTotal(s1, cu1, dFrom, dTo)            
+            
+                      
+;
+
+DESIGN saleSkuStockCustomer {
+
+    NEW topContainer {
+        fill = 1;
+        type = CONTAINERV;
+
+        NEW top {
+
+            NEW params {
+                type = CONTAINERH;
+                MOVE dates.box {
+                    type = CONTAINERH;
+                }
+            }
+        }
+        NEW firstCase {
+            fill = 1;
+            type = SPLITH;
+            MOVE skuTree.tree.box { caption = 'Товарные группы'; }
+            
+            NEW tab{
+                fill = 2.5;
+                type = TABBED;
+                NEW sku { 
+                    type = SPLITH;
+                    caption = 'Покупатель';
+                    
+                    NEW item {
+                        fill = 1;
+//                        caption = 'Товары';
+                        MOVE cu.box {
+                            MOVE PROPERTY (name(cu));
+                        }
+                        MOVE s.box;
+                    }
+                }
+                NEW customers {
+                    caption = 'Покупатели';
+                    fill = 1;
+                    NEW stocks {
+                        MOVE PROPERTY (sessionConcatStocks());
+                    }
+                    NEW customers1 {
+                        fill = 1;
+                        type = SPLITV;
+                         MOVE cu1.box;
+                         MOVE s1.box;
+                    }
+                   
+                }
+                
+            }
+
+        }
+    }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    salesReports {
+        ADD saleSkuStockCustomer;
+    }
+}
+
