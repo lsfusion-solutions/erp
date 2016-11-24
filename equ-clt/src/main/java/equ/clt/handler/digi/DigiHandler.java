@@ -1,22 +1,33 @@
 package equ.clt.handler.digi;
 
-import equ.api.scales.ScalesHandler;
 import equ.api.*;
+import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
-import equ.api.scales.TransactionScalesInfo;
 import equ.api.scales.ScalesItemInfo;
+import equ.api.scales.TransactionScalesInfo;
+import org.apache.log4j.Logger;
+import org.springframework.context.support.FileSystemXmlApplicationContext;
 
-import java.io.*;
-import java.sql.SQLException;
+import javax.naming.CommunicationException;
+import java.io.IOException;
+import java.io.UnsupportedEncodingException;
+import java.math.BigDecimal;
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
 import java.util.*;
 
 public class DigiHandler extends ScalesHandler {
 
-    public DigiHandler() {
-    }
+    private final static Logger processTransactionLogger = Logger.getLogger("TransactionLogger");
 
-    public String getGroupId(TransactionScalesInfo transactionInfo) {
-        return "digi";
+    private static short cmdWrite = 0xF1;
+    private static short cmdCls = 0xF2;
+    private static short filePLU = 0x25;
+
+    private FileSystemXmlApplicationContext springContext;
+
+    public DigiHandler(FileSystemXmlApplicationContext springContext) {
+        this.springContext = springContext;
     }
 
     @Override
@@ -24,180 +35,324 @@ public class DigiHandler extends ScalesHandler {
 
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
-        for(TransactionScalesInfo transaction : transactionList) {
+        if (!transactionList.isEmpty()) {
 
-            Exception exception = null;
-            try {
+            for (TransactionScalesInfo transaction : transactionList) {
+                processTransactionLogger.info("Digi: Send Transaction # " + transaction.id);
 
-                List<String> scalesModelsList = new ArrayList<>();
-                Map<String, ScalesInfo> directoriesScalesInfoMap = new HashMap<>();
-                for (ScalesInfo scalesInfo : transaction.machineryInfoList) {
-                    if ((scalesInfo.directory != null) && (!directoriesScalesInfoMap.containsKey(scalesInfo.directory.trim())))
-                        directoriesScalesInfoMap.put(scalesInfo.directory.trim(), scalesInfo);
-                    if ((scalesInfo.port != null) && (!directoriesScalesInfoMap.containsKey(scalesInfo.port.trim())))
-                        directoriesScalesInfoMap.put(scalesInfo.port.trim(), scalesInfo);
-                    if ((scalesInfo.nameModel != null) && (!scalesModelsList.contains(scalesInfo.nameModel.trim())))
-                        scalesModelsList.add(scalesInfo.nameModel.trim());
-                }
+                List<MachineryInfo> succeededScalesList = new ArrayList<>();
+                Exception exception = null;
 
-                for (Map.Entry<String, ScalesInfo> entry : directoriesScalesInfoMap.entrySet()) {
+                if (!transaction.machineryInfoList.isEmpty()) {
 
-                    String directory = entry.getKey();
+                    List<ScalesInfo> enabledScalesList = getEnabledScalesList(transaction, succeededScalesList);
+                    String errors = "";
+                    Integer errorsCount = 0;
 
-                    if (transaction.snapshot) {
-                        try {
+                    processTransactionLogger.info("Digi: Starting sending to " + enabledScalesList.size() + " scales...");
+                    for (ScalesInfo scales : enabledScalesList) {
 
-                            for (byte[][] fileLabelFormat : remote.readLabelFormats(scalesModelsList)) {
+                        processTransactionLogger.info("Digi: Sending to scales " + scales.port);
+                        if (scales.port != null) {
+                            DataSocket socket = new DataSocket(scales.port);
+                            try {
 
-                                File file34 = new File(directory + "/SM090F34.DAT");
-                                File file38 = new File(directory + "/SM090F38.DAT");
+                                socket.open();
 
-                                FileOutputStream fileOutputStream = new FileOutputStream(file34);
-                                fileOutputStream.write(fileLabelFormat[0], 4, fileLabelFormat[0].length - 4);
-                                fileOutputStream.close();
-
-                                if (fileLabelFormat[1] != null) {
-                                    fileOutputStream = new FileOutputStream(file38);
-                                    fileOutputStream.write(fileLabelFormat[1], 4, fileLabelFormat[1].length - 4);
-                                    fileOutputStream.close();
+                                if (transaction.snapshot) {
+                                    processTransactionLogger.info("Digi: Deleting all plu at scales " + scales.port);
+                                    int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
+                                    if (reply != 0)
+                                        errors += String.format("Deleting all plu failed. Error: %s\n", reply);
                                 }
 
-                                deleteErrorFiles(directory);
-                                Runtime.getRuntime().exec(new String[]{directory + "/TWSWTCP.EXE", "F34.DAT", "090"}, null, new File(directory)).waitFor();
-                                checkErrorFiles(directory);
+                                if (errors.isEmpty()) {
+                                    for (ScalesItemInfo item : transaction.itemsList) {
+                                        if (errorsCount < 5) {
+                                            int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                            int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
+                                            byte[] record = makeRecord(item, getWeightCode(scales));
+                                            processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", barcode, scales.port));
+                                            int reply = sendRecord(socket, cmdWrite, filePLU, record);
+                                            if (reply != 0) {
+                                                errors += String.format("Send item %s failed. Error: %s\n", pluNumber, reply);
+                                                errorsCount++;
+                                            }
+                                        }
+                                    }
+                                }
 
-                                if (file34.exists() && !file34.delete())
-                                    throw new RuntimeException("File" + file34.getAbsolutePath() + " can not be deleted");
-                                if (file38.exists() && !file38.delete())
-                                    throw new RuntimeException("File" + file38.getAbsolutePath() + " can not be deleted");
+                                if (errors.isEmpty())
+                                    succeededScalesList.add(scales);
+                                else
+                                    exception = new RuntimeException(errors);
 
+                            } catch (Exception e) {
+                                exception = e;
+                            } finally {
+                                processTransactionLogger.info("Digi: Finally disconnecting... " + scales.port);
+                                try {
+                                    socket.close();
+                                } catch (CommunicationException e) {
+                                    processTransactionLogger.info("DigiPrintHandler close port error: ", e);
+                                }
                             }
-
-                        } catch (InterruptedException | SQLException e) {
-                            e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
                         }
                     }
 
-                    File folder = new File(directory.trim());
-                    folder.mkdir();
-                    File f = new File(directory.trim() + "/SM090F25.DAT");
-                    PrintWriter writer = new PrintWriter(
-                            new OutputStreamWriter(
-                                    new FileOutputStream(f), "CP866"));
-                    String row = "";
-                    for (ScalesItemInfo item : transaction.itemsList) {
-                        if (!Thread.currentThread().isInterrupted()) {
-                            String recordNumber = addZeros(item.idBarcode, 8, false);
-                            String statusCode = item.splitItem ? "7C000DA003" : "7D000DA003";
-                            String price = addZeros(String.valueOf(denominateMultiplyType1(item.price, transaction.denominationStage)), 8, false);
-
-                            int deltaDaysExpiry = (int) ((item.expiryDate.getTime() - System.currentTimeMillis()) / 1000 / 3600 / 24);
-                            String daysExpiry = addZeros(String.valueOf(item.daysExpiry == null ? (deltaDaysExpiry >= 0 ? deltaDaysExpiry : 0) : item.daysExpiry), 4, false);
-                            String hoursExpiry = addZeros(addZeros(String.valueOf(item.hoursExpiry), 2, false), 4, true);
-                            String labelFormat = addZeros(Integer.toHexString(item.labelFormat != null ? item.labelFormat : 0), 2, false);
-
-                            String barcodeFormat = "05";
-                            String pieceItemCode = entry.getValue().pieceCodeGroupScales != null ? entry.getValue().pieceCodeGroupScales : "21";
-                            String weightItemCode = entry.getValue().weightCodeGroupScales != null ? entry.getValue().weightCodeGroupScales : "20";
-                            String barcode = (item.splitItem ? weightItemCode : pieceItemCode) + item.idBarcode.substring(0, 5) + "000000" + (item.splitItem ? "1" : "2");
-
-                            String len = addZeros(Integer.toHexString((recordNumber + statusCode + price + labelFormat + barcodeFormat +
-                                    barcode + daysExpiry + hoursExpiry +
-                                    itemNameDescriptionToASCII(item.name, item.description) + "0C00").length() / 2 + 2), 4, false).toUpperCase();
-
-                            row += recordNumber + len + statusCode + price + labelFormat + barcodeFormat + barcode +
-                                    daysExpiry + hoursExpiry + itemNameDescriptionToASCII(item.name, item.description) + "0C00";
-                        }
-                    }
-                    writer.print(row);
-                    writer.close();
-
-                    deleteErrorFiles(directory);
-
-                    try {
-                        Runtime.getRuntime().exec(new String[]{directory + "/TWSWTCP.EXE", "F25.DAT", "090"}, null, new File(directory)).waitFor();
-                    } catch (InterruptedException e) {
-                        throw new RuntimeException(e);
-                    }
-
-                    checkErrorFiles(directory);
+                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(succeededScalesList, exception));
                 }
-            } catch (Exception e) {
-                exception = e;
             }
-            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
+        } else {
+            processTransactionLogger.error("Digi: Empty transaction list!");
         }
         return sendTransactionBatchMap;
     }
 
+    private byte[] makeRecord(ScalesItemInfo item, String weightCode) throws UnsupportedEncodingException {
+        boolean hasDescription = item.description != null && !item.description.isEmpty();
+        String[] splittedDescription = hasDescription ? item.description.split("@@") : null;
+
+        String compositionMessage = splittedDescription != null ? splittedDescription[0] : null;
+        boolean hasComposition = compositionMessage != null && !compositionMessage.isEmpty();
+        String[] compositionLines = compositionMessage != null ? compositionMessage.split("\n") : null;
+        int compositionLength = 0;
+        if (compositionLines != null)
+            for (String compositionLine : compositionLines)
+                compositionLength += compositionLine.length() + 1;
+
+        String expiryMessage = splittedDescription != null && splittedDescription.length > 1 ? splittedDescription[1] : null;
+        boolean hasExpiry = expiryMessage != null && !expiryMessage.isEmpty();
+        String[] expiryLines = expiryMessage != null ? expiryMessage.split("\n") : null;
+        int expiryLength = 0;
+        if (expiryLines != null)
+            for (String expiryLine : expiryLines)
+                expiryLength += expiryLine.length() + 1;
+
+        int length = 36 + item.name.length() + compositionLength + expiryLength;
+
+        ByteBuffer bytes = ByteBuffer.allocate(length);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+        // Номер PLU, 4 bytes
+        String plu = item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idItem;
+        bytes.put(getHexBytes(fillLeadingZeroes(plu, 8)));
+
+        //Длина записи, заполняется в конце
+        bytes.put((byte) 0);
+        bytes.put((byte) 0);
+
+        // 1-й байт 1-го статуса
+        byte st1b1 = 0;
+        if (item.splitItem)
+            st1b1 = setBit(st1b1, 0);
+        st1b1 = setBit(st1b1, 2);
+        st1b1 = setBit(st1b1, 4);
+        st1b1 = setBit(st1b1, 6);
+        bytes.put(st1b1);
+
+        // 2-й байт 1-го статуса
+        byte st1b2 = 0;
+        bytes.put(st1b2);
+
+        // 1-й байт 2-го статуса
+        byte st2b1 = 0;
+        st2b1 = setBit(st2b1, 0);
+        st2b1 = setBit(st2b1, 2);
+        st2b1 = setBit(st2b1, 3);
+        bytes.put(st2b1);
+
+        // 2-й байт 2-го статуса
+        byte st2b2 = 0;
+        st2b2 = setBit(st2b2, 1);
+        st2b2 = setBit(st2b2, 2);
+        st2b2 = setBit(st2b2, 5);
+        if (hasExpiry)
+            st2b2 = setBit(st2b2, 6);
+        if (hasComposition)
+            st2b2 = setBit(st2b2, 7);
+        bytes.put(st2b2);
+
+        // 3-й байт 2-го статуса
+        byte st2b3 = 0;
+        st2b3 = setBit(st2b3, 0);
+        bytes.put(st2b3);
+
+        // Цена, 4 bytes
+        int price = item.price == null ? 0 : item.price.multiply(new BigDecimal(100)).intValue();
+        bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(price), 8)));
+
+        // номер формата 1-й этикетки
+        bytes.put((byte) 17);
+
+        // номер формата штрихкода
+        bytes.put((byte) 5);
+
+        // данные штрихкода, 7 bytes
+        String barcode = fillTrailingZeroes(weightCode + item.idBarcode, 14);
+        bytes.put(getHexBytes(barcode));
+
+        // срок продажи в днях, 2 bytes
+        bytes.put(getHexBytes(fillLeadingZeroes(String.valueOf(item.daysExpiry == null ? 0 : item.daysExpiry), 4)));
+
+        // номер спец. сообщения
+        bytes.put((byte) 0);
+
+        // номер ингредиента
+        bytes.put((byte) 0);
+
+        //шрифт наименования
+        bytes.put((byte) 4);
+
+        //длина наименования
+        bytes.put((byte) item.name.length());
+
+        // Наименование товара
+        bytes.put(getBytes(item.name));
+
+        //если будет разбиение на строки
+        //терминатор первой строки
+        //bytes.put((byte) 0x0D);
+        //заголовок второй строки, 2 bytes
+        //bytes.put(getHexBytes("0311")); //номер шрифта и длина
+        //bytes.put(getBytes("second line"));
+
+        bytes.put((byte) 0x0C);
+
+        // Состав
+        if (hasComposition) {
+            for (int i = 0; i < compositionLines.length; i++) {
+                bytes.put(getBytes(compositionLines[i]));
+                bytes.put((byte) (i == compositionLines.length - 1 ? 0x0C : 0x0D));
+            }
+        }
+
+        // Специальное сообщение
+        if (hasExpiry) {
+            for (int i = 0; i < expiryLines.length; i++) {
+                bytes.put(getBytes(expiryLines[i]));
+                bytes.put((byte) (i == expiryLines.length - 1 ? 0x0C : 0x0D));
+            }
+        }
+
+        // Контрольная сумма
+        bytes.put((byte) 0);
+
+        //Длина записи
+        bytes.put(4, (byte) (length >>> 8));
+        bytes.put(5, (byte) length);
+
+        return bytes.array();
+    }
+
+    private byte setBit(byte byteValue, int pos) {
+        return (byte) (byteValue | (1 << pos));
+    }
+
+//    private byte clearBit(byte byteValue, int pos) {
+//        return (byte) (byteValue & ~(1 << pos));
+//    }
+
+    private String fillLeadingZeroes(String input, int length) {
+        if (input == null)
+            return null;
+        if (input.length() > length)
+            input = input.substring(0, length);
+        while (input.length() < length)
+            input = "0" + input;
+        return input;
+    }
+
+    private String fillTrailingZeroes(String input, int length) {
+        if (input == null)
+            return null;
+        while (input.length() < length)
+            input = input + "0";
+        return input;
+    }
+
+    private int sendRecord(DataSocket socket, short cmd, short file, byte[] record) throws IOException, CommunicationException {
+        ByteBuffer bytes = ByteBuffer.allocate(record.length + 2);
+        bytes.order(ByteOrder.LITTLE_ENDIAN);
+
+        bytes.put((byte) cmd);
+        bytes.put((byte) file);
+        bytes.put(record);
+
+        return sendCommand(socket, bytes.array());
+    }
+
+    private int sendCommand(DataSocket socket, byte[] bytes) throws IOException {
+        int attempts = 0;
+        while (attempts < 3) {
+            try {
+                socket.outputStream.write(bytes);
+                return receiveReply(socket);
+            } catch (CommunicationException e) {
+                attempts++;
+                if (attempts == 3)
+                    processTransactionLogger.error("Digi SendCommand Error: ", e);
+            }
+        }
+        return -1;
+    }
+
+    private int receiveReply(DataSocket socket) throws CommunicationException {
+        try {
+            byte[] buffer = new byte[10];
+            socket.inputStream.read(buffer);
+            return buffer[0] == 6 ? 0 : buffer[0]; //это либо байт ошибки, либо первый байт хвоста (:)
+        } catch (Exception e) {
+            return -1;
+        }
+    }
+
+    private List<ScalesInfo> getEnabledScalesList(TransactionScalesInfo transaction, List<MachineryInfo> succeededScalesList) {
+        List<ScalesInfo> enabledScalesList = new ArrayList<>();
+        for (ScalesInfo scales : transaction.machineryInfoList) {
+            if (scales.succeeded)
+                succeededScalesList.add(scales);
+            else if (scales.enabled)
+                enabledScalesList.add(scales);
+        }
+        if (enabledScalesList.isEmpty())
+            for (ScalesInfo scales : transaction.machineryInfoList) {
+                if (!scales.succeeded)
+                    enabledScalesList.add(scales);
+            }
+        return enabledScalesList;
+    }
+
+    @Override
+    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoList) throws IOException {
+    }
+
+    @Override
+    public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
+        return "Digi";
+    }
+
     @Override
     public void sendSoftCheck(SoftCheckInfo softCheckInfo) throws IOException {
-        
     }
 
-    private String addZeros(String str, Integer len, Boolean toTheEnd) {
-        if (str == null)
-            str = "";
-        while (str.length() < len) {
-            if (toTheEnd)
-                str += "0";
-            else
-                str = "0" + str;
-        }
-        return str;
+    private String getWeightCode(MachineryInfo scales) {
+        String weightCode = scales instanceof ScalesInfo ? ((ScalesInfo) scales).weightCodeGroupScales : null;
+        return weightCode == null ? "21" : weightCode;
+
     }
 
-    private String itemNameDescriptionToASCII(String itemName, String itemDescription) throws UnsupportedEncodingException {
-        String outputString = "04" + addZeros(Integer.toHexString(itemName.length()), 2, false).toUpperCase();
-        for (byte b : itemName.getBytes("Cp866")) {
-            int code = (int) b;
-            outputString += Integer.toHexString(code < 0 ? code + 256 : code).toUpperCase();
-        }
-        if (itemDescription != null) {
-            outputString += "0C" + "02" + addZeros(Integer.toHexString(itemDescription.length()), 2, false).toUpperCase();
-            for (byte b : itemDescription.getBytes("Cp866")) {
-                int code = (int) b;
-                outputString += Integer.toHexString(code < 0 ? code + 256 : code).toUpperCase();
-            }
-        }
-        return outputString;
+    private byte[] getBytes(String value) throws UnsupportedEncodingException {
+        return value.getBytes("cp866");
     }
 
-    private void deleteErrorFiles(String directory) {
-        File errorFile = new File(directory + "/error");
-        if (errorFile.exists() && !errorFile.delete())
-            throw new RuntimeException("File" + errorFile.getAbsolutePath() + " can not be deleted");
-        File retvalsFile = new File(directory + "/retvals");
-        if (retvalsFile.exists() && !retvalsFile.delete())
-            throw new RuntimeException("File" + retvalsFile.getAbsolutePath() + " can not be deleted");
-    }
-
-    private void checkErrorFiles(String directory) throws IOException {
-        String errorString = "";
-        File errorFile = new File(directory + "/error");
-        if (errorFile.exists()) {
-            BufferedReader in = new BufferedReader(new FileReader(errorFile));
-            String str;
-            while ((str = in.readLine()) != null) {
-                errorString += str + " ";
-            }
-            in.close();
+    private byte[] getHexBytes(String value) throws UnsupportedEncodingException {
+        int len = value.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(value.charAt(i), 16) << 4)
+                    + Character.digit(value.charAt(i + 1), 16));
         }
-        File retvalsFile = new File(directory + "/retvals");
-        if (retvalsFile.exists()) {
-            errorString += "Return values: ";
-            BufferedReader in = new BufferedReader(new FileReader(retvalsFile));
-            String str;
-            while ((str = in.readLine()) != null) {
-                errorString += str + " ";
-            }
-            in.close();
-        }
-        if (!"0".equals(errorString.trim()))
-            throw new RuntimeException("Scales Error: " + errorString);
-    }
-
-    @Override
-    public void sendStopListInfo(StopListInfo stopListInfo, Set<MachineryInfo> machineryInfoSet) throws IOException {
+        return data;
     }
 }
