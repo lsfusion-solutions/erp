@@ -475,11 +475,11 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     Class.forName("com.microsoft.sqlserver.jdbc.SQLServerDriver");
                     conn = DriverManager.getConnection(url);
                     Statement statement = conn.createStatement();
-                    String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE StatusNotUsed='1' AND PayState='1'";
+                    String queryString = "SELECT DocNumber, DateTimePosting FROM DocHead WHERE StatusNotUsed='1' AND PayState='1' AND Cash_Code IS NOT NULL";
                     ResultSet rs = statement.executeQuery(queryString);
                     int count = 0;
                     while (rs.next()) {
-                        result.put(fillLeadingZeroes(rs.getString(1)), rs.getTimestamp(2));
+                        result.put(/*fillLeadingZeroes(*/rs.getString(1)/*)*/, rs.getTimestamp(2));
                         count++;
                     }
 
