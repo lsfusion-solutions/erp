@@ -144,11 +144,11 @@ public class DigiHandler extends ScalesHandler {
 
         // 1-й байт 1-го статуса
         byte st1b1 = 0;
-        if (item.splitItem)
-            st1b1 = setBit(st1b1, 0);
-        st1b1 = setBit(st1b1, 2);
-        st1b1 = setBit(st1b1, 4);
-        st1b1 = setBit(st1b1, 6);
+        if (!item.passScalesItem)
+            st1b1 = setBit(st1b1, 0); //штучный
+        st1b1 = setBit(st1b1, 2); //печатать дату продажи
+        st1b1 = setBit(st1b1, 4); //печатать дату упаковки
+        st1b1 = setBit(st1b1, 6); //печатать время упаковки
         bytes.put(st1b1);
 
         // 2-й байт 1-го статуса
@@ -157,20 +157,20 @@ public class DigiHandler extends ScalesHandler {
 
         // 1-й байт 2-го статуса
         byte st2b1 = 0;
-        st2b1 = setBit(st2b1, 0);
-        st2b1 = setBit(st2b1, 2);
-        st2b1 = setBit(st2b1, 3);
+        st2b1 = setBit(st2b1, 0); //Формат 1-й этикетки Указан явно
+        st2b1 = setBit(st2b1, 2); //Формат штрихкода Указан явно
+        st2b1 = setBit(st2b1, 3); //Артикул товара Указан явно
         bytes.put(st2b1);
 
         // 2-й байт 2-го статуса
         byte st2b2 = 0;
-        st2b2 = setBit(st2b2, 1);
-        st2b2 = setBit(st2b2, 2);
-        st2b2 = setBit(st2b2, 5);
+        st2b2 = setBit(st2b2, 1); //Поле «Номера спец.сообщения» Есть
+        st2b2 = setBit(st2b2, 2); //Поле «Номер ингредиента» Есть
+        st2b2 = setBit(st2b2, 5); //Поле «Название товара» Есть
         if (hasExpiry)
-            st2b2 = setBit(st2b2, 6);
+            st2b2 = setBit(st2b2, 6); //Поле «Текст встроенного в PLU ингредиента» Есть
         if (hasComposition)
-            st2b2 = setBit(st2b2, 7);
+            st2b2 = setBit(st2b2, 7); // Поле «Текст встроенного в PLU спец. сообщения» Есть
         bytes.put(st2b2);
 
         // 3-й байт 2-го статуса
