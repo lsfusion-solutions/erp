@@ -383,6 +383,16 @@ META deriveDocumentDetailPriceBatchPriceListType (object, stockProp)
     @deriveDocumentDetailPriceBatchPriceListTypeCustom(object##Detail, stockProp);
 END
 
+notUseRound2 'Не использовать округление до двух знаков при расчете цены' = DATA BOOLEAN ();
+EXTEND FORM options 
+    PROPERTIES notUseRound2()
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY (notUseRound2());
+    }
+}
+
 META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, form)
     prevList (priceListType, detail) = ABSTRACT CASE OVERRIDE FIRST NUMERIC[16,4] (PriceListType, ###detail); 
     prevList (PriceListType priceListType, ###detail detail) += WHEN priceListType IS PriceListType AND sku(detail) THEN  
@@ -439,12 +449,22 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
 
     recalculatePrice###detail 'Пересчитать цены'() = ACTION {
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
-            price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
-            invoicePrice(d) <- round2(prevList(pt, d));
+            IF notUseRound2() THEN {
+                 price(d) <-prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d));
+                 invoicePrice(d) <- prevList(pt, d);           
+            } ELSE {
+                price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
+                invoicePrice(d) <- round2(prevList(pt, d));
+            }    
         }
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
-            price(d) <- round2(prevList(pt, d));
-            invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+            IF notUseRound2() THEN {
+                price(d) <- prevList(pt, d);
+                invoicePrice(d) <- prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0;            
+            } ELSE {        
+                price(d) <- round2(prevList(pt, d));
+                invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+            }    
         }
     } SHORTCUT price[###detail];
 
