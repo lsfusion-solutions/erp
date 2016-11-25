@@ -52,6 +52,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
+                boolean skipClassif = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
 
@@ -81,8 +82,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                             if (!skipItems) {
                                 version++;
-                                processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
-                                exportClassif(conn, transaction, version);
+
+                                if(!skipClassif) {
+                                    processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
+                                    exportClassif(conn, transaction, version);
+                                }
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
                                 exportItems(conn, transaction, useBarcodeAsId, version);

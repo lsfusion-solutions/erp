@@ -13,6 +13,7 @@ public class UKM4MySQLSettings implements Serializable{
     private String password;
     private Integer timeout;
     private Boolean skipItems;
+    private Boolean skipClassif;
     private Boolean skipBarcodes;
     private Boolean useBarcodeAsId;
     private Boolean appendBarcode;
@@ -114,5 +115,13 @@ public class UKM4MySQLSettings implements Serializable{
 
     public void setAppendBarcode(Boolean appendBarcode) {
         this.appendBarcode = appendBarcode;
+    }
+
+    public Boolean getSkipClassif() {
+        return skipClassif;
+    }
+
+    public void setSkipClassif(Boolean skipClassif) {
+        this.skipClassif = skipClassif;
     }
 }
