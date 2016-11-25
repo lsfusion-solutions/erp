@@ -259,8 +259,8 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         BigDecimal totalQuantity = rs.getBigDecimal(6); //qty, Количество
                         BigDecimal price = rs.getBigDecimal(7); //price, Цена
                         BigDecimal sum = rs.getBigDecimal(8); //amount, Сумма
-                        BigDecimal discountSum = HandlerUtils.safeNegate(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
-                        sum = HandlerUtils.safeSubtract(sum, discountSum);
+                        BigDecimal discountSum = HandlerUtils.safeAbs(rs.getBigDecimal(9)); //discount, Сумма скидки/наценки
+                        sum = HandlerUtils.safeSubtract(sum, HandlerUtils.safeNegate(rs.getBigDecimal(9)));
                         String idSection = rs.getString(10); //department, Номер отдела
 
                         Integer flags = rs.getInt(11); //flags, Флаги: bit 0 - Возврат bit 1 - Скидка/Наценка (при любой скидке этот бит всегда = 1) bit 2 - Сторнирование/Коррекция
@@ -269,6 +269,11 @@ public class EQSHandler extends DefaultCashRegisterHandler<EQSSalesBatch> {
                         boolean isReturn = getBit(flags, 0);
                         Date dateReceipt = rs.getDate(12); // r.date
                         Time timeReceipt = rs.getTime(12); //r.date
+
+                        //временные логи
+                        if (discountSum != null && discountSum.doubleValue() != 0.0) {
+                            sendSalesLogger.info(String.format("Данные в базе: flag %s, isReturn %s, barcode %s, amount %s, discount %s", flags, isReturn, rs.getString(4), rs.getBigDecimal(8), rs.getBigDecimal(9)));
+                        }
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
 

@@ -46,6 +46,10 @@ public class HandlerUtils {
         return operand == null ? null : operand.negate();
     }
 
+    public static BigDecimal safeAbs(BigDecimal operand) {
+        return operand == null ? null : operand.abs();
+    }
+
     public static String trim(String input, Integer length) {
         return trim(input, null, length);
     }
