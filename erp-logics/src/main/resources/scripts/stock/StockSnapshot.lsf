@@ -1221,8 +1221,11 @@ DESIGN options{
 }
 
 deleteSnapshots 'Удальть старые аналитические отчеты'()= ACTION {
-    DELETE Snapshot r WHERE sum(date(r),countDaysDelete(snapshotType(r))) < currentDate()
-        OR (NOT snapshotType(r) AND sum(date(r), countDaysDeleteSnapshots()) < currentDate());
+    FOR sum(date(Snapshot r),countDaysDelete(snapshotType(r))) < currentDate()
+        OR (NOT snapshotType(r) AND sum(date(r), countDaysDeleteSnapshots()) < currentDate()) DO {
+            DELETE  r;
+            apply();
+        };
 }
 
 
