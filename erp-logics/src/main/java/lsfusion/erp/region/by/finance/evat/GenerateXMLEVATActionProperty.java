@@ -330,12 +330,12 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         String countryCodeSupplier = trim((String) findProperty("countryCodeSupplier[EVAT]").read(context, evatObject));
         String unpSupplier = trim((String) findProperty("unpSupplier[EVAT]").read(context, evatObject));
         String nameSupplier = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
-        String addressSupplier = trim((String) findProperty("addressSupplier[EVAT]").read(context, evatObject));
+        String addressSupplier = trim((String) findProperty("shippingAddressSupplier[EVAT]").read(context, evatObject));
 
         String countryCodeCustomer = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
         String unpCustomer = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
         String nameCustomer = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
-        String addressCustomer = trim((String) findProperty("addressCustomer[EVAT]").read(context, evatObject));
+        String addressCustomer = trim((String) findProperty("shippingAddressCustomer[EVAT]").read(context, evatObject));
 
         Element senderReceiverElement = new Element("senderReceiver");
         Element consignorsElement = new Element("consignors", namespace);
