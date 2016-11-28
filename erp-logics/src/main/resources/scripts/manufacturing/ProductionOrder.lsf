@@ -1420,11 +1420,11 @@ defaultComponents (material, stock, date)= GROUP MIN Component c IF isActive(BOM
 //        WHERE countComponentsSku(bruttoSkuComponentDetail(d)) == 1;
 //}  todo: переделано, потому что не срабатывает событие по CHANGED(componentComponentDetail(d)), которое следует за ним.
 
-WHEN SESSION FORMS order CHANGED(bruttoSku(ComponentDetail d)) AND NOT CHANGED(component(d)) AND NOT CHANGED(BOM(d)) AND countComponents(bruttoSku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
+WHEN SESSION FORMS order CHANGED(bruttoSku(ComponentDetail d)) AND d IS ComponentDetail AND NOT CHANGED(component(d)) AND NOT CHANGED(BOM(d)) AND countComponents(bruttoSku(d), componentsStock(d), date(d)) == 1 NOINLINE DO {
     component(d) <- defaultComponents(bruttoSku(d), componentsStock(d), date(d));
     BOM(d) <- BOM(component(d));              
 }
-WHEN SESSION FORMS order CHANGED(component(ComponentDetail d)) AND NOT CHANGED(BOM(d)) NOINLINE DO {
+WHEN SESSION FORMS order CHANGED(component(ComponentDetail d)) AND d IS ComponentDetail AND NOT CHANGED(BOM(d)) NOINLINE DO {
     BOM(d) <- BOM(component(d));    
     bruttoSku(d) <- sku(material(component(d)));       
 }
