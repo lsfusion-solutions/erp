@@ -132,7 +132,7 @@ fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice
 
 CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND quantityInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
     (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
-        MESSAGE 'Количетсво товара не соответствует количеству сертификатов';
+        MESSAGE 'Количество товара не соответствует количеству сертификатов';
 
 EXTEND FORM Sale.userInvoice
     OBJECTS gd = InvoiceGiftCardSaleDetail FIXED GRID 
@@ -201,7 +201,7 @@ changeAccount (LegalEntity l) = ACTION {
 }
 
 changeBank (LegalEntity l) = ACTION {
-    REQUEST OBJECT b FORM banks;
+    REQUEST OBJECT b FORM dialogBanks MODAL;
     IF NOT account(l) THEN {
         FOR ADDOBJ a = Bank.Account DO {
             bank(a) <- requestedObject();
@@ -233,7 +233,7 @@ changeNumberContract(LegalEntity l) = ACTION {
 FORM giftCardSaleCustomer 'Покупатель'
     OBJECTS l=LegalEntity FIXED PANEL
     PROPERTIES(l) name
-    PROPERTIES(l) address ON CHANGE changeAddress(l), phone ON CHANGE changePhone(l)
+    PROPERTIES(l) address ON CHANGE changeAddress(l), UNP, phone ON CHANGE changePhone(l)
     PROPERTIES(l) numberAccount ON CHANGE changeAccount(l), nameBank ON CHANGE changeBank(l)
     PROPERTIES (l)dateFromContract ON CHANGE changeDateFromContract(l), numberContract ON CHANGE changeNumberContract(l)
     
@@ -244,6 +244,7 @@ FORM giftCardSaleCustomer 'Покупатель'
 DESIGN giftCardSaleCustomer{
     MOVE PROPERTY (name(l));
     MOVE PROPERTY (address(l));
+    MOVE PROPERTY (UNP(l));
     MOVE PROPERTY (phone(l));
     MOVE PROPERTY (numberAccount(l));
     MOVE PROPERTY (nameBank(l));
@@ -268,13 +269,13 @@ addCustomer 'Добавить'() = ACTION NEWSESSION {
             isDataDefault(uc) <- TRUE ;
         }
         
-        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
+        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION MODAL NOCANCEL;
     }
     
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
 editCustomer 'Редактировать' (LegalEntity l) = ACTION NEWSESSION {
-        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION DOCKEDMODAL NOCANCEL;
+        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION MODAL NOCANCEL;
 } IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM giftCardLegalEntitys 'Покупатели'
@@ -407,7 +408,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     FILTERS isGiftCard(i)
     
     OBJECTS l=LegalEntity
-    PROPERTIES(l) READONLY name, address, phone, numberAccount, nameBank, dateFromContract, numberContract
+    PROPERTIES(l) READONLY name, address, UNP, phone, numberAccount, nameBank, dateFromContract, numberContract
     PROPERTIES addCustomer() TODRAW l, editCustomer(l)
     ORDER BY name(l)
     
