@@ -23,7 +23,7 @@ EXTEND FORM giftCard
     PROPERTIES (g) nameSku;
 
 EXTEND FORM giftCards 
-    PROPERTIES (g) READONLY BEFORE date(g) idBarcode, nameSku;
+    PROPERTIES(g) READONLYIF isReadonly() BEFORE date(g) idBarcode, nameSku;
 
 EXTEND FORM generationGiftCards
     OBJECTS s = Sku FIXED PANEL 
@@ -130,9 +130,13 @@ fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice
 } TOOLBAR;
 
 
-CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND quantityInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
-    (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
+CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND (quantityInvoiceGiftCardSaleDetail(Sku i,o) OR quantityInvoiceDetail(i,o)) AND 
+    createShipment(o) AND NOT (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
         MESSAGE 'Количество товара не соответствует количеству сертификатов';
+        
+//CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND quantityInvoiceDetail(Sku i,o) AND createShipment(o) AND NOT 
+//    (quantityInvoiceDetail(i,o) == quantityInvoiceGiftCardSaleDetail(i,o)) 
+//        MESSAGE 'Количество товара не соответствует количеству сертификатов';        
 
 EXTEND FORM Sale.userInvoice
     OBJECTS gd = InvoiceGiftCardSaleDetail FIXED GRID 

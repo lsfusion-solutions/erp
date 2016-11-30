@@ -190,7 +190,7 @@ DESIGN giftCard {
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLY number, series, date, dateSold, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
+    PROPERTIES(g) READONLYIF isReadonly() number, series, date, dateSold, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
@@ -207,6 +207,8 @@ NAVIGATOR {
         ADD giftCards;
     }
 }
+
+@extendFormEditable(giftCards);
 
 //использование подарочных сертификатов при оплате
 CLASS PaymentGiftCard : Payment, GiftCardLedger;
@@ -280,9 +282,9 @@ numberZReportUsed 'Номер z-отчета' (GiftCard giftCard) = number(zRepo
 dateZReportUsed 'Дата z-отчета' (GiftCard giftCard) = date(zReport(receipt(used(giftCard))));
 
 EXTEND FORM giftCards
-    PROPERTIES(g) READONLY BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
+    PROPERTIES(g) READONLYIF isReadonly() BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
                   numberReceiptUsed 
-    PROPERTIES(g) READONLY AFTER expiryDays(g) expireDate  
+    PROPERTIES(g) READONLYIF isReadonly() AFTER expiryDays(g) expireDate  
 
     FILTERGROUP filter1
         FILTER 'Просрочен' expireDate(g) < currentDate() 'F10'
