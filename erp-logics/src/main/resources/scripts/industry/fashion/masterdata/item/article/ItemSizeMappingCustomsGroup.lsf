@@ -1,0 +1,193 @@
+MODULE ItemSizeMappingCustomsGroup;
+
+REQUIRE ItemSizeMapping;
+
+NAMESPACE Item;
+
+// Рост
+CLASS SizeHeight 'Рост товара';
+TABLE sizeHeight (SizeHeight);
+@defineExternalizable(sizeHeight, VARSTRING[100]);
+
+nameCustoms 'Рост' = DATA VARISTRING[50](SizeHeight);
+
+FORM sizeHeight 'Рост товара'
+    OBJECTS t=SizeHeight FIXED PANEL
+    PROPERTIES(t) nameCustoms, id SHOWIF showIDs()
+    EDIT SizeHeight OBJECT t
+;
+
+FORM sizeHeights 'Роста товара'
+    OBJECTS t=SizeHeight
+    PROPERTIES(t) nameCustoms READONLY, id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) ADDFORM, EDITFORM
+    ORDER BY nameCustoms(t)
+    DIALOG SizeHeight OBJECT t
+;
+DESIGN sizeHeights { main{ preferredSize = (600, 400); } }
+
+// --------------------------------------------  Отображение размеров ---------------------------------------------------- //
+
+exSize 'Размер (бел.)' = DATA VARSTRING[100] (SizeMapping);
+sizeHeightCustoms = DATA SizeHeight (SizeMapping);
+nameSizeHeightCustoms 'Рост (там.)' (SizeMapping m)= nameCustoms(sizeHeightCustoms(m));    
+ageSticker 'Возраст (стикер)' = DATA VARSTRING[30] (SizeMapping);
+
+exSize 'Размер (бел.)' = DATA BOOLEAN (SizeMappingEx);
+sizeHeightCustoms 'Рост (там.)' = DATA BOOLEAN (SizeMappingEx);
+ageSticker 'Возраст (стикер)' = DATA BOOLEAN (SizeMappingEx);
+
+over(SizeMappingEx mx) += WHEN exSize(mx) THEN TRUE;
+over(SizeMappingEx mx) += WHEN sizeHeightCustoms(mx) THEN TRUE;
+over(SizeMappingEx mx) += WHEN ageSticker(mx) THEN TRUE;
+
+EXTEND FORM sizeMappings 
+
+    PROPERTIES(m) AFTER sizeWaist(m) nameSizeHeightCustoms, exSize, ageSticker                           
+    PROPERTIES(mx) AFTER sizeWaist(mx) sizeHeightCustoms, exSize, ageSticker                           
+;
+
+sizeHeightCustoms = DATA SizeHeight (Item);
+nameSizeHeightCustoms 'Рост (там.)' (Item item) = nameCustoms(sizeHeightCustoms(item)) IN itemArticle;
+
+userShowSizeHeightCustoms 'Рост (там.)' (itemGroup) = DATA BOOLEAN (ItemGroup) IN itemArticle;
+
+quantityChildWithSizeHeightCustoms (itemGroup) = GROUP SUM 1 IF userShowSizeHeightCustoms(ItemGroup childItemGroup) AND isParent(childItemGroup, ItemGroup itemGroup) BY itemGroup PERSISTENT;
+quantityParentWithSizeHeightCustoms (itemGroup) = GROUP SUM 1 IF userShowSizeHeightCustoms(ItemGroup parentItemGroup) AND isParent(ItemGroup itemGroup, parentItemGroup) BY itemGroup PERSISTENT;
+
+showSizeHeightCustoms 'Рост (там.)' (ItemGroup itemGroup) = TRUE IF (quantityChildWithSizeHeightCustoms (itemGroup) (+) quantityParentWithSizeHeightCustoms (itemGroup)) > 0 PERSISTENT;
+
+showSizeHeightCustoms 'Рост (там.)' (Item item) = TRUE IF quantityParentWithSizeHeightCustoms(itemGroup(item));
+
+backgroundShowSizeHeightCustoms (ItemGroup itemGroup) =
+    IF userShowSizeHeightCustoms(itemGroup) THEN
+        RGB(0,0,0) IF itemGroup IS ItemGroup
+    ELSE
+        RGB(203,203,206) IF quantityChildWithSizeHeightCustoms (itemGroup) != descendantNumber(itemGroup)
+                         AND NOT quantityParentWithSizeHeightCustoms (itemGroup);
+
+setNullShowSizeHeightCustoms 'Снять признак для всех потомков'(ItemGroup itemGroup) = ACTION {
+    FOR isParent (ItemGroup childGroup, itemGroup) DO {
+        ASSIGN userShowSizeHeightCustoms(childGroup) <- NULL;
+    }
+} SHORTCUT userShowSizeHeightCustoms[ItemGroup] CONFIRM;
+
+EXTEND FORM itemGroup PROPERTIES(g) userShowSizeHeightCustoms;
+EXTEND FORM itemGroups PROPERTIES(g) READONLYIF  isReadonly() showSizeHeightCustoms BACKGROUND backgroundShowSizeHeightCustoms(g) BEFORE deleteg;
+EXTEND FORM item PROPERTIES(i) nameSizeHeightCustoms SHOWIF showSizeHeightCustoms(i);
+EXTEND FORM items PROPERTIES(i) READONLYIF isReadonly() BEFORE deletei nameSizeHeightCustoms SHOWIF showSizeHeightCustoms(g);
+
+nameSizeHeightCustoms 'Рост (там.)' (Batch batch) = nameSizeHeightCustoms(sku(batch));
+
+showSizeHeightCustoms 'Рост (там.)' (Batch batch)= showSizeHeightCustoms(sku(batch));
+sizeHeightCustoms 'Рост (там.)' (Batch batch) = sizeHeightCustoms(sku(batch));
+
+EXTEND FORM batches PROPERTIES(bt) READONLY FORCE GRID nameSizeHeightCustoms SHOWIF showSizeHeightCustoms(sk);
+
+overCopy(Item s, Item d) += ACTION {
+    sizeHeightCustoms(d) <- sizeHeightCustoms(s);
+}
+
+GROUP itemCustoms 'Описание' : public;
+
+@defineStringItemAttribute(sizeChestCustoms, VARSTRING[10], 'Обхват груди (там.) ', itemCustoms);
+
+@defineStringItemAttribute(sizeNeckCustoms, VARSTRING[10], 'Обхват шеи (там.)', itemCustoms);
+
+@defineItemAttributeBatch (sizeNeckCustoms, 'Обхват шеи (там.)');
+
+@defineStringItemAttribute(footLengthCustoms, VARSTRING[10], 'Длина стопы (там.)', itemCustoms);
+
+@defineItemAttributeBatch (footLengthCustoms, 'Длина стопы (там.)');
+
+@defineStringItemAttribute(insoleLengthCustoms, VARSTRING[10], 'Длина стельки (там.)', itemCustoms);
+
+@defineItemAttributeBatch (insoleLengthCustoms, 'Длина стельки (там.)');
+
+@defineStringItemAttribute(sizeHeadCustoms, VARSTRING[10], 'Обхват головы (там.)', itemCustoms);
+
+@defineItemAttributeBatch (sizeHeadCustoms, 'Обхват головы');
+
+@defineStringItemAttribute(sizeBrushCustoms, VARSTRING[10], 'Обхват кисти (там.)', itemCustoms);
+
+@defineItemAttributeBatch (sizeBrushCustoms, 'Обхват кисти');
+
+@defineStringItemAttribute(exSize, VARSTRING[100], 'Размер (бел.)', itemCustoms);
+@defineItemAttributeBatch (exSize, 'Размер (бел.)');
+
+@createSizeMappingExAttribute(sizeHeightCustoms, 'рост (там.)', nameSizeHeightCustoms, );
+
+@createSizeMappingExAttribute(sizeChest, 'обхват груди (там.)', sizeChestCustoms, customs);
+
+@createSizeMappingExAttribute(sizeNeck, 'обхват шеи (там.)', sizeNeckCustoms, customs);
+
+@createSizeMappingExAttribute(footLength, 'длину стопы (там.)', footLengthCustoms, customs);
+
+@createSizeMappingExAttribute(insoleLength, 'длину стельки (там.)', insoleLengthCustoms, customs);
+
+@createSizeMappingExAttribute(sizeHead, 'обхват головы (там.)', sizeHeadCustoms, customs);
+
+@createSizeMappingExAttribute(sizeBrush, sizeHand, 'обхват кисти (там.)', sizeBrushCustoms, customs);
+
+// Дополнительные атрибуты для стикера
+@defineStringItemAttribute(sizeSticker, VARISTRING[20], 'Размер (стикер)', itemSticker);
+@defineItemAttributeBatch (sizeSticker, 'Размер (стикер)');
+
+@defineStringItemAttribute(ageSticker, VARSTRING[30], 'Возраст', itemSticker);
+@defineItemAttributeBatch (ageSticker, 'Возраст');
+
+overCopy(Item s, Item d) += ACTION {
+    exSize(d) <- exSize(s);
+    sizeChestCustoms(d) <- sizeChestCustoms(s);
+    sizeNeckCustoms(d) <- sizeNeckCustoms(s);
+    footLengthCustoms(d) <- footLengthCustoms(s);
+    insoleLengthCustoms(d) <- insoleLengthCustoms(s);        
+    sizeHeadCustoms(d) <- sizeHeadCustoms(s);    
+    sizeBrushCustoms(d) <- sizeBrushCustoms(s);    
+    ageSticker(d) <- ageSticker(s);  
+}
+
+DESIGN item {
+    itemPrimaryColumn1 {
+        MOVE i.itemCustoms AFTER regionPrm;
+        MOVE i.itemSticker { columns = 3;}
+    }
+
+    PROPERTY(composition(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+    PROPERTY(originalCustomsGroup(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
+    PROPERTY(originalComposition(i)) { minimumCharWidth = 11; preferredCharWidth = 15;}
+    PROPERTY(caption(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(originalCaption(i)) { minimumCharWidth = 20; preferredCharWidth = 40;}
+    PROPERTY(composition(i)) { minimumCharWidth = 30; preferredCharWidth = 40;}
+}
+                                            
+DESIGN itemGroup {
+    itemGroupDetail {
+        MOVE g.itemCustoms {
+            columns = 6;
+        }
+    }
+}
+
+@createSizeMappingExAttribute(ageSticker, 'возраст (стикер)', ageSticker, );
+@createSizeMappingExAttribute(exSize, 'размер (бел)', exSize, );
+
+mapSizeSticker 'Заполнить размер (стикер) по соответствию'(Item i) = ACTION {
+    IF overSizeMapping (itemGroup(i), size(i), brand(i)) THEN {        
+        sizeSticker(i) <- VARISTRING[50](exSizeSizeMapping (itemGroup(i), size(i), brand(i))); 
+    } ELSE {
+        sizeSticker(i) <- VARISTRING[50](exSizeSizeMapping (itemGroup(i), size(i)));               
+    }
+} SHORTCUT sizeSticker[Item];
+     
+NAVIGATOR {
+    skuNavigator {
+        ADD sizeMappings;        
+    }
+}
+
+//-- Заполнение матрицы
+
+@createSizeMappingAttribute(exSize, VARSTRING[100]);
+@createSizeMappingAttribute(sizeHeightCustoms, SizeHeight, customs);
+@createSizeMappingAttribute(ageSticker, VARSTRING[30]);

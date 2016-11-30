@@ -1,0 +1,125 @@
+MODULE ItemFashionCustomsGroup;
+
+REQUIRE ItemFashionSticker, CustomsGroup, ImportTNVED;
+
+NAMESPACE Item;
+
+GROUP customsAttributes 'Размерные атрибуты' : base;
+
+surelySizeHeight 'Рост обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelySizeChest 'Обхват груди обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelySizeNeck 'Обхват шеи обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelyFootLength 'Длина стопы обязательна' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelyInsoleLength 'Длина стельки обязательна' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelySizeHead 'Обхват головы обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+surelySizeBrush 'Обхват кисти обязателен' = DATA BOOLEAN (CustomsGroup) IN customsAttributes;
+
+surelySizeHeight (VATCustomsException o) = surelySizeHeight(customsGroup(o));
+surelySizeChest (VATCustomsException o) = surelySizeChest(customsGroup(o));
+surelySizeNeck (VATCustomsException o) = surelySizeNeck(customsGroup(o));
+surelyFootLength (VATCustomsException o) = surelyFootLength(customsGroup(o));
+surelyInsoleLength (VATCustomsException o) = surelyInsoleLength(customsGroup(o));
+surelySizeHead (VATCustomsException o) = surelySizeHead(customsGroup(o));
+surelyISizeBrush (VATCustomsException o) = surelySizeBrush(customsGroup(o));
+
+limitSizeHeight 'Рост предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitSizeChest 'Обхват груди предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitSizeNeck 'Обхват шеи предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitFootLength 'Длина стопы предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitInsoleLength 'Длина стельки предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitSizeHead 'Обхват головы предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+limitSizeBrush 'Обхват кисти предельное значение' = DATA INTEGER (VATCustomsException) IN customsAttributes;
+
+autoFill (VATCustomsException g) = limitSizeHeight(g) OR limitSizeChest(g) OR
+                                  limitSizeNeck(g) OR limitFootLength(g) OR
+                                  limitInsoleLength(g) OR limitSizeHead(g) OR
+                                  limitSizeBrush(g) PERSISTENT;
+                                  
+EXTEND FORM customsGroup
+    PROPERTIES(vce) READONLY AFTER valueCurrent(vce)                   
+                    limitSizeHeight SHOWIF surelySizeHeight(vce),                    
+                    limitSizeChest SHOWIF surelySizeChest(vce),                      
+                    limitSizeNeck SHOWIF surelySizeNeck(vce),
+                    limitFootLength SHOWIF surelyFootLength(vce),
+                    limitInsoleLength SHOWIF surelyInsoleLength(vce),
+                    limitSizeHead SHOWIF surelySizeHead(vce),
+                    limitSizeBrush SHOWIF surelyISizeBrush(vce)                                                                                                        
+;
+
+EXTEND FORM VATCustomsException 
+
+    PROPERTIES (v)  limitSizeBrush SHOWIF surelyISizeBrush(v),                                                                                                        
+                    limitSizeHead SHOWIF surelySizeHead(v),
+                    limitInsoleLength SHOWIF surelyInsoleLength(v),
+                    limitFootLength SHOWIF surelyFootLength(v),
+                    limitSizeNeck SHOWIF surelySizeNeck(v),
+                    limitSizeChest SHOWIF surelySizeChest(v),                      
+                    limitSizeHeight SHOWIF surelySizeHeight(v)                     
+    EDIT VATCustomsException OBJECT v      
+;
+                                  
+setSurelyCustomsGroups 'Задать таможенные атрибуты'() = ACTION {
+    FOR countVATCustomsException(CustomsGroup customsGroup) > 0 DO {
+        IF isSubstring(nameVATCustomsException(customsGroup), 'рост') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Рост') == 1 THEN {
+            surelySizeHeight(customsGroup) <- TRUE;
+        }
+
+        IF isSubstring(nameVATCustomsException(customsGroup), 'обхват груди') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Обхват груди') == 1 THEN {
+            surelySizeChest(customsGroup) <- TRUE;
+        }
+
+        IF isSubstring(nameVATCustomsException(customsGroup), 'шея') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Шея') == 1 THEN {
+            surelySizeNeck(customsGroup) <- TRUE;
+        }
+
+        IF isSubstring(nameVATCustomsException(customsGroup), 'стопы') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Стопы') == 1 THEN {
+            surelyFootLength(customsGroup) <- TRUE;
+        }
+
+        IF isSubstring(nameVATCustomsException(customsGroup), 'стелька') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Стелька') == 1 THEN {
+            surelyInsoleLength(customsGroup) <- TRUE;
+        }
+        IF isSubstring(nameVATCustomsException(customsGroup), 'обхват головы') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Обхват головы') == 1 THEN {
+            surelySizeHead(customsGroup) <- TRUE;
+        }
+        IF isSubstring(nameVATCustomsException(customsGroup), 'обхват кисти') == 1 OR isSubstring(nameVATCustomsException(customsGroup), 'Обхват кисти') == 1 THEN {
+            surelySizeBrush(customsGroup) <- TRUE;
+        }
+    }
+}
+
+EXTEND FORM defaultData
+    PROPERTIES() setSurelyCustomsGroups
+;
+
+DESIGN defaultData {
+    customs {
+        MOVE PROPERTY(setSurelyCustomsGroups());
+    }
+}
+
+EXTEND FORM customsGroup
+    PROPERTIES(cg) surelySizeHeight, surelySizeChest, surelySizeNeck,
+    surelyFootLength, surelyInsoleLength, surelySizeHead, surelySizeBrush
+;
+
+DESIGN customsGroup {
+    topContainer {
+        MOVE cg.customsAttributes {
+            type = CONTAINERH;
+        }
+    }
+}
+
+EXTEND FORM customsGroups
+    PROPERTIES(cg) READONLYIF isReadonly() BEFORE number(cg) surelySizeHeight, surelySizeChest, surelySizeNeck,
+    surelyFootLength, surelyInsoleLength, surelySizeHead, surelySizeBrush
+;
+
+DESIGN itemGroup {
+    itemGroupDetail {
+        MOVE g.itemSticker {
+            columns = 6;
+        }
+    }
+}                                  
