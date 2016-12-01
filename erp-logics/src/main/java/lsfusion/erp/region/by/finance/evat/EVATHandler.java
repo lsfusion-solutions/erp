@@ -27,14 +27,14 @@ public class EVATHandler {
     private static final String XSD_FOR_FIXED_TYPE = "MNSATI_fixed.xsd ";
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
-    public List<List<Object>> signAndSend(Map<String, Map<Integer, byte[]>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
+    public List<List<Object>> signAndSend(Map<String, Map<Integer, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
         System.out.println("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
         String xsdPath = path + "/xsd";
         File archiveDir = new File(exportPath == null ? (path + "/archive") : exportPath);
 
-        for (Map.Entry<String, Map<Integer, byte[]>> filesEntry : files.entrySet()) {
+        for (Map.Entry<String, Map<Integer, List<Object>>> filesEntry : files.entrySet()) {
             String unp = filesEntry.getKey();
             System.out.println(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
 
@@ -43,7 +43,7 @@ public class EVATHandler {
             try {
                 service = initService(serviceUrl, unp, password, certIndex);
                 if (archiveDir.exists() || archiveDir.mkdirs()) {
-                    for (Map.Entry<Integer, byte[]> entry : filesEntry.getValue().entrySet()) {
+                    for (Map.Entry<Integer, List<Object>> entry : filesEntry.getValue().entrySet()) {
                         result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, 0));
                     }
                 } else {
@@ -59,10 +59,12 @@ public class EVATHandler {
         return result;
     }
 
-    private List<Object> sendFile(byte[] file, Integer evat, EVatService service, File archiveDir, String xsdPath,
+    private List<Object> sendFile(List<Object> fileNumberEntry, Integer evat, EVatService service, File archiveDir, String xsdPath,
                                   String serviceUrl, String unp, String password, Integer certIndex, Integer errorsCount)
             throws Exception {
         List<Object> result;
+        byte[] file = (byte[]) fileNumberEntry.get(0);
+        String number = (String) fileNumberEntry.get(1);
         try {
             System.out.println(String.format("EVAT %s: save file before sending", evat));
             File originalFile = new File(archiveDir, "EVAT" + evat + ".xml");
@@ -78,7 +80,7 @@ public class EVATHandler {
             byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
             boolean isDocumentValid = eDoc.getDocument().validateXML(xsdSchema);
             if (!isDocumentValid) {
-                result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", evat), true);
+                result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа %s не отвечает XSD схеме", evat, number), true);
             } else {
 
                 eDoc.sign();
@@ -127,7 +129,7 @@ public class EVATHandler {
             if (errorsCount < 5) {
                 errorsCount++;
                 service = initService(serviceUrl, unp, password, certIndex);
-                return sendFile(file, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, errorsCount);
+                return sendFile(fileNumberEntry, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, errorsCount);
 
             } else
                 return Arrays.asList((Object) evat, e.getMessage(), true);

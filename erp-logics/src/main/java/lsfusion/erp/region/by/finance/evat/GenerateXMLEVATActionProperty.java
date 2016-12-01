@@ -79,8 +79,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return evatMap;
     }
 
-    protected Map<String, Map<Integer, byte[]>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, Map<Integer, byte[]>> files = new HashMap<>();
+    protected Map<String, Map<Integer, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        Map<String, Map<Integer, List<Object>>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
@@ -91,7 +91,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             DataObject evatObject = result.getKey(i).get("evat");
             String unp = (String) result.getValue(i).get("unp").getValue();
             if(unp != null) {
-                Map<Integer, byte[]> filesEntry = files.get(unp);
+                Map<Integer, List<Object>> filesEntry = files.get(unp);
                 if(filesEntry == null)
                     filesEntry = new HashMap<>();
                 filesEntry.put((Integer) evatObject.getValue(), generateXML(context, evatObject, false));
@@ -101,7 +101,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return files;
     }
 
-    protected byte[] generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
+    protected List<Object> generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
         File tmpFile = null;
         try {
 
@@ -152,7 +152,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             byte[] fileData = IOUtils.getFileBytes(tmpFile);
             if(choosePath)
                 context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
-            return fileData;
+            return Arrays.asList((Object) fileData, number);
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
