@@ -257,12 +257,21 @@ add 'Добавить'(CustomsGroup customsGroup) = ACTION NEWSESSION {
     }
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
+
+caption 'Наименование' = DATA LOCAL VARISTRING[255]() MINCHARWIDTH 20 PREFCHARWIDTH 40;
+article 'Артикул' = DATA LOCAL VARSTRING[100]() MINCHARWIDTH 10 PREFCHARWIDTH 15;
+originalCustomsGroup 'ТНВЭД (ориг)' = DATA LOCAL STRING[100] () FIXEDCHARWIDTH 10;
+composition 'Состав' = DATA LOCAL VARSTRING[255]() MINCHARWIDTH 40 PREFCHARWIDTH 60;
+gender 'Пол' = DATA LOCAL VARSTRING[15]();
+
 FORM customsGroups 'Позиции ТН ВЭД'
     OBJECTS cz = CustomsZone FIXED PANEL
     PROPERTIES(cz) SELECTOR name, nameCurrency
 
     OBJECTS dt = DATE FIXED PANEL
     PROPERTIES(dt) date = OBJVALUE
+
+    PROPERTIES() caption, article, originalCustomsGroup, composition, gender
 
     TREE treeGroups a=STRING[3], gcg=CustomsGroup PARENT parent
     PROPERTIES READONLY OBJVALUE(a), name(gcg), code(gcg), isCompliancedData(gcg)
@@ -302,6 +311,15 @@ DESIGN customsGroups {
                 PROPERTY(name(cz)) { focusable = FALSE; }
                 PROPERTY(nameCurrency(cz)) { focusable = FALSE; }
             }
+        }
+        NEW item {
+            caption = 'Товар';
+            type = CONTAINERH;
+            MOVE PROPERTY(caption());
+            MOVE PROPERTY(article());
+            MOVE PROPERTY(originalCustomsGroup());
+            MOVE PROPERTY(composition());
+            MOVE PROPERTY(gender());
         }
         NEW split {
             type = CONTAINERH;
