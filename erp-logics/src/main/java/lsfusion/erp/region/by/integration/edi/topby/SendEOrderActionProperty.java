@@ -58,9 +58,11 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
                 Timestamp documentDateValue = (Timestamp) findProperty("dateTime[EOrder]").read(context, eOrderObject);
                 Calendar cal = Calendar.getInstance();
-                cal.add(Calendar.DAY_OF_YEAR, 1);
+                cal.add(Calendar.HOUR, 1);
                 String documentDate = formatDate(documentDateValue);
-                String deliveryDate = formatDate(new Timestamp(cal.getTime().getTime()));
+                Timestamp deliveryDateValue = (Timestamp) findProperty("shipmentDateTime[EOrder]").read(context, eOrderObject);
+                Timestamp currentDateValue = new Timestamp(cal.getTime().getTime());
+                String deliveryDate = formatDate(deliveryDateValue != null ? (deliveryDateValue.getTime() > currentDateValue.getTime() ? deliveryDateValue : currentDateValue) : currentDateValue);
                 String documentNumber = (String) findProperty("number[EOrder]").read(context, eOrderObject);
                 String GLNSupplier = (String) findProperty("GLNSupplier[EOrder]").read(context, eOrderObject);
                 String nameSupplier = (String) findProperty("nameSupplier[EOrder]").read(context, eOrderObject);
@@ -70,7 +72,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 String nameCustomerStock = (String) findProperty("nameCustomerStock[EOrder]").read(context, eOrderObject);
 
                 String contentSubXML = readContentSubXML(context, eOrderObject, documentNumber, documentDate, deliveryDate,
-                        GLNSupplier, nameSupplier, GLNCustomer, nameCustomer, GLNCustomerStock, nameCustomerStock);
+                        GLNSupplier, nameSupplier, nameCustomer, GLNCustomerStock, nameCustomerStock);
 
                 Element rootElement = new Element("Envelope", soapenvNamespace);
                 rootElement.setNamespace(soapenvNamespace);
@@ -143,7 +145,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
     }
 
     private String readContentSubXML(ExecutionContext context, DataObject eOrderObject, String documentNumber, String documentDate,
-                                     String deliveryDate, String GLNSupplier, String nameSupplier, String GLNCustomer, String nameCustomer,
+                                     String deliveryDate, String GLNSupplier, String nameSupplier, String nameCustomer,
                                      String GLNCustomerStock, String nameCustomerStock) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Element rootElement = new Element("ORDERS");
         Document doc = new Document(rootElement);
@@ -152,12 +154,12 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         addStringElement(rootElement, "documentNumber", documentNumber);
         addStringElement(rootElement, "documentDate", documentDate);
         addStringElement(rootElement, "documentType", "9");
-        addStringElement(rootElement, "buyerGLN", GLNSupplier);
-        addStringElement(rootElement, "buyerName", nameSupplier);
+        addStringElement(rootElement, "buyerGLN", GLNCustomerStock);
+        addStringElement(rootElement, "buyerName", nameCustomer);
         addStringElement(rootElement, "destinationGLN", GLNCustomerStock);
         addStringElement(rootElement, "destinationName", nameCustomerStock);
-        addStringElement(rootElement, "supplierGLN", GLNCustomer);
-        addStringElement(rootElement, "supplierName", nameCustomer);
+        addStringElement(rootElement, "supplierGLN", GLNSupplier);
+        addStringElement(rootElement, "supplierName", nameSupplier);
         addStringElement(rootElement, "deliveryDateTimeFirst", deliveryDate);
 
         try (DataSession session = context.createSession()) {
