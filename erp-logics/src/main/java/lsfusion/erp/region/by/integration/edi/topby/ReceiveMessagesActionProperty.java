@@ -85,7 +85,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         String xml = new XMLOutputter().outputString(doc);
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-        ServerLoggers.importLogger.info("ReceiveMessages %s request sent");
+        ServerLoggers.importLogger.info("ReceiveMessages request sent");
         String responseMessage = getResponseMessage(httpResponse);
         RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
         switch (requestResult) {
@@ -93,12 +93,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 importMessages(context, login, password, host, port, responseMessage);
                 break;
             case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error("ReceiveMessages %s: invalid login-password");
-                context.delayUserInteraction(new MessageClientAction("Заказ %s не выгружен: ошибка авторизации", "Экспорт"));
+                ServerLoggers.importLogger.error("ReceiveMessages: invalid login-password");
+                context.delayUserInteraction(new MessageClientAction("Сообщения не получены: ошибка авторизации", "Экспорт"));
                 break;
             case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error("ReceiveMessages %s: unknown error");
-                context.delayUserInteraction(new MessageClientAction("Заказ %s не выгружен: неизвестная ошибка", "Экспорт"));
+                ServerLoggers.importLogger.error("ReceiveMessages: unknown error");
+                context.delayUserInteraction(new MessageClientAction("Сообщения не получены: неизвестная ошибка", "Экспорт"));
         }
     }
 
