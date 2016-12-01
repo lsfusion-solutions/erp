@@ -232,8 +232,17 @@ defaultCustomsGroup (country, caption, composition) =
         ORDER count(customsGroup, country, caption, composition), customsGroup
         WHERE count(customsGroup, country, caption, composition);
 
+count (customsGroup, country, caption, composition, gender, originalCustomsGroup) = GROUP SUM 1
+    BY customsGroup(Country country,Item item), country, caption(item),  composition(item), gender(item), originalCustomsGroup(item);
+
+defaultCustomsGroup (country, caption, composition, gender, originalCustomsGroup) =
+    GROUP LAST CustomsGroup customsGroup
+        BY Country country, VARISTRING[255] caption, VARSTRING[255] composition, Gender gender, STRING[10] originalCustomsGroup
+        ORDER count(customsGroup, country, caption, composition, gender, originalCustomsGroup), customsGroup
+        WHERE count(customsGroup, country, caption, composition, gender, originalCustomsGroup);
+
 // Артикулы
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории'(Country country, Article article) = ACTION {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу'(Country country, Article article) = ACTION {
     customsGroup(country,article) <- defaultCustomsGroup(
                                                             country,
                                                             caption(article),
@@ -242,26 +251,44 @@ fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории'(Cou
 
 } SHORTCUT codeCustomsGroup[Country,Article];
 
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории для всех'(Country country) = ACTION {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу для всех'(Country country) = ACTION {
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillDefaultCustomsGroup(country,article);
    }
 } SHORTCUT codeCustomsGroup[Country,Article];
 
-fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу'(Country country, Article article) = ACTION {
+fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу ТНВЭД'(Country country, Article article) = ACTION {
     customsGroup(country,article) <- customsGroup(rpad(originalCustomsGroup(article), 10, '0'))
         WHERE customsGroup(rpad(originalCustomsGroup(article), 10, '0'));
 
 } SHORTCUT codeCustomsGroup[Country,Article];
 
-fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу для всех'(Country country) = ACTION {
+fillOriginalCustomsGroup 'Заполнить ТН ВЭД по оригиналу ТНВЭД для всех'(Country country) = ACTION {
    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
        fillOriginalCustomsGroup(country,article);
    }
 } SHORTCUT codeCustomsGroup[Country,Article];
 
+
+fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД'(Country country, Article article) = ACTION {
+    customsGroup(country,article) <- defaultCustomsGroup(
+                                                            country,
+                                                            caption(article),
+                                                            composition(article),
+                                                            gender(article),
+                                                            originalCustomsGroup(article))                                                            
+        WHERE defaultCustomsGroup(country, caption(article), composition(article), gender(article), originalCustomsGroup(article));
+
+} SHORTCUT codeCustomsGroup[Country,Article];
+
+fillDefaultCustomsGroupArticleGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country) = ACTION {
+    FOR [= FILTER articleCustomsDashboard.a](Article article) DO {
+        fillDefaultCustomsGroupGender(country,article);
+    }
+} SHORTCUT codeCustomsGroup[Country,Article];
+
 // Товары
-fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории'(Country country, Item item) = ACTION {
+fillDefaultCustomsGroup 'Заполнить ТН ВЭД по названию/составу'(Country country, Item item) = ACTION {
     customsGroup(country,item) <- defaultCustomsGroup(
                                                             country,
                                                             caption(item),
@@ -270,9 +297,26 @@ fillDefaultCustomsGroup 'Заполнить ТН ВЭД по истории'(Cou
 
 } SHORTCUT codeCustomsGroup[Country,Item];
 
-fillDefaultCustomsGroupItem 'Заполнить ТН ВЭД по истории для всех'(Country country) = ACTION {
+fillDefaultCustomsGroupItem 'Заполнить ТН ВЭД по названию/составу/ТНВЭД для всех'(Country country) = ACTION {
     FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
         fillDefaultCustomsGroup(country,item);
+    }
+} SHORTCUT codeCustomsGroup[Country,Item];
+
+fillDefaultCustomsGroupGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД'(Country country, Item item) = ACTION {
+    customsGroup(country,item) <- defaultCustomsGroup(
+                                                            country,
+                                                            caption(item),
+                                                            composition(item),
+                                                            gender(item),
+                                                            originalCustomsGroup(item))                                                            
+        WHERE defaultCustomsGroup(country, caption(item), composition(item), gender(item), originalCustomsGroup(item));
+
+} SHORTCUT codeCustomsGroup[Country,Item];
+
+fillDefaultCustomsGroupItemGender 'Заполнить ТН ВЭД по названию/составу/полу/ТНВЭД для всех'(Country country) = ACTION {
+    FOR [= FILTER articleCustomsDashboard.i](Item item) DO {
+        fillDefaultCustomsGroupGender(country,item);
     }
 } SHORTCUT codeCustomsGroup[Country,Item];
 
