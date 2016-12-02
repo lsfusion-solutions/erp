@@ -60,9 +60,12 @@ public class EVATClientAction implements ClientAction {
 
         try {
             return new EVATWorker(files, invoices, serviceUrl, path, exportPath, password, certIndex, type).execute();
-        } catch (InterruptedException | ExecutionException e) {
+        } catch (InterruptedException e) {
             e.printStackTrace();
             return e.getMessage();
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+            return "Убедитесь, что все сертификаты актуальны. Выполните импорт СОС на портале.\n\n" + e.getMessage();
         }
     }
 
