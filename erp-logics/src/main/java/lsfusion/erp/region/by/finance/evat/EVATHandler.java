@@ -6,6 +6,10 @@ import by.avest.edoc.client.*;
 import by.avest.net.tls.AvTLSProvider;
 import com.google.common.base.Throwables;
 import org.apache.commons.io.FileUtils;
+import org.apache.log4j.EnhancedPatternLayout;
+import org.apache.log4j.FileAppender;
+import org.apache.log4j.Level;
+import org.apache.log4j.Logger;
 
 import javax.management.modelmbean.XMLParseException;
 import java.io.*;
@@ -16,6 +20,20 @@ import java.util.*;
 import java.util.List;
 
 public class EVATHandler {
+
+    static Logger logger;
+    static {
+        try {
+            logger = Logger.getLogger("evatlog");
+            logger.setLevel(Level.INFO);
+            FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
+                    "logs/evat.log");
+            logger.removeAllAppenders();
+            logger.addAppender(fileAppender);
+
+        } catch (Exception ignored) {
+        }
+    }
 
     private static final SimpleDateFormat sdf;
     static {
@@ -28,7 +46,7 @@ public class EVATHandler {
     private static final String XSD_FOR_ADDITIONAL_TYPE = "MNSATI_additional.xsd ";
 
     public List<List<Object>> signAndSend(Map<String, Map<Integer, List<Object>>> files, String serviceUrl, String path, String exportPath, String password, int certIndex) {
-        System.out.println("EVAT: client action signAndSend");
+        logger.info("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
         String xsdPath = path + "/xsd";
@@ -36,7 +54,7 @@ public class EVATHandler {
 
         for (Map.Entry<String, Map<Integer, List<Object>>> filesEntry : files.entrySet()) {
             String unp = filesEntry.getKey();
-            System.out.println(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
+            logger.info(String.format("EVAT: sending %s xmls, unp %s", filesEntry.getValue().size(), unp));
 
             EVatService service = null;
 
@@ -51,6 +69,7 @@ public class EVATHandler {
                 }
 
             } catch (Exception e) {
+                logger.error("Sign and send error", e);
                 throw Throwables.propagate(e);
             } finally {
                 disconnect(service);
@@ -66,7 +85,7 @@ public class EVATHandler {
         byte[] file = (byte[]) fileNumberEntry.get(0);
         String number = (String) fileNumberEntry.get(1);
         try {
-            System.out.println(String.format("EVAT %s: save file before sending", evat));
+            logger.info(String.format("EVAT %s: save file before sending", evat));
             File originalFile = new File(archiveDir, "EVAT" + evat + ".xml");
             FileUtils.writeByteArrayToFile(originalFile, file);
 
@@ -99,50 +118,52 @@ public class EVATHandler {
 
                 // Проверка квитанции
                 if (ticket.accepted()) {
-                    System.out.println(String.format("EVAT %s: SignAndSend. Ticket is accepted", evat));
+                    logger.info(String.format("EVAT %s: SignAndSend. Ticket is accepted", evat));
                     String resultMessage = ticket.getMessage();
 
                     File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
                     // Сохранение квитанции в файл
                     writeFile(ticketFile, ticket.getEncoded());
 
-                    System.out.println("Ответ сервера проверен. Cчет/фактура принята в обработку. "
+                    logger.info("Ответ сервера проверен. Cчет/фактура принята в обработку. "
                             + "Сообщение сервера: " + resultMessage);
                     result = Arrays.asList((Object) evat, resultMessage, false);
 
                 } else {
-                    System.out.println(String.format("EVAT %s: SignAndSend. Ticket is not accepted", evat));
+                    logger.info(String.format("EVAT %s: SignAndSend. Ticket is not accepted", evat));
                     AvError err = ticket.getLastError();
                     File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
                     // Сохранение квитанции в файл
                     writeFile(ticketFile, ticket.getEncoded());
-                    System.out.println(err.getMessage());
+                    logger.info(err.getMessage());
                     result = Arrays.asList((Object) evat, err.getMessage(), true);
                 }
 
                 //конец непроверенного кода
-                System.out.println(String.format("EVAT %s: send file finished", evat));
+                logger.info(String.format("EVAT %s: send file finished", evat));
             }
 
         } catch (Exception e) {
-            System.out.println(String.format("EVAT %s: Error occurred (errors count %s)", evat, errorsCount + 1));
+            logger.info(String.format("EVAT %s: Error occurred (errors count %s)", evat, errorsCount + 1));
             if (errorsCount < 5) {
                 errorsCount++;
                 service = initService(serviceUrl, unp, password, certIndex);
                 return sendFile(fileNumberEntry, evat, service, archiveDir, xsdPath, serviceUrl, unp, password, certIndex, errorsCount);
 
-            } else
+            } else {
+                logger.error("Send file error", e);
                 return Arrays.asList((Object) evat, e.getMessage(), true);
+            }
         }
         return result;
     }
 
     public List<List<Object>> getStatus(Map<String, Map<Integer, String>> invoices, String serviceUrl, String password, int certIndex) {
-        System.out.println("EVAT: client action getStatus");
+        logger.info("EVAT: client action getStatus");
         List<List<Object>> result = new ArrayList<>();
 
         URL url = getClass().getClassLoader().getResource("");
-        System.out.println("EVAT: url: " + url);
+        logger.info("EVAT: url: " + url);
 
         EVatService service = null;
 
@@ -163,11 +184,12 @@ public class EVATHandler {
                     boolean verified = status.verify();
                     String resultMessage = verified ? status.getMessage() : status.getLastError().getMessage();
                     String resultStatus = verified ? status.getStatus() : null;
-                    System.out.println(String.format("EVAT %s: Cтатус %s, сообщение %s", invoiceNumber, resultStatus, resultMessage));
+                    logger.info(String.format("EVAT %s: Cтатус %s, сообщение %s", invoiceNumber, resultStatus, resultMessage));
                     result.add(Arrays.asList((Object) evat, resultMessage, resultStatus));
                 }
             }
         } catch (Exception e) {
+            logger.error("Get status error", e);
             throw Throwables.propagate(e);
         } finally {
             disconnect(service);
@@ -176,7 +198,7 @@ public class EVATHandler {
     }
 
     private EVatService initService(String serviceUrl, String unp, String password, int certIndex) throws Exception {
-        System.out.println("EVAT: initService started");
+        logger.info("EVAT: initService started");
         // Регистрация провайдера AvJceProv
         ProviderFactory.addAvUniversalProvider();
         Security.addProvider(new AvTLSProvider());
@@ -186,7 +208,7 @@ public class EVATHandler {
         EVatService service = new EVatService(serviceUrl, new CustomKeyInteractiveSelector(certIndex));
         service.login((unp == null ? "" : ("UNP=" + unp + ";")) + "PASSWORD_KEY=" + password);
         service.connect();
-        System.out.println("EVAT: initService finished");
+        logger.info("EVAT: initService finished");
         return service;
     }
 
