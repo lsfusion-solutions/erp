@@ -102,8 +102,6 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 context.delayUserInteraction(new MessageClientAction("Выгрузка завершена успешно", "EVAT"));
             else
                 context.delayUserInteraction(new MessageClientAction(error, "Ошибка"));
-        } else {
-            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
         }
     }
 

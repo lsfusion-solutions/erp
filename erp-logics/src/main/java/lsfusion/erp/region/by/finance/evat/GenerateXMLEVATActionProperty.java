@@ -10,6 +10,7 @@ import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
 import lsfusion.interop.Compare;
 import lsfusion.interop.action.ExportFileClientAction;
+import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
@@ -79,7 +80,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return evatMap;
     }
 
-    protected Map<String, Map<Integer, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    Map<String, Map<Integer, List<Object>>> generateXMLs(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Integer, List<Object>>> files = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
@@ -87,23 +88,32 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         query.addProperty("unp", findProperty("unpSupplier[EVAT]").getExpr(context.getModifier(), evatExpr));
         query.and(findProperty("in[EVAT]").getExpr(context.getModifier(), evatExpr).getWhere());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
-        for (int i = 0; i < result.values().size(); i++) {
-            DataObject evatObject = result.getKey(i).get("evat");
-            String unp = (String) result.getValue(i).get("unp").getValue();
-            if(unp != null) {
-                Map<Integer, List<Object>> filesEntry = files.get(unp);
-                if(filesEntry == null)
-                    filesEntry = new HashMap<>();
-                filesEntry.put((Integer) evatObject.getValue(), generateXML(context, evatObject, false));
-                files.put(unp, filesEntry);
+        if (!result.isEmpty()) {
+            for (int i = 0; i < result.values().size(); i++) {
+                DataObject evatObject = result.getKey(i).get("evat");
+                String unp = (String) result.getValue(i).get("unp").getValue();
+                if (unp != null) {
+                    Map<Integer, List<Object>> filesEntry = files.get(unp);
+                    if (filesEntry == null)
+                        filesEntry = new HashMap<>();
+                    List<Object> xml = generateXML(context, evatObject, false);
+                    if (xml != null) {
+                        filesEntry.put((Integer) evatObject.getValue(), xml);
+                        files.put(unp, filesEntry);
+                    }
+                }
             }
+        } else {
+            context.delayUserInteraction(new MessageClientAction("Не выбрано ни одного ЭСЧФ", "Ошибка"));
         }
         return files;
     }
 
-    protected List<Object> generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
+    private List<Object> generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
         File tmpFile = null;
         try {
+
+            String error = "";
 
             String status = getLastPart((String) findProperty("nameStatus[EVAT]").read(context, evatObject));
 
@@ -111,6 +121,13 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String number = trim((String) findProperty("number[EVAT]").read(context, evatObject), "");
             String documentNumber = trim((String) findProperty("exportNumber[EVAT]").read(context, evatObject), "");
+
+            String addressSupplier = trim((String) findProperty("shippingAddressSupplier[EVAT]").read(context, evatObject));
+            if (addressSupplier == null)
+                error += String.format("EVAT %s: Не задан пункт погрузки\n", number);
+            String addressCustomer = trim((String) findProperty("shippingAddressCustomer[EVAT]").read(context, evatObject));
+            if (addressCustomer == null)
+                error += String.format("EVAT %s: Не задан пункт отгрузки", number);
 
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
@@ -136,7 +153,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                     rootElement.addContent(createRecipientElement(context, evatObject, namespace));
                     boolean skipDeliveryCondition = findProperty("skipDeliveryCondition[EVAT]").read(context, evatObject) != null;
                     if(!skipDeliveryCondition) {
-                        rootElement.addContent(createSenderReceiverElement(context, evatObject, namespace));
+                        rootElement.addContent(createSenderReceiverElement(context, evatObject, addressSupplier, addressCustomer, namespace));
                         rootElement.addContent(createDeliveryConditionElement(context, evatObject, namespace));
                     }
                     rootElement.addContent(createRosterElement(context, evatObject, namespace));
@@ -147,12 +164,18 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                     break;
             }
 
-            tmpFile = File.createTempFile("evat", "xml");
-            outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
-            byte[] fileData = IOUtils.getFileBytes(tmpFile);
-            if(choosePath)
-                context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
-            return Arrays.asList((Object) fileData, number);
+            if (error.isEmpty()) {
+                tmpFile = File.createTempFile("evat", "xml");
+                outputXml(doc, new OutputStreamWriter(new FileOutputStream(tmpFile), "UTF-8"), "UTF-8");
+                byte[] fileData = IOUtils.getFileBytes(tmpFile);
+                if (choosePath)
+                    context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
+                return Arrays.asList((Object) fileData, number);
+
+            } else {
+                context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));
+                return null;
+            }
 
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
             throw Throwables.propagate(e);
@@ -326,16 +349,14 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     //parent: rootElement
-    private Element createSenderReceiverElement(ExecutionContext context, DataObject evatObject, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Element createSenderReceiverElement(ExecutionContext context, DataObject evatObject, String addressSupplier, String addressCustomer, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String countryCodeSupplier = trim((String) findProperty("countryCodeSupplier[EVAT]").read(context, evatObject));
         String unpSupplier = trim((String) findProperty("unpSupplier[EVAT]").read(context, evatObject));
         String nameSupplier = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
-        String addressSupplier = trim((String) findProperty("shippingAddressSupplier[EVAT]").read(context, evatObject));
 
         String countryCodeCustomer = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
         String unpCustomer = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
         String nameCustomer = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
-        String addressCustomer = trim((String) findProperty("shippingAddressCustomer[EVAT]").read(context, evatObject));
 
         Element senderReceiverElement = new Element("senderReceiver");
         Element consignorsElement = new Element("consignors", namespace);
