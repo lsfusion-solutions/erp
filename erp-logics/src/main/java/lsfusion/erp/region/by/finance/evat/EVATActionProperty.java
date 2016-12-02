@@ -7,6 +7,7 @@ import lsfusion.server.classes.ConcreteClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
+import lsfusion.server.logics.NullValue;
 import lsfusion.server.logics.ObjectValue;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
@@ -168,7 +169,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 default:
                     ServerLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", evat, value));
             }
-            serverStatusObject = id == null ? null : findProperty("nameStatic").readClasses(session, new DataObject("EVAT_EVATServerStatus." + id));
+            serverStatusObject = id == null ? NullValue.instance : findProperty("nameStatic").readClasses(session, new DataObject("EVAT_EVATServerStatus." + id));
         }
         return serverStatusObject;
     }
