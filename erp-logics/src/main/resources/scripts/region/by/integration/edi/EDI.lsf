@@ -43,6 +43,7 @@ EXTEND FORM UOM PROPERTIES(u) extraCodeUOM;
 
 quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (EOrderDetail);
 price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
+valueVAT 'НДС, %' = ABSTRACT NUMERIC[10,5] (EOrderDetail);
 
 GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
 legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity legalEntity BY GLN(legalEntity);
@@ -157,15 +158,16 @@ action 'Решение' (EOrderResponseDetail) = DATA EOrderResponseDetailAction
 captionAction 'Решение' (EOrderResponseDetail e) = staticCaption(action(e));
 quantityOrdered 'Кол-во (заказано)' = DATA NUMERIC[16,5] (EOrderResponseDetail);
 quantityAccepted 'Кол-во (принято)' = DATA NUMERIC[16,5] (EOrderResponseDetail);
-priceNoNDS 'Цена без НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
-priceNDS 'Цена с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+price 'Цена за единицу' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+sumNoNDS 'Сумма без НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
+sumNDS 'Сумма с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
 
 FORM eOrderResponses 'Ответы по Заказам EDI'
 OBJECTS o = EOrderResponse
 PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
 
 OBJECTS d = EOrderResponseDetail
-PROPERTIES(d) READONLY idBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, priceNoNDS, priceNDS
+PROPERTIES(d) READONLY idBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
 
 FILTERS orderResponse(d) == o
 ;

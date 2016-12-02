@@ -169,9 +169,9 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
             QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
 
-            String[] eOrderDetailNames = new String[]{"idBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price"};
+            String[] eOrderDetailNames = new String[]{"idBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
             LCP<?>[] eOrderDetailProperties = findProperties("idBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
-                    "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]");
+                    "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
             for (int j = 0; j < eOrderDetailProperties.length; j++) {
                 eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(eOrderDetailExpr));
             }
@@ -187,6 +187,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
                 BigDecimal quantity = (BigDecimal) entry.get("quantity");
                 BigDecimal price = (BigDecimal) entry.get("price");
+                BigDecimal valueVAT = (BigDecimal) entry.get("valueVAT");
 
                 Element lineElement = new Element("line");
                 rootElement.addContent(lineElement);
@@ -196,6 +197,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 addBigDecimalElement(lineElement, "quantityOrdered", quantity);
                 addStringElement(lineElement, "measurement", extraCodeUOMSku);
                 addStringElement(lineElement, "priceElement", toStr(price, 2));
+                addStringElement(lineElement, "tax", toStr(valueVAT, 2));
             }
 
             addIntegerElement(rootElement, "lineQuantity", eOrderDetailResult.size());

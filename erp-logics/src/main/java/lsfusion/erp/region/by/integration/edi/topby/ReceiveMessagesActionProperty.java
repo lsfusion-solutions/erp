@@ -286,11 +286,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String actionObject = getAction(action);
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
             BigDecimal quantityAccepted = parseBigDecimal(lineElement.getChildText("quantityAccepted"));
-            BigDecimal priceNoNDS = parseBigDecimal(lineElement.getChildText("priceNoNDS"));
-            BigDecimal priceNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
+            BigDecimal price = parseBigDecimal(lineElement.getChildText("priceElement"));
+            BigDecimal sumNoNDS = parseBigDecimal(lineElement.getChildText("priceNoNDS"));
+            BigDecimal sumNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
 
             result.add(Arrays.<Object>asList(number, dateTime, responseTypeObject, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                    deliveryDateTimeSecond, id, barcode, actionObject, quantityOrdered, quantityAccepted, priceNoNDS, priceNDS));
+                    deliveryDateTimeSecond, id, barcode, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
         }
         return result;
     }
@@ -406,13 +407,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(quantityAcceptedEOrderResponseDetailField, findProperty("quantityAccepted[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
             fields.add(quantityAcceptedEOrderResponseDetailField);
 
-            ImportField priceNoNDSEOrderResponseDetailField = new ImportField(findProperty("priceNoNDS[EOrderResponseDetail]"));
-            props.add(new ImportProperty(priceNoNDSEOrderResponseDetailField, findProperty("priceNoNDS[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
-            fields.add(priceNoNDSEOrderResponseDetailField);
+            ImportField priceEOrderResponseDetailField = new ImportField(findProperty("price[EOrderResponseDetail]"));
+            props.add(new ImportProperty(priceEOrderResponseDetailField, findProperty("price[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
+            fields.add(priceEOrderResponseDetailField);
 
-            ImportField priceNDSEOrderResponseDetailField = new ImportField(findProperty("priceNDS[EOrderResponseDetail]"));
-            props.add(new ImportProperty(priceNDSEOrderResponseDetailField, findProperty("priceNDS[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
-            fields.add(priceNDSEOrderResponseDetailField);
+            ImportField sumNoNDSEOrderResponseDetailField = new ImportField(findProperty("sumNoNDS[EOrderResponseDetail]"));
+            props.add(new ImportProperty(sumNoNDSEOrderResponseDetailField, findProperty("sumNoNDS[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
+            fields.add(sumNoNDSEOrderResponseDetailField);
+
+            ImportField sumNDSEOrderResponseDetailField = new ImportField(findProperty("sumNDS[EOrderResponseDetail]"));
+            props.add(new ImportProperty(sumNDSEOrderResponseDetailField, findProperty("sumNDS[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
+            fields.add(sumNDSEOrderResponseDetailField);
 
             ImportTable table = new ImportTable(fields, data);
 
