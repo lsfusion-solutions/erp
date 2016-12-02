@@ -994,6 +994,10 @@ invoices 'Накладные' (d) =
     GROUP CONCAT seriesNumber[Invoice](UserInvoice i) IF in(DeclarationDetail d, i), ','
               BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
 
+dateInvoices 'Даты накладных' (d) =
+    GROUP CONCAT toDateDDMMYY(date[Invoice](UserInvoice i)) IF in(DeclarationDetail d, i), ','
+              BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
+
 nameSupplier 'Поставщики' = 
     GROUP CONCAT nameSupplier[Invoice](UserInvoice i) IF in(DeclarationDetail d, i), ','
               BY d ORDER i MINCHARWIDTH 20 PREFCHARWIDTH 40 MAXCHARWIDTH 60;
@@ -1094,7 +1098,7 @@ backgroundVATCustomsException 'Цвет' (DeclarationDetail declarationDetail) =
 EXTEND FORM declaration
     OBJECTS dd=DeclarationDetail
     PROPERTIES(di, dd) in
-    PROPERTIES(dd) number ON CHANGE changeNumber(dd), invoices READONLY, nameCustoms, shortNameUOM,
+    PROPERTIES(dd) number ON CHANGE changeNumber(dd), invoices READONLY, dateInvoices READONLY, nameCustoms, shortNameUOM,
                    nameCountry, sumNetWeight, sumGrossWeight,
                    codeCustomsGroup, nameVATCustomsException BACKGROUND backgroundVATCustomsException(dd),
                    quantity, price, sum, deliverySum, chargeSum, homeSum,
