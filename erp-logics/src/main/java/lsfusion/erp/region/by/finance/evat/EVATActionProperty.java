@@ -163,6 +163,9 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 case "CANCELLED":
                     id = "cancelled";
                     break;
+                case "ON_AGREEMENT_CANCEL":
+                    id = "onAgreementCancel";
+                    break;
                 case "ERROR":
                     id = "error";
                     break;
