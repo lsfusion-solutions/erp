@@ -464,10 +464,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String id = number + "/" + i++;
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
             BigDecimal quantityDespatch = parseBigDecimal(lineElement.getChildText("quantityDespatch"));
+            BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("vat"));
             BigDecimal lineItemPrice = parseBigDecimal(lineElement.getChildText("lineItemPrice"));
             BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountWithoutCharges"));
+            BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("lineItemAmount"));
+            BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
             result.add(Arrays.<Object>asList(number, dateTime, deliveryNoteNumber, deliveryNoteDateTime, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                    deliveryDateTimeFirst, id, barcode, quantityOrdered, quantityDespatch, lineItemPrice, lineItemAmountWithoutCharges));
+                    deliveryDateTimeFirst, id, barcode, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                    lineItemAmount, lineItemAmountCharges));
         }
         return result;
     }
@@ -564,6 +568,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(quantityDespatchEOrderDespatchAdviceDetailField, findProperty("quantityDespatch[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(quantityDespatchEOrderDespatchAdviceDetailField);
 
+            ImportField valueVATEOrderDespatchAdviceDetailField = new ImportField(findProperty("valueVAT[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(valueVATEOrderDespatchAdviceDetailField, findProperty("valueVAT[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(valueVATEOrderDespatchAdviceDetailField);
+
             ImportField lineItemPriceEOrderDespatchAdviceDetailField = new ImportField(findProperty("lineItemPrice[EOrderDespatchAdviceDetail]"));
             props.add(new ImportProperty(lineItemPriceEOrderDespatchAdviceDetailField, findProperty("lineItemPrice[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(lineItemPriceEOrderDespatchAdviceDetailField);
@@ -571,6 +579,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             ImportField lineItemAmountWithoutChargesEOrderDespatchAdviceDetailField = new ImportField(findProperty("lineItemAmountWithoutCharges[EOrderDespatchAdviceDetail]"));
             props.add(new ImportProperty(lineItemAmountWithoutChargesEOrderDespatchAdviceDetailField, findProperty("lineItemAmountWithoutCharges[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(lineItemAmountWithoutChargesEOrderDespatchAdviceDetailField);
+
+            ImportField lineItemAmountEOrderDespatchAdviceDetailField = new ImportField(findProperty("lineItemAmount[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(lineItemAmountEOrderDespatchAdviceDetailField, findProperty("lineItemAmount[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(lineItemAmountEOrderDespatchAdviceDetailField);
+
+            ImportField lineItemAmountChargesEOrderDespatchAdviceDetailField = new ImportField(findProperty("lineItemAmountCharges[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(lineItemAmountChargesEOrderDespatchAdviceDetailField, findProperty("lineItemAmountCharges[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(lineItemAmountChargesEOrderDespatchAdviceDetailField);
 
             ImportTable table = new ImportTable(fields, data);
 
