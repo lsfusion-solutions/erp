@@ -61,6 +61,19 @@ WHEN SESSION FORMS userInvoice CHANGED(complianceGroup(UserInvoiceDetail d)) AND
 count 'Кол-во' (invoice, complianceGroup) =
     GROUP SUM 1 BY userInvoice(UserInvoiceDetail detail), complianceGroup(detail) PERSISTENT;
 
+// ------------------- Заполнение сертификата, если он один для группы --------------------- //
+
+countComplianceForManufacturing 'Кол-во' (complianceGroup) =
+    GROUP SUM 1 IF in(ComplianceGroup complianceGroup, Compliance compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing BY complianceGroup;
+defaultComplianceForManufacturing  (complianceGroup) =
+    GROUP MIN Compliance compliance IF in(ComplianceGroup complianceGroup, compliance) AND complianceType(compliance) ==ComplianceType.forManufacturing BY complianceGroup;
+    
+fillCompliance 'Заполнить сертификаты (пр-во)'(UserInvoice invoice)  = ACTION {
+    compliance(invoice,ComplianceGroup g) <-  defaultComplianceForManufacturing(g) 
+        WHERE countComplianceForManufacturing(g) == 1;  
+
+} TOOLBAR;
+
 // ------------------------------- Затраты на сертификацию ----------------------------- //
 
 compliancePrice 'Сертификация (ед.)' = ABSTRACT NUMERIC[16,4](InvoiceDetail) @@denomination;
@@ -117,6 +130,7 @@ EXTEND FORM userInvoice
 //        FILTER 'Без группы' 'F9' NOT complianceGroupUserInvoiceDetail(d2)
 
     PROPERTIES(i) setComplianceGroup TODRAW d2 SHOWIF showCompliance(i)
+    PROPERTIES(i) fillCompliance FORCE PANEL TOOLBAR TODRAW cg SHOWIF showCompliance(i)
 ;
 
 DESIGN userInvoice {
