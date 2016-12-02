@@ -1,0 +1,48 @@
+MODULE PriceListArticleDetail;
+
+REQUIRE PriceList, ItemArticle;
+
+NAMESPACE PriceList;
+
+CLASS UserAPriceListDetail 'Строка прайса (артикул)';
+TABLE userAPriceListDetail (UserAPriceListDetail);
+
+@defineExternalizable(userAPriceListDetail, VARSTRING[100]);
+
+@defineDocumentRelation(userPriceList, UserAPriceListDetail, 'Строка прайса (артикул)');
+
+@defineDocumentDetailIndex(userPriceList, UserAPriceListDetail);
+
+article 'Артикул' = DATA Article (UserAPriceListDetail);
+idArticle 'Код' (UserAPriceListDetail d) = id(article(d));
+captionArticle 'Наименование' (UserAPriceListDetail d) = caption(article(d));
+
+// Цены
+price 'Цена (новая)' = DATA NUMERIC[16,4] (UserAPriceListDetail, DataPriceListType); //annotation не нужен, делим скриптом с учетом валюты вида цен
+
+in (UserAPriceListDetail detail, DataPriceListType type) = in(userPriceList(detail), type);
+
+price(UserAPriceListDetail detail, DataPriceListType type) => in (detail, type) RESOLVE RIGHT;
+
+CLASS APriceListDetail 'Строка прайса по товару на основе артикула' : PriceListDetail;
+in (UserAPriceListDetail d, Item i) = article(d) == article(i);
+@defineAggregation(userAPriceListDetail, item, aPriceListDetail, in);
+priceList (APriceListDetail d) += userPriceList(userAPriceListDetail(d));
+sku (APriceListDetail d) += item(d);
+price(APriceListDetail d, DataPriceListType t) += price(userAPriceListDetail(d), t);
+
+EXTEND FORM userPriceList
+    OBJECTS ad = UserAPriceListDetail
+    PROPERTIES(ad) index, idArticle, captionArticle
+    PROPERTIES(ad, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
+    PROPERTIES(ad) ADDOBJ, DELETESESSION
+    FILTERS userPriceList(ad) == p
+;
+
+DESIGN userPriceList {
+    detailContainer {
+        MOVE ad.box FIRST {
+            caption = 'Спецификация (артикул)';
+        }
+    }
+}
