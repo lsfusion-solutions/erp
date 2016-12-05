@@ -1,0 +1,38 @@
+MODULE PurchaseInvoiceEDI;
+
+REQUIRE PurchaseInvoice, PurchaseOrderEDI;
+
+NAMESPACE Purchase;
+
+invoice = DATA Invoice(EOrderDespatchAdvice);
+
+createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) = ACTION {
+
+    FOR ADDOBJ i = UserInvoice DO {
+    
+        invoice(a) <- i;
+        fillHeader(i, eOrder(a));
+        number(i) <- number(a);
+        
+        FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND OrderDetail od == [=GROUP MAX OrderDetail d BY sku(d), order(d)](sku(ad), eOrder(a))
+            ORDER ad 
+            ADDOBJ d = UserInvoiceDetail DO {
+                userInvoice(d) <- i;
+                orderDetail(d) <- od;
+                sku(d) <- sku(ad);
+                quantity(d) <- quantityDespatch(ad);
+                VAT(d) <- VAT(od);
+                valueVAT(d) <- valueVAT(od);
+                priceListType(d) <- priceListType(od);
+                price(d) <- lineItemPrice(ad);
+        }
+        
+        include(Order order, i) <- TRUE WHERE order == eOrder(a);
+        
+        FORM userInvoice OBJECTS i = i MANAGESESSION DOCKEDMODAL NOCANCEL;
+    }
+
+}
+
+EXTEND FORM eOrderDespatchAdvices 
+    PROPERTIES (o) createUserInvoice TOOLBAR;

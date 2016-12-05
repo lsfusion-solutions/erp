@@ -45,14 +45,41 @@ quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (EOrderDetail);
 price 'Цена' = ABSTRACT NUMERIC[16,4] (EOrderDetail);
 valueVAT 'НДС, %' = ABSTRACT NUMERIC[10,5] (EOrderDetail);
 
+CLASS EDIProvider 'Провайдер EDI';
+
+FORM EDIProviders 'Провайдеры EDI'
+    OBJECTS t=EDIProvider
+    PROPERTIES (t) READONLY staticCaption
+    DIALOG EDIProvider OBJECT t
+;
+
+DESIGN EDIProviders { 
+    preferredSize = (600, 400);
+    PROPERTY (staticCaption(t)){caption = 'Наименование';};
+}
+
+
 GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
 legalEntityGLN (legalEntity) = GROUP AGGR LegalEntity legalEntity BY GLN(legalEntity);
 GLNSupplier(EOrder e) = GLN(supplier(e));
 GLNCustomer(EOrder e) = GLN(customer(e));
-EXTEND FORM legalEntity PROPERTIES(l) GLN;
-EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN;
 
-GLN 'GLN' = DATA VARSTRING[13] (Stock);
+EDIProvider 'Провайдер EDI' = DATA EDIProvider(LegalEntity);
+nameEDIProvider 'Провайдер EDI'(LegalEntity l) = staticCaption(EDIProvider(l));
+EXTEND FORM legalEntity PROPERTIES(l) GLN, nameEDIProvider;
+DESIGN legalEntity {
+    column2{
+        NEW EDI {
+            caption = 'EDI';
+            MOVE PROPERTY (GLN(l));
+            MOVE PROPERTY (nameEDIProvider(l));
+        }
+    }
+}
+EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN, nameEDIProvider;
+
+dataGLN 'GLN' = DATA VARSTRING[13] (Stock);
+GLN 'GLN' (Stock s) = OVERRIDE GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1, dataGLN(s);
 stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
 GLNSupplierStock(EOrder e) = GLN(supplierStock(e));
 GLNCustomerStock(EOrder e) = GLN(customerStock(e));
@@ -61,9 +88,12 @@ EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
 EXTEND FORM departmentStore PROPERTIES(d) GLN;
 EXTEND FORM departmentStores PROPERTIES(d) READONLY GLN;
 
+send 'Отправить' = ACTION ABSTRACT LIST (EOrder);
+
 FORM eOrders 'Заказы EDI'
 OBJECTS o = EOrder
 PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+PROPERTIES(o) send FORCE PANEL TOOLBAR
 
 OBJECTS d = EOrderDetail
 PROPERTIES(d) READONLY idBarcode, nameSku, extraCodeUOMSku, quantity, price
@@ -91,7 +121,7 @@ TABLE eOrderMessage(EOrderMessage);
 
 number 'Номер' = DATA VARSTRING[24] (EOrderMessage);
 eOrderMessage (number) = GROUP AGGR EOrderMessage e BY number(e);
-eOrder 'Заказ' = DATA EOrder (EOrderMessage); //NOT NULL
+eOrder 'Заказ' = DATA EOrder (EOrderMessage) NOT NULL DELETE;
 numberEOrder 'Заказ' (EOrderMessage m) = number(eOrder(m));
 dateTime 'Дата/время сообщения' = DATA DATETIME (EOrderMessage);
 code 'Код сообщения' = DATA VARSTRING[10] (EOrderMessage);

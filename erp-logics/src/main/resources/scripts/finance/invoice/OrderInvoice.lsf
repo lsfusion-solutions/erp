@@ -270,9 +270,15 @@ META defineOrderInvoice(sign, stockProp)
     include 'Вкл. в накладную' = DATA BOOLEAN (Order, UserInvoice) MINCHARWIDTH 10 PREFCHARWIDTH 15;  
     countIncludeOrders (i) = GROUP SUM 1 IF include(Order o,UserInvoice i) BY i;
     
+    beforeCreateInvoice = ACTION ABSTRACT LIST (Order);
+    invoiceCreated = DATA LOCAL NESTED BOOLEAN (Order);
     overCreate = ACTION ABSTRACT LIST (Order, UserInvoice);
     
     createUserInvoice 'Создать накладную'(Order order) = ACTION {
+        invoiceCreated(order) <- NULL;
+        beforeCreateInvoice(order);
+        IF invoiceCreated(order) THEN RETURN;
+        
         userInvoice(order) <- NULL;
         FOR ADDOBJ i = UserInvoice DO {
             fill(i, order);
@@ -563,6 +569,10 @@ META defineOrderInvoice(sign, stockProp)
     
     createMultiUserInvoice(Order order) = ACTION {
         IF order IS Order THEN {
+            invoiceCreated(order) <- NULL;
+            beforeCreateInvoice(order);
+            IF invoiceCreated(order) THEN RETURN;
+            
             FOR ADDOBJ i = UserInvoice DO {
                 FOR selected(Order.Order o) DO {
                     fill(i, o);   

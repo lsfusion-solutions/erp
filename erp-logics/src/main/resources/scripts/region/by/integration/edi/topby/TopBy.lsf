@@ -4,6 +4,10 @@ REQUIRE System, EDI, Integration, Warehouse, Store;
 
 NAMESPACE EDI;
 
+EXTEND CLASS EDIProvider {
+    topBy 'СТТ'
+}
+
 loginTopBy 'Имя пользователя TopBy' = DATA VARSTRING[100] ();
 passwordTopBy 'Пароль TopBy' = DATA VARSTRING[100] () ECHO;
 hostTopBy 'Хост' = DATA VARSTRING[100] ();
@@ -27,26 +31,6 @@ DESIGN integrationData {
     }
 }
 
-send 'Отправить' = ACTION CUSTOM 'lsfusion.erp.region.by.integration.edi.topby.SendEOrderActionProperty' (EOrder);
+sendTopBy 'Отправить' = ACTION CUSTOM 'lsfusion.erp.region.by.integration.edi.topby.SendEOrderActionProperty' (EOrder);
 
-EXTEND FORM eOrders
-PROPERTIES(o) send FORCE PANEL TOOLBAR
-;
-
-//REQUIRE PurchaseInvoice, Item, LegalEntityBy, Warehouse;
-//
-//maxMessageNumber = DATA INTEGER (); 
-//
-//GLN 'GLN' = DATA VARSTRING[13] (LegalEntity);
-//legalGLN (legalEntity) = GROUP AGGR LegalEntity legalEntity BY GLN(legalEntity);
-//GLNSupplier(UserInvoice invoice) = GLN(supplier(invoice));
-//GLNCustomer(UserInvoice invoice) = GLN(customer(invoice));
-//EXTEND FORM legalEntity PROPERTIES(l) GLN;
-//EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN;
-//
-//GLN 'GLN' = DATA VARSTRING[13] (Stock);
-//stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
-//EXTEND FORM warehouse PROPERTIES(w) GLN;
-//EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
-//
-//isCancelled 'Отменена' = DATA BOOLEAN (Purchase.UserInvoice);
+send(EOrder o) += ACTION IF EDIProvider(supplier(o)) == EDIProvider.topBy THEN sendTopBy(o);
