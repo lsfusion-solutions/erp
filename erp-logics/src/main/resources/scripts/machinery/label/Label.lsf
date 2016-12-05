@@ -371,12 +371,17 @@ FORM printLabelTransaction 'Печать ценников'
 
 needCustomPrint = ABSTRACT BOOLEAN (LabelTransaction);
 customPrint = ACTION ABSTRACT (LabelTransaction);
+labelPrintAuto = DATA LOCAL NESTED BOOLEAN ();
 
 print(LabelTransaction t) = ACTION {
     IF needCustomPrint(t) THEN
         customPrint(t)
     ELSE
-        FORM printLabelTransaction OBJECTS l = t PRINT;
+        IF labelPrintAuto() THEN {
+            FORM printLabelTransaction OBJECTS l = t PRINT AUTO;
+        } ELSE {
+            FORM printLabelTransaction OBJECTS l = t PRINT;
+        }
 }
 
 selected 'Отм.' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
