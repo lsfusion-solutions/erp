@@ -11,12 +11,6 @@ import java.util.Date;
 public class OverJDBField extends JDBField {
 
     private char type = super.getType();
-    private boolean dotSeparator = false;
-
-    public OverJDBField(String s, char c, int i, int j, boolean dotSeparator) throws JDBFException {
-        super(s, c, i, j);
-        this.dotSeparator = dotSeparator;
-    }
 
     public OverJDBField(String s, char c, int i, int j) throws JDBFException {
         super(s, c, i, j);
@@ -43,11 +37,10 @@ public class OverJDBField extends JDBField {
                     stringBuilder.setCharAt(getLength() - getDecimalCount() - 1, '.');
                 }
                 DecimalFormat decimalformat = new DecimalFormat(stringBuilder.toString());
-                if(dotSeparator) {
-                    DecimalFormatSymbols dfSymbols = decimalformat.getDecimalFormatSymbols();
-                    dfSymbols.setDecimalSeparator('.');
-                    decimalformat.setDecimalFormatSymbols(dfSymbols);
-                }
+                DecimalFormatSymbols dfSymbols = decimalformat.getDecimalFormatSymbols();
+                dfSymbols.setDecimalSeparator('.');
+                decimalformat.setDecimalFormatSymbols(dfSymbols);
+
                 String s1 = decimalformat.format(number);
                 int k = getLength() - s1.length();
                 if (k < 0) {
