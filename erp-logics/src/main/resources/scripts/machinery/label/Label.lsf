@@ -959,6 +959,7 @@ NAVIGATOR {
 
 select = DATA LOCAL BOOLEAN (Sku, LabelType, DepartmentStore);
 overCreate = ACTION ABSTRACT LIST (LabelTransaction);
+overQuantityPrint = DATA LOCAL NESTED INTEGER (Sku);
 
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = ACTION {
     // бежим по всем типам ценников из управленческих параметров
@@ -975,9 +976,9 @@ createLabelTransaction 'Распечатать ценники'(DepartmentStore d
             name(d) <- name(sku(d));
             createAttribute(d);
 
-            quantity(d) <- IF include(labelType, sku(d))
-                                                    THEN INTEGER(currentBalance(sku, departmentStore))
-                                                 ELSE count(labelType, sku(d));
+            quantity(d) <-  OVERRIDE (IF include(labelType, sku(d)) THEN INTEGER(currentBalance(sku, departmentStore))
+                                                         ELSE count(labelType, sku(d))), 
+                                     overQuantityPrint(sku(d));
                                                  
             price(d) <- calcPrice(pt, d);
             retailPrice(d) <- overRetailPrice(d);

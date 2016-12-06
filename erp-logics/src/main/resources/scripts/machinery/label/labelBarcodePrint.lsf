@@ -4,6 +4,12 @@ REQUIRE Label;
 
 NAMESPACE Label;
 
+FORM labelBarcodePrint 'Печать ценников по штрих-коду'
+    OBJECTS dt = LabelTransactionDetail LAST 
+;
+
+consumedChangeBarcodePrint = DATA LOCAL NESTED BOOLEAN();
+overChangeBarcodePrint = ACTION ABSTRACT LIST (VARSTRING[15], DepartmentStore);
 
 changeBarcodePrint(DepartmentStore d) = ACTION {
     REQUEST VARSTRING[15] INPUT;
@@ -13,31 +19,36 @@ changeBarcodePrint(DepartmentStore d) = ACTION {
     LOCAL dialogBarcodeSku = Sku();
     dialogBarcodeSku() <- skuBarcode(barcode(), currentDate());
     
-    IF dialogBarcodeSku() IS Sku THEN {
-        IF active(dialogBarcodeSku()) THEN {
-            select(Sku s) <- s == dialogBarcodeSku();
-            labelPrintAuto() <- TRUE;
-            printSelectedSkuLabelTransaction(d);
-        } ELSE {
-            MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
-        }
-        
-    } ELSE
-        MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
+    consumedChangeBarcodePrint() <- NULL;
+    overChangeBarcodePrint(barcode(), d);
+    IF NOT consumedChangeBarcodePrint() THEN {
+        IF dialogBarcodeSku() IS Sku THEN {
+            IF active(dialogBarcodeSku()) THEN {
+                select(Sku s) <- s == dialogBarcodeSku();
+                overQuantityPrint(Sku s) <- 1 IF s == dialogBarcodeSku();
+                labelPrintAuto() <- TRUE;
+                printSelectedSkuLabelTransaction(d);
+            } ELSE {
+                MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
+            }
+            
+        } ELSE
+            MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
+    }
+    
+    SEEK LAST labelBarcodePrint.dt;
 }
 
-FORM labelBarcodePrint 'Печать ценников по штрих-коду'
+EXTEND FORM labelBarcodePrint 
     OBJECTS d = DepartmentStore FIXED PANEL
     PROPERTIES name(d) SELECTOR
     
     OBJECTS b = VARSTRING[15] FIXED PANEL
     PROPERTIES(b) barcode = OBJVALUE ON CHANGE changeBarcodePrint(d) EVENTID 'SCANNER'
     
-    OBJECTS dt = LabelTransactionDetail
     PROPERTIES(dt) READONLY nameLabelType, date, time, idBarcode, nameSku, nameBatch, quantity, 
                    name, price, retailPrice, discountSum, nameSkuGroupSku, shortNameUOMSku, nameCountrySku, residentCountrySku, nameSupplierSku, 
                    fullNameSupplierSku, shortNameOwnershipSupplierSku, nameAddressPhoneLegalEntity
-    ORDER BY date(dt) DESC, time(dt) DESC
     FILTERS departmentStore(dt) == d
 ;
 @extendFormFilterStockAccess(d, labelBarcodePrint);
