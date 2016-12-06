@@ -74,7 +74,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                         try {
 
                                             int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType, false);
+                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType, false, false);
 
                                             if (importResult != IMPORT_RESULT_ERROR)
                                                 renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);

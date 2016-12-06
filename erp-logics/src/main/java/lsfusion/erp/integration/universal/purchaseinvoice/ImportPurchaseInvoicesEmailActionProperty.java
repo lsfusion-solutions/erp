@@ -61,6 +61,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
             importTypeQuery.addProperty("autoImportEmailImportType", findProperty("autoImportEmail[ImportType]").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportAccountImportType", findProperty("autoImportAccount[ImportType]").getExpr(session.getModifier(), importTypeKey));
             importTypeQuery.addProperty("autoImportCheckInvoiceExistenceImportType", findProperty("autoImportCheckInvoiceExistence[ImportType]").getExpr(session.getModifier(), importTypeKey));
+            importTypeQuery.addProperty("completeIdItemAsEANImportType", findProperty("completeIdItemAsEAN[ImportType]").getExpr(session.getModifier(), importTypeKey));
 
             importTypeQuery.and(isImportType.getExpr(importTypeKey).getWhere());
             importTypeQuery.and(findProperty("autoImport[ImportType]").getExpr(importTypeKey).getWhere());
@@ -74,6 +75,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                 ObjectValue accountObject = entryValue.get("autoImportAccountImportType");
                 ObjectValue emailObject = entryValue.get("autoImportEmailImportType");
+                boolean completeIdItemAsEAN = entryValue.get("completeIdItemAsEANImportType") instanceof DataObject;
                 boolean checkInvoiceExistence = entryValue.get("autoImportCheckInvoiceExistenceImportType") instanceof DataObject;
                 String emailPattern = emailObject instanceof DataObject ? ((String) ((DataObject) emailObject).object).replace("*", ".*").toLowerCase() : null;
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(session, importTypeObject);
@@ -133,7 +135,7 @@ public class ImportPurchaseInvoicesEmailActionProperty extends ImportDocumentAct
 
                                         int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context,
                                                 currentSession, invoiceObject, importTypeObject, file, fileExtension,
-                                                settings, staticNameImportType, staticCaptionImportType, checkInvoiceExistence);
+                                                settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, checkInvoiceExistence);
 
                                         findProperty("original[Purchase.Invoice]").change(
                                                 new DataObject(BaseUtils.mergeFileAndExtension(file, fileExtension.getBytes()), DynamicFormatFileClass.get(false, true)).object, currentSession, invoiceObject);

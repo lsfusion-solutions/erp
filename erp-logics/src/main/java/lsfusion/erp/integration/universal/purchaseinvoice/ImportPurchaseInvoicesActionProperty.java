@@ -54,7 +54,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                                 new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                         (DataObject) importTypeObject, file, fileExtension, settings,
-                                        staticNameImportType, staticCaptionImportType, false);
+                                        staticNameImportType, staticCaptionImportType, false, false);
 
                                 currentSession.apply(context);
                             }
