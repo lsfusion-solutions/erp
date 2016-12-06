@@ -36,7 +36,8 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
             ObjectValue importTypeObject = findProperty("importTypeUserInvoices[]").readClasses(context);
             String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(context, importTypeObject);
             String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(context, importTypeObject);
-            
+            boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(context, importTypeObject) != null;
+
             ImportDocumentSettings settings = readImportDocumentSettings(context.getSession(), importTypeObject);
             String fileExtension = settings.getFileExtension();
             boolean multipleDocuments = settings.isMultipleDocuments();
@@ -54,7 +55,7 @@ public class ImportPurchaseInvoicesActionProperty extends ImportDocumentActionPr
 
                                 new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
                                         (DataObject) importTypeObject, file, fileExtension, settings,
-                                        staticNameImportType, staticCaptionImportType, false, false);
+                                        staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false);
 
                                 currentSession.apply(context);
                             }

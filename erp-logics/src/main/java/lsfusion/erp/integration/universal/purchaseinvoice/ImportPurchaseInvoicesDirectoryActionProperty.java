@@ -56,7 +56,8 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                 String directory = trim((String) entryValue.get("autoImportDirectoryImportType").getValue());
                 String staticNameImportType = (String) findProperty("staticNameImportTypeDetail[ImportType]").read(session, importTypeObject);
                 String staticCaptionImportType = (String) findProperty("staticCaptionImportTypeDetail[ImportType]").read(session, importTypeObject);
-                
+                boolean completeIdItemAsEAN = findProperty("completeIdItemAsEAN[ImportType]").read(session, importTypeObject) != null;
+
                 ImportDocumentSettings settings = readImportDocumentSettings(session, importTypeObject);
                 String fileExtension = settings.getFileExtension();
                 boolean multipleDocuments = settings.isMultipleDocuments();
@@ -74,7 +75,7 @@ public class ImportPurchaseInvoicesDirectoryActionProperty extends ImportDocumen
                                         try {
 
                                             int importResult = new ImportPurchaseInvoiceActionProperty(LM).makeImport(context, currentSession, invoiceObject,
-                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType, false, false);
+                                                    importTypeObject, IOUtils.getFileBytes(f), fileExtension, settings, staticNameImportType, staticCaptionImportType, completeIdItemAsEAN, false);
 
                                             if (importResult != IMPORT_RESULT_ERROR)
                                                 renameImportedFile(context, f.getAbsolutePath(), "." + fileExtension);
