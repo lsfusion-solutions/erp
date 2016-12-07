@@ -21,10 +21,13 @@ public class BarcodeUtils {
         
         try {
             if (barcode.length() == 12) {
-                String upc = "0" + barcode; //UPC
-                if (upc.equals(appendEAN13(upc.substring(0, 12))))
-                    return barcode;
-                if(maybeUPC)
+                //upc can't start from 2,4,5,9
+                if(!barcode.startsWith("2") && !barcode.startsWith("4") && !barcode.startsWith("5") && !barcode.startsWith("9")) {
+                    String upc = "0" + barcode; //UPC
+                    if (upc.equals(appendEAN13(upc.substring(0, 12))))
+                        return barcode;
+                }
+                if (maybeUPC)
                     return "0" + barcode;
                 else { //EAN-13
                     return appendEAN13(barcode);
