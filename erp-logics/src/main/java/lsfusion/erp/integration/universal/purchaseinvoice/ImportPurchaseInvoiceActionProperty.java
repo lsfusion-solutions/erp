@@ -550,12 +550,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 for (int i = 0; i < userInvoiceDetailsList.size(); i++)
                     data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("valueVAT"));
 
-                ImportField dateField = new ImportField(DateClass.instance);
-                props.add(new ImportProperty(dateField, findProperty("dataDate[Barcode]").getMapping(barcodeKey), true));
-                fields.add(dateField);
-                for (int i = 0; i < userInvoiceDetailsList.size(); i++)
-                    data.get(i).add(userInvoiceDetailsList.get(i).getFieldValue("dateVAT"));
-
                 new ImportPurchaseInvoiceTaxItem(LM).makeImport(context, fields, keys, props, defaultColumns, userInvoiceDetailsList, data, valueVATUserInvoiceDetailField, itemKey, VATKey);
                 
             }
@@ -766,7 +760,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         }
         Sheet sheet = wb.getSheet(0);
 
-        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = getCurrentTimestamp();
 
         for (int i = importSettings.getStartRow() - 1; i < sheet.getRows(); i++) {
@@ -822,9 +815,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 switch (field) {
                     case "dateDocument":
                         Date dateDocument = getXLSDateFieldValue(sheet, i, defaultColumns.get(field));
-                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
                         fieldValues.put(field, dateDocument);
-                        fieldValues.put("dateVAT", dateVAT);
                         break;
                     case "expiryDate":
                         fieldValues.put(field, getXLSDateFieldValue(sheet, i, defaultColumns.get(field), true));
@@ -892,8 +883,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         BufferedReader br = new BufferedReader(new InputStreamReader(new ByteArrayInputStream(importFile), "cp1251"));
         String line;
 
-
-        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = getCurrentTimestamp();
 
         List<String[]> valuesList = new ArrayList<>();
@@ -954,9 +943,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 switch (field) {
                     case "dateDocument":
                         Date dateDocument = getCSVDateFieldValue(valuesList, defaultColumns.get(field), count);
-                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
                         fieldValues.put(field, dateDocument);
-                        fieldValues.put("dateVAT", dateVAT);
                         break;
                     case "expiryDate":
                         fieldValues.put(field, getCSVDateFieldValue(valuesList, defaultColumns.get(field), count, true));
@@ -1024,7 +1011,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
         XSSFWorkbook Wb = new XSSFWorkbook(new ByteArrayInputStream(importFile));
         XSSFSheet sheet = Wb.getSheetAt(0);
 
-        Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
         currentTimestamp = getCurrentTimestamp();
 
         for (int i = importSettings.getStartRow() - 1; i <= sheet.getLastRowNum(); i++) {
@@ -1080,9 +1066,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                 switch (field) {
                     case "dateDocument":
                         Date dateDocument = getXLSXDateFieldValue(sheet, i, defaultColumns.get(field));
-                        Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
                         fieldValues.put(field, dateDocument);
-                        fieldValues.put("dateVAT", dateVAT);
                         break;
                     case "expiryDate":
                         fieldValues.put(field, getXLSXDateFieldValue(sheet, i, defaultColumns.get(field), true));
@@ -1159,7 +1143,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
 
             int totalRecordCount = file.getRecordCount();
 
-            Date currentDateDocument = getCurrentDateDocument(session, userInvoiceObject);
             currentTimestamp = getCurrentTimestamp();
             for (int i = 0; i < importSettings.getStartRow() - 1; i++) {
                 file.read();
@@ -1223,9 +1206,7 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
                     switch (field) {
                         case "dateDocument":
                             Date dateDocument = getDBFDateFieldValue(file, defaultColumns.get(field), i, charset);
-                            Date dateVAT = dateDocument == null ? currentDateDocument : dateDocument;
                             fieldValues.put(field, dateDocument);
-                            fieldValues.put("dateVAT", dateVAT);
                             break;
                         case "expiryDate":
                             fieldValues.put(field, getDBFDateFieldValue(file, defaultColumns.get(field), i, charset, true));
@@ -1409,13 +1390,6 @@ public class ImportPurchaseInvoiceActionProperty extends ImportDefaultPurchaseIn
     
     private String getCurrentTimestamp() {
         return new SimpleDateFormat("dd.MM.yyyy HH:mm:ss").format(Calendar.getInstance().getTime());
-    }
-    
-    private Date getCurrentDateDocument(DataSession session, DataObject userInvoiceObject) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Date defaultDate = new Date(Calendar.getInstance().getTime().getTime());
-        Date currentDateDocument = userInvoiceObject == null ? defaultDate :
-                (Date) findProperty("date[UserInvoice]").read(session, userInvoiceObject);
-        return currentDateDocument == null ? defaultDate : currentDateDocument;
     }
     
     private String readIdCustomer(DataSession session, String idCustomerStock) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
