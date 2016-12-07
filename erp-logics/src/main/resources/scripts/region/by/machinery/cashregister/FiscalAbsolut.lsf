@@ -1,0 +1,35 @@
+MODULE FiscalAbsolut;
+
+REQUIRE System,
+        POS;
+
+
+needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer();
+onClientStarted() += ACTION IF needDLL() THEN loadLibrary('lib/win32/absolut.dll');
+
+fiscalAbsolutPrint 'Напечатать фискальный чек' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintReceiptActionProperty' (Receipt);
+postPrint(Receipt receipt) += ACTION IF sidCashRegisterModel(receipt) == 'Absolut' THEN fiscalAbsolutPrint(receipt);
+
+fiscalAbsolutReceiptTitle 'Заголовок чека Absolut' = ABSTRACT TEXT ();
+fiscalAbsolutTop 'Дополнительный текст перед чеком Absolut' = ABSTRACT TEXT (Receipt);
+fiscalAbsolutBottom 'Дополнительный текст после чека Absolut' = ABSTRACT TEXT (Receipt);
+
+fiscalAbsolutPrintCopyReceipt 'Копия чека' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintCopyReceiptActionProperty' ();
+fiscalPrintCopyReceipt() += ACTION IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutPrintCopyReceipt();
+
+fiscalAbsolutXReport 'X-отчёт' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutXReportActionProperty' ();
+fiscalXReport() += ACTION IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutXReport();
+
+fiscalAbsolutZReport 'Z-отчёт' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutZReportActionProperty' ();
+fiscalZReport() += ACTION IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutZReport();
+
+fiscalAbsolutReportTop 'Заголовок отчёта Absolut' = ABSTRACT TEXT ();
+
+fiscalAbsolutService 'Перемещение денег' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutServiceInOutActionProperty' (CashOperation);
+fiscalService(CashOperation cashOperation) += ACTION IF sidCashRegisterModel(cashOperation) == 'Absolut' THEN fiscalAbsolutService(cashOperation);
+
+fiscalAbsolutDisplayText 'Вывести текст на дисплей' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutDisplayTextActionProperty' (ReceiptDetail);
+fiscalDisplayText (ReceiptDetail receiptDetail) += ACTION IF sidCashRegisterModel(receiptDetail) == 'Absolut' THEN fiscalAbsolutDisplayText(receiptDetail);
+
+fiscalAbsolutCancel 'Отменить чек' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutCancelReceiptActionProperty' (Receipt);
+fiscalCancel(Receipt receipt) += ACTION IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutCancel(receipt);
