@@ -45,6 +45,27 @@ changeCodeCustomsGroup(Country country, Article article) = ACTION {
     }
 }
 
+changeWYSCodeCustomsGroup(Country country, Article article) = ACTION {
+    REQUEST STRING[10] INPUT;
+    IF requestedString() THEN {
+        IF customsGroup(rpad(requestedString(),10,'0')) THEN {
+            customsGroup(country, article) <- customsGroup(rpad(requestedString(),10,'0')); 
+        } ELSE {
+            caption() <- caption(article);
+            article() <- id(article);
+            originalCustomsGroup() <- originalCustomsGroup(article);
+            composition() <- composition(article);
+            gender() <- nameGender(article);
+            REQUEST OBJECT cg
+                FORM customsGroups OBJECTS cz = customsZone(country), cg = nearestCustomsGroup(requestedString()) MODAL;
+            IF formResult() == FormResult.ok THEN {
+                customsGroup(country, article) <- chosenObject('cg');
+            }
+        }
+    } ELSE
+        customsGroup(country, article) <- NULL;
+}
+
 changeCustomsGroupDefaultCountry(Article article) = ACTION {
     REQUEST OBJECT cg
     FORM customsGroups OBJECTS cz = customsZoneDefaultCountry() DIALOG SHOWDROP;
