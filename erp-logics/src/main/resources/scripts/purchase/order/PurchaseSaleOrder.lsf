@@ -1,6 +1,6 @@
 MODULE PurchaseSaleOrder;
 
-REQUIRE PurchaseOrder, SaleOrder;
+REQUIRE PurchaseOrder, SaleOrder, PurchaseSaleOperation;
 
 PRIORITY Purchase;
 
@@ -107,18 +107,6 @@ edit(SaleOrderDetail order) += ACTION EXEC edit(orderDetail(order));
 
 @defineDocumentInterfaceOperationPrefix (order, sale, Sale, ' (продажа)');
 
-saleOperation  = DATA Sale.Operation (Operation);
-nameSaleOperation 'Операция (продажа)' (Operation operation)= name(saleOperation(operation));
-
-EXTEND FORM operation
-    PROPERTIES(o) nameSaleOperation
-;
-DESIGN operation {
-    createContainer {
-        MOVE PROPERTY(nameSaleOperation(o));
-    }
-}
-
 @deriveDocumentOperationProperty(UserOrder, saleOperation);
 
 // Записываем операцию для закупки по умолчанию из операции
@@ -155,7 +143,7 @@ moveUserOrder 'Заказ (продажа)'(Order order) =  ACTION NEWSESSION{
         currency(o) <- currency(order);
         showPack(o) <- showPack(order);
         closeDate(o) <- closeDate(order);
-        operation(o) <- operation(order);
+        operation(o) <- saleOperation(operation(order));
 
         FOR order(OrderDetail detail)==order ADDOBJ d = Sale.UserOrderDetail DO {
 
