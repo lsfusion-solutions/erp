@@ -764,12 +764,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
                 discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
                 discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
-                Integer idFrom = parseInt(idDiscountCardFrom);
+                Long idFrom = parseLong(idDiscountCardFrom);
                 if (idFrom != null)
-                    discountCardQuery.and(discountCardLM.findProperty("intId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idFrom).getExpr(), Compare.GREATER_EQUALS));
-                Integer idTo = parseInt(idDiscountCardTo);
+                    discountCardQuery.and(discountCardLM.findProperty("numericId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idFrom, LongClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                Long idTo = parseLong(idDiscountCardTo);
                 if (idTo != null)
-                    discountCardQuery.and(discountCardLM.findProperty("intId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idTo).getExpr(), Compare.LESS_EQUALS));
+                    discountCardQuery.and(discountCardLM.findProperty("numericId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
 
@@ -808,9 +808,9 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         return discountCardList;
     }
 
-    private Integer parseInt(String value) {
+    private Long parseLong(String value) {
         try {
-            return Integer.parseInt(value);
+            return Long.parseLong(value);
         } catch(Exception e) {
             return null;
         }
