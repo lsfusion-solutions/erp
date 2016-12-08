@@ -689,8 +689,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             String guid = discountCardPercentTypeMap.get(percent);
                             if (d.numberDiscountCard != null) {
                                 setAttribute(internalCard, "number", d.numberDiscountCard);
-                                setAttribute(internalCard, "amount", d.initialSumDiscountCard == null ? "0.00" : denominateMultiplyType2(d.initialSumDiscountCard, denominationStage));
-                                setAttribute(internalCard, "expiration-date", d.dateToDiscountCard == null ? "2050-12-03" : d.dateToDiscountCard);
+                                if(d.initialSumDiscountCard != null)
+                                    setAttribute(internalCard, "amount", denominateMultiplyType2(d.initialSumDiscountCard, denominationStage));
+                                if(d.dateToDiscountCard != null)
+                                    setAttribute(internalCard, "expiration-date", d.dateToDiscountCard);
                                 setAttribute(internalCard, "status",
                                         d.dateFromDiscountCard == null || currentDate.compareTo(d.dateFromDiscountCard) > 0 ? "ACTIVE" : "BLOCKED");
                                 setAttribute(internalCard, "deleted", "false");
@@ -704,12 +706,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                 setAttribute(client, "birth-date", formatDate(d.birthdayContact, "yyyy-MM-dd"));
                                 if(d.sexContact != null)
                                     setAttribute(client, "sex", d.sexContact == 0 ? "MALE" : "FEMALE");
-                                setAttribute(client, "city", d.cityContact);
-                                setAttribute(client, "street", d.streetContact);
-                                setAttribute(client, "mobile-phone", d.phoneContact);
-                                setAttribute(client, "email", d.emailContact);
-                                if(d.agreeSubscribeContact)
-                                    setAttribute(client, "send-by-email", true);
+//                                setAttribute(client, "city", d.cityContact);
+//                                setAttribute(client, "street", d.streetContact);
+//                                setAttribute(client, "mobile-phone", d.phoneContact);
+//                                setAttribute(client, "email", d.emailContact);
+//                                if(d.agreeSubscribeContact)
+//                                    setAttribute(client, "send-by-email", true);
                                 setAttribute(client, "isCompleted", d.isCompleted);
                                 internalCard.addContent(client);
 
