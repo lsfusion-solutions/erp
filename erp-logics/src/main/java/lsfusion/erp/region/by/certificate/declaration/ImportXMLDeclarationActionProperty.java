@@ -117,7 +117,7 @@ public class ImportXMLDeclarationActionProperty extends ScriptingActionProperty 
                     List<ImportProperty<?>> properties = new ArrayList<>();
 
                     ImportKey<?> declarationDetailKey = new ImportKey((ConcreteCustomClass) findClass("DeclarationDetail"),
-                            findProperty("declarationDetail[Declaration,INTEGER]").getMapping(userNumberField, nameCustomsField));
+                            findProperty("declarationDetail[Declaration,INTEGER]").getMapping(declaration, userNumberField));
 
                     ImportKey<?> customsGroupKey = new ImportKey((ConcreteCustomClass) findClass("CustomsGroup"),
                             findProperty("customsGroup[STRING[10]]").getMapping(codeCustomsGroupField));
