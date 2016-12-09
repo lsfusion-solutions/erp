@@ -70,8 +70,7 @@ FORM articleCustomsAttributesDashboard 'Заполнение НДС'
                    originalCaption, originalComposition, originalSize, originalCustomsGroup, 
                    caption, composition, nameUOM, nameColor, nameSize, idItemGroup
     PROPERTIES     READONLY codeCustomsGroup(c,i), nameCustomsGroup(c,i)
-    PROPERTIES(i) READONLY exSize
-
+    
     PROPERTIES(i)    nameSizeHeightCustoms BACKGROUND backgroundSizeHeight(c,i), sizeChestCustoms BACKGROUND backgroundSizeChest(c,i),
                      sizeNeckCustoms BACKGROUND backgroundSizeNeck(c,i), footLengthCustoms BACKGROUND backgroundFootLength(c,i),
                      insoleLengthCustoms BACKGROUND backgroundInsoleLength(c,i),
@@ -144,8 +143,6 @@ DESIGN articleCustomsAttributesDashboard {
         }
     }
     
-    PROPERTY(exSize(i)) { minimumCharWidth = 3; preferredCharWidth = 10;} 
-
     PROPERTY(nameSizeHeightCustoms(i)) {minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
     PROPERTY(sizeChestCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
     PROPERTY(sizeNeckCustoms(i)) { minimumSize = ( 40, 17); preferredSize = ( 50, 17); maximumSize = ( 100, 17);}
@@ -270,6 +267,19 @@ fillDefaultShortVATCustomsException 'Установить льготу для в
 } SHORTCUT nameVATCustomsException[Country,Item];           
           
 // -- Заполнение по матрице
+mapAllExSizeItem 'Заполнить размер (бел) для всех по соответствию'() = ACTION {
+   FOR [= FILTER articleCustomsAttributesDashboard.i](Item i)  AND NOT exSize(i) DO
+       mapExSize(i);
+};
+
+EXTEND FORM articleCustomsAttributesDashboard
+    PROPERTIES (i) READONLY exSize BEFORE nameSizeHeightCustoms(i) ON SHORTCUT mapAllExSizeItem()
+;
+
+DESIGN articleCustomsAttributesDashboard {
+    PROPERTY(exSize(i)) { minimumCharWidth = 3; preferredCharWidth = 10;} 
+}
+
 mapAllSizeHeightItem 'Заполнить рост для всех по соответствию'() = ACTION {
    FOR [= FILTER articleCustomsAttributesDashboard.i](Item i)  AND NOT sizeHeightCustoms(i) DO
        mapSizeHeightCustoms(i);
