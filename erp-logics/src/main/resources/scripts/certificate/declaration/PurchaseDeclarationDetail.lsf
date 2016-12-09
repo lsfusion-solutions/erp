@@ -827,9 +827,93 @@ changeVATSum(Declaration declaration) = ACTION {
     }
 }
 
-VATSumUserInvoiceDetail 'НДС (по накладным)' (d) =
-    GROUP SUM quantity(UserInvoiceDetail d) * VATPrice[InvoiceDetail](d) BY declaration(d) MINCHARWIDTH 15;
-VATSumRound 'НДС (округление)' (Declaration d) = VATSum(d) (-) VATSumUserInvoiceDetail(d);
+//------------------------------------ Корректировка таможенной стоимости ---------------------------------------------//
+
+CLASS DeclarationAdjustment 'КТС';
+TABLE declarationAdjustment(DeclarationAdjustment);
+TABLE declarationAdjustmentDeclarationDetail(DeclarationAdjustment, DeclarationDetail);
+
+declaration = DATA Declaration(DeclarationAdjustment) NOT NULL DELETE;//
+
+number 'Номер' (DeclarationAdjustment declarationAdjustment) = DATA INTEGER (DeclarationAdjustment);
+declarationAdjustment (declarationAdjustment, number) = GROUP AGGR DeclarationAdjustment d BY declaration(d), number(d);
+
+date 'Дата' = DATA DATE (DeclarationAdjustment);
+name 'Наименование' = DATA VARISTRING[150] (DeclarationAdjustment);
+note 'Примечание' = DATA VARSTRING[100](DeclarationAdjustment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+homeSum 'Стоимость корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail) @@denomination;
+dutySum 'Пошлина корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail) @@denomination;
+VATSum 'НДС корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail) @@denomination;
+
+date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
+
+defaultDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
+    BY  DeclarationDetail detail
+    ORDER date(adjustment), adjustment
+    WHERE homeSum(adjustment, detail);
+    
+homeSum 'Сумма корр.' (a) = GROUP SUM homeSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+dutySum 'Пошлина корр.' (a) = GROUP SUM dutySum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+VATSum 'НДС корр.' (a) = GROUP SUM VATSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+
+homeSumToPay 'Сумма к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   homeSum(a,dd) - homeSum(dd);
+dutySumToPay 'Пошлина к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   dutySum(a,dd) - dutySum(dd);
+VATSumToPay 'НДС к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   VATSum(a,dd) - VATSum(dd);
+
+homeSumToPay 'Сумма к доплате'=  GROUP SUM homeSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+dutySumToPay 'Пошлина к доплате' = GROUP SUM dutySumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+VATSumToPay 'НДС к доплате' = GROUP SUM VATSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
+
+changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[18,4] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == homeSumToPay(a,d) THEN {
+            homeSum(a,d)<- requestedNumeric() (+) homeSum(d);            
+        }
+    }ELSE {
+        homeSum(a,d)<- NULL;
+    }
+}
+changeDutySum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[18,4] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == dutySumToPay(a,d) THEN {
+            
+            IF NOT homeSum(a,d) THEN {
+                homeSum(a,d)<- homeSum(d);
+            }
+            dutySum(a,d)<- requestedNumeric() (+) dutySum(d);            
+        }       
+    }ELSE {
+        dutySum(a,d)<- NULL;
+    }
+}
+changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
+    REQUEST NUMERIC[18,4] INPUT;
+    IF requestedNumeric() THEN {
+        IF NOT requestedNumeric() == VATSumToPay(a,d) THEN {            
+            IF NOT homeSum(a,d) THEN {
+                homeSum(a,d)<- homeSum(d);
+            } 
+            VATSum(a,d)<- requestedNumeric() (+) VATSum(d);
+        }
+    }ELSE {
+        VATSum(a,d)<- NULL;
+    }
+}
+
+adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(d), dutySum(defaultDeclarationAdjustment(d),d);
+adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustDutySum(DeclarationDetail declarationDetail)
+                                                                    BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
+
+adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE adjustDutySumDeclarationDetail(d), dataDutySum(d); 
+
+adjustVATSum (DeclarationDetail d) = OVERRIDE VATSum(d), VATSum(defaultDeclarationAdjustment(d),d);
+adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustVATSum(DeclarationDetail declarationDetail)
+                                                                    BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
+
+adjustVATSum 'НДС (корр.)' (Declaration d) = OVERRIDE adjustVATSumDeclarationDetail(d), dataVATSum(d); 
+
 // ---------------------------------------------------- Суммы расходов по документу -------------------------------- //
 
 // Транспортные расходы
@@ -843,10 +927,15 @@ chargeSumRound 'Услуги (округление)' (Declaration d) = chargeSum
 // Пошлина
 dutySumUserInvoiceDetail 'Пошлина (по накладным)' (d) =
     GROUP SUM dutySum(UserInvoiceDetail d) BY declaration(d) MINCHARWIDTH 15;
-dutySumRound 'Пошлина (округление)' (Declaration d) = dutySum(d) (-) dutySumUserInvoiceDetail(d);
+dutySumRound 'Пошлина (округление)' (Declaration d) = adjustDutySum(d) (-) dutySumUserInvoiceDetail(d);
 
 // Таможенный сбор
 registrationSum 'Таможенный сбор' = DATA NUMERIC[18,4] (Declaration) MINCHARWIDTH 15 @@denomination;
+
+// НДС
+VATSumUserInvoiceDetail 'НДС (по накладным)' (d) =
+    GROUP SUM quantity(UserInvoiceDetail d) * VATPrice[InvoiceDetail](d) BY declaration(d) MINCHARWIDTH 15;
+VATSumRound 'НДС (округление)' (Declaration d) = adjustVATSum(d) (-) VATSumUserInvoiceDetail(d);
 
 registrationSumUserInvoiceDetail 'Таможенный сбор (по накладным)' (d) =
     GROUP SUM registrationSum(UserInvoiceDetail d) BY declaration(d) MINCHARWIDTH 15;
@@ -855,7 +944,7 @@ registrationSumRound 'Таможенный сбор (округление)' (Dec
 EXTEND FORM declaration
     PROPERTIES(d)          sumDeclarationDetail
     PROPERTIES(d)          deliverySum, chargeSum
-    PROPERTIES(d) READONLY homeSumDeclarationDetail, dutySum BACKGROUND backgroundDutySum(d) EDITABLE ON CHANGE changeDutySum(d), 
+    PROPERTIES(d) READONLY homeSumDeclarationDetail, dutySum BACKGROUND backgroundDutySum(d) EDITABLE ON CHANGE changeDutySum(d), adjustDutySum,
                            VATSum BACKGROUND backgroundVATSum(d) EDITABLE ON CHANGE changeVATSum(d), registrationSum EDITABLE
 
     PROPERTIES(d) READONLY deliverySumRound, chargeSumRound, dutySumRound, registrationSumRound
@@ -872,6 +961,7 @@ DESIGN declaration {
             MOVE PROPERTY(chargeSum(d));
             MOVE PROPERTY(homeSumDeclarationDetail(d));
             MOVE PROPERTY(dutySum(d));
+            MOVE PROPERTY(adjustDutySum(d));
             MOVE PROPERTY(VATSum(d));
             MOVE PROPERTY(registrationSum(d));
         }
@@ -1151,81 +1241,6 @@ numerateDetails 'Перенумеровать' (DeclarationDetail d) = ACTION {
                           ORDER [= ORDER declaration.dd](dd), dd WHERE declaration(dd) == declaration(d);
 } SHORTCUT number[DeclarationDetail];  
 
-//------------------------------------ Корректировка таможенной стоимости ---------------------------------------------//
-
-CLASS DeclarationAdjustment 'КТС';
-TABLE declarationAdjustment(DeclarationAdjustment);
-TABLE declarationAdjustmentDeclarationDetail(DeclarationAdjustment, DeclarationDetail);
-
-declaration = DATA Declaration(DeclarationAdjustment) NOT NULL DELETE;//
-
-number 'Номер' (DeclarationAdjustment declarationAdjustment) = DATA INTEGER (DeclarationAdjustment);
-declarationAdjustment (declarationAdjustment, number) = GROUP AGGR DeclarationAdjustment d BY declaration(d), number(d);
-
-date 'Дата' = DATA DATE (DeclarationAdjustment);
-name 'Наименование' = DATA VARISTRING[150] (DeclarationAdjustment);
-note 'Примечание' = DATA VARSTRING[100](DeclarationAdjustment) MINCHARWIDTH 30 PREFCHARWIDTH 50;
-homeSum 'Стоимость корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail) @@denomination;
-dutySum 'Пошлина корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail) @@denomination;
-VATSum 'НДС корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, DeclarationDetail) @@denomination;
-
-date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
-
-defaultDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
-    BY  DeclarationDetail detail
-    ORDER date(adjustment), adjustment
-    WHERE homeSum(adjustment, detail);
-    
-homeSum 'Сумма корр.' (a) = GROUP SUM homeSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
-dutySum 'Пошлина корр.' (a) = GROUP SUM dutySum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
-VATSum 'НДС корр.' (a) = GROUP SUM VATSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
-
-homeSumToPay 'Сумма к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   homeSum(a,dd) - homeSum(dd);
-dutySumToPay 'Пошлина к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   dutySum(a,dd) - dutySum(dd);
-VATSumToPay 'НДС к доплате' (DeclarationAdjustment a, DeclarationDetail dd) =   VATSum(a,dd) - VATSum(dd);
-
-homeSumToPay 'Сумма к доплате'=  GROUP SUM homeSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
-dutySumToPay 'Пошлина к доплате' = GROUP SUM dutySumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
-VATSumToPay 'НДС к доплате' = GROUP SUM VATSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
-
-changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == homeSumToPay(a,d) THEN {
-            homeSum(a,d)<- requestedNumeric() (+) homeSum(d);            
-        }
-    }ELSE {
-        homeSum(a,d)<- NULL;
-    }
-}
-changeDutySum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == dutySumToPay(a,d) THEN {
-            
-            IF NOT homeSum(a,d) THEN {
-                homeSum(a,d)<- homeSum(d);
-            }
-            dutySum(a,d)<- requestedNumeric() (+) dutySum(d);            
-        }       
-    }ELSE {
-        dutySum(a,d)<- NULL;
-    }
-}
-changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == VATSumToPay(a,d) THEN {            
-            IF NOT homeSum(a,d) THEN {
-                homeSum(a,d)<- homeSum(d);
-            } 
-            VATSum(a,d)<- requestedNumeric() (+) VATSum(d);
-        }
-    }ELSE {
-        VATSum(a,d)<- NULL;
-    }
-}
-
 // -------------------------------- Расчет таможенных пошлин -------------------------- //        
         
 calcSumPriceDuty 'Пошлина по стоимости' (DeclarationAdjustment adjustment, DeclarationDetail detail) =
@@ -1259,8 +1274,8 @@ WHEN SESSION FORMS declaration
 //------------------------------------ Расчет расходов за единицу -----------------------------------------------------//
 
 // Пошлина
-//dutySum(d) = GROUP SUM dutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
-dutySum(d) = GROUP SUM (OVERRIDE dutySum(DeclarationDetail dd), dutySum(defaultDeclarationAdjustment(dd),dd)) BY declarationInvoiceDetail(dd) PERSISTENT; 
+//dutySum(d) = GROUP SUM dutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd);
+dutySum(d) = GROUP SUM adjustDutySum(DeclarationDetail dd) BY declarationInvoiceDetail(dd) PERSISTENT; 
 
 calcDutySum (UserInvoiceDetail d) =
     PARTITION UNGROUP dutySum
@@ -1283,8 +1298,8 @@ calcRegistrationSum 'Таможенный сбор' (UserInvoiceDetail d) =
               ORDER d;
 
 // НДС
-//VATSum(d) = GROUP SUM VATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd); 
-VATSum(d) = GROUP SUM (OVERRIDE VATSum(DeclarationDetail dd), VATSum(defaultDeclarationAdjustment(dd),dd)) BY declarationInvoiceDetail(dd) PERSISTENT; 
+//VATSum(d) = GROUP SUM VATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd);
+VATSum(d) = GROUP SUM adjustVATSum(DeclarationDetail dd) BY declarationInvoiceDetail(dd) PERSISTENT; 
 
 calcVATSum (UserInvoiceDetail d) =
     PARTITION UNGROUP VATSum
