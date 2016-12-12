@@ -37,6 +37,25 @@ copyProperties(PromotionCondition promotionConditionTo, PromotionCondition promo
     inData(promotionConditionTo, Article article) <- inData(promotionConditionFrom, article);        
 }
 
+// ---------------- Импорт из XLS ------------------ //
+
+importArticleXLS 'Импорт (xls)' (PromotionCondition c) = ACTION {
+
+    LOCAL importFile = CUSTOMFILE ();
+    LOCAL article = VARSTRING[100] (INTEGER);
+    
+    importFile() <- NULL;
+    LOADFILE importFile();
+    IF NOT importFile() THEN RETURN ;
+    
+    IMPORT XLSX TO article FROM importFile();
+    FOR imported(INTEGER r) DO {
+        in(c, Article a) <- TRUE WHERE id(a) == article(r);
+    }
+    
+    MESSAGE 'Импортированы ' + (OVERRIDE 0, [= GROUP SUM 1 IF article(article(INTEGER r))]()) + ' записей';
+}
+                
 EXTEND FORM promotion
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
@@ -53,6 +72,8 @@ EXTEND FORM promotion
     PROPERTIES READONLY prevCurrentBalance(ar,ddd) COLUMNS 'astock' (ddd) HEADER nameBalancer(ddd) BACKGROUND backgroundBalance(sh),
                        prevCurrentBalance(ar,sh)
     FILTERS                     isParent(skg, ar)
+    
+    PROPERTIES(sg) importArticleXLS FORCE PANEL TODRAW ar TOOLBAR
 
     FILTERGROUP filterArticle
         FILTER 'В акции' in(sg, ar) 'F10'                        
