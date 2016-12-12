@@ -162,6 +162,8 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
 
                     IntegrationService integrationService = new IntegrationService(context.getSession(), new ImportTable(fields, data), keys, properties);
                     integrationService.synchronize(true, false);
+
+                    findProperty("imported[Declaration]").change(true, context.getSession(), declarationObject);
                 }
             }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | JDOMException e) {
