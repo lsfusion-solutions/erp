@@ -574,15 +574,15 @@ META extendFormFilterRoleAccessNS(object, concrete, form, NS)
 END
 
 META defineDocumentOperationRole(object, objectClass)
-    operation(###object o) <- defaultOperation(currentUser()) IF countOperations(currentUser()) == 1
-        WHEN SET(o IS objectClass);
+    @defineDocumentOperationRolePrefix(object, objectClass, );
 END
 META defineDocumentOperationRole(object)
     @defineDocumentOperationRole(object, ###object);
 END
 META defineDocumentOperationRolePrefix(object, objectClass, prefix)
-    operation(###object o) <- defaultOperation(currentUser()) IF countOperations(currentUser()) == 1
-        WHEN SET(o IS objectClass);
+    WHEN SESSION SET(###object o IS objectClass) AND countOperations(currentUser()) == 1 DO {
+        operation(o) <- defaultOperation(currentUser());
+    }
 END
 META defineDocumentOperationRolePrefix(object, prefix)
     @defineDocumentOperationRolePrefix(object, ###object, prefix);
