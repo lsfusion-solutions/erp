@@ -12,11 +12,15 @@ TABLE userAPriceListDetail (UserAPriceListDetail);
 @defineDocumentRelation(userPriceList, UserAPriceListDetail, 'Строка прайса (артикул)');
 
 @defineDocumentDetailIndex(userPriceList, UserAPriceListDetail);
+@defineDocumentDetailPosted(userPriceList, UserAPriceListDetail);
+
+@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, from, 'с ');
+@defineDocumentDetailDataTimePrefix(userPriceList, UserAPriceListDetail, to, 'по ');
 
 article 'Артикул' = DATA Article (UserAPriceListDetail);
 idArticle 'Код' (UserAPriceListDetail d) = id(article(d));
 captionArticle 'Наименование' (UserAPriceListDetail d) = caption(article(d));
-
+nameBrandArticle 'Бренд' (UserAPriceListDetail d) = nameBrand(article(d));
 // Цены
 price 'Цена (новая)' = DATA NUMERIC[16,4] (UserAPriceListDetail, DataPriceListType); //annotation не нужен, делим скриптом с учетом валюты вида цен
 
@@ -31,10 +35,23 @@ priceList (APriceListDetail d) += userPriceList(userAPriceListDetail(d));
 sku (APriceListDetail d) += item(d);
 price(APriceListDetail d, DataPriceListType t) += price(userAPriceListDetail(d), t);
 
+// Действующие цены
+
+priceB 'Цена' (DataPriceListType type, Article article, DATETIME dateTime) =
+    GROUP LAST price(UserAPriceListDetail detail, DataPriceListType type)
+          BY type, article(detail), DATETIME dateTimeIn
+          ORDER fromDateTime(detail), detail
+          WHERE isPosted(detail) AND
+                fromDateTime(detail) < dateTimeIn AND NOT toDateTime(detail) < dateTimeIn COMPLEX;
+
+priceB 'Цена до' (UserAPriceListDetail d, DataPriceListType t) = priceB(t, article(d), fromDateTime(d));
+
+
 EXTEND FORM userPriceList
     OBJECTS ad = UserAPriceListDetail
-    PROPERTIES(ad) index, idArticle, captionArticle
+    PROPERTIES(ad) index, idArticle, captionArticle, nameBrandArticle
     PROPERTIES(ad, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
+    PROPERTIES(ad, to) READONLY priceB COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) TODRAW ad FORCE GRID
     PROPERTIES(ad) ADDOBJ, DELETESESSION
     FILTERS userPriceList(ad) == p
 ;
