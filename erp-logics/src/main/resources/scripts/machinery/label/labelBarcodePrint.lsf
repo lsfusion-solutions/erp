@@ -1,10 +1,10 @@
 MODULE LabelBarcodePrint;
 
-REQUIRE Label;
+REQUIRE Label, PurchaseShipmentLabel;
 
 NAMESPACE Label;
 
-FORM labelBarcodePrint 'Печать ценников по штрих-коду'
+FORM labelBarcodePrint 'Печать ценников'
     OBJECTS dt = LabelTransactionDetail LAST 
 ;
 
@@ -53,13 +53,123 @@ EXTEND FORM labelBarcodePrint
 ;
 @extendFormFilterStockAccess(d, labelBarcodePrint);
 
-DESIGN labelBarcodePrint {
-    NEW header {
-        type = CONTAINERH ;
-        MOVE PROPERTY(barcode) { caption = 'Ввести штрихкод'; panelCaptionAbove = TRUE; focusable = FALSE;  font = 'bold 22'; editKey = 'F4'; }
-        MOVE d.box;
+select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Purchase.InvoiceDetail);
+
+createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.Invoice invoice) = ACTION NEWSESSION {        
+    
+    IF isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()) THEN {
+        CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
     }
-    MOVE dt.box;
+    IF is(invoice) AND (confirmed() OR NOT (isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()))) THEN { 
+        LOCAL in = BOOLEAN (Sku);
+        IF [=GROUP SUM 1 IF select(Purchase.InvoiceDetail detail) BY invoice(detail)](invoice) THEN {
+            FOR select(Purchase.InvoiceDetail detail) AND invoice(detail) DO {
+                in(Sku sku) <- TRUE IF select(detail) AND sku(detail) == sku;        
+            }
+        } ELSE  {
+            in(Sku sku) <- TRUE IF countInvoiceDetail(sku, invoice);        
+        } 
+    
+        // бежим по всем типам ценников из управленческих параметров
+        // для каждого создаем по операции печати ценников
+        FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, customerStock(invoice)))
+            ADDOBJ t = LabelTransaction DO {
+                departmentStore(t) <- customerStock(invoice);
+                priceTransactionDocument(t) <- invoice;
+                labelType(t) <- labelType;
+                
+                FOR invoice(Purchase.InvoiceDetail dd) == invoice AND 
+                    in(Sku sku) AND sku == sku(dd) AND 
+                    in(labelType, sku, customerStock(invoice)) AND 
+                    PriceListType pt == overPriceListType(t) NOINLINE (pt)
+                    ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransaction(d) <- t;
+                        sku(d) <- sku;
+                        batch(d) <- overBatch(dd) WHERE explicitBatchLedger(departmentStore(t));
+    
+                        name(d) <- IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d));
+                        createAttribute(d);
+    
+                        quantity(d) <- IF include(labelType, sku(d))
+                                                                THEN INTEGER(shipmentQuantity(dd))
+                                                                ELSE count(labelType, sku(d));
+    
+                        price(d) <- calcPrice(pt, d);
+                        retailPrice(d) <- overRetailPrice(d);
+                        createAttribute(dd, d);
+                }
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+                DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                print(t);
+        }
+        printed(invoice) <- TRUE WHERE isPosted(invoice);
+    }
+    
+    apply();
+} TOOLBAR CONFIRM;
+
+createSaleLabelTransactionMothercare 'Распечатать ценники' (Purchase.Invoice invoice) = ACTION {
+    createInvoiceLabelTransaction(invoice);
+    select(Purchase.InvoiceDetail detail) <- NULL WHERE invoice(detail)==invoice;
+} TOOLBAR;
+
+EXTEND FORM labelBarcodePrint
+
+    OBJECTS date = DATE FIXED PANEL
+    PROPERTIES(date) date = OBJVALUE
+
+    OBJECTS i = Purchase.Invoice
+    PROPERTIES (i) READONLY isPosted, statusLabel  BACKGROUND backgroundPrintLabelTransaction(i), number, 
+                   series, date, nameSupplier, nameSupplierStock, nameCustomer,
+                   nameCustomerStock, nameCurrency, countInvoiceDetail, quantityInvoiceDetail, 
+                   sumInvoiceDetail, VATSumInvoiceDetail, invoiceSumInvoiceDetail, note  
+
+    PROPERTIES(i)  createInvoiceLabelTransaction FORCE PANEL SHOWIF showToPrintLabelTransaction(i),
+                   createSnapshotLabelTransaction FORCE PANEL                                                      
+
+    FILTERS isPosted(i),
+            isCompany(customerStock(i)),
+            isCompany(supplierStock(i)),
+            isCompany(customer(i)),
+            isCompany(supplier(i))
+
+    FILTERGROUP filters0
+        FILTER 'Не распечатаны' showToPrintLabelTransaction(i) 'F11' DEFAULT            
+
+    OBJECTS id = Purchase.InvoiceDetail
+    PROPERTIES (id) select
+    PROPERTIES (id) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (id) READONLY quantity, price, sum,
+                   valueVAT, VATSum, invoiceSum        
+    FILTERS invoice(id)==i
+;    
+
+DESIGN labelBarcodePrint {
+    NEW headTab {
+        fill = 1;
+        type = TABBED; 
+        NEW printBarcode {
+            fill = 1;
+            caption = 'Печать по штрих-коду';
+            type = CONTAINERV;
+            NEW headBarcode {
+                type = CONTAINERH;
+                MOVE PROPERTY(barcode) { caption = 'Ввести штрихкод'; panelCaptionAbove = TRUE; focusable = FALSE;  font = 'bold 22'; editKey = 'F4'; } 
+                MOVE d.box;   
+            }
+            NEW detailBarcode {
+                fill = 1;
+                MOVE dt.box;
+            }
+        }
+        NEW printInvoice {
+            fill = 1;
+            type = SPLITV;
+            caption = 'Печать по накладной'; 
+            MOVE i.box;
+            MOVE id.box;   
+        }
+    }
     MOVE functions.box;
 }
 
