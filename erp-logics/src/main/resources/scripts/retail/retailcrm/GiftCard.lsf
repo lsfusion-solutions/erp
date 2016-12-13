@@ -44,7 +44,7 @@ CLASS ABSTRACT SaleGiftCard 'Продажа подарочных сертифи�
 isSold 'Продан' = ABSTRACT BOOLEAN (SaleGiftCard);
 
 sold = GROUP AGGR SaleGiftCard detail
-        BY giftCard(detail) WHERE detail IS SaleGiftCard;
+        BY giftCard(detail) WHERE isSold(detail) PERSISTENT;
 
 isSold 'Продан' (GiftCard g) = isSold(sold(g));
 CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g))
@@ -53,7 +53,7 @@ CONSTRAINT DROPPED (GiftCard g IS GiftCard) AND PREV (isSold(g))
 dateSold 'Дата продажи' (GiftCard g) = DATE (dateTime(sold(g))) PERSISTENT;
 departmentStoreSold 'Где продан' (GiftCard g) = departmentStore(sold(g));
 nameDepartmentStoreSold 'Где продан' (GiftCard g) = nameDepartmentStore(sold(g));
-numberReceiptSold 'Номер чека (продажа)' (GiftCard giftCard) = numberDocument(sold(giftCard));
+numberReceiptSold 'Номер чека (продажа)' (GiftCard g) = numberDocument(sold(g));
 
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, SaleGiftCard;
 TABLE receiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail);
@@ -210,8 +210,18 @@ NAVIGATOR {
 
 @extendFormEditable(giftCards);
 
+CLASS ABSTRACT UseGiftCard 'Гашение подарочных сертификатов' : GiftCardLedger;
+
+used =
+    GROUP AGGR UseGiftCard ledger
+        BY giftCard(ledger) WHERE ledger IS UseGiftCard;
+isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
+dateUsed 'Дата использования'(GiftCard g) = DATE (dateTime(used(g)));
+nameDepartmentStoreUsed 'Где использован' (GiftCard g) = nameDepartmentStore(used(g));
+numberReceiptUsed 'Номер чека (погашение)' (GiftCard g) = numberDocument(used(g));
+
 //использование подарочных сертификатов при оплате
-CLASS PaymentGiftCard : Payment, GiftCardLedger;
+CLASS PaymentGiftCard : Payment, UseGiftCard;
 TABLE paymentGiftCard(PaymentGiftCard);
 
 @defineExternalizable(paymentGiftCard, VARSTRING[100]);
@@ -267,19 +277,8 @@ DESIGN options {
 CONSTRAINT giftCard(PaymentGiftCard p) AND p IS PaymentGiftCard AND NOT (price(giftCard(p)) == sum[Payment](p)) AND NOT allowPartiallyPayGiftCard() 
     MESSAGE 'Сумма оплаты сертификатом должна быть равно цене сертификата';
 
-used (giftCard) =
-    GROUP AGGR PaymentGiftCard payment
-        BY giftCard(payment) WHERE payment IS PaymentGiftCard;
-isUsed 'Погашен' (GiftCard giftCard) = TRUE IF used(giftCard);
-dateUsed 'Дата использования' (GiftCard giftCard) = date(receipt(used(giftCard)));
-
 expireDate 'Дата истечения' (GiftCard giftCard) = sum(dateSold(giftCard), expiryDays(giftCard));
 isExpiredDate 'Истек срок' (GiftCard giftCard) = expireDate(giftCard) < currentDate(); 
-
-nameDepartmentStoreUsed 'Где использован' (GiftCard giftCard) = nameDepartmentStore(receipt(used(giftCard)));
-numberReceiptUsed 'Номер чека (погашение)' (GiftCard giftCard) = number(receipt(used(giftCard)));
-numberZReportUsed 'Номер z-отчета' (GiftCard giftCard) = number(zReport(receipt(used(giftCard))));
-dateZReportUsed 'Дата z-отчета' (GiftCard giftCard) = date(zReport(receipt(used(giftCard))));
 
 EXTEND FORM giftCards
     PROPERTIES(g) READONLYIF isReadonly() BEFORE expiryDays(g) dateUsed, nameDepartmentStoreUsed,
@@ -311,6 +310,12 @@ EXTEND FORM zReports
     PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumGiftCardPayment
     PROPERTIES (z) READONLY  sumReceiptDetailGiftCard
 ;
+
+addGiftCardpayment 'Добавить ПС' (Receipt r) = ACTION FOR ADDOBJ p = PaymentGiftCard DO receipt(p) <- r; 
+
+EXTEND FORM zReport
+    PROPERTIES (b)  addGiftCardpayment TOOLBAR TODRAW p
+    PROPERTIES (p) seriesNumber[GiftCardLedger] FORCE GRID BEFORE del;
 
 overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += ACTION {
     IF detail IS ReceiptGiftCardSaleDetail THEN {

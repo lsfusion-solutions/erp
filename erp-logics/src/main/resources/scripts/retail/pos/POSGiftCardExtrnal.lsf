@@ -1,0 +1,85 @@
+MODULE POSGiftCardExtrnal;
+
+REQUIRE GiftCardExternal, POS;
+
+NAMESPACE POS;
+
+
+value 'Номинал' = DATA LOCAL NUMERIC[16,4]();
+
+isReadonlyOk = NOT barcodeInput() OR NOT value(); 
+
+overOk '{action.form.ok}' = ACTION formOk() TOOLBAR EDITKEY 'ctrl ENTER';
+
+changeBarcodeInput() = ACTION {
+    REQUEST VARSTRING[15] INPUT;
+    barcodeInput() <- requestedString();
+    IF barcodeInput() AND value() THEN formOk();
+}
+
+changeValue() = ACTION {
+    REQUEST NUMERIC[16,4] INPUT;
+    value() <- requestedNumeric();
+    IF barcodeInput() AND value() THEN formOk();
+}
+
+
+FORM barcodeInputExternal 'Ввод штрихкода'
+    PROPERTIES() barcodeInput ON CHANGE changeBarcodeInput(), value ON CHANGE changeValue(), overOk READONLYIF isReadonlyOk()
+;
+
+DESIGN barcodeInputExternal{
+    PROPERTY (formOk()){hide = TRUE;};
+    PROPERTY (barcodeInput()) {
+        caption = 'Штрихкод';
+        font = 'bold 64';
+        panelCaptionAbove = TRUE;
+        editKey = 'F4';
+        focusable = TRUE;
+    }
+    PROPERTY (value()){
+        panelCaptionAbove = TRUE;
+        font = 'bold 64';
+    }
+    rightControls{
+        MOVE PROPERTY (overOk());
+    }
+}
+
+allowExternalPaymentGiftCard 'Разрешить гасить внешние сертификаты' = DATA BOOLEAN (GroupCashRegister) IN base;
+EXTEND FORM groupCashRegister
+    PROPERTIES(grc) allowExternalPaymentGiftCard
+;
+allowExternalPaymentGiftCardCurrentCashRegister = allowExternalPaymentGiftCard(groupCashRegister(currentCashRegister())) AND allowPaymentGiftCard();
+
+// Оплата сертификатом
+addPaymentGiftCardExternal 'Оплатить внешним сертификатом'(Receipt receipt) = ACTION {
+    FOR ADDOBJ pg = ExtrnalGiftCard DO {
+        FORM barcodeInputExternal MODAL;
+        IF formResult() == FormResult.ok AND barcodeInput() IS VARSTRING[15] AND 
+           NOT giftCardSeriesNumber(barcodeInput()) THEN {
+            number[GiftCard](pg) <- barcodeInput();
+            price(pg) <- value();
+            receipt(pg) <- receipt;
+            paymentType(pg) <- typePaymentSID('giftcardEx');
+            sum[Payment](pg) <- MIN value(), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
+        } ELSE {
+            DELETE pg;
+            MESSAGE 'Сертификат уже использован';
+        }
+    }
+}
+
+
+EXTEND FORM postReceiptPayment
+    PROPERTIES addPaymentGiftCardExternal(r) TODRAW p FORCE PANEL SHOWIF allowExternalPaymentGiftCardCurrentCashRegister()
+;
+
+DESIGN postReceiptPayment {
+    rightControls{
+        MOVE PROPERTY(addPaymentGiftCardExternal(r)) BEFORE PROPERTY(formOk()){
+            fill = 1;
+            font = 'bold 22';
+        }
+    }
+}

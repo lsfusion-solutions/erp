@@ -1,0 +1,22 @@
+MODULE GiftCardExternal;
+
+REQUIRE GiftCard;
+
+NAMESPACE GiftCard;
+
+
+CLASS ExtrnalGiftCard 'Оплата внешним сертификатом': GiftCard, Payment, SaleGiftCard, UseGiftCard;
+
+overLoadDefaultPaymentTypes() += ACTION {
+    loadDefaultType('Внешний подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcardEx');
+}
+
+//имплемент в GiftCardLedger
+isSold(ExtrnalGiftCard payment) += payment IS ExtrnalGiftCard;
+
+giftCard(ExtrnalGiftCard payment) += payment AS ExtrnalGiftCard;
+dateTime(ExtrnalGiftCard payment) += dateTime(receipt(payment)) IF payment IS ExtrnalGiftCard;
+sum(ExtrnalGiftCard payment) += sum[Payment](payment) IF payment IS ExtrnalGiftCard;
+description(ExtrnalGiftCard payment) += 'Внешний' IF payment IS ExtrnalGiftCard;
+numberDocument(ExtrnalGiftCard payment) += VARSTRING[30](number(receipt(payment))) IF payment IS ExtrnalGiftCard;
+departmentStore(ExtrnalGiftCard payment) += departmentStore(receipt(payment)) IF payment IS ExtrnalGiftCard;
