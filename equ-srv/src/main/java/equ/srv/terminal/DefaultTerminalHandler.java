@@ -159,7 +159,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
                 DataObject priceListTypeObject = ((ConcreteCustomClass) terminalHandlerLM.findClass("SystemLedgerPriceListType")).getDataObject("manufacturingPriceStockPriceListType");
-
+                String prefix = terminalHandlerLM.findProperty("skipPrefix[]").read(session) != null ? "" : "ПС";
                 List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
                 List<TerminalOrder> orderList = EquipmentServer.readTerminalOrderList(session, BL, stockObject);
                 List<TerminalAssortment> assortmentList = EquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
@@ -176,16 +176,16 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 updateGoodsTable(connection, barcodeList);
 
                 createOrderTable(connection);
-                updateOrderTable(connection, orderList);
+                updateOrderTable(connection, orderList, prefix);
 
                 createAssortTable(connection);
-                updateAssortTable(connection, assortmentList);
+                updateAssortTable(connection, assortmentList, prefix);
 
                 createVANTable(connection);
                 updateVANTable(connection, handbookTypeList);
 
                 createANATable(connection);
-                updateANATable(connection, terminalLegalEntityList, customANAList);
+                updateANATable(connection, terminalLegalEntityList, customANAList, prefix);
 
                 createVOPTable(connection);
                 updateVOPTable(connection, terminalDocumentTypeList);
@@ -284,7 +284,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
+    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String prefix) throws SQLException {
         if (!terminalOrderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -293,7 +293,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 statement = connection.prepareStatement(sql);
                 for (TerminalOrder order : terminalOrderList) {
                     if (order.number != null) {
-                        String supplier = order.supplier == null ? "" : ("ПС" + formatValue(order.supplier));
+                        String supplier = order.supplier == null ? "" : (prefix + formatValue(order.supplier));
                         statement.setObject(1, formatValue(order.date));
                         statement.setObject(2, formatValue(order.number));
                         statement.setObject(3,supplier);
@@ -377,7 +377,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateAssortTable(Connection connection, List<TerminalAssortment> terminalAssortmentList) throws SQLException {
+    private void updateAssortTable(Connection connection, List<TerminalAssortment> terminalAssortmentList, String prefix) throws SQLException {
         if (!terminalAssortmentList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -386,7 +386,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 statement = connection.prepareStatement(sql);
                 for (TerminalAssortment assortment : terminalAssortmentList) {
                     if (assortment.idSupplier != null && assortment.idBarcode != null) {
-                        statement.setObject(1, formatValue(("ПС" + assortment.idSupplier)));
+                        statement.setObject(1, formatValue((prefix + assortment.idSupplier)));
                         statement.setObject(2, formatValue(assortment.idBarcode));
                         statement.addBatch();
                     }
@@ -447,7 +447,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateANATable(Connection connection, List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalLegalEntity> customANAList) throws SQLException {
+    private void updateANATable(Connection connection, List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalLegalEntity> customANAList, String prefix) throws SQLException {
         if (!terminalLegalEntityList.isEmpty() || !customANAList.isEmpty()) {
             PreparedStatement statement = null;
             try {
@@ -457,7 +457,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 if (customANAList.isEmpty()) {
                     for (TerminalLegalEntity legalEntity : terminalLegalEntityList) {
                         if (legalEntity.idLegalEntity != null) {
-                            statement.setObject(1, "ПС" + formatValue(legalEntity.idLegalEntity));
+                            statement.setObject(1, prefix + formatValue(legalEntity.idLegalEntity));
                             statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
                             statement.addBatch();
                         }
