@@ -6,13 +6,15 @@ NAMESPACE Purchase;
 
 invoice = DATA Invoice(EOrderDespatchAdvice);
 
+digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) = ACTION {
 
     FOR ADDOBJ i = UserInvoice DO {
     
         invoice(a) <- i;
         fillHeader(i, eOrder(a));
-        number(i) <- number(a);
+        number(i) <- digits(deliveryNoteNumber(a));
+        series(i) <- left(replace(deliveryNoteNumber(a), digits(deliveryNoteNumber(a)), ''), 2);
         
         FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND OrderDetail od == [=GROUP MAX OrderDetail d BY sku(d), order(d)](sku(ad), eOrder(a))
             ORDER ad 
