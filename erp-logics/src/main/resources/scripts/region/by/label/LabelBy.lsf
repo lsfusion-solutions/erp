@@ -1,6 +1,6 @@
 MODULE LabelBy;
 
-REQUIRE Label;
+REQUIRE Label, Item;
 
 NAMESPACE Label;
 
@@ -29,4 +29,23 @@ EXTEND FORM customLabelTransaction PROPERTIES(d) priceRubB, priceKopB, retailPri
 EXTEND FORM labelTransactions 
     PROPERTIES(dt) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB, priceA, retailPriceA, discountPriceA 
     PROPERTIES(dts) READONLY priceRubB, priceKopB, retailPriceRubB, retailPriceKopB, discountPriceRubB, discountPriceKopB, priceA, retailPriceA, discountPriceA
+;
+
+//цена за литр\кг
+
+@defineItemDefaultValue(printFullPrice, 'Печатать цену за килограмм', BOOLEAN);
+
+pricePerKG 'Цена за килограмм' (LabelTransactionDetail d) = round2(price(d) / netWeight(sku(d))) IF printFullPrice(skuGroup(sku(d)));
+priceRubKG 'Рубли (за кг.)' (LabelTransactionDetail d) = trunc(pricePerKG(d));
+priceKopKG 'Копейки (за кг.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubKG(d), round0((pricePerKG(d) (-) priceRubKG(d))*100.0);
+
+pricePerL 'Цена за Литр' (LabelTransactionDetail d) = round2(price(d) / volume(sku(d))) IF printFullPrice(skuGroup(sku(d)));
+priceRubL 'Рубли(за л.)' (LabelTransactionDetail d) = trunc(pricePerL(d));
+priceKopL 'Копейки(за л.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubL(d), round0((pricePerL(d) (-) priceRubL(d))*100.0);
+
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL;
+EXTEND FORM customLabelTransaction PROPERTIES(d) pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL;
+EXTEND FORM labelTransactions 
+    PROPERTIES(dt) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL 
+    PROPERTIES(dts) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL
 ;
