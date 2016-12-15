@@ -1331,17 +1331,17 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
             ImRevMap<Object, KeyExpr> terminalHandbookTypeKeys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(terminalHandbookTypeKeys);
-            String[] names = new String[]{"id", "name", "propertyID", "propertyName"};
-            LCP<?>[] properties = terminalLM.findProperties("id[TerminalHandbookType]", "name[TerminalHandbookType]", "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]");
+            String[] names = new String[]{"exportId", "name", "propertyID", "propertyName"};
+            LCP<?>[] properties = terminalLM.findProperties("exportId[TerminalHandbookType]", "name[TerminalHandbookType]", "canonicalNamePropertyID[TerminalHandbookType]", "canonicalNamePropertyName[TerminalHandbookType]");
             for (int i = 0, propertiesLength = properties.length; i < propertiesLength; i++) {
                 query.addProperty(names[i], properties[i].getExpr(terminalHandbookTypeExpr));
             }
-            query.and(terminalLM.findProperty("id[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
+            query.and(terminalLM.findProperty("exportId[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             query.and(terminalLM.findProperty("canonicalNamePropertyID[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             query.and(terminalLM.findProperty("canonicalNamePropertyName[TerminalHandbookType]").getExpr(terminalHandbookTypeExpr).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
-                String prefix = trim((String) entry.get("id"));
+                String prefix = trim((String) entry.get("exportId"));
                 LCP propertyID = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyID")));
                 LCP propertyName = (LCP<?>) BL.findSafeProperty(trim((String) entry.get("propertyName")));
 

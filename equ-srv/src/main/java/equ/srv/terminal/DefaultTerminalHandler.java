@@ -159,13 +159,13 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
 
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
                 DataObject priceListTypeObject = ((ConcreteCustomClass) terminalHandlerLM.findClass("SystemLedgerPriceListType")).getDataObject("manufacturingPriceStockPriceListType");
-                String prefix = terminalHandlerLM.findProperty("skipPrefix[]").read(session) != null ? "" : "ПС";
+                //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
+                String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
                 List<TerminalOrder> orderList = EquipmentServer.readTerminalOrderList(session, BL, stockObject);
                 List<TerminalAssortment> assortmentList = EquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = EquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);
-                List<TerminalLegalEntity> terminalLegalEntityList = customANAList.isEmpty() ? EquipmentServer.readTerminalLegalEntityList(session, BL) : new ArrayList<TerminalLegalEntity>();
                 List<TerminalDocumentType> terminalDocumentTypeList = EquipmentServer.readTerminalDocumentTypeList(session, BL);
                 file = File.createTempFile("terminalHandler", ".db");
 
@@ -185,7 +185,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 updateVANTable(connection, handbookTypeList);
 
                 createANATable(connection);
-                updateANATable(connection, terminalLegalEntityList, customANAList, prefix);
+                updateANATable(connection, customANAList);
 
                 createVOPTable(connection);
                 updateVOPTable(connection, terminalDocumentTypeList);
@@ -285,7 +285,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String prefix) throws SQLException {
-        if (!terminalOrderList.isEmpty()) {
+        if (!terminalOrderList.isEmpty() && prefix != null) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
@@ -378,7 +378,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
     }
 
     private void updateAssortTable(Connection connection, List<TerminalAssortment> terminalAssortmentList, String prefix) throws SQLException {
-        if (!terminalAssortmentList.isEmpty()) {
+        if (!terminalAssortmentList.isEmpty() && prefix != null) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
@@ -447,28 +447,18 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateANATable(Connection connection, List<TerminalLegalEntity> terminalLegalEntityList, List<TerminalLegalEntity> customANAList, String prefix) throws SQLException {
-        if (!terminalLegalEntityList.isEmpty() || !customANAList.isEmpty()) {
+    private void updateANATable(Connection connection, List<TerminalLegalEntity> customANAList) throws SQLException {
+        if (!customANAList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO ana VALUES(?, ?, '', '', '');";
                 statement = connection.prepareStatement(sql);
-                if (customANAList.isEmpty()) {
-                    for (TerminalLegalEntity legalEntity : terminalLegalEntityList) {
-                        if (legalEntity.idLegalEntity != null) {
-                            statement.setObject(1, prefix + formatValue(legalEntity.idLegalEntity));
-                            statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
-                            statement.addBatch();
-                        }
-                    }
-                } else {
-                    for (TerminalLegalEntity legalEntity : customANAList) {
-                        if (legalEntity.idLegalEntity != null) {
-                            statement.setObject(1, formatValue(legalEntity.idLegalEntity));
-                            statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
-                            statement.addBatch();
-                        }
+                for (TerminalLegalEntity legalEntity : customANAList) {
+                    if (legalEntity.idLegalEntity != null) {
+                        statement.setObject(1, formatValue(legalEntity.idLegalEntity));
+                        statement.setObject(2, formatValue(legalEntity.nameLegalEntity));
+                        statement.addBatch();
                     }
                 }
                 statement.executeBatch();

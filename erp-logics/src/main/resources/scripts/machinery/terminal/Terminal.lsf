@@ -70,15 +70,21 @@ canonicalNamePropertyID 'Свойство ID' (t) = canonicalName(propertyID(t))
 propertyName 'Свойство наименование' = DATA Property (TerminalHandbookType);
 canonicalNamePropertyName 'Свойство наименование' (t) = canonicalName(propertyName(t)) PREFCHARWIDTH 30; 
 
-FORM terminalHandbookType
+useForExport 'Использовать для выгрузки' = DATA BOOLEAN (TerminalHandbookType);
+skipPrefix 'Не выгружать префикс' = DATA BOOLEAN (TerminalHandbookType);
+exportId(TerminalHandbookType t) = IF skipPrefix(t) THEN '' ELSE id(t);
+terminalHandbookType() = GROUP MAX TerminalHandbookType t IF useForExport(t);
+exportId() = exportId(terminalHandbookType());
+
+FORM terminalHandbookType 'Вид справочника ТСД'
     OBJECTS t = TerminalHandbookType FIXED PANEL
-    PROPERTIES(t) name, id, canonicalNamePropertyID, canonicalNamePropertyName
+    PROPERTIES(t) name, id, canonicalNamePropertyID, canonicalNamePropertyName, skipPrefix, useForExport
     EDIT TerminalHandbookType OBJECT t
 ;
 
 FORM terminalHandbookTypes 'Виды справочников ТСД'
     OBJECTS t=TerminalHandbookType FIXED GRID
-    PROPERTIES(t) READONLY name, id, canonicalNamePropertyID, canonicalNamePropertyName
+    PROPERTIES(t) READONLY name, id, canonicalNamePropertyID, canonicalNamePropertyName, skipPrefix, useForExport
     PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     DIALOG TerminalHandbookType OBJECT t
 ;
