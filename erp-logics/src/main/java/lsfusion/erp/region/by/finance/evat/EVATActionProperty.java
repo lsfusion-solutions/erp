@@ -4,6 +4,7 @@ import lsfusion.base.ExceptionUtils;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ConcreteClass;
+import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -121,7 +122,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         resultMessage += String.format("EVAT %s: %s\n", evat, message);
                         try (DataSession session = context.createSession()) {
                             DataObject evatObject = new DataObject(evat, (ConcreteClass) findClass("EVAT"));
-                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(session, status, evat).getValue(), session, evatObject);
+                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, evat).getValue(), session, evatObject);
                             findProperty("result[EVAT]").change(message, session, evatObject);
                             String applyResult = session.applyMessage(context);
                             if (applyResult != null)
@@ -138,7 +139,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private ObjectValue getServerStatusObject(DataSession session, String value, Integer evat) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private ObjectValue getServerStatusObject(String value, Integer evat) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ObjectValue serverStatusObject = null;
         if(value != null) {
             String id = null;
@@ -170,7 +171,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 default:
                     ServerLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", evat, value));
             }
-            serverStatusObject = id == null ? NullValue.instance : findProperty("nameStatic").readClasses(session, new DataObject("EVAT_EVATServerStatus." + id));
+            serverStatusObject = id == null ? NullValue.instance : ((ConcreteCustomClass) findClass("EVAT.EVATServerStatus")).getDataObject(id);
         }
         return serverStatusObject;
     }
