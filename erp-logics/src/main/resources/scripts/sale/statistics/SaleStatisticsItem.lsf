@@ -120,6 +120,31 @@ fill 'Заполнить стат. группу для всех товаров'(
 
 changeBackground = RGB(224, 224, 255);
 
+isLeaf 'Только листья' = DATA LOCAL BOOLEAN ();
+
+FORM statisticGroupsPrint 'Привязка групп'
+    OBJECTS ssc = (ss=Country, c=StatisticGroupType) FIXED PANEL
+
+    TREE skuTree sk = ItemGroup PARENT parent
+    PROPERTIES(sk)  READONLY order, nameSkuGroup1,  nameSkuGroup2, nameSkuGroup3, nameSkuGroup4, nameSkuGroup5, name  
+
+           
+    PROPERTIES READONLY nameStatisticGroup(c,sk),  sidStatisticGroup(c,sk)
+    ORDER BY nameSkuGroup1(sk),  nameSkuGroup2(sk), nameSkuGroup3(sk), nameSkuGroup4(sk), nameSkuGroup5(sk), name(sk)
+    FILTERS (isLeaf(sk) AND isLeaf()) OR (sk IS ItemGroup AND NOT isLeaf())
+    FILTERS  active(sk) 
+;
+
+statisticGroupsPrint 'Привязка групп (xlsx)' (Country ss, StatisticGroupType c) = ACTION {
+    isLeaf() <- NULL;
+    FORM statisticGroupsPrint OBJECTS ss=ss, c=c PRINT XLSX;
+} IMAGE 'print.png' IN print;
+
+statisticGroupsLeafPrint 'Привязка групп (xlsx) только листья' (Country ss, StatisticGroupType c) = ACTION {
+    isLeaf() <- TRUE;
+    FORM statisticGroupsPrint OBJECTS ss=ss, c=c PRINT XLSX;
+} IMAGE 'print.png' IN print;
+
 EXTEND FORM statisticGroups
     TREE skuTree sk = ItemGroup PARENT parent
     PROPERTIES READONLY order(sk), name(sk)     
@@ -136,6 +161,7 @@ EXTEND FORM statisticGroups
     PROPERTIES sid(c,i) ON CHANGE change(c,i)
     FILTERS isParent(sk,i)
     FILTERGROUP inactive1 FILTER 'Активные' active(i) 'F5' DEFAULT
+    PROPERTIES(ss,c) FORCE PANEL TOOLBAR TODRAW sk statisticGroupsPrint, statisticGroupsLeafPrint 
 ;
 DESIGN statisticGroups {
     specification.box {

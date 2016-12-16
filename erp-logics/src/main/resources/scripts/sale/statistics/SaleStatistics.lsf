@@ -1389,6 +1389,42 @@ loadDefaultResidentCountry 'Добавить отеч. производ'(STRING[
 loadDefaultStatisticGroups 'Загрузить стандартные статистические группы и классификатор' () = ACTION ABSTRACT LIST ()  IN loadDefault;
 @implementLoadDefaultData(loadDefaultStatisticGroups);
 
+statisticGroupTypeDefault = DATA LOCAL NESTED StatisticGroupType();
+copy 'Копировать' (StatisticGroupType type) = ACTION NEWSESSION NESTED (statisticGroupTypeDefault){
+    statisticGroupTypeDefault() <- NULL;
+       
+    FOR ADDOBJ t = StatisticGroupType DO {
+        country(t) <- country(type);
+        name(t) <- VARISTRING[100](name(type) +' (копия)');         
+
+        LOCAL prev =  StatisticGroup (StatisticGroup);   
+        LOCAL new =  StatisticGroup (StatisticGroup);   
+
+        prev(StatisticGroup d) <- NULL;
+        new(StatisticGroup d) <- NULL;
+        
+        FOR groupType(StatisticGroup group) == type ADDOBJ g = StatisticGroup DO {
+            groupType(g) <- t;
+            name(g) <- name(group);  
+            sid(g) <- sid(group);     
+            unitMeasure(g) <- unitMeasure(group);
+            conversionFactor(g) <- conversionFactor(group);
+
+            prev(g) <- group;
+            new(group) <- g;
+        }
+        parent(StatisticGroup group) <- new(parent(prev(group))) WHERE groupType(group) == t; 
+        statisticGroupTypeDefault() <- t;
+    }
+    apply();
+    FORM statisticGroups OBJECTS ss = country(statisticGroupTypeDefault()), c = statisticGroupTypeDefault();
+    statisticGroupTypeDefault() <- NULL;
+} TOOLBAR;
+
+EXTEND FORM statisticGroupTypes
+    PROPERTIES (t) copy
+;
+
 NAVIGATOR {
     saleNavigator {
         NEW statisticsNavigator 'Статистика' BEFORE saleMasterData {

@@ -60,6 +60,25 @@ childNumbers 'Строки' (detail) =
     BY parent 
     ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
+changeStatisticGroup(StatisticReportTypeDetail d) = ACTION {
+    REQUEST OBJECT s
+    IF NOT  statisticGroupType(statisticReportType(d)) THEN {
+        FORM statisticGroupDialog DIALOG SHOWDROP;
+    }ELSE {
+        IF statisticGroup(d) THEN {            
+            FORM statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)), s = statisticGroup(d) CONTEXTFILTER s = statisticGroup(d) DIALOG SHOWDROP;       
+        } ELSE {            
+            FORM statisticGroupDialog CONTEXTFILTER c = statisticGroupType(statisticReportType(d)) DIALOG SHOWDROP;       
+        }    
+    }
+    IF formResult() == FormResult.ok THEN {
+        statisticGroup(d) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        statisticGroup(d) <- NULL;
+    }
+}
+
 FORM statisticReportType 'Тип статистического отчета'
 
     OBJECTS r = StatisticReportType FIXED PANEL
@@ -68,8 +87,8 @@ FORM statisticReportType 'Тип статистического отчета'
     PROPERTIES (r) countStatisticReportTypeDetail
 
     OBJECTS d = StatisticReportTypeDetail
-    PROPERTIES (d) index, name, number, nameStatisticGroup,
-                   sidStatisticGroup, nameUOM, round    
+    PROPERTIES (d) index, name, number, nameStatisticGroup ON CHANGE changeStatisticGroup(d),
+                   sidStatisticGroup ON CHANGE changeStatisticGroup(d), nameUOM, round    
     PROPERTIES READONLY childNumbers(d)                
     PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION              
     ORDER BY index(d)
@@ -117,6 +136,32 @@ DESIGN statisticReportType {
     }
 }
 
+copy 'Копировать' (StatisticReportType type) = ACTION NEWSESSION {
+    FOR ADDOBJ r = StatisticReportType DO {
+        name(r) <- VARISTRING[255](name(type)+ ' (копия)');  
+         
+        statisticGroupType (r) <- statisticGroupType (type);        
+        isSumReport (r) <- isSumReport (type);
+        rate (r) <- rate (type);
+        isPositiveReport (r) <- isPositiveReport (type);
+        
+        LOCAL parent =  StatisticReportTypeDetail (StatisticReportTypeDetail);   
+        parent(StatisticReportTypeDetail d) <- NULL;
+                                        
+        FOR statisticReportType(StatisticReportTypeDetail detail) == type ADDOBJ d = StatisticReportTypeDetail DO {
+            statisticReportType(d) <- r;
+            name (d) <- name(detail);
+            nameUOM (d) <- nameUOM(detail);
+            round (d) <- round(detail); 
+            number(d) <- number(detail);
+            statisticGroup  (d) <- statisticGroup(detail);
+            parent(d) <- detail;
+        }
+        in(StatisticReportTypeDetail d, StatisticReportTypeDetail parent) <- in(parent(d), parent(parent)) WHERE statisticReportType(d) == r AND statisticReportType(parent) == r;
+        FORM statisticReportType OBJECTS r = r MANAGESESSION DOCKEDMODAL NOCANCEL;
+    }
+} TOOLBAR ;
+
 FORM statisticReportTypes 'Типы статистических отчетов'
 
     OBJECTS r = StatisticReportType 
@@ -125,7 +170,8 @@ FORM statisticReportTypes 'Типы статистических отчетов'
     PROPERTIES (r) READONLY countStatisticReportTypeDetail
     PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
     PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
-        
+    PROPERTIES (r) copy 
+      
     OBJECTS d = StatisticReportTypeDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
                    sidStatisticGroup, nameUOM, round 
