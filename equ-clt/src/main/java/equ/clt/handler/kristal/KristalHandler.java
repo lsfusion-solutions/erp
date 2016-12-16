@@ -227,11 +227,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     if (!Thread.currentThread().isInterrupted() && item.passScalesItem) {
                                         String messageNumber = (item.description != null ? item.idBarcode : "0");
                                         Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
-                                        Object code = useIdItem ? item.idItem : item.idBarcode;
-                                        String record = "+|" + pluNumber + "|" + code + "|" + weightPrefix + "|" + item.name + "||" +
-                                                (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
-                                                denominateMultiplyType2(item.price, transactionInfo.denominationStage);
-                                        writer.println(record);
+                                        String code = useIdItem ? item.idItem : item.idBarcode;
+                                        if(code.length() <= 5) { //only weight codes
+                                            String record = "+|" + pluNumber + "|" + code + "|" + weightPrefix + "|" + item.name + "||" +
+                                                    (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
+                                                    denominateMultiplyType2(item.price, transactionInfo.denominationStage);
+                                            writer.println(record);
+                                        }
                                     }
                                 }
                                 writer.close();
