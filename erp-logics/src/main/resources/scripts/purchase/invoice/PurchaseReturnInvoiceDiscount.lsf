@@ -9,6 +9,20 @@ NAMESPACE PurchaseReturn;
 
 percReturnDiscount '% отпускной цены поставщика при возврате' = DATA NUMERIC[8,3] (ContractSku, Sku);
 
+EXTEND FORM userContractSku
+    OBJECTS s = Sku
+    PROPERTIES (s) READONLY idBarcode, name, id SHOWIF showIDs()
+    PROPERTIES (c, s) percReturnDiscount
+    FILTERGROUP sku 
+        FILTER 'Заполнен %' percReturnDiscount(c, s)
+;
+
+DESIGN userContractSku {
+    tabContainer{
+        MOVE s.box;
+    }
+}
+
 @defineDocumentInterfaceProperty (invoice, showPercReturnDiscount, '% отпускной цены поставщика при возврате');
 
 percReturnDiscountPrice '% отпускной цены поставщика при возврате' = ABSTRACT NUMERIC[16,4] (InvoiceDetail) PERSISTENT;
