@@ -91,15 +91,17 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 Integer importGroupType = kristalSettings != null ? kristalSettings.getImportGroupType() : null;
                 boolean noRestriction = kristalSettings != null && kristalSettings.getNoRestriction() != null && kristalSettings.getNoRestriction();
 
-                List<String> directoriesList = new ArrayList<>();
+                Map<String, String> directoriesMap = new HashMap<>();
                 for (CashRegisterInfo cashRegisterInfo : transactionInfo.machineryInfoList) {
-                    if ((cashRegisterInfo.port != null) && (!directoriesList.contains(cashRegisterInfo.port.trim())))
-                        directoriesList.add(cashRegisterInfo.port.trim());
-                    if ((cashRegisterInfo.directory != null) && (!directoriesList.contains(cashRegisterInfo.directory.trim())))
-                        directoriesList.add(cashRegisterInfo.directory.trim());
+                    if ((cashRegisterInfo.port != null) && (!directoriesMap.containsKey(cashRegisterInfo.port.trim())))
+                        directoriesMap.put(cashRegisterInfo.port.trim(), cashRegisterInfo.weightCodeGroupCashRegister);
+                    if ((cashRegisterInfo.directory != null) && (!directoriesMap.containsKey(cashRegisterInfo.directory.trim())))
+                        directoriesMap.put(cashRegisterInfo.directory.trim(), cashRegisterInfo.weightCodeGroupCashRegister);
                 }
 
-                for (String directory : directoriesList) {
+                for (Map.Entry<String, String> entry : directoriesMap.entrySet()) {
+                    String directory = entry.getKey();
+                    String weightPrefix = entry.getValue() != null ? entry.getValue() : "22";
 
                     String exchangeDirectory = directory.trim() + (importPrefixPath == null ? "/ImpExp/Import/" : importPrefixPath);
 
@@ -125,7 +127,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                         : importGroupType.equals(3) ? hierarchyItemGroup == null ? "0|0|0|0|0" : makeIdItemGroup(hierarchyItemGroup.subList(0, Math.min(hierarchyItemGroup.size(), 2)), true) : "";
                                 boolean isWeightItem = item.passScalesItem && item.splitItem;
                                 Object code = useIdItem ? item.idItem : item.idBarcode;
-                                String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
                                 String record = "+|" + code + "|" + barcode + "|" + item.name + "|" +
                                         (isWeightItem ? "кг.|" : "ШТ|") + (item.passScalesItem ? "1|" : "0|") +
                                         departmentNumber + "|"/*section*/ + denominateMultiplyType2(item.price, transactionInfo.denominationStage) + "|" + "0|"/*fixprice*/ +
@@ -155,7 +157,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 if (!Thread.currentThread().isInterrupted()) {
                                     //boolean isWeightItem = item.passScalesItem && item.splitItem;
                                     Object code = useIdItem ? item.idItem : item.idBarcode;
-                                    //String barcode = (isWeightItem ? "22" : "") + (item.idBarcode == null ? "" : item.idBarcode);
+                                    //String barcode = (isWeightItem ? weightPrefix : "") + (item.idBarcode == null ? "" : item.idBarcode);
                                     boolean forbid = item.flags != null && ((item.flags & 16) == 0);
                                     String record = (forbid ? "+" : "-") + "|" + code + "|" + code + "|" + "20010101" + "|" + "20210101";
                                     writer.println(record);
@@ -226,7 +228,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                         String messageNumber = (item.description != null ? item.idBarcode : "0");
                                         Object pluNumber = item.pluNumber != null ? item.pluNumber : item.idBarcode;
                                         Object code = useIdItem ? item.idItem : item.idBarcode;
-                                        String record = "+|" + pluNumber + "|" + code + "|" + "22|" + item.name + "||" +
+                                        String record = "+|" + pluNumber + "|" + code + "|" + weightPrefix + "|" + item.name + "||" +
                                                 (item.daysExpiry == null ? "0" : item.daysExpiry) + "|1|"/*GoodLinkToScales*/ + messageNumber + "|" +
                                                 denominateMultiplyType2(item.price, transactionInfo.denominationStage);
                                         writer.println(record);
