@@ -1,8 +1,6 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalvmk;
 
 import com.google.common.base.Throwables;
-import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.logics.DataObject;
@@ -59,12 +57,12 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
                 double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
 
-                String result = (String) context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate,
+                /*String result = (String) */context.requestUserInteraction(new FiscalVMKDisplayTextClientAction(ip, comPort, baudRate,
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum, articleDiscSum, bonusSum, bonusPaid)));
-                if (result != null) {
-                    ServerLoggers.systemLogger.error("FiscalVMKDisplayText Error: " + result);
-                    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
-                }
+                //if (result != null) {
+                //    ServerLoggers.systemLogger.error("FiscalVMKDisplayText Error: " + result);
+                //    context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
+                //}
             }
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
