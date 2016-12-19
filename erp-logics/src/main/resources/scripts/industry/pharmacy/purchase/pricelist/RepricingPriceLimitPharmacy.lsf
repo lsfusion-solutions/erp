@@ -9,13 +9,13 @@ NAMESPACE Repricing;
 @defineDocumentInterfaceProperty (repricing, showLimitPharmacyPrice, 'Предельная надбавка');
 @defineDocumentInterfaceDetailMarkupPrefix (repricing, limitPharmacy, ' предельная');
 
-WHEN SESSION FORMS userRepricing 
-             (CHANGED(manufacturingPrice(UserRepricingDetail detail)) OR
-              CHANGED(sku(detail)) OR CHANGED(date(detail)) OR
-              SET(showLimitPharmacyPrice(detail)))
-             AND showLimitPharmacyPrice(detail) DO {
-    limitPharmacyMarkup[RepricingDetail](detail) <- retailMarkupPharmacy(sku(detail), NUMERIC[16,4](manufacturingPrice(detail)), date(detail));
-}
+//WHEN SESSION FORMS userRepricing 
+//             (CHANGED(manufacturingPrice(UserRepricingDetail detail)) OR
+//              CHANGED(sku(detail)) OR CHANGED(date(detail)) OR
+//              SET(showLimitPharmacyPrice(detail)))
+//             AND showLimitPharmacyPrice(detail) DO {
+//    limitPharmacyMarkup[RepricingDetail](detail) <- retailMarkupPharmacy(sku(detail), NUMERIC[16,4](manufacturingPrice(detail)), date(detail));
+//}
 
 //----------------------------------------------- Операции -----------------------------------------------------//
 
@@ -63,14 +63,18 @@ limitPharmacyPrice (UserRepricingDetail detail) = IF blisterAmount(detail)
     ELSE calcLimitPharmacyPrice(detail);                                                                                                       
 
 WHEN SESSION FORMS userRepricing GOAFTER retailPrice[UserRepricingDetail] 
-            (SETCHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(limitPharmacyMarkup(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
-             showLimitPharmacyPrice(d) AND limitPharmacyPrice(d) < retailPrice(d) DO {
-    retailPrice(d) <- limitPharmacyPrice(d);
-     
-    markup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
-                                                       retailPrice(d),
-                                                       repricingPrice(d),
-                                                       valueVAT(d));
+            (CHANGED(retailPrice(UserRepricingDetail d)) OR CHANGED(manufacturingPrice(d)) OR
+             CHANGED(sku(d)) OR CHANGED(date(d)) OR SET(showLimitPharmacyPrice(d))) AND //  вообще в событии должно быть это условие, но тогда не всегда срабатывает (см. skype с Vitalur за 10.07) 
+             showLimitPharmacyPrice(d) DO {
+    limitPharmacyMarkup[RepricingDetail](d) <- retailMarkupPharmacy(sku(d), NUMERIC[16,4](manufacturingPrice(d)), date(d));         
+    IF limitPharmacyPrice(d) < retailPrice(d) THEN {
+        retailPrice(d) <- limitPharmacyPrice(d);
+         
+        markup(d) <- [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                           retailPrice(d),
+                                                           repricingPrice(d),
+                                                           valueVAT(d));
+    }
 }
 
 
