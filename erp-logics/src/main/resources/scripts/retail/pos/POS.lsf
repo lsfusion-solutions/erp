@@ -114,7 +114,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 
     beforeCalculatePromotions(receipt);
     
-    FOR PromotionGroup promotionGroup IS PromotionGroup DO {
+    FOR PromotionGroup promotionGroup IS PromotionGroup ORDER order (promotionGroup) DO {
 //        LOCAL leftSku = NUMERIC[14,3] (Sku);
 //        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
 
@@ -180,14 +180,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                                                                                                          IF in(PromotionCondition promotionCondition, sku(detail))  
                                                                                                          AND isAppliedPromotion(detail, promotionCondition)
                                                                                                    BY promotionCondition
-                                                                                                   ORDER  price(detail), detail](detail, condition);
+                                                                                                   ORDER leftSum(detail)/quantity(detail), detail](detail, condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- [= PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(ReceiptSaleDetail detail) 
                                                                                                              IF in(PromotionCondition promotionCondition, sku(detail))  
                                                                                                              AND isAppliedPromotion(detail, promotionCondition)
                                                                                                        BY promotionCondition
-                                                                                                       ORDER price(detail), detail](detail, condition);
+                                                                                                       ORDER leftSum(detail)/quantity(detail), detail](detail, condition);
                         }
                     }
                     //-- начиная с самой дорогой
@@ -197,14 +197,14 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                                                                                                          IF in(PromotionCondition promotionCondition, sku(detail))  
                                                                                                          AND isAppliedPromotion(detail, promotionCondition)
                                                                                                    BY promotionCondition
-                                                                                                   ORDER DESC price(detail), detail](detail, condition);
+                                                                                                   ORDER DESC leftSum(detail)/quantity(detail), detail](detail, condition);
                         IF useAllQuantity(promotion) THEN {
                             use (ReceiptSaleDetail detail, PromotionCondition condition) <- [= PARTITION UNGROUP use
                                                                                                        LIMIT leftQuantity(ReceiptSaleDetail detail) 
                                                                                                              IF in(PromotionCondition promotionCondition, sku(detail))  
                                                                                                              AND isAppliedPromotion(detail, promotionCondition)
                                                                                                        BY promotionCondition
-                                                                                                       ORDER DESC price(detail), detail](detail, condition);
+                                                                                                       ORDER DESC leftSum(detail)/quantity(detail), detail](detail, condition);
                         }
                     }                        
                     //-- по позиции в чеке
