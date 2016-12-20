@@ -39,13 +39,17 @@ pricePerKG 'Цена за килограмм' (LabelTransactionDetail d) = round
 priceRubKG 'Рубли (за кг.)' (LabelTransactionDetail d) = trunc(pricePerKG(d));
 priceKopKG 'Копейки (за кг.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubKG(d), round0((pricePerKG(d) (-) priceRubKG(d))*100.0);
 
+pricePerGr 'Цена за 100 грамм' (LabelTransactionDetail d) = round2(price(d) / netWeight(sku(d)) * 10.0 ) IF printFullPrice(skuGroup(sku(d))) AND netWeight(sku(d)) <= 0.25;
+priceRubGr 'Рубли (за 100 г.)' (LabelTransactionDetail d) = trunc(pricePerGr(d));
+priceKopGr 'Копейки (за 100 г.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubGr(d), round0((pricePerGr(d) (-) priceRubGr(d))*100.0);
+
 pricePerL 'Цена за Литр' (LabelTransactionDetail d) = round2(price(d) / volume(sku(d))) IF printFullPrice(skuGroup(sku(d)));
 priceRubL 'Рубли(за л.)' (LabelTransactionDetail d) = trunc(pricePerL(d));
 priceKopL 'Копейки(за л.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubL(d), round0((pricePerL(d) (-) priceRubL(d))*100.0);
 
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL;
-EXTEND FORM customLabelTransaction PROPERTIES(d) pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL;
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr;
+EXTEND FORM customLabelTransaction PROPERTIES(d) pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr;
 EXTEND FORM labelTransactions 
-    PROPERTIES(dt) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL 
-    PROPERTIES(dts) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL
+    PROPERTIES(dt) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr 
+    PROPERTIES(dts) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr
 ;
