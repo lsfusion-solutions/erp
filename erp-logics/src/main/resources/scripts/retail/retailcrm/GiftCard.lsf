@@ -54,6 +54,8 @@ dateSold 'Дата продажи' (GiftCard g) = DATE (dateTime(sold(g))) PERSI
 departmentStoreSold 'Где продан' (GiftCard g) = departmentStore(sold(g));
 nameDepartmentStoreSold 'Где продан' (GiftCard g) = nameDepartmentStore(sold(g));
 numberReceiptSold 'Номер чека (продажа)' (GiftCard g) = numberDocument(sold(g));
+legalEntity = DATA LegalEntity (GiftCard);
+nameLegalEntity 'Эмитент' (GiftCard g) = name(legalEntity(g));   
 
 CLASS ReceiptGiftCardSaleDetail 'Строка продажи сертификата' : ReceiptDetail, SaleGiftCard;
 TABLE receiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail);
@@ -107,6 +109,18 @@ show(ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
 edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);  
 show(ReceiptGiftCardSaleDetail d) += ACTION show(d);  
 
+legalEntityGiftCard = DATA LegalEntity ();
+nameLegalEntityGiftCard 'Эмитент подарочных сертификатов' = name(legalEntityGiftCard()); 
+
+EXTEND FORM options 
+    PROPERTIES() nameLegalEntityGiftCard;
+    
+DESIGN options { 
+    giftCards { 
+        MOVE PROPERTY(nameLegalEntityGiftCard()); 
+    } 
+}
+
 //генерация подарочных сертификатов
 FORM generationGiftCards 'Генерация подарочных сертификатов'
     OBJECTS n=Numerator  FIXED PANEL
@@ -122,7 +136,10 @@ FORM generationGiftCards 'Генерация подарочных сертифи
     PROPERTIES(dt) valueDt = OBJVALUE   
      
     OBJECTS d=INTEGER FIXED PANEL
-    PROPERTIES(d) valueD = OBJVALUE        
+    PROPERTIES(d) valueD = OBJVALUE   
+         
+    OBJECTS l = LegalEntity FIXED PANEL 
+    PROPERTIES(l) SELECTOR name        
     
 ;
 
@@ -135,6 +152,7 @@ DESIGN generationGiftCards {
             MOVE PROPERTY(valuePriceCards) {caption = 'Цена подарочных сертификатов';}
             MOVE PROPERTY(valueDt) {caption = 'Дата';}
             MOVE PROPERTY(valueD) {caption = 'Срок действия (дней)';}            
+            MOVE PROPERTY(name(l)) {caption = 'Эмитент';}            
             
         }
         MOVE functions.box;
@@ -144,7 +162,7 @@ DESIGN generationGiftCards {
 overGenerateGiftCards = ACTION ABSTRACT LIST (GiftCard);
 
 generateGiftCards 'Сгенерировать подарочные сертификаты'() = ACTION {
-    FORM generationGiftCards OBJECTS n=defaultNumeratorGiftCard() MODAL CHECK;
+    FORM generationGiftCards OBJECTS n=defaultNumeratorGiftCard(), l=legalEntityGiftCard() MODAL CHECK;
     IF formResult() == FormResult.ok THEN {
         LOCAL num = INTEGER();
         ASSIGN num() <- 0;
@@ -156,6 +174,7 @@ generateGiftCards 'Сгенерировать подарочные сертиф�
                 price(g) <- chosenNumeric('priceCards');
                 date(g) <- chosenDate('dt');                
                 expiryDays(g) <- chosenInteger('d');
+                legalEntity(g) <- chosenObject('l');    
                 
                 overGenerateGiftCards(g);
                 
@@ -190,7 +209,7 @@ DESIGN giftCard {
 
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
-    PROPERTIES(g) READONLYIF isReadonly() number, series, date, dateSold, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
+    PROPERTIES(g) READONLYIF isReadonly() number, series, date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
     PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 

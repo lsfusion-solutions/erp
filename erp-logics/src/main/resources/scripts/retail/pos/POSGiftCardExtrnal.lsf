@@ -47,18 +47,22 @@ DESIGN barcodeInputExternal{
 }
 
 allowExternalPaymentGiftCard 'Разрешить гасить внешние сертификаты' = DATA BOOLEAN (GroupCashRegister) IN base;
+externalLegalEntityGiftCard = DATA LegalEntity (GroupCashRegister) IN base;
+nameExternalLegalEntityGiftCard 'Внешний эмитент подарочных сертификатов' (GroupCashRegister gr)= name(externalLegalEntityGiftCard(gr));
+
 EXTEND FORM groupCashRegister
-    PROPERTIES(grc) allowExternalPaymentGiftCard
+    PROPERTIES(grc) allowExternalPaymentGiftCard, nameExternalLegalEntityGiftCard
 ;
 allowExternalPaymentGiftCardCurrentCashRegister = allowExternalPaymentGiftCard(groupCashRegister(currentCashRegister())) AND allowPaymentGiftCard();
 
 // Оплата сертификатом
 addPaymentGiftCardExternal 'Оплатить внешним сертификатом'(Receipt receipt) = ACTION {
-    FOR ADDOBJ pg = ExtrnalGiftCard DO {
+    FOR ADDOBJ pg = ExternalGiftCard DO {
         FORM barcodeInputExternal MODAL;
         IF formResult() == FormResult.ok AND barcodeInput() IS VARSTRING[15] AND 
            NOT giftCardSeriesNumber(barcodeInput()) THEN {
             number[GiftCard](pg) <- barcodeInput();
+            legalEntity(pg) <- externalLegalEntityGiftCard(groupCashRegister(currentCashRegister()));
             price(pg) <- value();
             receipt(pg) <- receipt;
             paymentType(pg) <- typePaymentSID('giftcardEx');
