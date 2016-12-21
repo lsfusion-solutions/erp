@@ -838,6 +838,9 @@ FORM scanBarcodeReturnReceipt 'Выбор строки возврата'
                            sum[ReceiptDetail], discountPercent FORCE GRID, discountSum[ReceiptDetail]
     FILTERS departmentStore(r) == d,
             sku(r) == s
+            
+    FILTERGROUP filter
+        FILTER 'Невозвращенные'  quantity[ReceiptDetail](r) (-) quantityReturned(r) > 0.0 DEFAULT             
 ;
 
 DESIGN scanBarcodeReturnReceipt {
@@ -848,6 +851,18 @@ DESIGN scanBarcodeReturnReceipt {
         focusable = FALSE;
     }
 }
+
+forbidNullSaleDetail 'Запретить возврат не по чеку' = DATA BOOLEAN (); 
+
+EXTEND FORM options
+    PROPERTIES () forbidNullSaleDetail
+;
+    
+DESIGN options {
+    pos {
+        MOVE PROPERTY(forbidNullSaleDetail());
+    }    
+}   
 
 scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
     FORM barcodeInput MODAL;
@@ -860,22 +875,26 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
             IF formResult() == FormResult.ok AND chosenObject('r') THEN {
                 createReturn(receipt, chosenObject('r'), barcodeInput());
             } ELSE {
-                FOR ADDOBJ d = ReceiptReturnDetail DO {
-                    receipt(d) <- receipt;
-                    idBarcode(d) <- barcodeInput();
-                    sku(d) <- dialogBarcodeSku();
-                    quantity(d) <- 1.0;
-                    price(d) <- currentPOSPrice(dialogBarcodeSku(), receipt);
-                    VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
-                    focusQuantity(d);
-                    IF explicitBatchLedger(receipt) THEN {
-                        FORM chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d MODAL;
-                        IF formResult() == FormResult.ok THEN {
-                            batch(d) <- chosenObject('bt');
-                            price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
-                        } ELSE
-                            DELETE d;
+                IF NOT forbidNullSaleDetail() THEN {                        
+                    FOR ADDOBJ d = ReceiptReturnDetail DO {
+                        receipt(d) <- receipt;
+                        idBarcode(d) <- barcodeInput();
+                        sku(d) <- dialogBarcodeSku();
+                        quantity(d) <- 1.0;
+                        price(d) <- currentPOSPrice(dialogBarcodeSku(), receipt);
+                        VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
+                        focusQuantity(d);
+                        IF explicitBatchLedger(receipt) THEN {
+                            FORM chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d MODAL;
+                            IF formResult() == FormResult.ok THEN {
+                                batch(d) <- chosenObject('bt');
+                                price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
+                            } ELSE
+                                DELETE d;
+                        }
                     }
+                } ELSE {
+                    MESSAGE 'Выберите чек для возврата';
                 }
             }
         } ELSE
@@ -902,6 +921,8 @@ FORM searchSkuReturnReceipt 'Поиск строки возврата'
                             sum[ReceiptDetail], discountPercent, discountSum[ReceiptDetail]
     PROPERTIES(r) READONLY SHOWIF useBonus() bonusPaid, bonusSum                            
     FILTERS receipt(r) == s
+    FILTERGROUP filter
+        FILTER 'Невозвращенные' quantity[ReceiptDetail](r) (-) quantityReturned(r) > 0.0 DEFAULT           
 ;
 DESIGN searchSkuReturnReceipt {
     preferredSize = (1024, 768);
