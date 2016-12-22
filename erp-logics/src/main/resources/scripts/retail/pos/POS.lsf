@@ -248,8 +248,13 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                 leftQuantity(ReceiptSaleDetail detail) <- leftQuantity(detail) (-) taken(detail);
 //                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
 
-                quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- taken(detail, condition)
-                    WHERE taken(detail, condition);
+                IF useAllQuantity(promotion) THEN
+                    quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- use(detail, condition)
+                        WHERE use(detail, condition)
+                ELSE
+                    quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- taken(detail, condition)
+                        WHERE taken(detail, condition);
+
                 
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
                     CASE WHEN sumReceipt(condition) THEN taken(detail, condition) * (price(detail) (-) sumReceipt(condition) / quantityDiscount (condition))
