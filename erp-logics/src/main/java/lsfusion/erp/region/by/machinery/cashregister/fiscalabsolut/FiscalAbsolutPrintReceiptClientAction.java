@@ -61,7 +61,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                             FiscalAbsolut.cancelReceipt();
                             return error;
                         } else
-                            return FiscalAbsolut.closeReceipt();
+                            FiscalAbsolut.closeReceipt();
                     } else
                         return FiscalAbsolut.getError(false);
                 }
@@ -74,7 +74,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                             FiscalAbsolut.cancelReceipt();
                             return error;
                         } else
-                            return FiscalAbsolut.closeReceipt();
+                            FiscalAbsolut.closeReceipt();
                     } else
                         return FiscalAbsolut.getError(false);
                 }
