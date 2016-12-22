@@ -103,7 +103,6 @@ date 'Дата фискализации кассового аппарата' = D
 ip 'IP кассы' = DATA VARSTRING[100] (CashRegister) IN base;
 comPort 'Порт кассы' = DATA INTEGER (CashRegister) IN base;
 baudRate 'Скорость кассы' = DATA INTEGER (CashRegister) IN base;
-overBaudRate 'Скорость кассы' (CashRegister c) = IF sidModel(groupCashRegister(c)) == 'VMK' THEN OVERRIDE 9600, baudRate(c) ELSE baudRate(c);
 
 disableSales 'Без реализации' = DATA BOOLEAN (CashRegister) IN base;
 countSalesCashRegister 'Кол-во касс (с реализацией)' = GROUP SUM 1 IF NOT disableSales(CashRegister cashRegister) AND NOT inactive(cashRegister) BY departmentStore(cashRegister);
@@ -128,7 +127,7 @@ numberCurrentCashRegister 'Номер кассы' = npp(currentCashRegister());
 sidModelCurrentCashRegister 'Код модели' = sidModel(groupMachinery(currentCashRegister()));
 ipCurrentCashRegister 'IP кассы' = ip(currentCashRegister());
 comPortCurrentCashRegister 'Порт кассы' = comPort(currentCashRegister());
-baudRateCurrentCashRegister 'Скорость кассы' = overBaudRate(currentCashRegister());
+baudRateCurrentCashRegister 'Скорость кассы' = baudRate(currentCashRegister());
 nppMachineryCurrentCashRegister 'Номер кассового места' = npp(currentCashRegister());
 operatorNumberCurrentCashRegister (CustomUser user) = operatorNumber(groupCashRegister(currentCashRegister()), user);
 operatorNumberCurrentCashRegisterCurrentUser () = operatorNumberCurrentCashRegister (currentUser());
@@ -150,7 +149,7 @@ changeDirectory(GroupCashRegister group) = ACTION {
 FORM cashRegister 'Касса'
     OBJECTS c=CashRegister FIXED PANEL
     PROPERTIES(c) nameGroupMachinery, npp, shortDescription, description, port, 
-                  ip, comPort, overBaudRate, disableSales, dataDirectory, 
+                  ip, comPort, baudRate, disableSales, dataDirectory, 
                   date, hostnameComputer
     EDIT CashRegister OBJECT c
 ;
@@ -167,7 +166,7 @@ FORM groupCashRegister 'Группа касс'
     OBJECTS c=CashRegister
     PROPERTIES(c)   nameGroupMachinery, npp, shortDescription, description, port SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
                     ip, comPort SHOWIF ignoreCashRegisterServerCashRegisterModel(grc), 
-                    overBaudRate SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
+                    baudRate SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
                     disableSales,
                     dataDirectory SHOWIF ignoreCashRegisterServerCashRegisterModel(grc),
                     date, hostnameComputer, nameLegalEntity, ADDOBJ, DELETESESSION
@@ -189,7 +188,7 @@ FORM groupsCashRegister 'Группы касс'
                      startDate, notDetailed,  pieceCode, weightCode, captionDenominationStage, section
     PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
-    PROPERTIES(c) READONLY npp, shortDescription, description, port, ip, comPort, overBaudRate,
+    PROPERTIES(c) READONLY npp, shortDescription, description, port, ip, comPort, baudRate,
                            disableSales, dataDirectory, date, nameLegalEntity
     FILTERS groupCashRegister(c) == grc
     
