@@ -5,11 +5,15 @@ REQUIRE GiftCard;
 NAMESPACE GiftCard;
 
 
-CLASS ExternalGiftCard 'Оплата внешним сертификатом': GiftCard, Payment, SaleGiftCard, UseGiftCard;
+CLASS ExternalGiftCard 'Оплата внешним сертификатом': GiftCard, PaymentGiftCard, SaleGiftCard;
+
+EXTEND CLASS PaymentMeans { paymentMeansExternalGiftCard 'Подарочный сертификат'};
 
 overLoadDefaultPaymentTypes() += ACTION {
-    loadDefaultType('Внешний подарочный сертификат', PaymentMeans.paymentMeansGiftCard, 'giftcardEx');
+    loadDefaultType('Внешний подарочный сертификат', PaymentMeans.paymentMeansExternalGiftCard, 'giftcardEx');
 }
+
+minExternalGiftCardPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansExternalGiftCard;
 
 //имплемент в GiftCardLedger
 isSold(ExternalGiftCard payment) += payment IS ExternalGiftCard;
