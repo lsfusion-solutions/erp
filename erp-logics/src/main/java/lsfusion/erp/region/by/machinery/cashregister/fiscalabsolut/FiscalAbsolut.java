@@ -380,7 +380,7 @@ public class FiscalAbsolut {
     }
 
     private static int formatAbsPrice(BigDecimal value) {
-        return value == null ? 0 : (int) value.abs().doubleValue() * 100;
+        return value == null ? 0 : (int) (value.abs().doubleValue() * 100);
     }
 
     private static int formatPrice(BigDecimal value) {
