@@ -177,13 +177,16 @@ debt 'Долг по документу на дату' (InContractLedger inContra
 //CONSTRAINT abs(costedInContractLedger(OutContractLedger outContractLedger)) > abs(sum(outContractLedger))
 //    MESSAGE 'Расписанная сумма должна быть равна сумме платежа';
 
+orderDate = ABSTRACT DATETIME (OutContractLedger, InContractLedger);
+overOrderDate (OutContractLedger outLedger, InContractLedger inLedger)= OVERRIDE dateTime(inLedger), orderDate(outLedger, inLedger);
+
 sumInFIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
     PARTITION UNGROUP sum
               LIMIT debt(inContractLedger) IF
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER dateTime(inContractLedger), inContractLedger;
+              ORDER overOrderDate(outContractLedger, inContractLedger), inContractLedger;
 
 sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
     PARTITION UNGROUP sum
@@ -191,7 +194,7 @@ sumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedge
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER DESC dateTime(inContractLedger), inContractLedger;
+              ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
 
 negativeSum 'Обратная сумма' (OutContractLedger outContractLedger) = -sum(outContractLedger);
 negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContractLedger) =
@@ -200,7 +203,7 @@ negativeSumInLIFO (OutContractLedger outContractLedger, InContractLedger inContr
                     contract(outContractLedger) == contract(inContractLedger) AND
                     active(inContractLedger)
               BY outContractLedger
-              ORDER DESC dateTime(inContractLedger), inContractLedger;
+              ORDER DESC overOrderDate(outContractLedger, inContractLedger), inContractLedger;
               
 skipCost = ABSTRACT BOOLEAN (OutContractLedger); 
 writeFIFO 'Расписать по FIFO'(OutContractLedger outContractLedger) = ACTION {
