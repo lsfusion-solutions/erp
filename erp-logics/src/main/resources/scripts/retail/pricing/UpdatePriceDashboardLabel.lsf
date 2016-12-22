@@ -1,0 +1,111 @@
+MODULE UpdatePriceDashboardLabel;
+
+REQUIRE UpdatePriceDashboard, PriceList, PriceListStore;
+
+NAMESPACE PriceList;
+
+
+createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ценники'(DepartmentStore departmentStore,  PriceList priceList, DataPriceListType dpt) = ACTION  {
+    select(Sku s)<- NULL;
+    select(Sku s)<- TRUE WHERE countPriceListDetail(s,priceList);
+    IF countSelectSkus() THEN  NEWSESSION NESTED (select[Sku]) {
+        FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;
+        IF formResult() == FormResult.ok THEN { 
+
+            IF NOT countSelectType() THEN {
+                select(LabelType type) <- TRUE WHERE type == chosenObject('l');
+            }            
+            FOR select(LabelType type) DO {
+                FOR ADDOBJ t = LabelTransaction DO {
+                    departmentStore(t) <- departmentStore;
+                    priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), dpt IF dpt IS DataPriceListType;    
+                    date(t) <- fromDate(priceList);      
+                    time(t) <- fromTime(priceList);
+                    labelType(t) <- type;
+            
+                    FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
+                        labelTransaction(d) <- t;
+                        sku(d) <- sku;
+            
+                        name(d) <- name(sku(d));
+                        documentQuantity(d) <- currentBalance(sku, departmentStore); 
+            
+                        createAttribute(d);                      
+               
+                        price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
+                        retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);   
+                                                                                                                                                                                           
+                        quantity(d) <- IF NOT countLabel(departmentStore) 
+                                                                 THEN (IF include(labelType(d), sku(d)) 
+                                                                    THEN INTEGER(documentQuantity(d))
+                                                                     ELSE count(labelType(d), sku(d)))
+                                                                 ELSE countLabel(departmentStore);                                                                                                                                                                                              
+                                                                                                                                                                                           
+                    }
+                    
+                    IF change(departmentStore) THEN {
+                        FORM customLabelTransaction OBJECTS l = t MODAL;
+                        IF formResult() == FormResult.ok THEN {    
+                            print(t);
+                        } ELSE {
+                            cancel();
+                        }             
+                    } ELSE {
+                        print(t);
+                    }
+                }
+            }                     
+        }                 
+        apply();
+    }
+} TOOLBAR;
+
+EXTEND FORM updatePriceDashboard
+    OBJECTS pt = DataPriceListType FIXED PANEL 
+    PROPERTIES (pt) SELECTOR name
+    
+    OBJECTS psc = PriceList LAST
+    PROPERTIES(psc) READONLY BACKGROUND background(psc)
+           isPosted FORCE GRID, number, series, date, time,
+           fromDate, fromTime, toDate, toTime, countPriceListDetail,
+           nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
+           note
+    FILTERS in(psc,d),
+            in(psc,pt)
+    FILTERGROUP inactivePriceList
+        FILTER 'Текущие' isActive(psc) 'F11'            
+        FILTER 'Активные' isActive(psc) OR (fromDateTime(psc) > currentDateTime()) 'F10' DEFAULT        
+            
+    OBJECTS t = DataPriceListType FIXED GRID
+
+    OBJECTS dd = PriceListDetail
+    PROPERTIES(dd) READONLY BACKGROUND background(dd) index, idBarcodeSku, idSku SHOWIF showIDs(),nameSku,
+                           shortNameUOMSku, nameBatch, nameCompany
+    PROPERTIES(dd) READONLY AFTER nameSku(dd) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(psc), originalNameSku SHOWIF showOriginalNameSku(psc)
+    
+    ORDER BY index(dd)
+
+    PROPERTIES(dd, t) READONLY BACKGROUND background(dd) price COLUMNS (t) HEADER name(t)
+    FILTERS priceList(dd) == psc,
+            in(psc, t)
+    
+    PROPERTIES (d,psc,pt)  createSnapshotUpdateLabelTransactionDepartmentStore     
+;
+DESIGN updatePriceDashboard {
+    pane{
+
+        NEW psc {
+            caption = 'Печать ценников';
+            fill = 1;
+            type = CONTAINERV;
+            MOVE pt.box;
+            NEW spec {
+                fill = 1;
+                type = SPLITV ;
+                MOVE psc.box;   
+                MOVE dd.box;
+            }
+        }
+    }
+}
+
