@@ -61,12 +61,16 @@ addPaymentGiftCardExternal 'Оплатить внешним сертификат
         FORM barcodeInputExternal MODAL;
         IF formResult() == FormResult.ok AND barcodeInput() IS VARSTRING[15] AND 
            NOT giftCardSeriesNumber(barcodeInput()) THEN {
-            number[GiftCard](pg) <- barcodeInput();
+            number(pg) <- barcodeInput();
             legalEntity(pg) <- externalLegalEntityGiftCard(groupCashRegister(currentCashRegister()));
             price(pg) <- value();
-            receipt(pg) <- receipt;
-            paymentType(pg) <- minExternalGiftCardPaymentType();
             sum[Payment](pg) <- MIN value(), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
+            FOR ADDOBJ gp = PaymentGiftCard DO {
+                receipt(gp) <- receipt;
+                paymentType(gp) <- minExternalGiftCardPaymentType();
+                sum[Payment](gp) <- MIN value(), (sumReceiptDetail(receipt) (-) sumGiftCardPayment(receipt));
+                giftCard(gp) <- pg;                                                      
+            }
         } ELSE {
             DELETE pg;
             MESSAGE 'Сертификат уже использован';
