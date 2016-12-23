@@ -176,47 +176,44 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         addStringElement(rootElement, "supplierName", nameSupplier);
         addStringElement(rootElement, "deliveryDateTimeFirst", deliveryDate);
 
-        try (DataSession session = context.createSession()) {
+        KeyExpr eOrderDetailExpr = new KeyExpr("eOrderDetail");
+        ImRevMap<Object, KeyExpr> eOrderDetailKeys = MapFact.singletonRev((Object) "eOrderDetail", eOrderDetailExpr);
 
-            KeyExpr eOrderDetailExpr = new KeyExpr("eOrderDetail");
-            ImRevMap<Object, KeyExpr> eOrderDetailKeys = MapFact.singletonRev((Object) "eOrderDetail", eOrderDetailExpr);
+        QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
 
-            QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
-
-            String[] eOrderDetailNames = new String[]{"idBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
-            LCP<?>[] eOrderDetailProperties = findProperties("idBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
-                    "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
-            for (int j = 0; j < eOrderDetailProperties.length; j++) {
-                eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(eOrderDetailExpr));
-            }
-            eOrderDetailQuery.and(findProperty("idBarcode[EOrderDetail]").getExpr(eOrderDetailExpr).getWhere());
-            eOrderDetailQuery.and(findProperty("order[EOrderDetail]").getExpr(eOrderDetailExpr).compare(eOrderObject.getExpr(), Compare.EQUALS));
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> eOrderDetailResult = eOrderDetailQuery.execute(session);
-
-            for (int i = 0, size = eOrderDetailResult.size(); i < size; i++) {
-                ImMap<Object, Object> entry = eOrderDetailResult.getValue(i);
-
-                String barcode = trim((String) entry.get("idBarcode"));
-                String nameSku = (String) entry.get("nameSku");
-                String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
-                BigDecimal quantity = (BigDecimal) entry.get("quantity");
-                BigDecimal price = (BigDecimal) entry.get("price");
-                BigDecimal valueVAT = (BigDecimal) entry.get("valueVAT");
-
-                Element lineElement = new Element("line");
-                rootElement.addContent(lineElement);
-
-                addStringElement(lineElement, "GTIN", barcode);
-                addStringElement(lineElement, "fullName", nameSku);
-                addBigDecimalElement(lineElement, "quantityOrdered", quantity);
-                addStringElement(lineElement, "measurement", extraCodeUOMSku);
-                addStringElement(lineElement, "priceElement", toStr(price, 2));
-                addStringElement(lineElement, "tax", toStr(valueVAT, 2));
-            }
-
-            addIntegerElement(rootElement, "lineQuantity", eOrderDetailResult.size());
-
+        String[] eOrderDetailNames = new String[]{"idBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
+        LCP<?>[] eOrderDetailProperties = findProperties("idBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
+                "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
+        for (int j = 0; j < eOrderDetailProperties.length; j++) {
+            eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(eOrderDetailExpr));
         }
+        eOrderDetailQuery.and(findProperty("idBarcode[EOrderDetail]").getExpr(eOrderDetailExpr).getWhere());
+        eOrderDetailQuery.and(findProperty("order[EOrderDetail]").getExpr(eOrderDetailExpr).compare(eOrderObject.getExpr(), Compare.EQUALS));
+        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> eOrderDetailResult = eOrderDetailQuery.execute(context);
+
+        for (int i = 0, size = eOrderDetailResult.size(); i < size; i++) {
+            ImMap<Object, Object> entry = eOrderDetailResult.getValue(i);
+
+            String barcode = trim((String) entry.get("idBarcode"));
+            String nameSku = (String) entry.get("nameSku");
+            String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
+            BigDecimal quantity = (BigDecimal) entry.get("quantity");
+            BigDecimal price = (BigDecimal) entry.get("price");
+            BigDecimal valueVAT = (BigDecimal) entry.get("valueVAT");
+
+            Element lineElement = new Element("line");
+            rootElement.addContent(lineElement);
+
+            addStringElement(lineElement, "GTIN", barcode);
+            addStringElement(lineElement, "fullName", nameSku);
+            addBigDecimalElement(lineElement, "quantityOrdered", quantity);
+            addStringElement(lineElement, "measurement", extraCodeUOMSku);
+            addStringElement(lineElement, "priceElement", toStr(price, 2));
+            addStringElement(lineElement, "tax", toStr(valueVAT, 2));
+        }
+
+        addIntegerElement(rootElement, "lineQuantity", eOrderDetailResult.size());
+
         String xml = new XMLOutputter().outputString(doc);
         return new String(Base64.encodeBase64(xml.getBytes()));
     }
