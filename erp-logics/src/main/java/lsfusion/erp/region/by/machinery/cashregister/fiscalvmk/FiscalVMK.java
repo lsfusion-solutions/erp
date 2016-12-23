@@ -109,7 +109,9 @@ public class FiscalVMK {
         vmkDLL.vmk.vmk_errorstring(lastError, lastErrorText, length);
         if (closePort)
             closePort();
-        return Native.toString(lastErrorText, "cp1251");
+        String error = Native.toString(lastErrorText, "cp1251");
+        logger.info(String.format("Ошибка %s: %s", lastError, error));
+        return error;
     }
 
     public static void openPort(String ip, int comPort, int baudRate) {
