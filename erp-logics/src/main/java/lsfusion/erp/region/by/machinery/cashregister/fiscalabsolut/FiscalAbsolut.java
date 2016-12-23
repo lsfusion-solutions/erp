@@ -71,7 +71,7 @@ public class FiscalAbsolut {
 
         Boolean NacSkd(int id, double sum, double prc);
 
-        Boolean Oplata(int id, int sum, long code);
+        Boolean Oplata(int id, double sum, long code);
 
         Boolean Subtotal();
 
@@ -160,7 +160,7 @@ public class FiscalAbsolut {
     static boolean totalCash(BigDecimal sum) {
         if (sum == null)
             return true;
-        int sumValue = formatPrice(sum);//formatAbsPrice(sum);
+        double sumValue = formatAbsPrice(sum);
         logAction("Oplata", 0, sumValue, 0);
         return absolutDLL.absolut.Oplata(0, sumValue, 0);
     }
@@ -168,21 +168,21 @@ public class FiscalAbsolut {
     static boolean totalCard(BigDecimal sum) {
         if (sum == null)
             return true;
-        int sumValue = formatAbsPrice(sum);
-        logAction("Oplata", 1, sumValue, 0);
-        return absolutDLL.absolut.Oplata(1, sumValue, 0);
+        double sumValue = formatAbsPrice(sum);
+        logAction("Oplata", 2, sumValue, 0);
+        return absolutDLL.absolut.Oplata(2, sumValue, 0);
     }
 
     static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount) {
         if (sum == null)
             return true;
-        int sumValue = formatPrice(sum);
+        int sumValue = formatAbsPrice(sum);
         if (giftCardAsDiscount) {
             logAction("NacSkd", 4, sumValue, 0);
             return absolutDLL.absolut.NacSkd(4, sumValue, 0);
         } else {
-            logAction("Oplata", 2, Math.abs(sumValue), 0);
-            return absolutDLL.absolut.Oplata(2, Math.abs(sumValue), 0);
+            logAction("Oplata", 1, sumValue, 0); //Не может быть в составе смешанного платежа, выдаёт ошибку
+            return absolutDLL.absolut.Oplata(1, (double) sumValue, 0);
         }
     }
 
@@ -380,11 +380,11 @@ public class FiscalAbsolut {
     }
 
     private static int formatAbsPrice(BigDecimal value) {
-        return value == null ? 0 : (int) (value.abs().doubleValue() * 100);
+        return value == null ? 0 : (value.abs().multiply(new BigDecimal(100)).intValue());
     }
 
     private static int formatPrice(BigDecimal value) {
-        return value == null ? 0 : (int) (value.doubleValue() * 100);
+        return value == null ? 0 : value.multiply(new BigDecimal(100)).intValue();
     }
 
     private static double formatPrice(double value) {

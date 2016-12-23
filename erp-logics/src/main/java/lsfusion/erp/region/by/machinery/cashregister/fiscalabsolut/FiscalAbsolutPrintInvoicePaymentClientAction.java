@@ -38,7 +38,7 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
                 FiscalAbsolut.cancelReceipt();
                 return error;
             } else {
-                return FiscalAbsolut.closeReceipt();
+                FiscalAbsolut.closeReceipt();
             }
         } catch (RuntimeException e) {
             FiscalAbsolut.cancelReceipt();
@@ -46,6 +46,7 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
         } finally {
             FiscalAbsolut.closePort();
         }
+        return null;
     }
 
     private boolean printPayment(BigDecimal sumPayment, Integer typePayment) {

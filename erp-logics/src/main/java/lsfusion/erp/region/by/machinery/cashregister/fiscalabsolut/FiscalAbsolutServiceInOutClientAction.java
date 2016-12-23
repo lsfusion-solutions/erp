@@ -37,7 +37,7 @@ public class FiscalAbsolutServiceInOutClientAction implements ClientAction {
                         FiscalAbsolut.cancelReceipt();
                         return FiscalAbsolut.getError(true);
                     } else {
-                        return FiscalAbsolut.closeReceipt();
+                        FiscalAbsolut.closeReceipt();
                     }
                 } else
                     return FiscalAbsolut.getError(true);
