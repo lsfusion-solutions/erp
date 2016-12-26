@@ -181,7 +181,7 @@ public class FiscalAbsolut {
             logAction("NacSkd", 4, sumValue, 0);
             return absolutDLL.absolut.NacSkd(4, sumValue, 0);
         } else {
-            logAction("Oplata", 1, sumValue, 0); //Не может быть в составе смешанного платежа, выдаёт ошибку
+            logAction("Oplata", 1, sumValue, 0);
             return absolutDLL.absolut.Oplata(1, (double) sumValue, 0);
         }
     }
