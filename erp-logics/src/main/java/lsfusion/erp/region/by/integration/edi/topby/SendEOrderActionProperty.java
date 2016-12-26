@@ -14,11 +14,11 @@ import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.property.CalcProperty;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.session.DataSession;
 import org.apache.commons.codec.binary.Base64;
 import org.apache.http.HttpResponse;
 import org.jdom.Document;
@@ -124,15 +124,8 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                     RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
                     switch (requestResult) {
                         case OK:
-                            String message;
-                            try (DataSession session = context.createSession()) {
-                                findProperty("exported[EOrder]").change(true, session, eOrderObject);
-                                message = session.applyMessage(context);
-                            }
-                            if (message != null) {
-                                ServerLoggers.importLogger.error("SendEOrder: " + message);
-                                context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s: %s", documentNumber, message), "Экспорт"));
-                            }
+                            findProperty("exported[EOrder]").change(true, context, eOrderObject);
+
                             ServerLoggers.importLogger.info(String.format("SendEOrder %s: request succeeded", documentNumber));
                             context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s выгружен", documentNumber), "Экспорт"));
                             break;
@@ -185,10 +178,10 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         LCP<?>[] eOrderDetailProperties = findProperties("idBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
                 "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
         for (int j = 0; j < eOrderDetailProperties.length; j++) {
-            eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(eOrderDetailExpr));
+            eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(context.getModifier(), eOrderDetailExpr));
         }
-        eOrderDetailQuery.and(findProperty("idBarcode[EOrderDetail]").getExpr(eOrderDetailExpr).getWhere());
-        eOrderDetailQuery.and(findProperty("order[EOrderDetail]").getExpr(eOrderDetailExpr).compare(eOrderObject.getExpr(), Compare.EQUALS));
+        eOrderDetailQuery.and(findProperty("idBarcode[EOrderDetail]").getExpr(context.getModifier(), eOrderDetailExpr).getWhere());
+        eOrderDetailQuery.and(findProperty("order[EOrderDetail]").getExpr(context.getModifier(), eOrderDetailExpr).compare(eOrderObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> eOrderDetailResult = eOrderDetailQuery.execute(context);
 
         for (int i = 0, size = eOrderDetailResult.size(); i < size; i++) {
@@ -231,5 +224,14 @@ public class SendEOrderActionProperty extends EDIActionProperty {
             result = df.format(value).replace(",", ".");
         }
         return result;
+    }
+
+    @Override
+    public ImMap<CalcProperty, Boolean> aspectChangeExtProps() {
+        try {
+            return getChangeProps((CalcProperty) findProperty("exported[EOrder]").property);
+        } catch (ScriptingErrorLog.SemanticErrorException e) {
+            return null;
+        }
     }
 }
