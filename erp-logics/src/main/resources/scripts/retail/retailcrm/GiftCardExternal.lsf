@@ -13,7 +13,15 @@ overLoadDefaultPaymentTypes() += ACTION {
     loadDefaultType('Внешний подарочный сертификат', PaymentMeans.paymentMeansExternalGiftCard, 'giftcardEx');
 }
 
+sumExternalGiftCardPayment 'Сумма продаж (внешний сертификат)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansExternalGiftCard BY receipt(payment);
+sumExternalGiftCardPayment 'Сумма продаж (внешний сертификат)' (zReport) = GROUP SUM sumExternalGiftCardPayment(Receipt r) BY zReport(r) IN documentSum;
+
 minExternalGiftCardPaymentType() = GROUP MIN PaymentType paymentType IF paymentMeans(paymentType) == PaymentMeans.paymentMeansExternalGiftCard;
+
+EXTEND FORM zReports
+    PROPERTIES (z) READONLY BEFORE sumNegativeCashPayment(z) sumExternalGiftCardPayment
+    PROPERTIES (b) READONLY AFTER sumCardPayment(b) sumExternalGiftCardPayment    
+;
 
 //имплемент в GiftCardLedger
 isSold(ExternalGiftCard payment) += payment IS ExternalGiftCard;
