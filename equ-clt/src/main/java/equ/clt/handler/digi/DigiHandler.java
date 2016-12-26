@@ -135,7 +135,7 @@ public class DigiHandler extends ScalesHandler {
         bytes.order(ByteOrder.LITTLE_ENDIAN);
 
         // Номер PLU, 4 bytes
-        String plu = item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idItem;
+        String plu = item.pluNumber != null ? String.valueOf(item.pluNumber) : item.idBarcode;
         bytes.put(getHexBytes(fillLeadingZeroes(plu, 8)));
 
         //Длина записи, заполняется в конце
