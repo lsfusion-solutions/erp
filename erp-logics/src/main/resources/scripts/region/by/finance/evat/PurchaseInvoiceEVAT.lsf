@@ -1,20 +1,31 @@
 MODULE PurchaseInvoiceEVAT;
 
-REQUIRE PurchaseInvoice, EVAT, CustomsGroup;
+REQUIRE PurchaseInvoice, EVAT, CustomsGroup, PurchaseDeclaration, InvoiceConsignmentBy;
 
 NAMESPACE Purchase;
 
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
+overCreateEVATPurchaseInvoice = ACTION ABSTRACT LIST (EVATDetail, InvoiceDetail);
+overCreateEVATPurchaseInvoice = ACTION ABSTRACT LIST (EVAT, Invoice);
+skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
+
 createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = ACTION {
-    FOR eVAT(operation(Invoice i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
+    FOR eVAT(operation(Invoice i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) AND NOT skipEVAT(i) ADDOBJ e = EVAT DO {
         status(e) <- EVATStatus.original;
+        legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
+        legalEntityStatusCustomer(e) <- LegalEntityStatus.buyer;
+        declarationSupplier(e) <- VARSTRING[100](number(declaration(i)));
+        
+        shippingAddressSupplier(e) <- VARSTRING[150](addressSupplierStock[Consignment](i));
+        shippingAddressCustomer(e) <- VARSTRING[150](addressCustomerStock[Consignment](i));
         
         date(e) <- date(i);
         
         numberContract (e) <- number(contractSku(i));
         dateContract (e) <- dateFrom(contractSku(i));
         codeDocType (e) <- 603;
+        valueDocType(e) <- VARSTRING[100] ('CMR');;
         blankCodeDoc (e) <- OVERRIDE '402861', blankCodeDoc();
         seriesDoc(e) <- series(i);
         numberDoc(e) <- number(i);
@@ -28,24 +39,28 @@ createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DAT
         customer(e) <- customer(i);
         branchCodeCustomer(e) <- branchCode(customerStock(i));
         
+        overCreateEVATPurchaseInvoice(e,i);
         FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
 
-            name(ed) <- nameSku(id);
+            name(ed) <- VARSTRING[255](OVERRIDE nameSku(id), documentNameSku(id));
             code(ed) <- codeCustomsGroup(defaultCountry(), sku(id));
             shortNameUOM(ed) <- shortNameUOM(sku(id));
             quantity(ed) <- quantity(id); 
-            price(ed) <- price(id);
-            sum(ed) <- sum(id);
+//            price(ed) <- price(id);
+            sum(ed) <- homeSum(id);
             exciseSum(ed) <- 0;
-            vatRate(ed) <- valueVAT(id);
-            vatSum(ed) <- VATSum(id);
-            sumWithVAT(ed) <- invoiceSum(id);
+            vatRate(ed) <- valueVAT(sku(id), date(i));
+//            vatSum(ed) <- declarationVATSum(id);
             
-            IF valueVAT(id) == 0 THEN
-                descriptionType(ed) <- DescriptionType.vatExcemption
-            ELSE
-                descriptionType(ed) <- DescriptionType.deductionInFull;
+            overCreateEVATPurchaseInvoice(ed,id);
+            
+            sumWithVAT(ed) <- sum(ed) (+) vatSum(ed);
+//            
+//            IF valueVAT(id) == 0 THEN
+//                descriptionType(ed) <- DescriptionType.vatExcemption
+//            ELSE
+            descriptionType(ed) <- DescriptionType.deductionInFull;
         } 
     } 
     APPLY {};

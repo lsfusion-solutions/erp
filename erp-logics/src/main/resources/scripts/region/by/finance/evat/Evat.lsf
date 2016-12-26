@@ -53,7 +53,8 @@ CLASS LegalEntityStatus 'Статус' {
     foreignOrganization 'Иностранная организация',
     agent 'Посредник',
     developer 'Заказчик (застройщик)',
-    tornoversOnSalePayer 'Плательщик, передающий обороты по реализации'
+    tornoversOnSalePayer 'Плательщик, передающий обороты по реализации',
+    buyer 'Покупатель'
 }
 
 FORM legalEntityStatuses
@@ -100,8 +101,8 @@ statusServerStatus = DATA EVATServerStatus (EVAT);
 nameServerStatus 'Статус на сервере'(EVAT e) = staticName(statusServerStatus(e));  
 captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(statusServerStatus(e));  
 
-shippingAddressSupplier 'Пункт погрузки' = DATA VARSTRING[150] (EVAT);
-shippingAddressCustomer 'Пункт отгрузки' = DATA VARSTRING[150] (EVAT);
+shippingAddressSupplier 'Пункт отправки' = DATA VARSTRING[150] (EVAT);
+shippingAddressCustomer 'Пункт доставки' = DATA VARSTRING[150] (EVAT);
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
@@ -136,6 +137,19 @@ descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[
 unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
 exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + Time.extractYear(date(e)) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
 
+
+UNPForeign 'УНП (иностр.)' = DATA VARSTRING[50] (LegalEntity) IN doc MINCHARWIDTH 15 PREFCHARWIDTH 20;
+CONSTRAINT sid(country(LegalEntity l)) != '112' AND NOT toShowIndividual(l) AND NOT UNPForeign(l) MESSAGE 'Для организации должен быть задан УНП';
+
+toShowForeign(LegalEntity l) += l IS LegalEntity AND country('112') != country(l) AND NOT toShowIndividual(l);
+EXTEND FORM legalEntity
+    PROPERTIES (l) SHOWIF toShowForeign(l) UNPForeign
+;
+EXTEND FORM legalEntities
+    PROPERTIES (l) READONLY UNPForeign
+;
+
+
 //Поставщик
 supplier 'Поставщик' = DATA LegalEntity(EVAT);
 nameSupplier 'Поставщик' (EVAT evat) = OVERRIDE name(supplier(evat)), fullName(supplier(evat));
@@ -145,11 +159,15 @@ dependentPersonSupplier 'Взаимозависимое лицо' = DATA BOOLEAN
 residentsOfOffshoreSupplier ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
 specialDealGoodsSupplier 'Спец. сделка' = DATA BOOLEAN (EVAT);
 bigCompanySupplier 'Крупный плательщик (поставщик)' = DATA BOOLEAN (EVAT);
-countryCodeSupplier 'Код страны поставщика' (EVAT evat) = sid(country(supplier(evat)));
-unpSupplier 'УНП поставщика' (EVAT evat) = UNP(supplier(evat));
+countryConsignor = DATA Country(EVAT);// страна ввоза
+countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(OVERRIDE country(supplier(evat)), countryConsignor(evat));
+unpSupplier 'УНП поставщика' (EVAT evat) = OVERRIDE UNP(supplier(evat)), UNPForeign(supplier(evat));
 legalEntityStatusSupplier 'Статус поставщика' = DATA LegalEntityStatus (EVAT);
 nameLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticName(legalEntityStatusSupplier(evat));
 captionLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticCaption(legalEntityStatusSupplier(evat));
+
+consignor = DATA VARISTRING[200](EVAT);
+nameConsignor 'Наименование грузоотправителя' (EVAT e) = OVERRIDE nameSupplier(e), consignor(e);
 
 //Получатель.
 noCustomer 'Без покупателя' = DATA BOOLEAN (EVAT);
@@ -159,7 +177,7 @@ nameCustomer 'Получатель' (EVAT evat) = OVERRIDE name(customer(evat)),
 branchCodeCustomer 'Код филиала получателя' = DATA INTEGER (EVAT);
 addressCustomer 'Адрес получателя' (EVAT evat) = address(customer(evat));
 dependentPersonCustomer 'Взаимозависимое лицо' = DATA BOOLEAN (EVAT);
-residentsOfOffshoreCustomer ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
+residentsOfOffshoreCustomer 'Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
 specialDealGoodsCustomer 'Спец. сделка' = DATA BOOLEAN (EVAT);
 bigCompanyCustomer 'Крупный плательщик (получатель)' = DATA BOOLEAN (EVAT);
 countryCodeCustomer 'Код страны получателя' (EVAT evat) = sid(country(customer(evat)));
@@ -210,7 +228,7 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
     PROPERTIES(e) captionStatus, unpSender, number, exportNumber, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
-                  captionLegalEntityStatusSupplier, shippingAddressSupplier, bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
+                  captionLegalEntityStatusSupplier, shippingAddressSupplier, nameConsignor, bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   captionLegalEntityStatusCustomer, shippingAddressCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
                   dateInvoiceVendor, nameSupplier, branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
@@ -222,7 +240,7 @@ FORM evat 'Электронная счёт-фактура'
     PROPERTIES(s) id, UNP, address
     PROPERTIES(c) id, UNP, address
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
+    PROPERTIES(d) name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
     FILTERS s==supplier(e), c==customer(e), evat(d) == e
     EDIT EVAT OBJECT e
 ;
@@ -268,6 +286,7 @@ DESIGN evat {
             MOVE PROPERTY(dateActualExportSupplier(e));
             MOVE PROPERTY(numberTaxesSupplier(e));
             MOVE PROPERTY(dateTaxesSupplier(e));
+            MOVE PROPERTY(nameConsignor(e));
         }
         NEW customer{
             caption = 'Получатель';
@@ -331,7 +350,7 @@ FORM evats 'Электронные счета-фактуры'
     FILTERS date(e) >= dFrom, date(e) <= dTo
      
     OBJECTS d = EVATDetail
-    PROPERTIES(d) READONLY name, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(d) READONLY name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
 
