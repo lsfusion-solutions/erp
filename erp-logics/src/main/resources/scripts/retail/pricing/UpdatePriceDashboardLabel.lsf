@@ -4,10 +4,19 @@ REQUIRE UpdatePriceDashboard, PriceList, PriceListStore;
 
 NAMESPACE PriceList;
 
+select 'Отм.' = DATA LOCAL BOOLEAN (PriceListDetail);
+countSelectPriceListDetail 'Кол-во строк'  = GROUP SUM 1 IF select(PriceListDetail d) BY sku(d), priceList(d);
+countSelectPriceListDetail 'Кол-во строк'  = GROUP SUM 1 IF select(PriceListDetail d) BY priceList(d);
 
 createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ценники'(DepartmentStore departmentStore,  PriceList priceList, DataPriceListType dpt) = ACTION  {
     select(Sku s)<- NULL;
-    select(Sku s)<- TRUE WHERE countPriceListDetail(s,priceList);
+    
+    IF NOT countSelectPriceListDetail(priceList) THEN {
+        select(Sku s)<- TRUE WHERE countPriceListDetail(s,priceList);
+    } ELSE {
+        select(Sku s)<- TRUE WHERE countSelectPriceListDetail(s,priceList);
+    }
+    
     IF countSelectSkus() THEN  NEWSESSION NESTED (select[Sku]) {
         FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;
         IF formResult() == FormResult.ok THEN { 
@@ -56,8 +65,9 @@ createSnapshotUpdateLabelTransactionDepartmentStore 'Перепечатать ц
                 }
             }                     
         }                 
-        apply();
+        apply();        
     }
+    select(PriceListDetail detail) <- NULL;
 } TOOLBAR;
 
 EXTEND FORM updatePriceDashboard
@@ -79,6 +89,7 @@ EXTEND FORM updatePriceDashboard
     OBJECTS t = DataPriceListType FIXED GRID
 
     OBJECTS dd = PriceListDetail
+    PROPERTIES (dd) select
     PROPERTIES(dd) READONLY BACKGROUND background(dd) index, idBarcodeSku, idSku SHOWIF showIDs(),nameSku,
                            shortNameUOMSku, nameBatch, nameCompany
     PROPERTIES(dd) READONLY AFTER nameSku(dd) originalIdBarcodeSku SHOWIF showOriginalIdBarcodeSku(psc), originalNameSku SHOWIF showOriginalNameSku(psc)
