@@ -50,10 +50,12 @@ EXTEND FORM repricings
     PROPERTIES(d) READONLY SHOWIF showLimitPharmacyPrice(p) BEFORE markup(d) limitPharmacyMarkup
 ;
 
+maxOverPrice (UserRepricingDetail detail) = MIN price(detail), manufacturingPrice(detail) * (100 (+) wholesaleMarkupPharmacy(sku(detail), manufacturingPrice(detail), date(detail)))/100;
+
 calcLimitPharmacyPrice (UserRepricingDetail detail) =
                                        round(
                                            [= (A + B*C/100.0)*(100.0 + D)/100.0](
-                                                    price(detail),
+                                                    maxOverPrice(detail),
                                                     manufacturingPrice(detail),
                                                     limitPharmacyMarkup(detail),
                                                     valueVAT(detail)), limitRetailMarkupPharmacyCondition());
