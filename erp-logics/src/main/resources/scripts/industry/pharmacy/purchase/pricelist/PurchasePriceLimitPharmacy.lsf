@@ -40,10 +40,12 @@ EXTEND FORM invoices
 ;
 
 //расчет предельной цены
+maxOverPrice (UserInvoiceDetail detail) = MIN price(detail), manufacturingPrice(detail) * (100 (+) wholesaleMarkupPharmacy(sku(detail), manufacturingPrice(detail), date(detail)))/100;
+
 calcLimitPharmacyPrice (UserInvoiceDetail detail) = 
                                        round(
                                            [= (A + B*C/100.0)*(100.0 + D)/100.0](
-                                                    price(detail),
+                                                    maxOverPrice(detail),
                                                     manufacturingPrice(detail),
                                                     limitPharmacyMarkup(detail),
                                                     valueRetailVAT(detail)), limitRetailMarkupPharmacyCondition());
