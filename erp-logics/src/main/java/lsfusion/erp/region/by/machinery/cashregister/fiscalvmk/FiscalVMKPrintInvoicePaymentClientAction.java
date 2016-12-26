@@ -34,26 +34,28 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
     
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        try {
-            FiscalVMK.init();
+        synchronized (FiscalVMK.lock) {
+            try {
+                FiscalVMK.init();
 
-            FiscalVMK.openPort(ip, comPort, baudRate);
-            FiscalVMK.opensmIfClose();
+                FiscalVMK.openPort(ip, comPort, baudRate);
+                FiscalVMK.opensmIfClose();
 
-            Integer numberReceipt = printPayment(sumPayment, typePayment, denominationStage);
-            
-            if (numberReceipt == null) {
-                String error = FiscalVMK.getError(false);
+                Integer numberReceipt = printPayment(sumPayment, typePayment, denominationStage);
+
+                if (numberReceipt == null) {
+                    String error = FiscalVMK.getError(false);
+                    FiscalVMK.cancelReceipt();
+                    return error;
+                }
+
+                FiscalVMK.closePort();
+
+                return null;
+            } catch (RuntimeException e) {
                 FiscalVMK.cancelReceipt();
-                return error;
+                return FiscalVMK.getError(true);
             }
-            
-            FiscalVMK.closePort();
-
-            return null;
-        } catch (RuntimeException e) {
-            FiscalVMK.cancelReceipt();
-            return FiscalVMK.getError(true);
         }
     }
 

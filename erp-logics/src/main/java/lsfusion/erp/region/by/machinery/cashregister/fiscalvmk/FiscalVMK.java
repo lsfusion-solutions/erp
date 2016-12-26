@@ -19,20 +19,21 @@ import static lsfusion.base.BaseUtils.trimToEmpty;
 
 public class FiscalVMK {
 
+    public static final Object lock = new Object();
     static Logger logger;
     static {
         try {
             logger = Logger.getLogger("cashRegisterLog");
             logger.setLevel(Level.INFO);
             FileAppender fileAppender = new FileAppender(new EnhancedPatternLayout("%d{DATE} %5p %c{1} - %m%n%throwable{1000}"),
-                    "logs/cashregister.log");   
+                    "logs/cashregister.log");
             logger.removeAllAppenders();
             logger.addAppender(fileAppender);
-            
+
         } catch (Exception ignored) {
         }
     }
-    
+
     public interface vmkDLL extends Library {
 
         vmkDLL vmk = (vmkDLL) Native.loadLibrary("vmkd", vmkDLL.class);
@@ -115,33 +116,38 @@ public class FiscalVMK {
     }
 
     public static void openPort(String ip, int comPort, int baudRate) {
-        logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
-        if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
-            checkErrors(true);
+        openPort(ip, comPort, baudRate, 0);
     }
 
-    public static boolean safeOpenPort(final String ip, final int comPort, final int baudRate, final int timeout) {
-        try {
-            final Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable() {
-                @Override
-                public Boolean call() throws Exception {
-                    logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
-                    if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
-                        checkErrors(true);
-                    return true;
-                }
-            });
-
-            boolean result = false;
+    public static boolean openPort(final String ip, final int comPort, final int baudRate, final int timeout) {
+        if (timeout == 0) {
+            logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
+            if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
+                checkErrors(true);
+        } else {
             try {
-                result = future.get(timeout, TimeUnit.MILLISECONDS);
-            } catch (TimeoutException e) {
-                future.cancel(true);
+                final Future<Boolean> future = Executors.newSingleThreadExecutor().submit(new Callable() {
+                    @Override
+                    public Boolean call() throws Exception {
+                        logAction("vmk_open", ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate);
+                        if (!vmkDLL.vmk.vmk_open(ip != null ? ip : ("COM" + comPort), ip != null ? comPort : baudRate))
+                            checkErrors(true);
+                        return true;
+                    }
+                });
+
+                boolean result = false;
+                try {
+                    result = future.get(timeout, TimeUnit.MILLISECONDS);
+                } catch (TimeoutException e) {
+                    future.cancel(true);
+                }
+                return result;
+            } catch (InterruptedException | ExecutionException e) {
+                throw Throwables.propagate(e);
             }
-            return result;
-        } catch (InterruptedException | ExecutionException e) {
-            throw Throwables.propagate(e);
         }
+        return true;
     }
 
     public static void closePort() {
@@ -186,7 +192,7 @@ public class FiscalVMK {
         }
         return true;
         } catch (UnsupportedEncodingException e) {
-            e.printStackTrace(); 
+            e.printStackTrace();
             return false;
         }
     }
@@ -316,7 +322,7 @@ public class FiscalVMK {
             return false;
         }
     }
-    
+
     public static boolean discountItem(ReceiptItem item, String numberDiscountCard, String denominationStage) {
         double discSum = makeDenomination(BigDecimal.valueOf(item.articleDiscSum - item.bonusPaid), denominationStage); //articleDiscSum is negative, bonusPaid is positive
         if (discSum == 0)
@@ -342,7 +348,7 @@ public class FiscalVMK {
             return false;
         }
     }
-    
+
     public static boolean subtotal() {
         logAction("vmk_subtotal");
         if (!vmkDLL.vmk.vmk_subtotal())
@@ -356,7 +362,7 @@ public class FiscalVMK {
         logAction("vmk_ksastat");
         if (!vmkDLL.vmk.vmk_ksastat(rej, stat))
             checkErrors(true);
-        if (!BigInteger.valueOf(stat.getValue()).testBit(15)) {//15 - открыта ли смена 
+        if (!BigInteger.valueOf(stat.getValue()).testBit(15)) {//15 - открыта ли смена
             logAction("vmk_opensmn");
             if (!vmkDLL.vmk.vmk_opensmn())
                 checkErrors(true);

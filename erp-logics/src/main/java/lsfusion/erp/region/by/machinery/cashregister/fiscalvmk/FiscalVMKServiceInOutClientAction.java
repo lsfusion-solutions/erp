@@ -26,23 +26,25 @@ public class FiscalVMKServiceInOutClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        try {
-            FiscalVMK.init();
+        synchronized (FiscalVMK.lock) {
+            try {
 
-            FiscalVMK.openPort(ip, comPort, baudRate);
+                FiscalVMK.init();
 
-            FiscalVMK.opensmIfClose();
+                FiscalVMK.openPort(ip, comPort, baudRate);
 
-            if (!FiscalVMK.inOut(sum, denominationStage))
-                return "Недостаточно наличных в кассе";
-            else {
-                if(!FiscalVMK.openDrawer())
-                    return "Не удалось открыть денежный ящик";
-                FiscalVMK.closePort();
+                FiscalVMK.opensmIfClose();
+
+                if (!FiscalVMK.inOut(sum, denominationStage))
+                    return "Недостаточно наличных в кассе";
+                else {
+                    if (!FiscalVMK.openDrawer())
+                        return "Не удалось открыть денежный ящик";
+                    FiscalVMK.closePort();
+                }
+            } catch (RuntimeException e) {
+                return FiscalVMK.getError(true);
             }
-
-        } catch (RuntimeException e) {
-            return FiscalVMK.getError(true);
         }
         return null;
     }
