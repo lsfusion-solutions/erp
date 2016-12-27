@@ -46,9 +46,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 Class.forName("com.mysql.jdbc.Driver");
 
                 UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
-                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
-                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
                 Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipItems = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipItems() != null && ukm4MySQLSettings.getSkipItems();
@@ -56,23 +53,30 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
 
-                if (connectionString == null) {
-                    processTransactionLogger.error("No importConnectionString in ukm4MySQLSettings found");
-                } else {
-                    Map<Integer, Integer> versionTransactionMap = new HashMap<>();
-                    Integer version = null;
-                    for (TransactionCashRegisterInfo transaction : transactionList) {
+                Map<Integer, Integer> versionTransactionMap = new HashMap<>();
+                Integer version = null;
+                for (TransactionCashRegisterInfo transaction : transactionList) {
 
+                    String directory = null;
+                    for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
+                        if (cashRegister.directory != null) {
+                            directory = cashRegister.directory;
+                        }
+                    }
+                    UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0, ukm4MySQLSettings);
+                    if (params.connectionString == null)
+                        processTransactionLogger.error("No connectionString found");
+                    else {
                         String weightCode = transaction.weightCodeGroupCashRegister;
 
                         String section = null;
                         for (CashRegisterInfo cashRegister : transaction.machineryInfoList) {
-                            if(cashRegister.section != null)
+                            if (cashRegister.section != null)
                                 section = cashRegister.section;
                         }
                         String departmentNumber = getDepartmentNumber(transaction, section);
 
-                        Connection conn = DriverManager.getConnection(connectionString, user, password);
+                        Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
 
                         Exception exception = null;
                         try {
@@ -83,7 +87,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             if (!skipItems) {
                                 version++;
 
-                                if(!skipClassif) {
+                                if (!skipClassif) {
                                     processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table classif", transaction.id));
                                     exportClassif(conn, transaction, version);
                                 }
@@ -133,7 +137,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
 
-                    Connection conn = DriverManager.getConnection(connectionString, user, password);
+                    Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     try {
                         processTransactionLogger.info(String.format("ukm4 mysql: export to table signal %s records", versionTransactionMap.size()));
                         sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, timeout));
@@ -602,116 +606,122 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     @Override
     public void sendStopListInfo(StopListInfo stopListInfo, Set<String> directorySet) throws IOException {
         if (!stopListInfo.exclude) {
-            UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
-            String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
-            String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
-            Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-            timeout = timeout == null ? 300 : timeout;
-            boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
 
-            if (connectionString != null) {
-                Connection conn = null;
-                PreparedStatement ps = null;
-                try {
-                    conn = DriverManager.getConnection(connectionString, user, password);
+            for (String directory : directorySet) {
 
-                    int version = getVersion(conn);
-                    version++;
-                    conn.setAutoCommit(false);
-                    if (!skipBarcodes) {
-                        processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
+                timeout = timeout == null ? 300 : timeout;
+                boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
 
+                UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0, ukm4MySQLSettings);
+                if (params.connectionString != null) {
+                    Connection conn = null;
+                    PreparedStatement ps = null;
+                    try {
+                        conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                        int version = getVersion(conn);
+                        version++;
+                        conn.setAutoCommit(false);
+                        if (!skipBarcodes) {
+                            processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_var");
+
+                            ps = conn.prepareStatement(
+                                    "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+                            for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
+                                if (item.idBarcode != null) {
+                                    for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
+                                        ps.setInt(1, nppGroupMachinery); //pricelist
+                                        ps.setString(2, item.idBarcode); //var
+                                        ps.setBigDecimal(3, BigDecimal.ZERO); //price
+                                        ps.setInt(4, version); //version
+                                        ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
+                                        ps.addBatch();
+                                    }
+                                }
+                            }
+                            ps.executeBatch();
+                            conn.commit();
+                        }
+
+                        processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
                         ps = conn.prepareStatement(
-                                "INSERT INTO pricelist_var (pricelist, var, price, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE price=VALUES(price), deleted=VALUES(deleted)");
+                                "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
+                                        "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
+
                         for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                            if (item.idBarcode != null) {
+                            if (item.idItem != null) {
                                 for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
                                     ps.setInt(1, nppGroupMachinery); //pricelist
-                                    ps.setString(2, item.idBarcode); //var
+                                    ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
                                     ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                                    ps.setInt(4, version); //version
-                                    ps.setInt(5, stopListInfo.exclude ? 0 : 1); //deleted
+                                    ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
+                                    ps.setInt(5, version); //version
+                                    ps.setInt(6, 1); //deleted
                                     ps.addBatch();
                                 }
                             }
                         }
                         ps.executeBatch();
                         conn.commit();
-                    }
 
-                    processStopListLogger.info("ukm4 mysql: executing stopLists, table pricelist_items");
-                    ps = conn.prepareStatement(
-                            "INSERT INTO pricelist_items (pricelist, item, price, minprice, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
-                                    "ON DUPLICATE KEY UPDATE price=VALUES(price), minprice=VALUES(minprice), deleted=VALUES(deleted)");
+                        processStopListLogger.info("ukm4 mysql: executing stopLists, table signal");
+                        exportSignals(conn, null, version, true, timeout, true);
 
-                    for (ItemInfo item : stopListInfo.stopListItemMap.values()) {
-                        if (item.idItem != null) {
-                            for (Integer nppGroupMachinery : stopListInfo.inGroupMachineryItemMap.keySet()) {
-                                ps.setInt(1, nppGroupMachinery); //pricelist
-                                ps.setString(2, HandlerUtils.trim(item.idItem, "", 40)); //item
-                                ps.setBigDecimal(3, BigDecimal.ZERO); //price
-                                ps.setBigDecimal(4, BigDecimal.ZERO); //minprice
-                                ps.setInt(5, version); //version
-                                ps.setInt(6, 1); //deleted
-                                ps.addBatch();
-                            }
-                        }
-                    }
-                    ps.executeBatch();
-                    conn.commit();
-
-                    processStopListLogger.info("ukm4 mysql: executing stopLists, table signal");
-                    exportSignals(conn, null, version, true, timeout, true);
-
-                } catch (SQLException e) {
-                    processStopListLogger.error("ukm4 mysql:", e);
-                    e.printStackTrace();
-                } finally {
-                    try {
-                        if (ps != null)
-                            ps.close();
-                        if (conn != null)
-                            conn.close();
                     } catch (SQLException e) {
                         processStopListLogger.error("ukm4 mysql:", e);
+                        e.printStackTrace();
+                    } finally {
+                        try {
+                            if (ps != null)
+                                ps.close();
+                            if (conn != null)
+                                conn.close();
+                        } catch (SQLException e) {
+                            processStopListLogger.error("ukm4 mysql:", e);
+                        }
                     }
                 }
+
             }
         }
     }
 
     @Override
     public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
-        try {
-            if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
-                Class.forName("com.mysql.jdbc.Driver");
 
-                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
-                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
-                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
-                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-                timeout = timeout == null ? 300 : timeout;
+        //todo: Для того, чтобы deleteBarcode заработал, надо передать directory, из которого мы получаем connectionString
 
-                if (connectionString == null) {
-                    deleteBarcodeLogger.error("No importConnectionString in ukm4MySQLSettings found");
-                } else {
-                    try (Connection conn = DriverManager.getConnection(connectionString, user, password)) {
-                        conn.setAutoCommit(false);
-                        Integer version = getVersion(conn) + 1;
-
-                        deleteBarcodeLogger.info("ukm4 mysql: deleteBarcode, table var");
-                        exportVarDeleteBarcode(conn, deleteBarcodeInfo.barcodeList, version);
-
-                        processTransactionLogger.info("ukm4 mysql: deleteBarcode, table signal");
-                        exportSignals(conn, null, version, false, timeout, true);
-                    }
-                }
-            }
-        } catch (ClassNotFoundException | SQLException e) {
-            throw Throwables.propagate(e);
-        }
+//        try {
+//            if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
+//                Class.forName("com.mysql.jdbc.Driver");
+//
+//                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+//                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
+//                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
+//                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
+//                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
+//                timeout = timeout == null ? 300 : timeout;
+//
+//                if (connectionString == null) {
+//                    deleteBarcodeLogger.error("No importConnectionString in ukm4MySQLSettings found");
+//                } else {
+//                    try (Connection conn = DriverManager.getConnection(connectionString, user, password)) {
+//                        conn.setAutoCommit(false);
+//                        Integer version = getVersion(conn) + 1;
+//
+//                        deleteBarcodeLogger.info("ukm4 mysql: deleteBarcode, table var");
+//                        exportVarDeleteBarcode(conn, deleteBarcodeInfo.barcodeList, version);
+//
+//                        processTransactionLogger.info("ukm4 mysql: deleteBarcode, table signal");
+//                        exportSignals(conn, null, version, false, timeout, true);
+//                    }
+//                }
+//            }
+//        } catch (ClassNotFoundException | SQLException e) {
+//            throw Throwables.propagate(e);
+//        }
     }
 
     @Override
@@ -736,25 +746,24 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             Class.forName("com.mysql.jdbc.Driver");
 
             UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-            String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
-            String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
-            String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
             Set<Integer> cashPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCashPayments());
             Set<Integer> cardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getCardPayments());
             Set<Integer> giftCardPayments = ukm4MySQLSettings == null ? new HashSet<Integer>() : parsePayments(ukm4MySQLSettings.getGiftCardPayments());
             boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
             boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
-            if (connectionString == null) {
-                processTransactionLogger.error("No exportConnectionString in ukm4MySQLSettings found");
+            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1, ukm4MySQLSettings);
+            if (params.connectionString == null) {
+                processTransactionLogger.error("No connectionString found");
             } else {
 
                 Connection conn = null;
 
                 try {
-                    conn = DriverManager.getConnection(connectionString, user, password);
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
-                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments, useBarcodeAsId, appendBarcode);
+                    salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments,
+                            useBarcodeAsId, appendBarcode, params.connectionString);
 
                 } finally {
                     if (conn != null)
@@ -859,8 +868,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private UKM4MySQLSalesBatch readSalesInfoFromSQL(Connection conn, String weightCode, Map<Integer, CashRegisterInfo> machineryMap,
                                                      Set<Integer> cashPayments, Set<Integer> cardPayments, Set<Integer> giftCardPayments,
-                                                     boolean useBarcodeAsId, boolean appendBarcode) throws SQLException {
-
+                                                     boolean useBarcodeAsId, boolean appendBarcode, String directory) throws SQLException {
         List<SalesInfo> salesInfoList = new ArrayList<>();
 
         //Map<Integer, String> loginMap = readLoginMap(conn);
@@ -951,64 +959,64 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     statement.close();
             }
         }
-        return new UKM4MySQLSalesBatch(salesInfoList, receiptSet);
+        return new UKM4MySQLSalesBatch(salesInfoList, receiptSet, directory);
     }
 
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
         UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-        String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
-        String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
-        String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
-        if (connectionString != null) {
-            Connection conn = null;
-            Statement statement = null;
-            try {
-                conn = DriverManager.getConnection(connectionString, user, password);
-
-                for (RequestExchange entry : requestExchangeList) {
-                    try {
-                        if (entry.isSalesInfoExchange()) {
-                            String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
-                            Calendar cal = Calendar.getInstance();
-                            cal.setTime(entry.dateTo);
-                            cal.add(Calendar.DATE, 1);
-                            sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
-                            String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
-
-                            String cashIdWhere = null;
-                            if (!entry.cashRegisterSet.isEmpty()) {
-                                cashIdWhere = "AND cash_id IN (";
-                                for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
-                                    cashIdWhere += cashRegister.number == null ? "" : (cashRegister.number + ",");
-                                }
-                                cashIdWhere = cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")";
-                            }
-
-                            statement = conn.createStatement();
-                            String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
-                                    (cashIdWhere == null ? "" : cashIdWhere);
-                            sendSalesLogger.info("UKM4 RequestSalesInfo: " + query);
-                            statement.execute(query);
-                            succeededRequests.add(entry.requestExchange);
-                        }
-                    } catch (SQLException e) {
-                        failedRequests.put(entry.requestExchange, e.getMessage());
-                        e.printStackTrace();
-                    }
-                }
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
+        for(String directory : directorySet) {
+            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1, ukm4MySQLSettings);
+            if (params.connectionString != null) {
+                Connection conn = null;
+                Statement statement = null;
                 try {
-                    if (statement != null)
-                        statement.close();
-                    if (conn != null)
-                        conn.close();
-                } catch (SQLException ignored) {
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                    for (RequestExchange entry : requestExchangeList) {
+                        try {
+                            if (entry.isSalesInfoExchange()) {
+                                String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(entry.dateFrom);
+                                Calendar cal = Calendar.getInstance();
+                                cal.setTime(entry.dateTo);
+                                cal.add(Calendar.DATE, 1);
+                                sendSalesLogger.info("UKM4 RequestSalesInfo: dateTo is " + cal.getTime());
+                                String dateTo = new SimpleDateFormat("yyyy-MM-dd").format(cal.getTime());
+
+                                String cashIdWhere = null;
+                                if (!entry.cashRegisterSet.isEmpty()) {
+                                    cashIdWhere = "AND cash_id IN (";
+                                    for (CashRegisterInfo cashRegister : entry.cashRegisterSet) {
+                                        cashIdWhere += cashRegister.number == null ? "" : (cashRegister.number + ",");
+                                    }
+                                    cashIdWhere = cashIdWhere.substring(0, cashIdWhere.length() - 1) + ")";
+                                }
+
+                                statement = conn.createStatement();
+                                String query = String.format("UPDATE receipt SET ext_processed = 0 WHERE date >= '%s' AND date <= '%s'", dateFrom, dateTo) +
+                                        (cashIdWhere == null ? "" : cashIdWhere);
+                                sendSalesLogger.info("UKM4 RequestSalesInfo: " + query);
+                                statement.execute(query);
+                                succeededRequests.add(entry.requestExchange);
+                            }
+                        } catch (SQLException e) {
+                            failedRequests.put(entry.requestExchange, e.getMessage());
+                            e.printStackTrace();
+                        }
+                    }
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (statement != null)
+                            statement.close();
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException ignored) {
+                    }
                 }
             }
         }
@@ -1018,37 +1026,38 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     public void finishReadingSalesInfo(UKM4MySQLSalesBatch salesBatch) {
 
         UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-        String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getExportConnectionString(); //"jdbc:mysql://172.16.0.35/export_axapta"
-        String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser(); //luxsoft
-        String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword(); //123456
 
-        if (connectionString != null && salesBatch.receiptSet != null) {
+        for(String directory : salesBatch.directorySet) {
 
-            Connection conn = null;
-            PreparedStatement ps = null;
+            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1, ukm4MySQLSettings);
+            if (params.connectionString != null && salesBatch.receiptSet != null) {
 
-            try {
-                conn = DriverManager.getConnection(connectionString, user, password);
+                Connection conn = null;
+                PreparedStatement ps = null;
 
-                conn.setAutoCommit(false);
-                ps = conn.prepareStatement("UPDATE receipt SET ext_processed = 1 WHERE id = ? AND cash_id = ?");
-                for (Pair<Integer, Integer> receiptEntry : salesBatch.receiptSet) {
-                    ps.setInt(1, receiptEntry.first); //id
-                    ps.setInt(2, receiptEntry.second); //cash_id
-                    ps.addBatch();
-                }
-                ps.executeBatch();
-                conn.commit();
-
-            } catch (SQLException e) {
-                e.printStackTrace();
-            } finally {
                 try {
-                    if (ps != null)
-                        ps.close();
-                    if (conn != null)
-                        conn.close();
-                } catch (SQLException ignored) {
+                    conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+
+                    conn.setAutoCommit(false);
+                    ps = conn.prepareStatement("UPDATE receipt SET ext_processed = 1 WHERE id = ? AND cash_id = ?");
+                    for (Pair<Integer, Integer> receiptEntry : salesBatch.receiptSet) {
+                        ps.setInt(1, receiptEntry.first); //id
+                        ps.setInt(2, receiptEntry.second); //cash_id
+                        ps.addBatch();
+                    }
+                    ps.executeBatch();
+                    conn.commit();
+
+                } catch (SQLException e) {
+                    e.printStackTrace();
+                } finally {
+                    try {
+                        if (ps != null)
+                            ps.close();
+                        if (conn != null)
+                            conn.close();
+                    } catch (SQLException ignored) {
+                    }
                 }
             }
         }
