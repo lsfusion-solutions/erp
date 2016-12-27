@@ -45,6 +45,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                 Integer zReportCount = addDeviation((Integer) findProperty("averageZReportCountGenerateZReport[]").read(context), 0.25, r);
                 Integer receiptCount = (Integer) findProperty("averageReceiptCountGenerateZReport[]").read(context);
                 Integer receiptDetailCount = (Integer) findProperty("averageReceiptDetailCountGenerateZReport[]").read(context);
+                ObjectValue stockObject = findProperty("departmentStoreGenerateZReport[]").readClasses(context);
 
                 Date dateFrom = (Date) findProperty("dateFromGenerateZReport[]").read(context);
                 dateFrom = dateFrom == null ? new Date(System.currentTimeMillis()) : dateFrom;
@@ -58,9 +59,13 @@ public class GenerateZReport extends ScriptingActionProperty {
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(newKeys);
                 query.addProperty("currentBalanceSkuStock", findProperty("currentBalance[Sku,Stock]").getExpr(itemExpr, departmentStoreExpr));
                 query.addProperty("priceSkuStock", findProperty("price[Sku,Stock]").getExpr(itemExpr, departmentStoreExpr));
+                query.addProperty("idBarcode", findProperty("idBarcode[Sku]").getExpr(itemExpr));
+                query.addProperty("split", findProperty("split[Sku]").getExpr(itemExpr));
                 query.and(findProperty("currentBalance[Sku,Stock]").getExpr(itemExpr, departmentStoreExpr).getWhere());
                 query.and(findProperty("price[Sku,Stock]").getExpr(itemExpr, departmentStoreExpr).getWhere());
                 query.and(findProperty("idBarcode[Sku]").getExpr(itemExpr, departmentStoreExpr).getWhere());
+                if(stockObject instanceof DataObject)
+                    query.and(departmentStoreExpr.compare((DataObject) stockObject, Compare.EQUALS));
                 ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(session);
 
                 List<ItemZReportInfo> itemZReportInfoList = new ArrayList<>();
@@ -68,73 +73,53 @@ public class GenerateZReport extends ScriptingActionProperty {
                 for (int i = 0, size = result.size(); i < size; i++) {
                     ImMap<Object, DataObject> resultKeys = result.getKey(i);
                     ImMap<Object, ObjectValue> resultValues = result.getValue(i);
-                    DataObject itemObject = resultKeys.get("item");
                     BigDecimal currentBalanceSkuStock = (BigDecimal) resultValues.get("currentBalanceSkuStock").getValue();
                     if (currentBalanceSkuStock.doubleValue() > 0) {
                         DataObject departmentStore = resultKeys.get("departmentStore");
                         if ((departmentStore != null) && (!departmentStoreList.contains(departmentStore)))
                             departmentStoreList.add(departmentStore);
                         BigDecimal priceSkuStock = (BigDecimal) resultValues.get("priceSkuStock").getValue();
-                        String barcodeItem = trim((String) findProperty("idBarcode[Sku]").read(session, itemObject));
-                        Boolean splitItem = (Boolean) findProperty("split[Item]").read(session, itemObject);
-                        itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, splitItem != null, departmentStore));
+                        String barcodeItem = (String) resultValues.get("idBarcode").getValue();
+                        boolean splitItem = resultValues.get("split").getValue() != null;
+                        itemZReportInfoList.add(new ItemZReportInfo(barcodeItem, currentBalanceSkuStock, priceSkuStock, splitItem, departmentStore));
                     }
                 }
 
-                Map<DataObject, DataObject> groupCashRegisterDepartmentStoreMap = new HashMap<>();
-                for (DataObject departmentStore : departmentStoreList) {
+                List<CashRegisterInfo> cashRegisterInfoList = new ArrayList<>();
+                for (DataObject departmentStoreObject : departmentStoreList) {
+                    KeyExpr cashRegisterExpr = new KeyExpr("cashRegister");
 
-                    LCP<PropertyInterface> isGroupCashRegister = (LCP<PropertyInterface>) is(findClass("GroupCashRegister"));
+                    ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "cashRegister", cashRegisterExpr);
+                    QueryBuilder<Object, Object> cashRegisterQuery = new QueryBuilder<>(keys);
+                    cashRegisterQuery.addProperty("maxNumberZReport", findProperty("maxNumberZReport[CashRegister]").getExpr(cashRegisterExpr));
+                    cashRegisterQuery.addProperty("nppMachinery", findProperty("npp[Machinery]").getExpr(cashRegisterExpr));
+                    cashRegisterQuery.addProperty("nppGroupMachinery", findProperty("nppGroupMachinery[Machinery]").getExpr(cashRegisterExpr));
+                    cashRegisterQuery.and(findProperty("npp[Machinery]").getExpr(cashRegisterExpr).getWhere());
+                    cashRegisterQuery.and(findProperty("departmentStore[CashRegister]").getExpr(cashRegisterExpr).compare(departmentStoreObject.getExpr(), Compare.EQUALS));
 
-                    ImRevMap<PropertyInterface, KeyExpr> groupCashRegisterKeys = isGroupCashRegister.getMapKeys();
-                    KeyExpr groupCashRegisterKey = groupCashRegisterKeys.singleValue();
-                    QueryBuilder<PropertyInterface, Object> groupCashRegisterQuery = new QueryBuilder<>(groupCashRegisterKeys);
-                    groupCashRegisterQuery.and(isGroupCashRegister.property.getExpr(groupCashRegisterKeys).getWhere());
-                    groupCashRegisterQuery.and(findProperty("departmentStore[GroupCashRegister]").getExpr(groupCashRegisterKey).compare(departmentStore.getExpr(), Compare.EQUALS));
-
-                    ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> groupCashRegisterResult = groupCashRegisterQuery.executeClasses(session);
-
-                    for (ImMap<PropertyInterface, DataObject> rows : groupCashRegisterResult.keyIt()) {
-                        DataObject groupCashRegister = rows.getValue(0);
-                        if ((groupCashRegister != null) && (!groupCashRegisterDepartmentStoreMap.containsKey(groupCashRegister)))
-                            groupCashRegisterDepartmentStoreMap.put(groupCashRegister, departmentStore);
-                    }
-                }
-
-                Map<DataObject, DataObject> cashRegisterDepartmentStoreMap = new HashMap<>();
-                for (Map.Entry<DataObject, DataObject> groupCashRegisterDepartmentStore : groupCashRegisterDepartmentStoreMap.entrySet()) {
-
-                    LCP<PropertyInterface> isCashRegister = (LCP<PropertyInterface>) is(findClass("CashRegister"));
-
-                    ImRevMap<PropertyInterface, KeyExpr> cashRegisterKeys = isCashRegister.getMapKeys();
-                    KeyExpr cashRegisterKey = cashRegisterKeys.singleValue();
-                    QueryBuilder<PropertyInterface, Object> cashRegisterQuery = new QueryBuilder<>(cashRegisterKeys);
-                    cashRegisterQuery.and(isCashRegister.property.getExpr(cashRegisterKeys).getWhere());
-                    cashRegisterQuery.and(findProperty("groupCashRegister[CashRegister]").getExpr(cashRegisterKey).compare(groupCashRegisterDepartmentStore.getKey().getExpr(), Compare.EQUALS));
-
-                    ImOrderMap<ImMap<PropertyInterface, DataObject>, ImMap<Object, ObjectValue>> cashRegisterResult = cashRegisterQuery.executeClasses(session);
+                    ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> cashRegisterResult = cashRegisterQuery.executeClasses(session);
 
                     for (int i = 0; i < cashRegisterResult.size(); i++) {
                         DataObject cashRegisterObject = cashRegisterResult.getKey(i).getValue(0);
-                        if ((!cashRegisterDepartmentStoreMap.containsKey(cashRegisterObject)))
-                            cashRegisterDepartmentStoreMap.put(cashRegisterObject, groupCashRegisterDepartmentStore.getValue());
+                        Integer maxNumberZReport = (Integer) cashRegisterResult.getValue(i).get("maxNumberZReport").getValue();
+                        Integer nppMachinery = (Integer) cashRegisterResult.getValue(i).get("nppMachinery").getValue();
+                        Integer nppGroupMachinery = (Integer) cashRegisterResult.getValue(i).get("nppGroupMachinery").getValue();
+                        cashRegisterInfoList.add(new CashRegisterInfo(cashRegisterObject, departmentStoreObject, maxNumberZReport,
+                                nppMachinery, nppGroupMachinery));
                     }
                 }
 
-                if (!cashRegisterDepartmentStoreMap.isEmpty()) {
+                if (!cashRegisterInfoList.isEmpty()) {
                     Map<String, DataObject> numberZReportCashRegisterMap = new HashMap<>();
 
                     for (int z = 1; z <= zReportCount; z++) {
 
-                        Map.Entry<DataObject, DataObject> cashRegisterDepartmentStore = (Map.Entry<DataObject, DataObject>) (cashRegisterDepartmentStoreMap.entrySet().toArray()[r.nextInt(cashRegisterDepartmentStoreMap.size())/*1*/]);
-                        DataObject cashRegisterObject = cashRegisterDepartmentStore.getKey();
-                        DataObject departmentStoreObject = cashRegisterDepartmentStore.getValue();
-                        Integer maxNumberZReport = (Integer) findProperty("maxNumberZReport[CashRegister]").read(session, cashRegisterObject);
+                        CashRegisterInfo cashRegister = cashRegisterInfoList.get(r.nextInt(cashRegisterInfoList.size()));
                         String numberZReport = null;
-                        while (numberZReport == null || (numberZReportCashRegisterMap.containsKey(numberZReport) && numberZReportCashRegisterMap.containsValue(cashRegisterObject)))
-                            numberZReport = String.valueOf((maxNumberZReport == null ? 0 : maxNumberZReport) + (zReportCount < 1 ? 0 : r.nextInt(zReportCount)) + 1);
+                        while (numberZReport == null || (numberZReportCashRegisterMap.containsKey(numberZReport) && numberZReportCashRegisterMap.containsValue(cashRegister.cashRegisterObject)))
+                            numberZReport = String.valueOf((cashRegister.maxNumberZReport == null ? 0 : cashRegister.maxNumberZReport) + (zReportCount < 1 ? 0 : r.nextInt(zReportCount)) + 1);
                         if (!numberZReportCashRegisterMap.containsKey(numberZReport))
-                            numberZReportCashRegisterMap.put(numberZReport, cashRegisterObject);
+                            numberZReportCashRegisterMap.put(numberZReport, cashRegister.cashRegisterObject);
                         java.sql.Date date = new java.sql.Date(dateFrom.getTime() + Math.abs(r.nextLong() % (dateTo.getTime() - dateFrom.getTime())));
                         for (int receiptNumber = 1; receiptNumber <= addDeviation(receiptCount, 0.25, r); receiptNumber++) {
 
@@ -149,7 +134,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                 int currentItemIndex = r.nextInt(itemZReportInfoList.size());
                                 ItemZReportInfo itemZReportInfo = itemZReportInfoList.get(currentItemIndex);
                                 BigDecimal currentBalanceSkuStock = itemZReportInfo.count;
-                                if ((currentBalanceSkuStock.doubleValue() > 0) && (departmentStoreObject.equals(itemZReportInfo.departmentStore))) {
+                                if ((currentBalanceSkuStock.doubleValue() > 0) && (cashRegister.departmentStoreObject.equals(itemZReportInfo.departmentStore))) {
                                     BigDecimal quantityReceiptDetail;
                                     if (itemZReportInfo.splitItem)
                                         quantityReceiptDetail = currentBalanceSkuStock.doubleValue() <= 0.005 ? currentBalanceSkuStock : BigDecimal.valueOf((double) Math.round(r.nextDouble() * currentBalanceSkuStock.doubleValue() / 5 * 1000) / 1000);
@@ -160,9 +145,7 @@ public class GenerateZReport extends ScriptingActionProperty {
                                         numberReceiptDetail++;
                                         sumCash = safeAdd(sumCash, sumReceiptDetail);
                                         BigDecimal discountSumReceiptDetail = BigDecimal.valueOf(r.nextDouble() > 0.8 ? (sumReceiptDetail.doubleValue() * r.nextInt(10) / 100) : 0);
-                                        Integer numberCashRegister = (Integer) findProperty("npp[Machinery]").read(context, cashRegisterObject);
-                                        Integer nppGroupMachinery = (Integer) findProperty("nppGroupMachinery[Machinery]").read(context, cashRegisterObject);
-                                        SalesInfo salesInfo = new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport, date, time, receiptNumber, date,
+                                        SalesInfo salesInfo = new SalesInfo(false, cashRegister.nppGroupMachinery, cashRegister.nppMachinery, numberZReport, date, time, receiptNumber, date,
                                                 time, null, null, null, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, itemZReportInfo.barcode, null, null,
                                                 null, quantityReceiptDetail, itemZReportInfo.price, sumReceiptDetail, discountSumReceiptDetail, null, null,
                                                 numberReceiptDetail, null, null);
@@ -194,17 +177,17 @@ public class GenerateZReport extends ScriptingActionProperty {
         }
     }
 
-    private Integer addDeviation(Integer value, Double percent, Random r) {
+    private Integer addDeviation(Integer value, double percent, Random r) {
         return value != null ? value + (int) (value * r.nextDouble() * percent * (r.nextDouble() > 0.5 ? 1 : -1)) : 1;
     }
 
-    protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
+    private BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;
         else return (operand1 == null ? operand2 : (operand2 == null ? operand1 : operand1.add(operand2)));
     }
     
-    protected BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
+    private BigDecimal safeSubtract(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;
         else
@@ -222,12 +205,28 @@ public class GenerateZReport extends ScriptingActionProperty {
         Boolean splitItem;
         DataObject departmentStore;
 
-        public ItemZReportInfo(String barcode, BigDecimal count, BigDecimal price, Boolean splitItem, DataObject departmentStore) {
+        ItemZReportInfo(String barcode, BigDecimal count, BigDecimal price, Boolean splitItem, DataObject departmentStore) {
             this.barcode = barcode;
             this.count = count;
             this.price = price;
             this.splitItem = splitItem;
             this.departmentStore = departmentStore;
+        }
+    }
+
+    private class CashRegisterInfo {
+        DataObject cashRegisterObject;
+        DataObject departmentStoreObject;
+        Integer maxNumberZReport;
+        Integer nppMachinery;
+        Integer nppGroupMachinery;
+
+        CashRegisterInfo(DataObject cashRegisterObject, DataObject departmentStoreObject, Integer maxNumberZReport, Integer nppMachinery, Integer nppGroupMachinery) {
+            this.cashRegisterObject = cashRegisterObject;
+            this.departmentStoreObject = departmentStoreObject;
+            this.maxNumberZReport = maxNumberZReport;
+            this.nppMachinery = nppMachinery;
+            this.nppGroupMachinery = nppGroupMachinery;
         }
     }
 }
