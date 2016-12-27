@@ -169,8 +169,8 @@ public class FiscalAbsolut {
         if (sum == null)
             return true;
         double sumValue = formatAbsPrice(sum);
-        logAction("Oplata", 2, sumValue, 0);
-        return absolutDLL.absolut.Oplata(2, sumValue, 0);
+        logAction("Oplata", 3, sumValue, 0);
+        return absolutDLL.absolut.Oplata(3, sumValue, 0);
     }
 
     static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount) {
