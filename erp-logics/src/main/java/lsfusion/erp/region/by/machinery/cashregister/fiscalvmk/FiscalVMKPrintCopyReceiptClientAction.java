@@ -21,22 +21,20 @@ public class FiscalVMKPrintCopyReceiptClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        synchronized (FiscalVMK.lock) {
-            try {
-                FiscalVMK.init();
+        try {
+            FiscalVMK.init();
 
-                FiscalVMK.openPort(ip, comPort, baudRate);
-                if (!FiscalVMK.repeatReceipt()) {
-                    String error = FiscalVMK.getError(false);
-                    FiscalVMK.cancelReceipt();
-                    return error;
-                }
-                FiscalVMK.closePort();
-                return null;
-            } catch (RuntimeException e) {
+            FiscalVMK.openPort(ip, comPort, baudRate);
+            if (!FiscalVMK.repeatReceipt()) {
+                String error = FiscalVMK.getError(false);
                 FiscalVMK.cancelReceipt();
-                return FiscalVMK.getError(true);
+                return error;
             }
+            FiscalVMK.closePort();
+            return null;
+        } catch (RuntimeException e) {
+            FiscalVMK.cancelReceipt();
+            return FiscalVMK.getError(true);
         }
     }
 }

@@ -21,17 +21,16 @@ public class FiscalVMKUpdateDataClientAction implements ClientAction {
 
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
-        synchronized (FiscalVMK.lock) {
-            FiscalVMK.init();
-            try {
 
-                FiscalVMK.openPort(ip, comPort, baudRate);
-                FiscalVMK.closePort();
+        FiscalVMK.init();
+        try {
 
-            } catch (RuntimeException e) {
-                return FiscalVMK.getError(true);
-            }
-            return null;
+            FiscalVMK.openPort(ip, comPort, baudRate);
+            FiscalVMK.closePort();
+
+        } catch (RuntimeException e) {
+            return FiscalVMK.getError(true);
         }
+        return null;
     }
 }

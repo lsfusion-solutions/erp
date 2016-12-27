@@ -34,50 +34,48 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        synchronized (FiscalVMK.lock) {
-            try {
-                FiscalVMK.init();
-                FiscalVMK.openPort(ip, comPort, baudRate);
-                switch (type) {
-                    case 1:
-                        FiscalVMK.printFiscalText(textTop);
-                        FiscalVMK.xReport();
-                        break;
-                    case 2:
-                        FiscalVMK.opensmIfClose();
-                        Integer zReportNumber = FiscalVMK.getZReportNumber(true);
-                        FiscalVMK.printFiscalText(textTop);
-                        FiscalVMK.zReport();
-                        FiscalVMK.closePort();
-                        return zReportNumber;
-                    case 3:
-                        FiscalVMK.advancePaper(3);
-                        break;
-                    case 4:
-                        FiscalVMK.cancelReceipt();
-                        break;
-                    case 5:
-                        return FiscalVMK.getCashSum(true, denominationStage);
-                    case 6:
-                        FiscalVMK.opensmIfClose();
-                        FiscalVMK.printFiscalText(textTop);
-                        FiscalVMK.zReport();
-                        break;
-                    case 7:
-                        Integer zReportNumber2 = FiscalVMK.getZReportNumber(true);
-                        FiscalVMK.closePort();
-                        return zReportNumber2;
-                    case 8:
-                        FiscalVMK.closePort();
-                        break;
-                    default:
-                        break;
-                }
-                FiscalVMK.closePort();
-            } catch (RuntimeException e) {
-                return FiscalVMK.getError(true);
+        try {
+            FiscalVMK.init();
+            FiscalVMK.openPort(ip, comPort, baudRate);
+            switch (type) {
+                case 1:
+                    FiscalVMK.printFiscalText(textTop);
+                    FiscalVMK.xReport();
+                    break;
+                case 2:
+                    FiscalVMK.opensmIfClose();
+                    Integer zReportNumber = FiscalVMK.getZReportNumber(true);
+                    FiscalVMK.printFiscalText(textTop);
+                    FiscalVMK.zReport();
+                    FiscalVMK.closePort();
+                    return zReportNumber;
+                case 3:
+                    FiscalVMK.advancePaper(3);
+                    break;
+                case 4:
+                    FiscalVMK.cancelReceipt();
+                    break;
+                case 5:
+                    return FiscalVMK.getCashSum(true, denominationStage);
+                case 6:
+                    FiscalVMK.opensmIfClose();
+                    FiscalVMK.printFiscalText(textTop);
+                    FiscalVMK.zReport();
+                    break;
+                case 7:
+                    Integer zReportNumber2 = FiscalVMK.getZReportNumber(true);
+                    FiscalVMK.closePort();
+                    return zReportNumber2;
+                case 8:
+                    FiscalVMK.closePort();
+                    break;
+                default:
+                    break;
             }
-            return null;
+            FiscalVMK.closePort();
+        } catch (RuntimeException e) {
+            return FiscalVMK.getError(true);
         }
+        return null;
     }
 }

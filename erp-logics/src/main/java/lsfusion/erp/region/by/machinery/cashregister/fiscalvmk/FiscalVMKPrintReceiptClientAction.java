@@ -51,43 +51,40 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
             return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
         } else {
-            synchronized (FiscalVMK.lock) {
-                try {
+            try {
+                FiscalVMK.init();
 
-                    FiscalVMK.init();
-
-                    FiscalVMK.openPort(ip, comPort, baudRate);
-                    FiscalVMK.opensmIfClose();
-
-                    Integer numberReceipt = null;
-
-                    if (receipt.receiptSaleList.size() != 0) {
-                        numberReceipt = printReceipt(receipt.receiptSaleList, true);
-                        if (numberReceipt == null) {
-                            String error = FiscalVMK.getError(false);
-                            FiscalVMK.cancelReceipt();
-                            return error;
-                        }
+                FiscalVMK.openPort(ip, comPort, baudRate);
+                FiscalVMK.opensmIfClose();
+                
+                Integer numberReceipt = null;
+                
+                if (receipt.receiptSaleList.size() != 0) {
+                    numberReceipt = printReceipt(receipt.receiptSaleList, true);
+                    if (numberReceipt == null) {
+                        String error = FiscalVMK.getError(false);
+                        FiscalVMK.cancelReceipt();
+                        return error;
                     }
-
-                    if (receipt.receiptReturnList.size() != 0) {
-                        numberReceipt = printReceipt(receipt.receiptReturnList, false);
-                        if (numberReceipt == null) {
-                            String error = FiscalVMK.getError(false);
-                            FiscalVMK.cancelReceipt();
-                            return error;
-                        }
-                    }
-
-
-                    FiscalVMK.closePort();
-                    FiscalVMK.logReceipt(receipt, numberReceipt);
-
-                    return numberReceipt;
-                } catch (RuntimeException e) {
-                    FiscalVMK.cancelReceipt();
-                    return FiscalVMK.getError(true);
                 }
+                    
+                if (receipt.receiptReturnList.size() != 0) {
+                    numberReceipt = printReceipt(receipt.receiptReturnList, false);
+                    if (numberReceipt == null) {
+                        String error = FiscalVMK.getError(false);
+                        FiscalVMK.cancelReceipt();
+                        return error;
+                    }
+                }
+                    
+
+                FiscalVMK.closePort();
+                FiscalVMK.logReceipt(receipt, numberReceipt);
+
+                return numberReceipt;
+            } catch (RuntimeException e) {
+                FiscalVMK.cancelReceipt();
+                return FiscalVMK.getError(true);
             }
         }
     }
