@@ -763,7 +763,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                     checkIndices(conn);
                     salesBatch = readSalesInfoFromSQL(conn, weightCode, machineryMap, cashPayments, cardPayments, giftCardPayments,
-                            useBarcodeAsId, appendBarcode, params.connectionString);
+                            useBarcodeAsId, appendBarcode, directory);
 
                 } finally {
                     if (conn != null)
