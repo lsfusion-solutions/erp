@@ -71,7 +71,7 @@ public class DigiHandler extends ScalesHandler {
                                         if (errorsCount < 5) {
                                             int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                             int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
-                                            byte[] record = makeRecord(item, getWeightCode(scales));
+                                            byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales));
                                             processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", barcode, scales.port));
                                             int reply = sendRecord(socket, cmdWrite, filePLU, record);
                                             if (reply != 0) {
@@ -109,7 +109,7 @@ public class DigiHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makeRecord(ScalesItemInfo item, String weightCode) throws UnsupportedEncodingException {
+    private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode) throws UnsupportedEncodingException {
         boolean hasDescription = item.description != null && !item.description.isEmpty();
         String[] splittedDescription = hasDescription ? item.description.split("@@") : null;
 
@@ -189,7 +189,8 @@ public class DigiHandler extends ScalesHandler {
         bytes.put((byte) 5);
 
         // данные штрихкода, 7 bytes
-        String barcode = fillTrailingZeroes(weightCode + item.idBarcode, 14);
+        String prefix = pieceCode != null && item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ") ? pieceCode : weightCode;
+        String barcode = fillTrailingZeroes(prefix + item.idBarcode, 14);
         bytes.put(getHexBytes(barcode));
 
         // срок продажи в днях, 2 bytes
@@ -339,7 +340,10 @@ public class DigiHandler extends ScalesHandler {
     private String getWeightCode(MachineryInfo scales) {
         String weightCode = scales instanceof ScalesInfo ? ((ScalesInfo) scales).weightCodeGroupScales : null;
         return weightCode == null ? "21" : weightCode;
+    }
 
+    private String getPieceCode(MachineryInfo scales) {
+        return scales instanceof ScalesInfo ? ((ScalesInfo) scales).pieceCodeGroupScales : null;
     }
 
     private byte[] getBytes(String value) throws UnsupportedEncodingException {
