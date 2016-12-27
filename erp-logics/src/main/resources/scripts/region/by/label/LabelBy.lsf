@@ -35,21 +35,25 @@ EXTEND FORM labelTransactions
 
 @defineItemDefaultValue(printFullPrice, 'Печатать цену за килограмм', BOOLEAN);
 
-pricePerKG 'Цена за килограмм' (LabelTransactionDetail d) = round2(price(d) / netWeight(sku(d))) IF printFullPrice(skuGroup(sku(d)));
-priceRubKG 'Рубли (за кг.)' (LabelTransactionDetail d) = trunc(pricePerKG(d));
-priceKopKG 'Копейки (за кг.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubKG(d), round0((pricePerKG(d) (-) priceRubKG(d))*100.0);
+basePrice 'Цена за базовую единицу' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) THEN CASE 
+                                                                                                          WHEN volume(sku(d)) <= 0.25 THEN round2(price(d) / volume(sku(d)) / 10.0 )
+                                                                                                          WHEN volume(sku(d)) != 1.0 THEN round2(price(d) / volume(sku(d)))
+                                                                                                          WHEN netWeight(sku(d)) <= 0.25 THEN round2(price(d) / netWeight(sku(d)) / 10.0 )
+                                                                                                          WHEN netWeight(sku(d)) != 1.0 THEN round2(price(d) / netWeight(sku(d))) ;
+                                                                                                                                                                                                                  
+basePriceName 'Базовая единица' (LabelTransactionDetail d) = IF printFullPrice(skuGroup(sku(d))) THEN CASE 
+                                                                                                          WHEN volume(sku(d)) <= 0.25 THEN '100мл'
+                                                                                                          WHEN volume(sku(d)) != 1.0 THEN '1л'
+                                                                                                          WHEN netWeight(sku(d)) <= 0.25 THEN '100г'
+                                                                                                          WHEN netWeight(sku(d)) != 1.0 THEN '1кг' ;
+                                                                                                          
+basePriceRub 'Рубли (за б.е.)' (LabelTransactionDetail d) = trunc(basePrice(d));
+basePriceKop 'Копейки (за б.е.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF basePrice(d), round0((basePrice(d) (-) basePriceRub(d)) * 100.0);
 
-pricePerGr 'Цена за 100 грамм' (LabelTransactionDetail d) = round2(price(d) / netWeight(sku(d)) * 10.0 ) IF printFullPrice(skuGroup(sku(d))) AND netWeight(sku(d)) <= 0.25;
-priceRubGr 'Рубли (за 100 г.)' (LabelTransactionDetail d) = trunc(pricePerGr(d));
-priceKopGr 'Копейки (за 100 г.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubGr(d), round0((pricePerGr(d) (-) priceRubGr(d))*100.0);
 
-pricePerL 'Цена за Литр' (LabelTransactionDetail d) = round2(price(d) / volume(sku(d))) IF printFullPrice(skuGroup(sku(d)));
-priceRubL 'Рубли(за л.)' (LabelTransactionDetail d) = trunc(pricePerL(d));
-priceKopL 'Копейки(за л.)' (LabelTransactionDetail d) = OVERRIDE 0.0 IF priceRubL(d), round0((pricePerL(d) (-) priceRubL(d))*100.0);
-
-EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr;
-EXTEND FORM customLabelTransaction PROPERTIES(d) pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr;
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY basePrice, basePriceName, basePriceRub, basePriceKop;
+EXTEND FORM customLabelTransaction PROPERTIES(d) basePrice, basePriceName, basePriceRub, basePriceKop;
 EXTEND FORM labelTransactions 
-    PROPERTIES(dt) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr 
-    PROPERTIES(dts) READONLY pricePerKG, priceRubKG, priceKopKG, pricePerL, priceRubL, priceKopL, pricePerGr, priceRubGr, priceKopGr
+    PROPERTIES(dt) READONLY basePrice, basePriceName, basePriceRub, basePriceKop 
+    PROPERTIES(dts) READONLY basePrice, basePriceName, basePriceRub, basePriceKop
 ;
