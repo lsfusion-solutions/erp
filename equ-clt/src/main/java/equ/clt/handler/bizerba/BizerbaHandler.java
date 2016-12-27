@@ -527,7 +527,9 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 command1 = command1 + "EXPR" + exPrice + separator;
             }
 
-            String idBarcode = item.idBarcode != null && scales.weightCodeGroupScales != null && item.idBarcode.length() == 5 ? ("0" + scales.weightCodeGroupScales + item.idBarcode + "00000") : item.idBarcode;
+            String prefix = scales.pieceCodeGroupScales != null && item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ") ?
+                    scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
+            String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
             Integer tareWeight = 0;
             Integer tarePercent = getTarePercent(item);
             command1 = command1 + "RABZ1" + separator + "PTYP4" + separator + "WGNU" + BIZERBABS_Group + separator + "ECO1" + idBarcode
