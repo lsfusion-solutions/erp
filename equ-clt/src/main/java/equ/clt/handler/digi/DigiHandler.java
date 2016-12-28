@@ -129,7 +129,9 @@ public class DigiHandler extends ScalesHandler {
             for (String expiryLine : expiryLines)
                 expiryLength += expiryLine.length() + 1;
 
-        int length = 36 + item.name.length() + compositionLength + expiryLength;
+        int length = 36 + item.name.length() +
+                compositionLength + (compositionLines == null ? 0 : compositionLines.length * 2) +
+                expiryLength + (expiryLines == null ? 0 : expiryLines.length * 2);
 
         ByteBuffer bytes = ByteBuffer.allocate(length);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -223,6 +225,8 @@ public class DigiHandler extends ScalesHandler {
         // Состав
         if (hasComposition) {
             for (int i = 0; i < compositionLines.length; i++) {
+                bytes.put((byte) 2);
+                bytes.put((byte) compositionLines[i].length());
                 bytes.put(getBytes(compositionLines[i]));
                 bytes.put((byte) (i == compositionLines.length - 1 ? 0x0C : 0x0D));
             }
@@ -231,6 +235,8 @@ public class DigiHandler extends ScalesHandler {
         // Специальное сообщение
         if (hasExpiry) {
             for (int i = 0; i < expiryLines.length; i++) {
+                bytes.put((byte) 2);
+                bytes.put((byte) expiryLines[i].length());
                 bytes.put(getBytes(expiryLines[i]));
                 bytes.put((byte) (i == expiryLines.length - 1 ? 0x0C : 0x0D));
             }
