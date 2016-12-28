@@ -1512,7 +1512,7 @@ FORM inventory 'Инвентаризация'
     PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
     FILTERS            quantityPageInventoryDetail(li,bt)
 
-    OBJECTS          cs=CollationSheet
+    OBJECTS          cs=CollationSheet FIXED GRID
     PROPERTIES (cs)              name, nameTypeOfAddition, nameStock, numberDisposal,
                                  quantityPageInventoryDetail, quantityBalance, quantityShortage,
                                  sumPageInventoryDetail, sumBalance, sumItemAccountB SHOWIF showAccountSums(cs) ON SHORTCUT recalculateSumAccountB(cs), 
@@ -1522,7 +1522,7 @@ FORM inventory 'Инвентаризация'
                                  sumContainerPageInventoryDetailCollationSheetGrid = sumContainerPageInventoryDetail, 
                                  sumContainerShortageCollationSheetGrid = sumContainerShortage,
                                  countListInventory, countPageInventory
-    PROPERTIES (cs)              dialogSku, prevDate, recalculatePrice, deletecs=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (cs)              dialogSku, prevDate, recalculatePrice //, deletecs=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (cs)  FORCE PANEL sumItemPageInventoryDetail, sumContainerPageInventoryDetail,
                                  sumItemBalance, sumContainerBalance,
                                  sumItemShortage, sumContainerShortage
@@ -1567,9 +1567,10 @@ FORM inventory 'Инвентаризация'
 DESIGN inventory {
 
     NEW topContainer {
-        type = CONTAINERV;
+        type = TABBED;
         fill = 1;
         NEW header.box {
+            caption = 'Параметры';
             MOVE in.documentHeader {
                 type = CONTAINERH;
                 MOVE PROPERTY(nameStock(in));
@@ -1612,78 +1613,74 @@ DESIGN inventory {
                         }
                     }
                 }
-                NEW actions {
-                    MOVE in.inventoryAction {
-                        columns = 1;
-                    }
+            }
+        }
+        NEW z.box {
+            caption = 'Описи';
+            type = SPLITH;
+            MOVE treeStock.tree.box {
+                PROPERTY(isPosted(li)) {
+                        preferredCharWidth = 15;
+                }
+                PROPERTY (dumb(pl)) {
+                    caption = 'Статус';
+                    minimumCharWidth = 15;
+                }
+                PROPERTY (post(li)) {
+                    caption = 'Закрыть';
+                }
+                PROPERTY (unpost(li)) {
+                    caption = 'Открыть';
+                }
+                PROPERTY (editLI) {
+                    caption = 'Редактировать';
+                }
+            }
+            NEW case1  {
+                fill = 1;
+                type = TABBED;
+                MOVE dp.box;
+                MOVE it.box {
+                    caption = 'Опись-товар';
+                }
+                MOVE bt.box {
+                    caption = 'Опись-партия';
                 }
             }
         }
-        NEW secondCase {
-            fill = 1;
-            type = TABBED;
-            NEW z.box {
-                caption = 'Описи';
-                type = SPLITH;
-                MOVE treeStock.tree.box {
-                    PROPERTY(isPosted(li)) {
-                            preferredCharWidth = 15;
-                    }
-                    PROPERTY (dumb(pl)) {
-                        caption = 'Статус';
-                        minimumCharWidth = 15;
-                    }
-                    PROPERTY (post(li)) {
-                        caption = 'Закрыть';
-                    }
-                    PROPERTY (unpost(li)) {
-                        caption = 'Открыть';
-                    }
-                    PROPERTY (editLI) {
-                        caption = 'Редактировать';
-                    }
-                }
-                NEW case1  {
-                    fill = 1;
-                    type = TABBED;
-                    MOVE dp.box;
-                    MOVE it.box {
-                        caption = 'Опись-товар';
-                    }
-                    MOVE bt.box {
-                        caption = 'Опись-партия';
-                    }
-                }
-            }
     
-            NEW x.box {
-                caption = 'Сличительные ведомости';
-                type = SPLITV;
-                NEW pop1 {
-                    type = CONTAINERH;
+        NEW x.box {
+            caption = 'Сличительные ведомости';
+            type = SPLITV;
+            NEW pop1 {
+                type = CONTAINERH;
+                fill = 1;
+                NEW pop11 {
                     fill = 1;
+                    MOVE in.inventoryAction {
+                        type = CONTAINERH;
+                    }
                     MOVE cs.box {
-                        fill = 1;
                         preferredSize = ( -1, 0);
                     }
-                    MOVE cs.panel.props {
-                        type = COLUMNS;
-                        columns = 1;
-                        caption = 'Суммы товар/тара';
-                    }
                 }
-                NEW wor1 {
-                    fill = 3;
-                    type = SPLITH;
-                    MOVE treeGroup.tree.box {
-                        caption = 'Товарные группы';
-                    }
-                    NEW wor11 {
-                        fill = 2;
-                        type = TABBED;
-                        MOVE i.box;
-                        MOVE b.box;
-                    }
+                MOVE cs.panel.props {
+                    type = COLUMNS;
+                    columns = 1;
+                    caption = 'Суммы товар/тара';
+                }
+            }
+            NEW wor1 {
+                fill = 3;
+                type = SPLITH;
+                MOVE treeGroup.tree.box {
+                    caption = 'Товарные группы';
+                }
+                NEW wor11 {
+                    fill = 2;
+                    type = TABBED;
+                    MOVE i.box;
+                    MOVE b.box;
                 }
             }
         }
