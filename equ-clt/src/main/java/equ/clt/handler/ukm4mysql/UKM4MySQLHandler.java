@@ -52,6 +52,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 boolean skipClassif = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipClassif() != null && ukm4MySQLSettings.getSkipClassif();
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
                 boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
+                boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
                 Map<Integer, Integer> versionTransactionMap = new HashMap<>();
                 Integer version = null;
@@ -93,7 +94,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 }
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items", transaction.id));
-                                exportItems(conn, transaction, useBarcodeAsId, version);
+                                exportItems(conn, transaction, useBarcodeAsId, appendBarcode, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table items_stocks", transaction.id));
                                 exportItemsStocks(conn, transaction, departmentNumber, version);
@@ -122,7 +123,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             }
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
-                            exportPriceListItems(conn, transaction, useBarcodeAsId, version, transaction.denominationStage);
+                            exportPriceListItems(conn, transaction, useBarcodeAsId, appendBarcode, version, transaction.denominationStage);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
                             exportSignals(conn, transaction, version, false, timeout, false);
@@ -214,7 +215,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, int version) throws SQLException {
+    private void exportItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -225,7 +226,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 "prop=VALUES(prop), summary=VALUES(summary), exp_date=VALUES(exp_date), deleted=VALUES(deleted)");
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    ps.setString(1, getId(item, useBarcodeAsId)); //id
+                    ps.setString(1, getId(item, useBarcodeAsId, appendBarcode)); //id
                     ps.setString(2, HandlerUtils.trim(item.name, "", 40)); //name
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, HandlerUtils.trim(item.shortNameUOM, "", 40)); //measure
@@ -356,7 +357,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportPriceListItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, int version, String denominationStage) throws SQLException {
+    private void exportPriceListItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version, String denominationStage) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -367,7 +368,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     ps.setInt(1, transaction.nppGroupMachinery); //pricelist
-                    ps.setString(2, getId(item, useBarcodeAsId)); //item
+                    ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
                     ps.setBigDecimal(3, denominateMultiplyType2(item.price, denominationStage)); //price
                     BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO;
                     ps.setBigDecimal(4, denominateMultiplyType2(minPrice, denominationStage)); //minprice
@@ -1103,8 +1104,8 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             return barcode;
     }
 
-    private String getId(ItemInfo item, boolean useBarcodeAsId) {
-        return HandlerUtils.trim(useBarcodeAsId ? removeCheckDigitFromBarcode(item.idBarcode) : item.idItem, 40);
+    private String getId(ItemInfo item, boolean useBarcodeAsId, boolean appendBarcode) {
+        return HandlerUtils.trim(useBarcodeAsId ? (appendBarcode ? removeCheckDigitFromBarcode(item.idBarcode) : item.idBarcode) : item.idItem, 40);
     }
 
     private String appendEAN13(String barcode) {
