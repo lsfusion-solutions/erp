@@ -109,7 +109,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 exportPriceTypeStorePriceList(conn, transaction, departmentNumber, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
-                                exportVar(conn, transaction, weightCode, version);
+                                exportVar(conn, transaction, weightCode, appendBarcode, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
                                 exportSignals(conn, transaction, version, true, timeout, false);
@@ -442,7 +442,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version) throws SQLException {
+    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -451,7 +451,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         "INSERT INTO var (id, item, quantity, stock, version, deleted) VALUES (?, ?, ?, ?, ?, ?) " +
                                 "ON DUPLICATE KEY UPDATE item=VALUES(item), quantity=VALUES(quantity), stock=VALUES(stock), deleted=VALUES(deleted)");
                 for (CashRegisterItemInfo item : transaction.itemsList) {
-                    String barcode = makeBarcode(item.idBarcode, item.passScalesItem, weightCode);
+                    String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, HandlerUtils.trim(barcode, 40)); //id
                         ps.setString(2, HandlerUtils.trim(item.idItem, 40)); //item
@@ -1097,15 +1097,15 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private String removeCheckDigitFromBarcode(String barcode) {
-        if (barcode != null && (barcode.length() == 13 || barcode.length() == 8)) {
+    private String removeCheckDigitFromBarcode(String barcode, boolean appendBarcode) {
+        if (appendBarcode && barcode != null && (barcode.length() == 13 || barcode.length() == 8)) {
             return barcode.substring(0, barcode.length() - 1);
         } else
             return barcode;
     }
 
     private String getId(ItemInfo item, boolean useBarcodeAsId, boolean appendBarcode) {
-        return HandlerUtils.trim(useBarcodeAsId ? (appendBarcode ? removeCheckDigitFromBarcode(item.idBarcode) : item.idBarcode) : item.idItem, 40);
+        return HandlerUtils.trim(useBarcodeAsId ? removeCheckDigitFromBarcode(item.idBarcode, appendBarcode) : item.idItem, 40);
     }
 
     private String appendEAN13(String barcode) {
