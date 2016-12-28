@@ -150,7 +150,7 @@ META defineOrderInvoice(sign, stockProp)
     }
 
     toInvoice (Batch batch, OrderDetail orderDetail) = PARTITION UNGROUP toInvoice
-                                                               LIMIT STRICT currentBalance(batch, supplierStock(orderDetail)) IF sku(batch) == sku(orderDetail)
+                                                               LIMIT STRICT currentBalance(batch, stockProp##Stock(orderDetail)) IF sku(batch) == sku(orderDetail)
                                                                BY orderDetail
                                                                ORDER order(batch);
 
@@ -158,16 +158,16 @@ META defineOrderInvoice(sign, stockProp)
     skipCreateUserInvoice = ABSTRACT BOOLEAN (OrderDetail);
 
     createDetail(UserInvoice userInvoice, Order order) = ACTION {
-        IF useExplicitBatchDetailUserInvoice(order) AND explicitBatchLedger(stockProp##Stock(order)) THEN {
+        IF useExplicitBatchDetailUserInvoice(order) OR explicitBatchLedger(stockProp##Stock(order)) THEN {
             // проходим по строкам, для которых не задана партия
-            FOR order(OrderDetail orderDetail) == order AND toInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
+            FOR order(OrderDetail orderDetail) == order AND NUMERIC[16,5] q == toInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
                 ADDOBJ d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
                     orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
                     batch(d) <- batch;
-                    quantity (d) <- toInvoice(batch, orderDetail);
+                    quantity (d) <- q;
         
                     fill(d, orderDetail);
                     overFill(d, orderDetail);
