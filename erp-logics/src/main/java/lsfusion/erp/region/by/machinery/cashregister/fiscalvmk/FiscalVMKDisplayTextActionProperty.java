@@ -38,7 +38,8 @@ public class FiscalVMKDisplayTextActionProperty extends ScriptingActionProperty 
         try {
             ObjectValue receiptObject = findProperty("receipt[ReceiptDetail]").readClasses(session, receiptDetailObject);
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context.getSession(), receiptObject) != null;
-            if (!skipReceipt) {
+            boolean ignoreDisplayText = findProperty("ignoreDisplayTextCurrentCashRegister[]").read(context) != null;
+            if (!skipReceipt && !ignoreDisplayText) {
 
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(session);
