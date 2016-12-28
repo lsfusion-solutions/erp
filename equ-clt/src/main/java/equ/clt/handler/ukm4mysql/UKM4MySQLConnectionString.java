@@ -12,18 +12,20 @@ class UKM4MySQLConnectionString {
     UKM4MySQLConnectionString(String value, int index, UKM4MySQLSettings ukm4MySQLSettings) {
         if (value != null) {
             try {
-                Pattern p = Pattern.compile("([^\\?]*)\\?user=([^\\&]*)\\&password=([^;]*);([^\\?]*)\\?user=([^\\&]*)\\&password=([^;]*)");
+                Pattern p = Pattern.compile("(?:([^\\?]*)\\?user=([^\\&]*)\\&password=([^;]*))?;(?:([^\\?]*)\\?user=([^\\&]*)\\&password=([^;]*))?");
                 Matcher m = p.matcher(value);
                 if(m.matches()) {
                     this.connectionString = m.group(1 + index * 3);
                     this.user = m.group(2 + index * 3);
                     this.password = m.group(3 + index * 3);
+                } else {
+                    throw new RuntimeException("Incorrect connection string: " + value);
                 }
             } catch (Exception e) {
                 throw new RuntimeException("Incorrect connection string: " + value, e);
             }
-            if (connectionString == null || user == null || password == null)
-                throw new RuntimeException("Incorrect connection string: " + value);
+            //if (connectionString == null || user == null || password == null)
+            //    throw new RuntimeException("Incorrect connection string: " + value);
         } else {
             //todo: Убрать после перехода всех на чтение directoryGroupMachinery
             connectionString = ukm4MySQLSettings != null ? (index == 0 ? ukm4MySQLSettings.getImportConnectionString() : ukm4MySQLSettings.getExportConnectionString()) : null;
