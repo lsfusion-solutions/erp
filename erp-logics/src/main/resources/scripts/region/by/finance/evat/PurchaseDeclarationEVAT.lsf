@@ -22,15 +22,15 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         //Поставщик
         supplier(e) <- [= GROUP MIN supplier(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
-        shippingAddressSupplier(e) <- 'TO FILL';
-        declarationSupplier(e) <- 'TO FILL';
+        shippingAddressSupplier(e) <- address([= GROUP MIN supplierStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        declarationSupplier(e) <- OVERRIDE 'не задан', number(d);
                 
         //Получатель
         customer(e) <- l;
         declarationCustomer(e) <- number(d);
 //        branchCodeCustomer(e) <- branchCode(customerStock(i));
-        shippingAddressCustomer(e) <- 'TO FILL';
-        declarationCustomer(e) <- 'TO FILL';
+        shippingAddressCustomer(e) <- address([= GROUP MIN customerStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        declarationCustomer(e) <- OVERRIDE 'не задан', number(d);
                 
         FOR declaration(DeclarationDetail id) == d ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
