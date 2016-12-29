@@ -130,6 +130,7 @@ META defineOrderInvoice(sign, stockProp)
     inCustomer (order, legalEntity) = GROUP SUM 1 IF legalEntity(customerStock(OrderDetail orderDetail)) == LegalEntity customer BY order(orderDetail), customer;
 
     useExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
+    forceExplicitBatchDetailUserInvoice = ABSTRACT BOOLEAN (Order);
 
     differentStocksInDetails (Stock stock) = differentStocksInDetails(legalEntity(stock)) PERSISTENT;
 
@@ -158,7 +159,7 @@ META defineOrderInvoice(sign, stockProp)
     skipCreateUserInvoice = ABSTRACT BOOLEAN (OrderDetail);
 
     createDetail(UserInvoice userInvoice, Order order) = ACTION {
-        IF useExplicitBatchDetailUserInvoice(order) OR explicitBatchLedger(stockProp##Stock(order)) THEN {
+        IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(stockProp##Stock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
             // проходим по строкам, для которых не задана партия
             FOR order(OrderDetail orderDetail) == order AND NUMERIC[16,5] q == toInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
