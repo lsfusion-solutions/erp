@@ -222,6 +222,7 @@ public class DigiHandler extends ScalesHandler {
 
         bytes.put((byte) 0x0C);
 
+        //todo: макс. длина строки состава и спец.сообщения - 51 символ, хорошо бы ещё и на это смотреть
         // Состав
         if (hasComposition) {
             for (int i = 0; i < compositionLines.length; i++) {
