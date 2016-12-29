@@ -95,16 +95,19 @@ sendApply 'Отправить' (EOrder o) = ACTION NEWSESSION {
 }
 
 FORM eOrders 'Заказы EDI'
-OBJECTS o = EOrder
-PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
-PROPERTIES(o) sendApply FORCE PANEL TOOLBAR
-
-OBJECTS d = EOrderDetail
-PROPERTIES(d) READONLY idBarcode, nameSku, extraCodeUOMSku, quantity, price
-PROPERTIES(d) FORCE PANEL TOOLBAR ADDOBJ, DELETE
-
-FILTERS order(d) == o
-FILTERGROUP orderfilters6 FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+    OBJECTS o = EOrder
+    PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+    PROPERTIES(o) sendApply FORCE PANEL TOOLBAR
+    FILTERGROUP isEdi 
+        FILTER 'EDI поставщик' EDIProvider(supplier(o)) 'F5' DEFAULT
+    FILTERGROUP orderfilters6 
+        FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+    
+    OBJECTS d = EOrderDetail
+    PROPERTIES(d) READONLY idBarcode, nameSku, extraCodeUOMSku, quantity, price
+    PROPERTIES(d) FORCE PANEL TOOLBAR ADDOBJ, DELETE
+    
+    FILTERS order(d) == o
 ;
 
 DESIGN eOrders {
