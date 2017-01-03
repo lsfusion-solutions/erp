@@ -463,7 +463,6 @@ public abstract class BizerbaHandler extends ScalesHandler {
 
         int department = 1;
         boolean manualWeight = false;
-        boolean nonWeight = false;
 
         Map<Integer, String> messageMap = getMessageMap(errors, port, scales, item, charset, encode);
         String messagesResult = loadPLUMessages(errors, port, scales, messageMap, item, charset, scales.port, encode);
@@ -511,6 +510,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             String command1 = "PLST  " + separator + "S" + zeroedInt(scales.number, 2) + separator + "WALO0" + separator + "PNUM" + pluNumber + separator + "ABNU" + department + separator + "ANKE0" + separator;
+            boolean nonWeight = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
             if (!manualWeight) {
                 if (nonWeight) {
                     command1 = command1 + "KLAR1" + separator;
@@ -527,8 +527,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                 command1 = command1 + "EXPR" + exPrice + separator;
             }
 
-            String prefix = scales.pieceCodeGroupScales != null && item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ") ?
-                    scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
+            String prefix = scales.pieceCodeGroupScales != null && nonWeight ? scales.pieceCodeGroupScales : scales.weightCodeGroupScales;
             String idBarcode = item.idBarcode != null && prefix != null && item.idBarcode.length() == 5 ? ("0" + prefix + item.idBarcode + "00000") : item.idBarcode;
             Integer tareWeight = 0;
             Integer tarePercent = getTarePercent(item);
