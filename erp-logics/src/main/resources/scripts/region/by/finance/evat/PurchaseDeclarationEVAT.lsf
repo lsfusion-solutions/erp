@@ -39,7 +39,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             code(ed) <- codeCustomsGroup(id);
 //            quantity(ed) <- quantity(id); 
 //            price(ed) <- price(id);
-            sum(ed) <- round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
+            sum(ed) <- adjustHomeSum(id); //round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;
             vatRate(ed) <- percentVAT(id);
             vatSum(ed) <- 0; // VATSum(id);
@@ -47,7 +47,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             
             descriptionType(ed) <- DescriptionType.importVAT;
         }
-        FOR NUMERIC[16,5] vatSum == [= GROUP SUM VATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) ADDOBJ ed = EVATDetail DO {
+        FOR NUMERIC[16,5] vatSum == [= GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
             name(ed) <- 'Сумма НДС, уплаченная при ввозе';
             code(ed) <- [= GROUP MAX codeCustomsGroup(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, vat);
