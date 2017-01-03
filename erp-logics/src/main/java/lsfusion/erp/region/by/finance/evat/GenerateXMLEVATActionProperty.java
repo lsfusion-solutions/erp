@@ -150,11 +150,11 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 case "fixed":
                 case "additionalNoRef":
                     String declarationSupplier = trim((String) findProperty("declarationSupplier[EVAT]").read(context, evatObject));
-                    if(declarationSupplier == null)
-                        error += String.format("EVAT %s: Не заданы Реквизиты заявления о ввозе товаров и уплате косвенных налогов для поставщика\n", number);
+//                    if(declarationSupplier == null)
+//                        error += String.format("EVAT %s: Не заданы Реквизиты заявления о ввозе товаров и уплате косвенных налогов для поставщика\n", number);
                     String declarationCustomer = trim((String) findProperty("declarationCustomer[EVAT]").read(context, evatObject));
-                    if(declarationCustomer == null)
-                        error += String.format("EVAT %s: Не заданы Реквизиты заявления о ввозе товаров и уплате косвенных налогов для покупателя\n", number);
+//                    if(declarationCustomer == null)
+//                        error += String.format("EVAT %s: Не заданы Реквизиты заявления о ввозе товаров и уплате косвенных налогов для покупателя\n", number);
                     rootElement.addContent(createProviderElement(context, evatObject, declarationSupplier, namespace));
                     rootElement.addContent(createRecipientElement(context, evatObject, declarationCustomer, namespace));
                     boolean skipDeliveryCondition = findProperty("skipDeliveryCondition[EVAT]").read(context, evatObject) != null;
