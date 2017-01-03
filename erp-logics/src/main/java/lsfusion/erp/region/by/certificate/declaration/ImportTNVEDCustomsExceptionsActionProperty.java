@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.certificate.declaration;
 
+import com.google.common.base.Throwables;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -32,6 +33,7 @@ import java.text.ParseException;
 import java.util.*;
 
 public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionProperty {
+    private static final String charset = "Cp866";
 
     public ImportTNVEDCustomsExceptionsActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -52,7 +54,7 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
             }
 
         } catch (xBaseJException | IOException | ScriptingErrorLog.SemanticErrorException | ParseException e) {
-            throw new RuntimeException(e);
+            throw Throwables.propagate(e);
         }
     }
 
@@ -125,18 +127,21 @@ public class ImportTNVEDCustomsExceptionsActionProperty extends ScriptingActionP
             for (int i = 1; i <= recordCount; i++) {
                 dbfFile.read();
 
-                Integer type = Integer.parseInt(new String(dbfFile.getField("PP").getBytes(), "Cp866").trim());
-                String codeCustomsGroup = new String(dbfFile.getField("G33").getBytes(), "Cp866").trim();
-                String name = new String(dbfFile.getField("TEXT").getBytes(), "Cp866").trim();
-                BigDecimal stav1 = new BigDecimal(new String(dbfFile.getField("STAV1").getBytes(), "Cp866").trim());
-                Date dateFrom = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE1").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
-                Date dateTo = new Date(DateUtils.parseDate(new String(dbfFile.getField("DATE2").getBytes(), "Cp866").trim(), new String[]{"yyyyMMdd"}).getTime());
-
-                if (type.equals(4)) {
-                    if (codeCustomsGroup.length() == 10)
-                        data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
-                    else
-                        dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                Integer type = Integer.parseInt(new String(dbfFile.getField("PP").getBytes(), charset).trim());
+                String codeCustomsGroup = new String(dbfFile.getField("G33").getBytes(), charset).trim();
+                String name = new String(dbfFile.getField("TEXT").getBytes(), charset).trim();
+                BigDecimal stav1 = new BigDecimal(new String(dbfFile.getField("STAV1").getBytes(), charset).trim());
+                String dateFromValue = new String(dbfFile.getField("DATE1").getBytes(), charset).trim();
+                String dateToValue = new String(dbfFile.getField("DATE2").getBytes(), charset).trim();
+                if(!dateFromValue.isEmpty() && !dateToValue.isEmpty()) {
+                    Date dateFrom = new Date(DateUtils.parseDate(dateFromValue, new String[]{"yyyyMMdd"}).getTime());
+                    Date dateTo = new Date(DateUtils.parseDate(dateToValue, new String[]{"yyyyMMdd"}).getTime());
+                    if (type.equals(4)) {
+                        if (codeCustomsGroup.length() == 10)
+                            data.add(Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                        else
+                            dataVATMap.put(codeCustomsGroup, Arrays.asList((Object) codeCustomsGroup, codeCustomsGroup + String.valueOf(dateTo) + name, name, stav1, dateFrom, dateTo));
+                    }
                 }
             }
         } finally {
