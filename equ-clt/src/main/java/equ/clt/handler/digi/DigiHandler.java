@@ -145,8 +145,9 @@ public class DigiHandler extends ScalesHandler {
         bytes.put((byte) 0);
 
         // 1-й байт 1-го статуса
+        boolean pieceItem = item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ");
         byte st1b1 = 0;
-        if (!item.passScalesItem)
+        if (!item.passScalesItem || pieceItem)
             st1b1 = setBit(st1b1, 0); //штучный
         st1b1 = setBit(st1b1, 2); //печатать дату продажи
         st1b1 = setBit(st1b1, 4); //печатать дату упаковки
@@ -191,7 +192,7 @@ public class DigiHandler extends ScalesHandler {
         bytes.put((byte) 5);
 
         // данные штрихкода, 7 bytes
-        String prefix = pieceCode != null && item.shortNameUOM != null && item.shortNameUOM.toUpperCase().startsWith("ШТ") ? pieceCode : weightCode;
+        String prefix = pieceCode != null && pieceItem ? pieceCode : weightCode;
         String barcode = fillTrailingZeroes(prefix + item.idBarcode, 14);
         bytes.put(getHexBytes(barcode));
 
