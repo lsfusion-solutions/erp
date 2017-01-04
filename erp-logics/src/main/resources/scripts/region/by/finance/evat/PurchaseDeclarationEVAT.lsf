@@ -16,8 +16,9 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
         legalEntityStatusCustomer(e) <- LegalEntityStatus.buyerObjects;
         codeDocType (e) <- 609;
-        seriesDoc(e) <- OVERRIDE 'ДК', series(d);
-        numberDoc(e) <- OVERRIDE 'Не задан', number(d);
+        dateDoc(e) <- date([= GROUP MIN InvoiceDetail d IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        seriesDoc(e) <- OVERRIDE 'ДК', series([= GROUP MIN InvoiceDetail d IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        numberDoc(e) <- number([= GROUP MIN InvoiceDetail d IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
         unpSender(e) <- UNP(l);
         
         //Поставщик
@@ -55,9 +56,9 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
 
             name(ed) <- nameCustoms(id);
             code(ed) <- codeCustomsGroup(id);
-//            quantity(ed) <- quantity(id); 
-//            price(ed) <- price(id);
-            sum(ed) <- adjustHomeSum(id); //round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
+            quantity(ed) <- quantity(id); 
+            price(ed) <- [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id) / quantity(id);
+            sum(ed) <- [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id); //round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;
             vatRate(ed) <- percentVAT(id);
             vatSum(ed) <- 0; // VATSum(id);

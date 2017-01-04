@@ -123,11 +123,11 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             String documentNumber = trim((String) findProperty("exportNumber[EVAT]").read(context, evatObject), "");
 
             String addressSupplier = trim((String) findProperty("shippingAddressConsignor[EVAT]").read(context, evatObject));
-            if (addressSupplier == null)
-                error += String.format("EVAT %s: Не задан пункт погрузки\n", number);
+//            if (addressSupplier == null)
+//                error += String.format("EVAT %s: Не задан пункт погрузки\n", number);
             String addressCustomer = trim((String) findProperty("shippingAddressConsignee[EVAT]").read(context, evatObject));
-            if (addressCustomer == null)
-                error += String.format("EVAT %s: Не задан пункт отгрузки\n", number);
+//            if (addressCustomer == null)
+//                error += String.format("EVAT %s: Не задан пункт отгрузки\n", number);
 
             Namespace xmlns = Namespace.getNamespace("http://www.w3schools.com");
             Namespace xs = Namespace.getNamespace("xs", "http://www.w3.org/2001/XMLSchema");
@@ -359,13 +359,13 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
     //parent: rootElement
     private Element createSenderReceiverElement(ExecutionContext context, DataObject evatObject, String addressSupplier, String addressCustomer, Namespace namespace) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        String countryCodeSupplier = trim((String) findProperty("countryCodeSupplier[EVAT]").read(context, evatObject));
-        String unpSupplier = trim((String) findProperty("unpSupplier[EVAT]").read(context, evatObject));
-        String nameSupplier = trim((String) findProperty("nameSupplier[EVAT]").read(context, evatObject));
+        String countryCodeSupplier = trim((String) findProperty("countryCodeConsignor[EVAT]").read(context, evatObject));
+        String unpSupplier = trim((String) findProperty("unpConsignor[EVAT]").read(context, evatObject));
+        String nameSupplier = trim((String) findProperty("consignor[EVAT]").read(context, evatObject));
 
-        String countryCodeCustomer = trim((String) findProperty("countryCodeCustomer[EVAT]").read(context, evatObject));
-        String unpCustomer = trim((String) findProperty("unpCustomer[EVAT]").read(context, evatObject));
-        String nameCustomer = trim((String) findProperty("nameCustomer[EVAT]").read(context, evatObject));
+        String countryCodeCustomer = trim((String) findProperty("countryCodeConsignee[EVAT]").read(context, evatObject));
+        String unpCustomer = trim((String) findProperty("unpConsignee[EVAT]").read(context, evatObject));
+        String nameCustomer = trim((String) findProperty("consignee[EVAT]").read(context, evatObject));
 
         Element senderReceiverElement = new Element("senderReceiver");
         Element consignorsElement = new Element("consignors", namespace);
@@ -383,7 +383,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
         String contractNumber = trim((String) findProperty("numberContract[EVAT]").read(context, evatObject));
         String contractDate = formatDate((Date) findProperty("dateContract[EVAT]").read(context, evatObject));
-        String date = formatDate((Date) findProperty("date[EVAT]").read(context, evatObject));
+        String date = formatDate((Date) findProperty("dateDoc[EVAT]").read(context, evatObject));
         Integer codeDocType = (Integer) findProperty("codeDocType[EVAT]").read(context, evatObject);
         String valueDocType = trim((String) findProperty("valueDocType[EVAT]").read(context, evatObject));
         String blankCode = trim((String) findProperty("blankCodeDoc[EVAT]").read(context, evatObject));
