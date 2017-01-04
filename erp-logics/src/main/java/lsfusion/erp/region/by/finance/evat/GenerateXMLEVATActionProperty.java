@@ -489,10 +489,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
     private Element createLegalEntityElement(String name, String countryCode, String unp, String nameLegalEntity, String address, Namespace namespace) {
         Element element = new Element(name);
-        addStringElement(namespace, element, "countryCode", countryCode);
+        addStringElement(namespace, element, "countryCode", countryCode == null ? "" : countryCode);
         addStringElement(namespace, element, "unp", unp == null ? "" : unp);
-        addStringElement(namespace, element, "name", nameLegalEntity);
-        addStringElement(namespace, element, "address", address);
+        addStringElement(namespace, element, "name", nameLegalEntity == null ? "" : nameLegalEntity);
+        addStringElement(namespace, element, "address", address == null ? "" : address);
         element.setNamespace(namespace);
         return element;
     }
