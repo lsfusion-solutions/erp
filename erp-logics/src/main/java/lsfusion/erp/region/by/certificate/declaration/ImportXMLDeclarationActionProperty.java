@@ -14,20 +14,21 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.JDOMException;
-import org.jdom.Namespace;
+import org.apache.http.client.utils.DateUtils;
+import org.jdom.*;
 import org.jdom.input.SAXBuilder;
 
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.math.BigDecimal;
+import java.sql.Date;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Iterator;
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 
 public class ImportXMLDeclarationActionProperty extends DefaultImportActionProperty {
@@ -90,6 +91,17 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
                         String uomCode = goodsGroupQuantity.getChildText("MeasureUnitQualifierCode", cu);
 
                         data.add(Arrays.<Object>asList(number, description, sum, duty, valueVAT, sumVAT, TNVED, countryCode, uomCode, uomName));
+                    }
+
+                    Date declarationDate = null;
+                    for (Object element : document.getContent()) {
+                        if (element instanceof Comment) {
+                            Pattern commentPattern = Pattern.compile("(?:\\s)?DT_DATE\\:(?:\\s)?(.*)");
+                            Matcher commentMatcher = commentPattern.matcher(((Comment) element).getText());
+                            if (commentMatcher.matches()) {
+                                declarationDate = new Date(DateUtils.parseDate(commentMatcher.group(1), new String[]{"dd.MM.yyyy"}).getTime());
+                            }
+                        }
                     }
 
                     List<ImportProperty<?>> properties = new ArrayList<>();
@@ -163,7 +175,9 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
                     IntegrationService integrationService = new IntegrationService(context.getSession(), new ImportTable(fields, data), keys, properties);
                     integrationService.synchronize(true, false);
 
-                    findProperty("isExported[Declaration]").change(true, context.getSession(), declarationObject);
+                    if(declarationDate != null)
+                        findProperty("date[Declaration]").change(declarationDate, context, declarationObject);
+                    findProperty("isExported[Declaration]").change(true, context, declarationObject);
                 }
             }
         } catch (IOException | ScriptingErrorLog.SemanticErrorException | SQLException | JDOMException e) {
