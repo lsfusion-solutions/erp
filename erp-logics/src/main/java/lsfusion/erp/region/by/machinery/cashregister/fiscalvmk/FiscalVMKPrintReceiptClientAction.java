@@ -5,6 +5,7 @@ import lsfusion.interop.action.ClientActionDispatcher;
 import lsfusion.interop.action.MessageClientAction;
 
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.text.DecimalFormat;
 import java.text.DecimalFormatSymbols;
 import java.util.List;
@@ -129,6 +130,10 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             return null;
         if (!FiscalVMK.totalCash(receipt.sumCash, denominationStage))
             return null;
+        if(receipt.sumCard == null && receipt.sumCash == null && giftCardAsDiscount) {
+            if (!FiscalVMK.totalCash(BigDecimal.ZERO, denominationStage))
+                return null;
+        }
         return receiptNumber;
     }
 
