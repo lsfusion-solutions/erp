@@ -14,6 +14,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         dateContract (e) <- dateFrom([= GROUP MIN contractSku(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
         
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
+        legalEntityStatusCustomer(e) <- LegalEntityStatus.buyerObjects;
         codeDocType (e) <- 609;
         seriesDoc(e) <- OVERRIDE 'ДК', series(d);
         numberDoc(e) <- OVERRIDE 'Не задан', number(d);
@@ -22,15 +23,32 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         //Поставщик
         supplier(e) <- [= GROUP MIN supplier(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d);
 //        branchCodeSupplier(e) <- branchCode(supplierStock(i));
-        shippingAddressSupplier(e) <- address([= GROUP MIN supplierStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        
         declarationSupplier(e) <- OVERRIDE 'не задан', number(d);
                 
         //Получатель
         customer(e) <- l;
         declarationCustomer(e) <- number(d);
 //        branchCodeCustomer(e) <- branchCode(customerStock(i));
-        shippingAddressCustomer(e) <- address([= GROUP MIN customerStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        
         declarationCustomer(e) <- OVERRIDE 'не задан', number(d);
+        
+        //Грузоотправитель
+        unpConsignor (e) <- OVERRIDE UNP(supplier(e)), UNPForeign(supplier(e)); 
+        IF  isEEU(country(supplier(e))) THEN {
+            consignor(e) <- VARISTRING[200](OVERRIDE name(supplier(e)), fullName(supplier(e)));
+            countryCodeConsignor (e) <- sid(country(supplier(e)));
+            
+            shippingAddressConsignor(e) <- address([= GROUP MIN supplierStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        }
+        
+        //Грузополучатель
+        IF  isEEU(country(supplier(e))) THEN {
+            consignee(e) <- VARISTRING[200](OVERRIDE name(customer(e)), fullName(customer(e)));
+            countryCodeConsignee (e) <- sid(country(customer(e)));
+            unpConsignee (e) <- UNP(customer(e)); 
+            shippingAddressConsignee(e) <- address([= GROUP MIN customerStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
+        }
                 
         FOR declaration(DeclarationDetail id) == d ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;

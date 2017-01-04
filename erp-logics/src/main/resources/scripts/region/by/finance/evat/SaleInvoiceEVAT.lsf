@@ -25,13 +25,23 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         
         //Поставщик
         supplier(e) <- supplier(i);
-        branchCodeSupplier(e) <- branchCode(supplierStock(i));
-        shippingAddressSupplier(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
+        branchCodeSupplier(e) <- branchCode(supplierStock(i));        
         
         //Получатель
-        customer(e) <- customer(i);
-        branchCodeCustomer(e) <- branchCode(customerStock(i));
-        shippingAddressCustomer(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
+        customer(e) <- customer(i);   
+        branchCodeCustomer(e) <- branchCode(customerStock(i));        
+        
+        //Грузоотправитель
+        consignor(e) <- VARISTRING[200](OVERRIDE name(supplier(e)), fullName(supplier(e)));
+        countryCodeConsignor (e) <- sid(country(supplier(e)));
+        unpConsignor (e) <- OVERRIDE UNP(supplier(e)), UNPForeign(supplier(e)); 
+        shippingAddressConsignor(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
+        
+        //Грузополучатель
+        consignee(e) <- VARISTRING[200](OVERRIDE name(customer(e)), fullName(customer(e)));
+        countryCodeConsignee (e) <- sid(country(customer(e)));
+        unpConsignee (e) <- OVERRIDE UNP(customer(e)), UNPForeign(customer(e)); 
+        shippingAddressConsignee(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
         
@@ -73,12 +83,12 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         //Поставщик
         supplier(e) <- supplier(i);
         branchCodeSupplier(e) <- branchCode(supplierStock(i));
-        shippingAddressSupplier(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
+        shippingAddressConsignor(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
         
         //Получатель
         customer(e) <- customer(i);
         branchCodeCustomer(e) <- branchCode(customerStock(i));
-        shippingAddressCustomer(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
+        shippingAddressConsignee(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
 

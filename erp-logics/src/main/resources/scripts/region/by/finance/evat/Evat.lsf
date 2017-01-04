@@ -4,6 +4,11 @@ REQUIRE System, Finance, LegalEntityBy, Item, Warehouse;
 
 // Атрибуты для счет-фактуры
 
+
+
+GROUP consignor 'Реквизиты грузоотправителя' : base;
+GROUP consignee 'Реквизиты грузополучателя' : base;
+
 branchCode 'Код подразделения (для ЭСЧФ)' = DATA INTEGER (Warehouse);
 EXTEND FORM warehouse
     PROPERTIES(w) branchCode
@@ -54,7 +59,8 @@ CLASS LegalEntityStatus 'Статус' {
     agent 'Посредник',
     developer 'Заказчик (застройщик)',
     tornoversOnSalePayer 'Плательщик, передающий обороты по реализации',
-    buyer 'Покупатель'
+    buyer 'Покупатель',
+    buyerObjects 'Покупатель объектов у иностранной организации'
 }
 
 FORM legalEntityStatuses
@@ -100,9 +106,6 @@ CONSTRAINT DROPPED (EVAT e IS EVAT) AND PREV (exported(e)) MESSAGE 'Запрещ
 statusServerStatus = DATA EVATServerStatus (EVAT);
 nameServerStatus 'Статус на сервере'(EVAT e) = staticName(statusServerStatus(e));  
 captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(statusServerStatus(e));  
-
-shippingAddressSupplier 'Пункт отправки' = DATA VARSTRING[150] (EVAT);
-shippingAddressCustomer 'Пункт доставки' = DATA VARSTRING[150] (EVAT);
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
@@ -159,15 +162,14 @@ dependentPersonSupplier 'Взаимозависимое лицо' = DATA BOOLEAN
 residentsOfOffshoreSupplier ' Сделка с резидентом оффшорной зоны ' = DATA BOOLEAN (EVAT);
 specialDealGoodsSupplier 'Спец. сделка' = DATA BOOLEAN (EVAT);
 bigCompanySupplier 'Крупный плательщик (поставщик)' = DATA BOOLEAN (EVAT);
-countryConsignor = DATA Country(EVAT);// страна ввоза
-countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(OVERRIDE country(supplier(evat)), countryConsignor(evat));
+//countryConsignor = DATA Country(EVAT);// страна ввоза
+//countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(OVERRIDE country(supplier(evat)), countryConsignor(evat));
+countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(country(supplier(evat)));
 unpSupplier 'УНП поставщика' (EVAT evat) = OVERRIDE UNP(supplier(evat)), UNPForeign(supplier(evat));
 legalEntityStatusSupplier 'Статус поставщика' = DATA LegalEntityStatus (EVAT);
 nameLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticName(legalEntityStatusSupplier(evat));
 captionLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticCaption(legalEntityStatusSupplier(evat));
 
-consignor = DATA VARISTRING[200](EVAT);
-nameConsignor 'Наименование грузоотправителя' (EVAT e) = OVERRIDE nameSupplier(e), consignor(e);
 
 //Получатель.
 noCustomer 'Без покупателя' = DATA BOOLEAN (EVAT);
@@ -185,6 +187,19 @@ unpCustomer 'УНП получателя' (EVAT evat) = UNP(customer(evat));
 legalEntityStatusCustomer 'Статус получателя' = DATA LegalEntityStatus (EVAT);
 nameLegalEntityStatusCustomer 'Статус получателя' (EVAT evat) = staticName(legalEntityStatusCustomer(evat));
 captionLegalEntityStatusCustomer 'Статус получателя' (EVAT evat) = staticCaption(legalEntityStatusCustomer(evat));
+
+//-- Грузоотправитель
+consignor 'Грузоотправитель'  = DATA VARISTRING[200](EVAT) IN consignor;
+countryCodeConsignor 'Код страны грузоотправителя' = DATA VARSTRING[50] (EVAT) IN consignor;
+unpConsignor 'УНП грузоотправителя'  = DATA VARSTRING[50] (EVAT) IN consignor;
+shippingAddressConsignor 'Адрес отправки' = DATA VARSTRING[150] (EVAT) IN consignor;
+
+//-- 
+consignee 'Грузополучатель' = DATA VARISTRING[200](EVAT) IN consignee;
+countryCodeConsignee 'Код страны грузополучателя' = DATA VARSTRING[50] (EVAT) IN consignee;
+unpConsignee 'УНП грузополучателя'  = DATA VARSTRING[50] (EVAT) IN consignee;
+shippingAddressConsignee 'Адрес доставки' = DATA VARSTRING[150] (EVAT) IN consignee;
+
 //Товар
 CLASS EVATDetail 'Строка электронного счёта-фактуры';
 TABLE evatDetail(EVATDetail);
@@ -228,11 +243,13 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
     PROPERTIES(e) captionStatus, unpSender, number, exportNumber, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
-                  captionLegalEntityStatusSupplier, shippingAddressSupplier, nameConsignor, bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
-                  captionLegalEntityStatusCustomer, shippingAddressCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
+                  captionLegalEntityStatusSupplier, consignor, unpConsignor, countryCodeConsignor, shippingAddressConsignor,
+                  consignee, unpConsignee, countryCodeConsignee, shippingAddressConsignee,  
+                  bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
+                  captionLegalEntityStatusCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
                   dateInvoiceVendor, nameSupplier, branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
-                   numberTaxesSupplier, dateTaxesSupplier,
+                  numberTaxesSupplier, dateTaxesSupplier,
                   nameCustomer, branchCodeCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
                   skipDeliveryCondition, numberContract, dateContract, codeDocType, valueDocType, blankCodeDoc, seriesDoc, numberDoc, descriptionDoc, 
                   totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
@@ -271,7 +288,6 @@ DESIGN evat {
             fill = 1;
             MOVE s.box;   
             MOVE PROPERTY(captionLegalEntityStatusSupplier(e));
-            MOVE PROPERTY(shippingAddressSupplier(e));
             MOVE PROPERTY(bigCompanySupplier(e));
             MOVE PROPERTY(dependentPersonSupplier(e));
             MOVE PROPERTY(residentsOfOffshoreSupplier(e));
@@ -286,14 +302,13 @@ DESIGN evat {
             MOVE PROPERTY(dateActualExportSupplier(e));
             MOVE PROPERTY(numberTaxesSupplier(e));
             MOVE PROPERTY(dateTaxesSupplier(e));
-            MOVE PROPERTY(nameConsignor(e));
+            MOVE e.consignor { type = CONTAINERV;}
         }
         NEW customer{
             caption = 'Получатель';
             fill = 1;
             MOVE c.box;   
             MOVE PROPERTY(captionLegalEntityStatusCustomer(e));
-            MOVE PROPERTY(shippingAddressCustomer(e));
             MOVE PROPERTY(bigCompanyCustomer(e));
             MOVE PROPERTY(dependentPersonCustomer(e));
             MOVE PROPERTY(residentsOfOffshoreCustomer(e));
@@ -303,6 +318,7 @@ DESIGN evat {
             MOVE PROPERTY(numberTaxesCustomer(e));
             MOVE PROPERTY(dateTaxesCustomer(e));
             MOVE PROPERTY(dateImportCustomer(e));
+            MOVE e.consignee { type = CONTAINERV;}
         }           
         NEW deliveryCondition {
             caption = 'Условия поставки';

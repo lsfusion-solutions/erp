@@ -122,10 +122,10 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             String number = trim((String) findProperty("number[EVAT]").read(context, evatObject), "");
             String documentNumber = trim((String) findProperty("exportNumber[EVAT]").read(context, evatObject), "");
 
-            String addressSupplier = trim((String) findProperty("shippingAddressSupplier[EVAT]").read(context, evatObject));
+            String addressSupplier = trim((String) findProperty("shippingAddressConsignor[EVAT]").read(context, evatObject));
             if (addressSupplier == null)
                 error += String.format("EVAT %s: Не задан пункт погрузки\n", number);
-            String addressCustomer = trim((String) findProperty("shippingAddressCustomer[EVAT]").read(context, evatObject));
+            String addressCustomer = trim((String) findProperty("shippingAddressConsignee[EVAT]").read(context, evatObject));
             if (addressCustomer == null)
                 error += String.format("EVAT %s: Не задан пункт отгрузки\n", number);
 
