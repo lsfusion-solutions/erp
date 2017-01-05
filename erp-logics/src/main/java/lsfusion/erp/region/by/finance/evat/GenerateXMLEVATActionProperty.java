@@ -533,6 +533,16 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 return "DEVELOPER";
             else if (status.endsWith("tornoversOnSalePayer"))
                 return "TURNOVERS_ON_SALE_PAYER";
+            else if (status.endsWith("customer"))
+                return "CUSTOMER";
+            else if (status.endsWith("consumer"))
+                return "CONSUMER";
+            else if (status.endsWith("taxDeductionRecipient"))
+                return "TAX_DEDUCTION_RECIPIENT";
+            else if (status.endsWith("foreignOrganizationBuyer"))
+                return "FOREIGN_ORGANIZATION_BUYER";
+            else if (status.endsWith("turnoversOnSaleRecipient"))
+                return "TURNOVERS_ON_SALE_RECIPIENT";
         }
         return defaultStatus;
     }
