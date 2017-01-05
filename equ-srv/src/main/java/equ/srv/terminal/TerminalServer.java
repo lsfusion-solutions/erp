@@ -3,11 +3,9 @@ package equ.srv.terminal;
 import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.lifecycle.MonitorServer;
-import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.LogicsInstance;
-import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang3.time.DateUtils;
 import org.apache.log4j.Logger;
@@ -127,38 +125,47 @@ public class TerminalServer extends MonitorServer {
         return "terminal";
     }
 
+    private ServerSocket listenServerSocket;
+    private ExecutorService listenExecutorService;
+    private Thread listenThread;
     public void listenToPort(String host, Integer port) {
-        final ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, this);
-        ServerSocket serverSocket = null;
         try {
-            serverSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
-
+            listenServerSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"            
+            listenExecutorService = ExecutorFactory.createMonitorThreadService(10, this);
+            
+            // аналогичный механизм в FiscalBoardDaemon, но через Executor пока не принципиально
+            startListenThread();
         } catch (IOException e) {
             logger.error("Error occured while listening to port: ", e);
-            executorService.shutdownNow();
-        }
-
-        if (serverSocket != null) {
-            // аналогичный механизм в FiscalBoardDaemon, но через Executor пока не принципиально
-            final ServerSocket finalServerSocket = serverSocket;
-            Thread thread = new Thread(new Runnable() {
-                public void run() {
-                    while (!stopped) {
-                        try {
-                            Socket socket = finalServerSocket.accept();
-                            logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
-                            executorService.submit(new SocketCallable(socket));
-                        } catch (IOException e) {
-                            logger.error("Error occured while submitting socket: ", e);
-                        }
-                    }
-                }
-            });
-            thread.setDaemon(true);
-            thread.start();
         }
     }
-
+    
+    public void restartListenThread() {
+        if(listenThread != null) {
+            listenThread.interrupt();
+            listenThread = null;
+        }
+        startListenThread();
+    }
+    
+    public void startListenThread() {
+        listenThread = new Thread(new Runnable() {
+            public void run() {
+                while (!stopped) {
+                    try {
+                        Socket socket = listenServerSocket.accept();
+                        logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
+                        listenExecutorService.submit(new SocketCallable(socket));
+                    } catch (IOException e) {
+                        logger.error("Error occured while submitting socket: ", e);
+                    }
+                }
+            }
+        });
+        listenThread.setDaemon(true);
+        listenThread.start();
+    }
+    
     protected DataSession createSession() throws SQLException {
         return getDbManager().createSession();
     }
