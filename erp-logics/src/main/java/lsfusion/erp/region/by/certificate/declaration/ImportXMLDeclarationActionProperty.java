@@ -94,12 +94,18 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
                     }
 
                     Date declarationDate = null;
+                    String declarationNumber = null;
                     for (Object element : document.getContent()) {
                         if (element instanceof Comment) {
-                            Pattern commentPattern = Pattern.compile("(?:\\s)?DT_DATE\\:(?:\\s)?(.*)");
+                            Pattern commentPattern = Pattern.compile("(.*)\\:\\s(.*)");
                             Matcher commentMatcher = commentPattern.matcher(((Comment) element).getText());
                             if (commentMatcher.matches()) {
-                                declarationDate = new Date(DateUtils.parseDate(commentMatcher.group(1), new String[]{"dd.MM.yyyy"}).getTime());
+                                String key = commentMatcher.group(1);
+                                if(key.contains("DT_DATE"))
+                                    declarationDate = new Date(DateUtils.parseDate(trim(commentMatcher.group(2)), new String[]{"dd.MM.yyyy"}).getTime());
+                                else if(key.contains("NOM_REG"))
+                                    declarationNumber = trim(commentMatcher.group(2));
+
                             }
                         }
                     }
@@ -177,6 +183,8 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
 
                     if(declarationDate != null)
                         findProperty("date[Declaration]").change(declarationDate, context, declarationObject);
+                    if(declarationNumber != null)
+                        findProperty("number[Declaration]").change(declarationNumber, context, declarationObject);
                     findProperty("isExported[Declaration]").change(true, context, declarationObject);
                 }
             }
