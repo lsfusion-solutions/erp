@@ -146,6 +146,7 @@ public class TerminalServer extends MonitorServer {
                     while (!stopped) {
                         try {
                             Socket socket = finalServerSocket.accept();
+                            logger.info("submitting task for socket : " + socket + " " + System.identityHashCode(socket));
                             executorService.submit(new SocketCallable(socket));
                         } catch (IOException e) {
                             logger.error("Error occured while submitting socket: ", e);
