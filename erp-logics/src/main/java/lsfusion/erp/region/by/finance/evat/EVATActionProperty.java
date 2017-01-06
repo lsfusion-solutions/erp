@@ -118,15 +118,16 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                         Integer evat = (Integer) entry.get(0);
                         String message = (String) entry.get(1);
                         String status = (String) entry.get(2);
-                        ServerLoggers.importLogger.info(String.format("EVAT %s: reading result started", evat));
-                        resultMessage += String.format("EVAT %s: %s\n", evat, message);
+                        String number = (String) entry.get(3);
+                        ServerLoggers.importLogger.info(String.format("EVAT %s: reading result started", number));
+                        resultMessage += String.format("EVAT %s: %s\n", number, message);
                         try (DataSession session = context.createSession()) {
                             DataObject evatObject = new DataObject(evat, (ConcreteClass) findClass("EVAT"));
-                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, evat).getValue(), session, evatObject);
+                            findProperty("statusServerStatus[EVAT]").change(getServerStatusObject(status, number).getValue(), session, evatObject);
                             findProperty("result[EVAT]").change(message, session, evatObject);
                             String applyResult = session.applyMessage(context);
                             if (applyResult != null)
-                                resultMessage += String.format("EVAT %s: %s\n", applyResult, message);
+                                resultMessage += String.format("EVAT %s: %s\n", number, applyResult);
                         }
                     }
                 }
@@ -139,7 +140,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private ObjectValue getServerStatusObject(String value, Integer evat) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private ObjectValue getServerStatusObject(String value, String number) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         ObjectValue serverStatusObject = null;
         if(value != null) {
             String id = null;
@@ -169,7 +170,7 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                     id = "error";
                     break;
                 default:
-                    ServerLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", evat, value));
+                    ServerLoggers.importLogger.info(String.format("EVAT %s: unknown status: %s", number, value));
             }
             serverStatusObject = id == null ? NullValue.instance : ((ConcreteCustomClass) findClass("EVAT.EVATServerStatus")).getDataObject(id);
         }

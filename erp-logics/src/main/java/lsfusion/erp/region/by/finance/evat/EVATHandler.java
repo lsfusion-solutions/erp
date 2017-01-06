@@ -85,7 +85,7 @@ public class EVATHandler {
         byte[] file = (byte[]) fileNumberEntry.get(0);
         String number = (String) fileNumberEntry.get(1);
         try {
-            logger.info(String.format("EVAT %s: save file before sending", evat));
+            logger.info(String.format("EVAT %s: save file before sending", number));
             File originalFile = new File(archiveDir, "EVAT" + evat + ".xml");
             FileUtils.writeByteArrayToFile(originalFile, file);
 
@@ -99,7 +99,7 @@ public class EVATHandler {
             byte[] xsdSchema = loadXsdSchema(xsdPath, eDoc.getDocument().getXmlNodeValue("issuance/general/documentType"));
             boolean isDocumentValid = eDoc.getDocument().validateXML(xsdSchema);
             if (!isDocumentValid) {
-                result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа %s не отвечает XSD схеме", evat, number), true);
+                result = Arrays.asList((Object) evat, String.format("EVAT %s: Структура документа не отвечает XSD схеме", number), true);
             } else {
 
                 eDoc.sign();
@@ -118,7 +118,7 @@ public class EVATHandler {
 
                 // Проверка квитанции
                 if (ticket.accepted()) {
-                    logger.info(String.format("EVAT %s: SignAndSend. Ticket is accepted", evat));
+                    logger.info(String.format("EVAT %s: SignAndSend. Ticket is accepted", number));
                     String resultMessage = ticket.getMessage();
 
                     File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.xml");
@@ -130,7 +130,7 @@ public class EVATHandler {
                     result = Arrays.asList((Object) evat, resultMessage, false);
 
                 } else {
-                    logger.info(String.format("EVAT %s: SignAndSend. Ticket is not accepted", evat));
+                    logger.info(String.format("EVAT %s: SignAndSend. Ticket is not accepted", number));
                     AvError err = ticket.getLastError();
                     File ticketFile = new File(archiveDir, "EVAT" + evat + ".ticket.error.xml");
                     // Сохранение квитанции в файл
@@ -140,11 +140,11 @@ public class EVATHandler {
                 }
 
                 //конец непроверенного кода
-                logger.info(String.format("EVAT %s: send file finished", evat));
+                logger.info(String.format("EVAT %s: send file finished", number));
             }
 
         } catch (Exception e) {
-            logger.info(String.format("EVAT %s: Error occurred (errors count %s)", evat, errorsCount + 1));
+            logger.info(String.format("EVAT %s: Error occurred (errors count %s)", number, errorsCount + 1));
             if (errorsCount < 5) {
                 errorsCount++;
                 service = initService(serviceUrl, unp, password, certIndex);
@@ -185,7 +185,7 @@ public class EVATHandler {
                     String resultMessage = verified ? status.getMessage() : status.getLastError().getMessage();
                     String resultStatus = verified ? status.getStatus() : null;
                     logger.info(String.format("EVAT %s: Cтатус %s, сообщение %s", invoiceNumber, resultStatus, resultMessage));
-                    result.add(Arrays.asList((Object) evat, resultMessage, resultStatus));
+                    result.add(Arrays.asList((Object) evat, resultMessage, resultStatus, invoiceNumber));
                 }
             }
         } catch (Exception e) {

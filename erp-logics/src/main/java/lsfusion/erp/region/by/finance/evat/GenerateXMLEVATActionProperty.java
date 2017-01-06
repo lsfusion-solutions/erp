@@ -40,7 +40,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
     private final ClassPropertyInterface evatInterface;
 
-    public GenerateXMLEVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
+    GenerateXMLEVATActionProperty(ScriptingLogicsModule LM, ValueClass... classes) throws ScriptingErrorLog.SemanticErrorException {
         super(LM, classes);
 
         Iterator<ClassPropertyInterface> i = interfaces.iterator();
@@ -56,7 +56,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         generateXML(context, evatObject, true);
     }
 
-    protected Map<String, Map<Integer, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    Map<String, Map<Integer, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Map<Integer, String>> evatMap = new HashMap<>();
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
@@ -119,7 +119,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
             String unpSender = trim((String) findProperty("unpSender[EVAT]").read(context, evatObject));
 
-            String number = trim((String) findProperty("number[EVAT]").read(context, evatObject), "");
+            //String number = trim((String) findProperty("number[EVAT]").read(context, evatObject), "");
             String documentNumber = trim((String) findProperty("exportNumber[EVAT]").read(context, evatObject), "");
 
             String addressSupplier = trim((String) findProperty("shippingAddressConsignor[EVAT]").read(context, evatObject));
@@ -161,7 +161,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                     if(!skipDeliveryCondition) {
                         String numberDoc = trim((String) findProperty("numberDoc[EVAT]").read(context, evatObject));
                         if(numberDoc == null)
-                            error += String.format("EVAT %s: Не задан номер условия поставки", number);
+                            error += String.format("EVAT %s: Не задан номер условия поставки", documentNumber);
                         rootElement.addContent(createSenderReceiverElement(context, evatObject, addressSupplier, addressCustomer, namespace));
                         rootElement.addContent(createDeliveryConditionElement(context, evatObject, numberDoc, namespace));
                     }
@@ -179,7 +179,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 byte[] fileData = IOUtils.getFileBytes(tmpFile);
                 if (choosePath)
                     context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
-                return Arrays.asList((Object) fileData, number);
+                return Arrays.asList((Object) fileData, documentNumber);
 
             } else {
                 context.delayUserInterfaction(new MessageClientAction(error, "Не все поля заполнены"));
