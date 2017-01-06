@@ -10,8 +10,11 @@ overCreateEVATPurchaseInvoice = ACTION ABSTRACT LIST (EVATDetail, InvoiceDetail)
 overCreateEVATPurchaseInvoice = ACTION ABSTRACT LIST (EVAT, Invoice);
 skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
+EXTEND CLASS EVATType { purchase 'Закупка' }
+
 createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) AND NOT skipEVAT(i) ADDOBJ e = EVAT DO {
+        type(e) <- EVATType.purchase;
         status(e) <- EVATStatus.original;
         legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
         legalEntityStatusCustomer(e) <- LegalEntityStatus.customer;

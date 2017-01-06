@@ -4,8 +4,11 @@ REQUIRE PurchaseDeclarationDetail, EVAT;
 
 NAMESPACE Purchase;
 
+EXTEND CLASS EVATType { declaration 'Декларация' }
+
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
     FOR date(Declaration d) >= dFrom AND date(d) <= dTo AND isPosted(d) ADDOBJ e = EVAT DO {
+        type(e) <- EVATType.declaration;
         status(e) <- EVATStatus.original;
         
         date(e) <- date(d);
@@ -57,6 +60,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             name(ed) <- nameCustoms(id);
             code(ed) <- codeCustomsGroup(id);
             quantity(ed) <- quantity(id); 
+            shortNameUOM(ed) <- shortName([= GROUP MAX UOM(sku(InvoiceDetail d)) IF in(DeclarationDetail dd, d) BY dd](id));
             price(ed) <- [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id) / quantity(id);
             sum(ed) <- [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id); //round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;

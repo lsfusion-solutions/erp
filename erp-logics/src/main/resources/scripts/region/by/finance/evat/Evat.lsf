@@ -14,6 +14,17 @@ EXTEND FORM warehouse
     PROPERTIES(w) branchCode
 ;
 
+CLASS EVATType 'Тип счет-фактуры';
+TABLE EVATType(EVATType);
+name (EVATType t) = staticCaption(t) IF t IS EVATType;
+
+FORM EVATTypes
+    OBJECTS t = EVATType FIXED GRID
+    PROPERTIES(t) READONLY name
+    
+    DIALOG EVATType OBJECT t
+;
+
 CLASS EVAT 'Электронный счёт-фактура';
 TABLE evat(EVAT);
 
@@ -92,6 +103,9 @@ signAndSend 'Сгенерировать, подписать и отправит�
 getStatus 'Получить статус ЭСЧФ' () = ACTION { evatAction(1); }
 
 formExportFile() = DATA LOCAL CUSTOMFILE ();
+
+type = DATA EVATType (EVAT);
+nameType 'Тип' (EVAT evat) = name(type(evat));
 
 status = DATA EVATStatus (EVAT);
 nameStatus 'Статус' (EVAT evat) = staticName(status(evat));
@@ -247,7 +261,7 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
-    PROPERTIES(e) captionStatus, unpSender, number, exportNumber, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
+    PROPERTIES(e) nameType, captionStatus, unpSender, number, exportNumber, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
                   captionLegalEntityStatusSupplier, consignor, unpConsignor, countryCodeConsignor, shippingAddressConsignor,
                   consignee, unpConsignee, countryCodeConsignee, shippingAddressConsignee,  
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
@@ -356,8 +370,9 @@ DESIGN evat {
 blankCodeDoc 'Номер бланка' = DATA VARSTRING[100] ();
 
 FORM evats 'Электронные счета-фактуры'
-    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    OBJECTS dates = (dFrom = DATE, dTo = DATE, type = EVATType) FIXED PANEL
     PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
+    PROPERTIES SELECTOR name(type)
 
     OBJECTS e = EVAT
     PROPERTIES(e) in
