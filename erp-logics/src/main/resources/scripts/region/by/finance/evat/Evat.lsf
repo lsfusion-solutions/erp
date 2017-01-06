@@ -183,7 +183,7 @@ specialDealGoodsSupplier 'Спец. сделка' = DATA BOOLEAN (EVAT);
 bigCompanySupplier 'Крупный плательщик (поставщик)' = DATA BOOLEAN (EVAT);
 //countryConsignor = DATA Country(EVAT);// страна ввоза
 //countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(OVERRIDE country(supplier(evat)), countryConsignor(evat));
-countryCodeSupplier 'Код страны грузоотправителя' (EVAT evat) = sid(country(supplier(evat)));
+countryCodeSupplier 'Код страны поставщика' (EVAT evat) = sid(country(supplier(evat)));
 unpSupplier 'УНП поставщика' (EVAT evat) = OVERRIDE UNP(supplier(evat)), UNPForeign(supplier(evat));
 legalEntityStatusSupplier 'Статус поставщика' = DATA LegalEntityStatus (EVAT);
 nameLegalEntityStatusSupplier 'Статус поставщика' (EVAT evat) = staticName(legalEntityStatusSupplier(evat));
@@ -267,17 +267,17 @@ FORM evat 'Электронная счёт-фактура'
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   captionLegalEntityStatusCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
-                  dateInvoiceVendor, nameSupplier, branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
-                  numberTaxesSupplier, dateTaxesSupplier,
-                  nameCustomer, branchCodeCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
+                  dateInvoiceVendor,  
+                  nameSupplier, unpSupplier, countryCodeSupplier, addressSupplier, 
+                  nameCustomer, unpCustomer, countryCodeCustomer, addressCustomer, 
+                  branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
+                  numberTaxesSupplier, dateTaxesSupplier, branchCodeCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer,
                   skipDeliveryCondition, numberContract, dateContract, codeDocType, valueDocType, blankCodeDoc, dateDoc, seriesDoc, numberDoc, descriptionDoc, 
                   totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
-    OBJECTS s=LegalEntity FIXED PANEL, c=LegalEntity FIXED PANEL
-    PROPERTIES(s) id, UNP, address
-    PROPERTIES(c) id, UNP, address
+
     OBJECTS d = EVATDetail
     PROPERTIES(d) name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
-    FILTERS s==supplier(e), c==customer(e), evat(d) == e
+    FILTERS evat(d) == e
     EDIT EVAT OBJECT e
 ;
 
@@ -305,7 +305,10 @@ DESIGN evat {
         NEW supplier{
             caption = 'Поставщик';
             fill = 1;
-            MOVE s.box;   
+            MOVE PROPERTY(nameSupplier(e));
+            MOVE PROPERTY(unpSupplier(e));
+            MOVE PROPERTY(countryCodeSupplier(e));
+            MOVE PROPERTY(addressSupplier(e));            
             MOVE PROPERTY(captionLegalEntityStatusSupplier(e));
             MOVE PROPERTY(bigCompanySupplier(e));
             MOVE PROPERTY(dependentPersonSupplier(e));
@@ -326,7 +329,10 @@ DESIGN evat {
         NEW customer{
             caption = 'Получатель';
             fill = 1;
-            MOVE c.box;   
+            MOVE PROPERTY(nameCustomer(e));
+            MOVE PROPERTY(unpCustomer(e));
+            MOVE PROPERTY(countryCodeCustomer(e));
+            MOVE PROPERTY(addressCustomer(e));  
             MOVE PROPERTY(captionLegalEntityStatusCustomer(e));
             MOVE PROPERTY(bigCompanyCustomer(e));
             MOVE PROPERTY(dependentPersonCustomer(e));
