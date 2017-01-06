@@ -1,0 +1,176 @@
+MODULE ArticleStatisticGroupDashboard;
+
+REQUIRE ItemArticle, ArticleTranslateDashboard, SaleStatisticsArticle;
+
+NAMESPACE Item;
+
+statisticGroupTypeProcessesGroup = DATA StatisticGroupType ();
+nameStatisticGroupTypeProcessesGroup 'Статистический классификатор' () = name(statisticGroupTypeProcessesGroup());
+
+EXTEND FORM options
+    PROPERTIES nameStatisticGroupTypeProcessesGroup()
+;
+
+DESIGN options {
+    commons {
+        MOVE PROPERTY(nameStatisticGroupTypeProcessesGroup());
+    }
+}
+
+completedStatisticGroup 'Обработан' = DATA BOOLEAN (Item);
+notCompletedStatisticGroup 'Не обработан' (article) = GROUP SUM 1 IF Item i IS Item AND NOT completedStatisticGroup(i) BY article(i);
+completedStatisticGroup 'Обработан' = Article a IS Article AND NOT notCompletedStatisticGroup(a);
+
+changeCompletedStatisticGroup (Article article) = ACTION {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        FOR article(Item item) == article DO {
+            completedStatisticGroup(item) <- TRUE;
+        }
+    } ELSE {
+        FOR article(Item item) == article DO {
+            completedStatisticGroup(item) <- NULL;
+        }                
+    }        
+}
+
+// Подсчет непереведенных артикулов для групп
+countNotCompletedStatisticGroupArticles 'Не обработано (к-во)' (group) = 
+    GROUP SUM 1 IF completedTranslate(Article article) AND notCompletedStatisticGroup(article) AND ((inPurchaseInvoices(currentUser()) AND quantityInvoiceDetail(article, currentUser())) OR NOT inPurchaseInvoices(currentUser())) BY itemGroup(article);
+recCountNotCompletedStatisticGroupArticles 'Не обработано (к-во)' (parent) = GROUP SUM countNotCompletedStatisticGroupArticles(ItemGroup child) IF isParent(child, ItemGroup parent) BY parent;
+
+// Не заполнены атрибуты
+
+nullStatisticGroup (Item item)= item IS Item AND NOT completedStatisticGroup(item) AND NOT statistic(statisticGroupTypeProcessesGroup(), item);  
+nullStatisticGroup (article)= GROUP SUM 1 IF nullStatisticGroup(Item item) AND NOT completedStatisticGroup(item) BY article(item);    
+
+filterStatisticInvoice = DATA LOCAL Purchase.Invoice ();
+descriptionFilterStatisticInvoice 'Накладная' = description(filterStatisticInvoice());
+
+FORM articleStatisticGroupDashboard 'Статистическая группа'
+    PROPERTIES seriesNumberDateInvoicesCurrentUser() READONLY, selectPurchaseInvoicesCurrentUser()
+    
+    OBJECTS ct = StatisticGroupType FIXED GRID
+
+    TREE groupTree g=ItemGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g), recCountNotCompletedStatisticGroupArticles(g)
+    ORDER BY order(g), name(g)
+    FILTERS active(g)
+    FILTERGROUP notGroupsFilters
+        FILTER 'Не обработан' recCountNotCompletedStatisticGroupArticles(g) 'F6'
+
+    OBJECTS a=Article
+    PROPERTIES(a) READONLY nameBrand, id, caption, nameUOM, canonicalNameItemGroup
+    PROPERTIES BACKGROUND hintEditableBackground() canonicalName(ct, a) 
+    PROPERTIES(a) completedStatisticGroup ON CHANGE changeCompletedStatisticGroup(a), in BEFORE nameBrand(a)
+    PROPERTIES(a) EDITFORM
+    
+    FILTERGROUP attributesFilters
+        FILTER 'Без атрибутов' nullStatisticGroup(a) 'F7'                   
+        FILTER 'С атрибутами' NOT nullStatisticGroup(a) 'F6'
+                           
+    FILTERGROUP stickerFilters
+        FILTER 'Переведены' completedTranslate(a) 'F10' DEFAULT
+        
+    FILTERS isParent(g, a)
+        
+    FILTERGROUP articleFilters
+        FILTER 'Не обработан' notCompletedStatisticGroup(a) 'F8' DEFAULT
+        FILTER 'Обработан' completedStatisticGroup(a) 'F9'   
+
+    FILTERGROUP inArticleFilter
+        FILTER 'Отмеченные' in(a) 'F11'                      
+
+    FILTERS isParent(g, a) OR (g IS ItemGroup AND NOT itemGroup(a))
+
+    OBJECTS i=Item
+    PROPERTIES(i) READONLY descriptionDefaultPurchaseInvoice, idBarcode, id, caption, nameUOM, image FORCE PANEL, canonicalNameItemGroup
+    PROPERTIES    BACKGROUND hintEditableBackground() canonicalName(ct, i)
+    PROPERTIES(i) completedStatisticGroup
+    PROPERTIES(i) EDITFORM SHOWIF enableEditing(i)
+    
+    FILTERGROUP attributesFilters2
+        FILTER 'Без атрибутов' nullStatisticGroup(i) 'F7'
+        FILTER 'С атрибутами' NOT nullStatisticGroup(i) 'F6'
+          
+    FILTERGROUP itemFilters
+        FILTER 'По артикулам' article(i) == a 'F4' DEFAULT
+        FILTER 'По группам (не обработан)' completedTranslate(i) AND NOT completedStatisticGroup(i) AND isParent(g,i) 'shift F4'
+        FILTER 'По группам ' isParent(g,i) 'ctrl F4'
+        
+    FILTERS quantityInvoiceDetail(a, currentUser()) OR (a IS Article AND NOT countInvoices(currentUser()))
+        
+;
+
+DESIGN articleStatisticGroupDashboard {
+    NEW filter {
+        caption = 'Фильтр';
+        type = CONTAINERH;
+        MOVE PROPERTY(seriesNumberDateInvoicesCurrentUser());
+        MOVE PROPERTY(selectPurchaseInvoicesCurrentUser());
+    }
+    NEW pane {
+        type = SPLITH;
+        fill = 1;
+        NEW tree4{
+            type = SPLITV;
+            fill = 1;
+            MOVE groupTree.tree.box {fill = 2;}
+            NEW imageBox4 {
+                fill = 3;
+                caption = 'Изображение';                     
+                MOVE PROPERTY(image(i)) {                           
+                    caption = '';
+                    fill = 1;
+                }
+            }
+        }
+        NEW row511 {
+            fill = 3;
+            type = SPLITV;
+            MOVE a.box {
+                defaultComponent = TRUE;                   
+                fill = 2;                    
+                PROPERTY(canonicalName(ct,a)) {caption = 'Статистическая группа';}
+            }
+            MOVE i.box {
+                PROPERTY(canonicalName(ct,i)) {caption = 'Статистическая группа';}
+            };
+        }
+    }
+    
+    MOVE functions.box;
+}
+
+completeArticleStatisticGroupDashboard 'Подтвердить все'() = ACTION {   
+    LOCAL k = INTEGER ();
+    k() <- 0;
+    
+    FOR [= FILTER articleStatisticGroupDashboard.a](Article article) AND nullStatisticGroup(article) DO{   
+        k() <- k() + 1;              
+    }    
+    IF k() > 0 THEN {
+        MESSAGE 'Для артикула не задана статистическая группа ('+k()+' шт.)';
+    } ELSE {
+        FOR [= FILTER articleStatisticGroupDashboard.a](Article article) DO {
+            completedStatisticGroup(Item item) <- TRUE WHERE article(item) ==article;
+        }
+    }      
+} TOOLBAR CONFIRM;
+
+EXTEND FORM  articleStatisticGroupDashboard
+    PROPERTIES() TODRAW a completeArticleStatisticGroupDashboard FORCE PANEL
+;
+
+// Автоматически проставляем нужные классификаторы
+seekDefaultStatisticGroupType = ACTION SEEK articleStatisticGroupDashboard.ct = statisticGroupTypeProcessesGroup();
+
+EXTEND FORM articleStatisticGroupDashboard
+    EVENTS ON INIT seekDefaultStatisticGroupType()
+;
+
+NAVIGATOR {
+    customsDashboardNavigator {
+        ADD articleStatisticGroupDashboard AFTER articleTranslateDashboard;
+    }
+}
