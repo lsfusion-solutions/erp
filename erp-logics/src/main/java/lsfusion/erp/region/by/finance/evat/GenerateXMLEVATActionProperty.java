@@ -61,7 +61,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         KeyExpr evatExpr = new KeyExpr("evat");
         ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "evat", evatExpr);
         QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        query.addProperty("unp", findProperty("unpSupplier[EVAT]").getExpr(context.getModifier(), evatExpr));
+        query.addProperty("unp", findProperty("unpSender[EVAT]").getExpr(context.getModifier(), evatExpr));
         query.addProperty("exportNumber", findProperty("exportNumber[EVAT]").getExpr(context.getModifier(), evatExpr));
         query.and(findProperty("in[EVAT]").getExpr(context.getModifier(), evatExpr).getWhere());
         ImOrderMap<ImMap<Object, DataObject>, ImMap<Object, ObjectValue>> result = query.executeClasses(context);
