@@ -16,7 +16,7 @@ EXTEND FORM warehouse
 
 CLASS EVATType 'Тип счет-фактуры';
 TABLE EVATType(EVATType);
-name (EVATType t) = staticCaption(t) IF t IS EVATType;
+name 'Тип' (EVATType t) = staticCaption(t) IF t IS EVATType;
 
 FORM EVATTypes
     OBJECTS t = EVATType FIXED GRID
@@ -369,10 +369,13 @@ DESIGN evat {
 
 blankCodeDoc 'Номер бланка' = DATA VARSTRING[100] ();
 
+filterType = DATA LOCAL EVATType ();
+nameFilterType 'Тип' = name(filterType());
+
 FORM evats 'Электронные счета-фактуры'
-    OBJECTS dates = (dFrom = DATE, dTo = DATE, type = EVATType) FIXED PANEL
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
-    PROPERTIES SELECTOR name(type)
+    PROPERTIES() nameFilterType
 
     OBJECTS e = EVAT
     PROPERTIES(e) in
@@ -384,7 +387,9 @@ FORM evats 'Электронные счета-фактуры'
     PROPERTIES() TOOLBAR TODRAW e getStatus
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(e) DELETESESSION
-    FILTERS date(e) >= dFrom, date(e) <= dTo
+    FILTERS date(e) >= dFrom, date(e) <= dTo,
+            type(e) == filterType() OR NOT filterType()
+    
      
     OBJECTS d = EVATDetail
     PROPERTIES(d) READONLY name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
@@ -401,11 +406,15 @@ FORM evats 'Электронные счета-фактуры'
 DESIGN evats {
     NEW filters BEFORE e.box {
         MOVE dates.box {
-            PROPERTY(dFrom) {
-                caption = 'Дата с';
-            }
-            PROPERTY(dTo) {
-                caption = 'Дата по';
+            dates.panel.props {
+                type = CONTAINERH;
+                PROPERTY(dFrom) {
+                    caption = 'Дата с';
+                }
+                PROPERTY(dTo) {
+                    caption = 'Дата по';
+                }
+                MOVE PROPERTY(nameFilterType());
             }
         }
     }
