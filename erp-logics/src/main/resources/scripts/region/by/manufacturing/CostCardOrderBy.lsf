@@ -95,7 +95,7 @@ VATSum 'Сумма НДС' (ProductDetail pd,ComponentDetail cd)= IF VAT(cd)
 
 totalVATSum 'Сумма НДС компонентов' (productDetail) = GROUP SUM VATSum (ProductDetail pd,ComponentDetail cd) BY pd PERSISTENT;
 
-FORM costCardOrderBy 'Калькуляционная карта'
+FORM costCardOrderBy 'Калькуляционная карта' // с заменами
 
     OBJECTS o = Order FIXED PANEL
     PROPERTIES(o) nameProductsLegalEntityStock, UNPProductsLegalEntityStock, addressProductsLegalEntityStock,
@@ -119,6 +119,38 @@ FORM costCardOrderBy 'Калькуляционная карта'
     FILTERS BOM(cd)== BOM(product(pd))        
 ;
 printCostCard 'Калькуляционная карта' (Order order) = ACTION FORM costCardOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
+  
+coeffSubstitute (ComponentDetail cd) = substituteQuantity(cd) /  bruttoQuantity(cd) IF sku(cd) != bruttoSku(cd);
+priceCard (ComponentDetail cd)  = price(cd)*coeffSubstitute(cd);
+
+bruttoQuantityInBOM 'Кол-во с учетом процента цены по всей спецификации' (ProductDetail pd, ComponentDetail cd)= (bruttoQuantity(cd) * pricePercent(pd) / 
+    (100*quantityProducts(BOM(cd),order(cd)) ) IF quantityProducts(BOM(cd),order(cd))!=0) IF order(pd)==order(cd) AND BOM(cd) == BOM(pd);  
+
+FORM costCardOrderNotSubstituteBy 'Калькуляционная карта' // без замен
+
+    OBJECTS o = Order FIXED PANEL
+    PROPERTIES(o) nameProductsLegalEntityStock, UNPProductsLegalEntityStock, addressProductsLegalEntityStock,
+                  nameComponentsStock, nameProductsStock, nameNumerator, number, series, seriesNumber,
+                  date, time, fromDate, toDate, note, quantityProductDetail, quantityComponentDetail
+
+    OBJECTS pd=ProductDetail
+    PROPERTIES(pd) index, idBarcodeSku, descriptionBOM, quantityInBOM, shortNameUOMProduct, nameSku,  nameProduct, shortNameUOM, quantity,
+                   componentsPrice, componentsSumInBOM, //premiumComponentsSumInBOMProductDetail, 
+                   totalVATSum, overRetailMarkupSumInBOM
+    PROPERTIES(pd) markup, price, productsSumInBOM, valueVAT,
+                   retailMarkupPrice, retailVATPrice, overRetailVATSumInBOM, recipes
+
+    FILTERS order(pd)==o
+
+    OBJECTS cd = ComponentDetail
+    PROPERTIES(pd,cd)quantityInBOM, bruttoQuantityInBOM, componentsSum, VATSum
+    PROPERTIES(cd) nameSku, idBarcode, shortNameUOMSku, price, valueVAT
+    PROPERTIES (cd) bruttoNameSku, bruttoIdBarcodeSku, bruttoIdSku, bruttoShortNameUOMSku, coeffSubstitute, priceCard
+    
+    FILTERS order(cd)==o             
+    FILTERS BOM(cd)== BOM(product(pd))        
+;
+printCostCardNotSubstitute 'Калькуляционная карта (без замен)' (Order order) = ACTION FORM costCardOrderNotSubstituteBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
   
 seriesNumberBatch 'Серия/номер накладной' (ComponentDetail b) = seriesNumber(invoiceDetail(batch(b)));
 dateBatch 'Дата накладной' (ComponentDetail b) = date(invoiceDetail(batch(b)));
@@ -232,7 +264,7 @@ FORM intakeSheetOrderBy 'Заборный лист'
 ;
 printIntakeSheet 'Заборный лист' (Order order) = ACTION FORM intakeSheetOrderBy OBJECTS o = order PRINT  IMAGE 'print.png' IN print;
 EXTEND FORM orders
-    PROPERTIES(o) FORCE PANEL printCostCard, printIntakeSheet, printCutting, printActOfCuttingBy 
+    PROPERTIES(o) FORCE PANEL printCostCard, printCostCardNotSubstitute, printIntakeSheet, printCutting, printActOfCuttingBy 
 ;
 
 select = DATA LOCAL BOOLEAN (DATE, Product);
