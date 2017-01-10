@@ -78,13 +78,14 @@ prescriptionMessage (Batch batch) = IF needPrescription(batch) THEN 'Требу�
 backgroundExpiryDate = ABSTRACT COLOR (Batch, Receipt);           
 
 nameBin 'Ячейка' (Batch batch, Receipt receipt) = nameBin(departmentStore(zReport(receipt)), sku(batch));  
+currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt) = currentPOSPrice(batch, receipt)/blisterAmount(batch) IF currentPOSPrice(batch, receipt); 
             
 EXTEND FORM POS
     OBJECTS bt = Batch FIXED GRID
     PROPERTIES (bt) READONLY prevNameSku, needPrescription, prescriptionMessage TODRAW d FORCE PANEL SHOWIF needPrescription(bt)
     PROPERTIES (bt, r) nameBin READONLY, quantityReceiptGrid = quantity ON CHANGE changeQuantity(bt, r) BACKGROUND backgroundQuantity(bt, r) QUICKFILTER prevNameSku(bt)
     PROPERTIES (bt, r) blisterQuantity ON CHANGE changeBlisterQuantity(bt, r) READONLYIF readOnlyBlisterQuantity(bt, r) BACKGROUND backgroundBlisterQuantity(bt, r)
-    PROPERTIES (bt, r) READONLY prevCurrentBalance, currentPOSPrice
+    PROPERTIES (bt, r) READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
     ORDER BY prevNameSku(bt)
     FILTERS prevCurrentBalance(bt, r)
@@ -111,7 +112,7 @@ EXTEND FORM POS
     PROPERTIES (bt1) READONLY prevNameSku
     PROPERTIES (bt1, r) nameBin READONLY, quantity ON CHANGE changeAnalogueQuantity(bt1, r) BACKGROUND backgroundQuantity(bt1, r)
     PROPERTIES (bt1, r) blisterQuantity ON CHANGE changeAnalogueBlisterQuantity(bt1, r) READONLYIF readOnlyBlisterQuantity(bt1, r) BACKGROUND backgroundBlisterQuantity(bt1, r)
-    PROPERTIES (bt1, r) READONLY prevCurrentBalance, currentPOSPrice
+    PROPERTIES (bt1, r) READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice  BACKGROUND backgroundBlisterQuantity(bt1, r)
     PROPERTIES (bt1) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry
     FILTERS prevCurrentBalance(bt1, r), substance(bt)==substance(bt1) AND NOT sku(bt)==sku(bt1)
     ORDER BY prevNameSku(bt1)        
@@ -131,7 +132,8 @@ DESIGN POS {
             PROPERTY(quantityReceiptGrid) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
             PROPERTY(blisterQuantity(bt, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(prevCurrentBalance(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
-            PROPERTY(currentPOSPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
+            PROPERTY(currentPOSPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена';}
+            PROPERTY(currentPOSBlisterPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена блистера';}
             PROPERTY(expiryDate(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
             PROPERTY(seriesPharmacy(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
             PROPERTY(nameManufacturer(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
@@ -153,6 +155,7 @@ DESIGN POS {
             PROPERTY(blisterQuantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
             PROPERTY(prevCurrentBalance(bt1, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
             PROPERTY(currentPOSPrice(bt1, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
+            PROPERTY(currentPOSBlisterPrice(bt1, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена блистера';}
             PROPERTY(expiryDate(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
             PROPERTY(seriesPharmacy(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
             PROPERTY(nameManufacturer(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
