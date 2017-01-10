@@ -1,0 +1,142 @@
+MODULE SaleTurnover;
+
+REQUIRE SaleLedger;
+
+NAMESPACE SaleLedger;
+
+
+TABLE cumBalance (LegalEntity, Stock, DATE);
+
+cumBalance 'Остаток' = DATA NUMERIC[16,2] (LegalEntity, Stock, DATE);
+soldSum 'Продано' = DATA NUMERIC[16,2] (LegalEntity, Stock, DATE);
+turnover 'Товарооборачиваемость, дн.' (LegalEntity su, Stock st, DATE dt) = NUMERIC[12,3](cumBalance(su, st, dt) /
+    soldSum(su, st, dt));     
+    
+cumBalance 'Остаток'= GROUP SUM cumBalance(LegalEntity su, Stock st, DATE date) BY su,date;
+soldSum 'Продано'= GROUP SUM soldSum(LegalEntity su, Stock st, DATE date) BY su,date;
+turnover 'Товарооборачиваемость, дн.' (LegalEntity su,  DATE date) = NUMERIC[12,3](cumBalance(su, date) /
+    soldSum(su, date));     
+    
+cumBalance 'Остаток'= GROUP SUM cumBalance(LegalEntity su, Stock st, DATE date) IF DATE df <= date AND date <= DATE dt BY su,df,dt;
+soldSum 'Продано'= GROUP SUM soldSum(LegalEntity su, Stock st, DATE date) IF DATE df <= date AND date <= DATE dt BY su,df,dt;
+turnover 'Товарооборачиваемость, дн.' (LegalEntity su,  DATE df, DATE dt) = NUMERIC[12,3](cumBalance(su, df, dt) /
+    soldSum(su, df, dt));     
+       
+daysToTurnover 'За сколько дней пересчитывать товарооборачиваемость' = DATA INTEGER (); 
+EXTEND FORM options
+    PROPERTIES () daysToTurnover
+;
+DESIGN options {
+    sale{
+        MOVE PROPERTY (daysToTurnover());
+    }
+}
+
+takeSupplier 'Рассчитать товарооборачиваемость (дата по)' (DATE date) =  ACTION NEWSESSION {
+    IF daysToTurnover() THEN {
+        LOCAL balance = NUMERIC[16,2] (LegalEntity, Stock);
+        LOCAL cumBalance = NUMERIC[16,2] (LegalEntity, Stock);
+        LOCAL dateCur = DATE();  
+            
+        dateCur() <- sum(date, -1);
+
+        balance(LegalEntity su, Stock st) <- NUMERIC[16,2]( [= GROUP SUM balanceA(Batch batch, Stock stock, DATE dt)*cost(batch) BY supplier(batch),stock,dt](su,st,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
+        
+        WHILE dateCur() >= sum(date, -daysToTurnover()) DO {
+                  
+
+                                        
+            soldSum (LegalEntity su, Stock st, DATE dt) <- NUMERIC[16,2]( [= GROUP SUM sumSold(Batch batch, Stock stock, DATE dt) BY supplier(batch),stock,dt](su,st,dt)) 
+                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                 
+            
+            
+            balance(LegalEntity su, Stock st) <- balance(su, st) (-)
+                                                 NUMERIC[16,2]( [= GROUP SUM signedQuantity(Batch batch, Stock stock, DATE dt)*cost(batch) BY supplier(batch),stock,dt](su,st,dateCur())) 
+                                        WHERE isCompany(st) AND active(st) AND isSupplier(su); 
+                                                   
+            cumBalance (LegalEntity su, Stock st, DATE dt) <- balance(su, st)
+                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                                                   
+            
+            dateCur() <- sum(dateCur(), -1);
+        }
+        apply();
+    }
+};
+//takeSupplierStock 'Рассчитать товарооборачиваемость (дата по)' (DATE date, Stock st) =  ACTION NEWSESSION { // для теста
+//    IF daysToTurnover() THEN {
+//        LOCAL balance = NUMERIC[16,2] (LegalEntity, Stock);
+//        LOCAL cumBalance = NUMERIC[16,2] (LegalEntity, Stock);
+//        LOCAL dateCur = DATE();  
+//            
+//        dateCur() <- sum(date, -1);
+//
+//        balance(LegalEntity su, st) <- NUMERIC[16,2]( [= GROUP SUM balanceA(Batch batch, Stock stock, DATE dt)*cost(batch) BY supplier(batch),stock,dt](su,st,dateCur())) WHERE isCompany(st) AND active(st) AND isSupplier(su);
+//        
+//        WHILE dateCur() >= sum(date, -daysToTurnover()) DO {
+//                  
+//
+//                                        
+//            soldSum (LegalEntity su, st, DATE dt) <- NUMERIC[16,2]( [= GROUP SUM sumSold(Batch batch, Stock stock, DATE dt) BY supplier(batch),stock,dt](su,st,dt)) 
+//                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                 
+//            
+//            
+//            balance(LegalEntity su, st) <- balance(su, st) (-)
+//                                                 NUMERIC[16,2]( [= GROUP SUM signedQuantity(Batch batch, Stock stock, DATE dt)*cost(batch) BY supplier(batch),stock,dt](su,st,dateCur())) 
+//                                        WHERE isCompany(st) AND active(st) AND isSupplier(su); 
+//                                                   
+//            cumBalance (LegalEntity su, st, DATE dt) <- balance(su, st)
+//                                        WHERE isCompany(st) AND active(st) AND isSupplier(su) AND dt == dateCur();                                                   
+//            
+//            dateCur() <- sum(dateCur(), -1);
+//        }
+//        apply();
+//    }
+//};
+
+caption (DATE dt) = toDateDDMMYY(dt)+' '+'Оборачиваемость, днях';
+
+FORM turnover 'Товарооборачиваемость по поставщикам'
+    OBJECTS dates = (df=DATE,dt=DATE) FIXED PANEL 
+    PROPERTIES valFrom = OBJVALUE (df), valTo = OBJVALUE (dt)
+       
+    PROPERTIES takeSupplier(dt)
+    
+    OBJECTS su1 = LegalEntity
+    PROPERTIES (su1) READONLY name   
+    FILTERS isSupplier(su1) 
+    PROPERTIES (su1,df,dt) READONLY cumBalance, soldSum, turnover
+    
+    FILTERGROUP filters1 FILTER 'С товарооборачиваемостью' turnover(su1,df,dt) 'F10' DEFAULT  
+
+    OBJECTS date = DATE 
+    FILTERS iterate(date,df,dt)
+    
+    OBJECTS su = LegalEntity
+    PROPERTIES (su) READONLY name   
+    FILTERS isSupplier(su) 
+    PROPERTIES  READONLY turnover (su,date) COLUMNS (date) HEADER caption(date),
+                turnover(su,df,dt) 
+    
+    FILTERGROUP filters2 FILTER 'С товарооборачиваемостью' turnover(su,df,dt) 'F10' DEFAULT   
+
+;
+DESIGN turnover {
+    main {
+        MOVE dates.box;
+        NEW top {
+            type = TABBED;
+            fill = 1;
+            MOVE su1.box { caption = 'За период';}
+            MOVE su.box  { caption = 'На дату';}           
+            PROPERTY (turnover(su,df,dt)) {background =RGB(255,238,238);}
+        }
+        REMOVE date.box;
+    }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    salesReports  {
+        ADD turnover;
+    }    
+}
