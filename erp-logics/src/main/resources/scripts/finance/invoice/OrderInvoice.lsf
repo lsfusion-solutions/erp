@@ -63,6 +63,18 @@ createMultiUserInvoice 'Создать накладную'(Order order) = ACTION
     }    
 } TOOLBAR;
 
+useConfimForCreateDetail 'Запрашивать подтверждение на создание строк накладной по заказу' = DATA BOOLEAN();
+
+EXTEND FORM options
+    PROPERTIES() useConfimForCreateDetail
+;
+
+DESIGN options {
+    orders {
+        MOVE PROPERTY(useConfimForCreateDetail());    
+    }
+}
+
 META defineOrderInvoice(sign, stockProp)
 
     orderDetail = ABSTRACT OrderDetail (InvoiceDetail) PERSISTENT;
@@ -575,8 +587,13 @@ META defineOrderInvoice(sign, stockProp)
             IF invoiceCreated(order) THEN RETURN;
             
             FOR ADDOBJ i = UserInvoice DO {
+                IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранным заказам строки накладной?';
+                fillHeader(i, order);
                 FOR selected(Order.Order o) DO {
-                    fill(i, o);   
+                    IF confirmed() OR NOT useConfimForCreateDetail() THEN {
+                        createDetail(i, o);   
+                        fillPrice(i, o);
+                    }
                     include[Order,UserInvoice](o,i)<- TRUE;             
                 }     
                               
