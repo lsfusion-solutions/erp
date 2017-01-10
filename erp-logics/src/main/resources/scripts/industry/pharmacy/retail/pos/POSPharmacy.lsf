@@ -79,9 +79,12 @@ backgroundExpiryDate = ABSTRACT COLOR (Batch, Receipt);
 
 nameBin 'Ячейка' (Batch batch, Receipt receipt) = nameBin(departmentStore(zReport(receipt)), sku(batch));  
 currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt) = currentPOSPrice(batch, receipt)/blisterAmount(batch) IF currentPOSPrice(batch, receipt); 
-            
+
+pharmacyDescription 'Партия' (Batch batch) = CONCAT '', nameSku(batch), '/ ' + nameManufacturer(batch), '/ ' + nameCountry(batch);             
+           
 EXTEND FORM POS
     OBJECTS bt = Batch FIXED GRID
+    PROPERTIES (bt) READONLY pharmacyDescription FORCE PANEL
     PROPERTIES (bt) READONLY prevNameSku, needPrescription, prescriptionMessage TODRAW d FORCE PANEL SHOWIF needPrescription(bt)
     PROPERTIES (bt, r) nameBin READONLY, quantityReceiptGrid = quantity ON CHANGE changeQuantity(bt, r) BACKGROUND backgroundQuantity(bt, r) QUICKFILTER prevNameSku(bt)
     PROPERTIES (bt, r) blisterQuantity ON CHANGE changeBlisterQuantity(bt, r) READONLYIF readOnlyBlisterQuantity(bt, r) BACKGROUND backgroundBlisterQuantity(bt, r)
@@ -127,15 +130,15 @@ DESIGN POS {
                 quickSearch = TRUE;
             }
             caption = 'Остатки';
-            PROPERTY(prevNameSku(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 30; preferredCharWidth = 50;}
-            PROPERTY(nameBin(bt, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(prevNameSku(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 40; preferredCharWidth = 50;}
+            PROPERTY(nameBin(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(quantityReceiptGrid) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
             PROPERTY(blisterQuantity(bt, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
-            PROPERTY(prevCurrentBalance(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
-            PROPERTY(currentPOSPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена';}
-            PROPERTY(currentPOSBlisterPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена блистера';}
+            PROPERTY(prevCurrentBalance(bt, r)) { focusable = FALSE; font = '18'; fontStyle = 'bold'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
+            PROPERTY(currentPOSPrice(bt, r)) { focusable = FALSE; font = '18'; fontStyle = 'bold'; pattern = '#,##0.00';caption = 'Цена';minimumCharWidth = 7; preferredCharWidth = 7;}
+            PROPERTY(currentPOSBlisterPrice(bt, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена блистера';;minimumCharWidth = 7; preferredCharWidth = 7;}
             PROPERTY(expiryDate(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
-            PROPERTY(seriesPharmacy(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
+            PROPERTY(seriesPharmacy(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 5; preferredCharWidth = 8;}
             PROPERTY(nameManufacturer(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
             PROPERTY(nameCountry(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
             PROPERTY(nameSubstance(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 20;}
@@ -145,19 +148,24 @@ DESIGN POS {
             PROPERTY(quantityGrid){pattern = '#,##0.###';}
         }
     }
+    NEW pharmacyDescription BEFORE center {
+        alignment = STRETCH;
+        type = CONTAINERH;
+        MOVE PROPERTY(pharmacyDescription(bt)) { font = '18';minimumCharWidth = 120; preferredCharWidth = 120; focusable = FALSE; panelCaptionAbove = TRUE; alignment = STRETCH;}
+    }
     pane {
         MOVE bt1.box BEFORE pc.box {
             caption = 'Аналоги';
             REMOVE bt1.toolbar;
-            PROPERTY(prevNameSku(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 20; preferredCharWidth = 40;}
-            PROPERTY(nameBin(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
+            PROPERTY(prevNameSku(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 30; preferredCharWidth = 40;}
+            PROPERTY(nameBin(bt1, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(quantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
             PROPERTY(blisterQuantity(bt1, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
-            PROPERTY(prevCurrentBalance(bt1, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
-            PROPERTY(currentPOSPrice(bt1, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';}
+            PROPERTY(prevCurrentBalance(bt1, r)) { focusable = FALSE; font = '18'; fontStyle = 'bold'; minimumCharWidth = 3; preferredCharWidth = 5; pattern = '#,##0.###';}
+            PROPERTY(currentPOSPrice(bt1, r)) { focusable = FALSE; font = '18'; fontStyle = 'bold'; pattern = '#,##0.00';caption = 'Цена';}
             PROPERTY(currentPOSBlisterPrice(bt1, r)) { focusable = FALSE; font = '18'; pattern = '#,##0.00';caption = 'Цена блистера';}
             PROPERTY(expiryDate(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 7; preferredCharWidth = 7;}
-            PROPERTY(seriesPharmacy(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 15;}
+            PROPERTY(seriesPharmacy(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 5; preferredCharWidth = 8;}
             PROPERTY(nameManufacturer(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 15; preferredCharWidth = 30;}
             PROPERTY(nameCountry(bt1)) { focusable = FALSE; font = '18'; minimumCharWidth = 8; preferredCharWidth = 15;}
         } 
