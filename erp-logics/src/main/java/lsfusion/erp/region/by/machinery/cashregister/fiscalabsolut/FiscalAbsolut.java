@@ -203,6 +203,8 @@ public class FiscalAbsolut {
     public static void zReport() {
         logAction("PrintReport", 0);
         absolutDLL.absolut.PrintReport(0);
+        logAction("PrintReport", 1);
+        absolutDLL.absolut.PrintReport(1);
     }
 
     public static boolean inOut(BigDecimal sum) {
