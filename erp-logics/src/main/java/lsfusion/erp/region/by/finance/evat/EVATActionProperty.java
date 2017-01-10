@@ -42,17 +42,18 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 Integer certIndex = (Integer) findProperty("certIndexEVAT[]").read(context);
                 if(certIndex == null)
                     certIndex = 0;
+                boolean useActiveX = findProperty("useActiveXEVAT[]").read(context) != null;
                 if (serviceUrl != null) {
                     if (pathEVAT != null) {
                         if (passwordEVAT != null) {
                             switch (type) {
                                 case 0:
                                     ServerLoggers.importLogger.info("EVAT: sendAndSign called");
-                                    sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type, context);
+                                    sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
                                     break;
                                 case 1:
                                     ServerLoggers.importLogger.info("EVAT: getStatus called");
-                                    getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type, context);
+                                    getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
                                     break;
                             }
                         } else {
@@ -70,11 +71,11 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void sendAndSign(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         ServerLoggers.importLogger.info("EVAT: generateXMLs started");
         Map<String, Map<Integer, List<Object>>> files = generateXMLs(context);
         if (!(files.isEmpty())) {
-            Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
+            Object evatResult = context.requestUserInteraction(new EVATClientAction(files, null, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
             String error = "";
             if(evatResult instanceof List) {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
@@ -106,10 +107,10 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
         }
     }
 
-    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private void getStatus(String serviceUrl, String pathEVAT, String exportPathEVAT, String passwordEVAT, Integer certIndex, boolean useActiveX, Integer type, ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Map<String, Map<Integer, String>> invoices = getInvoices(context);
         if (!(invoices.isEmpty())) {
-            Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, type));
+            Object evatResult = context.requestUserInteraction(new EVATClientAction(null, invoices, serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type));
             if(evatResult instanceof List) {
                 List<List<Object>> result = (List<List<Object>>) evatResult;
                 String resultMessage = "";

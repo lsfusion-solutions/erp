@@ -14,11 +14,12 @@ class EVATWorker {
    private String exportPath;
    private String password;
    private int certIndex;
+   private boolean useActiveX;
    private int type;
 
    EVATWorker(final Map<String, Map<Integer, List<Object>>> files, Map<String, Map<Integer, String>> invoices,
               final String serviceUrl, final String path, final String exportPath, final String password,
-              final int certIndex, final int type) {
+              final int certIndex, final boolean useActiveX, final int type) {
       this.files = files;
       this.invoices = invoices;
       this.serviceUrl = serviceUrl;
@@ -26,6 +27,7 @@ class EVATWorker {
       this.exportPath = exportPath;
       this.password = password;
       this.certIndex = certIndex;
+      this.useActiveX = useActiveX;
       this.type = type;
    }
 
@@ -38,9 +40,15 @@ class EVATWorker {
          protected List<List<Object>> doInBackground() throws Exception {
             switch (type) {
                case 0:
-                  return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certIndex);
+                  if(useActiveX)
+                     return new EVATActiveXHandler().signAndSend(files, serviceUrl, path, exportPath);
+                  else
+                     return new EVATHandler().signAndSend(files, serviceUrl, path, exportPath, password, certIndex);
                case 1:
-                  return new EVATHandler().getStatus(invoices, serviceUrl, password, certIndex);
+                  if(useActiveX)
+                     return new EVATActiveXHandler().getStatus(invoices, serviceUrl);
+                  else
+                     return new EVATHandler().getStatus(invoices, serviceUrl, password, certIndex);
                default:
                   return null;
             }
@@ -54,7 +62,8 @@ class EVATWorker {
 
       mySwingWorker.execute();
 
-      dialog.setVisible(true);
+      if(!useActiveX)
+         dialog.setVisible(true);
 
       return mySwingWorker.get();
    }
