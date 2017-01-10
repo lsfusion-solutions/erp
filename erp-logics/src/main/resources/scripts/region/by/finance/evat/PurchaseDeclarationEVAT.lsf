@@ -6,6 +6,10 @@ NAMESPACE Purchase;
 
 EXTEND CLASS EVATType { declaration 'Декларация' }
 
+useHomeSum 'Записывать в сумму декларации сумму из инвойса' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES() useHomeSum;
+DESIGN options { MOVE PROPERTY(useHomeSum()); };
+
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
     FOR date(Declaration d) >= dFrom AND date(d) <= dTo AND isPosted(d) ADDOBJ e = EVAT DO {
         type(e) <- EVATType.declaration;
@@ -54,8 +58,8 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             code(ed) <- codeCustomsGroup(id);
             quantity(ed) <- quantity(id); 
             shortNameUOM(ed) <- shortName([= GROUP MAX UOM(sku(InvoiceDetail d)) IF in(DeclarationDetail dd, d) BY dd](id));
-            price(ed) <- [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id) / quantity(id);
-            sum(ed) <- [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id); //round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
+            price(ed) <- IF useHomeSum() THEN [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id) / quantity(id) ELSE round2(price(id) * rateExchange(declaration(id)));
+            sum(ed) <- IF useHomeSum() THEN [= GROUP SUM homeSum(InvoiceDetail d) IF in(DeclarationDetail dd, d) BY dd](id) ELSE round2(sum(id) * rateExchange(declaration(id))); //homeSum(id) (+) dutySum(id);
             exciseSum(ed) <- 0;
             vatRate(ed) <- percentVAT(id);
             vatSum(ed) <- 0; // VATSum(id);
