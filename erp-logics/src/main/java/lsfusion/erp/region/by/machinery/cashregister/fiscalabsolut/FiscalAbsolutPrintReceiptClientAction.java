@@ -36,58 +36,68 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
 
-        if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
-            new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
-            return "В одном чеке обнаружены продажи и возврат одновременно";
-        }
+        for(int i = 0; i < 200; i++) {
+            System.out.println(i);
 
-        //защита от случая, когда сумма сертификата + сумма карточкой больше общей суммы.
-        else if (receipt.sumGiftCard != null && receipt.sumCard != null && receipt.sumTotal != null && receipt.sumGiftCard.add(receipt.sumCard).doubleValue() > receipt.sumTotal.doubleValue()) {
-            new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
-            return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
-        } else {
-            boolean opened = false;
+            if (receipt.receiptSaleList.size() != 0 && receipt.receiptReturnList.size() != 0) {
+                new MessageClientAction("В одном чеке обнаружены продажи и возврат одновременно", "Ошибка!");
+                return "В одном чеке обнаружены продажи и возврат одновременно";
+            }
+
+            //защита от случая, когда сумма сертификата + сумма карточкой больше общей суммы.
+            else if (receipt.sumGiftCard != null && receipt.sumCard != null && receipt.sumTotal != null && receipt.sumGiftCard.add(receipt.sumCard).doubleValue() > receipt.sumTotal.doubleValue()) {
+                new MessageClientAction("Сумма сертификата и сумма оплаты по карточке больше общей суммы чека", "Ошибка!");
+                return "Сумма сертификата и сумма оплаты по карточке больше общей суммы чека";
+            } else {
+                boolean opened = false;
+                try {
+
+                    FiscalAbsolut.openPort(comPort, baudRate);
+                    FiscalAbsolut.smenBegin();
+
+
+                    if (receipt.receiptSaleList.size() != 0) {
+                        opened = FiscalAbsolut.openReceipt(true);
+                        if (opened) {
+                            if (!printReceipt(receipt.receiptSaleList)) {
+                                String error = FiscalAbsolut.getError(false);
+                                FiscalAbsolut.cancelReceipt();
+                                return error;
+                            } else
+                                FiscalAbsolut.closeReceipt();
+                        } else
+                            return FiscalAbsolut.getError(false);
+                    }
+
+                    if (receipt.receiptReturnList.size() != 0) {
+                        opened = FiscalAbsolut.openReceipt(false);
+                        if (opened) {
+                            if (!printReceipt(receipt.receiptReturnList)) {
+                                String error = FiscalAbsolut.getError(false);
+                                FiscalAbsolut.cancelReceipt();
+                                return error;
+                            } else
+                                FiscalAbsolut.closeReceipt();
+                        } else
+                            return FiscalAbsolut.getError(false);
+                    }
+                    //return null;
+                } catch (RuntimeException e) {
+                    boolean alreadyOpen = FiscalAbsolut.checkErrors(false) == 254;
+                    if (opened || alreadyOpen) //чек уже открыт
+                        FiscalAbsolut.cancelReceipt();
+                    return alreadyOpen ? "Был закрыт предыдущий незакрытый чек. Запустите печать чека ещё раз" : FiscalAbsolut.getError(true);
+                } finally {
+                    FiscalAbsolut.closePort();
+                }
+            }
             try {
-
-                FiscalAbsolut.openPort(comPort, baudRate);
-                FiscalAbsolut.smenBegin();
-
-
-                if (receipt.receiptSaleList.size() != 0) {
-                    opened = FiscalAbsolut.openReceipt(true);
-                    if (opened) {
-                        if (!printReceipt(receipt.receiptSaleList)) {
-                            String error = FiscalAbsolut.getError(false);
-                            FiscalAbsolut.cancelReceipt();
-                            return error;
-                        } else
-                            FiscalAbsolut.closeReceipt();
-                    } else
-                        return FiscalAbsolut.getError(false);
-                }
-
-                if (receipt.receiptReturnList.size() != 0) {
-                    opened = FiscalAbsolut.openReceipt(false);
-                    if (opened) {
-                        if (!printReceipt(receipt.receiptReturnList)) {
-                            String error = FiscalAbsolut.getError(false);
-                            FiscalAbsolut.cancelReceipt();
-                            return error;
-                        } else
-                            FiscalAbsolut.closeReceipt();
-                    } else
-                        return FiscalAbsolut.getError(false);
-                }
-                return null;
-            } catch (RuntimeException e) {
-                boolean alreadyOpen = FiscalAbsolut.checkErrors(false) == 254;
-                if(opened || alreadyOpen) //чек уже открыт
-                    FiscalAbsolut.cancelReceipt();
-                return alreadyOpen ? "Был закрыт предыдущий незакрытый чек. Запустите печать чека ещё раз" : FiscalAbsolut.getError(true);
-            } finally {
-                FiscalAbsolut.closePort();
+                Thread.sleep(30000);
+            } catch (InterruptedException e) {
+                e.printStackTrace();
             }
         }
+        return null;
     }
 
     private boolean printReceipt(List<ReceiptItem> receiptList) {
