@@ -9,7 +9,8 @@ NAMESPACE Sale;
 skipCreateEVAT = ABSTRACT BOOLEAN (Invoice);
 skipCreateEVAT = ABSTRACT BOOLEAN (SaleReturn.Invoice);
 
-EXTEND CLASS EVATType { sale 'Продажа' }
+EXTEND CLASS EVATType { sale 'Продажа',
+                        saleReturn 'Продажа-возврат'}
 
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
@@ -35,15 +36,15 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         branchCodeCustomer(e) <- branchCode(customerStock(i));        
         
         //Грузоотправитель
-        consignor(e) <- VARISTRING[200](OVERRIDE name(supplier(e)), fullName(supplier(e)));
-        countryCodeConsignor (e) <- sid(country(supplier(e)));
-        unpConsignor (e) <- OVERRIDE UNP(supplier(e)), UNPForeign(supplier(e)); 
+        consignor(e) <- VARISTRING[200](OVERRIDE name(supplier(i)), fullName(supplier(i)));
+        countryCodeConsignor (e) <- sid(country(supplier(i)));
+        unpConsignor (e) <- OVERRIDE UNP(supplier(i)), UNPForeign(supplier(i)); 
         shippingAddressConsignor(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
         
         //Грузополучатель
-        consignee(e) <- VARISTRING[200](OVERRIDE name(customer(e)), fullName(customer(e)));
-        countryCodeConsignee (e) <- sid(country(customer(e)));
-        unpConsignee (e) <- OVERRIDE UNP(customer(e)), UNPForeign(customer(e)); 
+        consignee(e) <- VARISTRING[200](OVERRIDE name(customer(i)), fullName(customer(i)));
+        countryCodeConsignee (e) <- sid(country(customer(i)));
+        unpConsignee (e) <- OVERRIDE UNP(customer(i)), UNPForeign(customer(i)); 
         shippingAddressConsignee(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
@@ -71,6 +72,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
     APPLY {};
 
     FOR eVAT(operation(SaleReturn.Invoice i)) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
+        type(e) <- EVATType.saleReturn;
         status(e) <- EVATStatus.additionalNoRef;
         
         date(e) <- date(i);
@@ -86,12 +88,22 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         //Поставщик
         supplier(e) <- supplier(i);
         branchCodeSupplier(e) <- branchCode(supplierStock(i));
-        shippingAddressConsignor(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
         
         //Получатель
         customer(e) <- customer(i);
         branchCodeCustomer(e) <- branchCode(customerStock(i));
-        shippingAddressConsignee(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
+        
+        //Грузоотправитель
+        consignor(e) <- VARISTRING[200](OVERRIDE name(customer(i)), fullName(customer(i)));
+        countryCodeConsignor (e) <- sid(country(customer(i)));
+        unpConsignor (e) <- OVERRIDE UNP(customer(i)), UNPForeign(customer(i)); 
+        shippingAddressConsignor(e) <- OVERRIDE address(customerStock(i)), dataAddressCustomerStock (i);
+
+        //Грузополучатель
+        consignee(e) <- VARISTRING[200](OVERRIDE name(supplier(i)), fullName(supplier(i)));
+        countryCodeConsignee (e) <- sid(country(supplier(i)));
+        unpConsignee (e) <- OVERRIDE UNP(supplier(i)), UNPForeign(supplier(i)); 
+        shippingAddressConsignee(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
 
