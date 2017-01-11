@@ -12,6 +12,8 @@ skipCreateEVAT = ABSTRACT BOOLEAN (SaleReturn.Invoice);
 EXTEND CLASS EVATType { sale 'Продажа',
                         saleReturn 'Продажа-возврат'}
 
+overCreateEVATSaleReturnInvoice = ACTION ABSTRACT LIST (EVAT, SaleReturn.Invoice);
+
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
         type(e) <- EVATType.sale;
@@ -106,7 +108,9 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         shippingAddressConsignee(e) <- OVERRIDE address(supplierStock(i)), dataAddressSupplierStock (i);
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
-
+        
+        overCreateEVATSaleReturnInvoice(e,i);
+        
         FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 ADDOBJ ed = EVATDetail DO {
             evat(ed) <- e;
 
