@@ -12,6 +12,8 @@ purchaseUserOrder = DATA Purchase.UserOrder (Invoice);
 seriesNumberPurchaseUserOrder 'Заказ (закупка) серия/номер' = seriesNumber(purchaseUserOrder(Invoice i));
 notPurchaseUserOrder = Invoice i IS Invoice AND NOT purchaseUserOrder(i);
 
+skipCreateOrderDetail = ABSTRACT BOOLEAN (Sale.InvoiceDetail);
+
 createUserOrder 'Заказ (закупка)'(Invoice invoice) =  ACTION NEWSESSION{
 
     FOR ADDOBJ o = Purchase.UserOrder DO {
@@ -30,7 +32,7 @@ createUserOrder 'Заказ (закупка)'(Invoice invoice) =  ACTION NEWSESS
         overFillOrder(o, invoice);
         purchaseUserOrder(invoice) <- o;
 
-        FOR invoice(InvoiceDetail detail)==invoice ADDOBJ d = Purchase.UserOrderDetail DO {
+        FOR invoice(InvoiceDetail detail)==invoice AND NOT skipCreateOrderDetail(detail) ADDOBJ d = Purchase.UserOrderDetail DO {
 
             userOrder(d) <- o;
 
@@ -48,7 +50,7 @@ createUserOrder 'Заказ (закупка)'(Invoice invoice) =  ACTION NEWSESS
             overFillOrder(d,detail);
         }
 
-    FORM Purchase.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    FORM Purchase.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL NOCANCEL;
     }
 } TOOLBAR IMAGE 'add.png';
 
