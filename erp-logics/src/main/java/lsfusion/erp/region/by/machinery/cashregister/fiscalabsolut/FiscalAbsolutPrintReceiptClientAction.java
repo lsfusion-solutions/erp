@@ -20,9 +20,11 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     String receiptTop;
     String receiptBottom;
     boolean giftCardAsDiscount;
+    boolean saveCommentOnFiscalTape;
 
     public FiscalAbsolutPrintReceiptClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                                 ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsDiscount) {
+                                                 ReceiptInstance receipt, String receiptTop, String receiptBottom,
+                                                 boolean giftCardAsDiscount, boolean saveCommentOnFiscalTape) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -31,6 +33,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardAsDiscount = giftCardAsDiscount;
+        this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
     }
 
 
@@ -92,21 +95,21 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
     private boolean printReceipt(List<ReceiptItem> receiptList) {
 
-        FiscalAbsolut.printFiscalText(receiptTop);
+        FiscalAbsolut.printFiscalText(receiptTop, saveCommentOnFiscalTape);
 
         for (ReceiptItem item : receiptList) {
-            if (!FiscalAbsolut.registerItem(item))
+            if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape))
                 return false;
             if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
                 return false;
             DecimalFormat formatter = getFormatter();
             if(item.bonusSum != 0.0) {
                 FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
+                FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum), saveCommentOnFiscalTape);
             }
             if(item.bonusPaid != 0.0) {
                 FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                FiscalAbsolut.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+                FiscalAbsolut.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid), saveCommentOnFiscalTape);
             }
         }
 
@@ -115,7 +118,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         if (!FiscalAbsolut.discountReceipt(receipt))
             return false;
 
-        FiscalAbsolut.printFiscalText(receiptBottom);
+        FiscalAbsolut.printFiscalText(receiptBottom, saveCommentOnFiscalTape);
 
         if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard, giftCardAsDiscount))
             return false;

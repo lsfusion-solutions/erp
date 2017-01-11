@@ -42,6 +42,8 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
             BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
             Integer typePayment = (Integer) findProperty("fiscalType[Payment.Payment]").read(context, paymentObject);
 
+            boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
+
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма возврата превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
@@ -49,7 +51,7 @@ public class FiscalAbsolutPrintReturnInvoicePaymentActionProperty extends Script
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(comPort, baudRate, placeNumber, null, sumPayment, typePayment, false));
+            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(comPort, baudRate, placeNumber, null, sumPayment, typePayment, false, saveCommentOnFiscalTape));
             if(result == null)
                 findProperty("printReceiptResult[]").change(new DataObject(true), context);
             else {

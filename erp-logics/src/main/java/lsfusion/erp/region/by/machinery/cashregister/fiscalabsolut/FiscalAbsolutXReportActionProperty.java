@@ -24,8 +24,9 @@ public class FiscalAbsolutXReportActionProperty extends ScriptingActionProperty 
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
             String fiscalAbsolutZReportTitle = (String) findProperty("fiscalAbsolutReceiptTitle[]").read(context);
-            
-            String result = (String) context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 1, fiscalAbsolutZReportTitle));
+            boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
+
+            String result = (String) context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 1, fiscalAbsolutZReportTitle, saveCommentOnFiscalTape));
             if (result == null) {
                 context.apply();
             }

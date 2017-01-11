@@ -16,9 +16,10 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
     private BigDecimal sumPayment;
     private Integer typePayment;
     private boolean sale;
+    private boolean saveCommentOnFiscalTape;
 
     FiscalAbsolutPrintInvoicePaymentClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                                 BigDecimal sumPayment, Integer typePayment, boolean sale) {
+                                                 BigDecimal sumPayment, Integer typePayment, boolean sale, boolean saveCommentOnFiscalTape) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -26,6 +27,7 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
         this.sale = sale;
+        this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
     }
     
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
@@ -54,7 +56,7 @@ public class FiscalAbsolutPrintInvoicePaymentClientAction implements ClientActio
         if (!FiscalAbsolut.openReceipt(sale))
             return false;
 
-        if (sumPayment == null || !FiscalAbsolut.registerItemPayment(sumPayment))
+        if (sumPayment == null || !FiscalAbsolut.registerItemPayment(sumPayment, saveCommentOnFiscalTape))
             return false;
 
         if (!FiscalAbsolut.subtotal())

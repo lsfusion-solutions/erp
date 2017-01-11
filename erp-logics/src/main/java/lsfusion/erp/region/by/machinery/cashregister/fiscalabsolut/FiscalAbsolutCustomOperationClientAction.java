@@ -12,16 +12,18 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
     int baudRate;
     private int type;
     private String textTop;
+    private boolean saveCommentOnFiscalTape;
 
-    public FiscalAbsolutCustomOperationClientAction(Integer comPort, Integer baudRate, int type) {
-        this(comPort, baudRate, type, null);
+    public FiscalAbsolutCustomOperationClientAction(Integer comPort, Integer baudRate, int type, boolean saveCommentOnFiscalTape) {
+        this(comPort, baudRate, type, null, saveCommentOnFiscalTape);
     }
 
-    public FiscalAbsolutCustomOperationClientAction(Integer comPort, Integer baudRate, int type, String textTop) {
+    public FiscalAbsolutCustomOperationClientAction(Integer comPort, Integer baudRate, int type, String textTop, boolean saveCommentOnFiscalTape) {
         this.type = type;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.comPort = comPort == null ? 0 : comPort;
         this.textTop = textTop;
+        this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
     }
 
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
@@ -30,12 +32,12 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
             FiscalAbsolut.openPort(comPort, baudRate);
             switch (type) {
                 case 1:
-                    FiscalAbsolut.printFiscalText(textTop);
+                    FiscalAbsolut.printFiscalText(textTop, saveCommentOnFiscalTape);
                     FiscalAbsolut.xReport();
                     break;
                 case 2:
                     //FiscalAbsolut.smenBegin();
-                    FiscalAbsolut.printFiscalText(textTop);
+                    FiscalAbsolut.printFiscalText(textTop, saveCommentOnFiscalTape);
                     FiscalAbsolut.zReport();
                     FiscalAbsolut.closePort();
                     break;

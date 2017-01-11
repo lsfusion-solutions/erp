@@ -33,8 +33,9 @@ public class FiscalAbsolutCancelReceiptActionProperty extends ScriptingActionPro
             if (!skipReceipt) {
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context.getSession());
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context.getSession());
+                boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
 
-                String result = (String) context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 4));
+                String result = (String) context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 4, saveCommentOnFiscalTape));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalAbsolutCancelReceipt Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));

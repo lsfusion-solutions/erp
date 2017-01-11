@@ -42,6 +42,7 @@ public class FiscalAbsolutPrintInvoicePaymentActionProperty extends ScriptingAct
 
             BigDecimal sumPayment = (BigDecimal) findProperty("sum[Payment.Payment]").read(context, paymentObject);
             Integer typePayment = (Integer) findProperty("fiscalType[Payment.Payment]").read(context, paymentObject);
+            boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
 
             if (sumPayment != null && typePayment != null) {
                 if (maxSum != null && sumPayment.compareTo(maxSum) > 0) {
@@ -50,7 +51,7 @@ public class FiscalAbsolutPrintInvoicePaymentActionProperty extends ScriptingAct
                 }
             }
             
-            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(comPort, baudRate, placeNumber, null, sumPayment, typePayment, true));
+            Object result = context.requestUserInteraction(new FiscalAbsolutPrintInvoicePaymentClientAction(comPort, baudRate, placeNumber, null, sumPayment, typePayment, true, saveCommentOnFiscalTape));
             if(result != null)
                 ServerLoggers.systemLogger.error("FiscalAbsolutPrintInvoicePayment Error: " + result);
             findProperty("printReceiptResult[]").change(result == null ? new DataObject(true) : NullValue.instance, context);

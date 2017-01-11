@@ -64,6 +64,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsDiscount = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsDiscountCurrentCashRegister[]").read(context) != null);
+                boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
@@ -157,7 +158,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                     Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, giftCardAsDiscount));
+                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, giftCardAsDiscount, saveCommentOnFiscalTape));
                     if (result != null) {
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
