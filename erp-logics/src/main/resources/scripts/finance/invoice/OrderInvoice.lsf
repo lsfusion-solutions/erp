@@ -294,7 +294,12 @@ META defineOrderInvoice(sign, stockProp)
         
         userInvoice(order) <- NULL;
         FOR ADDOBJ i = UserInvoice DO {
-            fill(i, order);
+            IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранному заказу строки накладной?';
+            fillHeader(i, order);
+            IF confirmed() OR NOT useConfimForCreateDetail() THEN {
+                createDetail(i, order);   
+                fillPrice(i, order);
+            }
             userInvoice(order) <- i;
             include(order,i) <- TRUE;
             overCreate (order, i);
@@ -323,7 +328,7 @@ META defineOrderInvoice(sign, stockProp)
         createUserInvoice(order);
         FORM userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKEDMODAL NOCANCEL;
     } TOOLBAR;
-    addUserInvoice (Order order) += ACTION addUserInvoice(order);
+    addUserInvoice (Order order) += ACTION IF order IS Order THEN addUserInvoice(order);
 
     EXTEND FORM orders
         PROPERTIES(o) addUserInvoice
