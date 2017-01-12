@@ -442,10 +442,18 @@ END
 
 createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (DATE,DATE); 
 
-createGeneralLedger 'Создать проводки за отчетный период'() = ACTION {
-    DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dateReportingGeneralLedger() AND date(ud) <= maxDateGeneralLedger();
-    createGeneralLedgerFromTo(dateReportingGeneralLedger(), maxDateGeneralLedger());
+createGeneralLedger 'Создать проводки' (DATE dFrom, DATE dTo) = ACTION {
+    DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo;
+    createGeneralLedgerFromTo(dFrom, dTo);
     apply();
+} CONFIRM;
+
+EXTEND FORM generalLedgers
+    PROPERTIES(dFrom, dTo) createGeneralLedger 
+;
+
+createGeneralLedger 'Создать проводки за отчетный период'() = ACTION {
+    createGeneralLedger(dateReportingGeneralLedger(), maxDateGeneralLedger());
 } IN generalLedger;
 
 EXTEND FORM options 
