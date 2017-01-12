@@ -42,7 +42,6 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
       
         try {
             DataObject receiptObject = context.getDataKeyValue(receiptInterface);
-            DataObject zReportObject = (DataObject) findProperty("zReport[Receipt]").readClasses(context, receiptObject);
 
             String fiscalAbsolutReceiptTop = (String) findProperty("fiscalAbsolutTop[Receipt]").read(context, receiptObject);
             String fiscalAbsolutReceiptBottom = (String) findProperty("fiscalAbsolutBottom[Receipt]").read(context, receiptObject);
@@ -154,11 +153,13 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                                 discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail));
                 }
 
+                String prefix = (String) findProperty("fiscalAbsolutPrefixCode128[]").read(context);
+                String receiptCode128 = prefix == null ? null : (prefix + receiptObject.getValue());
                 if (context.checkApply()) {
                     Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, giftCardAsDiscount, saveCommentOnFiscalTape));
+                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, giftCardAsDiscount, saveCommentOnFiscalTape));
                     if (result != null) {
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

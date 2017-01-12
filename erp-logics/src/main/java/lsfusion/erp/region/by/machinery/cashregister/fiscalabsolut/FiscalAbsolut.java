@@ -92,6 +92,8 @@ public class FiscalAbsolut {
         Boolean PrintComment(String comment);
 
         void GetFactoryNumber(byte[] buffer, int buflen);
+
+        Boolean PrintBarCode(int typ, byte[] cod, int width, int height, int feed);
     }
 
     public static String getError(boolean closePort) {
@@ -137,6 +139,16 @@ public class FiscalAbsolut {
 
     static void simpleLogAction(String msg) {
         logger.info(msg);
+    }
+
+    static boolean printBarcode(String barcode) {
+        try {
+            if(barcode != null)
+                FiscalAbsolut.absolutDLL.absolut.PrintBarCode(1, FiscalAbsolut.getBytes(barcode), 2, 40, 5);
+        } catch (Exception e) {
+            return false;
+        }
+        return true;
     }
 
     static boolean printFiscalText(String msg, boolean saveCommentOnFiscalTape) {
