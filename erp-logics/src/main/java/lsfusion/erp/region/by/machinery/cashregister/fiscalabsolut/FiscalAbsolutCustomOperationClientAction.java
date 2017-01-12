@@ -36,14 +36,24 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
                     FiscalAbsolut.xReport();
                     break;
                 case 2:
-                    //FiscalAbsolut.smenBegin();
                     FiscalAbsolut.printFiscalText(textTop, saveCommentOnFiscalTape);
-                    FiscalAbsolut.zReport();
+                    FiscalAbsolut.zReport(0);
+                    FiscalAbsolut.closePort();
+                    break;
+                case 3:
+                    //пока закомментирован
+                    //FiscalAbsolut.zReport(1);
                     FiscalAbsolut.closePort();
                     break;
                 case 4:
                     FiscalAbsolut.cancelReceipt();
                     break;
+                case 9:
+                    if(!FiscalAbsolut.zeroReceipt()) {
+                        String error = FiscalAbsolut.getError(true);
+                        FiscalAbsolut.cancelReceipt();
+                        return error;
+                    }
                 default:
                     break;
             }

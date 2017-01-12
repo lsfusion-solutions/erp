@@ -1,16 +1,17 @@
 package lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut;
 
 import com.google.common.base.Throwables;
+import lsfusion.interop.action.ConfirmClientAction;
 import lsfusion.interop.action.MessageClientAction;
-import lsfusion.server.ServerLoggers;
+import lsfusion.server.context.ThreadLocalContext;
 import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 
+import javax.swing.*;
 import java.sql.SQLException;
 
 public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty {
@@ -22,7 +23,7 @@ public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty 
     public void executeCustom(ExecutionContext<ClassPropertyInterface> context) throws SQLException, SQLHandledException {
         try {
 
-            DataObject zReportObject = (DataObject) findProperty("currentZReport[]").readClasses(context);
+            boolean close = true;
 
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
@@ -33,9 +34,22 @@ public class FiscalAbsolutZReportActionProperty extends ScriptingActionProperty 
                 Object result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 2, fiscalAbsolutReportTop, saveCommentOnFiscalTape));
                 if (result != null) {
                     context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                } else {
+                    Integer dialogResult = (Integer) ThreadLocalContext.requestUserInteraction(new ConfirmClientAction(
+                            "Печать Z-отчёта", "Нажмите 'Да', если печать Z-отчёта завершилась успешно " +
+                            "или 'Нет', если печать завершилась с ошибкой"));
+                    if (dialogResult == JOptionPane.YES_OPTION) {
+                        result = context.requestUserInteraction(new FiscalAbsolutCustomOperationClientAction(comPort, baudRate, 3, fiscalAbsolutReportTop, saveCommentOnFiscalTape));
+                        if (result != null) {
+                            context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
+                        }
+                    } else {
+                        close = false;
+                    }
                 }
             }
-            findAction("closeCurrentZReport[]").execute(context);
+            if (close)
+                findAction("closeCurrentZReport[]").execute(context);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
             throw Throwables.propagate(e);
         }

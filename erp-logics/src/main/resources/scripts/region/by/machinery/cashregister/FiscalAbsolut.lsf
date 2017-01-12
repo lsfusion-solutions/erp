@@ -34,10 +34,15 @@ fiscalDisplayText (ReceiptDetail receiptDetail) += ACTION IF sidCashRegisterMode
 fiscalAbsolutCancel 'Отменить чек' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutCancelReceiptActionProperty' (Receipt);
 fiscalCancel(Receipt receipt) += ACTION IF sidModelCurrentCashRegister() == 'Absolut' THEN fiscalAbsolutCancel(receipt);
 
+printZeroReceipt 'Нулевой чек при открытии z-отчёта (Absolut)' = DATA BOOLEAN ();
+fiscalAbsolutOpenZReport 'Z-отчёт' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutOpenZReportActionProperty' ();
+fiscalOpenZReport() += ACTION IF sidModelCurrentCashRegister() == 'Absolut' AND printZeroReceipt() THEN fiscalAbsolutOpenZReport();
+
 saveCommentOnFiscalTapeAbsolut 'Сохранять комментарий для контрольной ленты (Absolut)' = DATA BOOLEAN (); 
-EXTEND FORM options PROPERTIES() saveCommentOnFiscalTapeAbsolut;
+EXTEND FORM options PROPERTIES() saveCommentOnFiscalTapeAbsolut, printZeroReceipt;
 DESIGN options {
     machinery {
         MOVE PROPERTY(saveCommentOnFiscalTapeAbsolut());
+        MOVE PROPERTY(printZeroReceipt());
     }
 }

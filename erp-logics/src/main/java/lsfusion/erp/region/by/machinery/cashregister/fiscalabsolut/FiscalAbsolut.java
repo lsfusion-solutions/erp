@@ -207,11 +207,9 @@ public class FiscalAbsolut {
         absolutDLL.absolut.PrintReport(10);
     }
 
-    public static void zReport() {
-        logAction("PrintReport", 0);
-        absolutDLL.absolut.PrintReport(0);
-        logAction("PrintReport", 1);
-        absolutDLL.absolut.PrintReport(1);
+    public static void zReport(int type) {
+        logAction("PrintReport", type);
+        absolutDLL.absolut.PrintReport(type);
     }
 
     public static boolean inOut(BigDecimal sum) {
@@ -301,7 +299,25 @@ public class FiscalAbsolut {
         logAction("SmenBegin");
         if (!absolutDLL.absolut.SmenBegin())
             checkErrors(true);
+    }
 
+    static boolean zeroReceipt() {
+        try {
+            smenBegin();
+            if(!openReceipt(true))
+                return false;
+            logAction("FullProd", "11111", 0, 1, 1, 0, 0, "");
+            if(!absolutDLL.absolut.FullProd("11111", 0, 1, 1, 1, 0, getBytes("")))
+                return false;
+            if (!subtotal())
+                return false;
+            if(!totalCash(BigDecimal.ZERO))
+                return false;
+            return closeReceipt();
+        }catch (Exception e){
+            FiscalAbsolut.cancelReceipt();
+            return false;
+        }
     }
 
     private static String toStr(double value) {
