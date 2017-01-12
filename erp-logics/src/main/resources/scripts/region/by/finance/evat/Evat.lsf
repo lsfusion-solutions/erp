@@ -168,7 +168,11 @@ seriesDoc 'Серия' = DATA VARSTRING[100] (EVAT);
 numberDoc 'Номер' = DATA VARSTRING[100] (EVAT);
 descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[100] (EVAT);
 unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
-exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + Time.extractYear(currentDate()) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
+exportYear 'Год для экспорта' = DATA INTEGER (EVAT);
+exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE Time.extractYear(currentDate()) IF e IS EVAT, exportYear(e) ) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
+
+WHEN SET(exported(EVAT e)) 
+     DO exportYear(e) <- Time.extractYear(currentDate());
 
 
 UNPForeign 'УНП (иностр.)' = DATA VARSTRING[50] (LegalEntity) IN doc MINCHARWIDTH 15 PREFCHARWIDTH 20;
@@ -272,7 +276,7 @@ totalSumWithVAT 'Сумма с НДС (всего)' (EVAT evat) = GROUP SUM sumW
 
 FORM evat 'Электронная счёт-фактура'
     OBJECTS e=EVAT FIXED PANEL
-    PROPERTIES(e) nameType, captionStatus, unpSender, number, exportNumber, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
+    PROPERTIES(e) nameType, captionStatus, unpSender, number, exportYear, exportNumber, invoice, date, dateCancelled, sendToRecipient, exported, result, captionServerStatus,
                   captionLegalEntityStatusSupplier, consignor, unpConsignor, countryCodeConsignor, shippingAddressConsignor,
                   consignee, unpConsignee, countryCodeConsignee, shippingAddressConsignee,  
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
@@ -303,6 +307,7 @@ DESIGN evat {
             fill = 1;
             MOVE PROPERTY(unpSender(e));
             MOVE PROPERTY(number(e));
+            MOVE PROPERTY(exportYear(e));
             MOVE PROPERTY(exportNumber(e));
             MOVE PROPERTY(date(e));
             MOVE PROPERTY(invoice(e));
@@ -395,7 +400,7 @@ FORM evats 'Электронные счета-фактуры'
 
     OBJECTS e = EVAT
     PROPERTIES(e) in
-    PROPERTIES(e) READONLY exported, captionStatus, captionServerStatus, unpSender, number, exportNumber, invoice, date, dateDoc, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
+    PROPERTIES(e) READONLYIF isReadonly() exported, captionStatus, captionServerStatus, unpSender, number, exportYear, exportNumber, invoice, date, dateDoc, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
                   dateInvoicePrincipal, numberInvoiceVendor, dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
                   numberTaxesSupplier, dateTaxesSupplier, nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum,
                   totalExciseSum, totalVATSum, totalSumWithVAT
@@ -408,7 +413,7 @@ FORM evats 'Электронные счета-фактуры'
     
      
     OBJECTS d = EVATDetail
-    PROPERTIES(d) READONLY name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
+    PROPERTIES(d) READONLYIF isReadonly() name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
     DIALOG EVAT OBJECT e
 
@@ -450,6 +455,7 @@ DESIGN evats {
         
     }
 }
+@extendFormEditable(evats);
 
 NAVIGATOR {
     financeNavigator {

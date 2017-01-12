@@ -1,0 +1,56 @@
+MODULE BlankCodeEVAT;
+
+//REQUIRE SaleOperationConsignmentBy, PurchaseOperationConsignmentBy, PurchaseInvoice, PurchaseReturnInvoice, SaleInvoice, SaleReturnInvoice;
+
+CLASS BlankCode 'Код типа бланка';
+
+TABLE blankCode (BlankCode);
+
+name 'Наименование' = DATA VARISTRING[50](BlankCode);
+
+id 'Код' = DATA VARSTRING[20](BlankCode);
+blankCode = GROUP AGGR BlankCode p BY id(p);
+
+FORM blankCode 'Код БСО'
+    OBJECTS p = BlankCode FIXED PANEL
+    PROPERTIES(p) id, name
+    EDIT BlankCode OBJECT p
+;
+
+FORM blankCodes 'Коды БСО'
+    OBJECTS p = BlankCode
+    PROPERTIES(p) READONLY id, name
+    PROPERTIES (p) TOOLBAR ADDFORM, EDITFORM, DELETE
+    DIALOG BlankCode OBJECT p
+;
+
+META defineBlankCode(NS, cap)
+
+    blankCode 'Код типа бланка'= ABSTRACT BlankCode (NS.Invoice);
+    idBlankCode 'Код типа бланка' (NS.Invoice i) = id(blankCode(i));
+    
+    blankCode 'Код типа бланка'= DATA BlankCode (NS.UserInvoice);
+    idBlankCode 'Код типа бланка' (NS.UserInvoice i) = id(blankCode(i));  
+    blankCode(NS.UserInvoice i) += blankCode(i);  
+    
+    showBlankCode = ABSTRACT BOOLEAN (NS.UserInvoice);
+    
+    isBlankCode (NS.UserInvoice i) = isBlankCode###cap(operation(i)) OR showBlankCode(i);
+    
+    CONSTRAINT (SET(isPosted(NS.UserInvoice i)) OR SETCHANGED(operation(i))) AND isPosted(i) AND isBlankCode###cap(operation(i)) AND NOT blankCode(i)
+               MESSAGE 'Для накладной должнен быть задан "Код типа бланка".';    
+    
+    EXTEND FORM NS.userInvoice
+        PROPERTIES (i) idBlankCode SHOWIF isBlankCode(i)
+    ;
+    DESIGN NS.userInvoice {
+        second {
+            MOVE PROPERTY (idBlankCode(i)) AFTER PROPERTY (series(i));
+        }
+    } 
+
+END
+META defineBlankCode(NS)
+    @defineBlankCode(NS, );
+END    
+
