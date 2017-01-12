@@ -15,6 +15,9 @@ acceptPrint 'Принять' (PickingOrder pickingOrder) = ACTION {
     }
 } TOOLBAR EDITKEY 'SPACE';
 
+
+isParent(SkuGroup sk, PickingOrderDetail detail) = isParent(sk, sku(detail));
+
 FORM pickingDashboard 'Комплектация' AUTOREFRESH 60
 
     OBJECTS d = DATE FIXED PANEL
@@ -33,11 +36,17 @@ FORM pickingDashboard 'Комплектация' AUTOREFRESH 60
     FILTERGROUP pickingFilters
         FILTER 'Не скомплектованные' NOT (calcPart(po) OR calcFull(po)) 'F4' DEFAULT
 
+    TREE skuTree sk = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk), skuTreeName = name(sk)
+    ORDER BY order(sk), skuTreeName
+    FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
+
     OBJECTS pd=PickingOrderDetail FIXED GRID
     PROPERTIES (pd) READONLY nameSku, shortNameUOMSku,
                     quantity
 
-    FILTERS pickingOrder(pd)==po
+    FILTERS pickingOrder(pd)==po,
+            isParent(sk, pd)
 
     OBJECTS p = Picking FIXED GRID
     PROPERTIES (p) READONLY BACKGROUND backgroundStatus(p) status, namePerformer, number, finishDateTime,
@@ -75,8 +84,15 @@ DESIGN pickingDashboard {
                         caption = 'Номер комплектации';
                     }
                 };
-                MOVE pd.box {
+                NEW detailContainer {
+                    type = SPLITH;
                     caption = 'Детализация заказа';
+                    MOVE skuTree.tree.box{
+                        caption = 'Группы';
+                    }
+                    MOVE pd.box{
+                        fill = 3;
+                    }                   
                 }
             }
         }          
