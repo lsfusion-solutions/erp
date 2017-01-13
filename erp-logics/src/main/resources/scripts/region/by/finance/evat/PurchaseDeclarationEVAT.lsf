@@ -4,6 +4,12 @@ REQUIRE PurchaseDeclarationDetail, EVAT;
 
 NAMESPACE Purchase;
 
+EXTEND CLASS Declaration : EVATDocument;
+name(Declaration document) += description(document);
+number[EVATDocument](Declaration document) += VARSTRING[100](number(document));
+series[EVATDocument](Declaration document) += VARSTRING[2](series(document));
+dateTime[EVATDocument](Declaration document) += dateTime(document);
+
 EXTEND CLASS EVATType { declaration 'Декларация' }
 
 useHomeSum 'Записывать в сумму декларации сумму из инвойса' = DATA BOOLEAN ();
@@ -12,6 +18,7 @@ DESIGN options { MOVE PROPERTY(useHomeSum()); };
 
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
     FOR date(Declaration d) >= dFrom AND date(d) <= dTo AND isPosted(d) ADDOBJ e = EVAT DO {
+        EVATDocument(e) <- d;
         type(e) <- EVATType.declaration;
         status(e) <- EVATStatus.original;
         

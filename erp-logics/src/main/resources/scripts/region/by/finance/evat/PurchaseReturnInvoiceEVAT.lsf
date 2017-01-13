@@ -4,16 +4,20 @@ REQUIRE PurchaseReturnInvoice, PurchaseInvoiceEVAT, PurchaseReturnBlankCodeEVAT;
 
 NAMESPACE PurchaseReturn;
 
-//overCreateEVATPurchaseReturnInvoice = ACTION ABSTRACT LIST (EVATDetail, InvoiceDetail);
-//overCreateEVATPurchaseReturnInvoice = ACTION ABSTRACT LIST (EVAT, Invoice);
+EXTEND CLASS PurchaseReturn.Invoice : EVATDocument;
+name(PurchaseReturn.Invoice document) += description(document);
+number[EVATDocument](PurchaseReturn.Invoice document) += VARSTRING[100](number(document));
+series[EVATDocument](PurchaseReturn.Invoice document) += VARSTRING[2](series(document));
+dateTime[EVATDocument](PurchaseReturn.Invoice document) += dateTime(document);
+
 includeEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
 EXTEND CLASS EVATType { purchaseReturn 'Закупка-возврат' }
 
-
 overCreateEVATPurchaseInvoice (DATE dFrom, DATE dTo) += ACTION {
     IF dFrom IS DATE AND dTo IS DATE THEN {
         FOR includeEVAT(Invoice i) AND isPosted(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
+            EVATDocument(e) <- i;            
             status(e) <- EVATStatus.original;
             type(e) <- EVATType.purchaseReturn;
                     

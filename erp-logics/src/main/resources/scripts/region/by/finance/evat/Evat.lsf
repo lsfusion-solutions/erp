@@ -4,10 +4,22 @@ REQUIRE System, Finance, LegalEntityBy, Item, Warehouse;
 
 // Атрибуты для счет-фактуры
 
+CLASS ABSTRACT EVATDocument 'Регистр-основание';
+TABLE EVATDocument(EVATDocument);
+
+name 'Регистр-основание' = ABSTRACT VARSTRING[200] (EVATDocument) ;
+number 'Номер' = ABSTRACT VARSTRING[100] (EVATDocument) IN numbered MINCHARWIDTH 7;
+series 'Серия' = ABSTRACT STRING[2] (EVATDocument) IN numbered FIXEDCHARWIDTH 3;
+seriesNumber 'Серия/Номер' (EVATDocument d) = CONCAT '', series(d), number(d) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (EVATDocument);
+date 'Дата' (EVATDocument document) = toDate(dateTime(document));
+time 'Время' (EVATDocument document) = toTime(dateTime(document));
 
 
 GROUP consignor 'Реквизиты грузоотправителя' : base;
 GROUP consignee 'Реквизиты грузополучателя' : base;
+GROUP register 'Основание' : base;
 
 branchCode 'Код подразделения (для ЭСЧФ)' = DATA INTEGER (Warehouse);
 EXTEND FORM warehouse
@@ -134,6 +146,10 @@ CONSTRAINT DROPPED (EVAT e IS EVAT) AND PREV (exported(e)) MESSAGE 'Запрещ
 statusServerStatus = DATA EVATServerStatus (EVAT);
 nameServerStatus 'Статус на сервере'(EVAT e) = staticName(statusServerStatus(e));  
 captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(statusServerStatus(e));  
+
+EVATDocument 'Регистр' = DATA EVATDocument (EVAT);
+seriesNumberEVATDocument 'Регистр (серия/номер)' (EVAT e) = seriesNumber(EVATDocument(e)) MINCHARWIDTH 7 PREFCHARWIDTH 15 MAXCHARWIDTH 20 IN register; 
+dateEVATDocument 'Регистр (дата)' (EVAT e) = date(EVATDocument(e)) IN register; 
 
 in 'Вкл.' = DATA LOCAL BOOLEAN (EVAT);
 invoice 'К ЭСЧФ' = DATA VARSTRING[100] (EVAT);
@@ -282,7 +298,7 @@ FORM evat 'Электронная счёт-фактура'
                   bigCompanySupplier, dependentPersonSupplier, residentsOfOffshoreSupplier, specialDealGoodsSupplier,
                   captionLegalEntityStatusCustomer, bigCompanyCustomer, dependentPersonCustomer, residentsOfOffshoreCustomer, specialDealGoodsCustomer,
                   numberInvoicePrincipal, dateInvoicePrincipal, numberInvoiceVendor,
-                  dateInvoiceVendor,  
+                  dateInvoiceVendor, dateEVATDocument, seriesNumberEVATDocument,  
                   nameSupplier, unpSupplier, countryCodeSupplier, addressSupplier, 
                   nameCustomer, unpCustomer, countryCodeCustomer, addressCustomer, 
                   branchCodeSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
@@ -316,6 +332,7 @@ DESIGN evat {
             MOVE PROPERTY(result(e));
             MOVE PROPERTY(captionServerStatus(e));
             MOVE PROPERTY(exported(e));
+            MOVE e.register;
         }
         NEW supplier{
             caption = 'Поставщик';
@@ -400,7 +417,7 @@ FORM evats 'Электронные счета-фактуры'
 
     OBJECTS e = EVAT
     PROPERTIES(e) in
-    PROPERTIES(e) READONLYIF isReadonly() exported, captionStatus, captionServerStatus, unpSender, number, exportYear, exportNumber, invoice, date, dateDoc, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
+    PROPERTIES(e) READONLYIF isReadonly() exported, captionStatus, captionServerStatus, dateEVATDocument, seriesNumberEVATDocument, unpSender, number, exportYear, exportNumber, invoice, date, dateDoc, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
                   dateInvoicePrincipal, numberInvoiceVendor, dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
                   numberTaxesSupplier, dateTaxesSupplier, nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum,
                   totalExciseSum, totalVATSum, totalSumWithVAT

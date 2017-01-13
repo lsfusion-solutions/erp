@@ -4,6 +4,19 @@ REQUIRE SaleInvoiceConsignmentBy, SaleReturnInvoice, EVAT, CustomsGroup, SaleBla
 
 NAMESPACE Sale;
 
+EXTEND CLASS Sale.Invoice : EVATDocument;
+name(Sale.Invoice document) += description(document);
+number[EVATDocument](Invoice document) += VARSTRING[100](number(document));
+series[EVATDocument](Invoice document) += VARSTRING[2](series(document));
+dateTime[EVATDocument](Invoice document) += dateTime(document);
+
+EXTEND CLASS SaleReturn.Invoice : EVATDocument;
+name(SaleReturn.Invoice document) += description(document);
+number[EVATDocument](SaleReturn.Invoice document) += VARSTRING[28](number(document));
+series[EVATDocument](SaleReturn.Invoice document) += VARSTRING[2](series(document));
+dateTime[EVATDocument](SaleReturn.Invoice document) += dateTime(document);
+
+
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
 skipCreateEVAT = ABSTRACT BOOLEAN (Invoice);
@@ -16,6 +29,7 @@ overCreateEVATSaleReturnInvoice = ACTION ABSTRACT LIST (EVAT, SaleReturn.Invoice
 
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
+        EVATDocument(e) <- i;        
         type(e) <- EVATType.sale;
         status(e) <- EVATStatus.original;
         
@@ -74,6 +88,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
     APPLY {};
 
     FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
+        EVATDocument(e) <- i;        
         type(e) <- EVATType.saleReturn;
         status(e) <- EVATStatus.additionalNoRef;
         

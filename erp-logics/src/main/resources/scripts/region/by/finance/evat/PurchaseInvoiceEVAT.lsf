@@ -4,6 +4,12 @@ REQUIRE PurchaseInvoice, EVAT, CustomsGroup, PurchaseDeclaration, InvoiceConsign
 
 NAMESPACE Purchase;
 
+EXTEND CLASS Invoice : EVATDocument;
+name(Invoice document) += description(document);
+number[EVATDocument](Invoice document) += VARSTRING[100](number(document));
+series[EVATDocument](Invoice document) += VARSTRING[2](series(document));
+dateTime[EVATDocument](Invoice document) += dateTime(document);
+
 @defineOperationProperty(eVAT, 'Создавать ЭСЧФ', createContainer);
 
 overCreateEVATPurchaseInvoice = ACTION ABSTRACT LIST (EVATDetail, InvoiceDetail);
@@ -14,6 +20,7 @@ skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 EXTEND CLASS EVATType { purchase 'Закупка' }
 
 createEVATPurchaseInvoice (EVAT e, Invoice i) = ACTION {
+    EVATDocument(e) <- i;
     type(e) <- EVATType.purchase;
     status(e) <- EVATStatus.original;
     legalEntityStatusSupplier(e) <- LegalEntityStatus.foreignOrganization;
