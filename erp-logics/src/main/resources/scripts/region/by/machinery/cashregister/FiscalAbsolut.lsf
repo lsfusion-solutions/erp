@@ -48,3 +48,15 @@ DESIGN options {
         MOVE PROPERTY(fiscalAbsolutPrefixCode128());
     }
 }
+
+overChangeBarcodeSale(VARSTRING[15] string, Receipt receipt) += ACTION {
+    IF startsWith(string, fiscalAbsolutPrefixCode128()) == 1 AND receipt IS Receipt AND string IS VARSTRING[15] THEN {
+        FOR VARSTRING[30](Receipt r AS Receipt) == substrFrom(string, 5) DO {
+            FORM searchSkuReturnReceipt OBJECTS st = departmentStore(r), c = cashRegister(r), s = r DIALOG;
+            IF formResult() == FormResult.ok THEN {
+                createReturn(receipt, chosenObject('s'), chosenObject('r'));
+            }
+            consumedChangeBarcodeSaleReceipt() <- TRUE;
+        }
+    }
+};

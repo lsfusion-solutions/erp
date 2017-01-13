@@ -938,14 +938,20 @@ DESIGN searchSkuReturnReceipt {
     preferredSize = (1024, 768);
 }
 
+createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d) = ACTION {
+    IF receiptReturn IS Receipt AND d IS ReceiptSaleDetail THEN {
+        IF selectiveReturn() THEN {        
+            createReturn(receipt, d, idBarcode(sku[ReceiptSaleDetail](d)));
+        } ELSE {
+            createReturn(receipt, receiptReturn);
+        }
+    }
+}
+
 searchSkuReturn 'Поиск'(Receipt receipt) = ACTION {
     FORM searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt) DIALOG;
     IF formResult() == FormResult.ok THEN {
-        IF selectiveReturn() THEN {        
-            createReturn(receipt, chosenObject('r'), idBarcode(sku[ReceiptSaleDetail](chosenObject('r'))));
-        } ELSE {
-            createReturn(receipt, chosenObject('s'));
-        }
+        createReturn(receipt, chosenObject('s'), chosenObject('r'));
     }
 } EDITKEY 'F6' IN receiptReturnAction;
 
