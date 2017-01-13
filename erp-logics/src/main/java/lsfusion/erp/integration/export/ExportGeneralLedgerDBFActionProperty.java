@@ -110,6 +110,7 @@ public class ExportGeneralLedgerDBFActionProperty extends DefaultExportActionPro
             generalLedgerQuery.addProperty(dimensionTypeNames[j], dimensionTypeProperties[j].getExpr(generalLedgerExpr, dimensionTypeExpr));
         }
 
+        generalLedgerQuery.and(findProperty("isPosted[GeneralLedger]").getExpr(generalLedgerExpr).getWhere());
         generalLedgerQuery.and(findProperty("sum[GeneralLedger]").getExpr(generalLedgerExpr).getWhere());
         generalLedgerQuery.and(findProperty("name[DimensionType]").getExpr(dimensionTypeExpr).getWhere());
         
