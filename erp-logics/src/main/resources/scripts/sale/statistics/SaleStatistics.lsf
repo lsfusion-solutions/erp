@@ -1324,6 +1324,9 @@ FORM statisticalStockReportPrint 'Статистический отчет по �
 printStatisticalReport 'Статистический отчет по складу' (StatisticGroupType c, Stock s, DATE dFrom, DATE dTo) = ACTION FORM statisticalStockReportPrint OBJECTS c = c , s = s, dFrom = dFrom, dTo = dTo PRINT IMAGE 'print.png' IN print;
 printXLSStatisticalReport 'Статистический отчет по складу (XLS)' (StatisticGroupType c, Stock s, DATE dFrom, DATE dTo) = ACTION FORM statisticalStockReportPrint OBJECTS c = c , s = s, dFrom = dFrom, dTo = dTo PRINT XLS IMAGE 'print.png' IN print;
 
+skipPrint = ABSTRACT CASE BOOLEAN (Stock);
+showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
+
 FORM statisticalReports 'Статистические отчеты'
 
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
@@ -1336,7 +1339,7 @@ FORM statisticalReports 'Статистические отчеты'
     PROPERTIES(s) SELECTOR name
     FILTERS isCompany(s)
     
-    PROPERTIES printXLSStatisticalReport(c, s, dFrom, dTo), printStatisticalReport(c, s, dFrom, dTo)
+    PROPERTIES SHOWIF showPrint(s) printXLSStatisticalReport(c, s, dFrom, dTo), printStatisticalReport(c, s, dFrom, dTo)
 ;
 
 DESIGN statisticalReports {
