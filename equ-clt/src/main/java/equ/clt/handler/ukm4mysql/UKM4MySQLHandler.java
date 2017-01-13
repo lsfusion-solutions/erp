@@ -109,7 +109,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                                 exportPriceTypeStorePriceList(conn, transaction, departmentNumber, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table var", transaction.id));
-                                exportVar(conn, transaction, weightCode, appendBarcode, version);
+                                exportVar(conn, transaction, useBarcodeAsId, weightCode, appendBarcode, version);
 
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
                                 exportSignals(conn, transaction, version, true, timeout, false);
@@ -444,7 +444,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, boolean appendBarcode, int version) throws SQLException {
+    private void exportVar(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, String weightCode, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -456,7 +456,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     String barcode = makeBarcode(removeCheckDigitFromBarcode(item.idBarcode, appendBarcode), item.passScalesItem, weightCode);
                     if (barcode != null && item.idItem != null) {
                         ps.setString(1, HandlerUtils.trim(barcode, 40)); //id
-                        ps.setString(2, HandlerUtils.trim(item.idItem, 40)); //item
+                        ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
                         ps.setDouble(3, item.amountBarcode != null ? item.amountBarcode.doubleValue() : 1); //quantity
                         ps.setInt(4, 1); //stock
                         ps.setInt(5, version); //version
