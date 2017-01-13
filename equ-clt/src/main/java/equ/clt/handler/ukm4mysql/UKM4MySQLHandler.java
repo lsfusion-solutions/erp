@@ -1068,7 +1068,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
     private Long parseGroup(String idItemGroup) {
         try {
-            return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup.replaceAll("[^0-9]", ""));
+            return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup/*.replaceAll("[^0-9]", "")*/);
         } catch (Exception e) {
             return (long) 0;
         }
