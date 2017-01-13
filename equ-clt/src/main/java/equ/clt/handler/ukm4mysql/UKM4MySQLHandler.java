@@ -138,13 +138,15 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(exception));
                     }
 
-                    Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
-                    try {
-                        processTransactionLogger.info(String.format("ukm4 mysql: export to table signal %s records", versionTransactionMap.size()));
-                        sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, timeout));
-                    } finally {
-                        if (conn != null)
-                            conn.close();
+                    if(params.connectionString != null) {
+                        Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
+                        try {
+                            processTransactionLogger.info(String.format("ukm4 mysql: export to table signal %s records", versionTransactionMap.size()));
+                            sendTransactionBatchMap.putAll(waitSignals(conn, versionTransactionMap, timeout));
+                        } finally {
+                            if (conn != null)
+                                conn.close();
+                        }
                     }
 
                 }
