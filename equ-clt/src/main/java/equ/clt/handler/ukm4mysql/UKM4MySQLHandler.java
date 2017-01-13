@@ -192,10 +192,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         for (ItemGroup itemGroup : itemGroupList) {
                             if (!usedGroups.contains(itemGroup.extIdItemGroup)) {
                                 usedGroups.add(itemGroup.extIdItemGroup);
-                                Long idItemGroup = parseGroup(itemGroup.extIdItemGroup);
-                                if (idItemGroup != 0) {
-                                    ps.setLong(1, idItemGroup); //id
-                                    ps.setLong(2, parseGroup(itemGroup.idParentItemGroup)); //owner
+                                String idItemGroup = parseGroup(itemGroup.extIdItemGroup);
+                                if (!idItemGroup.equals("0")) {
+                                    ps.setString(1, idItemGroup); //id
+                                    ps.setString(2, parseGroup(itemGroup.idParentItemGroup)); //owner
                                     ps.setString(3, HandlerUtils.trim(itemGroup.nameItemGroup, "", 80)); //name
                                     ps.setInt(4, version); //version
                                     ps.setInt(5, 0); //deleted
@@ -233,7 +233,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     ps.setString(3, item.description == null ? "" : item.description); //descr
                     ps.setString(4, HandlerUtils.trim(item.shortNameUOM, "", 40)); //measure
                     ps.setInt(5, item.passScalesItem ? 3 : item.splitItem ? 2 : 0); //measprec
-                    ps.setLong(6, parseGroup(item.extIdItemGroup)); //classif
+                    ps.setString(6, parseGroup(item.extIdItemGroup)); //classif
                     ps.setInt(7, 1); //prop - признак товара ?
                     ps.setString(8, HandlerUtils.trim(item.description, "", 100)); //summary
                     ps.setDate(9, item.expiryDate); //exp_date
@@ -1066,11 +1066,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private Long parseGroup(String idItemGroup) {
+    private String parseGroup(String idItemGroup) {
         try {
-            return idItemGroup == null ? 0 : Long.parseLong(idItemGroup.equals("Все") ? "0" : idItemGroup/*.replaceAll("[^0-9]", "")*/);
+            return idItemGroup == null || idItemGroup.equals("Все") ? "0" : idItemGroup;
         } catch (Exception e) {
-            return (long) 0;
+            return "0";
         }
     }
 
