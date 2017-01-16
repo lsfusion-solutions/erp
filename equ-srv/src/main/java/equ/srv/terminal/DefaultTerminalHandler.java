@@ -158,7 +158,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
             if (terminalHandlerLM != null) {
 
                 ObjectValue stockObject = terminalHandlerLM.findProperty("stock[Employee]").readClasses(session, userObject);
-                DataObject priceListTypeObject = ((ConcreteCustomClass) terminalHandlerLM.findClass("SystemLedgerPriceListType")).getDataObject("manufacturingPriceStockPriceListType");
+                ObjectValue priceListTypeObject = terminalHandlerLM.findProperty("priceListTypeTerminal[]").readClasses(session);
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
