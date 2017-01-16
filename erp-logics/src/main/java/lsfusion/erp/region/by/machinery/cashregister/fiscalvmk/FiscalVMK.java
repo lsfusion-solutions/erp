@@ -315,7 +315,7 @@ public class FiscalVMK {
 
     public static boolean registerItem(ReceiptItem item, String denominationStage) {
         try {
-            double price = makeDenomination(item.price.abs(), denominationStage);
+            double price = item.price == null ? 0.0 : makeDenomination(item.price.abs(), denominationStage);
             double sum = makeDenomination(BigDecimal.valueOf(item.sumPos - item.articleDiscSum + item.bonusPaid), denominationStage);
             logAction("vmk_sale", item.barcode, item.name, price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
             return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
