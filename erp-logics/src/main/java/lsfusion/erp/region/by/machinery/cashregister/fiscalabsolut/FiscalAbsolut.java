@@ -192,17 +192,12 @@ public class FiscalAbsolut {
         return absolutDLL.absolut.Oplata(3, sumValue, 0);
     }
 
-    static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount) {
+    static boolean totalGiftCard(BigDecimal sum) {
         if (sum == null)
             return true;
         int sumValue = formatAbsPrice(sum);
-        if (giftCardAsDiscount) {
-            logAction("NacSkd", 4, sumValue, 0);
-            return absolutDLL.absolut.NacSkd(4, sumValue, 0);
-        } else {
-            logAction("Oplata", 1, sumValue, 0);
-            return absolutDLL.absolut.Oplata(1, (double) sumValue, 0);
-        }
+        logAction("Oplata", 1, sumValue, 0);
+        return absolutDLL.absolut.Oplata(1, (double) sumValue, 0);
     }
 
     public static boolean total(BigDecimal sumPayment, Integer typePayment) {

@@ -20,12 +20,11 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     String receiptTop;
     String receiptBottom;
     String receiptCode128;
-    boolean giftCardAsDiscount;
     boolean saveCommentOnFiscalTape;
 
     public FiscalAbsolutPrintReceiptClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
-                                                 String receiptCode128, boolean giftCardAsDiscount, boolean saveCommentOnFiscalTape) {
+                                                 String receiptCode128, boolean saveCommentOnFiscalTape) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -34,7 +33,6 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.receiptCode128 = receiptCode128;
-        this.giftCardAsDiscount = giftCardAsDiscount;
         this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
     }
 
@@ -122,7 +120,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
         FiscalAbsolut.printFiscalText(receiptBottom, saveCommentOnFiscalTape);
 
-        if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard, giftCardAsDiscount))
+        if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
             return false;
         if (!FiscalAbsolut.totalCard(receipt.sumCard))
             return false;

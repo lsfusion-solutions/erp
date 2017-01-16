@@ -21,11 +21,11 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     ReceiptInstance receipt;
     String receiptTop;
     String receiptBottom;
-    boolean giftCardAsDiscount;
+    boolean giftCardAsNotPayment;
     String denominationStage;
 
     public FiscalVMKPrintReceiptClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsDiscount,
+                                             ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
                                              String denominationStage) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
@@ -35,7 +35,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         this.receipt = receipt;
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
-        this.giftCardAsDiscount = giftCardAsDiscount;
+        this.giftCardAsNotPayment = giftCardAsNotPayment;
         this.denominationStage = denominationStage;
     }
 
@@ -96,45 +96,92 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             return null;
         if (!FiscalVMK.openReceipt(sale ? 0 : 1))
             return null;
-        
+
         Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
-        
+
         FiscalVMK.printFiscalText(receiptTop);
-        
-        for (ReceiptItem item : receiptList) {
-            if (!FiscalVMK.registerItem(item, denominationStage))
-                return null;
-            if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard, denominationStage))
-                return null;
+
+        if (giftCardAsNotPayment && receipt.sumGiftCard != null) {
+
+            double sum = 0;
+            double discountSum = 0;
             DecimalFormat formatter = getFormatter(denominationStage);
-            if(item.bonusSum != 0.0) {
-                FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                FiscalVMK.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
+            for (ReceiptItem item : receiptList) {
+                double discount = item.articleDiscSum - item.bonusPaid;
+                sum += item.sumPos - discount;
+                discountSum += discount;
+                FiscalVMK.printMultilineFiscalText(item.name);
+                FiscalVMK.printFiscalText(getFiscalString("Код", item.barcode));
+                FiscalVMK.printFiscalText(getFiscalString("Цена",
+                        new DecimalFormat("#,###.##").format(item.quantity) + "x" + formatter.format(item.price)));
+                if(discountSum != 0.0)
+                FiscalVMK.printFiscalText(getFiscalString("Скидка",
+                        formatter.format(discount)));
             }
-            if(item.bonusPaid != 0.0) {
-                FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                FiscalVMK.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+            discountSum += receipt.sumDisc == null ? 0 : receipt.sumDisc.doubleValue();
+            sum = Math.max(sum - receipt.sumGiftCard.doubleValue(), 0);
+
+            FiscalVMK.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard)));
+            FiscalVMK.printFiscalText(getFiscalString("", " \n( _______ ____________ )"));
+            FiscalVMK.printFiscalText(getFiscalString("", " (подпись)     ФИО      \n "));
+
+            if (!FiscalVMK.registerAndDiscountItem(sum, discountSum))
+                return null;
+
+            if (!FiscalVMK.subtotal())
+                return null;
+
+            FiscalVMK.printFiscalText(receiptBottom);
+
+            if (!FiscalVMK.totalCard(receipt.sumCard, denominationStage))
+                return null;
+            if (!FiscalVMK.totalCash(receipt.sumCash, denominationStage))
+                return null;
+            if(receipt.sumCard == null && receipt.sumCash == null && sum == 0.0)
+                if(!FiscalVMK.totalCash(BigDecimal.ZERO, denominationStage))
+                    return null;
+
+        } else {
+
+            for (ReceiptItem item : receiptList) {
+                if (!FiscalVMK.registerItem(item, denominationStage))
+                    return null;
+                if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard, denominationStage))
+                    return null;
+                DecimalFormat formatter = getFormatter(denominationStage);
+                if (item.bonusSum != 0.0) {
+                    FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
+                    FiscalVMK.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
+                }
+                if (item.bonusPaid != 0.0) {
+                    FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
+                    FiscalVMK.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+                }
             }
+
+            if (!FiscalVMK.subtotal())
+                return null;
+            if (!FiscalVMK.discountReceipt(receipt, denominationStage))
+                return null;
+
+            FiscalVMK.printFiscalText(receiptBottom);
+
+            if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, denominationStage))
+                return null;
+            if (!FiscalVMK.totalCard(receipt.sumCard, denominationStage))
+                return null;
+            if (!FiscalVMK.totalCash(receipt.sumCash, denominationStage))
+                return null;
+
         }
 
-        if (!FiscalVMK.subtotal())
-            return null;
-        if (!FiscalVMK.discountReceipt(receipt, denominationStage))
-            return null;
-        
-        FiscalVMK.printFiscalText(receiptBottom);
-        
-        if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, giftCardAsDiscount, denominationStage))
-            return null;
-        if (!FiscalVMK.totalCard(receipt.sumCard, denominationStage))
-            return null;
-        if (!FiscalVMK.totalCash(receipt.sumCash, denominationStage))
-            return null;
-        if(receipt.sumCard == null && receipt.sumCash == null && giftCardAsDiscount) {
-            if (!FiscalVMK.totalCash(BigDecimal.ZERO, denominationStage))
-                return null;
-        }
         return receiptNumber;
+    }
+
+    private String getFiscalString(String prefix, String value) {
+        while(value.length() < 23 - prefix.length())
+            value = " " + value;
+        return prefix + " " + value;
     }
 
     private DecimalFormat getFormatter(String denominationStage) {

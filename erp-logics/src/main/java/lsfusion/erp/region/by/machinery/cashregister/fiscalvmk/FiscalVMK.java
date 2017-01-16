@@ -175,6 +175,19 @@ public class FiscalVMK {
         logger.info(msg);
     }
 
+    public static boolean printMultilineFiscalText(String msg) {
+        if (msg != null && !msg.isEmpty()) {
+            int start = 0;
+            while (start < msg.length()) {
+                int end = Math.min(start + 24, msg.length());
+                if (!printFiscalText(msg.substring(start, end)))
+                    return false;
+                start = end;
+            }
+        }
+        return true;
+    }
+
     public static boolean printFiscalText(String msg) {
         try {
         if(msg != null && !msg.isEmpty()) {
@@ -212,22 +225,12 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_oplat(1, sumValue, 0/*"00000000"*/);
     }
 
-    public static boolean totalGiftCard(BigDecimal sum, boolean giftCardAsDiscount, String denominationStage) {
+    public static boolean totalGiftCard(BigDecimal sum, String denominationStage) {
         if (sum == null)
             return true;
-        try {
-            double sumValue = makeDenomination(sum, denominationStage);
-            if (giftCardAsDiscount) {
-                logAction("vmk_discountpi", "Сертификат", sumValue, 3);
-                return vmkDLL.vmk.vmk_discountpi(getBytes("Сертификат"), sumValue, 3);
-            } else {
-                logAction("vmk_oplat", 2, Math.abs(sumValue), 0);
-                return vmkDLL.vmk.vmk_oplat(2, Math.abs(sumValue), 0/*"00000000"*/);
-            }
-        } catch (UnsupportedEncodingException e) {
-            e.printStackTrace();
-            return false;
-        }
+        double sumValue = makeDenomination(sum, denominationStage);
+        logAction("vmk_oplat", 2, Math.abs(sumValue), 0);
+        return vmkDLL.vmk.vmk_oplat(2, Math.abs(sumValue), 0/*"00000000"*/);
     }
 
     public static boolean total(BigDecimal sumPayment, Integer typePayment, String denominationStage) {
@@ -292,6 +295,21 @@ public class FiscalVMK {
                 checkErrors(true);
         } catch (UnsupportedEncodingException e) {
             e.printStackTrace();  //To change body of catch statement use File | Settings | File Templates.
+        }
+    }
+
+    public static boolean registerAndDiscountItem(double sum, double discSum) {
+        try {
+            logAction("vmk_sale", "", "", sum, 1 /*отдел*/, 1, sum);
+            if (!vmkDLL.vmk.vmk_sale(getBytes(""), getBytes(""), sum, 1/*отдел*/, 1.0, sum))
+                checkErrors(true);
+            if (discSum != 0) {
+                boolean discount = discSum < 0;
+                logAction("vmk_discount", discount ? "Скидка" : "Наценка", Math.abs(discSum), discount ? 3 : 1);
+                return vmkDLL.vmk.vmk_discount(getBytes(discount ? "Скидка" : "Наценка"), Math.abs(discSum), discount ? 3 : 1);
+            } else return true;
+        } catch (UnsupportedEncodingException e) {
+            return false;
         }
     }
 
