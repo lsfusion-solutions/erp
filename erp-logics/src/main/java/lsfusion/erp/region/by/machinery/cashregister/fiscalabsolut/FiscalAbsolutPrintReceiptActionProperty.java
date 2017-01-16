@@ -62,6 +62,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
                 boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
+                boolean groupPaymentsByVAT = findProperty("groupPaymentsByVAT[]").read(context) != null;
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
@@ -104,11 +105,11 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 QueryBuilder<Object, Object> receiptDetailQuery = new QueryBuilder<>(receiptDetailKeys);
                 String[] receiptDetailNames = new String[]{"nameSkuReceiptDetail", "quantityReceiptDetail", "quantityReceiptSaleDetail",
                         "quantityReceiptReturnDetail", "priceReceiptDetail", "idBarcodeReceiptDetail", "sumReceiptDetail",
-                        "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "numberVATReceiptDetail", "typeReceiptDetail",
+                        "discountPercentReceiptSaleDetail", "discountSumReceiptDetail", "valueVATReceiptDetail", "typeReceiptDetail",
                         "skuReceiptDetail", "boardNameSkuReceiptDetail", "bonusSumReceiptDetail", "bonusPaidReceiptDetail"};
                 LCP[] receiptDetailProperties = findProperties("nameSku[ReceiptDetail]", "quantity[ReceiptDetail]", "quantity[ReceiptSaleDetail]",
                         "quantity[ReceiptReturnDetail]", "price[ReceiptDetail]", "idBarcode[ReceiptDetail]", "sum[ReceiptDetail]",
-                        "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "numberVAT[ReceiptDetail]", "type[ReceiptDetail]",
+                        "discountPercent[ReceiptSaleDetail]", "discountSum[ReceiptDetail]", "valueVAT[ReceiptDetail]", "type[ReceiptDetail]",
                         "sku[ReceiptDetail]", "boardNameSku[ReceiptDetail]", "bonusSum[ReceiptDetail]", "bonusPaid[ReceiptDetail]");
                 for (int j = 0; j < receiptDetailProperties.length; j++) {
                     receiptDetailQuery.addProperty(receiptDetailNames[j], receiptDetailProperties[j].getExpr(context.getModifier(), receiptDetailExpr));
@@ -134,21 +135,20 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                     String boardName = (String) receiptDetailValues.get("boardNameSkuReceiptDetail");
                     String name = boardName != null ? boardName : (String) receiptDetailValues.get("nameSkuReceiptDetail");
                     name = name == null ? "" : name.trim();
-                    BigDecimal sumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("sumReceiptDetail");
-                    double sumReceiptDetail = sumReceiptDetailValue == null ? 0 : sumReceiptDetailValue.doubleValue();
+                    double sumReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("sumReceiptDetail"), false);
                     double bonusSumReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("bonusSumReceiptDetail"), quantityReturn > 0);
                     double bonusPaidReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("bonusPaidReceiptDetail"), quantityReturn > 0);
-                    BigDecimal discountSumReceiptDetailValue = (BigDecimal) receiptDetailValues.get("discountSumReceiptDetail");
-                    double discountSumReceiptDetail = discountSumReceiptDetailValue == null ? 0 : discountSumReceiptDetailValue.negate().doubleValue();
+                    double discountSumReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("discountSumReceiptDetail"), true);
+                    double valueVATReceiptDetail = getDouble((BigDecimal) receiptDetailValues.get("valueVATReceiptDetail"), false);
                     if (quantitySale > 0 && !isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantitySale, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, valueVATReceiptDetail));
                     if (quantity > 0 && isGiftCard)
                         receiptSaleItemList.add(new ReceiptItem(isGiftCard, price, quantity, barcode, "Подарочный сертификат",
-                                sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail));
+                                sumReceiptDetail, discountSumReceiptDetail, bonusSumReceiptDetail, bonusPaidReceiptDetail, valueVATReceiptDetail));
                     if (quantityReturn > 0)
                         receiptReturnItemList.add(new ReceiptItem(isGiftCard, price, quantityReturn, barcode, name, sumReceiptDetail,
-                                discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail));
+                                discountSumReceiptDetail, bonusSumReceiptDetail, -bonusPaidReceiptDetail, valueVATReceiptDetail));
                 }
 
                 String prefix = (String) findProperty("fiscalAbsolutPrefixCode128[]").read(context);
@@ -157,7 +157,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                     Object result = context.requestUserInteraction(new FiscalAbsolutPrintReceiptClientAction(comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape));
+                            fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT));
                     if (result != null) {
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

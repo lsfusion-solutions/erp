@@ -21,10 +21,11 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     String receiptBottom;
     String receiptCode128;
     boolean saveCommentOnFiscalTape;
+    boolean groupPaymentsByVAT;
 
     public FiscalAbsolutPrintReceiptClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
-                                                 String receiptCode128, boolean saveCommentOnFiscalTape) {
+                                                 String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -34,6 +35,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.receiptBottom = receiptBottom;
         this.receiptCode128 = receiptCode128;
         this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
+        this.groupPaymentsByVAT = groupPaymentsByVAT;
     }
 
 
@@ -98,7 +100,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         FiscalAbsolut.printFiscalText(receiptTop, saveCommentOnFiscalTape);
         FiscalAbsolut.printBarcode(receiptCode128);
         for (ReceiptItem item : receiptList) {
-            if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape))
+            if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT))
                 return false;
             if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
                 return false;

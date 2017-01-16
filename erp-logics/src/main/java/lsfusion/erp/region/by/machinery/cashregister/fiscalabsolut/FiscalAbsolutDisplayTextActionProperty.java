@@ -57,10 +57,11 @@ public class FiscalAbsolutDisplayTextActionProperty extends ScriptingActionPrope
                 double articleDiscSum = articleDiscSumValue == null ? 0 : articleDiscSumValue.doubleValue();
                 double bonusSum = getDouble((BigDecimal) findProperty("bonusSum[ReceiptDetail]").read(session, receiptDetailObject));
                 double bonusPaid = getDouble((BigDecimal) findProperty("bonusPaid[ReceiptDetail]").read(session, receiptDetailObject));
+                double valueVAT = getDouble((BigDecimal) findProperty("valueVAT[ReceiptDetail]").read(session, receiptDetailObject));
 
                 String result = (String) context.requestUserInteraction(new FiscalAbsolutDisplayTextClientAction(comPort, baudRate,
                         new ReceiptItem(false, price == null ? BigDecimal.ZERO : price, quantity, barcode, name, sum,
-                                articleDiscSum, bonusSum, bonusPaid)));
+                                articleDiscSum, bonusSum, bonusPaid, valueVAT)));
                 if (result != null) {
                     ServerLoggers.systemLogger.error("FiscalAbsolutDisplayText Error: " + result);
                     context.requestUserInteraction(new MessageClientAction(result, "Ошибка"));
