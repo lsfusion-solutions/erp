@@ -1,0 +1,190 @@
+MODULE PurchaseServiceStatus;
+
+REQUIRE PurchaseShipment;
+
+NAMESPACE Purchase;
+       
+dataPercService 'Качество сервиса (контроль), %' = DATA NUMERIC[16,2] (LegalEntity);
+
+CLASS ServiceStatus 'Статус качества сервиса' {
+    good 'Хорошо',
+    warning 'Предупреждение',
+    stopping 'Стоп лист'    
+} 
+TABLE serviceStatus (ServiceStatus);
+
+FORM serviceStatus 'Статус качества сервиса' 
+    OBJECTS t = ServiceStatus
+    PROPERTIES(t) READONLY staticCaption
+    
+    DIALOG ServiceStatus OBJECT t
+;
+
+
+CLASS ServiceStatusDetail 'Статус качества';
+TABLE serviceStatusDetail (ServiceStatusDetail);
+
+legalEntity = DATA LegalEntity(ServiceStatusDetail) NOT NULL;
+namelegalEntity 'Организация' (ServiceStatusDetail d) = name(legalEntity(d));
+
+fromDate 'Дата с' = DATA DATE (ServiceStatusDetail);
+toDate 'Дата по' = DATA DATE (ServiceStatusDetail);
+
+percService 'Качество сервиса, %' = DATA NUMERIC[16,2] (ServiceStatusDetail);
+isChange 'Изменение вручную' = DATA BOOLEAN (ServiceStatusDetail);
+
+serviceStatus  = DATA ServiceStatus (ServiceStatusDetail);
+nameServiceStatus 'Статус качества сервиса' (ServiceStatusDetail d) = staticCaption(serviceStatus(d));
+
+@defineCreated(ServiceStatusDetail);
+
+//lastStatus   =
+//    GROUP LAST serviceStatus(ServiceStatusDetail d)
+//        BY legalEntity(d)
+//        ORDER toDate(d), d
+//        WHERE d IS ServiceStatusDetail AND NOT isChange(d);
+lastServiceStatusDetail   =
+    GROUP LAST ServiceStatusDetail d
+        BY legalEntity(d)
+        ORDER toDate(d), d
+        WHERE d IS ServiceStatusDetail;
+
+
+nameServiceStatus 'Статус качества сервиса' (LegalEntity l) = staticCaption(serviceStatus(lastServiceStatusDetail(l))); 
+percService 'Качество сервиса, %' (LegalEntity l) = percService(lastServiceStatusDetail(l)); 
+isStopping 'В стоп-листе' (LegalEntity l) = serviceStatus(lastServiceStatusDetail(l)) == ServiceStatus.stopping;
+
+backgroundServiceStatus (LegalEntity l) = CASE 
+    WHEN serviceStatus(lastServiceStatusDetail(l)) == ServiceStatus.stopping THEN RGB(255,0,0)
+    WHEN serviceStatus(lastServiceStatusDetail(l)) == ServiceStatus.warning THEN RGB(255,255,0) 
+    ELSE RGB(255,255,255) 
+;
+
+prevStatus 'Статус качества сервиса'  =
+    GROUP LAST serviceStatus(ServiceStatusDetail d)
+        BY legalEntity(d), DATE date
+        ORDER toDate(d), d
+        WHERE date >= fromDate(d) AND date <= toDate(d) AND NOT isChange(d);
+
+
+isChange = DATA LOCAL NESTED BOOLEAN (LegalEntity);
+
+overCreateServiceStatusDetail =  ACTION ABSTRACT LIST ();
+
+createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo) = ACTION NEWSESSION {
+    isChange(LegalEntity l) <- NULL;
+    
+    LOCAL prev = ServiceStatus(LegalEntity);
+    prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
+    FOR isSupplier(LegalEntity l)  ADDOBJ d = ServiceStatusDetail DO {
+    
+        legalEntity(d) <- l;
+        fromDate(d) <- dFrom;
+        toDate(d) <- dTo;
+        percService(d) <- OVERRIDE 0.0  , percentSumExecution(l,fromDate(d),toDate(d));
+        IF percService(d) AND dataPercService(l) THEN {
+            
+            IF percService(d) >= dataPercService(l) THEN {
+                serviceStatus(d) <- ServiceStatus.good;
+            } ELSE {
+                serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
+                                        THEN ServiceStatus.stopping 
+                                        ELSE ServiceStatus.warning;    
+            }                 
+        }
+        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
+    }
+    apply();
+    overCreateServiceStatusDetail();
+}
+
+createServiceStatusDetail() = ACTION {
+    createServiceStatusDetail(firstDayOfMonth(sumMonth (currentDate(), -1)), lastDayOfMonth(sumMonth (currentDate(), -1)));
+};
+
+changeServiceStatusDetail (LegalEntity l) = ACTION {
+    NEWSESSION {
+        REQUEST OBJECT t
+        FORM serviceStatus DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            isChange(l) <- NULL;
+            LOCAL prev = ServiceStatus(LegalEntity);
+            prev(l) <- serviceStatus(lastServiceStatusDetail(l));
+            FOR ADDOBJ  d = ServiceStatusDetail DO {
+                legalEntity(d) <- l;
+                fromDate(d) <- currentDate();
+                toDate(d) <- currentDate();   
+                percService(d) <-  0.0;
+                serviceStatus(d) <- requestedObject();
+                isChange(d) <- TRUE;
+                isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));
+            }            
+            apply();
+            overCreateServiceStatusDetail();
+        }   
+    }    
+}
+
+//test 'Заполнить статусы качества' (DATE dFrom, DATE dTo, LegalEntity l) = ACTION NEWSESSION {
+//
+//    isChange(l) <- NULL;
+//    
+//    LOCAL prev = ServiceStatus(LegalEntity);
+//    prev(l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
+//    FOR ADDOBJ d = ServiceStatusDetail DO {
+//    
+//        legalEntity(d) <- l;
+//        fromDate(d) <- dFrom;
+//        toDate(d) <- dTo;
+//        percService(d) <- OVERRIDE 0.0  , percentSumExecution(l,fromDate(d),toDate(d));
+//        IF percService(d) AND dataPercService(l) THEN {
+//            
+//            IF percService(d) >= dataPercService(l) THEN {
+//                serviceStatus(d) <- ServiceStatus.good;
+//            } ELSE {
+//                serviceStatus(d) <- IF prevStatus(legalEntity(d),sumMonth (dFrom, -1)) == ServiceStatus.warning
+//                                        THEN ServiceStatus.stopping 
+//                                        ELSE ServiceStatus.warning;    
+//            }                 
+//        }
+//        isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));                
+//    }
+//    apply();
+//    overCreateServiceStatusDetail();
+//}
+
+EXTEND FORM legalEntity
+
+//    OBJECTS dates = (from = DATE, to = DATE) FIXED PANEL 
+//    PROPERTIES vf = OBJVALUE (from), vt = OBJVALUE (to)
+//    PROPERTIES test(from,to,l)
+    
+    PROPERTIES (l) dataPercService , nameServiceStatus ON CHANGE changeServiceStatusDetail(l) BACKGROUND backgroundServiceStatus(l), percService READONLY
+
+    OBJECTS sd = ServiceStatusDetail
+    
+    PROPERTIES (sd) READONLY fromDate, toDate, percService, nameServiceStatus
+    PROPERTIES (sd) READONLY createdTime, createdNameUser, createdHostnameComputer
+    ORDER BY fromDate(sd) DESC
+    FILTERS legalEntity(sd) == l    
+;
+DESIGN legalEntity {
+    extendContainer{
+        NEW status {
+            fill = 1;
+            type = CONTAINERV;
+            caption = 'Статус качества сервиса';
+//            MOVE dates.box;
+            NEW status1 {
+                type = CONTAINERH; 
+                MOVE PROPERTY (nameServiceStatus(l));
+                MOVE PROPERTY (percService(l));
+                MOVE PROPERTY (dataPercService(l));
+            }
+            MOVE sd.box;
+        }
+    }
+}
+EXTEND FORM legalEntities
+    PROPERTIES (l) READONLY nameServiceStatus BACKGROUND backgroundServiceStatus(l)
+;

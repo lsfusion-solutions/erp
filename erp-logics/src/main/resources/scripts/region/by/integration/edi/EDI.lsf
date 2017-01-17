@@ -89,9 +89,17 @@ EXTEND FORM departmentStore PROPERTIES(d) GLN;
 EXTEND FORM departmentStores PROPERTIES(d) READONLY GLN;
 
 send 'Отправить' = ACTION ABSTRACT LIST (EOrder);
-sendApply 'Отправить' (EOrder o) = ACTION NEWSESSION {
-   send(o);
-   APPLY {};
+overSend = ACTION ABSTRACT LIST (EOrder);
+
+skipSend = ABSTRACT CASE BOOLEAN (EOrder);
+
+sendApply 'Отправить' (EOrder o) = ACTION  {
+    IF NOT skipSend(o) THEN NEWSESSION {
+        send(o);
+        APPLY {};
+    } ELSE {
+        overSend(o);    
+    }    
 }
 
 FORM eOrders 'Заказы EDI'
