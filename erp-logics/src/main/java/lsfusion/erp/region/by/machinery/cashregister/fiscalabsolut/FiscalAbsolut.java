@@ -141,6 +141,19 @@ public class FiscalAbsolut {
         logger.info(msg);
     }
 
+    public static boolean printMultilineFiscalText(String msg) {
+        if (msg != null && !msg.isEmpty()) {
+            int start = 0;
+            while (start < msg.length()) {
+                int end = Math.min(start + 30, msg.length());
+                if (!printFiscalText(msg.substring(start, end)))
+                    return false;
+                start = end;
+            }
+        }
+        return true;
+    }
+
     static boolean printBarcode(String barcode) {
         try {
             if(barcode != null)
@@ -151,11 +164,11 @@ public class FiscalAbsolut {
         return true;
     }
 
-    static boolean printFiscalText(String msg, boolean saveCommentOnFiscalTape) {
+    static boolean printFiscalText(String msg) {
         try {
             if (msg != null && !msg.isEmpty()) {
                 for (String line : msg.split("\n")) {
-                    boolean result = printComment(line, saveCommentOnFiscalTape);
+                    boolean result = printComment(line, false);
                     if (!result) return false;
                 }
             }
@@ -252,6 +265,22 @@ public class FiscalAbsolut {
         }
     }
 
+    public static boolean registerAndDiscountItem(BigDecimal sum, BigDecimal discSum) {
+        try {
+            logAction("FullProd", "11110", sum, 1, 1, 0, 0, "");
+            if (absolutDLL.absolut.FullProd("11110", formatPrice(sum), 1, 1, 1, 0, getBytes(""))) {
+                double discountSum = formatPrice(discSum);
+                if (discountSum != 0.0) {
+                    boolean discount = discountSum < 0;
+                    logAction("NacSkd", discount ? 0 : 1, Math.abs(discountSum), 0);
+                    return absolutDLL.absolut.NacSkd(discount ? 0 : 1, Math.abs(discountSum), 0);
+                } else return true;
+            } else return false;
+        } catch (UnsupportedEncodingException e) {
+            return false;
+        }
+    }
+
     static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT) {
         try {
             double price = formatAbsPrice(item.price);
@@ -261,7 +290,7 @@ public class FiscalAbsolut {
                 printComment(line, saveCommentOnFiscalTape);
             int tax = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? 1 : item.valueVAT == 10.0 ? 2 : item.valueVAT == 0.0 ? 3 : 0) : 0;
             String plu = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "11111" : item.valueVAT == 10.0 ? "11112" : item.valueVAT == 0.0 ? "11113" : "11110") : "11110";
-            logAction("FullProd", plu, price, item.quantity, item.isGiftCard ? 2 : 1, 0, 0, "");
+            logAction("FullProd", plu, price, item.quantity, item.isGiftCard ? 2 : 1, 0, tax, "");
             return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(""));
         } catch (UnsupportedEncodingException e) {
             return false;

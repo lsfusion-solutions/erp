@@ -32,11 +32,11 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
             FiscalAbsolut.openPort(comPort, baudRate);
             switch (type) {
                 case 1:
-                    FiscalAbsolut.printFiscalText(textTop, saveCommentOnFiscalTape);
+                    FiscalAbsolut.printFiscalText(textTop);
                     FiscalAbsolut.xReport();
                     break;
                 case 2:
-                    FiscalAbsolut.printFiscalText(textTop, saveCommentOnFiscalTape);
+                    FiscalAbsolut.printFiscalText(textTop);
                     FiscalAbsolut.zReport(0);
                     FiscalAbsolut.closePort();
                     break;
