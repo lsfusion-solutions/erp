@@ -41,8 +41,7 @@ public class FiscalAbsolutCustomOperationClientAction implements ClientAction {
                     FiscalAbsolut.closePort();
                     break;
                 case 3:
-                    //пока закомментирован
-                    //FiscalAbsolut.zReport(1);
+                    FiscalAbsolut.zReport(1);
                     FiscalAbsolut.closePort();
                     break;
                 case 4:
