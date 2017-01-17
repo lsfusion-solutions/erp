@@ -1,0 +1,31 @@
+MODULE SaleInvoiceOrderBlankCodeEVAT;
+
+REQUIRE SaleBlankCodeEVAT, SaleInvoiceOrderAggregation;
+
+NAMESPACE Sale;
+
+blankCode 'Код типа бланка'= ABSTRACT BlankCode (Sale.Order);
+idBlankCode 'Код типа бланка' (Sale.Order i) = id(blankCode(i));
+
+blankCode 'Код типа бланка'= DATA BlankCode (Sale.UserOrder);
+idBlankCode 'Код типа бланка' (Sale.UserOrder i) = id(blankCode(i));  
+blankCode(Sale.UserOrder i) += blankCode(i);  
+
+showBlankCode = ABSTRACT BOOLEAN (Sale.UserOrder);
+
+isBlankCode (Sale.UserOrder i) = isBlankCode(operation(i)) OR showBlankCode(i);
+
+CONSTRAINT (SET(isPosted(Sale.UserOrder i)) OR SETCHANGED(operation(i)) OR SET(createInvoice(i))) 
+    AND isPosted(i) AND isBlankCode(operation(i)) AND createInvoice(i) AND NOT blankCode(i)
+           MESSAGE 'Для заказа должнен быть задан "Код типа бланка".';    
+
+EXTEND FORM Sale.userOrder
+    PROPERTIES (o) idBlankCode SHOWIF isBlankCode(o)
+;
+DESIGN Sale.userOrder {
+    second {
+        MOVE PROPERTY (idBlankCode(o)) AFTER PROPERTY (series(o));
+    }
+}
+
+blankCode(OrderInvoice invoice) += blankCode(order(invoice));
