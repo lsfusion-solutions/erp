@@ -847,10 +847,20 @@ VATSum 'НДС корр.' = DATA NUMERIC[18,4](DeclarationAdjustment, Declaratio
 
 date (DeclarationAdjustment o) <- currentDate() WHEN SET(o IS DeclarationAdjustment);
 
-defaultDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
+defaultHomeDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
     BY  DeclarationDetail detail
     ORDER date(adjustment), adjustment
     WHERE homeSum(adjustment, detail);
+
+defaultDutyDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
+    BY  DeclarationDetail detail
+    ORDER date(adjustment), adjustment
+    WHERE dutySum(adjustment, detail);
+
+defaultVATDeclarationAdjustment (declarationDetail) = GROUP LAST DeclarationAdjustment adjustment
+    BY  DeclarationDetail detail
+    ORDER date(adjustment), adjustment
+    WHERE VATSum(adjustment, detail);
     
 homeSum 'Сумма корр.' (a) = GROUP SUM homeSum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
 dutySum 'Пошлина корр.' (a) = GROUP SUM dutySum(DeclarationAdjustment a, DeclarationDetail dd) BY a;
@@ -902,15 +912,15 @@ changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
     }
 }
 
-adjustHomeSum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(d), homeSum(defaultDeclarationAdjustment(d),d);
+adjustHomeSum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(d), homeSum(defaultHomeDeclarationAdjustment(d),d);
 
-adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(d), dutySum(defaultDeclarationAdjustment(d),d);
+adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(d), dutySum(defaultDutyDeclarationAdjustment(d),d);
 adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustDutySum(DeclarationDetail declarationDetail)
                                                                     BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
 adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE adjustDutySumDeclarationDetail(d), dataDutySum(d); 
 
-adjustVATSum (DeclarationDetail d) = OVERRIDE VATSum(d), VATSum(defaultDeclarationAdjustment(d),d);
+adjustVATSum (DeclarationDetail d) = OVERRIDE VATSum(d), VATSum(defaultVATDeclarationAdjustment(d),d);
 adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustVATSum(DeclarationDetail declarationDetail)
                                                                     BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
