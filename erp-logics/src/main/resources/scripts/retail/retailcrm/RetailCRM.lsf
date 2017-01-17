@@ -390,6 +390,8 @@ DESIGN promotion {
 }
 copyProperties = ACTION ABSTRACT (PromotionCondition, PromotionCondition);
 
+copyItems = DATA LOCAL BOOLEAN ();
+
 copy 'Копировать'(Promotion promotion) = ACTION NEWSESSION {
     FOR ADDOBJ p = Promotion DO {
         promotionGroup(p) <- promotionGroup(promotion);
@@ -410,6 +412,7 @@ copy 'Копировать'(Promotion promotion) = ACTION NEWSESSION {
 
         FOR promotion(PromotionCondition promotionCondition) == promotion ADDOBJ pc = PromotionCondition DO {
             promotion(pc) <- p;
+            name(pc) <- name(promotionCondition);
             minQuantity(pc) <- minQuantity(promotionCondition);
             minSum(pc) <- minSum(promotionCondition);
             quantityDiscount(pc) <- quantityDiscount(promotionCondition);
@@ -420,8 +423,13 @@ copy 'Копировать'(Promotion promotion) = ACTION NEWSESSION {
             sumDiscount(pc) <- sumDiscount(promotionCondition);
             sumReceipt(pc) <- sumReceipt(promotionCondition);
 
-            inData(pc, SkuGroup skuGroup) <- inData(promotionCondition, skuGroup);
-            inData(pc, Sku sku) <- inData(promotionCondition, sku);
+            CONFIRM 'Копировать товары, учавствующие в акции ?';
+            copyItems() <- confirmed();
+            
+            IF copyItems() THEN {
+                inData(pc, SkuGroup skuGroup) <- inData(promotionCondition, skuGroup);
+                inData(pc, Sku sku) <- inData(promotionCondition, sku);
+            }
             copyProperties(pc, promotionCondition);
         }
 
