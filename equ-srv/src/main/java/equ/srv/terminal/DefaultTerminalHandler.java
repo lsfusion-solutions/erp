@@ -26,12 +26,10 @@ import java.io.FileOutputStream;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.*;
+import java.sql.Date;
 import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Calendar;
-import java.util.List;
+import java.util.*;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipOutputStream;
 
@@ -173,7 +171,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
 
                 createGoodsTable(connection);
-                updateGoodsTable(connection, barcodeList);
+                updateGoodsTable(connection, barcodeList, orderList);
 
                 createOrderTable(connection);
                 updateOrderTable(connection, orderList, prefix);
@@ -335,13 +333,14 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         statement.close();
     }
 
-    private void updateGoodsTable(Connection connection, List<List<Object>> barcodeList) throws SQLException {
-        if (!barcodeList.isEmpty()) {
+    private void updateGoodsTable(Connection connection, List<List<Object>> barcodeList, List<TerminalOrder> orderList) throws SQLException {
+        if (!barcodeList.isEmpty() || !orderList.isEmpty()) {
             PreparedStatement statement = null;
             try {
                 connection.setAutoCommit(false);
                 String sql = "INSERT OR REPLACE INTO goods VALUES(?, ?, ?, ?, ?, ?, '', '', '', '', ?);";
                 statement = connection.prepareStatement(sql);
+                Set<String> usedBarcodes = new HashSet<>();
                 for (List<Object> barcode : barcodeList) {
                     if (barcode.get(0) != null) {
                         statement.setObject(1, formatValue(barcode.get(0))); //idBarcode
@@ -351,6 +350,19 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                         statement.setObject(5, formatValue(barcode.get(4))); //idItem
                         statement.setObject(6, formatValue(barcode.get(5))); //manufacturer
                         statement.setObject(7, formatValue(barcode.get(6))); //weight
+                        statement.addBatch();
+                        usedBarcodes.add((String) barcode.get(0));
+                    }
+                }
+                for(TerminalOrder order : orderList) {
+                    if (order.barcode != null && !usedBarcodes.contains(order.barcode)) {
+                        statement.setObject(1, formatValue(order.barcode)); //idBarcode
+                        statement.setObject(2, formatValue(order.name)); //name
+                        statement.setObject(3, formatValue(order.price)); //price
+                        statement.setObject(4, formatValue(order.quantity)); //quantity
+                        statement.setObject(5, formatValue(order.idItem)); //idItem
+                        statement.setObject(6, formatValue(order.manufacturer)); //manufacturer
+                        statement.setObject(7, formatValue(order.weight)); //weight
                         statement.addBatch();
                     }
                 }

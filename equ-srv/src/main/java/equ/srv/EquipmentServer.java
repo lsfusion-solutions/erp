@@ -1228,8 +1228,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
                     BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
                     BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
-                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
-                            quantity, minQuantity, maxQuantity, minPrice, maxPrice));
+                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, null, name, price,
+                            quantity, minQuantity, maxQuantity, minPrice, maxPrice, null, null));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
@@ -1252,14 +1252,21 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 for (int i = 0; i < orderProperties.length; i++) {
                     orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
                 }
-                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
+                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
                         "quantityOrderDetail"};
-                LCP<?>[] orderDetailProperties = purchaseOrderLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]",
-                        "quantity[Purchase.OrderDetail]");
+                LCP<?>[] orderDetailProperties = purchaseOrderLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "idSku[Purchase.OrderDetail]",
+                        "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]", "quantity[Purchase.OrderDetail]");
                 for (int i = 0; i < orderDetailProperties.length; i++) {
                     orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
                 }
-
+                ScriptingLogicsModule terminalHandlerLM = BL.getModule("TerminalHandler");
+                if(terminalHandlerLM != null) {
+                    String[] extraNames = new String[]{"nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail"};
+                    LCP<?>[] extraProperties = terminalHandlerLM.findProperties("nameManufacturerSku[Purchase.OrderDetail]", "passScalesSku[Purchase.OrderDetail]");
+                    for (int i = 0; i < extraProperties.length; i++) {
+                        orderQuery.addProperty(extraNames[i], extraProperties[i].getExpr(orderDetailExpr));
+                    }
+                }
                 ScriptingLogicsModule purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
                 if(purchaseInvoiceAgreementLM != null) {
                     String[] deviationNames = new String[]{"minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
@@ -1283,6 +1290,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     String numberOrder = trim((String) entry.get("numberOrder"));
                     String idSupplier = trim((String) entry.get("idSupplierOrder"));
                     String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
+                    String idItem = trim((String) entry.get("idSkuOrderDetail"));
                     String name = trim((String) entry.get("nameSkuOrderDetail"));
                     BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
                     BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
@@ -1290,8 +1298,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
                     BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
                     BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
-                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, name, price,
-                            quantity, minQuantity, maxQuantity, minPrice, maxPrice));
+                    String nameManufacturer = (String) entry.get("nameManufacturerSkuOrderDetail");
+                    String weight = entry.get("passScalesSkuOrderDetail") != null ? "1" : "0";
+                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
+                            quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight));
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
