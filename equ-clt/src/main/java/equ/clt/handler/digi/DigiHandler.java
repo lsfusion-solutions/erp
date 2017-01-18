@@ -37,6 +37,10 @@ public class DigiHandler extends ScalesHandler {
 
         if (!transactionList.isEmpty()) {
 
+            DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : null;
+            Integer maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
+            maxLineLength = maxLineLength == null ? 50 : maxLineLength;
+
             for (TransactionScalesInfo transaction : transactionList) {
                 processTransactionLogger.info("Digi: Send Transaction # " + transaction.id);
 
@@ -71,7 +75,7 @@ public class DigiHandler extends ScalesHandler {
                                         if (errorsCount < 5) {
                                             int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                             int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
-                                            byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales));
+                                            byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
                                             processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", barcode, scales.port));
                                             int reply = sendRecord(socket, cmdWrite, filePLU, record);
                                             if (reply != 0) {
@@ -109,29 +113,45 @@ public class DigiHandler extends ScalesHandler {
         return sendTransactionBatchMap;
     }
 
-    private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode) throws UnsupportedEncodingException {
+    private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode, Integer maxLineLength) throws UnsupportedEncodingException {
         boolean hasDescription = item.description != null && !item.description.isEmpty();
         String[] splittedDescription = hasDescription ? item.description.split("@@") : null;
 
         String compositionMessage = splittedDescription != null ? splittedDescription[0] : null;
         boolean hasComposition = compositionMessage != null && !compositionMessage.isEmpty();
-        String[] compositionLines = compositionMessage != null ? compositionMessage.split("\n") : null;
+        List<String> compositionLines = new ArrayList<>();
         int compositionLength = 0;
-        if (compositionLines != null)
-            for (String compositionLine : compositionLines)
+        if(hasComposition) {
+            for (String compositionLine : compositionMessage.split("\n")) {
+                while (compositionLine.length() > maxLineLength) {
+                    compositionLines.add(compositionLine.substring(0, maxLineLength));
+                    compositionLength += maxLineLength + 1;
+                    compositionLine = compositionLine.substring(maxLineLength);
+                }
+                compositionLines.add(compositionLine);
                 compositionLength += compositionLine.length() + 1;
+            }
+        }
 
         String expiryMessage = splittedDescription != null && splittedDescription.length > 1 ? splittedDescription[1] : null;
         boolean hasExpiry = expiryMessage != null && !expiryMessage.isEmpty();
-        String[] expiryLines = expiryMessage != null ? expiryMessage.split("\n") : null;
+        List<String> expiryLines = new ArrayList<>();
         int expiryLength = 0;
-        if (expiryLines != null)
-            for (String expiryLine : expiryLines)
+        if(hasExpiry) {
+            for (String expiryLine : expiryMessage.split("\n")) {
+                while (expiryLine.length() > maxLineLength) {
+                    expiryLines.add(expiryLine.substring(0, maxLineLength));
+                    expiryLength += maxLineLength + 1;
+                    expiryLine = expiryLine.substring(maxLineLength);
+                }
+                expiryLines.add(expiryLine);
                 expiryLength += expiryLine.length() + 1;
+            }
+        }
 
         int length = 36 + item.name.length() +
-                compositionLength + (compositionLines == null ? 0 : compositionLines.length * 2) +
-                expiryLength + (expiryLines == null ? 0 : expiryLines.length * 2);
+                compositionLength + (compositionLines.isEmpty() ? 0 : compositionLines.size() * 2) +
+                expiryLength + (expiryLines.isEmpty() ? 0 : expiryLines.size() * 2);
 
         ByteBuffer bytes = ByteBuffer.allocate(length);
         bytes.order(ByteOrder.LITTLE_ENDIAN);
@@ -226,21 +246,21 @@ public class DigiHandler extends ScalesHandler {
         //todo: макс. длина строки состава и спец.сообщения - 51 символ, хорошо бы ещё и на это смотреть
         // Состав
         if (hasComposition) {
-            for (int i = 0; i < compositionLines.length; i++) {
+            for (int i = 0; i < compositionLines.size(); i++) {
                 bytes.put((byte) 2);
-                bytes.put((byte) compositionLines[i].length());
-                bytes.put(getBytes(compositionLines[i]));
-                bytes.put((byte) (i == compositionLines.length - 1 ? 0x0C : 0x0D));
+                bytes.put((byte) compositionLines.get(i).length());
+                bytes.put(getBytes(compositionLines.get(i)));
+                bytes.put((byte) (i == compositionLines.size() - 1 ? 0x0C : 0x0D));
             }
         }
 
         // Специальное сообщение
         if (hasExpiry) {
-            for (int i = 0; i < expiryLines.length; i++) {
+            for (int i = 0; i < expiryLines.size(); i++) {
                 bytes.put((byte) 2);
-                bytes.put((byte) expiryLines[i].length());
-                bytes.put(getBytes(expiryLines[i]));
-                bytes.put((byte) (i == expiryLines.length - 1 ? 0x0C : 0x0D));
+                bytes.put((byte) expiryLines.get(i).length());
+                bytes.put(getBytes(expiryLines.get(i)));
+                bytes.put((byte) (i == expiryLines.size() - 1 ? 0x0C : 0x0D));
             }
         }
 
