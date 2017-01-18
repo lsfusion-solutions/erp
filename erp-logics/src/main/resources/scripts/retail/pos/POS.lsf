@@ -81,12 +81,24 @@ promotionDiscountSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail,
 promotionBonusSum (detail) = GROUP SUM promotionSum(ReceiptSaleDetail detail, PromotionCondition condition) IF useBonus(condition)
                                                BY detail;
 
+dataDate 'Дата документа' = DATA DATE (Receipt);
+dataTime 'Время документа' = DATA TIME (Receipt);
+dataDateTime 'Дата/время документа' (Receipt o) = dateTimeToDateTime(dataDate(o), dataTime(o));
+
+overDate 'Дата документа' (Receipt r) = OVERRIDE date(r), dataDate(r);
+overTime 'Время документа' (Receipt r) = OVERRIDE time(r), dataTime(r);
+overDateTime 'Дата/время документа' (Receipt r) = OVERRIDE dateTime(r), dataDateTime(r);
+
+overDate 'Дата документа' (ReceiptDetail d) = overDate(receipt(d));
+overTime 'Время документа' (ReceiptDetail d) = overTime(receipt(d));
+overDateTime 'Дата/время документа' (ReceiptDetail d) = overDateTime(receipt(d));
+
 skip (Promotion promotion) = DATA LOCAL BOOLEAN (Promotion);
 inCalc (Receipt receipt, Promotion promotion) = in(promotion, store(receipt)) AND
-                                          date(receipt) >= dateFrom(promotion) AND date(receipt) <= dateTo(promotion) AND
+                                          overDate(receipt) >= dateFrom(promotion) AND overDate(receipt) <= dateTo(promotion) AND
                                           NOT time(receipt) < timeOfFrom(promotion) AND NOT time(receipt) > timeOfTo(promotion) AND
                                           NOT sumReceiptDetail(receipt) < minSumBill(promotion) AND NOT sumReceiptDetail(receipt) > maxSumBill(promotion)
-                                          AND NOT skip(promotion, extractDOW(date(receipt)))
+                                          AND NOT skip(promotion, extractDOW(overDate(receipt)))
                                           AND NOT totalSum (receipt, promotion) < minCumulativeSum(promotion) AND NOT totalSum (receipt, promotion) > maxCumulativeSum(promotion)
                                           AND NOT (hasDiscountCard(promotion) AND NOT in(promotion, discountCard(receipt)))
                                           AND NOT (noDiscountCard(promotion) AND discountCard(receipt));
@@ -235,7 +247,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                     taken(ReceiptSaleDetail detail) <- [= GROUP SUM use(ReceiptSaleDetail detail, PromotionCondition condition) BY detail](detail);
                 } ELSE {
                     FOR promotion(PromotionCondition condition) == promotion AND PriceListType pt == priceListType(condition) NOINLINE (pt) DO {
-                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND promotion(condition) == promotion AND NOT priceA(priceListType(condition), sku(detail), departmentStore(detail), dateTime(detail)) != price(detail); 
+                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND promotion(condition) == promotion AND NOT priceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail); 
                     }
                     taken(ReceiptSaleDetail detail) <- [= GROUP SUM taken(ReceiptSaleDetail detail, PromotionCondition condition) BY detail](detail);
                 }
@@ -261,7 +273,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                          WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
                          WHEN resultPrice(condition, sku(detail)) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition, sku(detail)))
                          WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
-                         WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - priceA(priceListType(condition), sku(detail), departmentStore(detail), dateTime(detail)))
+                         WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - priceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
                          WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
                     WHERE taken(detail, condition);
             }
@@ -1102,7 +1114,9 @@ changeBonusPaid (ReceiptDetail d) = ACTION {
         CASE WHEN requestedNumeric() < 0.0 THEN 
                 MESSAGE 'Сумма бонусов не может быть отрицательной'
              WHEN sum(d) < round(requestedNumeric(), roundCondition(departmentStore(d))) THEN
-                MESSAGE 'Сумма бонусов должна быть меньше или равна сумме строки чека'                 
+                MESSAGE 'Сумма бонусов должна быть меньше или равна сумме строки чека'         
+             WHEN sum(d) (-) minBonusSum() < round(requestedNumeric(), roundCondition(departmentStore(d))) THEN
+                MESSAGE 'Сумма платежа по строке чека должна быть больше минимальной'                                       
              ELSE bonusPaid(d) <- round(requestedNumeric(), roundCondition(departmentStore(d)));        
     } ELSE {
         bonusPaid(d) <- NULL;
