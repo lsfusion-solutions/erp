@@ -348,6 +348,7 @@ FORM terminalDocumentPrint 'Документ ТСД'
 terminalDocumentPrint 'Печать документа ТСД' (TerminalDocument td) = ACTION FORM terminalDocumentPrint OBJECTS td = td PRINT IMAGE 'print.png' IN print;
 
 in = DATA LOCAL BOOLEAN (TerminalDocumentType);
+filterStock = DATA LOCAL Stock ();
 
 FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
     OBJECTS td=TerminalDocument
@@ -357,7 +358,8 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
                     quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
     PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
-    FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT [=GROUP SUM 1 IF in(TerminalDocumentType t)]())
+    FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT [=GROUP SUM 1 IF in(TerminalDocumentType t)]()),
+            stock(td) == filterStock() OR (td IS TerminalDocument AND NOT filterStock())
     OBJECTS tdd=TerminalDocumentDetail
     PROPERTIES(tdd) READONLY id, number, barcode, name,
     isNew, price, quantity, sum, comment, dateTimeScan
@@ -422,15 +424,16 @@ DESIGN terminalDocuments {
 
 //----------------------------- Макросы для документов --------------------------------//
 
-META defineAddDetailDialogTerminal (object, skuProp)
-    @defineAddDetailDialogTerminalInner (object, ###object, skuProp);
+META defineAddDetailDialogTerminal (object, skuProp, stockProp)
+    @defineAddDetailDialogTerminalInner (object, ###object, skuProp, stockProp);
 END
 
-META defineAddDetailDialogTerminalInner (object, class, skuProp)
+META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
     overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocumentDetail);
     addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
-    in(TerminalDocumentType t) <- in(t, object);
+        in(TerminalDocumentType t) <- in(t, object);
+        filterStock() <- stockProp(object);
         FORM terminalDocuments MODAL;
         IF formResult() == FormResult.ok THEN {
             LOCAL document = TerminalDocument ();
