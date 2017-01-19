@@ -1,8 +1,11 @@
 MODULE SaleLedgerFashion;
 
-REQUIRE SaleLedgerArticle, ItemFashion;
+REQUIRE SaleLedgerArticle, ItemFashion, PurchaseShipment;
 
 NAMESPACE SaleLedger;
+
+contractSum 'Контрактная сумма' (ledger) = GROUP SUM (cost(SaleLedger ledger, Batch batch) * priceInvoiceDetail(batch))   
+        BY ledger;        
 
 nameCollectionItem 'Коллекция' (SaleLedger ledger) = OVERRIDE 'Не определено', nameCollection(sku(ledger));
 nameSeasonYearItem 'Год (сезон)' (SaleLedger ledger) = OVERRIDE 'Не определено', nameSeasonYear(sku(ledger));
@@ -10,6 +13,8 @@ nameSeasonItem 'Сезон' (SaleLedger ledger) = OVERRIDE 'Не определ�
 
 EXTEND FORM saleLedger
     PROPERTIES(s) READONLY BEFORE nameSku(s) nameCollectionItem, nameSeasonYearItem, nameSeasonItem
+
+    PROPERTIES(s) READONLY contractSum BEFORE costSum(s)
 ;
 
 EXTEND FORM saleArticle
