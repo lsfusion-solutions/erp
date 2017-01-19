@@ -222,6 +222,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
         ScriptingLogicsModule terminalHandlerLM = getLogicsInstance().getBusinessLogics().getModule("TerminalHandler");
         if(terminalHandlerLM != null) {
             boolean currentPrice = terminalHandlerLM.findProperty("useCurrentPriceInTerminal").read(session) != null;
+            boolean currentQuantity = terminalHandlerLM.findProperty("useCurrentQuantityInTerminal").read(session) != null;
 
             KeyExpr barcodeExpr = new KeyExpr("barcode");
             ImRevMap<Object, KeyExpr> barcodeKeys = MapFact.singletonRev((Object) "barcode", barcodeExpr);
@@ -239,6 +240,8 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 barcodeQuery.addProperty("price", terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
                 barcodeQuery.and(terminalHandlerLM.findProperty("transactionPrice[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()).getWhere());
             }
+            if(currentQuantity)
+                barcodeQuery.addProperty("quantity", terminalHandlerLM.findProperty("currentBalance[Barcode,Stock]").getExpr(barcodeExpr, stockObject.getExpr()));
             barcodeQuery.and(terminalHandlerLM.findProperty("id[Barcode]").getExpr(barcodeExpr).getWhere());
 
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> barcodeResult = barcodeQuery.execute(session);
@@ -247,7 +250,10 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 String idBarcode = trim((String) entry.get("idBarcode"));
                 String nameSkuBarcode = trim((String) entry.get("nameSkuBarcode"));
                 BigDecimal price = (BigDecimal) entry.get("price");
-                BigDecimal quantityBarcodeStock = BigDecimal.ONE;
+                BigDecimal quantityBarcodeStock = currentQuantity ? (BigDecimal) entry.get("quantity") : BigDecimal.ONE;
+                if(quantityBarcodeStock == null)
+                    quantityBarcodeStock = BigDecimal.ZERO;
+
                 String idSkuBarcode = trim((String) entry.get("idSkuBarcode"));
                 String nameManufacturer = trim((String) entry.get("nameManufacturer"));
                 String isWeight = entry.get("passScales") != null ? "1" : "0";
