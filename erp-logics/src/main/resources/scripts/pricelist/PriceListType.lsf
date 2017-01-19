@@ -522,14 +522,14 @@ META defineDocumentOperationPriceListType(object, caption, form, defaultPrefix)
         CHECKED BY priceListType[###object##Detail]
         MESSAGE 'Вид цены для строки '###caption###' должен совпадать с отмеченными в операции';
         
-    WHEN SESSION FORMS form CHANGED(operation(###object object)) DO {
+    WHEN SESSION CHANGED(operation(###object object)) AND NOT CHANGED(priceListType(object)) DO {
         IF default###defaultPrefix##PriceListType(operation(object)) THEN
             priceListType(object) <- default###defaultPrefix##PriceListType(operation(object))
         ELSE IF defaultPriceListType(operation(object)) AND NOT notUseReturnPriceListType(operation(object)) THEN
                 priceListType(object) <- defaultPriceListType(operation(object)); 
     }
     
-    WHEN SESSION FORMS form CHANGED(operation(###object object)) AND priceListType(object) DO {
+    WHEN SESSION CHANGED(operation(###object object)) AND priceListType(object) DO {
         IF TRUE AND NOT in(priceListType(object), operation(object)) THEN
             priceListType(object) <- NULL; 
     }
