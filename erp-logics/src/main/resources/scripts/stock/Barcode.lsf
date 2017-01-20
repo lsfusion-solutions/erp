@@ -212,16 +212,19 @@ META defineAddDetailDialogBarcodeCustom(object, idetail, skuProp)
     @defineAddDetailDialogBarcodeCustomInner(object, idetail, ###idetail, skuProp);
 END
 
-notFormSku'Не открывать форму SKU  при поиске штрихкода' = DATA BOOLEAN ();
-notCreateItem'Не создавать товар на основе при поиске штрихкода' = DATA BOOLEAN ();
+notFormSku 'Не открывать форму SKU  при поиске штрихкода' = DATA BOOLEAN ();
+notCreateItem 'Не создавать товар на основе при поиске штрихкода' = DATA BOOLEAN ();
+isShowErrorBarcode() = notFormSku() AND notCreateItem();
+errorMessageNotFormSku 'Сообщение об ошибке при поиске штрихкода' = DATA VARSTRING[100]();
 
 EXTEND FORM options
-    PROPERTIES () notFormSku, notCreateItem
+    PROPERTIES () notFormSku, notCreateItem, errorMessageNotFormSku SHOWIF isShowErrorBarcode()
 ;
 DESIGN options {
     barcodeBox {
         MOVE PROPERTY(notFormSku());
         MOVE PROPERTY(notCreateItem());
+        MOVE PROPERTY(errorMessageNotFormSku());
     }    
 }
 
@@ -276,6 +279,7 @@ META defineAddDetailDialogBarcodeCustomInner(object, idetail, idetailClass, skuP
             IF dialogBarcode###skuProp() THEN {
                 setAddedUser(dialogBarcode###skuProp());
             }
+            IF notForm###skuProp() AND notCreateItem() AND NOT dialogBarcodeSku() AND errorMessageNotFormSku() THEN MESSAGE errorMessageNotFormSku();
         }
     }
 
