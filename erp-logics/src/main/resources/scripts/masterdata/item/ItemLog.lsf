@@ -1,0 +1,239 @@
+MODULE ItemLog;
+
+REQUIRE Item;
+
+NAMESPACE Item;
+
+
+//----------------- Логирование изменений в документах ------------------- //
+
+CLASS ItemLog 'Запись лога товара';
+TABLE itemLog(ItemLog);
+
+disableItemLog 'Отключить запись лога товара' = DATA BOOLEAN ();
+enableItemLog = TRUE AND NOT disableItemLog();
+
+EXTEND FORM options
+    PROPERTIES() disableItemLog
+;
+
+DESIGN options { 
+    log { 
+        MOVE PROPERTY(disableItemLog()) FIRST;   
+    } 
+}
+
+item = DATA Item (ItemLog) INDEXED;
+id 'Код' = DATA VARSTRING[100](ItemLog) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+idBarcode 'Основной штрихкод' =  DATA VARSTRING[15](ItemLog) MINCHARWIDTH 15 PREFCHARWIDTH 15;
+
+name 'Наименование' = DATA VARISTRING[255] (ItemLog)  MINCHARWIDTH 30 PREFCHARWIDTH 60 IN recognize;
+
+session = DATA Session (ItemLog); 
+hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (ItemLog); 
+userLogin 'Логин пользователя' = DATA STRING[30] (ItemLog); 
+nameContact 'Имя пользователя' =  DATA VARSTRING[100] (ItemLog) IN recognize;
+dateTimeSession 'Время' = DATA DATETIME (ItemLog) IN recognize;
+dateSession 'Дата' (ItemLog d) = DATE(dateTimeSession(d));
+
+
+@defineLog (ItemLog, 'изменений товара', log, dateSession);
+
+
+CLASS TypeChange 'Тип изменения' {
+    add 'Добавление',
+    delete 'Удаление',
+    addBarcode 'Добавление штрихкода',
+    deleteBarcode 'Удаление штрихкода',
+    addAttribute 'Добавление атрибутов',    
+    changeAttribute 'Изменение атрибутов',
+    deleteAttribute 'Удаление атрибутов'    
+}
+
+typeChange= DATA TypeChange (ItemLog);
+nameTypeChange 'Тип изменения' (ItemLog l) = staticCaption(typeChange(l)) IN recognize;
+
+note 'Примечание' = DATA VARSTRING[500] (ItemLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+file 'Файл' = DATA CUSTOMFILE (ItemLog);
+openFile 'Открыть Файл' (ItemLog l) = ACTION OPENFILE (file(l)) TOOLBAR;
+showFile = enableItemLog() AND file(ItemLog dLog);
+
+WHEN SET(Item i IS Item) IF NOT disableItemLog() DO {
+    FOR ADDOBJ d = ItemLog DO {        
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);
+
+        typeChange(d) <- TypeChange.add;
+        session(d) <- currentSession();
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());             
+        note(d) <- VARSTRING[500]('Добавлен товар');             
+    }
+}
+WHEN DROPPED(Item i IS Item) IF NOT disableItemLog() DO {
+    FOR ADDOBJ d = ItemLog DO {      
+        id(d) <- PREV(id(i));
+        idBarcode(d) <- PREV(idBarcode(i));
+        name(d) <- PREV(nameAttribute(i));  
+        typeChange(d) <- TypeChange.delete;
+        session(d) <- currentSession();
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());        
+        note(d) <- VARSTRING[500]('Удален товар');         
+    }
+}
+
+WHEN SET(Barcode b IS Barcode) AND sku(b) IS Item IF NOT disableItemLog()  DO {
+    FOR ADDOBJ d = ItemLog DO {
+        item(d) <- sku(b);
+        id(d) <- id(sku(b));
+        idBarcode(d) <- idBarcode(sku(b));
+        name(d) <- nameAttribute(sku(b));     
+        
+        typeChange(d) <- TypeChange.addBarcode;
+        note(d) <- VARSTRING[500]('Штрихкод: '+id(b));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());    
+
+    }
+}
+WHEN DROPPED(Barcode b IS Barcode) AND PREV(sku(b)) IS Item IF NOT disableItemLog()  DO {
+    FOR ADDOBJ d = ItemLog DO {
+        item(d) <- PREV(sku(b));
+        id(d) <- id(PREV(sku(b)));
+        idBarcode(d) <- idBarcode(PREV(sku(b)));
+        name(d) <- nameAttribute(PREV(sku(b)));     
+        
+        typeChange(d) <- TypeChange.deleteBarcode;
+        note(d) <- VARSTRING[500]('Штрихкод (до): '+PREV(id(b)));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());    
+
+    }
+}
+WHEN (SET ((value(Item i, ItemAttribute ia)))) IF NOT disableItemLog()  DO { 
+    FOR ADDOBJ d = ItemLog DO {
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);   
+
+        typeChange(d) <- TypeChange.addAttribute;
+        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+':', value(i,ia));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());    
+    }
+}
+
+WHEN (SETCHANGED ((value(Item i, ItemAttribute ia))) AND PREV(value(i,ia))) IF NOT disableItemLog()  DO { 
+    FOR ADDOBJ d = ItemLog DO {
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);   
+
+        typeChange(d) <- TypeChange.changeAttribute;
+        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+'.', 'До: '+PREV(value(i,ia))+'.', 'После: '+value(i,ia));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());   
+    }
+}
+
+////-- при создании товара лог атрибутов не пишем
+//WHEN (SETCHANGED ((value(Item i, ItemAttribute ia))) AND NOT (SET(i IS Item))) IF NOT disableItemLog()  DO { 
+//    FOR ADDOBJ d = ItemLog DO {
+//        item(d) <- i;
+//        id(d) <- id(i);
+//        idBarcode(d) <- idBarcode(i);
+//        name(d) <- nameAttribute(i);   
+//
+//        typeChange(d) <- TypeChange.changeAttribute;
+//        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+':', 'до - '+PREV(value(i,ia))+';', 'после - '+value(i,ia))+';';      
+//        session(d) <- currentSession();  
+//        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+//        userLogin(d) <- userLoginConnection(currentSession()); 
+//        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+//        dateTimeSession(d) <- dateTime(currentSession());   
+//    }
+//}
+
+WHEN (DROPPED ((value(Item i, ItemAttribute ia))) AND PREV(value(i,ia))) IF NOT disableItemLog()  DO {
+    FOR ADDOBJ d = ItemLog DO {
+        item(d) <- i;
+        id(d) <- id(i);
+        idBarcode(d) <- idBarcode(i);
+        name(d) <- nameAttribute(i);   
+        
+        typeChange(d) <- TypeChange.deleteAttribute;
+        note(d) <- VARSTRING[500](CONCAT ' ',staticCaption(ia)+'.', 'До: '+PREV(value(i,ia)));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());    
+    }
+}
+
+META defineItemLogForm(form, concrete)
+    @defineItemLogForm(form, concrete, itemHistory);
+END
+
+META defineItemLogForm(form, concrete, container)
+    EXTEND FORM form
+        OBJECTS dLog=ItemLog FIXED GRID
+        PROPERTIES(dLog) SHOWIF enableItemLog() READONLY name, id, idBarcode, hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+        PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
+        FILTERS item(dLog) == concrete
+
+    ;
+    
+    DESIGN form {
+        container { 
+            MOVE dLog.box;
+        }    
+    }   
+END
+
+@defineItemLogForm(items, i, tab);
+DESIGN items {
+    pane {
+    type = SPLITV;
+    }
+}
+
+FORM itemLogs 'Журнал изменения товара'
+    OBJECTS d=ItemLog
+    PROPERTIES(d) READONLY name, id, idBarcode, hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+;
+
+DESIGN itemLogs {
+    main {
+        MOVE d.box;
+        MOVE functions.box;        
+    }
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD itemLogs;
+    }
+}
