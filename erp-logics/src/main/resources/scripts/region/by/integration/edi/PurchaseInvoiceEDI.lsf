@@ -38,3 +38,24 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) =
 
 EXTEND FORM eOrderDespatchAdvices 
     PROPERTIES (o) createUserInvoice TOOLBAR;
+
+
+FORM selectDespatchAdvice 'Уведомления об отгрузке'
+    OBJECTS o = EOrder FIXED PANEL 
+    OBJECTS a = EOrderDespatchAdvice
+    PROPERTIES (a) READONLY dateTime, number, deliveryNoteNumber, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
+    FILTERS eOrder(a) == o
+    FILTERGROUP invoice
+        FILTER 'Не выписаны' NOT invoice(a) DEFAULT 
+;
+beforeCreateInvoice(Purchase.Order o) += ACTION {
+
+    IF EDIProvider(supplier(o)) THEN {
+        REQUEST OBJECT a FORM selectDespatchAdvice OBJECTS o = o DIALOG ;
+        IF requestedObject() THEN {
+            createUserInvoice(requestedObject() AS EOrderDespatchAdvice);
+            invoiceCreated(o) <- TRUE;
+        }
+    }
+
+}
