@@ -81,8 +81,22 @@ nameBin 'Ячейка' (Batch batch, Receipt receipt) = nameBin(departmentStore(
 currentPOSBlisterPrice 'Цена блистера' (Batch batch, Receipt receipt) = currentPOSPrice(batch, receipt)/blisterAmount(batch) IF currentPOSPrice(batch, receipt); 
 
 pharmacyDescription 'Партия' (Batch batch) = CONCAT '', nameSku(batch), '/ ' + nameManufacturer(batch), '/ ' + nameCountry(batch);             
+
+//фильтр по цене
+filterPrice 'Поиск по цене' = DATA LOCAL NUMERIC[16,4]();
+filterPrice 'Ввести цену' (Batch bt, Receipt r) = (filterPrice() AND currentPOSPrice(bt, r)==filterPrice()) OR NOT filterPrice();
+
+//фильтр по цене
+filterNameSku 'Поиск по наименованию' = DATA LOCAL VARISTRING[20]();
+filterNameSku 'Ввести наименование' (Batch bt) = (filterNameSku() AND isISubstring(prevNameSku(bt), filterNameSku())) OR NOT filterNameSku();
+
+skipFilters 'Обнулить поиск' () = ACTION {
+    filterPrice() <- NULL;
+    filterNameSku() <- NULL; 
+} EDITKEY 'ESCAPE';
            
 EXTEND FORM POS
+    PROPERTIES () filterPrice, filterNameSku
     OBJECTS bt = Batch FIXED GRID
     PROPERTIES (bt) READONLY pharmacyDescription FORCE PANEL
     PROPERTIES (bt) READONLY prevNameSku, needPrescription, prescriptionMessage TODRAW d FORCE PANEL SHOWIF needPrescription(bt)
@@ -91,9 +105,12 @@ EXTEND FORM POS
     PROPERTIES (bt, r) READONLY prevCurrentBalance, currentPOSPrice, currentPOSBlisterPrice BACKGROUND backgroundBlisterQuantity(bt, r)
     PROPERTIES (bt) READONLY expiryDate BACKGROUND backgroundExpiryDate(bt, r), seriesPharmacy, nameManufacturer, nameCountry, nameSubstance
     ORDER BY prevNameSku(bt)
+    FILTERS filterPrice(bt, r), filterNameSku(bt) 
     FILTERS prevCurrentBalance(bt, r)
-    FILTERGROUP balance
-        FILTER 'В чеке' quantity(bt, r)   
+//    FILTERGROUP balance
+//        FILTER 'В чеке' quantity(bt, r)
+         
+    PROPERTIES () skipFilters TOOLBAR TODRAW bt         
 ;
 
 changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
@@ -122,6 +139,10 @@ EXTEND FORM POS
 ;
     
 DESIGN POS {
+    r.receiptSaleAction {
+        MOVE PROPERTY(filterPrice()){ caption = 'Ввести цену'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F5'; }
+        MOVE PROPERTY(filterNameSku()){ caption = 'Ввести наименование'; panelCaptionAbove = TRUE; font = 'bold 22'; editKey = 'F3'; }
+    }
     NEW tabbed BEFORE center {
         type = TABBED;
         fill = 1;
@@ -130,7 +151,8 @@ DESIGN POS {
                 quickSearch = TRUE;
             }
             caption = 'Остатки';
-            PROPERTY(prevNameSku(bt)) { focusable = TRUE; font = '18'; minimumCharWidth = 40; preferredCharWidth = 50;}
+            PROPERTY(prevNameSku(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 40; preferredCharWidth = 50;}
+            PROPERTY(needPrescription(bt)) {focusable = FALSE;}
             PROPERTY(nameBin(bt, r)) { focusable = FALSE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
             PROPERTY(quantityReceiptGrid) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5; background = #D4FFD4; pattern = '#,##0.###';}
             PROPERTY(blisterQuantity(bt, r)) { focusable = TRUE; font = '18'; minimumCharWidth = 3; preferredCharWidth = 5;}
@@ -144,16 +166,17 @@ DESIGN POS {
             PROPERTY(nameSubstance(bt)) { focusable = FALSE; font = '18'; minimumCharWidth = 10; preferredCharWidth = 20;}
             REMOVE bt.toolbar;
         }
-        MOVE d.box {
-            PROPERTY(quantityGrid){pattern = '#,##0.###';}
-        }
     }
     NEW pharmacyDescription BEFORE center {
         alignment = STRETCH;
         type = CONTAINERH;
         MOVE PROPERTY(pharmacyDescription(bt)) { font = '22 bold';minimumCharWidth = 120; preferredCharWidth = 120; focusable = FALSE; panelCaptionAbove = TRUE; alignment = STRETCH;}
+        MOVE PROPERTY(skipFilters()) {caption = ''; showEditKey = FALSE;}; 
     }
     pane {
+        MOVE d.box BEFORE pc.box {
+            PROPERTY(quantityGrid){pattern = '#,##0.###';}
+        }
         MOVE bt1.box BEFORE pc.box {
             caption = 'Аналоги';
             REMOVE bt1.toolbar;
