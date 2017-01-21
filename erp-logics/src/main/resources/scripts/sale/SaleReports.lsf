@@ -87,6 +87,9 @@ recCostSumStock 'Себестоимость' (group) =
 recMarkupSumStock 'Надбавка' (group) =
     GROUP SUM markupSumStock (Group child) IF isParent(child, Group parent)
     BY parent;
+recQuantityStock 'Кол-во' (group) =
+    GROUP SUM quantityStock (Group child) IF isParent(child, Group parent)
+    BY parent;
             
 //суммы продаж по группе рекурсивно 
 sumRecSalesSku 'Сумма продаж (всего)' (group, stock, dateFrom, dateTo) =
@@ -725,7 +728,7 @@ FORM salesReport 'Отчет по продажам'
     TREE skuTree sk = Group PARENT parent
     PROPERTIES inSession(sk)
     PROPERTIES READONLY order(sk), skuTreeName = name(sk)
-    PROPERTIES(sk) READONLY recCostSumStock, recMarkupSumStock, 
+    PROPERTIES(sk) READONLY recQuantityStock, recCostSumStock, recMarkupSumStock, 
                                         recSumVATStock, recSumStock
     ORDER BY order(sk), skuTreeName
     FILTERS groupType(sk) == gt
