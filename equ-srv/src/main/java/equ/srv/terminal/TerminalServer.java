@@ -130,7 +130,8 @@ public class TerminalServer extends MonitorServer {
     private Thread listenThread;
     public void listenToPort(String host, Integer port) {
         try {
-            listenServerSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"            
+            listenServerSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"
+            listenServerSocket.setSoTimeout(30000);
             listenExecutorService = ExecutorFactory.createMonitorThreadService(100, this);
             
             // аналогичный механизм в FiscalBoardDaemon, но через Executor пока не принципиально
