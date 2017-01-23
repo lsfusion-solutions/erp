@@ -24,11 +24,12 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     boolean saveCommentOnFiscalTape;
     boolean groupPaymentsByVAT;
     boolean giftCardAsNotPayment;
+    boolean sumPayment;
 
     public FiscalAbsolutPrintReceiptClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
-                                                 boolean giftCardAsNotPayment) {
+                                                 boolean giftCardAsNotPayment, boolean sumPayment) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -40,6 +41,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.saveCommentOnFiscalTape = saveCommentOnFiscalTape;
         this.groupPaymentsByVAT = groupPaymentsByVAT;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
+        this.sumPayment = sumPayment;
     }
 
 
@@ -111,9 +113,9 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
             DecimalFormat formatter = getFormatter();
             for (ReceiptItem item : receiptList) {
                 double discount = item.articleDiscSum - item.bonusPaid;
-                sum = sum.add(BigDecimal.valueOf(item.sumPos - discount));
+                sum = sum.add(BigDecimal.valueOf(item.sumPos)).subtract(BigDecimal.valueOf(discount));
                 discountSum = discountSum.add(BigDecimal.valueOf(discount));
-                FiscalAbsolut.printMultilineFiscalText(item.name);
+                printMultilineFiscalText(item.name, "");
                 FiscalAbsolut.printFiscalText(getFiscalString("Код", item.barcode));
                 FiscalAbsolut.printFiscalText(getFiscalString("Цена",
                         new DecimalFormat("#,###.##").format(item.quantity) + "x" + formatter.format(item.price)));
@@ -145,43 +147,91 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
         } else {
 
-            for (ReceiptItem item : receiptList) {
-                if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT))
-                    return false;
-                if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
-                    return false;
+            if(sumPayment) {
+
+                BigDecimal sum = BigDecimal.ZERO;
+                BigDecimal discountSum = BigDecimal.ZERO;
                 DecimalFormat formatter = getFormatter();
-                if (item.bonusSum != 0.0) {
-                    FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                    FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
+                for (ReceiptItem item : receiptList) {
+                    double discount = item.articleDiscSum - item.bonusPaid;
+                    sum = sum.add(BigDecimal.valueOf(item.sumPos).subtract(BigDecimal.valueOf(discount)));
+                    discountSum = discountSum.add(BigDecimal.valueOf(discount));
+                    printMultilineFiscalText(item.name, new DecimalFormat("#,###.##").format(item.quantity) + "x" + formatter.format(item.price));
+                    FiscalAbsolut.printFiscalText(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos)));
                 }
-                if (item.bonusPaid != 0.0) {
-                    FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
-                    FiscalAbsolut.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+                discountSum = discountSum.add(receipt.sumDisc == null ? BigDecimal.ZERO : receipt.sumDisc);
+
+                if (!FiscalAbsolut.registerAndDiscountItem(sum, discountSum))
+                    return false;
+
+                if (!FiscalAbsolut.subtotal())
+                    return false;
+
+                FiscalAbsolut.printFiscalText(receiptBottom);
+
+                if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
+                    return false;
+                if (!FiscalAbsolut.totalCard(receipt.sumCard))
+                    return false;
+                if (!FiscalAbsolut.totalCash(receipt.sumCash))
+                    return false;
+
+            } else {
+
+                for (ReceiptItem item : receiptList) {
+                    if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT))
+                        return false;
+                    if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
+                        return false;
+                    DecimalFormat formatter = getFormatter();
+                    if (item.bonusSum != 0.0) {
+                        FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
+                        FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
+                    }
+                    if (item.bonusPaid != 0.0) {
+                        FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
+                        FiscalAbsolut.printFiscalText("Оплачено бонусными баллами:\n" + formatter.format(item.bonusPaid));
+                    }
                 }
+
+                if (!FiscalAbsolut.subtotal())
+                    return false;
+                if (!FiscalAbsolut.discountReceipt(receipt))
+                    return false;
+
+                FiscalAbsolut.printFiscalText(receiptBottom);
+
+                if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
+                    return false;
+                if (!FiscalAbsolut.totalCard(receipt.sumCard))
+                    return false;
+                if (!FiscalAbsolut.totalCash(receipt.sumCash))
+                    return false;
             }
-
-            if (!FiscalAbsolut.subtotal())
-                return false;
-            if (!FiscalAbsolut.discountReceipt(receipt))
-                return false;
-
-            FiscalAbsolut.printFiscalText(receiptBottom);
-
-            if (!FiscalAbsolut.totalGiftCard(receipt.sumGiftCard))
-                return false;
-            if (!FiscalAbsolut.totalCard(receipt.sumCard))
-                return false;
-            if (!FiscalAbsolut.totalCash(receipt.sumCash))
-                return false;
 
         }
 
         return true;
     }
 
+    public boolean printMultilineFiscalText(String msg, String postfix) {
+        if (msg != null && !msg.isEmpty()) {
+            int start = 0;
+            while (start < msg.length()) {
+                int end = Math.min(start + FiscalAbsolut.lineLength, msg.length());
+                String line = msg.substring(start, end);
+                if (end == msg.length())
+                    line = getFiscalString(line.substring(0, Math.min(line.length(), FiscalAbsolut.lineLength - 1 - postfix.length())), postfix);
+                if (!FiscalAbsolut.printFiscalText(line))
+                    return false;
+                start = end;
+            }
+        }
+        return true;
+    }
+
     private String getFiscalString(String prefix, String value) {
-        while(value.length() < 29 - prefix.length())
+        while(value.length() < FiscalAbsolut.lineLength - 1 - prefix.length())
             value = " " + value;
         return prefix + " " + value;
     }

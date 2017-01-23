@@ -5,7 +5,10 @@ REQUIRE System,
 
 
 needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer();
-onClientStarted() += ACTION IF needDLL() THEN loadLibrary('lib/win32/absolut.dll');
+onClientStarted() += ACTION IF needDLL() THEN {
+    loadLibrary('lib/win32/absolut.dll');
+    loadLibrary('lib/win64/absolut.dll');
+};
 
 fiscalAbsolutPrint 'Напечатать фискальный чек' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalabsolut.FiscalAbsolutPrintReceiptActionProperty' (Receipt);
 postPrint(Receipt receipt) += ACTION IF sidCashRegisterModel(receipt) == 'Absolut' THEN fiscalAbsolutPrint(receipt);
@@ -41,13 +44,16 @@ fiscalOpenZReport() += ACTION IF sidModelCurrentCashRegister() == 'Absolut' AND 
 saveCommentOnFiscalTapeAbsolut 'Сохранять комментарий для контрольной ленты (Absolut)' = DATA BOOLEAN ();
 groupPaymentsByVAT 'Разбивать оплату по ставкам НДС (Absolut)' = DATA BOOLEAN ();
 fiscalAbsolutPrefixCode128 'Префикс для Code128 (Absolut)' = DATA VARSTRING[10] ();
-EXTEND FORM options PROPERTIES() saveCommentOnFiscalTapeAbsolut, groupPaymentsByVAT, printZeroReceipt, fiscalAbsolutPrefixCode128;
+sumPaymentAbsolut 'Суммовой чек (Absolut)' = DATA BOOLEAN ();
+EXTEND FORM options PROPERTIES() saveCommentOnFiscalTapeAbsolut, groupPaymentsByVAT, printZeroReceipt,
+                                 fiscalAbsolutPrefixCode128, sumPaymentAbsolut;
 DESIGN options {
     machinery {
         MOVE PROPERTY(saveCommentOnFiscalTapeAbsolut());
         MOVE PROPERTY(groupPaymentsByVAT());
         MOVE PROPERTY(printZeroReceipt());
         MOVE PROPERTY(fiscalAbsolutPrefixCode128());
+        MOVE PROPERTY(sumPaymentAbsolut());
     }
 }
 

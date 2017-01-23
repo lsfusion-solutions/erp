@@ -63,6 +63,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
                 boolean saveCommentOnFiscalTape = findProperty("saveCommentOnFiscalTapeAbsolut[]").read(context) != null;
                 boolean groupPaymentsByVAT = findProperty("groupPaymentsByVAT[]").read(context) != null;
+                boolean sumPaymentAbsolut = findProperty("sumPaymentAbsolut[]").read(context) != null;
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
@@ -161,7 +162,7 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
                             fiscalAbsolutReceiptTop, fiscalAbsolutReceiptBottom, receiptCode128, saveCommentOnFiscalTape, groupPaymentsByVAT,
-                            giftCardAsNotPayment));
+                            giftCardAsNotPayment, sumPaymentAbsolut));
                     if (result != null) {
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

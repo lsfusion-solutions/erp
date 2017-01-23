@@ -32,6 +32,7 @@ public class FiscalAbsolut {
         } catch (Exception ignored) {
         }
     }
+    static int lineLength = 30;
     
     public interface absolutDLL extends Library {
 
@@ -139,19 +140,6 @@ public class FiscalAbsolut {
 
     static void simpleLogAction(String msg) {
         logger.info(msg);
-    }
-
-    public static boolean printMultilineFiscalText(String msg) {
-        if (msg != null && !msg.isEmpty()) {
-            int start = 0;
-            while (start < msg.length()) {
-                int end = Math.min(start + 30, msg.length());
-                if (!printFiscalText(msg.substring(start, end)))
-                    return false;
-                start = end;
-            }
-        }
-        return true;
     }
 
     static boolean printBarcode(String barcode) {
@@ -455,9 +443,9 @@ public class FiscalAbsolut {
     private static List<String> splitName(String value) {
         List<String> result = new ArrayList<>();
         if(value != null) {
-            while (value.length() > 30) {
-                result.add(value.substring(0, 30));
-                value = value.substring(30);
+            while (value.length() > lineLength) {
+                result.add(value.substring(0, lineLength));
+                value = value.substring(lineLength);
             }
             result.add(value);
         }
