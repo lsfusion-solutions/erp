@@ -131,7 +131,7 @@ public class TerminalServer extends MonitorServer {
     public void listenToPort(String host, Integer port) {
         try {
             listenServerSocket = new ServerSocket(port, 1000, Inet4Address.getByName(host)); //2004, "192.168.42.142"            
-            listenExecutorService = ExecutorFactory.createMonitorThreadService(10, this);
+            listenExecutorService = ExecutorFactory.createMonitorThreadService(100, this);
             
             // аналогичный механизм в FiscalBoardDaemon, но через Executor пока не принципиально
             startListenThread();
@@ -182,6 +182,8 @@ public class TerminalServer extends MonitorServer {
             DataInputStream inFromClient = null;
             DataOutputStream outToClient = null;
             try {
+                logger.info("before read");
+
                 inFromClient = new DataInputStream(new BufferedInputStream(socket.getInputStream()));
                 outToClient = new DataOutputStream(socket.getOutputStream());
                 //Thread.sleep(2000);
