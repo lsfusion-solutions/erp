@@ -649,6 +649,18 @@ END
 @defineLabelTransactionAttribute(nameSkuGroupSku, 'Тов. группа', VARSTRING[100], Sku, nameSkuGroup);
 @defineLabelTransactionAttribute(shortNameUOMSku, 'Ед. изм.', VARISTRING[100], Sku, shortNameUOM);
 @defineLabelTransactionAttribute(nameCountrySku, 'Страна изготовления', VARSTRING[50], Sku, nameCountry);
+manufactureDateBatch 'Дата изготовления'  = DATA DATE (LabelTransactionDetail);
+createAttribute(LabelTransactionDetail d) +=
+    ACTION manufactureDateBatch(d) <- manufactureDate(lastOrderBatch(sku(d), departmentStore(d)));
+
+expiryDateBatch 'Годен до'  = DATA DATE (LabelTransactionDetail);
+createAttribute(LabelTransactionDetail d) +=
+    ACTION expiryDateBatch(d) <- expiryDate(lastOrderBatch(sku(d), departmentStore(d)));
+
+EXTEND FORM printLabelTransaction PROPERTIES(d) READONLY manufactureDateBatch, expiryDateBatch;
+EXTEND FORM customLabelTransaction PROPERTIES(d) manufactureDateBatch, expiryDateBatch;
+EXTEND FORM labelTransactions PROPERTIES(dt) READONLY manufactureDateBatch, expiryDateBatch PROPERTIES(dts) READONLY manufactureDateBatch, expiryDateBatch;
+   
 residentCountrySku 'Отечественный производитель' (LabelTransactionDetail d) = resident(country(sku(d)));
 supplierSku = supplierLastOrderBatch(sku(LabelTransactionDetail d), departmentStore(d));
 nameSupplierSku 'Поставщик' (LabelTransactionDetail d) = name(supplierSku(d));
