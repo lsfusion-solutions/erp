@@ -6,20 +6,43 @@ PRIORITY Purchase, Operation;
 
 NAMESPACE PurchaseReturn;
 
-
 percReturnDiscount '% отпускной цены поставщика при возврате' = DATA NUMERIC[8,3] (ContractSku, Sku);
-
+percReturnDiscount '% отпускной цены поставщика при возврате' = DATA NUMERIC[8,3] (ContractSku);
+overPercReturnDiscount '% отпускной цены поставщика при возврате' (ContractSku c, Sku s) = 
+    OVERRIDE percReturnDiscount(c) IF s IS Sku, percReturnDiscount(c,s);
+    
 EXTEND FORM userContractSku
+    PROPERTIES (c) percReturnDiscount
+    TREE skuTree g = SkuGroup PARENT parent
+    PROPERTIES READONLY order(g), id(g), name(g)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) DEFAULT    
+    
     OBJECTS s = Sku
     PROPERTIES (s) READONLY idBarcode, name, id SHOWIF showIDs()
-    PROPERTIES (c, s) percReturnDiscount
+    PROPERTIES (c, s) overPercReturnDiscount
     FILTERGROUP sku 
-        FILTER 'Заполнен %' percReturnDiscount(c, s)
+        FILTER 'Заполнен %' overPercReturnDiscount(c, s)
+        
+    FILTERS isParent(g,s)
 ;
 
 DESIGN userContractSku {
     tabContainer{
-        MOVE s.box;
+        NEW perc {
+            caption = 'SKU';
+            fill = 1;
+            type = CONTAINERV;
+            NEW panPerc {
+                MOVE PROPERTY (percReturnDiscount(c));
+            }
+            NEW perc1{            
+                fill = 1;
+                type = SPLITH;
+                MOVE skuTree.tree.box{ caption = 'Группы товара';}
+                MOVE s.box;            
+            }
+        }       
     }
 }
 
@@ -93,8 +116,8 @@ changeFullPrice (UserInvoiceDetail d) = ACTION {
 
 WHEN SESSION FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CHANGED (sku(d))) AND showPercReturnDiscount(userInvoice(d)))
                                                 OR (SET(showPercReturnDiscount(userInvoice(d)))) DO {
-    IF percReturnDiscount(contractSku(d), sku(d)) AND NOT PREV(percReturnDiscountPrice (d)) THEN {
-        percReturnDiscountPrice (d) <- percReturnDiscount(contractSku(d), sku(d));                                               
+    IF overPercReturnDiscount(contractSku(d), sku(d)) AND NOT PREV(percReturnDiscountPrice (d)) THEN {
+        percReturnDiscountPrice (d) <- overPercReturnDiscount(contractSku(d), sku(d));                                               
         price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
         invoicePrice(d) <- prevListPVAT (priceListType(d), d);
     }    
