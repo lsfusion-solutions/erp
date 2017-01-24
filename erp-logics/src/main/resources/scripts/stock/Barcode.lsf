@@ -33,6 +33,10 @@ completeBarcode = FORMULA TEXT PG 'completeBarcode($1)', MS 'dbo.completeBarcode
 
 allowIncorrectBarcode 'Разрешить некорректные штрихкоды' = DATA BOOLEAN();
 
+incorrectBarcode (VARSTRING[15] id) = (charLength(id) == 8 AND completeBarcode(left(id,7)) != id) OR 
+                                           (charLength(id) == 12 AND completeBarcode('0'+left(id,11)) != '0'+id) OR
+                                           (charLength(id) == 13 AND completeBarcode(left(id,12)) != id);
+
 CONSTRAINT charLength(id(Barcode barcode)) == 8 AND completeBarcode(left(id(barcode),7)) != id(barcode) 
     AND NOT allowIncorrectBarcode()  
     MESSAGE 'Некорректный EAN-8 штрихкод';
