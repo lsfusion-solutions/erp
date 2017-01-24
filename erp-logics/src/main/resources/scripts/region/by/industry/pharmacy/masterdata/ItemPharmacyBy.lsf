@@ -11,6 +11,9 @@ name 'Наименование' = DATA VARISTRING[50](PharmacyPriceGroup);
 @defineExternalizable(pharmacyPriceGroup, VARSTRING[100]);
 name(PharmacyPriceGroup group) += name(group);
 
+inactive 'Неактивный' = DATA BOOLEAN (PharmacyPriceGroup) IN itemBase;
+active 'Активный' (PharmacyPriceGroup group) = group IS PharmacyPriceGroup AND NOT inactive(group);
+
 CLASS PharmacyGroupType 'Классификатор групп лекарственного средства': GroupType;
 TABLE pharmacyGroupType (PharmacyGroupType);
 
@@ -100,9 +103,11 @@ isActive 'Действующий' (PharmacyPriceInterval interval) =
 FORM pharmacyMarkups 'Типы лекарственных средств'
 
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) name, id SHOWIF showIDs(), namePharmacyTypeGroup
+    PROPERTIES (g) name, id SHOWIF showIDs(), namePharmacyTypeGroup, inactive
     PROPERTIES (g) ADDOBJ, DELETESESSION
     ORDER BY id(g)
+    FILTERGROUP active
+        FILTER 'Активные' active(g) DEFAULT
 
     OBJECTS i=PharmacyPriceInterval
     PROPERTIES fromDatePharmacy(i), toDatePharmacy(i), pricePharmacy(i),
@@ -157,14 +162,18 @@ DESIGN pharmacyMarkups {
 }
 FORM pharmacyPriceGroups 'Типы лекарственных средств'
     OBJECTS g=PharmacyPriceGroup
-    PROPERTIES (g) READONLY name, id SHOWIF showIDs()
+    PROPERTIES (g) READONLY name, id SHOWIF showIDs(), inactive
     ORDER BY id(g)
+    FILTERGROUP active
+        FILTER 'Активные' active(g) DEFAULT
 
     OBJECTS i=PharmacyPriceInterval
     PROPERTIES READONLY fromDatePharmacy(i), toDatePharmacy(i), pricePharmacy(i),
                wholesaleMarkup(i), retailMarkup(i)
     FILTERS    pharmacyGroupPharmacy(i)==g
     ORDER BY pricePharmacy(i)
+    FILTERGROUP isActive
+        FILTER 'Действующие' isActive(i) DEFAULT
 
     DIALOG PharmacyPriceGroup OBJECT g
 ;
