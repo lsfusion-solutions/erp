@@ -44,7 +44,7 @@ nameSoldCustomerDateFromTo (Stock stock)= name(stock) + ' (р-ия за пери
   
 //concatBalanceSoldSkuStockBlanketOrder (sku, stock, blanketOrder)= CONCAT '/', round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock), prevCurrentBalanceSkuStock(sku,stock)),
 //                                                                              round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock AND blanketOrder IS BlanketOrder), quantitySoldSkuStockBlanketOrderOneWeek(sku, stock, blanketOrder)),
-//                                                                              round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock AND blanketOrder IS BlanketOrder), quantitySoldSkuStockBlanketOrderTwoWeek(sku, stock, blanketOrder));    
+//                                                                              round0(OVERRIDE (0.0 IF sku IS Sku AND stock IS Stock AND blanketOrder IS BlanketOrder), quantitySoldSkuStockBlanketOrderTwoWeek(sku, stock, blanketOrder));           
        
 // Ввод количества по товару
 changeBatchQuantityCustomer (Sku sku, BlanketOrder blanketOrder, Stock supplierStock, Stock customerStock) = ACTION  {
@@ -59,8 +59,26 @@ changeBatchQuantityCustomer (Sku sku, BlanketOrder blanketOrder, Stock supplierS
         left() <- left() (-) taken();
         
         IF NOT quantitySupplierCustomer(batch, blanketOrder, supplierStock, customerStock) == taken() THEN {
-            requestedNumeric() <- taken();
-            changeQuantityValueCustomer(batch, blanketOrder, supplierStock, customerStock);
+            IF blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock) THEN {
+                IF taken() THEN {
+                    quantity(BlanketOrderDetail blanketOrderDetail) <- taken() WHERE blanketOrderDetail == blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock);
+                } ELSE {
+                    FOR blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock) == BlanketOrderDetail blanketOrderDetail DO
+                        DELETE blanketOrderDetail;
+                }
+            } ELSE {
+                IF taken() THEN {
+                    FOR ADDOBJ d = BlanketOrderDetail DO {
+                       blanketOrder(d) <- blanketOrder;
+                       sku(d) <- sku(batch);
+                       batch(d) <- batch;
+                       customerStock(d) <- customerStock;
+                       quantity (d) <- taken();
+                       shipmentDataDate (d) <- shipmentDate(blanketOrder);
+                       shipmentDataTime (d) <- shipmentTime(blanketOrder);
+                    }
+                }
+            }
         } 
     }    
 }            
