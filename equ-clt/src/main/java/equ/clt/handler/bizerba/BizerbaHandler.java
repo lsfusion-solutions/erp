@@ -14,6 +14,7 @@ import org.springframework.context.support.FileSystemXmlApplicationContext;
 
 import javax.naming.CommunicationException;
 import java.io.IOException;
+import java.math.BigDecimal;
 import java.util.*;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
@@ -450,7 +451,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
         return messageMap;
     }
 
-    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters, String denominationStage) throws CommunicationException, IOException {
+    private String loadPLU(List<String> errors, TCPPort port, ScalesInfo scales, ScalesItemInfo item, String charset, boolean encode, boolean capitalLetters) throws CommunicationException, IOException {
 
         Integer pluNumber = getPluNumber(item);
 
@@ -486,7 +487,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
             }
 
             byte priceOverflow = 0;
-            int price = denominateMultiplyType1(item.price, denominationStage);
+            int price = item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue();
             if (price > 999999) {
                 price = Math.round((float) (price / 10));
                 priceOverflow = 1;
@@ -615,7 +616,7 @@ public abstract class BizerbaHandler extends ScalesHandler {
                                         int attempts = 0;
                                         String result = null;
                                         while((result == null || !result.equals("0")) && attempts < 3) {
-                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters, transaction.denominationStage);
+                                            result = loadPLU(localErrors, port, scales, item, charset, encode, capitalLetters);
                                             attempts++;
                                         }
                                         if (result != null && !result.equals("0")) {

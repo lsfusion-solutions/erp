@@ -79,7 +79,7 @@ public class CL5000JHandler extends ScalesHandler {
                                         int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
                                         processTransactionLogger.info(String.format("CL5000: Sending item %s to scales %s", barcode, scales.port));
                                         int reply = sendItem(socket, weightCode, pluNumber, barcode, item.name,
-                                                denominateMultiplyType1(item.price, transaction.denominationStage), HandlerUtils.trim(item.description, null, descriptionLength - 1), item.extraPercent);
+                                        item.price == null ? 0 : item.price.multiply(BigDecimal.valueOf(100)).intValue(), HandlerUtils.trim(item.description, null, descriptionLength - 1), item.extraPercent);
                                         if (reply != 0) {
                                             errors += String.format("Send item %s failed. Error: %s\n", pluNumber, getErrorMessage(reply));
                                             errorsCount++;
