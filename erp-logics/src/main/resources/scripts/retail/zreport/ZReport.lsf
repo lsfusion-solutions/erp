@@ -291,11 +291,11 @@ changeDescriptionSale = ACTION ABSTRACT LIST (ReceiptReturnDetail);
 // Количества и суммы
 
 quantity 'Количество' (receiptDetail) = DATA NUMERIC[16,5] (ReceiptSaleDetail);
-price 'Цена' (receiptDetail) = DATA NUMERIC[16,4] (ReceiptSaleDetail) @@denomination;
-sum 'Сумма' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptSaleDetail) @@denomination;
+price 'Цена' (receiptDetail) = DATA NUMERIC[16,4] (ReceiptSaleDetail);
+sum 'Сумма' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptSaleDetail);
 discountPercent 'Процент скидки' (receiptDetail) = DATA NUMERIC[6,2] (ReceiptSaleDetail);
 discountPercent (receipt)= GROUP SUM 1 IF discountPercent(ReceiptSaleDetail detail) BY receipt[ReceiptDetail](detail);
-discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptSaleDetail) @@denomination;
+discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptSaleDetail);
 
 priceSum 'Сумма без скидки' = round(quantity(ReceiptSaleDetail detail) * price(detail), roundCondition(departmentStore(detail)));
 
@@ -319,9 +319,9 @@ sum (ReceiptSaleDetail detail) <- calcSum(detail)
          CHANGED (departmentStore(detail));
 
 quantity 'Количество' (receiptDetail) = DATA NUMERIC[16,5] (ReceiptReturnDetail);
-price 'Цена' (receiptDetail) = DATA NUMERIC[16,4] (ReceiptReturnDetail) @@denomination;
-sum 'Сумма' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptReturnDetail) @@denomination;
-discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptReturnDetail) @@denomination;
+price 'Цена' (receiptDetail) = DATA NUMERIC[16,4] (ReceiptReturnDetail);
+sum 'Сумма' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptReturnDetail);
+discountSum 'Сумма скидки' (receiptDetail) = DATA NUMERIC[18,4] (ReceiptReturnDetail);
 
 quantityReturned 'Возвращено' (saleDetail) = GROUP SUM quantity(ReceiptReturnDetail returnDetail) BY receiptSaleDetail(returnDetail) PERSISTENT;
 CONSTRAINT quantityReturned(ReceiptSaleDetail detail) > quantity (detail) MESSAGE 'Количество возвратов по строке чека превышает проданное количество';
@@ -357,17 +357,17 @@ quantity 'Количество' = ABSTRACT NUMERIC[16,5] (ReceiptDetail) PERSIST
 quantity(ReceiptReturnDetail detail) += quantity(detail);
 quantity(ReceiptSaleDetail detail) += quantity(detail);
 
-price 'Цена' = ABSTRACT NUMERIC[16,4] (ReceiptDetail) PERSISTENT @@denomination;
+price 'Цена' = ABSTRACT NUMERIC[16,4] (ReceiptDetail) PERSISTENT;
 price(ReceiptReturnDetail detail) += price(detail);
 price(ReceiptSaleDetail detail) += price(detail);
 
 INDEX sku(ReceiptDetail d), price(d);
 
-sum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
+sum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT;
 sum(ReceiptReturnDetail detail) += sum(detail);
 sum(ReceiptSaleDetail detail) += sum(detail);
 
-discountSum 'Сумма скидки' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
+discountSum 'Сумма скидки' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT;
 discountSum(ReceiptSaleDetail d) += discountSum(d);
 discountSum(ReceiptReturnDetail d) += discountSum(d);
 
@@ -376,12 +376,12 @@ fullSum 'Сумма без скидки' (ReceiptReturnDetail d) = sum(d) (+) di
 fullSum 'Сумма без скидки' (ReceiptDetail d) = sum(d) (+) discountSum(d);
 
 sumReceiptSaleDetail 'Сумма продажи' (receipt) = GROUP SUM sum(ReceiptSaleDetail receiptDetail)
-    BY receipt (receiptDetail) IN documentSum PERSISTENT @@denomination;
+    BY receipt (receiptDetail) IN documentSum PERSISTENT;
 
 sumReceiptReturnDetail 'Сумма возврата' (receipt) = GROUP SUM sum(ReceiptReturnDetail receiptDetail)
-    BY receipt (receiptDetail) IN documentSum PERSISTENT @@denomination;
+    BY receipt (receiptDetail) IN documentSum PERSISTENT;
 
-signedSum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT @@denomination;
+signedSum 'Сумма' = ABSTRACT NUMERIC[18,4] (ReceiptDetail) PERSISTENT;
 signedSum(ReceiptReturnDetail detail) += -sum(detail);
 signedSum(ReceiptSaleDetail detail) += sum(detail);
 
@@ -394,22 +394,22 @@ signedDiscountSum(ReceiptReturnDetail detail) += -discountSum(detail);
 signedDiscountSum(ReceiptSaleDetail detail) += discountSum(detail);
 
 sumReceiptDetail 'Сумма чека' (receipt) = GROUP SUM signedSum(ReceiptDetail detail)
-    BY receipt(detail) PERSISTENT @@denomination;
+    BY receipt(detail) PERSISTENT;
 
 sumSkuReceiptDetail 'Сумма чека по товарам' (receipt) = 
-    GROUP SUM signedSum(ReceiptDetail detail) IF sku(detail) BY receipt(detail) PERSISTENT  @@denomination;
+    GROUP SUM signedSum(ReceiptDetail detail) IF sku(detail) BY receipt(detail) PERSISTENT;
 //sumReceiptDetailReceipt 'Сумма чека' (receipt) = sumReceiptSaleDetailReceipt(receipt) (-) sumReceiptReturnDetailReceipt(receipt) PERSISTENT;
 sumReceiptDetail 'Сумма чека' (ReceiptDetail receiptDetail) = sumReceiptDetail(receipt(receiptDetail));
 
 discountSumSaleReceiptDetailSale 'Сумма скидки (продажи)' (receipt) = GROUP SUM discountSum(ReceiptSaleDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum;
-discountSumSale 'Сумма скидки (продажи) по чеку' (receipt) = DATA NUMERIC[18,4] (Receipt) @@denomination;
+discountSumSale 'Сумма скидки (продажи) по чеку' (receipt) = DATA NUMERIC[18,4] (Receipt);
 
 discountSumReturnReceiptDetailReturn 'Сумма скидки (возврат)' (receipt) = GROUP SUM discountSum(ReceiptReturnDetail receiptDetail)
     BY receipt (receiptDetail) IN documentSum;
-discountSumReturn 'Сумма скидки (возврат) по чеку' (receipt) = DATA NUMERIC[18,4] (Receipt) @@denomination;
+discountSumReturn 'Сумма скидки (возврат) по чеку' (receipt) = DATA NUMERIC[18,4] (Receipt);
 
-discountSumReceiptDetail 'Сумма скидки' (Receipt receipt) = discountSumSaleReceiptDetailSale(receipt) (-) discountSumReturnReceiptDetailReturn(receipt) PERSISTENT @@denomination;
+discountSumReceiptDetail 'Сумма скидки' (Receipt receipt) = discountSumSaleReceiptDetailSale(receipt) (-) discountSumReturnReceiptDetailReturn(receipt) PERSISTENT;
 discountSum 'Сумма скидки по чеку' (Receipt receipt) = discountSumSale(receipt) (-) discountSumReturn(receipt);
 
 @defineDocumentHeaderCount(receipt);
@@ -451,7 +451,7 @@ WHEN CHANGED(VAT(ReceiptDetail d)) OR CHANGED(date(d)) OR CHANGED (batch(d)) DO 
     valueVAT(d) <- overValueVAT(d);
 }
 
-sumVAT 'Сумма НДС' (d) = DATA NUMERIC[18,4] (ReceiptDetail) @@denomination;
+sumVAT 'Сумма НДС' (d) = DATA NUMERIC[18,4] (ReceiptDetail);
 calcSumVAT 'Сумма НДС' (ReceiptDetail d) = round(sum(d) * valueVAT(d) / (100 + valueVAT(d)), currency(d));
 // пока делаем не сессионным событием, чтобы быстрее принималось
 WHEN CHANGED(valueVAT(ReceiptDetail d)) OR CHANGED(sum(d)) OR CHANGED(currency(d)) DO {
@@ -531,7 +531,7 @@ namePaymentMeans 'Форма оплаты' (Payment payment) = staticCaption(pay
 
 number 'Номер платежа' (payment) = DATA INTEGER (Payment);
 
-sum 'Сумма платежа' (payment) = DATA NUMERIC[18,4] (Payment) @@denomination;
+sum 'Сумма платежа' (payment) = DATA NUMERIC[18,4] (Payment);
 
 sumPayment 'Сумма платежа' (receipt) = GROUP SUM sum(Payment payment) BY receipt(payment);
 
@@ -539,7 +539,7 @@ sumInCashPayment (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(paym
 
 changePayment 'Сдача' (Receipt receipt) = sumPayment(receipt) - sumReceiptDetail(receipt);
 
-sumCashPayment 'Сумма продажа (наличные)' (Receipt receipt) = sumInCashPayment(receipt) - changePayment(receipt) PERSISTENT  @@denomination;
+sumCashPayment 'Сумма продажа (наличные)' (Receipt receipt) = sumInCashPayment(receipt) - changePayment(receipt) PERSISTENT;
 sumCardPayment 'Сумма продажа (карточка)' (receipt) = GROUP SUM sum(Payment payment) IF paymentMeans(payment) == PaymentMeans.paymentMeansCard BY receipt(payment);
 
 sumCashPayment 'Наличными (чек)' (ReceiptDetail detail) = sumCashPayment(receipt(detail));
@@ -551,13 +551,13 @@ sumNegativeCashPayment 'Сумма возврата (наличные)' (Receipt
 sumPositiveCardPayment 'Сумма продажа (карточка)' (Receipt receipt) =  sumCardPayment (receipt) IF sumCardPayment (receipt) >= 0.0 IN documentSum;
 sumNegativeCardPayment 'Сумма возврата (карточка)' (Receipt receipt) =  sumCardPayment (receipt) IF sumCardPayment (receipt) < 0.0 IN documentSum;
 
-sumCashPayment 'Сумма (наличные)' (zReport) = GROUP SUM sumCashPayment(Receipt r) BY zReport(r) IN documentSum PERSISTENT  @@denomination;
+sumCashPayment 'Сумма (наличные)' (zReport) = GROUP SUM sumCashPayment(Receipt r) BY zReport(r) IN documentSum PERSISTENT;
 
 sumPositiveCashPayment 'Сумма продажа (наличные)' (zReport) = GROUP SUM sumPositiveCashPayment(Receipt r) BY zReport(r) IN documentSum;
-sumNegativeCashPayment 'Сумма возврата (наличные)' (zReport) = GROUP SUM sumNegativeCashPayment(Receipt r) BY zReport(r) PERSISTENT IN documentSum  @@denomination;
+sumNegativeCashPayment 'Сумма возврата (наличные)' (zReport) = GROUP SUM sumNegativeCashPayment(Receipt r) BY zReport(r) PERSISTENT IN documentSum;
 
 sumPositiveCardPayment 'Сумма продажа (карточка)' (zReport) = GROUP SUM sumPositiveCardPayment(Receipt r) BY zReport(r) IN documentSum;
-sumNegativeCardPayment 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPayment(Receipt r) BY zReport(r) PERSISTENT IN documentSum @@denomination;
+sumNegativeCardPayment 'Сумма возврата (карточка)' (zReport) = GROUP SUM sumNegativeCardPayment(Receipt r) BY zReport(r) PERSISTENT IN documentSum;
 
 isSumPaymentReceipt 'Выключать ограничения по суммам платежей в чеке' = DATA BOOLEAN ();
 
@@ -585,15 +585,15 @@ CONSTRAINT ((sumReceiptDetail(Receipt receipt) > 0 AND sumReceiptDetail(receipt)
 
 quantityReceiptDetail 'Кол-во (всего)' (zReport) = GROUP SUM signedQuantity(ReceiptDetail detail) BY zReport(detail) IN documentSum PERSISTENT;
 
-sumReceiptDetail 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum @@denomination;
+sumReceiptDetail 'Сумма Z-отчета' (zReport) = GROUP SUM sumReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
 
-sumCash 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPayment(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum @@denomination;
-sumCard 'Сумма по карточкам Z-отчета' (zReport) = GROUP SUM sumCardPayment(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum @@denomination;
+sumCash 'Сумма наличных Z-отчета' (zReport) = GROUP SUM sumCashPayment(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
+sumCard 'Сумма по карточкам Z-отчета' (zReport) = GROUP SUM sumCardPayment(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
 
 sumSkuReceiptDetail 'Сумма Z-отчета по sku' (zReport) = GROUP SUM sumSkuReceiptDetail(Receipt receipt) BY zReport(receipt);
 
-discountSumReceiptDetail 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum @@denomination;
-discountSumReceipt 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSum(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum @@denomination;
+discountSumReceiptDetail 'Сумма скидок Z-отчета' (zReport) = GROUP SUM discountSumReceiptDetail(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
+discountSumReceipt 'Сумма скидок по чекам Z-отчета' (zReport) = GROUP SUM discountSum(Receipt receipt) BY zReport(receipt) PERSISTENT IN documentSum;
 discountSum 'Сумма скидок Z-отчета' (ZReport zReport) = discountSumReceiptDetail(zReport) (+) discountSumReceipt(zReport) IN documentSum;
 
 sumCashZReport 'Сумма наличных по кассе' = GROUP SUM sumCash(ZReport z) BY cashRegister(z); 
@@ -603,7 +603,7 @@ sumCardZReport 'Сумма безнал. по кассе' = GROUP SUM sumCard(ZR
 sumVATSkuReceiptDetail 'Сумма НДС по sku' (zReport) = GROUP SUM signedSumVAT(ReceiptDetail detail)
     IF sku(detail) BY zReport(detail);
 sumVATReceiptDetail'Сумма НДС' (receipt) = GROUP SUM signedSumVAT(ReceiptDetail detail)
-    BY receipt(detail) PERSISTENT @@denomination; 
+    BY receipt(detail) PERSISTENT; 
 sumVATReceiptDetail 'Сумма НДС' (zReport) = GROUP SUM sumVATReceiptDetail(Receipt receipt)
     BY zReport(receipt) IN documentSum;            
 

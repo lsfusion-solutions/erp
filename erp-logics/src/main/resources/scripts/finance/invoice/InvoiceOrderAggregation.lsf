@@ -149,21 +149,21 @@ META defineInvoiceOrder(sign, NS)
 
     priceListType(OrderInvoiceDetail detail) += priceListType(orderDetail(detail));
 
-    sumInvoice 'Сумма' = DATA NUMERIC[18,4] (UserOrderDetail)  @@denominationCurrency;
+    sumInvoice 'Сумма' = DATA NUMERIC[18,4] (UserOrderDetail);
     sumInvoice 'Сумма' = ABSTRACT NUMERIC[18,4] (OrderDetail);
     sumInvoice(UserOrderDetail d) += sumInvoice(d);
     
     sumInvoice (UserOrderDetail orderDetail) <- NUMERIC[18,4](round(invoiceQuantity[OrderDetail](orderDetail) * price[OrderDetail](orderDetail), currency[OrderDetail](orderDetail)))
                     WHEN DO CHANGED(invoiceQuantity[OrderDetail](orderDetail)) OR CHANGED (price[OrderDetail](orderDetail)) OR CHANGED(currency[OrderDetail](orderDetail));  
 
-    VATSumInvoice 'Сумма НДС'  = DATA NUMERIC[18,4] (UserOrderDetail) @@denominationCurrency;
+    VATSumInvoice 'Сумма НДС'  = DATA NUMERIC[18,4] (UserOrderDetail);
     VATSumInvoice 'Сумма НДС'  = ABSTRACT NUMERIC[18,4] (OrderDetail);
     VATSumInvoice(UserOrderDetail d) += VATSumInvoice(d);
     
     VATSumInvoice (UserOrderDetail orderDetail)  <- round((sumInvoice[OrderDetail](orderDetail) * calcValueVAT[OrderDetail] (orderDetail) / 100), currency[OrderDetail](orderDetail))
                     WHEN DO CHANGED(sumInvoice[OrderDetail](orderDetail)) OR CHANGED (calcValueVAT[OrderDetail] (orderDetail)) OR CHANGED (currency[OrderDetail] (orderDetail));
     
-    invoiceSumInvoice 'Сумма с НДС'  = DATA NUMERIC[18,4] (UserOrderDetail) @@denominationCurrency;
+    invoiceSumInvoice 'Сумма с НДС'  = DATA NUMERIC[18,4] (UserOrderDetail);
     invoiceSumInvoice 'Сумма с НДС'  = ABSTRACT NUMERIC[18,4] (OrderDetail);
     invoiceSumInvoice(UserOrderDetail d) += invoiceSumInvoice(d);
     

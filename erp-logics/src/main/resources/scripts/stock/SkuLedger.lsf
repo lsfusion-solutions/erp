@@ -79,7 +79,7 @@ sidOrigin2Country (Batch batch) = sidOrigin2(country(batch));
 stock (batch) = ABSTRACT Stock (Batch) PERSISTENT INDEXED ;
 nameStock 'Склад' (Batch batch) = name(stock(batch));
 
-cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) PERSISTENT @@denomination;
+cost 'Себестоимость' (batch) = ABSTRACT NUMERIC[16,4] (Batch) PERSISTENT;
 prevCost 'Себестоимость' (Batch batch) = PREV(cost(batch));
 
 description 'Описание' (batch) = ABSTRACT VARISTRING[200] (Batch) PERSISTENT IN recognize MINCHARWIDTH 30 PREFCHARWIDTH 60;
@@ -254,10 +254,10 @@ sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (InSkuLedger);
 sum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (OutSkuLedger);
 
 sum 'Сумма' = MULTI sum[InSkuLedger](SkuLedger ledger),
-                             sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
+                             sum[OutSkuLedger](ledger) PERSISTENT;
                               
 signedSum 'Сумма' (SkuLedger ledger) = MULTI sum[InSkuLedger](ledger),
-                                            -sum[OutSkuLedger](ledger) PERSISTENT @@denomination;
+                                            -sum[OutSkuLedger](ledger) PERSISTENT;
                                             
 signedPrice 'Цена' (SkuLedger ledger)= NUMERIC[18,4](signedSum(ledger) / signedQuantity(ledger));                                            
 
@@ -467,21 +467,21 @@ META defineSkuLedgerBalanceProperties(postfix, caption)
     balanceB 'Остаток (до)' (SkuLedger ledger) = balanceB(sku(ledger), stock(ledger), dateTime(ledger));
     // ---------------------------- Суммы по товару -------------------------------- //
 
-    signedSumActive(SkuLedger ledger) = signedSum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT @@denomination;
+    signedSumActive(SkuLedger ledger) = signedSum(ledger) IF isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
     currentSum 'Сумма остатка'###caption (sku, stock) =
         GROUP SUM signedSumActive(SkuLedger ledger) BY sku(ledger), stock(ledger) PERSISTENT;
     //-- по дате
     sumInActive(InSkuLedger ledger) = sum(ledger) IF active(ledger);
     sumIn (sku, stock, date) =
-        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
+        GROUP SUM sumInActive(InSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
 
     sumOutActive(OutSkuLedger ledger)  = sum(ledger) IF active(ledger);
     sumOut (sku, stock, date) =
-        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT @@denomination;
+        GROUP SUM sumOutActive(OutSkuLedger ledger) BY sku(ledger), stock(ledger), date(ledger) PERSISTENT;
 
     signedSum (Sku sku, Stock stock, DATE date) = sumIn(sku, stock, date)
                                                                (-)
-                                                               sumOut(sku, stock, date) PERSISTENT @@denomination;
+                                                               sumOut(sku, stock, date) PERSISTENT;
 
     // без учета текущей даты/времени
     sumB 'Сумма на начало дня'###caption (Sku sku, Stock stock, DATE date) = currentSum(sku, stock)
