@@ -187,12 +187,11 @@ public class InventoryTechHandler extends TerminalHandler {
 
                                 TerminalInfo terminal = directoryMachineryMap.get(directory);
                                 Integer numberGroup = terminal == null ? null : terminal.numberGroup;
-                                String denominationStage = terminal == null ? null : terminal.denominationStage;
 
                                 String idBarcode = getDBFFieldValue(dbfFile, "ARTICUL", charset);
                                 String name = getDBFFieldValue(dbfFile, "NAME", charset);
                                 String number = getDBFFieldValue(dbfFile, "NOMPOS", charset);
-                                BigDecimal price = denominateDivideType2(getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset), denominationStage);
+                                BigDecimal price = getDBFBigDecimalFieldValue(dbfFile, "PRICE", charset);
                                 BigDecimal quantity = getDBFBigDecimalFieldValue(dbfFile, "QUAN", charset);
                                 BigDecimal sum = HandlerUtils.safeMultiply(price, quantity);
                                 String idDocument = numberGroup + "/" + idDoc + "/" + dateTime;
@@ -318,7 +317,7 @@ public class InventoryTechHandler extends TerminalHandler {
                                 putField(dbfWriter, ARTICUL, trim(item.idBarcode, 15), append);
                                 putField(dbfWriter, NAME, trim(item.name, 200), append);
                                 putField(dbfWriter, QUAN, String.valueOf(item.quantity == null ? 1 : item.quantity.intValue()), append);
-                                putField(dbfWriter, PRICE, String.valueOf(item.price == null ? 0 : denominateMultiplyType2(item.price, transaction.denominationStage)), append);
+                                putField(dbfWriter, PRICE, String.valueOf(item.price == null ? 0 : item.price), append);
 
                                 if (recordNumber != null)
                                     dbfWriter.update();

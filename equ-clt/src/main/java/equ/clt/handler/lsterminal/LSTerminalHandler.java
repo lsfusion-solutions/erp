@@ -88,10 +88,10 @@ public class LSTerminalHandler extends TerminalHandler {
                     connection = DriverManager.getConnection("jdbc:sqlite:" + makeDBPath(machinery.directory + dbPath, machinery.numberGroup));
 
                     createGoodsTableIfNotExists(connection);
-                    updateTerminalGoodsTable(connection, terminalOrderList, machinery.denominationStage);
+                    updateTerminalGoodsTable(connection, terminalOrderList);
 
                     createOrderTable(connection);
-                    updateOrderTable(connection, terminalOrderList, machinery.denominationStage);
+                    updateOrderTable(connection, terminalOrderList);
                 } finally {
                     if(connection != null)
                         connection.close();
@@ -231,8 +231,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                 Connection connection = null;
                                 try {
                                     connection = DriverManager.getConnection("jdbc:sqlite:" + file.getAbsolutePath());
-                                    String denominationStage = directoryEntry.getValue() == null ? null : directoryEntry.getValue().denominationStage;
-                                    List<List<Object>> dokData = readDokFile(connection, denominationStage);
+                                    List<List<Object>> dokData = readDokFile(connection);
 
                                     for (List<Object> entry : dokData) {
 
@@ -247,7 +246,7 @@ public class LSTerminalHandler extends TerminalHandler {
                                         String idTerminalHandbookType2 = (String) entry.get(4); //ANA2
                                         String barcode = (String) entry.get(5); //BARCODE
                                         BigDecimal quantity = (BigDecimal) entry.get(6); //QUANT
-                                        BigDecimal price = denominateDivideType2((BigDecimal) entry.get(7), denominationStage); //PRICE
+                                        BigDecimal price = (BigDecimal) entry.get(7); //PRICE
                                         String numberDocumentDetail = (String) entry.get(8); //npp
                                         String commentDocument = (String) entry.get(9); //PRIM
                                         BigDecimal sum = HandlerUtils.safeMultiply(quantity, price);
@@ -279,7 +278,7 @@ public class LSTerminalHandler extends TerminalHandler {
         }
     }
 
-    private List<List<Object>> readDokFile(Connection connection, String denominationStage) throws SQLException {
+    private List<List<Object>> readDokFile(Connection connection) throws SQLException {
 
         List<List<Object>> itemsList = new ArrayList<>();
 
@@ -311,7 +310,7 @@ public class LSTerminalHandler extends TerminalHandler {
         while (resultSet.next()) {
             String barcode = resultSet.getString("barcode");
             BigDecimal quantity = new BigDecimal(resultSet.getDouble("quant"));
-            BigDecimal price = denominateDivideType2(new BigDecimal(resultSet.getDouble("price")), denominationStage);
+            BigDecimal price = new BigDecimal(resultSet.getDouble("price"));
             Integer npp = resultSet.getInt("npp");
             npp = npp == 0 ? count : npp;
             count++;
@@ -459,14 +458,14 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
     }
 
-    private void updateTerminalGoodsTable(Connection connection, List<TerminalOrder> terminalOrderList, String denominationStage) throws SQLException {
+    private void updateTerminalGoodsTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
         if (listNotEmpty(terminalOrderList)) {
             Statement statement = connection.createStatement();
             String sql = "BEGIN TRANSACTION;";
             for (TerminalOrder order : terminalOrderList) {
                 if (order.barcode != null)
                     sql += String.format("INSERT OR IGNORE INTO goods VALUES('%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s', '%s');",
-                            formatValue(order.barcode), formatValue(order.name), formatValue(denominateMultiplyType2(order.price, denominationStage)), "", "", "", "", "", "", "", "");
+                            formatValue(order.barcode), formatValue(order.name), formatValue(order.price), "", "", "", "", "", "", "", "");
             }
             sql += "COMMIT;";
             statement.executeUpdate(sql);
@@ -491,7 +490,7 @@ public class LSTerminalHandler extends TerminalHandler {
                     if (item.idBarcode != null) {
                         statement.setObject(1, formatValue(item.idBarcode));
                         statement.setObject(2, formatValue(item.name));
-                        statement.setObject(3, formatValue(denominateMultiplyType2(item.price, transaction.denominationStage)));
+                        statement.setObject(3, formatValue(item.price));
                         statement.setObject(4, formatValue(item.quantity));
                         statement.setObject(5, formatValue(item.image));
                         statement.setObject(6, item.passScalesItem ? "1" : "0");
@@ -562,7 +561,7 @@ public class LSTerminalHandler extends TerminalHandler {
         statement.close();
     }
 
-    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList, String denominationStage) throws SQLException {
+    private void updateOrderTable(Connection connection, List<TerminalOrder> terminalOrderList) throws SQLException {
         if (listNotEmpty(terminalOrderList)) {
 
             PreparedStatement statement = null;
@@ -578,11 +577,11 @@ public class LSTerminalHandler extends TerminalHandler {
                         statement.setObject(3,supplier);
                         statement.setObject(4,formatValue(order.barcode));
                         statement.setObject(5,formatValue(order.quantity));
-                        statement.setObject(6,formatValue(denominateMultiplyType2(order.price, denominationStage)));
+                        statement.setObject(6,formatValue(order.price));
                         statement.setObject(7,formatValue(order.minQuantity));
                         statement.setObject(8,formatValue(order.maxQuantity));
-                        statement.setObject(9,formatValue(denominateMultiplyType2(order.minPrice, denominationStage)));
-                        statement.setObject(10,formatValue(denominateMultiplyType2(order.maxPrice, denominationStage)));
+                        statement.setObject(9,formatValue(order.minPrice));
+                        statement.setObject(10,formatValue(order.maxPrice));
                         statement.addBatch();
                     }
                 }
