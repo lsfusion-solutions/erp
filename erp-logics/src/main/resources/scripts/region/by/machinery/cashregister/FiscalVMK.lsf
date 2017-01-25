@@ -4,8 +4,13 @@ REQUIRE System,
         POS;
 
 
-needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer();
-onClientStarted() += ACTION IF needDLL() THEN loadLibrary('lib/win32/vmkd.dll');
+needDLL() = GROUP SUM 1 IF computer(CashRegister c) == currentComputer() AND sidModel(groupMachinery(c)) == 'VMK';
+onClientStarted() += ACTION IF needDLL() THEN {
+    IF is64Java(currentComputer()) THEN
+        loadLibrary('lib/win64/vmkd.dll')
+    ELSE
+        loadLibrary('lib/win32/vmkd.dll');
+};
 
 fiscalVMKPrint 'Напечатать фискальный чек' = ACTION CUSTOM 'lsfusion.erp.region.by.machinery.cashregister.fiscalvmk.FiscalVMKPrintReceiptActionProperty' (Receipt);
 postPrint(Receipt receipt) += ACTION IF sidCashRegisterModel(receipt) == 'VMK' THEN fiscalVMKPrint(receipt);
