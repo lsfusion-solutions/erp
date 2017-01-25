@@ -173,7 +173,7 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
 
                                     pluCashDBFWriter.addRecord(new Object[]{HandlerUtils.trim(item.idBarcode, 30), HandlerUtils.trim(item.name, 80), mesuriment, mespresisi, null, null,
                                             null, null, null, null, "NOSIZE", group1, group2, group3, group4, group5,
-                                            denominateMultiplyType2(item.price, transaction.denominationStage), null, 0, null, 1, transaction.date, null, null});
+                                            item.price, null, 0, null, 1, transaction.date, null, null});
                                 }
                             }
                         }
@@ -251,13 +251,11 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                     importDiscFile.read();
 
                     String numberCashRegister = getDBFFieldValue(importDiscFile, "CASHNUMBER", defaultCharset);
-                    CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
-                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
                     String zNumber = getDBFFieldValue(importDiscFile, "ZNUMBER", defaultCharset);
                     Integer receiptNumber = getDBFIntegerFieldValue(importDiscFile, "CHECKNUMBE", defaultCharset);
                     Integer numberReceiptDetail = getDBFIntegerFieldValue(importDiscFile, "ID", defaultCharset);
-                    BigDecimal discountSum = denominateDivideType2(getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTCU", defaultCharset), denominationStage);
+                    BigDecimal discountSum = getDBFBigDecimalFieldValue(importDiscFile, "DISCOUNTCU", defaultCharset);
 
                     String sid = numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail;
                     BigDecimal tempSum = discountMap.get(sid);
@@ -301,7 +299,6 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                     String numberCashRegister = getDBFFieldValue(importSailFile, "CASHNUMBER", defaultCharset);
                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                     Integer numberGroup = cashRegister == null ? null : cashRegister.numberGroup;
-                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
                     String zNumber = getDBFFieldValue(importSailFile, "ZNUMBER", defaultCharset);
                     Integer receiptNumber = getDBFIntegerFieldValue(importSailFile, "CHECKNUMBE", defaultCharset);
@@ -312,8 +309,8 @@ public class UKM4Handler extends DefaultCashRegisterHandler<UKM4SalesBatch> {
                     Time time = new Time(DateUtils.parseDate(timeString, new String[]{"HHmm"}).getTime());
                     String barcodeReceiptDetail = getDBFFieldValue(importSailFile, "CARDARTICU", defaultCharset);
                     BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "QUANTITY", defaultCharset);
-                    BigDecimal priceReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset), denominationStage);
-                    BigDecimal sumReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset), denominationStage);
+                    BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "PRICERUB", defaultCharset);
+                    BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(importSailFile, "TOTALRUB", defaultCharset);
                     BigDecimal discountSumReceiptDetail = discountMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber + "_" + numberReceiptDetail);
                     String discountCardNumber = discountCardMap.get(numberCashRegister + "_" + zNumber + "_" + receiptNumber);
 

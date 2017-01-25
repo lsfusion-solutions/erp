@@ -234,7 +234,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                                     }
 
                                                     if (lastPrice == null || !lastPrice.equals(item.price)) {
-                                                        putField(dbfFile, PRICE, String.valueOf(denominateMultiplyType2(item.price, transaction.denominationStage)), append);
+                                                        putField(dbfFile, PRICE, String.valueOf(item.price), append);
                                                         lastPrice = item.price;
                                                     }
 
@@ -403,13 +403,6 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         machineryExchangeLogger.info("HTCHandler: sending PromotionInfo");
         try {
 
-            Map<String, CashRegisterInfo> directoryCashRegisterMap = new HashMap<>();
-            for (CashRegisterInfo c : requestExchange.cashRegisterSet) {
-                if (c.directory != null && c.number != null && c.handlerModel != null && c.handlerModel.endsWith("HTCHandler")) {
-                    directoryCashRegisterMap.put(c.directory + "_" + c.number, c);
-                }
-            }
-
             File cachedTimeFile = null;
             File cachedQuantityFile = null;
             File cachedSumFile = null;
@@ -418,9 +411,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
 
                 cachedTimeFile = sendPromotionTimeFile(promotionInfo.promotionTimeList, directory, cachedTimeFile);
                 cachedQuantityFile = sendPromotionQuantityFile(promotionInfo.promotionQuantityList, directory, cachedQuantityFile);
-                CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory);
-                String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
-                cachedSumFile = sendPromotionSumFile(promotionInfo.promotionSumList, directory, cachedSumFile, denominationStage);
+                cachedSumFile = sendPromotionSumFile(promotionInfo.promotionSumList, directory, cachedSumFile);
                 
             }
             
@@ -522,7 +513,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         } else return null;
     }
 
-    private File sendPromotionSumFile(List<PromotionSum> promotionSumList, String directory, File cachedSumFile, String denominationStage) throws IOException, xBaseJException {
+    private File sendPromotionSumFile(List<PromotionSum> promotionSumList, String directory, File cachedSumFile) throws IOException, xBaseJException {
         if (promotionSumList != null && !promotionSumList.isEmpty()) {
             File sumFile = new File(directory + "/Sumnew.dbf");
             if (cachedSumFile != null) {
@@ -540,7 +531,7 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                     dbfFile.addField(new Field[]{SUM, PERCENT, ISSTOP});
 
                     for (PromotionSum promotionSum : promotionSumList) {
-                        putField(dbfFile, SUM, promotionSum.sum == null ? null : String.valueOf(denominateMultiplyType2(promotionSum.sum, denominationStage)), false);
+                        putField(dbfFile, SUM, promotionSum.sum == null ? null : String.valueOf(promotionSum.sum), false);
                         putField(dbfFile, PERCENT, promotionSum.percent == null ? null : String.valueOf(promotionSum.percent.doubleValue()), false);
                         putField(dbfFile, ISSTOP, promotionSum.isStop ? "T" : "F", false);
                         dbfFile.write();
@@ -623,7 +614,6 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
         CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory);
         Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
         Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-        String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
         List<SalesInfo> salesInfoList = new ArrayList<>();
         List<String> filePathList = new ArrayList<>();
@@ -703,8 +693,8 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                             receiptDBFFile.read();
                             if (!receiptDBFFile.deleted()) {
                                 Integer numberReceipt = getDBFIntegerFieldValue(receiptDBFFile, "NUMDOC", charset);
-                                BigDecimal sumCash = denominateDivideType2(getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset), denominationStage);
-                                BigDecimal sumCard = denominateDivideType2(getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset), denominationStage);
+                                BigDecimal sumCash = getDBFBigDecimalFieldValue(receiptDBFFile, "COST1", charset);
+                                BigDecimal sumCard = getDBFBigDecimalFieldValue(receiptDBFFile, "COST2", charset);
                                 String idDiscountCard = getDBFFieldValue(receiptDBFFile, "CODEKLIENT", charset);
                                 receiptMap.put(numberReceipt, Arrays.asList((Object) sumCash, sumCard, idDiscountCard));
                             }
@@ -743,10 +733,10 @@ public class HTCHandler extends DefaultCashRegisterHandler<HTCSalesBatch> {
                                     }
 
                                     BigDecimal quantityReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COUNT", charset);
-                                    BigDecimal priceReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "PRICE", charset), denominationStage);
-                                    BigDecimal sumReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset), denominationStage);
-                                    BigDecimal discountSumReceiptDetail = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset), denominationStage);
-                                    BigDecimal discountSumReceipt = denominateDivideType2(getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset), denominationStage);
+                                    BigDecimal priceReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "PRICE", charset);
+                                    BigDecimal sumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "COST", charset);
+                                    BigDecimal discountSumReceiptDetail = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_ON", charset);
+                                    BigDecimal discountSumReceipt = getDBFBigDecimalFieldValue(salesDBFFile, "SUMDISC_OF", charset);
                                     discountSumReceiptDetail = HandlerUtils.safeAdd(discountSumReceiptDetail, discountSumReceipt);
 
                                     Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);

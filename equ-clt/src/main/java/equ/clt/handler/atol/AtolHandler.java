@@ -101,7 +101,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             if (!Thread.currentThread().isInterrupted()) {
                                 String idItemGroup = item.idItemGroup == null ? "" : item.idItemGroup;
                                 String record = format(item.idItem, ";") + format(item.idBarcode, ";") + format(item.name, 100, ";") + //3
-                                        format(item.name, 100, ";") + format(denominateMultiplyType2(item.price, transaction.denominationStage), ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
+                                        format(item.name, 100, ";") + format(item.price, ";") + ";;" + formatFlags(item.splitItem ? "1" : "0", ";") + //8
                                         ";;;;;;;" + format(idItemGroup, ";") + "1;" + ";;;;;;;;;;;;;;;;;;;;;;;;;" +
                                         (transaction.nppGroupMachinery == null ? "1" : transaction.nppGroupMachinery) + ";";
                                 goodsWriter.println(record);
@@ -379,9 +379,8 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                                     Time timeReceipt = getTimeValue(entry, 2);
                                     Integer numberCashRegister = getIntValue(entry, 4);
                                     CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
-                                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
                                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                                    BigDecimal sumCashDocument = denominateDivideType2(isOutputCashDocument ? HandlerUtils.safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11), denominationStage);
+                                    BigDecimal sumCashDocument = isOutputCashDocument ? HandlerUtils.safeNegate(getBigDecimalValue(entry, 11)) : getBigDecimalValue(entry, 11);
                                     currentResult.add(new CashDocument(numberCashDocument, numberCashDocument, dateReceipt, timeReceipt,
                                             nppGroupMachinery, numberCashRegister, sumCashDocument));
 
@@ -463,10 +462,6 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                         Integer numberReceiptDetail = getIntValue(entry, 0);
 
-                        Integer numberCashRegisterPayment = getIntValue(entry, 4);
-                        CashRegisterInfo cashRegisterPayment = directoryCashRegisterMap.get(directory + "_" + numberCashRegisterPayment);
-                        String denominationStagePayment = cashRegisterPayment == null ? null : cashRegisterPayment.denominationStage;
-
                         Integer numberReceipt = getIntValue(entry, 5);
                         String documentType = getStringValue(entry, 22);
 
@@ -474,7 +469,7 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
                             for (SalesInfo salesInfo : currentSalesInfoList) {
                                 if (salesInfo.numberReceipt != null && numberReceipt != null && salesInfo.numberReceipt.equals(numberReceipt)) {
                                     Integer paymentType = getIntValue(entry, 8);
-                                    BigDecimal sum = denominateDivideType2(getBigDecimalValue(entry, 9), denominationStagePayment);
+                                    BigDecimal sum = getBigDecimalValue(entry, 9);
                                     if (paymentType != null) {
                                         switch (paymentType) {
                                             case 2:
@@ -497,17 +492,16 @@ public class AtolHandler extends DefaultCashRegisterHandler<AtolSalesBatch> {
 
                             CashRegisterInfo cashRegister = directoryCashRegisterMap.get(directory + "_" + numberCashRegister);
                             Date startDate = cashRegister == null ? null : cashRegister.startDate;
-                            String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
                             Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
 
                             Integer itemObject = getIntValue(entry, 7);
-                            BigDecimal priceReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 9), denominationStage);
+                            BigDecimal priceReceiptDetail = getBigDecimalValue(entry, 9);
                             BigDecimal quantityReceiptDetail = getBigDecimalValue(entry, 10);
-                            BigDecimal sumReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 11), denominationStage);
+                            BigDecimal sumReceiptDetail = getBigDecimalValue(entry, 11);
                             String numberZReport = getStringValue(entry, 13);
-                            BigDecimal discountedSumReceiptDetail = denominateDivideType2(getBigDecimalValue(entry, 14), denominationStage);
-                            BigDecimal discountSumReceiptDetail = denominateDivideType2(HandlerUtils.safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
-                                    HandlerUtils.safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail), denominationStage);
+                            BigDecimal discountedSumReceiptDetail = getBigDecimalValue(entry, 14);
+                            BigDecimal discountSumReceiptDetail = HandlerUtils.safeSubtract(sumReceiptDetail, sumReceiptDetail.compareTo(BigDecimal.ZERO) < 0 ?
+                                    HandlerUtils.safeNegate(discountedSumReceiptDetail) : discountedSumReceiptDetail);
                             String barcodeItem = getStringValue(entry, 18);
 
                             if (dateReceipt == null || startDate == null || dateReceipt.compareTo(startDate) >= 0)
