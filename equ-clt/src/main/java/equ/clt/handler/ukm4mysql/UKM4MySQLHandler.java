@@ -119,11 +119,11 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             version++;
                             if (!skipBarcodes) {
                                 processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_var", transaction.id));
-                                exportPriceListVar(conn, transaction, weightCode, version, transaction.denominationStage);
+                                exportPriceListVar(conn, transaction, weightCode, version);
                             }
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table pricelist_items", transaction.id));
-                            exportPriceListItems(conn, transaction, useBarcodeAsId, appendBarcode, version, transaction.denominationStage);
+                            exportPriceListItems(conn, transaction, useBarcodeAsId, appendBarcode, version);
 
                             processTransactionLogger.info(String.format("ukm4 mysql: transaction %s, table signal", transaction.id));
                             exportSignals(conn, transaction, version, false, timeout, false);
@@ -359,7 +359,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportPriceListItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version, String denominationStage) throws SQLException {
+    private void exportPriceListItems(Connection conn, TransactionCashRegisterInfo transaction, boolean useBarcodeAsId, boolean appendBarcode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -371,9 +371,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 for (CashRegisterItemInfo item : transaction.itemsList) {
                     ps.setInt(1, transaction.nppGroupMachinery); //pricelist
                     ps.setString(2, getId(item, useBarcodeAsId, appendBarcode)); //item
-                    ps.setBigDecimal(3, denominateMultiplyType2(item.price, denominationStage)); //price
+                    ps.setBigDecimal(3, item.price); //price
                     BigDecimal minPrice = item.flags == null || ((item.flags & 16) == 0) ? item.price : item.minPrice != null ? item.minPrice : BigDecimal.ZERO;
-                    ps.setBigDecimal(4, denominateMultiplyType2(minPrice, denominationStage)); //minprice
+                    ps.setBigDecimal(4, minPrice); //minprice
                     ps.setInt(5, version); //version
                     ps.setInt(6, 0); //deleted
                     ps.addBatch();
@@ -389,7 +389,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version, String denominationStage) throws SQLException {
+    private void exportPriceListVar(Connection conn, TransactionCashRegisterInfo transaction, String weightCode, int version) throws SQLException {
         if (transaction.itemsList != null) {
             conn.setAutoCommit(false);
             PreparedStatement ps = null;
@@ -402,7 +402,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     if (barcode != null) {
                         ps.setInt(1, transaction.nppGroupMachinery); //pricelist
                         ps.setString(2, HandlerUtils.trim(barcode, 40)); //var
-                        ps.setBigDecimal(3, denominateMultiplyType2(item.price, denominationStage)); //price
+                        ps.setBigDecimal(3, item.price); //price
                         ps.setInt(4, version); //version
                         ps.setInt(5, 0); //deleted
                         ps.addBatch();
@@ -899,7 +899,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                     Integer cash_id = rs.getInt(3); //i.cash_id
                     CashRegisterInfo cashRegister = machineryMap.get(cash_id);
                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
                     //Integer id = rs.getInt(4); //i.id
                     Integer idReceipt = rs.getInt(5); //i.receipt_header
@@ -909,10 +908,10 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         idBarcode = idBarcode.substring(2, 7);
                     String idItem = useBarcodeAsId && appendBarcode ? appendCheckDigitToBarcode(rs.getString(7), 5) : rs.getString(7); //i.item
                     BigDecimal totalQuantity = rs.getBigDecimal(8); //i.total_quantity
-                    BigDecimal price = rs.getBigDecimal(9) == null ? null : denominateDivideType2(rs.getBigDecimal(9), denominationStage); //i.price
-                    BigDecimal sum = rs.getBigDecimal(10) == null ? null : denominateDivideType2(rs.getBigDecimal(10), denominationStage); //i.total
+                    BigDecimal price = rs.getBigDecimal(9) == null ? null : rs.getBigDecimal(9); //i.price
+                    BigDecimal sum = rs.getBigDecimal(10) == null ? null : rs.getBigDecimal(10); //i.total
                     Integer position = rs.getInt(11) + 1;
-                    BigDecimal realAmount = rs.getBigDecimal(12) == null ? null : denominateDivideType2(rs.getBigDecimal(12), denominationStage); //i.real_amount
+                    BigDecimal realAmount = rs.getBigDecimal(12) == null ? null : rs.getBigDecimal(12); //i.real_amount
                     String idSection = rs.getString(13);
 
                     Payment paymentEntry = paymentMap.get(cash_id + "/" + idReceipt);
@@ -934,11 +933,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         if (isGiftCard)
                             idBarcode = giftCardValue;
 
-                        BigDecimal sumCash = denominateDivideType2(paymentEntry.sumCash, denominationStage);
-                        BigDecimal sumCard = denominateDivideType2(paymentEntry.sumCard, denominationStage);
                         Map<String, BigDecimal> sumGiftCardMap = new HashMap<>();
                         for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
-                            sumGiftCardMap.put(entry.getKey(), denominateDivideType2(entry.getValue(), denominationStage));
+                            sumGiftCardMap.put(entry.getKey(), entry.getValue());
                         }
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;
@@ -946,7 +943,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         if (totalQuantity != null) {
                             salesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, cash_id, numberZReport,
                                     dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt, null/*idEmployee*/,
-                                    null, null, sumCard, sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
+                                    null, null, paymentEntry.sumCard, paymentEntry.sumCash, sumGiftCardMap, idBarcode, idItem, null, null, totalQuantity,
                                     price, isSale ? realAmount : realAmount.negate(), discountSumReceiptDetail, null, null,
                                     position, null, idSection));
                             receiptSet.add(Pair.create(idReceipt, cash_id));

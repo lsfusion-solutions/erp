@@ -391,7 +391,7 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             putField(dbfFile, CEDOCCOD, "Прайс-лист", 25, append); //константа
             putNumField(dbfFile, NEOPLOS, -1, append); //остаток не контролируется
             putField(dbfFile, CECUCOD, cashRegister.section, 25, append); //секция, "600358416 MF"
-            putField(dbfFile, CEOPCURO, getCurrencyCode(transaction.denominationStage), 25, append); //валюта
+            putField(dbfFile, CEOPCURO, "BYN 933 1", 25, append); //валюта
             for (CashRegisterItemInfo item : transaction.itemsList) {
                 if (!Thread.currentThread().isInterrupted()) {
 
@@ -408,10 +408,9 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                         putField(dbfFile, CEOBIDE, barcode, 25, append);
                         putField(dbfFile, CEOBMEA, item.shortNameUOM, 25, append);
                         putField(dbfFile, MEOBNAM, trim(item.name, 100), 100, append);
-                        BigDecimal price = denominateMultiplyType2(item.price, transaction.denominationStage);
-                        putNumField(dbfFile, NERECOST, price, append);
-                        putNumField(dbfFile, NEOPPRIC, price, append);
-                        putNumField(dbfFile, NEOPPRIE, price, append);
+                        putNumField(dbfFile, NERECOST, item.price, append);
+                        putNumField(dbfFile, NEOPPRIC, item.price, append);
+                        putNumField(dbfFile, NEOPPRIE, item.price, append);
                         putNumField(dbfFile, NEOPNDS, item.vat, append);
                         putField(dbfFile, FORMAT, item.splitItem ? "999.999" : "999", 10, append);
                         putNumField(dbfFile, NEOBFREE, item.balance == null ? BigDecimal.ZERO : item.balance, append); //остаток
@@ -434,10 +433,6 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
             if (dbfFile != null)
                 dbfFile.close();
         }
-    }
-
-    private String getCurrencyCode(String denominationStage) {
-        return denominationStage != null && denominationStage.endsWith("after") ? "BYN 933 1" : "BYR 974 1";
     }
 
     private void putField(DBF dbfFile, Field field, String value, int length, boolean append) throws xBaseJException {
@@ -765,13 +760,12 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                     CashRegisterInfo cashRegister = sectionCashRegisterMap.get(section);
                     Integer nppMachinery = cashRegister == null ? null : cashRegister.number;
                     Integer nppGroupMachinery = cashRegister == null ? null : cashRegister.numberGroup;
-                    String denominationStage = cashRegister == null ? null : cashRegister.denominationStage;
 
                     BigDecimal quantityReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPEXP");
-                    BigDecimal priceReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPPRIC"), denominationStage);
-                    BigDecimal sumReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"), denominationStage);
-                    BigDecimal discountSum1ReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSDELC"), denominationStage);
-                    BigDecimal discountSum2ReceiptDetail = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPPDELC"), denominationStage);
+                    BigDecimal priceReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPPRIC");
+                    BigDecimal sumReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT");
+                    BigDecimal discountSum1ReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPSDELC");
+                    BigDecimal discountSum2ReceiptDetail = getJDBFBigDecimalFieldValue(rec, "NEOPPDELC");
                     BigDecimal discountSumReceiptDetail = HandlerUtils.safeNegate(HandlerUtils.safeAdd(discountSum1ReceiptDetail, discountSum2ReceiptDetail));
 
                     Integer numberReceiptDetail = numberReceiptDetailMap.get(numberReceipt);
@@ -798,14 +792,14 @@ public class BelCoopSoyuzHandler extends DefaultCashRegisterHandler<BelCoopSoyuz
                                 break;
                             case "ВСЕГО":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = denominateDivideType2(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"), denominationStage);
+                                    salesInfo.sumCash = getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT");
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
                                 break;
                             case "ВОЗВРАТ":
                                 for (SalesInfo salesInfo : curSalesInfoList) {
-                                    salesInfo.sumCash = denominateDivideType2(HandlerUtils.safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT")), denominationStage);
+                                    salesInfo.sumCash = HandlerUtils.safeNegate(getJDBFBigDecimalFieldValue(rec, "NEOPSUMCT"));
                                     salesInfoList.add(salesInfo);
                                 }
                                 curSalesInfoList = new ArrayList<>();
