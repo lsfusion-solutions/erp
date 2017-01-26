@@ -1,0 +1,71 @@
+MODULE ReceiptStockDocumentLedger;
+
+REQUIRE StockDocument, ZReport;
+
+//--
+CLASS RetailSales 'Розничные продажи';
+TABLE retailSales (RetailSales);
+
+sumReceiptDetail (stock,date) = GROUP SUM 
+    sumSkuReceiptDetail(ZReport z) IF isPosted(z) 
+    BY departmentStore(z), date(z);
+
+@defineAggregationClass (departmentStore, DepartmentStore, date, DATE, retailSales, RetailSales, sumReceiptDetail);
+dateTime 'Дата/время' (RetailSales o) =  toDateTime(date(o));
+time 'Время' (RetailSales o) = toTime(dateTime(o));
+
+nameDepartmentStore 'Отдел магазина' (RetailSales object) = name(departmentStore(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+fullNameDepartmentStore 'Отдел магазина' (RetailSales object) = fullName(departmentStore(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;  
+
+isPosted 'Проведен' (RetailSales o) = o IS RetailSales;
+isClosed 'Закрыт' (RetailSales o) = o IS RetailSales;
+
+description (RetailSales zReportRepricing) =
+    VARSTRING[200]('Розничные продажи за ' + date(zReportRepricing));
+
+EXTEND CLASS RetailSales : OutStockDocumentLedger;
+
+dateTime (RetailSales ledger) += dateTime(ledger);
+isPosted (RetailSales ledger) += isPosted(ledger);
+isClosed (RetailSales ledger) += isClosed(ledger);
+stock (RetailSales ledger) += departmentStore(ledger);
+description (RetailSales ledger) += description(ledger);
+
+type(RetailSales l) += 'Розничные продажи' IF l IS RetailSales;
+sumItem (RetailSales ledger) += sumReceiptDetail(departmentStore(ledger),date(ledger));
+sumContainer (RetailSales ledger) += 0.0 IF ledger IS RetailSales;
+skip (RetailSales ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
+
+
+// документ скидок для товарного отчета
+CLASS ZReportRepricing 'Скидка по кассе';
+TABLE zReportRepricing (ZReportRepricing);
+
+discountSum  (stock, date) = GROUP SUM discountSum(ZReport z) 
+    BY departmentStore(z), date(z);
+
+@defineAggregationClass (departmentStore, DepartmentStore, date, DATE, ZReportRepricing, ZReportRepricing, discountSum);
+dateTime 'Дата/время' (ZReportRepricing o) =  toDateTime(date(o));
+time 'Время' (ZReportRepricing o) = toTime(dateTime(o));
+
+nameDepartmentStore 'Отдел магазина' (ZReportRepricing object) = name(departmentStore(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;
+fullNameDepartmentStore 'Отдел магазина' (ZReportRepricing object) = fullName(departmentStore(object)) MINCHARWIDTH 20 PREFCHARWIDTH 40;  
+
+isPosted 'Проведен' (ZReportRepricing o) = o IS ZReportRepricing;
+isClosed 'Закрыт' (ZReportRepricing o) = o IS ZReportRepricing;
+
+description (ZReportRepricing zReportRepricing) =
+    VARSTRING[200]('Предоставленные скидки за ' + date(zReportRepricing));
+
+EXTEND CLASS ZReportRepricing : OutStockDocumentLedger;
+
+dateTime (ZReportRepricing ledger) += dateTime(ledger);
+isPosted (ZReportRepricing ledger) += isPosted(ledger);
+isClosed (ZReportRepricing ledger) += isClosed(ledger);
+stock (ZReportRepricing ledger) += departmentStore(ledger);
+description (ZReportRepricing ledger) += description(ledger);
+
+type(ZReportRepricing l) += 'Предоставленные скидки' IF l IS ZReportRepricing;
+sumItem (ZReportRepricing ledger) += discountSum(departmentStore(ledger),date(ledger));
+sumContainer (ZReportRepricing ledger) += 0.0 IF ledger IS ZReportRepricing;
+skip (ZReportRepricing ledger) += date(ledger) < startDateGroupCashRegister(departmentStore(ledger));
