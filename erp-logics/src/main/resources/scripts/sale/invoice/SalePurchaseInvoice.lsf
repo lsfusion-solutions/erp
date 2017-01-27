@@ -171,18 +171,24 @@ DESIGN userInvoice {
 //--  Связь поставки с поставкой
 
 notNullSaleReference 'Должна быть ссылка на расходную накладную' = DATA BOOLEAN (Purchase.Operation);
+equalsSkuSale 'Должны совпадать товары в приходной и расходной накладной' = DATA BOOLEAN (Purchase.Operation);
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) notNullSaleReference
+    PROPERTIES(o) notNullSaleReference, equalsSkuSale
 ;
 
 DESIGN Purchase.operation {
     createContainer {
         MOVE PROPERTY(notNullSaleReference(o));
+        MOVE PROPERTY(equalsSkuSale(o));
     }
 }
 
 CONSTRAINT notNullSaleReference(operation(Purchase.UserInvoiceDetail d)) AND NOT invoiceDetail(d)
     MESSAGE 'Для строки накладной (закупка) должна быть задана ссылка на строку накладной (продажа)'; 
+
+CONSTRAINT equalsSkuSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.sku(d) == sku(invoiceDetail(d))
+    CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail] 
+        MESSAGE 'Sku в строке накладной закупки и продажи должны совпадать'; 
 
 CONSTRAINT supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
            supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
