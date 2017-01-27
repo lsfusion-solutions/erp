@@ -399,6 +399,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetailSupplierCustomer(supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;   
 
     overCreate = ACTION ABSTRACT LIST (UserOrder);
+    overCreateDetail = ACTION ABSTRACT LIST (UserOrder);
     isRecommended = DATA LOCAL BOOLEAN (UserOrder);
     createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = ACTION NEWSESSION {
         isRecommended(o) <- NULL;
@@ -427,7 +428,8 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             IF defaultPriceListType(operation(o)) THEN
                 priceListType(o) <- defaultPriceListType(operation(o)); 
 
-            EXEC overCreate(o);
+            overCreate(o);
+            overCreateDetail(o);
 
             FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
         }

@@ -1,0 +1,33 @@
+MODULE PurchaseScheduleOrderSeparation;
+
+REQUIRE PurchaseScheduleOrder, PurchaseOrderSeparation;
+
+NAMESPACE Purchase;
+
+@defineDocumentHeaderSeparation(scheduleOrder);
+@defineDocumentDetailSeparation(scheduleOrder, scheduleOrderDetail);
+
+@deriveDocumentHeaderSeparation(scheduleOrder, supplier);
+
+EXTEND FORM scheduleOrder
+    PROPERTIES(s) nameSeparation
+;
+
+DESIGN scheduleOrder {
+    suppContainer {
+        MOVE PROPERTY(nameSeparation(s));
+    }
+}
+
+EXTEND FORM scheduleOrderDashboard
+    PROPERTIES(s) READONLY nameSeparation
+    PROPERTIES(ss) READONLY nameSeparation
+;
+
+EXTEND FORM scheduleOrderDetails
+    PROPERTIES(sd) READONLY nameSeparation
+;
+
+overCreate(UserOrder o) += ACTION {
+    separation(o) <- separation(scheduleOrderDetail(o)); 
+}

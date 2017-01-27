@@ -1,0 +1,145 @@
+MODULE PurchaseSeparation;
+
+REQUIRE LegalEntity, ItemManager;
+
+NAMESPACE Purchase;
+
+// 
+CLASS Separation 'Признак разделения';
+TABLE separation(Separation);
+
+@defineExternalizable(separation, VARSTRING[100]);
+
+name 'Наименование' = DATA VARISTRING[50](Separation);
+legalEntity = DATA LegalEntity (Separation) AUTOSET;
+nameLegalEntity 'Организация' (Separation s)= name(legalEntity(s)) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+FORM separation 'Признак разделения'
+    OBJECTS t=Separation FIXED PANEL
+    PROPERTIES(t) name, id SHOWIF showIDs(), nameLegalEntity
+    EDIT Separation OBJECT t
+;
+
+FORM separations 'Признаки разделения'
+    OBJECTS t=Separation
+    PROPERTIES(t) READONLY name, id READONLY SHOWIF showIDs(), nameLegalEntity
+    ORDER BY name(t)
+    DIALOG Separation OBJECT t
+;
+DESIGN separations { main{ preferredSize = (600, 400); } }
+
+TABLE brandLegalEntity(Brand, LegalEntity);
+
+separation = DATA  Separation(Brand, LegalEntity);
+nameSeparation 'Признак распределения' (Brand b, LegalEntity l) = name(separation(b, l));
+
+EXTEND CLASS Separation {
+    none 'Отсутствует'
+}
+
+//-- Выбор групп товара  
+TABLE legalEntitySkuGroup(LegalEntity, SkuGroup);   
+  
+dataSeparation  = DATA Separation (LegalEntity, SkuGroup);
+nameDataSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(dataSeparation(l,g));
+
+levelParentSeparation (supplier, skuGroup) = GROUP MIN level(SkuGroup skuGroup, SkuGroup parent) IF dataSeparation(LegalEntity supplier, parent)
+                                                              BY supplier, skuGroup PERSISTENT;    
+nearestParentSeparation (LegalEntity supplier, SkuGroup skuGroup) = skuGroup(skuGroup, levelParentSeparation(supplier, skuGroup));
+nearestSeparation (LegalEntity supplier, SkuGroup skuGroup) = dataSeparation(supplier, nearestParentSeparation (supplier, skuGroup));
+
+separation  (LegalEntity supplier, SkuGroup skuGroup) =
+    OVERRIDE nearestSeparation (supplier, skuGroup), 
+             dataSeparation(supplier, skuGroup) PERSISTENT;    
+nameSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(separation(l,g));
+        
+nullSeparation (LegalEntity l, Sku s) = OVERRIDE separation(l, skuGroup(s)), separation(brand(s), l);
+separation (LegalEntity l, Sku s) = OVERRIDE Separation.none IF l IS LegalEntity AND s IS Sku, nullSeparation(l, s);  
+nameSeparation 'Признак распределения' (LegalEntity l, Sku s) = name(separation(l,s));
+
+countSeparationSkuGroup  (supplier) = GROUP SUM 1 IF separation(LegalEntity supplier, SkuGroup sku) BY supplier;                       
+countSeparationSku (supplier) = GROUP SUM 1 IF separation(LegalEntity supplier, Sku sku) BY supplier;   
+
+
+CONSTRAINT dataSeparation (LegalEntity l, SkuGroup g) AND NOT legalEntity(dataSeparation (l, g)) == l  
+    CHECKED BY dataSeparation
+        MESSAGE 'Признак распределения, заданный для группы, должен действовать и для организации.';
+CONSTRAINT separation(Brand b, LegalEntity l) AND NOT legalEntity(separation(b, l)) == l  
+    CHECKED BY separation[Brand,LegalEntity]
+        MESSAGE 'Признак распределения, заданный для бренда, должен действовать и для организации.';
+
+EXTEND FORM legalEntity
+    OBJECTS se = Separation 
+    PROPERTIES(se) name, id
+    PROPERTIES(se) ADDOBJ, deletese=DELETESESSION 
+    FILTERS legalEntity(se) == l        
+    
+    TREE skuTree1 sk1 = SkuGroup PARENT parent
+    PROPERTIES READONLY order(sk1), name(sk1)
+    ORDER BY order(sk1), name(sk1)
+    FILTERGROUP inactive1 FILTER 'Активные' active(sk1) 'F5' DEFAULT    
+    PROPERTIES nameSeparation(l, sk1)
+    FILTERS countAccessItem(currentUser(), sk1) OR NOT sk1 IS SkuGroup
+    
+    OBJECTS bb = Brand
+    PROPERTIES(bb) READONLY name
+    PROPERTIES nameSeparation(bb, l)
+    ORDER BY name(bb)
+;
+
+DESIGN legalEntity {
+    extendContainer {
+        NEW separation {
+            caption = 'Признаки разделения';
+            type = SPLITH;
+            MOVE se.box;
+            NEW separationParams {
+                fill = 4;
+                type = SPLITH;
+                MOVE skuTree1.tree.box;
+                MOVE bb.box;
+            }
+        }
+    }
+}
+
+// Метакоды по добавлению на форму
+
+// ----------------------------------------- Метакод по добавлению соглашений в документы -------------------------------------- //
+
+META defineDocumentAbstractHeaderSeparation (object)
+    separation (object) = ABSTRACT Separation (###object) PERSISTENT INDEXED;
+    nameSeparation 'Признак разделения' (###object object)= name(separation(object)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
+END
+META defineDocumentHeaderSeparation (object)
+    separation (object) = DATA Separation (###object);
+    nameSeparation 'Признак разделения' (###object object)= name(separation(object)) IN documentPrm MINCHARWIDTH 5 PREFCHARWIDTH 10;
+END
+META defineDocumentInterfaceHeaderSeparation (object)
+    @defineDocumentAbstractHeaderSeparation(object);
+    @defineDocumentHeaderSeparation(user###object);
+    separation(User###object object) += separation(object);
+
+END
+
+META deriveDocumentHeaderSeparation (object, supplierProp)
+    CONSTRAINT separation(###object o) AND NOT supplierProp(o) == legalEntity(separation(o)) AND 
+               (CHANGED(separation(o)) OR CHANGED(supplierProp(o)))
+               CHECKED BY separation[###object]
+               MESSAGE 'Признак разделения в заказе должен соответствовать организации';
+
+END
+
+META defineDocumentDetailSeparation (object, detail)
+    separation (###detail detail) = separation(object(detail));
+    nameSeparation 'Признак разделения' (###detail detail) = name(separation(detail));
+END
+
+META defineDocumentDetailSeparation (object)
+    @defineDocumentDetailSeparation(object, object##Detail);
+END
+
+META defineDocumentInterfaceSeparation (object)
+    @defineDocumentInterfaceHeaderSeparation(object);
+    @defineDocumentDetailSeparation(object, object##Detail);
+END
