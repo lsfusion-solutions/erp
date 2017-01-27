@@ -1,0 +1,102 @@
+MODULE PricingWare;
+
+REQUIRE Pricing, PricingManufacturingPrice, PricingInvoice, Ware;
+
+nameStore 'Магазин' = name(store(departmentStore(Pricing p)));
+
+manMarkup 'Оптовая надбавка' = round2([ = (X-Y)/Y*100](
+    price(PricingDetail d),
+    (manufacturingPrice(d) IF manufacturingPrice(d)!=0.0)));
+
+EXTEND FORM pricings
+    PROPERTIES (d) manMarkup
+;    
+
+retailVATPrice 'Цена розничного НДС' = (retailVATSum(PricingDetail d) (-) extraRetailVATSum(d)) / (quantity(d) IF quantity(d)!=0);
+calcVATPrice 'Цена поставщика с надбавкой' = retailPrice(PricingDetail d) (-) retailVATPrice(d) (-) extraRetailPrice(d); 
+calcMarkupPrice 'Цена надбавки'= calcVATPrice(PricingDetail d) (-) price(d);
+
+notWareRetailPrice 'Цена розн. без посуды' = retailPrice(PricingDetail d) (-) extraRetailPrice(d);
+pricingPriceWare = OVERRIDE price(PricingDetail d), manufacturingPrice(d);
+calcPricingPriceWare = IF manufacturingPrice(PricingDetail d) != price(d) 
+    THEN round(pricingPriceWare(d)*quantity(d), currency(d)) 
+    ELSE sum(invoiceDetail(d));
+    
+sumNotWarePricingDetail 'Сумма поставщика' (pricing) = GROUP SUM calcPricingPriceWare(PricingDetail idetail) IF NOT (sku(idetail) IS Ware)
+    BY pricing(idetail) IN documentSum;      
+    
+retailVATSumNotWarePricingDetail 'Сумма НДС' (pricing) = GROUP SUM retailVATSum(PricingDetail idetail) (-) extraRetailVATSum(idetail) IF NOT (sku(idetail) IS Ware)
+    BY pricing(idetail) IN documentSum;
+retailSumNotWarePricingDetail 'Сумма розничная' (pricing) = GROUP SUM retailSum(PricingDetail idetail) IF NOT (sku(idetail) IS Ware)
+    BY pricing(idetail) IN documentSum;
+
+    
+retailMarkupSumNotWare =  (retailSum(PricingDetail d)  (-) retailVATSum(d) (+) extraRetailVATSum(d) (-) calcPricingPriceWare(d)) IF NOT (sku(d) IS Ware); 
+    
+retailMarkupSumNotWarePricingDetail 'Сумма надбавки' (pricing) = GROUP SUM retailMarkupSumNotWare(PricingDetail d) BY pricing(d) IN documentSum;      
+
+retailSumWarePricingDetail 'Сумма посуды' (pricing) = GROUP SUM extraRetailSum(PricingDetail idetail) IF extraRetailSum(idetail) >0
+    BY pricing(idetail) IN documentSum;
+              
+calcRetailMarkup 'Надбавка,%' (PricingDetail detail) = [= round2(min(((X/Z*100/(100+Y))-1)*100,99999))](
+                                                   notWareRetailPrice(detail),
+                                                   price(detail) IF price(detail)!= 0.0,
+                                                   valueRetailVAT(detail));   
+sumContainerPricingDetailWare 'Сумма поставщика (тара)' (pricing) = GROUP SUM round(pricingPriceWare(PricingDetail idetail)*quantity(idetail), currency(idetail)) IF isContainer(sku(idetail))  
+    BY pricing(idetail) IN documentSum;
+retailMarkupSumContainerPricingDetailWare 'Сумма надбавки (тара)' (pricing) = GROUP SUM retailMarkupSum(PricingDetail idetail) IF isContainer(sku(idetail))  
+    BY pricing(idetail) IN documentSum;
+retailVATSumContainerPricingDetailWare 'Сумма НДС (тара)' (pricing) = GROUP SUM retailVATSum(PricingDetail idetail) (-) extraRetailVATSum(idetail) IF isContainer(sku(idetail))  
+    BY pricing(idetail) IN documentSum;
+retailSumContainerPricingDetailWare 'Сумма розничная (тара)' (pricing) = GROUP SUM retailSum(PricingDetail idetail) IF isContainer(sku(idetail))  
+    BY pricing(idetail) IN documentSum;
+       
+       
+markupWare '%' (PricingDetail d)=  retailMarkupSum(d)*100 / (round(pricingPriceWare(d)*quantity(d), currency(d))  IF pricingPriceWare(d)*quantity(d) !=0);   
+
+retailMarkupPrice 'Надбавка, ед.' (PricingDetail d)= retailMarkupSum(d) / (quantity(d) IF quantity(d)!=0);
+    
+defaultInvoiceDetail = GROUP MAX invoiceDetail(PricingDetail d) BY pricing(d);
+nameOperationInvoice (Pricing p) = name(operation(defaultInvoiceDetail(p)));
+      
+FORM pricingWare 'Реестр цен'
+    OBJECTS p=Pricing FIXED PANEL
+    PROPERTIES (p) SELECTOR isPosted
+
+    PROPERTIES (p) nameStore, nameDepartmentStore, fullNameLegalEntityStock, seriesNumber, number, series, date, time,
+                   nameSupplier, nameCurrency, note,
+                   countPricingDetail, quantityPricingDetail, sumPricingDetail,
+                   retailMarkupSumPricingDetail, retailVATSumPricingDetail,
+                   retailSumPricingDetail, namePricingCommittee,
+                   nameFormedMan, nameCheckedMan, nameLabeledMan, nameAccountantMan,
+                   nameHeadMan,
+                   sumNotWarePricingDetail, retailMarkupSumNotWarePricingDetail, retailVATSumNotWarePricingDetail, 
+                   retailSumNotWarePricingDetail, retailSumWarePricingDetail,
+                   sumContainerPricingDetailWare, retailMarkupSumContainerPricingDetailWare,    
+                   retailVATSumContainerPricingDetailWare, retailSumContainerPricingDetailWare,
+                   isInvoice, fullNameSupplier
+
+    OBJECTS d=PricingDetail
+
+    PROPERTIES (d) index, idBarcodeSku, nameSku, extraDescription, shortNameUOMSku,
+                   quantity, overPricingPrice, pricingPrice, pricingPriceWare, manMarkup, price, sum,
+                   retailMarkup, retailMarkupSum, calcRetailMarkup, numberRetailVAT, valueRetailVAT, retailVATSum,
+                   retailPrice, retailSum, extraRetailPrice, extraRetailSum,
+                   notWareRetailPrice, markupWare, retailMarkupPrice, 
+                   calcMarkupPrice, calcVATPrice, retailVATPrice, retailMarkupSumNotWare
+    ORDER BY index(d)
+    FILTERS pricing(d) == p,
+            d IS PricingDetail AND NOT (sku(d) IS Ware),
+            TRUE IF quantity(d)
+;
+
+pricingWare 'Реестр цен' (Pricing pricing) = ACTION FORM pricingWare OBJECTS p = pricing PRINT IMAGE 'print.png' IN print;
+
+EXTEND FORM pricings 
+    PROPERTIES (p) pricingWare FORCE PANEL   
+;
+//
+//pricingWare 'Реестр цен' (Purchase.Invoice invoice) = ACTION pricingWare(invoicePricing(invoice)) IMAGE 'print.png' IN print;
+//EXTEND FORM Purchase.invoices
+//    PROPERTIES(i) FORCE PANEL pricingWare SHOWIF Purchase.createPricing(i)
+//;
