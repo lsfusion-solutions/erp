@@ -84,10 +84,14 @@ WHEN SESSION CHANGED (quantity(ReceiptGiftCardSaleDetail detail)) OR CHANGED (pr
 
 
 sumBonusFIFOReceiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail detail) =
-    PARTITION UNGROUP toPayBonuses
-        LIMIT round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
+    PARTITION UNGROUP toPayBonuses 
+        PROPORTION STRICT ROUND(2) (sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail))) 
         BY receipt(detail)
         ORDER detail;       
+//    PARTITION UNGROUP toPayBonuses
+//        LIMIT round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail))))
+//        BY receipt(detail)
+//        ORDER detail;       
         
 overPostBonus(Receipt r) += ACTION {
     bonusPaid(ReceiptGiftCardSaleDetail detail) <- sumBonusFIFOReceiptGiftCardSaleDetail(detail) WHERE receipt(detail) == r;

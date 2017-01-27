@@ -507,9 +507,13 @@ changeToPayBonuses (Receipt r) = ACTION {
 
 sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
     PARTITION UNGROUP toPayBonuses
-        LIMIT min((sum(detail) (-) minBonusSum()), round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail)))))
+        PROPORTION STRICT ROUND(2) min((sum(detail) (-) minBonusSum()), ((sum(detail) (-) minBonusSum())/(sumReceiptDetail(detail) (-) minBonusSum()*countReceiptDetail(receipt(detail))))) 
         BY receipt(detail)
         ORDER detail; 
+//    PARTITION UNGROUP toPayBonuses
+//        LIMIT min((sum(detail) (-) minBonusSum()), round(toPayBonuses(receipt(detail)) * sum(detail) / sumReceiptDetail(detail), roundCondition(departmentStore(receipt(detail)))))
+//        BY receipt(detail)
+//        ORDER detail; 
 
 bonusBackground (DiscountCard d) = RGB(255,128,128) IF NOT totalBonuses(d) >= 0.0;
 
