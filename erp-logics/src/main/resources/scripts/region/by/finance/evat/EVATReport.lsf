@@ -1,0 +1,68 @@
+MODULE EVATReport;
+
+REQUIRE EVAT;
+
+NAMESPACE EVAT;
+
+countEVAT 'К-во док-ов' = GROUP SUM 1 BY EVATDocument(EVAT e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+countCompletedEVAT 'К-во док-ов (COMPLETED)' = GROUP SUM 1 IF statusServerStatus(EVAT e) == EVATServerStatus.completed BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+VATSumEVAT 'Сумма НДС док-ов' = GROUP SUM totalVATSum(EVAT e) BY EVATDocument(e) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
+FORM EVATReport 'Сверка ЭСЧФ'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    PROPERTIES() nameFilterType
+       
+    OBJECTS doc = EVATDocument
+    PROPERTIES (doc) READONLY nameType, isPosted, number, series, date, time, name, VATSum, VATSumEVAT, countEVAT, countCompletedEVAT, objectClassName 
+        ORDER BY date(doc)
+        
+    FILTERS overNeedCreateEVAT(doc),
+            date(doc) >= dFrom, date(doc) <= dTo,
+            type(doc) == filterType() OR ( doc IS EVATDocument AND NOT filterType())
+            
+    OBJECTS e = EVAT
+    PROPERTIES(e) in
+    PROPERTIES(e) READONLY exported, captionStatus, captionServerStatus, dateEVATDocument, seriesNumberEVATDocument, unpSender, number, exportYear, exportNumber, invoice, date, dateDoc, numberDoc, seriesDoc, dateCancelled, sendToRecipient, numberInvoicePrincipal,
+                  dateInvoicePrincipal, numberInvoiceVendor, dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
+                  numberTaxesSupplier, dateTaxesSupplier, nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum,
+                  totalExciseSum, totalVATSum, totalSumWithVAT
+    FILTERS EVATDocument(e) == doc
+    
+    FILTERGROUP filterMoved
+        FILTER 'Нет ЭСЧФ' NOT countEVAT(doc) 'F10'
+        FILTER 'Не содержит COMPLETED' countEVAT(doc) AND NOT (countEVAT(doc) == countCompletedEVAT(doc)) 'F9'
+        FILTER 'Отклонения в суммах' NOT (VATSum(doc) == VATSumEVAT(doc)) 'F8'
+        FILTER 'Расхождения' (NOT (countEVAT(doc) == countCompletedEVAT(doc))) OR 
+                             (NOT (VATSum(doc) == VATSumEVAT(doc))) 'F7' DEFAULT 
+     
+;
+DESIGN EVATReport {
+    main {
+        NEW top {
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE dates.box;
+            NEW type {
+                caption = 'Тип счет-фактуры';
+                MOVE PROPERTY (nameFilterType());
+            }
+        }
+        NEW header {
+            fill = 1;
+            type = SPLITV;
+            MOVE doc.box{fill = 2;}
+            MOVE e.box;
+        }
+        PROPERTY (VATSumEVAT(doc)){background = RGB(255,238,238);}
+        PROPERTY (countEVAT(doc)){background = RGB(255,238,238);}
+        PROPERTY (countCompletedEVAT(doc)){background = RGB(255,238,238);}
+    }
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    financeNavigator {
+        ADD EVATReport;
+    }
+}

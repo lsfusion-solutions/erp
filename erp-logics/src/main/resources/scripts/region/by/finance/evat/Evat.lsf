@@ -7,15 +7,20 @@ REQUIRE System, Finance, LegalEntityBy, Item, Warehouse;
 CLASS ABSTRACT EVATDocument 'Регистр-основание';
 TABLE EVATDocument(EVATDocument);
 
+needCreateEVAT 'Необходимо создавать' = ABSTRACT CASE BOOLEAN (EVATDocument);
+isPosted 'Проведен' = ABSTRACT BOOLEAN (EVATDocument);
+overNeedCreateEVAT (EVATDocument d) = needCreateEVAT(d) AND isPosted(d);
+
 name 'Регистр-основание' = ABSTRACT VARSTRING[200] (EVATDocument) ;
 number 'Номер' = ABSTRACT VARSTRING[100] (EVATDocument) IN numbered MINCHARWIDTH 7;
 series 'Серия' = ABSTRACT STRING[2] (EVATDocument) IN numbered FIXEDCHARWIDTH 3;
 seriesNumber 'Серия/Номер' (EVATDocument d) = CONCAT '', series(d), number(d) MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20;
 
+VATSum 'Сумма НДС' = ABSTRACT NUMERIC[18,4] (EVATDocument) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+
 dateTime 'Дата/время' = ABSTRACT DATETIME (EVATDocument);
 date 'Дата' (EVATDocument document) = toDate(dateTime(document));
 time 'Время' (EVATDocument document) = toTime(dateTime(document));
-
 
 GROUP consignor 'Реквизиты грузоотправителя' : base;
 GROUP consignee 'Реквизиты грузополучателя' : base;
@@ -36,6 +41,9 @@ FORM EVATTypes 'Типы счет-фактур'
     
     DIALOG EVATType OBJECT t
 ;
+
+type = ABSTRACT EVATType (EVATDocument);
+nameType 'Тип' (EVATDocument d) = name(type(d));
 
 CLASS EVAT 'Электронный счёт-фактура';
 TABLE evat(EVAT);

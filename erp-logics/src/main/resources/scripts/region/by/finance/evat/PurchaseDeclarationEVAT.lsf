@@ -6,16 +6,21 @@ NAMESPACE Purchase;
 
 EXTEND CLASS Declaration : EVATDocument;
 name(Declaration document) += description(document);
+isPosted(Declaration document) += isPosted(document);
+needCreateEVAT(Declaration document) += WHEN document IS Declaration THEN TRUE;
 number[EVATDocument](Declaration document) += VARSTRING[100](number(document));
 series[EVATDocument](Declaration document) += VARSTRING[2](series(document));
 dateTime[EVATDocument](Declaration document) += dateTime(document);
 
 EXTEND CLASS EVATType { declaration 'Декларация' }
 
+type[EVATDocument](Declaration d) += EVATType.declaration IF d IS Declaration;
+
 useHomeSum 'Записывать в сумму декларации сумму из инвойса' = DATA BOOLEAN ();
 EXTEND FORM options PROPERTIES() useHomeSum;
 DESIGN options { MOVE PROPERTY(useHomeSum()); };
 
+VATSum[EVATDocument] (Declaration i) += NUMERIC[18,4]([= GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id)](i));
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
     FOR date(Declaration d) >= dFrom AND
         NOT EVAT(d) AND

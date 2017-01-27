@@ -6,6 +6,7 @@ NAMESPACE PurchaseReturn;
 
 EXTEND CLASS PurchaseReturn.Invoice : EVATDocument;
 name(PurchaseReturn.Invoice document) += description(document);
+isPosted[EVATDocument](Invoice document) += isPosted(document);
 number[EVATDocument](PurchaseReturn.Invoice document) += VARSTRING[100](number(document));
 series[EVATDocument](PurchaseReturn.Invoice document) += VARSTRING[2](series(document));
 dateTime[EVATDocument](PurchaseReturn.Invoice document) += dateTime(document);
@@ -13,6 +14,10 @@ dateTime[EVATDocument](PurchaseReturn.Invoice document) += dateTime(document);
 includeEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
 EXTEND CLASS EVATType { purchaseReturn 'Закупка-возврат' }
+type[EVATDocument](PurchaseReturn.Invoice i) += EVATType.purchase IF i IS PurchaseReturn.Invoice;
+
+needCreateEVAT[EVATDocument](Invoice i) += WHEN includeEVAT(i)  THEN TRUE;
+VATSum[EVATDocument] (PurchaseReturn.Invoice i) += NUMERIC[18,4](VATSumInvoiceDetail(i));
 
 overCreateEVATPurchaseInvoice (DATE dFrom, DATE dTo) += ACTION {
     IF dFrom IS DATE AND dTo IS DATE THEN {

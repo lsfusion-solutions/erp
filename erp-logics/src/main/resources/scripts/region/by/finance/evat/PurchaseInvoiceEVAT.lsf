@@ -6,6 +6,7 @@ NAMESPACE Purchase;
 
 EXTEND CLASS Invoice : EVATDocument;
 name(Invoice document) += description(document);
+isPosted[EVATDocument](Invoice document) += isPosted(document);
 number[EVATDocument](Invoice document) += VARSTRING[100](number(document));
 series[EVATDocument](Invoice document) += VARSTRING[2](series(document));
 dateTime[EVATDocument](Invoice document) += dateTime(document);
@@ -18,6 +19,7 @@ overCreateEVATPurchaseInvoice = ACTION ABSTRACT LIST (DATE, DATE);//-- для в
 skipEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
 EXTEND CLASS EVATType { purchase 'Закупка' }
+type[EVATDocument](Invoice i) += EVATType.purchase IF i IS Invoice;
 
 createEVATPurchaseInvoice (EVAT e, Invoice i) = ACTION {
     EVATDocument(e) <- i;
@@ -79,6 +81,8 @@ createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed) = ACTION {
     descriptionType(ed) <- DescriptionType.importVAT;
 
 }
+
+needCreateEVAT[EVATDocument](Invoice i) += WHEN eVAT(operation(i)) AND quantityInvoiceDetail(i) AND NOT skipEVAT(i) THEN TRUE;
 
 createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND 
