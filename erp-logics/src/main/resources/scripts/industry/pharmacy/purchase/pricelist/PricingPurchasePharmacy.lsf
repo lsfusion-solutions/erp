@@ -4,14 +4,33 @@ REQUIRE PricingPurchasePriceDivider, ItemPharmacy;
 
 NAMESPACE Purchase;
 
-blisterAmount 'Кол-во блистеров (в ед.)' (UserInvoiceDetail detail) = blisterAmount(sku(detail)) MINCHARWIDTH 3 PREFCHARWIDTH 6;              
+blisterAmount 'Кол-во блистеров (в ед.)' = ABSTRACT INTEGER(InvoiceDetail) MINCHARWIDTH 3 PREFCHARWIDTH 6;    
+blisterAmount 'Кол-во блистеров (в ед.)' = DATA INTEGER(UserInvoiceDetail) MINCHARWIDTH 3 PREFCHARWIDTH 6;
+
+blisterAmount (UserInvoiceDetail detail) += blisterAmount(detail);
+
+setBlisterAmount (UserInvoiceDetail detail) = ACTION {
+    REQUEST INTEGER INPUT;
+    IF requestedInteger() THEN {
+        IF requestedInteger()==0 THEN {
+            blisterAmount(detail) <- NULL;    
+        } ELSE {
+            blisterAmount(detail) <- requestedInteger();
+        }
+    }
+};
 
 EXTEND FORM userInvoice
-    PROPERTIES (d) READONLY blisterAmount AFTER idBarcodeSku(d)    
+    PROPERTIES (pd) blisterAmount AFTER pricingQuantity(pd) ON CHANGE setBlisterAmount(pd) BACKGROUND backgroundRetail(i)    
 ;
 
 EXTEND FORM invoices
-    PROPERTIES (d) READONLY blisterAmount FORCE GRID AFTER shortNameUOMSku(d)    
+    PROPERTIES (d) READONLY blisterAmount FORCE GRID AFTER nameRetailPriceListType(d) BACKGROUND backgroundRetail(i)     
 ;              
+
+WHEN SESSION FORMS userInvoice GOAFTER sku[UserInvoiceDetail] CHANGED(sku(UserInvoiceDetail detail)) DO {
+    blisterAmount(detail) <- blisterAmount(sku(detail));    
+} 
+
 
 priceDivider(UserInvoiceDetail detail) += blisterAmount(detail);
