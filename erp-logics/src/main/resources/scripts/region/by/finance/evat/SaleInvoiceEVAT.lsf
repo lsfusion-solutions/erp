@@ -28,7 +28,11 @@ EXTEND CLASS EVATType { sale 'Продажа',
 overCreateEVATSaleReturnInvoice = ACTION ABSTRACT LIST (EVAT, SaleReturn.Invoice);
 
 createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dTo) = ACTION {
-    FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo AND quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
+    FOR eVAT(operation(Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND 
+        NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND
+        NOT EVAT(i)
+        AND date(i) >= dFrom AND date(i) <= dTo AND 
+        quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
         EVATDocument(e) <- i;        
         type(e) <- EVATType.sale;
         status(e) <- EVATStatus.original;

@@ -148,6 +148,16 @@ nameServerStatus 'Статус на сервере'(EVAT e) = staticName(statusS
 captionServerStatus 'Статус на сервере'(EVAT e) = staticCaption(statusServerStatus(e));  
 
 EVATDocument 'Регистр' = DATA EVATDocument (EVAT);
+EVAT 'ЭСЧФ' (EVATDocument d) = GROUP MAX EVAT e BY EVATDocument(e);
+
+notNullEVATDocument 'Запрет на отсутствие исходного документа для ЭСЧФ' = DATA BOOLEAN (); 
+EXTEND FORM options
+    PROPERTIES() notNullEVATDocument 
+;
+
+CONSTRAINT notNullEVATDocument() AND EVAT e IS EVAT AND NOT EVATDocument(e)
+    MESSAGE 'У ЭСЧФ должна быть задана ссылка на исходный документ';
+
 seriesNumberEVATDocument 'Регистр (серия/номер)' (EVAT e) = seriesNumber(EVATDocument(e)) MINCHARWIDTH 7 PREFCHARWIDTH 15 MAXCHARWIDTH 20 IN register; 
 dateEVATDocument 'Регистр (дата)' (EVAT e) = date(EVATDocument(e)) IN register; 
 

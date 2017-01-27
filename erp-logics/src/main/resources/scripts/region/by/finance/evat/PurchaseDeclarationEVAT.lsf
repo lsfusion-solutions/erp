@@ -17,7 +17,9 @@ EXTEND FORM options PROPERTIES() useHomeSum;
 DESIGN options { MOVE PROPERTY(useHomeSum()); };
 
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
-    FOR date(Declaration d) >= dFrom AND date(d) <= dTo AND isPosted(d) ADDOBJ e = EVAT DO {
+    FOR date(Declaration d) >= dFrom AND
+        NOT EVAT(d) AND
+        date(d) <= dTo AND isPosted(d) ADDOBJ e = EVAT DO {
         EVATDocument(e) <- d;
         type(e) <- EVATType.declaration;
         status(e) <- EVATStatus.original;
