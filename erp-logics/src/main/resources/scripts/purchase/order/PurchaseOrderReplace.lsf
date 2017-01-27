@@ -1,6 +1,6 @@
 MODULE PurchaseOrderReplace;
 
-REQUIRE PurchaseOrder;
+REQUIRE PurchaseInvoice;
 
 NAMESPACE Purchase;
 
@@ -27,6 +27,8 @@ minOperation = GROUP MIN Operation operation IF [= GROUP SUM 1 IF selected(Order
 
 toShowSelected (UserOrder order)= order IS UserOrder AND NOT selected(order);
 
+@defineOption(groupSkuOrderRepalce, 'Группировать строки по товару при объединении заказов (закупка)', optionsContainer);
+
 replace 'Объединить'(UserOrder order) = ACTION {
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
@@ -36,21 +38,50 @@ replace 'Объединить'(UserOrder order) = ACTION {
             } ELSE {                  
                 IF (NOT minSupplier() == supplier[Order](order)) OR (NOT minSupplierStock() == supplierStock[Order](order)) OR (NOT minCustomer() == customer[Order](order)) OR (NOT minCustomerStock() == customerStock[Order](order)) OR (NOT minOperation() == operation[Order](order)) THEN {
                     MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
-                } ELSE {   
-                    FOR selected(Order o) AND order(OrderDetail detail)==o ADDOBJ d = UserOrderDetail DO {
-                        userOrder(d) <- order;
-                        sku(d) <- sku(detail);
-                        batch(d) <- batch(detail);
-                        quantity(d) <- quantity(detail);
-                        price(d) <- price(detail);
-                        invoicePrice(d) <- invoicePrice(detail);
-                        priceListType(d) <- priceListType(detail);      
-                        shipmentDataDate(d) <- shipmentDataDate(detail);         
-                        shipmentDataTime(d) <- shipmentDataTime(detail);        
-                        closeDataDate(d) <- closeDataDate(detail);                                         
-                        selected(o) <- NULL;
-                        DELETE o;
+                } ELSE {
+                    IF NOT groupSkuOrderRepalce() THEN {
+                        FOR selected(Order o) AND order(OrderDetail detail)==o ADDOBJ d = UserOrderDetail DO {
+                            userOrder(d) <- order;
+                            sku(d) <- sku(detail);
+                            batch(d) <- batch(detail);
+                            quantity(d) <- quantity(detail);
+                            price(d) <- price(detail);
+                            invoicePrice(d) <- invoicePrice(detail);
+                            priceListType(d) <- priceListType(detail);      
+                            shipmentDataDate(d) <- shipmentDataDate(detail);         
+                            shipmentDataTime(d) <- shipmentDataTime(detail);        
+                            closeDataDate(d) <- closeDataDate(detail);                                         
+                        }
+                    } ELSE {
+                        selected(order) <- TRUE;
+                    
+                        LOCAL qty = NUMERIC[16,5](Sku);
+                        qty(Sku s) <- [=GROUP SUM quantity(UserOrderDetail d) IF selected(userOrder(d)) BY sku(d)](s);
+                        
+                        LOCAL maxDetail = UserOrderDetail(Sku);
+                        maxDetail(Sku s) <- [=GROUP MAX UserOrderDetail d IF selected(userOrder(d)) BY sku(d)](s);
+                        
+                        FOR qty(Sku s) AND s == sku(UserOrderDetail nd) AND userOrder(nd) == order DO {
+                            quantity(nd) <- qty(s);
+                        }
+                        
+                        FOR qty(Sku s) AND NOT [= GROUP SUM 1  BY sku(UserOrderDetail nd), userOrder(nd)](s, order) ADDOBJ d = UserOrderDetail DO {
+                            userOrder(d) <- order;
+                            sku(d) <- s;
+                            quantity(d) <- qty(s);
+                            price(d) <- price(maxDetail(s));
+                            invoicePrice(d) <- invoicePrice(maxDetail(s));
+                        }
+                        selected(order) <- NULL;
                     }
+                    FOR selected(UserOrder oo) DO 
+                        include(order, UserInvoice i) <- TRUE WHERE include(oo, i);
+                        
+                    FOR selected(userOrder(UserOrderDetail od)) AND order == userOrder(UserOrderDetail nd) AND sku(od) == sku(nd) DO 
+                        orderDetail(UserInvoiceDetail d) <- nd WHERE orderDetail(d) == od;;
+                        
+                    DELETE UserOrder o WHERE selected(o);
+                        
                     apply();
                 }
             }    
