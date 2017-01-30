@@ -40,7 +40,7 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
             FiscalVMK.openPort(ip, comPort, baudRate);
             FiscalVMK.opensmIfClose();
 
-            Integer numberReceipt = printPayment(sumPayment, typePayment, denominationStage);
+            Integer numberReceipt = printPayment(sumPayment, typePayment);
             
             if (numberReceipt == null) {
                 String error = FiscalVMK.getError(false);
@@ -57,22 +57,22 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
         }
     }
 
-    private Integer printPayment(BigDecimal sumPayment, Integer typePayment, String denominationStage) {
+    private Integer printPayment(BigDecimal sumPayment, Integer typePayment) {
 
         if (!FiscalVMK.getFiscalClosureStatus())
             return null;
         if (!FiscalVMK.openReceipt(sale ? 0 : 1))
             return null;
 
-        Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
+        Integer receiptNumber = FiscalVMK.getReceiptNumber();
 
-        if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment, denominationStage))
+        if (sumPayment == null || !FiscalVMK.registerItemPayment(sumPayment))
             return null;
 
         if (!FiscalVMK.subtotal())
             return null;
 
-        if (!FiscalVMK.total(sumPayment, typePayment, denominationStage))
+        if (!FiscalVMK.total(sumPayment, typePayment))
             return null;
         return receiptNumber;
     }

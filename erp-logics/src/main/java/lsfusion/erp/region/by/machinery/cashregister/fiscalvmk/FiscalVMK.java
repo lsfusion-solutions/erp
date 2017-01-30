@@ -209,32 +209,32 @@ public class FiscalVMK {
         return vmkDLL.vmk.vmk_repeat();
     }
 
-    public static boolean totalCash(BigDecimal sum, String denominationStage) {
+    public static boolean totalCash(BigDecimal sum) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(sum.abs(), denominationStage);
+        double sumValue = sum.abs().doubleValue();
         logAction("vmk_oplat", 0, sumValue, 0);
         return vmkDLL.vmk.vmk_oplat(0, sumValue, 0/*"00000000"*/);
     }
 
-    public static boolean totalCard(BigDecimal sum, String denominationStage) {
+    public static boolean totalCard(BigDecimal sum) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(sum.abs(), denominationStage);
+        double sumValue = sum.abs().doubleValue();
         logAction("vmk_oplat", 1, sumValue, 0);
         return vmkDLL.vmk.vmk_oplat(1, sumValue, 0/*"00000000"*/);
     }
 
-    public static boolean totalGiftCard(BigDecimal sum, String denominationStage) {
+    public static boolean totalGiftCard(BigDecimal sum) {
         if (sum == null)
             return true;
-        double sumValue = makeDenomination(sum, denominationStage);
+        double sumValue = sum.doubleValue();
         logAction("vmk_oplat", 2, Math.abs(sumValue), 0);
         return vmkDLL.vmk.vmk_oplat(2, Math.abs(sumValue), 0/*"00000000"*/);
     }
 
-    public static boolean total(BigDecimal sumPayment, Integer typePayment, String denominationStage) {
-        double sumPaymentValue = makeDenomination(sumPayment.abs(), denominationStage);
+    public static boolean total(BigDecimal sumPayment, Integer typePayment) {
+        double sumPaymentValue = sumPayment.abs().doubleValue();
         logAction("vmk_oplat", typePayment, sumPaymentValue, 0);
         if (!vmkDLL.vmk.vmk_oplat(typePayment, sumPaymentValue, 0/*"00000000"*/))
             return false;
@@ -260,8 +260,8 @@ public class FiscalVMK {
             checkErrors(true);
     }
 
-    public static boolean inOut(BigDecimal sum, String denominationStage) {
-        double sumValue = makeDenomination(sum, denominationStage);
+    public static boolean inOut(BigDecimal sum) {
+        double sumValue = sum.doubleValue();
         if (sumValue > 0) {
             logAction("vmk_vnes", sumValue);
             if (!vmkDLL.vmk.vmk_vnes(sumValue))
@@ -313,10 +313,10 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItem(ReceiptItem item, String denominationStage) {
+    public static boolean registerItem(ReceiptItem item) {
         try {
-            double price = item.price == null ? 0.0 : makeDenomination(item.price.abs(), denominationStage);
-            double sum = makeDenomination(BigDecimal.valueOf(item.sumPos - item.articleDiscSum + item.bonusPaid), denominationStage);
+            double price = item.price == null ? 0.0 : item.price.abs().doubleValue();
+            double sum = item.sumPos - item.articleDiscSum + item.bonusPaid;
             logAction("vmk_sale", item.barcode, item.name, price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
             return vmkDLL.vmk.vmk_sale(getBytes(item.barcode), getBytes(item.name), //articleDiscSum is negative, bonusPaid is positive
                     price, item.isGiftCard ? 2 : 1 /*отдел*/, item.quantity, sum);
@@ -325,9 +325,9 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean registerItemPayment(BigDecimal sumPayment, String denominationStage) {
+    public static boolean registerItemPayment(BigDecimal sumPayment) {
         try {
-            double sum = makeDenomination(sumPayment, denominationStage);
+            double sum = sumPayment.doubleValue();
             logAction("vmk_sale", "", "ОПЛАТА", sum, 1 /*отдел*/, 1, 0);
             return vmkDLL.vmk.vmk_sale(getBytes(""), getBytes("ОПЛАТА"), sum, 1 /*отдел*/, 1.0, 0.0);
         } catch (UnsupportedEncodingException e) {
@@ -335,8 +335,8 @@ public class FiscalVMK {
         }
     }
     
-    public static boolean discountItem(ReceiptItem item, String numberDiscountCard, String denominationStage) {
-        double discSum = makeDenomination(BigDecimal.valueOf(item.articleDiscSum - item.bonusPaid), denominationStage); //articleDiscSum is negative, bonusPaid is positive
+    public static boolean discountItem(ReceiptItem item, String numberDiscountCard) {
+        double discSum = item.articleDiscSum - item.bonusPaid; //articleDiscSum is negative, bonusPaid is positive
         if (discSum == 0)
             return true;
         boolean discount = discSum < 0;
@@ -348,12 +348,12 @@ public class FiscalVMK {
         }
     }
 
-    public static boolean discountReceipt(ReceiptInstance receipt, String denominationStage) {
+    public static boolean discountReceipt(ReceiptInstance receipt) {
         if (receipt.sumDisc == null)
             return true;
         boolean discount = receipt.sumDisc.compareTo(BigDecimal.ZERO) < 0;
         try {
-            double sumDisc =  makeDenomination(receipt.sumDisc.abs(), denominationStage);
+            double sumDisc =  receipt.sumDisc.abs().doubleValue();
             logAction("vmk_discountpi", discount ? "Скидка" : "Наценка", sumDisc, discount ? 3 : 1, "discountCard: " + receipt.numberDiscountCard);
             return vmkDLL.vmk.vmk_discountpi(getBytes(discount ? "Скидка" : "Наценка"), sumDisc, discount ? 3 : 1);
         } catch (UnsupportedEncodingException e) {
@@ -409,31 +409,31 @@ public class FiscalVMK {
         return lastError;
     }
 
-    public static int getReceiptNumber(Boolean throwException) {
+    public static int getReceiptNumber() {
         byte[] buffer = new byte[50];
         logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
-            checkErrors(throwException);
+            checkErrors(true);
         String result = Native.toString(buffer, "cp1251");
         return Integer.parseInt(result.split(",")[0]);
     }
 
-    public static int getZReportNumber(Boolean throwException) {
+    public static int getZReportNumber() {
         byte[] buffer = new byte[50];
         logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
-            checkErrors(throwException);
+            checkErrors(true);
         String result = Native.toString(buffer, "cp1251");
         return Integer.parseInt(result.split(",")[1]);
     }
 
-    public static BigDecimal getCashSum(Boolean throwException, String denominationStage) {
+    public static BigDecimal getCashSum() {
         byte[] buffer = new byte[50];
         logAction("vmk_ksainfo");
         if(!vmkDLL.vmk.vmk_ksainfo(buffer, 50))
-            checkErrors(throwException);
+            checkErrors(true);
         String result = Native.toString(buffer, "cp1251");
-        return makeNomination(new BigDecimal(result.split(",")[2]), denominationStage);
+        return new BigDecimal(result.split(",")[2]);
     }
 
     public static void logReceipt(ReceiptInstance receipt, Integer numberReceipt) {
@@ -482,28 +482,6 @@ public class FiscalVMK {
 
     private static byte[] getBytes(String value) throws UnsupportedEncodingException {
         return (value + "\0").getBytes("cp1251");
-    }
-
-    private static double makeDenomination(BigDecimal value, String denominationStage) {
-        return makeDenominationBigDecimal(value, denominationStage).doubleValue();
-    }
-
-    private static BigDecimal makeDenominationBigDecimal(BigDecimal value, String denominationStage) {
-        if (denominationStage == null || denominationStage.trim().endsWith("before")) {
-            return value.divide(BigDecimal.valueOf(100), 2);
-        } else if (denominationStage.trim().endsWith("fusion")) {
-            return value.multiply(BigDecimal.valueOf(100));
-        } else
-            return value;
-    }
-
-    private static BigDecimal makeNomination(BigDecimal value, String denominationStage) {
-        if (denominationStage == null || denominationStage.trim().endsWith("before")) {
-            return value.multiply(BigDecimal.valueOf(100));
-        } else if (denominationStage.trim().endsWith("fusion")) {
-            return value.divide(BigDecimal.valueOf(100), 2);
-        } else
-            return value;
     }
 }
 

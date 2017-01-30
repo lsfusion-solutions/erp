@@ -44,7 +44,7 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
                     break;
                 case 2:
                     FiscalVMK.opensmIfClose();
-                    Integer zReportNumber = FiscalVMK.getZReportNumber(true);
+                    Integer zReportNumber = FiscalVMK.getZReportNumber();
                     FiscalVMK.printFiscalText(textTop);
                     FiscalVMK.zReport();
                     FiscalVMK.closePort();
@@ -56,14 +56,14 @@ public class FiscalVMKCustomOperationClientAction implements ClientAction {
                     FiscalVMK.cancelReceipt();
                     break;
                 case 5:
-                    return FiscalVMK.getCashSum(true, denominationStage);
+                    return FiscalVMK.getCashSum();
                 case 6:
                     FiscalVMK.opensmIfClose();
                     FiscalVMK.printFiscalText(textTop);
                     FiscalVMK.zReport();
                     break;
                 case 7:
-                    Integer zReportNumber2 = FiscalVMK.getZReportNumber(true);
+                    Integer zReportNumber2 = FiscalVMK.getZReportNumber();
                     FiscalVMK.closePort();
                     return zReportNumber2;
                 case 8:

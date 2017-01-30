@@ -97,7 +97,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         if (!FiscalVMK.openReceipt(sale ? 0 : 1))
             return null;
 
-        Integer receiptNumber = FiscalVMK.getReceiptNumber(true);
+        Integer receiptNumber = FiscalVMK.getReceiptNumber();
 
         FiscalVMK.printFiscalText(receiptTop);
 
@@ -105,7 +105,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
             double sum = 0;
             double discountSum = 0;
-            DecimalFormat formatter = getFormatter(denominationStage);
+            DecimalFormat formatter = getFormatter();
             for (ReceiptItem item : receiptList) {
                 double discount = item.articleDiscSum - item.bonusPaid;
                 sum += item.sumPos - discount;
@@ -133,22 +133,22 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
             FiscalVMK.printFiscalText(receiptBottom);
 
-            if (!FiscalVMK.totalCard(receipt.sumCard, denominationStage))
+            if (!FiscalVMK.totalCard(receipt.sumCard))
                 return null;
-            if (!FiscalVMK.totalCash(receipt.sumCash, denominationStage))
+            if (!FiscalVMK.totalCash(receipt.sumCash))
                 return null;
             if(receipt.sumCard == null && receipt.sumCash == null && sum == 0.0)
-                if(!FiscalVMK.totalCash(BigDecimal.ZERO, denominationStage))
+                if(!FiscalVMK.totalCash(BigDecimal.ZERO))
                     return null;
 
         } else {
 
             for (ReceiptItem item : receiptList) {
-                if (!FiscalVMK.registerItem(item, denominationStage))
+                if (!FiscalVMK.registerItem(item))
                     return null;
-                if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard, denominationStage))
+                if (!FiscalVMK.discountItem(item, receipt.numberDiscountCard))
                     return null;
-                DecimalFormat formatter = getFormatter(denominationStage);
+                DecimalFormat formatter = getFormatter();
                 if (item.bonusSum != 0.0) {
                     FiscalVMK.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
                     FiscalVMK.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
@@ -161,16 +161,16 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
             if (!FiscalVMK.subtotal())
                 return null;
-            if (!FiscalVMK.discountReceipt(receipt, denominationStage))
+            if (!FiscalVMK.discountReceipt(receipt))
                 return null;
 
             FiscalVMK.printFiscalText(receiptBottom);
 
-            if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard, denominationStage))
+            if (!FiscalVMK.totalGiftCard(receipt.sumGiftCard))
                 return null;
-            if (!FiscalVMK.totalCard(receipt.sumCard, denominationStage))
+            if (!FiscalVMK.totalCard(receipt.sumCard))
                 return null;
-            if (!FiscalVMK.totalCash(receipt.sumCash, denominationStage))
+            if (!FiscalVMK.totalCash(receipt.sumCash))
                 return null;
 
         }
@@ -184,11 +184,9 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         return prefix + " " + value;
     }
 
-    private DecimalFormat getFormatter(String denominationStage) {
-        boolean denominated = denominationStage != null && denominationStage.endsWith("after");
-        DecimalFormat formatter = denominated ? new DecimalFormat("#,###.##") : new DecimalFormat("#,###.00");
-        if(denominated)
-            formatter.setMinimumFractionDigits(2);
+    private DecimalFormat getFormatter() {
+        DecimalFormat formatter = new DecimalFormat("#,###.##");
+        formatter.setMinimumFractionDigits(2);
         DecimalFormatSymbols symbols = formatter.getDecimalFormatSymbols();
         symbols.setGroupingSeparator('`');
         formatter.setDecimalFormatSymbols(symbols);
