@@ -106,6 +106,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             double sum = 0;
             double discountSum = 0;
             DecimalFormat formatter = getFormatter();
+            FiscalVMK.printFiscalText(" \n      ТОВАРНЫЙ ЧЕК      \n ");
             for (ReceiptItem item : receiptList) {
                 double discount = item.articleDiscSum - item.bonusPaid;
                 sum += item.sumPos - discount;
