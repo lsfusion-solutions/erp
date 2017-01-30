@@ -84,6 +84,12 @@ createEVATPurchaseInvoice (EVAT e, InvoiceDetail id, EVATDetail ed) = ACTION {
 
 needCreateEVAT[EVATDocument](Invoice i) += WHEN eVAT(operation(i)) AND quantityInvoiceDetail(i) AND NOT skipEVAT(i) THEN TRUE;
 
+VATSum= ABSTRACT CASE OVERRIDE FIRST NUMERIC[18,4](Purchase.Invoice);
+VATSum (Purchase.Invoice i) += WHEN i IS Purchase.Invoice THEN NUMERIC[18,4](customsVATSumInvoiceDetail(i));
+VATSum[EVATDocument] (Purchase.Invoice i) += NUMERIC[18,4](VATSum(i));
+
+//priceRound (InvoiceDetail d) += WHEN currency(d) THEN defaultRound(currency(d));
+
 createEVATPurchaseInvoice 'Накладные (закупка)' (DATE dFrom, DATE dTo) = ACTION {
     FOR eVAT(operation(Invoice i)) AND isPosted(i) AND 
         NOT EVAT(i)
