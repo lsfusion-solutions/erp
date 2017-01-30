@@ -4,14 +4,34 @@ REQUIRE RepricingPriceDivider, ItemPharmacy;
 
 NAMESPACE Repricing;
 
-blisterAmount 'Кол-во блистеров (в ед.)' (UserRepricingDetail detail) = blisterAmount(sku(detail)) MINCHARWIDTH 3 PREFCHARWIDTH 6;              
+
+blisterAmount 'Кол-во блистеров (в ед.)' = ABSTRACT INTEGER(RepricingDetail) MINCHARWIDTH 3 PREFCHARWIDTH 6;    
+blisterAmount 'Кол-во блистеров (в ед.)' = DATA INTEGER(UserRepricingDetail) MINCHARWIDTH 3 PREFCHARWIDTH 6;
+
+blisterAmount (UserRepricingDetail detail) += blisterAmount(detail);
+         
+setBlisterAmount (UserRepricingDetail detail) = ACTION {
+    REQUEST INTEGER INPUT;
+    IF requestedInteger() THEN {
+        IF requestedInteger()==0 THEN {
+            blisterAmount(detail) <- NULL;    
+        } ELSE {
+            blisterAmount(detail) <- requestedInteger();
+        }
+    }
+};         
 
 EXTEND FORM userRepricing
-    PROPERTIES (d) READONLY blisterAmount AFTER shortNameUOMSku(d)    
+    PROPERTIES (d) blisterAmount ON CHANGE setBlisterAmount(d) AFTER quantity(d)    
 ;
 
 EXTEND FORM repricings
-    PROPERTIES (d) READONLY blisterAmount FORCE GRID AFTER shortNameUOMSku(d)    
-;              
+    PROPERTIES (d) READONLY blisterAmount FORCE GRID AFTER quantity(d)    
+;
+          
+WHEN SESSION FORMS userRepricing GOAFTER sku[UserRepricingDetail] CHANGED(sku(UserRepricingDetail detail)) DO {
+    blisterAmount(detail) <- blisterAmount(sku(detail));    
+} 
+          
 
 priceDivider(UserRepricingDetail detail) += blisterAmount(detail);
