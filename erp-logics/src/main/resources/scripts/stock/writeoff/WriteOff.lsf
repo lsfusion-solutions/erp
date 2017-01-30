@@ -136,18 +136,22 @@ TABLE reason (Reason);
 name 'Наименование' = DATA VARISTRING[50](Reason);
 reason = GROUP AGGR Reason r BY name(r);
 
+inactive 'Неактивная' = DATA BOOLEAN (Reason);
+active 'Активный' (Reason r) = r IS Reason AND NOT inactive(r);
+
 FORM reason 'Причина списания'
     OBJECTS r=Reason  FIXED PANEL
-    PROPERTIES(r) name
+    PROPERTIES(r) name, inactive
     EDIT Reason OBJECT r
 ;
 
 FORM reasons 'Причины списания'
     OBJECTS r=Reason
     PROPERTIES(r) READONLY name
-    PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-
-    DIALOG Reason OBJECT r
+    PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR    
+    FILTERGROUP inactive FILTER 'Активные' active(r) 'F5' DEFAULT
+        
+    DIALOG Reason OBJECT r       
 ;
 DESIGN reasons { main{ preferredSize = (600, 400); } }
 
