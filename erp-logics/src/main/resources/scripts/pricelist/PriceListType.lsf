@@ -522,7 +522,9 @@ META defineDocumentOperationPriceListType(object, caption, form, defaultPrefix)
         CHECKED BY priceListType[###object##Detail]
         MESSAGE 'Вид цены для строки '###caption###' должен совпадать с отмеченными в операции';
         
-    WHEN SESSION CHANGED(operation(###object object)) AND NOT CHANGED(priceListType(object)) DO {
+    skipSetPriceListType = ABSTRACT BOOLEAN (###object);    
+        
+    WHEN SESSION CHANGED(operation(###object object)) AND NOT CHANGED(priceListType(object)) AND NOT skipSetPriceListType(object) DO {
         IF default###defaultPrefix##PriceListType(operation(object)) THEN
             priceListType(object) <- default###defaultPrefix##PriceListType(operation(object))
         ELSE IF defaultPriceListType(operation(object)) AND NOT notUseReturnPriceListType(operation(object)) THEN
