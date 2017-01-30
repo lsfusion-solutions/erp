@@ -1,0 +1,207 @@
+MODULE ProductionConsumptionConsignmentBy;
+
+REQUIRE ConsignmentBy, ProductionConsumption, ProductionOrderConsignmentBy;
+
+NAMESPACE Production;
+
+@defineConsignmentHeader (Consumption);
+
+
+invoiceNumber 'Номер ТТН' = DATA VARSTRING[28] (Consumption) IN numbered MINCHARWIDTH 7;
+invoiceSeries 'Серия ТТН' = DATA STRING[2] (Consumption) IN numbered FIXEDCHARWIDTH 3;
+changeInvoiceNumber (Consumption c) = ACTION NEWSESSION {
+    REQUEST VARSTRING[28] INPUT;
+    
+    IF requestedString() THEN {
+        invoiceNumber(c) <- requestedString();        
+    }ELSE {
+        invoiceNumber(c) <- NULL;
+    }
+    apply();
+}
+changeSeriesNumber (Consumption c) = ACTION NEWSESSION {
+    REQUEST VARSTRING[28] INPUT;
+    
+    IF requestedString() THEN {
+        invoiceSeries(c) <- requestedString();        
+    }ELSE {
+        invoiceSeries(c) <- NULL;
+    }
+    apply();
+}
+invoiceSeriesNumber 'Серия/Номер ТТН' (Consumption o) = 
+    CONCAT '', invoiceSeries(o), invoiceNumber(o) 
+    MINCHARWIDTH 7 PREFCHARWIDTH 10 MAXCHARWIDTH 20 PERSISTENT;
+    
+EXTEND FORM userConsumption
+    PROPERTIES(o) invoiceNumber, invoiceSeries
+;
+
+
+DESIGN userConsumption {
+    headerRow1 {
+        NEW invoice {
+            caption = 'ТТН';
+            type = CONTAINERH;
+            MOVE PROPERTY (invoiceNumber(o));
+            MOVE PROPERTY (invoiceSeries(o));
+        }
+    }
+}
+EXTEND FORM consumptions
+    PROPERTIES(o) FORCE PANEL invoiceNumber ON CHANGE changeInvoiceNumber(o), invoiceSeries ON CHANGE changeSeriesNumber(o)
+;
+
+
+
+EXTEND CLASS Consumption : Consignment;
+dataDate[Consignment] (Consumption consignment) += date(consignment);
+number[Consignment] (Consumption consignment) += invoiceNumber(consignment);
+series[Consignment] (Consumption consignment) += invoiceSeries(consignment);
+
+payer[Consignment] (Consumption consignment) += payer (consignment);
+
+dataTruck[Consignment] (Consumption consignment) += dataTruck (consignment);
+dataTrailer[Consignment] (Consumption consignment) += dataTrailer (consignment);
+dataEmployee[Consignment] (Consumption consignment) += dataEmployee (consignment);
+dataWaybill[Consignment] (Consumption consignment) += waybill (consignment);
+
+dataAddressSupplierStock[Consignment] (Consumption consignment) += dataAddressSupplierStock (consignment);
+dataAddressCustomerStock[Consignment] (Consumption consignment) += dataAddressCustomerStock (consignment);
+
+readdressing[Consignment] (Consumption consignment) += readdressing (consignment);
+
+countPages[Consignment] (Consumption consignment) += countPages (consignment);
+
+overShipmentBase[Consignment] (Consumption consignment) += overShipmentBase (consignment);
+
+issuanceAllowed[Consignment] (Consumption consignment) += issuanceAllowed (consignment);
+
+issuanceExecuted[Consignment] (Consumption consignment) += issuanceExecuted (consignment);
+
+dataForwarder[Consignment] (Consumption consignment) += dataForwarder (consignment);
+
+warrant[Consignment] (Consumption consignment) += warrant (consignment);
+warrantHolder[Consignment] (Consumption consignment) += warrantHolder (consignment);
+
+goodsAccepted[Consignment] (Consumption consignment) += goodsAccepted (consignment);
+sealNumberSupplier [Consignment] (Consumption consignment) += sealNumberSupplier(consignment);
+sealNumberCustomer [Consignment] (Consumption consignment) += sealNumberCustomer(consignment);
+
+loadingExecuter[Consignment] (Consumption consignment) += loadingExecuter (consignment);
+wayOfLoading[Consignment] (Consumption consignment) += wayOfLoading (consignment);
+
+unloadingExecuter[Consignment] (Consumption consignment) += unloadingExecuter (consignment);
+wayOfUnloading[Consignment] (Consumption consignment) += wayOfUnloading (consignment);
+
+codeLoading[Consignment] (Consumption consignment) += codeLoading (consignment);
+
+dataArrivalTime[Consignment] (Consumption consignment) += arrivalTime(consignment);
+dataDowntime[Consignment] (Consumption consignment) += downtime(consignment);   
+ 
+raceQuantity[Consignment] (Consumption consignment) += raceQuantity (consignment);
+
+EXTEND CLASS ConsumptionDetail : ConsignmentDetail;
+
+index[ConsignmentDetail](ConsumptionDetail d) += index (d);
+consignment (ConsumptionDetail d) += consumption (d);
+dataSku[ConsignmentDetail] (ConsumptionDetail d) += sku (d);  
+dataQuantity (ConsumptionDetail d) += quantity (d);
+skip[ConsignmentDetail](ConsumptionDetail d) += (quantity(d) == 0) OR (NOT quantity(d));
+
+dataPackQuantity (ConsumptionDetail d) += 1.0 IF quantity (d);
+dataGrossWeight (ConsumptionDetail d) += NUMERIC[16,5](quantity (d)*overNetWeight(sku(d)));
+
+dataSupplier (Consumption consignment) += legalEntityStock(consignment);
+supplierStock[Consignment] (Consumption consignment) += stock(consignment);
+
+overPackQuantity 'Общее количество грузовых мест' = DATA NUMERIC[8,2] (Consumption);
+packQuantity (Consumption c) += WHEN c IS Consumption THEN overPackQuantity(c);
+
+dataCustomer (Consumption consignment) += legalEntityStock(consignment);
+customerStock[Consignment] (Consumption consignment) += stock(consignment);
+
+dataCurrency (Consumption consignment) += OVERRIDE currency(stock(consignment)), currency(consignment);
+
+dataPrice (ConsumptionDetail detail) += WHEN detail IS ConsumptionDetail THEN price(detail);
+
+dataSum (ConsumptionDetail detail) += WHEN detail IS ConsumptionDetail THEN sum(detail);
+dataVAT (ConsumptionDetail detail) += WHEN detail IS ConsumptionDetail THEN valueVAT(sku(detail), stock(detail),date(detail));
+
+dataSumVAT (ConsumptionDetail detail) += WHEN detail IS ConsumptionDetail THEN NUMERIC[18,4](round2(sum(detail) * valueVAT(sku(detail), stock(detail), date(detail))/100.0));
+dataSumInvoice (ConsumptionDetail detail) += WHEN detail IS ConsumptionDetail THEN sum(detail);
+
+//overShipmentBase(Consumption order) <- (CONCAT '', 'Заказ № ', seriesNumber(order)+' ', 'от '+toDateDDMMYYYY(date(order))) WHEN CHANGED(date(order)) OR CHANGED(seriesNumber(order));
+
+notUseDriverTruck(Consumption c) += notUseDriverTruck(operation(c));
+notUseIssuanceAllowed(Consumption c) += notUseIssuanceAllowed(operation(c));
+notUseIssuanceExecuted(Consumption c) += notUseIssuanceExecuted(operation(c));
+useGoodsAccepted(Consumption c) += useGoodsAccepted(operation(c));
+notPrintGr(Consumption c) += notPrintGr(operation(c));
+banPrint (Consumption c) += WHEN banOpenedPrint(operation(c)) AND NOT isPosted(c)THEN TRUE;
+
+EXTEND FORM  consumptions
+    PROPERTIES(o) FORCE PANEL editAttributes
+    PROPERTIES(o) FORCE PANEL SHOWIF showTTN1(o) READONLYIF banPrint(o)
+                     printVerticalA, printVerticalAB, printHorizontalA,
+                     printVerticalB, printHorizontalB, printAttach,
+                     printVertical, printHorizontal, printAttachXLS, printSimpleAttachXLS 
+    PROPERTIES(o) FORCE PANEL SHOWIF showTN2(o) READONLYIF banPrint(o)
+                     printSimpleHorizontal, printSimpleVertical, printSimpleAttach
+;
+
+DESIGN consumptions {
+    printTab {
+        NEW consignmentRow1 {
+            align = LEADING;
+            type = CONTAINERH;
+
+            NEW contOne {
+                alignment = STRETCH;
+                type = CONTAINERH;
+                caption = 'Накладная';
+                MOVE PROPERTY(editAttributes(o)) {
+                    alignment = STRETCH;
+                }
+                MOVE PROPERTY(invoiceNumber(o)) {
+                    alignment = STRETCH;
+                }
+                MOVE PROPERTY(invoiceSeries(o)) {
+                    alignment = STRETCH;
+                }                                
+            }
+            NEW tn2 {
+                alignment = STRETCH;
+                type = COLUMNS;
+                columns = 3;
+                caption = 'ТН-2';
+                MOVE PROPERTY(printSimpleVertical(o));
+                MOVE PROPERTY(printSimpleHorizontal(o));
+                MOVE PROPERTY(printSimpleAttach(o));
+            }
+        }
+        NEW consignmentRow2 {
+            align = LEADING;
+            type = COLUMNS;
+            columns = 3;
+            caption = 'ТТН-1';
+            MOVE PROPERTY(printVerticalA(o));
+            MOVE PROPERTY(printVerticalAB(o));
+            MOVE PROPERTY(printHorizontalA(o));
+            MOVE PROPERTY(printVerticalB(o));
+            MOVE PROPERTY(printHorizontalB(o));
+            MOVE PROPERTY(printAttach(o));      
+            MOVE PROPERTY(printVertical(o));  
+            MOVE PROPERTY(printHorizontal(o));
+        }
+        NEW consignmentRow3 {
+            type = CONTAINERH;            
+            NEW export {
+                type = CONTAINERH;
+                caption = 'Экспорт';  
+                MOVE PROPERTY(printAttachXLS(o));  
+                MOVE PROPERTY(printSimpleAttachXLS(o));                
+            }
+        }    
+    }
+}
