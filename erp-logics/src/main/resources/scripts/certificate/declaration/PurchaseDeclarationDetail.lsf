@@ -677,6 +677,7 @@ chargeSum 'Услуги' = DATA NUMERIC[16,4] (DeclarationDetail);
 
 // Суммы в национальной валюте
 homeSum 'Стоимость (декл.)' = DATA NUMERIC[18,4](DeclarationDetail) MINCHARWIDTH 12;
+homePrice 'Цена (декл.)' (DeclarationDetail d) = homeSum(d) / quantity(d);
 
 WHEN SESSION FORMS declaration (CHANGED(sum(DeclarationDetail d)) OR CHANGED(rateExchange(declaration(d))) OR
                                CHANGED(deliverySum(d)) OR CHANGED(chargeSum(d))) AND NOT isExported(d) DO
@@ -912,7 +913,8 @@ changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
     }
 }
 
-adjustHomeSum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(d), homeSum(defaultHomeDeclarationAdjustment(d),d);
+adjustHomeSum 'Стоимость (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(d), homeSum(defaultHomeDeclarationAdjustment(d),d);
+adjustHomePrice 'Цена (корр.)' (DeclarationDetail d) = adjustHomeSum(d) / quantity(d);
 
 adjustDutySum 'Пошлина (корр.)' (DeclarationDetail d) = OVERRIDE dutySum(d), dutySum(defaultDutyDeclarationAdjustment(d),d);
 adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustDutySum(DeclarationDetail declarationDetail)
@@ -920,7 +922,9 @@ adjustDutySumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROU
 
 adjustDutySum 'Пошлина (корр.)' (Declaration d) = OVERRIDE adjustDutySumDeclarationDetail(d), dataDutySum(d); 
 
-adjustVATSum (DeclarationDetail d) = OVERRIDE VATSum(d), VATSum(defaultVATDeclarationAdjustment(d),d);
+adjustVATSum 'Сумма НДС (корр.)'(DeclarationDetail d) = OVERRIDE VATSum(d), VATSum(defaultVATDeclarationAdjustment(d),d);
+adjustVATPrice 'НДС за ед. (корр.)' (DeclarationDetail d) = adjustVATSum(d) / quantity(d);
+
 adjustVATSumDeclarationDetail 'Пошлина (корр.)' (declaration) = GROUP SUM adjustVATSum(DeclarationDetail declarationDetail)
                                                                     BY declaration(declarationDetail) MINCHARWIDTH 15 PERSISTENT;
 
