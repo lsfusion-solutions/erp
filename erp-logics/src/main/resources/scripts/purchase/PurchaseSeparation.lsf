@@ -52,24 +52,30 @@ separation  (LegalEntity supplier, SkuGroup skuGroup) =
     OVERRIDE nearestSeparation (supplier, skuGroup), 
              dataSeparation(supplier, skuGroup) PERSISTENT;    
 nameSeparation 'Признак распределения' (LegalEntity l, SkuGroup g) = name(separation(l,g));
-        
-nullSeparation (LegalEntity l, Sku s) = OVERRIDE separation(l, skuGroup(s)), separation(brand(s), l);
+
+dataSeparation = DATA Separation (LegalEntity, Sku);
+nameDataSeparation 'Признак распределения' (LegalEntity l, Sku s) = name(dataSeparation(l, s));
+
+nullSeparation (LegalEntity l, Sku s) = OVERRIDE separation(l, skuGroup(s)), separation(brand(s), l), dataSeparation(l, s);
 separation (LegalEntity l, Sku s) = OVERRIDE Separation.none IF l IS LegalEntity AND s IS Sku, nullSeparation(l, s);  
-nameSeparation 'Признак распределения' (LegalEntity l, Sku s) = name(separation(l,s));
+nameSeparation 'Признак распределения (перегруженный)' (LegalEntity l, Sku s) = name(separation(l,s));
 
 countSeparationSkuGroup  (supplier) = GROUP SUM 1 IF separation(LegalEntity supplier, SkuGroup sku) BY supplier;                       
 countSeparationSku (supplier) = GROUP SUM 1 IF separation(LegalEntity supplier, Sku sku) BY supplier;   
 
 
 CONSTRAINT dataSeparation (LegalEntity l, SkuGroup g) AND NOT legalEntity(dataSeparation (l, g)) == l  
-    CHECKED BY dataSeparation
+    CHECKED BY dataSeparation[LegalEntity,SkuGroup]
         MESSAGE 'Признак распределения, заданный для группы, должен действовать и для организации.';
 CONSTRAINT separation(Brand b, LegalEntity l) AND NOT legalEntity(separation(b, l)) == l  
     CHECKED BY separation[Brand,LegalEntity]
         MESSAGE 'Признак распределения, заданный для бренда, должен действовать и для организации.';
+CONSTRAINT dataSeparation(LegalEntity l, Sku s) AND NOT legalEntity(dataSeparation(l, s)) == l  
+    CHECKED BY dataSeparation[LegalEntity,Sku]
+        MESSAGE 'Признак распределения, заданный для бренда, должен действовать и для организации.';
 
 EXTEND FORM legalEntity
-    OBJECTS se = Separation 
+    OBJECTS se = Separation FIXED GRID 
     PROPERTIES(se) name, id
     PROPERTIES(se) ADDOBJ, deletese=DELETESESSION 
     FILTERS legalEntity(se) == l        
@@ -85,6 +91,11 @@ EXTEND FORM legalEntity
     PROPERTIES(bb) READONLY name
     PROPERTIES nameSeparation(bb, l)
     ORDER BY name(bb)
+    
+    OBJECTS ks = Sku
+    PROPERTIES (ks) READONLY idBarcode, name, id SHOWIF showIDs()
+    PROPERTIES nameDataSeparation(l, ks), nameSeparation(l, ks) READONLY
+    FILTERS isParent(sk1, ks)
 ;
 
 DESIGN legalEntity {
@@ -97,7 +108,12 @@ DESIGN legalEntity {
                 fill = 4;
                 type = SPLITH;
                 MOVE skuTree1.tree.box;
-                MOVE bb.box;
+                NEW sepTab {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE bb.box;
+                    MOVE ks.box;
+                }
             }
         }
     }
