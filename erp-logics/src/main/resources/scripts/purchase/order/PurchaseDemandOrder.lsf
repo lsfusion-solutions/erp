@@ -13,25 +13,25 @@ REQUIRE System,
 
 NAMESPACE Purchase;
 
-createDemandUserOrder 'Создать заказ'(LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) = ACTION NEWSESSION {
-    FOR ADDOBJ o = Purchase.UserOrder DO {
-        date(o) <- toDate(dateTime);
-        time(o) <- toTime(dateTime);
+fillDemandUserOrder (UserOrder o, LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) = ACTION {
 
-        supplier(o) <- supplier;
-        supplierStock(o) <- defaultStock(supplier) IF countStocks (supplier) == 1;
-        customer(o) <- legalEntity(stock);
-        customerStock(o) <- stock;
+    date(o) <- toDate(dateTime);
+    time(o) <- toTime(dateTime);
 
-        IF countOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser()) == 1 THEN 
-            operation(o) <- defaultOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser());
-        
-        priceListType(o) <- priceListType;
-        
-        dateFromSoldPeriod(o) <- dFrom;
-        dateToSoldPeriod (o) <- dTo;
+    supplier(o) <- supplier;
+    supplierStock(o) <- defaultStock(supplier) IF countStocks (supplier) == 1;
+    customer(o) <- legalEntity(stock);
+    customerStock(o) <- stock;
 
-        fillRecommendedQuantityStock(o);
+    IF countOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser()) == 1 THEN 
+        operation(o) <- defaultOperationSupplierCustomerSupplierCustomer(supplier(o), customer(o), supplierStock(o), customerStock(o), currentUser());
+    
+    priceListType(o) <- priceListType;
+    
+    dateFromSoldPeriod(o) <- dFrom;
+    dateToSoldPeriod (o) <- dTo;
+
+    fillRecommendedQuantityStock(o);
 //        FOR priceALedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
 //            AND recommendedQuantitySkuStockUserOrder (sku, stock, o)
 //            ADDOBJ d = UserOrderDetail DO {
@@ -40,7 +40,12 @@ createDemandUserOrder 'Создать заказ'(LegalEntity supplier, Stock st
 //                quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, stock, o);
 //        }
 
-        FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL NOCANCEL;
+    FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL NOCANCEL;
+}
+
+createDemandUserOrder 'Создать заказ'(LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) = ACTION NEWSESSION {
+    FOR ADDOBJ o = Purchase.UserOrder DO {
+        fillDemandUserOrder(o, supplier, stock, priceListType, dateTime, dFrom, dTo);
     }
 }
 
@@ -73,7 +78,7 @@ FORM demandOrder 'Заказы по потребностям'
     OBJECTS dFrom = DATE FIXED PANEL, dTo = DATE FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
 
-    OBJECTS l = LegalEntity
+    OBJECTS l = LegalEntity FIXED GRID
     PROPERTIES(l) READONLY name
     PROPERTIES createDemandUserOrder(l, st, p, dt, dFrom, dTo) FORCE PANEL TODRAW l TOOLBAR
     ORDER BY name(l)
@@ -170,8 +175,14 @@ DESIGN demandOrder {
                         MOVE PROPERTY (valFrom);
                         MOVE PROPERTY (valTo);
                     }
-                }                   
-                MOVE l.box{fill = 2;}
+                }     
+                NEW right {
+                    type = CONTAINERH;
+                    fill = 2;
+                    MOVE l.box {
+                        fill = 3;
+                    }
+                }
             }            
             
             NEW colum {
