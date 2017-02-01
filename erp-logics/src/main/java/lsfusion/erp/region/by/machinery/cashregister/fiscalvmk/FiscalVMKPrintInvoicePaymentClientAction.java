@@ -17,10 +17,9 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
     BigDecimal sumPayment;
     Integer typePayment;
     boolean sale;
-    String denominationStage;
 
     public FiscalVMKPrintInvoicePaymentClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
-                                                    BigDecimal sumPayment, Integer typePayment, boolean sale, String denominationStage) {
+                                                    BigDecimal sumPayment, Integer typePayment, boolean sale) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -29,7 +28,6 @@ public class FiscalVMKPrintInvoicePaymentClientAction implements ClientAction {
         this.sumPayment = sumPayment;
         this.typePayment = typePayment;
         this.sale = sale;
-        this.denominationStage = denominationStage;
     }
     
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {

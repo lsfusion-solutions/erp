@@ -63,8 +63,11 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                 Object operatorNumber = userObject.isNull() ? 0 : findProperty("operatorNumberCurrentCashRegister[CustomUser]").read(context, (DataObject) userObject);
                 BigDecimal sumTotal = (BigDecimal) findProperty("sumReceiptDetail[Receipt]").read(context, receiptObject);
                 BigDecimal maxSum = (BigDecimal) findProperty("maxSumCurrentCashRegister[]").read(context);
-                String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
-                denominationStage = denominationStage == null ? null : denominationStage.trim();
+
+                String UNP = (String) findProperty("UNPCurrentCashRegister[]").read(context);
+                String regNumber = (String) findProperty("regNumberCurrentCashRegister[]").read(context);
+                String machineryNumber = (String) findProperty("machineryNumberCurrentCashRegister[]").read(context);
+
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsNotPayment = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsNotPaymentCurrentCashRegister[]").read(context) != null);
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
@@ -160,7 +163,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(ip, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, denominationStage));
+                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change(result, context, receiptObject);
                         context.apply();

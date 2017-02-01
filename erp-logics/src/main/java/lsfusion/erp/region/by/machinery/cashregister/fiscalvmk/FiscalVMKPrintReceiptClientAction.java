@@ -22,11 +22,13 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String receiptTop;
     String receiptBottom;
     boolean giftCardAsNotPayment;
-    String denominationStage;
+    String UNP;
+    String regNumber;
+    String machineryNumber;
 
     public FiscalVMKPrintReceiptClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
-                                             String denominationStage) {
+                                             String UNP, String regNumber, String machineryNumber) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -36,7 +38,9 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
-        this.denominationStage = denominationStage;
+        this.UNP = UNP;
+        this.regNumber = regNumber;
+        this.machineryNumber = machineryNumber;
     }
 
 
@@ -103,30 +107,39 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
 
         if (giftCardAsNotPayment && receipt.sumGiftCard != null) {
 
-            double sum = 0;
-            double discountSum = 0;
+            BigDecimal sum = BigDecimal.ZERO;
+            BigDecimal discountSum = BigDecimal.ZERO;
             DecimalFormat formatter = getFormatter();
             FiscalVMK.printFiscalText(" \n      ТОВАРНЫЙ ЧЕК      \n ");
             for (ReceiptItem item : receiptList) {
-                double discount = item.articleDiscSum - item.bonusPaid;
-                sum += item.sumPos - discount;
-                discountSum += discount;
+                BigDecimal discount = BigDecimal.valueOf(item.articleDiscSum).subtract(BigDecimal.valueOf(item.bonusPaid));
+                sum = sum.add(BigDecimal.valueOf(item.sumPos).subtract(discount));
+                discountSum = discountSum.add(discount);
                 FiscalVMK.printMultilineFiscalText(item.name);
                 FiscalVMK.printFiscalText(getFiscalString("Код", item.barcode));
                 FiscalVMK.printFiscalText(getFiscalString("Цена",
                         new DecimalFormat("#,###.##").format(item.quantity) + "x" + formatter.format(item.price)));
-                if(discountSum != 0.0)
-                FiscalVMK.printFiscalText(getFiscalString("Скидка",
-                        formatter.format(discount)));
+                if(!discountSum.equals(BigDecimal.ZERO)) {
+                    FiscalVMK.printFiscalText(getFiscalString("Скидка", formatter.format(discount)));
+                    FiscalVMK.printFiscalText(getFiscalString("Цена со скидкой", formatter.format(item.sumPos)));
+                }
             }
-            discountSum += receipt.sumDisc == null ? 0 : receipt.sumDisc.doubleValue();
-            sum = Math.max(sum - receipt.sumGiftCard.doubleValue(), 0);
+            discountSum = discountSum.add(receipt.sumDisc == null ? BigDecimal.ZERO : receipt.sumDisc);
+            sum = sum.subtract(receipt.sumGiftCard).max(BigDecimal.ZERO/*discountSum.abs()*/);
 
-            FiscalVMK.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard)));
+            FiscalVMK.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard.negate())));
             FiscalVMK.printFiscalText(getFiscalString("", " \n( _______ ____________ )"));
             FiscalVMK.printFiscalText(getFiscalString("", " (подпись)     ФИО      \n "));
 
-            if (!FiscalVMK.registerAndDiscountItem(sum, discountSum))
+            FiscalVMK.printFiscalText(" \n      КАССОВЫЙ ЧЕК      \n ");
+            if(UNP != null)
+                FiscalVMK.printFiscalText(getFiscalString("УНП", UNP));
+            if(regNumber != null)
+            FiscalVMK.printFiscalText(getFiscalString("РЕГ N", regNumber));
+            if(machineryNumber != null)
+                FiscalVMK.printFiscalText(getFiscalString("N КСА", machineryNumber));
+
+            if (!FiscalVMK.registerAndDiscountItem(sum.doubleValue(), discountSum.doubleValue()))
                 return null;
 
             if (!FiscalVMK.subtotal())
@@ -138,7 +151,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
                 return null;
             if (!FiscalVMK.totalCash(receipt.sumCash))
                 return null;
-            if(receipt.sumCard == null && receipt.sumCash == null && sum == 0.0)
+            if(receipt.sumCard == null && receipt.sumCash == null && sum.doubleValue() == discountSum.abs().doubleValue())
                 if(!FiscalVMK.totalCash(BigDecimal.ZERO))
                     return null;
 

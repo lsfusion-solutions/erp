@@ -28,10 +28,8 @@ public class FiscalVMKCashSumActionProperty extends ScriptingActionProperty {
             String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
             Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
             Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
-            String denominationStage = (String) findProperty("denominationStageCurrentCashRegister[]").read(context);
-            denominationStage = denominationStage == null ? null : denominationStage.trim();
 
-            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5, denominationStage));
+            Object result = context.requestUserInteraction(new FiscalVMKCustomOperationClientAction(ip, comPort, baudRate, 5));
             if (result instanceof BigDecimal) {
                 context.requestUserInteraction(new MessageClientAction(FiscalVMK.toStr((BigDecimal) result), "Сумма наличных в кассе"));
             } else if (result instanceof String) {
