@@ -1,0 +1,69 @@
+MODULE PurchaseLedgerBatch;
+
+REQUIRE PurchaseLedger;
+
+NAMESPACE PurchaseLedger;
+
+ 
+FORM purchaseLedgerBatch 'Регистр поступлений (по партиям)'
+    PROPERTIES() namePurchaseOperation, namePurchaseCustomer
+
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo), isShipmentDate()
+
+    OBJECTS te = TypeExchange FIXED PANEL
+    PROPERTIES nameType = name(te) SELECTOR, nameCurrency(te) READONLY
+
+    OBJECTS sb = (s = PurchaseLedger, b = Batch)
+    PROPERTIES(s) READONLY date, dateTime, numberDocument, shipmentDate, shipmentDateTime,
+                           nameStock, nameSupplier, nameOperation,
+                           canonicalNameSkuGroup, nameSkuGroup1Sku, nameSkuGroup2Sku, nameSkuGroup3Sku, nameSkuGroup4Sku, nameSkuGroup5Sku, 
+                           nameSku, idBarcodeSku, idSku, description,
+                           quantity, price, valueVAT, sumVAT, sum, averagePrice, nameCurrency
+    PROPERTIES(s) edit SHOWIF allowedEdit(s)
+    
+    FILTERS active(s), filterPurchaseOperationSale(s), filterPurchaseCustomerSale(s)  
+    FILTERS (date(s) >= dFrom AND date(s) <= dTo IF NOT isShipmentDate()) OR (s IS PurchaseLedger AND isShipmentDate()),  
+            (shipmentDate(s) >= dFrom AND shipmentDate(s) <= dTo IF isShipmentDate()) OR (s IS PurchaseLedger AND NOT isShipmentDate())
+    FILTERS cost(s,b)
+            
+    EVENTS 
+        ON INIT onInitPurchaseLedger()
+;
+
+DESIGN purchaseLedgerBatch {
+        type = CONTAINERV;
+        NEW top {
+            type = CONTAINERH;
+            MOVE dates.box {
+                type = CONTAINERH;
+                MOVE PROPERTY (isShipmentDate());
+                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
+                PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
+            }
+            NEW operationContainer{
+                type = COLUMNS;
+                columns = 3;
+                caption = 'Фильтры';
+                MOVE PROPERTY(namePurchaseOperation());
+                MOVE PROPERTY(namePurchaseCustomer());
+            }  
+            MOVE te.box {
+                type = CONTAINERH;
+                PROPERTY(nameCurrency(te)) { caption = 'Валюта'; preferredCharWidth = 20;}
+                PROPERTY(nameType) { caption = 'Тип обмена'; preferredCharWidth = 20;}
+            }
+        }        
+    
+        MOVE sb.box;
+    
+    MOVE functions.box;
+}
+
+NAVIGATOR {
+    purchaseNavigator {
+        purchasesReports 'Отчеты' {
+            ADD purchaseLedgerBatch;
+        }
+    }
+}
