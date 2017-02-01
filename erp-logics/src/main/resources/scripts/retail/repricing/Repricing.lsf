@@ -365,7 +365,8 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
     CONFIRM 'Может, Вы, хотите пересчитать и цены (после)?';
     
     FOR userRepricing(UserRepricingDetail d) == repricing DO {
-        curPrice(d) <- round2(IF batch(d)                                          
+        IF notUseRound2() THEN {
+            curPrice(d) <- IF batch(d)                                          
                 THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
                             batch(d),
                             departmentStore(d),
@@ -373,7 +374,18 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
                 ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
                             sku(d),
                             departmentStore(d),
-                            dateTime(d)));
+                            dateTime(d));
+        } ELSE {
+            curPrice(d) <- round2(IF batch(d)                                          
+                THEN prevPriceB[PriceListType,Batch,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                            batch(d),
+                            departmentStore(d),
+                            dateTime(d))
+                ELSE prevPriceB[PriceListType,Sku,Stock,DATETIME](SystemLedgerPriceListType.supplierPricingPriceListType,
+                            sku(d),
+                            departmentStore(d),
+                            dateTime(d)));        
+        }                
                                                            
 //        curVATUserRepricingDetail(d) <- curVATUserRepricingDetail(d);
 //        valueCurVATUserRepricingDetail(d) <- valueCurVATUserRepricingDetail(d);
@@ -395,9 +407,7 @@ recalculatePrice 'Пересчитать цены (до)' (UserRepricing reprici
         FOR userRepricing(UserRepricingDetail d) == repricing DO {
             price(d) <- curPrice(d);
             overConfirmRecalculatePrice(d);        
-        }
-
-        
+        }        
     }      
 
 
