@@ -699,7 +699,11 @@ addUserRepricing 'Добавить' = ACTION ADDFORM UserRepricing;
 edit 'Редактировать' (userRepricing) = ACTION EDITFORM UserRepricing;
 edit(UserRepricing p) += ACTION edit(p);
 
+showEditUser (Repricing i) =  NOT preventChangesDocument(currentUser(),operation(i)) AND isOpened(i); 
+
 isUserOpened(UserRepricing p)=  isOpened[Repricing](p) AND is(p);
+
+showDeleteUser (Repricing i) =  NOT preventChangesDocument(currentUser(),operation(i)) AND isUserOpened(i);
 
 filterRepricingDateFrom 'Дата с' = DATA LOCAL DATE ();
 filterDateFrom (Repricing i) = date(i) >= filterRepricingDateFrom() OR (i IS Repricing AND NOT filterRepricingDateFrom());      
@@ -755,10 +759,10 @@ FORM repricings 'Акты переоценки'
                                         postedNameUser, postedTime, postedHostnameComputer
 
     PROPERTIES ()  addUserRepricing TODRAW p
-    PROPERTIES (p) edit SHOWIF isOpened(p)
+    PROPERTIES (p) edit SHOWIF showEditUser(p)
     PROPERTIES(p)  close[UserRepricing] SHOWIF isOpened[UserRepricing](p), open SHOWIF isClosed[UserRepricing](p)     
     PROPERTIES copy(p)
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)
+    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF showDeleteUser(p)
     PROPERTIES (p) print FORCE PANEL
     PROPERTIES () toFillQuantityUserRepricingDetailAllUserRepricings FORCE PANEL TODRAW p
     OBJECTS d = RepricingDetail
