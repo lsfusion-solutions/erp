@@ -45,6 +45,7 @@ CLASS TypeChange 'Тип изменения' {
     delete 'Удаление',
     addBarcode 'Добавление штрихкода',
     deleteBarcode 'Удаление штрихкода',
+    changeBarcode 'Изменение штрихкода',
     addAttribute 'Добавление атрибутов',    
     changeAttribute 'Изменение атрибутов',
     deleteAttribute 'Удаление атрибутов'    
@@ -87,6 +88,25 @@ WHEN DROPPED(Item i IS Item) IF NOT disableItemLog() DO {
         nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
         dateTimeSession(d) <- dateTime(currentSession());        
         note(d) <- VARSTRING[500]('Удален товар');         
+    }
+}
+
+WHEN CHANGED(id(Barcode b)) AND (id(b) != PREV(id(b))) AND sku(b) IS Item IF NOT disableItemLog()  DO {
+FOR ADDOBJ d = ItemLog DO {
+        item(d) <- sku(b);
+        id(d) <- id(sku(b));
+        idBarcode(d) <- idBarcode(sku(b));
+        name(d) <- nameAttribute(sku(b));     
+        
+        typeChange(d) <- TypeChange.changeBarcode;
+        note(d) <- VARSTRING[500](CONCAT ' ', 'До: '+PREV(id(b))+'.', 'После: '+id(b));              
+        note(d) <- VARSTRING[500]('Штрихкод: '+id(b));      
+        session(d) <- currentSession();  
+        hostnameComputer(d) <- hostnameComputerConnection(currentSession());
+        userLogin(d) <- userLoginConnection(currentSession()); 
+        nameContact(d) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(d) <- dateTime(currentSession());    
+
     }
 }
 
