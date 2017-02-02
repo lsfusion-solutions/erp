@@ -1,0 +1,88 @@
+MODULE SalePurchaseLedgerBatch;
+
+REQUIRE SaleLedgerBatch, PurchaseShipment;
+
+NAMESPACE SaleLedger;
+
+backgroundYellow 'Желтый' (Batch b) = RGB(251,255,184) IF b IS Batch;  
+
+dquantityPurchase 'Приход за интервал (кол-во)' = DATA LOCAL NUMERIC[14,3] (Batch, Stock);  
+dcostSumPurchase 'Себестоимость пришедшего за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock); 
+dsumPurchase 'Сумма пришедшего за интервал' = DATA LOCAL NUMERIC[22,8] (Batch, Stock);
+dcontractSumPurchase 'Контрактная сумма, вал. (приход)' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dcontractSumByrPurchase 'Контрактная сумма, руб. (приход)' = DATA LOCAL NUMERIC[18,6] (Batch, Stock);
+
+dcontractSumBalanceB 'Контрактная сумма, вал. (начало)' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dcontractSumByrBalanceB 'Контрактная сумма, руб. (начало)' = DATA LOCAL NUMERIC[18,6] (Batch, Stock);
+
+dcontractSumSold 'Контрактная сумма, вал. (продаж)' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);  
+dcontractSumByrSold 'Контрактная сумма, руб. (продаж)' = DATA LOCAL NUMERIC[18,6] (Batch, Stock);   
+
+dcontractSumBalanceA 'Контрактная сумма, вал. (конец)' = DATA LOCAL NUMERIC[15,3] (Batch, Stock);
+dcontractSumByrBalanceA 'Контрактная сумма, руб. (конец)' = DATA LOCAL NUMERIC[18,6] (Batch, Stock);
+
+
+
+
+overFillPropertyFromTo(DATE dFrom,DATE dTo) += ACTION {
+    dquantityPurchase(Batch bb,Stock sts) <- quantityPurchase(bb,sts,dFrom,dTo);
+    dcostSumPurchase(Batch bb,Stock sts) <- costSumPurchase(bb,sts,dFrom,dTo);
+    dsumPurchase(Batch bb,Stock sts) <- sumPurchase(bb,sts,dFrom,dTo);
+    dcontractSumPurchase(Batch bb,Stock sts) <- dquantityPurchase(bb,sts) * priceInvoiceDetail(bb);
+    dcontractSumByrPurchase(Batch bb,Stock sts) <- dcontractSumPurchase(bb,sts) * rateExchangeInvoiceDetail(bb);
+
+    dcontractSumBalanceB(Batch bb,Stock sts) <- dbalanceB(bb,sts) * priceInvoiceDetail(bb); 
+    dcontractSumByrBalanceB(Batch bb,Stock sts) <- dcontractSumBalanceB(bb,sts) * rateExchangeInvoiceDetail(bb); 
+//--            
+    dcontractSumSold(Batch bb,Stock sts) <- dquantitySold(bb,sts) * priceInvoiceDetail(bb);
+    dcontractSumByrSold(Batch bb,Stock sts) <- dcontractSumSold(bb,sts) * rateExchangeInvoiceDetail(bb);
+//--
+    dcontractSumBalanceA(Batch bb,Stock sts) <- dbalanceA(bb,sts) * priceInvoiceDetail(bb);
+    dcontractSumByrBalanceA(Batch bb,Stock sts) <- dcontractSumBalanceA(bb,sts) * rateExchangeInvoiceDetail(bb);
+}   
+
+
+contractSumPurchase 'Контрактная сумма, вал. (приход)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = quantityPurchase(batch, stock, dateFrom, dateTo) * priceInvoiceDetail(batch);    
+contractSumByrPurchase 'Контрактная сумма, руб. (продаж)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = contractSumPurchase(batch, stock, dateFrom, dateTo)*rateExchangeInvoiceDetail(batch);      
+
+contractSumSold 'Контрактная сумма, вал. (приход)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = quantitySold(batch, stock, dateFrom, dateTo) * priceInvoiceDetail(batch);    
+contractSumByrSold 'Контрактная сумма, руб. (продаж)' (Batch batch, Stock stock, DATE dateFrom, DATE dateTo) = contractSumSold(batch, stock, dateFrom, dateTo)*rateExchangeInvoiceDetail(batch);      
+
+//-- на начало   
+contractSumBalanceB 'Контрактная сумма, вал. (начало)' (Batch batch, Stock stock, DATE dateFrom) = balanceB(batch, stock, dateFrom) * priceInvoiceDetail(batch);    
+contractSumByrBalanceB 'Контрактная сумма, руб. (начало)' (Batch batch, Stock stock, DATE dateFrom) = contractSumBalanceB(batch, stock, dateFrom)*rateExchangeInvoiceDetail(batch);      
+
+//-- на конец  
+contractSumBalanceA 'Контрактная сумма, вал. (конец)' (Batch batch, Stock stock, DATE dateTo) = balanceA(batch, stock, dateTo) * priceInvoiceDetail(batch);    
+contractSumByrBalanceA 'Контрактная сумма, руб. (конец)' (Batch batch, Stock stock, DATE dateTo) = contractSumBalanceA(batch, stock, dateTo)*rateExchangeInvoiceDetail(batch);      
+
+
+EXTEND FORM saleBatch
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundYellow(bb) BEFORE quantitySold(bb,sts,dFrom,dTo) quantityPurchase, costSumPurchase,contractSumPurchase, contractSumByrPurchase,sumPurchase FORCE GRID 
+    
+    PROPERTIES(bb,sts,dFrom) READONLY BACKGROUND backgroundLavender(bb) contractSumBalanceB FORCE GRID BEFORE costB(bb,sts,dFrom) 
+    PROPERTIES(bb,sts,dFrom) READONLY BACKGROUND backgroundLavender(bb) contractSumByrBalanceB FORCE GRID AFTER accountSumB(bb,sts,dFrom)
+
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTea(bb) BEFORE costSumSold(bb,sts,dFrom,dTo) contractSumSold FORCE GRID 
+    
+    PROPERTIES(bb,sts,dFrom,dTo) READONLY BACKGROUND backgroundGreenTea(bb) contractSumByrSold FORCE GRID BEFORE 
+                   averageMarkupSold(bb,sts,dFrom,dTo)                    
+    PROPERTIES(bb,sts,dTo) READONLY BACKGROUND backgroundSky(bb) contractSumBalanceA FORCE GRID BEFORE  
+                   costA(bb,sts,dTo)
+    PROPERTIES(bb,sts,dTo) READONLY BACKGROUND backgroundSky(bb) AFTER accountSumA(bb,sts,dTo) contractSumByrBalanceA FORCE GRID
+
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundYellow(bbb) BEFORE dquantitySold(bbb,stst) dquantityPurchase, dcostSumPurchase, dcontractSumPurchase, dcontractSumByrPurchase, dsumPurchase FORCE GRID  
+                                                                                             
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundLavender(bbb) dcontractSumBalanceB FORCE GRID BEFORE dcostB(bbb,stst) 
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundLavender(bbb) dcontractSumByrBalanceB FORCE GRID AFTER daccountSumB(bbb,stst)
+
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTea(bbb) BEFORE dcostSumSold(bbb,stst) dcontractSumSold FORCE GRID
+
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundGreenTea(bbb) dcontractSumByrSold FORCE GRID BEFORE 
+                   daverageMarkupSold(bbb,stst)                    
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSky(bbb) dcontractSumBalanceA FORCE GRID BEFORE  
+                   dcostA(bbb,stst)
+    PROPERTIES(bbb,stst) READONLY BACKGROUND backgroundSky(bbb) AFTER daccountSumA(bbb,stst) dcontractSumByrBalanceA FORCE GRID                                                                                         
+
+
+;
