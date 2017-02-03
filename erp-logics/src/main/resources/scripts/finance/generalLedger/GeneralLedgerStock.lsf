@@ -1,0 +1,136 @@
+MODULE GeneralLedgerStock;
+
+REQUIRE GeneralLedger, Stock;
+
+stock = ABSTRACT Stock (GeneralLedger) PERSISTENT;
+nameStock 'Склад' (GeneralLedger generalLedger) = name(stock(generalLedger));
+idStock 'Склад' (GeneralLedger generalLedger) = id(stock(generalLedger));
+stock = DATA Stock (UserGeneralLedger);
+nameStock 'Склад' (UserGeneralLedger userGeneralLedger) = name(stock(userGeneralLedger));
+idStock 'Склад' (UserGeneralLedger generalLedger) = id(stock(generalLedger));
+stock (UserGeneralLedger generalLedger) += stock (generalLedger);
+
+EXTEND FORM userGeneralLedger
+    PROPERTIES(g) nameStock
+;
+
+DESIGN userGeneralLedger {
+    g.documentHeader {
+        MOVE PROPERTY(nameStock(g)) AFTER PROPERTY(nameLegalEntity(g));
+    }    
+}
+
+generalLedgersStock 'Склад' = DATA LOCAL NESTED Stock();
+nameGeneralLedgersStock 'Склад' = name(generalLedgersStock()) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+CONSTRAINT generalLedgersStock() AND NOT isCompany(generalLedgersStock())
+    CHECKED BY generalLedgersStock[] MESSAGE 'Выбран склад, который не принадлежит компании.';
+
+EXTEND FORM generalLedgers 
+    PROPERTIES nameGeneralLedgersStock() TODRAW dates  
+
+    PROPERTIES(g)  READONLY nameStock AFTER nameLegalEntity(g)
+    
+    FILTERS generalLedgersStock() == stock(g) OR (NOT generalLedgersStock() AND g IS GeneralLedger)  
+;
+
+//////////////////////////////////---- Для склада ----//////////////////////////
+//-- Для одного объекта
+
+META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
+    overCreate###idGL###object = ACTION ABSTRACT LIST (UserGeneralLedger);  
+
+    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(DATE dateProp, DATE dateProp##To) = ACTION {     
+        FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+            GLDocument(u) <- object;
+            legalEntity(u) <- companyProp(object);
+            stock(u) <- stockProp(object);
+            isPosted(u) <- isPosted(object);
+            description(u) <- descriptionProp(object);
+            dateProp(u) <- dateProp(object);
+            timeProp(u) <- timeProp(object);
+            debit(u) <- GLAccountIdTypeIdGLAccount(accountType, debitV);
+            credit(u) <- GLAccountIdTypeIdGLAccount(accountType, creditV);
+            sum(u) <- NUMERIC[18,4](property(object));   
+            
+            EXEC overCreate###idGL###object(u); 
+        }    
+    }
+    createGeneralLedgerFromTo(DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL###idGL###object##FromTo(date,dateTo);
+END
+// дата 
+META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType)
+    @defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, date, time, descriptionProp, debitV, creditV, accountType);
+END
+
+
+//-- С операцией
+META defineGeneralLedgerOperationStock(object, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType, keyProp)
+    idGL###property(###object object) = property(object) IF idOperation(object) == keyProp;
+    @defineGeneralLedgerStock (object, idGL, companyProp, stockProp, idGL###property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType);            
+END
+// дата
+META defineGeneralLedgerOperationStock(object, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType, keyProp)
+    @defineGeneralLedgerOperationStock(object, idGL, companyProp, stockProp, property, date, time, descriptionProp, debitV, creditV, accountType, keyProp);
+END  
+
+//-- 2 операции
+META defineGeneralLedgerOperationStock(object, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType, keyProp, key1Prop)
+    idGL###property(###object object) = property(object) IF idOperation(object) == keyProp OR idOperation(object) == key1Prop;
+    @defineGeneralLedgerStock (object, idGL, companyProp, stockProp, idGL###property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType);            
+END
+// дата
+META defineGeneralLedgerOperationStock(object, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType, keyProp, key1Prop)
+    @defineGeneralLedgerOperationStock(object, idGL, companyProp, stockProp, property, date, time, descriptionProp, debitV, creditV, accountType, keyProp, key1Prop);
+END  
+
+// ----------------------------------- Для двух объектов (object1 - документ) --------------------------------------- //
+
+META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
+
+    overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
+    overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
+    
+    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(DATE dateProp,DATE dateProp##To) = ACTION {     
+        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+            GLDocument(u) <- object1;
+            legalEntity(u) <- companyProp(object1);
+            stock(u) <- stockProp(object1);
+            isPosted(u) <- isPosted(object1);
+            descriptionProp(u) <- descriptionProp(object1, object2);
+            dateProp(u) <- dateProp(object1);
+            timeProp(u) <- timeProp(object1);
+            debit(u) <- GLAccountIdTypeIdGLAccount(accountType, debitV);
+            credit(u) <- GLAccountIdTypeIdGLAccount(accountType, creditV);
+            sum(u) <- NUMERIC[18,4](property(object1, object2));   
+            
+            overCreate##idGL###object1###object2(u,object2);
+            overCreate##idGL###object1###object2(u); 
+        }    
+    }
+    createGeneralLedgerFromTo(DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL##idGL###object1###object2##FromTo(date, dateTo);
+END
+// дата 
+META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType)
+    @defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, property, date, time, descriptionProp, debitV, creditV, accountType);
+END
+
+//-- С операцией
+META defineGeneralLedgerDoubleOperationStock(object1, object2, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType, keyProp)
+    idGL###property(###object1 object1, ###object2 object2) = property(object1, object2) IF id###operation(object1) == keyProp;
+    @defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, idGL###property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType);
+END  
+// дата 
+META defineGeneralLedgerDoubleOperationStock(object1, object2, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType, keyProp)
+    @defineGeneralLedgerDoubleOperationStock(object1, object2, idGL, companyProp, stockProp, property, date, time, descriptionProp, debitV, creditV, accountType, keyProp);
+END
+
+//-- 2 операции
+META defineGeneralLedgerDoubleOperationStock(object1, object2, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType, keyProp, key1Prop)
+    idGL###property(###object1 object1, ###object2 object2) = property(object1, object2) IF id###operation(object1) == keyProp OR id###operation(object1) == key1Prop;
+    @defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, idGL###property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType);
+END  
+// дата 
+META defineGeneralLedgerDoubleOperationStock(object1, object2, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType, keyProp, key1Prop)
+    @defineGeneralLedgerDoubleOperationStock(object1, object2, idGL, companyProp, stockProp, property, date, time, descriptionProp, debitV, creditV, accountType, keyProp, key1Prop);
+END
