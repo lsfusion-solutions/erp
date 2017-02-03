@@ -10,13 +10,16 @@ public class CashierTime implements Serializable {
     public Integer numberGroupCashRegister;
     public Timestamp logOnCashier;
     public Timestamp logOffCashier;
+    public Boolean isZReport;
 
-    public CashierTime(String idCashierTime, String numberCashier, Integer numberCashRegister, Integer numberGroupCashRegister, Timestamp logOnCashier, Timestamp logOffCashier) {
+    public CashierTime(String idCashierTime, String numberCashier, Integer numberCashRegister, Integer numberGroupCashRegister,
+                       Timestamp logOnCashier, Timestamp logOffCashier, Boolean isZReport) {
         this.idCashierTime = idCashierTime;
         this.numberCashier = numberCashier;
         this.numberCashRegister = numberCashRegister;
         this.numberGroupCashRegister = numberGroupCashRegister;
         this.logOnCashier = logOnCashier;
         this.logOffCashier = logOffCashier;
+        this.isZReport = isZReport;
     }
 }

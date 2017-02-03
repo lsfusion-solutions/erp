@@ -579,8 +579,21 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             Timestamp timeFrom = rs.getTimestamp(3);
             Timestamp timeTo = rs.getTimestamp(4);
             result.add(new CashierTime(null, numberCashier, numberCashRegister,
-                    directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo));
+                    directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, null));
         }
+        statement.close();
+
+        statement = conn.createStatement();
+        queryString = "SELECT CashNumber, GangDateStart, GangDateStop FROM OperGang";
+        rs = statement.executeQuery(queryString);
+        while (rs.next()) {
+            Integer numberCashRegister = rs.getInt(1);
+            Timestamp timeFrom = rs.getTimestamp(2);
+            Timestamp timeTo = rs.getTimestamp(3);
+            result.add(new CashierTime(null, null, numberCashRegister,
+                    directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, true));
+        }
+        statement.close();
         return result;
     }
 

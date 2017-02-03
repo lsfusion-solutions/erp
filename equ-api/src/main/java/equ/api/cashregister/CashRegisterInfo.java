@@ -15,22 +15,22 @@ public class CashRegisterInfo extends MachineryInfo {
     public String section;
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String handlerModel, String port, String directory,
-                            String denominationStage, String section, Integer overDepartNumber) {
-        this(numberGroup, number, null, handlerModel, port, directory, denominationStage, overDepartNumber, null, false, null, null, section);
+                            String section, Integer overDepartNumber) {
+        this(numberGroup, number, null, handlerModel, port, directory, overDepartNumber, null, false, null, null, section);
     }
 
     public CashRegisterInfo(Integer numberGroup, Integer number, String nameModel, String handlerModel, String port, String directory,
-                            String denominationStage, Integer overDepartNumber, String idDepartmentStore, boolean disableSales,
+                            Integer overDepartNumber, String idDepartmentStore, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section) {
-        this(true, false, false, numberGroup, number, nameModel, handlerModel, port, directory, denominationStage, null, overDepartNumber, idDepartmentStore,
+        this(true, false, false, numberGroup, number, nameModel, handlerModel, port, directory, null, overDepartNumber, idDepartmentStore,
                  false,  disableSales,  pieceCodeGroupCashRegister, weightCodeGroupCashRegister, section);
     }
 
     public CashRegisterInfo(boolean enabled, boolean cleared, boolean succeeded, Integer numberGroup, Integer number, String nameModel,
-                            String handlerModel, String port, String directory, String denominationStage, Date startDate,
+                            String handlerModel, String port, String directory, Date startDate,
                             Integer overDepartNumber, String idDepartmentStore, Boolean notDetailed, boolean disableSales,
                             String pieceCodeGroupCashRegister, String weightCodeGroupCashRegister, String section) {
-        super(enabled, cleared, succeeded, numberGroup, number, nameModel, handlerModel, port, directory, denominationStage);
+        super(enabled, cleared, succeeded, numberGroup, number, nameModel, handlerModel, port, directory);
         this.startDate = startDate;
         this.overDepartNumber = overDepartNumber;
         this.idDepartmentStore = idDepartmentStore;

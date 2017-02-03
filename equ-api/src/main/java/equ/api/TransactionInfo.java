@@ -20,7 +20,6 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public List<M> machineryInfoList;
     public Boolean snapshot;
     public Timestamp lastErrorDate;
-    public String denominationStage;
 
     public TransactionInfo() {
     }
@@ -28,7 +27,7 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
     public TransactionInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery,
                            Integer nppGroupMachinery, String nameGroupMachinery, String description,
                            Map<String, List<ItemGroup>> itemGroupMap, List<I> itemsList, List<M> machineryInfoList,
-                           Boolean snapshot, Timestamp lastErrorDate, String denominationStage) {
+                           Boolean snapshot, Timestamp lastErrorDate) {
         this.id = id;
         this.dateTimeCode = dateTimeCode;
         this.date = date;
@@ -42,6 +41,5 @@ public abstract class TransactionInfo <M extends MachineryInfo, I extends ItemIn
         this.machineryInfoList = machineryInfoList;
         this.snapshot = snapshot;
         this.lastErrorDate = lastErrorDate;
-        this.denominationStage = denominationStage;
     }
 }

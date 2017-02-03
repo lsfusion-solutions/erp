@@ -8,8 +8,8 @@ public class TransactionPriceCheckerInfo extends TransactionInfo<PriceCheckerInf
 
     public TransactionPriceCheckerInfo(Integer id, String dateTimeCode, Date date, String handlerModel, Integer idGroupMachinery, Integer nppGroupMachinery,
                                        String nameGroupMachinery, String description, List<PriceCheckerItemInfo> itemsList,
-                                       List<PriceCheckerInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate, String denominationStage) {
+                                       List<PriceCheckerInfo> machineryInfoList, Boolean snapshot, Timestamp lastErrorDate) {
         super(id, dateTimeCode, date, handlerModel, idGroupMachinery, nppGroupMachinery, nameGroupMachinery, description,
-                null, itemsList, machineryInfoList, snapshot, lastErrorDate, denominationStage);
+                null, itemsList, machineryInfoList, snapshot, lastErrorDate);
     }
 }
