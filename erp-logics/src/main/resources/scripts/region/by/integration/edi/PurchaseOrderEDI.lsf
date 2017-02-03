@@ -24,3 +24,18 @@ quantity(Purchase.UserOrderDetail o) += Purchase.quantity(o);
 price(Purchase.UserOrderDetail o) += Purchase.price(o);
 valueVAT(Purchase.UserOrderDetail o) += Purchase.valueVAT(o);
 
+isEOrder(Purchase.Order o) = EDIProvider(supplier(o)) IS EDIProvider;
+isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider;
+isEOrder(Purchase.OrderDetail d) = isEOrder(order(d));
+isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
+
+responseDetail = GROUP MAX EOrderResponseDetail ed IF eOrder(orderResponse(ed)) == order(Purchase.UserOrderDetail d) AND sku(ed) == sku(d) BY d;
+quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = quantityAccepted(responseDetail(d));
+ 
+backgroundResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
+
+EXTEND FORM userOrder
+    PROPERTIES (d) READONLY SHOWIF isEOrder(d) BEFORE quantity(d) quantityResponseEDI BACKGROUND backgroundResponseEDI(d); 
+
+EXTEND FORM orders
+    PROPERTIES (d) READONLY SHOWIF isEOrder(d) BEFORE quantity(d) quantityResponseEDI BACKGROUND backgroundResponseEDI(d); 

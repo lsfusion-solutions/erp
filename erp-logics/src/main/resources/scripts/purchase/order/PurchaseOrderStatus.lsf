@@ -14,43 +14,40 @@ CONSTRAINT CHANGED(originalQuantity(OrderDetail detail)) AND negativeValueOrders
 
 isSent 'Отправлен' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
 isSent 'Отправлен' (o) = DATA BOOLEAN (UserOrder);
-
-sentDateTime 'Дата отправления' (o) = ABSTRACT DATETIME (Order) PERSISTENT;
-sentDateTime 'Дата отправления' (o) = DATA DATETIME (UserOrder);
-
-notSent 'Не отправлен' (Order o) = o IS Order AND NOT isSent(o) PERSISTENT;
-notSent 'Не отправлен' (UserOrder o) = o IS UserOrder AND NOT isSent(o) PERSISTENT;
-
 isSent(UserOrder o) += isSent(o);  
 
 isSent 'Отправлен' (OrderDetail d) = isSent(order(d));
-notSent 'Не отправлен' (OrderDetail d) = d IS OrderDetail AND NOT isSent(d);
-
 isSent 'Отправлен' (UserOrderDetail d) = isSent(userOrder(d));
-notSent 'Не отправлен' (UserOrderDetail d) = d IS UserOrderDetail AND NOT isSent(d);  
+
+sentDateTime 'Дата отправления' (o) = ABSTRACT DATETIME (Order) PERSISTENT;
+sentDateTime 'Дата отправления' (o) = DATA DATETIME (UserOrder);
+sentDateTime(UserOrder o) += sentDateTime(o); 
 
 //-- Подтвержден
 isConfirmed 'Подтвержден' (o) = ABSTRACT BOOLEAN(Order) PERSISTENT;
 isConfirmed 'Подтвержден' (o) = DATA BOOLEAN (UserOrder);
-
-notConfirmed 'Не подтвержден' (Order o) = o IS Order AND NOT isConfirmed(o) PERSISTENT;
-notConfirmed 'Не подтвержден' (UserOrder o) = o IS UserOrder AND NOT isConfirmed(o) PERSISTENT;
-
 isConfirmed(UserOrder o) += isConfirmed(o);  
 
+notConfirmed 'Не подтвержден' (UserOrder o) = o IS UserOrder AND NOT isConfirmed(o) PERSISTENT;
+
 isConfirmed 'Подтвержден' (OrderDetail d) = isConfirmed(order(d));
-notConfirmed 'Не подтвержден' (OrderDetail d) = d IS OrderDetail AND NOT isConfirmed(d);
-
 isConfirmed 'Подтвержден' (UserOrderDetail d) = isConfirmed(userOrder(d));
-notConfirmed 'Не подтвержден' (UserOrderDetail d) = d IS UserOrderDetail AND NOT isConfirmed(d);  
 
-//statusOrder 'Статус заказа' = ABSTRACT VALUE OVERRIDE FIRST VARISTRING[20] (Order);
+//-- Отменен
+isRejected 'Отменен' (o) = ABSTRACT BOOLEAN(Order);
+isRejected 'Отменен' (o) = DATA BOOLEAN (UserOrder);
+isRejected(UserOrder o) += isRejected(o);  
+
+isRejected 'Отменен' (OrderDetail d) = isRejected(order(d));
+isRejected 'Отменен' (UserOrderDetail d) = isRejected(userOrder(d));
+
 status 'Статус заказа' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
 calcStatus 'Статус заказа' = CASE
     WHEN isClosed(Order o) THEN 'Закрыт'
     WHEN shippedOrderDetail(o) THEN 'Принят'
     WHEN invoicedOrderDetail (o) THEN 'В приемке'
     WHEN isPosted(o) THEN 'В работе'
+    WHEN isRejected(o) THEN 'Отменен'
     WHEN isConfirmed(o) THEN 'Подтвержден'
     WHEN isSent(o) THEN 'Отправлен'
     WHEN o IS Order THEN 'Создан' 
@@ -74,7 +71,7 @@ DESIGN userOrder {
 }
 
 EXTEND FORM orders
-    PROPERTIES (o) READONLY  BEFORE isPosted(o) isSent, isConfirmed
+    PROPERTIES (o) READONLY  BEFORE isPosted(o) isSent, isConfirmed, isRejected
     PROPERTIES (o) READONLY  AFTER isPosted(o) status
     PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF isConfirmed(o)
 ;
@@ -154,9 +151,9 @@ emailCustomerSingle 'Отправить заказ поставщику' (Purcha
     IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
         NEWSESSION {
             IF isPosted(order) THEN MESSAGE NOWAIT 'Заказ №' +number(order)+ ': заказ в статусе "В работе" или выше, статус изменен не будет ';
-            isSent[Order](order) <- TRUE;
+            isSent(order) <- TRUE;
             IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
-            sentDateTime[Order](order) <- currentDateTime();
+            sentDateTime(order) <- currentDateTime();
             
             overEmailCustomer(order);            
             
@@ -212,4 +209,6 @@ DESIGN userContractSku {
     }
 }
 
-disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirmation(contractSku(o))) IF NOT isConfirmed(o);
+orderConfirmation = ABSTRACT BOOLEAN (UserOrder);
+
+disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirmation(contractSku(o)) OR orderConfirmation(o)) IF NOT isConfirmed(o);

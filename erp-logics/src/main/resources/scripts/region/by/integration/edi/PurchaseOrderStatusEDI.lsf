@@ -1,0 +1,39 @@
+MODULE PurchaseOrderStatusEDI;
+
+REQUIRE PurchaseOrderStatus, PurchaseOrderEDI;
+
+NAMESPACE EDI;
+
+
+backgroundResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF quantityResponseEDI(d) != originalQuantity(d);  
+
+overEmailCustomer(Order.Order order) += ACTION {
+    IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
+        send[EOrder](order);        
+        
+    }
+}
+
+skipCalcEmailCustomer(Order.Order order) += isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order);
+overEmailList(Order.Order order) += 'edi' IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order);
+
+WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
+    isConfirmed(o) <- TRUE;
+}
+
+cancel 'Отменить заказ'(Order.Order order) = ACTION {
+    IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
+        isRejected[UserOrder](order) <- TRUE;
+        cancel[EOrder](order);        
+        apply();
+    }
+} TOOLBAR;
+
+EXTEND FORM orders 
+    PROPERTIES (o) cancel;
+
+DESIGN orders {
+    emailContainer{
+        MOVE PROPERTY (cancel(o));
+    }
+}
