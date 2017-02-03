@@ -4,38 +4,25 @@ REQUIRE SaleStatistics, ZReport;
 
 NAMESPACE Sale;
 
-EXTEND FORM statisticalReport
+sumCard 'Продано с использованием банк. карточек' (DATE dateFrom, DATE dateTo) =
+    GROUP SUM sumCard (Stock stock, DATE dateFrom, DATE dateTo) IF in(stock)
+    BY dateFrom, dateTo;
 
-    PROPERTIES  FORCE PANEL sumCard(ts, dFrom, dTo), sumSale(ts, dFrom, dTo)
+sumSale 'Продано по кассе' (DATE dateFrom, DATE dateTo) =
+    GROUP SUM sumSale (Stock stock, DATE dateFrom, DATE dateTo) IF in(stock)
+    BY dateFrom, dateTo;
+
+EXTEND FORM statisticalReportStockSelect
+    PROPERTIES  FORCE PANEL sumCard(dFrom, dTo), sumSale(dFrom, dTo)
+
 ;
-DESIGN statisticalReport {
-    row {
-        NEW row2 {
-        caption = 'По отделу, cум..';
-        MOVE PROPERTY(sumCard(ts,dFrom,dTo));
-        MOVE PROPERTY(sumSale(ts,dFrom,dTo));
-        }
-    }
-}
 
-retailSumCard 'Продано с использованием банк. карточек' (legalEntity, region, dateFrom, dateTo) =
-    GROUP SUM  sumCard(DepartmentStore stock, DATE dateFrom, DATE dateTo)
-        BY legalEntity[Stock](stock), region(stock), dateFrom, dateTo;
-
-retailSumSale 'Продано по кассе' (legalEntity, region, dateFrom, dateTo) =
-    GROUP SUM  sumSale(DepartmentStore stock, DATE dateFrom, DATE dateTo)
-        BY legalEntity[Stock](stock), region(stock), dateFrom, dateTo;
-
-EXTEND FORM torgSales
-    PROPERTIES(l, r, dFrom, dTo) retailSumSale, retailSumCard
-;
-DESIGN torgSales {
-    main {
-        NEW secondCase BEFORE functions.box {
-            type = CONTAINERH;
-            caption = 'Суммы, руб.';
-            MOVE PROPERTY(retailSumSale(l,r,dFrom,dTo));
-            MOVE PROPERTY(retailSumCard(l,r,dFrom,dTo));
-        }
+DESIGN statisticalReportStockSelect {
+    bottom {
+        NEW summa {
+            caption = 'По выбранным складам';
+            MOVE PROPERTY(sumCard(dFrom,dTo));
+            MOVE PROPERTY(sumSale(dFrom,dTo));  
+        } 
     }
 }
