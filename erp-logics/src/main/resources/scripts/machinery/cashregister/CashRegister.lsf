@@ -185,12 +185,55 @@ FORM groupCashRegister 'Группа касс'
     EDIT GroupCashRegister OBJECT grc
 ;
 
+overCopy = ACTION ABSTRACT LIST (GroupCashRegister, GroupCashRegister);
+copy 'Копировать'(GroupCashRegister old) = ACTION NEWSESSION {
+    FOR ADDOBJ new = GroupCashRegister DO {
+        npp(new) <- npp(old);
+        departmentNumber(new) <- departmentNumber(old);
+        stock(new) <- stock(old);
+        name(new) <- name(old);
+        pieceCode(new) <- pieceCode(old);
+        weightCode(new) <- weightCode(old);
+        filterSku(new) <- filterSku(old);
+        in(new, SkuGroup s) <- in(old, s);
+        priceListType(new) <- priceListType(old);
+        cashRegisterModel(new) <- cashRegisterModel(old);
+        directory(new) <- directory(old);
+        startDate(new) <- startDate(old);
+        notDetailed(new) <- notDetailed(old);
+        inactive(new) <- inactive(old);
+        denominationStage(new) <- denominationStage(old);
+        section(new) <- section(old);
+        
+        overCopy(old, new);
+        
+        CONFIRM 'Копировать кассы?';
+        
+        FOR confirmed() AND old == groupCashRegister(CashRegister oldCash) ADDOBJ newCash = CashRegister DO {
+            groupCashRegister(newCash) <- new;
+            npp(newCash) <- npp(oldCash);
+            shortDescription(newCash) <- shortDescription(oldCash);
+            description(newCash) <- description(oldCash);
+            port(newCash) <- port(oldCash);
+            ip(newCash) <- ip(oldCash);
+            comPort(newCash) <- comPort(oldCash);
+            baudRate(newCash) <- baudRate(oldCash);
+            disableSales(newCash) <- disableSales(oldCash);
+            dataDirectory(newCash) <- dataDirectory(oldCash);
+            date(newCash) <- date(oldCash);
+            computer(newCash) <- computer(oldCash);
+        } 
+        
+        FORM groupCashRegister OBJECTS grc = new MANAGESESSION DOCKEDMODAL NOCANCEL;
+    }
+} TOOLBAR;
+
 FORM groupsCashRegister 'Группы касс'
     OBJECTS grc=GroupCashRegister, c=CashRegister
     PROPERTIES(grc)  READONLY active, npp, departmentNumber, nameStock, name,
                      filterSku, nameModel, directory,
                      startDate, notDetailed,  pieceCode, weightCode, captionDenominationStage, section
-    PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(grc)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR, copy
 
     PROPERTIES(c) READONLY npp, shortDescription, description, port, ip, comPort, overBaudRate,
                            disableSales, dataDirectory, date, nameLegalEntity
