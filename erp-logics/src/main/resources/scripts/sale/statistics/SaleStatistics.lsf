@@ -892,8 +892,8 @@ EXTEND FORM statisticGroupTypes
 
 //---------------------------- Новый статистический отчёт с выбором складов --------------------------------------------
 
-legalEntity  = DATA LOCAL LegalEntity();
-nameLegalEntity  = name(legalEntity());
+statisticsLegalEntity  = DATA LOCAL LegalEntity();
+nameStatisticsLegalEntity  = name(statisticsLegalEntity());
 
 // Отметка для групп
 allStocks 'Отм' = DATA LOCAL BOOLEAN();
@@ -914,7 +914,7 @@ inStat 'Отм' (StockGroup stockGroup) =
 // Отметка для складов
 dataIn 'Отм.' = DATA LOCAL BOOLEAN (Stock);
 inStat 'Отм' (Stock stock) =
-    (OVERRIDE inStat(stockGroup(stock)), dataIn(stock)) AND (legalEntity(stock) == legalEntity() OR NOT legalEntity()) ;
+    (OVERRIDE inStat(stockGroup(stock)), dataIn(stock)) AND (legalEntity(stock) == statisticsLegalEntity() OR NOT statisticsLegalEntity()) ;
 
 
 //с коэффициентом пересчета на конец//
@@ -1210,7 +1210,7 @@ FORM statisticalReportStockSelect 'Статистический отчет'
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
 
-    PROPERTIES nameLegalEntity() 
+    PROPERTIES nameStatisticsLegalEntity() 
 
     OBJECTS c = StatisticGroupType FIXED PANEL
     PROPERTIES SELECTOR name(c)
@@ -1227,7 +1227,7 @@ FORM statisticalReportStockSelect 'Статистический отчет'
     FILTERS s IS Stock AND NOT stg IS StockGroup OR isParent(stg, s)
  
     FILTERS countCompanyStock(stg), isCompany(s) 
-    FILTERS legalEntity(s) == legalEntity() OR NOT legalEntity()
+    FILTERS legalEntity(s) == statisticsLegalEntity() OR NOT statisticsLegalEntity()
 
     PROPERTIES printXLSStatisticalReportStockSelect(c, dFrom, dTo), printStatisticalReportStockSelect(c, dFrom, dTo) //FORCE PANEL TODRAW s TOOLBAR
 ;
@@ -1251,7 +1251,7 @@ DESIGN statisticalReportStockSelect {
                 NEW legalEntCase{
                     caption = 'Организация';
                     type = CONTAINERV;
-                    MOVE PROPERTY(nameLegalEntity()) {caption = 'Наименование';}
+                    MOVE PROPERTY(nameStatisticsLegalEntity()) {caption = 'Наименование';}
                 }
                 NEW splitStockContainer{
                     type = SPLITH;
