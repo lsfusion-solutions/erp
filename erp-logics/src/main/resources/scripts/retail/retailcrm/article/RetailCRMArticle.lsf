@@ -8,15 +8,17 @@ PRIORITY Stock;
 TABLE promotionConditionArticle (PromotionCondition, Article);
 inData 'В условии' = DATA BOOLEAN (PromotionCondition, Article);
 
+ 
 in 'В условии' (PromotionCondition condition, Article article) = OVERRIDE
     TRUE IF inParent(condition, itemGroup(article)),                                                                            
     inData(condition, article); 
 
+fullName(PromotionCondition c) = CONCAT '/',namePromotion(c),name(c);
 promotionConditions 'В акциях' = GROUP CONCAT ',', name(PromotionCondition c) IF in(c, Article a)
                                               BY a
                                               ORDER c;
 promotionConditions 'В других акциях' =
-                                        GROUP CONCAT name(PromotionCondition c) IF 
+                                        GROUP CONCAT fullName(PromotionCondition c) IF 
                                                      inData(c, Article a) AND 
                                                      dateTo(c) >= dateFrom(PromotionCondition pc) AND
                                                      dateTo(pc) >= dateFrom(c) AND 
