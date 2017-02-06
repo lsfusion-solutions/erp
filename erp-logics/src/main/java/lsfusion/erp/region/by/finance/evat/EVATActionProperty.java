@@ -36,6 +36,8 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
             Integer type = (Integer) context.getDataKeyValue(typeInterface).getValue();
             if (type != null) {
                 String serviceUrl = (String) findProperty("serviceUrlEVAT[]").read(context);
+                if(serviceUrl == null)
+                    serviceUrl = "https://ws.vat.gov.by:443/InvoicesWS/services/InvoicesPort?wsdl";
                 String pathEVAT = (String) findProperty("pathEVAT[]").read(context);
                 String exportPathEVAT = (String) findProperty("exportPathEVAT[]").read(context);
                 String passwordEVAT = (String) findProperty("passwordEVAT[]").read(context);
@@ -43,27 +45,23 @@ public class EVATActionProperty extends GenerateXMLEVATActionProperty {
                 if(certIndex == null)
                     certIndex = 0;
                 boolean useActiveX = findProperty("useActiveXEVAT[]").read(context) != null;
-                if (serviceUrl != null) {
-                    if (pathEVAT != null) {
-                        if (passwordEVAT != null) {
-                            switch (type) {
-                                case 0:
-                                    ServerLoggers.importLogger.info("EVAT: sendAndSign called");
-                                    sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
-                                    break;
-                                case 1:
-                                    ServerLoggers.importLogger.info("EVAT: getStatus called");
-                                    getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
-                                    break;
-                            }
-                        } else {
-                            context.delayUserInteraction(new MessageClientAction("Не указан пароль", "Ошибка"));
+                if (pathEVAT != null || useActiveX) {
+                    if (passwordEVAT != null || useActiveX) {
+                        switch (type) {
+                            case 0:
+                                ServerLoggers.importLogger.info("EVAT: sendAndSign called");
+                                sendAndSign(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
+                                break;
+                            case 1:
+                                ServerLoggers.importLogger.info("EVAT: getStatus called");
+                                getStatus(serviceUrl, pathEVAT, exportPathEVAT, passwordEVAT, certIndex, useActiveX, type, context);
+                                break;
                         }
                     } else {
-                        context.delayUserInteraction(new MessageClientAction("Не указан путь к jar и xsd", "Ошибка"));
+                        context.delayUserInteraction(new MessageClientAction("Не указан пароль", "Ошибка"));
                     }
                 } else {
-                    context.delayUserInteraction(new MessageClientAction("Не указан адрес WSDL", "Ошибка"));
+                    context.delayUserInteraction(new MessageClientAction("Не указан путь к jar и xsd", "Ошибка"));
                 }
             }
         } catch (Exception e) {
