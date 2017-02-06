@@ -39,7 +39,7 @@ public class TerminalServer extends MonitorServer {
     public static byte AUTHORISATION_REQUIRED = 106;
     public static String AUTHORISATION_REQUIRED_TEXT = "Необходима повторная ON-LINE авторизация";
     public static byte NOT_ACTIVE_TERMINAL = 107;
-    public static String NOT_ACTIVE_TERMINAL_TEXT = "Терминал не зарегистрирован или заблокирован";
+    public static String NOT_ACTIVE_TERMINAL_TEXT = "Терминал %s не зарегистрирован или заблокирован";
     public static byte GET_ALL_BASE_ERROR = 108;
     public static String GET_ALL_BASE_ERROR_TEXT = "Ошибка при формировании базы";
     public static byte UNKNOWN_COMMAND = 111;
@@ -213,7 +213,7 @@ public class TerminalServer extends MonitorServer {
                                     }
                                 } else {
                                     errorCode = NOT_ACTIVE_TERMINAL;
-                                    errorText = NOT_ACTIVE_TERMINAL_TEXT;
+                                    errorText = String.format(NOT_ACTIVE_TERMINAL_TEXT, params[2]);
                                 }
                             } else {
                                 errorCode = WRONG_PARAMETER_COUNT;
