@@ -69,6 +69,23 @@ prevStatus 'Статус качества сервиса'  =
 
 isChange = DATA LOCAL NESTED BOOLEAN (LegalEntity);
 
+
+@defineItemDefaultValue(excludePercService, 'Исключить из подстчета "Качество сервиса"', BOOLEAN);
+EXTEND FORM itemGroups 
+    PROPERTIES(g) READONLYIF isReadonly() excludePercService
+;
+
+excludeService 'Исключить из подстчета "Качество сервиса"' (order) = GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail);
+
+sumShippedService (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
+    IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order) AND NOT excludeService(order)
+        BY supplier(order), dateFrom, dateTo;                                                   
+sumService (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetail(Order order) 
+    IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order) AND NOT excludeService(order)
+        BY supplier(order), dateFrom, dateTo;      
+percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShippedService(supplier, dateFrom, dateTo)*100.00 /
+    (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
+
 overCreateServiceStatusDetail =  ACTION ABSTRACT LIST ();
 
 createServiceStatusDetail 'Заполнить статусы качества' (DATE dFrom, DATE dTo) = ACTION NEWSESSION {
@@ -81,7 +98,7 @@ createServiceStatusDetail 'Заполнить статусы качества' (
         legalEntity(d) <- l;
         fromDate(d) <- dFrom;
         toDate(d) <- dTo;
-        percService(d) <- OVERRIDE 0.0  , percentSumExecution(l,fromDate(d),toDate(d));
+        percService(d) <- OVERRIDE 0.0  , percentSumExecutionService(l,fromDate(d),toDate(d));
         IF percService(d) AND dataPercService(l) THEN {
             
             IF percService(d) >= dataPercService(l) THEN {
