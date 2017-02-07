@@ -739,7 +739,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public List<DiscountCard> readDiscountCardList(String idDiscountCardFrom, String idDiscountCardTo) throws RemoteException, SQLException {
+    public List<DiscountCard> readDiscountCardList(String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
         List<DiscountCard> discountCardList = new ArrayList<>();
         if(discountCardLM != null) {
             try (DataSession session = getDbManager().createSession()) {
@@ -763,12 +763,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 }
                 discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
                 discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
-                Long idFrom = parseLong(idDiscountCardFrom);
-                if (idFrom != null)
-                    discountCardQuery.and(discountCardLM.findProperty("longId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idFrom, LongClass.instance).getExpr(), Compare.GREATER_EQUALS));
-                Long idTo = parseLong(idDiscountCardTo);
-                if (idTo != null)
-                    discountCardQuery.and(discountCardLM.findProperty("longId[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(idTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
+                Long numberFrom = parseLong(numberDiscountCardFrom);
+                if (numberFrom != null)
+                    discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberFrom, LongClass.instance).getExpr(), Compare.GREATER_EQUALS));
+                Long numberTo = parseLong(numberDiscountCardTo);
+                if (numberTo != null)
+                    discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
 
