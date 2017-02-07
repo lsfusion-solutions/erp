@@ -411,7 +411,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
         round2(
         IF includeVAT(priceListType)
             THEN
-                prevList(priceListType, detail) * 100.0 /(100.0 + calcValueVAT(detail))
+                prevList(priceListType, detail) * 100.0 /(100.0 (+) calcValueVAT(detail))
             ELSE
                 prevList(priceListType, detail));
 
@@ -421,7 +421,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
             THEN
                 prevList(priceListType, detail)
             ELSE
-                prevList(priceListType, detail) * (100.0 + calcValueVAT(detail)) / 100.0);
+                prevList(priceListType, detail) * (100.0 (+) calcValueVAT(detail)) / 100.0);
 
     WHEN SESSION FORMS form GOAFTER valueVAT[###detail] // цены берем на начало сессии, а не этого event'а
             (((CHANGED(stockProp(###detail d)) OR
@@ -431,7 +431,7 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
              CHANGED(sku(d))))
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND includeVAT(pt) NOINLINE (pt) DO {
-        price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
+        price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d)));
         invoicePrice(d) <- round2(prevList(pt, d));
     }
 
@@ -444,13 +444,13 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
              AND NOT CHANGED(price(d)) 
              AND PriceListType pt == priceListType(d) AND sku(d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
         price(d) <- round2(prevList(pt, d));
-        invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+        invoicePrice(d) <- round2(prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0);
     }
 
     recalculatePrice###detail 'Пересчитать цены'() = ACTION {
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND includeVAT(pt) NOINLINE (pt) DO {
             IF notUseRound2() THEN {
-                 price(d) <-prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d));
+                 price(d) <-prevList(pt, d) * 100.0 /(100.0 (+) calcValueVAT(d));
                  invoicePrice(d) <- prevList(pt, d);           
             } ELSE {
                 price(d) <- round2(prevList(pt, d) * 100.0 /(100.0 + calcValueVAT(d)));
@@ -460,10 +460,10 @@ META deriveDocumentDetailPricePriceListTypeVATBatchCustom (detail, stockProp, fo
         FOR PriceListType pt == priceListType(###detail d) AND sku(d) AND [= FILTER form.d](d) AND NOT includeVAT(pt) NOINLINE (pt) DO {
             IF notUseRound2() THEN {
                 price(d) <- prevList(pt, d);
-                invoicePrice(d) <- prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0;            
+                invoicePrice(d) <- prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0;            
             } ELSE {        
                 price(d) <- round2(prevList(pt, d));
-                invoicePrice(d) <- round2(prevList(pt, d) * (100.0 + calcValueVAT(d)) / 100.0);
+                invoicePrice(d) <- round2(prevList(pt, d) * (100.0 (+) calcValueVAT(d)) / 100.0);
             }    
         }
     } SHORTCUT price[###detail];
