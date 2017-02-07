@@ -1,6 +1,6 @@
 MODULE ItemPharmacyBy;
 
-REQUIRE ItemPharmacy, PriceListType, StockPharmacy;
+REQUIRE ItemPharmacy, PriceListType, StockPharmacy, StorePharmacyBy;
 
 NAMESPACE Item;
 
@@ -401,11 +401,17 @@ name 'Наименование' = DATA VARISTRING[50](PharmacyCompalsoryGroup);
 name(PharmacyCompalsoryGroup group) += name(group);
 groupType(PharmacyCompalsoryGroup group) += PharmacyAdditionalGroupType.compalsory IF group IS PharmacyCompalsoryGroup;
 
-minBalance 'Минимальный остаток' = DATA NUMERIC[16,5](PharmacyCompalsoryGroup);
+minBalance 'Минимальный остаток' = DATA NUMERIC[16,5](PharmacyCompalsoryGroup, PharmacyCategory);
 
 FORM pharmacyCompalsoryGroup 'Группа обязательного перечня'
     OBJECTS g = PharmacyCompalsoryGroup FIXED PANEL
-    PROPERTIES(g) name, id, minBalance
+    PROPERTIES(g) name, id
+    
+    OBJECTS pc = PharmacyCategory
+    PROPERTIES(pc) READONLY order, staticCaption
+    ORDER BY order(pc)
+    PROPERTIES(g, pc) minBalance
+    
     EDIT PharmacyCompalsoryGroup OBJECT g 
 ;
 
@@ -417,7 +423,7 @@ DESIGN pharmacyCompalsoryGroup {
 
 FORM pharmacyCompalsoryGroups 'Группы обязательного перечня'
     OBJECTS g = PharmacyCompalsoryGroup
-    PROPERTIES(g) READONLYIF isReadonly() name, id, minBalance
+    PROPERTIES(g) READONLY name, id
     PROPERTIES (g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES () isEditable
     ORDER BY name(g)

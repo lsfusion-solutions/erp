@@ -5,16 +5,18 @@ REQUIRE ItemPharmacyBy, StockReports, Store, OrderLedger;
 NAMESPACE StoreReports;
 
 //отчет по обязательному перечню
+minBalance 'Минимальный остаток' (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = minBalance(group, pharmacyCategory(store(departmentStore)));
+
 currentBalance 'Текущий остаток (обязат.)' = GROUP SUM currentBalance(Sku sku, Stock stock)
     BY pharmacyCompalsoryGroup(sku), stock;
     
 availableQuantity 'Доступное количество (обязат.)' = GROUP SUM availableQuantity(Sku sku, Stock stock)
     BY pharmacyCompalsoryGroup(sku), stock;    
     
-notEnoughBalance (PharmacyCompalsoryGroup group, Stock stock) = currentBalance(group, stock) < minBalance(group) OR
-    (minBalance(group) AND NOT currentBalance(group, stock));
-notEnougAvailableQuantity (PharmacyCompalsoryGroup group, Stock stock) = availableQuantity(group, stock) < minBalance(group) OR 
-    (minBalance(group) AND NOT availableQuantity(group, stock)); 
+notEnoughBalance (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = currentBalance(group, departmentStore) < minBalance(group, departmentStore) OR
+    (minBalance(group, departmentStore) AND NOT currentBalance(group, departmentStore));
+notEnougAvailableQuantity (PharmacyCompalsoryGroup group, DepartmentStore departmentStore) = availableQuantity(group, departmentStore) < minBalance(group, departmentStore) OR 
+    (minBalance(group, departmentStore) AND NOT availableQuantity(group, departmentStore)); 
       
 currentBalance 'Текущий остаток (осн.)' = GROUP SUM currentBalance(Sku sku, Stock stock)
     BY pharmacyBaseGroup(sku), stock;
@@ -27,8 +29,8 @@ FORM currentBalanceCompalsoryGroups 'Остатки по обязательно�
      PROPERTIES(s) name SELECTOR
      
      OBJECTS g = PharmacyCompalsoryGroup FIXED GRID
-     PROPERTIES (g) READONLY name, minBalance
-     PROPERTIES (g, s) READONLY currentBalance, availableQuantity
+     PROPERTIES (g) READONLY name
+     PROPERTIES (g, s) READONLY minBalance, currentBalance, availableQuantity
      ORDER BY name(g)
      FILTERGROUP enough
          FILTER 'Остаток меньше нормы' notEnoughBalance(g, s)
