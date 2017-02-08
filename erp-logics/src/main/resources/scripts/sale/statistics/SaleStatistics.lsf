@@ -1175,6 +1175,7 @@ sumResidentBalanceABy 'В т.ч.отеч., руб.' (group, date) =
     BY group, dateTo;
 
 stocks 'Склады' = GROUP CONCAT name(Stock s) IF inStat(s), ', ' ORDER s;
+countInStat = GROUP SUM 1 IF inStat(Stock s);
 
 FORM statisticalReportStockSelectPrint 'Статистический отчет'
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
@@ -1201,8 +1202,14 @@ FORM statisticalReportStockSelectPrint 'Статистический отчет'
                                   
 ;
 
-printStatisticalReportStockSelect 'Статистический отчет по складам' (StatisticGroupType c, DATE dFrom, DATE dTo) = ACTION FORM statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo PRINT IMAGE 'print.png' IN print;  
-printXLSStatisticalReportStockSelect 'Статистический отчет по складам (XLS)' (StatisticGroupType c, DATE dFrom, DATE dTo) = ACTION FORM statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo PRINT XLS IMAGE 'print.png' IN print;
+printStatisticalReportStockSelect 'Статистический отчет по складам' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = ACTION {
+    dataIn(s) <- TRUE WHERE NOT countInStat();
+    FORM statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo PRINT;
+} IMAGE 'print.png' IN print;  
+printXLSStatisticalReportStockSelect 'Статистический отчет по складам (XLS)' (StatisticGroupType c, DATE dFrom, DATE dTo, Stock s) = ACTION {
+    dataIn(s) <- TRUE WHERE NOT countInStat();
+    FORM statisticalReportStockSelectPrint OBJECTS c = c , dFrom = dFrom, dTo = dTo PRINT XLS;
+} IMAGE 'print.png' IN print;
 
 
 FORM statisticalReportStockSelect 'Статистический отчет'
@@ -1229,8 +1236,17 @@ FORM statisticalReportStockSelect 'Статистический отчет'
     FILTERS countCompanyStock(stg), isCompany(s) 
     FILTERS legalEntity(s) == statisticsLegalEntity() OR NOT statisticsLegalEntity()
 
-    PROPERTIES printXLSStatisticalReportStockSelect(c, dFrom, dTo), printStatisticalReportStockSelect(c, dFrom, dTo) //FORCE PANEL TODRAW s TOOLBAR
+    PROPERTIES FORCE PANEL printXLSStatisticalReportStockSelect(c, dFrom, dTo, s), printStatisticalReportStockSelect(c, dFrom, dTo, s)
 ;
+
+setDefaultStatisticGroupType() = ACTION {
+    SEEK statisticalReportStockSelect.c = defaultStatisticGroupType();
+}
+
+EXTEND FORM statisticalReportStockSelect
+    EVENTS 
+        ON INIT setDefaultStatisticGroupType();
+        
 
 DESIGN statisticalReportStockSelect {
     NEW mainCase {
@@ -1264,7 +1280,7 @@ DESIGN statisticalReportStockSelect {
     }
     NEW printContainer {
         type = CONTAINERH;
-        MOVE c.print;
+        MOVE s.print;
     }
     MOVE functions.box;    
 }
