@@ -272,8 +272,8 @@ public class FiscalAbsolut {
     static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT) {
         try {
             double price = formatAbsPrice(item.price);
-            if(item.barcode != null)
-                printComment(item.barcode, saveCommentOnFiscalTape);
+            //if(item.barcode != null)
+            //    printComment(item.barcode, saveCommentOnFiscalTape);
             for(String line : splitName(item.name))
                 printComment(line, saveCommentOnFiscalTape);
             int tax = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? 1 : item.valueVAT == 10.0 ? 2 : item.valueVAT == 0.0 ? 3 : 0) : 0;
