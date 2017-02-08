@@ -217,3 +217,12 @@ DESIGN userContractSku {
 orderConfirmation = ABSTRACT BOOLEAN (UserOrder);
 
 disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirmation(contractSku(o)) OR orderConfirmation(o)) IF NOT isConfirmed(o);
+
+//для планировщика
+skipPostConfirmed = ABSTRACT BOOLEAN (UserOrder); 
+postConfirmedOrders 'Провести подтвержденные заказы'() = ACTION {
+    FOR isConfirmed(Purchase.UserOrder o) AND NOT isPosted(o) AND NOT skipPostConfirmed(o) DO {
+        isPosted(o) <- TRUE;
+        APPLY {};
+    }
+}
