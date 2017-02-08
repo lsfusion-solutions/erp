@@ -430,7 +430,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 ps = conn.prepareStatement(
                         "INSERT INTO pricetype_store_pricelist (pricetype, store, pricelist, version, deleted) VALUES (?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE pricelist=VALUES(pricelist), deleted=VALUES(deleted)");
                 ps.setInt(1, 123); //pricetype
-                ps.setString(2, String.valueOf(departmentNumber != null ? departmentNumber : npp)); //store
+                ps.setString(2, String.valueOf(departmentNumber)); //store
                 ps.setInt(3, npp); //pricelist
                 ps.setInt(4, version); //version
                 ps.setInt(5, 0); //deleted
