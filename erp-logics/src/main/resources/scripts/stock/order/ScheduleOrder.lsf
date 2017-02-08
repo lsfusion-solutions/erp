@@ -271,7 +271,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             // итерируемся по всем датам через n дней
             WHILE tmpDate() <= toDate() DO {
             
-                IF tmpDate() >= ( IF endDate(scheduleOrder) THEN startDate(scheduleOrder) ELSE currentDate()) THEN {
+                IF tmpDate() >= ( IF endDate(scheduleOrder) THEN startDate(scheduleOrder) ELSE (MAX startDate(scheduleOrder), currentDate())) THEN {
                     FOR in(scheduleOrder, Stock stock) DO { 
                         FOR ADDOBJ o = ScheduleOrderDetail DO {
                             dateOrder(o) <- subtract(tmpDate(), dayBefore(scheduleOrder));
@@ -290,7 +290,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
         // генерация по числам
         IF type(scheduleOrder) == GenType.genNumber THEN {
-            tmpDate() <- OVERRIDE currentDate(), startDate(scheduleOrder);
+            tmpDate() <- (IF endDate(scheduleOrder) THEN startDate(scheduleOrder) ELSE (MAX startDate(scheduleOrder), currentDate()));
             // итерируемся по всем датам через 1 день
             WHILE tmpDate() <= toDate() DO {
                 IF isWordInCSV(extractDay(tmpDate()), stringNumber(scheduleOrder)) == 1 THEN {
@@ -323,7 +323,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
 
         // генерация по дням и месяцам
         IF type(scheduleOrder) == GenType.genDayMonth THEN {
-            tmpDate() <- OVERRIDE currentDate(), startDate(scheduleOrder);
+            tmpDate() <- (IF endDate(scheduleOrder) THEN startDate(scheduleOrder) ELSE (MAX startDate(scheduleOrder), currentDate()));
             // итерируемся по всем датам через 1 день
             WHILE tmpDate() <= toDate() DO {
                 tmpDateP() <- tmpDate();
