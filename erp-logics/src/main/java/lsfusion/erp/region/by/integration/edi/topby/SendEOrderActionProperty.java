@@ -79,10 +79,11 @@ public class SendEOrderActionProperty extends EDIActionProperty {
                 if (GLNCustomerStock == null)
                     error += String.format("EOrder %s: Не задан GLN склада покупателя", documentNumber);
                 String nameCustomerStock = (String) findProperty("nameCustomerStock[EOrder]").read(context, eOrderObject);
+                String note = (String) findProperty("note[EOrder]").read(context, eOrderObject);
 
                 if (error.isEmpty()) {
                     String contentSubXML = readContentSubXML(context, eOrderObject, documentNumber, documentDate, deliveryDate,
-                            GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock);
+                            GLNSupplierStock, nameSupplier, nameCustomer, GLNCustomer, GLNCustomerStock, nameCustomerStock, note);
 
                     Element rootElement = new Element("Envelope", soapenvNamespace);
                     rootElement.setNamespace(soapenvNamespace);
@@ -153,7 +154,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
     private String readContentSubXML(ExecutionContext context, DataObject eOrderObject, String documentNumber, String documentDate,
                                      String deliveryDate, String GLNSupplierStock, String nameSupplier, String nameCustomer,
-                                     String GLNCustomer, String GLNCustomerStock, String nameCustomerStock) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+                                     String GLNCustomer, String GLNCustomerStock, String nameCustomerStock, String note) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Element rootElement = new Element("ORDERS");
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
@@ -206,6 +207,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         }
 
         addIntegerElement(rootElement, "lineQuantity", eOrderDetailResult.size());
+        addStringElement(rootElement, "comment", note);
 
         String xml = new XMLOutputter().outputString(doc);
         return new String(Base64.encodeBase64(xml.getBytes()));

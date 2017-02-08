@@ -276,6 +276,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String supplierGLN = rootNode.getChildText("supplierGLN");
         String orderNumber = rootNode.getChildText("orderNumber");
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
+        String note = rootNode.getChildText("comment");
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -290,7 +291,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal sumNoNDS = parseBigDecimal(lineElement.getChildText("priceNoNDS"));
             BigDecimal sumNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
 
-            result.add(Arrays.<Object>asList(number, dateTime, responseTypeObject, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+            result.add(Arrays.<Object>asList(number, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                     deliveryDateTimeSecond, id, barcode, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
         }
         return result;
@@ -331,6 +332,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(responseTypeField, findProperty("responseType[EOrderResponse]").getMapping(eOrderResponseKey),
                     object(findClass("EOrderResponseType")).getMapping(responseTypeKey)));
             fields.add(responseTypeField);
+
+            ImportField noteEOrderResponseField = new ImportField(findProperty("note[EOrderResponse]"));
+            props.add(new ImportProperty(noteEOrderResponseField, findProperty("note[EOrderResponse]").getMapping(eOrderResponseKey)));
+            fields.add(noteEOrderResponseField);
 
             ImportField GLNSupplierEOrderResponseField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),
@@ -456,6 +461,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String supplierGLN = rootNode.getChildText("supplierGLN");
         String orderNumber = rootNode.getChildText("orderNumber");
         Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
+        String note = rootNode.getChildText("comment");
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -469,7 +475,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountWithoutCharges"));
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("lineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
-            result.add(Arrays.<Object>asList(number, dateTime, deliveryNoteNumber, deliveryNoteDateTime, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+            result.add(Arrays.<Object>asList(number, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                     deliveryDateTimeFirst, id, barcode, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                     lineItemAmount, lineItemAmountCharges));
         }
@@ -501,6 +507,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             ImportField deliveryNoteDateTimeEOrderDespatchAdviceField = new ImportField(findProperty("deliveryNoteDateTime[EOrderDespatchAdvice]"));
             props.add(new ImportProperty(deliveryNoteDateTimeEOrderDespatchAdviceField, findProperty("deliveryNoteDateTime[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
             fields.add(deliveryNoteDateTimeEOrderDespatchAdviceField);
+
+            ImportField noteEOrderDespatchAdviceField = new ImportField(findProperty("note[EOrderDespatchAdvice]"));
+            props.add(new ImportProperty(noteEOrderDespatchAdviceField, findProperty("note[EOrderDespatchAdvice]").getMapping(eOrderDespatchAdviceKey)));
+            fields.add(noteEOrderDespatchAdviceField);
 
             ImportField GLNSupplierEOrderDespatchAdviceField = new ImportField(findProperty("GLN[LegalEntity]"));
             ImportKey<?> supplierKey = new ImportKey((CustomClass) findClass("LegalEntity"),

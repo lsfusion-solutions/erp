@@ -27,6 +27,8 @@ nameCustomer 'Покупатель' (EOrder o) = name(customer(o));
 customerStock 'Склад покупателя' = ABSTRACT Stock (EOrder);
 nameCustomerStock 'Склад покупателя' (EOrder o) = name(customerStock(o));
 
+note 'Примечание' = ABSTRACT VARISTRING[100] (EOrder);
+
 CLASS ABSTRACT EOrderDetail 'Строка EDI Заказа';
 TABLE eOrderDetail(EOrderDetail); 
 
@@ -106,7 +108,7 @@ cancel 'Отменить' = ACTION ABSTRACT LIST (EOrder);
 
 FORM eOrders 'Заказы EDI'
     OBJECTS o = EOrder
-    PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock
+    PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, note
     PROPERTIES(o) sendApply FORCE PANEL TOOLBAR
     FILTERGROUP isEdi 
         FILTER 'EDI поставщик' EDIProvider(supplier(o)) 'F5' DEFAULT
@@ -168,6 +170,7 @@ CLASS EOrderResponseType 'Тип ответа' {
 
 dateTime 'Дата/время документа' = DATA DATETIME (EOrderResponse);
 number 'Номер' = DATA VARSTRING[28] (EOrderResponse);
+note 'Примечание' = DATA VARSTRING[100] (EOrderResponse);
 eOrderResponse (number) = GROUP AGGR EOrderResponse e BY number(e);
 responseType 'Тип ответа' = DATA EOrderResponseType (EOrderResponse);
 captionResponseType 'Тип ответа' (EOrderResponse e) = staticCaption(responseType(e));
@@ -211,7 +214,7 @@ sumNDS 'Сумма с НДС' = DATA NUMERIC[16,4] (EOrderResponseDetail);
 
 FORM eOrderResponses 'Ответы по Заказам EDI'
 OBJECTS o = EOrderResponse
-PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
+PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime, note
 
 OBJECTS d = EOrderResponseDetail
 PROPERTIES(d) READONLY idBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
@@ -233,6 +236,7 @@ deliveryNoteDateTime 'Дата бумажной накладной' = DATA DATET
 eOrder 'Заказ' = DATA EOrder (EOrderDespatchAdvice);
 numberEOrder 'Номер заказа' (EOrderDespatchAdvice e) = number(eOrder(e));
 deliveryDateTime 'Дата/время доставки' = DATA DATETIME (EOrderDespatchAdvice);
+note 'Примечание' = DATA DATETIME (EOrderDespatchAdvice);
 
 supplier 'Поставщик' = DATA LegalEntity (EOrderDespatchAdvice);
 nameSupplier 'Поставщик' (EOrderDespatchAdvice o) = name(supplier(o));
@@ -262,7 +266,7 @@ lineItemAmountCharges 'Сумма НДС' = DATA NUMERIC[16,4] (EOrderDespatchAd
 
 FORM eOrderDespatchAdvices 'Уведомления об отгрузке EDI'
 OBJECTS o = EOrderDespatchAdvice
-PROPERTIES(o) READONLY dateTime, number, numberEOrder, deliveryNoteNumber, deliveryNoteDateTime, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime
+PROPERTIES(o) READONLY dateTime, number, numberEOrder, deliveryNoteNumber, deliveryNoteDateTime, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime, note
 
 OBJECTS d = EOrderDespatchAdviceDetail
 PROPERTIES(d) READONLY idBarcode, nameSku, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, 
