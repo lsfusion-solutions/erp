@@ -41,6 +41,12 @@ signedBonusPaid 'Оплачено бонусами' (Receipt r) = GROUP SUM sign
 signedBonusSum 'Начислено бонусов' = GROUP SUM signedBonusSum(ReceiptDetail d)
     BY zReport(receipt(d));
 
+signedBonusPaidSale 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d) IF d IS ReceiptSaleDetail
+    BY zReport(receipt(d));
+
+signedBonusPaidReturn 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d) IF d IS ReceiptReturnDetail
+    BY zReport(receipt(d));
+
 signedBonusPaid 'Оплачено бонусами' = GROUP SUM signedBonusPaid(ReceiptDetail d)
     BY zReport(receipt(d));
 
@@ -94,7 +100,7 @@ discountBonusSumVATReturn 'Сумма НДС в скидке (возврат)' (
 
 discountBonusSumVAT 'Сумма НДС в скидке' (ZReport zReport)= discountBonusSumVATSale(zReport) (-) discountBonusSumVATReturn(zReport);
 
-discountBonusSumMarkup 'Сумма набавки в скидке' (ZReport z) = discountSum(z) (+) signedBonusPaid(z) (-) discountBonusSumVAT(z);
+discountBonusSumMarkup 'Сумма набавки в скидке' (ZReport z) = discountSum(z) (+) signedBonusPaidSale(z) (-) signedBonusPaidReturn(z) (-) discountBonusSumVAT(z);
 
 EXTEND FORM discountCard
     PROPERTIES(d) READONLY SHOWIF useBonus() cumulativeBonuses, blockedBonuses, externalBlockedBonuses, totalBlockedBonuses, paidBonuses, availableBonuses, externalBonuses, totalBonuses
