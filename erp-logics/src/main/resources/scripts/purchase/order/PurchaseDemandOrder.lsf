@@ -16,7 +16,7 @@ NAMESPACE Purchase;
 fillDemandUserOrder (UserOrder o, LegalEntity supplier, Stock stock, PriceListType priceListType, DATETIME dateTime, DATE dFrom, DATE dTo) = ACTION {
 
     date(o) <- toDate(dateTime);
-    time(o) <- toTime(dateTime);
+    time(o) <- currentTime();
 
     supplier(o) <- supplier;
     supplierStock(o) <- defaultStock(supplier) IF countStocks (supplier) == 1;
@@ -32,13 +32,6 @@ fillDemandUserOrder (UserOrder o, LegalEntity supplier, Stock stock, PriceListTy
     dateToSoldPeriod (o) <- dTo;
 
     fillRecommendedQuantityStock(o);
-//        FOR priceALedgerPriceListTypeSkuStockCompanyDateTime(priceListType, sku, stock, supplier, dateTime)
-//            AND recommendedQuantitySkuStockUserOrder (sku, stock, o)
-//            ADDOBJ d = UserOrderDetail DO {
-//                userOrderUserOrderDetail(d) <- o;
-//                skuUserOrderDetail(d) <- sku;
-//                quantityUserOrderDetail (d) <- recommendedQuantitySkuStockUserOrder (sku, stock, o);
-//        }
 
     FORM userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL NOCANCEL;
 }
@@ -142,18 +135,20 @@ FORM demandOrder 'Заказы по потребностям'
 // Проставляем вид цены по умолчанию
 defaultDemandOrderPriceListType = DATA PriceListType();
 nameDefaultDemandOrderPriceListType 'Вид цены для заказов по потребностям' = name(defaultDemandOrderPriceListType());
-EXTEND FORM options
-    PROPERTIES() nameDefaultDemandOrderPriceListType
-;
-DESIGN options {
-    purchase {
-        MOVE PROPERTY(nameDefaultDemandOrderPriceListType());
-    }
-}
 
-seekDefaultDemandOrderPriceListType = ACTION SEEK demandOrder.p = defaultDemandOrderPriceListType();
+EXTEND FORM options PROPERTIES() nameDefaultDemandOrderPriceListType;
+DESIGN options { purchase { MOVE PROPERTY(nameDefaultDemandOrderPriceListType()); } }
+
+@defineOption(defaultDemandOrderInteger, 'Дней до поставки для заказов по потребностям', INTEGER, purchase);
+@defineOption(defaultDemandOrderPeriod, 'Период (дней) для заказов по потребностям', INTEGER, purchase);
+
+seekDefaultDemandOrder = ACTION {
+    SEEK demandOrder.p = defaultDemandOrderPriceListType();
+    SEEK demandOrder.i = defaultDemandOrderInteger();
+    SEEK demandOrder.dFrom = subtract(currentDate(), defaultDemandOrderPeriod());
+}
 EXTEND FORM demandOrder
-    EVENTS ON INIT seekDefaultDemandOrderPriceListType()
+    EVENTS ON INIT seekDefaultDemandOrder()
 ;
 
 DESIGN demandOrder {
