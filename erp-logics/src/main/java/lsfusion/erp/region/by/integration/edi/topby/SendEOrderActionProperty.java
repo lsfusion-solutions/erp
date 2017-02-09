@@ -175,20 +175,20 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
         QueryBuilder<Object, Object> eOrderDetailQuery = new QueryBuilder<>(eOrderDetailKeys);
 
-        String[] eOrderDetailNames = new String[]{"idBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
-        LCP<?>[] eOrderDetailProperties = findProperties("idBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
+        String[] eOrderDetailNames = new String[]{"GTINBarcode", "nameSku", "extraCodeUOMSku", "quantity", "price", "valueVAT"};
+        LCP<?>[] eOrderDetailProperties = findProperties("GTINBarcode[EOrderDetail]", "nameSku[EOrderDetail]",
                 "extraCodeUOMSku[EOrderDetail]", "quantity[EOrderDetail]", "price[EOrderDetail]", "valueVAT[EOrderDetail]");
         for (int j = 0; j < eOrderDetailProperties.length; j++) {
             eOrderDetailQuery.addProperty(eOrderDetailNames[j], eOrderDetailProperties[j].getExpr(context.getModifier(), eOrderDetailExpr));
         }
-        eOrderDetailQuery.and(findProperty("idBarcode[EOrderDetail]").getExpr(context.getModifier(), eOrderDetailExpr).getWhere());
+        eOrderDetailQuery.and(findProperty("GTINBarcode[EOrderDetail]").getExpr(context.getModifier(), eOrderDetailExpr).getWhere());
         eOrderDetailQuery.and(findProperty("order[EOrderDetail]").getExpr(context.getModifier(), eOrderDetailExpr).compare(eOrderObject.getExpr(), Compare.EQUALS));
         ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> eOrderDetailResult = eOrderDetailQuery.execute(context);
 
         for (int i = 0, size = eOrderDetailResult.size(); i < size; i++) {
             ImMap<Object, Object> entry = eOrderDetailResult.getValue(i);
 
-            String barcode = trim((String) entry.get("idBarcode"));
+            String barcode = trim((String) entry.get("GTINBarcode"));
             String nameSku = (String) entry.get("nameSku");
             String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
             BigDecimal quantity = (BigDecimal) entry.get("quantity");

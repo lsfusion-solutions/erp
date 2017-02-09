@@ -389,7 +389,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField barcodeEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
             ImportKey<?> skuKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderResponseDetailField));
+                    findProperty("skuGTIN[VARSTRING[15]]").getMapping(barcodeEOrderResponseDetailField));
             skuKey.skipKey = true;
             keys.add(skuKey);
             props.add(new ImportProperty(barcodeEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
@@ -563,7 +563,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             ImportField barcodeEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
             ImportKey<?> skuKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
+                    findProperty("skuGTIN[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
             skuKey.skipKey = true;
             keys.add(skuKey);
             props.add(new ImportProperty(barcodeEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
