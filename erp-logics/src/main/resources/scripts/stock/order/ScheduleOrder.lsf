@@ -398,6 +398,15 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                WHERE isOpened(sd);             
     isLast (ScheduleOrderDetail sd)= lastScheduleOrderDetailSupplierCustomer(supplier(sd), supplierStock(sd), customer(sd), customerStock(sd)) == sd;   
 
+    isCycled 'Циклический' = DATA BOOLEAN (ScheduleOrder);
+    
+    lastCreatedOrder (ScheduleOrder o) = 
+        GROUP LAST Order order 
+            BY scheduleOrder(scheduleOrderDetail(order)) 
+            ORDER date(order), order;
+ 
+    prevLastCreatedOrder (ScheduleOrder o) = PREV(lastCreatedOrder(o));
+ 
     overCreate = ACTION ABSTRACT LIST (UserOrder);
     overCreateDetail = ACTION ABSTRACT LIST (UserOrder);
     isRecommended = DATA LOCAL BOOLEAN (UserOrder);

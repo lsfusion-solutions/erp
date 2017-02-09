@@ -11,6 +11,17 @@ overCreate(UserOrder o) += ACTION {
 overCreateDetail(UserOrder userOrder) += ACTION {
     IF isRecommended(userOrder) THEN {
         executeLocalEvents();
-        fillRecommendedQuantityStock(userOrder);    
+        
+        IF isCycled(scheduleOrder(scheduleOrderDetail(userOrder))) THEN {
+            FOR order(OrderDetail orderDetail) == prevLastCreatedOrder(scheduleOrder(scheduleOrderDetail(userOrder))) DO {
+                FOR ADDOBJ d=UserOrderDetail DO {
+                    userOrder(d) <- userOrder;
+                    sku(d) <- sku(orderDetail);
+                    quantity(d) <- quantity(orderDetail);
+//                    EXEC overCopy(d, orderDetail);
+                }
+            }
+        } ELSE
+            fillRecommendedQuantityStock(userOrder);    
     }
 };
