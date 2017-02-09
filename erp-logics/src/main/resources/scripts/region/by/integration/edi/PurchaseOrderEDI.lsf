@@ -30,13 +30,18 @@ isEOrder(Purchase.UserOrder o) = EDIProvider(supplier(o)) IS EDIProvider;
 isEOrder(Purchase.OrderDetail d) = isEOrder(order(d));
 isEOrder(Purchase.UserOrderDetail d) = isEOrder(userOrder(d));
 
+response = GROUP MAX EOrderResponse e BY eOrder(e);
+responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
+ 
 responseDetail = GROUP MAX EOrderResponseDetail ed IF eOrder(orderResponse(ed)) == order(Purchase.UserOrderDetail d) AND sku(ed) == sku(d) BY d;
 quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = quantityAccepted(responseDetail(d));
  
 backgroundResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
 
 EXTEND FORM userOrder
+    PROPERTIES (o) READONLY SHOWIF isEOrder(o) responseNote 
     PROPERTIES (d) READONLY SHOWIF isEOrder(d) BEFORE quantity(d) quantityResponseEDI BACKGROUND backgroundResponseEDI(d); 
 
 EXTEND FORM orders
+    PROPERTIES (o) READONLY SHOWIF isEOrder(o) responseNote 
     PROPERTIES (d) READONLY SHOWIF isEOrder(d) BEFORE quantity(d) quantityResponseEDI BACKGROUND backgroundResponseEDI(d); 

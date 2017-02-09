@@ -1,6 +1,15 @@
 MODULE EDI;
 
-REQUIRE LegalEntity, Barcode, Store, Warehouse;
+REQUIRE LegalEntity, Item, Store, Warehouse;
+
+
+@defineDoubleItemAttribute(GTIN, VARSTRING[14], 'GTIN', itemBase);
+
+GTIN = ABSTRACT VARSTRING[15](Sku);
+GTIN(Item s) += GTIN(s);
+
+GTINBarcode 'GTIN' (Sku s) = OVERRIDE idBarcode(s), GTIN(s);
+skuGTIN = GROUP NAGGR Sku s BY GTINBarcode(s);
 
 CLASS ABSTRACT EOrder 'EDI Заказ';
 TABLE eOrder(EOrder); 
@@ -37,6 +46,7 @@ order = ABSTRACT EOrder(EOrderDetail);
 sku = ABSTRACT Sku(EOrderDetail);
 nameSku 'Наименование' (EOrderDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderDetail o) = idBarcode(sku(o));
+GTINBarcode 'GTIN' (EOrderDetail o) = GTINBarcode(sku(o));
 
 extraCodeUOM 'Ед. изм. (EDI)' = DATA VARSTRING[10] (UOM);
 extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDetail o) = extraCodeUOM(UOM(sku(o)));
@@ -116,7 +126,7 @@ FORM eOrders 'Заказы EDI'
         FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
     
     OBJECTS d = EOrderDetail
-    PROPERTIES(d) READONLY idBarcode, nameSku, extraCodeUOMSku, quantity, price
+    PROPERTIES(d) READONLY idBarcode, GTINBarcode, nameSku, extraCodeUOMSku, quantity, price
     PROPERTIES(d) FORCE PANEL TOOLBAR ADDOBJ, DELETE
     
     FILTERS order(d) == o
@@ -202,6 +212,7 @@ orderResponse = DATA EOrderResponse(EOrderResponseDetail);
 sku = DATA Sku(EOrderResponseDetail);
 nameSku 'Наименование' (EOrderResponseDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderResponseDetail o) = idBarcode(sku(o));
+GTINBarcode 'GTIN' (EOrderResponseDetail o) = GTINBarcode(sku(o));
 extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderResponseDetail o) = extraCodeUOM(UOM(sku(o)));
 
 action 'Решение' (EOrderResponseDetail) = DATA EOrderResponseDetailAction (EOrderResponseDetail);
@@ -217,7 +228,7 @@ OBJECTS o = EOrderResponse
 PROPERTIES(o) READONLY dateTime, number, numberEOrder, captionResponseType, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime, note
 
 OBJECTS d = EOrderResponseDetail
-PROPERTIES(d) READONLY idBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
+PROPERTIES(d) READONLY idBarcode, GTINBarcode, nameSku, captionAction, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS
 
 FILTERS orderResponse(d) == o
 ;
@@ -254,6 +265,7 @@ orderDespatchAdvice = DATA EOrderDespatchAdvice(EOrderDespatchAdviceDetail);
 sku = DATA Sku(EOrderDespatchAdviceDetail);
 nameSku 'Наименование' (EOrderDespatchAdviceDetail o) = name(sku(o));
 idBarcode 'Штрихкод' (EOrderDespatchAdviceDetail o) = idBarcode(sku(o));
+GTINBarcode 'GTIN' (EOrderDespatchAdviceDetail o) = GTINBarcode(sku(o));
 extraCodeUOMSku 'Ед. изм.(EDI)' (EOrderDespatchAdviceDetail o) = extraCodeUOM(UOM(sku(o)));
 quantityOrdered 'Кол-во заказываемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
 quantityDespatch 'Кол-во отгружаемого товара' = DATA NUMERIC[16,5] (EOrderDespatchAdviceDetail);
@@ -269,7 +281,7 @@ OBJECTS o = EOrderDespatchAdvice
 PROPERTIES(o) READONLY dateTime, number, numberEOrder, deliveryNoteNumber, deliveryNoteDateTime, nameSupplier, nameCustomer, nameCustomerStock, deliveryDateTime, note
 
 OBJECTS d = EOrderDespatchAdviceDetail
-PROPERTIES(d) READONLY idBarcode, nameSku, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, 
+PROPERTIES(d) READONLY idBarcode, GTINBarcode, nameSku, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, 
                 lineItemAmountWithoutCharges, lineItemAmount, lineItemAmountCharges
 
 FILTERS orderDespatchAdvice(d) == o
