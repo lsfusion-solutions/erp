@@ -5,12 +5,14 @@ REQUIRE PurchaseOrderStatus, PurchaseOrderEDI;
 NAMESPACE EDI;
 
 
+@defineOption(needConfirmIsSent, 'Для EDI заказов необходимо подтверждение отправки', purchase);
+
 backgroundResponseEDI(Purchase.OrderDetail d) += RGB(255,0,0) IF responseDetail(d AS Purchase.OrderDetail) AND NOT quantityResponseEDI(d) == originalQuantity(d);  
 
 overEmailCustomer(Order.Order order) += ACTION {
     IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         send[EOrder](order);        
-        
+        IF needConfirmIsSent() THEN isSent[UserOrder](order) <- NULL;
     }
 }
 
@@ -18,7 +20,11 @@ skipCalcEmailCustomer(Order.Order order) += isEOrder[UserOrder](order AS Order.O
 overEmailList(Order.Order order) += 'edi' IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order);
 
 WHEN SET (UserOrder o == eOrder(EOrderResponse od)) DO {
-    isConfirmed(o) <- TRUE;
+    IF NOT quantityResponseEDI(o) > 0.0 THEN { //ответ с 0 во всех строках считается отказом
+        isRejected(o) <- TRUE;
+    } ELSE {
+        isConfirmed(o) <- TRUE;
+    }
 }
 
 cancel 'Отменить заказ'(Order.Order order) = ACTION {

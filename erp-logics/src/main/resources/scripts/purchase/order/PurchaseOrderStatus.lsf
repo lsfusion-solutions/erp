@@ -53,6 +53,7 @@ calcStatus 'Статус заказа' = CASE
     WHEN o IS Order THEN 'Создан' 
 ;
 status(Order o) += WHEN o IS Order THEN calcStatus(o);
+backgroundStatus = ABSTRACT CASE COLOR (Order);
 
 originalQuantity(UserOrderDetail d) <- quantity(d)
     WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));
@@ -72,7 +73,7 @@ DESIGN userOrder {
 
 EXTEND FORM orders
     PROPERTIES (o) READONLY  BEFORE isPosted(o) isSent, isConfirmed, isRejected
-    PROPERTIES (o) READONLY  AFTER isPosted(o) status
+    PROPERTIES (o) READONLY  AFTER isPosted(o) status BACKGROUND backgroundStatus(o)
     PROPERTIES (d) READONLY BACKGROUND backgroundOriginalQuantity(d) originalQuantity BEFORE quantity(d) SHOWIF isConfirmed(o)
 ;
 
@@ -221,7 +222,7 @@ disablePosted (UserOrder o) += (orderConfirmation(agreement(o)) OR orderConfirma
 //для планировщика
 skipPostConfirmed = ABSTRACT BOOLEAN (UserOrder); 
 postConfirmedOrders 'Провести подтвержденные заказы'() = ACTION {
-    FOR isConfirmed(Purchase.UserOrder o) AND NOT isPosted(o) AND NOT skipPostConfirmed(o) DO {
+    FOR isConfirmed(Purchase.UserOrder o) AND NOT isPosted(o) AND NOT isClosed(o) AND NOT skipPostConfirmed(o) DO NEWSESSION {
         isPosted(o) <- TRUE;
         APPLY {};
     }
