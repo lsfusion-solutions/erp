@@ -1,8 +1,9 @@
 MODULE PurchaseReturnInvoiceEVAT;
 
-REQUIRE PurchaseReturnInvoice, PurchaseInvoiceEVAT, PurchaseReturnBlankCodeEVAT;
+REQUIRE PurchaseReturnInvoice, EVAT, CustomsGroup, PurchaseReturnBlankCodeEVAT;
 
 NAMESPACE PurchaseReturn;
+
 
 EXTEND CLASS PurchaseReturn.Invoice : EVATDocument;
 name(PurchaseReturn.Invoice document) += description(document);
@@ -14,14 +15,14 @@ dateTime[EVATDocument](PurchaseReturn.Invoice document) += dateTime(document);
 includeEVAT = ABSTRACT CASE BOOLEAN (Invoice);
 
 EXTEND CLASS EVATType { purchaseReturn 'Закупка-возврат' }
-type[EVATDocument](PurchaseReturn.Invoice i) += EVATType.purchase IF i IS PurchaseReturn.Invoice;
+type[EVATDocument](PurchaseReturn.Invoice i) += EVATType.purchaseReturn IF i IS PurchaseReturn.Invoice;
 
 needCreateEVAT[EVATDocument](Invoice i) += WHEN includeEVAT(i)  THEN TRUE;
 VATSum[EVATDocument] (PurchaseReturn.Invoice i) += NUMERIC[18,4](VATSumInvoiceDetail(i));
 
 overCreateEVATPurchaseReturnInvoice = ACTION ABSTRACT LIST (EVAT, PurchaseReturn.Invoice);
 
-overCreateEVATPurchaseInvoice (DATE dFrom, DATE dTo) += ACTION {
+createEVATPurchaseReturnInvoice 'Накладные (закупка-возврат)' (DATE dFrom, DATE dTo) = ACTION {
     IF dFrom IS DATE AND dTo IS DATE THEN {
         FOR includeEVAT(Invoice i) AND isPosted(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
             EVATDocument(e) <- i;            
@@ -87,5 +88,12 @@ overCreateEVATPurchaseInvoice (DATE dFrom, DATE dTo) += ACTION {
     }
 };
 
+EXTEND FORM evats
+    PROPERTIES createEVATPurchaseReturnInvoice(dFrom, dTo)
+;
 
-
+DESIGN evats {
+    generate {
+        MOVE PROPERTY(createEVATPurchaseReturnInvoice(dFrom, dTo));
+    }
+}
