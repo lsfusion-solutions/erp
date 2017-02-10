@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public abstract class BoardDaemon extends MonitorServer implements InitializingBean {
+    protected static final Logger startLogger = ServerLoggers.startLogger;
     protected static final Logger logger = ServerLoggers.systemLogger;
 
     protected BusinessLogics businessLogics;
@@ -53,7 +54,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
 
     @Override
     protected void onStarted(LifecycleEvent event) {
-        logger.info("Starting " + getEventName() + " Daemon.");
+        startLogger.info("Starting " + getEventName() + " Daemon.");
         try {
             setupDaemon(dbManager);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
@@ -85,7 +86,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
             try {
                 serverSocket = new ServerSocket(2004, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
             } catch (IOException e) {
-                logger.error("BoardDaemon Error: ", e);
+                startLogger.error("BoardDaemon Error: ", e);
                 executorService.shutdownNow();
             }
             if (serverSocket != null)
