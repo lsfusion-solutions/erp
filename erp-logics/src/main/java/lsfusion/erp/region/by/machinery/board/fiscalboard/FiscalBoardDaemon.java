@@ -1,26 +1,20 @@
 package lsfusion.erp.region.by.machinery.board.fiscalboard;
 
-import lsfusion.interop.DaemonThreadFactory;
-import lsfusion.server.ServerLoggers;
+import lsfusion.erp.region.by.machinery.board.BoardDaemon;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.DateTimeClass;
-import lsfusion.server.context.ExecutorFactory;
 import lsfusion.server.data.SQLHandledException;
-import lsfusion.server.lifecycle.LifecycleEvent;
-import lsfusion.server.lifecycle.MonitorServer;
-import lsfusion.server.lifecycle.MonitorServerInterface;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.session.DataSession;
-import org.apache.log4j.Logger;
-import org.springframework.beans.factory.InitializingBean;
 import org.springframework.util.Assert;
 
-import java.io.*;
+import java.io.BufferedReader;
+import java.io.DataOutputStream;
+import java.io.InputStreamReader;
+import java.io.UnsupportedEncodingException;
 import java.math.BigDecimal;
-import java.net.Inet4Address;
-import java.net.ServerSocket;
 import java.net.Socket;
 import java.sql.Date;
 import java.sql.SQLException;
@@ -28,25 +22,14 @@ import java.sql.Timestamp;
 import java.text.DecimalFormat;
 import java.util.Calendar;
 import java.util.concurrent.Callable;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 
-public class FiscalBoardDaemon extends MonitorServer implements InitializingBean {
-    private static final Logger logger = ServerLoggers.systemLogger;
-
-    public ExecutorService daemonTasksExecutor;
-
-    private BusinessLogics businessLogics;
-    private DBManager dbManager;
-    private LogicsInstance logicsInstance;
+public class FiscalBoardDaemon extends BoardDaemon {
     private Integer serverPort;
     private String idPriceListType;
     private String idStock;
 
     public FiscalBoardDaemon(ScriptingBusinessLogics businessLogics, DBManager dbManager, LogicsInstance logicsInstance, Integer serverPort, String idPriceListType, String idStock) {
-        this.businessLogics = businessLogics;
-        this.dbManager = dbManager;
-        this.logicsInstance = logicsInstance;
+        super(businessLogics, dbManager, logicsInstance);
         this.serverPort = serverPort;
         this.idPriceListType = idPriceListType;
         this.idStock = idStock;
@@ -54,38 +37,10 @@ public class FiscalBoardDaemon extends MonitorServer implements InitializingBean
 
     @Override
     public void afterPropertiesSet() throws Exception {
-        Assert.notNull(businessLogics, "businessLogics must be specified");
-        Assert.notNull(dbManager, "dbManager must be specified");
-        Assert.notNull(logicsInstance, "logicsInstance must be specified");
+        super.afterPropertiesSet();
         Assert.notNull(serverPort, "serverPort must be specified");
         Assert.notNull(idPriceListType, "idPriceListType must be specified");
         Assert.notNull(idStock, "idStock must be specified");
-    }
-
-    @Override
-    protected void onStarted(LifecycleEvent event) {
-        logger.info("Starting Board Daemon.");
-
-        try {
-            setupDaemon(dbManager);
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException("Error starting Board Daemon: ", e);
-        }
-    }
-
-    public void setupDaemon(DBManager dbManager) throws SQLException, ScriptingErrorLog.SemanticErrorException {
-
-        if (daemonTasksExecutor != null)
-            daemonTasksExecutor.shutdown();
-
-        // аналогичный механизм в TerminalServer, но через Thread пока не принципиально
-        daemonTasksExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("board-daemon"));
-        daemonTasksExecutor.submit(new DaemonTask(dbManager));
-    }
-
-    @Override
-    public LogicsInstance getLogicsInstance() {
-        return logicsInstance;
     }
 
     @Override
@@ -93,33 +48,9 @@ public class FiscalBoardDaemon extends MonitorServer implements InitializingBean
         return "fiscal-board";
     }
 
-    class DaemonTask implements Runnable {
-        DBManager dbManager;
-
-        public DaemonTask(DBManager dbManager) {
-            this.dbManager = dbManager;
-        }
-
-        public void run() {
-
-            ServerSocket serverSocket = null;
-            ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, FiscalBoardDaemon.this);
-            try {
-                serverSocket = new ServerSocket(2004, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
-            } catch (IOException e) {
-                logger.error("FiscalBoardDaemon Error: ", e);
-                executorService.shutdownNow();
-            }
-            if (serverSocket != null)
-                while (true) {
-                    try {
-                        Socket socket = serverSocket.accept();
-                        executorService.submit(new SocketCallable(businessLogics, socket));
-                    } catch (IOException e) {
-                        logger.error("FiscalBoardDaemon Error: ", e);
-                    }
-                }
-        }
+    @Override
+    protected Callable getCallable(Socket socket) {
+        return new SocketCallable(businessLogics, socket);
     }
 
     public class SocketCallable implements Callable {

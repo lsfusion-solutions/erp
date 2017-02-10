@@ -43,9 +43,13 @@ model(GroupPriceChecker groupMachinery) += priceCheckerModel(groupMachinery);
 
 groupPriceChecker (npp) = GROUP AGGR GroupPriceChecker groupPriceChecker BY npp(groupPriceChecker) WHERE groupPriceChecker IS GroupPriceChecker;  
 
+ip 'IP' = DATA VARSTRING[100] (PriceChecker);
+priceChecker (ip) = GROUP AGGR PriceChecker priceChecker BY ip (priceChecker);
+stock(VARSTRING[100] ip) = stock(groupPriceChecker(priceChecker(ip)));
+
 FORM priceChecker 'Прайс чекер'
     OBJECTS ch=PriceChecker FIXED PANEL
-    PROPERTIES(ch) nameGroupMachinery, npp, description, port
+    PROPERTIES(ch) nameGroupMachinery, npp, description, port, ip
     EDIT PriceChecker OBJECT ch
 ;
 
@@ -56,7 +60,7 @@ FORM groupPriceChecker 'Группа прайс чекеров'
                      namePriceListType, inactive
 
     OBJECTS ch=PriceChecker
-    PROPERTIES(ch)  nameGroupMachinery, npp, description, port, ADDOBJ, DELETESESSION
+    PROPERTIES(ch)  nameGroupMachinery, npp, description, port, ip, ADDOBJ, DELETESESSION
     FILTERGROUP filters3
         FILTER 'Показывать только для данной группы' groupPriceChecker(ch) == grch 'F10' DEFAULT
     EDIT GroupPriceChecker OBJECT grch
@@ -69,7 +73,7 @@ FORM groupsPriceChecker 'Группы прайс чекеров'
     PROPERTIES(grch)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS ch=PriceChecker
-    PROPERTIES(ch)   READONLY npp, description, port
+    PROPERTIES(ch)   READONLY npp, description, port, ip
     FILTERS groupPriceChecker(ch) == grch
     
     FILTERGROUP active1
@@ -89,16 +93,21 @@ DESIGN groupsPriceChecker {
 @extendFormFilterAccessStock(GroupPriceChecker, grch, groupsPriceChecker, stock, company);
 
 // ------------------------------------------------ Стандартные значения ------------------------------------ //
+priceCheckerSID (model) = GROUP MAX PriceCheckerModel model BY sid (model);
 
-loadDefaultPriceCheckerModel 'Добавить модель прайс-чекера'(VARISTRING[110] stringOne, VARSTRING[200] stringTwo) = ACTION  {
-    FOR ADDOBJ pcm = PriceCheckerModel DO {
-         ASSIGN name(pcm) <- stringOne;
-         ASSIGN handler(pcm) <- stringTwo;
+loadDefaultPriceCheckerModel 'Добавить модель прайс-чекера'(VARISTRING[110] name, VARSTRING[20] sid, VARSTRING[200] handler) = ACTION  {
+    IF NOT priceCheckerSID(sid) THEN {
+        FOR ADDOBJ pcm = PriceCheckerModel DO {
+            ASSIGN name(pcm) <- name;
+            ASSIGN sid(pcm) <- sid;
+            ASSIGN handler(pcm) <- handler;
+        }
     }
 }
 
 loadDefaultPriceCheckerModels 'Загрузить стандартные модели прайс-чекеров'() = ACTION {
-    EXEC loadDefaultPriceCheckerModel('Прайс-чекеры EasyCSV', 'equ.clt.handler.easy.EasyCSVHandler');
+    EXEC loadDefaultPriceCheckerModel('Прайс-чекеры EasyCSV', 'EasyCSVP', 'equ.clt.handler.easy.EasyCSVHandler');
+    EXEC loadDefaultPriceCheckerModel('Прайс-чекеры NewLand', 'NewLand', NULL);
 } IN loadDefault;
 
 @implementLoadDefaultData(loadDefaultPriceCheckerModels);
