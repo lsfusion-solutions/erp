@@ -29,6 +29,29 @@ toShowSelected (UserOrder order)= order IS UserOrder AND NOT selected(order);
 
 @defineOption(groupSkuOrderRepalce, 'Группировать строки по товару при объединении заказов (закупка)', optionsContainer);
 
+EXTEND CLASS TypeChange{
+    orderReplace 'Объединение заказов'
+}
+
+logReplaceOrder(Purchase.Order o) = ACTION FOR ADDOBJ d = DocumentLog DO {
+    document(d) <- o;
+    typeDocument(d) <- objectClassName(o);
+    numberDocument(d) <- number(o);  
+    seriesDocument(d) <- series(o); 
+    dateDocument(d) <- date(o);
+    typeChange(d) <- TypeChange.orderReplace;
+    note(d) <- VARSTRING[255]([=GROUP CONCAT number(UserOrder o) IF selected(o), ',' ORDER o]());      
+    session(d) <- currentSession();  
+    hostnameComputer(d) <- hostnameCurrentComputer();
+    userLogin(d) <- login(currentUser()); 
+    nameContact(d) <- VARSTRING[100](name[Contact](currentUser()));
+    dateTimeSession(d) <- currentDateTime();  
+    supplierStock(d) <- supplierStock(o);
+    customerStock(d) <- customerStock(o);
+}
+
+overReplace = ACTION ABSTRACT (UserOrder, UserOrder);
+
 replace 'Объединить'(UserOrder order) = ACTION {
     IF countSelectedOrder() THEN {
         IF  countSelectedUserOrder() == countSelectedOrder() THEN {
@@ -74,11 +97,16 @@ replace 'Объединить'(UserOrder order) = ACTION {
                         }
                         selected(order) <- NULL;
                     }
-                    FOR selected(UserOrder oo) DO 
+                    FOR selected(UserOrder oo) DO {
                         include(order, UserInvoice i) <- TRUE WHERE include(oo, i);
+                        overReplace(oo, order);
+                    }
+                        
                         
                     FOR selected(userOrder(UserOrderDetail od)) AND order == userOrder(UserOrderDetail nd) AND sku(od) == sku(nd) DO 
                         orderDetail(UserInvoiceDetail d) <- nd WHERE orderDetail(d) == od;;
+                        
+                    IF NOT disableDocumentLog() THEN logReplaceOrder(order);
                         
                     DELETE UserOrder o WHERE selected(o);
                         
