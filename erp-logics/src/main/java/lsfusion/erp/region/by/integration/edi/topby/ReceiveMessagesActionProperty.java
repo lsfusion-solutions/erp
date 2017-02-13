@@ -708,21 +708,23 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String orderNumber) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
-        KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
-        ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "eOrderDetail", orderDetailExpr);
+        if(orderNumber != null) {
+            KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
+            ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "eOrderDetail", orderDetailExpr);
 
-        QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-        String[] names = new String[]{"idBarcode", "GTINBarcode"};
-        LCP[] properties = findProperties("idBarcode[EOrderDetail]", "GTINBarcode[EOrderDetail]");
-        for (int i = 0; i < properties.length; i++) {
-            query.addProperty(names[i], properties[i].getExpr(context.getModifier(), orderDetailExpr));
-        }
-        query.and(findProperty("numberOrder[EOrderDetail]").getExpr(context.getModifier(), orderDetailExpr).compare(new DataObject(orderNumber), Compare.EQUALS));
-        ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
-        for (ImMap<Object, Object> entry : result.values()) {
-            String idBarcode = (String) entry.get("idBarcode");
-            String GTINBarcode = (String) entry.get("GTINBarcode");
-            orderBarcodesMap.put(GTINBarcode, idBarcode);
+            QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+            String[] names = new String[]{"idBarcode", "GTINBarcode"};
+            LCP[] properties = findProperties("idBarcode[EOrderDetail]", "GTINBarcode[EOrderDetail]");
+            for (int i = 0; i < properties.length; i++) {
+                query.addProperty(names[i], properties[i].getExpr(context.getModifier(), orderDetailExpr));
+            }
+            query.and(findProperty("numberOrder[EOrderDetail]").getExpr(context.getModifier(), orderDetailExpr).compare(new DataObject(orderNumber), Compare.EQUALS));
+            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(context);
+            for (ImMap<Object, Object> entry : result.values()) {
+                String idBarcode = (String) entry.get("idBarcode");
+                String GTINBarcode = (String) entry.get("GTINBarcode");
+                orderBarcodesMap.put(GTINBarcode, idBarcode);
+            }
         }
         return orderBarcodesMap;
     }
