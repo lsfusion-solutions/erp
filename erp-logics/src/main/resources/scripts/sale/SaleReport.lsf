@@ -486,12 +486,17 @@ partSale 'Формировать два акта реализации за ме�
 partSale 'Формировать два акта реализации за месяц' = DATA BOOLEAN (UserContractSku);
 partSale(UserContractSku c) += partSale(c);
 
+skipSaleLedger 'Не создавать автоматич. акт реализации' = ABSTRACT BOOLEAN (ContractSku);
+skipSaleLedger 'Не создавать автоматич. акт реализации' = DATA BOOLEAN (UserContractSku);
+skipSaleLedger(UserContractSku c) += skipSaleLedger(c);
+
 EXTEND FORM userContractSku 
-    PROPERTIES (c) partSale
+    PROPERTIES (c) partSale, skipSaleLedger
 ;
 DESIGN userContractSku{
     params {
         MOVE PROPERTY (partSale(c));
+        MOVE PROPERTY (skipSaleLedger(c));
     }
 }
 EXTEND FORM contracts 
@@ -538,8 +543,9 @@ saleReport = GROUP MAX SaleReport r BY companyStock(r), contractSku(r), fromDate
 
 createAutoSaleReportdFull 'Создать акты реализации (месяц)'(LegalEntity company) = ACTION {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
-        AND inSalereport(Stock stock) AND partyB(c) == company 
-        AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate()) DO {
+        AND inSalereport(Stock stock) AND partyB(c) == company
+        AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate())
+        AND NOT skipSaleLedger(c) DO {
         NEWSESSION {
             FOR ADDOBJ r = SaleReport DO {
         
@@ -563,7 +569,8 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
 createAutoSaleReportdPart 'Создать акты реализации (полмесяца)'(LegalEntity company) = ACTION {
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND  partSale(c) 
-        AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) DO {
+        AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) 
+        AND NOT skipSaleLedger(c) DO {
         NEWSESSION {
             FOR ADDOBJ r = SaleReport DO {
                 supplier(r) <- partyA(c);
@@ -630,7 +637,7 @@ DESIGN options {
     }
 }
 
-maxToDatePostedSaleSupplier(report, s,l,c) = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == report BY report, companyStock(r), supplier(r), contractSku(r);
+maxToDatePostedSaleSupplier(report, s,l,c) = GROUP MAX toDate(SaleReport r) IF isPosted(r) AND NOT r == SaleReport report BY report, companyStock(r), supplier(r), contractSku(r);
 
 CONSTRAINT (SETCHANGED (fromDate(SaleReport r) ) OR SET(isPosted(r))) 
     AND fromDate(r) <= maxToDatePostedSaleSupplier(r, companyStock(r), supplier(r), contractSku(r)) 
