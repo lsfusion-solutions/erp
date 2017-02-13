@@ -88,7 +88,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
         private byte[] readMessage(BusinessLogics BL, String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
             try (DataSession session = dbManager.createSession()) {
 
-                ObjectValue stockObject = BL.getModule("PriceChecker").findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(ip));
+                ObjectValue stockObject = BL.getModule("PriceChecker").findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));
                 ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcode[VARSTRING[15]]").readClasses(session, new DataObject(idBarcode.substring(1)));
 
                 String error = null;
