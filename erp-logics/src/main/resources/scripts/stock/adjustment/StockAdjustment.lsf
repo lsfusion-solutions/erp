@@ -701,8 +701,27 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment) = ACTION {
     }
 }
 
+defaultOperationBatch 'Операция для документа пересорта по партиям' = DATA Operation ();
+nameDefaultOperationBatch 'Операция для документа пересорта по партиям' = name(defaultOperationBatch());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultOperationBatch
+;
+
+DESIGN options {
+    pane {
+        NEW stockAdjustment {
+            caption = 'Изменение остатков';
+            MOVE PROPERTY(nameDefaultOperationBatch());
+        }
+    }
+}
+
 createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
-    FORM selectParamsAdjustment MODAL;
+    IF defaultOperationBatch() THEN
+        FORM selectParamsAdjustment OBJECTS o = defaultOperationBatch() MODAL
+    ELSE
+        FORM selectParamsAdjustment MODAL;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
         FOR ADDOBJ adjustment = UserAdjustment DO {  
@@ -749,22 +768,6 @@ createBatchUserAdjustment 'Документ пересорта'(Stock stock) = A
 //-- Для всех складов
 overCreateBatchUserAdjustment = ACTION ABSTRACT LIST (UserAdjustment);
 
-defaultOperationBatch 'Операция для документа пересорта по партиям' = DATA Operation ();
-nameDefaultOperationBatch 'Операция для документа пересорта по партиям' = name(defaultOperationBatch());
-
-EXTEND FORM options
-    PROPERTIES() nameDefaultOperationBatch
-;
-
-DESIGN options {
-    pane {
-        NEW stockAdjustment {
-            caption = 'Изменение остатков';
-            MOVE PROPERTY(nameDefaultOperationBatch());
-        }
-    }
-}
-
 createBatchUserAdjustmentDetailEx  = ACTION ABSTRACT LIST (UserAdjustment);
 
 createBatchUserAdjustment 'Документ пересорта'() = ACTION {
@@ -799,8 +802,24 @@ createSumUserAdjustment (UserAdjustment adjustment) = ACTION {
     }
 }
 
+defaultOperationSum 'Операция для документа корректировки сумм ТО' = DATA Operation ();
+nameDefaultOperationSum 'Операция для документа корректировки сумм ТО' = name(defaultOperationSum());
+
+EXTEND FORM options
+    PROPERTIES() nameDefaultOperationSum
+;
+
+DESIGN options {
+    stockAdjustment {
+        MOVE PROPERTY(nameDefaultOperationSum());
+    }
+}
+
 createDialogSumUserAdjustment 'Корректировка суммы ТО'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
-    FORM selectParamsAdjustment MODAL;
+    IF defaultOperationSum() THEN
+        FORM selectParamsAdjustment OBJECTS o = defaultOperationSum() MODAL
+    ELSE
+        FORM selectParamsAdjustment MODAL;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
         FOR ADDOBJ adjustment = UserAdjustment DO {  
@@ -836,6 +855,7 @@ createSumUserAdjustment 'Корректировка суммы ТО'() = ACTION 
         date(a) <- currentDate();
         time(a) <- currentTime();  
         isPosted(a) <- TRUE;
+        operation(a) <- defaultOperationSum();
         
         overCreateSumUserAdjustment(a);
         
