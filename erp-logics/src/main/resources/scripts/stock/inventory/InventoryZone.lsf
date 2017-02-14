@@ -1,0 +1,257 @@
+MODULE InventoryZone;
+
+REQUIRE Inventory, Terminal;
+
+NAMESPACE Inventory;
+
+CLASS Zone 'Зона';
+TABLE zone(Zone);
+
+name 'Наименование' = DATA VARISTRING[100](Zone) IN recognize;
+@defineExternalizable(zone, VARSTRING[100]);
+
+FORM zone 'Зона'
+    OBJECTS z=Zone FIXED PANEL
+    PROPERTIES(z) name, id SHOWIF showIDs()
+    EDIT Zone OBJECT z
+;
+
+FORM zones 'Зоны'    
+    OBJECTS z = Zone
+    PROPERTIES(z) READONLYIF isReadonly() name, id SHOWIF showIDs()  
+    PROPERTIES(z) deleteb=DELETE FORCE PANEL TOOLBAR     
+    PROPERTIES(z) ADDFORM, EDITFORM
+
+    ORDER BY name(z)
+
+    DIALOG Zone OBJECT z
+;
+@extendFormEditable(zones);
+
+CLASS Commission 'Комиссия';
+TABLE commission(Commission);
+
+name 'Наименование' = DATA VARISTRING[100](Commission) IN recognize;
+note 'Примечание' = DATA VARISTRING[255](Commission) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
+@defineExternalizable(commission, VARSTRING[100]);
+
+FORM commission 'Комиссия'
+    OBJECTS c = Commission FIXED PANEL
+    PROPERTIES(c) name, id SHOWIF showIDs(), note
+
+    EDIT Commission OBJECT c
+;
+
+FORM commissions 'Комиссии'
+    OBJECTS c = Commission
+    PROPERTIES(c) READONLY name, id SHOWIF showIDs(), note
+    PROPERTIES(c)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+
+    DIALOG Commission OBJECT c
+;
+
+NAVIGATOR {
+     inventoryNavigator {
+         ADD zones;
+         ADD commissions;
+     }
+} 
+
+zone (TerminalDocument d) = zone(idTerminalHandbookType1(d));
+nameZone 'Зона' (TerminalDocument d) = name(zone(d));
+commission (TerminalDocument d) = commission(idTerminalHandbookType2(d));
+nameCommission 'Комиссия' (TerminalDocument d) = name(commission(d));
+
+TABLE inventoryInventory (Inventory, TerminalDocument);
+
+dataCountCommissions 'Кол-во комиссий для принятия решений' = DATA INTEGER (Inventory);
+countCommissions 'Кол-во комиссий для принятия решений' (Inventory in) = OVERRIDE 2 IF in IS Inventory, dataCountCommissions(in);
+in 'Вкл.' = DATA BOOLEAN (Inventory, TerminalDocument);
+in 'Вкл.' (Inventory i, TerminalDocumentDetail d) = in(i, terminalDocument(d));
+
+zone (TerminalDocumentDetail d) = zone(terminalDocument(d));
+commission (TerminalDocumentDetail d) = commission(terminalDocument(d));
+
+in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, commission(d);
+in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, zone(d);
+
+dataQuantity = DATA NUMERIC[14,3](Inventory, Zone, Sku);
+quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), sku(d);
+
+quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), commission(d), sku(d);
+countValue = GROUP SUM 1 BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s;
+overToQuantity = GROUP MIN NUMERIC[14,3] q IF countValue( q, Inventory i, Zone z, Sku s) >= countCommissions(i) BY i,z,s; 
+
+toQuantity 'В опись' (Inventory i, Zone z, Sku s) = OVERRIDE  overToQuantity(i,z,s), dataQuantity(i,z,s);
+toQuantity = GROUP SUM toQuantity(Inventory i, Zone z, Sku s) BY i,z;
+
+background (Inventory i, Zone z, Sku s) =  CASE
+    WHEN dataQuantity(i,z,s) THEN RGB (204,255,204)
+    WHEN quantity (i,z,s) AND NOT overToQuantity(i,z,s) THEN RGB(255,153,153)
+;
+hintSoldBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;  
+    
+nameTerminalDocuments 'Документы ТСД' (dd) = 
+    GROUP CONCAT title(TerminalDocument d) IF in(Inventory i, d), ', ' 
+    BY i 
+    ORDER title(d)
+    MINCHARWIDTH 30 PREFCHARWIDTH 50;        
+
+filterTerminalDocumentDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (TerminalDocument i) = date(i) >= filterTerminalDocumentDateFrom() OR (i IS TerminalDocument AND NOT filterTerminalDocumentDateFrom());      
+
+filterTerminalDocumentDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (TerminalDocument i) = date(i) <= filterTerminalDocumentDateTo() OR (i IS TerminalDocument AND NOT filterTerminalDocumentDateTo());   
+
+countInventories = GROUP SUM 1 IF in(Inventory in, TerminalDocument td) BY td; 
+
+FORM searchTerminalDocument 'Документы ТСД'
+    OBJECTS in = Inventory FIXED PANEL 
+    
+    PROPERTIES () filterTerminalDocumentDateFrom, filterTerminalDocumentDateTo
+    
+    OBJECTS td=TerminalDocument
+    PROPERTIES (in,td) in
+    PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, nameStock,
+                    nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
+                    title, comment, quantity, countTerminalDocumentDetail, 
+                    quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
+    
+    OBJECTS tdd=TerminalDocumentDetail
+    PROPERTIES(tdd) READONLY id, number, barcode, name,
+                    isNew, price, quantity, sum, comment, dateTimeScan
+
+    FILTERS terminalDocument(tdd) == td,
+            filterDateFrom(td), filterDateTo(td),
+            (NOT countInventories(td)) OR (in(in,td))
+            
+    FILTERGROUP select
+        FILTER 'Отм.' in(in,td)  'F10'             
+;
+
+DESIGN searchTerminalDocument {
+    main{
+        preferredSize = (1024, 768);
+        NEW header {
+            type = CONTAINERH;
+            caption = 'Фильтры';
+            MOVE PROPERTY (filterTerminalDocumentDateFrom());
+            MOVE PROPERTY (filterTerminalDocumentDateTo());
+        }
+        NEW body{
+            fill = 1;
+            type = SPLITV;
+            MOVE td.box;
+            MOVE tdd.box;        
+        }
+
+    }
+    MOVE functions.box;
+}    
+
+changeTerminalDocument 'Выбрать документы ТСД' (Inventory in) = ACTION {
+    filterTerminalDocumentDateFrom() <- sum(date(in),-7);
+    filterTerminalDocumentDateTo() <- date(in);
+    FORM searchTerminalDocument OBJECTS in = in MODAL ;
+}
+zone = DATA Zone (ListInventory);
+nameZone 'Зона' (ListInventory li) = name(zone(li));
+
+nameListInventories 'Описи'  = 
+    GROUP CONCAT name(ListInventory li)  , ', ' 
+    BY zone(li) 
+    ORDER name(li)
+    MINCHARWIDTH 30 PREFCHARWIDTH 50;  
+
+createListInventoryZones 'Создать описи по зонам' (Inventory in) = ACTION {
+    FOR toQuantity(in, Zone z) ADDOBJ li = ListInventory DO {
+    
+        inventory(li) <- in;
+        zone(li) <- z;
+        stock(li) <- [ = GROUP MAX Stock st IF include(st, Inventory in) BY in](in);
+        note(li) <- VARSTRING[100]('Зона '+name(z));
+        
+        FOR  ADDOBJ p = PageInventory DO {
+            listInventory(p) <- li;
+            FOR toQuantity(in, z, Sku s) ORDER name(s) ADDOBJ pid = PageInventoryDetail  DO {                
+                pageInventory(pid) <- p;
+                sku(pid) <- s;
+                quantity(pid) <- toQuantity(in,z,s);
+            }            
+        }                                                                                                                                       
+    } 
+    apply();
+}
+    
+EXTEND FORM inventory
+    PROPERTIES countCommissions(in) BACKGROUND hintSoldBackground()
+    OBJECTS co = Commission
+    FILTERS in(in,co)
+    
+    OBJECTS zz = Zone
+    PROPERTIES (zz) READONLY id, name, nameListInventories
+    FILTERS in(in,zz)    
+    PROPERTIES (in) TOOLBAR TODRAW zz changeTerminalDocument
+    
+    OBJECTS td=TerminalDocument
+    PROPERTIES(td)  READONLY id, date, time, nameGroupTerminal, nameStock,
+                    nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
+                    title, comment, quantity, countTerminalDocumentDetail, 
+                    quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
+    
+    OBJECTS tdd=TerminalDocumentDetail
+    PROPERTIES(tdd) READONLY id, number, barcode, name,
+                    isNew, price, quantity, sum, comment, dateTimeScan
+
+    FILTERS in(in,td),
+            zone(td)==zz,
+            terminalDocument(tdd) == td     
+    
+    OBJECTS ls = Sku FIXED GRID 
+    
+    PROPERTIES (ls) READONLY id, idBarcode, name
+    
+    PROPERTIES READONLY quantity(in,zz,co,ls) COLUMNS (co) HEADER name(co)
+    PROPERTIES toQuantity (in,zz,ls) BACKGROUND background(in,zz,ls)
+    FILTERS quantity (in,zz,ls)     
+    PROPERTIES (in) TOOLBAR TODRAW ds createListInventoryZones 
+;
+DESIGN inventory {
+    topContainer {
+        NEW terminalTab AFTER header.box {
+            fill = 1;
+            caption = 'Описи';
+            type = TABBED;
+            NEW terminalTab1 {
+                fill = 1;
+                caption = 'Зоны/комиссии';
+                NEW termin {
+                    MOVE PROPERTY (countCommissions(in));
+                }
+                NEW zls {
+                    fill = 1;
+                    type = SPLITH;
+                    MOVE zz.box;
+                    NEW zoneTab {
+                        fill = 2.5;
+                        type = TABBED;
+                        NEW ddt {
+                            fill = 1;
+                            type = SPLITV;
+                            caption = 'Документы';
+                            MOVE td.box;
+                            MOVE tdd.box;
+                        }
+                        MOVE ls.box;                   
+                    }
+                    
+                }                              
+                
+                REMOVE co.box;
+            }
+            MOVE z.box;
+        }
+    }   
+}
+
