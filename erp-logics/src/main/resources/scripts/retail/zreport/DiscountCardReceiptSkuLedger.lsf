@@ -4,20 +4,31 @@ REQUIRE ZReportDiscountCard;
 
 NAMESPACE DiscountCard;
 
+nameDOW 'День недели' (Receipt r) = extractDOWName(date(r));
+
+
 hour 'Час' (ReceiptDetail d) = extractHour(dateTime(d));  
 nameDOW 'День недели' (ReceiptDetail d) = extractDOWName(date(d));
 nameMonth 'Месяц' (ReceiptDetail d) = extractMonthName(date(d));
 
 EXTEND FORM discountCards
+    OBJECTS r=Receipt
+    PROPERTIES(r) READONLY nameDOW, dateTime, nameDepartmentStore, description, sumReceiptDetail, discountSumReceiptDetail, countReceiptDetail, quantityReceiptDetail
+    ORDER BY dateTime(r)
+        
     OBJECTS l=ReceiptDetail
-    PROPERTIES(l) READONLY type, nameDOW, dateTime, nameDepartmentStore, nameSku, description, number, quantity, price, 
+    PROPERTIES(l) READONLY type, nameSku, number, quantity, price, 
                             sum, discountSum, valueVAT
-    ORDER BY dateTime(l)                        
-    FILTERS discountCard(l)==d                          
+    FILTERS receipt(l)==r                          
     
 ;
 DESIGN discountCards {
     tabbed {
-        MOVE l.box;
+        NEW detail {
+            caption = 'Чеки';
+            type = SPLITH;
+            MOVE r.box;
+            MOVE l.box;
+        }
     }
 }
