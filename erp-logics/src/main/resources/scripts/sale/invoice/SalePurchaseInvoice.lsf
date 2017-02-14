@@ -172,14 +172,16 @@ DESIGN userInvoice {
 
 notNullSaleReference 'Должна быть ссылка на расходную накладную' = DATA BOOLEAN (Purchase.Operation);
 equalsSkuSale 'Должны совпадать товары в приходной и расходной накладной' = DATA BOOLEAN (Purchase.Operation);
+equalsPriceSale 'Должны совпадать цены в приходной и расходной накладной' = DATA BOOLEAN (Purchase.Operation);
 EXTEND FORM Purchase.operation
-    PROPERTIES(o) notNullSaleReference, equalsSkuSale
+    PROPERTIES(o) notNullSaleReference, equalsSkuSale, equalsPriceSale
 ;
 
 DESIGN Purchase.operation {
     createContainer {
         MOVE PROPERTY(notNullSaleReference(o));
         MOVE PROPERTY(equalsSkuSale(o));
+        MOVE PROPERTY(equalsPriceSale(o));
     }
 }
 
@@ -189,6 +191,10 @@ CONSTRAINT notNullSaleReference(operation(Purchase.UserInvoiceDetail d)) AND NOT
 CONSTRAINT equalsSkuSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.sku(d) == sku(invoiceDetail(d))
     CHECKED BY invoiceDetail[Purchase.UserInvoiceDetail] 
         MESSAGE 'Sku в строке накладной закупки и продажи должны совпадать'; 
+
+CONSTRAINT equalsPriceSale(operation(Purchase.UserInvoiceDetail d)) AND invoiceDetail(d) AND NOT Purchase.price(d) == price(invoiceDetail(d))
+    MESSAGE 'Цена в строке накладной закупки и продажи должна совпадать'; 
+
 
 CONSTRAINT supplier(Purchase.UserInvoiceDetail detail) != supplier(invoiceDetail(detail)) OR
            supplierStock(detail) != supplierStock(invoiceDetail(detail)) OR
