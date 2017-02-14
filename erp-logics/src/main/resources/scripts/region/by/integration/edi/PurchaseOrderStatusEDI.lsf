@@ -43,3 +43,15 @@ DESIGN orders {
         MOVE PROPERTY (cancel(o));
     }
 }
+
+WHEN SET (code(EOrderMessage m)) AND good(m) DO {
+    isSent(Purchase.UserOrder o) <- TRUE WHERE o == eOrder(m);
+}
+
+currentOrderMessage = GROUP LAST EOrderMessage m BY eOrder(m) ORDER dateTime(m);
+statusDescription 'Статус отправки EDI'(EOrder o) = CONCAT ' ', code(currentOrderMessage(o)), description(currentOrderMessage(o)) MINCHARWIDTH 15 PREFCHARWIDTH 45;
+
+backgroundStatusEDI(Purchase.Order o) = IF currentOrderMessage(o) THEN IF good(currentOrderMessage(o)) THEN RGB(212,255,212) ELSE RGB (255,128,128);
+
+EXTEND FORM Purchase.orders 
+    PROPERTIES (o) statusDescription BEFORE isConfirmed(o) BACKGROUND backgroundStatusEDI(o);
