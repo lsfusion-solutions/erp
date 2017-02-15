@@ -1177,12 +1177,17 @@ sumResidentBalanceABy 'В т.ч.отеч., руб.' (group, date) =
 stocks 'Склады' = GROUP CONCAT name(Stock s) IF inStat(s), ', ' ORDER s;
 countInStat = GROUP SUM 1 IF inStat(Stock s);
 
+quantityNoGroups 'Количество товаров без групп, шт' (StatisticGroupType type) = 
+    OVERRIDE 0, [=GROUP SUM 1 IF StatisticGroupType type IS StatisticGroupType AND Sku sku IS Sku AND NOT statistic(type, sku)
+    BY type](type);
+
 FORM statisticalReportStockSelectPrint 'Статистический отчет'
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
      
     OBJECTS c = StatisticGroupType FIXED PANEL
     PROPERTIES SELECTOR name(c)
+    PROPERTIES(c) quantityNoGroups
     PROPERTIES() stocks, currentDateTime
     
     OBJECTS g=StatisticGroup                                   
@@ -1236,6 +1241,10 @@ FORM statisticalReportStockSelect 'Статистический отчет'
     FILTERS countCompanyStock(stg), isCompany(s) 
     FILTERS legalEntity(s) == statisticsLegalEntity() OR NOT statisticsLegalEntity()
 
+//    OBJECTS sk=Sku
+//    PROPERTIES READONLY name(sk)
+//    FILTERS NOT statistic(c,sk)
+
     PROPERTIES FORCE PANEL printXLSStatisticalReportStockSelect(c, dFrom, dTo, s), printStatisticalReportStockSelect(c, dFrom, dTo, s)
 ;
 
@@ -1278,6 +1287,7 @@ DESIGN statisticalReportStockSelect {
                 } 
             }            
     }
+//    MOVE sk.box {caption = 'Товары без групп';}
     NEW printContainer {
         type = CONTAINERH;
         MOVE s.print;
