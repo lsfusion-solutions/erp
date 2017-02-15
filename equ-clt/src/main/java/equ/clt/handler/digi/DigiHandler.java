@@ -66,8 +66,10 @@ public class DigiHandler extends ScalesHandler {
                                 if (transaction.snapshot) {
                                     processTransactionLogger.info("Digi: Deleting all plu at scales " + scales.port);
                                     int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
-                                    if (reply != 0)
+                                    if (reply != 0) {
+                                        processTransactionLogger.error(String.format("Digi: Deleting all plu failed. Error: %s", reply));
                                         errors += String.format("Deleting all plu failed. Error: %s\n", reply);
+                                    }
                                 }
 
                                 if (errors.isEmpty()) {
@@ -93,6 +95,7 @@ public class DigiHandler extends ScalesHandler {
                                     exception = new RuntimeException(errors);
 
                             } catch (Exception e) {
+                                processTransactionLogger.error("Digi: ", e);
                                 exception = e;
                             } finally {
                                 processTransactionLogger.info("Digi: Finally disconnecting... " + scales.port);
