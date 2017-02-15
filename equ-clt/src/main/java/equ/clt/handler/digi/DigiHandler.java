@@ -50,11 +50,11 @@ public class DigiHandler extends ScalesHandler {
                 if (!transaction.machineryInfoList.isEmpty()) {
 
                     List<ScalesInfo> enabledScalesList = getEnabledScalesList(transaction, succeededScalesList);
-                    String errors = "";
                     Integer errorsCount = 0;
 
                     processTransactionLogger.info("Digi: Starting sending to " + enabledScalesList.size() + " scales...");
                     for (ScalesInfo scales : enabledScalesList) {
+                        String errors = "";
 
                         processTransactionLogger.info("Digi: Sending to scales " + scales.port);
                         if (scales.port != null) {
