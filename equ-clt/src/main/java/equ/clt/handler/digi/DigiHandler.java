@@ -79,7 +79,8 @@ public class DigiHandler extends ScalesHandler {
                                             processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", barcode, scales.port));
                                             int reply = sendRecord(socket, cmdWrite, filePLU, record);
                                             if (reply != 0) {
-                                                errors += String.format("Send item %s failed. Error: %s\n", pluNumber, reply);
+                                                processTransactionLogger.error(String.format("Digi: Send item %s to scales %s failed. Error: %s", barcode, scales.port, reply));
+                                                errors += String.format("Send item %s to scales %s failed. Error: %s\n", scales.port, pluNumber, reply);
                                                 errorsCount++;
                                             }
                                         }
