@@ -19,6 +19,7 @@ public class DataSocket {
 
     public void open() throws IOException {
         socket = new Socket(InetAddress.getByName(ip), getPort(ip));
+        socket.setSoTimeout(60000);
         outputStream = new DataOutputStream(socket.getOutputStream());
         inputStream = new DataInputStream(socket.getInputStream());
     }
