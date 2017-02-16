@@ -1,10 +1,14 @@
 package equ.clt.handler.digi;
 
-import equ.api.*;
+import equ.api.MachineryInfo;
+import equ.api.SendTransactionBatch;
+import equ.api.SoftCheckInfo;
+import equ.api.StopListInfo;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
+import equ.clt.EquipmentServer;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -15,6 +19,9 @@ import java.math.BigDecimal;
 import java.nio.ByteBuffer;
 import java.nio.ByteOrder;
 import java.util.*;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Future;
 
 public class DigiHandler extends ScalesHandler {
 
@@ -33,88 +40,84 @@ public class DigiHandler extends ScalesHandler {
     @Override
     public Map<Integer, SendTransactionBatch> sendTransaction(List<TransactionScalesInfo> transactionList) throws IOException {
 
+
         Map<Integer, SendTransactionBatch> sendTransactionBatchMap = new HashMap<>();
 
-        if (!transactionList.isEmpty()) {
+        Map<String, String> brokenPortsMap = new HashMap<>();
+        if(transactionList.isEmpty()) {
+            processTransactionLogger.error("Digi: Empty transaction list!");
+        }
+        for(TransactionScalesInfo transaction : transactionList) {
+            processTransactionLogger.info("Digi: Send Transaction # " + transaction.id);
 
             DigiSettings digiSettings = springContext.containsBean("digiSettings") ? (DigiSettings) springContext.getBean("digiSettings") : null;
             Integer maxLineLength = digiSettings != null ? digiSettings.getMaxLineLength() : null;
             maxLineLength = maxLineLength == null ? 50 : maxLineLength;
 
-            for (TransactionScalesInfo transaction : transactionList) {
-                processTransactionLogger.info("Digi: Send Transaction # " + transaction.id);
-
-                List<MachineryInfo> succeededScalesList = new ArrayList<>();
-                Exception exception = null;
+            List<MachineryInfo> succeededScalesList = new ArrayList<>();
+            List<MachineryInfo> clearedScalesList = new ArrayList<>();
+            Exception exception = null;
+            try {
 
                 if (!transaction.machineryInfoList.isEmpty()) {
 
                     List<ScalesInfo> enabledScalesList = getEnabledScalesList(transaction, succeededScalesList);
-                    Integer errorsCount = 0;
+                    Map<String, List<String>> errors = new HashMap<>();
+                    Set<String> ips = new HashSet<>();
 
                     processTransactionLogger.info("Digi: Starting sending to " + enabledScalesList.size() + " scales...");
+                    Collection<Callable<SendTransactionResult>> taskList = new LinkedList<>();
                     for (ScalesInfo scales : enabledScalesList) {
-                        String errors = "";
-
-                        processTransactionLogger.info("Digi: Sending to scales " + scales.port);
                         if (scales.port != null) {
-                            DataSocket socket = new DataSocket(scales.port);
-                            try {
-
-                                socket.open();
-
-                                if (transaction.snapshot) {
-                                    processTransactionLogger.info("Digi: Deleting all plu at scales " + scales.port);
-                                    int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
-                                    if (reply != 0) {
-                                        processTransactionLogger.error(String.format("Digi: Deleting all plu failed. Error: %s", reply));
-                                        errors += String.format("Deleting all plu failed. Error: %s\n", reply);
-                                    }
-                                }
-
-                                if (errors.isEmpty()) {
-                                    for (ScalesItemInfo item : transaction.itemsList) {
-                                        if (errorsCount < 5) {
-                                            int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
-                                            int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
-                                            byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
-                                            processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", barcode, scales.port));
-                                            int reply = sendRecord(socket, cmdWrite, filePLU, record);
-                                            if (reply != 0) {
-                                                processTransactionLogger.error(String.format("Digi: Send item %s to scales %s failed. Error: %s", barcode, scales.port, reply));
-                                                errors += String.format("Send item %s to scales %s failed. Error: %s\n", scales.port, pluNumber, reply);
-                                                errorsCount++;
-                                            }
-                                        }
-                                    }
-                                }
-
-                                if (errors.isEmpty())
-                                    succeededScalesList.add(scales);
-                                else
-                                    exception = new RuntimeException(errors);
-
-                            } catch (Exception e) {
-                                processTransactionLogger.error("Digi: ", e);
-                                exception = e;
-                            } finally {
-                                processTransactionLogger.info("Digi: Finally disconnecting... " + scales.port);
-                                try {
-                                    socket.close();
-                                } catch (CommunicationException e) {
-                                    processTransactionLogger.info("DigiPrintHandler close port error: ", e);
-                                }
+                            String brokenPortError = brokenPortsMap.get(scales.port);
+                            if(brokenPortError != null) {
+                                errors.put(scales.port, Collections.singletonList(String.format("Broken ip: %s, error: %s", scales.port, brokenPortError)));
+                            } else {
+                                ips.add(scales.port);
+                                taskList.add(new SendTransactionTask(transaction, scales, maxLineLength));
                             }
                         }
                     }
 
-                    sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(succeededScalesList, exception));
+                    if(!taskList.isEmpty()) {
+                        ExecutorService singleTransactionExecutor = EquipmentServer.getFixedThreadPool(taskList.size(), "DigiSendTransaction");
+                        List<Future<SendTransactionResult>> threadResults = singleTransactionExecutor.invokeAll(taskList);
+                        for (Future<SendTransactionResult> threadResult : threadResults) {
+                            if(threadResult.get().localErrors.isEmpty())
+                                succeededScalesList.add(threadResult.get().scalesInfo);
+                            else {
+                                brokenPortsMap.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors.get(0));
+                                errors.put(threadResult.get().scalesInfo.port, threadResult.get().localErrors);
+                            }
+                            if(threadResult.get().cleared)
+                                clearedScalesList.add(threadResult.get().scalesInfo);
+                        }
+                        singleTransactionExecutor.shutdown();
+                    }
+                    if(!enabledScalesList.isEmpty())
+                        errorMessages(errors, ips, brokenPortsMap);
+
                 }
+            } catch (Exception e) {
+                exception = e;
             }
-        } else {
-            processTransactionLogger.error("Digi: Empty transaction list!");
+            sendTransactionBatchMap.put(transaction.id, new SendTransactionBatch(clearedScalesList, succeededScalesList, exception));
         }
         return sendTransactionBatchMap;
+    }
+
+    protected void errorMessages(Map<String, List<String>> errors, Set<String> ips, Map<String, String> brokenPortsMap) {
+        if (!errors.isEmpty()) {
+            String message = "";
+            for (Map.Entry<String, List<String>> entry : errors.entrySet()) {
+                message += entry.getKey() + ": \n";
+                for (String error : entry.getValue()) {
+                    message += error + "\n";
+                }
+            }
+            throw new RuntimeException(message);
+        } else if (ips.isEmpty() && brokenPortsMap.isEmpty())
+            throw new RuntimeException("Digi: No IP-addresses defined");
     }
 
     private byte[] makeRecord(ScalesItemInfo item, String weightCode, String pieceCode, Integer maxLineLength) throws UnsupportedEncodingException {
@@ -390,5 +393,95 @@ public class DigiHandler extends ScalesHandler {
                     + Character.digit(value.charAt(i + 1), 16));
         }
         return data;
+    }
+
+    class SendTransactionTask implements Callable<SendTransactionResult> {
+        TransactionScalesInfo transaction;
+        ScalesInfo scales;
+        int maxLineLength;
+
+        public SendTransactionTask(TransactionScalesInfo transaction, ScalesInfo scales, int maxLineLength) {
+            this.transaction = transaction;
+            this.scales = scales;
+            this.maxLineLength = maxLineLength;
+        }
+
+        @Override
+        public SendTransactionResult call() throws Exception {
+            List<String> localErrors = new ArrayList<>();
+            boolean cleared = false;
+            DataSocket socket = new DataSocket(scales.port);
+            try {
+                socket.open();
+                int globalError = 0;
+                boolean needToClear = !transaction.itemsList.isEmpty() && transaction.snapshot && !scales.cleared;
+                if (needToClear) {
+                    processTransactionLogger.info("Digi: Deleting all plu at scales " + scales.port);
+                    int reply = sendRecord(socket, cmdCls, filePLU, new byte[0]);
+                    if (reply != 0) {
+                        logError(localErrors, String.format("Deleting all plu at scales %s failed. Error: %s\n", scales.port, reply));
+                    } else
+                        cleared = true;
+                }
+
+                if (cleared || !needToClear) {
+                    processTransactionLogger.info("Digi: Sending items..." + scales.port);
+                    if (localErrors.isEmpty()) {
+                        int count = 0;
+                        for (ScalesItemInfo item : transaction.itemsList) {
+                            count++;
+                            if (!Thread.currentThread().isInterrupted() && globalError < 3) {
+                                processTransactionLogger.info(String.format("Digi: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
+                                int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
+                                int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
+                                byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
+                                processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", pluNumber, scales.port));
+                                int reply = sendRecord(socket, cmdWrite, filePLU, record);
+                                if (reply != 0) {
+                                    logError(localErrors, String.format("Digi: Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, reply));
+                                    globalError++;
+                                }
+                            } else break;
+                        }
+                    }
+                    socket.close();
+                }
+
+            } catch (Exception e) {
+                logError(localErrors, String.format("Digi: IP %s error, transaction %s;", scales.port, transaction.id), e);
+            } finally {
+                processTransactionLogger.info("Digi: Finally disconnecting..." + scales.port);
+                try {
+                    socket.close();
+                } catch (CommunicationException e) {
+                    logError(localErrors, String.format("Digi: IP %s close port error ", scales.port), e);
+                }
+            }
+            processTransactionLogger.info("Digi: Completed ip: " + scales.port);
+            return new SendTransactionResult(scales, localErrors, cleared);
+        }
+    }
+
+    private void logError(List<String> errors, String errorText) {
+        logError(errors, errorText, null);
+    }
+
+    private void logError(List<String> errors, String errorText, Throwable t) {
+        errors.add(errorText + (t == null ? "" : ('\n' + t.toString())));
+        processTransactionLogger.error(errorText, t);
+    }
+
+
+
+    class SendTransactionResult {
+        public ScalesInfo scalesInfo;
+        public List<String> localErrors;
+        public boolean cleared;
+
+        public SendTransactionResult(ScalesInfo scalesInfo, List<String> localErrors, boolean cleared) {
+            this.scalesInfo = scalesInfo;
+            this.localErrors = localErrors;
+            this.cleared = cleared;
+        }
     }
 }
