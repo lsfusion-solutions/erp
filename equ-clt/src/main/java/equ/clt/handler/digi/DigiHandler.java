@@ -9,6 +9,7 @@ import equ.api.scales.ScalesInfo;
 import equ.api.scales.ScalesItemInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.EquipmentServer;
+import equ.clt.handler.ScalesSettings;
 import org.apache.log4j.Logger;
 import org.springframework.context.support.FileSystemXmlApplicationContext;
 
@@ -365,7 +366,11 @@ public class DigiHandler extends ScalesHandler {
 
     @Override
     public String getGroupId(TransactionScalesInfo transactionInfo) throws IOException {
-        return "Digi";
+        String groupId = "";
+        for (MachineryInfo scales : transactionInfo.machineryInfoList) {
+            groupId += scales.port + ";";
+        }
+        return "digi" + groupId;
     }
 
     @Override
