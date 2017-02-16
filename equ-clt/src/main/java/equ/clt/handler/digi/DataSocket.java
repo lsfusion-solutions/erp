@@ -4,7 +4,7 @@ import javax.naming.CommunicationException;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
-import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.net.Socket;
 
 public class DataSocket {
@@ -18,8 +18,9 @@ public class DataSocket {
     }
 
     public void open() throws IOException {
-        socket = new Socket(InetAddress.getByName(ip), getPort(ip));
+        socket = new Socket();
         socket.setSoTimeout(60000);
+        socket.connect(new InetSocketAddress(ip, getPort(ip)), 60000);
         outputStream = new DataOutputStream(socket.getOutputStream());
         inputStream = new DataInputStream(socket.getInputStream());
     }
