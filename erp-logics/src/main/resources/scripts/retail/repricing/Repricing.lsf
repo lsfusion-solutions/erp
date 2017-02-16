@@ -179,6 +179,13 @@ markup(UserRepricingDetail userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y)
 
 // ---- Суммы по строкам ---- //
 
+negativeMarkupOnAccount90 'Относить отрицательную надбавку на 90 счет' = ABSTRACT BOOLEAN (Repricing) PERSISTENT;
+negativeMarkupOnAccount90 'Относить отрицательную надбавку на 90 счет' = DATA BOOLEAN (UserRepricing) IN documentPrm;
+negativeMarkupOnAccount90(UserRepricing r) += negativeMarkupOnAccount90(r);
+
+negativeMarkupOnAccount90 'Относить отрицательную надбавку на 90 счет' = negativeMarkupOnAccount90(repricing(RepricingDetail d)) PERSISTENT;
+negativeMarkupOnAccount90 'Относить отрицательную надбавку на 90 счет' = negativeMarkupOnAccount90(userRepricing(UserRepricingDetail d)) PERSISTENT;
+
 // -- До
 @defineDocumentInterfaceDetailDataSumPrefix (repricing, cur, ' поставщика до');
 @defineDocumentInterfaceDetailMarkupSumPrefix (repricing, cur, ' до');
@@ -192,8 +199,37 @@ markup(UserRepricingDetail userRepricingDetail)  <- [= round2((((X - X*Y/(100+Y)
 @defineDocumentInterfaceDetailDataSumPrefix (repricing, retail, ' розничная после');
 
 // -- Разница
-@defineDocumentInterfaceDetailDiffSumPrefix (repricing, sum, , cur, ' изменения поставщика ');
-@defineDocumentInterfaceDetailDiffSumPrefix (repricing, markupSum, , cur, ' изменения надбавки');
+//@defineDocumentInterfaceDetailDiffSumPrefix (repricing, sum, , cur, ' изменения поставщика '){
+//    @defineDocumentInterfaceDetailDiffSumCustomPrefix(repricingDetail, sum, , cur, ' изменения поставщика '){
+//    @defineDocumentDetailDiffSumCustomPrefix(repricingDetail, sum, , cur, ' изменения поставщика '){
+//    diffSum 'Сумма  изменения поставщика ' (RepricingDetail repricingDetail) =  sum(repricingDetail) (-) curSum(repricingDetail);
+//};
+//    @defineDocumentDetailDiffSumCustomPrefix(userRepricingDetail, sum, , cur, ' изменения поставщика '){
+//    diffSum 'Сумма  изменения поставщика ' (UserRepricingDetail userRepricingDetail) =  sum(userRepricingDetail) (-) curSum(userRepricingDetail);
+//};
+//
+//};
+//};
+//@defineDocumentInterfaceDetailDiffSumPrefix (repricing, markupSum, , cur, ' изменения надбавки'){
+//    @defineDocumentInterfaceDetailDiffSumCustomPrefix(repricingDetail, markupSum, , cur, ' изменения надбавки'){
+//    @defineDocumentDetailDiffSumCustomPrefix(repricingDetail, markupSum, , cur, ' изменения надбавки'){
+//    diffMarkupSum 'Сумма  изменения надбавки' (RepricingDetail repricingDetail) =  markupSum(repricingDetail) (-) curMarkupSum(repricingDetail);
+//};
+//    @defineDocumentDetailDiffSumCustomPrefix(userRepricingDetail, markupSum, , cur, ' изменения надбавки'){
+//    diffMarkupSum 'Сумма  изменения надбавки' (UserRepricingDetail userRepricingDetail) =  markupSum(userRepricingDetail) (-) curMarkupSum(userRepricingDetail);
+//};
+//
+//};
+//};
+
+diffMarkupSum 'Сумма  изменения надбавки' (RepricingDetail d) =  IF negativeMarkupOnAccount90(d) THEN max((markupSum(d) (-) curMarkupSum(d)),0.0) ELSE markupSum(d) (-) curMarkupSum(d);    
+diffMarkupSum 'Сумма  изменения надбавки' (UserRepricingDetail d) =  IF negativeMarkupOnAccount90(d) THEN max((markupSum(d) (-) curMarkupSum(d)),0.0) ELSE markupSum(d) (-) curMarkupSum(d);
+
+diffSum 'Сумма  изменения поставщика ' (RepricingDetail d) =  sum(d) (-) curSum(d) (+) ((markupSum(d) (-) curMarkupSum(d)) IF negativeMarkupOnAccount90(d) AND (markupSum(d) (-) curMarkupSum(d)) <0.0 );
+diffSum 'Сумма  изменения поставщика ' (UserRepricingDetail d) =  sum(d) (-) curSum(d) (+) ((markupSum(d) (-) curMarkupSum(d)) IF negativeMarkupOnAccount90(d) AND (markupSum(d) (-) curMarkupSum(d)) <0.0 );
+
+
+
 @defineDocumentInterfaceDetailDiffSumPrefix (repricing, VATSum, , cur, ' изменения НДС');
 @defineDocumentInterfaceDetailDiffSumPrefix (repricing, retailSum, , cur, ' изменения розничной');
 
@@ -882,6 +918,12 @@ showChangeSupplierPrice (UserRepricing r) = r IS UserRepricing AND NOT skipChang
 EXTEND FORM userRepricing
     PROPERTIES (p) changeSupplierPrice SHOWIF showChangeSupplierPrice(p) AFTER skipChangeLedger(p)
 ; 
+
+@deriveDocumentOperationProperty(UserRepricing, negativeMarkupOnAccount90);
+EXTEND FORM userRepricing
+    PROPERTIES (p) negativeMarkupOnAccount90 AFTER skipChangeLedger(p)
+; 
+
 
 EXTEND CLASS RepricingDetail : PriceListLedger;
 
