@@ -58,14 +58,19 @@ FORM dataPriceListTypes 'Пользовательские виды цен'
     DIALOG DataPriceListType OBJECT p
 ;
 
-addDataPriceListType 'Добавить пользовательскую цену' = ACTION ADDFORM DataPriceListType;
 edit 'Редактировать' = ACTION EDITFORM DataPriceListType;
 edit(DataPriceListType priceListType) += ACTION edit(priceListType);
 
 EXTEND FORM priceListTypes
-    PROPERTIES() TODRAW pt FORCE PANEL addDataPriceListType
+    PROPERTIES(pt) addDataPriceListType = ADDFORM[DataPriceListType]
 //    PROPERTIES(pt) SHOWIF showIDs() READONLY idDataPriceListType
 ;
+
+DESIGN priceListTypes {
+    PROPERTY (addDataPriceListType) {
+        caption = 'Добавить пользовательскую цену';
+    }
+}
 
 overCopy (DataPriceListType priceListType) += ACTION NEWSESSION {
     IF priceListType IS DataPriceListType THEN {
@@ -1036,7 +1041,6 @@ DESIGN userPriceList{
     }
 }
 
-addUserPriceList 'Добавить' = ACTION ADDFORM UserPriceList;
 edit 'Редактировать' = ACTION EDITFORM UserPriceList;
 edit 'Редактировать' = ACTION ABSTRACT LIST (PriceList) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit (UserPriceList p) += ACTION edit(p);
@@ -1129,7 +1133,7 @@ FORM priceLists 'Прайсы'
            nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
            note
 
-    PROPERTIES ()  addUserPriceList TODRAW p
+    PROPERTIES (p)  ADDFORM[UserPriceList]
     PROPERTIES (p) edit, copy FORCE PANEL TOOLBAR, print FORCE PANEL TOOLBAR
     PROPERTIES (p) DELETE FORCE PANEL TOOLBAR SHOWIF is[UserPriceList](p)
     PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
