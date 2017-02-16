@@ -340,6 +340,7 @@ public class DigiHandler extends ScalesHandler {
             socket.inputStream.read(buffer);
             return buffer[0] == 6 ? 0 : buffer[0]; //это либо байт ошибки, либо первый байт хвоста (:)
         } catch (Exception e) {
+            processTransactionLogger.error("Digi ReceiveReply Error: ", e);
             return -1;
         }
     }
