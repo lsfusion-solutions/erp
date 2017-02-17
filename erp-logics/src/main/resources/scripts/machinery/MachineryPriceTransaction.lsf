@@ -284,7 +284,7 @@ npps 'Номера устройств' (transaction) =
 selected 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
 selected 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
 
-GROUP snapshotMachineryPrice 'Перезагрузка прайса' : public;
+GROUP snapshotMachineryPrice 'Перезагрузка прайса целиком с выбором группы' : public;
 
 FORM groupMachineryInput 'Выбор оборудования для перезагрузки прайса'
 
@@ -742,14 +742,6 @@ createPriceMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION
     apply();
 } CONFIRM IN incrementMachineryPrice;
 
-createSnapshotMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION NEWSESSION {
-    createMachineryPriceTransaction(Sku sku) <- TRUE;
-    createMachineryPriceTransactionComment() <- 'Полная загрузка товаров';
-    createMachineryPriceTransactionAll() <- TRUE;
-    createMachineryPriceTransaction(stock);
-    apply();
-} CONFIRM IN snapshotMachineryPrice;
-
 include 'Вкл.' = DATA LOCAL BOOLEAN (GroupMachinery);
 
 FORM selectGroupMachinery 'Выбор групп оборудования'
@@ -773,7 +765,20 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
 ;
 DESIGN selectGroupMachinery { main{ preferredSize = (1024, 768); } }
 
-createSelectMachineryPriceTransaction 'Выборочно'(Stock stock) = ACTION NEWSESSION {
+createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = ACTION NEWSESSION {
+    FORM selectGroupMachinery OBJECTS st = stock MODAL;
+    IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+        exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
+        
+        createMachineryPriceTransaction(Sku sku) <-  TRUE IF currentBalance(sku, stock);
+        createMachineryPriceTransactionComment() <- 'Выборочная загрузка остатков по группе оборудования';
+        createMachineryPriceTransactionAll() <- TRUE;
+        createMachineryPriceTransaction(stock);
+    }
+    apply();
+} IN snapshotMachineryPrice;
+
+createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION NEWSESSION {
     FORM selectGroupMachinery OBJECTS st = stock MODAL;
     IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
         exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
@@ -802,7 +807,7 @@ createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) =
 
 EXTEND FORM machineryPriceTransactions
     PROPERTIES(s) createBalanceMachineryPriceTransaction, createPriceMachineryPriceTransaction, 
-                  createSnapshotMachineryPriceTransaction, createSelectMachineryPriceTransaction, 
+                  createBalanceSelectMachineryPriceTransaction, createSelectMachineryPriceTransaction, 
                   snapshotGroupMachinery, createDocumentMachineryPriceTransaction
 ;
 
