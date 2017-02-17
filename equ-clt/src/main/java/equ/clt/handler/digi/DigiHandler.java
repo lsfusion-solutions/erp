@@ -157,6 +157,8 @@ public class DigiHandler extends ScalesHandler {
             }
         }
 
+        if(compositionLines.size() > 9)
+            compositionLines = compositionLines.subList(0, 9);
         int length = 36 + item.name.length() +
                 compositionLength + (compositionLines.isEmpty() ? 0 : compositionLines.size() * 2) +
                 expiryLength + (expiryLines.isEmpty() ? 0 : expiryLines.size() * 2);
