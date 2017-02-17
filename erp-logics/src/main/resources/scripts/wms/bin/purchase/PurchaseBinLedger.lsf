@@ -1,0 +1,44 @@
+MODULE PurchaseBinLedger;
+
+REQUIRE BinLedger, PurchaseOperation;
+
+NAMESPACE Purchase;
+
+@defineOperationProperty(useBins, 'Ячейки', showContainer);
+
+inBin 'Ячейка (в)' = DATA Bin (Operation, Stock);
+nameInBin 'Ячейка (в)' (Operation operation, Stock stock) = name(inBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+setInBin (Operation operation, Stock stock) = ACTION {
+    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        inBin(operation, stock) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        inBin(operation, stock) <- NULL;
+    }
+}
+    
+outBin 'Ячейка (из)' = DATA Bin (Operation, Stock);
+nameOutBin 'Ячейка (из)' (Operation operation, Stock stock) = name(outBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;;
+
+setOutBin (Operation operation, Stock stock) = ACTION {
+    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        outBin(operation, stock) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        outBin(operation, stock) <- NULL;
+    }
+}
+
+EXTEND FORM operation
+    PROPERTIES(o, stc) nameInBin ON CHANGE setInBin(o, stc), nameOutBin ON CHANGE setOutBin(o, stc)
+;
+
+DESIGN operation {
+    splitCustomerStockContainer {
+        MOVE PROPERTY(nameInBin(o, stc));
+        MOVE PROPERTY(nameOutBin(o, stc));
+    }
+}

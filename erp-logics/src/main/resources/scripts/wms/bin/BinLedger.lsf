@@ -1,0 +1,354 @@
+MODULE BinLedger;
+
+REQUIRE Bin;
+
+NAMESPACE Bin;
+
+CLASS ABSTRACT BinLedger 'Изменение остатка по ячейкам';
+TABLE binLedger(BinLedger);
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (BinLedger) PERSISTENT INDEXED;
+date 'Дата' (BinLedger ledger) = toDate(dateTime(ledger)); 
+
+isPosted 'Проведен' = ABSTRACT BOOLEAN (BinLedger) PERSISTENT;
+
+isClosed 'Закрыт' = ABSTRACT BOOLEAN (BinLedger);
+
+sku = ABSTRACT Sku (BinLedger) PERSISTENT INDEXED;
+nameSku 'SKU' (BinLedger ledger) = name(sku(ledger)) IN recognize;
+
+inBin = ABSTRACT Bin (BinLedger) PERSISTENT INDEXED;
+nameInBin 'Ячейка (в)' (BinLedger ledger) = name(inBin(ledger)) IN recognize;
+
+outBin = ABSTRACT Bin (BinLedger) PERSISTENT INDEXED;
+nameOutBin 'Ячейка (из)' (BinLedger ledger) = name(outBin(ledger)) IN recognize;
+
+quantity 'Кол-во' (ledger) = ABSTRACT NUMERIC[16,5] (BinLedger) PERSISTENT;
+
+description 'Название документа' = ABSTRACT VARISTRING[200] (BinLedger);
+
+changed = ABSTRACT BOOLEAN (BinLedger);
+
+skip 'Не проводить по учету' = ABSTRACT BOOLEAN (BinLedger) PERSISTENT;
+active 'Активен' (BinLedger ledger) = isPosted(ledger) AND NOT skip(ledger) PERSISTENT;
+
+TABLE skuBin (Sku, Bin);
+
+inBinTotal 'Приход в ячейку' =
+    GROUP SUM quantity(BinLedger ledger) BY sku(ledger), inBin(ledger) PERSISTENT;
+    
+outBinTotal 'Расход из ячейки' =
+    GROUP SUM quantity(BinLedger ledger) BY sku(ledger), outBin(ledger) PERSISTENT;
+    
+inBinTotalA 'Приход в ячейку' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date BY sku(ledger), inBin(ledger), date;
+    
+outBinTotalA 'Расход из ячейки' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) > DATE date BY sku(ledger), outBin(ledger), date;
+        
+inBinTotalB 'Приход в ячейку' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date BY sku(ledger), inBin(ledger), date;
+    
+outBinTotalB 'Расход из ячейки' =
+    GROUP SUM quantity(BinLedger ledger) IF date(ledger) >= DATE date BY sku(ledger), outBin(ledger), date;
+                
+inBinTotalA 'Приход в ячейку' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime BY sku(ledger), inBin(ledger), dateTime;
+    
+outBinTotalA 'Расход из ячейки' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) > DATETIME dateTime BY sku(ledger), outBin(ledger), dateTime;
+        
+inBinTotalB 'Приход в ячейку' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime BY sku(ledger), inBin(ledger), dateTime;
+    
+outBinTotalB 'Расход из ячейки' =
+    GROUP SUM quantity(BinLedger ledger) IF dateTime(ledger) >= DATETIME dateTime BY sku(ledger), outBin(ledger), dateTime;                   
+        
+currentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin)=
+    inBinTotal(sku, bin) (-) outBinTotal(sku, bin) PERSISTENT;
+prevCurrentBalance 'Текущий остаток в ячейке' (Sku sku, Bin bin) = PREV(currentBalance(sku, bin));
+
+balanceA 'Остаток в ячейке на конец дня' (Sku sku, Bin bin, DATE date) = currentBalance(sku, bin) (-)
+                                                                 inBinTotalA(sku, bin, date) (+) outBinTotalA(sku, bin, date);
+
+// без учета текущей даты/времени
+balanceB 'Остаток в ячейке (до)' (Sku sku, Bin bin, DATETIME dateTime) = currentBalance(sku, bin) (-)
+                                                                 inBinTotalA(sku, bin, dateTime) (+) outBinTotalA(sku, bin, dateTime);
+prevBalanceB 'Остаток (до)' (Sku sku, Bin bin, DATETIME dateTime) = PREV(balanceB(sku, bin, dateTime) IF dateTime IS DATETIME);
+
+// с учетом текущей даты/времени
+balanceA 'Остаток в ячейке (после)' (Sku sku, Bin bin, DATETIME dateTime) = currentBalance(sku, bin) (-)
+                                                                 inBinTotalA(sku, bin, dateTime) (+) outBinTotalA(sku, bin, dateTime);
+prevBalanceA 'Остаток в ячейке (после)'(Sku sku, Bin bin, DATETIME dateTime) = PREV(balanceA(sku, bin, dateTime) IF dateTime IS DATETIME);
+       
+META createClassBinLedger (classPref)
+    CLASS classPref##BinLedger : BinLedger;
+END
+META implementBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
+    @createClassBinLedger(###classPrefix);
+    needToCreate (###object object) = inBinProp(object) OR outBin(object); 
+    @defineAggregation(object, classPrefix##BinLedger, needToCreate);
+    dateTime[BinLedger] (###classPrefix##BinLedger ledger) += dateTime(object(ledger));
+    isPosted[BinLedger] (###classPrefix##BinLedger ledger) += isPosted(object(ledger));
+    isClosed[BinLedger] (###classPrefix##BinLedger ledger) += isClosed(object(ledger));
+    skuProp[BinLedger] (###classPrefix##BinLedger ledger) += skuProp(object(ledger));
+    quantity[BinLedger] (###classPrefix##BinLedger ledger) += quantityProp(object(ledger));
+    inBin[BinLedger] (###classPrefix##BinLedger ledger) += inBinProp(object(ledger));
+    outBin[BinLedger] (###classPrefix##BinLedger ledger) += outBinProp(object(ledger));
+    description[BinLedger] (###classPrefix##BinLedger ledger) += description(object(ledger));
+END
+
+FORM binLedger 'Регистр изменения остатков по ячейкам'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    
+    OBJECTS b = BinLedger
+    PROPERTIES (b) READONLY dateTime, isPosted, isClosed, nameSku, quantity, nameInBin, nameOutBin, description
+    FILTERS isPosted(b)
+    
+    FILTERS date(b) >= dFrom, date(b) <= dTo
+;
+
+DESIGN binLedger {
+    MOVE dates.box {
+        type = CONTAINERH;
+    }
+    MOVE b.box {
+        type = CONTAINERV;
+    }
+    MOVE functions.box;
+}
+
+FORM binBalance 'Остатки по ячейкам'
+
+    OBJECTS ts = Stock FIXED PANEL
+    PROPERTIES(ts) SELECTOR name
+    FILTERS isCompany(ts)
+
+    TREE binTree bg = BinGroup PARENT parent
+    PROPERTIES READONLY name(bg)
+    FILTERS countIn(ts, bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY name, canonicalName
+    FILTERS b IS Bin AND NOT bg IS BinGroup OR isParent(bg, b), in(ts, b)
+    ORDER BY name(b)
+
+    TREE treeGroup g=SkuGroup PARENT parent
+    PROPERTIES READONLY order(g), name(g)
+    FILTERS groupType(g) == groupType(ts)
+    ORDER BY order(g), name(g)
+    FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
+
+    OBJECTS s = Sku
+    PROPERTIES(s) READONLY name, idBarcode
+    PROPERTIES (s, b) READONLY currentBalance
+    ORDER BY name(s)
+    FILTERS isParent(g, s) OR s IS Sku AND NOT g
+    FILTERGROUP balance
+        FILTER 'С остатком' currentBalance(s, b) DEFAULT
+;
+
+DESIGN binBalance {
+    main{
+        preferredSize = (1024, 768);
+
+        MOVE ts.box;
+        NEW topContainer {
+            type = SPLITV;
+            fill = 1;
+
+            NEW binGroup {
+                type = SPLITH;
+                fill = 1;
+
+                MOVE binTree.tree.box {
+                    caption = 'Группы ячеек';
+                }
+
+                MOVE b.box {
+                    fill = 2.5;
+                    b.grid {
+                        defaultComponent = TRUE;
+                    }
+                }
+            }
+            NEW skuGroup {
+                type = SPLITH;
+                fill = 1;
+
+                MOVE treeGroup.tree.box {
+                    caption = 'Группы Sku';
+                }
+
+                MOVE s.box {
+                    fill = 2.5;
+                    s.grid {
+                        defaultComponent = TRUE;
+                    }
+                }
+            }
+        }
+
+        MOVE functions.box;
+    }
+}
+
+NAVIGATOR {
+    WMSNavigator {
+        NEW WMSReports 'Отчеты' {
+            ADD binLedger;
+            ADD binBalance;
+        }    
+    }
+}
+
+FORM dialogBinStock 'Ячейки'
+    OBJECTS s = Stock FIXED PANEL
+    
+    TREE binTree bg = BinGroup PARENT parent
+    PROPERTIES READONLY name(bg)
+    FILTERS countIn(s, bg)
+
+    OBJECTS b = Bin
+    PROPERTIES(b) READONLY name, id SHOWIF showIDs(), canonicalName
+    PROPERTIES(b) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+
+    FILTERS isParent(bg, b)
+    ORDER BY name(b)    
+;
+
+DESIGN dialogBinStock {
+    main{
+        preferredSize = (1024, 768);
+
+        NEW topContainer {
+            type = SPLITH;
+            fill = 1;
+            
+            MOVE binTree.tree.box {
+                caption = 'Группы ячеек';
+            }
+
+            MOVE b.box {
+                fill = 2;
+                b.grid {
+                    defaultComponent = TRUE;
+                }
+            }
+        }
+
+        MOVE functions.box;
+    }
+}
+
+META defineInterfaceBin (object, prefix, caption)
+    prefix###bin 'Ячейка'##caption = DATA Bin(###user###object) IN documentPrm;
+    prefix###bin 'Ячейка'##caption = ABSTRACT Bin(###object) PERSISTENT IN documentPrm;
+    prefix###bin (User###object object) += prefix###bin(object);
+       
+    name###prefix###bin 'Ячейка'##caption (###object object) = name(prefix###bin(object));
+    name###prefix###bin 'Ячейка'##caption (###user###object object) = name(prefix###bin(object));
+END
+
+META defineDocumentBins (object)
+    @defineInterfaceBin (object, in, ' (в)');
+    @defineInterfaceBin (object, out, ' (из)');   
+    
+    @defineDocumentInterfaceProperty (object, useBins, 'Ячейки');
+                   
+    @defineInterfaceBin (object###detail, in, ' (в)');
+    @defineInterfaceBin (object###detail, out, ' (из)');  
+END
+
+META defineInvoiceShipmentBins(stockProp)
+
+    @defineDocumentBins(invoice);
+    inBin [ShipmentDetail] (InvoiceShipmentDetail detail) += inBin(invoiceDetail(detail));
+    outBin [ShipmentDetail] (InvoiceShipmentDetail detail) += outBin(invoiceDetail(detail));
+    
+    setInBin (UserInvoiceDetail d) = ACTION {
+        REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stockProp(d) DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            inBin(d) <- requestedObject();
+    
+        } ELSE IF formResult() == FormResult.drop THEN {
+            inBin(d) <- NULL;
+        }
+    }
+    
+    setOutBin (UserInvoiceDetail d) = ACTION {
+        REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stockProp(d) DIALOG SHOWDROP;
+        IF formResult() == FormResult.ok THEN {
+            outBin(d) <- requestedObject();
+    
+        } ELSE IF formResult() == FormResult.drop THEN {
+            outBin(d) <- NULL;
+        }
+    }
+   
+    CONSTRAINT inBin(UserShipmentDetail detail) AND NOT in(stockProp(detail), inBin(detail))
+               CHECKED BY inBin[UserShipmentDetail] MESSAGE 'Ячейка не доступна для склада';
+               
+    CONSTRAINT outBin(UserShipmentDetail detail) AND NOT in(stockProp(detail), outBin(detail))
+               CHECKED BY outBin[UserShipmentDetail] MESSAGE 'Ячейка не доступна для склада';
+               
+    CONSTRAINT inBin(UserInvoiceDetail detail) AND NOT in(stockProp(detail), inBin(detail))
+               CHECKED BY inBin[UserInvoiceDetail] MESSAGE 'Ячейка не доступна для склада';
+               
+    CONSTRAINT outBin(UserInvoiceDetail detail) AND NOT in(stockProp(detail), outBin(detail))
+               CHECKED BY outBin[UserInvoiceDetail] MESSAGE 'Ячейка не доступна для склада';               
+                          
+    EXTEND FORM userInvoice
+        PROPERTIES(i) useBins, nameInBin SHOWIF useBins(i), nameOutBin SHOWIF useBins(i)
+        PROPERTIES(d) AFTER name###stockProp(d) SHOWIF useBins(i) BACKGROUND backgroundShipped(i)
+                      nameInBin ON CHANGE setInBin(d), nameOutBin ON CHANGE setOutBin(d)
+    ;
+    DESIGN userInvoice {
+        headerExtraParams {
+            NEW headerBins {
+                caption = 'Ячейки';
+                MOVE PROPERTY(useBins(i));
+                MOVE PROPERTY(nameInBin(i));
+                MOVE PROPERTY(nameOutBin(i));
+            }
+        }
+    }
+
+    EXTEND FORM invoices
+        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(i) BACKGROUND backgroundShipped(i)
+                      nameInBin, nameOutBin
+    ;
+    EXTEND FORM invoiceDetails
+        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(d) BACKGROUND backgroundShipped(d)
+                      nameInBin, nameOutBin
+    ;
+    
+    overCopy[UserInvoiceDetail,UserInvoiceDetail](UserInvoiceDetail d, UserInvoiceDetail detail) += ACTION {      
+        inBin(d) <- inBin(detail);
+        outBin(d) <- outBin(detail);
+    }
+    
+END
+
+META deriveDocumentBinsProperty(object, readProp, writeProp, stockProp)
+    writeProp (###object o) <- readProp(operation(o), stockProp(o))
+        WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o));    
+END
+
+META deriveDocumentBins (inRead, inWrite, outRead, outWrite, stockProp)
+    @deriveDocumentOperationProperty(UserShipment, useBins);
+    @deriveDocumentBinsProperty(UserShipment, inRead, inWrite, stockProp);
+    @deriveDocumentBinsProperty(UserShipment, outRead, outWrite, stockProp);
+    @deriveDocumentOperationProperty(UserInvoice, useBins);
+    @deriveDocumentBinsProperty(UserInvoice, inRead, inWrite, stockProp);
+    @deriveDocumentBinsProperty(UserInvoice, outRead, outWrite, stockProp);
+    
+    WHEN SESSION FORMS userInvoice (CHANGED(inBin(invoice(UserInvoiceDetail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
+             inBin(detail) <- inBin(invoice(detail));
+    }
+
+    WHEN SESSION FORMS userInvoice (CHANGED(inBin(invoice(UserInvoiceDetail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
+        outBin(detail) <- outBin(invoice(detail));
+    }             
+END

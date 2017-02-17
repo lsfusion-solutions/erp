@@ -85,20 +85,20 @@ DESIGN bins {
 }
 
 // ----------------------------------- Ledger ------------------------------------------ //
-
-bin = ABSTRACT Bin(DataSkuLedger) PERSISTENT INDEXED;
-nameBin 'Ячейка' (DataSkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
-
-bin (batch) = ABSTRACT Bin (Batch) PERSISTENT INDEXED;
-prevBin (Batch batch) = PREV(bin(batch));
-nameBin 'Ячейка' (Batch batch) = name(bin(batch)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
-
-bin (SkuLedger ledger) = MULTI bin[DataSkuLedger] (ledger), bin[Batch] (ledger) PERSISTENT INDEXED;
-nameBin 'Ячейка' (SkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
-
-TABLE skuBin(Sku, Bin);
-TABLE skuStockBin(Sku, Stock, Bin);
-TABLE skuStockBinDate(Sku, Stock, Bin, DATE);
+//
+//bin = ABSTRACT Bin(DataSkuLedger) PERSISTENT INDEXED;
+//nameBin 'Ячейка' (DataSkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+//
+//bin (batch) = ABSTRACT Bin (Batch) PERSISTENT INDEXED;
+//prevBin (Batch batch) = PREV(bin(batch));
+//nameBin 'Ячейка' (Batch batch) = name(bin(batch)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+//
+//bin (SkuLedger ledger) = MULTI bin[DataSkuLedger] (ledger), bin[Batch] (ledger) PERSISTENT INDEXED;
+//nameBin 'Ячейка' (SkuLedger ledger) = name(bin(ledger)) MINCHARWIDTH 10 PREFCHARWIDTH 10;
+//
+//TABLE skuBin(Sku, Bin);
+//TABLE skuStockBin(Sku, Stock, Bin);
+//TABLE skuStockBinDate(Sku, Stock, Bin, DATE);
 
 META defineBinSkuLedgerBalanceProperties(postfix, caption)
 
@@ -177,41 +177,41 @@ META defineBinSkuLedgerBalanceProperties(postfix, caption)
 
 END
 
-@defineBinSkuLedgerBalanceProperties(,);
+//@defineBinSkuLedgerBalanceProperties(,);
+//
+//EXTEND FORM currentBalanceSkuStock
+//
+//    PROPERTIES(bil)   READONLY nameBin  BEFORE signedQuantity(bil)
+//    PROPERTIES(bt)    READONLY nameBin  BEFORE shippedQuantity(bt)
+//
+//    OBJECTS           bin=Bin
+//    PROPERTIES        READONLY name(bin), currentBalance(s,st,bin)
+//    FILTERS           currentBalance(s,st,bin)
+//;
+//DESIGN currentBalanceSkuStock {
+//    ledger.box {
+//        MOVE bin.box;
+//    }
+//}
+//
+//EXTEND FORM balanceSkuStock
+//
+//    PROPERTIES(bil)   READONLY nameBin  BEFORE signedQuantity(bil)
+//    PROPERTIES(bt)    READONLY nameBin  BEFORE shippedQuantity(bt)
+//
+//    OBJECTS           bin=Bin
+//    PROPERTIES        READONLY name(bin), balanceA(s,st,bin,t)
+//    FILTERS           balanceA(s,st,bin,t)
+//;
+//DESIGN balanceSkuStock {
+//    ledger.box {
+//        MOVE bin.box;
+//    }
+//}
 
-EXTEND FORM currentBalanceSkuStock
-
-    PROPERTIES(bil)   READONLY nameBin  BEFORE signedQuantity(bil)
-    PROPERTIES(bt)    READONLY nameBin  BEFORE shippedQuantity(bt)
-
-    OBJECTS           bin=Bin
-    PROPERTIES        READONLY name(bin), currentBalance(s,st,bin)
-    FILTERS           currentBalance(s,st,bin)
-;
-DESIGN currentBalanceSkuStock {
-    ledger.box {
-        MOVE bin.box;
-    }
-}
-
-EXTEND FORM balanceSkuStock
-
-    PROPERTIES(bil)   READONLY nameBin  BEFORE signedQuantity(bil)
-    PROPERTIES(bt)    READONLY nameBin  BEFORE shippedQuantity(bt)
-
-    OBJECTS           bin=Bin
-    PROPERTIES        READONLY name(bin), balanceA(s,st,bin,t)
-    FILTERS           balanceA(s,st,bin,t)
-;
-DESIGN balanceSkuStock {
-    ledger.box {
-        MOVE bin.box;
-    }
-}
-
-EXTEND FORM batches
-    PROPERTIES(bt) READONLY nameBin AFTER nameStock(bt)
-;
+//EXTEND FORM batches
+//    PROPERTIES(bt) READONLY nameBin AFTER nameStock(bt)
+//;
 // ---------------------  Склады с указанием ячеек ----------------------- //
 
 TABLE stockBinGroup(Stock, BinGroup);
@@ -230,6 +230,8 @@ nearestIn (Stock stock, BinGroup binGroup) =
 in 'Отм.' (Stock stock, BinGroup binGroup) = OVERRIDE nearestIn (stock, binGroup), dataIn(stock, binGroup) PERSISTENT;
 
 in 'Отм.' (Stock stock, Bin bin) = OVERRIDE in(stock, binGroup(bin)), dataIn(stock, bin) PERSISTENT;
+
+countIn = GROUP SUM 1 IF binGroup(Bin bin)==BinGroup group AND in(Stock stock, bin) BY stock, group;
 
 bins 'Ячейки' (stock) = GROUP CONCAT name(Bin bin) IF in(Stock stock, bin) , ', '
                                        BY stock
