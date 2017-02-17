@@ -9,11 +9,27 @@ quantity 'Кол-во расход' = GROUP SUM quantity(ReceiptSaleDetail recei
 
 receiptDetail =  GROUP MAX (ReceiptSaleDetail receiptDetail)
     BY batch(receiptDetail), receipt(receiptDetail);
+    
+minDelta 'Отклонение по количеству в чеке' = DATA NUMERIC[16,5]();
+
+EXTEND FORM options
+    PROPERTIES () minDelta
+;
+
+DESIGN options {
+    pharmacy {
+        MOVE PROPERTY(minDelta());
+    }
+}
         
 changeQuantityValue (Batch batch, Receipt receipt) =  ACTION {
     IF receiptDetail(batch, receipt) THEN {
         IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-            quantity(ReceiptSaleDetail receiptDetail) <- requestedNumeric() WHERE receiptDetail == receiptDetail(batch, receipt);
+            IF minDelta() AND delta(prevCurrentBalance(batch, receipt), requestedNumeric()) < minDelta() THEN {
+                quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
+            } ELSE {
+                quantity(ReceiptSaleDetail receiptDetail) <- requestedNumeric() WHERE receiptDetail == receiptDetail(batch, receipt);
+            }
         } ELSE {
             FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
                 DELETE d;
@@ -24,7 +40,11 @@ changeQuantityValue (Batch batch, Receipt receipt) =  ACTION {
                 receipt(d) <- receipt;
                 sku(d) <- sku(batch);
                 batch(d) <- batch;
-                quantity (d) <- requestedNumeric();
+                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), requestedNumeric()) < minDelta() THEN {
+                    quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
+                } ELSE {
+                    quantity(ReceiptSaleDetail receiptDetail) <- requestedNumeric() WHERE receiptDetail == receiptDetail(batch, receipt);
+                }
                 price(d) <- currentPOSPrice(batch, receipt);
             }
         }
@@ -52,7 +72,11 @@ changeBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
     REQUEST INTEGER INPUT;
     IF receiptDetail(batch, receipt) THEN {
         IF (requestedInteger() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedInteger() != 0) THEN {
-            quantity(ReceiptSaleDetail receiptDetail) <- NUMERIC[16,5](round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5)) WHERE receiptDetail == receiptDetail(batch, receipt);
+            IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5)) < minDelta() THEN {
+                quantity (ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
+            } ELSE {
+                quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
+            }
 //            sum(ReceiptSaleDetail receiptDetail) <-round2((price(receiptDetail)/blisterAmount(batch))*requestedInteger()) WHERE receiptDetail == receiptDetail(batch, receipt);
         } ELSE {
             FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
@@ -64,7 +88,11 @@ changeBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
                 receipt(d) <- receipt;
                 sku(d) <- sku(batch);
                 batch(d) <- batch;
-                quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5));
+                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5)) < minDelta() THEN {
+                    quantity (d) <- prevCurrentBalance(batch, receipt);
+                } ELSE {
+                    quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5));
+                }
                 price(d) <- currentPOSPrice(batch, receipt);
 //                sum(d) <-round((price(d)/blisterAmount(batch))*requestedInteger(), roundCondition(departmentStore(d)));
             }
