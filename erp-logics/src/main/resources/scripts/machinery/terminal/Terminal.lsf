@@ -254,7 +254,7 @@ dataStock(TerminalDocument d) <- stock(createdUser(d)) WHEN SET (createdUser(d))
 createdTime 'Время создания'= DATA DATETIME (TerminalDocument) IN created;
 createdTime (TerminalDocument o) <- currentDateTime() WHEN SET(o IS TerminalDocument);
 
-terminalDocument = DATA TerminalDocument(TerminalDocumentDetail) INDEXED;
+terminalDocument = DATA TerminalDocument(TerminalDocumentDetail) NOT NULL INDEXED;
 @defineDocumentDetailIndex(terminalDocument);
 
 @defineDocumentTimePrefix(terminalDocument, , ' документа');
@@ -275,7 +275,21 @@ isNew 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
 dateTimeScan 'Время сканирования' = DATA DATETIME (TerminalDocumentDetail) IN base;
 
-sku(TerminalDocumentDetail d) = OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), date(d)));
+sku = DATA Sku (TerminalDocumentDetail) INDEXED;
+WHEN SESSION CHANGED(barcode(TerminalDocumentDetail d)) OR CHANGED(date(d)) DO {
+    sku(d) <- OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), (OVERRIDE currentDate(), date(d))));
+}
+
+migratedSku = DATA BOOLEAN ();
+onStarted () += ACTION {
+    IF NOT migratedSku() THEN {
+        migratedSku() <- TRUE;
+        setNoCancelInTransaction();
+        sku(TerminalDocumentDetail d) <- OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), (OVERRIDE currentDate(), date(d))));
+        apply();
+        dropNoCancelInTransaction();
+    }
+}
 
 terminalIdTerminalId (documentDetail, document) = GROUP AGGR TerminalDocumentDetail terminalDocumentDetail 
     BY id (terminalDocument(terminalDocumentDetail)), id(terminalDocumentDetail);    
@@ -442,7 +456,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
 
             FOR terminalDocument(TerminalDocumentDetail tdd) == document() ORDER number(tdd) ADDOBJ o = class##Detail DO {
                 object(o) <- object;
-                skuProp(o) <- sku(barcode(barcode(tdd), date(object)));
+                skuProp(o) <- sku(tdd);
                 quantity(o) <- quantity(tdd);
                 overAddDetailDialogTerminal##class##Detail(o, tdd);
             }
