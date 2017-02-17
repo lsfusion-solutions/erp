@@ -326,6 +326,7 @@ public class DigiHandler extends ScalesHandler {
         while (attempts < 3) {
             try {
                 socket.outputStream.write(bytes);
+                socket.outputStream.flush();
                 return receiveReply(socket);
             } catch (CommunicationException e) {
                 attempts++;
