@@ -222,13 +222,17 @@ negativeMarkupOnAccount90 'Относить отрицательную надб�
 //};
 //};
 
-diffMarkupSum 'Сумма  изменения надбавки' (RepricingDetail d) =  IF negativeMarkupOnAccount90(d) THEN max((markupSum(d) (-) curMarkupSum(d)),0.0) ELSE markupSum(d) (-) curMarkupSum(d);    
-diffMarkupSum 'Сумма  изменения надбавки' (UserRepricingDetail d) =  IF negativeMarkupOnAccount90(d) THEN max((markupSum(d) (-) curMarkupSum(d)),0.0) ELSE markupSum(d) (-) curMarkupSum(d);
+diffMarkupSum 'Сумма  изменения надбавки' (RepricingDetail d) =  (IF negativeMarkupOnAccount90(d) THEN max(markupSum(d),0.0) ELSE markupSum(d)) (-) 
+                                                                                        curMarkupSum(d);    
+diffMarkupSum 'Сумма  изменения надбавки' (UserRepricingDetail d) =  (IF negativeMarkupOnAccount90(d) THEN max(markupSum(d),0.0) ELSE markupSum(d)) (-) 
+                                                                                        curMarkupSum(d);    
 
-diffSum 'Сумма  изменения поставщика ' (RepricingDetail d) =  sum(d) (-) curSum(d) (+) ((markupSum(d) (-) curMarkupSum(d)) IF negativeMarkupOnAccount90(d) AND (markupSum(d) (-) curMarkupSum(d)) <0.0 );
-diffSum 'Сумма  изменения поставщика ' (UserRepricingDetail d) =  sum(d) (-) curSum(d) (+) ((markupSum(d) (-) curMarkupSum(d)) IF negativeMarkupOnAccount90(d) AND (markupSum(d) (-) curMarkupSum(d)) <0.0 );
-
-
+diffSum 'Сумма  изменения поставщика ' (RepricingDetail d) =  sum(d) (-) 
+                                                                               curSum(d) (+) 
+                                                                               (markupSum(d) IF negativeMarkupOnAccount90(d) AND markupSum(d) <0.0);
+diffSum 'Сумма  изменения поставщика ' (UserRepricingDetail d) =  sum(d) (-) 
+                                                                                   curSum(d) (+) 
+                                                                                   (markupSum(d) IF negativeMarkupOnAccount90(d) AND markupSum(d) <0.0);
 
 @defineDocumentInterfaceDetailDiffSumPrefix (repricing, VATSum, , cur, ' изменения НДС');
 @defineDocumentInterfaceDetailDiffSumPrefix (repricing, retailSum, , cur, ' изменения розничной');
