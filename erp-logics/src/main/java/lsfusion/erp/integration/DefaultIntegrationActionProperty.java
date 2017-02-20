@@ -101,6 +101,19 @@ public class DefaultIntegrationActionProperty extends ScriptingActionProperty {
                 "dd.MM.yy", "dd/MM/yy", "dd.MM.yyyy", "dd/MM/yyyy", "dd.MM.yyyy HH:mm", "dd.MM.yyyy HH:mm:ss"}).getTime());
     }
 
+    protected BigDecimal parseBigDecimal(String value) {
+        return parseBigDecimal(value, null);
+    }
+
+    protected BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
+        try {
+            value = trim(value);
+            return value == null || value.isEmpty() ? defaultValue : new BigDecimal(value.replace(",", "."));
+        } catch (Exception e) {
+            return defaultValue;
+        }
+    }
+
     protected BigDecimal safeAdd(BigDecimal operand1, BigDecimal operand2) {
         if (operand1 == null && operand2 == null)
             return null;

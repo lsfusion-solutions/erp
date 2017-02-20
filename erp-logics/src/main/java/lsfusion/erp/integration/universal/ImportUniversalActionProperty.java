@@ -1065,18 +1065,6 @@ public abstract class ImportUniversalActionProperty extends DefaultImportActionP
         return column != null && column.replaceOnlyNull;
     }
 
-    private BigDecimal parseBigDecimal(String value) {
-        return parseBigDecimal(value, null);
-    }
-
-    private BigDecimal parseBigDecimal(String value, BigDecimal defaultValue) {
-        try {
-            return value == null ? defaultValue : new BigDecimal(trim(value).replace(",", "."));
-        } catch (NumberFormatException e) {
-            return defaultValue;
-        }
-    }
-
     //чит для того, чтобы обрабатывать "без НДС" как 0
     protected BigDecimal parseVAT(String value) {
         if (value == null) return null;

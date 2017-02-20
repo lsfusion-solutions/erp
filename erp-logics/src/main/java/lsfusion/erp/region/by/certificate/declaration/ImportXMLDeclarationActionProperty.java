@@ -192,12 +192,4 @@ public class ImportXMLDeclarationActionProperty extends DefaultImportActionPrope
             throw Throwables.propagate(e);
         }
     }
-
-    private BigDecimal parseBigDecimal(String value) {
-        try {
-            return value == null ? null : new BigDecimal(trim(value).replace(",", "."));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
 }
