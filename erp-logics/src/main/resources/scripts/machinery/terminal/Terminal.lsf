@@ -271,6 +271,8 @@ barcode 'Штрихкод' = DATA VARSTRING[15] (TerminalDocumentDetail) IN base
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
 price 'Цена' = DATA NUMERIC[16,4] (TerminalDocumentDetail) IN base;
 sum 'Сумма' = DATA NUMERIC[18,4] (TerminalDocumentDetail) IN base;
+sum(TerminalDocumentDetail d) <- round2(quantity(d) * price(d)) WHEN CHANGED(quantity(d)) OR CHANGED(price(d)); 
+
 name 'Наименование' = DATA VARSTRING[200] (TerminalDocumentDetail) IN base;
 isNew 'Новый товар' = DATA BOOLEAN (TerminalDocumentDetail) IN base;
 comment 'Комментарий' = DATA VARSTRING[100] (TerminalDocumentDetail) IN base;
@@ -280,6 +282,10 @@ sku = DATA Sku (TerminalDocumentDetail) INDEXED;
 WHEN SESSION CHANGED(barcode(TerminalDocumentDetail d)) OR CHANGED(date(d)) DO {
     sku(d) <- OVERRIDE sku(barcode(d)), sku(barcode(barcode(d), (OVERRIDE currentDate(), date(d))));
 }
+
+WHEN SESSION CHANGED(sku(TerminalDocumentDetail d)) AND NOT CHANGED(name(d)) DO {
+    name(d) <- name(sku(d));
+} 
 
 migratedSku = DATA BOOLEAN ();
 onStarted () += ACTION {
