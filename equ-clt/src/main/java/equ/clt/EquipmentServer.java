@@ -332,7 +332,7 @@ public class EquipmentServer {
             void runTask() throws Exception{
                 try {
                     if(isTimeToRun())
-                        sendTerminalDocumentInfo(remote, sidEquipmentServer);
+                        TerminalDocumentEquipmentServer.sendTerminalDocumentInfo(remote, sidEquipmentServer);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -634,46 +634,6 @@ public class EquipmentServer {
                 }
             }
             sendSoftCheckLogger.info("Sending SoftCheckInfo finished");
-        }
-    }
-
-    private void sendTerminalDocumentInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
-        sendTerminalDocumentLogger.info("Send TerminalDocumentInfo");
-        List<TerminalInfo> terminalInfoList = remote.readTerminalInfo(sidEquipmentServer);
-
-        Map<String, List<TerminalInfo>> handlerModelTerminalMap = new HashMap<>();
-        for (TerminalInfo terminal : terminalInfoList) {
-            if (!handlerModelTerminalMap.containsKey(terminal.handlerModel))
-                handlerModelTerminalMap.put(terminal.handlerModel, new ArrayList<TerminalInfo>());
-            handlerModelTerminalMap.get(terminal.handlerModel).add(terminal);
-        }
-
-        for (Map.Entry<String, List<TerminalInfo>> entry : handlerModelTerminalMap.entrySet()) {
-            String handlerModel = entry.getKey();
-            if (handlerModel != null) {
-
-                try {
-                    TerminalHandler clsHandler = (TerminalHandler) getHandler(handlerModel, remote);
-
-                    TerminalDocumentBatch documentBatch = clsHandler.readTerminalDocumentInfo(terminalInfoList);
-                    if (documentBatch == null || documentBatch.documentDetailList == null || documentBatch.documentDetailList.isEmpty()) {
-                        sendTerminalDocumentLogger.info("TerminalDocumentInfo is empty");
-                    } else {
-                        sendTerminalDocumentLogger.info("Sending TerminalDocumentInfo");
-                        String result = remote.sendTerminalInfo(documentBatch.documentDetailList, sidEquipmentServer);
-                        if (result != null) {
-                            reportEquipmentServerError(remote, sidEquipmentServer, result);
-                        } else {
-                            sendTerminalDocumentLogger.info("Finish Reading starts");
-                            clsHandler.finishReadingTerminalDocumentInfo(documentBatch);
-                        }
-                    }
-                } catch (Throwable e) {
-                    sendTerminalDocumentLogger.error("Equipment server error: ", e);
-                    remote.errorEquipmentServerReport(sidEquipmentServer, e);
-                    return;
-                }
-            }
         }
     }
 
