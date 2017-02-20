@@ -215,7 +215,7 @@ showPriceBatchLedger(Stock s) = isCompany(s) AND NOT explicitBatchLedger(s);
 dataPriceBatchLedger 'Использовать свои цены для каждой партии' = ABSTRACT BOOLEAN (Stock);
 priceBatchLedger 'Использовать свои цены для каждой партии' (Stock s) = dataPriceBatchLedger(s) OR explicitBatchLedger(s) PERSISTENT;  
 
-order (DataSkuLedger ledger) = STRUCT(dateTime(ledger), ledger);
+//order (DataSkuLedger ledger) = STRUCT(dateTime(ledger), ledger);
 
 // Свойства для расчета себестоимости
 quantity 'Кол-во' (Batch ledger, Batch batch) = quantity(ledger) IF batch == ledger;
@@ -767,8 +767,8 @@ DESIGN dialogBatchStockIn {
 
 // Расчет себестоимости
 
-needToCost 'Требуется расчет себестоимости' (DataSkuLedger ledger) = quantity[SkuLedger](ledger) AND isPosted(ledger)
-                                                                        AND NOT quantity[SkuLedger](ledger) == costed(ledger);
+needToCost 'Требуется расчет себестоимости' (SkuLedger ledger) = quantity(ledger) AND isPosted(ledger)
+                                                                        AND NOT quantity(ledger) == costed(ledger);
 
 order = ABSTRACT LONG (InLIFOSkuLedger, Batch);
 limitNew = IF InLIFOSkuLedger ledger IS InLIFOSkuLedger THEN (
@@ -776,7 +776,7 @@ limitNew = IF InLIFOSkuLedger ledger IS InLIFOSkuLedger THEN (
                                                         quantity(ledger) IF Batch batch == batch(ledger)
                                                      ELSE
                                                         outcome(batch) IF
-                                                        skuLedger(batch, stock(ledger)) == sku(ledger));
+                                                        skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger));
 
 quantity (InLIFOSkuLedger ledger, Batch batch) =
         PARTITION UNGROUP quantity
@@ -789,7 +789,8 @@ limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
                                                      IF batch(ledger) THEN
                                                         quantity(ledger) IF Batch batch == batch(ledger)
                                                      ELSE
-                                                        OVERRIDE 0.0 IF skuLedger(batch, stock(ledger)) == sku(ledger), (currentBalance(batch, stock(ledger)) IF skuCurrentBalance(batch, stock(ledger)) == sku(ledger)));
+                                                        OVERRIDE 0.0 IF skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger), 
+                                                                 (currentBalance(batch, stock[SkuLedger](ledger)) IF skuCurrentBalance(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger)));
 
 quantity (OutFIFOSkuLedger ledger, Batch batch) =
         PARTITION UNGROUP quantity
@@ -814,7 +815,7 @@ updateDataSkuLedgerBatchCost() = ACTION {
     cost(DataSkuLedger ledger, Batch batch) <- NULL WHERE changedSession(ledger);
 
     LOCAL ordered = INTEGER (DataSkuLedger);
-    ordered(DataSkuLedger ledger) <- PARTITION SUM 1 IF changedSession(ledger) BY sku(ledger) ORDER order(ledger);
+    ordered(DataSkuLedger ledger) <- PARTITION SUM 1 IF changedSession(ledger) BY sku[SkuLedger](ledger) ORDER dateTime[SkuLedger](ledger), ledger;
 
     FOR iterate(INTEGER i, 1, [= GROUP MAX ordered(DataSkuLedger ledger)]()) DO {
         LOCAL it = BOOLEAN (DataSkuLedger);
@@ -826,13 +827,13 @@ updateDataSkuLedgerBatchCost() = ACTION {
 
 ON { // eventChangeLedger - так как внутрь рекурсивного события толь
     LOCAL eventChanged = BOOLEAN (DataSkuLedger); 
-    ASSIGN eventChanged(DataSkuLedger ledger) <- SET(isPosted(ledger)) OR ((
+    eventChanged(DataSkuLedger ledger) <- SET(isPosted[SkuLedger](ledger)) OR ((
                                   CHANGED(quantity(ledger))
-                                  OR CHANGED(sku(ledger))
+                                  OR CHANGED(sku[SkuLedger](ledger))
                                   OR CHANGED(batch(ledger))
-                                  OR CHANGED(stock(ledger))
+                                  OR CHANGED(stock[SkuLedger](ledger))
                                   OR CHANGED(changed(ledger)))
-                                 AND isPosted(ledger));
+                                 AND isPosted[SkuLedger](ledger));
 
     IF [= GROUP MAX eventChanged(DataSkuLedger ledger)]() THEN
         NEWSESSION NESTED (eventChanged[DataSkuLedger]) SINGLE {
@@ -854,7 +855,7 @@ resetDataSkuLedgerBatchCost 'Перерассчитать себестоимос
 
         FOR DATE d == chosenDate('d') DO {
             APPLY SINGLE { 
-                changedSession(DataSkuLedger ledger) <- date[SkuLedger](ledger) >= d AND isPosted(ledger);
+                changedSession(DataSkuLedger ledger) <- date[SkuLedger](ledger) >= d AND isPosted[SkuLedger](ledger);
                 updateDataSkuLedgerBatchCost();
             }
         }
