@@ -369,27 +369,24 @@ public class EquipmentServer {
 
     private boolean isTimeToRun() {
         boolean start = true;
-        if(equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
-            if(equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0)
-                start = false;
-            else {
-                Calendar currentCal = Calendar.getInstance();
+        if (equipmentServerSettings.timeFrom != null && equipmentServerSettings.timeTo != null) {
+            Calendar currentCal = Calendar.getInstance();
 
-                Calendar calendarFrom = Calendar.getInstance();
-                calendarFrom.setTime(equipmentServerSettings.timeFrom);
-                calendarFrom.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
-                calendarFrom.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
-                calendarFrom.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+            Calendar calendarFrom = Calendar.getInstance();
+            calendarFrom.setTime(equipmentServerSettings.timeFrom);
+            calendarFrom.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
+            calendarFrom.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
+            calendarFrom.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
 
-                Calendar calendarTo = Calendar.getInstance();
-                calendarTo.setTime(equipmentServerSettings.timeTo);
-                calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
-                calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
-                calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+            Calendar calendarTo = Calendar.getInstance();
+            calendarTo.setTime(equipmentServerSettings.timeTo);
+            calendarTo.set(Calendar.DAY_OF_MONTH, currentCal.get(Calendar.DAY_OF_MONTH));
+            calendarTo.set(Calendar.MONTH, currentCal.get(Calendar.MONTH));
+            calendarTo.set(Calendar.YEAR, currentCal.get(Calendar.YEAR));
+            if (equipmentServerSettings.timeFrom.compareTo(equipmentServerSettings.timeTo) > 0)
+                calendarTo.add(Calendar.DAY_OF_MONTH, 1);
 
-                start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
-            }
-
+            start = currentCal.getTimeInMillis() >= calendarFrom.getTimeInMillis() && currentCal.getTimeInMillis() <= calendarTo.getTimeInMillis();
         }
         return start;
     }
