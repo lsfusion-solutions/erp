@@ -1,4 +1,4 @@
-package lsfusion.erp.region.by.integration.edi.topby;
+package lsfusion.erp.region.by.integration.edi;
 
 import lsfusion.base.Pair;
 import lsfusion.erp.integration.DefaultExportXMLActionProperty;
@@ -28,11 +28,9 @@ import java.io.BufferedReader;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStreamReader;
-import java.math.BigDecimal;
 import java.nio.charset.Charset;
 import java.nio.charset.StandardCharsets;
 import java.sql.Timestamp;
-import java.text.DecimalFormat;
 import java.text.SimpleDateFormat;
 
 abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
@@ -127,5 +125,9 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
             ServerLoggers.importLogger.error("RequestResult: " + httpResponse.getStatusLine());
         }
         return requestResult;
+    }
+
+    protected String formatDate(Timestamp date) {
+        return date == null ? null : new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").format(date);
     }
 }

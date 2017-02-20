@@ -1,0 +1,38 @@
+MODULE EDN;
+
+REQUIRE System, EDI, Integration, Warehouse, Store;
+
+NAMESPACE EDI;
+
+EXTEND CLASS EDIProvider {
+    edn 'EDN'
+}
+
+loginEDN 'Имя пользователя EDN' = DATA VARSTRING[100] ();
+passwordEDN 'Пароль EDN' = DATA VARSTRING[100] () ECHO;
+hostEDN 'Хост' = DATA VARSTRING[100] ();
+portEDN 'Порт' = DATA INTEGER ();
+receiveEDN 'Получить сообщения' = ACTION CUSTOM 'lsfusion.erp.region.by.integration.edi.edn.ReceiveMessagesEDNActionProperty' ();
+
+EXTEND FORM integrationData
+    PROPERTIES() loginEDN, passwordEDN, hostEDN, portEDN, receiveEDN
+;
+    
+DESIGN integrationData {
+    pane {
+        NEW vsEDN {
+            caption = 'EDN';
+            MOVE PROPERTY(loginEDN());
+            MOVE PROPERTY(passwordEDN());
+            MOVE PROPERTY(hostEDN());
+            MOVE PROPERTY(portEDN());
+            MOVE PROPERTY(receiveEDN());
+        }
+    }
+}
+
+sendEDN 'Отправить' = ACTION CUSTOM 'lsfusion.erp.region.by.integration.edi.edn.SendEOrderEDNActionProperty' (EOrder);
+
+send(EOrder o) += ACTION IF EDIProvider(supplier(o)) == EDIProvider.edn THEN IF exported(o) THEN MESSAGE 'Заказ уже отправлен' ELSE sendEDN(o);
+
+//good(EOrderMessage m) += (code(m) == '1250' OR code(m) == '1251' OR code(m) == '1252');
