@@ -497,6 +497,25 @@ CONSTRAINT (DROPPED(StockDocumentLedger d IS StockDocumentLedger))
             AND documentsClosedDate(PREV(stock(d))) AND NOT PREV(date(d)) >= documentsClosedDate(PREV(stock(d))) AND PREV(active(d)) 
             AND NOT allowChangeStockDocumentClosed(currentUser())
     MESSAGE 'Запрещено удалять документы для склада до даты закрытия';
+    
+checkClosedDate 'Проверять ограничение "Запрещено изменять дату документам для склада до даты закрытия"' = DATA BOOLEAN ();
+
+EXTEND FORM options
+
+    PROPERTIES checkClosedDate()
+;
+
+DESIGN options {
+    stock1 {
+        MOVE PROPERTY (checkClosedDate());
+    }
+} 
+CONSTRAINT  CHANGED(date(StockDocumentLedger d)) AND PREV(active(d))
+            AND (PREV(date(d)) < documentsClosedDate(stock(d))) 
+            AND NOT allowChangeStockDocumentClosed(currentUser())
+            AND checkClosedDate()
+    MESSAGE 'Запрещено изменять дату документам для склада до даты закрытия';
+    
 
 closeDocumentsStocks 'Закрыть документы до Дата (по)'(DATE date, Stock stock) = ACTION {
     documentsClosedDate(stock) <- sum(date,1);
