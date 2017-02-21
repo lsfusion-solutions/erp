@@ -202,7 +202,10 @@ numberDoc 'Номер' = DATA VARSTRING[100] (EVAT);
 descriptionDoc 'Дополнительные сведения' = DATA VARSTRING[100] (EVAT);
 unpSender 'Субъект хозяйствования, составляющий ЭСЧФ' = DATA VARSTRING[100](EVAT);
 exportYear 'Год для экспорта' = DATA INTEGER (EVAT);
+
 exportNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + (OVERRIDE Time.extractYear(currentDate()) IF e IS EVAT, exportYear(e) ) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
+exportDNumber 'Номер для экспорта' (EVAT e) = unpSender(e) + '-' + exportYear(e) + '-' + VARSTRING[100](lpad(number(e), 10, '0'));
+EVATExportNumber 'ЭСЧФ по номеру для экспорта' = GROUP AGGR EVAT e BY exportDNumber(e); 
 
 WHEN SET(exported(EVAT e)) 
      DO exportYear(e) <- Time.extractYear(currentDate());
