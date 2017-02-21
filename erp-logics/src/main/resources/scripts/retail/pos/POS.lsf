@@ -132,7 +132,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 
     beforeCalculatePromotions(receipt);
     
-    FOR PromotionGroup promotionGroup IS PromotionGroup ORDER order (promotionGroup) DO {
+    FOR PromotionGroup promotionGroup IS PromotionGroup AND active(promotionGroup) ORDER order (promotionGroup) DO {
 //        LOCAL leftSku = NUMERIC[14,3] (Sku);
 //        leftSku(sku) <- quantityReceiptSaleDetailSkuReceipt (sku, receipt);   //'Кол-во товара в документе'
 
@@ -248,7 +248,7 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                     taken(ReceiptSaleDetail detail) <- [= GROUP SUM use(ReceiptSaleDetail detail, PromotionCondition condition) BY detail](detail);
                 } ELSE {
                     FOR promotion(PromotionCondition condition) == promotion AND PriceListType pt == priceListType(condition) NOINLINE (pt) DO {
-                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND promotion(condition) == promotion AND NOT priceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail); 
+                        taken(ReceiptSaleDetail detail, condition) <- NULL WHERE priceListType(condition) == pt AND NOT priceA(pt, sku(detail), departmentStore(detail), overDateTime(detail)) != price(detail); 
                     }
                     taken(ReceiptSaleDetail detail) <- [= GROUP SUM taken(ReceiptSaleDetail detail, PromotionCondition condition) BY detail](detail);
                 }

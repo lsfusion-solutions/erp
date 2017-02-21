@@ -44,6 +44,8 @@ TABLE promotionGroup (PromotionGroup);
 
 @defineExternalizable(promotionGroup, VARSTRING[100]);
 name 'Наименование' = DATA VARISTRING[100](PromotionGroup) IN recognize;
+inactive 'Неактивная' = DATA BOOLEAN (PromotionGroup);
+active 'Активная' (PromotionGroup g) = g IS PromotionGroup AND NOT inactive(g);
 
 //--------------------------Акции----------------------------------------//
 
@@ -463,7 +465,7 @@ order 'Порядок' (PromotionGroup promotion) = OVERRIDE 1 IF promotion IS P
 
 FORM promotionGroup 'Группа акций'
     OBJECTS st=PromotionGroup FIXED PANEL
-    PROPERTIES(st)     name, userOrder
+    PROPERTIES(st)     name, userOrder, inactive
 
     OBJECTS sh=Promotion
     PROPERTIES(sh)     userOrder
@@ -483,6 +485,9 @@ FORM promotionGroups 'Группы акций'
     OBJECTS st=PromotionGroup
     PROPERTIES(st)     READONLY order, name
     PROPERTIES(st)     ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+
+    FILTERGROUP activeGroup
+        FILTER 'Активные' active(st) DEFAULT
 
     OBJECTS sh=Promotion
     PROPERTIES(sh)     READONLY order
