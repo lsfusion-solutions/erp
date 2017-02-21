@@ -1897,39 +1897,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) {
-        Map<String, List<Object>> zReportSumMap = new HashMap<>();
-        if (zReportLM != null && equipmentCashRegisterLM != null) {
-            try (DataSession session = getDbManager().createSession()) {
-                      
-                DataObject stockObject = (DataObject) equipmentCashRegisterLM.findProperty("stock[VARSTRING[100]]").readClasses(session, new DataObject(idStock));
-                
-                KeyExpr zReportExpr = new KeyExpr("zReport");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "zReport", zReportExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                String[] names = new String[]{"sumReceiptDetailZReport", "numberZReport", "numberCashRegisterZReport", "dateZReport"};
-                LCP<?>[] properties = zReportLM.findProperties("sumReceiptDetail[ZReport]", "number[ZReport]", "numberCashRegister[ZReport]", "date[ZReport]");
-                for (int i = 0; i < properties.length; i++) {
-                    query.addProperty(names[i], properties[i].getExpr(zReportExpr));
-                }
-                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(dateFrom, DateClass.instance), Compare.GREATER_EQUALS));
-                query.and(zReportLM.findProperty("date[ZReport]").getExpr(zReportExpr).compare(new DataObject(dateTo, DateClass.instance), Compare.LESS_EQUALS));
-                query.and(zReportLM.findProperty("departmentStore[ZReport]").getExpr(zReportExpr).compare(stockObject.getExpr(), Compare.EQUALS));
-                query.and(zReportLM.findProperty("number[ZReport]").getExpr(zReportExpr).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> zReportResult = query.execute(session);
-                for (ImMap<Object, Object> entry : zReportResult.values()) {
-                    String numberZReport = trim((String) entry.get("numberZReport"));
-                    Integer numberCashRegisterZReport = (Integer) entry.get("numberCashRegisterZReport");
-                    BigDecimal sumZReport = (BigDecimal) entry.get("sumReceiptDetailZReport");
-                    Date dateZReport = (Date) entry.get("dateZReport");
-                    zReportSumMap.put(numberZReport + "/" + numberCashRegisterZReport, Arrays.asList((Object) sumZReport, dateZReport));
-                }
-                
-                session.apply(getBusinessLogics(), getStack());
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return zReportSumMap;
+        return SendSalesEquipmentServer.readRequestZReportSumMap(getBusinessLogics(), getDbManager(), getStack(), idStock, dateFrom, dateTo);
     }
 
     @Override

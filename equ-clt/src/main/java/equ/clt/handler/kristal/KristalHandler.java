@@ -662,13 +662,14 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 List<Object> fusionEntry = zReportSumMap.get(key);
                                 BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
                                 Date fusionDate = (Date) fusionEntry.get(1);
+                                String nameDepartmentStore = (String) fusionEntry.get(2);
                                 double kristalSum = rs.getDouble(3);
                                 Date kristalDate = rs.getDate(4);
                                 if (fusionSum == null || fusionSum.doubleValue() != kristalSum) {
                                     if (kristalDate.compareTo(fusionDate) == 0) {
                                         result.add(Arrays.asList((Object) nppCashRegister,
-                                                String.format("ZReport %s (%s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, kristalDate, fusionSum, kristalSum)));
-                                        requestExchangeLogger.error(String.format("%s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nppCashRegister, numberZReport, fusionSum, kristalSum));
+                                                String.format("ZReport %s (store %s, date %s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, nameDepartmentStore, kristalDate, fusionSum, kristalSum)));
+                                        requestExchangeLogger.error(String.format("%s. Store %s. CashRegister %s. ZReport %s checksum failed: %s(fusion) != %s(kristal);", kristalDate, nameDepartmentStore, nppCashRegister, numberZReport, fusionSum, kristalSum));
                                     } else {
                                         requestExchangeLogger.error(String.format("Not equal dates for CashRegister %s, ZReport %s (%s(fusion) and %s (kristal);", nppCashRegister, numberZReport, fusionDate, kristalDate));
                                     }
