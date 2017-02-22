@@ -15,6 +15,7 @@ filterDateFrom (SkuLedger i) = date(i) >= filterSkuLedgerDateFrom() OR (i IS Sku
 
 filterSkuLedgerDateTo 'Дата по' = DATA LOCAL DATE ();
 filterDateTo (SkuLedger i) = date(i) <= filterSkuLedgerDateTo() OR (i IS SkuLedger AND NOT filterSkuLedgerDateTo());   
+backgroundPosted (SkuLedger bil) = RGB(255,204,204) IF bil IS SkuLedger AND NOT isPosted(bil);
 
 FORM movementSku 'Движение товара'
     OBJECTS s = Sku FIXED PANEL
@@ -22,17 +23,18 @@ FORM movementSku 'Движение товара'
     PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
     
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument, nameStock,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument, nameStock,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, 
                              signedSum, balanceA
-    PROPERTIES(s,bil) READONLY accountPriceA   
+    PROPERTIES(s,bil) READONLY BACKGROUND backgroundPosted(bil) accountPriceA   
     PROPERTIES(bil) edit SHOWIF allowedEdit(bil), show                    
     ORDER BY dateTime(bil)
-    FILTERS sku(bil) == s,
-            isPosted(bil),
+    FILTERS sku(bil) == s,            
             isCompanyStock(bil),
             filterDateFrom(bil),
             filterDateTo(bil)
+            
+    FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT 
 ;
 DESIGN movementSku {
     main {
@@ -65,18 +67,18 @@ FORM movementSkuStock 'Движение товара по складу'
     PROPERTIES () filterSkuLedgerDateFrom, filterSkuLedgerDateTo
     
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, date, dateTime, description, nameOperationDocument,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice,
                              signedSum , balanceA, priceA, sumA
-    PROPERTIES(s,st,bil) READONLY accountPriceA                           
+    PROPERTIES(s,st,bil) READONLY BACKGROUND backgroundPosted(bil) accountPriceA                           
     PROPERTIES(bil) edit SHOWIF allowedEdit(bil), show
     ORDER BY dateTime(bil)
-    FILTERS sku(bil) == s,
-            isPosted(bil),
+    FILTERS sku(bil) == s,            
             stock(bil)==st,
             isCompany(st),
             filterDateFrom(bil),
-            filterDateTo(bil)            
+            filterDateTo(bil)         
+    FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT                
 ;
 DESIGN movementSkuStock {
     NEW topContainer{
@@ -158,16 +160,15 @@ FORM movementBatch 'Движение по партии'
     PROPERTIES(bt) READONLY name, nameSku
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocument, seriesDocument, dateTime, description, nameStock,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, dateTime, description, nameStock,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity, signedPrice, signedSum
 
-    PROPERTIES      READONLY balanceA(bt,bil), accountPriceA(bt,bil)
+    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceA(bt,bil), accountPriceA(bt,bil)
     PROPERTIES(bil) edit SHOWIF allowedEdit(bil), show        
     ORDER BY dateTime(bil)
-    FILTERS cost(bil, bt) OR batch(bil)==bt,
-            isPosted(bil),
+    FILTERS cost(bil, bt) OR batch(bil)==bt,           
             isCompanyStock(bil)
-
+    FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT 
 ;
 FORM movementBatchStock 'Движение по партии'
     OBJECTS bt = Batch FIXED PANEL
@@ -177,16 +178,16 @@ FORM movementBatchStock 'Движение по партии'
     PROPERTIES(st) SELECTOR name
 
     OBJECTS bil = SkuLedger
-    PROPERTIES(bil) READONLY numberDocument, seriesDocument, dateTime, description,
+    PROPERTIES(bil) READONLY BACKGROUND backgroundPosted(bil) isPosted, numberDocument, seriesDocument, dateTime, description,
                              nameLegalEntityDocument, nameLegalEntityStockDocument, signedQuantity,
                              signedPrice, signedSum
-    PROPERTIES      READONLY balanceA(bt,bil), accountPriceA(bt,st,bil)
+    PROPERTIES      READONLY BACKGROUND backgroundPosted(bil) balanceA(bt,bil), accountPriceA(bt,st,bil)
     PROPERTIES(bil) edit SHOWIF allowedEdit(bil), show 
     ORDER BY dateTime(bil)
-    FILTERS cost(bil, bt) OR batch(bil)==bt,
-            isPosted(bil),
+    FILTERS cost(bil, bt) OR batch(bil)==bt,            
             stock(bil)==st,
             isCompany(st)
+    FILTERGROUP posted FILTER 'Проведенные' isPosted(bil) 'F9' DEFAULT             
 ;
 DESIGN movementBatchStock {
     NEW topContainer{
