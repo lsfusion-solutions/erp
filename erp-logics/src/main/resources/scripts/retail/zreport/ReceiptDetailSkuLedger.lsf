@@ -1,0 +1,58 @@
+MODULE ReceiptDetailSkuLedger;
+
+REQUIRE ZReport, SkuLedger;
+
+NAMESPACE ZReport;
+// -------------Проведение по регистрам --------------------- //
+
+@implementSaleLedger(ReceiptSale, sku, departmentStore);
+numberDocument[SaleLedger] (ReceiptSaleDetail ledger) += number(zReport(ledger));
+cost(ReceiptSaleDetail ledger, Batch batch) +=  cost[SkuLedger,Batch](ledger, batch) IF ledger IS ReceiptSaleDetail; //quantityReceiptSaleDetail(ledger) IF  batchReceiptSaleDetail(ledger)== batch;
+quantity[SaleLedger] (ReceiptSaleDetail ledger) += quantity(ledger);
+VAT[SaleLedger] (ReceiptSaleDetail ledger) += VAT(ledger);
+price[SaleLedger] (ReceiptSaleDetail ledger) += price(ledger);
+sum[SaleLedger] (ReceiptSaleDetail ledger) += sum(ledger);
+discountSum[SaleLedger] (ReceiptSaleDetail ledger) += discountSum(ledger);
+costSum (ReceiptSaleDetail ledger) += WHEN ledger IS ReceiptSaleDetail THEN costSum[SkuLedger](ledger);
+
+@implementSaleLedger(ReceiptReturn, sku, departmentStore);
+numberDocument[SaleLedger] (ReceiptReturnDetail ledger) += number(zReport(ledger));
+cost(ReceiptReturnDetail ledger, Batch batch) += -cost[SkuLedger,Batch](ledger, batch) IF ledger IS ReceiptReturnDetail;//quantityReceiptReturnDetail(ledger) IF  batchReceiptReturnDetail(ledger)== batch;
+quantity[SaleLedger] (ReceiptReturnDetail ledger) += -quantity(ledger);
+VAT[SaleLedger] (ReceiptReturnDetail ledger) += VAT(ledger);
+sum[SaleLedger] (ReceiptReturnDetail ledger) += -sum(ledger);
+price[SaleLedger] (ReceiptReturnDetail ledger) += price(ledger);
+discountSum[SaleLedger] (ReceiptReturnDetail ledger) += -discountSum(ledger);
+costSum (ReceiptReturnDetail ledger) += WHEN ledger IS ReceiptReturnDetail THEN -costSum[SkuLedger](ledger);
+
+edit[SaleLedger] (ReceiptSaleDetail ledger) += ACTION edit(ledger);
+edit[SaleLedger] (ReceiptReturnDetail ledger) += ACTION edit(ledger);
+
+// -------------Проведение по регистрам --------------------- //
+
+extraSum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (ReceiptReturnDetail) PERSISTENT;
+extraSum 'Сумма' (ledger) = ABSTRACT NUMERIC[18,4] (ReceiptSaleDetail) PERSISTENT;
+
+@implementSkuLedgerOutFIFO(ReceiptSaleDetail, sku, departmentStore);
+quantity[OutFIFOSkuLedger] (ReceiptSaleDetail ledger) += quantity(ledger);
+batch[SkuLedger](ReceiptSaleDetail ledger) += batch(ledger);
+@implementSkuLedgerOutFIFOBatchBalance(receiptSaleDetail, departmentStore);
+sum[OutSkuLedger] (ReceiptSaleDetail ledger) += sum(ledger) (+) discountSum(ledger) (+) extraSum(ledger);
+skip[SkuLedger](ReceiptSaleDetail ledger) += skip(ledger);
+
+@implementSkuLedgerInLIFO(ReceiptReturnDetail, sku, departmentStore);
+quantity[InLIFOSkuLedger] (ReceiptReturnDetail ledger) += quantity(ledger);
+batch[SkuLedger](ReceiptReturnDetail ledger) += batch(ledger);
+@implementSkuLedgerInLIFOBatchBalance(receiptReturnDetail, departmentStore);
+sum[InSkuLedger] (ReceiptReturnDetail ledger) += sum(ledger) (+) discountSum(ledger) (+) extraSum(ledger);
+skip[SkuLedger](ReceiptReturnDetail ledger) += skip(ledger);
+
+edit[SkuLedger](ReceiptReturnDetail d) += ACTION edit(d);
+edit[SkuLedger](ReceiptSaleDetail d) += ACTION edit(d);
+
+show[SkuLedger](ReceiptReturnDetail d) += ACTION show(d);
+show[SkuLedger](ReceiptSaleDetail d) += ACTION show(d);
+
+EXTEND FORM zReports
+    PROPERTIES (d) READONLY costSum[SkuLedger] FORCE GRID AFTER price(d)
+;
