@@ -53,7 +53,10 @@ calcStatus 'Статус заказа' = CASE
     WHEN o IS Order THEN 'Создан' 
 ;
 status(Order o) += WHEN o IS Order THEN calcStatus(o);
+
 backgroundStatus = ABSTRACT CASE COLOR (Order);
+backgroundStatus(Purchase.Order o) += WHEN isRejected(o) THEN RGB (255,128,128);
+backgroundStatus(Purchase.Order o) += WHEN isPosted(o) THEN RGB(212,255,212);
 
 originalQuantity(UserOrderDetail d) <- quantity(d)
     WHEN CHANGED (quantity(d)) IF NOT (isConfirmed(d) OR isSent(d));
@@ -119,10 +122,6 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
            printOrderXLS OBJECTS o=order
 ;
 
-
-overEmailCustomer = ACTION ABSTRACT LIST (Order.Order);
-skipCalcEmailCustomer = ABSTRACT BOOLEAN (Order.Order);
-
 overEmailList = ABSTRACT VARSTRING[400](Order.Order);
 
 EXTEND CLASS TypeChange{
@@ -148,23 +147,25 @@ logSendDocumentOrder(Purchase.Order o) = ACTION FOR ADDOBJ d = DocumentLog DO {
     FORM printOrderXLS OBJECTS o = o EXPORT XLSX;
     file(d) <- formExportFile();
 }
-emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order)= ACTION {
-    IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
-        NEWSESSION {
-            IF isPosted(order) THEN MESSAGE NOWAIT 'Заказ №' +number(order)+ ': заказ в статусе "В работе" или выше, статус изменен не будет ';
+
+overEmailCustomer = ACTION ABSTRACT LIST (Order.Order);
+consumedEmailCustomer = DATA LOCAL BOOLEAN (Order.Order);
+
+emailCustomerSingle 'Отправить заказ поставщику' (Purchase.Order order) = ACTION NEWSESSION {
+    
+    overEmailCustomer(order);
+
+    IF NOT consumedEmailCustomer(order) THEN {
+        IF (OVERRIDE email(supplier(order)), email(supplierStock(order)), overEmailList(order)) THEN {
             isSent(order) <- TRUE;
             IF NOT disableDocumentLog() THEN logSendDocumentOrder(order);
             sentDateTime(order) <- currentDateTime();
+            calcEmailCustomer(order);
             
-            overEmailCustomer(order);            
-            
-            IF NOT skipCalcEmailCustomer(order) THEN calcEmailCustomer(order);
-            apply();
-        }
-
-    } ELSE {
-        MESSAGE 'Заказ №' +number(order)+ ': у поставщика не задан e-mail';
+        } ELSE MESSAGE 'Заказ №' + number(order) + ': у поставщика не задан e-mail';
     }
+    
+    apply();
 } TOOLBAR;
 
 emailCustomer 'Отправить заказы поставщикам' (Purchase.Order order)= ACTION {
