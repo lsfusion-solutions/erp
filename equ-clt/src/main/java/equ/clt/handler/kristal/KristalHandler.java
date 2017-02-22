@@ -137,7 +137,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         }
                         writer.close();
 
-                        processTransactionLogger.info(String.format("Kristal: waiting for deletion of PLU file (Transaction #%s)", transactionInfo.id));
+                        processTransactionLogger.info(String.format("Kristal: waiting for deletion of PLU file %s (Transaction #%s)", pluFile.getAbsolutePath(), transactionInfo.id));
                         waitForDeletion(pluFile, flagPluFile);
                     } else {
                         throw new RuntimeException(cantCreateFileMessage(flagPluFile));
@@ -165,7 +165,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             }
                             writer.close();
 
-                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of Restriction file (Transaction #%s)", transactionInfo.id));
+                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of Restriction file %s (Transaction #%s)", restrictionFile.getAbsolutePath(), transactionInfo.id));
                             waitForDeletion(restrictionFile, flagRestrictionFile);
                         } else {
                             throw new RuntimeException(cantCreateFileMessage(flagRestrictionFile));
@@ -199,7 +199,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     }
                                 }
                                 writer.close();
-                                processTransactionLogger.info(String.format("Kristal: waiting for deletion of MESSAGE file (Transaction #%s)", transactionInfo.id));
+                                processTransactionLogger.info(String.format("Kristal: waiting for deletion of MESSAGE file %s (Transaction #%s)", messageFile.getAbsolutePath(), transactionInfo.id));
                                 waitForDeletion(messageFile, flagMessageFile);
                             } else {
                                 throw new RuntimeException(cantCreateFileMessage(flagMessageFile));
@@ -237,7 +237,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     }
                                 }
                                 writer.close();
-                                processTransactionLogger.info(String.format("Kristal: waiting for deletion of SCALES file, (Transaction #%s)", transactionInfo.id));
+                                processTransactionLogger.info(String.format("Kristal: waiting for deletion of SCALES file %s (Transaction #%s)", scaleFile.getAbsolutePath(), transactionInfo.id));
                                 waitForDeletion(scaleFile, flagScaleFile);
 
                             } else {
@@ -275,7 +275,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                 }
                             }
                             writer.close();
-                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file (Transaction #%s)", transactionInfo.id));
+                            processTransactionLogger.info(String.format("Kristal: waiting for deletion of GROUPS file %s (Transaction #%s)", groupsFile.getAbsolutePath(), transactionInfo.id));
                             waitForDeletion(groupsFile, flagGroupsFile);
 
                         } else {
@@ -800,7 +800,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         }
                         writer.close();
 
-                        processStopListLogger.info("Kristal: waiting for deletion of STOPLIST file");
+                        processStopListLogger.info("Kristal: waiting for deletion of STOPLIST file " + stopListFile.getAbsolutePath());
                         waitForDeletion(stopListFile, flagStopListFile);
                     } else {
                         throw new RuntimeException(cantCreateFileMessage(flagStopListFile));
