@@ -1212,8 +1212,13 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             result = directoryGroupCashRegisterMap.get(directory.toUpperCase() + "_" + numberCashRegister);
         if(result == null)
             result = directoryGroupCashRegisterMap.get(directory.toLowerCase() + "_" + numberCashRegister);
-        if(result == null)
+        if(result == null) {
+            sendSalesLogger.info("directoryGroupCashRegisterMap:");
+            for(String dir : directoryGroupCashRegisterMap.keySet()) {
+                sendSalesLogger.info(dir);
+            }
             throw new RuntimeException(String.format("Kristal: nppGroupMachinery not found. directory : %s, numberCashRegister %s, file %s", directory, numberCashRegister, file));
+        }
         return result.numberGroup;
     }
 
