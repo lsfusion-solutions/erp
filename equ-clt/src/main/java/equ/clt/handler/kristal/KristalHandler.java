@@ -334,7 +334,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 }
                 if (flagExists) {
                     File softFile = new File(exchangeDirectory + "softcheque" + timestamp + ".txt");
-                    sendSoftCheckLogger.info("Kristal: creating " + softFile.getName() + " file");
+                    sendSoftCheckLogger.info("Kristal: creating " + softFile.getAbsolutePath() + " file");
                     PrintWriter writer = new PrintWriter(
                             new OutputStreamWriter(
                                     new FileOutputStream(softFile), "windows-1251"));
