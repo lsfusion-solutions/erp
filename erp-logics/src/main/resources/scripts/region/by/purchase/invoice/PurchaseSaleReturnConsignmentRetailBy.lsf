@@ -1,11 +1,21 @@
 MODULE PurchaseSaleReturnConsignmentRetailBy;
 
-REQUIRE PricingPurchaseReturn, PurchaseSaleReturnInvoice, ConsignmentBy;
+REQUIRE PricingPurchaseReturn, PurchaseSaleReturnInvoice, PurchaseOperationConsignmentBy;
 
 NAMESPACE PurchaseReturn;
 
 useRetailPrice 'Использовать розничные цены в ТТН (возврат из магазина)' = DATA BOOLEAN (Purchase.Operation);
 useRetailPrice 'Использовать розн. цены в ТТН' (InvoiceDetail invoiceDetail) = useRetailPrice(operation(invoice(invoiceDetail)));
+
+EXTEND FORM Purchase.operation
+    PROPERTIES(o) useRetailPrice
+;
+
+DESIGN Purchase.operation {
+    consignment {
+        MOVE PROPERTY(useRetailPrice(o));
+    }
+}
 
 dataPrice(InvoiceDetail d) += WHEN useRetailPrice(d) THEN retailPrice(d);         
 dataSum(InvoiceDetail d) += WHEN useRetailPrice(d) THEN retailSum(d) (-) retailVATSum(d);    
