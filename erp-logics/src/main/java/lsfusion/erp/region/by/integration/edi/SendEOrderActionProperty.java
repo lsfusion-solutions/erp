@@ -168,22 +168,27 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         for (int i = 0, size = eOrderDetailResult.size(); i < size; i++) {
             ImMap<Object, Object> entry = eOrderDetailResult.getValue(i);
 
-            String barcode = trim((String) entry.get("GTINBarcode"));
-            String nameSku = (String) entry.get("nameSku");
-            String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
             BigDecimal quantity = (BigDecimal) entry.get("quantity");
-            BigDecimal price = (BigDecimal) entry.get("price");
-            BigDecimal valueVAT = (BigDecimal) entry.get("valueVAT");
+            if(quantity != null && quantity.compareTo(BigDecimal.ZERO) > 0) {
 
-            Element lineElement = new Element("line");
-            rootElement.addContent(lineElement);
+                String barcode = trim((String) entry.get("GTINBarcode"));
+                String nameSku = (String) entry.get("nameSku");
+                String extraCodeUOMSku = trim((String) entry.get("extraCodeUOMSku"));
 
-            addStringElement(lineElement, "GTIN", barcode);
-            addStringElement(lineElement, "fullName", nameSku);
-            addBigDecimalElement(lineElement, "quantityOrdered", quantity);
-            addStringElement(lineElement, "measurement", extraCodeUOMSku);
-            addStringElement(lineElement, "priceElement", toStr(price, 2));
-            addStringElement(lineElement, "tax", toStr(valueVAT, 2));
+                BigDecimal price = (BigDecimal) entry.get("price");
+                BigDecimal valueVAT = (BigDecimal) entry.get("valueVAT");
+
+                Element lineElement = new Element("line");
+                rootElement.addContent(lineElement);
+
+                addStringElement(lineElement, "GTIN", barcode);
+                addStringElement(lineElement, "fullName", nameSku);
+                addBigDecimalElement(lineElement, "quantityOrdered", quantity);
+                addStringElement(lineElement, "measurement", extraCodeUOMSku);
+                addStringElement(lineElement, "priceElement", toStr(price, 2));
+                addStringElement(lineElement, "tax", toStr(valueVAT, 2));
+
+            }
         }
 
         addIntegerElement(rootElement, "lineQuantity", eOrderDetailResult.size());
