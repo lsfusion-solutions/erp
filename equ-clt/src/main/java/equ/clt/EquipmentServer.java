@@ -58,11 +58,11 @@ public class EquipmentServer {
     Consumer sendSalesConsumer;
     Thread sendSalesThread;
 
-    Consumer sendSoftCheckConsumer;
-    Thread sendSoftCheckThread;
+    private Consumer sendSoftCheckConsumer;
+    private Thread sendSoftCheckThread;
 
-    Consumer sendTerminalDocumentConsumer;
-    Thread sendTerminalDocumentThread;
+    private Consumer sendTerminalDocumentConsumer;
+    private Thread sendTerminalDocumentThread;
 
     Consumer machineryExchangeConsumer;
     Thread machineryExchangeThread;
@@ -313,7 +313,7 @@ public class EquipmentServer {
             void runTask() throws Exception{
                 try {
                     if(isTimeToRun())
-                        sendSoftCheckInfo(remote);
+                        SoftCheckEquipmentServer.sendSoftCheckInfo(remote);
                 } catch (ConnectException e) {
                     needReconnect = true;
                 } catch (UnmarshalException e) {
@@ -428,7 +428,7 @@ public class EquipmentServer {
                     if(clsHandler instanceof CashRegisterHandler) {
                         CashRegisterHandler handler = (CashRegisterHandler) clsHandler;
 
-                        sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
+                        SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
                         requestSalesInfo(remote, requestExchangeList, handler, directorySet);
 
@@ -446,17 +446,6 @@ public class EquipmentServer {
         } catch (Throwable e) {
             sendSalesLogger.error("Equipment server error: ", e);
             remote.errorEquipmentServerReport(sidEquipmentServer, e);
-        }
-    }
-
-    private void sendSucceededSoftCheckInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, Set<String> directorySet)
-            throws RemoteException, SQLException, ClassNotFoundException {
-        Map succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
-        if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
-            sendSoftCheckLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
-            String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
-            if (result != null)
-                reportEquipmentServerError(remote, sidEquipmentServer, result);
         }
     }
 
@@ -581,27 +570,6 @@ public class EquipmentServer {
         }
     }
 
-    private void sendSoftCheckInfo(EquipmentServerInterface remote) throws RemoteException, SQLException {
-        sendSoftCheckLogger.info("Send SoftCheckInfo");
-        List<SoftCheckInfo> softCheckInfoList = remote.readSoftCheckInfo();
-        if (softCheckInfoList != null && !softCheckInfoList.isEmpty()) {
-            sendSoftCheckLogger.info("Sending SoftCheckInfo started");
-            for (SoftCheckInfo entry : softCheckInfoList) {
-                if (entry.handler != null) {
-                    try {
-                        Object clsHandler = getHandler(entry.handler.trim(), remote);
-                        entry.sendSoftCheckInfo(clsHandler);
-                        remote.finishSoftCheckInfo(entry.invoiceMap);
-                    } catch (Exception e) {
-                        sendSoftCheckLogger.error("Sending SoftCheckInfo error", e);
-                        return;
-                    }
-                }
-            }
-            sendSoftCheckLogger.info("Sending SoftCheckInfo finished");
-        }
-    }
-
     private void processMachineryExchange(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         machineryExchangeLogger.info("Process MachineryExchange");
         List<MachineryInfo> machineryInfoList = remote.readMachineryInfo(sidEquipmentServer);
@@ -722,7 +690,7 @@ public class EquipmentServer {
         return clsHandler;
     }
 
-    private void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result) throws RemoteException, SQLException {
+    static void reportEquipmentServerError(EquipmentServerInterface remote, String sidEquipmentServer, String result) throws RemoteException, SQLException {
         logger.error("Equipment server error: " + result);
         remote.errorEquipmentServerReport(sidEquipmentServer, new Throwable(result).fillInStackTrace());
     }
