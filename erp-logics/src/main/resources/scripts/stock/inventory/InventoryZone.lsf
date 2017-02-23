@@ -79,6 +79,7 @@ in = GROUP SUM 1 IF in(Inventory i, TerminalDocument d) BY i, zone(d);
 TABLE inventoryZoneSku(Inventory, Zone, Sku);
 dataQuantity = DATA NUMERIC[14,3](Inventory, Zone, Sku);
 quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), sku(d);
+quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, sku(d);
 
 quantity = GROUP SUM quantity(TerminalDocumentDetail d) IF in(Inventory i, d) BY i, zone(d), commission(d), sku(d);
 countValue = GROUP SUM 1 BY quantity(Inventory i, Zone z, Commission c, Sku s), i,z,s;
@@ -185,6 +186,8 @@ createListInventoryZones 'Создать описи по зонам' (Inventory 
     apply();
 }
     
+diffFilter (Inventory i, Zone z, Sku s) =   quantity (i,z,s) AND NOT overToQuantity(i,z,s);
+    
 EXTEND FORM inventory
     PROPERTIES countCommissions(in) BACKGROUND hintSoldBackground()
     OBJECTS co = Commission
@@ -209,13 +212,15 @@ EXTEND FORM inventory
             zone(td)==zz,
             terminalDocument(tdd) == td     
     
-    OBJECTS ls = Sku FIXED GRID 
-    
-    PROPERTIES (ls) READONLY id, idBarcode, name
-    
+    OBJECTS ls = Sku FIXED GRID     
+    PROPERTIES (ls) READONLY id, idBarcode, name    
     PROPERTIES READONLY quantity(in,zz,co,ls) COLUMNS (co) HEADER name(co)
     PROPERTIES toQuantity (in,zz,ls) BACKGROUND background(in,zz,ls)
-    FILTERS quantity (in,zz,ls)     
+    
+    FILTERS quantity(in,zz,ls)   
+    FILTERGROUP diff
+        FILTER 'Разногласия' diffFilter (in,zz,ls)  'F10'     
+      
     PROPERTIES (in) TOOLBAR TODRAW ds createListInventoryZones 
 ;
 DESIGN inventory {
