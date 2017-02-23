@@ -247,8 +247,8 @@ META defineInterfaceBin (object, prefix, caption)
     prefix###bin 'Ячейка'##caption = ABSTRACT Bin(###object) PERSISTENT IN documentPrm;
     prefix###bin (User###object object) += prefix###bin(object);
        
-    name###prefix###bin 'Ячейка'##caption (###object object) = name(prefix###bin(object));
-    name###prefix###bin 'Ячейка'##caption (###user###object object) = name(prefix###bin(object));
+    name###prefix###bin 'Ячейка'##caption (###object object) = name(prefix###bin(object)) IN documentPrm;
+    name###prefix###bin 'Ячейка'##caption (###user###object object) = name(prefix###bin(object)) IN documentPrm;
 END
 
 META defineDocumentBins (object)
@@ -261,13 +261,8 @@ META defineDocumentBins (object)
     @defineInterfaceBin (object###detail, out, ' (из)');  
 END
 
-META defineInvoiceShipmentBins(stockProp)
-
-    @defineDocumentBins(invoice);
-    inBin [ShipmentDetail] (InvoiceShipmentDetail detail) += inBin(invoiceDetail(detail));
-    outBin [ShipmentDetail] (InvoiceShipmentDetail detail) += outBin(invoiceDetail(detail));
-    
-    setInBin (UserInvoiceDetail d) = ACTION {
+META setBinObject (object, stockProp)
+    setInBin (object d) = ACTION {
         REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stockProp(d) DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
             inBin(d) <- requestedObject();
@@ -277,7 +272,7 @@ META defineInvoiceShipmentBins(stockProp)
         }
     }
     
-    setOutBin (UserInvoiceDetail d) = ACTION {
+    setOutBin (object d) = ACTION {
         REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stockProp(d) DIALOG SHOWDROP;
         IF formResult() == FormResult.ok THEN {
             outBin(d) <- requestedObject();
@@ -286,6 +281,20 @@ META defineInvoiceShipmentBins(stockProp)
             outBin(d) <- NULL;
         }
     }
+END
+
+META setBinDocument (object, stockProp)
+    @setBinObject (object, stockProp);
+    @setBinObject (object###detail, stockProp);
+END
+
+META defineInvoiceShipmentBins(stockProp)
+
+    @defineDocumentBins(invoice);
+    inBin [ShipmentDetail] (InvoiceShipmentDetail detail) += inBin(invoiceDetail(detail));
+    outBin [ShipmentDetail] (InvoiceShipmentDetail detail) += outBin(invoiceDetail(detail));
+    
+    @setBinObject(UserInvoiceDetail, stockProp);
    
     CONSTRAINT inBin(UserShipmentDetail detail) AND NOT in(stockProp(detail), inBin(detail))
                CHECKED BY inBin[UserShipmentDetail] MESSAGE 'Ячейка не доступна для склада';
@@ -336,7 +345,7 @@ META deriveDocumentBinsProperty(object, readProp, writeProp, stockProp)
         WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o));    
 END
 
-META deriveDocumentBins (inRead, inWrite, outRead, outWrite, stockProp)
+META deriveInvoiceBins (inRead, inWrite, outRead, outWrite, stockProp)
     @deriveDocumentOperationProperty(UserShipment, useBins);
     @deriveDocumentBinsProperty(UserShipment, inRead, inWrite, stockProp);
     @deriveDocumentBinsProperty(UserShipment, outRead, outWrite, stockProp);
@@ -351,4 +360,17 @@ META deriveDocumentBins (inRead, inWrite, outRead, outWrite, stockProp)
     WHEN SESSION FORMS userInvoice (CHANGED(inBin(invoice(UserInvoiceDetail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
         outBin(detail) <- outBin(invoice(detail));
     }             
+END
+
+META deriveDocumentBins (object, form, inRead, inWrite, outRead, outWrite, stockProp)
+    @deriveDocumentBinsProperty(object, inRead, inWrite, stockProp);
+    @deriveDocumentBinsProperty(object, outRead, outWrite, stockProp);
+    
+    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###Detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
+             inBin(detail) <- inBin(object(detail));
+    }
+
+    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###Detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
+        outBin(detail) <- outBin(object(detail));
+    }   
 END

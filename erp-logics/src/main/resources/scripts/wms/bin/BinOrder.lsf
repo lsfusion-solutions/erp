@@ -1,0 +1,386 @@
+MODULE BinOrder;
+
+REQUIRE Bin, Document, BinLedger, Operation, StockSkuDocument;
+
+NAMESPACE Bin;
+
+CLASS ABSTRACT BinOrder 'Заказ на перемещение по ячейкам': Document;
+CLASS ABSTRACT BinOrderDetail 'Строка заказа на перемещение по ячейкам': DocumentDetail;
+
+CLASS UserBinOrder 'Заказ на перемещение по ячейкам (польз.)': BinOrder;
+CLASS UserBinOrderDetail 'Строка заказа на перемещение по ячейкам': BinOrderDetail;
+
+@defineDocumentInterface(binOrder);
+
+@defineAddDetailDialogBarcode(userBinOrder, sku);
+
+@defineDocumentInterfaceDetailPrice(binOrder);
+
+@deriveDocumentHeaderTimePrefix(UserBinOrder, );
+
+@defineDocumentInterfaceNumber(binOrder);
+
+@defineDocumentInterfacePosted(binOrder);
+
+@defineDocumentInterfaceClosed(binOrder);
+
+@defineDocumentInterfaceDataStock(binOrder, stock, 'Склад');
+
+@defineDocumentInterfaceDetailSku(binOrder, sku);
+
+@defineDocumentInterfaceDetailQuantity(binOrder);
+
+@defineDocumentDetailGrossWeight(binOrder, sku);
+
+@defineDocumentHeaderSkuQuantity(binOrder, sku);
+
+@defineDocumentHeaderQuantity(binOrder);
+
+@defineDocumentBins(binOrder);
+
+@setBinDocument(UserBinOrder, stock);
+
+@implementDocument(binOrder);
+
+@defineAddDetailDialogSkuStock(userBinOrder, sku, stock, dialogSku);
+
+//пользовательский заказ на перемещение
+@defineExternalizable(userBinOrder, VARSTRING[100]);
+
+@defineExternalizable(userBinOrderDetail, VARSTRING[100]);
+
+@defineNumeratedDefault(UserBinOrder, 'Заказы на перемещение по ячейкам ', 'ЗП');
+
+FORM userBinOrder 'Заказ на перемещение по ячейкам (польз.)'
+    OBJECTS o = UserBinOrder FIXED PANEL
+    PROPERTIES (o) isPosted, nameStock, nameNumerator, number, series, date, time, note, 
+                   nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
+    PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail
+    
+    OBJECTS d = UserBinOrderDetail
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity
+    PROPERTIES (d) ADDOBJ, deleteod = DELETESESSION
+    PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinOrderDetail,
+                           addDetailInputBarcodeUserBinOrderDetail, deleteUserBinOrderDetail
+    FILTERS binOrder(d)==o
+    ORDER BY index(d)
+    EDIT UserBinOrder OBJECT o
+;
+
+DESIGN userBinOrder {
+
+    main {
+        preferredSize = (1024, 768);
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW document.box{
+                fill = 1;
+                caption = 'Заказ';
+                NEW header.box {
+                    type = CONTAINERH;
+    
+                    NEW headerRow1 {
+                        fill = 1;
+                        type = CONTAINERV;
+    
+                        MOVE o.documentHeader {
+                            type = CONTAINERV;
+                            NEW first {
+                                type = CONTAINERH;
+                                MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 40; }
+                            }
+                            NEW second { 
+                                type = CONTAINERH;
+                                MOVE PROPERTY(nameNumerator(o));
+                                MOVE PROPERTY(number(o));
+                                MOVE PROPERTY(series(o));
+                                MOVE PROPERTY(date(o));
+                                MOVE PROPERTY(time(o));
+                                MOVE PROPERTY(nameStock(o));
+                            }    
+                        }                    
+                        
+                        NEW headerRow11 {
+                            type = CONTAINERH;
+                        }
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                type = CONTAINERV;
+                                MOVE o.documentPrm {
+                                    columns = 3;
+                                }
+                            }
+                        }
+                    }
+    
+                    MOVE o.documentSum {
+                        columns = 1;
+                    }
+                }
+                NEW specification.box {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE d.box {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        MOVE functions.box;
+
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }                               
+    }
+}
+
+
+edit 'Редактировать' = ACTION ABSTRACT LIST (BinOrder) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ACTION EDITFORM UserBinOrder;
+edit(UserBinOrder order) += ACTION edit(order);
+
+overShowEdit = ABSTRACT BOOLEAN (BinOrder);
+overShowDelete = ABSTRACT BOOLEAN (BinOrder); 
+
+skipToShowEdit = ABSTRACT BOOLEAN (BinOrder);
+skipToShowDelete = ABSTRACT BOOLEAN (BinOrder);
+overShowEdit (BinOrder o) += isOpened(o) AND NOT skipToShowEdit(o);
+
+isUserOpened(UserBinOrder o)=  isOpened[BinOrder](o) AND is(o);
+overShowDelete (UserBinOrder o) += isUserOpened(o) AND NOT skipToShowDelete(o); 
+
+overCopy = ACTION ABSTRACT LIST (UserBinOrderDetail, BinOrderDetail);
+overCopy = ACTION ABSTRACT LIST (BinOrder, UserBinOrder);
+copy 'Копировать'(BinOrder order) = ACTION NEWSESSION {
+    FOR ADDOBJ o = UserBinOrder DO {
+        inBin(o) <- inBin(order);
+        outBin(o) <- outBin(order);
+        note(o) <- note(order);
+
+        EXEC overCopy(order, o);
+
+        FOR binOrder(BinOrderDetail orderDetail) == order DO {
+            FOR ADDOBJ d=UserBinOrderDetail DO {
+                userBinOrder(d) <- o;
+                sku(d) <- sku(orderDetail);
+                quantity(d) <- quantity(orderDetail);
+                
+                EXEC overCopy(d, orderDetail);
+            }
+        }
+
+        FORM userBinOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;
+    }
+} TOOLBAR;
+    
+//-- Копирование строк     
+overCopy = ACTION ABSTRACT LIST (UserBinOrderDetail, UserBinOrderDetail);
+
+copy 'Копировать'(UserBinOrderDetail detail) = ACTION {
+    FOR ADDOBJ d = UserBinOrderDetail DO {          
+
+        userBinOrder(d) <- userBinOrder(detail);
+        sku(d) <- sku(detail);
+        quantity(d) <- quantity(detail);
+        outBin(d) <- outBin(detail);
+        inBin(d) <- inBin(detail);
+        
+        EXEC overCopy(d, detail);                              
+    }
+} EDITKEY 'F5' TOOLBAR;
+
+filterBinOrderDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (BinOrder o) = date(o) >= filterBinOrderDateFrom() OR (o IS BinOrder AND NOT filterBinOrderDateFrom());      
+
+filterBinOrderDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (BinOrder o) = date(o) <= filterBinOrderDateTo() OR (o IS BinOrder AND NOT filterBinOrderDateTo());      
+
+filterBinOrderStock  = DATA LOCAL Stock ();
+nameFilterBinOrderStock 'Склад' = name(filterBinOrderStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterStock (BinOrder o) = stock(o) == filterBinOrderStock() OR (o IS BinOrder AND NOT filterBinOrderStock());
+
+filterBinOrderCustomUser  = DATA LOCAL CustomUser ();
+nameFilterBinOrderCustomUser 'Создан пользователем' = name[Contact](filterBinOrderCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterBinCustomUser (BinOrder i) = createdUser[UserBinOrder](i) == filterBinOrderCustomUser() OR (i IS BinOrder AND NOT filterBinOrderCustomUser());  
+
+filterBinOrderComputer = DATA LOCAL Computer ();
+nameFilterBinOrderComputer 'Создан на компьютере' = hostname(filterBinOrderComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterComputer (BinOrder i) = createdComputer(i) == filterBinOrderComputer() OR (i IS BinOrder AND NOT filterBinOrderComputer());
+    
+FORM binOrders  'Заказы на перемещение по ячейкам'
+    PROPERTIES() filterBinOrderDateFrom, filterBinOrderDateTo, nameFilterBinOrderStock, nameFilterBinOrderCustomUser, nameFilterBinOrderComputer
+    
+    OBJECTS o = UserBinOrder LAST
+    PROPERTIES (o) READONLY isPosted, nameNumerator, number, series, date, time, nameStock, note, nameOutBin, nameInBin
+    
+    FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
+    
+    OBJECTS d = UserBinOrderDetail
+    PROPERTIES (d) index, nameSku, nameOutBin, nameInBin, quantity
+    
+    PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES (o) addUserBinOrder = ADDFORM[UserBinOrder]
+    PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedOrder(o), 
+                   copy
+    PROPERTIES (o) close[UserBinOrder] SHOWIF isOpened[UserBinOrder](o), open SHOWIF isClosed[UserBinOrder](o)
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
+            
+    FILTERS binOrder(d)==o
+    ORDER BY index(d)
+    DIALOG BinOrder OBJECT o
+;
+
+DESIGN binOrders 'Заказы на перемещение по ячейкам' {
+    NEW documentContainer BEFORE functions.box {
+        fill = 1;
+        type = SPLITV;
+
+        NEW filtersBox {                       
+            fill = 1;
+            NEW topFilters {  
+                caption = 'Фильтры';
+                type = CONTAINERV; 
+                NEW topFilters1 {
+                    type = CONTAINERH; 
+                    MOVE PROPERTY(filterBinOrderDateFrom());
+                    MOVE PROPERTY(filterBinOrderDateTo());                            
+                    MOVE PROPERTY(nameFilterBinOrderStock());                                            
+                }
+//                NEW topFilters2 {
+//                    type = CONTAINERH; 
+//                    MOVE PROPERTY(nameFilterOrderCustomUser());
+//                    MOVE PROPERTY(nameFilterOrderComputer());                            
+//                }                
+            }
+            MOVE o.box {
+                fill = 1;
+            }
+        }
+//            ADD o.box {
+//                fill = 2;
+//            }
+
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+
+            MOVE d.box {
+                fill = 1;
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                caption = 'История';
+                type = CONTAINERV;
+
+                MOVE o.created;
+                MOVE o.posted;
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    type = CONTAINERV;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                type = CONTAINERH;
+                NEW createdContainer {
+                    caption = 'Создание на основе';
+                    type = CONTAINERV;
+
+                    MOVE PROPERTY(copy(o)) { caption = 'Заказ (закупка)';}
+                }
+            }
+        }
+    }
+}
+
+//Операция
+@defineOperation('(перемещение по ячейкам)');
+@defineDocumentOperationContainer(binOrder, o, isPostedBinOrder, isPosted, first, name);
+@extendFormFilterRoleAccess(binOrder, o, binOrders);
+@defineDocumentOperationConstraint(binOrder, 'заказ на перемещение по ячейкам', Bin);
+
+@defineOperationFilterProperty(binOrder, o, binOrders, nameFilterBinOrderStock);
+
+inBin 'Ячейка (в)' = DATA Bin (Operation, Stock);
+nameInBin 'Ячейка (в)' (Operation operation, Stock stock) = name(inBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
+
+setInBin (Operation operation, Stock stock) = ACTION {
+    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        inBin(operation, stock) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        inBin(operation, stock) <- NULL;
+    }
+}
+    
+outBin 'Ячейка (из)' = DATA Bin (Operation, Stock);
+nameOutBin 'Ячейка (из)' (Operation operation, Stock stock) = name(outBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;;
+
+setOutBin (Operation operation, Stock stock) = ACTION {
+    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        outBin(operation, stock) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        outBin(operation, stock) <- NULL;
+    }
+}
+
+@defineOperationStock(, stc, 'Склады');
+
+CONSTRAINT operation(BinOrder binOrder) AND stock(binOrder) 
+           AND NOT in(stock(binOrder), operation(binOrder))
+    CHECKED BY stock[UserBinOrder]
+    MESSAGE 'Склад должен совпадать с отмеченными в операции';
+CONSTRAINT operation(BinOrder binOrder) AND isPosted(binOrder) 
+           AND NOT stock(binOrder) AND needStock(operation(binOrder))
+    MESSAGE 'Склад должен быть задан для документа';
+
+
+
+EXTEND FORM operation
+    PROPERTIES(o, stc) nameInBin ON CHANGE setInBin(o, stc), nameOutBin ON CHANGE setOutBin(o, stc)
+;
+
+DESIGN operation {
+    splitStockContainer {
+        MOVE PROPERTY(nameInBin(o, stc));
+        MOVE PROPERTY(nameOutBin(o, stc));
+    }
+}
+
+@deriveDocumentBins (userBinOrder, userBinOrder, inBin, inBin, outBin, outBin, stock);
+
+@defineDocumentSkuStockPriceListTypeSystemLedger(userBinOrder, accountPriceListType, );
+
+@extendFormDocumentSkuStock(userBinOrder, userBinOrder, o, , );
+
+prevCurrentBalanceOutBin 'Текущий остаток (ячейка из)' (Sku sku, BinOrder order) = prevCurrentBalance(sku, outBin(order));
+prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Sku sku, BinOrder order) = prevCurrentBalance(sku, inBin(order));
+
+EXTEND FORM userBinOrder
+    PROPERTIES (ks, o) READONLY AFTER prevCurrentBalance(ks, st) prevCurrentBalanceOutBin, prevCurrentBalanceInBin
+    FILTERGROUP filter
+        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(ks, o) 'F7' DEFAULT
+        FILTER 'С остатком ' currentBalance(ks,st) 'F10'
+        FILTER 'В документе ' quantity(ks, o, st) 'F9'
+;
+
+NAVIGATOR {
+    WMSNavigator {
+         NEW WMSDocument 'Документы' BEFORE WMSReports {
+            ADD binOrders;
+            ADD operations;
+         }
+    }
+}
