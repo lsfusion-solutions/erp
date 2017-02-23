@@ -269,17 +269,22 @@ public class FiscalAbsolut {
         }
     }
 
-    static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT) {
+    static boolean registerItem(ReceiptItem item, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT, Integer maxLines) {
         try {
             double price = formatAbsPrice(item.price);
             //if(item.barcode != null)
             //    printComment(item.barcode, saveCommentOnFiscalTape);
-            for(String line : splitName(item.name))
-                printComment(line, saveCommentOnFiscalTape);
+            int count = 0;
+            for(String line : splitName(item.name)) {
+                if(maxLines == null || maxLines == 0 || count < maxLines) {
+                    printComment(line, saveCommentOnFiscalTape);
+                    count++;
+                }
+            }
             int tax = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? 1 : item.valueVAT == 10.0 ? 2 : item.valueVAT == 0.0 ? 3 : 0) : 0;
-            String plu = groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "11111" : item.valueVAT == 10.0 ? "11112" : item.valueVAT == 0.0 ? "11113" : "11110") : "11110";
-            logAction("FullProd", plu, price, item.quantity, item.isGiftCard ? 2 : 1, 0, tax, "");
-            return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(""));
+            String plu = item.barcode +  (groupPaymentsByVAT ? (item.valueVAT == 20.0 ? "1" : item.valueVAT == 10.0 ? "2" : item.valueVAT == 0.0 ? "3" : "0") : "");
+            logAction("FullProd", plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, item.barcode);
+            return absolutDLL.absolut.FullProd(plu, price, item.quantity, item.isGiftCard ? 2 : 1, 1, tax, getBytes(item.barcode));
         } catch (UnsupportedEncodingException e) {
             return false;
         }

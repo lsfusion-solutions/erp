@@ -25,11 +25,13 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
     boolean groupPaymentsByVAT;
     boolean giftCardAsNotPayment;
     boolean sumPayment;
+    Integer maxLines;
+    boolean printSumWithDiscount;
 
     public FiscalAbsolutPrintReceiptClientAction(Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                                  ReceiptInstance receipt, String receiptTop, String receiptBottom,
                                                  String receiptCode128, boolean saveCommentOnFiscalTape, boolean groupPaymentsByVAT,
-                                                 boolean giftCardAsNotPayment, boolean sumPayment) {
+                                                 boolean giftCardAsNotPayment, boolean sumPayment, Integer maxLines, boolean printSumWithDiscount) {
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
         this.placeNumber = placeNumber == null ? 1 : placeNumber;
@@ -42,6 +44,8 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         this.groupPaymentsByVAT = groupPaymentsByVAT;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
         this.sumPayment = sumPayment;
+        this.maxLines = maxLines;
+        this.printSumWithDiscount = printSumWithDiscount;
     }
 
 
@@ -106,6 +110,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
         FiscalAbsolut.printFiscalText(receiptTop);
         FiscalAbsolut.printBarcode(receiptCode128);
 
+        //оплата подарочным сертификатом
         if (giftCardAsNotPayment && receipt.sumGiftCard != null) {
 
             BigDecimal sum = BigDecimal.ZERO;
@@ -147,6 +152,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
         } else {
 
+            //суммовой чек
             if(sumPayment) {
 
                 BigDecimal sum = BigDecimal.ZERO;
@@ -178,12 +184,15 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
 
             } else {
 
+                //обычный чек
                 for (ReceiptItem item : receiptList) {
-                    if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT))
+                    if (!FiscalAbsolut.registerItem(item, saveCommentOnFiscalTape, groupPaymentsByVAT, maxLines))
                         return false;
                     if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
                         return false;
                     DecimalFormat formatter = getFormatter();
+                    if(printSumWithDiscount)
+                        FiscalAbsolut.printFiscalText(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos)));
                     if (item.bonusSum != 0.0) {
                         FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
                         FiscalAbsolut.printFiscalText("Начислено бонусных баллов:\n" + formatter.format(item.bonusSum));
