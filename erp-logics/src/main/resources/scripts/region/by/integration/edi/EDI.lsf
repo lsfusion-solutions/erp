@@ -91,11 +91,13 @@ DESIGN legalEntity {
 }
 EXTEND FORM legalEntities PROPERTIES(l) READONLY GLN, nameEDIProvider;
 
+nameEDIProvider'Провайдер EDI'(EOrder o) = nameEDIProvider(supplier(o));
+
 dataGLN 'GLN' = DATA VARSTRING[13] (Stock);
 GLN 'GLN' (Stock s) = OVERRIDE GLN(legalEntity(s)) IF countStock(legalEntity(s)) == 1, dataGLN(s);
 stockGLN (stock) = GROUP AGGR Stock stock BY GLN(stock);
-GLNSupplierStock(EOrder e) = GLN(supplierStock(e));
-GLNCustomerStock(EOrder e) = GLN(customerStock(e));
+GLNSupplierStock 'GLN поставщика' (EOrder e) = GLN(supplierStock(e));
+GLNCustomerStock 'GLN покупателя' (EOrder e) = GLN(customerStock(e));
 EXTEND FORM warehouse PROPERTIES(w) GLN;
 EXTEND FORM warehouses PROPERTIES(w) READONLY GLN;
 EXTEND FORM departmentStore PROPERTIES(d) GLN;
@@ -119,7 +121,8 @@ cancel 'Отменить' = ACTION ABSTRACT LIST (EOrder);
 
 FORM eOrders 'Заказы EDI'
     OBJECTS o = EOrder
-    PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, nameCustomer, nameCustomerStock, note
+    PROPERTIES(o) READONLY exported EDITABLE, isClosed, dateTime, shipmentDateTime, number, nameSupplier, nameSupplierStock, 
+                  nameEDIProvider, GLNSupplierStock, nameCustomer, nameCustomerStock, note
     PROPERTIES(o) sendApply FORCE PANEL TOOLBAR
     FILTERGROUP isEdi 
         FILTER 'EDI поставщик' EDIProvider(supplier(o)) 'F5' DEFAULT
