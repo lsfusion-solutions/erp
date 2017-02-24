@@ -261,7 +261,7 @@ FORM currentBalanceSku 'Текущие остатки'
     PROPERTIES  READONLY name(st), currentBalance(s,st), dateTimeLastMoved(s,st), dateTimeLastOrderBatch(s,st), lastAccountPrice(s,st)
     FILTERS currentBalance(s,st)
 ;
-reviewCurrentBalance (Sku sku) = ACTION FORM currentBalanceSku OBJECTS s=sku MODAL;
+reviewCurrentBalance (Sku sku) = ACTION FORM currentBalanceSku OBJECTS s=sku ;
 
 FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     OBJECTS s = Sku FIXED PANEL 
@@ -273,7 +273,7 @@ FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     PROPERTIES  READONLY name(st), quantitySold(st,s,dFrom,dTo), sumSold(st,s,dFrom,dTo)
     FILTERS quantitySold(st,s,dFrom,dTo) OR sumSold(st,s,dFrom,dTo)
 ;
-reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo MODAL;
+reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo ;
 
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
@@ -401,7 +401,7 @@ copy 'Копировать'(RangeRev pr) = ACTION NESTEDSESSION {
     FOR ADDOBJ r = RangeRev DO {
         range(r) <- range(pr);
         level(r, Sku s) <- level(pr, s);
-        FORM rangeRev OBJECTS v = r MANAGESESSION DOCKEDMODAL;
+        FORM rangeRev OBJECTS v = r MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -441,7 +441,7 @@ createRangeRev 'Создать версию'(Range range, DATE date) = ACTION NE
     FOR ADDOBJ v = RangeRev DO {
         range(v) <- range;
         level(v, Sku s) <- level(rev(), s);
-        FORM rangeRev OBJECTS v=v MANAGESESSION DOCKEDMODAL;
+        FORM rangeRev OBJECTS v=v MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -930,7 +930,7 @@ FORM param 'Параметры заполнения ассортиментной
 ;
 
 fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = ACTION {
-    FORM param OBJECTS v = rangeRev MODAL;
+    FORM param OBJECTS v = rangeRev ;
     IF formResult() == FormResult.ok THEN { 
         IF countRangeLevels(range(rangeRev)) THEN {
             level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;

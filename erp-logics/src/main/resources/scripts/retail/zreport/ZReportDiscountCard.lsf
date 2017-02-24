@@ -180,20 +180,20 @@ DESIGN transferDiscountCards {
 
 overTransferDiscountCards = ACTION ABSTRACT LIST (DiscountCard, DiscountCard); 
 transferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
-    FORM numberDiscountCardInput MODAL;
+    FORM numberDiscountCardInput ;
     IF formResult() == FormResult.ok THEN {
         FOR DiscountCard card == discountString(numberDiscountCardInput()) DO { 
             transferSum(card) <- prevTotalSum(card);
-            FORM transferDiscountCards OBJECTS dc = card MODAL;
+            FORM transferDiscountCards OBJECTS dc = card ;
             IF formResult() == FormResult.ok THEN {
-                FORM numberDiscountCardInputNew MODAL;
+                FORM numberDiscountCardInputNew ;
                 IF formResult() == FormResult.ok THEN {
                     FOR DiscountCard newCard == discountString(numberDiscountCardInputNew()) DO {
                         discountCard(card) <- newCard;
                         dateTo(card) <- currentDate();
                         legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
                         overTransferDiscountCards(newCard, card);
-                        FORM transferDiscountCards OBJECTS dc = newCard MODAL;
+                        FORM transferDiscountCards OBJECTS dc = newCard ;
                         IF formResult() == FormResult.ok THEN {
                             apply();
                             MESSAGE 'Замена карты была успешно проведена';

@@ -411,7 +411,7 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
             receipt(p) <- receipt;
             paymentType(p) <- minCardPaymentType();
         }
-        FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
+        FORM postReceiptPayment OBJECTS r = receipt  CHECK;
         IF formResult() == FormResult.ok THEN {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
@@ -477,7 +477,7 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
             paymentType(p) <- minCashPaymentType();
             sum(p) <- sumReceiptDetail(receipt);
         }
-        FORM postReceiptPayment OBJECTS r = receipt MODAL CHECK;
+        FORM postReceiptPayment OBJECTS r = receipt  CHECK;
         IF formResult() == FormResult.ok THEN {
             postPrint(receipt);
         } ELSE {
@@ -548,7 +548,7 @@ overPostBonus = ACTION ABSTRACT (Receipt);
 
 postBonus 'Бонусами'(Receipt receipt) = ACTION {
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
-        FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt MODAL;
+        FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt ;
         IF formResult() == FormResult.ok THEN {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
             bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;        
@@ -892,13 +892,13 @@ DESIGN options {
 }   
 
 scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
-    FORM barcodeInput MODAL;
+    FORM barcodeInput ;
     IF formResult() == FormResult.ok THEN {
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcode(barcodeInput(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
-            FORM scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku() MODAL;
+            FORM scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku() ;
             IF formResult() == FormResult.ok AND chosenObject('r') THEN {
                 createReturn(receipt, chosenObject('r'), barcodeInput());
             } ELSE {
@@ -912,7 +912,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
                         VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
                         focusQuantity(d);
                         IF explicitBatchLedger(receipt) THEN {
-                            FORM chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d MODAL;
+                            FORM chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d ;
                             IF formResult() == FormResult.ok THEN {
                                 batch(d) <- chosenObject('bt');
                                 price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
@@ -1000,7 +1000,7 @@ DESIGN inputDiscountCardNumberReceipt {
 }
 
 inputDiscountCardNumber 'Ввести номер'(Receipt receipt) = ACTION {
-    FORM inputDiscountCardNumberReceipt MODAL;
+    FORM inputDiscountCardNumberReceipt ;
     IF formResult() == FormResult.ok THEN {
         LOCAL discountCard = DiscountCard();
         discountCard() <- discountString(CONCAT '', chosenString('s'), chosenString('n'));         

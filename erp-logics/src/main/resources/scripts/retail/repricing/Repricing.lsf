@@ -381,7 +381,7 @@ overChangePriceUser = ACTION ABSTRACT LIST (RepricingDetail);
 
 changePrice 'Изменить цену' (UserRepricing repricing) = ACTION {
         roundCondition(repricing) <- repricingRoundCondition() IF currency(repricing) == currency(repricingRoundCondition());
-        FORM addPercentUserRepricing OBJECTS u = repricing MODAL;
+        FORM addPercentUserRepricing OBJECTS u = repricing ;
         IF formResult() == FormResult.ok AND changePriceType(repricing) AND percent(repricing) THEN {
             FOR userRepricing(UserRepricingDetail d) == repricing DO {
                 price(d) <- curPrice(d);
@@ -501,9 +501,9 @@ FORM repricing 'Акт переоценки (печать)'
 
 ;
 
-print 'Акт переоценки' (Repricing repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT  IMAGE 'print.png' IN print;
-printXls 'Акт переоценки (xls)' (Repricing repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT XLS IMAGE 'print.png' IN print;
-printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTION FORM repricing OBJECTS p = repricing PRINT AUTO IMAGE 'print.png' IN print;
+print 'Акт переоценки' (Repricing repricing) = ACTION PRINT repricing OBJECTS p = repricing   IMAGE 'print.png' IN print;
+printXls 'Акт переоценки (xls)' (Repricing repricing) = ACTION PRINT repricing OBJECTS p = repricing XLS IMAGE 'print.png' IN print;
+printAuto 'Акт переоценки (авто)' (Repricing repricing) = ACTION PRINT repricing OBJECTS p = repricing AUTO IMAGE 'print.png' IN print;
 //----------------------------------------------- Операции ------------------------+----------------------------//
 
 @defineDocumentInterfaceOperation (repricing, Repricing, );
@@ -671,7 +671,7 @@ DESIGN userRepricing{
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserRepricingDetail d) = ACTION NEWSESSION {
-    FORM userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKEDMODAL;
+    FORM userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKED;
 }
 
 edit(UserRepricingDetail d) += ACTION edit(d);    
@@ -679,7 +679,7 @@ edit[SkuLedger](RepricingDetail ledger) += ACTION edit(ledger);
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (RepricingDetail) TOOLBAR;
 show(UserRepricingDetail d) = ACTION NEWSESSION {
-    FORM userRepricing OBJECTS p = userRepricing(d), d = d DOCKEDMODAL READONLY ;
+    FORM userRepricing OBJECTS p = userRepricing(d), d = d DOCKED READONLY ;
 }
 
 show(UserRepricingDetail d) += ACTION show(d);    
@@ -781,7 +781,7 @@ copy 'Копировать'(Repricing repricing) = ACTION NEWSESSION {
                 overCopy(d, repricingDetail);
             }
         }
-        FORM userRepricing OBJECTS p = p MANAGESESSION DOCKEDMODAL NOCANCEL;
+        FORM userRepricing OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 

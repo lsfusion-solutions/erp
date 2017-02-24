@@ -379,9 +379,9 @@ print(LabelTransaction t) = ACTION {
         customPrint(t)
     ELSE
         IF labelPrintAuto() THEN {
-            FORM printLabelTransaction OBJECTS l = t PRINT AUTO;
+            PRINT printLabelTransaction OBJECTS l = t AUTO;
         } ELSE {
-            FORM printLabelTransaction OBJECTS l = t PRINT;
+            PRINT printLabelTransaction OBJECTS l = t ;
         }
 }
 
@@ -393,7 +393,7 @@ deleteNotSelectedDetail 'Удалить кроме отмеченных'(LabelTr
 changeBarcode(LabelTransactionDetail d)  = ACTION {
     IF [= GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
         REQUEST OBJECT b
-        FORM barcodeSku OBJECTS s = sku(d) MODAL;
+        FORM barcodeSku OBJECTS s = sku(d) ;
         IF formResult() == FormResult.ok THEN {
             dataBarcode(d) <- requestedObject();
     
@@ -413,7 +413,7 @@ DESIGN labelTypesDialog { main{ preferredSize = (800, 600); } }
 
 changeLabelType(LabelTransaction t)  = ACTION {
     REQUEST OBJECT l
-    FORM labelTypesDialog OBJECTS ds = departmentStore(t) MODAL;
+    FORM labelTypesDialog OBJECTS ds = departmentStore(t) ;
     IF formResult() == FormResult.ok THEN {
         labelType(t) <- requestedObject();
 
@@ -464,7 +464,7 @@ DESIGN customLabelTransaction {
 addLabelTransaction 'Добавить'(DepartmentStore dep) = ACTION NEWSESSION {
     FOR ADDOBJ l = LabelTransaction DO {
         ASSIGN departmentStore(l) <- dep;
-        FORM customLabelTransaction OBJECTS l=l DOCKEDMODAL;
+        FORM customLabelTransaction OBJECTS l=l DOCKED;
         IF formResult() == FormResult.ok THEN { 
                 print(l);
             apply();
@@ -696,7 +696,7 @@ EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntit
 //-------------------------------------- Подбор ------------------------//
 
 addDetailDialogSkuLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction) = ACTION {
-    FORM dialogSku MODAL;
+    FORM dialogSku ;
     IF formResult() == FormResult.ok THEN {
         FOR dialogQuantity(Sku sku) INLINE ADDOBJ w = LabelTransactionDetail DO {
             labelTransaction(w) <- labelTransaction;
@@ -853,7 +853,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
             LOCAL in = BOOLEAN (Sku);    
             in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
             
-            FORM selectLabelTypes OBJECTS ds =  stockProp(document) MODAL;
+            FORM selectLabelTypes OBJECTS ds =  stockProp(document) ;
             IF formResult() == FormResult.ok THEN { 
                 IF NOT countSelectType() THEN {  
                     select(LabelType type) <- TRUE WHERE type == chosenObject('l');
@@ -889,7 +889,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                             createAttribute(dd, d);
                     }
                     IF change(stockProp(document)) THEN {
-                        FORM customLabelTransaction OBJECTS l = t MODAL;
+                        FORM customLabelTransaction OBJECTS l = t ;
                         IF formResult() == FormResult.ok THEN {    
                             print(t);
                         } ELSE {
@@ -1035,7 +1035,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         }
         overCreate(t);
         IF change(departmentStore) THEN {
-            FORM customLabelTransaction OBJECTS l = t MODAL;
+            FORM customLabelTransaction OBJECTS l = t ;
             IF formResult() == FormResult.ok THEN {    
                 print(t);
             } ELSE {
@@ -1097,7 +1097,7 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
         NEWSESSION NESTED (select[Sku,Stock]) {
 
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
-                FORM selectLabelTypes OBJECTS ds =  stock MODAL;
+                FORM selectLabelTypes OBJECTS ds =  stock ;
                 IF formResult() == FormResult.ok THEN { 
                     select(Sku sku) <- NULL;  
                     select(Sku sku) <- TRUE WHERE  select(sku, stock);     
@@ -1139,7 +1139,7 @@ printSelectedSkuLabelTransaction 'Распечатать ценники'(Departm
 printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore) = ACTION {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN  { 
         NEWSESSION NESTED (select[Sku]) {
-            FORM selectLabelTypes OBJECTS ds =  departmentStore MODAL;  
+            FORM selectLabelTypes OBJECTS ds =  departmentStore ;  
             IF formResult() == FormResult.ok THEN {       
                 IF NOT countSelectType() THEN {
                     select(LabelType type) <- TRUE WHERE type == chosenObject('l');

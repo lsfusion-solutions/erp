@@ -580,7 +580,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
     
     overReplace(oTo, oFrom) = ACTION ABSTRACT LIST (###object, ###object);
     replace 'Объединить'(###object object) = ACTION {
-        FORM confirmReplace###object OBJECTS o=object MODAL;
+        FORM confirmReplace###object OBJECTS o=object ;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
             FOR in(###object o) AND allowReplace###object() DO{
@@ -666,7 +666,7 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
     }
     
     replace 'Объединить'(###object object) = ACTION {
-        FORM confirmReplace###object OBJECTS o=object MODAL;
+        FORM confirmReplace###object OBJECTS o=object ;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
             FOR in(###object o) AND allowReplace###object() DO{
@@ -976,7 +976,7 @@ META defineItemFilterValue(object, captionProp, o)
     DESIGN object##s###session { main{ preferredSize = (600, 400); } }    
   
     add###object 'Добавить'(ItemGroup gg) = ACTION {
-        FORM object###session OBJECTS gg = gg MODAL;    
+        FORM object###session OBJECTS gg = gg ;    
         IF formResult() == FormResult.ok THEN {
             LOCAL loc = ###object();
             LOCAL localName = VARISTRING[100]();
@@ -1078,7 +1078,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaption 'Выделить из названия'(Item i) = ACTION {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
-            FORM extractStringAttributeItem MODAL;
+            FORM extractStringAttributeItem ;
             IF formResult() == FormResult.ok THEN {
                 LOCAL object = ###object();
                 object() <- identityObject(trim(chosenString('to')));
@@ -1115,7 +1115,7 @@ META defineItemExtractPrimitiveAttribute(property, form, fromProp)
     extract###property##FromCaption 'Выделить из названия'(Item i) = ACTION {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
-            FORM form MODAL;
+            FORM form ;
             IF formResult() == FormResult.ok THEN {
                 LOCAL selected = BOOLEAN (Item);
                 selected(Item item) <- isSubstring(caption(item), fromProp('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
@@ -1216,7 +1216,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
 extractStringCaption 'Заменить в названии'(Item i) = ACTION {
     IF i IS Item THEN {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
-        FORM extractStringAttributeItem MODAL;
+        FORM extractStringAttributeItem ;
         IF formResult() == FormResult.ok THEN {
             LOCAL selected = BOOLEAN (Item);
             selected(Item item) <- isSubstring(caption(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
@@ -1701,7 +1701,7 @@ copy 'Копировать' (Item item)= ACTION  {
         NEWSESSION NESTED (addedSku[]) {
             FOR ADDOBJ i = Item DO {
                 copyDataItem(item, i);
-                FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL NOCANCEL;
+                FORM item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
                 IF formResult() == FormResult.ok THEN {
                     addedSku() <- i;
                 }
@@ -1738,7 +1738,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
                 dataDate(bc) <- date;
                 sku(bc) <- i;
             }
-            FORM item OBJECTS i = i MANAGESESSION DOCKEDMODAL;
+            FORM item OBJECTS i = i MANAGESESSION DOCKED;
         }
     } ELSE {
         FOR ADDOBJ bc = Barcode DO {
@@ -1747,7 +1747,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
 
             FOR ADDOBJ s = Item DO {
                 sku(bc) <- s;
-                FORM item OBJECTS i = s, b = bc MANAGESESSION DOCKEDMODAL;
+                FORM item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
             }
         }
     }
@@ -1790,7 +1790,7 @@ DESIGN confirmReplaceItem {
 }
 
 replace 'Объединить' (Item item)= ACTION {
-    FORM confirmReplaceItem OBJECTS i=item MODAL;
+    FORM confirmReplaceItem OBJECTS i=item ;
     IF formResult() == FormResult.ok THEN {
         allowReplaceItem() <- TRUE;
         checkReplace(item);
@@ -1811,7 +1811,7 @@ replace 'Объединить' (Item item)= ACTION {
 } CONFIRM;
 
 changeGroupItem 'Изменить группу' () = ACTION {
-    FORM dialogItemGroups MODAL;
+    FORM dialogItemGroups ;
 
     IF formResult() == FormResult.ok THEN {
         FOR in(Item i) DO{

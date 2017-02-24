@@ -326,7 +326,7 @@ META defineOrderInvoice(sign, stockProp)
 
     addUserInvoice 'Накладная'###sign(Order order) =  ACTION NEWSESSION {
         createUserInvoice(order);
-        FORM userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKEDMODAL NOCANCEL;
+        FORM userInvoice OBJECTS i = userInvoice(order) MANAGESESSION DOCKED NOCANCEL;
     } TOOLBAR;
     addUserInvoice (Order order) += ACTION IF order IS Order THEN addUserInvoice(order);
 
@@ -426,7 +426,7 @@ META defineOrderInvoice(sign, stockProp)
         customerStockInvoiceOrder() <- customerStock(userInvoice) WHERE customerStock(userInvoice);
         operationInvoiceOrder() <- operation(userInvoice) WHERE operation(userInvoice);
 
-        FORM invoiceOrders MODAL;
+        FORM invoiceOrders ;
         IF formResult() == FormResult.ok THEN {
             fill(userInvoice, chosenObject('o') AS Order);
         }
@@ -523,7 +523,7 @@ META defineOrderInvoice(sign, stockProp)
         IF relationInvoiceDetail(Order order, Invoice invoice) AND NOT include[Order,UserInvoice](order, invoice)  BY invoice;         
 
     dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION {
-        FORM includeOrdersUserInvoice OBJECTS i = userInvoice MODAL;
+        FORM includeOrdersUserInvoice OBJECTS i = userInvoice ;
         IF formResult() == FormResult.ok THEN {
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
                 CONFIRM 'Создать по выбранным заказам строки накладной?';
@@ -602,7 +602,7 @@ META defineOrderInvoice(sign, stockProp)
                     include[Order,UserInvoice](o,i)<- TRUE;             
                 }     
                               
-                FORM userInvoice OBJECTS i = i DOCKEDMODAL;
+                FORM userInvoice OBJECTS i = i DOCKED;
                 IF formResult() == FormResult.ok THEN {
                     apply();
                 } ELSE {
@@ -647,7 +647,7 @@ META defineInvoiceOrder(sign, NS, batchProp, legalProp, stockProp)
                 quantity(d) <- quantity(detail); 
             }
             
-            FORM NS.userOrder OBJECTS o = o MANAGESESSION DOCKEDMODAL;        
+            FORM NS.userOrder OBJECTS o = o MANAGESESSION DOCKED;        
         }
     } TOOLBAR; 
     

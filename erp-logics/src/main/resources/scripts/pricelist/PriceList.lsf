@@ -80,7 +80,7 @@ overCopy (DataPriceListType priceListType) += ACTION NEWSESSION {
             roundCondition(p) <- roundCondition(priceListType);
             currency(p) <- currency(priceListType);
                                     
-            FORM dataPriceListType OBJECTS d=p MANAGESESSION DOCKEDMODAL; 
+            FORM dataPriceListType OBJECTS d=p MANAGESESSION DOCKED; 
         }
     }
 }
@@ -396,7 +396,7 @@ sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 document(PriceListDetail detail) += priceList(detail);
 
 fillDocument 'Подбор документа'(UserPriceList userPriceList) = ACTION {
-    FORM documents MODAL;
+    FORM documents ;
     IF formResult() == FormResult.ok THEN {
         LOCAL chosenDocument = Document();
         ASSIGN chosenDocument() <- chosenObject('d');
@@ -833,7 +833,7 @@ DESIGN userPriceList {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserPriceListDetail d) = ACTION NEWSESSION {
-    FORM userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKEDMODAL;
+    FORM userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKED;
 }
 edit(UserPriceListDetail d) += ACTION edit(d);   
 edit(PriceListDetail d) += ACTION edit(d);
@@ -905,7 +905,7 @@ DESIGN chooseMarkUpSkuUserPriceList {
 // ----------------------- Для отмеченных строк ------------------------ //
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = ACTION {
-    FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
+    FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
     IF formResult() == FormResult.ok THEN {
         IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
                       BY userPriceList(priceListDetail)](userPriceList) THEN
@@ -976,7 +976,7 @@ DESIGN userPriceList{
 
 // ---------------------- Для всех строк ----------------------- //
 changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = ACTION {
-    FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList MODAL;
+    FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
     IF formResult() == FormResult.ok THEN {
         LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
         IF chosenObject('pt') != chosenObject('nt') AND in[UserPriceList,DataPriceListType](userPriceList, chosenObject('pt')) THEN {
@@ -1070,7 +1070,7 @@ copySession 'Копировать'(PriceList priceList) = ACTION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
 }
 
@@ -1078,7 +1078,7 @@ copy 'Копировать'(PriceList priceList) = ACTION NEWSESSION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
 }
 
@@ -1086,7 +1086,7 @@ updateSession 'Обновить'(PriceList priceList) = ACTION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = u DOCKED;
         IF formResult() == FormResult.ok THEN {
             ASSIGN toDate[UserPriceList](priceList) <- fromDate(u);
             ASSIGN toTime[UserPriceList](priceList) <- fromTime(u);
@@ -1100,7 +1100,7 @@ update 'Обновить'(PriceList priceList) = ACTION NEWSESSION{
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = u DOCKED;
         IF formResult() == FormResult.ok THEN {
             ASSIGN toDate[UserPriceList](priceList) <- fromDate(u);
             ASSIGN toTime[UserPriceList](priceList) <- fromTime(u);
@@ -1244,7 +1244,7 @@ NAVIGATOR {
 // Заполнение на основании
 
 addUnderPriceList 'Заполнить на основании'(UserPriceList p) = ACTION {
-    FORM priceLists MODAL;
+    FORM priceLists ;
     IF formResult() == FormResult.ok THEN {
         FOR priceList(PriceListDetail detail) == chosenObject('p') ADDOBJ d = UserPriceListDetail DO {
             userPriceList(d) <- p;
@@ -1282,7 +1282,7 @@ FORM printPriceList 'Прайс'
 ;
 
 printPrint 'Распечатать' (PriceList priceList) =
-    ACTION FORM printPriceList OBJECTS p = priceList PRINT  IMAGE 'print.png' IN print;
+    ACTION PRINT printPriceList OBJECTS p = priceList   IMAGE 'print.png' IN print;
 
 print(PriceList priceList) += ACTION printPrint(priceList);
 
@@ -1292,7 +1292,7 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity) = ACTION NESTEDSESS
     FOR ADDOBJ u = UserPriceList DO {
         company(u) <- legalEntity;
         overAdd(u); 
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKEDMODAL;
+        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
