@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 public class SendEOrderTopByActionProperty extends SendEOrderActionProperty {
+    String provider = "TopBy";
 
     public SendEOrderTopByActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -30,10 +31,10 @@ public class SendEOrderTopByActionProperty extends SendEOrderActionProperty {
             Integer port = (Integer) findProperty("portTopBy[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
-                sendEOrder(context, url, login, password, host, port);
+                sendEOrder(context, url, login, password, host, port, provider);
             } else {
-                ServerLoggers.importLogger.info("TopBy SendEOrder: не заданы имя пользователя / пароль / хост / порт");
-                context.delayUserInteraction(new MessageClientAction("TopBy заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
+                ServerLoggers.importLogger.info(provider + " SendEOrder: не заданы имя пользователя / пароль / хост / порт");
+                context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDOMException e) {

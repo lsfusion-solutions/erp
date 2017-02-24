@@ -15,6 +15,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 public class ReceiveMessagesTopByActionProperty extends ReceiveMessagesActionProperty {
+    String provider = "TopBy";
 
     public ReceiveMessagesTopByActionProperty(ScriptingLogicsModule LM) {
         super(LM);
@@ -30,10 +31,10 @@ public class ReceiveMessagesTopByActionProperty extends ReceiveMessagesActionPro
             Integer port = (Integer) findProperty("portTopBy[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("http://%s:%s/DmcService", host, port);
-                receiveMessages(context, url, login, password, host, port, false);
+                receiveMessages(context, url, login, password, host, port, provider, false);
             } else {
-                ServerLoggers.importLogger.info("ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
-                context.delayUserInteraction(new MessageClientAction("Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
+                ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
+                context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDOMException e) {

@@ -43,7 +43,7 @@ public class SendEOrderActionProperty extends EDIActionProperty {
         eOrderInterface = i.next();
     }
 
-    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected void sendEOrder(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         DataObject eOrderObject = context.getDataKeyValue(eOrderInterface);
 
         Timestamp documentDateValue = (Timestamp) findProperty("dateTime[EOrder]").read(context, eOrderObject);
@@ -109,26 +109,26 @@ public class SendEOrderActionProperty extends EDIActionProperty {
 
             String xml = new XMLOutputter().outputString(doc);
             HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-            ServerLoggers.importLogger.info(String.format("SendEOrder %s request sent", documentNumber));
+            ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request sent", provider, documentNumber));
             RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
             switch (requestResult) {
                 case OK:
                     findProperty("exported[EOrder]").change(true, context, eOrderObject);
 
-                    ServerLoggers.importLogger.info(String.format("SendEOrder %s: request succeeded", documentNumber));
-                    context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s выгружен", documentNumber), "Экспорт"));
+                    ServerLoggers.importLogger.info(String.format("%s SendEOrder %s request succeeded", provider, documentNumber));
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s выгружен", provider, documentNumber), "Экспорт"));
                     break;
                 case AUTHORISATION_ERROR:
-                    ServerLoggers.importLogger.error(String.format("SendEOrder %s: invalid login-password", documentNumber));
-                    context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s не выгружен: ошибка авторизации", documentNumber), "Экспорт"));
+                    ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: invalid login-password", provider, documentNumber));
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: ошибка авторизации", provider, documentNumber), "Экспорт"));
                     break;
                 case UNKNOWN_ERROR:
-                    ServerLoggers.importLogger.error(String.format("SendEOrder %s: unknown error", documentNumber));
-                    context.delayUserInteraction(new MessageClientAction(String.format("Заказ %s не выгружен: неизвестная ошибка", documentNumber), "Экспорт"));
+                    ServerLoggers.importLogger.error(String.format("%s SendEOrder %s: unknown error", provider, documentNumber));
+                    context.delayUserInteraction(new MessageClientAction(String.format("%s Заказ %s не выгружен: неизвестная ошибка", provider, documentNumber), "Экспорт"));
             }
         } else {
-            ServerLoggers.importLogger.info("SendEOrder: Не все поля заполнены");
-            context.delayUserInterfaction(new MessageClientAction(error, "Заказ не выгружен: Не все поля заполнены"));
+            ServerLoggers.importLogger.info(provider + " SendEOrder: Не все поля заполнены");
+            context.delayUserInterfaction(new MessageClientAction(error, provider + " Заказ не выгружен: Не все поля заполнены"));
         }
     }
 

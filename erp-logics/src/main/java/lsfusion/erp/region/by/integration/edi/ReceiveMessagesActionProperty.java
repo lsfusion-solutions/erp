@@ -41,7 +41,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         super(LM);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, boolean sendReplies)
+    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, boolean sendReplies)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
@@ -68,24 +68,24 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         String xml = new XMLOutputter().outputString(doc);
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-        ServerLoggers.importLogger.info("ReceiveMessages request sent");
+        ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
         String responseMessage = getResponseMessage(httpResponse);
         RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
         switch (requestResult) {
             case OK:
-                importMessages(context, url, login, password, host, port, responseMessage, sendReplies);
+                importMessages(context, url, login, password, host, port, provider, responseMessage, sendReplies);
                 break;
             case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error("ReceiveMessages: invalid login-password");
-                context.delayUserInteraction(new MessageClientAction("Сообщения не получены: ошибка авторизации", "Экспорт"));
+                ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
+                context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: ошибка авторизации", "Экспорт"));
                 break;
             case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error("ReceiveMessages: unknown error");
-                context.delayUserInteraction(new MessageClientAction("Сообщения не получены: неизвестная ошибка", "Экспорт"));
+                ServerLoggers.importLogger.error(provider + " ReceiveMessages: unknown error");
+                context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: неизвестная ошибка", "Экспорт"));
         }
     }
 
-    private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port, String responseMessage, boolean sendReplies) throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String responseMessage, boolean sendReplies) throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, String> succeededMap = new HashMap<>();
         Map<String, List<List<Object>>> messages = new HashMap<>();
         Map<String, List<List<Object>>> orderResponses = new HashMap<>();
@@ -147,10 +147,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String error = importOrderMessages(context, message.getValue());
             succeededMap.put(documentId, error);
             if (error == null) {
-                ServerLoggers.importLogger.info(String.format("Import EOrderMessage %s succeeded", documentId));
+                ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
                 messagesSucceeded++;
             } else {
-                ServerLoggers.importLogger.error(String.format("Import EOrderMessage %s failed: %s", documentId, error));
+                ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
                 messagesFailed++;
             }
         }
@@ -162,10 +162,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String error = importOrderResponses(context, orderResponse.getValue());
             succeededMap.put(documentId, error);
             if (error == null) {
-                ServerLoggers.importLogger.info(String.format("Import EOrderResponse %s succeeded", documentId));
+                ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
                 responsesSucceeded++;
             } else {
-                ServerLoggers.importLogger.error(String.format("Import EOrderResponse %s failed: %s", documentId, error));
+                ServerLoggers.importLogger.error(String.format("%s Import EOrderResponse %s failed: %s", provider, documentId, error));
                 responsesFailed++;
             }
         }
@@ -177,10 +177,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             String error = importDespatchAdvices(context, despatchAdvice.getValue());
             succeededMap.put(documentId, error);
             if (error == null) {
-                ServerLoggers.importLogger.info(String.format("Import EOrderDespatchAdvice %s succeeded", documentId));
+                ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
                 despatchAdvicesSucceeded++;
             } else {
-                ServerLoggers.importLogger.error(String.format("Import EOrderDespatchAdvice %s failed: %s", documentId, error));
+                ServerLoggers.importLogger.error(String.format("%s Import EOrderDespatchAdvice %s failed: %s", provider, documentId, error));
                 despatchAdvicesFailed++;
             }
         }
@@ -209,9 +209,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             for(Map.Entry<String, String> succeededEntry : succeededMap.entrySet()) {
                 String documentId = succeededEntry.getKey();
                 String error = succeededEntry.getValue();
-                confirmDocumentReceived(context, documentId, url, login, password, host, port);
+                confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
                 if(error != null && sendReplies)
-                    succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, documentId, error);
+                    succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, error);
             }
 
         }
@@ -673,7 +673,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void confirmDocumentReceived(ExecutionContext context, String documentId, String url, String login, String password,
-                                          String host, Integer port) throws IOException, JDOMException {
+                                          String host, Integer port, String provider) throws IOException, JDOMException {
 
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
@@ -701,23 +701,23 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         String xml = new XMLOutputter().outputString(doc);
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-        ServerLoggers.importLogger.info(String.format("ConfirmDocumentReceived document %s: request sent", documentId));
+        ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request sent", provider, documentId));
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "ConfirmDocumentReceived");
         switch (requestResult) {
             case OK:
-                ServerLoggers.importLogger.info(String.format("ConfirmDocumentReceived document %s: request succeeded", documentId));
+                ServerLoggers.importLogger.info(String.format("%s ConfirmDocumentReceived document %s: request succeeded", provider, documentId));
                 break;
             case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error(String.format("ConfirmDocumentReceived document %s: invalid login-password", documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("Документ %s не помечен как обработанный: ошибка авторизации", documentId), "Экспорт"));
+                ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: invalid login-password", provider, documentId));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный: ошибка авторизации", provider, documentId), "Экспорт"));
                 break;
             case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error(String.format("ConfirmDocumentReceived document %s: unknown error", documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("Документ %s не помечен как обработанный", documentId), "Экспорт"));
+                ServerLoggers.importLogger.error(String.format("%s ConfirmDocumentReceived document %s: unknown error", provider, documentId));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Документ %s не помечен как обработанный", provider, documentId), "Экспорт"));
         }
     }
 
-    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String documentId, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         boolean succeeded = false;
         String currentDate = formatDate(new Timestamp(Calendar.getInstance().getTime().getTime()));
         String contentSubXML = getErrorSubXML(documentId, error);
@@ -752,19 +752,19 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         String xml = new XMLOutputter().outputString(doc);
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
-        ServerLoggers.importLogger.info(String.format("RecipientError %s request sent", documentId));
+        ServerLoggers.importLogger.info(String.format("%s RecipientError %s request sent", provider, documentId));
         RequestResult requestResult = getRequestResult(httpResponse, getResponseMessage(httpResponse), "SendDocument");
         switch (requestResult) {
             case OK:
                 succeeded = true;
                 break;
             case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error(String.format("RecipientError %s: invalid login-password", documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("Сообщение об ошибке %s не выгружено: ошибка авторизации", documentId), "Экспорт"));
+                ServerLoggers.importLogger.error(String.format("%s RecipientError %s: invalid login-password", provider, documentId));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: ошибка авторизации", provider, documentId), "Экспорт"));
                 break;
             case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error(String.format("RecipientError %s: unknown error", documentId));
-                context.delayUserInteraction(new MessageClientAction(String.format("Сообщение об ошибке %s не выгружено: неизвестная ошибка", documentId), "Экспорт"));
+                ServerLoggers.importLogger.error(String.format("%s RecipientError %s: unknown error", provider, documentId));
+                context.delayUserInteraction(new MessageClientAction(String.format("%s Сообщение об ошибке %s не выгружено: неизвестная ошибка", provider, documentId), "Экспорт"));
         }
         return succeeded;
     }

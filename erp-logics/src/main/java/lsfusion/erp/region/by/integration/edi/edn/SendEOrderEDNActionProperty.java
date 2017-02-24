@@ -16,6 +16,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 
 public class SendEOrderEDNActionProperty extends SendEOrderActionProperty {
+    String provider = "EDN";
 
     public SendEOrderEDNActionProperty(ScriptingLogicsModule LM, ValueClass... classes) {
         super(LM, classes);
@@ -31,10 +32,10 @@ public class SendEOrderEDNActionProperty extends SendEOrderActionProperty {
             Integer port = (Integer) findProperty("portEDN[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
-                sendEOrder(context, url, login, password, host, port);
+                sendEOrder(context, url, login, password, host, port, provider);
             } else {
-                ServerLoggers.importLogger.info("EDN SendEOrder: не заданы имя пользователя / пароль / хост / порт");
-                context.delayUserInteraction(new MessageClientAction("EDN Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
+                ServerLoggers.importLogger.info(provider + " SendEOrder: не заданы имя пользователя / пароль / хост / порт");
+                context.delayUserInteraction(new MessageClientAction(provider + " Заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDOMException e) {
