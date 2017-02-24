@@ -1,22 +1,24 @@
 MODULE ZReportSkuLedger;
 
 REQUIRE ZReport, SkuLedger;
+
+NAMESPACE ZReport;
    
 //---------------------- Продажа ----------------//
 CLASS ZReportSaleSkuLedger 'Продажа за день (общ.)' : OutFIFOSkuLedger, SaleLedger; //-- агрегированный объект
 TABLE zReportSaleSkuLedger (ZReportSaleSkuLedger);
-TABLE zReportSkuPrice(ZReport, Sku, NUMERIC[18,6]);
+TABLE zReportSkuPrice(ZReport, Sku, NUMERIC[16,4]);
 
 quantityReceiptSaleDetail 'Кол-во' = GROUP SUM quantity(ReceiptSaleDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 sumReceiptSaleDetail 'Сумма' = GROUP SUM sum(ReceiptSaleDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 discountSumReceiptSaleDetail 'Сумма скидки' = GROUP SUM discountSum(ReceiptSaleDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 countReceiptSaleDetail = GROUP SUM 1 IF isPosted(ReceiptSaleDetail d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 
-VATReceiptSaleDetail = DATA Range (ZReport, Sku, NUMERIC[18,6]);
+VATReceiptSaleDetail = DATA Range (ZReport, Sku, NUMERIC[16,4]);
 WHEN SET(quantityReceiptSaleDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO {
     VATReceiptSaleDetail (zr, sku, price) <- VAT (sku, country(zr));
 }
@@ -40,9 +42,12 @@ description[DataSkuLedger] (ZReportSaleSkuLedger ledger) += VARSTRING[200]('Пр
 skip[SkuLedger] (ZReportSaleSkuLedger ledger) += date(zReport(ledger)) < startDateGroupCashRegister(departmentStore(zReport(ledger))) OR
                            skuType(sku(ledger)) == SkuType.skuTypeCharge;
 
-quantity[OutFIFOSkuLedger] (ZReportSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger)));
-sum[OutSkuLedger] (ZReportSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger))
-    (+) discountSumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger)));
+quantity[OutFIFOSkuLedger] (ZReportSaleSkuLedger ledger) += quantityReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
+sum[OutSkuLedger] (ZReportSaleSkuLedger ledger) += sumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger))
+    (+) discountSumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
+    
+edit[SkuLedger](ZReportSaleSkuLedger d) += ACTION edit(zReport(d));
+show[SkuLedger](ZReportSaleSkuLedger d) += ACTION show(zReport(d));
 
 //---------------------- SaleLedger ----------------//
 
@@ -54,14 +59,16 @@ stock[SaleLedger] (ZReportSaleSkuLedger ledger) += departmentStore(zReport(ledge
 description[SaleLedger] (ZReportSaleSkuLedger ledger) += VARSTRING[200]('Продажа № ' + number(zReport(ledger)) + ' от ' + dateTime(zReport(ledger)));
 
 cost(ZReportSaleSkuLedger ledger, Batch batch) +=  cost[SkuLedger, Batch](ledger, batch) IF ledger IS ZReportSaleSkuLedger;
-quantity[SaleLedger] (ZReportSaleSkuLedger ledger) += NUMERIC[14,3](quantityReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger)));
+quantity[SaleLedger] (ZReportSaleSkuLedger ledger) += quantityReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
 VAT (ZReportSaleSkuLedger ledger) += VATReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
-sum[SaleLedger] (ZReportSaleSkuLedger ledger) += NUMERIC[18,4](sumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger)));
+sum[SaleLedger] (ZReportSaleSkuLedger ledger) += sumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
 price (ZReportSaleSkuLedger ledger) += price(ledger);
 
-discountSum (ZReportSaleSkuLedger ledger) += NUMERIC[18,4](discountSumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger)));
+discountSum (ZReportSaleSkuLedger ledger) += discountSumReceiptSaleDetail(zReport(ledger), sku(ledger), price(ledger));
 
 costSum (ZReportSaleSkuLedger ledger) += WHEN ledger IS ZReportSaleSkuLedger THEN costSum[SkuLedger](ledger);
+
+edit[SaleLedger] (ZReportSaleSkuLedger ledger) += ACTION edit(zReport(ledger));
 
 //---------------------- Возврат ----------------//
 
@@ -69,15 +76,15 @@ CLASS ZReportReturnSkuLedger 'Возврат за день (общ.)' : InLIFOSk
 TABLE zReportReturnSkuLedger (ZReportReturnSkuLedger);
 
 quantityReceiptReturnDetail 'Кол-во' = GROUP SUM quantity(ReceiptReturnDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 sumReceiptReturnDetail 'Сумма' = GROUP SUM sum(ReceiptReturnDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 discountSumReceiptReturnDetail 'Сумма скидки' = GROUP SUM discountSum(ReceiptReturnDetail d) IF isPosted(d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 countReceiptReturnDetail = GROUP SUM 1 IF isPosted(ReceiptReturnDetail d)
-    BY zReport(d), sku(d), NUMERIC[18,6](price(d)) PERSISTENT;
+    BY zReport(d), sku(d), price(d) PERSISTENT;
 
-VATReceiptReturnDetail = DATA Range (ZReport, Sku, NUMERIC[18,6]);
+VATReceiptReturnDetail = DATA Range (ZReport, Sku, NUMERIC[16,4]);
 WHEN SET(quantityReceiptReturnDetail(ZReport zr, Sku sku, NUMERIC[16,4] price)) DO {
     VATReceiptReturnDetail (zr, sku, price) <- VAT(sku, country(zr));
 }
@@ -99,9 +106,12 @@ description[DataSkuLedger] (ZReportReturnSkuLedger ledger) += VARSTRING[200]('В
 
 skip[SkuLedger] (ZReportReturnSkuLedger ledger) += date(zReport(ledger)) < startDateGroupCashRegister(departmentStore(zReport(ledger)));
 
-quantity[InLIFOSkuLedger] (ZReportReturnSkuLedger ledger) += NUMERIC[14,3](quantityReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger)));
-sum[InSkuLedger] (ZReportReturnSkuLedger ledger) += NUMERIC[18,4](sumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger))
-    (+) discountSumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger)));
+quantity[InLIFOSkuLedger] (ZReportReturnSkuLedger ledger) += quantityReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
+sum[InSkuLedger] (ZReportReturnSkuLedger ledger) += sumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger))
+    (+) discountSumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
+    
+edit[SkuLedger](ZReportReturnSkuLedger d) += ACTION edit(zReport(d));
+show[SkuLedger](ZReportReturnSkuLedger d) += ACTION show(zReport(d));
 
 //---------------------- SaleLedger ----------------//
 
@@ -113,9 +123,11 @@ stock[SaleLedger] (ZReportReturnSkuLedger ledger) += departmentStore(zReport(led
 description[SaleLedger] (ZReportReturnSkuLedger ledger) += VARSTRING[200]('Возврат № ' + number(zReport(ledger)) + ' от ' + dateTime(zReport(ledger)));
 
 cost(ZReportReturnSkuLedger ledger, Batch batch) += -cost[SkuLedger, Batch](ledger, batch) IF ledger IS ZReportReturnSkuLedger;
-quantity[SaleLedger] (ZReportReturnSkuLedger ledger) += -NUMERIC[14,3](quantityReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger)));
+quantity[SaleLedger] (ZReportReturnSkuLedger ledger) += -quantityReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
 VAT (ZReportReturnSkuLedger ledger) += VATReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
 price (ZReportReturnSkuLedger ledger) += price(ledger);
-sum[SaleLedger] (ZReportReturnSkuLedger ledger) += -NUMERIC[18,4](sumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger)));
-discountSum (ZReportReturnSkuLedger ledger) += -NUMERIC[18,4](discountSumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger)));
+sum[SaleLedger] (ZReportReturnSkuLedger ledger) += -sumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
+discountSum (ZReportReturnSkuLedger ledger) += -discountSumReceiptReturnDetail(zReport(ledger), sku(ledger), price(ledger));
 costSum (ZReportReturnSkuLedger ledger) += WHEN ledger IS ZReportReturnSkuLedger THEN -costSum[SkuLedger](ledger);
+
+edit[SaleLedger] (ZReportReturnSkuLedger ledger) += ACTION edit(zReport(ledger));
