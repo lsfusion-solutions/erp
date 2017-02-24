@@ -115,9 +115,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
                                 switch (documentType) {
                                     case "systemmessage":
-                                        List<List<Object>> orderMessage = parseOrderMessage(subXML);
-                                        if (orderMessage != null)
-                                            messages.put(documentId, orderMessage);
+                                        messages.put(documentId, parseOrderMessage(subXML, provider, documentId));
                                         break;
                                     case "ordrsp": {
                                         List<List<Object>> orderResponse = parseOrderResponse(context, subXML);
@@ -144,13 +142,19 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         int messagesFailed = 0;
         for(Map.Entry<String, List<List<Object>>> message : messages.entrySet()) {
             String documentId = message.getKey();
-            String error = importOrderMessages(context, message.getValue());
-            succeededMap.put(documentId, error);
-            if (error == null) {
-                ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
-                messagesSucceeded++;
+            List<List<Object>> data = message.getValue();
+            if(data != null) {
+                String error = importOrderMessages(context, message.getValue());
+                succeededMap.put(documentId, error);
+                if (error == null) {
+                    ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
+                    messagesSucceeded++;
+                } else {
+                    ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
+                    messagesFailed++;
+                }
             } else {
-                ServerLoggers.importLogger.error(String.format("%s Import EOrderMessage %s failed: %s", provider, documentId, error));
+                succeededMap.put(documentId, String.format("%s Parsing EOrderMessage %s failed", provider, documentId));
                 messagesFailed++;
             }
         }
@@ -220,7 +224,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             context.delayUserInteraction(new MessageClientAction(message, "Импорт"));
     }
 
-    private List<List<Object>> parseOrderMessage(String message) throws IOException, JDOMException {
+    private List<List<Object>> parseOrderMessage(String message, String provider, String documentId) throws IOException, JDOMException {
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(message.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
@@ -229,26 +233,31 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
 
         Element reference = rootNode.getChild("reference");
-        String documentType = reference.getChildText("documentType");
-        if (documentType.equals("ORDERS")) {
-            String orderNumber = reference.getChildText("documentNumber");
-            String code = reference.getChildText("code");
-            String description = reference.getChildText("description");
-            if (description.isEmpty()) {
-                switch (code) {
-                    case "1251":
-                        description = "Сообщение прочитано получателем";
-                        break;
-                    case "1252":
-                        description = "Сообщение принято учётной системой получателя";
-                        break;
-                    default:
-                        description = null;
-                        break;
+        if (reference != null) {
+            String documentType = reference.getChildText("documentType");
+            if (documentType.equals("ORDERS")) {
+                String orderNumber = reference.getChildText("documentNumber");
+                String code = reference.getChildText("code");
+                String description = reference.getChildText("description");
+                if (description.isEmpty()) {
+                    switch (code) {
+                        case "1251":
+                            description = "Сообщение прочитано получателем";
+                            break;
+                        case "1252":
+                            description = "Сообщение принято учётной системой получателя";
+                            break;
+                        default:
+                            description = null;
+                            break;
+                    }
                 }
-            }
-            return Collections.singletonList(Arrays.asList((Object) number, dateTime, code, description, orderNumber));
-        } else return null;
+                return Collections.singletonList(Arrays.asList((Object) number, dateTime, code, description, orderNumber));
+            } else
+                ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
+        } else
+            ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no reference tag", provider, documentId));
+        return null;
     }
 
     private String importOrderMessages(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
