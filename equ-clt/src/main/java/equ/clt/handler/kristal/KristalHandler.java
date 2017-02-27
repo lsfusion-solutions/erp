@@ -1226,7 +1226,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                                     //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
                                     BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
-                                    if (sum == null || sum.compareTo(currentPaymentSum) < 0)
+                                    if (sum == null || sum.compareTo(currentPaymentSum) != 0)
                                         for (SalesInfo salesInfo : currentSalesInfoList) {
                                             salesInfo.sumCash = HandlerUtils.safeSubtract(currentPaymentSum, sumCard);
                                         }
