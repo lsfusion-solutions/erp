@@ -15,6 +15,7 @@ import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.remote.FormReportManager;
+import lsfusion.server.remote.InteractiveFormReportManager;
 
 import java.sql.SQLException;
 import java.util.ArrayList;
@@ -96,7 +97,7 @@ public abstract class ExportExcelPivotActionProperty extends ScriptingActionProp
                         formInstance.forceChangeObject(formInstance.instanceFactory.getInstance(LM.getObjectEntityByName(formEntity, entry.getKey())), entry.getValue());
 
 
-                ReportGenerationData reportData = new FormReportManager(formInstance).getReportData(
+                ReportGenerationData reportData = new InteractiveFormReportManager(formInstance).getReportData(
                         formEntity.getGroupObject(idGroupObject).getID(), true, formInstance.loadUserPreferences());
 
                 context.requestUserInteraction(new ExportExcelPivotAction(reportData, readTitle(context, valuesMap, titleProperty), titleRowHeight,
