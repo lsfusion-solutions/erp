@@ -773,13 +773,13 @@ needToCost 'Требуется расчет себестоимости' (SkuLedg
 order = ABSTRACT LONG (InLIFOSkuLedger, Batch);
 limitNew = IF InLIFOSkuLedger ledger IS InLIFOSkuLedger THEN (
                                                      IF batch(ledger) THEN
-                                                        quantity(ledger) IF Batch batch == batch(ledger)
+                                                        quantity[SkuLedger](ledger) IF Batch batch == batch(ledger)
                                                      ELSE
                                                         outcome(batch) IF
                                                         skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger));
 
 quantity (InLIFOSkuLedger ledger, Batch batch) =
-        PARTITION UNGROUP quantity
+        PARTITION UNGROUP quantity[SkuLedger]
                   LIMIT STRICT limitNew(ledger, batch)
                   BY ledger
                   ORDER DESC order(ledger, batch), order(batch);
@@ -787,13 +787,13 @@ quantity (InLIFOSkuLedger ledger, Batch batch) =
 order = ABSTRACT LONG (OutFIFOSkuLedger, Batch);
 limitNew = IF OutFIFOSkuLedger ledger IS OutFIFOSkuLedger THEN (
                                                      IF batch(ledger) THEN
-                                                        quantity(ledger) IF Batch batch == batch(ledger)
+                                                        quantity[SkuLedger](ledger) IF Batch batch == batch(ledger)
                                                      ELSE
                                                         OVERRIDE 0.0 IF skuLedger(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger), 
                                                                  (currentBalance(batch, stock[SkuLedger](ledger)) IF skuCurrentBalance(batch, stock[SkuLedger](ledger)) == sku[SkuLedger](ledger)));
 
 quantity (OutFIFOSkuLedger ledger, Batch batch) =
-        PARTITION UNGROUP quantity
+        PARTITION UNGROUP quantity[SkuLedger]
                   LIMIT STRICT limitNew(ledger, batch)
                   BY ledger
                   ORDER order(ledger, batch), order(batch);
