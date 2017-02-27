@@ -24,7 +24,7 @@ import java.util.concurrent.Executors;
 
 public abstract class BoardDaemon extends MonitorServer implements InitializingBean {
     protected static final Logger startLogger = ServerLoggers.startLogger;
-    protected static final Logger logger = ServerLoggers.systemLogger;
+    protected static final Logger terminalLogger = Logger.getLogger("TerminalLogger");
 
     protected BusinessLogics businessLogics;
     protected DBManager dbManager;
@@ -52,31 +52,27 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
         return logicsInstance;
     }
 
-    @Override
-    protected void onStarted(LifecycleEvent event) {
-        startLogger.info("Starting " + getEventName() + " Daemon.");
-        try {
-            setupDaemon(dbManager);
-        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
-            throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
-        }
+    protected void setupDaemon(DBManager dbManager) throws ScriptingErrorLog.SemanticErrorException, SQLException {
+        setupDaemon(dbManager, null);
     }
 
-    private void setupDaemon(DBManager dbManager) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    protected void setupDaemon(DBManager dbManager, Integer port) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();
 
         // аналогичный механизм в TerminalServer, но через Thread пока не принципиально
         daemonTasksExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("board-daemon"));
-        daemonTasksExecutor.submit(new DaemonTask(dbManager));
+        daemonTasksExecutor.submit(new DaemonTask(dbManager, port));
     }
 
     private class DaemonTask implements Runnable {
         DBManager dbManager;
+        Integer port;
 
-        public DaemonTask(DBManager dbManager) {
+        public DaemonTask(DBManager dbManager, Integer port) {
             this.dbManager = dbManager;
+            this.port = port;
         }
 
         public void run() {
@@ -84,7 +80,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
             ServerSocket serverSocket = null;
             ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, BoardDaemon.this);
             try {
-                serverSocket = new ServerSocket(2004, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
+                serverSocket = new ServerSocket(port == null ? 2004 : port, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
             } catch (IOException e) {
                 startLogger.error("BoardDaemon Error: ", e);
                 executorService.shutdownNow();
@@ -95,7 +91,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
                         Socket socket = serverSocket.accept();
                         executorService.submit(getCallable(socket));
                     } catch (IOException e) {
-                        logger.error("BoardDaemon Error: ", e);
+                        terminalLogger.error("BoardDaemon Error: ", e);
                     }
                 }
         }

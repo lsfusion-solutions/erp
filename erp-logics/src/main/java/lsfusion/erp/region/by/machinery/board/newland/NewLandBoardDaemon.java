@@ -2,11 +2,14 @@ package lsfusion.erp.region.by.machinery.board.newland;
 
 import lsfusion.erp.region.by.machinery.board.BoardDaemon;
 import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
+import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 import org.apache.commons.lang.ArrayUtils;
+import org.springframework.util.Assert;
 
 import java.io.BufferedReader;
 import java.io.DataOutputStream;
@@ -26,11 +29,29 @@ import java.util.concurrent.Callable;
 
 public class NewLandBoardDaemon extends BoardDaemon {
 
+    private ScriptingLogicsModule LM;
     private static String charset = "utf8";
     private Map<InetAddress, String> ipMap = new HashMap<>();
 
     public NewLandBoardDaemon(ScriptingBusinessLogics businessLogics, DBManager dbManager, LogicsInstance logicsInstance) {
         super(businessLogics, dbManager, logicsInstance);
+    }
+
+    @Override
+    protected void onInit(LifecycleEvent event) {
+        LM = logicsInstance.getBusinessLogics().getModule("NewLandBoard");
+        Assert.notNull(LM, "can't find NewLandBoard module");
+    }
+
+    @Override
+    protected void onStarted(LifecycleEvent event) {
+        startLogger.info("Starting " + getEventName() + " Daemon");
+        try (DataSession session = dbManager.createSession()) {
+            Integer port = (Integer) LM.findProperty("portNewLandBoard[]").read(session);
+            setupDaemon(dbManager, port);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+            throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
+        }
     }
 
     @Override
@@ -80,12 +101,13 @@ public class NewLandBoardDaemon extends BoardDaemon {
 
                 return null;
             } catch (Exception e) {
-                logger.error("NewLandBoard Error: ", e);
+                terminalLogger.error("NewLandBoard Error: ", e);
             }
             return null;
         }
 
         private byte[] readMessage(BusinessLogics BL, String idBarcode, String ip) throws SQLException, UnsupportedEncodingException, SQLHandledException, ScriptingErrorLog.SemanticErrorException {
+            terminalLogger.info(String.format("NewLand request ip %s, barcode %s", ip, idBarcode));
             try (DataSession session = dbManager.createSession()) {
 
                 ObjectValue stockObject = BL.getModule("PriceChecker").findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));

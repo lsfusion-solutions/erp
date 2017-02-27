@@ -4,6 +4,7 @@ import lsfusion.erp.region.by.machinery.board.BoardDaemon;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.classes.DateTimeClass;
 import lsfusion.server.data.SQLHandledException;
+import lsfusion.server.lifecycle.LifecycleEvent;
 import lsfusion.server.logics.*;
 import lsfusion.server.logics.scripted.ScriptingBusinessLogics;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
@@ -33,6 +34,16 @@ public class FiscalBoardDaemon extends BoardDaemon {
         this.serverPort = serverPort;
         this.idPriceListType = idPriceListType;
         this.idStock = idStock;
+    }
+
+    @Override
+    protected void onStarted(LifecycleEvent event) {
+        startLogger.info("Starting " + getEventName() + " Daemon.");
+        try {
+            setupDaemon(dbManager);
+        } catch (SQLException | ScriptingErrorLog.SemanticErrorException e) {
+            throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
+        }
     }
 
     @Override
@@ -87,7 +98,7 @@ public class FiscalBoardDaemon extends BoardDaemon {
                 
                 return null;
             } catch (Exception e) {
-                logger.error("FiscalBoard Error: ", e);
+                terminalLogger.error("FiscalBoard Error: ", e);
             }
             return null;
         }
