@@ -80,22 +80,37 @@ prevBalanceB 'Остаток (до)' (Sku sku, Bin bin, DATETIME dateTime) = PRE
 balanceA 'Остаток в ячейке (после)' (Sku sku, Bin bin, DATETIME dateTime) = currentBalance(sku, bin) (-)
                                                                  inBinTotalA(sku, bin, dateTime) (+) outBinTotalA(sku, bin, dateTime);
 prevBalanceA 'Остаток в ячейке (после)'(Sku sku, Bin bin, DATETIME dateTime) = PREV(balanceA(sku, bin, dateTime) IF dateTime IS DATETIME);
+
+META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
+    dateTime[BinLedger] (###class ledger) += dateTime(object(ledger));
+    isPosted[BinLedger] (###class ledger) += isPosted(object(ledger));
+    isClosed[BinLedger] (###class ledger) += isClosed(object(ledger));
+    skuProp[BinLedger] (###class ledger) += skuProp(object(ledger));
+    quantity[BinLedger] (###class ledger) += quantityProp(object(ledger));
+    inBin[BinLedger] (###class ledger) += inBinProp(object(ledger));
+    outBin[BinLedger] (###class ledger) += outBinProp(object(ledger));
+    description[BinLedger] (###class ledger) += description(object(ledger));
+END       
+
+META implementBinLedger(class)
+    dateTime[BinLedger] (###class ledger) += dateTime(ledger);
+    isPosted[BinLedger] (###class ledger) += isPosted(ledger);
+    isClosed[BinLedger] (###class ledger) += isClosed(ledger);
+    sku[BinLedger] (###class ledger) += sku(ledger);
+    quantity[BinLedger] (###class ledger) += quantity(ledger);
+    inBin[BinLedger] (###class ledger) += inBin(ledger);
+    outBin[BinLedger] (###class ledger) += outBin(ledger);
+    description[BinLedger] (###class ledger) += description(ledger);
+END
        
 META createClassBinLedger (classPref)
     CLASS classPref##BinLedger : BinLedger;
 END
-META implementBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
+META implementAggregationBinLedger(object, classPrefix, ClassPref, skuProp, quantityProp, stockProp, inBinProp, outBinProp)
     @createClassBinLedger(###classPrefix);
     needToCreate (###object object) = inBinProp(object) OR outBin(object); 
     @defineAggregation(object, classPrefix##BinLedger, needToCreate);
-    dateTime[BinLedger] (###classPrefix##BinLedger ledger) += dateTime(object(ledger));
-    isPosted[BinLedger] (###classPrefix##BinLedger ledger) += isPosted(object(ledger));
-    isClosed[BinLedger] (###classPrefix##BinLedger ledger) += isClosed(object(ledger));
-    skuProp[BinLedger] (###classPrefix##BinLedger ledger) += skuProp(object(ledger));
-    quantity[BinLedger] (###classPrefix##BinLedger ledger) += quantityProp(object(ledger));
-    inBin[BinLedger] (###classPrefix##BinLedger ledger) += inBinProp(object(ledger));
-    outBin[BinLedger] (###classPrefix##BinLedger ledger) += outBinProp(object(ledger));
-    description[BinLedger] (###classPrefix##BinLedger ledger) += description(object(ledger));
+    @implementBinLedger(classPrefix##BinLedger, object, skuProp, quantityProp, stockProp, inBinProp, outBinProp);
 END
 
 FORM binLedger 'Регистр изменения остатков по ячейкам'

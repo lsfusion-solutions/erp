@@ -1,0 +1,436 @@
+MODULE BinOrderTransfer;
+
+REQUIRE BinOrder, BinTransfer;
+
+NAMESPACE Bin;
+
+createdUser = DATA LOCAL BOOLEAN (BinTransfer, BinOrder);
+
+binOrderDetail = ABSTRACT BinOrderDetail (BinTransferDetail) PERSISTENT;
+
+binOrderDetail = DATA UserBinOrderDetail (UserBinTransferDetail) INDEXED;
+binOrderDetail(UserBinTransferDetail binTransferDetail) += binOrderDetail(binTransferDetail);
+
+overCopy[UserBinTransferDetail,UserBinTransferDetail](UserBinTransferDetail d, UserBinTransferDetail detail) += ACTION {      
+    binOrderDetail(d) <- binOrderDetail(detail);
+}  
+
+CONSTRAINT stock(UserBinTransferDetail detail) != stock(binOrderDetail(detail))
+    CHECKED BY binOrderDetail[UserBinTransferDetail]
+        MESSAGE 'Склад в заказе и перемещении должны соответствовать друг другу';
+        
+WHEN SESSION CHANGED(sku(UserBinTransferDetail detail)) AND NOT CHANGED(binOrderDetail(detail)) DO
+    binOrderDetail(detail) <- NULL;
+
+GROUP binOrder 'Информация о заказе' : public;
+
+descriptionBinBinOrder 'Заказ' (BinTransferDetail binTransferDetail) = description(binOrderDetail(binTransferDetail)) IN binOrder;
+descriptionBinOrder 'Заказ' (UserBinTransferDetail userBinTransferDetail) = description(binOrderDetail(userBinTransferDetail)) IN binOrder;
+
+quantityBinTransferDetail (binOrder, binTransfer) = GROUP SUM quantity(BinTransferDetail binTransferDetail) BY binOrder(binOrderDetail(binTransferDetail)), binTransfer(binTransferDetail);
+countBinTransferDetail(binOrder, binTransfer) = GROUP SUM 1 BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail);
+binOrders 'Заказы' (binTransfer) = GROUP CONCAT VARSTRING[255](description(BinOrder binOrder)) IF quantityBinTransferDetail(binOrder, BinTransfer binTransfer) , ', '
+                                         BY binTransfer
+                                         ORDER binOrder
+                                         IN binOrder MINCHARWIDTH 30 PREFCHARWIDTH 50 PERSISTENT;
+                                         
+binTransfers 'Перемещения' (binOrder) = GROUP CONCAT VARSTRING[255](description(BinTransfer binTransfer)) IF countBinTransferDetail(BinOrder binOrder, binTransfer) , ', '
+                                         BY binOrder
+                                         ORDER binTransfer
+                                         IN binTransfer MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
+
+binTransferd 'Кол-во (перемещено)' (BinOrderDetail binOrderDetail) = GROUP SUM quantity(BinTransferDetail binTransferDetail) IF isPosted(binTransferDetail)
+                                                           BY binOrderDetail(binTransferDetail) PERSISTENT;
+                                                           
+binTransferdBinOrderDetail 'Кол-во (перемещено)' (binOrder) = GROUP SUM binTransferd(BinOrderDetail binOrderDetail) BY binOrder(binOrderDetail) IN documentSum;
+
+toBinTransfer 'Не перемещено' (BinOrderDetail binOrderDetail) = quantity (binOrderDetail) (-) binTransferd(binOrderDetail);
+prevToBinTransfer (BinOrderDetail binOrderDetail) = PREV(toBinTransfer(binOrderDetail));
+toBinTransfer (binOrder) = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF toBinTransfer(binOrderDetail) >0 BY binOrder(binOrderDetail);
+
+backgroundBinTransfer 'Цвет' (BinOrder binOrder) = RGB(175, 255, 175) IF binOrder IS BinOrder;
+
+quantityBinOrder 'К-во заказа' (BinTransferDetail d) = quantity(binOrderDetail(d)); 
+priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDetail(d));
+
+// ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
+
+inStock = GROUP SUM 1 IF stock(BinOrderDetail binOrderDetail) == Stock stock BY binOrder(binOrderDetail), stock;
+
+in (BinOrderDetail binOrderDetail, UserBinTransfer userBinTransfer) = (binOrderDetail IS BinOrderDetail AND userBinTransfer IS UserBinTransfer) OR
+                                                       stock(binOrderDetail)==stock(userBinTransfer);
+
+overFill = ACTION ABSTRACT LIST (UserBinTransferDetail, BinOrderDetail);
+overFill = ACTION ABSTRACT LIST (UserBinTransfer, BinOrder);
+
+fill(UserBinTransferDetail id, BinOrderDetail od) = ACTION {    
+    inBin(id) <- inBin(od);
+    outBin(id) <- outBin(od);
+}
+
+
+binOrderCreateUserBinTransfer = ABSTRACT STRING[100] (BinOrderDetail);
+skipCreateUserBinTransfer = ABSTRACT BOOLEAN (BinOrderDetail);
+   
+createDetail(UserBinTransfer userBinTransfer, BinOrder binOrder) = ACTION {
+    FOR binOrder(BinOrderDetail binOrderDetail) == binOrder AND
+        toBinTransfer(binOrderDetail) > 0 // возможно еще нужно фильтровать по складам
+        AND in(binOrderDetail, userBinTransfer) AND NOT skipCreateUserBinTransfer(binOrderDetail)
+        ORDER binOrderCreateUserBinTransfer(binOrderDetail), binOrderDetail 
+        ADDOBJ d = UserBinTransferDetail DO {
+            userBinTransfer(d) <- userBinTransfer;
+            binOrderDetail(d) <- binOrderDetail;
+            sku(d) <- sku(binOrderDetail);
+            quantity (d) <- toBinTransfer(binOrderDetail);
+
+            fill(d, binOrderDetail);
+            overFill(d, binOrderDetail);
+    }
+}
+
+fillHeader(UserBinTransfer userBinTransfer, BinOrder binOrder) = ACTION {
+    date(userBinTransfer) <- currentDate();
+    time(userBinTransfer) <- currentTime();
+    
+    stock(userBinTransfer) <- stock(binOrder) WHERE stock(binOrder);
+    operation(userBinTransfer) <- operation(binOrder) WHERE operation(binOrder);
+    inBin(userBinTransfer) <- inBin(binOrder) WHERE inBin(binOrder);
+    outBin(userBinTransfer) <- outBin(binOrder) WHERE outBin(binOrder);
+    
+    note(userBinTransfer) <- note(binOrder) WHERE note(binOrder);
+    EXEC overFill(userBinTransfer, binOrder);
+}
+
+fill(UserBinTransfer userBinTransfer, BinOrder binOrder) = ACTION {
+    fillHeader(userBinTransfer, binOrder);
+    
+    createDetail(userBinTransfer, binOrder);
+}
+
+userBinTransfer = DATA LOCAL UserBinTransfer (BinOrder);
+
+TABLE binOrderUserBinTransfer (BinOrder, UserBinTransfer);
+include 'Вкл. в перемещение' = DATA BOOLEAN (BinOrder, UserBinTransfer) MINCHARWIDTH 10 PREFCHARWIDTH 15;  
+countIncludeBinOrders (i) = GROUP SUM 1 IF include(BinOrder o,UserBinTransfer i) BY i;
+
+beforeCreateBinTransfer = ACTION ABSTRACT LIST (BinOrder);
+binTransferCreated = DATA LOCAL NESTED BOOLEAN (BinOrder);
+overCreate = ACTION ABSTRACT LIST (BinOrder, UserBinTransfer);
+
+useConfimForCreateBinDetail 'Запрашивать подтверждение на создание строк перемещения по заказу' = DATA BOOLEAN();
+
+EXTEND FORM options
+    PROPERTIES() useConfimForCreateBinDetail
+;
+
+DESIGN options {
+    pane {
+        NEW WMS {
+            caption = 'WMS';
+            MOVE PROPERTY(useConfimForCreateBinDetail());    
+        }
+    }
+}
+
+createUserBinTransfer 'Создать перемещение'(BinOrder binOrder) = ACTION {
+    binTransferCreated(binOrder) <- NULL;
+    beforeCreateBinTransfer(binOrder);
+    IF binTransferCreated(binOrder) THEN RETURN;
+    
+    userBinTransfer(binOrder) <- NULL;
+    FOR ADDOBJ i = UserBinTransfer DO {
+        IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранному заказу строки накладной?';
+        fillHeader(i, binOrder);
+        IF confirmed() OR NOT useConfimForCreateBinDetail() THEN {
+            createDetail(i, binOrder);   
+        }
+        userBinTransfer(binOrder) <- i;
+        include(binOrder,i) <- TRUE;
+        overCreate (binOrder, i);
+    }
+}
+
+createUserBinTransferPosted 'Создать проведенное перемещение' (BinOrder binOrder) = ACTION {
+    FOR ADDOBJ i = UserBinTransfer DO {
+        isPosted(i) <- TRUE;
+        fill(i, binOrder);
+        createdUser(i, binOrder) <- TRUE;
+    }
+}
+
+addUserBinTransfer 'Перемещение' (BinOrder binOrder) =  ACTION NEWSESSION {
+    createUserBinTransfer(binOrder);
+    FORM userBinTransfer OBJECTS o = userBinTransfer(binOrder) MANAGESESSION DOCKED NOCANCEL;
+} TOOLBAR;
+
+backgroundTransfered 'Цвет' (BinOrder order) = RGB(255, 224, 255) IF order IS BinOrder;
+
+EXTEND FORM binOrders
+    PROPERTIES (o) READONLY binTransfers
+    PROPERTIES(o) addUserBinTransfer
+    
+    PROPERTIES (d) READONLY BACKGROUND backgroundTransfered(o) binTransferd AFTER quantity(d)
+;
+DESIGN binOrders {
+    createdContainer{
+        MOVE PROPERTY(addUserBinTransfer(o));
+    }
+}
+
+EXTEND FORM userBinOrder   
+    PROPERTIES (d) READONLY BACKGROUND backgroundTransfered(o) binTransferd AFTER quantity(d)
+;
+// ---------------------------- Заполнение на основе заказа --------------------------- //
+stockBinTransferBinOrder = DATA LOCAL Stock ();
+nameStockBinTransferBinOrder 'Склад' = name(stockBinTransferBinOrder());
+
+operationBinTransferBinOrder = DATA LOCAL Operation ();
+nameOperationBinTransferBinOrder 'Операция' = name(operationBinTransferBinOrder());
+
+FORM binTransferBinOrders 'Заказы'
+    PROPERTIES() nameStockBinTransferBinOrder, nameOperationBinTransferBinOrder
+
+    OBJECTS o = BinOrder
+    PROPERTIES (o) READONLY isPosted, number, series, date, time,
+                            nameStock, countBinOrderDetail, quantityBinOrderDetail, note
+    FILTERS isPosted(o),
+            inStock(o, stockBinTransferBinOrder()) OR (o IS BinOrder AND NOT stockBinTransferBinOrder()),
+            operation(o) == operationBinTransferBinOrder() OR (o IS BinOrder AND NOT operationBinTransferBinOrder())
+
+    OBJECTS d = BinOrderDetail
+    PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
+    PROPERTIES (d) READONLY quantity, binTransferd
+    FILTERS binOrder(d) == o
+;
+
+DESIGN binTransferBinOrders {
+    main {
+        preferredSize = (1024, 768);
+        NEW documentContainer BEFORE functions.box {
+
+            type = CONTAINERV;
+            fill = 1;
+
+            MOVE o.box;
+            NEW documentDetail {
+                fill = 1;
+                type = TABBED;
+
+                MOVE d.box {
+                    caption = 'Спецификация';
+                }
+                NEW printTab {
+                    caption = 'Печатные формы';
+                    NEW printContainer {
+                        caption = 'Печать';
+                        type = CONTAINERV;
+                    }
+                }
+            }
+        }
+        NEW sessionPropContainer BEFORE documentContainer {
+            MOVE PROPERTY(nameStockBinTransferBinOrder());
+            MOVE PROPERTY(nameOperationBinTransferBinOrder());
+
+        }
+    }
+}
+
+fillBinOrder 'Заполнить на основе заказа'(UserBinTransfer userBinTransfer) =  ACTION {
+    stockBinTransferBinOrder() <- supplierStock(userBinTransfer) WHERE supplierStock(userBinTransfer);
+    operationBinTransferBinOrder() <- operation(userBinTransfer) WHERE operation(userBinTransfer);
+
+    FORM binTransferBinOrders ;
+    IF formResult() == FormResult.ok THEN {
+        fill(userBinTransfer, chosenObject('o') AS BinOrder);
+    }
+} IN binOrder;
+
+FORM selectBinOrderDetail 'Выбрать строку заказа'
+    OBJECTS i = BinTransferDetail FIXED PANEL
+    OBJECTS d = BinOrderDetail
+    PROPERTIES(d) READONLY number, series, date, time, nameStock
+    FILTERGROUP supplierStock
+        FILTER 'По складу' stock(d) == stock(i) DEFAULT
+    FILTERGROUP opened
+        FILTER 'Открытые' isOpened(d) DEFAULT
+    FILTERS isPosted(d),
+            sku(d) == sku(i)
+;
+changeBinOrder (UserBinTransferDetail d) = ACTION {
+    IF binOrderDetail(d) THEN
+        REQUEST OBJECT d
+            FORM selectBinOrderDetail OBJECTS i = d, d = binOrderDetail(d) DIALOG SHOWDROP
+    ELSE
+        REQUEST OBJECT d
+            FORM selectBinOrderDetail OBJECTS i = d DIALOG SHOWDROP;
+
+    IF formResult() == FormResult.ok THEN {
+        binOrderDetail(d) <- chosenObject('d');
+    } ELSE IF formResult() == FormResult.drop THEN {
+        binOrderDetail(d) <- NULL;
+    }
+
+}
+EXTEND FORM userBinTransfer
+    PROPERTIES (d)  descriptionBinOrder AFTER quantity(d) ON CHANGE changeBinOrder(d)
+;
+
+
+EXTEND FORM binTransfers
+    PROPERTIES (o)  READONLY binOrders AFTER note(o)
+    PROPERTIES (d)  READONLY descriptionBinOrder AFTER quantity(d)
+;
+         
+// Создание инвойса на основе нескольких заказов //
+GROUP binOrders 'Перемещение по заказам' : base;
+include 'Вкл. в перемещение' = ABSTRACT BOOLEAN (BinOrder, BinTransfer) MINCHARWIDTH 10 PREFCHARWIDTH 15;
+countIncludeBinOrders (i) = GROUP SUM 1 IF include(BinOrder o,BinTransfer i) BY i;
+includeBinOrders 'Заказы в перемещении' (binTransfer) = GROUP CONCAT VARSTRING[255](description(BinOrder binOrder)) IF include(binOrder, BinTransfer binTransfer) , ', '
+                                                    BY binTransfer
+                                                    ORDER binOrder IN binOrders MINCHARWIDTH 30 PREFCHARWIDTH 30;
+
+includeBinOrders 'Заказы в перемещении' (userBinTransfer) = GROUP CONCAT VARSTRING[255](description(BinOrder binOrder)) IF include(binOrder, UserBinTransfer userBinTransfer) , ', '
+                                                    BY userBinTransfer
+                                                    ORDER binOrder IN binOrders MINCHARWIDTH 30 PREFCHARWIDTH 30;
+include(BinOrder binOrder,UserBinTransfer binTransfer) += include(binOrder,binTransfer);    
+
+numberBinOrders 'Заказы в перемещении' (binTransfer) = GROUP CONCAT VARSTRING[255](number(BinOrder binOrder)) IF include(binOrder, BinTransfer binTransfer) , ', '
+                                                 BY binTransfer
+                                                 ORDER binOrder IN binOrders MINCHARWIDTH 30 PREFCHARWIDTH 30;
+
+numberBinOrders 'Заказы в перемещении' (userBinTransfer) = GROUP CONCAT VARSTRING[255](number(BinOrder binOrder)) IF include(binOrder, UserBinTransfer userBinTransfer) , ', '
+                                                 BY userBinTransfer
+                                                 ORDER binOrder IN binOrders MINCHARWIDTH 30 PREFCHARWIDTH 30;                                                   
+
+FORM includeBinOrdersUserBinTransfer 'Заказы'
+    OBJECTS i = UserBinTransfer FIXED PANEL
+
+    OBJECTS o = BinOrder
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameStock,
+                            countBinOrderDetail, quantityBinOrderDetail, note
+
+    FILTERS stock(o) == stock(i),
+            isPosted(o),
+            toBinTransfer(o) OR include[BinOrder,BinTransfer](o,i)
+
+    PROPERTIES(o,i) BACKGROUND backgroundBinTransfer(o) include BEFORE isPosted(o)
+;
+
+relationBinTransferDetail (binOrder, binTransfer) = GROUP SUM 1 BY binOrder(binOrderDetail(BinTransferDetail binTransferDetail)), binTransfer(binTransferDetail);
+notRelationBinTransferDetailBinOrder 'Включенные заказы, но по которым не созданы строки' (binTransfer)= GROUP SUM 1 
+    IF include(BinOrder binOrder, UserBinTransfer binTransfer) AND NOT  relationBinTransferDetail(binOrder, binTransfer) BY binTransfer; 
+
+notIncludeBinTransferDetailBinOrder 'Есть строки перемещения с ссылкой на заказ, который не включен в перемещение' (binTransfer)= GROUP SUM 1 
+    IF relationBinTransferDetail(BinOrder binOrder, BinTransfer binTransfer) AND NOT include[BinOrder,UserBinTransfer](binOrder, binTransfer)  BY binTransfer;         
+
+dialogIncludeBinOrdersUser 'Включить заказы в перемещение' (BinTransfer userBinTransfer) = ACTION {
+    FORM includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer ;
+    IF formResult() == FormResult.ok THEN {
+        IF notRelationBinTransferDetailBinOrder(userBinTransfer) THEN {
+            CONFIRM 'Создать по выбранным заказам строки перемещения?';
+            IF (confirmed()) THEN {  
+                FOR include[BinOrder,UserBinTransfer](BinOrder binOrder, userBinTransfer) AND NOT  relationBinTransferDetail(binOrder, userBinTransfer) DO {
+
+                    createDetail(userBinTransfer, binOrder);
+                    userBinTransfer(binOrder) <- userBinTransfer;                         
+                }                                   
+            }              
+        }
+        IF notIncludeBinTransferDetailBinOrder(userBinTransfer) THEN {
+            CONFIRM 'В перемещении присутствуют строки с ссылкой на заказ, который не включен в перемещение. Удалить эти строки?';
+            IF (confirmed()) THEN {  
+                FOR relationBinTransferDetail(BinOrder binOrder, userBinTransfer) AND NOT include[BinOrder,UserBinTransfer](binOrder, userBinTransfer) DO {
+
+                    DELETE UserBinTransferDetail d WHERE userBinTransfer(d) == userBinTransfer AND binOrder(binOrderDetail(d)) == binOrder;     
+                    userBinTransfer(binOrder) <- NULL;                         
+                }                                   
+            }                       
+        }            
+    }                 
+} IN binOrders;
+
+defaultBinOrderDetail (batch, userBinTransfer) = GROUP MAX BinOrderDetail detail IF include(binOrder(detail), UserBinTransfer userBinTransfer) 
+    BY batch(detail), userBinTransfer;
+
+defaultBinOrderDetail (sku, userBinTransfer) = GROUP MAX BinOrderDetail detail IF include(binOrder(detail), UserBinTransfer userBinTransfer) 
+    BY sku(detail), userBinTransfer;
+
+defaultBinOrderDetail(UserBinTransferDetail detail) = OVERRIDE defaultBinOrderDetail(sku(detail), userBinTransfer(detail)), defaultBinOrderDetail(batch(detail), userBinTransfer(detail));
+
+connectBinOrder 'Привязать строку перемещения к заказу'(UserBinTransferDetail detail) = ACTION {
+    binOrderDetail(detail) <- defaultBinOrderDetail(detail) 
+                                                WHERE defaultBinOrderDetail(detail);
+} SHORTCUT descriptionBinOrder[UserBinTransferDetail];
+
+connectBinOrder 'Привязать все строки перемещения к заказам'(UserBinTransfer userBinTransfer) = ACTION {
+    FOR userBinTransfer(UserBinTransferDetail detail) == userBinTransfer DO {
+        EXEC connectBinOrder(detail);
+    }
+} SHORTCUT descriptionBinOrder[UserBinTransferDetail];
+
+WHEN SESSION FORMS userBinTransfer
+    (CHANGED(sku(UserBinTransferDetail detail)) OR CHANGED(batch(detail))) AND NOT binOrderDetail(detail)       
+        DO EXEC connectBinOrder(detail);
+
+EXTEND FORM userBinTransfer
+    PROPERTIES(o) dialogIncludeBinOrdersUser, includeBinOrders READONLY
+;
+DESIGN userBinTransfer {
+    headerTabbedPane{
+        NEW headerCreateDetail {
+            caption = 'Основание';
+            columns = 2;            
+            MOVE o.binOrders {
+                type = CONTAINERV;
+            }
+        }
+    }
+}
+//-- 
+
+createMultiUserBinTransfer(BinOrder binOrder) = ACTION {
+    IF binOrder IS BinOrder THEN {
+        binTransferCreated(binOrder) <- NULL;
+        beforeCreateBinTransfer(binOrder);
+        IF binTransferCreated(binOrder) THEN RETURN;
+
+        FOR ADDOBJ i = UserBinTransfer DO {
+            IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранным заказам строки перемещения?';
+            fillHeader(i, binOrder);
+            FOR selected(BinOrder o) DO {
+                IF confirmed() OR NOT useConfimForCreateBinDetail() THEN {
+                    createDetail(i, o);   
+                }
+                include[BinOrder,UserBinTransfer](o,i)<- TRUE;             
+            }     
+
+            FORM userBinTransfer OBJECTS o = i DOCKED;
+            IF formResult() == FormResult.ok THEN {
+                apply();
+            } ELSE {
+                FOR userBinTransfer(UserBinTransferDetail d)==i DO {
+                    DELETE d;   
+                }
+                DELETE i;
+            }
+        }
+    }
+}
+
+// автоматическое закрытие заказов
+autoCloseBinOrders 'Автоматически закрывать заказы' = DATA BOOLEAN ();
+
+EXTEND FORM options
+    PROPERTIES () autoCloseBinOrders
+;
+
+DESIGN options {
+    WMS {
+        MOVE PROPERTY(autoCloseBinOrders());
+    }
+}
+
+WHEN SET(binOrder(binOrderDetail(BinTransferDetail d)) AND isPosted(d)) AND autoCloseBinOrders() AND NOT isClosed(binOrder(binOrderDetail(d))) DO
+    isClosed(UserBinOrder o) <- TRUE WHERE o == binOrder(binOrderDetail(d));
+

@@ -1,0 +1,364 @@
+MODULE BinTransfer;
+
+REQUIRE BinLedger, BinOrder;
+
+NAMESPACE Bin;
+
+CLASS ABSTRACT BinTransfer 'Перемещение по ячейкам': Document;
+CLASS ABSTRACT BinTransferDetail 'Строка перемещения по ячейкам': DocumentDetail;
+
+CLASS UserBinTransfer 'Перемещение по ячейкам (польз.)': BinTransfer;
+CLASS UserBinTransferDetail 'Строка перемещения по ячейкам': BinTransferDetail;
+
+@defineDocumentInterface(binTransfer);
+
+GROUP binTransfer 'Информация о перемещении' : base;
+
+@defineAddDetailDialogBarcode(userBinTransfer, sku);
+
+@defineDocumentInterfaceDetailPrice(binTransfer);
+
+@deriveDocumentHeaderTimePrefix(UserBinTransfer, );
+
+@defineDocumentInterfaceNumber(binTransfer);
+
+@defineDocumentInterfacePosted(binTransfer);
+
+@defineDocumentInterfaceClosed(binTransfer);
+
+@defineDocumentInterfaceDataStock(binTransfer, stock, 'Склад');
+
+@defineDocumentInterfaceDescription(binTransfer, 'Перемещение по ячейкам');
+
+@defineDocumentInterfaceDetailSku(binTransfer, sku);
+
+@defineDocumentInterfaceDetailQuantity(binTransfer);
+
+@defineDocumentDetailGrossWeight(binTransfer, sku);
+
+@defineDocumentHeaderSkuQuantity(binTransfer, sku);
+
+@defineDocumentHeaderQuantity(binTransfer);
+
+@defineDocumentBins(binTransfer);
+
+@setBinDocument(UserBinTransfer, stock);
+
+@implementDocument(binTransfer);
+
+@defineAddDetailDialogSkuStock(userBinTransfer, sku, stock, dialogSku);
+
+//пользовательский заказ на перемещение
+@defineExternalizable(userBinTransfer, VARSTRING[100]);
+
+@defineExternalizable(userBinTransferDetail, VARSTRING[100]);
+
+@defineNumeratedDefault(UserBinTransfer, 'Перемещения по ячейкам ', 'ПП');
+
+disablePosted 'Запретить проведение' = ABSTRACT BOOLEAN (UserBinTransfer);
+overPrePost 'Провести' (UserBinTransfer o) = ACTION {
+    IF NOT disablePosted(o) THEN {
+        isPosted(o) <- TRUE;
+    } 
+}
+
+FORM userBinTransfer 'Перемещение по ячейкам (польз.)'
+    OBJECTS o = UserBinTransfer FIXED PANEL
+    PROPERTIES (o) isPosted, nameStock, nameNumerator, number, series, date, time, note, 
+                   nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
+    PROPERTIES (o) READONLY countUserBinTransferDetail, quantityBinTransferDetail
+    
+    OBJECTS d = UserBinTransferDetail
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity
+    PROPERTIES (d) ADDOBJ, deleteod = DELETESESSION
+    PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinTransferDetail,
+                           addDetailInputBarcodeUserBinTransferDetail, deleteUserBinTransferDetail
+    FILTERS binTransfer(d)==o
+    ORDER BY index(d)
+    EDIT UserBinTransfer OBJECT o
+    
+    EVENTS
+        ON OK overPrePost(o)
+;
+
+DESIGN userBinTransfer {
+
+    main {
+        preferredSize = (1024, 768);
+        NEW mainTabbed {
+            type = TABBED;
+            fill = 1;
+            NEW document.box{
+                fill = 1;
+                caption = 'Перемещение';
+                NEW header.box {
+                    type = CONTAINERH;
+    
+                    NEW headerRow1 {
+                        fill = 1;
+                        type = CONTAINERV;
+    
+                        MOVE o.documentHeader {
+                            type = CONTAINERV;
+                            NEW first {
+                                type = CONTAINERH;
+                                MOVE PROPERTY(isPosted(o)) { preferredCharWidth = 40; }
+                            }
+                            NEW second { 
+                                type = CONTAINERH;
+                                MOVE PROPERTY(nameNumerator(o));
+                                MOVE PROPERTY(number(o));
+                                MOVE PROPERTY(series(o));
+                                MOVE PROPERTY(date(o));
+                                MOVE PROPERTY(time(o));
+                                MOVE PROPERTY(nameStock(o));
+                            }    
+                        }                    
+                        
+                        NEW headerRow11 {
+                            type = CONTAINERH;
+                        }
+                        NEW headerTabbedPane {
+                            alignment = STRETCH;
+                            type = TABBED;
+                            NEW headerMainParams {
+                                caption = 'Основные параметры';
+                                type = CONTAINERV;
+                                MOVE o.documentPrm {
+                                    columns = 3;
+                                }
+                            }
+                        }
+                    }
+    
+                    MOVE o.documentSum {
+                        columns = 1;
+                    }
+                }
+                NEW specification.box {
+                    fill = 1;
+                    type = TABBED;
+                    MOVE d.box {
+                        caption = 'Спецификация';
+                    }
+                }
+            }
+        }
+        MOVE functions.box;
+
+        PROPERTY(formOk()) {
+            caption = 'Провести';
+        }                               
+    }
+}
+
+
+edit 'Редактировать' = ACTION ABSTRACT LIST (BinTransfer) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
+edit 'Редактировать' = ACTION EDITFORM UserBinTransfer;
+edit(UserBinTransfer transfer) += ACTION edit(transfer);
+
+overShowEdit = ABSTRACT BOOLEAN (BinTransfer);
+overShowDelete = ABSTRACT BOOLEAN (BinTransfer); 
+
+skipToShowEdit = ABSTRACT BOOLEAN (BinTransfer);
+skipToShowDelete = ABSTRACT BOOLEAN (BinTransfer);
+overShowEdit (BinTransfer o) += isOpened(o) AND NOT skipToShowEdit(o);
+
+isUserOpened(UserBinTransfer o)=  isOpened[BinTransfer](o) AND is(o);
+overShowDelete (UserBinTransfer o) += isUserOpened(o) AND NOT skipToShowDelete(o); 
+
+overCopy = ACTION ABSTRACT LIST (UserBinTransferDetail, BinTransferDetail);
+overCopy = ACTION ABSTRACT LIST (BinTransfer, UserBinTransfer);
+copy 'Копировать'(BinTransfer transfer) = ACTION NEWSESSION {
+    FOR ADDOBJ o = UserBinTransfer DO {
+        inBin(o) <- inBin(transfer);
+        outBin(o) <- outBin(transfer);
+        note(o) <- note(transfer);
+
+        EXEC overCopy(transfer, o);
+
+        FOR binTransfer(BinTransferDetail transferDetail) == transfer DO {
+            FOR ADDOBJ d=UserBinTransferDetail DO {
+                userBinTransfer(d) <- o;
+                sku(d) <- sku(transferDetail);
+                quantity(d) <- quantity(transferDetail);
+                
+                EXEC overCopy(d, transferDetail);
+            }
+        }
+
+        FORM userBinTransfer OBJECTS o = o MANAGESESSION DOCKED;
+    }
+} TOOLBAR;
+    
+//-- Копирование строк     
+overCopy = ACTION ABSTRACT LIST (UserBinTransferDetail, UserBinTransferDetail);
+
+copy 'Копировать'(UserBinTransferDetail detail) = ACTION {
+    FOR ADDOBJ d = UserBinTransferDetail DO {          
+
+        userBinTransfer(d) <- userBinTransfer(detail);
+        sku(d) <- sku(detail);
+        quantity(d) <- quantity(detail);
+        outBin(d) <- outBin(detail);
+        inBin(d) <- inBin(detail);
+        
+        EXEC overCopy(d, detail);                              
+    }
+} EDITKEY 'F5' TOOLBAR;
+
+filterBinTransferDateFrom 'Дата с' = DATA LOCAL DATE ();
+filterDateFrom (BinTransfer o) = date(o) >= filterBinTransferDateFrom() OR (o IS BinTransfer AND NOT filterBinTransferDateFrom());      
+
+filterBinTransferDateTo 'Дата по' = DATA LOCAL DATE ();
+filterDateTo (BinTransfer o) = date(o) <= filterBinTransferDateTo() OR (o IS BinTransfer AND NOT filterBinTransferDateTo());      
+
+filterBinTransferStock  = DATA LOCAL Stock ();
+nameFilterBinTransferStock 'Склад' = name(filterBinTransferStock()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterStock (BinTransfer o) = stock(o) == filterBinTransferStock() OR (o IS BinTransfer AND NOT filterBinTransferStock());
+
+filterBinTransferCustomUser  = DATA LOCAL CustomUser ();
+nameFilterBinTransferCustomUser 'Создан пользователем' = name[Contact](filterBinTransferCustomUser()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterBinCustomUser (BinTransfer i) = createdUser[UserBinTransfer](i) == filterBinTransferCustomUser() OR (i IS BinTransfer AND NOT filterBinTransferCustomUser());  
+
+filterBinTransferComputer = DATA LOCAL Computer ();
+nameFilterBinTransferComputer 'Создан на компьютере' = hostname(filterBinTransferComputer()) MINCHARWIDTH 15 PREFCHARWIDTH 20;          
+filterComputer (BinTransfer i) = createdComputer(i) == filterBinTransferComputer() OR (i IS BinTransfer AND NOT filterBinTransferComputer());
+    
+FORM binTransfers  'Перемещения по ячейкам'
+    PROPERTIES() filterBinTransferDateFrom, filterBinTransferDateTo, nameFilterBinTransferStock, nameFilterBinTransferCustomUser, nameFilterBinTransferComputer
+    
+    OBJECTS o = BinTransfer LAST
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note
+    
+    FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
+    
+    FILTERGROUP base
+        FILTER 'Открыт' isOpened(o) 'F6' DEFAULT
+    
+    OBJECTS d = UserBinTransferDetail
+    PROPERTIES (d) index, nameSku, nameOutBin, nameInBin, quantity
+    
+    PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserBinTransfer], createdTime, createdHostnameComputer, 
+                                        postedNameUser, postedTime, postedHostnameComputer
+
+    PROPERTIES (o) addUserBinTransfer = ADDFORM[UserBinTransfer]
+    PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedTransfer(o), 
+                   copy
+    PROPERTIES (o) close[UserBinTransfer] SHOWIF isOpened[UserBinTransfer](o), open SHOWIF isClosed[UserBinTransfer](o)
+    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR SHOWIF overShowDelete(o) //isUserOpenedTransfer(o)
+            
+    FILTERS binTransfer(d)==o
+    ORDER BY index(d)
+    DIALOG BinTransfer OBJECT o
+;
+
+DESIGN binTransfers 'Перемещение по ячейкам' {
+    NEW documentContainer BEFORE functions.box {
+        fill = 1;
+        type = SPLITV;
+
+        NEW filtersBox {                       
+            fill = 1;
+            NEW topFilters {  
+                caption = 'Фильтры';
+                type = CONTAINERV; 
+                NEW topFilters1 {
+                    type = CONTAINERH; 
+                    MOVE PROPERTY(filterBinTransferDateFrom());
+                    MOVE PROPERTY(filterBinTransferDateTo());                            
+                    MOVE PROPERTY(nameFilterBinTransferStock());                                            
+                }
+                NEW topFilters2 {
+                    type = CONTAINERH; 
+                    MOVE PROPERTY(nameFilterBinTransferCustomUser());
+                    MOVE PROPERTY(nameFilterBinTransferComputer());                            
+                }                
+            }
+            MOVE o.box {
+                fill = 1;
+            }
+        }
+//            ADD o.box {
+//                fill = 2;
+//            }
+
+        NEW documentDetail {
+            fill = 1;
+            type = TABBED;
+
+            MOVE d.box {
+                fill = 1;
+                caption = 'Спецификация';
+            }
+            NEW documentHistory {
+                caption = 'История';
+                type = CONTAINERV;
+
+                MOVE o.created;
+                MOVE o.posted;
+            }
+            NEW printTab {
+                caption = 'Печатные формы';
+                NEW printContainer {
+                    caption = 'Печать';
+                    type = CONTAINERV;
+                }
+            }
+            NEW actionContainer {
+                caption = 'Действия';
+                type = CONTAINERH;
+                NEW createdContainer {
+                    caption = 'Создание на основе';
+                    type = CONTAINERV;
+
+                    MOVE PROPERTY(copy(o)) { caption = 'Заказ (закупка)';}
+                }
+            }
+        }
+    }
+}
+
+//Операция
+@defineDocumentOperationContainer(binTransfer, o, isPostedBintransfer, nameStock, first, name);
+
+@defineOperationFilterProperty(binTransfer, o, binTransfers, nameFilterBinTransferStock);
+
+CONSTRAINT operation(BinTransfer binTransfer) AND stock(binTransfer) 
+           AND NOT in(stock(binTransfer), operation(binTransfer))
+    CHECKED BY stock[UserBinTransfer]
+    MESSAGE 'Склад должен совпадать с отмеченными в операции';
+CONSTRAINT operation(BinTransfer binTransfer) AND isPosted(binTransfer) 
+           AND NOT stock(binTransfer) AND needStock(operation(binTransfer))
+    MESSAGE 'Склад должен быть задан для документа';
+
+@deriveDocumentBins (userBinTransfer, userBinTransfer, inBin, inBin, outBin, outBin, stock);
+
+@defineDocumentSkuStockPriceListTypeSystemLedger(userBinTransfer, accountPriceListType, );
+
+@extendFormDocumentSkuStock(userBinTransfer, userBinTransfer, o, , );
+
+prevCurrentBalanceOutBin 'Текущий остаток (ячейка из)' (Sku sku, BinTransfer transfer) = prevCurrentBalance(sku, outBin(transfer));
+prevCurrentBalanceInBin 'Текущий остаток (ячейка в)' (Sku sku, BinTransfer transfer) = prevCurrentBalance(sku, inBin(transfer));
+
+EXTEND FORM userBinTransfer
+    PROPERTIES (ks, o) READONLY AFTER prevCurrentBalance(ks, st) prevCurrentBalanceOutBin, prevCurrentBalanceInBin
+    FILTERGROUP filter
+        FILTER 'С остатком (ячейка из)' prevCurrentBalanceOutBin(ks, o) 'F7' DEFAULT
+        FILTER 'С остатком ' currentBalance(ks,st) 'F10'
+        FILTER 'В документе ' quantity(ks, o, st) 'F9'
+;
+
+EXTEND CLASS BinTransferDetail: BinLedger;
+    
+@implementBinLedger(binTransferDetail);
+
+NAVIGATOR {
+    WMSNavigator {
+         WMSDocument {
+            ADD binTransfers;
+         }
+    }
+}
+
+
