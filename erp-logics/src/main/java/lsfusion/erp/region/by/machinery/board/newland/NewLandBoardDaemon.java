@@ -48,6 +48,8 @@ public class NewLandBoardDaemon extends BoardDaemon {
         startLogger.info("Starting " + getEventName() + " Daemon");
         try (DataSession session = dbManager.createSession()) {
             Integer port = (Integer) LM.findProperty("portNewLandBoard[]").read(session);
+            if(port == null)
+                port = 2005;
             setupDaemon(dbManager, port);
         } catch (SQLException | ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
             throw new RuntimeException("Error starting " + getEventName() + " Daemon: ", e);
