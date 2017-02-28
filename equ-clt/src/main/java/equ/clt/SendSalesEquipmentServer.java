@@ -3,6 +3,8 @@ package equ.clt;
 import equ.api.EquipmentServerInterface;
 import equ.api.RequestExchange;
 import equ.api.cashregister.CashRegisterHandler;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.ExtraCheckZReportBatch;
 import org.apache.log4j.Logger;
 
 import java.rmi.RemoteException;
@@ -14,6 +16,19 @@ import java.util.Set;
 
 public class SendSalesEquipmentServer {
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+
+    static void extraCheckZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
+            throws RemoteException, SQLException, ClassNotFoundException {
+        Map<String, List<Object>> handlerZReportSumMap = handler.readExtraCheckZReport(cashRegisterInfoList);
+        if (handlerZReportSumMap != null) {
+            ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap, remote.readZReportSumMap());
+            if (extraCheckResult.message.isEmpty()) {
+                remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
+            } else {
+                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
+            }
+        }
+    }
 
     static void checkZReportSum(EquipmentServerInterface remote, CashRegisterHandler handler, List<RequestExchange> requestExchangeList)
             throws RemoteException, SQLException, ClassNotFoundException {

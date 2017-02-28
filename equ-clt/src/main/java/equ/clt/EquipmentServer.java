@@ -55,8 +55,8 @@ public class EquipmentServer {
     private Consumer processDeleteBarcodeConsumer;
     private Thread processDeleteBarcodeThread;
 
-    Consumer sendSalesConsumer;
-    Thread sendSalesThread;
+    private Consumer sendSalesConsumer;
+    private Thread sendSalesThread;
 
     private Consumer sendSoftCheckConsumer;
     private Thread sendSoftCheckThread;
@@ -436,7 +436,7 @@ public class EquipmentServer {
 
                         readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, numberAtATime);
 
-                        extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
+                        SendSalesEquipmentServer.extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
                         SendSalesEquipmentServer.checkZReportSum(remote, handler, requestExchangeList);
 
@@ -553,19 +553,6 @@ public class EquipmentServer {
                         }
                     }
                 }
-            }
-        }
-    }
-
-    private void extraCheckZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
-            throws RemoteException, SQLException, ClassNotFoundException {
-        Map<String, List<Object>> handlerZReportSumMap = handler.readExtraCheckZReport(cashRegisterInfoList);
-        if (handlerZReportSumMap != null) {
-            ExtraCheckZReportBatch extraCheckResult = handler.compareExtraCheckZReport(handlerZReportSumMap, remote.readZReportSumMap());
-            if (extraCheckResult.message.isEmpty()) {
-                remote.succeedExtraCheckZReport(extraCheckResult.idZReportList);
-            } else {
-                reportEquipmentServerError(remote, sidEquipmentServer, extraCheckResult.message);
             }
         }
     }
@@ -800,15 +787,6 @@ public class EquipmentServer {
         }
 
     }
-
-    /*public Integer getUniqueId(TransactionInfo transactionInfo) {
-        String result = String.valueOf(transactionInfo.id) + transactionInfo.idGroupMachinery;
-        for(Object machineryInfo : transactionInfo.machineryInfoList)
-            result += ((MachineryInfo)machineryInfo).number;
-        for(Object item : transactionInfo.itemsList)
-            result += ((ItemInfo) item).idBarcode;
-        return result.hashCode();
-    }*/
 
     class SingleTransactionTask implements Runnable {
         EquipmentServerInterface remote;
