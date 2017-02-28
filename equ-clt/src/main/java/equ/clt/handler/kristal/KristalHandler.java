@@ -557,6 +557,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         lastCount = cashierTimeList.size();
                         start += lastCount;
                     }
+                    result.addAll(readCashierTimeZReport(conn, directoryGroupCashRegisterMap, dir));
 
                     Timestamp dateTo = null;
                     for (int i = result.size() - 1; i >= 0; i--) {
@@ -564,7 +565,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         if (ct.logOffCashier == null) {
                             ct.logOffCashier = getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, ct.logOnCashier, dateTo);
                         }
-                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier;
+                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport ? "1" : "0");
                         dateTo = ct.logOnCashier;
                     }
 
@@ -583,33 +584,38 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
     private List<CashierTime> readCashierTime(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir, int start, int limit) throws SQLException {
         List<CashierTime> result = new ArrayList<>();
-        Statement statement = conn.createStatement();
-        String queryString = "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
-                "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
-                "FROM CashierWorkTime) AS MyDerivedTable WHERE MyDerivedTable.RowNum BETWEEN " + start + " AND " + (start + limit - 1);
-        ResultSet rs = statement.executeQuery(queryString);
-        while (rs.next()) {
+        try (Statement statement = conn.createStatement()) {
+            String queryString = "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
+                    "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
+                    "FROM CashierWorkTime) AS MyDerivedTable WHERE MyDerivedTable.RowNum BETWEEN " + start + " AND " + (start + limit - 1);
+            ResultSet rs = statement.executeQuery(queryString);
+            while (rs.next()) {
 
-            String numberCashier = rs.getString(1);
-            Integer numberCashRegister = rs.getInt(2);
-            Timestamp timeFrom = rs.getTimestamp(3);
-            Timestamp timeTo = rs.getTimestamp(4);
-            result.add(new CashierTime(null, numberCashier, numberCashRegister,
-                    directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, null));
+                String numberCashier = rs.getString(1);
+                Integer numberCashRegister = rs.getInt(2);
+                Timestamp timeFrom = rs.getTimestamp(3);
+                Timestamp timeTo = rs.getTimestamp(4);
+                result.add(new CashierTime(null, numberCashier, numberCashRegister,
+                        directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, null));
+            }
         }
-        statement.close();
+        return result;
+    }
 
-        statement = conn.createStatement();
-        queryString = "SELECT CashNumber, GangDateStart, GangDateStop FROM OperGang";
-        rs = statement.executeQuery(queryString);
-        while (rs.next()) {
-            Integer numberCashRegister = rs.getInt(1);
-            Timestamp timeFrom = rs.getTimestamp(2);
-            Timestamp timeTo = rs.getTimestamp(3);
-            result.add(new CashierTime(null, null, numberCashRegister,
-                    directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, true));
+    private List<CashierTime> readCashierTimeZReport(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir) throws SQLException {
+        List<CashierTime> result = new ArrayList<>();
+        try (Statement statement = conn.createStatement()) {
+            String queryString = "SELECT CashNumber, GangDateStart, GangDateStop FROM OperGang";
+            ResultSet rs = statement.executeQuery(queryString);
+            while (rs.next()) {
+                Integer numberCashRegister = rs.getInt(1);
+                Timestamp timeFrom = rs.getTimestamp(2);
+                Timestamp timeTo = rs.getTimestamp(3);
+                if (timeTo != null)
+                    result.add(new CashierTime(null, null, numberCashRegister,
+                            directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, true));
+            }
         }
-        statement.close();
         return result;
     }
 
