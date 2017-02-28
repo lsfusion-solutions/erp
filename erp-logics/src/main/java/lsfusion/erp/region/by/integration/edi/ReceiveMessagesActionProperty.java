@@ -118,14 +118,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                         messages.put(documentId, parseOrderMessage(subXML, provider, documentId));
                                         break;
                                     case "ordrsp": {
-                                        List<List<Object>> orderResponse = parseOrderResponse(context, subXML);
+                                        List<List<Object>> orderResponse = parseOrderResponse(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
                                         if (orderResponse != null) {
                                             orderResponses.put(documentId, orderResponse);
                                         }
                                         break;
                                     }
                                     case "desadv": {
-                                        List<List<Object>> despatchAdvice = parseDespatchAdvice(context, subXML);
+                                        List<List<Object>> despatchAdvice = parseDespatchAdvice(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
                                         if (despatchAdvice != null)
                                             despatchAdvices.put(documentId, despatchAdvice);
                                         break;
@@ -308,7 +308,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private List<List<Object>> parseOrderResponse(ExecutionContext context, String orderResponse) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private List<List<Object>> parseOrderResponse(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> result = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
@@ -325,7 +325,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
         String note = rootNode.getChildText("comment");
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, orderNumber);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, orderNumber, sendReplies);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -499,7 +499,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private List<List<Object>> parseDespatchAdvice(ExecutionContext context, String orderResponse) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private List<List<Object>> parseDespatchAdvice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> result = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
@@ -516,7 +516,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
         String note = nullIfEmpty(rootNode.getChildText("comment"));
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, orderNumber);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, orderNumber, sendReplies);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -795,7 +795,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new String(org.apache.commons.codec.binary.Base64.encodeBase64(xml.getBytes()));
     }
 
-    private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String orderNumber) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderNumber, boolean sendReplies) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+        if(findProperty("numberOrder[EOrderDetail]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
+            sendRecipientError(context, url, login, password, host, port, provider, documentId, String.format("Заказ %s не найден)", orderNumber));
+        }
+
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if(orderNumber != null) {
             KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
