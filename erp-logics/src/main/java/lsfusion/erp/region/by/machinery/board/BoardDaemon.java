@@ -80,7 +80,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
             ServerSocket serverSocket = null;
             ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, BoardDaemon.this);
             try {
-                serverSocket = new ServerSocket(port == null ? 2004 : port, 1000, Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()));
+                serverSocket = new ServerSocket(port == null ? 2004 : port, 1000, Inet4Address.getByName("192.168.35.95"));
             } catch (IOException e) {
                 startLogger.error("BoardDaemon Error: ", e);
                 executorService.shutdownNow();
