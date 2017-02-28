@@ -1181,6 +1181,16 @@ quantityNoGroups 'Количество товаров без групп, шт' (
     OVERRIDE 0, [=GROUP SUM 1 IF StatisticGroupType type IS StatisticGroupType AND Sku sku IS Sku AND NOT statistic(type, sku)
     BY type](type);
 
+quantitySoldNot 'Продано без группы, шт' (type, dateFrom, dateTo)=
+    GROUP SUM quantitySold (Sku sku, Stock stock, DATE dateFrom, DATE dateTo) IF StatisticGroupType type IS StatisticGroupType AND NOT       
+    statistic(type,sku) AND inStat(stock) BY type, dateFrom, dateTo;  
+balanceBNot 'Остаток на начало без групп, шт' (type, date)=
+    GROUP SUM  balanceB (Sku sku, Stock stock, DATE date) IF StatisticGroupType type IS StatisticGroupType AND NOT       
+    statistic(type,sku) AND inStat(stock) BY type, date;  
+balanceANot 'Остаток на конец без групп, шт' (type, date)=
+    GROUP SUM  balanceA (Sku sku, Stock stock, DATE date) IF StatisticGroupType type IS StatisticGroupType AND NOT       
+    statistic(type,sku) AND inStat(stock) BY type, date;         
+
 FORM statisticalReportStockSelectPrint 'Статистический отчет'
     OBJECTS params = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES objFrom = OBJVALUE(dFrom), objTo = OBJVALUE(dTo)
@@ -1188,6 +1198,7 @@ FORM statisticalReportStockSelectPrint 'Статистический отчет'
     OBJECTS c = StatisticGroupType FIXED PANEL
     PROPERTIES SELECTOR name(c)
     PROPERTIES(c) quantityNoGroups
+    PROPERTIES quantitySoldNot(c,dFrom, dTo), balanceBNot(c, dFrom), balanceANot(c, dTo)
     PROPERTIES() stocks, currentDateTime
     
     OBJECTS g=StatisticGroup                                   
