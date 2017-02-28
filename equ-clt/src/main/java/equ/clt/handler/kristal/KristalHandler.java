@@ -506,7 +506,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     sendSoftCheckLogger.info("Kristal: found " + count + " SoftCheckInfo");
 
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    machineryExchangeLogger.error("Kristal CashierTime: ", e);
                 } finally {
                     if (conn != null)
                         conn.close();
@@ -572,7 +572,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     machineryExchangeLogger.info(String.format("Kristal CashierTime: server %s, found %s entries", sqlHost, result.size()));
 
                 } catch (SQLException e) {
-                    e.printStackTrace();
+                    machineryExchangeLogger.error("Kristal CashierTime: ", e);
                 } finally {
                     if (conn != null)
                         conn.close();
