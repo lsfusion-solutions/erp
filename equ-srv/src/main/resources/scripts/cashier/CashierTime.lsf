@@ -6,10 +6,18 @@ CLASS CashierTime 'Время работы кассиров';
 TABLE cashierTime (CashierTime);
 
 @defineExternalizable(cashierTime, VARSTRING[100]);
-employee 'Кассир' = DATA Employee (CashierTime);
+employee = DATA Employee (CashierTime);
 shortNameContact 'Кассир' (CashierTime cashierTime) = shortName(employee(cashierTime));
-cashRegister 'Касса' = DATA CashRegister (CashierTime);
+
+cashRegister = DATA CashRegister (CashierTime);
 numberCashRegister 'Касса' (CashierTime cashierTime) = npp(cashRegister(cashierTime));
+
+departmentStore (CashierTime cashierTime)  = departmentStore(cashRegister(cashierTime));
+nameDeartmentStore 'Отдел магазина' (CashierTime cashierTime) = name(departmentStore(cashierTime));
+
+store (CashierTime cashierTime)  = store(departmentStore(cashRegister(cashierTime)));
+nameStore 'Магазин' (CashierTime cashierTime) = name(store(cashierTime));
+
 logOnDateTime 'Вход в систему' = DATA DATETIME(CashierTime);
 logOnDate 'Вход в систему' = toDate(logOnDateTime(CashierTime CashierTime));
 logOnTime 'Вход в систему' = toTime(logOnDateTime(CashierTime CashierTime));
@@ -19,12 +27,25 @@ logOffTime 'Выход из системы' = toTime(logOffDateTime(CashierTime 
 isZReport 'Время смены' = DATA BOOLEAN(CashierTime);
 
 FORM cashierTime 'Время работы кассиров'
+    OBJECTS c = CashierTime FIXED PANEL 
+    PROPERTIES(c) id, nameStore, isZReport, shortNameContact, numberCashRegister, logOnDateTime, logOffDateTime
+    EDIT CashierTime OBJECT c
+;
+
+FORM dialogCashierTimes 'Время работы кассиров'
     OBJECTS c = CashierTime
-    PROPERTIES (c) isZReport, shortNameContact, numberCashRegister, logOnDateTime, logOffDateTime, ADDOBJ, DELETE
+    PROPERTIES(c) READONLY id, nameStore, isZReport, shortNameContact, numberCashRegister, logOnDateTime, logOffDateTime
+    DIALOG CashierTime OBJECT c
+;
+
+FORM cashierTimes 'Время работы кассиров'
+    OBJECTS c = CashierTime
+    PROPERTIES(c) READONLY id, nameStore, isZReport, shortNameContact, numberCashRegister, logOnDateTime, logOffDateTime
+    PROPERTIES(c) TODRAW c FORCE PANEL TOOLBAR ADDFORM, EDITFORM, DELETE 
 ;
 
 NAVIGATOR {
     machineryMasterData {
-        ADD cashierTime;
+        ADD cashierTimes;
     }
 }
