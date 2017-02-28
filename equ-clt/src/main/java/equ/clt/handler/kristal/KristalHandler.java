@@ -565,7 +565,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                         if (ct.logOffCashier == null) {
                             ct.logOffCashier = getLogOffTime(conn, ct.numberCashier, ct.numberCashRegister, ct.logOnCashier, dateTo);
                         }
-                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport ? "1" : "0");
+                        ct.idCashierTime = ct.numberCashier + "/" + ct.numberCashRegister + "/" + ct.logOnCashier + "/" + ct.logOffCashier + "/" + (ct.isZReport != null ? "1" : "0");
                         dateTo = ct.logOnCashier;
                     }
 
