@@ -584,6 +584,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
     private List<CashierTime> readCashierTime(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir, int start, int limit) throws SQLException {
         List<CashierTime> result = new ArrayList<>();
+        int count122 = 0;
         try (Statement statement = conn.createStatement()) {
             String queryString = "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
                     "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
@@ -593,22 +594,28 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                 String numberCashier = rs.getString(1);
                 Integer numberCashRegister = rs.getInt(2);
+                if(numberCashRegister.equals(122))
+                    count122++;
                 Timestamp timeFrom = rs.getTimestamp(3);
                 Timestamp timeTo = rs.getTimestamp(4);
                 result.add(new CashierTime(null, numberCashier, numberCashRegister,
                         directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, null));
             }
         }
+        machineryExchangeLogger.info("Kristal CashierTime: found " + count122 + " entries for cashNumber 122 in CashierWorkTime");
         return result;
     }
 
     private List<CashierTime> readCashierTimeZReport(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir) throws SQLException {
         List<CashierTime> result = new ArrayList<>();
+        int count122 = 0;
         try (Statement statement = conn.createStatement()) {
             String queryString = "SELECT CashNumber, GangDateStart, GangDateStop FROM OperGang";
             ResultSet rs = statement.executeQuery(queryString);
             while (rs.next()) {
                 Integer numberCashRegister = rs.getInt(1);
+                if(numberCashRegister.equals(122))
+                    count122++;
                 Timestamp timeFrom = rs.getTimestamp(2);
                 Timestamp timeTo = rs.getTimestamp(3);
                 if (timeTo != null)
@@ -616,6 +623,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             directoryGroupCashRegisterMap.get(dir + "_" + numberCashRegister), timeFrom, timeTo, true));
             }
         }
+        machineryExchangeLogger.info("Kristal CashierTime: found " + count122 + " entries for cashNumber 122 in OperGang");
         return result;
     }
 
