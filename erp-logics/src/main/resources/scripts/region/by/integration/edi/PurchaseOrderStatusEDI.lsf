@@ -26,12 +26,22 @@ logSendDocumentOrder(Purchase.Order o) = ACTION FOR ADDOBJ d = DocumentLog DO {
 
 overEmailCustomer(Order.Order order) += ACTION {
     IF NOT consumedEmailCustomer(order ) AND isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
+        
         consumedEmailCustomer(order) <- TRUE;
-        IF countOrderDetail(order) THEN {
-            send[EOrder](order);
-            IF NOT sentDateTime[UserOrder](order) THEN logSendDocumentOrder(order);
-            sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
-        } ELSE MESSAGE 'В заказе нет строк. Отправка отменена.';
+        
+        IF NOT countOrderDetail(order) THEN {
+            MESSAGE 'В заказе нет строк. Отправка отменена.';
+            RETURN;
+        }
+        
+        IF shipmentDateTime(order) < sumMinutes(currentDateTime(), 60) THEN { //конкретно у СТТ текущего + час, поэтому пока для всех такое
+            MESSAGE 'Дата/время поставки не может быть меньше текущего. Отправка отменена.';
+            RETURN;
+        }
+        
+        send[EOrder](order);
+        IF NOT sentDateTime[UserOrder](order) THEN logSendDocumentOrder(order);
+        sentDateTime[UserOrder](order) <- currentDateTime() WHERE NOT sentDateTime[UserOrder](order);
     }
 }
 
