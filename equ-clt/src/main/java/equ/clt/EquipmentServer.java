@@ -432,7 +432,7 @@ public class EquipmentServer {
 
                         requestSalesInfo(remote, requestExchangeList, handler, directorySet);
 
-                        sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
+                        SendSalesEquipmentServer.sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
                         readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, numberAtATime);
 
@@ -465,21 +465,6 @@ public class EquipmentServer {
             if (!ignoredRequests.isEmpty()) {
                 remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
                 remote.errorRequestExchange(ignoredRequests);
-            }
-        }
-    }
-
-    private void sendCashDocument(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
-            throws IOException, SQLException, ClassNotFoundException {
-        Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
-        CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
-        if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
-            sendSalesLogger.info("Sending CashDocuments");
-            String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
-            if (result != null) {
-                reportEquipmentServerError(remote, sidEquipmentServer, result);
-            } else {
-                handler.finishReadingCashDocumentInfo(cashDocumentBatch);
             }
         }
     }

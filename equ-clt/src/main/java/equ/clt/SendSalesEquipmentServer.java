@@ -2,11 +2,13 @@ package equ.clt;
 
 import equ.api.EquipmentServerInterface;
 import equ.api.RequestExchange;
+import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.cashregister.CashRegisterInfo;
 import equ.api.cashregister.ExtraCheckZReportBatch;
 import org.apache.log4j.Logger;
 
+import java.io.IOException;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
 import java.util.HashSet;
@@ -16,6 +18,21 @@ import java.util.Set;
 
 public class SendSalesEquipmentServer {
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+
+    static void sendCashDocument(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
+            throws IOException, SQLException, ClassNotFoundException {
+        Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
+        CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
+        if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
+            sendSalesLogger.info("Sending CashDocuments");
+            String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
+            if (result != null) {
+                EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
+            } else {
+                handler.finishReadingCashDocumentInfo(cashDocumentBatch);
+            }
+        }
+    }
 
     static void extraCheckZReportSum(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
             throws RemoteException, SQLException, ClassNotFoundException {
