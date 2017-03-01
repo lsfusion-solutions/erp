@@ -52,8 +52,10 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
-                context.apply();
-                findAction("createCurrentReceipt[]").execute(context);
+                if (context.apply())
+                    findAction("createCurrentReceipt[]").execute(context);
+                else
+                    ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error (Not Fiscal)");
             } else {
                 String ip = (String) findProperty("ipCurrentCashRegister[]").read(context.getSession());
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
@@ -166,8 +168,10 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                             fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change(result, context, receiptObject);
-                        context.apply();
-                        findAction("createCurrentReceipt[]").execute(context);
+                        if (context.apply())
+                            findAction("createCurrentReceipt[]").execute(context);
+                        else
+                            ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Apply Error");
                     } else {
                         ServerLoggers.systemLogger.error("FiscalVMKPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));

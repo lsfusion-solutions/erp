@@ -51,8 +51,10 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
 
             boolean skipReceipt = findProperty("fiscalSkip[Receipt]").read(context, receiptObject) != null;
             if (skipReceipt) {
-                context.apply();
-                findAction("createCurrentReceipt[]").execute(context);
+                if (context.apply())
+                    findAction("createCurrentReceipt[]").execute(context);
+                else
+                    ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Apply Error (Not Fiscal)");
             } else {
                 Integer comPort = (Integer) findProperty("comPortCurrentCashRegister[]").read(context);
                 Integer baudRate = (Integer) findProperty("baudRateCurrentCashRegister[]").read(context);
@@ -169,8 +171,10 @@ public class FiscalAbsolutPrintReceiptActionProperty extends ScriptingActionProp
                         ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Error: " + result);
                         context.requestUserInteraction(new MessageClientAction((String) result, "Ошибка"));
                     } else {
-                        context.apply();
-                        findAction("createCurrentReceipt[]").execute(context);
+                        if (context.apply())
+                            findAction("createCurrentReceipt[]").execute(context);
+                        else
+                            ServerLoggers.systemLogger.error("FiscalAbsolutPrintReceipt Apply Error");
                     }
                 }
             }
