@@ -53,25 +53,27 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
     }
 
     protected void setupDaemon(DBManager dbManager) throws ScriptingErrorLog.SemanticErrorException, SQLException {
-        setupDaemon(dbManager, null);
+        setupDaemon(dbManager, null, null);
     }
 
-    protected void setupDaemon(DBManager dbManager, Integer port) throws SQLException, ScriptingErrorLog.SemanticErrorException {
+    protected void setupDaemon(DBManager dbManager, String host, Integer port) throws SQLException, ScriptingErrorLog.SemanticErrorException {
 
         if (daemonTasksExecutor != null)
             daemonTasksExecutor.shutdown();
 
         // аналогичный механизм в TerminalServer, но через Thread пока не принципиально
         daemonTasksExecutor = Executors.newSingleThreadExecutor(new DaemonThreadFactory("board-daemon"));
-        daemonTasksExecutor.submit(new DaemonTask(dbManager, port));
+        daemonTasksExecutor.submit(new DaemonTask(dbManager, host, port));
     }
 
     private class DaemonTask implements Runnable {
         DBManager dbManager;
+        String host;
         Integer port;
 
-        public DaemonTask(DBManager dbManager, Integer port) {
+        public DaemonTask(DBManager dbManager, String host, Integer port) {
             this.dbManager = dbManager;
+            this.host = host;
             this.port = port;
         }
 
@@ -80,7 +82,8 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
             ServerSocket serverSocket = null;
             ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, BoardDaemon.this);
             try {
-                serverSocket = new ServerSocket(port == null ? 2004 : port, 1000, Inet4Address.getByName("192.168.35.95"));
+                serverSocket = new ServerSocket(port == null ? 2004 : port, 1000,
+                        host == null ? Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()) : Inet4Address.getByName(host));
             } catch (IOException e) {
                 startLogger.error("BoardDaemon Error: ", e);
                 executorService.shutdownNow();
