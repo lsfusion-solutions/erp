@@ -796,12 +796,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderNumber, boolean sendReplies) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
-        if(findProperty("numberOrder[EOrderDetail]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
-            sendRecipientError(context, url, login, password, host, port, provider, documentId, String.format("Заказ %s не найден)", orderNumber));
-        }
-
         Map<String, String> orderBarcodesMap = new HashMap<>();
-        if(orderNumber != null) {
+        if (orderNumber != null) {
+            if (findProperty("numberOrder[EOrderDetail]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
+                sendRecipientError(context, url, login, password, host, port, provider, documentId, String.format("Заказ %s не найден)", orderNumber));
+            }
+
             KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "eOrderDetail", orderDetailExpr);
 
