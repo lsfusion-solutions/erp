@@ -1078,7 +1078,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
             return null;
 
         try {
-            if (barcode.length() == 12) {
+            if(barcode.length() == 11) {
+                return appendEAN13("0" + barcode).substring(0, 12);
+            } else if (barcode.length() == 12) {
                 return appendEAN13(barcode);
             } else if (barcode.length() == 7) {  //EAN-8
                 int checkSum = 0;
@@ -1098,7 +1100,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     }
 
     private String removeCheckDigitFromBarcode(String barcode, boolean appendBarcode) {
-        if (appendBarcode && barcode != null && (barcode.length() == 13 || barcode.length() == 8)) {
+        if (appendBarcode && barcode != null && (barcode.length() == 13 || barcode.length() == 12 || barcode.length() == 8)) {
             return barcode.substring(0, barcode.length() - 1);
         } else
             return barcode;
