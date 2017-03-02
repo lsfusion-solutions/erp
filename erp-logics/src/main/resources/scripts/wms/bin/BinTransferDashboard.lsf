@@ -1,0 +1,163 @@
+MODULE BinTransferDashboard;
+
+REQUIRE BinOrderTransfer;
+
+NAMESPACE Bin;
+
+performer 'Исполнитель' = ABSTRACT Employee (BinOrder);
+namePerformer 'Исполнитель' (BinOrder order) = name(performer(order));
+
+performer 'Исполнитель' = DATA Employee (UserBinOrder);
+namePerformer 'Исполнитель' (UserBinOrder order) = name(performer(order));
+
+performer (UserBinOrder order) += performer(order);
+
+startPerformDateTime 'Начало выполнения' = ABSTRACT DATETIME (BinOrder);
+startPerformDateTime 'Начало выполнения' = DATA DATETIME (UserBinOrder);
+startPerformDateTime (UserBinOrder order) += startPerformDateTime(order);
+
+finishPerformDateTime 'Окончание выполнения' = ABSTRACT DATETIME (BinOrder);
+finishPerformDateTime 'Окончание выполнения' = DATA DATETIME (UserBinOrder);
+finishPerformDateTime (UserBinOrder order) += finishPerformDateTime(order);
+
+performStatus 'Статус' (BinOrder order) = CASE 
+    WHEN finishPerformDateTime(order) AND NOT toBinTransfer(order) THEN 'Выполнен полностью'
+    WHEN finishPerformDateTime(order) AND toBinTransfer(order) THEN 'Выполнен частично'
+    WHEN startPerformDateTime(order) THEN 'В исполнении'
+    WHEN NOT startPerformDateTime(order) AND NOT finishPerformDateTime(order) THEN 'Новый';
+    
+backgroundPerformStatus (BinOrder order) = CASE
+    WHEN finishPerformDateTime(order) AND NOT toBinTransfer(order) THEN RGB(212,255,212)
+    WHEN finishPerformDateTime(order) AND toBinTransfer(order) THEN RGB(255,238,165)
+    WHEN startPerformDateTime(order) THEN RGB(255,238,165)
+    WHEN NOT startPerformDateTime(order) AND NOT finishPerformDateTime(order) THEN RGB(255,200,216);
+
+EXTEND FORM userBinOrder
+    PROPERTIES (o) namePerformer, startPerformDateTime, finishPerformDateTime
+;
+
+DESIGN userBinOrder {
+    headerTabbedPane {
+        NEW perform {
+            caption = 'Исполнение';
+            type = CONTAINERV;
+            MOVE PROPERTY(namePerformer(o));
+            MOVE PROPERTY(startPerformDateTime(o));
+            MOVE PROPERTY(finishPerformDateTime(o));
+        }
+    }
+}
+
+accept 'Принять' (UserBinOrder order, Employee employee) = ACTION {
+    performer(order) <- employee;
+    startPerformDateTime(order) <- currentDateTime();
+    apply();
+}
+
+accept 'Принять' (UserBinOrder order) = ACTION {
+    accept(order, currentUser());        
+}
+
+skip 'Отменить' (UserBinOrder order) = ACTION {
+    performer(order) <- NULL;
+    startPerformDateTime(order) <- NULL;
+    apply();  
+}
+
+showAccept (UserBinOrder order) = order IS UserBinOrder AND NOT startPerformDateTime(order);
+
+showSkip (UserBinOrder order) = order IS UserBinOrder AND startPerformDateTime(order) 
+    AND performer(order)==currentUser() AND NOT finishPerformDateTime(order);
+    
+fullComplete 'Закончен полностью' (UserBinOrder order) = ACTION {
+    createUserBinTransferPosted(order);
+    finishPerformDateTime(order) <- currentDateTime();
+    apply();
+};
+
+partiallyComplete 'Закончен с отклон.' (UserBinOrder order) = ACTION {
+    createAndShowUserBinTransfer(order);
+    finishPerformDateTime(order) <- currentDateTime();
+    apply();
+};
+
+WHEN SETCHANGED(finishPerformDateTime(UserBinOrder order)) AND binTransferdBinOrderDetail(order) DO {
+    isClosed(order) <- TRUE;
+}
+
+WHEN DROPPED(binTransferdBinOrderDetail(UserBinOrder order)) AND isClosed(order) DO {
+    isClosed(order) <- NULL;
+    finishPerformDateTime(order) <- NULL;
+}
+
+FORM binTransferDashboard 'Перемещения по заказам'
+    PROPERTIES () nameFilterBinOrderStock, nameFilterBinOrderOperation
+
+    OBJECTS dt = DATE FIXED PANEL
+    PROPERTIES date = OBJVALUE(dt)
+    
+    OBJECTS o = BinOrder
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, performStatus BACKGROUND backgroundPerformStatus(o), namePerformer BACKGROUND backgroundPerformStatus(o),
+                                       nameStock, nameOperation, nameOutBin, nameInBin, note                            
+    PROPERTIES accept(o) SHOWIF showAccept(o) FORCE PANEL TOOLBAR, skip(o) SHOWIF showSkip(o) FORCE PANEL TOOLBAR
+    PROPERTIES fullComplete(o) SHOWIF showSkip(o) FORCE PANEL TOOLBAR, partiallyComplete(o) SHOWIF showSkip(o) FORCE PANEL TOOLBAR
+    PROPERTIES (o) edit, DELETE TOOLBAR    
+    FILTERS isPosted(o), isOpened(o), filterStock(o), filterOperation(o)
+    
+    OBJECTS d = BinOrderDetail
+    PROPERTIES (d) index, nameSku, nameOutBin, nameInBin, quantity
+    FILTERS binOrder(d)==o
+    
+    OBJECTS t = BinTransfer
+    PROPERTIES (t) READONLY isPosted, number, series, date, time, nameStock, nameOperation, nameOutBin, nameInBin, note
+    PROPERTIES(t) edit, DELETE TOOLBAR
+    FILTERS isPosted(o), filterStock(o), filterOperation(o)
+    FILTERGROUP date
+        FILTER 'На дату' date(t)==dt 'F9' DEFAULT
+;
+
+DESIGN binTransferDashboard {
+    main {
+
+        NEW dash BEFORE functions.box{
+            fill = 1;
+            type = SPLITV;
+            NEW header {
+                fill = 1;                         
+                MOVE o.box;
+
+            }
+            NEW pickings {
+                fill = 1;
+                type = TABBED;
+                MOVE t.box;
+                NEW detailContainer {
+                    type = SPLITH;
+                    caption = 'Детализация заказа';
+//                    MOVE skuTree.tree.box{
+//                        caption = 'Группы';
+//                    }
+                    MOVE d.box{
+                        fill = 3;
+                    }                   
+                }
+            }
+        }          
+        NEW secondContainer BEFORE dash {
+            type = CONTAINERH;
+            caption = 'Фильтры';
+            type = CONTAINERH;
+            MOVE PROPERTY(date);
+            MOVE PROPERTY(nameFilterBinOrderStock());
+            MOVE PROPERTY(nameFilterBinOrderOperation());                
+        }
+    }
+}
+
+NAVIGATOR {
+    dashboardNavigator {
+        NEW WMS 'WMS' {
+            ADD binTransferDashboard;    
+        }
+    }
+}
