@@ -187,6 +187,43 @@ createListInventoryZones 'Создать описи по зонам' (Inventory 
 }
     
 diffFilter (Inventory i, Zone z, Sku s) =   quantity (i,z,s) AND NOT overToQuantity(i,z,s);
+select = DATA LOCAL BOOLEAN (Zone);
+
+FORM diffZone 'Расхождения между комиссиями'
+    OBJECTS          in=Inventory FIXED PANEL
+    PROPERTIES (in)  seriesNumber, number, series,
+                     name, nameTypeOfAddition, nameIncludeSkuGroups SHOWIF isPartly(in) ON CHANGE changeSkuGroups(in), date, time,
+                     note, isPartly SHOWIF isRemains(in),
+                     timeFrom, timeTo, nameHeadMan,
+                     nameCommittee, nameChairmanCommittee, nameEmployee
+
+    OBJECTS zz = Zone
+    PROPERTIES (zz) READONLY id, name, nameListInventories
+    FILTERS in(in,zz),
+            select(zz)
+ 
+    OBJECTS co = Commission
+    FILTERS in(in,co)
+ 
+    OBJECTS ls = Sku FIXED GRID     
+    PROPERTIES (ls) READONLY id, idBarcode, name    
+    PROPERTIES READONLY quantity(in,zz,co,ls) COLUMNS (co) HEADER name(co)
+    PROPERTIES toQuantity (in,zz,ls) BACKGROUND background(in,zz,ls)
+    
+    FILTERS diffFilter (in,zz,ls)    
+;
+
+printDiffZone 'Расхождения (зона)' (Inventory in, Zone z) = ACTION {
+    select(Zone zz) <- NULL;
+    select (z) <- TRUE;
+    PRINT diffZone OBJECTS in = in;
+} IMAGE 'print.png' IN print;
+
+printDiffZone 'Расхождения (все)' (Inventory in) = ACTION {
+    select(Zone zz) <- NULL;
+    select (Zone zz) <- TRUE WHERE in(in,zz);
+    PRINT diffZone OBJECTS in = in;
+} IMAGE 'print.png' IN print;
     
 EXTEND FORM inventory
     PROPERTIES countCommissions(in) BACKGROUND hintSoldBackground()
@@ -213,7 +250,7 @@ EXTEND FORM inventory
             terminalDocument(tdd) == td     
     
     OBJECTS ls = Sku FIXED GRID     
-    PROPERTIES (ls) READONLY id, idBarcode, name    
+    PROPERTIES (ls) READONLY id, idBarcode, name, shortNameUOM    
     PROPERTIES READONLY quantity(in,zz,co,ls) COLUMNS (co) HEADER name(co)
     PROPERTIES toQuantity (in,zz,ls) BACKGROUND background(in,zz,ls)
     
@@ -222,6 +259,7 @@ EXTEND FORM inventory
         FILTER 'Разногласия' diffFilter (in,zz,ls)  'F10'     
       
     PROPERTIES (in) TOOLBAR TODRAW ds createListInventoryZones 
+    PROPERTIES FORCE PANEL TOOLBAR  TODRAW ls printDiffZone(in,zz), printDiffZone(in)
 ;
 DESIGN inventory {
     topContainer {
