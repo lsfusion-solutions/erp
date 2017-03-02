@@ -94,6 +94,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
                         ip = inetAddress.getHostName();
                         ipMap.put(inetAddress, ip);
                     }
+                    barcode = barcode.length() > 1 ? barcode.substring(1) : barcode;
                     byte[] message = readMessage(BL, barcode, ip);
                     outToClient.write(message);
                 }
@@ -113,8 +114,11 @@ public class NewLandBoardDaemon extends BoardDaemon {
             terminalLogger.info(String.format("NewLand request ip %s, barcode %s", ip, idBarcode));
             try (DataSession session = dbManager.createSession()) {
 
-                ObjectValue stockObject = BL.getModule("PriceChecker").findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));
-                ObjectValue skuObject = BL.getModule("Barcode").findProperty("skuBarcode[VARSTRING[15]]").readClasses(session, new DataObject(idBarcode.substring(1)));
+                String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
+                if (weightPrefix != null && idBarcode.length() == 13 && idBarcode.startsWith(weightPrefix))
+                    idBarcode = idBarcode.substring(2, 7);
+                ObjectValue stockObject = LM.findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));
+                ObjectValue skuObject = LM.findProperty("skuBarcode[VARSTRING[15]]").readClasses(session, new DataObject(idBarcode));
 
                 String error = null;
                 if(skuObject instanceof NullValue)
@@ -122,53 +126,49 @@ public class NewLandBoardDaemon extends BoardDaemon {
                 if(stockObject instanceof NullValue)
                     error = "Неверные параметры сервера";
 
-                if(error == null) {
-
+                if (error == null) {
                     String captionItem = (String) BL.getModule("Item").findProperty("name[Item]").read(session, skuObject);
                     byte[] captionBytes = getTextBytes(captionItem, 20);
 
                     BigDecimal price = (BigDecimal) BL.getModule("MachineryPriceTransaction").findProperty("transactionPrice[Sku,Stock]").read(session, skuObject, stockObject);
-                    String priceItem = new DecimalFormat("###,###.##").format(price == null ? BigDecimal.ZERO : price.doubleValue());
-                    byte[] priceBytes = priceItem.getBytes(charset);
-
-                    ByteBuffer bytes = ByteBuffer.allocate(9 + captionBytes.length + priceBytes.length);
-                    bytes.put((byte) 0x1b);
-                    bytes.put((byte) 0x42);
-                    bytes.put((byte) 0x30); //normal font size
-
-                    bytes.put((byte) 0x1b);
-                    bytes.put((byte) 0x25); //clear screen, cursor top left
-
-                    bytes.put(captionBytes);
-
-                    bytes.put((byte) 0x1b);
-                    bytes.put((byte) 0x2e);
-                    bytes.put((byte) 0x38); //align right bottom
-
-                    bytes.put(priceBytes);
-                    bytes.put((byte) 0x03); //end
-                    return bytes.array();
-                } else {
-
-                    byte[] errorBytes = getTextBytes(error, 10);
-
-                    ByteBuffer bytes = ByteBuffer.allocate(9 + errorBytes.length);
-                    bytes.put((byte) 0x1b);
-                    bytes.put((byte) 0x42);
-                    bytes.put((byte) 0x31); //big font size
-
-                    bytes.put((byte) 0x1b);
-                    bytes.put((byte) 0x25); //clear screen, cursor top left
-
-                    bytes.put((byte) 0x1b);
-                    bytes.put((byte) 0x2e);
-                    bytes.put((byte) 0x34); //align center
-
-                    bytes.put(errorBytes);
-                    bytes.put((byte) 0x03); //end
-                    return bytes.array();
+                    if (price == null || price.equals(BigDecimal.ZERO)) {
+                        error = "Штрихкод не найден";
+                    } else {
+                        return getPriceBytes(captionBytes, price);
+                    }
                 }
+                return getErrorBytes(error);
             }
+        }
+
+        private byte[] getPriceBytes(byte[] captionBytes, BigDecimal price) throws UnsupportedEncodingException {
+            byte[] priceBytes = (new DecimalFormat("###,###.##").format(price.doubleValue()) + " руб.").getBytes(charset);
+            ByteBuffer bytes = ByteBuffer.allocate(12 + captionBytes.length + priceBytes.length);
+
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x42, (byte) 0x30}); //normal font size
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x25}); //clear screen, cursor top left
+            bytes.put(captionBytes);
+
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x42, (byte) 0x36}); //large font size
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x2e, (byte) 0x38 }); //align right bottom
+            bytes.put(priceBytes);
+
+            bytes.put((byte) 0x03); //end
+            return bytes.array();
+        }
+
+        private byte[] getErrorBytes(String error) throws UnsupportedEncodingException {
+            byte[] errorBytes = getTextBytes(error, 10);
+
+            ByteBuffer bytes = ByteBuffer.allocate(9 + errorBytes.length);
+
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x42, (byte) 0x31}); //big font size
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x25}); //clear screen, cursor top left
+            bytes.put(new byte[] {(byte) 0x1b, (byte) 0x2e, (byte) 0x34}); //align center
+            bytes.put(errorBytes);
+
+            bytes.put((byte) 0x03); //end
+            return bytes.array();
         }
 
         private byte[] getTextBytes(String text, int lineLength) throws UnsupportedEncodingException {
@@ -182,7 +182,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
                 if ((line.length() + word.length() + separator.length()) <= lineLength)
                     line += separator + word;
                 else {
-                    if(i == 6)
+                    if (i == 6)
                         break;
                     for (byte b : line.getBytes(charset)) {
                         bytes.add(b);
@@ -194,7 +194,7 @@ public class NewLandBoardDaemon extends BoardDaemon {
 
                 }
             }
-            if(i != 6 && !line.isEmpty()) {
+            if (i != 6 && !line.isEmpty()) {
                 for (byte b : line.getBytes(charset)) {
                     bytes.add(b);
                 }
