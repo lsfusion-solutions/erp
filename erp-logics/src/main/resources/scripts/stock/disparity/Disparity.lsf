@@ -318,6 +318,12 @@ EXTEND FORM disparity
         FILTER 'В документе ' quantity(b, dis, sto) 'F9'
 ;
 
+skipShowEdit = ABSTRACT BOOLEAN (Disparity);
+skipShowDelete = ABSTRACT BOOLEAN (Disparity);
+
+showEdit (Disparity d) = isOpened(d) AND NOT skipShowEdit(d); 
+showDelete(Disparity d) = isOpened(d) AND NOT skipShowDelete(d);
+
 FORM disparities 'Изменения сортности'
 
     OBJECTS dis=Disparity
@@ -329,10 +335,10 @@ FORM disparities 'Изменения сортности'
     PROPERTIES(dis)  READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                           postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF isOpened(dis)
+    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF showEdit(dis)
     PROPERTIES(dis)  close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
     
-    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(dis)
+    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF showDelete(dis)
 
     OBJECTS d=DisparityDetail
     PROPERTIES(d)   READONLY index,
