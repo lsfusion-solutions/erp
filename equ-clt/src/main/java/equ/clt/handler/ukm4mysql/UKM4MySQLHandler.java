@@ -1079,7 +1079,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
 
         try {
             if(barcode.length() == 11) {
-                return appendEAN13("0" + barcode).substring(0, 12);
+                return appendEAN13("0" + barcode).substring(1, 13);
             } else if (barcode.length() == 12) {
                 return appendEAN13(barcode);
             } else if (barcode.length() == 7) {  //EAN-8
