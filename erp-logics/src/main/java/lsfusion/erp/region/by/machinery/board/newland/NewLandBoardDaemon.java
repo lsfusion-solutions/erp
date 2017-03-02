@@ -115,7 +115,8 @@ public class NewLandBoardDaemon extends BoardDaemon {
             try (DataSession session = dbManager.createSession()) {
 
                 String weightPrefix = (String) LM.findProperty("weightPrefixIP").read(session, new DataObject(ip));
-                if (weightPrefix != null && idBarcode.length() == 13 && idBarcode.startsWith(weightPrefix))
+                String piecePrefix = (String) LM.findProperty("piecePrefixIP").read(session, new DataObject(ip));
+                if (weightPrefix != null && idBarcode.length() == 13 && (idBarcode.startsWith(weightPrefix) || idBarcode.startsWith(piecePrefix)))
                     idBarcode = idBarcode.substring(2, 7);
                 ObjectValue stockObject = LM.findProperty("stockIP[VARSTRING[100]]").readClasses(session, new DataObject(ip));
                 ObjectValue skuObject = LM.findProperty("skuBarcode[VARSTRING[15]]").readClasses(session, new DataObject(idBarcode));
