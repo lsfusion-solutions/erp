@@ -372,6 +372,42 @@ DESIGN dialogLegalEntities {
     }
 }
 
+copy 'Копировать' (LegalEntity l) = ACTION {
+    NEWSESSION {
+        FOR ADDOBJ newL = LegalEntity DO {
+            name(newL) <- name(l);
+            legalEntityGroup(newL) <- legalEntityGroup(l);
+            ownership(newL) <- ownership(l);
+            country(newL) <- country(l);
+            language(newL) <- language(l);
+            currency(newL) <- currency(l);
+            inactive(newL) <- inactive(l);
+            fullName(newL) <- fullName(l);
+            dataAddress(newL, DATE d) <- dataAddress(l, d);
+            dataPostAddress(newL, DATE d) <- dataPostAddress(l, d);
+//            dataChief(newL, DATE d) <- dataChief(l, d);
+//            dataBooker(newL, DATE d) <-  dataBooker(l, d);
+//            dataPhone(newL, DATE d) <- dataPhone(l, d);
+//            email(newL) <-  email(l);
+//            site(newL) <- site(l);
+//            contacts(newL) <- contacts(l);
+            isSupplier(newL) <- isSupplier(l);
+            isCompany(newL) <- isCompany(l);
+            isCustomer(newL) <- isCustomer(l);
+//            differentStocksInDetails(newL) <- differentStocksInDetails(l);
+
+            FOR legalEntity(License ls) == l ADDOBJ newLs = License DO {
+                legalEntity(newLs) <- newL;
+                number(newLs) <- number(ls);
+                dateFrom(newLs) <- dateFrom(ls);                
+                dateTo(newLs) <- dateTo(ls);                
+            }
+            
+            FORM legalEntity OBJECTS l = newL DOCKED MANAGESESSION;
+        }
+    }
+}
+
 FORM legalEntities 'Организации'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
@@ -384,7 +420,7 @@ FORM legalEntities 'Организации'
                                           nameLegalEntityGroup
     PROPERTIES(l) READONLYIF isReadonly() address, phone, email
     PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
-    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replace FORCE PANEL TOOLBAR 
+    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replace FORCE PANEL TOOLBAR, copy FORCE PANEL TOOLBAR 
     ORDER BY nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
     FILTERS isParent(legalEntityGroup(l), lg) OR

@@ -76,6 +76,25 @@ loadDefaultLegalEntityGroups () += ACTION  {
 
 }
 
+uniqueUNPSupplier 'Запретить повтор УНП для поставщиков' = DATA BOOLEAN ();
+CONSTRAINT uniqueUNPSupplier() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP SUM 1 IF isSupplier(LegalEntity l) BY UNP(l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП для поставщиков';
+
+uniqueUNPCustomer 'Запретить повтор УНП для покупателей' = DATA BOOLEAN ();
+CONSTRAINT uniqueUNPCustomer() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP SUM 1 IF isCustomer(LegalEntity l) BY UNP(l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП для покупателей';
+
+uniqueUNP 'Запретить повтор УНП' = DATA BOOLEAN ();
+CONSTRAINT uniqueUNP() AND CHANGED (UNP(LegalEntity l)) AND [= GROUP SUM 1 BY UNP(LegalEntity l)](UNP(l)) > 1 MESSAGE 'Запрещен повтор УНП';
+
+EXTEND FORM options
+    PROPERTIES() uniqueUNPSupplier, uniqueUNPCustomer, uniqueUNP
+;
+DESIGN options {
+    commons {
+        MOVE PROPERTY(uniqueUNPSupplier());
+        MOVE PROPERTY(uniqueUNPCustomer());
+        MOVE PROPERTY(uniqueUNP());
+    }
+}
 
 
 
