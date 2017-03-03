@@ -102,7 +102,7 @@ GLDocument (UserGeneralLedger generalLedger) += GLDocument (generalLedger);
 
 editGLDocument 'Редактировать регистр' (GeneralLedger generalLedger) = ACTION edit(GLDocument(generalLedger));
 
-legalEntity = ABSTRACT LegalEntity (GeneralLedger) PERSISTENT;
+legalEntity = ABSTRACT LegalEntity (GeneralLedger) PERSISTENT NOT NULL;
 nameLegalEntity 'Компания' (GeneralLedger generalLedger) = name(legalEntity(generalLedger));
 legalEntity = DATA LegalEntity (UserGeneralLedger);
 nameLegalEntity 'Компания' (UserGeneralLedger userGeneralLedger) = name(legalEntity(userGeneralLedger));
@@ -298,6 +298,8 @@ copy 'Копировать'(GeneralLedger generalLedger) = ACTION NEWSESSION {
     }
 } TOOLBAR;
 
+accessCompany(GeneralLedger gl) = accessCompany(currentUser(), legalEntity(gl)); 
+
 FORM generalLedgers 'Проводки'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
@@ -312,6 +314,7 @@ FORM generalLedgers 'Проводки'
                    idOperation, description, numberGLDocument, seriesGLDocument, idDebit,
                    idCredit, quantity, sum
     ORDER BY dateTime(g), nameGLDocument(g)
+    FILTERS accessCompany(g)
 //    todo : не работает поскольку для абстрактного свойства не задано ни одной реализации
 //    PROPERTIES(g)  editGLDocumentGeneralLedger
 
@@ -479,13 +482,19 @@ END
 
 // ----------------------------------------------- Метакод по созданию проводок через ACTION -------------------------------------------- //
 
-createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (LegalEntity, DATE,DATE); 
+createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (LegalEntity, DATE, DATE); 
 
 createGeneralLedger 'Создать проводки' (LegalEntity legalEntity, DATE dFrom, DATE dTo) = ACTION {
     DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo;
     createGeneralLedgerFromTo(legalEntity, dFrom, dTo);
     apply();
 } CONFIRM;
+
+createGeneralLedger(DATE dFrom, DATE dTo) = ACTION {
+    FOR isCompany(LegalEntity l) AND l IS LegalEntity DO {
+        createGeneralLedger(l, dFrom, dTo);
+    }
+}
 
 EXTEND FORM generalLedgers
     PROPERTIES(l, dFrom, dTo) createGeneralLedger 
