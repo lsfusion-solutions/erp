@@ -6,8 +6,12 @@ NAMESPACE Purchase;
 
 //-----------------------------------------------------------------------------------------------------------//
 
+@defineOption(defaultDemandOrderPeriod, 'Период (дней) для заказов по потребностям', INTEGER, purchase);
+
 dateFromSoldPeriod 'Дата с' = DATA DATE (UserOrder);
 dateToSoldPeriod 'Дата по' = DATA DATE (UserOrder);
+
+fromShipmentDate 'Начало периода' (UserOrder userOrder) = subtract(date(userOrder), (OVERRIDE defaultDemandOrderPeriod(), quantityDaysNextShipment(userOrder)));   
 
 WHEN SESSION CHANGED (fromShipmentDate(UserOrder o)) AND NOT CHANGED(dateFromSoldPeriod(o)) DO {
     dateFromSoldPeriod(o) <- fromShipmentDate(o);   
