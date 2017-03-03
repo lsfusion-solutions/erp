@@ -161,6 +161,29 @@ EXTEND FORM invoices PROPERTIES(d) SHOWIF createPricing[UserInvoice](i) BACKGROU
 @deriveDocumentDetailBatchOnSessionPriceListType(UserInvoiceDetail, retail, pricing, customerStock, userInvoice, pricing);
 @recalculateDocumentDetailBatchOnSessionPriceListType (UserInvoiceDetail, retail, pricing, customerStock, userInvoice, pricing, '', pd);
 
+recalculateRetailPriceAndType 'Пересчитать вид цен и розничную цену' () = ACTION {
+    FOR sku(UserInvoiceDetail detail) AND PriceListType pt == calcRetailPriceListType(detail)
+        AND NOT skipSetRetailPriceListType(detail) 
+        AND [= FILTER userInvoice.pd](detail) NOINLINE (pt) INLINE DO {
+        
+        retailPriceListType(detail) <- IF prevPriceB(pt, sku(detail), customerStock(detail), pricingDateTime(detail))
+                                       THEN pt
+                                       ELSE OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);
+    } 
+       
+    FOR sku(UserInvoiceDetail detail) AND NOT calcRetailPriceListType(detail)
+        AND NOT skipSetRetailPriceListType(detail) 
+        AND [= FILTER userInvoice.pd](detail) DO {
+        
+        retailPriceListType(detail) <- OVERRIDE calcRetailCalcPriceListType(detail), extraCalcRetailCalcPriceListType(detail);    
+    } 
+    recalculateRetailPrice();
+} 
+
+EXTEND FORM userInvoice
+    PROPERTIES() recalculateRetailPriceAndType TODRAW pd FORCE PANEL TOOLBAR  
+;
+
 // Изменяем учетную цену
 calcShipmentPrice(UserInvoiceDetail detail) += WHEN customerStock(detail) IS DepartmentStore AND NOT costLedger(customerStock(detail))
                                                 THEN retailPrice(detail);
