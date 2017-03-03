@@ -257,10 +257,6 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
 //                LOCAL takenSku = NUMERIC[14,3] (Sku);
 //                takenSku(sku) <- [= GROUP SUM takenReceiptSaleDetail(detail) BY skuReceiptSaleDetail(detail)] (sku);
 
-                // Отнимаем использованные
-                leftQuantity(ReceiptSaleDetail detail) <- leftQuantity(detail) (-) taken(detail);
-//                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
-
                 IF useAllQuantity(promotion) THEN
                     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- use(detail, condition)
                         WHERE use(detail, condition)
@@ -268,15 +264,30 @@ calculatePromotions 'Рассчитать акции'(Receipt receipt) = ACTION 
                     quantity(ReceiptSaleDetail detail, PromotionCondition condition) <- taken(detail, condition)
                         WHERE taken(detail, condition);
 
-                
+
+                // считаем остатки суммы по скидки на чек
+                LOCAL leftSum = NUMERIC[16,3] (PromotionCondition);
+                leftSum(PromotionCondition c) <- [= GROUP SUM leftSum(ReceiptSaleDetail detail) * taken(detail, PromotionCondition condition) / leftQuantity(detail) BY condition](c) - sumReceipt(c) * count(c);
+                leftSum(PromotionCondition c) <- NULL WHERE leftSum(c) <= 0.0;
+
                 promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
-                    CASE WHEN sumReceipt(condition) THEN taken(detail, condition) * (price(detail) (-) sumReceipt(condition) / quantityDiscount (condition))
-                         WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
+                    PARTITION UNGROUP leftSum
+                            PROPORTION STRICT ROUND(2) leftSum(detail) IF taken(detail, condition)
+                            BY condition
+                            ORDER detail
+                    WHERE taken(detail, condition) AND sumReceipt(condition);
+
+                promotionSum (ReceiptSaleDetail detail, PromotionCondition condition) <-
+                    CASE WHEN sumDiscount(condition) THEN taken(detail, condition) * sumDiscount(condition)
                          WHEN resultPrice(condition, sku(detail)) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition, sku(detail)))
                          WHEN resultPrice(condition) THEN taken(detail, condition) * (leftSum(detail) / quantity(detail) - resultPrice(condition))
                          WHEN priceListType(condition) THEN taken(detail, condition) * (price(detail) - priceA(priceListType(condition), sku(detail), departmentStore(detail), overDateTime(detail)))
                          WHEN condition IS PromotionCondition THEN taken(detail, condition) * ((leftSum(detail) (-) (bonusPaid(detail) IF useBonus(condition))) / quantity(detail) * percent(condition) / 100)
-                    WHERE taken(detail, condition);
+                    WHERE taken(detail, condition) AND NOT sumReceipt(condition);
+
+                // Отнимаем использованные
+                leftQuantity(ReceiptSaleDetail detail) <- leftQuantity(detail) (-) taken(detail);
+//                leftSku(sku) <- leftSku(sku) (-) takenSku(sku);
             }
         }
     }
