@@ -1,6 +1,6 @@
 MODULE GeneralLedger;
 
-REQUIRE GLAccountType, Operation;
+REQUIRE GLAccountType, Operation, EmployeeLegalEntity;
 
 CLASS ABSTRACT GLDocument 'Регистр-основание';
 TABLE GLDocument(GLDocument);
@@ -27,9 +27,25 @@ reportinGeneralLedger 'Запретить редактировать прово�
 dateReportingGeneralLedger 'Дата отчетного периода' = DATA DATE () IN generalLedger;
 dataMaxDateGeneralLedger 'Конец отчетного периода' = DATA DATE ();
 maxDateGeneralLedger 'Конец отчетного периода' = OVERRIDE 2040_12_31, dataMaxDateGeneralLedger();
+legalEntityGeneralLedger  = DATA LegalEntity ();
+nameLegalEntityGeneralLedger 'Организация' = name(legalEntityGeneralLedger());
+changeLegalEntityGeneralLedger() = ACTION {
+    FORM companyLegalEntities;
+    IF formResult() == FormResult.ok THEN {
+        legalEntityGeneralLedger() <- chosenObject('l');            
+    }
+}
+
+defineLegalEntityGeneralLedger() = ACTION {
+    legalEntityGeneralLedger() <- [=GROUP LAST LegalEntity l IF isCompany(l) AND accessCompany(Employee user, l)  BY user ORDER DESC l](currentUser());    
+}
 
 EXTEND FORM options
-    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger, maxDateGeneralLedger
+    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger, maxDateGeneralLedger, 
+                 nameLegalEntityGeneralLedger ON CHANGE changeLegalEntityGeneralLedger()
+    FILTERS accessCompany(currentUser(), legalEntityGeneralLedger())
+    EVENTS
+        ON INIT defineLegalEntityGeneralLedger()    
 ;
 DESIGN options {
     pane {
@@ -41,8 +57,9 @@ DESIGN options {
             NEW period {
                 type = CONTAINERH;
                 MOVE PROPERTY (dateReportingGeneralLedger());
-                MOVE PROPERTY (maxDateGeneralLedger());            
+                MOVE PROPERTY (maxDateGeneralLedger());                     
             }
+            MOVE PROPERTY(nameLegalEntityGeneralLedger());
         }
     }
 }
@@ -284,6 +301,11 @@ copy 'Копировать'(GeneralLedger generalLedger) = ACTION NEWSESSION {
 FORM generalLedgers 'Проводки'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
+    
+    OBJECTS l = LegalEntity FIXED PANEL 
+    PROPERTIES(l) SELECTOR name
+    FILTERS isCompany(l),
+            accessCompany(currentUser(), l)    
         
     OBJECTS g = GeneralLedger
     PROPERTIES(g)  READONLY isPosted FORCE GRID, dateTime, nameLegalEntity, nameGLDocument,
@@ -306,13 +328,31 @@ FORM generalLedgers 'Проводки'
     DIALOG GeneralLedger OBJECT g
 ;
 DESIGN generalLedgers {
-    NEW documentHistory BEFORE functions.box {
+    NEW topContainer {
+        type = CONTAINERH;
+        MOVE dates.box{
+            caption = 'Период';
+            PROPERTY(valFrom){
+                caption = 'Дата с';
+            }
+            PROPERTY(valTo){
+                caption = 'Дата по';
+            }
+        }
+        MOVE l.box{
+            PROPERTY(name(l)){
+                caption = '';
+            }
+        }
+    }
+    MOVE g.box;
+    NEW documentHistory {
         caption = 'История';
 
         MOVE g.created;
         MOVE g.posted;
     }
-    MOVE g.box BEFORE documentHistory;
+    MOVE functions.box;
 }
 
 NAVIGATOR {
@@ -439,20 +479,20 @@ END
 
 // ----------------------------------------------- Метакод по созданию проводок через ACTION -------------------------------------------- //
 
-createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (DATE,DATE); 
+createGeneralLedgerFromTo  = ACTION ABSTRACT LIST (LegalEntity, DATE,DATE); 
 
-createGeneralLedger 'Создать проводки' (DATE dFrom, DATE dTo) = ACTION {
+createGeneralLedger 'Создать проводки' (LegalEntity legalEntity, DATE dFrom, DATE dTo) = ACTION {
     DELETE UserGeneralLedger ud WHERE ud IS UserGeneralLedger AND date(ud) >= dFrom AND date(ud) <= dTo;
-    createGeneralLedgerFromTo(dFrom, dTo);
+    createGeneralLedgerFromTo(legalEntity, dFrom, dTo);
     apply();
 } CONFIRM;
 
 EXTEND FORM generalLedgers
-    PROPERTIES(dFrom, dTo) createGeneralLedger 
+    PROPERTIES(l, dFrom, dTo) createGeneralLedger 
 ;
 
 createGeneralLedger 'Создать проводки за отчетный период'() = ACTION {
-    createGeneralLedger(dateReportingGeneralLedger(), maxDateGeneralLedger());
+    createGeneralLedger(legalEntityGeneralLedger(), dateReportingGeneralLedger(), maxDateGeneralLedger());
 } IN generalLedger;
 
 EXTEND FORM options 
@@ -470,8 +510,8 @@ DESIGN options {
 META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
     overCreate###idGL###object = ACTION ABSTRACT LIST (UserGeneralLedger);  
 
-    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(DATE dateProp, DATE dateProp##To) = ACTION {     
-        FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(LegalEntity l, DATE dateProp, DATE dateProp##To) = ACTION {     
+        FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) AND companyProp(object) == l ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object;
             legalEntity(u) <- companyProp(object);
             isPosted(u) <- isPosted(object);
@@ -485,7 +525,7 @@ META defineGeneralLedger (object, idGL, companyProp, property, dateProp, timePro
             EXEC overCreate###idGL###object(u); 
         }    
     }
-    createGeneralLedgerFromTo(DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL###idGL###object##FromTo(date,dateTo);
+    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL###idGL###object##FromTo(l, date,dateTo);
 END
 // дата 
 META defineGeneralLedger (object, idGL, companyProp, property, descriptionProp, debitV, creditV, accountType)
@@ -521,8 +561,8 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
     
-    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(DATE dateProp,DATE dateProp##To) = ACTION {     
-        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(LegalEntity l, DATE dateProp,DATE dateProp##To) = ACTION {     
+        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) AND companyProp(object1) == l ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;
             legalEntity(u) <- companyProp(object1);
             isPosted(u) <- isPosted(object1);
@@ -537,7 +577,7 @@ META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, d
             overCreate##idGL###object1###object2(u); 
         }    
     }
-    createGeneralLedgerFromTo(DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL##idGL###object1###object2##FromTo(date, dateTo);
+    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL##idGL###object1###object2##FromTo(l, date, dateTo);
 END
 // дата 
 META defineGeneralLedgerDouble (object1, object2, idGL, companyProp, property, descriptionProp, debitV, creditV, accountType)

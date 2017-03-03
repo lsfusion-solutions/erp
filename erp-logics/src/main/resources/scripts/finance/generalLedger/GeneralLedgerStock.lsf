@@ -42,8 +42,8 @@ EXTEND FORM generalLedgers
 META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, dateProp, timeProp, descriptionProp, debitV, creditV, accountType)
     overCreate###idGL###object = ACTION ABSTRACT LIST (UserGeneralLedger);  
 
-    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(DATE dateProp, DATE dateProp##To) = ACTION {     
-        FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+    createUserGeneralLedgerALL###idGL###object##FromTo 'Создать проводки за период'(LegalEntity l, DATE dateProp, DATE dateProp##To) = ACTION {     
+        FOR property(###object object) AND dateProp(object) >= (date AS DATE) AND dateProp(object) <= (dateTo AS DATE) AND companyProp(object) == l ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object;
             legalEntity(u) <- companyProp(object);
             stock(u) <- stockProp(object);
@@ -58,7 +58,7 @@ META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, d
             EXEC overCreate###idGL###object(u); 
         }    
     }
-    createGeneralLedgerFromTo(DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL###idGL###object##FromTo(date,dateTo);
+    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL###idGL###object##FromTo(l, date,dateTo);
 END
 // дата 
 META defineGeneralLedgerStock (object, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType)
@@ -93,8 +93,8 @@ META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockP
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger);  
     overCreate##idGL###object1###object2 = ACTION ABSTRACT LIST (UserGeneralLedger, Dimension);  
     
-    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(DATE dateProp,DATE dateProp##To) = ACTION {     
-        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) ADDOBJ u = UserGeneralLedger DO  {
+    createUserGeneralLedgerALL##idGL###object1###object2##FromTo 'Создать проводки'(LegalEntity l, DATE dateProp,DATE dateProp##To) = ACTION {     
+        FOR property(###object1 object1, ###object2 object2) AND dateProp(object1) >= (date AS DATE) AND dateProp(object1) <= (dateTo AS DATE) AND companyProp(object1) == l ADDOBJ u = UserGeneralLedger DO  {
             GLDocument(u) <- object1;
             legalEntity(u) <- companyProp(object1);
             stock(u) <- stockProp(object1);
@@ -110,7 +110,7 @@ META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockP
             overCreate##idGL###object1###object2(u); 
         }    
     }
-    createGeneralLedgerFromTo(DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL##idGL###object1###object2##FromTo(date, dateTo);
+    createGeneralLedgerFromTo(LegalEntity l, DATE date,DATE dateTo) += ACTION createUserGeneralLedgerALL##idGL###object1###object2##FromTo(l, date, dateTo);
 END
 // дата 
 META defineGeneralLedgerDoubleStock (object1, object2, idGL, companyProp, stockProp, property, descriptionProp, debitV, creditV, accountType)
