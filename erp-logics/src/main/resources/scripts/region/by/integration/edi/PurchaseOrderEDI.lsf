@@ -34,20 +34,25 @@ response = GROUP MAX EOrderResponse e BY eOrder(e);
 responseNote 'Примечание поставщика' (Purchase.Order o) = note(response(o)) IN documentPrm;
  
 responseDetail = GROUP MAX EOrderResponseDetail ed IF eOrder(orderResponse(ed)) == order(Purchase.UserOrderDetail d) AND sku(ed) == sku(d) BY d;
+
 quantityResponseEDI 'Подтвержденное количество (EDI)'(Purchase.OrderDetail d) = quantityAccepted(responseDetail(d));
+backgroundQuantityResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
 quantityResponseEDI = GROUP SUM quantityResponseEDI(UserOrderDetail d) BY userOrder(d);
- 
-backgroundResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
+
+priceResponseEDI 'Подтвержденная цена (EDI)'(Purchase.OrderDetail d) = price(responseDetail(d));
+backgroundPriceResponseEDI = ABSTRACT COLOR (Purchase.OrderDetail);
 
 EXTEND FORM userOrder
     PROPERTIES (o) READONLY SHOWIF isEOrder(o) responseNote 
-    PROPERTIES (d) READONLY SHOWIF isEOrder(d) BEFORE quantity(d) quantityResponseEDI BACKGROUND backgroundResponseEDI(d); 
+    PROPERTIES (d) READONLY SHOWIF isEOrder(d) quantityResponseEDI BEFORE quantity(d) BACKGROUND backgroundQuantityResponseEDI(d), 
+                                               priceResponseEDI BEFORE price(d) BACKGROUND backgroundPriceResponseEDI(d); 
 
 EXTEND FORM orders
     PROPERTIES (o) READONLY responseNote 
-    PROPERTIES (d) READONLY SHOWIF isEOrder(d) BEFORE quantity(d) quantityResponseEDI BACKGROUND backgroundResponseEDI(d); 
+    PROPERTIES (d) READONLY SHOWIF isEOrder(d) quantityResponseEDI BEFORE quantity(d) BACKGROUND backgroundQuantityResponseEDI(d), 
+                                               priceResponseEDI BEFORE price(d) BACKGROUND backgroundPriceResponseEDI(d); 
 
 WHEN SET (UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) DO {
     shipmentDate(o) <- DATE(deliveryDateTime(od));
-    shipmentTime(o) <- TIME (deliveryDateTime(od));
+    shipmentTime(o) <- TIME(deliveryDateTime(od));
 }
