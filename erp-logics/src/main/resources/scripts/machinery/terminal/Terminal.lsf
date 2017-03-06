@@ -255,7 +255,6 @@ createdTime 'Время создания'= DATA DATETIME (TerminalDocument) IN c
 createdTime (TerminalDocument o) <- currentDateTime() WHEN SET(o IS TerminalDocument);
 
 terminalDocument = DATA TerminalDocument(TerminalDocumentDetail) NOT NULL DELETE INDEXED;
-@defineDocumentDetailIndex(terminalDocument);
 
 @defineDocumentTimePrefix(terminalDocument, , ' документа');
 @deriveDocumentHeaderTimePrefix(TerminalDocument, );
@@ -267,6 +266,9 @@ TABLE sessionTerminalDocumentDetail (Session, TerminalDocumentDetail);
 id 'Код' = DATA VARSTRING[100] (TerminalDocumentDetail) IN recognize INDEXED MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 number 'Номер' = DATA INTEGER (TerminalDocumentDetail) IN base;
+index 'Номер строки ' (TerminalDocumentDetail d) =
+    PARTITION SUM 1 BY terminalDocument(d)
+    ORDER number(d), d MINCHARWIDTH 4 PREFCHARWIDTH 4;
 barcode 'Штрихкод' = DATA VARSTRING[15] (TerminalDocumentDetail) IN base;
 quantity 'Количество' = DATA NUMERIC[14,3] (TerminalDocumentDetail) IN base;
 price 'Цена' = DATA NUMERIC[16,4] (TerminalDocumentDetail) IN base;
@@ -320,8 +322,7 @@ FORM terminalDocument 'Документ ТСД'
                     used READONLY, createdNameUser
 
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) number, barcode, name,
-    isNew, quantity, price, sum, comment, dateTimeScan, ADDOBJ, deletetdd=DELETESESSION
+    PROPERTIES(tdd) number, barcode, name, quantity, price, sum, comment, dateTimeScan, ADDOBJ, deletetdd=DELETESESSION
 
     FILTERS terminalDocument(tdd) == td
 
@@ -361,7 +362,7 @@ FORM terminalDocumentPrint 'Документ ТСД'
                     quantityTerminalDocumentDetail, sumTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
 
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) READONLY number, barcode, name, isNew, price, quantity, sum, dateTimeScan
+    PROPERTIES(tdd) READONLY number, barcode, name, price, quantity, sum, dateTimeScan
     ORDER BY number(tdd)
 
     FILTERS terminalDocument(tdd) == td
@@ -384,8 +385,7 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
     FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT [=GROUP SUM 1 IF in(TerminalDocumentType t)]()),
             stock(td) == filterStock() OR (td IS TerminalDocument AND NOT filterStock())
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) READONLY id, number, barcode, name,
-    isNew, price, quantity, sum, comment, dateTimeScan
+    PROPERTIES(tdd) READONLY id, number, barcode, name, price, quantity, sum, comment, dateTimeScan
 
     FILTERS terminalDocument(tdd) == td
     FILTERGROUP filterUse
