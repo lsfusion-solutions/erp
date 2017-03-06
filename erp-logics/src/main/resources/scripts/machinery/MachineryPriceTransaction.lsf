@@ -284,6 +284,8 @@ npps 'Номера устройств' (transaction) =
 selected 'Вкл' = DATA LOCAL BOOLEAN (GroupMachinery);
 selected 'Вкл' = DATA LOCAL BOOLEAN (Machinery);
 
+countSelectedMachinery() = GROUP SUM 1 IF selected(Machinery m);
+
 GROUP snapshotMachineryPrice 'Перезагрузка прайса целиком с выбором группы' : public;
 
 FORM groupMachineryInput 'Выбор оборудования для перезагрузки прайса'
@@ -713,10 +715,11 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
                 
                 IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {
                     snapshot(t) <- TRUE;
+                    canceled(MachineryPriceTransaction tr) <- TRUE WHERE process(tr) AND groupMachinery(tr) == groupMachinery  AND NOT tr == t AND NOT countSelectedMachinery();
                 }                    
             }
 
-            message() <- message() + name(groupMachinery) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих кодов).\n' ;
+            message() <- message() + (OVERRIDE 'Без наименования', name(groupMachinery)) + ' - ' + countSku() + ' товаров ('+countBarcode()+' штрих-кодов).\n' ;
             sentSomething() <- TRUE;
         }
     }
