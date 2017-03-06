@@ -308,6 +308,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = session.applyMessage(context);
                 session.popVolatileStats();
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("ImportOrderMessages Error: ", e);
+                message = e.getMessage();
             }
         }
         return message;
@@ -499,6 +502,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = session.applyMessage(context);
                 session.popVolatileStats();
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("ImportOrderResponses Error: ", e);
+                message = e.getMessage();
             }
         }
         return message;
@@ -681,6 +687,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 service.synchronize(true, false);
                 message = session.applyMessage(context);
                 session.popVolatileStats();
+            } catch (Exception e) {
+                ServerLoggers.importLogger.error("ImportDespatchAdvice Error: ", e);
+                message = e.getMessage();
             }
         }
         return message;
