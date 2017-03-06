@@ -1,0 +1,199 @@
+MODULE ReceiptSkuBinLedger;
+
+REQUIRE BinLedger, ReceiptSkuLedger;
+
+NAMESPACE Bin;
+
+//абстрактный чек по ячейкам
+CLASS ABSTRACT ReceiptSkuBinLedger 'Движение чеков по ячейкам': BinLedger;
+TABLE receiptSkuBinLedger(ReceiptSkuBinLedger);
+
+dateTime 'Дата/время' = ABSTRACT DATETIME (ReceiptSkuBinLedger) PERSISTENT INDEXED;
+date 'Дата' (ReceiptSkuBinLedger ledger) = toDate(dateTime(ledger));
+
+departmentStore = ABSTRACT DepartmentStore (ReceiptSkuBinLedger) PERSISTENT;
+nameDepartmentStore 'Склад' (ReceiptSkuBinLedger ledger) = name(departmentStore(ledger));
+
+@defineDocumentAbstractDetailSkuCustomPrefix(receiptSkuBinLedger, sku, , );
+
+inBin = ABSTRACT Bin (ReceiptSkuBinLedger) PERSISTENT INDEXED;
+nameInBin 'Ячейка (в)' (ReceiptSkuBinLedger ledger) = name(inBin(ledger)) IN recognize;
+
+outBin = ABSTRACT Bin (ReceiptSkuBinLedger) PERSISTENT INDEXED;
+nameOutBin 'Ячейка (из)' (ReceiptSkuBinLedger ledger) = name(outBin(ledger)) IN recognize;
+
+quantity 'Кол-во' = ABSTRACT NUMERIC[16,5] (ReceiptSkuBinLedger) PERSISTENT;
+
+description 'Название документа' = ABSTRACT VARISTRING[200] (ReceiptSkuBinLedger) PERSISTENT;
+
+skip 'Не проводить по учету' = ABSTRACT BOOLEAN (ReceiptSkuBinLedger) PERSISTENT;
+active 'Активен' (ReceiptSkuBinLedger ledger) = ledger IS ReceiptSkuBinLedger AND NOT skip(ledger);
+
+dateTime[BinLedger] (ReceiptSkuBinLedger ledger) += dateTime(ledger);
+sku[BinLedger] (ReceiptSkuBinLedger ledger) += sku(ledger);
+quantity[BinLedger] (ReceiptSkuBinLedger ledger) += quantity(ledger);
+inBin[BinLedger] (ReceiptSkuBinLedger ledger) += inBin(ledger);
+outBin[BinLedger] (ReceiptSkuBinLedger ledger) += outBin(ledger);
+description[BinLedger] (ReceiptSkuBinLedger ledger) += description(ledger);
+
+//чек продажи по ячейкам
+CLASS ReceiptSaleSkuBinLedger 'Продажа за день (по ячейке)': ReceiptSkuBinLedger;
+
+dateTime 'Дата/время' = DATA DATETIME (ReceiptSaleSkuBinLedger);
+date 'Дата' (ReceiptSaleSkuBinLedger ledger) = toDate(dateTime(ledger));
+
+departmentStore = DATA DepartmentStore (ReceiptSaleSkuBinLedger);
+nameDepartmentStore 'Склад' (ReceiptSaleSkuBinLedger ledger) = name(departmentStore(ledger));
+
+@defineDocumentDetailSkuCustomPrefix(receiptSaleSkuBinLedger, sku, , );
+
+outBin = DATA Bin (ReceiptSaleSkuBinLedger);
+nameOutBin 'Ячейка (из)' (ReceiptSaleSkuBinLedger ledger) = name(outBin(ledger)) IN recognize;
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (ReceiptSaleSkuBinLedger);
+
+skip 'Не проводить по учету' = DATA BOOLEAN (ReceiptSaleSkuBinLedger);
+active 'Активен' (ReceiptSaleSkuBinLedger ledger) = NOT skip(ledger);
+
+receiptSaleSkuLedger = DATA ReceiptSaleSkuLedger (ReceiptSaleSkuBinLedger);
+description 'Описание' (ReceiptSaleSkuBinLedger ledger) =  description[DataSkuLedger](receiptSaleSkuLedger(ledger));
+
+receiptSaleSkuLedger = GROUP MAX ReceiptSaleSkuBinLedger ledger BY receiptSaleSkuLedger(ledger);
+
+dateTime (ReceiptSaleSkuBinLedger ledger) += dateTime(ledger);
+sku (ReceiptSaleSkuBinLedger ledger) += sku(ledger);
+departmentStore (ReceiptSaleSkuBinLedger ledger) += departmentStore(ledger);
+quantity(ReceiptSaleSkuBinLedger ledger) += quantity(ledger);
+outBin (ReceiptSaleSkuBinLedger ledger) += outBin(ledger);
+description (ReceiptSaleSkuBinLedger ledger) += description(ledger);
+
+//чек возврата по ячейкам
+CLASS ReceiptReturnSkuBinLedger 'Возврат за день (по ячейке)': ReceiptSkuBinLedger;
+
+dateTime 'Дата/время' = DATA DATETIME (ReceiptReturnSkuBinLedger);
+date 'Дата' (ReceiptReturnSkuBinLedger ledger) = toDate(dateTime(ledger));
+
+departmentStore = DATA DepartmentStore (ReceiptReturnSkuBinLedger);
+nameDepartmentStore 'Склад' (ReceiptReturnSkuBinLedger ledger) = name(departmentStore(ledger));
+
+@defineDocumentDetailSkuCustomPrefix(receiptReturnSkuBinLedger, sku, , );
+
+inBin = DATA Bin (ReceiptReturnSkuBinLedger);
+nameInBin 'Ячейка (в)' (ReceiptReturnSkuBinLedger ledger) = name(outBin(ledger)) IN recognize;
+
+quantity 'Кол-во' = DATA NUMERIC[16,5] (ReceiptReturnSkuBinLedger);
+
+skip 'Не проводить по учету' = DATA BOOLEAN (ReceiptReturnSkuBinLedger);
+active 'Активен' (ReceiptReturnSkuBinLedger ledger) = NOT skip(ledger);
+
+receiptReturnSkuLedger = DATA ReceiptReturnSkuLedger (ReceiptReturnSkuBinLedger);
+description 'Описание' (ReceiptReturnSkuBinLedger ledger) =  description[DataSkuLedger](receiptReturnSkuLedger(ledger));
+
+receiptReturnSkuLedger = GROUP MAX ReceiptReturnSkuBinLedger ledger BY receiptReturnSkuLedger(ledger);
+
+dateTime (ReceiptReturnSkuBinLedger ledger) += dateTime(ledger);
+sku (ReceiptReturnSkuBinLedger ledger) += sku(ledger);
+departmentStore (ReceiptReturnSkuBinLedger ledger) += departmentStore(ledger);
+quantity(ReceiptReturnSkuBinLedger ledger) += quantity(ledger);
+inBin (ReceiptReturnSkuBinLedger ledger) += inBin(ledger);
+description (ReceiptReturnSkuBinLedger ledger) += description(ledger);
+
+//ячейки для чеком по умолчанию
+inBin 'Ячейка (в)' = DATA Bin (DepartmentStore);
+nameInBin 'Ячейка (в)' (DepartmentStore departmentStore) = name(inBin(departmentStore));
+
+outBin 'Ячейка (из)' = DATA Bin (DepartmentStore);
+nameOutBin 'Ячейка (из)' (DepartmentStore departmentStore) = name(outBin(departmentStore));
+
+setInBin (DepartmentStore departmentStore) = ACTION {
+    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=departmentStore DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        inBin(departmentStore) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        inBin(departmentStore) <- NULL;
+    }
+}
+   
+setOutBin (DepartmentStore departmentStore) = ACTION {
+    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=departmentStore DIALOG SHOWDROP;
+    IF formResult() == FormResult.ok THEN {
+        outBin(departmentStore) <- requestedObject();
+
+    } ELSE IF formResult() == FormResult.drop THEN {
+        outBin(departmentStore) <- NULL;
+    }
+}
+
+EXTEND FORM departmentStore
+    PROPERTIES (d) nameInBin ON CHANGE setInBin(d), nameOutBin ON CHANGE setOutBin(d)     
+;
+
+DESIGN departmentStore {
+    headerExtraParams {
+        MOVE PROPERTY(nameInBin(d));  
+        MOVE PROPERTY(nameOutBin(d));   
+    }
+}
+
+generateReceiptSaleSkuLedgers 'Создать продажи по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+    FOR date(ReceiptSaleSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore AND 
+        outBin(departmentStore) AND NOT receiptSaleSkuLedger(ledger) ADDOBJ bl = ReceiptSaleSkuBinLedger DO {
+            receiptSaleSkuLedger(bl) <- ledger;
+            dateTime(bl) <- dateTime[DataSkuLedger](ledger);
+            departmentStore(bl) <- stock[DataSkuLedger](ledger);    
+            sku(bl) <- sku[DataSkuLedger](ledger);
+            quantity(bl) <- quantity[DataSkuLedger](ledger);
+            outBin(bl) <- outBin(departmentStore(ledger));
+    }
+    APPLY{};
+}
+
+generateReceiptReturnSkuLedgers 'Создать возвраты по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+    FOR date(ReceiptReturnSkuLedger ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore AND 
+        outBin(departmentStore) AND NOT receiptReturnSkuLedger(ledger) ADDOBJ bl = ReceiptReturnSkuBinLedger DO {
+            receiptReturnSkuLedger(bl) <- ledger;
+            dateTime(bl) <- dateTime[DataSkuLedger](ledger);
+            departmentStore(bl) <- stock[DataSkuLedger](ledger);    
+            sku(bl) <- sku[DataSkuLedger](ledger);
+            quantity(bl) <- quantity[DataSkuLedger](ledger);
+            inBin(bl) <- inBin(departmentStore(ledger));
+    }
+    APPLY{};
+}
+
+generateReceiptSkuLedgers 'Создать перемещения по ячейкам' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+    generateReceiptSaleSkuLedgers(departmentStore, dFrom, dTo);
+    generateReceiptReturnSkuLedgers(departmentStore, dFrom, dTo);   
+} CONFIRM;
+
+deleteReceiptSkuLedgers 'Очистить' (DepartmentStore departmentStore, DATE dFrom, DATE dTo) = ACTION {
+    DELETE ReceiptSkuBinLedger ledger WHERE date(ledger)>= dFrom AND date(ledger)<= dTo AND departmentStore(ledger)==departmentStore;
+    APPLY {};
+} CONFIRM;
+
+FORM receiptSaleSkuBinLedgers 'Чеки по ячейкам'
+    OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
+    PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
+    
+    OBJECTS d = DepartmentStore FIXED PANEL 
+    PROPERTIES(d) name SELECTOR
+    
+    OBJECTS l = ReceiptSkuBinLedger
+    PROPERTIES(l) READONLY date, dateTime, description, nameDepartmentStore, idBarcodeSku, nameSku, 
+                           nameOutBin, nameInBin, quantity
+    PROPERTIES(l) DELETESESSION
+    ORDER BY date(l)
+    FILTERS date(l)>=dFrom, date(l)<=dTo, departmentStore(l)==d
+    PROPERTIES (d, dFrom, dTo) generateReceiptSkuLedgers, deleteReceiptSkuLedgers     
+;
+
+@extendFormFilterStockAccess(d, receiptSaleSkuBinLedgers);
+
+NAVIGATOR {
+    WMSNavigator {
+        WMSDocument {
+            ADD receiptSaleSkuBinLedgers;
+        }
+    }
+}
