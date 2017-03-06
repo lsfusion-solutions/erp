@@ -52,7 +52,9 @@ EXTEND FORM orders
     PROPERTIES (d) READONLY SHOWIF isEOrder(d) quantityResponseEDI BEFORE quantity(d) BACKGROUND backgroundQuantityResponseEDI(d), 
                                                priceResponseEDI BEFORE price(d) BACKGROUND backgroundPriceResponseEDI(d); 
 
-WHEN SET (UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) DO {
+skipSetShipmentDateEDI = ABSTRACT BOOLEAN (Purchase.UserOrder);
+
+WHEN SET (UserOrder o == eOrder(EOrderResponse od)) AND deliveryDateTime(od) AND NOT skipSetShipmentDateEDI(o) DO {
     shipmentDate(o) <- DATE(deliveryDateTime(od));
     shipmentTime(o) <- TIME(deliveryDateTime(od));
 }
