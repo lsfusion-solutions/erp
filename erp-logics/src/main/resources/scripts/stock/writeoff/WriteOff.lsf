@@ -609,6 +609,17 @@ DESIGN operation {
     
 @deriveDocumentOperationProperty(UserWriteOff, skipStockDocumentLedger);
 
+skip 'Не проводить по товарному отчету'  = DATA BOOLEAN (Reason);
+EXTEND FORM reason
+    PROPERTIES (r) skip
+;
+EXTEND FORM reasons
+    PROPERTIES (r) READONLY skip
+;
+
+skipStockDocumentLedger (UserWriteOff o) <- skip(reason(o))
+    WHEN CHANGED(reason(o));
+
 // Товарный отчет
 @implementStockDocumentLedgerOut(WriteOff, stock);
 type(WriteOff l) += 'Списание' IF l IS WriteOff;
