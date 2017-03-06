@@ -207,8 +207,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendSucceededSoftCheckInfo(Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException {
-        return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(invoiceSet);
+    public String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException {
+        return softCheck == null ? null : softCheck.sendSucceededSoftCheckInfo(sidEquipmentServer, invoiceSet);
     }
 
     @Override
@@ -1769,12 +1769,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
-        return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer, numberAtATime);
+    public String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer) throws IOException, SQLException {
+        return sendSalesInfoNonRemote(getStack(), salesInfoList, sidEquipmentServer);
     }
 
 
-    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException {
+    public String sendSalesInfoNonRemote(ExecutionStack stack, List<SalesInfo> salesInfoList, String sidEquipmentServer) throws IOException, SQLException {
         try {
 
             if (zReportLM != null && notNullNorEmpty(salesInfoList)) {
@@ -1784,11 +1784,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                 for (int start = 0; true;) {
 
                     try (DataSession session = getDbManager().createSession()) {
-                        //для динамического изменения кол-ва чеков за раз. В будущем убрать numberAtATime из EqupmentSettings (затронет api)
                         ObjectValue equipmentServerObject = equLM.findProperty("sidTo[VARSTRING[20]]").readClasses(session, new DataObject(sidEquipmentServer));
-                        numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
+                        Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                         if (numberAtATime == null)
                             numberAtATime = salesInfoList.size();
+                        boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
 
                         Timestamp timeStart = getCurrentTimestamp();
 
@@ -2028,60 +2028,61 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                         Map<Object, String> barcodeMap = new HashMap<>();
                         for (SalesInfo sale : data) {
+                            if (!overDocumentsClosedDate(sale, ignoreReceiptsAfterDocumentsClosedDate)) {
+                                String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
+                                        (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
+                                if (barcode == null && sale.itemObject != null) {
+                                    barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
+                                    barcodeMap.put(sale.itemObject, barcode);
+                                }
+                                if (barcode == null && sale.idItem != null) {
+                                    barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
+                                    barcodeMap.put(sale.idItem, barcode);
+                                }
 
-                            String barcode = (notNullNorEmpty(sale.barcodeItem)) ? sale.barcodeItem :
-                                    (sale.itemObject != null ? barcodeMap.get(sale.itemObject) : sale.idItem != null ? barcodeMap.get(sale.idItem) : null);
-                            if (barcode == null && sale.itemObject != null) {
-                                barcode = trim((String) itemLM.findProperty("idBarcode[Sku]").read(session, new DataObject(sale.itemObject, (ConcreteClass) itemLM.findClass("Item"))));
-                                barcodeMap.put(sale.itemObject, barcode);
-                            }
-                            if (barcode == null && sale.idItem != null) {
-                                barcode = trim((String) itemLM.findProperty("idBarcodeSku[VARSTRING[100]]").read(session, new DataObject(sale.idItem, StringClass.get((100)))));
-                                barcodeMap.put(sale.idItem, barcode);
-                            }
-
-                            String idReceipt = sale.getIdReceipt(startDate, timeId);
-                            if (sale.isGiftCard) {
-                                //giftCard 3
-                                List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                        sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
-                                        sale.priceReceiptDetail, sale.sumReceiptDetail);
-                                if (zReportSectionLM != null) {
-                                    row = new ArrayList<>(row);
-                                    row.add(sale.idSection);
+                                String idReceipt = sale.getIdReceipt(startDate, timeId);
+                                if (sale.isGiftCard) {
+                                    //giftCard 3
+                                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
+                                            sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode,
+                                            sale.priceReceiptDetail, sale.sumReceiptDetail);
+                                    if (zReportSectionLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.idSection);
+                                    }
+                                    dataGiftCard.add(row);
+                                } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
+                                    //return 3
+                                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
+                                            sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
+                                            sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
+                                    if (discountCardLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.seriesNumberDiscountCard);
+                                    }
+                                    if (zReportSectionLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.idSection);
+                                    }
+                                    dataReturn.add(row);
+                                } else {
+                                    //sale 3
+                                    List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
+                                            sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
+                                            idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
+                                            sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
+                                    if (discountCardLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.seriesNumberDiscountCard);
+                                    }
+                                    if (zReportSectionLM != null) {
+                                        row = new ArrayList<>(row);
+                                        row.add(sale.idSection);
+                                    }
+                                    dataSale.add(row);
                                 }
-                                dataGiftCard.add(row);
-                            } else if (sale.quantityReceiptDetail.doubleValue() < 0) {
-                                //return 3
-                                List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                        sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail.negate(),
-                                        sale.priceReceiptDetail, sale.sumReceiptDetail.negate(), sale.discountSumReceiptDetail, sale.discountSumReceipt, sale.idSaleReceiptReceiptReturnDetail);
-                                if (discountCardLM != null) {
-                                    row = new ArrayList<>(row);
-                                    row.add(sale.seriesNumberDiscountCard);
-                                }
-                                if (zReportSectionLM != null) {
-                                    row = new ArrayList<>(row);
-                                    row.add(sale.idSection);
-                                }
-                                dataReturn.add(row);
-                            } else {
-                                //sale 3
-                                List<Object> row = Arrays.<Object>asList(sale.nppGroupMachinery, sale.nppMachinery, sale.getIdZReport(startDate), sale.numberZReport,
-                                        sale.dateZReport, sale.timeZReport, sale.dateReceipt, sale.timeReceipt, true, sale.idEmployee, sale.firstNameContact, sale.lastNameContact,
-                                        idReceipt, sale.numberReceipt, sale.getIdReceiptDetail(startDate, timeId), sale.numberReceiptDetail, barcode, sale.quantityReceiptDetail,
-                                        sale.priceReceiptDetail, sale.sumReceiptDetail, sale.discountSumReceiptDetail, sale.discountSumReceipt);
-                                if (discountCardLM != null) {
-                                    row = new ArrayList<>(row);
-                                    row.add(sale.seriesNumberDiscountCard);
-                                }
-                                if (zReportSectionLM != null) {
-                                    row = new ArrayList<>(row);
-                                    row.add(sale.idSection);
-                                }
-                                dataSale.add(row);
                             }
                         }
 
@@ -2176,6 +2177,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         } catch (Exception e) {
             throw Throwables.propagate(e);
         }
+    }
+
+    private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate) {
+        return ignoreReceiptsAfterDocumentsClosedDate && salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
+                salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) > 0;
     }
     
     private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
@@ -2463,41 +2469,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     throw Throwables.propagate(e);
                 }
             }
-        }
-    }
-
-    @Override
-    public List<byte[][]> readLabelFormats(List<String> scalesModelsList) throws RemoteException, SQLException {
-        try (DataSession session = getDbManager().createSession()) {
-
-            List<byte[][]> fileLabelFormats = new ArrayList<>();
-
-            if (scalesLM != null) {
-
-                for (String scalesModel : scalesModelsList) {
-
-                    ObjectValue scalesModelObject = scalesLM.findProperty("scalesName[VARISTRING[110]]").readClasses(session, new DataObject(scalesModel));
-
-                    KeyExpr labelFormatExpr = new KeyExpr("labelFormat");
-                    ImRevMap<Object, KeyExpr> labelFormatKeys = MapFact.singletonRev((Object) "labelFormat", labelFormatExpr);
-                    QueryBuilder<Object, Object> labelFormatQuery = new QueryBuilder<>(labelFormatKeys);
-                    
-                    labelFormatQuery.addProperty("fileLabelFormat", scalesLM.findProperty("file[LabelFormat]").getExpr(labelFormatExpr));
-                    labelFormatQuery.addProperty("fileMessageLabelFormat", scalesLM.findProperty("fileMessage[LabelFormat]").getExpr(labelFormatExpr));
-                    labelFormatQuery.and(scalesLM.findProperty("scalesModel[LabelFormat]").getExpr(labelFormatExpr).compare(scalesModelObject.getExpr(), Compare.EQUALS));
-
-                    ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> labelFormatResult = labelFormatQuery.execute(session);
-
-                    for (ImMap<Object, Object> row : labelFormatResult.valueIt()) {
-                        byte[] fileLabelFormat = (byte[]) row.get("fileLabelFormat");
-                        byte[] fileMessageLabelFormat = (byte[]) row.get("fileMessageLabelFormat");
-                        fileLabelFormats.add(new byte[][]{fileLabelFormat, fileMessageLabelFormat});
-                    }
-                }
-            }
-            return fileLabelFormats;
-        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-            throw Throwables.propagate(e);
         }
     }
 

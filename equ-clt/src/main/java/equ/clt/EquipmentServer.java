@@ -394,12 +394,6 @@ public class EquipmentServer {
     private void sendSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer) throws SQLException, IOException {
         sendSalesLogger.info("Send SalesInfo");
 
-        //временно, для динамического изменения кол-ва чеков за раз. Потом переделать эти три обращения к remote в одно
-        EquipmentServerSettings settings = remote.readEquipmentServerSettings(sidEquipmentServer);
-        Integer numberAtATime = settings == null ? null : settings.numberAtATime;
-        boolean ignoreReceiptsAfterDocumentsClosedDate = settings != null && settings.ignoreReceiptsAfterDocumentsClosedDate;
-        //Integer numberAtATime = equipmentServerSettings == null ? null : equipmentServerSettings.numberAtATime;
-
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
 
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
@@ -435,7 +429,7 @@ public class EquipmentServer {
 
                         SendSalesEquipmentServer.sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
-                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, numberAtATime, ignoreReceiptsAfterDocumentsClosedDate);
+                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList);
 
                         SendSalesEquipmentServer.extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
@@ -471,8 +465,7 @@ public class EquipmentServer {
     }
 
     private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler,
-                               Set<String> directorySet, List<CashRegisterInfo> cashRegisterInfoList, Integer numberAtATime,
-                               boolean ignoreReceiptsAfterDocumentsClosedDate)
+                               Set<String> directorySet, List<CashRegisterInfo> cashRegisterInfoList)
             throws ParseException, IOException, ClassNotFoundException, SQLException {
         if(directorySet != null) {
 
@@ -482,14 +475,6 @@ public class EquipmentServer {
                 for (String directory : directorySet) {
                     SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
                     if (salesBatch!= null) {
-                        if(salesBatch.salesInfoList != null) {
-                            for (Iterator<SalesInfo> iterator = salesBatch.salesInfoList.iterator(); iterator.hasNext(); ) {
-                                SalesInfo salesInfo = iterator.next();
-                                if (overDocumentsClosedDate(salesInfo, ignoreReceiptsAfterDocumentsClosedDate))
-                                    iterator.remove();
-                            }
-                        }
-
                         if(mergedSalesBatch == null)
                             mergedSalesBatch = salesBatch;
                         else
@@ -502,7 +487,7 @@ public class EquipmentServer {
                 } else {
                     sendSalesLogger.info("Sending SalesInfo : " + mergedSalesBatch.salesInfoList.size() + " records");
                     try {
-                        String result = remote.sendSalesInfo(mergedSalesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                        String result = remote.sendSalesInfo(mergedSalesBatch.salesInfoList, sidEquipmentServer);
                         if (result != null) {
                             reportEquipmentServerError(remote, sidEquipmentServer, result);
                         } else {
@@ -522,18 +507,9 @@ public class EquipmentServer {
                     if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0) {
                         sendSalesLogger.info("SalesInfo is empty");
                     } else {
-                        for (Iterator<SalesInfo> iterator = salesBatch.salesInfoList.iterator(); iterator.hasNext(); ) {
-                            SalesInfo salesInfo = iterator.next();
-                            if (overDocumentsClosedDate(salesInfo, ignoreReceiptsAfterDocumentsClosedDate))
-                                iterator.remove();
-                        }
-                        if(salesBatch.salesInfoList.isEmpty()) {
-                            sendSalesLogger.info("SalesInfo is empty (ignoreReceiptsAfterDocumentsClosedDate enabled)");
-                        } else {
-                            sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
-                        }
+                        sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
                         try {
-                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer, numberAtATime);
+                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer);
                             if (result != null) {
                                 reportEquipmentServerError(remote, sidEquipmentServer, result);
                             } else {
@@ -548,11 +524,6 @@ public class EquipmentServer {
                 }
             }
         }
-    }
-
-    private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate) {
-        return ignoreReceiptsAfterDocumentsClosedDate && salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
-                salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) > 0;
     }
 
     static Object getHandler(String handlerModel, EquipmentServerInterface remote) throws ClassNotFoundException, IllegalAccessException, InstantiationException, InvocationTargetException, NoSuchMethodException {

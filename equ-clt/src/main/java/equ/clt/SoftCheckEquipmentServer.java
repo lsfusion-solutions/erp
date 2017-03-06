@@ -7,6 +7,7 @@ import org.apache.log4j.Logger;
 
 import java.rmi.RemoteException;
 import java.sql.SQLException;
+import java.sql.Timestamp;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -37,10 +38,10 @@ public class SoftCheckEquipmentServer {
 
     static void sendSucceededSoftCheckInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, Set<String> directorySet)
             throws RemoteException, SQLException, ClassNotFoundException {
-        Map succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
+        Map<String, Timestamp> succeededSoftCheckInfo = handler.requestSucceededSoftCheckInfo(directorySet);
         if (succeededSoftCheckInfo != null && !succeededSoftCheckInfo.isEmpty()) {
             sendSoftCheckLogger.info("Sending succeeded SoftCheckInfo (" + succeededSoftCheckInfo.size() + ")");
-            String result = remote.sendSucceededSoftCheckInfo(succeededSoftCheckInfo);
+            String result = remote.sendSucceededSoftCheckInfo(sidEquipmentServer, succeededSoftCheckInfo);
             if (result != null)
                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
         }

@@ -189,7 +189,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
         }
         try {
             EquipmentServer equipmentServer = context.getLogicsInstance().getCustomObject(EquipmentServer.class);
-            String res = equipmentServer.sendSalesInfoNonRemote(context.stack, salesInfoList, "equServer1", null);
+            String res = equipmentServer.sendSalesInfoNonRemote(context.stack, salesInfoList, "equServer1");
             if (res != null) {
                 throw new RuntimeException(res);
             }

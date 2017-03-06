@@ -23,7 +23,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     boolean enabledSoftCheckInfo() throws RemoteException, SQLException;
     List<SoftCheckInfo> readSoftCheckInfo() throws RemoteException, SQLException;
     void finishSoftCheckInfo(Map<String, SoftCheckInvoice> invoiceMap) throws RemoteException, SQLException;
-    String sendSucceededSoftCheckInfo(Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException;
+    String sendSucceededSoftCheckInfo(String sidEquipmentServer, Map<String, Timestamp> invoiceSet) throws RemoteException, SQLException;
 
     List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException;
     String sendCashierTimeList(List<CashierTime> cashierTimeList) throws RemoteException, SQLException;
@@ -64,7 +64,7 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     
     void succeedExtraCheckZReport(List<String> idZReportList) throws RemoteException, SQLException;
 
-    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer, Integer numberAtATime) throws IOException, SQLException;
+    String sendSalesInfo(List<SalesInfo> salesInfoList, String sidEquipmentServer) throws IOException, SQLException;
 
     Set<String> readCashDocumentSet(String sidEquipmentServer) throws IOException, SQLException;
 
@@ -82,8 +82,6 @@ public interface EquipmentServerInterface extends RmiServerInterface {
     void errorEquipmentServerReport(String equipmentServer, Throwable exception) throws RemoteException, SQLException;
 
     EquipmentServerSettings readEquipmentServerSettings(String equipmentServer) throws RemoteException, SQLException;
-
-    List<byte[][]> readLabelFormats (List<String> scalesModelsList) throws RemoteException, SQLException;
 
     Map<String, List<Object>> readRequestZReportSumMap(String idStock, Date dateFrom, Date dateTo) throws RemoteException, SQLException;
 
