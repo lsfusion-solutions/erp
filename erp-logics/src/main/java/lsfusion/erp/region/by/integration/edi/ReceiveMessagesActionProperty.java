@@ -1,5 +1,6 @@
 package lsfusion.erp.region.by.integration.edi;
 
+import lsfusion.base.Pair;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
@@ -86,10 +87,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String responseMessage, boolean sendReplies) throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
-        Map<String, String> succeededMap = new HashMap<>();
-        Map<String, List<List<Object>>> messages = new HashMap<>();
-        Map<String, List<List<Object>>> orderResponses = new HashMap<>();
-        Map<String, List<List<Object>>> despatchAdvices = new HashMap<>();
+        Map<String, Pair<String, String>> succeededMap = new HashMap<>();
+        Map<String, DocumentData> messages = new HashMap<>();
+        Map<String, DocumentData> orderResponses = new HashMap<>();
+        Map<String, DocumentData> despatchAdvices = new HashMap<>();
 
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
@@ -118,14 +119,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                         messages.put(documentId, parseOrderMessage(subXML, provider, documentId));
                                         break;
                                     case "ordrsp": {
-                                        List<List<Object>> orderResponse = parseOrderResponse(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
+                                        DocumentData orderResponse = parseOrderResponse(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
                                         if (orderResponse != null) {
                                             orderResponses.put(documentId, orderResponse);
                                         }
                                         break;
                                     }
                                     case "desadv": {
-                                        List<List<Object>> despatchAdvice = parseDespatchAdvice(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
+                                        DocumentData despatchAdvice = parseDespatchAdvice(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
                                         if (despatchAdvice != null)
                                             despatchAdvices.put(documentId, despatchAdvice);
                                         break;
@@ -140,12 +141,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         int messagesSucceeded = 0;
         int messagesFailed = 0;
-        for(Map.Entry<String, List<List<Object>>> message : messages.entrySet()) {
+        for(Map.Entry<String, DocumentData> message : messages.entrySet()) {
             String documentId = message.getKey();
-            List<List<Object>> data = message.getValue();
-            if(data != null) {
-                String error = importOrderMessages(context, message.getValue());
-                succeededMap.put(documentId, error);
+            DocumentData data = message.getValue();
+            if(data.data != null) {
+                String error = importOrderMessages(context, data);
+                succeededMap.put(documentId, Pair.create(data.documentNumber, error));
                 if (error == null) {
                     ServerLoggers.importLogger.info(String.format("%s Import EOrderMessage %s succeeded", provider, documentId));
                     messagesSucceeded++;
@@ -154,17 +155,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     messagesFailed++;
                 }
             } else {
-                succeededMap.put(documentId, String.format("%s Parsing EOrderMessage %s failed", provider, documentId));
+                succeededMap.put(documentId, Pair.create(data.documentNumber, String.format("%s Parsing EOrderMessage %s failed", provider, documentId)));
                 messagesFailed++;
             }
         }
 
         int responsesSucceeded = 0;
         int responsesFailed = 0;
-        for(Map.Entry<String, List<List<Object>>> orderResponse : orderResponses.entrySet()) {
+        for (Map.Entry<String, DocumentData> orderResponse : orderResponses.entrySet()) {
             String documentId = orderResponse.getKey();
-            String error = importOrderResponses(context, orderResponse.getValue());
-            succeededMap.put(documentId, error);
+            DocumentData data = orderResponse.getValue();
+            String error = importOrderResponses(context, data);
+            succeededMap.put(documentId, Pair.create(data.documentNumber, error));
             if (error == null) {
                 ServerLoggers.importLogger.info(String.format("%s Import EOrderResponse %s succeeded", provider, documentId));
                 responsesSucceeded++;
@@ -176,10 +178,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
         int despatchAdvicesSucceeded = 0;
         int despatchAdvicesFailed = 0;
-        for (Map.Entry<String, List<List<Object>>> despatchAdvice : despatchAdvices.entrySet()) {
+        for (Map.Entry<String, DocumentData> despatchAdvice : despatchAdvices.entrySet()) {
             String documentId = despatchAdvice.getKey();
-            String error = importDespatchAdvices(context, despatchAdvice.getValue());
-            succeededMap.put(documentId, error);
+            DocumentData data = despatchAdvice.getValue();
+            String error = importDespatchAdvices(context, data);
+            succeededMap.put(documentId, Pair.create(data.documentNumber, error));
             if (error == null) {
                 ServerLoggers.importLogger.info(String.format("%s Import EOrderDespatchAdvice %s succeeded", provider, documentId));
                 despatchAdvicesSucceeded++;
@@ -210,12 +213,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             message += (message.isEmpty() ? "" : "\n") + "Не найдено новых сообщений";
         else {
 
-            for(Map.Entry<String, String> succeededEntry : succeededMap.entrySet()) {
+            for(Map.Entry<String, Pair<String, String>> succeededEntry : succeededMap.entrySet()) {
                 String documentId = succeededEntry.getKey();
-                String error = succeededEntry.getValue();
+                Pair<String, String> documentNumberError = succeededEntry.getValue();
+                String documentNumber = documentNumberError.first;
+                String error = documentNumberError.second;
                 confirmDocumentReceived(context, documentId, url, login, password, host, port, provider);
                 if(error != null && sendReplies)
-                    succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, error);
+                    succeeded = succeeded && sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, error);
             }
 
         }
@@ -224,12 +229,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             context.delayUserInteraction(new MessageClientAction(message, "Импорт"));
     }
 
-    private List<List<Object>> parseOrderMessage(String message, String provider, String documentId) throws IOException, JDOMException {
+    private DocumentData parseOrderMessage(String message, String provider, String documentId) throws IOException, JDOMException {
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(message.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
 
-        String number = rootNode.getChildText("documentNumber");
+        String documentNumber = rootNode.getChildText("documentNumber");
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
 
         Element reference = rootNode.getChild("reference");
@@ -252,17 +257,17 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                             break;
                     }
                 }
-                return Collections.singletonList(Arrays.asList((Object) number, dateTime, code, description, orderNumber));
+                return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)));
             } else
                 ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
         } else
             ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no reference tag", provider, documentId));
-        return null;
+        return new DocumentData(documentNumber, null);
     }
 
-    private String importOrderMessages(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
-        if (!data.isEmpty()) {
+        if (data != null && !data.data.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -295,7 +300,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     object(findClass("EOrder")).getMapping(eOrderKey)));
             fields.add(numberEOrderField);
 
-            ImportTable table = new ImportTable(fields, data);
+            ImportTable table = new ImportTable(fields, data.data);
 
             try (DataSession session = context.createSession()) {
                 session.pushVolatileStats("EDI_OM");
@@ -308,13 +313,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private List<List<Object>> parseOrderResponse(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private DocumentData parseOrderResponse(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> result = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
 
-        String number = rootNode.getChildText("documentNumber");
+        String documentNumber = rootNode.getChildText("documentNumber");
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
         String responseType = rootNode.getChildText("function");
         String responseTypeObject = getResponseType(responseType);
@@ -325,7 +330,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
         String note = rootNode.getChildText("comment");
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, orderNumber, sendReplies);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, documentNumber, orderNumber, sendReplies);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -336,7 +341,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 barcode = orderBarcodesMap.get(GTIN);
                 GTIN = null;
             }
-            String id = number + "/" + i++;
+            String id = documentNumber + "/" + i++;
             String action = lineElement.getChildText("action");
             String actionObject = getAction(action);
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
@@ -345,10 +350,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal sumNoNDS = parseBigDecimal(lineElement.getChildText("priceNoNDS"));
             BigDecimal sumNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
 
-            result.add(Arrays.<Object>asList(number, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+            result.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                     deliveryDateTimeSecond, id, barcode, GTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
         }
-        return result;
+        return new DocumentData(documentNumber, result);
     }
 
     private String getResponseType(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -361,9 +366,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return value == null ? null : ("EDI_EOrderResponseDetailAction." + value.toLowerCase());
     }
 
-    private String importOrderResponses(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
-        if (!data.isEmpty()) {
+        if (data != null && !data.data.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -486,7 +491,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(sumNDSEOrderResponseDetailField, findProperty("sumNDS[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
             fields.add(sumNDSEOrderResponseDetailField);
 
-            ImportTable table = new ImportTable(fields, data);
+            ImportTable table = new ImportTable(fields, data.data);
 
             try (DataSession session = context.createSession()) {
                 session.pushVolatileStats("EDI_OR");
@@ -499,13 +504,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private List<List<Object>> parseDespatchAdvice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private DocumentData parseDespatchAdvice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> result = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
 
-        String number = rootNode.getChildText("documentNumber");
+        String documentNumber = rootNode.getChildText("documentNumber");
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
         String deliveryNoteNumber = rootNode.getChildText("deliveryNoteNumber");
         Timestamp deliveryNoteDateTime = parseTimestamp(rootNode.getChildText("deliveryNoteDate"));
@@ -516,7 +521,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
         String note = nullIfEmpty(rootNode.getChildText("comment"));
 
-        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, orderNumber, sendReplies);
+        Map<String, String> orderBarcodesMap = getOrderBarcodesMap(context, url, login, password, host, port, provider, documentId, documentNumber, orderNumber, sendReplies);
 
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
@@ -528,7 +533,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 GTIN = null;
             }
 
-            String id = number + "/" + i++;
+            String id = documentNumber + "/" + i++;
             BigDecimal quantityOrdered = parseBigDecimal(lineElement.getChildText("quantityOrdered"));
             BigDecimal quantityDespatch = parseBigDecimal(lineElement.getChildText("quantityDespatch"));
             BigDecimal valueVAT = parseBigDecimal(lineElement.getChildText("vat"));
@@ -536,16 +541,16 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountWithoutCharges"));
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("lineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
-            result.add(Arrays.<Object>asList(number, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+            result.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
                     deliveryDateTimeFirst, id, barcode, GTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                     lineItemAmount, lineItemAmountCharges));
         }
-        return result;
+        return new DocumentData(documentNumber, result);
     }
 
-    private String importDespatchAdvices(ExecutionContext context, List<List<Object>> data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
-        if (!data.isEmpty()) {
+        if (data != null && !data.data.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -668,7 +673,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(lineItemAmountChargesEOrderDespatchAdviceDetailField, findProperty("lineItemAmountCharges[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(lineItemAmountChargesEOrderDespatchAdviceDetailField);
 
-            ImportTable table = new ImportTable(fields, data);
+            ImportTable table = new ImportTable(fields, data.data);
 
             try (DataSession session = context.createSession()) {
                 session.pushVolatileStats("EDI_DA");
@@ -726,10 +731,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    protected boolean sendRecipientError(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String documentNumber, String error) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         boolean succeeded = false;
         String currentDate = formatDate(new Timestamp(Calendar.getInstance().getTime().getTime()));
-        String contentSubXML = getErrorSubXML(documentId, error);
+        String contentSubXML = getErrorSubXML(documentId, documentNumber, error);
 
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
@@ -778,7 +783,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return succeeded;
     }
 
-    private String getErrorSubXML(String documentId, String error) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
+    private String getErrorSubXML(String documentId, String documentNumber, String error) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
         Element rootElement = new Element("SYSTEMMESSAGE");
         Document doc = new Document(rootElement);
         doc.setRootElement(rootElement);
@@ -786,7 +791,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         addStringElement(rootElement, "documentNumber", "error_" + documentId);
 
         Element referenceElement = new Element("Reference");
-        addStringElement(referenceElement, "documentNumber", documentId);
+        addStringElement(referenceElement, "documentNumber", documentNumber);
         addStringElement(referenceElement, "code", "1450");
         addStringElement(referenceElement, "description", error);
         rootElement.addContent(referenceElement);
@@ -795,11 +800,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return new String(org.apache.commons.codec.binary.Base64.encodeBase64(xml.getBytes()));
     }
 
-    private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderNumber, boolean sendReplies) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
+    private Map<String, String> getOrderBarcodesMap(ExecutionContext context, String url, String login, String password, String host, Integer port,
+                                                    String provider, String documentId, String documentNumber, String orderNumber, boolean sendReplies)
+            throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if (orderNumber != null) {
             if (findProperty("numberOrder[EOrderDetail]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
-                sendRecipientError(context, url, login, password, host, port, provider, documentId, String.format("Заказ %s не найден)", orderNumber));
+                sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, String.format("Заказ %s не найден)", orderNumber));
             }
 
             KeyExpr orderDetailExpr = new KeyExpr("EOrderDetail");
@@ -827,6 +834,16 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             return new Timestamp(new SimpleDateFormat("yyyy-MM-dd'T'HH:mm:ss").parse(value).getTime());
         } catch (Exception e) {
             return null;
+        }
+    }
+
+    private class DocumentData {
+        String documentNumber;
+        List<List<Object>> data;
+
+        public DocumentData(String documentNumber, List<List<Object>> data) {
+            this.documentNumber = documentNumber;
+            this.data = data;
         }
     }
 }
