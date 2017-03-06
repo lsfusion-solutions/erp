@@ -7,11 +7,15 @@ REQUIRE LegalEntity;
 CLASS Account 'Наличный счет';
 TABLE account (Account);
 
+// Неактивный
+inactive 'Неактивная' = DATA BOOLEAN (Account);
+active 'Активная' (Account a) = a IS Account AND NOT inactive(a);
+
 number 'Номер наличного счета'  = DATA VARSTRING[20] (Account) FIXEDCHARWIDTH 13;
 
 legalEntity = DATA LegalEntity (Account);
 nameLegalEntity 'Организация' = name(legalEntity(Account account));
-defaultAccount(legalEntity) = GROUP MAX Account account BY legalEntity(account);
+defaultAccount(legalEntity) = GROUP MAX Account account IF active(account) BY legalEntity(account);
 
 currency = DATA Currency (Account) NOT NULL;
 currency(Account account) <- currency(legalEntity(account))
@@ -20,7 +24,7 @@ nameCurrency 'Валюта счета' = name(currency(Account account));
 
 FORM account 'Наличный счет'
     OBJECTS a = Account FIXED PANEL
-    PROPERTIES(a) number, nameCurrency, nameLegalEntity
+    PROPERTIES(a) number, nameCurrency, nameLegalEntity, inactive
 
     EDIT Account OBJECT a
 ;
@@ -32,14 +36,15 @@ FORM accounts 'Наличные счета'
     PROPERTIES(a) READONLY number, nameCurrency, nameLegalEntity
     PROPERTIES(a) edit FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(a) ADDFORM[Cash.Account]
-
+    FILTERGROUP inactive FILTER 'Активный' active(a) 'ctrl F10' DEFAULT  
     DIALOG Account OBJECT a
 ;
 
 EXTEND FORM legalEntity
     OBJECTS ca=Account
-    PROPERTIES(ca)  number, nameCurrency, ADDOBJ, DELETESESSION
+    PROPERTIES(ca)  inactive, number, nameCurrency, ADDOBJ, DELETESESSION
     FILTERS legalEntity(ca) == l
+    FILTERGROUP inactiveca FILTER 'Активный' active(ca) 'ctrl F10' DEFAULT  
 ;
 
 DESIGN legalEntity {

@@ -79,6 +79,10 @@ TABLE account (Account);
 
 GROUP account 'Банковская информация' : base;
 
+// Неактивный
+inactive 'Неактивная' = DATA BOOLEAN (Account);
+active 'Активная' (Account a) = a IS Account AND NOT inactive(a);
+
 number 'Номер расчетного счета'  = DATA VARSTRING[50] (Account) IN account FIXEDCHARWIDTH 13;
 account (number) = GROUP MAX Account account BY number(account); // WHERE account IS Account;
 
@@ -94,7 +98,7 @@ CBUBank 'ЦБУ банка' (Account account) = CBU(bank(account)) IN account;
 legalEntity = DATA LegalEntity (Account) NOT NULL DELETE AUTOSET;
 nameLegalEntity 'Организация' (Account account) = name(legalEntity(account));
 
-defaultAccount(legalEntity) = GROUP MAX Account account BY legalEntity(account);
+defaultAccount(legalEntity) = GROUP MAX Account account IF active(account) BY legalEntity(account);
 
 userAccount = DATA Account (LegalEntity);
 CONSTRAINT legalEntity(userAccount(LegalEntity legalEntity)) != legalEntity CHECKED MESSAGE 'ошибка: Р/сч. по умолчанию должен соответствовать р/сч. Ю.Л.';
@@ -123,7 +127,7 @@ note 'Примечание'  = DATA VARSTRING[50] (Account) IN account;
 FORM account 'Расчетный счет'
     OBJECTS a = Account FIXED PANEL
     PROPERTIES(a) number, nameCurrency, nameLegalEntity, nameBank, addressBank,
-                  MFOBank, departmentBank, CBUBank, note
+                  MFOBank, departmentBank, CBUBank, note, inactive
 
     EDIT Account OBJECT a
 ;
@@ -139,6 +143,7 @@ DESIGN account {
         MOVE PROPERTY(departmentBank(a));
         MOVE PROPERTY(CBUBank(a));
         MOVE PROPERTY(note(a));
+        MOVE PROPERTY(inactive(a));
 
         MOVE functions.box;
     }
@@ -152,7 +157,7 @@ FORM accounts 'Счета'
                            MFOBank, departmentBank, CBUBank, note
     PROPERTIES(a) edit FORCE PANEL TOOLBAR, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(a) ADDFORM[Bank.Account]
-
+    FILTERGROUP inactive FILTER 'Активный' active(a) 'ctrl F10' DEFAULT  
     DIALOG Account OBJECT a
 ;
 
@@ -162,10 +167,11 @@ EXTEND FORM legalEntity
     PROPERTIES(l)  SHOWIF toShow(l) numberAccount
 
     OBJECTS a=Account
-    PROPERTIES(a)  number, nameCurrency, nameBank, addressBank, departmentBank,
+    PROPERTIES(a)  inactive, number, nameCurrency, nameBank, addressBank, departmentBank,
                    CBUBank, MFOBank, note, ADDOBJ, DELETESESSION
     FILTERS legalEntity(a) == l
     PROPERTIES equals(l, a)
+    FILTERGROUP inactive FILTER 'Активный' active(a) 'ctrl F10' DEFAULT 
 ;
 
 DESIGN legalEntity {
