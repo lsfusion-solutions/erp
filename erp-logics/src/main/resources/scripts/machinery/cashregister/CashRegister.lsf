@@ -1,6 +1,6 @@
 MODULE CashRegister;
 
-REQUIRE System, Machinery, Store, LegalEntity;
+REQUIRE System, Machinery, Store, LegalEntity, StockDocument;
 
 // Группы
 CLASS GroupCashRegister 'Группы касс' : GroupMachinery;
@@ -83,6 +83,8 @@ overDepartmentNumberCashRegister 'Номер группы касс' (GroupMachin
 overDepartmentNumber 'Номер группы касс' (Machinery cr) = overDepartmentNumberCashRegister(groupMachinery(cr));
 groupCashRegister (npp) = GROUP AGGR GroupCashRegister groupCashRegister BY npp(groupCashRegister) WHERE groupCashRegister IS GroupCashRegister;  
 cashRegisterNppGroupCashRegister (g, npp) = GROUP AGGR CashRegister cashRegister BY npp(groupCashRegister(cashRegister)), npp(cashRegister);  
+documentsClosedDate(GroupCashRegister gcr) = documentsClosedDate(stock(gcr));
+documentsClosedDate(CashRegister cr) = documentsClosedDate(stock(groupCashRegister(cr)));
 
 cashRegisterModel = DATA CashRegisterModel (GroupCashRegister);
 model(GroupCashRegister groupMachinery) += cashRegisterModel(groupMachinery);

@@ -430,7 +430,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         cashRegisterInfoList.add(new CashRegisterInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directoryCashRegister,
                                 startDateGroupCashRegister, overDepartmentNumberGroupCashRegister, idDepartmentStoreGroupCashRegister, notDetailedGroupCashRegister,
-                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister));
+                                disableSalesCashRegister, pieceCodeGroupCashRegister, weightCodeGroupCashRegister, sectionGroupCashRegister, null));
                     }
 
                     List<CashRegisterItemInfo> cashRegisterItemInfoList = new ArrayList<>();
@@ -1608,10 +1608,10 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
                 String[] groupCashRegisterNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery",
                         "overDepartmentNumberGroupCashRegister", "pieceCodeGroupCashRegister", "weightCodeGroupCashRegister",
-                        "idStockGroupMachinery", "section"};
+                        "idStockGroupMachinery", "section", "documentsClosedDate"};
                 LCP[] groupCashRegisterProperties = cashRegisterLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]",
                         "overDepartmentNumberCashRegister[GroupMachinery]", "pieceCode[GroupCashRegister]", "weightCode[GroupCashRegister]", "idStock[GroupMachinery]",
-                        "section[GroupCashRegister]");
+                        "section[GroupCashRegister]", "documentsClosedDate[GroupCashRegister]");
                 for (int i = 0; i < groupCashRegisterProperties.length; i++) {
                     query.addProperty(groupCashRegisterNames[i], groupCashRegisterProperties[i].getExpr(groupCashRegisterExpr));
                 }
@@ -1629,7 +1629,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
                             (String) row.get("overDirectoryMachinery"), (Integer) row.get("overDepartmentNumberGroupCashRegister"),
                             (String) row.get("idStockGroupMachinery"), row.get("disableSalesCashRegister") != null, (String) row.get("pieceCodeGroupCashRegister"),
-                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"));
+                            (String) row.get("weightCodeGroupCashRegister"), (String) row.get("section"), (Date) row.get("documentsClosedDate"));
                     cashRegisterInfoList.add(c);
                 }
             } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
@@ -2550,7 +2550,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
                     Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                     Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
-                    return new EquipmentServerSettings(timeFrom, timeTo, delay, numberAtATime, sendSalesDelay);
+                    boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
+                    return new EquipmentServerSettings(timeFrom, timeTo, delay, numberAtATime, sendSalesDelay, ignoreReceiptsAfterDocumentsClosedDate);
                 } else return null;
             }
         } catch (Exception e) {

@@ -21,7 +21,7 @@ public abstract class CashRegisterHandler<S extends SalesBatch> extends Machiner
 
     public abstract void sendCashierInfoList(List<CashierInfo> cashierInfoList, Map<String, Set<String>> directoryStockMap) throws IOException;
 
-    public abstract List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException;
+    public abstract List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) throws IOException, ClassNotFoundException, SQLException;
 
     public abstract void sendPromotionInfo(PromotionInfo promotionInfo, RequestExchange requestExchange) throws IOException;
     

@@ -517,7 +517,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     @Override
-    public List<CashierTime> requestCashierTime(List<MachineryInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
+    public List<CashierTime> requestCashierTime(RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList) throws ClassNotFoundException, SQLException {
 
         machineryExchangeLogger.info("Kristal: requesting CashierTime");
 
@@ -552,12 +552,12 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     int limit = 10000;
                     Integer lastCount = null;
                     while(lastCount == null || lastCount == limit) {
-                        List<CashierTime> cashierTimeList = readCashierTime(conn, directoryGroupCashRegisterMap, dir, start, limit);
+                        List<CashierTime> cashierTimeList = readCashierTime(conn, directoryGroupCashRegisterMap, requestExchange, dir, start, limit);
                         result.addAll(cashierTimeList);
                         lastCount = cashierTimeList.size();
                         start += lastCount;
                     }
-                    result.addAll(readCashierTimeZReport(conn, directoryGroupCashRegisterMap, dir));
+                    result.addAll(readCashierTimeZReport(conn, directoryGroupCashRegisterMap, requestExchange, dir));
 
                     Timestamp dateTo = null;
                     for (int i = result.size() - 1; i >= 0; i--) {
@@ -582,12 +582,16 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         return result;
     }
 
-    private List<CashierTime> readCashierTime(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir, int start, int limit) throws SQLException {
+    private List<CashierTime> readCashierTime(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, RequestExchange requestExchange, String dir, int start, int limit) throws SQLException {
         List<CashierTime> result = new ArrayList<>();
         try (Statement statement = conn.createStatement()) {
             String queryString = "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
                     "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
-                    "FROM CashierWorkTime) AS MyDerivedTable WHERE MyDerivedTable.RowNum BETWEEN " + start + " AND " + (start + limit - 1);
+                    "FROM CashierWorkTime) AS MyDerivedTable WHERE (MyDerivedTable.RowNum BETWEEN " + start + " AND " + (start + limit - 1) + ")";
+            if(requestExchange.dateFrom != null)
+                queryString += " AND LogOn >= '" + requestExchange.dateFrom + "'";
+            if(requestExchange.dateTo != null)
+                queryString += " AND LogOn <= '" + requestExchange.dateTo + "'";
             machineryExchangeLogger.info("Kristal CashierTime: Executing query " + queryString);
             ResultSet rs = statement.executeQuery(queryString);
             while (rs.next()) {
@@ -603,10 +607,16 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
         return result;
     }
 
-    private List<CashierTime> readCashierTimeZReport(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, String dir) throws SQLException {
+    private List<CashierTime> readCashierTimeZReport(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, RequestExchange requestExchange, String dir) throws SQLException {
         List<CashierTime> result = new ArrayList<>();
         try (Statement statement = conn.createStatement()) {
             String queryString = "SELECT CashNumber, GangDateStart, GangDateStop FROM OperGang";
+            if(requestExchange.dateFrom != null || requestExchange.dateTo != null)
+                queryString += " WHERE";
+            if(requestExchange.dateFrom != null)
+                queryString += " GangDateStart >= '" + requestExchange.dateFrom + "'";
+            if(requestExchange.dateTo != null)
+                queryString += " AND GangDateStart <= '" + requestExchange.dateTo + "'";
             machineryExchangeLogger.info("Kristal CashierTime: Executing query " + queryString);
             ResultSet rs = statement.executeQuery(queryString);
             while (rs.next()) {
@@ -1128,7 +1138,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                         } else
                                             currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
                                                     numberReceipt, dateReceipt, timeReceipt, null, null, null, sumCard, sumCash, (BigDecimal) null, barcode, idItem, null,
-                                                    null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null));
+                                                    null, quantity, price, sumReceiptDetail, null, discountSumReceipt, null, numberReceiptDetail, fileName, null, cashRegister));
                                     }
                                 }
 
@@ -1230,7 +1240,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                             } else
                                                 currentSalesInfoList.add(new SalesInfo(false, nppGroupMachinery, numberCashRegister, numberZReport, dateReceipt, timeReceipt,
                                                         numberReceipt, dateReceipt, timeReceipt, idEmployee, null, null, sumCard, sumCash, (BigDecimal) null, barcode, idItem, null,
-                                                        null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, null, discountCard, numberReceiptDetail, fileName, null));
+                                                        null, quantity, price, sumReceiptDetail, discountSumReceiptDetail, null, discountCard, numberReceiptDetail, fileName, null, cashRegister));
                                         }
                                     }
 

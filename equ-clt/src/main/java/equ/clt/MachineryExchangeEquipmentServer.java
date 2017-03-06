@@ -51,7 +51,7 @@ public class MachineryExchangeEquipmentServer {
                                         if (cashierInfoList != null && !cashierInfoList.isEmpty()) {
                                             ((CashRegisterHandler) clsHandler).sendCashierInfoList(cashierInfoList, requestExchange.directoryStockMap);
                                         }
-                                        sendCashierTime(remote, sidEquipmentServer, (CashRegisterHandler) clsHandler, machineryInfoList);
+                                        sendCashierTime(remote, sidEquipmentServer, (CashRegisterHandler) clsHandler, requestExchange, machineryInfoList);
                                         remote.finishRequestExchange(new HashSet<>(Collections.singletonList(requestExchange.requestExchange)));
                                     }
 
@@ -103,9 +103,9 @@ public class MachineryExchangeEquipmentServer {
         }
     }
 
-    private static void sendCashierTime(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<MachineryInfo> cashRegisterInfoList)
+    private static void sendCashierTime(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, RequestExchange requestExchange, List<MachineryInfo> cashRegisterInfoList)
             throws IOException, SQLException, ClassNotFoundException {
-        List<CashierTime> cashierTimeList = handler.requestCashierTime(cashRegisterInfoList);
+        List<CashierTime> cashierTimeList = handler.requestCashierTime(requestExchange, cashRegisterInfoList);
         if (cashierTimeList != null && !cashierTimeList.isEmpty()) {
             machineryExchangeLogger.info("Sending cashier time (" + cashierTimeList.size() + ")");
             String result = remote.sendCashierTimeList(cashierTimeList);
