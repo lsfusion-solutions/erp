@@ -53,6 +53,39 @@ backgroundBinTransfer 'Цвет' (BinOrder binOrder) = RGB(175, 255, 175) IF bin
 quantityBinOrder 'К-во заказа' (BinTransferDetail d) = quantity(binOrderDetail(d)); 
 priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDetail(d));
 
+fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail);
+toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail);
+
+prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
+prevToBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(toBinTransfer(sku, bin));
+
+availableQuantity 'Доступно' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevToBinTransfer(sku, bin) (-) prevFromBinTransfer(sku, bin) PERSISTENT;
+
+inAvailableQuantity 'Доступно (ячейка в)' (Sku sku, UserBinOrder order) = availableQuantity(sku, inBin(order));
+outAvailableQuantity 'Доступно (ячейка из)' (Sku sku, UserBinOrder order) = availableQuantity(sku, outBin(order));
+
+allAvailableBinQuantityUserBinOrder 'Все доступное кол-во (ячейка из)' = DATA LOCAL BOOLEAN (Sku, Stock);
+changeAllAvailableBinQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
+    REQUEST BOOLEAN INPUT;
+    IF requestedLogical() THEN {
+        requestedNumeric() <- NULL;
+        allAvailableBinQuantityUserBinOrder (sku,stock) <- TRUE;
+        requestedNumeric() <- outAvailableQuantity(sku,userBinOrder);
+        changeQuantityValue(sku, userBinOrder, stock);
+    } ELSE {
+        allAvailableBinQuantityUserBinOrder (sku,stock) <- NULL;
+        requestedNumeric() <- NULL;
+        changeQuantityValue(sku, userBinOrder, stock);
+    }
+}
+   
+EXTEND FORM userBinOrder
+    PROPERTIES (ks, o) READONLY inAvailableQuantity AFTER prevCurrentBalanceInBin(ks, o) BACKGROUND backgroundInBin(ks, o)
+     
+    PROPERTIES AFTER allOutBinQuantityUserBinOrder(ks, st) BACKGROUND backgroundOutBin(ks, o) outAvailableQuantity (ks, o) READONLY,
+                     allAvailableBinQuantityUserBinOrder(ks, st)   
+;
+
 // ------------------------------- Создание нового инвойса на основе заказов ---------------------------- //
 
 inStock = GROUP SUM 1 IF stock(BinOrderDetail binOrderDetail) == Stock stock BY binOrder(binOrderDetail), stock;

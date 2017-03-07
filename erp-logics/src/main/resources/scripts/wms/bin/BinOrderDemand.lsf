@@ -1,0 +1,29 @@
+MODULE BinOrderDemand;
+
+REQUIRE BinOrderTransfer;
+
+NAMESPACE Bin;
+
+binReserve 'Страховой запас (кол-во)' = ABSTRACT NUMERIC[16,5](Sku, Bin);
+
+binReserve 'Страховой запас (кол-во)' (Sku sku, UserBinOrder order) = binReserve(sku, inBin(order));
+ 
+calcRecQuantity  (Sku sku, Bin bin, UserBinOrder order) =  
+    binReserve(sku, order) (-) (currentBalance(sku, bin) IF currentBalance(sku, bin) > 0.0);
+    
+recommendedQuantity 'Рекомендуемое к перемещению кол-во' (Sku sku, UserBinOrder order) = 
+    IF availableQuantity(sku, outBin(order))> 0.0 THEN
+    MIN (calcRecQuantity(sku, inBin(order), order) IF calcRecQuantity(sku, inBin(order), order) > 0.0),
+    (OVERRIDE availableQuantity(sku, outBin(order)) IF availableQuantity(sku, outBin(order)) > 0.0);
+
+fillRecommendedQuantity 'Заполнить рекомендуемым' (UserBinOrder userOrder) = ACTION {
+    FOR Sku sku IS Sku AND recommendedQuantity (sku, userOrder) > 0.0 ADDOBJ d = UserBinOrderDetail DO {
+            userBinOrder(d) <- userOrder;
+            sku(d) <- sku;
+            quantity (d) <- recommendedQuantity(sku, userOrder);
+        }
+} TOOLBAR CONFIRM;
+    
+EXTEND FORM userBinOrder
+    PROPERTIES (ks, o) READONLY BEFORE price(ks, st, o) recommendedQuantity ON SHORTCUT fillRecommendedQuantity(o), binReserve   
+;    
