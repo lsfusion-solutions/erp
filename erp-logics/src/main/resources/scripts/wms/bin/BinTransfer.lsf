@@ -352,6 +352,55 @@ EXTEND FORM userBinTransfer
         FILTER 'В документе ' quantity(ks, o, st) 'F9'
 ;
 
+//упаковка
+@defineDocumentPack(binTransfer, o);
+
+packQuantity 'Кол-во упаковок в документе' (sku, userBinTransfer, stock) = GROUP SUM packQuantity(UserBinTransferDetail userBinTransferDetail)
+    BY sku(userBinTransferDetail), userBinTransfer(userBinTransferDetail), stock(userBinTransferDetail);
+
+changePackQuantity(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
+        IF requestedNumeric() THEN {
+            packQuantity(UserBinTransferDetail userBinTransferDetail) <- requestedNumeric() WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+            quantity(UserBinTransferDetail userBinTransferDetail) <- packQuantity(userBinTransferDetail)*(OVERRIDE 1.0, amountPack(userBinTransferDetail)) 
+                                    WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock) AND NOT skipChangeQuantity(userBinTransferDetail(sku, userBinTransfer, stock));
+        } ELSE {
+            FOR userBinTransferDetail(sku, userBinTransfer, stock) == UserBinTransferDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF requestedNumeric() THEN  {
+            FOR ADDOBJ d = UserBinTransferDetail DO {
+               userBinTransfer(d) <- userBinTransfer;
+               sku(d) <- sku;
+               packQuantity (d) <- requestedNumeric();
+               quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+            }
+        }
+    }
+}
+
+changeAmountPack(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
+        IF requestedNumeric() THEN {
+            amountPack(UserBinTransferDetail userBinTransferDetail) <- requestedNumeric() WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+            quantity(UserBinTransferDetail userBinTransferDetail) <- packQuantity(userBinTransferDetail)*(OVERRIDE 1.0, amountPack(userBinTransferDetail)) 
+                                    WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock) AND packQuantity(userBinTransferDetail) AND NOT skipChangeQuantity(userBinTransferDetail(sku, userBinTransfer, stock));
+        } ELSE {
+            amountPack(UserBinTransferDetail userBinTransferDetail) <- NULL WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+        }
+
+    }
+    EXEC changeValuePack(sku);
+}
+
+@extendFormDocumentPackSkuStock(userBinTransfer, userBinTransfer, o, );
+
+@deriveDocumentOperationProperty(UserBinTransfer, showPack);
+
+//проведение по регистру
 EXTEND CLASS BinTransferDetail: BinLedger;
     
 @implementBinLedger(binTransferDetail);

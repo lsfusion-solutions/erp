@@ -1,6 +1,6 @@
 MODULE BinOrder;
 
-REQUIRE Bin, Document, BinLedger, Operation, StockSkuDocument;
+REQUIRE Bin, Document, BinLedger, Operation, StockSkuDocument, PurchasePack;
 
 NAMESPACE Bin;
 
@@ -428,6 +428,65 @@ DESIGN userBinOrder {
         hide = TRUE;    
     }
 }
+
+//упаковка
+@defineDocumentPack(binOrder, o);
+
+packQuantity 'Кол-во упаковок в документе' (sku, userBinOrder, stock) = GROUP SUM packQuantity(UserBinOrderDetail userBinOrderDetail)
+    BY sku(userBinOrderDetail), userBinOrder(userBinOrderDetail), stock(userBinOrderDetail);
+
+changePackQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
+        IF requestedNumeric() THEN {
+            ASSIGN packQuantity(UserBinOrderDetail userBinOrderDetail) <- requestedNumeric() WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
+            ASSIGN quantity(UserBinOrderDetail userBinOrderDetail) <- packQuantity(userBinOrderDetail)*(OVERRIDE 1.0, amountPack(userBinOrderDetail)) 
+                                    WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock) AND NOT skipChangeQuantity(userBinOrderDetail(sku, userBinOrder, stock));
+        } ELSE {
+            FOR userBinOrderDetail(sku, userBinOrder, stock) == UserBinOrderDetail d DO
+                DELETE d;
+        }
+    } ELSE {
+        IF requestedNumeric() THEN  {
+            FOR ADDOBJ d = UserBinOrderDetail DO {
+               userBinOrder(d) <- userBinOrder;
+               sku(d) <- sku;
+               packQuantity (d) <- requestedNumeric();
+               quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+            }
+        }
+    }
+}
+
+changeAmountPack(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
+    REQUEST NUMERIC[14,3] INPUT;
+    IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
+        IF requestedNumeric() THEN {
+            ASSIGN amountPack(UserBinOrderDetail userBinOrderDetail) <- requestedNumeric() WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
+            ASSIGN quantity(UserBinOrderDetail userBinOrderDetail) <- packQuantity(userBinOrderDetail)*(OVERRIDE 1.0, amountPack(userBinOrderDetail)) 
+                                    WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock) AND packQuantity(userBinOrderDetail) AND NOT skipChangeQuantity(userBinOrderDetail(sku, userBinOrder, stock));
+        } ELSE {
+            ASSIGN amountPack(UserBinOrderDetail userBinOrderDetail) <- NULL WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
+        }
+
+    }
+    EXEC changeValuePack(sku);
+}
+
+@extendFormDocumentPackSkuStock(userBinOrder, userBinOrder, o, );
+
+DESIGN operation {
+    tabContainer{
+        NEW showContainer {
+            caption = 'Отображение свойств';
+            type = CONTAINERV;
+        }
+    }
+}
+
+@defineOperationProperty(showPack, 'Упаковка', showContainer);
+
+@deriveDocumentOperationProperty(UserBinOrder, showPack);
 
 NAVIGATOR {
     WMSNavigator {

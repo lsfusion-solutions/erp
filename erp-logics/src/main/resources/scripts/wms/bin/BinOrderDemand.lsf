@@ -1,6 +1,6 @@
 MODULE BinOrderDemand;
 
-REQUIRE BinOrderTransfer;
+REQUIRE BinOrderTransfer, PurchaseOrder;
 
 NAMESPACE Bin;
 
@@ -16,6 +16,8 @@ recommendedQuantity 'Рекомендуемое к перемещению кол
     MIN (calcRecQuantity(sku, inBin(order), order) IF calcRecQuantity(sku, inBin(order), order) > 0.0),
     (OVERRIDE availableQuantity(sku, outBin(order)) IF availableQuantity(sku, outBin(order)) > 0.0);
 
+ceilRecommendedQuantity(Sku sku, NUMERIC[16,5] r) = IF Purchase.amountPack(sku) > 0 THEN ceil(r, amountPack(sku)) ELSE (IF split(sku) THEN r ELSE ceil(r));
+
 fillRecommendedQuantity 'Заполнить рекомендуемым' (UserBinOrder userOrder) = ACTION {
     FOR Sku sku IS Sku AND recommendedQuantity (sku, userOrder) > 0.0 ADDOBJ d = UserBinOrderDetail DO {
             userBinOrder(d) <- userOrder;
@@ -23,7 +25,7 @@ fillRecommendedQuantity 'Заполнить рекомендуемым' (UserBin
             quantity (d) <- recommendedQuantity(sku, userOrder);
         }
 } TOOLBAR CONFIRM;
-    
+
 EXTEND FORM userBinOrder
     PROPERTIES (ks, o) READONLY BEFORE price(ks, st, o) recommendedQuantity ON SHORTCUT fillRecommendedQuantity(o), binReserve   
-;    
+;
