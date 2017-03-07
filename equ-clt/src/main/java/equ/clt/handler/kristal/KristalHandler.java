@@ -775,12 +775,12 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
                         Integer nppMachinery = rs.getInt("CashNumber");
                         CashRegisterInfo cashRegister = directoryCashRegisterMap.get(dir + "_" + nppMachinery);
-                        Integer numberGroup = cashRegister == null ? null : cashRegister.numberGroup;
-                        BigDecimal sum = rs.getBigDecimal("Ck_Summa");
-
-                        String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
-                        if (!cashDocumentSet.contains(idCashDocument))
-                            result.add(new CashDocument(idCashDocument, number, date, time, numberGroup, nppMachinery, sum));
+                        if(cashRegister != null) {
+                            BigDecimal sum = rs.getBigDecimal("Ck_Summa");
+                            String idCashDocument = host + "/" + nppMachinery + "/" + number + "/" + ckNSmena;
+                            if (!cashDocumentSet.contains(idCashDocument))
+                                result.add(new CashDocument(idCashDocument, number, date, time, cashRegister.numberGroup, nppMachinery, sum));
+                        }
                     }
                 } catch (SQLException e) {
                     sendSalesLogger.error("Kristal Error: ", e);
