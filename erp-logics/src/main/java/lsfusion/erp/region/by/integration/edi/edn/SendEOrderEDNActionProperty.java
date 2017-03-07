@@ -1,6 +1,5 @@
 package lsfusion.erp.region.by.integration.edi.edn;
 
-import com.google.common.base.Throwables;
 import lsfusion.erp.region.by.integration.edi.SendEOrderActionProperty;
 import lsfusion.interop.action.MessageClientAction;
 import lsfusion.server.ServerLoggers;
@@ -39,7 +38,8 @@ public class SendEOrderEDNActionProperty extends SendEOrderActionProperty {
             }
 
         } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDOMException e) {
-            throw Throwables.propagate(e);
+            ServerLoggers.importLogger.error(provider + " error: ", e);
+            context.delayUserInteraction(new MessageClientAction(provider + " error: " + e.getMessage(), "Ошибка"));
         }
     }
 }
