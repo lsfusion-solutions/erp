@@ -11,13 +11,31 @@ import org.apache.log4j.Logger;
 import java.io.IOException;
 import java.rmi.RemoteException;
 import java.sql.SQLException;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.text.ParseException;
+import java.util.*;
 
 public class SendSalesEquipmentServer {
     private final static Logger sendSalesLogger = Logger.getLogger("SendSalesLogger");
+
+    static void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
+            throws IOException, ParseException, SQLException {
+        if (!requestExchangeList.isEmpty()) {
+            sendSalesLogger.info("Requesting SalesInfo");
+            Set<Integer> succeededRequests = new HashSet<>();
+            Map<Integer, String> failedRequests = new HashMap<>();
+            Map<Integer, String> ignoredRequests = new HashMap<>();
+
+            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
+            if (!succeededRequests.isEmpty())
+                remote.finishRequestExchange(succeededRequests);
+            if (!failedRequests.isEmpty())
+                remote.errorRequestExchange(failedRequests);
+            if (!ignoredRequests.isEmpty()) {
+                remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
+                remote.errorRequestExchange(ignoredRequests);
+            }
+        }
+    }
 
     static void sendCashDocument(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
             throws IOException, SQLException, ClassNotFoundException {

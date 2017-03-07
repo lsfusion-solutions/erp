@@ -425,7 +425,7 @@ public class EquipmentServer {
 
                         SoftCheckEquipmentServer.sendSucceededSoftCheckInfo(remote, sidEquipmentServer, handler, directorySet);
 
-                        requestSalesInfo(remote, requestExchangeList, handler, directorySet);
+                        SendSalesEquipmentServer.requestSalesInfo(remote, requestExchangeList, handler, directorySet);
 
                         SendSalesEquipmentServer.sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
