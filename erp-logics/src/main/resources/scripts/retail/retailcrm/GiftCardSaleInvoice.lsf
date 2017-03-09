@@ -4,7 +4,6 @@ REQUIRE GiftCard, SaleShipment, InvoicePrint, SaleInvoiceConsignmentBy;
 
 NAMESPACE GiftCard;
 
-
 EXTEND CLASS SkuType {
     skuTypeGiftCard 'Номинал подарочного сертификата'
 }
@@ -84,6 +83,8 @@ quantityInvoiceGiftCardSaleDetail 'Кол-во сертификатов в до�
 toShip 'Подобрать' (Sku i, Sale.Invoice o) = quantityInvoiceDetail(i, o)(-) 
                                                                 (NUMERIC[16,5]([ = GROUP SUM 1 IF in(GiftCard c) BY sku(c)](i)) IF o IS Sale.Invoice) (-)
                                                                 quantityInvoiceGiftCardSaleDetail(i,o);
+
+toShip 'Подобрать' = GROUP SUM toShip(Sku i, Sale.Invoice o) BY o;                                                               
                                                                 
 backgroundToShip (Sku i, Sale.Invoice o) = CASE
     WHEN toShip(i,o) <0 THEN RGB (255,0,0)  
@@ -403,7 +404,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     PROPERTIES (i) READONLY note
 
     PROPERTIES ()  addGiftCardInvoice TODRAW i
-    PROPERTIES (i) edit SHOWIF overShowEdit(i), copy, shiped, DELETE TODRAW i FORCE PANEL TOOLBAR 
+    PROPERTIES (i) edit SHOWIF overShowEdit(i), copy, shiped SHOWIF toShip(i), DELETE TODRAW i FORCE PANEL TOOLBAR 
 
     PROPERTIES (i) print FORCE PANEL 
 
