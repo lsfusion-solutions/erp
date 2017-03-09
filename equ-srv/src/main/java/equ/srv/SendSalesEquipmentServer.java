@@ -20,21 +20,27 @@ import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
 import java.math.BigDecimal;
+import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
 public class SendSalesEquipmentServer {
 
+    static ScriptingLogicsModule collectionLM;
+    static ScriptingLogicsModule equipmentCashRegisterLM;
+    static ScriptingLogicsModule zReportLM;
+
+    public static void init(BusinessLogics BL) {
+        collectionLM = BL.getModule("Collection");
+        equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
+        zReportLM = BL.getModule("ZReport");
+    }
+
     public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
-        ScriptingLogicsModule equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
-        ScriptingLogicsModule zReportLM = BL.getModule("ZReport");
         if (zReportLM != null && equipmentCashRegisterLM != null) {
             try (DataSession session = dbManager.createSession()) {
 
@@ -67,6 +73,34 @@ public class SendSalesEquipmentServer {
 
                 session.apply(BL, stack);
             } catch (ScriptingErrorLog.SemanticErrorException | SQLException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return zReportSumMap;
+    }
+
+    public static Map<String, BigDecimal> readZReportSumMap(DBManager dbManager) throws RemoteException, SQLException {
+        Map<String, BigDecimal> zReportSumMap = new HashMap<>();
+        if (zReportLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr zReportExpr = new KeyExpr("zReport");
+
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+                query.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
+                query.addProperty("sumReceiptDetailZReport", zReportLM.findProperty("sumReceiptDetail[ZReport]").getExpr(zReportExpr));
+
+                query.and(zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr).getWhere());
+                query.and(zReportLM.findProperty("succeededExtraCheck[ZReport]").getExpr(zReportExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+                for (ImMap<Object, Object> row : result.values()) {
+                    zReportSumMap.put((String) row.get("idZReport"), (BigDecimal) row.get("sumReceiptDetailZReport"));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
                 throw Throwables.propagate(e);
             }
         }

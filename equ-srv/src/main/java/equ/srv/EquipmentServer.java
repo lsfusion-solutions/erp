@@ -157,6 +157,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
         zReportSectionLM = getBusinessLogics().getModule("ZReportSection");
+        SendSalesEquipmentServer.init(getBusinessLogics());
     }
 
     @Override
@@ -1545,31 +1546,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public Map<String, BigDecimal> readZReportSumMap() throws RemoteException, SQLException {
-        Map<String, BigDecimal> zReportSumMap = new HashMap<>();
-        if (zReportLM != null) {
-            try (DataSession session = getDbManager().createSession()) {
-
-                KeyExpr zReportExpr = new KeyExpr("zReport");
-
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "ZReport", zReportExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-
-                query.addProperty("idZReport", zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr));
-                query.addProperty("sumReceiptDetailZReport", zReportLM.findProperty("sumReceiptDetail[ZReport]").getExpr(zReportExpr));
-
-                query.and(zReportLM.findProperty("id[ZReport]").getExpr(zReportExpr).getWhere());
-                query.and(zReportLM.findProperty("succeededExtraCheck[ZReport]").getExpr(zReportExpr).getWhere());
-
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-
-                for (ImMap<Object, Object> row : result.values()) {
-                    zReportSumMap.put((String) row.get("idZReport"), (BigDecimal) row.get("sumReceiptDetailZReport"));
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return zReportSumMap;
+        return SendSalesEquipmentServer.readZReportSumMap(getDbManager());
     }
     
     @Override
