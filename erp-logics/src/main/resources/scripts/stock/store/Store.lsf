@@ -102,6 +102,8 @@ nameRegion 'Регион' (Store store) = name(region(store));
 address 'Адрес' = DATA VARSTRING[100] (Store);
 mainAddress (Store store) += address(store);
 
+email 'E-mail' (warehouse) = DATA VARSTRING[300] (Store) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+
 latitude 'Координата X' = DATA NUMERIC[10,5](Store);
 longitude 'Координата Y' = DATA NUMERIC[10,5](Store);
 
@@ -208,6 +210,9 @@ countDepartmentStore 'Кол-во отделов' (store) = GROUP SUM 1 IF Depar
 
 address 'Адрес' (DepartmentStore departmentStore) = address(store(departmentStore));
 address (DepartmentStore departmentStore) += address(departmentStore);
+
+email 'E-mail' (DepartmentStore ds) = email(store(ds)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
+email(DepartmentStore stock) += email(stock);
 
 latitude 'Координата X' (DepartmentStore departmentStore) = latitude(store(departmentStore));
 longitude 'Координата Y' (DepartmentStore departmentStore) = longitude(store(departmentStore));
@@ -355,7 +360,7 @@ change(Store store) = ACTION {
 
 FORM store 'Магазин'
     OBJECTS s=Store FIXED PANEL
-    PROPERTIES(s) name ON CHANGE change(s), address, phone, nameStoreType, tradingSquare READONLY, 
+    PROPERTIES(s) name ON CHANGE change(s), address, email, phone, nameStoreType, tradingSquare READONLY, 
                   nameChairman, openDate, nameLegalEntity, numberBankAccount SHOWIF isCompany(s),
                   nameRegion, latitude, longitude, showOnMap, calculateCoordinates, id SHOWIF showIDs(), inactive
 
@@ -382,6 +387,7 @@ DESIGN store {
             NEW firstRow {
                 type = CONTAINERH;
                 MOVE PROPERTY(address(s));
+                MOVE PROPERTY(email(s));
                 MOVE PROPERTY(phone(s));            
             }
             NEW secondRow{
@@ -424,11 +430,11 @@ FORM stores 'Магазины'
     FILTERGROUP active
         FILTER 'Активные' active(st) DEFAULT
 
-    PROPERTIES(t)          addT=ADDFORM FORCE PANEL, editT=EDITFORM FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) addT=ADDFORM FORCE PANEL, editT=EDITFORM FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS s=Store
-    PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, nameStoreType, nameLegalEntity, nameRegion
-    PROPERTIES(s)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, nameStoreType, nameLegalEntity, nameRegion
+    PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     FILTERS in(t, st, s)
     FILTERGROUP group1
         FILTER 'Активные' active(s) 'F10' DEFAULT
