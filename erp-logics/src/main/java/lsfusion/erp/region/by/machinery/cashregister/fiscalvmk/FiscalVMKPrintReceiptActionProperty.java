@@ -72,6 +72,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
 
                 ScriptingLogicsModule posGiftCardLM = context.getBL().getModule("POSGiftCard");
                 boolean giftCardAsNotPayment = posGiftCardLM != null && (posGiftCardLM.findProperty("giftCardAsNotPaymentCurrentCashRegister[]").read(context) != null);
+                String giftCardAsNotPaymentText = posGiftCardLM != null ? (String) (posGiftCardLM.findProperty("giftCardAsNotPaymentText[Receipt]").read(context, receiptObject)) : null;
                 if (sumTotal != null && maxSum != null && sumTotal.compareTo(maxSum) > 0) {
                     context.requestUserInteraction(new MessageClientAction("Сумма чека превышает " + maxSum.intValue() + " рублей", "Ошибка!"));
                     return;
@@ -165,7 +166,7 @@ public class FiscalVMKPrintReceiptActionProperty extends ScriptingActionProperty
                     Object result = context.requestUserInteraction(new FiscalVMKPrintReceiptClientAction(ip, comPort, baudRate, placeNumber,
                             operatorNumber == null ? 1 : (Integer) operatorNumber, new ReceiptInstance(sumDisc, sumCard, sumCash,
                             sumGiftCard == null ? null : sumGiftCard.abs(), sumTotal, numberDiscountCard, receiptSaleItemList, receiptReturnItemList),
-                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, UNP, regNumber, machineryNumber));
+                            fiscalVMKReceiptTop, fiscalVMKReceiptBottom, giftCardAsNotPayment, giftCardAsNotPaymentText, UNP, regNumber, machineryNumber));
                     if (result instanceof Integer) {
                         findProperty("number[Receipt]").change(result, context, receiptObject);
                         if (context.apply())

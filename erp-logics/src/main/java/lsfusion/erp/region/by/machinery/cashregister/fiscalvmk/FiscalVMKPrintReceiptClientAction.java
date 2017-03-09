@@ -22,13 +22,14 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
     String receiptTop;
     String receiptBottom;
     boolean giftCardAsNotPayment;
+    String giftCardAsNotPaymentText;
     String UNP;
     String regNumber;
     String machineryNumber;
 
     public FiscalVMKPrintReceiptClientAction(String ip, Integer comPort, Integer baudRate, Integer placeNumber, Integer operatorNumber,
                                              ReceiptInstance receipt, String receiptTop, String receiptBottom, boolean giftCardAsNotPayment,
-                                             String UNP, String regNumber, String machineryNumber) {
+                                             String giftCardAsNotPaymentText, String UNP, String regNumber, String machineryNumber) {
         this.ip = ip;
         this.comPort = comPort == null ? 0 : comPort;
         this.baudRate = baudRate == null ? 0 : baudRate;
@@ -38,6 +39,7 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
         this.receiptTop = receiptTop;
         this.receiptBottom = receiptBottom;
         this.giftCardAsNotPayment = giftCardAsNotPayment;
+        this.giftCardAsNotPaymentText = giftCardAsNotPaymentText;
         this.UNP = UNP;
         this.regNumber = regNumber;
         this.machineryNumber = machineryNumber;
@@ -130,6 +132,8 @@ public class FiscalVMKPrintReceiptClientAction implements ClientAction {
             FiscalVMK.printFiscalText(getFiscalString("Сертификат", formatter.format(receipt.sumGiftCard.negate())));
             FiscalVMK.printFiscalText(getFiscalString("", " \n( _______ ____________ )"));
             FiscalVMK.printFiscalText(getFiscalString("", " (подпись)     ФИО      \n "));
+
+            FiscalVMK.printMultilineFiscalText(giftCardAsNotPaymentText);
 
             FiscalVMK.printFiscalText(" \n      КАССОВЫЙ ЧЕК      \n ");
             if(UNP != null)
