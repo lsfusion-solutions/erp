@@ -44,8 +44,9 @@ public class EVATActiveXHandler {
         logger.info("EVAT: client action signAndSend");
         List<List<Object>> result = new ArrayList<>();
 
-        String xsdPath = path + "/xsd";
-        File archiveDir = new File(exportPath == null ? (path + "/archive") : exportPath);
+        String xsdPath = path == null ? null : (path + "/xsd");
+        String archivePath = exportPath == null ? (path == null ? null : (path + "/archive")) : exportPath;
+        File archiveDir = archivePath == null ? null : new File(archivePath);
 
         for (Map.Entry<String, Map<Integer, List<Object>>> filesEntry : files.entrySet()) {
             String unp = filesEntry.getKey();
@@ -54,7 +55,7 @@ public class EVATActiveXHandler {
             try {
                 initService(serviceUrl);
                 if(service != null) {
-                    if (archiveDir.exists() || archiveDir.mkdirs()) {
+                    if (archiveDir == null || archiveDir.exists() || archiveDir.mkdirs()) {
                         for (Map.Entry<Integer, List<Object>> entry : filesEntry.getValue().entrySet()) {
                             result.add(sendFile(entry.getValue(), entry.getKey(), service, archiveDir, xsdPath));
                         }
@@ -81,9 +82,10 @@ public class EVATActiveXHandler {
         List<Object> result = null;
         byte[] file = (byte[]) fileNumberEntry.get(0);
         String number = (String) fileNumberEntry.get(1);
+        File originalFile = null;
         try {
             logger.info(String.format("EVAT %s: save file before sending", number));
-            File originalFile = new File(archiveDir, "EVAT" + evat + ".xml");
+            originalFile = archiveDir == null ? File.createTempFile("EVAT", ".xml") : new File(archiveDir, "EVAT" + evat + ".xml");
             FileUtils.writeByteArrayToFile(originalFile, file);
 
             // Создание электронного документа
@@ -93,11 +95,11 @@ public class EVATActiveXHandler {
             Dispatch document = Dispatch.get(invVatXml, "Document").toDispatch();
             if(Dispatch.call(document, "LoadFromFile", originalFile.getAbsolutePath()).getInt() == 0) {
                 // Проверка счет-фактуры НДС на соответствие XSD схеме
-                String xsdSchema = loadXsdSchema(xsdPath, Dispatch.call(document, "GetXmlNodeValue", "issuance/general/documentType"));
-                if (Dispatch.call(document, "ValidateXML", xsdSchema, 0).getInt() == 0) {
+                if (validateXML(document, xsdPath)) {
 
                     if (Dispatch.call(invVatXml, "Sign", 0).getInt() == 0) {
-                        Dispatch.call(invVatXml, "SaveToFile", archiveDir + "/" + "EVAT" + evat + ".sgn.xml");
+                        if(archiveDir != null)
+                            Dispatch.call(invVatXml, "SaveToFile", archiveDir + "/" + "EVAT" + evat + ".sgn.xml");
 
                         // Загрузка электронного документа на автоматизированный сервис
                         // портала и получение квитанции о приёме
@@ -130,6 +132,9 @@ public class EVATActiveXHandler {
             disconnect(service);
             logger.error("Send file error", e);
             return Arrays.asList((Object) evat, e.getMessage(), true);
+        } finally {
+            if(archiveDir == null && originalFile!= null && !originalFile.delete())
+                originalFile.deleteOnExit();
         }
         return result;
     }
@@ -201,6 +206,12 @@ public class EVATActiveXHandler {
             // Завершение авторизованной сессии
             Dispatch.call(service, "Logout");
         }
+    }
+
+
+    private boolean validateXML(Dispatch document, String xsdPath) throws Exception {
+        return xsdPath == null ||
+                Dispatch.call(document, "ValidateXML", loadXsdSchema(xsdPath, Dispatch.call(document, "GetXmlNodeValue", "issuance/general/documentType")), 0).getInt() == 0;
     }
 
 

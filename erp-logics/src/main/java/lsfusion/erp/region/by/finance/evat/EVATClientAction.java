@@ -42,21 +42,23 @@ public class EVATClientAction implements ClientAction {
     @Override
     public Object dispatch(ClientActionDispatcher dispatcher) throws IOException {
         if(!initialized) {
-            String libraryPath = System.getProperty("java.library.path");
-            String libPath = path + (SystemUtils.is64Arch() ? "/win64" : "/win32");
-            if(libraryPath != null && !libraryPath.contains(libPath))
-                System.setProperty("java.library.path", libPath + (libraryPath.isEmpty() ? "" : (";" + libraryPath)));
-            System.setProperty("by.avest.loader.shared", "true");
+            if(path != null) {
+                String libraryPath = System.getProperty("java.library.path");
+                String libPath = path + (SystemUtils.is64Arch() ? "/win64" : "/win32");
+                if (libraryPath != null && !libraryPath.contains(libPath))
+                    System.setProperty("java.library.path", libPath + (libraryPath.isEmpty() ? "" : (";" + libraryPath)));
+                System.setProperty("by.avest.loader.shared", "true");
 
-            addPath(path + "/avjavasecprov-shared.jar");
-            addPath(path + "/avjavasecprovintf.jar");
-            addPath(path + "/avoids.jar");
-            addPath(path + "/avjceprovlib-avtoken-shared.jar");
-            addPath(path + "/avjavaseckit.jar");
-            addPath(path + "/avstores.jar");
+                addPath(path + "/avjavasecprov-shared.jar");
+                addPath(path + "/avjavasecprovintf.jar");
+                addPath(path + "/avoids.jar");
+                addPath(path + "/avjceprovlib-avtoken-shared.jar");
+                addPath(path + "/avjavaseckit.jar");
+                addPath(path + "/avstores.jar");
 
-            addPath(path + "/avedocclient.jar");
-            addPath(path + "/avedoctool.jar");
+                addPath(path + "/avedocclient.jar");
+                addPath(path + "/avedoctool.jar");
+            }
             initialized = true;
         }
 
