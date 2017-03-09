@@ -19,6 +19,7 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
+import org.apache.commons.io.FileUtils;
 import org.apache.http.HttpResponse;
 import org.apache.xmlbeans.impl.util.Base64;
 import org.jdom.Document;
@@ -29,6 +30,7 @@ import org.jdom.input.SAXBuilder;
 import org.jdom.output.XMLOutputter;
 
 import java.io.ByteArrayInputStream;
+import java.io.File;
 import java.io.IOException;
 import java.math.BigDecimal;
 import java.sql.SQLException;
@@ -42,7 +44,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         super(LM);
     }
 
-    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, boolean sendReplies)
+    protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean sendReplies)
             throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
@@ -74,7 +76,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
         switch (requestResult) {
             case OK:
-                importMessages(context, url, login, password, host, port, provider, responseMessage, sendReplies);
+                importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, sendReplies);
                 break;
             case AUTHORISATION_ERROR:
                 ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
@@ -86,7 +88,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         }
     }
 
-    private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String responseMessage, boolean sendReplies) throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+    private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
+                                String provider, String responseMessage, String archiveDir, boolean sendReplies)
+            throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
         Map<String, DocumentData> messages = new HashMap<>();
         Map<String, DocumentData> orderResponses = new HashMap<>();
@@ -130,6 +134,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                         if (despatchAdvice != null)
                                             despatchAdvices.put(documentId, despatchAdvice);
                                         break;
+                                    }
+                                }
+
+                                if (archiveDir != null) {
+                                    try {
+                                        FileUtils.writeStringToFile(new File(archiveDir + "/" + documentId), subXML);
+                                    } catch (Exception e) {
+                                        ServerLoggers.importLogger.error("Archive file error: ", e);
                                     }
                                 }
                             }

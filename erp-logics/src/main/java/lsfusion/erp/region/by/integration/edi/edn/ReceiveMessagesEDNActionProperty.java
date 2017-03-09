@@ -29,9 +29,10 @@ public class ReceiveMessagesEDNActionProperty extends ReceiveMessagesActionPrope
             String password = (String) findProperty("passwordEDN[]").read(context);
             String host = (String) findProperty("hostEDN[]").read(context);
             Integer port = (Integer) findProperty("portEDN[]").read(context);
+            String archiveDir = (String) findProperty("archiveDirEDN[]").read(context);
             if (login != null && password != null && host != null && port != null) {
                 String url = String.format("https://%s:%s/topby/DmcService?wsdl", host, port);
-                receiveMessages(context, url, login, password, host, port, provider, true);
+                receiveMessages(context, url, login, password, host, port, provider, archiveDir, true);
             } else {
                 ServerLoggers.importLogger.info(provider + " ReceiveMessages: не заданы имя пользователя / пароль / хост / порт");
                 context.delayUserInteraction(new MessageClientAction(provider + " заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
