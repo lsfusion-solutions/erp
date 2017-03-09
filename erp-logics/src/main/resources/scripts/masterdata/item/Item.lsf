@@ -151,13 +151,15 @@ isParent (ItemGroup itemGroup, Item item) = isParent(itemGroup(item), itemGroup)
 
 
 checkIsLeafItemGroup 'Товар должен быть привязан к нижнему узлу основного классификатора' = DATA BOOLEAN ();
+noEventsInTransactionItem 'Отключить событие при объединении товаров' = DATA BOOLEAN ();
 
 EXTEND FORM options
-    PROPERTIES checkIsLeafItemGroup ()
+    PROPERTIES checkIsLeafItemGroup (), noEventsInTransactionItem()
 ;
 DESIGN options {
     items {
         MOVE PROPERTY (checkIsLeafItemGroup ());
+        MOVE PROPERTY (noEventsInTransactionItem ());
     }
 }
 
@@ -197,7 +199,6 @@ image 'Изображение' (Batch batch) = image(sku(batch));
 // -------------------------------- Надбавки для расчетных видов цен --------------------------------//
 
 currentBasePrice 'Базовая цена' (CalcPriceListType type, Sku sku, Stock stock) = priceA[PriceListType,Sku,Stock,DATETIME](basePriceListType(type), sku, stock, currentDateTime());
-
 currentCalcPrice 'Расчетная цена' (PriceListType type, Sku sku, Stock stock) = priceA(type, sku, stock, currentDateTime());
 
 // ------------------------------------ Формы -------------------------- //
@@ -1790,6 +1791,7 @@ DESIGN confirmReplaceItem {
 }
 
 replace 'Объединить' (Item item)= ACTION {
+    IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
     FORM confirmReplaceItem OBJECTS i=item ;
     IF formResult() == FormResult.ok THEN {
         allowReplaceItem() <- TRUE;
@@ -1807,7 +1809,8 @@ replace 'Объединить' (Item item)= ACTION {
         apply();
     } ELSE {
         in(Item i) <- NULL WHERE in(i);           
-    }   
+    }
+    IF noEventsInTransactionItem() THEN dropNoEventsInTransaction();   
 } CONFIRM;
 
 changeGroupItem 'Изменить группу' () = ACTION {
