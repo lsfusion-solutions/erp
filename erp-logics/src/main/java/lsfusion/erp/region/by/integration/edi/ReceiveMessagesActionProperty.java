@@ -156,7 +156,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         for(Map.Entry<String, DocumentData> message : messages.entrySet()) {
             String documentId = message.getKey();
             DocumentData data = message.getValue();
-            if(data.data != null) {
+            if(data.firstData != null) {
                 String error = importOrderMessages(context, data);
                 succeededMap.put(documentId, Pair.create(data.documentNumber, error));
                 if (error == null) {
@@ -269,17 +269,18 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                             break;
                     }
                 }
-                return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)));
+                return new DocumentData(documentNumber, Collections.singletonList(Arrays.asList((Object) documentNumber, dateTime, code, description, orderNumber)), null);
             } else
                 ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: incorrect documentType %s", provider, documentId, documentType));
         } else
             ServerLoggers.importLogger.error(String.format("%s Parse Order Message %s error: no reference tag", provider, documentId));
-        return new DocumentData(documentNumber, null);
+        return new DocumentData(documentNumber, null, null);
     }
 
     private String importOrderMessages(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
-        if (data != null && !data.data.isEmpty()) {
+        List<List<Object>> importData = data == null ? null : data.firstData;
+        if (importData != null && !importData.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -312,7 +313,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                     object(findClass("EOrder")).getMapping(eOrderKey)));
             fields.add(numberEOrderField);
 
-            ImportTable table = new ImportTable(fields, data.data);
+            ImportTable table = new ImportTable(fields, importData);
 
             try (DataSession session = context.createSession()) {
                 session.pushVolatileStats("EDI_OM");
@@ -329,7 +330,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private DocumentData parseOrderResponse(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        List<List<Object>> result = new ArrayList<>();
+        List<List<Object>> firstData = new ArrayList<>();
+        List<List<Object>> secondData = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
@@ -365,10 +367,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal sumNoNDS = parseBigDecimal(lineElement.getChildText("priceNoNDS"));
             BigDecimal sumNDS = parseBigDecimal(lineElement.getChildText("priceNDS"));
 
-            result.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                    deliveryDateTimeSecond, id, barcode, GTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
+            if (barcode != null)
+                firstData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeSecond, id, barcode, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
+            else
+                secondData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeSecond, id, GTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
         }
-        return new DocumentData(documentNumber, result);
+        return new DocumentData(documentNumber, firstData, secondData);
     }
 
     private String getResponseType(String id) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -382,8 +388,14 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private String importOrderResponses(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String message = importOrderResponses(context, data, true);
+        return message == null ? importOrderResponses(context, data, false) : message;
+    }
+
+    private String importOrderResponses(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
-        if (data != null && !data.data.isEmpty()) {
+        List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
+        if (importData != null && !importData.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -460,23 +472,25 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(idEOrderResponseDetailField, findProperty("id[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
             fields.add(idEOrderResponseDetailField);
 
-            ImportField barcodeEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
-            ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderResponseDetailField));
-            skuBarcodeKey.skipKey = true;
-            keys.add(skuBarcodeKey);
-            props.add(new ImportProperty(barcodeEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
-                    object(findClass("Sku")).getMapping(skuBarcodeKey), true));
-            fields.add(barcodeEOrderResponseDetailField);
-
-            ImportField GTINEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
-            ImportKey<?> skuGTINKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuGTIN[VARSTRING[15]]").getMapping(GTINEOrderResponseDetailField));
-            skuGTINKey.skipKey = true;
-            keys.add(skuGTINKey);
-            props.add(new ImportProperty(GTINEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
-                    object(findClass("Sku")).getMapping(skuGTINKey), true));
-            fields.add(GTINEOrderResponseDetailField);
+            if(first) {
+                ImportField barcodeEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
+                ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
+                        findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderResponseDetailField));
+                skuBarcodeKey.skipKey = true;
+                keys.add(skuBarcodeKey);
+                props.add(new ImportProperty(barcodeEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
+                        object(findClass("Sku")).getMapping(skuBarcodeKey), true));
+                fields.add(barcodeEOrderResponseDetailField);
+            } else {
+                ImportField GTINEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
+                ImportKey<?> skuGTINKey = new ImportKey((CustomClass) findClass("Sku"),
+                        findProperty("skuGTIN[VARSTRING[15]]").getMapping(GTINEOrderResponseDetailField));
+                skuGTINKey.skipKey = true;
+                keys.add(skuGTINKey);
+                props.add(new ImportProperty(GTINEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
+                        object(findClass("Sku")).getMapping(skuGTINKey), true));
+                fields.add(GTINEOrderResponseDetailField);
+            }
 
             ImportField actionField = new ImportField(findProperty("staticName[Object]"));
             ImportKey<?> actionKey = new ImportKey((CustomClass) findClass("EOrderResponseDetailAction"),
@@ -506,7 +520,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(sumNDSEOrderResponseDetailField, findProperty("sumNDS[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
             fields.add(sumNDSEOrderResponseDetailField);
 
-            ImportTable table = new ImportTable(fields, data.data);
+            ImportTable table = new ImportTable(fields, importData);
 
             try (DataSession session = context.createSession()) {
                 session.pushVolatileStats("EDI_OR");
@@ -523,7 +537,8 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     private DocumentData parseDespatchAdvice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
-        List<List<Object>> result = new ArrayList<>();
+        List<List<Object>> firstData = new ArrayList<>();
+        List<List<Object>> secondData = new ArrayList<>();
         SAXBuilder builder = new SAXBuilder();
         Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
@@ -559,16 +574,27 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountWithoutCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountWithoutCharges"));
             BigDecimal lineItemAmount = parseBigDecimal(lineElement.getChildText("lineItemAmount"));
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
-            result.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                    deliveryDateTimeFirst, id, barcode, GTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
-                    lineItemAmount, lineItemAmountCharges));
+            if (barcode != null)
+                firstData.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeFirst, id, barcode, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        lineItemAmount, lineItemAmountCharges));
+            else
+                secondData.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
+                        deliveryDateTimeFirst, id, GTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        lineItemAmount, lineItemAmountCharges));
         }
-        return new DocumentData(documentNumber, result);
+        return new DocumentData(documentNumber, firstData, secondData);
     }
 
     private String importDespatchAdvices(ExecutionContext context, DocumentData data) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+        String message = importDespatchAdvices(context, data, true);
+        return message == null ? importDespatchAdvices(context, data, false) : message;
+    }
+
+    private String importDespatchAdvices(ExecutionContext context, DocumentData data, boolean first) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         String message = null;
-        if (data != null && !data.data.isEmpty()) {
+        List<List<Object>> importData = data == null ? null : (first ? data.firstData : data.secondData);
+        if (importData != null && !importData.isEmpty()) {
             List<ImportProperty<?>> props = new ArrayList<>();
             List<ImportField> fields = new ArrayList<>();
             List<ImportKey<?>> keys = new ArrayList<>();
@@ -645,23 +671,25 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(idEOrderDespatchAdviceDetailField, findProperty("id[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(idEOrderDespatchAdviceDetailField);
 
-            ImportField barcodeEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
-            ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
-            skuBarcodeKey.skipKey = true;
-            keys.add(skuBarcodeKey);
-            props.add(new ImportProperty(barcodeEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
-                    object(findClass("Sku")).getMapping(skuBarcodeKey)));
-            fields.add(barcodeEOrderDespatchAdviceDetailField);
-
-            ImportField GTINEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
-            ImportKey<?> skuGTINKey = new ImportKey((CustomClass) findClass("Sku"),
-                    findProperty("skuGTIN[VARSTRING[15]]").getMapping(GTINEOrderDespatchAdviceDetailField));
-            skuGTINKey.skipKey = true;
-            keys.add(skuGTINKey);
-            props.add(new ImportProperty(GTINEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
-                    object(findClass("Sku")).getMapping(skuGTINKey)));
-            fields.add(GTINEOrderDespatchAdviceDetailField);
+            if(first) {
+                ImportField barcodeEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
+                ImportKey<?> skuBarcodeKey = new ImportKey((CustomClass) findClass("Sku"),
+                        findProperty("skuBarcode[VARSTRING[15]]").getMapping(barcodeEOrderDespatchAdviceDetailField));
+                skuBarcodeKey.skipKey = true;
+                keys.add(skuBarcodeKey);
+                props.add(new ImportProperty(barcodeEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
+                        object(findClass("Sku")).getMapping(skuBarcodeKey), true));
+                fields.add(barcodeEOrderDespatchAdviceDetailField);
+            } else {
+                ImportField GTINEOrderDespatchAdviceDetailField = new ImportField(findProperty("id[Barcode]"));
+                ImportKey<?> skuGTINKey = new ImportKey((CustomClass) findClass("Sku"),
+                        findProperty("skuGTIN[VARSTRING[15]]").getMapping(GTINEOrderDespatchAdviceDetailField));
+                skuGTINKey.skipKey = true;
+                keys.add(skuGTINKey);
+                props.add(new ImportProperty(GTINEOrderDespatchAdviceDetailField, findProperty("sku[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey),
+                        object(findClass("Sku")).getMapping(skuGTINKey), true));
+                fields.add(GTINEOrderDespatchAdviceDetailField);
+            }
 
             ImportField quantityOrderedEOrderDespatchAdviceDetailField = new ImportField(findProperty("quantityOrdered[EOrderDespatchAdviceDetail]"));
             props.add(new ImportProperty(quantityOrderedEOrderDespatchAdviceDetailField, findProperty("quantityOrdered[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
@@ -691,7 +719,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             props.add(new ImportProperty(lineItemAmountChargesEOrderDespatchAdviceDetailField, findProperty("lineItemAmountCharges[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
             fields.add(lineItemAmountChargesEOrderDespatchAdviceDetailField);
 
-            ImportTable table = new ImportTable(fields, data.data);
+            ImportTable table = new ImportTable(fields, importData);
 
             try (DataSession session = context.createSession()) {
                 session.pushVolatileStats("EDI_DA");
@@ -860,11 +888,13 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
     private class DocumentData {
         String documentNumber;
-        List<List<Object>> data;
+        List<List<Object>> firstData;
+        List<List<Object>> secondData;
 
-        public DocumentData(String documentNumber, List<List<Object>> data) {
+        public DocumentData(String documentNumber, List<List<Object>> firstData, List<List<Object>> secondData) {
             this.documentNumber = documentNumber;
-            this.data = data;
+            this.firstData = firstData;
+            this.secondData = secondData;
         }
     }
 }
