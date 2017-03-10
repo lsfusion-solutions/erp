@@ -352,11 +352,15 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
             Element lineElement = (Element) line;
-            String GTIN = lineElement.getChildText("GTIN");
-            String barcode = null;
-            if(orderBarcodesMap.containsKey(GTIN)) {
-                barcode = orderBarcodesMap.get(GTIN);
+            String dataGTIN = lineElement.getChildText("GTIN");
+            String GTIN;
+            String barcode;
+            if (orderBarcodesMap.containsKey(dataGTIN)) {
+                barcode = orderBarcodesMap.get(dataGTIN);
                 GTIN = null;
+            } else {
+                barcode = null;
+                GTIN = dataGTIN;
             }
             String id = documentNumber + "/" + i++;
             String action = lineElement.getChildText("action");
@@ -369,10 +373,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             if (barcode != null)
                 firstData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeSecond, id, barcode, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
+                        deliveryDateTimeSecond, id, barcode, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
             else
                 secondData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeSecond, id, GTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
+                        deliveryDateTimeSecond, id, GTIN, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
         }
         return new DocumentData(documentNumber, firstData, secondData);
     }
@@ -492,6 +496,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                 fields.add(GTINEOrderResponseDetailField);
             }
 
+            ImportField dataGTINEOrderResponseDetailField = new ImportField(findProperty("dataGTIN[EOrderResponseDetail]"));
+            props.add(new ImportProperty(dataGTINEOrderResponseDetailField, findProperty("dataGTIN[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey)));
+            fields.add(dataGTINEOrderResponseDetailField);
+
             ImportField actionField = new ImportField(findProperty("staticName[Object]"));
             ImportKey<?> actionKey = new ImportKey((CustomClass) findClass("EOrderResponseDetailAction"),
                     findProperty("nameStatic[STRING[250]]").getMapping(actionField));
@@ -559,11 +567,15 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         int i = 1;
         for (Object line : rootNode.getChildren("line")) {
             Element lineElement = (Element) line;
-            String GTIN = lineElement.getChildText("GTIN");
-            String barcode = null;
-            if(orderBarcodesMap.containsKey(GTIN)) {
-                barcode = orderBarcodesMap.get(GTIN);
+            String dataGTIN = lineElement.getChildText("GTIN");
+            String GTIN;
+            String barcode;
+            if(orderBarcodesMap.containsKey(dataGTIN)) {
+                barcode = orderBarcodesMap.get(dataGTIN);
                 GTIN = null;
+            } else {
+                barcode = null;
+                GTIN = dataGTIN;
             }
 
             String id = documentNumber + "/" + i++;
@@ -576,11 +588,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             BigDecimal lineItemAmountCharges = parseBigDecimal(lineElement.getChildText("lineItemAmountCharges"));
             if (barcode != null)
                 firstData.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeFirst, id, barcode, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        deliveryDateTimeFirst, id, barcode, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
             else
                 secondData.add(Arrays.<Object>asList(documentNumber, dateTime, deliveryNoteNumber, deliveryNoteDateTime, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeFirst, id, GTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
+                        deliveryDateTimeFirst, id, GTIN, dataGTIN, quantityOrdered, quantityDespatch, valueVAT, lineItemPrice, lineItemAmountWithoutCharges,
                         lineItemAmount, lineItemAmountCharges));
         }
         return new DocumentData(documentNumber, firstData, secondData);
@@ -690,6 +702,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                         object(findClass("Sku")).getMapping(skuGTINKey), true));
                 fields.add(GTINEOrderDespatchAdviceDetailField);
             }
+
+            ImportField dataGTINEOrderDespatchAdviceDetailField = new ImportField(findProperty("dataGTIN[EOrderDespatchAdviceDetail]"));
+            props.add(new ImportProperty(dataGTINEOrderDespatchAdviceDetailField, findProperty("dataGTIN[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
+            fields.add(dataGTINEOrderDespatchAdviceDetailField);
 
             ImportField quantityOrderedEOrderDespatchAdviceDetailField = new ImportField(findProperty("quantityOrdered[EOrderDespatchAdviceDetail]"));
             props.add(new ImportProperty(quantityOrderedEOrderDespatchAdviceDetailField, findProperty("quantityOrdered[EOrderDespatchAdviceDetail]").getMapping(eOrderDespatchAdviceDetailKey)));
