@@ -61,15 +61,26 @@ overPrePost 'Провести' (UserBinOrder o) = ACTION {
         isPosted(o) <- TRUE;
     } 
 }
-    
+
+//вес заказа
+sumGrossWeight 'Вес брутто, кг' = ABSTRACT NUMERIC[14,3] (BinOrderDetail);        
+sumGrossWeight 'Вес брутто, кг' = DATA NUMERIC[14,3] (UserBinOrderDetail);
+sumGrossWeight(UserBinOrderDetail d) += sumGrossWeight(d);
+   
+sumGrossWeight(UserBinOrderDetail d) <- grossWeight(sku(d)) * quantity(d)
+    WHEN CHANGED(sku(d)) OR CHANGED(quantity(d));
+              
+@defineDocumentHeaderGrossWeightCustomPrefix (binOrder, binOrderDetail, sum, ', кг');
+@defineDocumentHeaderGrossWeightCustomPrefix (userBinOrder, userBinOrderDetail, sum, ', кг'); 
+        
 FORM userBinOrder 'Заказ на перемещение по ячейкам (польз.)'
     OBJECTS o = UserBinOrder FIXED PANEL
     PROPERTIES (o) isPosted, nameStock, nameNumerator, number, series, date, time, note, 
                    nameOutBin ON CHANGE setOutBin(o), nameInBin ON CHANGE setInBin(o)
-    PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail
+    PROPERTIES (o) READONLY countUserBinOrderDetail, quantityBinOrderDetail, sumGrossWeightUserBinOrderDetail
     
     OBJECTS d = UserBinOrderDetail
-    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity
+    PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight
     PROPERTIES (d) ADDOBJ, deleteod = DELETESESSION
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinOrderDetail,
                            addDetailInputBarcodeUserBinOrderDetail, deleteUserBinOrderDetail
@@ -229,12 +240,13 @@ FORM binOrders  'Заказы на перемещение по ячейкам'
     PROPERTIES() filterBinOrderDateFrom, filterBinOrderDateTo, nameFilterBinOrderStock, nameFilterBinOrderCustomUser, nameFilterBinOrderComputer
     
     OBJECTS o = BinOrder LAST
-    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note
+    PROPERTIES (o) READONLY isPosted, number, series, date, time, nameStock, nameOutBin, nameInBin, note, 
+                            countBinOrderDetail, quantityBinOrderDetail, sumGrossWeightBinOrderDetail
     
     FILTERS filterDateFrom(o), filterDateTo(o), filterStock(o)
     
     OBJECTS d = BinOrderDetail
-    PROPERTIES (d) READONLY index, nameSku, nameOutBin, nameInBin, quantity
+    PROPERTIES (d) READONLY index, nameSku, nameOutBin, nameInBin, quantity, grossWeight
     
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer

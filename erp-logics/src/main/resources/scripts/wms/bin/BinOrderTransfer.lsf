@@ -13,7 +13,7 @@ binOrderDetail(UserBinTransferDetail binTransferDetail) += binOrderDetail(binTra
 
 overCopy[UserBinTransferDetail,UserBinTransferDetail](UserBinTransferDetail d, UserBinTransferDetail detail) += ACTION {      
     binOrderDetail(d) <- binOrderDetail(detail);
-}  
+}
 
 CONSTRAINT stock(UserBinTransferDetail detail) != stock(binOrderDetail(detail))
     CHECKED BY binOrderDetail[UserBinTransferDetail]
@@ -39,12 +39,12 @@ binTransfers 'Перемещения' (binOrder) = GROUP CONCAT VARSTRING[255](d
                                          ORDER binTransfer
                                          IN binTransfer MINCHARWIDTH 30 PREFCHARWIDTH 50;                                             
 
-binTransferd 'Кол-во (перемещено)' (BinOrderDetail binOrderDetail) = GROUP SUM quantity(BinTransferDetail binTransferDetail) IF isPosted(binTransferDetail)
+binTransfered 'Кол-во (перемещено)' (BinOrderDetail binOrderDetail) = GROUP SUM quantity(BinTransferDetail binTransferDetail) IF isPosted(binTransferDetail)
                                                            BY binOrderDetail(binTransferDetail) PERSISTENT;
                                                            
-binTransferdBinOrderDetail 'Кол-во (перемещено)' (binOrder) = GROUP SUM binTransferd(BinOrderDetail binOrderDetail) BY binOrder(binOrderDetail) IN documentSum;
+binTransferdBinOrderDetail 'Кол-во (перемещено)' (binOrder) = GROUP SUM binTransfered(BinOrderDetail binOrderDetail) BY binOrder(binOrderDetail) IN documentSum;
 
-toBinTransfer 'Не перемещено' (BinOrderDetail binOrderDetail) = quantity (binOrderDetail) (-) binTransferd(binOrderDetail);
+toBinTransfer 'Не перемещено' (BinOrderDetail binOrderDetail) = quantity (binOrderDetail) (-) binTransfered(binOrderDetail);
 prevToBinTransfer (BinOrderDetail binOrderDetail) = PREV(toBinTransfer(binOrderDetail));
 toBinTransfer (binOrder) = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF toBinTransfer(binOrderDetail) >0 BY binOrder(binOrderDetail);
 
@@ -53,13 +53,13 @@ backgroundBinTransfer 'Цвет' (BinOrder binOrder) = RGB(175, 255, 175) IF bin
 quantityBinOrder 'К-во заказа' (BinTransferDetail d) = quantity(binOrderDetail(d)); 
 priceBinOrder 'Цена заказа' (BinTransferDetail d) = price(binOrderDetail(d));
 
-fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail);
-toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail);
+fromBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), outBin(binOrderDetail) PERSISTENT;
+toBinTransfer 'Заказано' = GROUP SUM toBinTransfer(BinOrderDetail binOrderDetail) IF isOpened(binOrder(binOrderDetail)) BY sku(binOrderDetail), inBin(binOrderDetail) PERSISTENT;
 
 prevFromBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(fromBinTransfer(sku, bin));
 prevToBinTransfer 'Заказано' (Sku sku, Bin bin) = PREV(toBinTransfer(sku, bin));
 
-availableQuantity 'Доступно' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevToBinTransfer(sku, bin) (-) prevFromBinTransfer(sku, bin) PERSISTENT;
+availableQuantity 'Доступно' (Sku sku, Bin bin) = prevCurrentBalance(sku, bin) (+) prevToBinTransfer(sku, bin) (-) prevFromBinTransfer(sku, bin);
 
 inAvailableQuantity 'Доступно (ячейка в)' (Sku sku, UserBinOrder order) = availableQuantity(sku, inBin(order));
 outAvailableQuantity 'Доступно (ячейка из)' (Sku sku, UserBinOrder order) = availableQuantity(sku, outBin(order));
@@ -207,7 +207,7 @@ EXTEND FORM binOrders
     PROPERTIES (o) READONLY binTransfers
     PROPERTIES(o) addUserBinTransfer
     
-    PROPERTIES (d) READONLY BACKGROUND backgroundTransfered(o) binTransferd AFTER quantity(d)
+    PROPERTIES (d) READONLY BACKGROUND backgroundTransfered(o) binTransfered AFTER quantity(d)
 ;
 DESIGN binOrders {
     createdContainer{
@@ -216,7 +216,7 @@ DESIGN binOrders {
 }
 
 EXTEND FORM userBinOrder   
-    PROPERTIES (d) READONLY BACKGROUND backgroundTransfered(o) binTransferd AFTER quantity(d)
+    PROPERTIES (d) READONLY BACKGROUND backgroundTransfered(o) binTransfered AFTER quantity(d)
 ;
 // ---------------------------- Заполнение на основе заказа --------------------------- //
 stockBinTransferBinOrder = DATA LOCAL Stock ();
@@ -237,7 +237,7 @@ FORM binTransferBinOrders 'Заказы'
 
     OBJECTS d = BinOrderDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
-    PROPERTIES (d) READONLY quantity, binTransferd
+    PROPERTIES (d) READONLY quantity, binTransfered
     FILTERS binOrder(d) == o
 ;
 
