@@ -27,29 +27,17 @@ reportinGeneralLedger 'Запретить редактировать прово�
 dateReportingGeneralLedger 'Дата отчетного периода' = DATA DATE () IN generalLedger;
 dataMaxDateGeneralLedger 'Конец отчетного периода' = DATA DATE ();
 maxDateGeneralLedger 'Конец отчетного периода' = OVERRIDE 2040_12_31, dataMaxDateGeneralLedger();
-legalEntityGeneralLedger  = DATA LegalEntity ();
-nameLegalEntityGeneralLedger 'Организация' = name(legalEntityGeneralLedger());
-changeLegalEntityGeneralLedger() = ACTION {
-    FORM companyLegalEntities;
-    IF formResult() == FormResult.ok THEN {
-        legalEntityGeneralLedger() <- chosenObject('l');            
-    }
-}
-
-defineLegalEntityGeneralLedger() = ACTION {
-    legalEntityGeneralLedger() <- [=GROUP LAST LegalEntity l IF isCompany(l) AND accessCompany(Employee user, l)  BY user ORDER DESC l](currentUser());    
-}
 
 EXTEND FORM options
-    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger, maxDateGeneralLedger, 
-                 nameLegalEntityGeneralLedger ON CHANGE changeLegalEntityGeneralLedger()
-    FILTERS accessCompany(currentUser(), legalEntityGeneralLedger())
-    EVENTS
-        ON INIT defineLegalEntityGeneralLedger()    
+    OBJECTS l = LegalEntity FIXED PANEL 
+    PROPERTIES (l) name SELECTOR
+    PROPERTIES() onlineGeneralLedger, reportinGeneralLedger, dateReportingGeneralLedger, maxDateGeneralLedger
+    FILTERS accessCompany(currentUser(), l)
+
 ;
 DESIGN options {
     pane {
-        NEW generalLedger  {
+        NEW generalLedger{
             type = CONTAINERV;
             caption = 'Проводки';
             MOVE PROPERTY (onlineGeneralLedger());
@@ -59,7 +47,7 @@ DESIGN options {
                 MOVE PROPERTY (dateReportingGeneralLedger());
                 MOVE PROPERTY (maxDateGeneralLedger());                     
             }
-            MOVE PROPERTY(nameLegalEntityGeneralLedger());
+            MOVE l.box;
         }
     }
 }
@@ -491,28 +479,32 @@ createGeneralLedger 'Создать проводки' (LegalEntity legalEntity, 
 } CONFIRM;
 
 createGeneralLedger(DATE dFrom, DATE dTo) = ACTION {
-    FOR isCompany(LegalEntity l) AND l IS LegalEntity DO {
+    FOR isCompany(LegalEntity l) DO 
         createGeneralLedger(l, dFrom, dTo);
-    }
 }
 
 EXTEND FORM generalLedgers
     PROPERTIES(l, dFrom, dTo) createGeneralLedger 
 ;
 
-createGeneralLedger 'Создать проводки за отчетный период'() = ACTION {
-    createGeneralLedger(legalEntityGeneralLedger(), dateReportingGeneralLedger(), maxDateGeneralLedger());
+createGeneralLedger 'Создать проводки за отчетный период'(LegalEntity l) = ACTION {
+    createGeneralLedger(l, dateReportingGeneralLedger(), maxDateGeneralLedger());
 } IN generalLedger;
 
 EXTEND FORM options 
-    PROPERTIES() createGeneralLedger
+    PROPERTIES(l) createGeneralLedger
 ;
 
 DESIGN options {
     generalLedger {
-        MOVE PROPERTY(createGeneralLedger());
+        MOVE PROPERTY(createGeneralLedger(l));
     }
 }
+
+createGeneralLedger 'Создать проводки за отчетный период'() = ACTION {
+    FOR isCompany(LegalEntity l) DO 
+        createGeneralLedger(l, dateReportingGeneralLedger(), maxDateGeneralLedger());
+} IN generalLedger;
 
 //-- Для одного объекта
 
