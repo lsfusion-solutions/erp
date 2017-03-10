@@ -4,8 +4,6 @@ import java.io.Serializable;
 
 public class UKM4MySQLSettings implements Serializable{
 
-    private String importConnectionString;
-    private String exportConnectionString;
     private String cashPayments;
     private String cardPayments;
     private String giftCardPayments;
@@ -19,22 +17,6 @@ public class UKM4MySQLSettings implements Serializable{
     private Boolean appendBarcode;
 
     public UKM4MySQLSettings() {
-    }
-
-    public String getImportConnectionString() {
-        return importConnectionString;
-    }
-
-    public void setImportConnectionString(String importConnectionString) {
-        this.importConnectionString = importConnectionString;
-    }
-
-    public String getExportConnectionString() {
-        return exportConnectionString;
-    }
-
-    public void setExportConnectionString(String exportConnectionString) {
-        this.exportConnectionString = exportConnectionString;
     }
 
     public String getCashPayments() {

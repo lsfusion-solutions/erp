@@ -64,7 +64,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                             directory = cashRegister.directory;
                         }
                     }
-                    UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0, ukm4MySQLSettings);
+                    UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
                     if (params.connectionString == null)
                         processTransactionLogger.error("No connectionString found");
                     else {
@@ -619,7 +619,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                 timeout = timeout == null ? 300 : timeout;
                 boolean skipBarcodes = ukm4MySQLSettings == null || ukm4MySQLSettings.getSkipBarcodes() != null && ukm4MySQLSettings.getSkipBarcodes();
 
-                UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0, ukm4MySQLSettings);
+                UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 0);
                 if (params.connectionString != null) {
                     Connection conn = null;
                     PreparedStatement ps = null;
@@ -753,7 +753,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         boolean useBarcodeAsId = ukm4MySQLSettings == null || ukm4MySQLSettings.getUseBarcodeAsId() != null && ukm4MySQLSettings.getUseBarcodeAsId();
         boolean appendBarcode = ukm4MySQLSettings == null || ukm4MySQLSettings.getAppendBarcode() != null && ukm4MySQLSettings.getAppendBarcode();
 
-        UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1, ukm4MySQLSettings);
+        UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
 
         try {
 
@@ -969,8 +969,6 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     @Override
     public void requestSalesInfo(List<RequestExchange> requestExchangeList, Set<String> directorySet,
                                  Set<Integer> succeededRequests, Map<Integer, String> failedRequests, Map<Integer, String> ignoredRequests) throws IOException, ParseException {
-        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-
         for (RequestExchange requestExchange : requestExchangeList) {
             if (requestExchange.isSalesInfoExchange()) {
 
@@ -979,7 +977,7 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         Connection conn = null;
                         Statement statement = null;
                         try {
-                            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1, ukm4MySQLSettings);
+                            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
                             if (params.connectionString != null) {
                                 conn = DriverManager.getConnection(params.connectionString, params.user, params.password);
                                 String dateFrom = new SimpleDateFormat("yyyy-MM-dd").format(requestExchange.dateFrom);
@@ -1026,11 +1024,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     @Override
     public void finishReadingSalesInfo(UKM4MySQLSalesBatch salesBatch) {
 
-        UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-
         for(String directory : salesBatch.directorySet) {
 
-            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1, ukm4MySQLSettings);
+            UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(directory, 1);
             if (params.connectionString != null && salesBatch.receiptSet != null) {
 
                 Connection conn = null;
