@@ -466,7 +466,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             skuBarcodeKey.skipKey = true;
             keys.add(skuBarcodeKey);
             props.add(new ImportProperty(barcodeEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
-                    object(findClass("Sku")).getMapping(skuBarcodeKey)));
+                    object(findClass("Sku")).getMapping(skuBarcodeKey), true));
             fields.add(barcodeEOrderResponseDetailField);
 
             ImportField GTINEOrderResponseDetailField = new ImportField(findProperty("id[Barcode]"));
@@ -475,7 +475,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             skuGTINKey.skipKey = true;
             keys.add(skuGTINKey);
             props.add(new ImportProperty(GTINEOrderResponseDetailField, findProperty("sku[EOrderResponseDetail]").getMapping(eOrderResponseDetailKey),
-                    object(findClass("Sku")).getMapping(skuGTINKey)));
+                    object(findClass("Sku")).getMapping(skuGTINKey), true));
             fields.add(GTINEOrderResponseDetailField);
 
             ImportField actionField = new ImportField(findProperty("staticName[Object]"));
