@@ -184,9 +184,20 @@ maxDeviationPrice 'Макс. цена' (InvoiceDetail d) = (100.0 + percDeviatio
 minDeviationPrice 'Мин. цена' (InvoiceDetail d) = (100.0 - percDeviationDownPriceAgreement(d)) *
                                                         agreementsPrice(d) /
                                                         100.0; 
+
+useAgreementsPrice 'При определении % отклонения в накладной закупка использовать цену из соглашения' = DATA BOOLEAN ();
+EXTEND FORM options
+    PROPERTIES () useAgreementsPrice
+;
+DESIGN options {
+    purchase {
+        MOVE PROPERTY (useAgreementsPrice());
+    }
+}
+
                                                          
-overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF orderDetail(d) THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
-overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
+overMaxDeviationPrice 'Макс. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN maxDeviationPriceOrder(d) ELSE maxDeviationPrice(d);
+overMinDeviationPrice 'Мин. цена' (InvoiceDetail d) = IF orderDetail(d) AND NOT useAgreementsPrice() THEN minDeviationPriceOrder(d) ELSE minDeviationPrice(d);
                                                                                                                       
 skipMaxDeviationPrice = ABSTRACT BOOLEAN (InvoiceDetail);                                                                                                                     
 
