@@ -9,7 +9,6 @@ import lsfusion.server.logics.property.ClassPropertyInterface;
 import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.jdom.JDOMException;
 
 import java.io.IOException;
 import java.sql.SQLException;
@@ -38,7 +37,7 @@ public class ReceiveMessagesEDNActionProperty extends ReceiveMessagesActionPrope
                 context.delayUserInteraction(new MessageClientAction(provider + " заказ не выгружен: не заданы имя пользователя / пароль / хост / порт", "Экспорт"));
             }
 
-        } catch (ScriptingErrorLog.SemanticErrorException | IOException | JDOMException e) {
+        } catch (ScriptingErrorLog.SemanticErrorException | IOException e) {
             throw Throwables.propagate(e);
         }
     }

@@ -85,7 +85,7 @@ abstract class EDIActionProperty extends DefaultExportXMLActionProperty {
         return result.toString();
     }
 
-    RequestResult getRequestResult(HttpResponse httpResponse, String responseMessage, String prefix) throws JDOMException, IOException {
+    RequestResult getRequestResult(HttpResponse httpResponse, String responseMessage, String prefix) throws IOException, JDOMException {
         RequestResult requestResult = RequestResult.OK;
         int status = httpResponse.getStatusLine().getStatusCode();
         if (status == 200) {

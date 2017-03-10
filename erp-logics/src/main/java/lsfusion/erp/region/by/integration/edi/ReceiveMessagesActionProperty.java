@@ -45,7 +45,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
     }
 
     protected void receiveMessages(ExecutionContext context, String url, String login, String password, String host, int port, String provider, String archiveDir, boolean sendReplies)
-            throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+            throws IOException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         Element rootElement = new Element("Envelope", soapenvNamespace);
         rootElement.setNamespace(soapenvNamespace);
         rootElement.addNamespaceDeclaration(soapenvNamespace);
@@ -73,31 +73,35 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         HttpResponse httpResponse = sendRequest(host, port, login, password, url, xml, null);
         ServerLoggers.importLogger.info(provider + " ReceiveMessages request sent");
         String responseMessage = getResponseMessage(httpResponse);
-        RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
-        switch (requestResult) {
-            case OK:
-                importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, sendReplies);
-                break;
-            case AUTHORISATION_ERROR:
-                ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
-                context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: ошибка авторизации", "Экспорт"));
-                break;
-            case UNKNOWN_ERROR:
-                ServerLoggers.importLogger.error(provider + " ReceiveMessages: unknown error");
-                context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: неизвестная ошибка", "Экспорт"));
+        try {
+            RequestResult requestResult = getRequestResult(httpResponse, responseMessage, "ReceiveMessages");
+            switch (requestResult) {
+                case OK:
+                    importMessages(context, url, login, password, host, port, provider, responseMessage, archiveDir, sendReplies);
+                    break;
+                case AUTHORISATION_ERROR:
+                    ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid login-password");
+                    context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: ошибка авторизации", "Экспорт"));
+                    break;
+                case UNKNOWN_ERROR:
+                    ServerLoggers.importLogger.error(provider + " ReceiveMessages: unknown error");
+                    context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: неизвестная ошибка", "Экспорт"));
+            }
+        } catch (JDOMException e) {
+            ServerLoggers.importLogger.error(provider + " ReceiveMessages: invalid response", e);
+            context.delayUserInteraction(new MessageClientAction(provider + " Сообщения не получены: некорректный ответ сервера", "Экспорт"));
         }
     }
 
     private void importMessages(ExecutionContext context, String url, String login, String password, String host, Integer port,
                                 String provider, String responseMessage, String archiveDir, boolean sendReplies)
-            throws JDOMException, IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
+            throws IOException, ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, JDOMException {
         Map<String, Pair<String, String>> succeededMap = new HashMap<>();
         Map<String, DocumentData> messages = new HashMap<>();
         Map<String, DocumentData> orderResponses = new HashMap<>();
         Map<String, DocumentData> despatchAdvices = new HashMap<>();
 
-        SAXBuilder builder = new SAXBuilder();
-        Document document = builder.build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
+        Document document = new SAXBuilder().build(new ByteArrayInputStream(responseMessage.getBytes("utf-8")));
         Element rootNode = document.getRootElement();
         Namespace ns = rootNode.getNamespace();
         if (ns != null) {
@@ -118,23 +122,28 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
                                 String documentType = documentData.getChildText("DocumentType", topNamespace).toLowerCase();
                                 String documentId = documentData.getChildText("Id", topNamespace);
 
-                                switch (documentType) {
-                                    case "systemmessage":
-                                        messages.put(documentId, parseOrderMessage(subXML, provider, documentId));
-                                        break;
-                                    case "ordrsp": {
-                                        DocumentData orderResponse = parseOrderResponse(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
-                                        if (orderResponse != null) {
-                                            orderResponses.put(documentId, orderResponse);
+                                try {
+                                    Element subXMLRootNode = new SAXBuilder().build(new ByteArrayInputStream(subXML.getBytes("utf-8"))).getRootElement();
+                                    switch (documentType) {
+                                        case "systemmessage":
+                                            messages.put(documentId, parseOrderMessage(subXMLRootNode, provider, documentId));
+                                            break;
+                                        case "ordrsp": {
+                                            DocumentData orderResponse = parseOrderResponse(subXMLRootNode, context, url, login, password, host, port, provider, documentId, sendReplies);
+                                            if (orderResponse != null) {
+                                                orderResponses.put(documentId, orderResponse);
+                                            }
+                                            break;
                                         }
-                                        break;
+                                        case "desadv": {
+                                            DocumentData despatchAdvice = parseDespatchAdvice(subXMLRootNode, context, url, login, password, host, port, provider, documentId, sendReplies);
+                                            if (despatchAdvice != null)
+                                                despatchAdvices.put(documentId, despatchAdvice);
+                                            break;
+                                        }
                                     }
-                                    case "desadv": {
-                                        DocumentData despatchAdvice = parseDespatchAdvice(context, url, login, password, host, port, provider, documentId, subXML, sendReplies);
-                                        if (despatchAdvice != null)
-                                            despatchAdvices.put(documentId, despatchAdvice);
-                                        break;
-                                    }
+                                } catch (JDOMException e) {
+                                    ServerLoggers.importLogger.error(String.format("%s Parse Message %s error: ", provider, documentId), e);
                                 }
 
                                 if (archiveDir != null) {
@@ -241,10 +250,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             context.delayUserInteraction(new MessageClientAction(message, "Импорт"));
     }
 
-    private DocumentData parseOrderMessage(String message, String provider, String documentId) throws IOException, JDOMException {
-        SAXBuilder builder = new SAXBuilder();
-        Document document = builder.build(new ByteArrayInputStream(message.getBytes("utf-8")));
-        Element rootNode = document.getRootElement();
+    private DocumentData parseOrderMessage(Element rootNode, String provider, String documentId) throws IOException, JDOMException {
 
         String documentNumber = rootNode.getChildText("documentNumber");
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
@@ -329,12 +335,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseOrderResponse(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private DocumentData parseOrderResponse(Element rootNode, ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
-        SAXBuilder builder = new SAXBuilder();
-        Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
-        Element rootNode = document.getRootElement();
 
         String documentNumber = rootNode.getChildText("documentNumber");
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
@@ -544,12 +547,9 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         return message;
     }
 
-    private DocumentData parseDespatchAdvice(ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, String orderResponse, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
+    private DocumentData parseDespatchAdvice(Element rootNode, ExecutionContext context, String url, String login, String password, String host, Integer port, String provider, String documentId, boolean sendReplies) throws IOException, JDOMException, ScriptingErrorLog.SemanticErrorException, SQLHandledException, SQLException {
         List<List<Object>> firstData = new ArrayList<>();
         List<List<Object>> secondData = new ArrayList<>();
-        SAXBuilder builder = new SAXBuilder();
-        Document document = builder.build(new ByteArrayInputStream(orderResponse.getBytes("utf-8")));
-        Element rootNode = document.getRootElement();
 
         String documentNumber = rootNode.getChildText("documentNumber");
         Timestamp dateTime = parseTimestamp(rootNode.getChildText("documentDate"));
