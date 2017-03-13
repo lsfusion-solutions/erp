@@ -196,13 +196,14 @@ in 'В условии' = inParent(PromotionCondition promotionCondition, SkuGrou
 // sku
 TABLE promotionConditionSku (PromotionCondition, Sku);
 inData 'В условии' = DATA BOOLEAN (PromotionCondition, Sku);
+excluded 'Исключить из условия' = DATA BOOLEAN (PromotionCondition, Sku);
 
 overIn 'В условии' = ABSTRACT BOOLEAN (PromotionCondition, Sku);
 
-in 'В условии' (PromotionCondition c, Sku sku) = OVERRIDE
-    TRUE IF inParent(c, skuGroup(sku)),                                                                            
+in 'В условии' (PromotionCondition c, Sku sku) = (OVERRIDE
+    TRUE IF inParent(c, skuGroup(sku)),                                                                        
     overIn(c, sku),
-    inData(c, sku);
+    inData(c, sku)) AND NOT excluded(c, sku) PERSISTENT ;
 
 notHasDiscountCard (Promotion p) = NOT hasDiscountCard(p);
 notNoDiscountCard (Promotion p) = NOT noDiscountCard(p);
@@ -249,7 +250,7 @@ FORM promotion 'Акция'
     OBJECTS sk = Sku
     PROPERTIES(sk)    READONLY idBarcode, name
     FILTERS           isParent(skg, sk)
-    PROPERTIES(sg, sk)   resultPrice, in
+    PROPERTIES(sg, sk)   resultPrice, in, excluded
 
     FILTERGROUP filterSku
         FILTER 'Только отмеченные' in(sg, sk) 'F10'
