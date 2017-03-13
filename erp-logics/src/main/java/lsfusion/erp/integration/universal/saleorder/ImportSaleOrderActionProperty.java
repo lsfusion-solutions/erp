@@ -696,9 +696,7 @@ public class ImportSaleOrderActionProperty extends ImportDocumentActionProperty 
                         return true;
                 }
             }
-        } catch (NoSuchFieldException e) {
-            return true;
-        } catch (IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             return true;
         }
         return false;

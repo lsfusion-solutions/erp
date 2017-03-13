@@ -14,7 +14,6 @@ import lsfusion.server.logics.property.ExecutionContext;
 import lsfusion.server.logics.scripted.ScriptingActionProperty;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import lsfusion.server.remote.FormReportManager;
 import lsfusion.server.remote.InteractiveFormReportManager;
 
 import java.sql.SQLException;

@@ -1078,9 +1078,7 @@ public class ImportUserPriceListActionProperty extends ImportUniversalActionProp
                         return true;
                 }
             }
-        } catch (NoSuchFieldException e) {
-            return true;
-        } catch (IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             return true;
         }
         return false;

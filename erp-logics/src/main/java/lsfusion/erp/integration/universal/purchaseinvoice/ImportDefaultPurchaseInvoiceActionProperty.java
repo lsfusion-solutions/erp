@@ -48,9 +48,7 @@ public class ImportDefaultPurchaseInvoiceActionProperty extends ImportDocumentAc
                         return true;
                 }
             }
-        } catch (NoSuchFieldException e) {
-            return true;
-        } catch (IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             return true;
         }
         return false;

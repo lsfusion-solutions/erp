@@ -2054,9 +2054,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (field.get(aData) != null)
                     return true;
             }
-        } catch (NoSuchFieldException e) {
-            return true;
-        } catch (IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             return true;
         }
         return false;
@@ -2071,9 +2069,7 @@ public class ImportActionProperty extends DefaultImportActionProperty {
                 if (field.get(aData) != null)
                     return true;
             }
-        } catch (NoSuchFieldException e) {
-            return true;
-        } catch (IllegalAccessException e) {
+        } catch (NoSuchFieldException | IllegalAccessException e) {
             return true;
         }
         return false;
