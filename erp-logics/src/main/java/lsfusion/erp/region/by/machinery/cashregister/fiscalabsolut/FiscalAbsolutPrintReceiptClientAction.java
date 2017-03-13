@@ -191,7 +191,7 @@ public class FiscalAbsolutPrintReceiptClientAction implements ClientAction {
                     if (!FiscalAbsolut.discountItem(item, receipt.numberDiscountCard))
                         return false;
                     DecimalFormat formatter = getFormatter();
-                    if(printSumWithDiscount)
+                    if(printSumWithDiscount && item.articleDiscSum != 0.0)
                         FiscalAbsolut.printFiscalText(getFiscalString("Сумма со скидкой", formatter.format(item.sumPos)));
                     if (item.bonusSum != 0.0) {
                         FiscalAbsolut.simpleLogAction("Дисконтная карта: " + receipt.numberDiscountCard);
