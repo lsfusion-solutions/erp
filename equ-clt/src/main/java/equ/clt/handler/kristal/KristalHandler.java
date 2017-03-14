@@ -507,7 +507,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                     sendSoftCheckLogger.info("Kristal: found " + count + " SoftCheckInfo");
 
                 } catch (SQLException e) {
-                    machineryExchangeLogger.error("Kristal CashierTime: ", e);
+                    sendSoftCheckLogger.error("Kristal CashierTime: ", e);
                 } finally {
                     if (conn != null)
                         conn.close();
