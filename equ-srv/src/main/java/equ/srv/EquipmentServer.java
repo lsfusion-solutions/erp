@@ -158,6 +158,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
         zReportSectionLM = getBusinessLogics().getModule("ZReportSection");
         DeleteBarcodeEquipmentServer.init(getBusinessLogics());
+        MachineryExchangeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
     }
 
@@ -747,92 +748,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<DiscountCard> readDiscountCardList(String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
-        List<DiscountCard> discountCardList = new ArrayList<>();
-        if(discountCardLM != null) {
-            try (DataSession session = getDbManager().createSession()) {
-
-                KeyExpr discountCardExpr = new KeyExpr("discountCard");
-                ImRevMap<Object, KeyExpr> discountCardKeys = MapFact.singletonRev((Object) "discountCard", discountCardExpr);
-
-                QueryBuilder<Object, Object> discountCardQuery = new QueryBuilder<>(discountCardKeys);
-                String[] discountCardNames = new String[]{"idDiscountCard", "numberDiscountCard", "nameDiscountCard", 
-                        "percentDiscountCard", "dateDiscountCard", "dateToDiscountCard", "initialSumDiscountCard",
-                        "typeDiscountCard", "firstNameContact", "lastNameContact", "middleNameContact", "birthdayContact",
-                        "sexContact", "cityContact", "streetContact", "phoneContact", "emailContact", "agreeSubscribeContact"};
-                LCP[] discountCardProperties = discountCardLM.findProperties("id[DiscountCard]", "number[DiscountCard]", "name[DiscountCard]",
-                        "percent[DiscountCard]", "date[DiscountCard]", "dateTo[DiscountCard]", "initialSum[DiscountCard]",
-                        "type[DiscountCard]", "firstNameHttpServerContact[DiscountCard]", "lastNameHttpServerContact[DiscountCard]",
-                        "middleNameHttpServerContact[DiscountCard]", "birthdayHttpServerContact[DiscountCard]", "numberSexHttpServerContact[DiscountCard]",
-                        "cityHttpServerContact[DiscountCard]", "streetHttpServerContact[DiscountCard]", "phoneHttpServerContact[DiscountCard]",
-                        "emailHttpServerContact[DiscountCard]", "agreeSubscribeHttpServerContact[DiscountCard]");
-                for (int i = 0; i < discountCardProperties.length; i++) {
-                    discountCardQuery.addProperty(discountCardNames[i], discountCardProperties[i].getExpr(discountCardExpr));
-                }
-                discountCardQuery.and(discountCardLM.findProperty("number[DiscountCard]").getExpr(discountCardExpr).getWhere());
-                discountCardQuery.and(discountCardLM.findProperty("skipLoad[DiscountCard]").getExpr(discountCardExpr).getWhere().not());
-                Long numberFrom = parseLong(numberDiscountCardFrom);
-                if (numberFrom != null)
-                    discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberFrom, LongClass.instance).getExpr(), Compare.GREATER_EQUALS));
-                Long numberTo = parseLong(numberDiscountCardTo);
-                if (numberTo != null)
-                    discountCardQuery.and(discountCardLM.findProperty("longNumber[DiscountCard]").getExpr(discountCardExpr).compare(new DataObject(numberTo, LongClass.instance).getExpr(), Compare.LESS_EQUALS));
-
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> discountCardResult = discountCardQuery.execute(session, MapFact.singletonOrder((Object) "idDiscountCard", false));
-
-                for (int i = 0, size = discountCardResult.size(); i < size; i++) {
-                    ImMap<Object, Object> row = discountCardResult.getValue(i);
-
-                    String idDiscountCard = getRowValue(row, "idDiscountCard");
-                    if (idDiscountCard == null)
-                        idDiscountCard = String.valueOf(discountCardResult.getKey(i).get("discountCard"));
-                    String numberDiscountCard = getRowValue(row, "numberDiscountCard");
-                    String nameDiscountCard = getRowValue(row, "nameDiscountCard");
-                    BigDecimal percentDiscountCard = (BigDecimal) row.get("percentDiscountCard");
-                    BigDecimal initialSumDiscountCard = (BigDecimal) row.get("initialSumDiscountCard");
-                    Date dateFromDiscountCard = (Date) row.get("dateDiscountCard");
-                    Date dateToDiscountCard = (Date) row.get("dateToDiscountCard");
-                    String typeDiscountCard = (String) row.get("typeDiscountCard");
-                    String firstNameContact = (String) row.get("firstNameContact");
-                    String lastNameContact = (String) row.get("lastNameContact");
-                    String middleNameContact = (String) row.get("middleNameContact");
-                    Date birthdayContact = (Date) row.get("birthdayContact");
-                    Integer sexContact = (Integer) row.get("sexContact");
-                    String cityContact = (String) row.get("cityContact");
-                    String streetContact = (String) row.get("streetContact");
-                    String phoneContact = (String) row.get("phoneContact");
-                    String emailContact = (String) row.get("emailContact");
-                    boolean agreeSubscribeContact = row.get("agreeSubscribeContact") != null;
-                    discountCardList.add(new DiscountCard(idDiscountCard, numberDiscountCard, nameDiscountCard,
-                            percentDiscountCard, initialSumDiscountCard, dateFromDiscountCard, dateToDiscountCard,
-                            typeDiscountCard, firstNameContact, lastNameContact, middleNameContact, birthdayContact,
-                            sexContact, cityContact, streetContact, phoneContact, emailContact, agreeSubscribeContact, true));
-                }
-            } catch (Exception e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return discountCardList;
+        return MachineryExchangeEquipmentServer.readDiscountCardList(getDbManager(), numberDiscountCardFrom, numberDiscountCardTo);
     }
-
-    private Long parseLong(String value) {
-        try {
-            return Long.parseLong(value);
-        } catch(Exception e) {
-            return null;
-        }
-    }
-
-//    private int discountCardCompare(String d1, String d2) {
-//        int result = 0;
-//        if (d1 != null && d2 != null) {
-//            try {
-//                result = Integer.parseInt(d1) - Integer.parseInt(d2);
-//            } catch (Exception e) {
-//                result = 0;
-//            }
-//        }
-//        return result;
-//    }
 
     @Override
     public List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException {
