@@ -21,6 +21,7 @@ import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.sql.Date;
 import java.sql.Time;
+import java.sql.Timestamp;
 import java.text.DateFormat;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
@@ -132,9 +133,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             setAttribute(maxDiscountRestriction, "type", "MAX_DISCOUNT_PERCENT");
                             setAttribute(maxDiscountRestriction, "value", "0");
                             addStringElement(maxDiscountRestriction, "since-date", currentDate());
-                            addStringElement(maxDiscountRestriction, "till-date", "2021-01-01T23:59:59");
+                            addStringElement(maxDiscountRestriction, "till-date", formatDateTime(item.restrictionToDateTime, "yyyy-MM-dd'T'HH:mm:ss", "2021-01-01T23:59:59"));
                             addStringElement(maxDiscountRestriction, "since-time", "00:00:00");
-                            addStringElement(maxDiscountRestriction, "till-time", "23:59:59");
+                            addStringElement(maxDiscountRestriction, "till-time", formatDateTime(item.restrictionToDateTime, "HH:mm:ss", "23:59:59"));
                             addStringElement(maxDiscountRestriction, "deleted", item.flags != null && ((item.flags & 16) == 0) ? "false" : "true");
                             if (useShopIndices)
                                 addStringElement(maxDiscountRestriction, "shop-indices", item.idDepartmentStore);
@@ -593,8 +594,6 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     addStringElement(measureType, "name", item.shortNameUOM);
                     good.addContent(measureType);
 
-                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
-
                     //parent: priceEntry
                     Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
                     if (machineryInfoSet != null) {
@@ -632,7 +631,94 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
     @Override
     public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
-        //пока непонятно, ждём пояснений, какую xml отправлять
+
+        Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
+        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
+        boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+
+        if(deleteBarcodeInfo.directoryGroupMachinery != null && !deleteBarcodeInfo.barcodeList.isEmpty()) {
+            String exchangeDirectory = deleteBarcodeInfo.directoryGroupMachinery.trim() + "/products/source/";
+            File exchangeDirectoryFile = new File(exchangeDirectory);
+            if (exchangeDirectoryFile.exists() || exchangeDirectoryFile.mkdirs()) {
+
+                Element rootElement = new Element("goods-catalog");
+                Document doc = new Document(rootElement);
+                doc.setRootElement(rootElement);
+
+                for (CashRegisterItemInfo item : deleteBarcodeInfo.barcodeList) {
+
+                    //parent: rootElement
+                    Element good = new Element("good");
+                    String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
+                    setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
+
+                    Element pluginProperty = new Element("plugin-property");
+                    setAttribute(pluginProperty, "key", "plu-number");
+                    setAttribute(pluginProperty, "value", removeZeroes(idBarcode));
+                    good.addContent(pluginProperty);
+
+                    if (useShopIndices)
+                        addStringElement(good, "shop-indices", item.idDepartmentStore);
+
+                    addStringElement(good, "name", item.name);
+
+                    rootElement.addContent(good);
+
+                    //parent: good
+                    Element barcode = new Element("bar-code");
+                    setAttribute(barcode, "code", idBarcode);
+                    setAttribute(barcode, "deleted", true);
+                    good.addContent(barcode);
+
+                    addStringElement(good, "product-type", "");
+
+                    //parent: good
+                    Element priceEntry = new Element("price-entry");
+                    setAttribute(priceEntry, "price", 1);
+                    setAttribute(priceEntry, "deleted", "false");
+                    addStringElement(priceEntry, "begin-date", currentDate());
+                    addStringElement(priceEntry, "number", "1");
+                    good.addContent(priceEntry);
+
+                    //parent: priceEntry
+                    Integer number = deleteBarcodeInfo.overDepartNumberGroupMachinery != null ? deleteBarcodeInfo.overDepartNumberGroupMachinery :
+                            deleteBarcodeInfo.nppGroupMachinery;
+                    Element department = new Element("department");
+                    setAttribute(department, "number", number);
+                    priceEntry.addContent(department);
+
+                    addStringElement(good, "vat", "0");
+
+                    //parent: good
+                    Element group = new Element("group");
+                    setAttribute(group, "id", "deleted");
+                    addStringElement(group, "name", "deleted");
+                    good.addContent(group);
+
+                    Element measureType = new Element("measure-type");
+                    setAttribute(measureType, "id", item.idUOM);
+                    addStringElement(measureType, "name", item.shortNameUOM);
+                    good.addContent(measureType);
+
+                    Element manufacturer = new Element("manufacturer");
+                    good.addContent(manufacturer);
+
+                    Element country = new Element("country");
+                    good.addContent(country);
+
+                    addStringElement(good, "delete-from-cash", "false");
+
+                }
+
+                XMLOutputter xmlOutput = new XMLOutputter();
+                xmlOutput.setFormat(Format.getPrettyFormat().setEncoding(encoding));
+
+                PrintWriter fw = new PrintWriter(new OutputStreamWriter(new FileOutputStream(makeExportFile(exchangeDirectory, "catalog-goods")), encoding));
+                xmlOutput.output(doc, fw);
+                fw.close();
+            }
+        }
     }
 
     @Override
@@ -714,6 +800,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
     private String formatDate(Date date, String format) {
         return date == null ? null : new SimpleDateFormat(format).format(date);
+    }
+
+
+    private String formatDateTime(Timestamp dateTime, String format, String defaultValue) {
+        return dateTime == null ? defaultValue : new SimpleDateFormat(format).format(dateTime);
     }
 
 //    private String formatTime(Time time) {
