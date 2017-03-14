@@ -3,6 +3,7 @@ package equ.api.cashregister;
 import equ.api.ItemInfo;
 import java.math.BigDecimal;
 import java.sql.Date;
+import java.sql.Timestamp;
 
 public class CashRegisterItemInfo extends ItemInfo {
     public Integer itemGroupObject;
@@ -18,12 +19,14 @@ public class CashRegisterItemInfo extends ItemInfo {
     public String extIdItemGroup;
     public BigDecimal amountBarcode;
     public BigDecimal balance;
+    public Timestamp restrictionToDateTime;
 
     public CashRegisterItemInfo(String idItem, String idBarcode, String name, BigDecimal price, boolean splitItem, Integer daysExpiry, 
                                 Date expiryDate, boolean passScales, BigDecimal vat, Integer pluNumber, Integer flags,
                                 String idItemGroup, String nameItemGroup, String idUOM, String shortNameUOM,
                                 Integer itemGroupObject, String description, String idBrand, String nameBrand, String idSeason, String nameSeason,
-                                String idDepartmentStore, String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode) {
+                                String idDepartmentStore, String section, String deleteSection, BigDecimal minPrice, String extIdItemGroup, BigDecimal amountBarcode,
+                                BigDecimal balance, Timestamp restrictionToDateTime) {
         super(null, idItem, idBarcode, name, price, splitItem, daysExpiry, expiryDate, passScales, vat, pluNumber, flags, idItemGroup, nameItemGroup,
                 idUOM, shortNameUOM);
         this.itemGroupObject = itemGroupObject;
@@ -38,5 +41,7 @@ public class CashRegisterItemInfo extends ItemInfo {
         this.minPrice = minPrice;
         this.extIdItemGroup = extIdItemGroup;
         this.amountBarcode = amountBarcode;
+        this.balance = balance;
+        this.restrictionToDateTime = restrictionToDateTime;
     }
 }

@@ -477,14 +477,14 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
         }
     }
 
-    private void exportVarDeleteBarcode(Connection conn, List<String> barcodeList, int version) throws SQLException {
+    private void exportVarDeleteBarcode(Connection conn, List<CashRegisterItemInfo> barcodeList, int version) throws SQLException {
         PreparedStatement ps = null;
         try {
             ps = conn.prepareStatement(
                     "INSERT INTO var (id, version, deleted) VALUES (?, ?, ?) " +
                             "ON DUPLICATE KEY UPDATE deleted=VALUES(deleted)");
-            for (String barcode : barcodeList) {
-                ps.setString(1, HandlerUtils.trim(barcode, 40)); //id
+            for (CashRegisterItemInfo item : barcodeList) {
+                ps.setString(1, HandlerUtils.trim(item.idBarcode, 40)); //id
                 ps.setInt(2, version); //version
                 ps.setInt(3, 1); //deleted
                 ps.addBatch();
@@ -696,37 +696,33 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
     @Override
     public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
 
-        //todo: Для того, чтобы deleteBarcode заработал, надо передать directory, из которого мы получаем connectionString
+        try {
+            if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
+                Class.forName("com.mysql.jdbc.Driver");
 
-//        try {
-//            if (!deleteBarcodeInfo.barcodeList.isEmpty()) {
-//                Class.forName("com.mysql.jdbc.Driver");
-//
-//                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
-//                String connectionString = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getImportConnectionString();
-//                String user = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getUser();
-//                String password = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getPassword();
-//                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
-//                timeout = timeout == null ? 300 : timeout;
-//
-//                if (connectionString == null) {
-//                    deleteBarcodeLogger.error("No importConnectionString in ukm4MySQLSettings found");
-//                } else {
-//                    try (Connection conn = DriverManager.getConnection(connectionString, user, password)) {
-//                        conn.setAutoCommit(false);
-//                        Integer version = getVersion(conn) + 1;
-//
-//                        deleteBarcodeLogger.info("ukm4 mysql: deleteBarcode, table var");
-//                        exportVarDeleteBarcode(conn, deleteBarcodeInfo.barcodeList, version);
-//
-//                        processTransactionLogger.info("ukm4 mysql: deleteBarcode, table signal");
-//                        exportSignals(conn, null, version, false, timeout, true);
-//                    }
-//                }
-//            }
-//        } catch (ClassNotFoundException | SQLException e) {
-//            throw Throwables.propagate(e);
-//        }
+                UKM4MySQLSettings ukm4MySQLSettings = springContext.containsBean("ukm4MySQLSettings") ? (UKM4MySQLSettings) springContext.getBean("ukm4MySQLSettings") : null;
+                Integer timeout = ukm4MySQLSettings == null ? null : ukm4MySQLSettings.getTimeout();
+                timeout = timeout == null ? 300 : timeout;
+                UKM4MySQLConnectionString params = new UKM4MySQLConnectionString(deleteBarcodeInfo.directoryGroupMachinery, 0);
+
+                if (params.connectionString == null) {
+                    deleteBarcodeLogger.error("No importConnectionString in ukm4MySQLSettings found");
+                } else {
+                    try (Connection conn = DriverManager.getConnection(params.connectionString, params.user, params.password)) {
+                        conn.setAutoCommit(false);
+                        Integer version = getVersion(conn) + 1;
+
+                        deleteBarcodeLogger.info("ukm4 mysql: deleteBarcode, table var");
+                        exportVarDeleteBarcode(conn, deleteBarcodeInfo.barcodeList, version);
+
+                        processTransactionLogger.info("ukm4 mysql: deleteBarcode, table signal");
+                        exportSignals(conn, null, version, false, timeout, true);
+                    }
+                }
+            }
+        } catch (ClassNotFoundException | SQLException e) {
+            throw Throwables.propagate(e);
+        }
     }
 
     @Override

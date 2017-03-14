@@ -67,7 +67,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule cashRegisterLM;
     private ScriptingLogicsModule cashRegisterItemLM;
     private ScriptingLogicsModule collectionLM;
-    private ScriptingLogicsModule deleteBarcodeLM;
     private ScriptingLogicsModule discountCardLM;
     private ScriptingLogicsModule equipmentLM;
     private ScriptingLogicsModule equipmentCashRegisterLM;
@@ -78,6 +77,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule machineryPriceTransactionLM;
     private ScriptingLogicsModule machineryPriceTransactionSectionLM;
     private ScriptingLogicsModule machineryPriceTransactionBalanceLM;
+    private ScriptingLogicsModule machineryPriceTransactionPromotionLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
     private ScriptingLogicsModule purchaseInvoiceAgreementLM;
@@ -136,7 +136,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         cashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
         cashRegisterItemLM = getBusinessLogics().getModule("CashRegisterItem");
         collectionLM = getBusinessLogics().getModule("Collection");
-        deleteBarcodeLM = getBusinessLogics().getModule("DeleteBarcode");
         discountCardLM = getBusinessLogics().getModule("DiscountCard");
         equipmentLM = getBusinessLogics().getModule("Equipment");
         equipmentCashRegisterLM = getBusinessLogics().getModule("EquipmentCashRegister");
@@ -147,6 +146,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         machineryPriceTransactionLM = getBusinessLogics().getModule("MachineryPriceTransaction");
         machineryPriceTransactionSectionLM = getBusinessLogics().getModule("MachineryPriceTransactionSection");
         machineryPriceTransactionBalanceLM = getBusinessLogics().getModule("MachineryPriceTransactionBalance");
+        machineryPriceTransactionPromotionLM = getBusinessLogics().getModule("MachineryPriceTransactionPromotion");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
         purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
@@ -157,6 +157,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         zReportLM = getBusinessLogics().getModule("ZReport");
         zReportDiscountCardLM = getBusinessLogics().getModule("ZReportDiscountCard");
         zReportSectionLM = getBusinessLogics().getModule("ZReportSection");
+        DeleteBarcodeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
     }
 
@@ -382,6 +383,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                             machineryPriceTransactionBalanceLM.findProperty("balance[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
                 }
 
+                if(machineryPriceTransactionPromotionLM != null) {
+                    skuQuery.addProperty("restrictionToDateTimeMachineryPriceTransactionBarcode",
+                            machineryPriceTransactionPromotionLM.findProperty("restrictionToDateTime[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr));
+                }
+
                 skuQuery.and(equLM.findProperty("in[MachineryPriceTransaction,Barcode]").getExpr(transactionExpr, barcodeExpr).getWhere());
 
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> skuResult = skuQuery.execute(session);
@@ -465,11 +471,11 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                         String deleteSection = machineryPriceTransactionSectionLM == null ? null : (String) row.get("deleteSectionBarcode");
                         BigDecimal balance = machineryPriceTransactionBalanceLM == null ? null : (BigDecimal) row.get("balanceMachineryPriceTransactionBarcode");
                         BigDecimal minPrice = (BigDecimal) row.get("minPriceMachineryPriceTransactionBarcode");
+                        Timestamp restrictionToDateTime = (Timestamp) row.get("restrictionToDateTimeMachineryPriceTransactionBarcode");
 
                         CashRegisterItemInfo c = new CashRegisterItemInfo(idItem, barcode, name, price, split, daysExpiry, expiryDate, passScales, valueVAT,
                                 pluNumber, flags, idItemGroup, canonicalNameSkuGroup, idUOM, shortNameUOM, itemGroupObject, description, idBrand, nameBrand, idSeason,
-                                nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode);
-                        c.balance = balance;
+                                nameSeason, idDepartmentStoreGroupCashRegister, section, deleteSection, minPrice, overIdItemGroup, amountBarcode, balance, restrictionToDateTime);
                         cashRegisterItemInfoList.add(c);
                     }
                     
@@ -960,12 +966,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public boolean enabledDeleteBarcodeInfo() throws RemoteException, SQLException {
-        return deleteBarcodeLM != null;
+        return DeleteBarcodeEquipmentServer.enabledDeleteBarcodeInfo();
     }
 
     @Override
     public List<DeleteBarcodeInfo> readDeleteBarcodeInfoList() throws RemoteException, SQLException {
-        return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(getBusinessLogics(), getDbManager());
+        return DeleteBarcodeEquipmentServer.readDeleteBarcodeInfo(getDbManager());
     }
 
     @Override

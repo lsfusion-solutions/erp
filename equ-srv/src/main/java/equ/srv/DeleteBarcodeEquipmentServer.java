@@ -2,6 +2,7 @@ package equ.srv;
 
 import com.google.common.base.Throwables;
 import equ.api.DeleteBarcodeInfo;
+import equ.api.cashregister.CashRegisterItemInfo;
 import lsfusion.base.DateConverter;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -16,6 +17,7 @@ import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.ObjectValue;
+import lsfusion.server.logics.linear.LCP;
 import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
@@ -29,32 +31,59 @@ import java.util.*;
 
 class DeleteBarcodeEquipmentServer {
 
-    static List<DeleteBarcodeInfo> readDeleteBarcodeInfo(BusinessLogics BL, DBManager dbManager) throws RemoteException, SQLException {
+    static ScriptingLogicsModule deleteBarcodeLM;
+
+    public static void init(BusinessLogics BL) {
+        deleteBarcodeLM = BL.getModule("DeleteBarcode");
+    }
+
+
+    static boolean enabledDeleteBarcodeInfo() {
+        return deleteBarcodeLM != null;
+    }
+
+    static List<DeleteBarcodeInfo> readDeleteBarcodeInfo(DBManager dbManager) throws RemoteException, SQLException {
 
         Map<String, DeleteBarcodeInfo> barcodeMap = new HashMap<>();
-        ScriptingLogicsModule deleteBarcodeLM = BL.getModule("DeleteBarcode");
         if(deleteBarcodeLM != null) {
             try (DataSession session = dbManager.createSession()) {
 
                 KeyExpr deleteBarcodeExpr = new KeyExpr("deleteBarcode");
                 ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "deleteBarcode", deleteBarcodeExpr);
                 QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                query.addProperty("barcode", deleteBarcodeLM.findProperty("barcode[DeleteBarcode]").getExpr(deleteBarcodeExpr));
-                query.addProperty("nppGroupMachinery", deleteBarcodeLM.findProperty("nppGroupMachinery[DeleteBarcode]").getExpr(deleteBarcodeExpr));
-                query.addProperty("handlerModelGroupMachinery", deleteBarcodeLM.findProperty("handlerModelGroupMachinery[DeleteBarcode]").getExpr(deleteBarcodeExpr));
+                String[] names = new String[]{"barcode", "idSku", "nameSku", "idUOMSku", "shortNameUOMSku",
+                        "idDepartmentStoreGroupMachinery", "nppGroupMachinery", "overDepartmentNumberGroupMachinery",
+                        "handlerModelGroupMachinery", "directoryGroupMachinery"};
+                LCP[] properties = deleteBarcodeLM.findProperties("barcode[DeleteBarcode]", "idSku[DeleteBarcode]", "nameSku[DeleteBarcode]",
+                        "idUOMSku[DeleteBarcode]", "shortNameUOMSku[DeleteBarcode]", "idDepartmentStoreGroupMachinery[DeleteBarcode]",
+                        "nppGroupMachinery[DeleteBarcode]", "overDepartmentNumberGroupMachinery[DeleteBarcode]", "handlerModelGroupMachinery[DeleteBarcode]",
+                        "directoryGroupMachinery[DeleteBarcode]");
+                for (int i = 0; i < properties.length; i++) {
+                    query.addProperty(names[i], properties[i].getExpr(deleteBarcodeExpr));
+                }
 
                 query.and(deleteBarcodeLM.findProperty("barcode[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere());
                 query.and(deleteBarcodeLM.findProperty("succeeded[DeleteBarcode]").getExpr(deleteBarcodeExpr).getWhere().not());
                 ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
                 for (ImMap<Object, Object> value : result.values()) {
                     String barcode = (String) value.get("barcode");
+                    String idSku = (String) value.get("idSku");
+                    String name = (String) value.get("nameSku");
+                    String idUOM = (String) value.get("idUOMSku");
+                    String shortNameUOM = (String) value.get("shortNameUOMSku");
+                    String idDepartmentStore = (String) value.get("idDepartmentStoreGroupMachinery");
                     Integer nppGroupMachinery = (Integer) value.get("nppGroupMachinery");
+                    Integer overDepartmentNumberGroupMachinery = (Integer) value.get("overDepartmentNumberGroupMachinery");
                     String handlerModelGroupMachinery = (String) value.get("handlerModelGroupMachinery");
                     String key = handlerModelGroupMachinery + "/" + nppGroupMachinery;
+                    String directory = (String) value.get("directoryGroupMachinery");
                     DeleteBarcodeInfo deleteBarcodeInfo = barcodeMap.get(key);
                     if(deleteBarcodeInfo == null)
-                        deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<String>(), nppGroupMachinery, handlerModelGroupMachinery);
-                    deleteBarcodeInfo.barcodeList.add(barcode);
+                        deleteBarcodeInfo = new DeleteBarcodeInfo(new ArrayList<CashRegisterItemInfo>(), nppGroupMachinery,
+                                overDepartmentNumberGroupMachinery, handlerModelGroupMachinery, directory);
+                    deleteBarcodeInfo.barcodeList.add(new CashRegisterItemInfo(idSku, barcode, name, null, false, null, null,
+                            false, null, null, null, null, null, idUOM, shortNameUOM, null, null, null, null, null, null,
+                            idDepartmentStore, null, null, null, null, null, null, null));
                     barcodeMap.put(key, deleteBarcodeInfo);
 
                 }
@@ -66,7 +95,6 @@ class DeleteBarcodeEquipmentServer {
     }
 
     static void errorDeleteBarcodeReport(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, Integer nppGroupMachinery, Exception exception) {
-        ScriptingLogicsModule deleteBarcodeLM = BL.getModule("DeleteBarcode");
         try (DataSession session = dbManager.createSession()) {
             DataObject errorObject = session.addObject((ConcreteCustomClass) deleteBarcodeLM.findClass("DeleteBarcodeError"));
             ObjectValue groupMachineryObject = deleteBarcodeLM.findProperty("groupMachineryNpp[INTEGER]").readClasses(session, new DataObject(nppGroupMachinery));
@@ -84,7 +112,6 @@ class DeleteBarcodeEquipmentServer {
     }
 
     static void succeedDeleteBarcode(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, Integer nppGroupMachinery) {
-        ScriptingLogicsModule deleteBarcodeLM = BL.getModule("DeleteBarcode");
         try (DataSession session = dbManager.createSession()) {
             deleteBarcodeLM.findAction("succeedDeleteBarcode[INTEGER]").execute(session, stack, new DataObject(nppGroupMachinery));
             session.apply(BL, stack);

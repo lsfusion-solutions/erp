@@ -1,18 +1,14 @@
 package equ.clt.handler.easy;
 
 import equ.api.*;
-import equ.api.cashregister.*;
+import equ.api.cashregister.CashRegisterInfo;
+import equ.api.cashregister.TransactionCashRegisterInfo;
 import equ.api.scales.ScalesHandler;
 import equ.api.scales.ScalesInfo;
 import equ.api.scales.TransactionScalesInfo;
 import equ.clt.handler.DefaultCashRegisterHandler;
 
 import java.io.*;
-import java.math.BigDecimal;
-import java.sql.Date;
-import java.sql.SQLException;
-import java.sql.Timestamp;
-import java.text.ParseException;
 import java.util.*;
 
 public class EasyCSVHandler {
