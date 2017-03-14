@@ -56,13 +56,13 @@ accept 'Принять' (UserBinOrder order, Employee employee) = ACTION {
 
 accept 'Принять' (UserBinOrder order) = ACTION {
     accept(order, currentUser());        
-}
+} CONFIRM;
 
 skip 'Отменить' (UserBinOrder order) = ACTION {
     performer(order) <- NULL;
     startPerformDateTime(order) <- NULL;
     apply();  
-}
+} CONFIRM;
 
 showAccept (UserBinOrder order) = order IS UserBinOrder AND NOT startPerformDateTime(order);
 
@@ -73,13 +73,13 @@ fullComplete 'Закончен полностью' (UserBinOrder order) = ACTION
     createUserBinTransferPosted(order);
     finishPerformDateTime(order) <- currentDateTime();
     apply();
-};
+} CONFIRM;
 
 partiallyComplete 'Закончен с отклон.' (UserBinOrder order) = ACTION {
     createAndShowUserBinTransfer(order);
     finishPerformDateTime(order) <- currentDateTime();
     apply();
-};
+} CONFIRM;
 
 WHEN SETCHANGED(finishPerformDateTime(UserBinOrder order)) AND binTransferdBinOrderDetail(order) DO {
     isClosed(order) <- TRUE;

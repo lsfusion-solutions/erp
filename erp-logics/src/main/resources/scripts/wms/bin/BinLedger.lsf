@@ -17,6 +17,9 @@ isClosed 'Закрыт' = ABSTRACT BOOLEAN (BinLedger);
 sku = ABSTRACT Sku (BinLedger) PERSISTENT INDEXED;
 nameSku 'SKU' (BinLedger ledger) = name(sku(ledger)) IN recognize;
 
+stock = ABSTRACT Stock (BinLedger) PERSISTENT INDEXED;
+nameStock 'Склад' (BinLedger ledger)= name(stock(ledger));
+
 inBin = ABSTRACT Bin (BinLedger) PERSISTENT INDEXED;
 nameInBin 'Ячейка (в)' (BinLedger ledger) = name(inBin(ledger)) IN recognize;
 
@@ -87,17 +90,19 @@ META implementBinLedger(class, object, skuProp, quantityProp, stockProp, inBinPr
     isClosed[BinLedger] (###class ledger) += isClosed(object(ledger));
     skuProp[BinLedger] (###class ledger) += skuProp(object(ledger));
     quantity[BinLedger] (###class ledger) += quantityProp(object(ledger));
+    stock[BinLedger] (###class ledger) += stockProp(object(ledger));
     inBin[BinLedger] (###class ledger) += inBinProp(object(ledger));
     outBin[BinLedger] (###class ledger) += outBinProp(object(ledger));
     description[BinLedger] (###class ledger) += description(object(ledger));
 END       
 
-META implementBinLedger(class)
+META implementBinLedger(class, stockProp)
     dateTime[BinLedger] (###class ledger) += dateTime(ledger);
     isPosted[BinLedger] (###class ledger) += isPosted(ledger);
     isClosed[BinLedger] (###class ledger) += isClosed(ledger);
     sku[BinLedger] (###class ledger) += sku(ledger);
     quantity[BinLedger] (###class ledger) += quantity(ledger);
+    stock[BinLedger] (###class ledger) += stockProp(ledger);
     inBin[BinLedger] (###class ledger) += inBin(ledger);
     outBin[BinLedger] (###class ledger) += outBin(ledger);
     description[BinLedger] (###class ledger) += description(ledger);
@@ -118,7 +123,7 @@ FORM binLedger 'Регистр изменения остатков по ячей
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
     OBJECTS b = BinLedger
-    PROPERTIES (b) READONLY dateTime, isPosted, isClosed, nameSku, quantity, nameInBin, nameOutBin, description
+    PROPERTIES (b) READONLY dateTime, isPosted, isClosed, nameStock, nameSku, quantity, nameInBin, nameOutBin, description
     FILTERS isPosted(b)
     
     FILTERS date(b) >= dFrom, date(b) <= dTo
