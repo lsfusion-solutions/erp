@@ -20,6 +20,7 @@ import org.springframework.util.FileCopyUtils;
 
 import java.io.*;
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.nio.channels.FileChannel;
 import java.nio.channels.FileLock;
 import java.sql.*;
@@ -697,11 +698,12 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             if (zReportSumMap.containsKey(key)) {
                                 List<Object> fusionEntry = zReportSumMap.get(key);
                                 BigDecimal fusionSum = (BigDecimal) fusionEntry.get(0);
+                                fusionSum = fusionSum == null ? null : fusionSum.setScale(2, RoundingMode.HALF_UP);
                                 Date fusionDate = (Date) fusionEntry.get(1);
                                 String nameDepartmentStore = (String) fusionEntry.get(2);
-                                double kristalSum = rs.getDouble(3);
+                                BigDecimal kristalSum = BigDecimal.valueOf(rs.getDouble(3)).setScale(2, RoundingMode.HALF_UP);
                                 Date kristalDate = rs.getDate(4);
-                                if (fusionSum == null || fusionSum.doubleValue() != kristalSum) {
+                                if (fusionSum == null || fusionSum.compareTo(kristalSum) != 0) {
                                     if (kristalDate.compareTo(fusionDate) == 0) {
                                         result.add(Arrays.asList((Object) nppCashRegister,
                                                 String.format("ZReport %s (store %s, date %s).\nChecksum failed: %s(fusion) != %s(kristal);\n", numberZReport, nameDepartmentStore, kristalDate, fusionSum, kristalSum)));
