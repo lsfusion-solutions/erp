@@ -510,3 +510,22 @@ NAVIGATOR {
          }
     }
 }
+
+// ------------------------------------- Печать заказа на перемещение ---------------------------------------
+
+FORM printBinOrder 'Заказ на перемещение'
+    OBJECTS o = BinOrder FIXED PANEL
+    PROPERTIES(o) READONLY  number, series, date, time, nameStock, nameOutBin, nameInBin, note, nameOperation
+
+    OBJECTS d = BinOrderDetail
+    PROPERTIES(d) READONLY index, nameSku, nameOutBin, nameInBin, quantity, grossWeight
+    FILTERS binOrder(d) == o
+;
+
+printBinOrder 'Печать заказа' (BinOrder order) = ACTION {
+    PRINT printBinOrder OBJECTS o = order;
+} IMAGE 'print.png' IN print;
+
+EXTEND FORM binOrders
+    PROPERTIES (o) FORCE PANEL TODRAW o TOOLBAR printBinOrder  
+;
