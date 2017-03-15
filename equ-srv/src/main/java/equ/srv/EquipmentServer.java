@@ -753,37 +753,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<CashierInfo> readCashierInfoList() throws RemoteException, SQLException {
-        List<CashierInfo> cashierInfoList = new ArrayList<>();
-        try (DataSession session = getDbManager().createSession()) {
-
-            KeyExpr employeeExpr = new KeyExpr("employee");
-            ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev((Object) "employee", employeeExpr);
-
-            QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
-            String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
-            LCP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "idStock[Employee]");
-            for (int i = 0; i < employeeProperties.length; i++) {
-                employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
-            }
-            employeeQuery.and(equLM.findProperty("idStock[Employee]").getExpr(employeeExpr).getWhere());
-            employeeQuery.and(equLM.findProperty("id[Employee]").getExpr(employeeExpr).getWhere());
-            employeeQuery.and(equLM.findProperty("shortName[Contact]").getExpr(employeeExpr).getWhere());
-
-            ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> employeeResult = employeeQuery.execute(session);
-
-            for (int i = 0, size = employeeResult.size(); i < size; i++) {
-                ImMap<Object, Object> row = employeeResult.getValue(i);
-
-                String numberCashier = getRowValue(row, "idEmployee");
-                String nameCashier = getRowValue(row, "shortNameContact");
-                String idPosition = getRowValue(row, "idPositionEmployee");
-                String idStock = getRowValue(row, "idStockEmployee");
-                cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition, idStock));
-            }
-        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
-        return cashierInfoList;
+        return MachineryExchangeEquipmentServer.readCashierInfoList(getDbManager());
     }
 
     @Override

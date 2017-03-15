@@ -1,6 +1,7 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
+import equ.api.cashregister.CashierInfo;
 import equ.api.cashregister.DiscountCard;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -8,12 +9,14 @@ import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
 import lsfusion.server.classes.LongClass;
+import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
 import lsfusion.server.logics.linear.LCP;
+import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
@@ -29,9 +32,11 @@ import static org.apache.commons.lang3.StringUtils.trim;
 public class MachineryExchangeEquipmentServer {
 
     static ScriptingLogicsModule discountCardLM;
+    static ScriptingLogicsModule equLM;
 
     public static void init(BusinessLogics BL) {
         discountCardLM = BL.getModule("DiscountCard");
+        equLM = BL.getModule("Equipment");
     }
 
     public static List<DiscountCard> readDiscountCardList(DBManager dbManager, String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
@@ -100,6 +105,42 @@ public class MachineryExchangeEquipmentServer {
             }
         }
         return discountCardList;
+    }
+
+    public static List<CashierInfo> readCashierInfoList(DBManager dbManager) throws RemoteException, SQLException {
+        List<CashierInfo> cashierInfoList = new ArrayList<>();
+        if(equLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr employeeExpr = new KeyExpr("employee");
+                ImRevMap<Object, KeyExpr> employeeKeys = MapFact.singletonRev((Object) "employee", employeeExpr);
+
+                QueryBuilder<Object, Object> employeeQuery = new QueryBuilder<>(employeeKeys);
+                String[] employeeNames = new String[]{"idEmployee", "shortNameContact", "idPositionEmployee", "idStockEmployee"};
+                LCP[] employeeProperties = equLM.findProperties("id[Employee]", "shortName[Contact]", "idPosition[Employee]", "idStock[Employee]");
+                for (int i = 0; i < employeeProperties.length; i++) {
+                    employeeQuery.addProperty(employeeNames[i], employeeProperties[i].getExpr(employeeExpr));
+                }
+                employeeQuery.and(equLM.findProperty("idStock[Employee]").getExpr(employeeExpr).getWhere());
+                employeeQuery.and(equLM.findProperty("id[Employee]").getExpr(employeeExpr).getWhere());
+                employeeQuery.and(equLM.findProperty("shortName[Contact]").getExpr(employeeExpr).getWhere());
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> employeeResult = employeeQuery.execute(session);
+
+                for (int i = 0, size = employeeResult.size(); i < size; i++) {
+                    ImMap<Object, Object> row = employeeResult.getValue(i);
+
+                    String numberCashier = getRowValue(row, "idEmployee");
+                    String nameCashier = getRowValue(row, "shortNameContact");
+                    String idPosition = getRowValue(row, "idPositionEmployee");
+                    String idStock = getRowValue(row, "idStockEmployee");
+                    cashierInfoList.add(new CashierInfo(numberCashier, nameCashier, idPosition, idStock));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return cashierInfoList;
     }
 
     private static Long parseLong(String value) {
