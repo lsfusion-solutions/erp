@@ -434,6 +434,8 @@ blankCodeDoc 'Номер бланка' = DATA VARSTRING[100] ();
 filterType = DATA LOCAL EVATType ();
 nameFilterType 'Тип' = name(filterType());
 
+showSendEvat() = useActiveXEVAT() OR pathEVAT(currentComputer());
+
 FORM evats 'Электронные счета-фактуры'
     OBJECTS dates = (dFrom = DATE, dTo = DATE) FIXED PANEL
     PROPERTIES dFrom = OBJVALUE(dFrom), dTo = OBJVALUE(dTo)
@@ -445,8 +447,8 @@ FORM evats 'Электронные счета-фактуры'
                   dateInvoicePrincipal, numberInvoiceVendor, dateInvoiceVendor, nameSupplier, declarationSupplier, dateReleaseSupplier, dateActualExportSupplier,
                   numberTaxesSupplier, dateTaxesSupplier, nameCustomer, declarationCustomer, numberTaxesCustomer, dateTaxesCustomer, dateImportCustomer, totalSum,
                   totalExciseSum, totalVATSum, totalSumWithVAT
-    PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend
-    PROPERTIES() TOOLBAR TODRAW e getStatus
+    PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend SHOWIF showSendEvat()
+    PROPERTIES() TOOLBAR TODRAW e getStatus SHOWIF showSendEvat()
     PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(e) DELETESESSION
     FILTERS date(e) >= dFrom, date(e) <= dTo,
