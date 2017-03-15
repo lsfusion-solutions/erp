@@ -180,7 +180,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 if (choosePath)
                     context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
                 if (saveToLocal)
-                    findProperty("generatedXML[EVAT]").change(BaseUtils.mergeFileAndExtension(fileData, "xml".getBytes()), context, evatObject);
+                    findProperty("generatedXML[]").change(BaseUtils.mergeFileAndExtension(fileData, "xml".getBytes()), context);
                 return Arrays.asList((Object) fileData, documentNumber);
 
             } else {
