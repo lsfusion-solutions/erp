@@ -53,7 +53,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
     }
 
     private void sendEVAT(ExecutionContext context, DataObject evatObject) {
-        generateXML(context, evatObject, true);
+        generateXML(context, evatObject, true, false);
     }
 
     Map<String, Map<Integer, String>> getInvoices(ExecutionContext context) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
@@ -96,7 +96,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                     Map<Integer, List<Object>> filesEntry = files.get(unp);
                     if (filesEntry == null)
                         filesEntry = new HashMap<>();
-                    List<Object> xml = generateXML(context, evatObject, false);
+                    List<Object> xml = generateXML(context, evatObject, false, false);
                     if (xml != null) {
                         filesEntry.put((Integer) evatObject.getValue(), xml);
                         files.put(unp, filesEntry);
@@ -109,7 +109,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
         return files;
     }
 
-    private List<Object> generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath) {
+    protected List<Object> generateXML(ExecutionContext context, DataObject evatObject, boolean choosePath, boolean saveToLocal) {
         File tmpFile = null;
         try {
 
@@ -179,6 +179,8 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
                 byte[] fileData = IOUtils.getFileBytes(tmpFile);
                 if (choosePath)
                     context.delayUserInterfaction(new ExportFileClientAction(documentNumber + ".xml", fileData));
+                if (saveToLocal)
+                    findProperty("generatedXML[EVAT]").change(BaseUtils.mergeFileAndExtension(fileData, "xml".getBytes()), context, evatObject);
                 return Arrays.asList((Object) fileData, documentNumber);
 
             } else {
