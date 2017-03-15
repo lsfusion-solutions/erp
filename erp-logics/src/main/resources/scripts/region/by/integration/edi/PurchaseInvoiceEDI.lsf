@@ -27,6 +27,7 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) =
                 valueVAT(d) <- valueVAT(od);
                 priceListType(d) <- priceListType(od);
                 price(d) <- lineItemPrice(ad);
+                overFill(d, od);
         }
         
         include(Order order, i) <- TRUE WHERE order == eOrder(a);
@@ -48,7 +49,7 @@ FORM selectDespatchAdvice 'Уведомления об отгрузке'
     FILTERGROUP invoice
         FILTER 'Не выписаны' NOT invoice(a) DEFAULT 
 ;
-countEOrderDespatchAdvice = GROUP SUM 1 BY eOrder(EOrderDespatchAdvice a);
+countEOrderDespatchAdvice = GROUP SUM 1 IF NOT invoice(EOrderDespatchAdvice a) BY eOrder(a);
 
 beforeCreateInvoice(Purchase.Order o) += ACTION {
 
