@@ -2081,7 +2081,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     private boolean overDocumentsClosedDate(SalesInfo salesInfo, boolean ignoreReceiptsAfterDocumentsClosedDate) {
         return ignoreReceiptsAfterDocumentsClosedDate && salesInfo.dateReceipt != null && salesInfo.cashRegisterInfo != null && salesInfo.cashRegisterInfo.documentsClosedDate != null &&
-                salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) > 0;
+                salesInfo.dateReceipt.compareTo(salesInfo.cashRegisterInfo.documentsClosedDate) < 0;
     }
     
     private String logCompleteMessage(ExecutionStack stack, DataSession mainSession, List<SalesInfo> data, int dataSize, int left, Timestamp timeStart, String sidEquipmentServer) throws SQLException, ScriptingErrorLog.SemanticErrorException, SQLHandledException {
@@ -2422,6 +2422,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                     Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
                     boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
+                    //todo: убрать отсюда чтение ignoreReceiptsAfterDocumentsClosedDate
                     return new EquipmentServerSettings(timeFrom, timeTo, delay, numberAtATime, sendSalesDelay, ignoreReceiptsAfterDocumentsClosedDate);
                 } else return null;
             }
