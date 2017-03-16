@@ -10,6 +10,7 @@ public class Kristal10Settings implements Serializable{
     private Boolean seasonIsCountry;
     private Boolean idItemInMarkingOfTheGood;
     private Boolean skipWeightPrefix;
+    private Boolean skipScalesInfo;
     private Boolean useShopIndices;
     private Boolean ignoreSalesDepartmentNumber;
     private Boolean useIdItemInRestriction;
@@ -56,6 +57,14 @@ public class Kristal10Settings implements Serializable{
 
     public void setSkipWeightPrefix(Boolean skipWeightPrefix) {
         this.skipWeightPrefix = skipWeightPrefix;
+    }
+
+    public Boolean getSkipScalesInfo() {
+        return skipScalesInfo;
+    }
+
+    public void setSkipScalesInfo(Boolean skipScalesInfo) {
+        this.skipScalesInfo = skipScalesInfo;
     }
 
     public Boolean getUseShopIndices() {

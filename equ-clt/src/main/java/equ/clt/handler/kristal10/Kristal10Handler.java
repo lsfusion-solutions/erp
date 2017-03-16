@@ -64,6 +64,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 boolean seasonIsCountry = kristalSettings != null && kristalSettings.getSeasonIsCountry() != null && kristalSettings.getSeasonIsCountry();
                 boolean idItemInMarkingOfTheGood = kristalSettings != null && kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
                 boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
+                boolean skipScalesInfo = kristalSettings != null && kristalSettings.getSkipScalesInfo() != null && kristalSettings.getSkipScalesInfo();
                 boolean useShopIndices = kristalSettings != null && kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
                 boolean useIdItemInRestriction = kristalSettings != null && kristalSettings.getUseIdItemInRestriction() != null && kristalSettings.getUseIdItemInRestriction();
                 List<String> tobaccoGroups = getTobaccoGroups(kristalSettings != null ? kristalSettings.getTobaccoGroup() : null);
@@ -109,18 +110,20 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                             setAttribute(good, "marking-of-the-good", idItem);
 
-                            //<plugin-property key="plu-number" value="4">
-                            Element extraPluginProperty = new Element("plugin-property");
-                            setAttribute(extraPluginProperty, "key", "plu-number");
-                            setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
-                            good.addContent(extraPluginProperty);
+                            if(!skipScalesInfo) {
+                                //<plugin-property key="plu-number" value="4">
+                                Element extraPluginProperty = new Element("plugin-property");
+                                setAttribute(extraPluginProperty, "key", "plu-number");
+                                setAttribute(extraPluginProperty, "value", removeZeroes(item.idBarcode));
+                                good.addContent(extraPluginProperty);
 
-                            //<plugin-property value="1" key="composition"/>
-                            if(item.expiryDate != null) {
-                                Element expiryDateProperty = new Element("plugin-property");
-                                setAttribute(expiryDateProperty, "key", "composition");
-                                setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
-                                good.addContent(expiryDateProperty);
+                                //<plugin-property value="1" key="composition"/>
+                                if (item.expiryDate != null) {
+                                    Element expiryDateProperty = new Element("plugin-property");
+                                    setAttribute(expiryDateProperty, "key", "composition");
+                                    setAttribute(expiryDateProperty, "value", "Годен до: " + formatDate(item.expiryDate, "dd.MM.yyyy") + " ");
+                                    good.addContent(expiryDateProperty);
+                                }
                             }
 
                             rootElement.addContent(good);
