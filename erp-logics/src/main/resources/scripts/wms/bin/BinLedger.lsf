@@ -16,6 +16,7 @@ isClosed 'Закрыт' = ABSTRACT BOOLEAN (BinLedger);
 
 sku = ABSTRACT Sku (BinLedger) PERSISTENT INDEXED;
 nameSku 'SKU' (BinLedger ledger) = name(sku(ledger)) IN recognize;
+idBarcodeSku 'Штрих код' (BinLedger ledger)= idBarcode(sku(ledger)) IN recognize;
 
 stock = ABSTRACT Stock (BinLedger) PERSISTENT INDEXED;
 nameStock 'Склад' (BinLedger ledger)= name(stock(ledger));
@@ -123,7 +124,7 @@ FORM binLedger 'Регистр изменения остатков по ячей
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
     OBJECTS b = BinLedger
-    PROPERTIES (b) READONLY dateTime, isPosted, isClosed, nameStock, nameSku, quantity, nameInBin, nameOutBin, description
+    PROPERTIES (b) READONLY dateTime, isPosted, isClosed, nameStock, idBarcodeSku, nameSku, quantity, nameInBin, nameOutBin, description
     FILTERS isPosted(b)
     
     FILTERS date(b) >= dFrom, date(b) <= dTo
@@ -308,46 +309,62 @@ META setBinDocument (object, stockProp)
     @setBinObject (object###detail, stockProp);
 END
 
+META setBinDocument (object)
+    @setBinDocument (###object, stock);
+END
+
+META defineBinConstraints(object, stockProp)
+    CONSTRAINT inBin(object detail) AND NOT in(stockProp(detail), inBin(detail))
+               CHECKED BY inBin[object] MESSAGE 'Ячейка не доступна для склада';
+               
+    CONSTRAINT outBin(object detail) AND NOT in(stockProp(detail), outBin(detail))
+               CHECKED BY outBin[object] MESSAGE 'Ячейка не доступна для склада';
+END
+
+META defineBinConstraints(object)
+    @defineBinConstraints(###object, stock);
+END
+
+META defineBinDocumentConstraints(object)
+    @defineBinConstraints(###object, stock);
+    @defineBinConstraints(###object##Detail, stock);
+END
+
+META extendObjectFormsBins(form, forms, obj, stockProp, background) 
+    EXTEND FORM form
+        PROPERTIES(obj) useBins, nameInBin SHOWIF useBins(obj) ON CHANGE setInBin(obj), nameOutBin SHOWIF useBins(obj) ON CHANGE setOutBin(obj)
+        PROPERTIES(d) AFTER name###stockProp(d) SHOWIF useBins(obj) BACKGROUND background(obj)
+                      nameInBin ON CHANGE setInBin(d), nameOutBin ON CHANGE setOutBin(d)
+    ;
+    DESIGN form {
+        headerExtraParams {
+            NEW headerBins {
+                caption = 'Ячейки';
+                MOVE PROPERTY(useBins(obj));
+                MOVE PROPERTY(nameInBin(obj));
+                MOVE PROPERTY(nameOutBin(obj));
+            }
+        }
+    }
+
+    EXTEND FORM forms
+        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(obj) BACKGROUND background(obj)
+                      nameInBin, nameOutBin
+    ;
+END
+
 META defineInvoiceShipmentBins(stockProp)
 
     @defineDocumentBins(invoice);
     inBin [ShipmentDetail] (InvoiceShipmentDetail detail) += inBin(invoiceDetail(detail));
     outBin [ShipmentDetail] (InvoiceShipmentDetail detail) += outBin(invoiceDetail(detail));
     
-    @setBinObject(UserInvoiceDetail, stockProp);
-   
-    CONSTRAINT inBin(UserShipmentDetail detail) AND NOT in(stockProp(detail), inBin(detail))
-               CHECKED BY inBin[UserShipmentDetail] MESSAGE 'Ячейка не доступна для склада';
-               
-    CONSTRAINT outBin(UserShipmentDetail detail) AND NOT in(stockProp(detail), outBin(detail))
-               CHECKED BY outBin[UserShipmentDetail] MESSAGE 'Ячейка не доступна для склада';
-               
-    CONSTRAINT inBin(UserInvoiceDetail detail) AND NOT in(stockProp(detail), inBin(detail))
-               CHECKED BY inBin[UserInvoiceDetail] MESSAGE 'Ячейка не доступна для склада';
-               
-    CONSTRAINT outBin(UserInvoiceDetail detail) AND NOT in(stockProp(detail), outBin(detail))
-               CHECKED BY outBin[UserInvoiceDetail] MESSAGE 'Ячейка не доступна для склада';               
-                          
-    EXTEND FORM userInvoice
-        PROPERTIES(i) useBins, nameInBin SHOWIF useBins(i), nameOutBin SHOWIF useBins(i)
-        PROPERTIES(d) AFTER name###stockProp(d) SHOWIF useBins(i) BACKGROUND backgroundShipped(i)
-                      nameInBin ON CHANGE setInBin(d), nameOutBin ON CHANGE setOutBin(d)
-    ;
-    DESIGN userInvoice {
-        headerExtraParams {
-            NEW headerBins {
-                caption = 'Ячейки';
-                MOVE PROPERTY(useBins(i));
-                MOVE PROPERTY(nameInBin(i));
-                MOVE PROPERTY(nameOutBin(i));
-            }
-        }
-    }
+    @setBinDocument(UserInvoice, stockProp);
+    @defineBinConstraints(UserShipmentDetail, stockProp);
+    @defineBinConstraints(UserInvoiceDetail, stockProp);      
+    
+    @extendObjectFormsBins(userInvoice, invoices, i, stockProp, backgroundShipped);                          
 
-    EXTEND FORM invoices
-        PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(i) BACKGROUND backgroundShipped(i)
-                      nameInBin, nameOutBin
-    ;
     EXTEND FORM invoiceDetails
         PROPERTIES(d) AFTER name###stockProp(d) READONLY SHOWIF useBins(d) BACKGROUND backgroundShipped(d)
                       nameInBin, nameOutBin
@@ -365,6 +382,20 @@ META deriveDocumentBinsProperty(object, readProp, writeProp, stockProp)
         WHEN CHANGED(operation(o)) OR CHANGED(stockProp(o));    
 END
 
+META deriveFormBinsProperty (form, object) 
+    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
+             inBin(detail) <- inBin(object(detail));
+    }
+
+    WHEN SESSION FORMS form (CHANGED(outBin(object(###object###detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
+        outBin(detail) <- outBin(object(detail));
+    }    
+END
+
+META deriveFormBinsProperty (object) 
+    @deriveFormBinsProperty (object, object);
+END
+
 META deriveInvoiceBins (inRead, inWrite, outRead, outWrite, stockProp)
     @deriveDocumentOperationProperty(UserShipment, useBins);
     @deriveDocumentBinsProperty(UserShipment, inRead, inWrite, stockProp);
@@ -373,24 +404,12 @@ META deriveInvoiceBins (inRead, inWrite, outRead, outWrite, stockProp)
     @deriveDocumentBinsProperty(UserInvoice, inRead, inWrite, stockProp);
     @deriveDocumentBinsProperty(UserInvoice, outRead, outWrite, stockProp);
     
-    WHEN SESSION FORMS userInvoice (CHANGED(inBin(invoice(UserInvoiceDetail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
-             inBin(detail) <- inBin(invoice(detail));
-    }
-
-    WHEN SESSION FORMS userInvoice (CHANGED(inBin(invoice(UserInvoiceDetail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
-        outBin(detail) <- outBin(invoice(detail));
-    }             
+    @deriveFormBinsProperty (userInvoice);            
 END
 
 META deriveDocumentBins (object, form, inRead, inWrite, outRead, outWrite, stockProp)
     @deriveDocumentBinsProperty(object, inRead, inWrite, stockProp);
     @deriveDocumentBinsProperty(object, outRead, outWrite, stockProp);
     
-    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###Detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(inBin(detail)) DO {
-             inBin(detail) <- inBin(object(detail));
-    }
-
-    WHEN SESSION FORMS form (CHANGED(inBin(object(###object###Detail detail))) OR CHANGED(sku(detail))) AND NOT CHANGED(outBin(detail)) DO {
-        outBin(detail) <- outBin(object(detail));
-    }   
+    @deriveFormBinsProperty (form, object);
 END
