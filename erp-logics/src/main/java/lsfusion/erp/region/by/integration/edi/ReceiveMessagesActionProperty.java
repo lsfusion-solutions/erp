@@ -258,11 +258,11 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         Element reference = rootNode.getChild("reference");
         if (reference != null) {
             String documentType = reference.getChildText("documentType");
-            if (documentType.equals("ORDERS")) {
+            if (documentType != null && documentType.equals("ORDERS")) {
                 String orderNumber = reference.getChildText("documentNumber");
                 String code = reference.getChildText("code");
                 String description = reference.getChildText("description");
-                if (description.isEmpty()) {
+                if (description == null || description.isEmpty()) {
                     switch (code) {
                         case "1251":
                             description = "Сообщение прочитано получателем";
