@@ -970,7 +970,7 @@ META defineInvoiceBatchDialog(dumb)
     EXTEND FORM invoices PROPERTIES (d) READONLY nameBatch AFTER shortNameUOMSku(d) SHOWIF showBatch(i);
 END
 
-META defineInvoiceReturn(nsdir, nsret, stockProp)
+META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     invoiceDetail (invoiceDetail) = ABSTRACT nsdir.InvoiceDetail (nsret.InvoiceDetail) PERSISTENT INDEXED;
     invoiceDetail (userInvoiceDetail) = DATA nsdir.InvoiceDetail (nsret.UserInvoiceDetail) INDEXED;
     invoiceDetail(UserInvoiceDetail detail) += invoiceDetail(detail);
@@ -1002,21 +1002,23 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
         OBJECTS sk = Sku FIXED PANEL
         PROPERTIES(sk) READONLY name, idBarcode, shortNameUOM
         
-        OBJECTS st = Stock FIXED PANEL    
-        OBJECTS dt = DATETIME FIXED PANEL       
+        OBJECTS st = Stock FIXED PANEL 
+        OBJECTS cst = Stock FIXED PANEL   
+        OBJECTS dt = DATETIME FIXED PANEL              
         OBJECTS d = nsdir.InvoiceDetail LAST
         PROPERTIES(d) READONLY date, index, description,
                                quantity, toReturnQuantity
         PROPERTIES   READONLY balanceBMaxBatch(d,st,dt)                       
         PROPERTIES(d) READONLY price, sum,
                                numberVAT, valueVAT, VATSum, invoiceSum,
-                               name###stockProp         
+                               name###stockProp, name###contactStockProp         
                 
         FILTERGROUP filter11
                     FILTER  'По складу' stockProp(d) == st DEFAULT     
         FILTERGROUP filter12
                     FILTER  'Доступно' toReturnQuantity(d) > 0 DEFAULT                            
-                
+        FILTERGROUP filter13
+                    FILTER  'По складу контрагента' contactStockProp(d) == cst DEFAULT             
     ;
     DESIGN baseInvoiceDetail {
         main {
@@ -1035,10 +1037,10 @@ META defineInvoiceReturn(nsdir, nsret, stockProp)
         REQUEST OBJECT d
         IF stockProp(detail)  THEN {
             IF invoiceDetail[UserInvoiceDetail](detail) THEN {            
-                FORM baseInvoiceDetail OBJECTS sk = sku(detail), st = stockProp(detail), dt = dateTime(detail), d = invoiceDetail[UserInvoiceDetail](detail)  CONTEXTFILTER d = invoiceDetail[UserInvoiceDetail](detail) DIALOG SHOWDROP;        
+                FORM baseInvoiceDetail OBJECTS sk = sku(detail), st = stockProp(detail), cst = contactStockProp(detail), dt = dateTime(detail), d = invoiceDetail[UserInvoiceDetail](detail)  CONTEXTFILTER d = invoiceDetail[UserInvoiceDetail](detail) DIALOG SHOWDROP;        
             } 
             ELSE {
-                FORM baseInvoiceDetail OBJECTS sk = sku(detail), st = stockProp(detail), dt = dateTime(detail) CONTEXTFILTER d = invoiceDetail[UserInvoiceDetail](detail) DIALOG SHOWDROP; 
+                FORM baseInvoiceDetail OBJECTS sk = sku(detail), st = stockProp(detail), cst = contactStockProp(detail), dt = dateTime(detail) CONTEXTFILTER d = invoiceDetail[UserInvoiceDetail](detail) DIALOG SHOWDROP; 
             }
         }
         
