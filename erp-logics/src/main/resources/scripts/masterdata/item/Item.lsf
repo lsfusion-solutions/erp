@@ -581,8 +581,8 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
     
     overReplace(oTo, oFrom) = ACTION ABSTRACT LIST (###object, ###object);
     replace 'Объединить'(###object object) = ACTION {
-        FORM confirmReplace###object OBJECTS o=object ;
-        IF formResult() == FormResult.ok THEN {
+        in(Color o) <- NULL WHERE in(o);           
+        REQUEST FORM confirmReplace###object OBJECTS o=object DO {
             allowReplace###object() <- TRUE;
             FOR in(###object o) AND allowReplace###object() DO{
                 IF o != object THEN {
@@ -595,8 +595,6 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
                 }
             }
             apply();
-        } ELSE {
-            in(###object o) <- NULL WHERE in(o);           
         }   
     };
     
@@ -977,11 +975,10 @@ META defineItemFilterValue(object, captionProp, o)
     DESIGN object##s###session { main{ preferredSize = (600, 400); } }    
   
     add###object 'Добавить'(ItemGroup gg) = ACTION {
-        FORM object###session OBJECTS gg = gg ;    
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM object###session OBJECTS gg = gg, v INPUT DO{
             LOCAL loc = ###object();
             LOCAL localName = VARISTRING[100]();
-            localName() <- IF trimAttributes() THEN trim(chosenString('v')) ELSE chosenString('v');
+            localName() <- IF trimAttributes() THEN trim(requestedString()) ELSE requestedString();
             NEWSESSION NESTED (localName, loc) {
                 IF object##Name(localName()) THEN {
                     dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(localName());
