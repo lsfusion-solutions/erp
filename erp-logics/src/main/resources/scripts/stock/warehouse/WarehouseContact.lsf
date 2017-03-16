@@ -1,0 +1,39 @@
+MODULE WarehouseContact;
+
+REQUIRE Warehouse;
+        
+NAMESPACE Warehouse;
+
+GROUP contact 'Контактная информация' : public;
+
+@defineHistorizable(contact, , 'Контактные лица', VARSTRING[150], Warehouse, , contact);
+
+@defineHistorizable(contactPhone, , 'Контактные телефоны', VARSTRING[150], Warehouse, , contact);
+
+contactNamePhone 'Контакты' (Stock st) = CONCAT '; ', contact(st), contactPhone(st) MINCHARWIDTH 30 PREFCHARWIDTH 50;  
+
+EXTEND FORM warehouse
+    PROPERTIES (w) contact, contactPhone
+;
+DESIGN warehouse {
+    headerLeft {
+        MOVE w.contact AFTER headerExtraParams;
+    }
+    PROPERTY (contact(w)){minimumCharWidth = 20; preferredCharWidth = 30;}
+    PROPERTY (contactPhone(w)){minimumCharWidth = 20; preferredCharWidth = 30;}
+}
+EXTEND FORM warehouses
+    PROPERTIES (w) READONLY contact, contactPhone
+;
+DESIGN warehouses {
+    PROPERTY (contact(w)){minimumCharWidth = 20; preferredCharWidth = 30;}
+    PROPERTY (contactPhone(w)){minimumCharWidth = 20; preferredCharWidth = 30;}
+}
+
+EXTEND FORM legalEntity
+    PROPERTIES (st) READONLY FORCE GRID contact, contactPhone
+;
+DESIGN legalEntity {
+    PROPERTY (contact(st)){minimumCharWidth = 20; preferredCharWidth = 30;}
+    PROPERTY (contactPhone(st)){minimumCharWidth = 20; preferredCharWidth = 30;}
+}
