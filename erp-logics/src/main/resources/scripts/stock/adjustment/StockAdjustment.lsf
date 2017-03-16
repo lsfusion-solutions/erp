@@ -527,22 +527,13 @@ EXTEND FORM userAdjustment
     PROPERTIES (i) active
 ;
 
-active 'Провести по товарному отчету' = DATA BOOLEAN (Operation);
+@defineOperationProperty(active, 'Провести по товарному отчету', BOOLEAN, showContainer);
 
 @defineOperationProperty(allowSumAdjustment, 'Pазрешённая сумма по изменению остатков', NUMERIC[16,3], showContainer);
 
 CONSTRAINT (SET (isPosted(UserAdjustment a)) OR SETCHANGED(operation(a)) OR SETCHANGED(sumAdjustmentDetail(a))) AND isPosted(a) AND (abs(sumAdjustmentDetail(a))>allowSumAdjustment(operation(a))) 
     MESSAGE 'Сумма по документу не должна превышать заданной в операции';
 
-EXTEND FORM operation
-     PROPERTIES(o) active
- ;
-DESIGN operation {
-    showContainer {
-        MOVE PROPERTY(active(o));
-    }
-}
-    
 @deriveDocumentOperationProperty(UserAdjustment, active);
 
 // ------------ Проведение по товарному отчету ----------------- //

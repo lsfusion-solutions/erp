@@ -8,26 +8,17 @@ REQUIRE Disparity,
 NAMESPACE Disparity;
 
 //-- Расширяем операцию
-createRepricing 'Создать акт переоценки (розн.)' = DATA BOOLEAN (Operation);
 
-EXTEND FORM operation
-    PROPERTIES(o) createRepricing
-;
 
-DESIGN operation {
-    createContainer {              
-        MOVE PROPERTY(createRepricing(o));
-    }
-}
+@defineOperationProperty(notConduct, 'Не проводить по товарному отчету', BOOLEAN, showContainer);
+
+@defineOperationProperty(createRepricing, 'Создать акт переоценки (розн.)', BOOLEAN, createContainer);
 
 //--
 @defineDocumentHeaderProperty(disparity, createRepricing, 'Создать акт переоценки');
 @defineDocumentDetailProperty(disparity, disparityDetail, createRepricing, 'Создать акт переоценки');
 
 //------------------------------ Создание агрегированных объектов через операции -----------------------------//
-
-createRepricing (Disparity disparity) <- createRepricing(operation(disparity))
-    WHEN CHANGED(operation(disparity));
 
 repricingOperation  = DATA Repricing.Operation (Operation);
 nameRepricingOperation 'Операция переоценки (розн.)' (Operation operation)= name(repricingOperation(operation));
@@ -41,13 +32,26 @@ DESIGN operation {
         MOVE PROPERTY(nameRepricingOperation(o)) AFTER PROPERTY(createRepricing(o));
     }
 }
+notConduct 'Не проводить по товарному отчету' = DATA BOOLEAN (Disparity) IN documentPrm;
+
+EXTEND FORM disparities
+    PROPERTIES(dis) notConduct
+;
+
+EXTEND FORM disparity
+    PROPERTIES(dis) notConduct
+;
+
+@deriveDocumentOperationProperty(Disparity, createRepricing);
+@deriveDocumentOperationProperty(Disparity, notConduct);
+
+skip(Disparity ledger) += ledger IS Disparity AND notConduct(ledger);
 
 // Операция переоценки
 @defineDocumentOperationHeaderPrefix(disparity, repricing, Repricing, ' (переоценка)');
 @defineDocumentOperationDetailPrefix(disparity, disparityDetail, repricing, Repricing, 'переоценка');
 
-repricingOperation(Disparity o) <- repricingOperation(operation(o))
-    WHEN CHANGED(operation(o));
+@deriveDocumentOperationProperty(Disparity, repricingOperation);
 
 // До
 @defineDocumentTimePrefix(disparity, before, ' документа до');
