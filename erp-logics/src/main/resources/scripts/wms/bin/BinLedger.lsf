@@ -140,6 +140,16 @@ DESIGN binLedger {
     MOVE functions.box;
 }
 
+balanceQuantity 'Кол-во' (Bin bin, BinLedger ledger) = IF inBin(ledger)==bin
+    THEN quantity(ledger)
+        ELSE IF outBin(ledger)==bin 
+            THEN -quantity(ledger);
+            
+balanceBin 'Ячейка (из/в)' (Bin bin, BinLedger ledger) = IF inBin(ledger)==bin
+    THEN nameOutBin(ledger)
+        ELSE IF outBin(ledger)==bin 
+            THEN nameInBin(ledger);            
+
 FORM binBalance 'Остатки по ячейкам'
 
     OBJECTS ts = Stock FIXED PANEL
@@ -168,6 +178,14 @@ FORM binBalance 'Остатки по ячейкам'
     FILTERS isParent(g, s) OR s IS Sku AND NOT g
     FILTERGROUP balance
         FILTER 'С остатком' currentBalance(s, b) DEFAULT
+        
+    OBJECTS l = BinLedger
+    PROPERTIES (l) READONLY dateTime, isPosted, description
+    PROPERTIES(b, l) READONLY balanceBin, balanceQuantity
+    ORDER BY dateTime(l) DESC
+    FILTERS inBin(l)==b OR outBin(l)==b, sku(l)==s
+    FILTERGROUP posted
+        FILTER 'Проведен' isPosted(l) DEFAULT
 ;
 
 DESIGN binBalance {
@@ -196,17 +214,22 @@ DESIGN binBalance {
             }
             NEW skuGroup {
                 type = SPLITH;
-                fill = 1;
+                fill = 3;
 
                 MOVE treeGroup.tree.box {
                     caption = 'Группы Sku';
                 }
 
-                MOVE s.box {
+                NEW skus {
                     fill = 2.5;
-                    s.grid {
-                        defaultComponent = TRUE;
-                    }
+                    type = SPLITV;
+                    MOVE s.box {
+                        fill = 2;
+                        s.grid {
+                            defaultComponent = TRUE;
+                        }
+                    }    
+                    MOVE l.box;                    
                 }
             }
         }
