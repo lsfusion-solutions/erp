@@ -587,29 +587,23 @@ META defineOrderInvoice(sign, stockProp)
     
     createMultiUserInvoice(Order order) = ACTION {
         IF order IS Order THEN {
-            invoiceCreated(order) <- NULL;
-            beforeCreateInvoice(order);
-            IF invoiceCreated(order) THEN RETURN;
-            
-            FOR ADDOBJ i = UserInvoice DO {
-                IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранным заказам строки накладной?';
-                fillHeader(i, order);
-                FOR selected(Order.Order o) DO {
-                    IF confirmed() OR NOT useConfimForCreateDetail() THEN {
-                        createDetail(i, o);   
-                        fillPrice(i, o);
-                    }
-                    include[Order,UserInvoice](o,i)<- TRUE;             
-                }     
-                              
-                FORM userInvoice OBJECTS i = i DOCKED;
-                IF formResult() == FormResult.ok THEN {
-                    apply();
-                } ELSE {
-                    FOR userInvoice(UserInvoiceDetail d)==i DO {
-                        DELETE d;   
-                    }
-                    DELETE i;
+            NEWSESSION NESTED (selected[Order.Order]) {
+                invoiceCreated(order) <- NULL;
+                beforeCreateInvoice(order);
+                IF invoiceCreated(order) THEN RETURN;
+                
+                FOR ADDOBJ i = UserInvoice DO {
+                    IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранным заказам строки накладной?';
+                    fillHeader(i, order);
+                    FOR selected(Order.Order o) DO {
+                        IF confirmed() OR NOT useConfimForCreateDetail() THEN {
+                            createDetail(i, o);   
+                            fillPrice(i, o);
+                        }
+                        include[Order,UserInvoice](o,i)<- TRUE;             
+                    }     
+                                  
+                    FORM userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
                 }
             }
         }

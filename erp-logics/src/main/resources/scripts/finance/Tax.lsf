@@ -472,14 +472,9 @@ END
 // Изменение щкалы НДС
 META defineDocumentDetailNumberVATOnChangeCustom (detail, stockProp)
     changeNumberVAT (###detail detail) = ACTION {
-        REQUEST OBJECT r
-            FORM rangeDialog OBJECTS c = country###stockProp(detail) DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM rangeDialog OBJECTS c = country###stockProp(detail), r = VAT(detail) NULL INPUT NULL DO {
             VAT (detail) <- requestedObject();
             invoicePrice (detail) <- round2(price (detail) * (100 + calcValueVAT(detail))/100);
-        } ELSE IF formResult() == FormResult.drop THEN {
-            VAT(detail) <- NULL;
-            invoicePrice(detail) <- price (detail);
         }
     }
 END
@@ -491,10 +486,11 @@ END
 // Изменение ставки НДС
 META defineDocumentDetailValueVATOnChangeCustom (detail)
     changeValueVAT (###detail detail) = ACTION {
-        REQUEST NUMERIC[10,5] INPUT;
-        valueVAT (detail) <- requestedNumeric();
-        VAT(detail) <- valueCurrentVAT(countrySupplierStock(detail), requestedNumeric());
-        invoicePrice (detail) <- round2(price (detail) * (100 + requestedNumeric())/100);
+        REQUEST INPUT NUMERIC[10,5] DO {
+            valueVAT (detail) <- requestedNumeric();
+            VAT(detail) <- valueCurrentVAT(countrySupplierStock(detail), requestedNumeric());
+            invoicePrice (detail) <- round2(price (detail) * (100 + requestedNumeric())/100);
+        }
     }
 END
 
