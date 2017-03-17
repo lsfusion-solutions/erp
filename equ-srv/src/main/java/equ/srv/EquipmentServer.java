@@ -1445,18 +1445,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     
     @Override
     public void succeedExtraCheckZReport(List<String> idZReportList) throws RemoteException, SQLException {
-        try {
-            if (zReportLM != null) {
-                for (String idZReport : idZReportList) {
-                    try (DataSession session = getDbManager().createSession()) {
-                        zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
-                        session.apply(getBusinessLogics(), getStack());
-                    }
-                }
-            }
-        } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-            throw Throwables.propagate(e);
-        }
+        SendSalesEquipmentServer.succeedExtraCheckZReport(getBusinessLogics(), getDbManager(), getStack(), idZReportList);
     }
 
     @Override

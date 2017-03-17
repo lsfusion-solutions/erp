@@ -23,7 +23,10 @@ import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
@@ -105,6 +108,22 @@ public class SendSalesEquipmentServer {
             }
         }
         return zReportSumMap;
+    }
+
+    public static void succeedExtraCheckZReport(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<String> idZReportList) throws RemoteException, SQLException {
+        if (zReportLM != null) {
+            try {
+                for (String idZReport : idZReportList) {
+                    try (DataSession session = dbManager.createSession()) {
+                        zReportLM.findProperty("succeededExtraCheck[ZReport]").change(true, session, (DataObject) zReportLM.findProperty("zReport[VARSTRING[100]]").readClasses(session, new DataObject(idZReport)));
+                        session.apply(BL, stack);
+                    }
+                }
+
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
     }
 
 }
