@@ -597,6 +597,8 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     addStringElement(measureType, "name", item.shortNameUOM);
                     good.addContent(measureType);
 
+                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
+
                     //parent: priceEntry
                     Set<MachineryInfo> machineryInfoSet = stopListInfo.handlerMachineryMap.get(getClass().getName());
                     if (machineryInfoSet != null) {
