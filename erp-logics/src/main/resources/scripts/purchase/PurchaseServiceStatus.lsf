@@ -1,6 +1,6 @@
 MODULE PurchaseServiceStatus;
 
-REQUIRE PurchaseShipment;
+REQUIRE PurchaseShipment, PurchaseOrderStatus;
 
 NAMESPACE Purchase;
        
@@ -78,10 +78,10 @@ EXTEND FORM itemGroups
 excludeService 'Исключить из подстчета "Качество сервиса"' (order) = GROUP SUM 1 IF sum(OrderDetail idetail) AND excludePercService(skuGroup(sku(idetail))) BY order(idetail);
 
 sumShippedService (supplier, dateFrom, dateTo)= GROUP SUM sumShippedOrderDetail(Order order) 
-    IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order) AND NOT excludeService(order)
+    IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
         BY supplier(order), dateFrom, dateTo;                                                   
 sumService (supplier, dateFrom, dateTo)= GROUP SUM sumOrderDetail(Order order) 
-    IF date(order) >= DATE dateFrom AND date(order) <= DATE dateTo AND isPosted(order) AND NOT excludeService(order)
+    IF shipmentDate(order) >= DATE dateFrom AND shipmentDate(order) <= DATE dateTo AND isPosted(order) AND isSent(order) AND NOT excludeService(order)
         BY supplier(order), dateFrom, dateTo;      
 percentSumExecutionService '% исп. заявки (сумма)' (LegalEntity supplier, DATE dateFrom, DATE dateTo) = sumShippedService(supplier, dateFrom, dateTo)*100.00 /
     (sumService(supplier, dateFrom, dateTo) IF sumService(supplier, dateFrom, dateTo)!=0);   
@@ -93,7 +93,7 @@ createServiceStatusDetail 'Заполнить статусы качества' (
     
     LOCAL prev = ServiceStatus(LegalEntity);
     prev(LegalEntity l) <- serviceStatus(lastServiceStatusDetail(l)) WHERE isSupplier(l);
-    FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) ADDOBJ d = ServiceStatusDetail DO {
+    FOR isSupplier(LegalEntity l) AND NOT notCalcServiceStatus(l) AND NOT isCompany(l) ADDOBJ d = ServiceStatusDetail DO {
     
         legalEntity(d) <- l;
         fromDate(d) <- dFrom;
