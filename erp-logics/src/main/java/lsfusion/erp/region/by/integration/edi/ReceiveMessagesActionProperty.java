@@ -870,7 +870,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException, IOException, JDOMException {
         Map<String, String> orderBarcodesMap = new HashMap<>();
         if (orderNumber != null) {
-            if (findProperty("numberOrder[EOrderDetail]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
+            if (findProperty("eOrder[VARSTRING[28]]").read(context, new DataObject(orderNumber)) == null && sendReplies) {
                 sendRecipientError(context, url, login, password, host, port, provider, documentId, documentNumber, String.format("Заказ %s не найден)", orderNumber));
             }
 
