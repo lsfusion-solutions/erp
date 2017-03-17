@@ -928,22 +928,12 @@ END
 META defineInvoiceBatchDialogStock(stockProp, dialog)
 
     changeBatch(UserInvoiceDetail d) = ACTION {
-        IF batch(d) THEN {
-            FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
-                                     t = dateTime(d),
-                                     sk = sku(d),
-                                     bt = batch(d) DIALOG SHOWDROP;        
-        } ELSE {
-            FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
-                                     t = dateTime(d),
-                                     sk = sku(d) DIALOG SHOWDROP;        
-        }
-
-
-        IF formResult() == FormResult.ok THEN {
-            batch(d) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            batch(d) <- NULL;
+        REQUEST FORM dialogBatchStock##dialog OBJECTS 
+                                    st = stockProp(d),
+                                    t = dateTime(d),
+                                    sk = sku(d),
+                                    bt = batch(d) NULL INPUT NULL DO {
+            batch(d) <- requestedObject();                            
         }
     }
 
@@ -955,12 +945,9 @@ END
 
 // Партии на приходе
 META defineInvoiceBatchDialog(dumb)
-    changeBatch(UserInvoiceDetail userInvoiceDetail) = ACTION {
-        FORM dialogBatch OBJECTS sk = sku(userInvoiceDetail) DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
-            batch(userInvoiceDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            batch(userInvoiceDetail) <- NULL;
+    changeBatch(UserInvoiceDetail d) = ACTION {
+        REQUEST FORM dialogBatch OBJECTS sk = sku(d), bt = batch(d) NULL INPUT NULL DO {
+            batch(d) <- requestedObject();
         }
     }
 
@@ -1034,21 +1021,13 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     } 
     
     change##nsdir##InvoiceDetail(InvoiceDetail detail) = ACTION {
-        REQUEST OBJECT d
-        IF stockProp(detail)  THEN {
-            IF invoiceDetail[UserInvoiceDetail](detail) THEN {            
-                FORM baseInvoiceDetail OBJECTS sk = sku(detail), st = stockProp(detail), cst = contactStockProp(detail), dt = dateTime(detail), d = invoiceDetail[UserInvoiceDetail](detail)  CONTEXTFILTER d = invoiceDetail[UserInvoiceDetail](detail) DIALOG SHOWDROP;        
-            } 
-            ELSE {
-                FORM baseInvoiceDetail OBJECTS sk = sku(detail), st = stockProp(detail), cst = contactStockProp(detail), dt = dateTime(detail) CONTEXTFILTER d = invoiceDetail[UserInvoiceDetail](detail) DIALOG SHOWDROP; 
-            }
-        }
-        
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM baseInvoiceDetail OBJECTS 
+                                    sk = sku(detail), 
+                                    st = stockProp(detail), 
+                                    cst = contactStockProp(detail), 
+                                    dt = dateTime(detail), 
+                                    d = invoiceDetail[UserInvoiceDetail](detail) NULL INPUT NULL CONSTRAINTFILTER DO {
             invoiceDetail[UserInvoiceDetail](detail) <- requestedObject();
-
-        } ELSE IF formResult() == FormResult.drop THEN {
-            invoiceDetail[UserInvoiceDetail](detail) <- NULL;
         }
     }    
     
@@ -1284,8 +1263,12 @@ META defineInvoicePayment(dumb)
             beneficiary(p) <- supplier[UserInvoice](invoice);
             sum(p) <- invoiceSumUserInvoiceDetail(invoice);
             cost(p, invoice) <- sumContract(p);
-            FORM payment OBJECTS p=p ;
-            IF NOT formResult() == FormResult.ok THEN {
+            LOCAL created = BOOLEAN ();
+            created() <- NULL;
+            REQUEST FORM payment OBJECTS p = p DO {
+                created() <- TRUE;
+            }
+            IF NOT created() THEN {
                 DELETE p;
             }
         }

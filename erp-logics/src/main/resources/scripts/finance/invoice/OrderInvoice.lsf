@@ -426,9 +426,8 @@ META defineOrderInvoice(sign, stockProp)
         customerStockInvoiceOrder() <- customerStock(userInvoice) WHERE customerStock(userInvoice);
         operationInvoiceOrder() <- operation(userInvoice) WHERE operation(userInvoice);
 
-        FORM invoiceOrders ;
-        IF formResult() == FormResult.ok THEN {
-            fill(userInvoice, chosenObject('o') AS Order);
+        REQUEST FORM invoiceOrders OBJECTS o INPUT DO {
+            fill(userInvoice, requestedObject());
         }
     } IN order;
 
@@ -448,19 +447,9 @@ META defineOrderInvoice(sign, stockProp)
                 sku(d) == sku(i)
     ;
     changeOrder (UserInvoiceDetail d) = ACTION {
-        IF orderDetail(d) THEN
-            REQUEST OBJECT d
-                FORM selectOrderDetail OBJECTS i = d, d = orderDetail(d) DIALOG SHOWDROP
-        ELSE
-            REQUEST OBJECT d
-                FORM selectOrderDetail OBJECTS i = d DIALOG SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            orderDetail(d) <- chosenObject('d');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            orderDetail(d) <- NULL;
+        REQUEST FORM selectOrderDetail OBJECTS i = d, d = orderDetail(d) NULL INPUT NULL DO {
+            orderDetail(d) <- requestedObject();
         }
-                
     }
     EXTEND FORM userInvoice
         PROPERTIES (d)  descriptionOrder AFTER invoiceSum(d) ON CHANGE changeOrder(d)
@@ -523,8 +512,7 @@ META defineOrderInvoice(sign, stockProp)
         IF relationInvoiceDetail(Order order, Invoice invoice) AND NOT include[Order,UserInvoice](order, invoice)  BY invoice;         
 
     dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION {
-        FORM includeOrdersUserInvoice OBJECTS i = userInvoice ;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM includeOrdersUserInvoice OBJECTS i = userInvoice DO {
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
                 CONFIRM 'Создать по выбранным заказам строки накладной?';
                 IF (confirmed()) THEN {  
