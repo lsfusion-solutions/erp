@@ -45,16 +45,18 @@ overEmailCustomer(Order.Order order) += ACTION {
     }
 }
 
+provider(Purchase.Order o) += WHEN isEOrder(o) THEN VARSTRING[20]('EDI:' + nameEDIProvider(supplier(o)));
+
 cancel 'Отменить заказ'(Order.Order order) = ACTION {
     IF isEOrder[UserOrder](order AS Order.Order) AND NOT skipSend(order) THEN {
         isRejected[UserOrder](order) <- TRUE;
         cancel[EOrder](order);        
         apply();
     }
-} TOOLBAR;
+}
 
 EXTEND FORM orders 
-    PROPERTIES (o) cancel SHOWIF isEOrder(o);
+    PROPERTIES (o) FORCE PANEL cancel SHOWIF isEOrder(o);
 
 DESIGN orders {
     emailContainer{

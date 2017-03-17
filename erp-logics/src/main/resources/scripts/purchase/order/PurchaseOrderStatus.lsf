@@ -122,7 +122,7 @@ calcEmailCustomer 'Отправить заказ поставщику' (Order.Or
            printOrderXLS OBJECTS o=order
 ;
 
-overEmailList = ABSTRACT VARSTRING[400](Order.Order);
+overEmailList = ABSTRACT VARSTRING[400](Order);
 
 EXTEND CLASS TypeChange{
     email 'Отправлен поставщику'
@@ -175,16 +175,20 @@ emailCustomer 'Отправить заказы поставщикам' (Purchase
         emailCustomerSingle(o);
         
     selected(Order o) <- NULL;
-} TOOLBAR;
+}
+
+provider 'Доставка' = ABSTRACT CASE OVERRIDE FIRST VARISTRING[20] (Order);
+provider(Order o) += WHEN (OVERRIDE email(supplier(o)), email(supplierStock(o)), overEmailList(o)) THEN 'e-mail';
 
 EXTEND FORM orders
-    PROPERTIES(o) emailCustomer  
+    PROPERTIES(o) FORCE PANEL  provider READONLY, emailCustomer
 ; 
 
 DESIGN orders {
     actionContainer {
         NEW emailContainer {
             caption = 'Почта';
+                MOVE PROPERTY (provider(o));
                 MOVE PROPERTY (emailCustomer(o));
         }
     }
