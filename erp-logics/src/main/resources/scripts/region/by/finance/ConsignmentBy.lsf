@@ -159,37 +159,29 @@ skipTruck 'Пропустить проверку автомобиля' = ABSTRAC
 
 notUseDriverTruck = ABSTRACT BOOLEAN(Consignment);
 
-changeTruck(Consignment consignment) = ACTION {
-    
+changeTruck (Consignment consignment) = ACTION {    
     IF notUseDriverTruck(consignment) THEN {
-        REQUEST VARSTRING[70] INPUT;
-        dataNameTruck(consignment) <- requestedString();
+        REQUEST INPUT VARSTRING[70] = dataNameTruck(consignment) DO {
+            dataNameTruck(consignment) <- requestedString();
+        }
     } ELSE {
-        REQUEST OBJECT t FORM trucks DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM trucks OBJECTS t = dataTruck(consignment) NULL INPUT NULL DO {
             dataTruck(consignment) <- requestedObject();
-        } ELSE IF formResult() == FormResult.drop THEN {
-            dataTruck(consignment) <- NULL;
         }
     }        
 }
 
 pickTuck 'Выбрать автомобиль из справочника' (Consignment consignment) = ACTION{
-    REQUEST OBJECT t FORM trucks DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
+    REQUEST FORM trucks OBJECTS t = dataTruck(consignment) NULL INPUT NULL DO {
         dataTruck(consignment) <- requestedObject();
         dataNameTruck(consignment) <- NULL;
-    } ELSE IF formResult() == FormResult.drop THEN {
-        dataTruck(consignment) <- NULL;
     }
 } SHORTCUT nameTruck[Consignment];
 
 editTuck 'Ввести автомобиль' (Consignment consignment) = ACTION{
-    FORM dialogString OBJECTS s = nameTruck(consignment) DIALOG SHOWDROP;
-    
-    IF formResult() == FormResult.ok THEN {
-        dataNameTruck(consignment) <- chosenString('s');
-    } 
+    REQUEST FORM dialogString OBJECTS s = nameTruck(consignment) NULL INPUT NULL DO {
+        dataNameTruck(consignment) <- requestedString();
+    }
 } SHORTCUT nameTruck[Consignment];
 
 
@@ -240,17 +232,15 @@ skipDriver 'Пропустить проверку водителя' = ABSTRACT C
 changeDriver(Consignment consignment) = ACTION {
     
     IF notUseDriverTruck(consignment) THEN {
-        REQUEST VARSTRING[70] INPUT;
-        dataNameDriver(consignment) <- requestedString();
-    } ELSE {
-        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
-            dataEmployee(consignment) <- requestedObject();
-        } ELSE IF formResult() == FormResult.drop THEN {
-            dataEmployee(consignment) <- NULL;
+        REQUEST INPUT VARSTRING[70] = dataNameDriver(consignment) DO {
+            dataNameDriver(consignment) <- requestedString();
         }
-    }
         
+    } ELSE {
+        REQUEST FORM employees OBJECTS e = dataEmployee(consignment) NULL INPUT NULL DO {
+            dataEmployee(consignment) <- requestedObject();
+        }
+    }        
 }
 
 dataWaybill 'Путевой лист' (consignment) = ABSTRACT VARSTRING[20] (Consignment) IN carConsignment;
@@ -301,19 +291,28 @@ nameIssuanceAllowed 'Отпуск разрешил' (Consignment consignment) = 
                                                                                               dataIssuanceAllowed(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 changeIssuanceAllowed(Consignment consignment) = ACTION {    
     IF notUseIssuanceAllowed(consignment) THEN {
-        REQUEST VARSTRING[100] INPUT;
-        dataIssuanceAllowed(consignment) <- requestedString();         
+        REQUEST INPUT VARSTRING[100] = dataIssuanceAllowed(consignment) DO {
+            dataIssuanceAllowed(consignment) <- requestedString();  
+        }               
     } ELSE {
-        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM employees OBJECTS e  = issuanceAllowed(consignment) NULL INPUT NULL DO {
             issuanceAllowed(consignment) <- requestedObject();
             IF NOT issuanceAllowed(consignment) THEN {
                 overIssuanceAllowed(consignment) <- requestedObject();
             }
-        } ELSE IF formResult() == FormResult.drop THEN {
-            issuanceAllowed(consignment) <- NULL;
-            overIssuanceAllowed(consignment) <- NULL;
+            IF NOT requestedObject() THEN {
+                overIssuanceAllowed(consignment) <- NULL;
+            }
         }
+//        IF formResult() == FormResult.ok THEN {
+//            issuanceAllowed(consignment) <- requestedObject();
+//            IF NOT issuanceAllowed(consignment) THEN {
+//                overIssuanceAllowed(consignment) <- requestedObject();
+//            }
+//        } ELSE IF formResult() == FormResult.drop THEN {
+//            issuanceAllowed(consignment) <- NULL;
+//            overIssuanceAllowed(consignment) <- NULL;
+//        }
     }        
 }
 notUseIssuanceExecuted 'Не использовать справочник сотрудников' = ABSTRACT BOOLEAN (Consignment);
@@ -325,19 +324,30 @@ nameIssuanceExecuted 'Отпуск произвел' (Consignment consignment) =
                                                                                                 dataIssuanceExecuted(consignment) IN issuanceConsignment MINCHARWIDTH 20 PREFCHARWIDTH 20;
 changeIssuanceExecuted(Consignment consignment) = ACTION {    
     IF notUseIssuanceExecuted(consignment) THEN {
-        REQUEST VARSTRING[100] INPUT;
-        dataIssuanceExecuted(consignment) <- requestedString();
+        REQUEST INPUT VARSTRING[100] = dataIssuanceExecuted(consignment) DO {
+            dataIssuanceExecuted(consignment) <- requestedString();
+        } 
+        
     } ELSE {
-        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM employees OBJECTS e  = issuanceExecuted(consignment) NULL INPUT NULL DO {
             issuanceExecuted(consignment) <- requestedObject();
             IF NOT issuanceExecuted(consignment) THEN {
                 overIssuanceExecuted(consignment) <- requestedObject();
             }
-        } ELSE IF formResult() == FormResult.drop THEN {
-            issuanceExecuted(consignment) <- NULL;
-            overIssuanceExecuted(consignment) <- NULL;
-        }
+            IF NOT requestedObject() THEN {
+                overIssuanceExecuted(consignment) <- NULL;
+            }
+        }               
+//        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
+//        IF formResult() == FormResult.ok THEN {
+//            issuanceExecuted(consignment) <- requestedObject();
+//            IF NOT issuanceExecuted(consignment) THEN {
+//                overIssuanceExecuted(consignment) <- requestedObject();
+//            }
+//        } ELSE IF formResult() == FormResult.drop THEN {
+//            issuanceExecuted(consignment) <- NULL;
+//            overIssuanceExecuted(consignment) <- NULL;
+//        }
     }        
 }
 
@@ -352,17 +362,14 @@ forwarder 'Товар к перевозке принял (экспедитор),
 changeForwarder(Consignment consignment) = ACTION {
     
     IF notUseDriverTruck(consignment) THEN {
-        REQUEST VARSTRING[70] INPUT;
-        dataNameForwarder(consignment) <- requestedString();
+        REQUEST INPUT VARSTRING[70] = dataNameForwarder(consignment) DO {
+            dataNameForwarder(consignment) <- requestedString();
+        }         
     } ELSE {
-        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST  FORM employees OBJECTS e = dataForwarder(consignment) NULL INPUT NULL DO {
             dataForwarder(consignment) <- requestedObject();
-        } ELSE IF formResult() == FormResult.drop THEN {
-            dataForwarder(consignment) <- NULL;
         }
-    }
-        
+    }        
 }
 
 warrant 'По доверенности (номер, дата)' (consignment) = ABSTRACT VARSTRING[30] (Consignment) IN issuanceConsignment MINCHARWIDTH 15 PREFCHARWIDTH 30;
@@ -378,15 +385,13 @@ overGoodsAccepted 'Принял грузополучатель'  = OVERRIDE
     
 changeGoodsAccepted(Consignment consignment) = ACTION {    
     IF useGoodsAccepted(consignment) THEN {
-        REQUEST OBJECT e FORM employees DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
+        REQUEST FORM employees OBJECTS e =   dataGoodsAccepted(consignment) NULL INPUT NULL DO {
             dataGoodsAccepted(consignment) <- requestedObject();
-        } ELSE IF formResult() == FormResult.drop THEN {
-            dataGoodsAccepted(consignment) <- NULL;
         }
     } ELSE {
-        REQUEST VARSTRING[150] INPUT;
-        goodsAccepted(consignment) <- requestedString();           
+        REQUEST INPUT VARSTRING[150] = goodsAccepted(consignment) DO {
+            goodsAccepted(consignment) <- requestedString();
+        }                   
     }        
 }   
 
@@ -899,29 +904,19 @@ toShowSeries = Consignment c IS Consignment AND NOT banSeries(c);
 
 META changeConsignment(property, classType, request)
     change###property(Consignment c) = ACTION {
-        REQUEST classType INPUT;
-            IF request() THEN {
-                data###property(c) <- request();
-            }ELSE {
-                data###property(c) <- NULL;
-            }
+        REQUEST INPUT classType =  data###property(c) DO {
+            data###property(c) <- request();
+        }
     }
 END
 
-//@changeConsignment(ownerTruck,VARISTRING[200],requestedString){
-//    changeOwnerTruck(Consignment c) = ACTION {
-//        REQUEST VARISTRING[200] INPUT;
-//            IF requestedString() THEN {
-//                dataOwnerTruck(c) <- requestedString();
-//            }ELSE {
-//                dataOwnerTruck(c) <- NULL;
-//            }
-//    }
-//};
+
 @changeConsignment(trailer,VARSTRING[100],requestedString);
 @changeConsignment(waybill,VARSTRING[20],requestedString);
+
 @changeConsignment(addressSupplierStock,VARSTRING[150],requestedString);
 @changeConsignment(addressCustomerStock,VARSTRING[150],requestedString);
+
 
 FORM consignment 'Атрибуты накладной'
     OBJECTS c=Consignment FIXED PANEL
