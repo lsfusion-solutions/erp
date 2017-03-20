@@ -2,10 +2,7 @@ package lsfusion.erp.integration;
 
 import lsfusion.server.classes.ValueClass;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
-import org.jdom.Attribute;
-import org.jdom.Document;
-import org.jdom.Element;
-import org.jdom.Namespace;
+import org.jdom.*;
 import org.jdom.output.Format;
 import org.jdom.output.XMLOutputter;
 
@@ -63,6 +60,11 @@ public class DefaultExportXMLActionProperty extends DefaultExportActionProperty 
     protected void addStringElement(Element parent, String id, String value) {
         if (value != null)
             parent.addContent(new Element(id).setText(value));
+    }
+
+    protected void addCDataElement(Element parent, String id, String value) {
+        if (value != null)
+            parent.addContent(new Element(id).addContent(new CDATA(value)));
     }
 
     protected void addIntegerElement(Element parent, String id, Integer value) {
