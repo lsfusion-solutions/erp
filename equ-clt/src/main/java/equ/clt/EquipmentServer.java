@@ -469,59 +469,56 @@ public class EquipmentServer {
             throws ParseException, IOException, ClassNotFoundException, SQLException {
         if(directorySet != null) {
 
-            if(mergeBatches) {
+            if (mergeBatches) {
 
                 SalesBatch mergedSalesBatch = null;
                 for (String directory : directorySet) {
-                    SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                    if (salesBatch!= null) {
-                        if(mergedSalesBatch == null)
-                            mergedSalesBatch = salesBatch;
-                        else
-                            mergedSalesBatch.merge(salesBatch);
-                    }
-                }
-
-                if(mergedSalesBatch == null || mergedSalesBatch.salesInfoList == null || mergedSalesBatch.salesInfoList.size() == 0) {
-                    sendSalesLogger.info("SalesInfo is empty");
-                } else {
-                    sendSalesLogger.info("Sending SalesInfo : " + mergedSalesBatch.salesInfoList.size() + " records");
                     try {
-                        String result = remote.sendSalesInfo(mergedSalesBatch.salesInfoList, sidEquipmentServer);
-                        if (result != null) {
-                            reportEquipmentServerError(remote, sidEquipmentServer, result);
-                        } else {
-                            sendSalesLogger.info("Finish Reading starts");
-                            handler.finishReadingSalesInfo(mergedSalesBatch);
+                        SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
+                        if (salesBatch != null) {
+                            if (mergedSalesBatch == null)
+                                mergedSalesBatch = salesBatch;
+                            else
+                                mergedSalesBatch.merge(salesBatch);
                         }
                     } catch (Exception e) {
-                        logger.error("Equipment server error", e);
+                        sendSalesLogger.error("Reading SalesInfo", e);
                         remote.errorEquipmentServerReport(sidEquipmentServer, e);
                     }
                 }
+                sendSalesInfo(remote, mergedSalesBatch, sidEquipmentServer, handler);
 
             } else {
 
                 for (String directory : directorySet) {
-                    SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                    if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0) {
-                        sendSalesLogger.info("SalesInfo is empty");
-                    } else {
-                        sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
-                        try {
-                            String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer);
-                            if (result != null) {
-                                reportEquipmentServerError(remote, sidEquipmentServer, result);
-                            } else {
-                                sendSalesLogger.info("Finish Reading starts");
-                                handler.finishReadingSalesInfo(salesBatch);
-                            }
-                        } catch (Exception e) {
-                            sendSalesLogger.error("Sending SalesInfo", e);
-                            remote.errorEquipmentServerReport(sidEquipmentServer, e);
-                        }
+                    try {
+                        SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
+                        sendSalesInfo(remote, salesBatch, sidEquipmentServer, handler);
+                    } catch (Exception e) {
+                        sendSalesLogger.error("Reading SalesInfo", e);
+                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
                     }
                 }
+            }
+        }
+    }
+
+    private void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, CashRegisterHandler handler) throws RemoteException, SQLException {
+        if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0)
+            sendSalesLogger.info("SalesInfo is empty");
+        else {
+            sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
+            try {
+                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer);
+                if (result != null) {
+                    reportEquipmentServerError(remote, sidEquipmentServer, result);
+                } else {
+                    sendSalesLogger.info("Finish Reading starts");
+                    handler.finishReadingSalesInfo(salesBatch);
+                }
+            } catch (Exception e) {
+                sendSalesLogger.error("Sending SalesInfo", e);
+                remote.errorEquipmentServerReport(sidEquipmentServer, e);
             }
         }
     }
