@@ -19,14 +19,12 @@ import lsfusion.server.logics.scripted.ScriptingErrorLog;
 import lsfusion.server.logics.scripted.ScriptingLogicsModule;
 import lsfusion.server.session.DataSession;
 
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.rmi.RemoteException;
 import java.sql.Date;
 import java.sql.SQLException;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static org.apache.commons.lang3.StringUtils.trim;
 
@@ -41,6 +39,29 @@ public class SendSalesEquipmentServer {
         equipmentCashRegisterLM = BL.getModule("EquipmentCashRegister");
         zReportLM = BL.getModule("ZReport");
     }
+
+    public static Set<String> readCashDocumentSet(DBManager dbManager) throws IOException, SQLException {
+        Set<String> cashDocumentSet = new HashSet<>();
+        if (collectionLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
+                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+                query.addProperty("idCashDocument", collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
+                query.and(collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+                for (ImMap<Object, Object> row : result.values()) {
+                    cashDocumentSet.add((String) row.get("idCashDocument"));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return cashDocumentSet;
+    }
+
 
     public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();

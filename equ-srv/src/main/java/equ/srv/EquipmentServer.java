@@ -2106,26 +2106,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public Set<String> readCashDocumentSet(String sidEquipmentServer) throws IOException, SQLException {
-
-        Set<String> cashDocumentSet = new HashSet<>();
-        if (collectionLM != null) {
-            try (DataSession session = getDbManager().createSession()) {
-
-                KeyExpr cashDocumentExpr = new KeyExpr("cashDocument");
-                ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "CashDocument", cashDocumentExpr);
-                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-                query.addProperty("idCashDocument", collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr));
-                query.and(collectionLM.findProperty("id[CashDocument]").getExpr(cashDocumentExpr).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
-
-                for (ImMap<Object, Object> row : result.values()) {
-                    cashDocumentSet.add((String) row.get("idCashDocument"));
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return cashDocumentSet;
+        return SendSalesEquipmentServer.readCashDocumentSet(getDbManager());
     }
 
     @Override
