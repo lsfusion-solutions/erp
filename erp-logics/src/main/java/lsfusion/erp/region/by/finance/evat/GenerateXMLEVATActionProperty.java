@@ -468,7 +468,7 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
             addStringElement(namespace, rosterItemElement, "summaExcise", bigDecimalToString(exciseSum));
             Element vatElement = new Element("vat", namespace);
             addStringElement(namespace, vatElement, "rate", bigDecimalToString(vatRate));
-            addStringElement(namespace, vatElement, "rateType", vatRate != null && vatRate.compareTo(BigDecimal.ZERO) == 0 ? "NO_VAT" : "DECIMAL");
+            addStringElement(namespace, vatElement, "rateType", getRateType(vatRate));
             addStringElement(namespace, vatElement, "summaVat", bigDecimalToString(vatSum));
             rosterItemElement.addContent(vatElement);
             addStringElement(namespace, rosterItemElement, "costVat", bigDecimalToString(sumWithVat));
@@ -513,6 +513,19 @@ public class GenerateXMLEVATActionProperty extends DefaultExportXMLActionPropert
 
     private String bigDecimalToString(BigDecimal value, String defaultValue) {
         return value == null ? defaultValue : BaseUtils.bigDecimalToString("##0.####", value).replace(",", ".");
+    }
+
+    private String getRateType(BigDecimal vatRate) {
+        String result = null;
+        if(vatRate != null) {
+            if(vatRate.compareTo(BigDecimal.ZERO) == 0)
+                result = "NO_VAT";
+            else if(vatRate.compareTo(BigDecimal.valueOf(10)) == 0 || vatRate.compareTo(BigDecimal.valueOf(20)) == 0)
+                result = "DECIMAL";
+            else
+                result = "CALCULATED";
+        }
+        return result;
     }
 
     private String getProviderStatus(String status, String defaultStatus) {
