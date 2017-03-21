@@ -1,16 +1,20 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
+import equ.api.cashregister.CashDocument;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
 import lsfusion.base.col.interfaces.immutable.ImOrderMap;
 import lsfusion.base.col.interfaces.immutable.ImRevMap;
 import lsfusion.interop.Compare;
+import lsfusion.server.classes.ConcreteCustomClass;
+import lsfusion.server.classes.CustomClass;
 import lsfusion.server.classes.DateClass;
 import lsfusion.server.context.ExecutionStack;
 import lsfusion.server.data.SQLHandledException;
 import lsfusion.server.data.expr.KeyExpr;
 import lsfusion.server.data.query.QueryBuilder;
+import lsfusion.server.integration.*;
 import lsfusion.server.logics.BusinessLogics;
 import lsfusion.server.logics.DBManager;
 import lsfusion.server.logics.DataObject;
@@ -62,6 +66,129 @@ public class SendSalesEquipmentServer {
         return cashDocumentSet;
     }
 
+    public static String sendCashDocumentInfo(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<CashDocument> cashDocumentList) throws IOException, SQLException {
+        if (collectionLM != null && cashDocumentList != null) {
+
+            try {
+
+                List<ImportField> fieldsIncome = new ArrayList<>();
+                List<ImportField> fieldsOutcome = new ArrayList<>();
+
+                List<ImportProperty<?>> propsIncome = new ArrayList<>();
+                List<ImportProperty<?>> propsOutcome = new ArrayList<>();
+
+                List<ImportKey<?>> keysIncome = new ArrayList<>();
+                List<ImportKey<?>> keysOutcome = new ArrayList<>();
+
+                List<List<Object>> dataIncome = new ArrayList<>();
+                List<List<Object>> dataOutcome = new ArrayList<>();
+
+                ImportField idCashDocumentField = new ImportField(collectionLM.findProperty("id[CashDocument]"));
+
+                ImportKey<?> incomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("IncomeCashOperation"),
+                        collectionLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
+                keysIncome.add(incomeCashOperationKey);
+                propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("id[CashDocument]").getMapping(incomeCashOperationKey)));
+                //propsIncome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberIncomeCashOperation").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(idCashDocumentField);
+
+                ImportKey<?> outcomeCashOperationKey = new ImportKey((CustomClass) collectionLM.findClass("OutcomeCashOperation"),
+                        collectionLM.findProperty("cashDocument[VARSTRING[100]]").getMapping(idCashDocumentField));
+                keysOutcome.add(outcomeCashOperationKey);
+                propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("id[CashDocument]").getMapping(outcomeCashOperationKey)));
+                //propsOutcome.add(new ImportProperty(idCashDocumentField, collectionLM.findProperty("numberOutcomeCashOperation").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(idCashDocumentField);
+
+                ImportField numberIncomeCashOperationField = new ImportField(collectionLM.findProperty("number[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(numberIncomeCashOperationField, collectionLM.findProperty("number[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(numberIncomeCashOperationField);
+
+                ImportField numberOutcomeCashOperationField = new ImportField(collectionLM.findProperty("number[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(numberOutcomeCashOperationField, collectionLM.findProperty("number[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(numberOutcomeCashOperationField);
+
+                ImportField dateIncomeCashOperationField = new ImportField(collectionLM.findProperty("date[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(dateIncomeCashOperationField, collectionLM.findProperty("date[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(dateIncomeCashOperationField);
+
+                ImportField dateOutcomeCashOperationField = new ImportField(collectionLM.findProperty("date[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(dateOutcomeCashOperationField, collectionLM.findProperty("date[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(dateOutcomeCashOperationField);
+
+                ImportField timeIncomeCashOperationField = new ImportField(collectionLM.findProperty("time[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(timeIncomeCashOperationField, collectionLM.findProperty("time[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(timeIncomeCashOperationField);
+
+                ImportField timeOutcomeCashOperationField = new ImportField(collectionLM.findProperty("time[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(timeOutcomeCashOperationField, collectionLM.findProperty("time[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(timeOutcomeCashOperationField);
+
+                ImportField nppGroupMachineryField = new ImportField(collectionLM.findProperty("npp[GroupMachinery]"));
+                ImportField nppMachineryField = new ImportField(collectionLM.findProperty("npp[Machinery]"));
+                ImportKey<?> cashRegisterKey = new ImportKey((ConcreteCustomClass) collectionLM.findClass("CashRegister"),
+                        zReportLM.findProperty("cashRegisterNppGroupCashRegister[INTEGER,INTEGER]").getMapping(nppGroupMachineryField, nppMachineryField/*, sidEquipmentServerField*/));
+
+                keysIncome.add(cashRegisterKey);
+                propsIncome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegister[IncomeCashOperation]").getMapping(incomeCashOperationKey),
+                        collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                fieldsIncome.add(nppGroupMachineryField);
+                fieldsIncome.add(nppMachineryField);
+
+                keysOutcome.add(cashRegisterKey);
+                propsOutcome.add(new ImportProperty(nppMachineryField, collectionLM.findProperty("cashRegister[OutcomeCashOperation]").getMapping(outcomeCashOperationKey),
+                        collectionLM.object(collectionLM.findClass("CashRegister")).getMapping(cashRegisterKey)));
+                fieldsOutcome.add(nppGroupMachineryField);
+                fieldsOutcome.add(nppMachineryField);
+
+                ImportField sumCashIncomeCashOperationField = new ImportField(collectionLM.findProperty("sumCash[IncomeCashOperation]"));
+                propsIncome.add(new ImportProperty(sumCashIncomeCashOperationField, collectionLM.findProperty("sumCash[IncomeCashOperation]").getMapping(incomeCashOperationKey)));
+                fieldsIncome.add(sumCashIncomeCashOperationField);
+
+                ImportField sumCashOutcomeCashOperationField = new ImportField(collectionLM.findProperty("sumCash[OutcomeCashOperation]"));
+                propsOutcome.add(new ImportProperty(sumCashOutcomeCashOperationField, collectionLM.findProperty("sumCash[OutcomeCashOperation]").getMapping(outcomeCashOperationKey)));
+                fieldsOutcome.add(sumCashOutcomeCashOperationField);
+
+                for (CashDocument cashDocument : cashDocumentList) {
+                    if (cashDocument.sumCashDocument != null) {
+                        if (cashDocument.sumCashDocument.compareTo(BigDecimal.ZERO) >= 0)
+                            dataIncome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument));
+                        else
+                            dataOutcome.add(Arrays.asList((Object) cashDocument.idCashDocument, cashDocument.numberCashDocument, cashDocument.dateCashDocument,
+                                    cashDocument.timeCashDocument, cashDocument.nppGroupMachinery, cashDocument.nppMachinery, cashDocument.sumCashDocument.negate()));
+                    }
+                }
+
+
+                ImportTable table = new ImportTable(fieldsIncome, dataIncome);
+                String resultIncome;
+                try (DataSession session = dbManager.createSession()) {
+                    session.pushVolatileStats("ES_CDI");
+                    IntegrationService service = new IntegrationService(session, table, keysIncome, propsIncome);
+                    service.synchronize(true, false);
+                    resultIncome = session.applyMessage(BL, stack);
+                    session.popVolatileStats();
+                }
+                if(resultIncome != null)
+                    return resultIncome;
+
+                table = new ImportTable(fieldsOutcome, dataOutcome);
+                String resultOutcome;
+
+                try (DataSession session = dbManager.createSession()) {
+                    session.pushVolatileStats("ES_CDI");
+                    IntegrationService service = new IntegrationService(session, table, keysOutcome, propsOutcome);
+                    service.synchronize(true, false);
+                    resultOutcome = session.applyMessage(BL, stack);
+                    session.popVolatileStats();
+                }
+
+                return resultOutcome;
+            } catch (Exception e) {
+                throw Throwables.propagate(e);
+            }
+        } else return null;
+    }
 
     public static Map<String, List<Object>> readRequestZReportSumMap(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, String idStock, Date dateFrom, Date dateTo) {
         Map<String, List<Object>> zReportSumMap = new HashMap<>();
