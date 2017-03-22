@@ -1000,19 +1000,8 @@ META defineItemFilterValue(object, captionProp, o)
     ; 
     
     change###object(Item i) = ACTION {
-        IF object(i) THEN {
-            REQUEST OBJECT t
-                FORM object##s###session OBJECTS gg = itemGroup(i), t = object(i) CONTEXTFILTER t = object(i) DIALOG SHOWDROP;
-        } ELSE {
-            REQUEST OBJECT t
-                FORM object##s###session OBJECTS gg = itemGroup(i) CONTEXTFILTER t = object(i) DIALOG SHOWDROP;
-        }
-           
-        IF formResult() == FormResult.ok THEN {
-            object(i) <- requestedObject();
-    
-        } ELSE IF formResult() == FormResult.drop THEN {
-            object(i) <- NULL;
+        DIALOG object##s###session OBJECTS gg = itemGroup(i), t = object(i) NULL INPUT NULL CONSTRAINTFILTER DO {
+            object(i) <- t;
         }
     }    
     EXTEND FORM item PROPERTIES(i) name###object SHOWIF show###object(i) BACKGROUND background###object(i) ON CHANGE change###object(i);
@@ -1076,18 +1065,17 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     extract###object##FromCaption 'Выделить из названия'(Item i) = ACTION {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- TRUE IF [= GROUP SUM 1 IF in(###object object, ItemGroup g) BY name(object), g](s, itemGroup(i));
-            FORM extractStringAttributeItem ;
-            IF formResult() == FormResult.ok THEN {
+            DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
                 LOCAL object = ###object();
-                object() <- identityObject(trim(chosenString('to')));
+                object() <- identityObject(trim(to));
                 IF NOT object() THEN {
                     FOR ADDOBJ a = ###object DO {
-                        name(a) <- trim(chosenString('to'));
+                        name(a) <- trim(to);
                         object() <- a;
                     }
                 }
                 LOCAL selected = BOOLEAN (Item);
-                selected(Item item) <- isSubstring(caption(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+                selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
                 dataIn(###object a, ItemGroup g) <- TRUE WHERE a == object() AND [= GROUP SUM 1 IF selected(Item item) BY itemGroup(item)](g);
                 object(Item item) <- object() WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
@@ -1097,7 +1085,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
                                                 replace(
                                                     replace(
                                                         replace(
-                                                            replace(caption(item), chosenString('from'), ''), 
+                                                            replace(caption(item), from, ''), 
                                                             '  ', ' '),
                                                         '" "', ''),
                                                     '""', ''),
@@ -1109,15 +1097,14 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
     } SHORTCUT objectIdentity[Item];
 END
 
-META defineItemExtractPrimitiveAttribute(property, form, fromProp)
+META defineItemExtractPrimitiveAttribute(property, form)
     extract###property##FromCaption 'Выделить из названия'(Item i) = ACTION {
         IF i IS Item THEN {
             possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
-            FORM form ;
-            IF formResult() == FormResult.ok THEN {
+            DIALOG form OBJECTS from INPUT, to INPUT DO {
                 LOCAL selected = BOOLEAN (Item);
-                selected(Item item) <- isSubstring(caption(item), fromProp('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
-                property(Item item) <- trim(fromProp('to')) WHERE selected(item);
+                selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+                property(Item item) <- trim(to) WHERE selected(item);
                 // вырезаем двойные пробелы, а также ненужные символы в начале и конце
                 caption(Item item) <- rtrim(
                                         ltrim(
@@ -1125,7 +1112,7 @@ META defineItemExtractPrimitiveAttribute(property, form, fromProp)
                                                 replace(
                                                     replace(
                                                         replace(
-                                                            replace(caption(item), fromProp('from'), ''), 
+                                                            replace(caption(item), from, ''), 
                                                             '  ', ' '),
                                                         '" "', ''),
                                                     '""', ''),
@@ -1140,7 +1127,7 @@ END
 // -------------- Символьное --------------------- //
 
 META defineItemExtractStringAttribute(property)
-    @defineItemExtractPrimitiveAttribute(property, extractStringAttributeItem, chosenString);
+    @defineItemExtractPrimitiveAttribute(property, extractStringAttributeItem);
 END
 
 // -------------- Числовое --------------------- //
