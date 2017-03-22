@@ -861,10 +861,9 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
             LOCAL in = BOOLEAN (Sku);    
             in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
             
-            FORM selectLabelTypes OBJECTS ds =  stockProp(document) ;
-            IF formResult() == FormResult.ok THEN { 
+            DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT DO {
                 IF NOT countSelectType() THEN {  
-                    select(LabelType type) <- TRUE WHERE type == chosenObject('l');
+                    select(l) <- TRUE;
                 }                                        
                 FOR select(LabelType type) ADDOBJ t = LabelTransaction DO {              
                     departmentStore(t) <- stockProp(document);
@@ -897,10 +896,13 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                             createAttribute(dd, d);
                     }
                     IF change(stockProp(document)) THEN {
-                        FORM customLabelTransaction OBJECTS l = t ;
-                        IF formResult() == FormResult.ok THEN {    
+                        LOCAL printed = BOOLEAN();
+                        printed() <- NULL;
+                        DIALOG customLabelTransaction OBJECTS l = t DO {
                             print(t);
-                        } ELSE {
+                            printed() <- TRUE;
+                        }
+                        IF NOT printed() THEN {
                             cancel();
                         }             
                     } ELSE {

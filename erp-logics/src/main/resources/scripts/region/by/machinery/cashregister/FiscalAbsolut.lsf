@@ -72,9 +72,8 @@ DESIGN options {
 overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) += ACTION {
     IF startsWith(string, fiscalAbsolutPrefixCode128()) == 1 AND receipt IS Receipt AND string IS VARSTRING[30] THEN {
         FOR VARSTRING[30](Receipt r AS Receipt) == substrFrom(string, 5) DO {
-            FORM searchSkuReturnReceipt OBJECTS st = departmentStore(r), c = cashRegister(r), s = r DIALOG;
-            IF formResult() == FormResult.ok THEN {
-                createReturn(receipt, chosenObject('s'), chosenObject('r'));
+            DIALOG searchSkuReturnReceipt OBJECTS st = departmentStore(r), c = cashRegister(r), s = r INPUT, r INPUT rd DO {
+                createReturn(receipt, s, rd);
             }
             consumedChangeBarcodeSaleReceipt() <- TRUE;
         }

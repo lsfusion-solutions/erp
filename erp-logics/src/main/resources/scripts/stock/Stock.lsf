@@ -229,8 +229,7 @@ DESIGN confirmReplaceStockLegalEntity {
 
 preReplace(LegalEntity l, LegalEntity o) += ACTION {
     in(Stock s) <- TRUE WHERE legalEntity(s) == l;
-    FORM confirmReplaceStockLegalEntity OBJECTS l=o, l2=l ;
-        IF formResult() == FormResult.ok THEN {        
+    DIALOG confirmReplaceStockLegalEntity OBJECTS l=o, l2=l DO {        
         FOR in(Stock s) AND l==legalEntity(s) AND legalEntity(Stock stock) == o AND primaryLegalEntity(stock) AND NOT isCompany(s) AND NOT isCompany(stock) DO {
             IF s != stock THEN {
                 replace(s, stock);
@@ -240,9 +239,8 @@ preReplace(LegalEntity l, LegalEntity o) += ACTION {
                 MESSAGE 'Выделенный склад не может совпадать с объединяемым и не должен являться складом собственной компанией';
             }
         }   
-    } ELSE {
-        in(Stock s) <- NULL WHERE in(s);       
-    }         
+    }
+    in(Stock s) <- NULL;       
 }
 
 EXTEND CLASS Stock : POI;
