@@ -426,8 +426,8 @@ META defineOrderInvoice(sign, stockProp)
         customerStockInvoiceOrder() <- customerStock(userInvoice) WHERE customerStock(userInvoice);
         operationInvoiceOrder() <- operation(userInvoice) WHERE operation(userInvoice);
 
-        REQUEST FORM invoiceOrders OBJECTS o INPUT DO {
-            fill(userInvoice, requestedObject());
+        DIALOG invoiceOrders OBJECTS o INPUT DO {
+            fill(userInvoice, o);
         }
     } IN order;
 
@@ -447,8 +447,8 @@ META defineOrderInvoice(sign, stockProp)
                 sku(d) == sku(i)
     ;
     changeOrder (UserInvoiceDetail d) = ACTION {
-        REQUEST FORM selectOrderDetail OBJECTS i = d, d = orderDetail(d) NULL INPUT NULL DO {
-            orderDetail(d) <- requestedObject();
+        DIALOG selectOrderDetail OBJECTS i = d, d = orderDetail(d) NULL INPUT od NULL DO {
+            orderDetail(d) <- od;
         }
     }
     EXTEND FORM userInvoice
@@ -512,7 +512,7 @@ META defineOrderInvoice(sign, stockProp)
         IF relationInvoiceDetail(Order order, Invoice invoice) AND NOT include[Order,UserInvoice](order, invoice)  BY invoice;         
 
     dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION {
-        REQUEST FORM includeOrdersUserInvoice OBJECTS i = userInvoice DO {
+        DIALOG includeOrdersUserInvoice OBJECTS i = userInvoice DO {
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
                 CONFIRM 'Создать по выбранным заказам строки накладной?';
                 IF (confirmed()) THEN {  

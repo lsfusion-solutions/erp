@@ -928,12 +928,12 @@ END
 META defineInvoiceBatchDialogStock(stockProp, dialog)
 
     changeBatch(UserInvoiceDetail d) = ACTION {
-        REQUEST FORM dialogBatchStock##dialog OBJECTS 
+        DIALOG dialogBatchStock##dialog OBJECTS 
                                     st = stockProp(d),
                                     t = dateTime(d),
                                     sk = sku(d),
                                     bt = batch(d) NULL INPUT NULL DO {
-            batch(d) <- requestedObject();                            
+            batch(d) <- bt;                            
         }
     }
 
@@ -946,8 +946,8 @@ END
 // Партии на приходе
 META defineInvoiceBatchDialog(dumb)
     changeBatch(UserInvoiceDetail d) = ACTION {
-        REQUEST FORM dialogBatch OBJECTS sk = sku(d), bt = batch(d) NULL INPUT NULL DO {
-            batch(d) <- requestedObject();
+        DIALOG dialogBatch OBJECTS sk = sku(d), bt = batch(d) NULL INPUT NULL DO {
+            batch(d) <- bt;
         }
     }
 
@@ -1021,13 +1021,13 @@ META defineInvoiceReturn(nsdir, nsret, stockProp, contactStockProp)
     } 
     
     change##nsdir##InvoiceDetail(InvoiceDetail detail) = ACTION {
-        REQUEST FORM baseInvoiceDetail OBJECTS 
+        DIALOG baseInvoiceDetail OBJECTS 
                                     sk = sku(detail), 
                                     st = stockProp(detail), 
                                     cst = contactStockProp(detail), 
                                     dt = dateTime(detail), 
                                     d = invoiceDetail[UserInvoiceDetail](detail) NULL INPUT NULL CONSTRAINTFILTER DO {
-            invoiceDetail[UserInvoiceDetail](detail) <- requestedObject();
+            invoiceDetail[UserInvoiceDetail](detail) <- d;
         }
     }    
     
@@ -1265,7 +1265,7 @@ META defineInvoicePayment(dumb)
             cost(p, invoice) <- sumContract(p);
             LOCAL created = BOOLEAN ();
             created() <- NULL;
-            REQUEST FORM payment OBJECTS p = p DO {
+            DIALOG payment OBJECTS p = p DO {
                 created() <- TRUE;
             }
             IF NOT created() THEN {
