@@ -453,17 +453,18 @@ END
 
 META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
     in = ABSTRACT BOOLEAN (TerminalDocumentType, class);
+    overAddDialogTerminal##class = ACTION ABSTRACT (class, TerminalDocument);
     overAddDetailDialogTerminal##class##Detail = ACTION ABSTRACT (class##Detail, TerminalDocumentDetail);
+    
     addDetailDialogTerminal##class##Detail 'Импорт из ТСД' (class object) = ACTION {
         in(TerminalDocumentType t) <- in(t, object);
         filterStock() <- stockProp(object);
-        FORM terminalDocuments ;
-        IF formResult() == FormResult.ok THEN {
-            LOCAL document = TerminalDocument ();
-            document() <- chosenObject('td');
-            used(TerminalDocument terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
+        
+        DIALOG terminalDocuments OBJECTS td INPUT DO {
+            used(td) <- TRUE ;
+            overAddDialogTerminal##class(object, td);
 
-            FOR terminalDocument(TerminalDocumentDetail tdd) == document() ORDER number(tdd) ADDOBJ o = class##Detail DO {
+            FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) ADDOBJ o = class##Detail DO {
                 object(o) <- object;
                 skuProp(o) <- sku(tdd);
                 quantity(o) <- quantity(tdd);
