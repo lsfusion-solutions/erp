@@ -1,0 +1,31 @@
+MODULE SaleInvoiceOrderAggregationBin;
+
+REQUIRE SaleInvoiceOrderAggregation, BinLedger, SaleBinLedger;
+
+NAMESPACE Sale;
+
+@defineDocumentBins(order);
+
+inBin(OrderInvoiceDetail detail) = inBin(orderDetail(detail));
+outBin(OrderInvoiceDetail detail) = outBin(orderDetail(detail));
+
+@implementAggregationBinLedger(orderInvoiceDetail, orderInvoice, OrderInvoice, sku, quantity, supplierStock, inBin, outBin);
+
+@setBinDocument(UserOrder, supplierStock);
+@defineBinDocumentConstraints(userOrder, supplierStock);
+
+backgroundBins 'Цвет' (UserOrder order) = RGB(255, 224, 255) IF order IS UserOrder;
+backgroundBins (UserOrderDetail detail) = backgroundBins(order(detail));
+
+@extendObjectFormsBins(userOrder, orders, o, supplierStock, backgroundBins);
+
+DESIGN userOrder {
+    headerExtraParams {
+        type = COLUMNS;
+        columns = 4;
+    }
+}
+
+@deriveDocumentOperationProperty(UserOrder, useBins);
+
+@deriveDocumentBins (userOrder, userOrder, inBin, inBin, outBin, outBin, supplierStock);
