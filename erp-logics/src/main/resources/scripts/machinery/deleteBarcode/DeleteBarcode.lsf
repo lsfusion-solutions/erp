@@ -17,11 +17,10 @@ idDepartmentStoreGroupMachinery(DeleteBarcode d) = idDepartmentStore(groupMachin
 succeeded 'Выполнен' = DATA BOOLEAN (DeleteBarcode); 
 dateTimeSucceeded 'Дата выполнения' = DATA DATETIME (DeleteBarcode);
 barcode 'Штрихкод' = DATA VARSTRING[100] (DeleteBarcode) NOT NULL;
-sku (DeleteBarcode d) = skuBarcode(barcode(d));
-idSku(DeleteBarcode d) = id(sku(d));
-nameSku(DeleteBarcode d) = name(sku(d));
-idUOMSku(DeleteBarcode d) = idUOM(barcode(sku(d)));
-shortNameUOMSku(DeleteBarcode d) = shortNameUOM(sku(d));
+idSku 'Код товара' = DATA VARSTRING[100] (DeleteBarcode) NOT NULL;
+nameSku 'Наименование товара' = DATA VARISTRING[255] (DeleteBarcode) NOT NULL;
+idUOMSku 'Код единицы измерения товара' = DATA VARSTRING[100] (DeleteBarcode);
+shortNameUOMSku 'Ед. изм. товара' = DATA VARSTRING[100] (DeleteBarcode);
 
 succeedDeleteBarcode(INTEGER nppGroupMachinery) = ACTION {
     succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
@@ -40,7 +39,7 @@ FORM deleteBarcodes 'Запросы удаления штрихкодов'
     OBJECTS d = DeleteBarcode
     PROPERTIES (d) nameGroupMachinery, nameModelGroupMachinery
     PROPERTIES (d) READONLY succeeded, dateTimeSucceeded
-    PROPERTIES (d) barcode, ADDOBJ
+    PROPERTIES (d) barcode, idSku, nameSku, idUOMSku, shortNameUOMSku, ADDOBJ
     
     OBJECTS e = DeleteBarcodeError
     PROPERTIES(e) READONLY data, date, errorTrace
@@ -55,6 +54,10 @@ NAVIGATOR {
 WHEN DROPPED (Barcode b IS Barcode) AND PREV(id(b)) DO {
     FOR GroupMachinery gm == [=GROUP MIN GroupMachinery gm IF active(gm) BY directory(gm)](VARSTRING[200] dir) ADDOBJ d = DeleteBarcode DO {
         barcode(d) <- PREV (id(b));
+        idSku(d) <- PREV(idSku(b));
+        nameSku(d) <- PREV(nameSku(b));
+        idUOMSku(d) <- PREV(idUOM(b));
+        shortNameUOMSku(d) <- PREV(shortNameUOM(b));
         groupMachinery(d) <- gm;
     } 
 }
