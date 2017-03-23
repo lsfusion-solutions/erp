@@ -3,6 +3,7 @@ package equ.srv.terminal;
 import com.google.common.base.Throwables;
 import equ.api.terminal.*;
 import equ.srv.EquipmentServer;
+import equ.srv.MachineryExchangeEquipmentServer;
 import lsfusion.base.IOUtils;
 import lsfusion.base.col.MapFact;
 import lsfusion.base.col.interfaces.immutable.ImMap;
@@ -149,7 +150,7 @@ public class DefaultTerminalHandler implements TerminalHandlerInterface {
                 //если prefix null, то таблицу не выгружаем. Если prefix пустой (skipPrefix), то таблицу выгружаем, но без префикса
                 String prefix = (String) terminalHandlerLM.findProperty("exportId[]").read(session);
                 List<List<Object>> barcodeList = readBarcodeList(session, stockObject);
-                List<TerminalOrder> orderList = EquipmentServer.readTerminalOrderList(session, BL, stockObject);
+                List<TerminalOrder> orderList = MachineryExchangeEquipmentServer.readTerminalOrderList(session, stockObject);
                 List<TerminalAssortment> assortmentList = EquipmentServer.readTerminalAssortmentList(session, BL, priceListTypeObject, stockObject);
                 List<TerminalHandbookType> handbookTypeList = EquipmentServer.readTerminalHandbookTypeList(session, BL);
                 List<TerminalLegalEntity> customANAList = EquipmentServer.readCustomANAList(session, BL);

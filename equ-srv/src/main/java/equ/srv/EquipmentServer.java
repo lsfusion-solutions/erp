@@ -79,7 +79,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     private ScriptingLogicsModule machineryPriceTransactionPromotionLM;
     private ScriptingLogicsModule machineryPriceTransactionStockTaxLM;
     private ScriptingLogicsModule priceCheckerLM;
-    private ScriptingLogicsModule purchaseInvoiceAgreementLM;
     private ScriptingLogicsModule scalesLM;
     private ScriptingLogicsModule scalesItemLM;
     private ScriptingLogicsModule stopListLM;
@@ -147,7 +146,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         machineryPriceTransactionPromotionLM = getBusinessLogics().getModule("MachineryPriceTransactionPromotion");
         machineryPriceTransactionStockTaxLM = getBusinessLogics().getModule("MachineryPriceTransactionStockTax");
         priceCheckerLM = getBusinessLogics().getModule("EquipmentPriceChecker");
-        purchaseInvoiceAgreementLM = getBusinessLogics().getModule("PurchaseInvoiceAgreement");
         scalesLM = getBusinessLogics().getModule("EquipmentScales");
         scalesItemLM = getBusinessLogics().getModule("ScalesItem");
         stopListLM = getBusinessLogics().getModule("StopList");
@@ -1073,78 +1071,6 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     @Override
     public List<TerminalOrder> readTerminalOrderList(RequestExchange requestExchange) throws RemoteException, SQLException {
         return MachineryExchangeEquipmentServer.readTerminalOrderList(getDbManager(), requestExchange);
-    }
-
-    public static List<TerminalOrder> readTerminalOrderList(DataSession session, BusinessLogics BL, ObjectValue customerStockObject) throws RemoteException, SQLException {
-        List<TerminalOrder> terminalOrderList = new ArrayList<>();
-        ScriptingLogicsModule purchaseOrderLM = BL.getModule("PurchaseOrder");
-        if (purchaseOrderLM != null) {
-            try {
-                KeyExpr orderExpr = new KeyExpr("order");
-                KeyExpr orderDetailExpr = new KeyExpr("orderDetail");
-                ImRevMap<Object, KeyExpr> orderKeys = MapFact.toRevMap((Object) "Order", orderExpr, "OrderDetail", orderDetailExpr);
-                QueryBuilder<Object, Object> orderQuery = new QueryBuilder<>(orderKeys);
-                String[] orderNames = new String[]{"dateOrder", "numberOrder", "idSupplierOrder"};
-                LCP<?>[] orderProperties = purchaseOrderLM.findProperties("date[Purchase.Order]", "number[Purchase.Order]", "idSupplier[Purchase.Order]");
-                for (int i = 0; i < orderProperties.length; i++) {
-                    orderQuery.addProperty(orderNames[i], orderProperties[i].getExpr(orderExpr));
-                }
-                String[] orderDetailNames = new String[]{"idBarcodeSkuOrderDetail", "idSkuOrderDetail", "nameSkuOrderDetail", "priceOrderDetail",
-                        "quantityOrderDetail"};
-                LCP<?>[] orderDetailProperties = purchaseOrderLM.findProperties("idBarcodeSku[Purchase.OrderDetail]", "idSku[Purchase.OrderDetail]",
-                        "nameSku[Purchase.OrderDetail]", "price[Purchase.OrderDetail]", "quantity[Purchase.OrderDetail]");
-                for (int i = 0; i < orderDetailProperties.length; i++) {
-                    orderQuery.addProperty(orderDetailNames[i], orderDetailProperties[i].getExpr(orderDetailExpr));
-                }
-                ScriptingLogicsModule terminalHandlerLM = BL.getModule("TerminalHandler");
-                if(terminalHandlerLM != null) {
-                    String[] extraNames = new String[]{"nameManufacturerSkuOrderDetail", "passScalesSkuOrderDetail"};
-                    LCP<?>[] extraProperties = terminalHandlerLM.findProperties("nameManufacturerSku[Purchase.OrderDetail]", "passScalesSku[Purchase.OrderDetail]");
-                    for (int i = 0; i < extraProperties.length; i++) {
-                        orderQuery.addProperty(extraNames[i], extraProperties[i].getExpr(orderDetailExpr));
-                    }
-                }
-                ScriptingLogicsModule purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
-                if(purchaseInvoiceAgreementLM != null) {
-                    String[] deviationNames = new String[]{"minDeviationQuantityOrderDetail", "maxDeviationQuantityOrderDetail",
-                            "minDeviationPriceOrderDetail", "maxDeviationPriceOrderDetail"};
-                    LCP<?>[]  deviationProperties = purchaseInvoiceAgreementLM.findProperties("minDeviationQuantity[Purchase.OrderDetail]", "maxDeviationQuantity[Purchase.OrderDetail]",
-                            "minDeviationPrice[Purchase.OrderDetail]", "maxDeviationPrice[Purchase.OrderDetail]");
-                    for (int i = 0; i < deviationNames.length; i++) {
-                        orderQuery.addProperty(deviationNames[i], deviationProperties[i].getExpr(orderDetailExpr));
-                    }
-                }
-
-                orderQuery.and(purchaseOrderLM.findProperty("isOpened[Purchase.Order]").getExpr(orderExpr).getWhere());
-                orderQuery.and(purchaseOrderLM.findProperty("customerStock[Purchase.Order]").getExpr(orderExpr).compare(
-                            customerStockObject.getExpr(), Compare.EQUALS));
-                orderQuery.and(purchaseOrderLM.findProperty("order[Purchase.OrderDetail]").getExpr(orderDetailExpr).compare(orderExpr, Compare.EQUALS));
-                orderQuery.and(purchaseOrderLM.findProperty("number[Purchase.Order]").getExpr(orderExpr).getWhere());
-                orderQuery.and(purchaseOrderLM.findProperty("idBarcodeSku[Purchase.OrderDetail]").getExpr(orderDetailExpr).getWhere());
-                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> orderResult = orderQuery.execute(session);
-                for (ImMap<Object, Object> entry : orderResult.values()) {
-                    Date dateOrder = (Date) entry.get("dateOrder");
-                    String numberOrder = trim((String) entry.get("numberOrder"));
-                    String idSupplier = trim((String) entry.get("idSupplierOrder"));
-                    String barcode = trim((String) entry.get("idBarcodeSkuOrderDetail"));
-                    String idItem = trim((String) entry.get("idSkuOrderDetail"));
-                    String name = trim((String) entry.get("nameSkuOrderDetail"));
-                    BigDecimal price = (BigDecimal) entry.get("priceOrderDetail");
-                    BigDecimal quantity = (BigDecimal) entry.get("quantityOrderDetail");
-                    BigDecimal minQuantity = (BigDecimal) entry.get("minDeviationQuantityOrderDetail");
-                    BigDecimal maxQuantity = (BigDecimal) entry.get("maxDeviationQuantityOrderDetail");
-                    BigDecimal minPrice = (BigDecimal) entry.get("minDeviationPriceOrderDetail");
-                    BigDecimal maxPrice = (BigDecimal) entry.get("maxDeviationPriceOrderDetail");
-                    String nameManufacturer = (String) entry.get("nameManufacturerSkuOrderDetail");
-                    String weight = entry.get("passScalesSkuOrderDetail") != null ? "1" : "0";
-                    terminalOrderList.add(new TerminalOrder(dateOrder, numberOrder, idSupplier, barcode, idItem, name, price,
-                            quantity, minQuantity, maxQuantity, minPrice, maxPrice, nameManufacturer, weight));
-                }
-            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
-                throw Throwables.propagate(e);
-            }
-        }
-        return terminalOrderList;
     }
 
     public static List<TerminalLegalEntity> readTerminalLegalEntityList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
