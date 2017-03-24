@@ -1324,6 +1324,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3) {
         String idItemGroup = "";
+        int delta = 0;
         if (type3) {
             for (int i = hierarchyItemGroup.size() - 1; i >=0 ; i--) {
                 String id = hierarchyItemGroup.get(i).idItemGroup;
@@ -1337,9 +1338,11 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 if (id == null) id = "0";
                 if(!id.equals("000000000"))
                     idItemGroup += id + "|";
+                else
+                    delta++;
             }
         }
-        for (int i = hierarchyItemGroup.size(); i < 5; i++) {
+        for (int i = (hierarchyItemGroup.size() - delta); i < 5; i++) {
             idItemGroup += "0|";
         }
         if(type3 && idItemGroup.isEmpty()) {
