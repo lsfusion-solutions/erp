@@ -22,13 +22,13 @@ quantityDemandSkus (o) = GROUP SUM quantityDemand(Sku s,Order o) BY o;
 createUserOrderProduction 'Создать заказ (продажа)'(Order order)  = ACTION {
     IF quantityDemandSkus(order) THEN {
         NEWSESSION NESTED (quantityDemand[Sku,Order]) {
-            FOR ADDOBJ o = UserOrder DO {
+            FOR NEW o = UserOrder DO {
                 supplier(o) <- productsLegalEntityStock(order);
                 customer(o) <- productsLegalEntityStock(order);
                 supplierStock(o) <- productsStock(order);
                 customerStock(o) <- componentsStock(order);
                 
-                FOR quantityDemand(Sku sku,order) ==NUMERIC[16,5] q  ADDOBJ d = UserOrderDetail DO {
+                FOR quantityDemand(Sku sku,order) ==NUMERIC[16,5] q  NEW d = UserOrderDetail DO {
                     userOrder(d) <- o;
                     sku(d) <- sku;
                     quantity(d) <- q;

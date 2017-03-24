@@ -6,14 +6,14 @@ NAMESPACE Production;
 
 createShipment 'Создать поставку для Сырья'(Consumption consumption) = ACTION  {
 
-    FOR ADDOBJ sh = Sale.UserShipment DO {
+    FOR NEW sh = Sale.UserShipment DO {
         supplier(sh) <- legalEntityStock(consumption);
         customer(sh) <- legalEntityStock(consumption);
         customerStock(sh) <- stock(consumption);
         createPurchase(sh) <- TRUE;
         note(sh) <- VARSTRING[100](description(consumption));
 
-        FOR consumption(ConsumptionDetail consumptionDetail)== consumption ADDOBJ d = Sale.UserShipmentDetail DO {
+        FOR consumption(ConsumptionDetail consumptionDetail)== consumption NEW d = Sale.UserShipmentDetail DO {
             userShipment(d) <- sh;
             sku(d) <- sku(consumptionDetail);
             quantity(d) <- quantity(consumptionDetail);

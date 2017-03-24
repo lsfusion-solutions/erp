@@ -5,7 +5,7 @@ REQUIRE ZReport, EVAT, CustomsGroup;
 NAMESPACE ZReport;
 
 createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
-    FOR [= GROUP SUM 1 IF active(ReceiptDetail d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY valueVAT(sku(d), defaultCountry(), dTo), dFrom, dTo](NUMERIC[10,5] vat, dFrom, dTo) ADDOBJ e = EVAT DO {
+    FOR [= GROUP SUM 1 IF active(ReceiptDetail d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY valueVAT(sku(d), defaultCountry(), dTo), dFrom, dTo](NUMERIC[10,5] vat, dFrom, dTo) NEW e = EVAT DO {
         status(e) <- EVATStatus.original;
         
         date(e) <- dTo;
@@ -26,7 +26,7 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = ACTIO
 //        customer(e) <- l;
 //        branchCodeCustomer(e) <- branchCode(customerStock(i));
         
-        FOR [= GROUP SUM sum(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat ADDOBJ ed = EVATDetail DO {
+        FOR [= GROUP SUM sum(ReceiptSaleDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- name(sku);
@@ -40,7 +40,7 @@ createEVATZReport 'Z-отчеты' (LegalEntity l, DATE dFrom, DATE dTo) = ACTIO
             descriptionType(ed) <- IF valueVAT(sku, defaultCountry(), dTo) == 0 THEN DescriptionType.vatExcemption ELSE DescriptionType.deductionInFull;  
         } 
 
-        FOR [= GROUP SUM signedSum(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat ADDOBJ ed = EVATDetail DO {
+        FOR [= GROUP SUM signedSum(ReceiptReturnDetail d) IF active(d) AND date(d) >= DATE dFrom AND date(d) <= DATE dTo BY sku(d), dFrom, dTo](Sku sku, dFrom, dTo) AND valueVAT(sku, defaultCountry(), dTo) == vat NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- name(sku);

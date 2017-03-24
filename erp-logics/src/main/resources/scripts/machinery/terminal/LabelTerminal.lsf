@@ -13,7 +13,7 @@ addDetailDialogTerminalLabelTransactionDetail 'Импорт из ТСД' (LabelT
         used(TerminalDocument terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
 
         FOR terminalDocument(TerminalDocumentDetail tdd) == document()  DO {
-            FOR ADDOBJ o = LabelTransactionDetail DO {
+            FOR NEW o = LabelTransactionDetail DO {
                 labelTransaction(o) <- labelTransaction;
                 sku(o) <- sku(tdd);
                 quantity(o) <- INTEGER(quantity(tdd));
@@ -42,7 +42,7 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
     FOR ([= GROUP SUM 1 IF in(Sku sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stock(terminalDocument)))
-        ADDOBJ t = LabelTransaction DO {
+        NEW t = LabelTransaction DO {
             departmentStore(t) <- stock(terminalDocument);
             priceTransactionDocument(t) <- terminalDocument;
             labelType(t) <- labelType;
@@ -51,7 +51,7 @@ createLabelTransaction 'Распечатать ценники'(TerminalDocument 
                 in(Sku sku) AND sku == sku(dd) AND 
                 in(labelType, sku, stock(terminalDocument)) AND 
                 PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                ADDOBJ d = LabelTransactionDetail DO {
+                NEW d = LabelTransactionDetail DO {
                 labelTransaction(d) <- t;
                 sku(d) <- sku;
 
@@ -83,14 +83,14 @@ createSnapshotTerminalDocumentLabel 'Перепечатать ценники'(Te
         IF NOT countSelectType() THEN {  
             select(LabelType type) <- TRUE WHERE type == l;
         }                                        
-        FOR select(LabelType type) ADDOBJ t = LabelTransaction DO {              
+        FOR select(LabelType type) NEW t = LabelTransaction DO {              
             departmentStore(t) <- stock(terminalDocument);
             priceTransactionDocument(t) <- terminalDocument;
             labelType(t) <- type;
 
             FOR terminalDocument(TerminalDocumentDetail dd) == terminalDocument AND in(Sku sku) AND sku == sku(dd)
                 AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                ADDOBJ d = LabelTransactionDetail DO {
+                NEW d = LabelTransactionDetail DO {
                     labelTransaction(d) <- t;
                     sku(d) <- sku;
 

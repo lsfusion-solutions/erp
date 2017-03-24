@@ -122,7 +122,7 @@ changeValue(Sku sku, StopList stopList) = ACTION {
         } 
     } ELSE {
         IF requestedLogical() THEN {
-            FOR ADDOBJ d = StopListDetail DO {
+            FOR NEW d = StopListDetail DO {
                stopList(d) <- stopList;
                sku(d) <- sku;
             }
@@ -368,9 +368,9 @@ createRequestStopList 'Включить в стоп-лист'()  = ACTION {
 
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
-            FOR ADDOBJ sl = StopList DO {
+            FOR NEW sl = StopList DO {
                 in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) AND NOT skip(sku, stock) BY sku](Sku sku) ADDOBJ d = StopListDetail DO {
+                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) AND NOT skip(sku, stock) BY sku](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
@@ -389,10 +389,10 @@ excludeRequestStopList 'Исключить из стоп-листа'()  = ACTION
 
     IF [=GROUP SUM 1 IF select(Sku sku, Stock stock)]() THEN {
         NEWSESSION NESTED (select[Sku,Stock]) {
-            FOR ADDOBJ sl = StopList DO {
+            FOR NEW sl = StopList DO {
                 exclude(sl) <- TRUE;
                 in(Stock st, sl) <- TRUE WHERE [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](st);  
-                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY sku](Sku sku) ADDOBJ d = StopListDetail DO {
+                FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY sku](Sku sku) NEW d = StopListDetail DO {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 

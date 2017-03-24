@@ -516,7 +516,7 @@ createDeclarationInvoiceDetail 'Создать позиции'(Declaration decla
     
         FOR NUMERIC[16,5] quantity == quantityDeclaration(declaration, VARISTRING[255] customsName, UOM UOM, CustomsGroup customsGroup, VATCustomsException customsException, Country country, NUMERIC[16,4] price) AND
             NUMERIC[18,4] sum == sumDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ORDER
-            indexDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) ADDOBJ dd=DeclarationInvoiceDetail DO {
+            indexDeclaration(declaration, customsName, UOM, customsGroup, customsException, country, price) NEW dd=DeclarationInvoiceDetail DO {
             // Ключи
             declaration(dd) <- declaration;
             nameCustoms(dd) <- customsName;
@@ -1155,7 +1155,7 @@ createDeclarationDetail 'Создать строки'(Declaration declaration) =
         IF isSet(did) THEN {
             overSet(did);
         } ELSE {    
-            FOR declaration(did) == declaration ORDER did ADDOBJ dd = DeclarationDetail DO {
+            FOR declaration(did) == declaration ORDER did NEW dd = DeclarationDetail DO {
                 declaration(dd) <- declaration;
                 declarationInvoiceDetail(dd) <- did;
                 
@@ -1187,7 +1187,7 @@ WHEN SESSION FORMS declaration CHANGED(rateExchangeCustomsZone(Declaration d)) O
 overCopy = ACTION ABSTRACT LIST (DeclarationDetail, DeclarationDetail);
 
 copy 'Копировать'(DeclarationDetail detail) = ACTION {
-    FOR ADDOBJ d = DeclarationDetail DO {          
+    FOR NEW d = DeclarationDetail DO {          
     
         declaration(d) <-  declaration(detail);
         declarationInvoiceDetail(d) <- declarationInvoiceDetail(detail);

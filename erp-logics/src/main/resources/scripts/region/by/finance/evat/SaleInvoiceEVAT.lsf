@@ -44,7 +44,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND
         NOT EVAT(i)
         AND date(i) >= dFrom AND date(i) <= dTo AND 
-        quantityInvoiceDetail(i) ADDOBJ e = EVAT DO {
+        quantityInvoiceDetail(i) NEW e = EVAT DO {
         EVATDocument(e) <- i;        
         type(e) <- EVATType.sale;
         status(e) <- EVATStatus.original;
@@ -81,7 +81,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         
         noCustomer(e) <- NOT VATSumInvoiceDetail(i);
         
-        FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 ADDOBJ ed = EVATDetail DO {
+        FOR invoice(InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- nameSku(id);
@@ -104,7 +104,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
     } 
     APPLY {};
 
-    FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo ADDOBJ e = EVAT DO {
+    FOR eVAT(operation(SaleReturn.Invoice i)) AND isPosted(i) AND NOT skipCreateEVAT(i) AND NOT [= GROUP SUM 1 BY (CONCAT '', seriesDoc(EVAT e), numberDoc(e)), date(e)](seriesNumber(i), date(i)) AND date(i) >= dFrom AND date(i) <= dTo NEW e = EVAT DO {
         EVATDocument(e) <- i;        
         type(e) <- EVATType.saleReturn;
         status(e) <- EVATStatus.additionalNoRef;
@@ -143,7 +143,7 @@ createEVATSaleInvoice 'Накладные (продажа)' (DATE dFrom, DATE dT
         
         overCreateEVATSaleReturnInvoice(e,i);
         
-        FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 ADDOBJ ed = EVATDetail DO {
+        FOR invoice(SaleReturn.InvoiceDetail id) == i AND quantity(id) > 0 NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- nameSku(id);

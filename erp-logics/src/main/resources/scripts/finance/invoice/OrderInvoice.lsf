@@ -175,7 +175,7 @@ META defineOrderInvoice(sign, stockProp)
             // проходим по строкам, для которых не задана партия
             FOR order(OrderDetail orderDetail) == order AND NUMERIC[16,5] q == toInvoice(Batch batch, orderDetail) AND NOT batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
-                ADDOBJ d = UserInvoiceDetail DO {
+                NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
                     orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
@@ -188,7 +188,7 @@ META defineOrderInvoice(sign, stockProp)
             // проходим по строкам, для которых задана партия
             FOR order(OrderDetail orderDetail) == order AND PREV(toInvoice(orderDetail)) AND batch(orderDetail) AND NOT skipCreateUserInvoice(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail
-                ADDOBJ d = UserInvoiceDetail DO {
+                NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
                     orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
@@ -203,7 +203,7 @@ META defineOrderInvoice(sign, stockProp)
                 toInvoice(orderDetail) > 0 // возможно еще нужно фильтровать по складам
                 AND in(orderDetail, userInvoice) AND NOT skipCreateUserInvoice(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail), orderDetail 
-                ADDOBJ d = UserInvoiceDetail DO {
+                NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
                     orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
@@ -293,7 +293,7 @@ META defineOrderInvoice(sign, stockProp)
         IF invoiceCreated(order) THEN RETURN;
         
         userInvoice(order) <- NULL;
-        FOR ADDOBJ i = UserInvoice DO {
+        FOR NEW i = UserInvoice DO {
             IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранному заказу строки накладной?';
             fillHeader(i, order);
             IF confirmed() OR NOT useConfimForCreateDetail() THEN {
@@ -309,13 +309,13 @@ META defineOrderInvoice(sign, stockProp)
 
     createUserInvoicePosted 'Создать проведенную накладную'(Order order) = ACTION {
         IF differentStocksInDetails(customerStock(order)) THEN {
-            FOR ADDOBJ i = UserInvoice DO {
+            FOR NEW i = UserInvoice DO {
                 isPosted(i) <- TRUE;
                 fill(i, order);
                 createdUser(i, order) <- TRUE;
             }
         } ELSE {
-            FOR inSupplier(order, Stock stock) ADDOBJ i = UserInvoice DO {
+            FOR inSupplier(order, Stock stock) NEW i = UserInvoice DO {
                 isPosted(i) <- TRUE;
                 fillSupplier(stock, i, order);
                 createdUser(i, order) <- TRUE;
@@ -580,7 +580,7 @@ META defineOrderInvoice(sign, stockProp)
                 beforeCreateInvoice(order);
                 IF invoiceCreated(order) THEN RETURN;
                 
-                FOR ADDOBJ i = UserInvoice DO {
+                FOR NEW i = UserInvoice DO {
                     IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранным заказам строки накладной?';
                     fillHeader(i, order);
                     FOR selected(Order.Order o) DO {
@@ -618,11 +618,11 @@ END
 META defineInvoiceOrder(sign, NS, batchProp, legalProp, stockProp)
 
     createUserOrder 'Создать заказ'(Invoice invoice) = ACTION NEWSESSION {
-        FOR ADDOBJ o = NS.UserOrder DO {
+        FOR NEW o = NS.UserOrder DO {
             supplier(o) <- legalProp(invoice);
             supplierStock(o) <- stockProp(invoice);
             
-            FOR invoice(InvoiceDetail detail) == invoice ADDOBJ d = NS.UserOrderDetail DO {
+            FOR invoice(InvoiceDetail detail) == invoice NEW d = NS.UserOrderDetail DO {
                 userOrder(d) <- o; 
                 sku(d) <- sku(detail);   
                 batch(d) <- batchProp(detail);

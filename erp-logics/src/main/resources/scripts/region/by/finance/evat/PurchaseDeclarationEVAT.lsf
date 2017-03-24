@@ -28,7 +28,7 @@ VATSum[EVATDocument] (Declaration i) += NUMERIC[18,4]([= GROUP SUM adjustVATSum(
 createEVATDeclaration 'Таможенные декларации' (LegalEntity l, DATE dFrom, DATE dTo) = ACTION {
     FOR date(Declaration d) >= dFrom AND
         NOT EVAT(d) AND
-        date(d) <= dTo AND isPosted(d) ADDOBJ e = EVAT DO {
+        date(d) <= dTo AND isPosted(d) NEW e = EVAT DO {
         EVATDocument(e) <- d;
         type(e) <- EVATType.declaration;
         status(e) <- EVATStatus.original;
@@ -69,7 +69,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
         unpConsignee (e) <- UNP(customer(e)); 
         shippingAddressConsignee(e) <- address([= GROUP MIN customerStock(InvoiceDetail d) IF currency(d) == currency(declaration(d)) BY declaration(d)](d));
                 
-        FOR declaration(DeclarationDetail id) == d ADDOBJ ed = EVATDetail DO {
+        FOR declaration(DeclarationDetail id) == d NEW ed = EVATDetail DO {
             evat(ed) <- e;
 
             name(ed) <- nameCustoms(id);
@@ -86,7 +86,7 @@ createEVATDeclaration 'Таможенные декларации' (LegalEntity l
             
             descriptionType(ed) <- DescriptionType.importVAT;
         }
-        FOR NUMERIC[16,5] vatSum == [= GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) ADDOBJ ed = EVATDetail DO {
+        FOR NUMERIC[16,5] vatSum == [= GROUP SUM adjustVATSum(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, NUMERIC[10,5] vat) NEW ed = EVATDetail DO {
             evat(ed) <- e;
             name(ed) <- 'Сумма НДС, уплаченная при ввозе';
             code(ed) <- [= GROUP MAX codeCustomsGroup(DeclarationDetail id) BY declaration(id), percentVAT(id)](d, vat);

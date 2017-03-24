@@ -273,7 +273,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             
                 IF tmpDate() >= ( IF endDate(scheduleOrder) THEN startDate(scheduleOrder) ELSE (MAX startDate(scheduleOrder), currentDate())) THEN {
                     FOR in(scheduleOrder, Stock stock) DO { 
-                        FOR ADDOBJ o = ScheduleOrderDetail DO {
+                        FOR NEW o = ScheduleOrderDetail DO {
                             dateOrder(o) <- subtract(tmpDate(), dayBefore(scheduleOrder));
                             dateSupply(o) <- tmpDate();
                             scheduleOrder(o) <- scheduleOrder;
@@ -295,7 +295,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             WHILE tmpDate() <= toDate() DO {
                 IF isWordInCSV(extractDay(tmpDate()), stringNumber(scheduleOrder)) == 1 THEN {
                     FOR in(scheduleOrder, Stock stock) DO {                     
-                        FOR ADDOBJ o = ScheduleOrderDetail DO {
+                        FOR NEW o = ScheduleOrderDetail DO {
                             tmpDateS() <- tmpDate();
                             scheduleOrder(o) <- scheduleOrder;
                             customerStock(o) <- stock;                            
@@ -334,7 +334,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                                                     shipmentTime(shipmentScheduleOrderTime(scheduleOrder, 
                                                                                                                             extractDOW(tmpDate()))));
                         FOR in(scheduleOrder, Stock stock) AND NOT countDetails(scheduleOrder, tmpDate(), orderDate(), stock) DO {                     
-                            FOR ADDOBJ o = ScheduleOrderDetail DO {
+                            FOR NEW o = ScheduleOrderDetail DO {
                                 dateOrder(o) <- orderDate();
                                 dateSupply(o) <- tmpDate();
                                 scheduleOrder(o) <- scheduleOrder;
@@ -414,7 +414,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         isRecommended(o) <- NULL;
         CONFIRM 'Заполнить рекомендуемым количеством?';
         
-        FOR ADDOBJ o = UserOrder DO {
+        FOR NEW o = UserOrder DO {
             scheduleOrderDetail(o) <- scheduleOrderDetail;
             date(o) <- currentDate();
             time(o) <- currentTime();
@@ -454,7 +454,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     setScheduleOrderTimeIn(ScheduleOrder scheduleOrder, DOW dow) = ACTION {
         IF NOT scheduleOrderTimeIn(scheduleOrder, dow) THEN {
             LOCAL transfer = INTEGER();
-            FOR ADDOBJ  t = ScheduleOrderTime DO {
+            FOR NEW  t = ScheduleOrderTime DO {
                 scheduleOrder(t) <- scheduleOrder;
                 shipmentDOW(t) <- dow; 
 
@@ -640,7 +640,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     
     overCopy = ACTION ABSTRACT LIST (ScheduleOrder, ScheduleOrder);
     copy 'Копировать'(ScheduleOrder scheduleOrder) = ACTION NEWSESSION {
-        FOR ADDOBJ o = ScheduleOrder DO {
+        FOR NEW o = ScheduleOrder DO {
             supplier(o) <- supplier(scheduleOrder);
             supplierStock(o) <- supplierStock(scheduleOrder);
             customer(o) <- customer(scheduleOrder);
@@ -654,7 +654,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             stringNumber(o) <- stringNumber(scheduleOrder);
             transferDay(o) <- transferDay(scheduleOrder);  
             
-            FOR scheduleOrder(ScheduleOrderTime scheduleOrderTime) == scheduleOrder ADDOBJ sot=ScheduleOrderTime DO {
+            FOR scheduleOrder(ScheduleOrderTime scheduleOrderTime) == scheduleOrder NEW sot=ScheduleOrderTime DO {
                 scheduleOrder(sot) <- o;
                 orderDOW(sot) <- orderDOW(scheduleOrderTime);
                 shipmentDOW(sot) <- shipmentDOW(scheduleOrderTime); 
@@ -673,7 +673,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     edit 'Редактировать' (ScheduleOrderDetail detail) = ACTION edit(scheduleOrder(detail)) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
     addScheduleOrderSupplierCustomer 'Добавить'##sign(LegalEntity supplier, LegalEntity customer) = ACTION NESTEDSESSION {
-        FOR ADDOBJ s = ScheduleOrder DO {
+        FOR NEW s = ScheduleOrder DO {
             supplier(s) <- supplier;
             customer(s) <- customer;
 

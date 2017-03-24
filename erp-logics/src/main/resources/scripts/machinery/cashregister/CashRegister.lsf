@@ -216,7 +216,7 @@ DESIGN groupCashRegister{
 
 overCopy = ACTION ABSTRACT LIST (GroupCashRegister, GroupCashRegister);
 copy 'Копировать'(GroupCashRegister old) = ACTION NEWSESSION {
-    FOR ADDOBJ new = GroupCashRegister DO {
+    FOR NEW new = GroupCashRegister DO {
         npp(new) <- npp(old);
         departmentNumber(new) <- departmentNumber(old);
         stock(new) <- stock(old);
@@ -237,7 +237,7 @@ copy 'Копировать'(GroupCashRegister old) = ACTION NEWSESSION {
         
         CONFIRM 'Копировать кассы?';
         
-        FOR confirmed() AND old == groupCashRegister(CashRegister oldCash) ADDOBJ newCash = CashRegister DO {
+        FOR confirmed() AND old == groupCashRegister(CashRegister oldCash) NEW newCash = CashRegister DO {
             groupCashRegister(newCash) <- new;
             npp(newCash) <- npp(oldCash);
             shortDescription(newCash) <- shortDescription(oldCash);
@@ -320,7 +320,7 @@ cashRegisterSID (cashRegisterModel) = GROUP MAX CashRegisterModel scalesModel BY
 
 loadDefaultCashRegisterModel 'Добавить модель касс'(VARISTRING[110] iname, VARSTRING[20] isid, VARSTRING[200] ihandler, BOOLEAN iShowSection, BOOLEAN iIgnoreCashRegisterServer) = ACTION  {
     IF NOT cashRegisterSID(isid) THEN {
-        FOR ADDOBJ crm = CashRegisterModel DO {
+        FOR NEW crm = CashRegisterModel DO {
              name(crm) <- iname;
              sid(crm) <- isid;
              handler(crm) <- ihandler;
@@ -353,7 +353,7 @@ loadDefaultCashRegisterModels 'Загрузить стандартные мод�
 
 // --------------------------------------- Генерация групп касс -------------------------------- //
 loadDefaultGroup 'Сгенерировать группу касс'(PriceListType priceListType, Stock stock, CashRegisterModel model, INTEGER num) = ACTION {
-    FOR ADDOBJ g = GroupCashRegister DO {
+    FOR NEW g = GroupCashRegister DO {
         departmentStore(g) <- stock;
         priceListType(g) <- priceListType;
         name(g) <- 'Группа касс по умолчанию';
@@ -361,7 +361,7 @@ loadDefaultGroup 'Сгенерировать группу касс'(PriceListTyp
         LOCAL numCashRegister = INTEGER();
         numCashRegister() <- 0;
         WHILE numCashRegister() < num DO {
-            FOR ADDOBJ c = CashRegister DO {
+            FOR NEW c = CashRegister DO {
                 groupCashRegister(c) <- g;
                 numCashRegister() <- numCashRegister() + 1;
                 npp(c) <- numCashRegister();

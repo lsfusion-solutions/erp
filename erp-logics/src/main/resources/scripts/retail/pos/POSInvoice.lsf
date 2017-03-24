@@ -195,7 +195,7 @@ printReturnReceipt = ACTION ABSTRACT LIST (Sale.Invoice, Payment.Payment);
 printReceiptResult = DATA LOCAL BOOLEAN ();
 
 createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERIC[18,4] sum, PaymentType paymentType, PaymentCondition paymentCondition, VARSTRING[100] note)  = ACTION {       
-    FOR ADDOBJ i = UserInvoice DO {
+    FOR NEW i = UserInvoice DO {
         operation(i) <- defaultOperationPaymentInstallments();
         supplierStock(i) <- departmentStore(receipt);
         supplier(i) <- legalEntity[Stock](departmentStore(receipt));
@@ -210,7 +210,7 @@ createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERI
         isPosted(i) <- TRUE;
         createdUser(i) <- employee;
         postedUser(i) <- employee;
-        FOR ADDOBJ c = UserContractSku DO {
+        FOR NEW c = UserContractSku DO {
             supplier(c) <- legalEntity[Stock](departmentStore(receipt));
             customer(c) <- customer;
             dateFrom(c) <- date(receipt);
@@ -221,7 +221,7 @@ createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERI
             contractSku(i) <- c;            
         }
         
-        FOR receipt(ReceiptDetail detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
+        FOR receipt(ReceiptDetail detail) == receipt NEW d = UserInvoiceDetail DO {
             userInvoice(d) <- i;
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
@@ -233,7 +233,7 @@ createInvoice(Receipt receipt, LegalEntity customer, CustomUser employee, NUMERI
             price(d) <- invoicePrice (d) * 100/(100 + valueVAT(d));
         }
         
-        FOR ADDOBJ p = Payment.Payment DO {
+        FOR NEW p = Payment.Payment DO {
             operation(p) <- defaultPaymentOperation();        
             date(p) <- date(receipt);
             time(p) <- time(receipt); 
@@ -286,7 +286,7 @@ createPaymentInstallments 'Рассрочка'(Receipt receipt) = ACTION {
             FOR passportNumber(LegalEntity l) == passportNumberLegalEntity() AND id(Employee e) == idEmployee() DO { 
                 createInvoice(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
             } ELSE {
-                ADDOBJ LegalEntity;
+                NEW LegalEntity;
                 FOR Object l == addedObject() AND id(Employee e) == idEmployee() DO {
                     name[LegalEntity](l) <- nameLegalEntity();
                     passportNumber(l) <- passportNumberLegalEntity();
@@ -299,7 +299,7 @@ createPaymentInstallments 'Рассрочка'(Receipt receipt) = ACTION {
                     FOR name(LegalEntityGroup group) == 'Покупатели' DO {
                         legalEntityGroup(l) <- group;
                     }
-                    FOR ADDOBJ s = Warehouse DO {
+                    FOR NEW s = Warehouse DO {
                         name(s) <- nameLegalEntity();
                         legalEntity(s) <- l;
                         FOR name(WarehouseGroup gr) == 'Склады контрагентов' DO {
@@ -352,7 +352,7 @@ createInvoicePrePayment 'Предоплата'(Receipt receipt)  = ACTION {
         noteInvoice() <- NULL;
         SHOW prePayment OBJECTS r = receipt ;
         IF formResult() == FormResult.ok THEN {
-            FOR ADDOBJ i = UserInvoice DO {
+            FOR NEW i = UserInvoice DO {
                 operation(i) <- defaultOperationPaymentInstallments();
                 supplierStock(i) <- departmentStore(receipt);
                 supplier(i) <- legalEntity[Stock](departmentStore(receipt));
@@ -373,7 +373,7 @@ createInvoicePrePayment 'Предоплата'(Receipt receipt)  = ACTION {
                         cost(p, i) <- sumReceiptDetail(receipt);                     
                     }
                 }
-                FOR receipt(ReceiptDetail detail) == receipt ADDOBJ d = UserInvoiceDetail DO {
+                FOR receipt(ReceiptDetail detail) == receipt NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- i;
                     sku(d) <- sku(detail);
                     quantity(d) <- quantity(detail);

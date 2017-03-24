@@ -110,7 +110,7 @@ createDetail(UserBinTransfer userBinTransfer, BinOrder binOrder) = ACTION {
         toBinTransfer(binOrderDetail) > 0 // возможно еще нужно фильтровать по складам
         AND in(binOrderDetail, userBinTransfer) AND NOT skipCreateUserBinTransfer(binOrderDetail)
         ORDER binOrderCreateUserBinTransfer(binOrderDetail), binOrderDetail 
-        ADDOBJ d = UserBinTransferDetail DO {
+        NEW d = UserBinTransferDetail DO {
             userBinTransfer(d) <- userBinTransfer;
             binOrderDetail(d) <- binOrderDetail;
             sku(d) <- sku(binOrderDetail);
@@ -171,7 +171,7 @@ createUserBinTransfer 'Создать перемещение'(BinOrder binOrder)
     IF binTransferCreated(binOrder) THEN RETURN;
     
     userBinTransfer(binOrder) <- NULL;
-    FOR ADDOBJ i = UserBinTransfer DO {
+    FOR NEW i = UserBinTransfer DO {
         IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранному заказу строки накладной?';
         fillHeader(i, binOrder);
         IF confirmed() OR NOT useConfimForCreateBinDetail() THEN {
@@ -189,7 +189,7 @@ createAndShowUserBinTransfer 'Создать перемещение' (BinOrder b
 }
 
 createUserBinTransferPosted 'Создать проведенное перемещение' (BinOrder binOrder) = ACTION {
-    FOR ADDOBJ i = UserBinTransfer DO {
+    FOR NEW i = UserBinTransfer DO {
         isPosted(i) <- TRUE;
         fill(i, binOrder);
         createdUser(i, binOrder) <- TRUE;
@@ -433,7 +433,7 @@ createMultiUserBinTransfer(BinOrder binOrder) = ACTION {
         beforeCreateBinTransfer(binOrder);
         IF binTransferCreated(binOrder) THEN RETURN;
 
-        FOR ADDOBJ i = UserBinTransfer DO {
+        FOR NEW i = UserBinTransfer DO {
             IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранным заказам строки перемещения?';
             fillHeader(i, binOrder);
             FOR selected(BinOrder o) DO {

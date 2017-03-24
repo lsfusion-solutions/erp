@@ -134,7 +134,7 @@ DESIGN statisticGroup {
 }
 
 add 'Добавить'(StatisticGroup group, StatisticGroupType type) = ACTION NEWSESSION {
-    FOR ADDOBJ g = StatisticGroup DO {
+    FOR NEW g = StatisticGroup DO {
         ASSIGN parent(g) <- group;
         ASSIGN groupType(g) <- type;
         SHOW statisticGroup OBJECTS g = g ;
@@ -828,7 +828,7 @@ showPrint (Stock st) = st IS Stock AND NOT skipPrint(st);
 //---------------------------------------------- Автоматическое заполнение -----------------------------------------------------//
 
 loadDefaultStatisticGroupType 'Добавить значение классификатора стат.групп'(VARISTRING[100] iname, VARSTRING[20] isid, STRING[3] isidCountry) = ACTION {
-    FOR ADDOBJ t = StatisticGroupType DO {
+    FOR NEW t = StatisticGroupType DO {
         ASSIGN name(t) <- iname;
         ASSIGN id (t) <- isid;
         ASSIGN country(t) <- country(isidCountry);
@@ -836,7 +836,7 @@ loadDefaultStatisticGroupType 'Добавить значение классиф�
 }
 
 loadDefaultStatistic 'Добавить значение статистические группы'(VARSTRING[20] sidType, STRING[12] sidParent, VARISTRING[250] iname, STRING[12] isid, GroupStatic groupStatic, value) = ACTION {
-    FOR ADDOBJ g = StatisticGroup DO {
+    FOR NEW g = StatisticGroup DO {
         ASSIGN groupType(g) <- statisticGroupTypeId(sidType);
         ASSIGN parent(g) <- groupIdTypeIdGroup(sidType, sidParent);
 
@@ -858,7 +858,7 @@ statisticGroupTypeDefault = DATA LOCAL NESTED StatisticGroupType();
 copy 'Копировать' (StatisticGroupType type) = ACTION NEWSESSION NESTED (statisticGroupTypeDefault){
     statisticGroupTypeDefault() <- NULL;
        
-    FOR ADDOBJ t = StatisticGroupType DO {
+    FOR NEW t = StatisticGroupType DO {
         country(t) <- country(type);
         name(t) <- VARISTRING[100](name(type) +' (копия)');         
 
@@ -868,7 +868,7 @@ copy 'Копировать' (StatisticGroupType type) = ACTION NEWSESSION NESTED
         prev(StatisticGroup d) <- NULL;
         new(StatisticGroup d) <- NULL;
         
-        FOR groupType(StatisticGroup group) == type ADDOBJ g = StatisticGroup DO {
+        FOR groupType(StatisticGroup group) == type NEW g = StatisticGroup DO {
             groupType(g) <- t;
             name(g) <- name(group);  
             sid(g) <- sid(group);     

@@ -160,13 +160,13 @@ edit(UserPicking picking) += ACTION edit(picking);
 
 overCopy = ACTION ABSTRACT LIST (UserPickingDetail, PickingDetail);
 copy 'Копировать'(Picking picking) = ACTION NEWSESSION {
-    FOR ADDOBJ o = UserPicking DO {
+    FOR NEW o = UserPicking DO {
 
         ASSIGN stock(o) <- stock(picking);
         ASSIGN note(o) <- note(picking);
 
         FOR picking(PickingDetail pickingDetail) == picking DO {
-            FOR ADDOBJ d=UserPickingDetail DO {
+            FOR NEW d=UserPickingDetail DO {
                 userPicking(d) <- o;
                 sku(d) <- sku(pickingDetail);
                 quantity(d) <- quantity(pickingDetail);
@@ -291,10 +291,10 @@ pickings 'Комплектации' (pickingOrder) = GROUP CONCAT VARSTRING[255]
 
 overFillUserPicking = ACTION ABSTRACT LIST (UserPickingDetail, PickingOrderDetail);
 moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    FOR ADDOBJ p = UserPicking DO {
+    FOR NEW p = UserPicking DO {
         pickingOrder(p) <- pickingOrder;
         stock(p) <- stock(pickingOrder);
-        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+        FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
             userPicking(d) <- p;
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
@@ -341,7 +341,7 @@ fillUserPickingOrder 'Заполнить на основании заказа н
         order() <- chosenObject('o');
         pickingOrder(userPicking) <- order();
 
-        FOR pickingOrder(PickingOrderDetail detail) == order() ADDOBJ d = UserPickingDetail DO {
+        FOR pickingOrder(PickingOrderDetail detail) == order() NEW d = UserPickingDetail DO {
             userPicking(d) <- userPicking;
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
@@ -458,12 +458,12 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = AC
     IF formResult() == FormResult.ok THEN {
         finishDate(pickingOrder) <- currentDate();
         finishTime(pickingOrder) <- currentTime();
-        FOR ADDOBJ p = UserPicking DO {
+        FOR NEW p = UserPicking DO {
             pickingOrder(p) <- pickingOrder;
             stock(p) <- stock(pickingOrder);
             packQuantity(p) <- chosenNumeric('n');
             number(p) <- overNumber(p);
-            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
                 userPicking(d) <- p;
                 sku(d) <- sku(detail);
                 quantity(d) <- quantity(detail);
@@ -480,12 +480,12 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = 
     IF formResult() == FormResult.ok THEN {
         finishDate(pickingOrder) <- currentDate();
         finishTime(pickingOrder) <- currentTime();
-        FOR ADDOBJ p = UserPicking DO {
+        FOR NEW p = UserPicking DO {
             pickingOrder(p) <- pickingOrder;
             stock(p) <- stock(pickingOrder);
             packQuantity(p) <- chosenNumeric('n');
             number(p) <- overNumber(p);
-            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder ADDOBJ d = UserPickingDetail DO {
+            FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
                 userPicking(d) <- p;
                 sku(d) <- sku(detail);
                 quantity(d) <- quantity(detail);

@@ -1262,10 +1262,10 @@ dialogSku 'Добавить товар'(ManyCollationSheet collationSheet) = ACT
 createPage 'Создать страницу описи с остатками'  (ListInventory listInventory) = ACTION {
     SHOW dialogSkuGroup ;
     IF formResult() == FormResult.ok THEN {    
-        FOR ADDOBJ p = PageInventory  DO {
+        FOR NEW p = PageInventory  DO {
             listInventory(p) <- listInventory;
             IF isBatch(inventory(listInventory)) THEN {
-                FOR (NUMERIC[16,5] cnt == balanceB(Batch b, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND inSession(skuGroup(sku(b)))) AND (isItem(sku(b)) OR isContainer(sku(b))) ADDOBJ d = PageInventoryDetail DO {
+                FOR (NUMERIC[16,5] cnt == balanceB(Batch b, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND inSession(skuGroup(sku(b)))) AND (isItem(sku(b)) OR isContainer(sku(b))) NEW d = PageInventoryDetail DO {
                     pageInventory(d) <- p;
                     sku(d) <- sku(b);
                     batch(d) <- b;
@@ -1273,7 +1273,7 @@ createPage 'Создать страницу описи с остатками'  (
                     price(d) <- accountPriceA(b, stock(listInventory), dateTime(inventory(listInventory)));
                 }
             } ELSE {
-                FOR (NUMERIC[16,5] cnt == balanceB(Sku sk, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND inSession(skuGroup(sk))) AND (isItem(sk) OR isContainer(sk)) ORDER name (sk) ADDOBJ d = PageInventoryDetail DO {
+                FOR (NUMERIC[16,5] cnt == balanceB(Sku sk, stock(listInventory), dateTime(inventory(listInventory))) AND cnt > 0 AND inSession(skuGroup(sk))) AND (isItem(sk) OR isContainer(sk)) ORDER name (sk) NEW d = PageInventoryDetail DO {
                     pageInventory(d) <- p;
                     sku(d) <- sk;
                     quantity(d) <- cnt;
@@ -1391,7 +1391,7 @@ DESIGN listInventory {
 }
 
 addListInventory 'Добавить'(Stock stock, Inventory inventory) = ACTION NEWSESSION {
-    FOR ADDOBJ g = ListInventory DO {
+    FOR NEW g = ListInventory DO {
         stock(g) <- stock;
         inventory(g) <- inventory;
         SHOW listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
@@ -1400,7 +1400,7 @@ addListInventory 'Добавить'(Stock stock, Inventory inventory) = ACTION N
 
 changeAddDetailInputIdSku(VARSTRING[100] idSku, PageInventory page) = ACTION {
     IF sku(idSku) THEN {  
-        FOR ADDOBJ  d = PageInventoryDetail DO {
+        FOR NEW  d = PageInventoryDetail DO {
             pageInventory(d) <- page;   
             sku(d) <- sku(idSku);
             FOCUS listInventory.quantityGrid;
@@ -1419,7 +1419,7 @@ addDetailInput 'Код товара:' (page) = DATA LOCAL STRING[20] (PageInvent
                                                                      
 changeAddDetailInputBarcode(VARSTRING[15] barcode, PageInventory page) = ACTION {
     IF skuBarcode(barcode, date(listInventory(page))) THEN {  
-        FOR ADDOBJ  d = PageInventoryDetail DO {
+        FOR NEW  d = PageInventoryDetail DO {
             pageInventory(d) <- page;   
             sku(d) <- skuBarcode(barcode, date(listInventory(page)));
             FOCUS listInventory.quantityGrid;

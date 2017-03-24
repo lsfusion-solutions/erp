@@ -464,7 +464,7 @@ META defineAddDetailDialogTerminalInner (object, class, skuProp, stockProp)
             used(td) <- TRUE ;
             overAddDialogTerminal##class(object, td);
 
-            FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) ADDOBJ o = class##Detail DO {
+            FOR terminalDocument(TerminalDocumentDetail tdd) == td ORDER number(tdd) NEW o = class##Detail DO {
                 object(o) <- object;
                 skuProp(o) <- sku(tdd);
                 quantity(o) <- quantity(tdd);
@@ -478,7 +478,7 @@ END
 
 // Модели терминалов сбора данных
 loadDefaultTerminalModel 'Добавить модель терминала'(VARSTRING[20] stringOne, VARISTRING[110] stringTwo, VARSTRING[200] stringThree) = ACTION  {
-    FOR ADDOBJ tm = TerminalModel DO {
+    FOR NEW tm = TerminalModel DO {
          ASSIGN sid(tm) <- stringOne;   
          ASSIGN name(tm) <- stringTwo;
          ASSIGN handler(tm) <- stringThree;
@@ -495,7 +495,7 @@ loadDefaultTerminalModels 'Загрузить стандартные модел�
 
 // Виды справочников терминалов сбора данных
 loadDefaultTerminalHandbookType 'Добавить вид справочника ТСД'(VARSTRING[100] n, VARSTRING[100] s) = ACTION {
-    FOR ADDOBJ t = TerminalHandbookType DO {
+    FOR NEW t = TerminalHandbookType DO {
         name(t) <- n;
         id(t) <- s;
     }
@@ -509,7 +509,7 @@ loadDefaultTerminalHandbookTypes 'Загрузить стандартные ви
 
 // Типы документов терминалов сбора данных
 loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] nameString, GroupTerminalDocumentType gtdt, VARSTRING[100] idTypeString, INTEGER flagInteger, VARSTRING[100] handbook1String, VARSTRING[100] handbook2String) = ACTION {
-    FOR ADDOBJ tdt = TerminalDocumentType DO {
+    FOR NEW tdt = TerminalDocumentType DO {
         ASSIGN name(tdt) <- nameString;
         ASSIGN groupTerminalDocumentType(tdt) <- gtdt;
         ASSIGN terminalHandbookType1(tdt) <- terminalHandbookType(handbook1String);
@@ -520,7 +520,7 @@ loadDefault 'Добавить тип документа ТСД'(VARSTRING[200] n
 }
 
 loadDefaultTerminalDocumentTypes 'Загрузить стандартные типы документов ТСД'() = ACTION {
-    FOR ADDOBJ gtdt = GroupTerminalDocumentType DO {
+    FOR NEW gtdt = GroupTerminalDocumentType DO {
         ASSIGN name(gtdt) <- 'Группа типов документов';
         EXEC loadDefault('Инвентаризация', gtdt, '01', 31, ' ', ' ');
         EXEC loadDefault('Приход', gtdt, '02', 31, '01', ' ');
@@ -532,7 +532,7 @@ loadDefaultTerminalDocumentTypes 'Загрузить стандартные ти
 
 // ------------------------------------------ Генерация групп терминалов сбора данных ------------------------------ //
 loadDefault 'Сгенерировать группу терминалов'(Stock stock, TerminalModel model, GroupTerminalDocumentType gtdt, INTEGER num) = ACTION {
-    FOR ADDOBJ g = GroupTerminal DO {
+    FOR NEW g = GroupTerminal DO {
         stock(g) <- stock;
         name(g) <- 'Группа ТСД по умолчанию';
         groupTerminalDocumentType(g) <- gtdt;
@@ -540,7 +540,7 @@ loadDefault 'Сгенерировать группу терминалов'(Stock
         LOCAL numTerminal = INTEGER();
         numTerminal() <- 0;
         WHILE numTerminal() < num DO {
-            FOR ADDOBJ t = Terminal DO {
+            FOR NEW t = Terminal DO {
                 groupTerminal(t) <- g;
                 numTerminal() <- numTerminal() + 1;
                 npp(t) <- numTerminal();

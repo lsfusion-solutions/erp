@@ -91,14 +91,14 @@ overCreateDashboardRepricingNotForm= ACTION ABSTRACT LIST (UserRepricing);
 
 createDashboardRepricingNotForm 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION {
     IF [ = GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
-        FOR ADDOBJ r = UserRepricing DO {
+        FOR NEW r = UserRepricing DO {
             departmentStore(r) <- d;
             operation(r) <- o;
             date(r) <- toDate(dt);
             time(r) <- toTime(dt);  
             isPosted(r) <- TRUE;
     
-            FOR inDashboardRepricing(Sku sku) AND NOT skipRepricing(sku, d) ADDOBJ rd = UserRepricingDetail DO {
+            FOR inDashboardRepricing(Sku sku) AND NOT skipRepricing(sku, d) NEW rd = UserRepricingDetail DO {
                 userRepricing(rd) <- r;
                 sku(rd) <- sku;
                 quantity(rd) <- currentBalance(sku, d) IF currentBalance(sku, d) > 0;

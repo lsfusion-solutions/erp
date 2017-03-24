@@ -35,13 +35,13 @@ toRepricing (stock, dateTime) = GROUP SUM 1 IF toRepricing (Batch batch, Stock s
 setUserRepricingStock 'Создать акт переоценки по партиям'(DepartmentStore stock, DATETIME dateTime, Operation operation)  = ACTION NEWSESSION {
     IF toRepricing (stock, dateTime) AND stock IS DepartmentStore THEN {
     
-        FOR ADDOBJ p = UserRepricing DO {
+        FOR NEW p = UserRepricing DO {
             departmentStore(p) <- stock;
             date(p) <- toDate(dateTime);
             time(p) <- toTime(dateTime);
             operation(p) <- operation;
             
-            FOR toRepricing(Batch batch, stock, dateTime) INLINE ADDOBJ d = UserRepricingDetail DO {
+            FOR toRepricing(Batch batch, stock, dateTime) INLINE NEW d = UserRepricingDetail DO {
                 userRepricing(d) <- p;    
                 sku(d) <- sku(batch);
                 batch(d) <- batch;

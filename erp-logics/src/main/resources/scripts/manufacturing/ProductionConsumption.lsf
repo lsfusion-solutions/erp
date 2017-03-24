@@ -259,7 +259,7 @@ fillOrder 'Заполнить на основе производственног
         LOCAL productionOrder = Order();
         ASSIGN productionOrder() <- chosenObject('o');
 
-        FOR order(ComponentDetail componentDetail) == productionOrder() ADDOBJ d = UserConsumptionDetail DO {
+        FOR order(ComponentDetail componentDetail) == productionOrder() NEW d = UserConsumptionDetail DO {
             ASSIGN userConsumption(d) <- userConsumption;
             ASSIGN componentDetail(d) <- componentDetail;
             ASSIGN sku(d) <- sku(componentDetail);
@@ -524,14 +524,14 @@ edit 'Редактировать' (userConsumption) = ACTION EDITFORM UserConsum
 edit(UserConsumption consumption) += ACTION edit(consumption);
 
 copy 'Копировать'(UserConsumption userConsumption) = ACTION NEWSESSION {
-    FOR ADDOBJ o = UserConsumption DO {
+    FOR NEW o = UserConsumption DO {
         ASSIGN stock(o) <- stock(userConsumption);
         ASSIGN currency(o) <- currency(userConsumption);
         ASSIGN priceListType(o) <- priceListType(userConsumption);
         ASSIGN note(o) <- note(userConsumption);
 
         FOR userConsumption(UserConsumptionDetail userConsumptionDetail) == userConsumption DO {
-            FOR ADDOBJ d=UserConsumptionDetail DO {
+            FOR NEW d=UserConsumptionDetail DO {
                 ASSIGN userConsumption(d) <- o;
                 ASSIGN sku(d) <- sku(userConsumptionDetail);
                 ASSIGN quantity(d) <- quantity(userConsumptionDetail);
@@ -634,14 +634,14 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
     balance(Sku sku) <-  NUMERIC[16,3](balanceB(sku, componentsStock(order), dateTime(order)));
     left(Sku sku) <-  NUMERIC[16,3](requiredQuantitySubstitute(order, sku));
 
-    FOR ADDOBJ o = UserConsumption DO {
+    FOR NEW o = UserConsumption DO {
         stock(o) <- componentsStock(order);
         priceListType(o) <- priceListType(order);
         note(o) <- note(order);
         
         FOR left(Sku sku) > 0 DO {
                 
-            FOR balance(sku) > 0 ADDOBJ d = UserConsumptionDetail DO {
+            FOR balance(sku) > 0 NEW d = UserConsumptionDetail DO {
                 userConsumption(d) <- o;
                 sku(d) <- sku;
                 quantity(d) <- IF balance(sku) >= left(sku) THEN left(sku) ELSE balance(sku);
@@ -651,7 +651,7 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
              
             IF left(sku) > 0 THEN {
                 FOR fromSku(Substitute substitute) == sku AND toSku(substitute) == Sku s AND balance(s) > 0 ORDER balance(toSku(substitute))
-                    ADDOBJ d = UserConsumptionDetail DO {
+                    NEW d = UserConsumptionDetail DO {
                     userConsumption(d) <- o;
                     sku(d) <- s;
                                                
@@ -672,7 +672,7 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
             MESSAGE 'Внимание !!! Не хватает остатка для компонент : \n' + [= GROUP CONCAT name(Sku sku) IF left(sku) > 0, '\n' ORDER name(sku)]();
         }
         
-        FOR left(Sku sku) ADDOBJ d = UserConsumptionDetail DO {
+        FOR left(Sku sku) NEW d = UserConsumptionDetail DO {
             userConsumption(d) <- o;
             sku(d) <- sku;
             quantity(d) <- left(sku);
@@ -688,7 +688,7 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
 //addUserConsumptionProductionOrder 'Списание сырья' =  ACTION (order) NEWSESSION{
 //    balanceSessionSku(sku) <-  NULL;
 //    
-//    FOR ADDOBJ o = UserConsumption DO {
+//    FOR NEW o = UserConsumption DO {
 //        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
 //        stockUserConsumption(o) <- componentsStockOrder(order);
 //        priceListTypeUserConsumption(o) <- priceListTypeOrder(order);
@@ -705,7 +705,7 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
 //        
 //            IF required() > 0 THEN {                    
 //                IF balanceSessionSku(skuComponentDetail(detail)) AND required() > 0 THEN { //
-//                        FOR ADDOBJ d = UserConsumptionDetail DO {                                 
+//                        FOR NEW d = UserConsumptionDetail DO {                                 
 //                            userConsumptionUserConsumptionDetail(d) <- o;
 //                            componentDetailUserConsumptionDetail(d) <- detail;
 //                            
@@ -719,7 +719,7 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
 //                } 
 //                FOR fromSkuSubstitute(substitute) == skuComponentDetail(detail) AND balanceSessionSku(toSkuSubstitute(substitute)) > 0  ORDER balanceSessionSku(toSkuSubstitute(substitute)) DO {
 //                    IF required() >0 THEN {
-//                        FOR ADDOBJ d = UserConsumptionDetail DO {                    
+//                        FOR NEW d = UserConsumptionDetail DO {                    
 //                            userConsumptionUserConsumptionDetail(d) <- o;
 //                            skuUserConsumptionDetail(d) <- toSkuSubstitute(substitute);
 //                            componentDetailUserConsumptionDetail(d) <- detail;

@@ -24,7 +24,7 @@ META defineOrderInvoicePickingOrder (sign)
         IF useExplicitBatchDetailUserInvoice(order) AND (explicitBatchLedger(fromStock(order)) OR forceExplicitBatchDetailUserInvoice(order)) THEN {
             FOR order(OrderDetail orderDetail) == order AND picking(Batch batch, orderDetail) AND NOT batch(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail) 
-                ADDOBJ d = UserInvoiceDetail DO {
+                NEW d = UserInvoiceDetail DO {
                 userInvoice(d) <- userInvoice;
                 orderDetail(d) <- orderDetail;
                 sku(d) <- sku(orderDetail);
@@ -36,7 +36,7 @@ META defineOrderInvoicePickingOrder (sign)
             }
             FOR order(OrderDetail orderDetail) == order AND PREV(pickingQuantity(orderDetail)) AND batch(orderDetail)
                 ORDER orderCreateUserInvoice(orderDetail) 
-                ADDOBJ d = UserInvoiceDetail DO {
+                NEW d = UserInvoiceDetail DO {
                 userInvoice(d) <- userInvoice;
                 orderDetail(d) <- orderDetail;
                 sku(d) <- sku(orderDetail);
@@ -51,7 +51,7 @@ META defineOrderInvoicePickingOrder (sign)
                 pickingQuantity(orderDetail) > 0 // возможно еще нужно фильтровать по складам
                 AND in(orderDetail, userInvoice)
                 ORDER orderCreateUserInvoice(orderDetail) 
-                ADDOBJ d = UserInvoiceDetail DO {
+                NEW d = UserInvoiceDetail DO {
                     userInvoice(d) <- userInvoice;
                     orderDetail(d) <- orderDetail;
                     sku(d) <- sku(orderDetail);
@@ -63,7 +63,7 @@ META defineOrderInvoicePickingOrder (sign)
             }
         }
 
-        FOR excessQuantityPickingPickingDetail(order, Sku sku) > 0 ADDOBJ d = UserInvoiceDetail DO {
+        FOR excessQuantityPickingPickingDetail(order, Sku sku) > 0 NEW d = UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             sku(d) <- sku;
             quantity (d) <- excessQuantityPickingPickingDetail(order, sku);
@@ -83,7 +83,7 @@ META defineOrderInvoicePickingOrder (sign)
     createPickingUserInvoice 'Создать накладную по комплектации'(Order order) = ACTION {
         IF order IS Order THEN {
             userInvoice(order) <- NULL;
-            FOR ADDOBJ i = UserInvoice DO {
+            FOR NEW i = UserInvoice DO {
                 fillPicking(i, order);
                 userInvoice(order) <- i;
                 packQuantity(i) <- packQuantity(order);
@@ -100,7 +100,7 @@ META defineOrderInvoicePickingOrder (sign)
                 IF countParamsInCreatePickingUserInvoicePostedOrder() > 1 THEN {
                     MESSAGE 'По выбранным заказам не может быть создана одна накладная';
                 } ELSE {
-                    FOR ADDOBJ i = UserInvoice DO {
+                    FOR NEW i = UserInvoice DO {
                         isPosted(i) <- TRUE;
                         FOR inCreatePickingUserInvoicePosted(Order.Order o) DO {
                             fillPicking(i, o);                        
@@ -111,7 +111,7 @@ META defineOrderInvoicePickingOrder (sign)
                     }
                 }
             } ELSE {
-                FOR ADDOBJ i = UserInvoice DO {
+                FOR NEW i = UserInvoice DO {
                     isPosted(i) <- TRUE;
                     fillPicking(i, order);
                     packQuantity(i) <- packQuantity(order);

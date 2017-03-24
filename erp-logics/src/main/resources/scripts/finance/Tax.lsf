@@ -30,7 +30,7 @@ countRange 'Кол-во шкал' (tax, country) = GROUP SUM 1 IF Range range IS
 
 maxDataRange(Tax tax, Country country) = OVERRIDE 0 IF tax IS Tax AND country IS Country, [= GROUP MAX number(Range range) BY tax(range), country(range)](tax, country);
 addNewRange 'Добавить шкалу'(Tax tax, Country country) = ACTION {
-    FOR ADDOBJ r = Range DO {
+    FOR NEW r = Range DO {
         ASSIGN number(r) <- maxDataRange(tax, country) + 1;
         ASSIGN country(r) <- country;
         ASSIGN tax(r) <- tax;
@@ -576,12 +576,12 @@ END
 // ------------------------------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultVAT 'Добавить значение НДС'(STRING[3] idCountry, INTEGER number, NUMERIC[10,5] value) = ACTION {
-    FOR ADDOBJ rn = Range DO {
+    FOR NEW rn = Range DO {
        ASSIGN rangeType(rn) <- RangeType.common;
        ASSIGN tax(rn) <- Tax.taxVAT;
        ASSIGN country(rn) <- country(idCountry);
        ASSIGN number(rn) <- number;
-       FOR ADDOBJ ra = Rate DO {
+       FOR NEW ra = Rate DO {
           ASSIGN range(ra) <- rn;
           ASSIGN value(ra) <- value;
           ASSIGN dateFrom(ra) <- 2001_01_01;

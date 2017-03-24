@@ -9,14 +9,14 @@ NAMESPACE Repricing;
 createRepricingLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore, Operation operation, DATETIME dateTime) = ACTION NEWSESSION NESTED (select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku]) {
     IF [=GROUP SUM 1 IF inDashboardRepricing(Sku sku)]() THEN {
         select(Sku sku, LabelType labelType, departmentStore) <- inDashboardRepricing(sku) AND in(labelType, sku, departmentStore);   
-        FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
+        FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
             departmentStore(t) <- departmentStore;
             labelType(t) <- labelType;
             priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), priceListType(operation);   
             date(t) <- toDate(dateTime);      
             time(t) <- toTime(dateTime);      
             
-            FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
+            FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
                 
                 labelTransaction(d) <- t;
                 sku(d) <- sku;
@@ -39,13 +39,13 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
 
 //createSnapshotRepricingLabelTransactionDepartmentStoreOperationDateTime 'Перепечатать ценники' = ACTION (departmentStore, operation, dateTime) NEWSESSION NESTED (selectSku, inDashboardRepricingSku, managementRetailPriceSku, managementPriceListPriceSku) {
 //
-//    FOR ADDOBJ t = LabelTransaction DO {
+//    FOR NEW t = LabelTransaction DO {
 //        departmentStoreLabelTransaction(t) <- departmentStore;
 //        priceListTypeLabelTransaction(t) <- OVERRIDE retailPriceListTypeDepartmentStore(departmentStore), priceListTypeOperation(operation);    
 //        dateLabelTransaction(t) <- toDate(dateTime);      
 //        timeLabelTransaction(t) <- toTime(dateTime);          
 //
-//        FOR selectSku(sku) ADDOBJ d = LabelTransactionDetail DO {
+//        FOR selectSku(sku) NEW d = LabelTransactionDetail DO {
 //            labelTransactionLabelTransactionDetail(d) <- t;
 //            skuLabelTransactionDetail(d) <- sku;
 //
@@ -72,14 +72,14 @@ createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать
                 select(LabelType type) <- TRUE WHERE type == chosenObject('l');
             }            
             FOR select(LabelType type) DO {
-                FOR ADDOBJ t = LabelTransaction DO {
+                FOR NEW t = LabelTransaction DO {
                     departmentStore(t) <- departmentStore;
                     priceListType(t) <- OVERRIDE retailPriceListType(departmentStore), priceListType(operation);    
                     date(t) <- toDate(dateTime);      
                     time(t) <- toTime(dateTime);
                     labelType(t) <- type;
             
-                    FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
+                    FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         sku(d) <- sku;
             

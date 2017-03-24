@@ -9,7 +9,7 @@ invoice = DATA Invoice(EOrderDespatchAdvice);
 digits = FORMULA VARSTRING[250] 'regexp_replace(($1), \'\\D\', \'\', \'g\')';
 createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) = ACTION {
 
-    FOR ADDOBJ i = UserInvoice DO {
+    FOR NEW i = UserInvoice DO {
     
         invoice(a) <- i;
         fillHeader(i, eOrder(a));
@@ -18,7 +18,7 @@ createUserInvoice 'Создать накладную' (EOrderDespatchAdvice a) =
         
         FOR orderDespatchAdvice(EOrderDespatchAdviceDetail ad) == a AND OrderDetail od == [=GROUP MAX OrderDetail d BY sku(d), order(d)](sku(ad), eOrder(a))
             ORDER ad 
-            ADDOBJ d = UserInvoiceDetail DO {
+            NEW d = UserInvoiceDetail DO {
                 userInvoice(d) <- i;
                 orderDetail(d) <- od;
                 sku(d) <- sku(ad);

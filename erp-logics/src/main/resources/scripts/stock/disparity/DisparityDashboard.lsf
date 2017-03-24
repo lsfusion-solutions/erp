@@ -16,18 +16,18 @@ overCreateItemStock = ACTION ABSTRACT LIST (Item, Stock, DisparityDetail);
 
 createDisparity 'Создать уценку'(Stock stock, Operation operation) = ACTION {
     NEWSESSION NESTED (disparityQuantity[Item,Stock], disparityPrice[Item,Stock]) {
-        FOR ADDOBJ d = Disparity DO {
+        FOR NEW d = Disparity DO {
             operation(d) <- operation;
             stock(d) <- stock;
             date(d) <- currentDate();
             time(d) <- currentTime();
             
-            FOR disparityQuantity(Item item, stock) ADDOBJ dd = DisparityDetail DO {
+            FOR disparityQuantity(Item item, stock) NEW dd = DisparityDetail DO {
                 disparity(dd) <- d;
                 sku(dd) <- item;
                 batch(dd) <- defaultBatch(item, stock);
                 quantity(dd) <- disparityQuantity(item, stock); 
-                FOR ADDOBJ i = Item DO {
+                FOR NEW i = Item DO {
                     copyDisparityData(item, i);
                     inputSku(dd) <- i;
                 }  

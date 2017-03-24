@@ -378,10 +378,10 @@ dataLastBatch = ABSTRACT Batch (Sku);
 createSnapshotPricing 'Пример ценника'(Article article, DepartmentStore dep) = ACTION {
     IF countInLabelArticles() THEN {
         IF countLabelTypeArticles() == 1 THEN {
-            FOR countInDepartmentStores(DepartmentStore st) ADDOBJ t = LabelTransaction DO {          
+            FOR countInDepartmentStores(DepartmentStore st) NEW t = LabelTransaction DO {          
                 departmentStore(t) <- st;
                 labelType(t) <- [=GROUP MAX defaultLabelType(Article a) IF inLabel(a, DepartmentStore st)]();
-                FOR article (Item item) == Article a AND inLabel(a, st)  ADDOBJ d = LabelTransactionDetail DO {
+                FOR article (Item item) == Article a AND inLabel(a, st)  NEW d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         sku(d) <- item;
                         batch(d) <- OVERRIDE lastBatch(item), dataLastBatch(item);
@@ -400,10 +400,10 @@ createSnapshotPricing 'Пример ценника'(Article article, DepartmentS
             MESSAGE 'Отмечены артикулы с разными типами ценников';
         }
     } ELSE {
-        FOR ADDOBJ t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
+        FOR NEW t = LabelTransaction DO {          // [=GROUP MAX supplierUserInvoiceDetail(d) BY declarationUserInvoiceDetail(d)](chosenObject('d'))
             departmentStore(t) <- dep;
             labelType(t) <- defaultLabelType(article);
-            FOR article (Item item) ==article  ADDOBJ d = LabelTransactionDetail DO {
+            FOR article (Item item) ==article  NEW d = LabelTransactionDetail DO {
                     labelTransaction(d) <- t;
                     sku(d) <- item;
                     batch(d) <- OVERRIDE lastBatch(item), dataLastBatch(item);

@@ -317,7 +317,7 @@ WHEN SESSION FORMS zReport
 // Операции с чеками
  
 createCurrentReceipt 'Создать новый чек'() = ACTION {
-    FOR ADDOBJ r = Receipt DO {
+    FOR NEW r = Receipt DO {
         seek(r);
         number(r) <- maxNumberReceipt(currentZReport()) (+) 1;
     }
@@ -420,11 +420,11 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
     } 
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
-        FOR ADDOBJ p = Payment DO {
+        FOR NEW p = Payment DO {
             receipt(p) <- receipt;
             paymentType(p) <- minCashPaymentType();
         }
-        FOR ADDOBJ p = Payment DO {
+        FOR NEW p = Payment DO {
             receipt(p) <- receipt;
             paymentType(p) <- minCardPaymentType();
         }
@@ -458,7 +458,7 @@ postCard 'Карточкой'(Receipt receipt) = ACTION {
      
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
-        FOR ADDOBJ p = Payment DO {
+        FOR NEW p = Payment DO {
             ASSIGN receipt(p) <- receipt;
             ASSIGN paymentType(p) <- minCardPaymentType();
             ASSIGN sum(p) <- sumReceiptDetail(receipt);
@@ -489,7 +489,7 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
     
     prePost(receipt);
     IF sumReceiptDetail(receipt) THEN {
-        FOR ADDOBJ p = Payment DO {
+        FOR NEW p = Payment DO {
             receipt(p) <- receipt;
             paymentType(p) <- minCashPaymentType();
             sum(p) <- sumReceiptDetail(receipt);
@@ -620,7 +620,7 @@ changeBatch 'Изменить партию строки чека'(ReceiptDetail 
 focusQuantity = ACTION ABSTRACT LIST (ReceiptDetail); 
 
 createSaleDetail 'Добавить строку продажи'(Receipt receipt, Batch batch, VARSTRING[30] barcode) = ACTION {
-    FOR ADDOBJ d = ReceiptSaleDetail DO {
+    FOR NEW d = ReceiptSaleDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
         sku(d) <- sku(batch);
@@ -644,7 +644,7 @@ defaultBatch 'Партия по умолчанию' (sku, stock, receipt) =
           BY sku(batch), stock, receipt; 
 
 createSaleDetail 'Добавить строку продажи'(Receipt receipt, Sku sku, VARSTRING[30] barcode) = ACTION {
-    FOR ADDOBJ d = ReceiptSaleDetail DO {
+    FOR NEW d = ReceiptSaleDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
         sku(d) <- sku;
@@ -837,7 +837,7 @@ DESIGN options {
 }
 
 createReturn 'Добавить строку возврата'(Receipt receipt, ReceiptSaleDetail receiptSaleDetail, VARSTRING[30] barcode) = ACTION {
-    FOR ADDOBJ d = ReceiptReturnDetail DO {
+    FOR NEW d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;
         idBarcode(d) <- barcode;
         receiptSaleDetail(d) <- receiptSaleDetail;
@@ -852,7 +852,7 @@ createReturn 'Добавить строку возврата'(Receipt receipt, R
 }
 overCreateReturn = ACTION ABSTRACT LIST (ReceiptReturnDetail, ReceiptSaleDetail);
 createReturn 'Добавить строки возврата'(Receipt receipt, Receipt receiptReturn) = ACTION {
-    FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn ADDOBJ d = ReceiptReturnDetail DO {
+    FOR receipt(ReceiptSaleDetail receiptSaleDetail) == receiptReturn NEW d = ReceiptReturnDetail DO {
         receipt(d) <- receipt;        
         idBarcode(d) <- idBarcode(sku(receiptSaleDetail));        
         receiptSaleDetail(d) <- receiptSaleDetail;
@@ -920,7 +920,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
                 createReturn(receipt, chosenObject('r'), barcodeInput());
             } ELSE {
                 IF NOT forbidNullSaleDetail() THEN {                        
-                    FOR ADDOBJ d = ReceiptReturnDetail DO {
+                    FOR NEW d = ReceiptReturnDetail DO {
                         receipt(d) <- receipt;
                         idBarcode(d) <- barcodeInput();
                         sku(d) <- dialogBarcodeSku();
@@ -1038,11 +1038,11 @@ clearDiscountCard 'Сбросить'(Receipt receipt) = ACTION {
 // Операции с Z-отчетами
 
 openZReport 'Открыть Z-отчет' (CashRegister cashRegister) = ACTION {
-    FOR ADDOBJ z = ZReport DO {
+    FOR NEW z = ZReport DO {
         isPosted(z) <- TRUE;
         number(z) <- STRING[255](z);
         cashRegister(z) <- cashRegister;
-        departmentStore(z) <- departmentStore(cashRegister); // todo : приходится ставить из-за того, что на ADDOBJ срабатывает resolveAdd
+        departmentStore(z) <- departmentStore(cashRegister); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(cashRegister) <- z;
         apply();
     }
@@ -1051,11 +1051,11 @@ openZReport 'Открыть Z-отчет' (CashRegister cashRegister) = ACTION {
 fiscalOpenZReport 'Открыть Z-отчет' () = ACTION ABSTRACT LIST ();
 
 openCurrentZReport 'Открыть Z-отчет'() = ACTION {
-    FOR ADDOBJ z = ZReport DO {
+    FOR NEW z = ZReport DO {
         isPosted(z) <- TRUE;
         number(z) <- STRING[255](z);
         cashRegister(z) <- currentCashRegister();
-        departmentStore(z) <- departmentStore(currentCashRegister()); // todo : приходится ставить из-за того, что на ADDOBJ срабатывает resolveAdd
+        departmentStore(z) <- departmentStore(currentCashRegister()); // todo : приходится ставить из-за того, что на NEW срабатывает resolveAdd
         zReport(CashRegister cashRegister) <- z WHERE cashRegister == currentCashRegister();
         apply();
     }

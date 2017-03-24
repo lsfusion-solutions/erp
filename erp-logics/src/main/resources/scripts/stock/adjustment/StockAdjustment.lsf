@@ -590,10 +590,10 @@ needCreateAdjustment = (calcSumB (Sku sku,Stock st,DATETIME dateTime) OR  sumB (
 createUserAdjustment(DATETIME dateTime) = ACTION {
     FOR [ = GROUP SUM 1 IF needCreateAdjustment(Sku sku,Stock st,DATETIME dateTime) BY st,dateTime](Stock st,dateTime) AND isCompany(st) DO {
         NEWSESSION {
-            FOR ADDOBJ a = UserAdjustment DO {
+            FOR NEW a = UserAdjustment DO {
                 stock(a) <- st;
                 isPosted(a) <- TRUE;
-                FOR needCreateAdjustment(Sku sku,st,dateTime) ADDOBJ  d = UserAdjustmentDetail DO {
+                FOR needCreateAdjustment(Sku sku,st,dateTime) NEW  d = UserAdjustmentDetail DO {
                     userAdjustment(d) <- a;
                     sku(d) <- sku;
                     sum(d) <- NUMERIC[18,4](sumB(sku,st,dateTime) (-) calcSumB(sku,st,dateTime));    
@@ -694,7 +694,7 @@ createBatchUserAdjustmentDetail(UserAdjustment adjustment) = ACTION {
                                             BY sku(b)
                                             ORDER order(b) WHERE balance(b) > 0;
 
-    FOR adjust(Batch b) ORDER nameSku(b) ADDOBJ d = UserAdjustmentDetail DO {            
+    FOR adjust(Batch b) ORDER nameSku(b) NEW d = UserAdjustmentDetail DO {            
         userAdjustment(d) <- adjustment;
         sku(d) <- sku(b);
         batch(d) <- b;
@@ -725,7 +725,7 @@ createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTIO
         SHOW selectParamsAdjustment ;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
-        FOR ADDOBJ adjustment = UserAdjustment DO {  
+        FOR NEW adjustment = UserAdjustment DO {  
             stock(adjustment) <- chosenObject('st');            
             date(adjustment) <- DATE(chosenDateTime('dt'));
             time(adjustment) <- TIME(chosenDateTime('dt'));          
@@ -751,7 +751,7 @@ DESIGN adjustments {
 createBatchUserAdjustment 'Документ пересорта'(Stock stock) = ACTION {
 
     IF toAdjustment(stock,currentDateTime()) THEN NEWSESSION {
-        FOR ADDOBJ adjustment = UserAdjustment DO {  
+        FOR NEW adjustment = UserAdjustment DO {  
             stock(adjustment) <- stock;
             date(adjustment) <- currentDate();
             time(adjustment) <- currentTime();  
@@ -772,7 +772,7 @@ overCreateBatchUserAdjustment = ACTION ABSTRACT LIST (UserAdjustment);
 createBatchUserAdjustmentDetailEx  = ACTION ABSTRACT LIST (UserAdjustment);
 
 createBatchUserAdjustment 'Документ пересорта'() = ACTION {
-    FOR inAdjustment(Stock st) ADDOBJ a = UserAdjustment DO {  
+    FOR inAdjustment(Stock st) NEW a = UserAdjustment DO {  
         stock(a) <- st;
         date(a) <- currentDate();
         time(a) <- currentTime();  
@@ -795,7 +795,7 @@ diff 'Разница' (Sku s, Stock st, DATETIME dt) = sumB(s,st,dt)(-) accountS
 createSumUserAdjustment (UserAdjustment adjustment) = ACTION {
 
     // todo : деноминация
-    FOR sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > 0.1 AND inAdjustment(s) ORDER name(s) ADDOBJ d = UserAdjustmentDetail DO {            
+    FOR sumDiff == diff(Sku s, stock(adjustment), dateTime(adjustment)) AND abs(sumDiff) > 0.1 AND inAdjustment(s) ORDER name(s) NEW d = UserAdjustmentDetail DO {            
         userAdjustment(d) <- adjustment;
         sku(d) <- s;       
         quantity(d) <- 0.0;
@@ -823,7 +823,7 @@ createDialogSumUserAdjustment 'Корректировка суммы ТО'() = A
         SHOW selectParamsAdjustment ;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
-        FOR ADDOBJ adjustment = UserAdjustment DO {  
+        FOR NEW adjustment = UserAdjustment DO {  
             stock(adjustment) <- chosenObject('st');            
             date(adjustment) <- DATE(chosenDateTime('dt'));
             time(adjustment) <- TIME(chosenDateTime('dt'));          
@@ -851,7 +851,7 @@ DESIGN adjustments {
 overCreateSumUserAdjustment = ACTION ABSTRACT LIST (UserAdjustment);
 
 createSumUserAdjustment 'Корректировка суммы ТО'() = ACTION {
-    FOR inAdjustment(Stock st) ADDOBJ a = UserAdjustment DO {  
+    FOR inAdjustment(Stock st) NEW a = UserAdjustment DO {  
         stock(a) <- st;
         date(a) <- currentDate();
         time(a) <- currentTime();  

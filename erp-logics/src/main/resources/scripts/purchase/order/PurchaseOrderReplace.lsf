@@ -33,7 +33,7 @@ EXTEND CLASS TypeChange{
     orderReplace 'Объединение заказов'
 }
 
-logReplaceOrder(Purchase.Order o) = ACTION FOR ADDOBJ d = DocumentLog DO {
+logReplaceOrder(Purchase.Order o) = ACTION FOR NEW d = DocumentLog DO {
     document(d) <- o;
     typeDocument(d) <- objectClassName(o);
     numberDocument(d) <- number(o);  
@@ -63,7 +63,7 @@ replace 'Объединить'(UserOrder order) = ACTION {
                     MESSAGE 'У отмеченных и выбранного заказов разные операции, покупатели, поставщики или их склады';               
                 } ELSE {
                     IF NOT groupSkuOrderRepalce() THEN {
-                        FOR selected(Order o) AND order(OrderDetail detail)==o ADDOBJ d = UserOrderDetail DO {
+                        FOR selected(Order o) AND order(OrderDetail detail)==o NEW d = UserOrderDetail DO {
                             userOrder(d) <- order;
                             sku(d) <- sku(detail);
                             batch(d) <- batch(detail);
@@ -88,7 +88,7 @@ replace 'Объединить'(UserOrder order) = ACTION {
                             quantity(nd) <- qty(s);
                         }
                         
-                        FOR qty(Sku s) AND NOT [= GROUP SUM 1  BY sku(UserOrderDetail nd), userOrder(nd)](s, order) ADDOBJ d = UserOrderDetail DO {
+                        FOR qty(Sku s) AND NOT [= GROUP SUM 1  BY sku(UserOrderDetail nd), userOrder(nd)](s, order) NEW d = UserOrderDetail DO {
                             userOrder(d) <- order;
                             sku(d) <- s;
                             quantity(d) <- qty(s);

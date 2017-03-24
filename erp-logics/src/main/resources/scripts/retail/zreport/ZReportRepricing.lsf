@@ -20,14 +20,14 @@ toRepricingReceiptReturnDetail (stock) =  GROUP SUM 1 IF toRepricing(ReceiptRetu
 setReceiptReturnDetailUserRepricingStock 'Создать акт переоценки'(DepartmentStore stock, Operation operation)  = ACTION NEWSESSION {
     IF toRepricingReceiptReturnDetail (stock) AND stock IS DepartmentStore THEN {
     
-        FOR ADDOBJ p = UserRepricing DO {
+        FOR NEW p = UserRepricing DO {
             departmentStore(p) <- stock;
             date(p) <- currentDate();
             time(p) <- currentTime();
             skipChangeLedger(p) <- TRUE;
             operation(p) <- operation;
             
-            FOR toRepricing(ReceiptReturnDetail detail) AND departmentStore[ReceiptDetail](detail) == stock ADDOBJ d = UserRepricingDetail DO {
+            FOR toRepricing(ReceiptReturnDetail detail) AND departmentStore[ReceiptDetail](detail) == stock NEW d = UserRepricingDetail DO {
                 userRepricing(d) <- p;   
                 userRepricingDetail(detail) <- d;  
                                 

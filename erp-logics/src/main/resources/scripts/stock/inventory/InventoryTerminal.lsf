@@ -34,11 +34,11 @@ addInventoryDetails(TerminalDocument td,ListInventory li) = ACTION {
     LOCAL countPages = INTEGER();
     countPages() <- (countTerminalDocumentDetail(td) + countDetail() - 1) / countDetail();
     
-    FOR iterate(INTEGER i, 1, countPages()) ADDOBJ p = PageInventory DO {
+    FOR iterate(INTEGER i, 1, countPages()) NEW p = PageInventory DO {
         listInventory(p) <- li;
     }
     
-    FOR terminalDocument(TerminalDocumentDetail tdd) == td INLINE ADDOBJ pid = PageInventoryDetail DO {
+    FOR terminalDocument(TerminalDocumentDetail tdd) == td INLINE NEW pid = PageInventoryDetail DO {
         pageInventory(pid) <- pageInventoryIndex(li, ((index(tdd) - 1)/countDetail()) + 1);
         sku(pid) <- sku(tdd);
         quantity(pid) <- quantity(tdd);
@@ -60,7 +60,7 @@ addDetailDialogTerminal 'Заполнить из документа ТСД' (Lis
 addListInventoryDialogTerminal 'Заполнить из документов ТСД' (Stock stock, Inventory inventory) = ACTION {
     SHOW terminalDocuments ;
     IF formResult() == FormResult.ok THEN {
-        FOR  include(TerminalDocument td) ADDOBJ  li = ListInventory DO {
+        FOR  include(TerminalDocument td) NEW  li = ListInventory DO {
             used(td) <- TRUE;
             stock(li) <- stock;
             inventory(li) <- inventory;

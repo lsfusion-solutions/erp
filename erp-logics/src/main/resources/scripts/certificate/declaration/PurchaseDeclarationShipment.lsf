@@ -7,7 +7,7 @@ NAMESPACE Purchase;
 createUserShipmentDeclaration 'Создать поставку по декларации'() = ACTION NEWSESSION {
     SHOW declarations ;
     IF formResult() == FormResult.ok THEN {
-        FOR ADDOBJ s = UserShipment DO {
+        FOR NEW s = UserShipment DO {
             isPosted(s) <- TRUE;
             supplier(s) <- [=GROUP MAX supplier(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
             supplierStock(s) <- [=GROUP MAX supplierStock(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
@@ -15,7 +15,7 @@ createUserShipmentDeclaration 'Создать поставку по деклар
             customerStock(s) <- [=GROUP MAX customerStock(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
             operation(s) <- [=GROUP MAX operation(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
         
-            FOR declaration(UserInvoiceDetail detail)== chosenObject('d') ADDOBJ sd = UserShipmentDetail DO {
+            FOR declaration(UserInvoiceDetail detail)== chosenObject('d') NEW sd = UserShipmentDetail DO {
                 userShipment(sd) <- s;
                 invoiceDetail(sd) <- detail;
                 sku(sd) <- sku(detail);

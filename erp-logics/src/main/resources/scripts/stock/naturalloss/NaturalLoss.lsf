@@ -317,7 +317,7 @@ toSaleFillDetail 'Заполнить на основе продаж'(NaturalLoss
                                                     SubNaturalLossGroupDetail subNaturalLossGroupDetail,
                                                     NUMERIC[16,4] price) > 0 ORDER name(sku), subNaturalLossGroupDetail
           DO {
-          FOR ADDOBJ d = NaturalLossDetail DO {
+          FOR NEW d = NaturalLossDetail DO {
               naturalLoss(d) <- naturalLoss;
               sku(d) <- sku;
               subNaturalLossGroup(d) <- subNaturalLossGroup(country(naturalLoss(d)), sku);
@@ -362,7 +362,7 @@ toPurchaseFillDetail 'Заполнить на основе поступлени�
                                               dateTo(naturalLoss),
                                               SubNaturalLossGroupDetail subNaturalLossGroupDetail) ORDER name(sku), subNaturalLossGroupDetail
         DO {
-        FOR ADDOBJ d = NaturalLossDetail DO {
+        FOR NEW d = NaturalLossDetail DO {
             naturalLoss(d) <- naturalLoss;
             sku(d) <- sku;
             subNaturalLossGroup(d) <- subNaturalLossGroup(country(naturalLoss(d)), sku);
@@ -534,20 +534,20 @@ NAVIGATOR {
 //------------------- Справочник норм естественной убыли----------------------------//
 
 loadDefaultNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string) = ACTION  {
-    FOR ADDOBJ cg = NaturalLossGroup DO {
+    FOR NEW cg = NaturalLossGroup DO {
          name(cg) <- string;
          country(cg) <- country(idCountry);
     }
 }
 
 loadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo, NUMERIC[10,5] numeric) = ACTION  {
-    FOR ADDOBJ g = SubNaturalLossGroup DO {
+    FOR NEW g = SubNaturalLossGroup DO {
         parent(g) <- naturalLossGroup(string);
         name(g) <-  stringOne;
         country(g) <- country(idCountry);
         code(g) <- stringTwo;
 
-        FOR ADDOBJ d = SubNaturalLossGroupDetail  DO {
+        FOR NEW d = SubNaturalLossGroupDetail  DO {
             subNaturalLossGroup(d) <- g;
             percent(d) <- numeric;
             dayFrom(d) <- 1;
@@ -560,7 +560,7 @@ loadDefaultSubNaturalLossGroup 'Добавить нормы естественн
 
 //-- Для сезонов
 overLoadDefaultSubNaturalLossGroup 'Добавить нормы естественной убыли'(STRING[3] idCountry, VARISTRING[110] string, VARISTRING[110] stringOne, STRING[3] stringTwo) = ACTION  {
-    FOR ADDOBJ g = SubNaturalLossGroup DO {
+    FOR NEW g = SubNaturalLossGroup DO {
         parent(g) <- naturalLossGroup(string);
         name(g) <-  stringOne;
         country(g) <- country(idCountry);
@@ -569,7 +569,7 @@ overLoadDefaultSubNaturalLossGroup 'Добавить нормы естестве
 }
 
 overLoadDefaultSubNaturalLossGroupDetail 'Добавить нормы естественной убыли'(STRING[3] id, NUMERIC[10,5] numeric, INTEGER dayFrom, INTEGER monthFrom, INTEGER dayTo, INTEGER monthTo) = ACTION  {
-    FOR ADDOBJ d = SubNaturalLossGroupDetail  DO {
+    FOR NEW d = SubNaturalLossGroupDetail  DO {
         subNaturalLossGroup(d) <- subNaturalLossGroupId(id);
         percent(d) <- numeric;
         dayFrom(d) <- dayFrom;

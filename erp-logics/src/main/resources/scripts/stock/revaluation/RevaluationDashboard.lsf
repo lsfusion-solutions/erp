@@ -19,7 +19,7 @@ filterPercent (NUMERIC[8,2] nu,Batch bt,Stock st,Operation o,Currency c,DATETIME
 inRevaluation 'Вкл.' (batch, stock) = DATA LOCAL BOOLEAN (Batch, Stock);
 
 createManagementRevaluation 'Создать переоценку'(NUMERIC[8,2] numeric, Operation operation, Currency currency, Stock stock, DATETIME time) = ACTION {
-    FOR ADDOBJ r = UserRevaluation DO {
+    FOR NEW r = UserRevaluation DO {
         stock(r) <-  stock;
         date(r) <-  toDate(time);
         time(r) <- toTime(time);    
@@ -28,7 +28,7 @@ createManagementRevaluation 'Создать переоценку'(NUMERIC[8,2] n
         FOR balanceB(Batch batch,stock,time) AND 
             filterPercent (numeric,batch,stock,operation,currency,time) AND
             inRevaluation(batch, stock) AND 
-            currencyInvoiceDetail(batch)==currency ADDOBJ rd = UserRevaluationDetail DO {
+            currencyInvoiceDetail(batch)==currency NEW rd = UserRevaluationDetail DO {
                 userRevaluation(rd) <- r;
                 sku(rd) <- sku(batch);
                 batch(rd) <- batch;

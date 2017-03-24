@@ -230,7 +230,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                     WHERE detail == dialogBarcodeDetail();
                 seek(dialogBarcodeDetail());
             } ELSE {
-                FOR ADDOBJ w = UserShipmentDetail DO {
+                FOR NEW w = UserShipmentDetail DO {
                     userShipment(w) <- shipment;
                     sku(w) <- dialogBarcodeSku();
                     quantity(w) <- amount(barcode(barcode, date(shipment)));
@@ -243,11 +243,11 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             IF formResult() == FormResult.ok THEN {
                 FOR Object s == chosenObject('s') DO {
                     dialogBarcodeSku() <- s;
-                    FOR ADDOBJ br = Barcode DO {
+                    FOR NEW br = Barcode DO {
                         id(br) <- barcode;
                         dataDate(br) <- currentDate();
                         sku(br) <- s;
-                        FOR ADDOBJ w = UserShipmentDetail DO {
+                        FOR NEW w = UserShipmentDetail DO {
                             userShipment(w) <- shipment;
                             sku(w) <- s;
                             quantity(w) <- amount(br);
@@ -413,7 +413,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     overCopy = ACTION ABSTRACT LIST (Shipment, UserShipment);
 
     copy 'Копировать'(Shipment shipment) = ACTION NEWSESSION {
-        FOR ADDOBJ s = UserShipment DO {
+        FOR NEW s = UserShipment DO {
             supplier(s) <- supplier(shipment);
             supplierStock(s) <- supplierStock(shipment);
             customer(s) <- customer(shipment);
@@ -424,7 +424,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             overCopy(shipment, s);
 
             FOR shipment(ShipmentDetail shipmentDetail) == shipment DO {
-                FOR ADDOBJ d=UserShipmentDetail DO {
+                FOR NEW d=UserShipmentDetail DO {
                     userShipment(d) <- s;
                     sku(d) <- sku(shipmentDetail);
                     quantity(d) <- quantity(shipmentDetail);
@@ -444,7 +444,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     overCopy = ACTION ABSTRACT LIST (UserShipmentDetail, UserShipmentDetail);
 
     copy 'Копировать'(UserShipmentDetail detail) = ACTION {
-        FOR ADDOBJ d = UserShipmentDetail DO {          
+        FOR NEW d = UserShipmentDetail DO {          
 
             userShipment(d) <- userShipment(detail);
             sku(d) <- sku(detail);

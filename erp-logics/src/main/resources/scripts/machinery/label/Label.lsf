@@ -462,7 +462,7 @@ DESIGN customLabelTransaction {
 @extendFormFilterAccessStock(labelTransaction, l, customLabelTransaction, departmentStore, company);
 
 addLabelTransaction 'Добавить'(DepartmentStore dep) = ACTION NEWSESSION {
-    FOR ADDOBJ l = LabelTransaction DO {
+    FOR NEW l = LabelTransaction DO {
         ASSIGN departmentStore(l) <- dep;
         SHOW customLabelTransaction OBJECTS l=l DOCKED;
         IF formResult() == FormResult.ok THEN { 
@@ -698,7 +698,7 @@ EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntit
 addDetailDialogSkuLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction) = ACTION {
     SHOW dialogSku ;
     IF formResult() == FormResult.ok THEN {
-        FOR dialogQuantity(Sku sku) INLINE ADDOBJ w = LabelTransactionDetail DO {
+        FOR dialogQuantity(Sku sku) INLINE NEW w = LabelTransactionDetail DO {
             labelTransaction(w) <- labelTransaction;
             sku(w) <- sku;
             quantity(w) <- INTEGER(dialogQuantity(sku));
@@ -749,7 +749,7 @@ changeQuantityValue(Sku sku, LabelTransaction labelTransaction) = ACTION {
         }
     } ELSE {
         IF requestedNumeric() THEN {
-            FOR ADDOBJ d = LabelTransactionDetail DO {
+            FOR NEW d = LabelTransactionDetail DO {
                 labelTransaction(d) <- labelTransaction;
                 sku(d) <- sku;
                 name(d) <- name(sku);                
@@ -813,7 +813,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
             // бежим по всем типам ценников из управленческих параметров
             // для каждого создаем по операции печати ценников
             FOR ([= GROUP SUM 1 IF in(###skuProp sku) AND in(LabelType labelType, sku, DepartmentStore departmentStore) BY labelType, departmentStore](LabelType labelType, stockProp(document)))
-                ADDOBJ t = LabelTransaction DO {
+                NEW t = LabelTransaction DO {
                     departmentStore(t) <- stockProp(document);
                     priceTransactionDocument(t) <- document;
                     labelType(t) <- labelType;
@@ -822,7 +822,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                         in(###skuProp sku) AND sku == skuProp(dd) AND 
                         in(labelType, sku, stockProp(document)) AND 
                         PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                        ADDOBJ d = LabelTransactionDetail DO {
+                        NEW d = LabelTransactionDetail DO {
                         labelTransaction(d) <- t;
                         skuProp(d) <- sku;
                         batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
@@ -865,14 +865,14 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
                 IF NOT countSelectType() THEN {  
                     select(l) <- TRUE;
                 }                                        
-                FOR select(LabelType type) ADDOBJ t = LabelTransaction DO {              
+                FOR select(LabelType type) NEW t = LabelTransaction DO {              
                     departmentStore(t) <- stockProp(document);
                     priceTransactionDocument(t) <- document;
                     labelType(t) <- type;
         
                     FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd)
                         AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                        ADDOBJ d = LabelTransactionDetail DO {
+                        NEW d = LabelTransactionDetail DO {
                             labelTransaction(d) <- t;
                             skuProp(d) <- sku;
                             batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
@@ -957,7 +957,7 @@ END
 // ---------------------------------------------------------- Стандартные значения --------------------------------- //
 
 loadDefaultLabelType 'Добавить тип ценника'(VARISTRING[50] name, INTEGER width, INTEGER height, PrintOrientation orientation, VARSTRING[200] file) = ACTION {
-    FOR ADDOBJ lt = LabelType DO {
+    FOR NEW lt = LabelType DO {
         ASSIGN name(lt) <- name;
         ASSIGN width(lt) <-width;
         ASSIGN height(lt) <-height;
@@ -989,11 +989,11 @@ overQuantityPrint = DATA LOCAL NESTED INTEGER (Sku);
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = ACTION {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
-    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) ADDOBJ t = LabelTransaction DO { 
+    FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         
-        FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
+        FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
             
             labelTransaction(d) <- t;
             sku(d) <- sku;
@@ -1022,11 +1022,11 @@ countSelectType = GROUP SUM 1 IF select(LabelType t);
 
 createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, LabelType labelType) = ACTION {
 
-    FOR ADDOBJ t = LabelTransaction DO {
+    FOR NEW t = LabelTransaction DO {
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
         
-        FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) ADDOBJ d = LabelTransactionDetail DO {
+        FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
             labelTransaction(d) <- t;
             sku(d) <- sku;
 

@@ -137,7 +137,7 @@ fillData 'Заполнить данные'(SaleReport report) = ACTION {
                 OR balanceA(batch, companyStock(report), toDate(report))
                 OR quantityReturnFromTo(batch, companyStock(report), fromDate(report), toDate(report))
                 ) AND supplier(report) == supplier(batch) AND contractSku(report) == contractSku(invoice(invoiceDetail(batch)))
-                 AND NOT skipSaleReport(batch) ADDOBJ d = SaleReportDetail DO {        
+                 AND NOT skipSaleReport(batch) NEW d = SaleReportDetail DO {        
         
                 saleReport(d) <- report;
                 batch(d) <- batch;
@@ -164,7 +164,7 @@ fillData 'Заполнить данные'(SaleReport report) = ACTION {
                 OR balanceACompanyTo(batch, company(report), toDate(report))
                 OR quantityReturnCompanyFromTo(batch, company(report), fromDate(report), toDate(report))
                 ) AND supplier(report) == supplier(batch) AND contractSku(report) == contractSku(invoice(invoiceDetail(batch)))
-                 AND NOT skipSaleReport(batch)  ADDOBJ d = SaleReportDetail DO {        
+                 AND NOT skipSaleReport(batch)  NEW d = SaleReportDetail DO {        
         
                 saleReport(d) <- report;
                 batch(d) <- batch;
@@ -426,7 +426,7 @@ NAVIGATOR {
 isSent 'Отправлен' (o) = DATA BOOLEAN (SaleReport);
 sentDateTime 'Дата отправления' (o) = DATA DATETIME (SaleReport);
 
-logSendDocumentSaleReport(Object o) = ACTION FOR ADDOBJ d = DocumentLog DO {
+logSendDocumentSaleReport(Object o) = ACTION FOR NEW d = DocumentLog DO {
         document(d) <- o;
         typeDocument(d) <- objectClassName(o);
         numberDocument(d) <- number[Document](o);  
@@ -513,7 +513,7 @@ createAutoSaleReport 'Создать акты реализации'(LegalEntity 
     FOR ContractSku c IS ContractSku AND type(paymentCondition(c)) == AgreementPaymentType.implement 
         AND inSalereport(Stock stock) AND partyB(c) == company AND NOT skipSaleLedger(c) DO {
         NEWSESSION  {
-            FOR ADDOBJ r = SaleReport DO {
+            FOR NEW r = SaleReport DO {
             
             supplier(r) <- partyA(c);
             company(r) <- partyB(c);
@@ -547,7 +547,7 @@ createAutoSaleReportdFull 'Создать акты реализации (мес�
         AND NOT saleReport(stock, c, fromDateFull(c), lastSaleDate())
         AND NOT skipSaleLedger(c) DO {
         NEWSESSION {
-            FOR ADDOBJ r = SaleReport DO {
+            FOR NEW r = SaleReport DO {
         
             supplier(r) <- partyA(c);
             company(r) <- partyB(c);
@@ -572,7 +572,7 @@ createAutoSaleReportdPart 'Создать акты реализации (пол�
         AND NOT saleReport(stock, c, firstDateCurrentMonth(), sum(firstDateCurrentMonth(),14)) 
         AND NOT skipSaleLedger(c) DO {
         NEWSESSION {
-            FOR ADDOBJ r = SaleReport DO {
+            FOR NEW r = SaleReport DO {
                 supplier(r) <- partyA(c);
                 company(r) <- partyB(c);
                 companyStock(r) <- stock;

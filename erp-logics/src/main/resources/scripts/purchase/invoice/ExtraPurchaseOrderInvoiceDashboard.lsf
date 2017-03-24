@@ -10,7 +10,7 @@ perform = ACTION ABSTRACT LIST (UserInvoiceDetail, OrderDetail);
 
 
 perform 'Принять'(OrderDetail od, UserInvoice invoice) = ACTION {
-    FOR ADDOBJ d = UserInvoiceDetail DO {    
+    FOR NEW d = UserInvoiceDetail DO {    
         
         userInvoice(d) <- invoice;  
 
@@ -62,7 +62,7 @@ correct 'Корректировать'(OrderDetail od, UserInvoice invoice) = AC
     correctLocalUser(od);
     SHOW quantityPrice OBJECTS od = od ;
 
-    FOR ADDOBJ d = UserInvoiceDetail DO {    
+    FOR NEW d = UserInvoiceDetail DO {    
         
         userInvoice(d) <- invoice;  
 
@@ -143,7 +143,7 @@ DESIGN userInvoice {
 
 extraCreateMultiUserInvoice 'Создать накладную (без строк)'(Order order)= ACTION NEWSESSION {
     IF order IS Order THEN {
-        FOR ADDOBJ i = UserInvoice DO {
+        FOR NEW i = UserInvoice DO {
 
             fillHeader(i, order);               
             include(order, i)<- TRUE;
@@ -205,7 +205,7 @@ extraCreateInvoices 'Создать несколько накладных'(Order
         IF countNumberInvoice(order) THEN {
             FOR [ = GROUP SUM 1 BY numberInvoice(OrderDetail d), order(d)](INTEGER num,order) DO {
                 NEWSESSION {
-                    FOR ADDOBJ i = UserInvoice DO {
+                    FOR NEW i = UserInvoice DO {
         
                         fillHeader(i, order);               
                         include(order, i)<- TRUE;
@@ -213,7 +213,7 @@ extraCreateInvoices 'Создать несколько накладных'(Order
                         FOR order(OrderDetail orderDetail) == order AND numberInvoice(orderDetail) == num AND toInvoice(orderDetail) >0
                             AND in(orderDetail, i) AND NOT skipCreateUserInvoice(orderDetail)
                             ORDER orderCreateUserInvoice(orderDetail) 
-                            ADDOBJ d = UserInvoiceDetail DO {
+                            NEW d = UserInvoiceDetail DO {
                                 userInvoice(d) <- i;
                                 orderDetail(d) <- orderDetail;
                                 sku(d) <- sku(orderDetail);

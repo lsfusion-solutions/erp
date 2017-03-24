@@ -180,14 +180,14 @@ public class GenerateTNVEDClassifierActionProperty extends ScriptingActionProper
                 "REQUIRE System, CustomsGroup, ImportTNVED;\n" +
                 "\n" +
                 "loadDefaultCustomsZone 'Добавить таможенную зону' = ACTION (name) {\n" +
-                "    ADDOBJ CustomsZone;\n" +
+                "    NEW CustomsZone;\n" +
                 "    FOR c == addedObject() DO {\n" +
                 "        SET nameCustomsZone(c) <- name AS VARSTRING[100];\n" +
                 "        }\n" +
                 "}\n" +
                 "\n" +
                 "loadDefaultCustomsGroup 'Добавить позицию ТН ВЭД' = ACTION (code, parent, nameCustomsGroup, number, nameCustomsZone, hasCode, registration, weight, percent, vat, dateFrom, dateTo) {\n" +
-                "    ADDOBJ CustomsGroup;\n" +
+                "    NEW CustomsGroup;\n" +
                 "    FOR c == addedObject() DO {\n" +
                 "       SET codeCustomsGroup(c) <- code AS STRING[10];\n" +
                 "       SET parentCustomsGroup(c) <- customsGroupCode(parent AS STRING[10]);\n" +

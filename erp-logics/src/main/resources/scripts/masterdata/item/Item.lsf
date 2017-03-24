@@ -983,7 +983,7 @@ META defineItemFilterValue(object, captionProp, o)
                 IF object##Name(localName()) THEN {
                     dataIn(###object t, gg) <- TRUE WHERE  t == object##Name(localName());
                 } ELSE {
-                    FOR ADDOBJ p = ###object DO {
+                    FOR NEW p = ###object DO {
                         name(p) <- localName();
                         dataIn(p, gg) <- TRUE;
                         loc() <- p;
@@ -1069,7 +1069,7 @@ META defineItemExtractObjectAttribute(object, objectIdentity, identityObject)
                 LOCAL object = ###object();
                 object() <- identityObject(trim(to));
                 IF NOT object() THEN {
-                    FOR ADDOBJ a = ###object DO {
+                    FOR NEW a = ###object DO {
                         name(a) <- trim(to);
                         object() <- a;
                     }
@@ -1663,7 +1663,7 @@ copyDataItem(Item item, Item i) = ACTION  {
     expiryMonth(i) <- expiryMonth(item);
 
     FOR sku(Barcode barcode) == item AND toCopy(barcode) DO {
-        FOR ADDOBJ b = Barcode DO {
+        FOR NEW b = Barcode DO {
             sku(b) <- i;
             dataDate(b) <- dataDate(barcode);
             dataUOM(b) <- dataUOM(barcode);
@@ -1684,7 +1684,7 @@ copyDataItem(Item item, Item i) = ACTION  {
 copy 'Копировать' (Item item)= ACTION  {
     IF (item IS Item) THEN {
         NEWSESSION NESTED (addedSku[]) {
-            FOR ADDOBJ i = Item DO {
+            FOR NEW i = Item DO {
                 copyDataItem(item, i);
                 SHOW item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
                 IF formResult() == FormResult.ok THEN {
@@ -1716,9 +1716,9 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
     }
 
     IF copy() THEN {
-        FOR ADDOBJ i = Item DO {
+        FOR NEW i = Item DO {
             copyDataItem(skuAdded(currentUser()), i);
-            FOR ADDOBJ bc = Barcode DO { //коприрование шк сейчас включено только для шк упаковки
+            FOR NEW bc = Barcode DO { //коприрование шк сейчас включено только для шк упаковки
                 id(bc) <- barcode;
                 dataDate(bc) <- date;
                 sku(bc) <- i;
@@ -1726,11 +1726,11 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
             SHOW item OBJECTS i = i MANAGESESSION DOCKED;
         }
     } ELSE {
-        FOR ADDOBJ bc = Barcode DO {
+        FOR NEW bc = Barcode DO {
             id(bc) <- barcode;
             dataDate(bc) <- date;
 
-            FOR ADDOBJ s = Item DO {
+            FOR NEW s = Item DO {
                 sku(bc) <- s;
                 SHOW item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
             }
@@ -1876,7 +1876,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND CustomGroupType dc IS CustomGroupTyp
 // ----------------------------------- Стандартные данные ----------------------------------- //
 
 loadDefaultItemGroup 'Добавить группы товаров' (VARISTRING[250] iname, VARSTRING[100] id) = ACTION {
-    FOR ADDOBJ g = ItemGroup DO {
+    FOR NEW g = ItemGroup DO {
         name(g) <- iname;
         id(g) <- id;
         userShowCaption(g) <- TRUE;

@@ -115,7 +115,7 @@ DESIGN priceListDashboard {
 // -------------------- Изменение согласованных и розничных цен одновременно --------------------------- //
 createRetailCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = ACTION {
     NEWSESSION NESTED (in[Sku]) {
-        FOR ADDOBJ u = UserPriceList DO {
+        FOR NEW u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, departmentStore);
     
             in(u, DataPriceListType t) <- TRUE WHERE t == retailPriceListType(departmentStore);
@@ -129,7 +129,7 @@ createRetailCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPr
 
 createRetailPricesCompany(LegalEntity company, DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = ACTION {
     NEWSESSION NESTED (in[Sku]) {
-        FOR ADDOBJ u = UserPriceList DO {
+        FOR NEW u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, departmentStore);
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 priceA[LedgerPriceListType,Sku,Stock,DATETIME](dataPriceListType, sku(d), departmentStore, dateTime)
@@ -182,7 +182,7 @@ DESIGN priceListDashboard {
 modifyRetailData 'Изменить'(DATETIME dateTime, PriceListType dataPriceListType, Stock departmentStore) = ACTION {
 
     NEWSESSION NESTED (in[Sku]) {
-        FOR ADDOBJ u = UserPriceList DO {
+        FOR NEW u = UserPriceList DO {
             fromDate(u) <- toDate(dateTime);
             fromTime(u) <- toTime(dateTime);
             company(u) <- legalEntity(departmentStore);
@@ -192,7 +192,7 @@ modifyRetailData 'Изменить'(DATETIME dateTime, PriceListType dataPriceLi
             show(u, dataPriceListType) <- TRUE;
             dataIn(u, departmentStore) <- TRUE;
             FOR in(Sku sku)
-                ADDOBJ d = UserPriceListDetail DO {
+                NEW d = UserPriceListDetail DO {
                 sku(d) <- sku;
                 userPriceList(d) <- u;
                 price(d, DataPriceListType t) <-
