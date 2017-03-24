@@ -261,7 +261,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                             for (CashRegisterItemInfo item : transactionInfo.itemsList) {
                                 if (!Thread.currentThread().isInterrupted()) {
                                     List<ItemGroup> hierarchyItemGroup = transactionInfo.itemGroupMap.get(item.idItemGroup);
-                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
+                                    hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : hierarchyItemGroup;
                                     for (int i = 0; i < hierarchyItemGroup.size(); i++) {
                                         String idItemGroup = importGroupType.equals(1) ?
                                                 makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false)
@@ -1331,8 +1331,8 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 String[] splitted = id.split("_");
                 idItemGroup += splitted[(Math.min(splitted.length, 2) - 1)] + "|";
             }
-        } else {
-            for (int i = 0; i < hierarchyItemGroup.size(); i++) {
+        } else { //от самой общей группы до самой конкретной
+            for (int i = Math.min(hierarchyItemGroup.size(), 5) - 1; i >=0 ; i--) {
                 String id = hierarchyItemGroup.get(i).idItemGroup;
                 if (id == null) id = "0";
                 idItemGroup += id + "|";
