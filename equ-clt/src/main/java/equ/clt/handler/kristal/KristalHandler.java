@@ -1335,7 +1335,7 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
             for (int i = Math.min(hierarchyItemGroup.size(), 5) - 1; i >=0 ; i--) {
                 String id = hierarchyItemGroup.get(i).idItemGroup;
                 if (id == null) id = "0";
-                if(!id.equals("00000000"))
+                if(!id.equals("000000000"))
                     idItemGroup += id + "|";
             }
         }
