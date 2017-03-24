@@ -55,14 +55,14 @@ FORM dataPriceListTypes 'Пользовательские виды цен'
     PROPERTIES(p) READONLY name, nameCurrency, nameRoundCondition
     PROPERTIES(p) READONLY includeVAT, notNull
 
-    DIALOG DataPriceListType OBJECT p
+    LIST DataPriceListType OBJECT p
 ;
 
 edit 'Редактировать' = ACTION EDITFORM DataPriceListType;
 edit(DataPriceListType priceListType) += ACTION edit(priceListType);
 
 EXTEND FORM priceListTypes
-    PROPERTIES(pt) addDataPriceListType = ADDFORM[DataPriceListType]
+    PROPERTIES(pt) NEWSESSION addDataPriceListType = NEW[DataPriceListType]
 //    PROPERTIES(pt) SHOWIF showIDs() READONLY idDataPriceListType
 ;
 
@@ -80,7 +80,7 @@ overCopy (DataPriceListType priceListType) += ACTION NEWSESSION {
             roundCondition(p) <- roundCondition(priceListType);
             currency(p) <- currency(priceListType);
                                     
-            FORM dataPriceListType OBJECTS d=p MANAGESESSION DOCKED; 
+            SHOW dataPriceListType OBJECTS d=p MANAGESESSION DOCKED; 
         }
     }
 }
@@ -240,7 +240,7 @@ createdComputer (UserPriceListDetail d) += createdComputer(userPriceList(d));
 //@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
 
 changePurchaseBatch(UserPriceListDetail userPriceListDetail) = ACTION {
-    FORM dialogBatch OBJECTS sk = sku(userPriceListDetail) DIALOG SHOWDROP;
+    SHOW dialogBatch OBJECTS sk = sku(userPriceListDetail) DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
         ASSIGN batch(userPriceListDetail) <- chosenObject('bt');
@@ -396,7 +396,7 @@ sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 document(PriceListDetail detail) += priceList(detail);
 
 fillDocument 'Подбор документа'(UserPriceList userPriceList) = ACTION {
-    FORM documents ;
+    SHOW documents ;
     IF formResult() == FormResult.ok THEN {
         LOCAL chosenDocument = Document();
         ASSIGN chosenDocument() <- chosenObject('d');
@@ -553,7 +553,7 @@ FORM userPriceList 'Прайс'
                   valueVAT, fromDate SHOWIF showDateTimeUser(p), 
                   fromTime SHOWIF showDateTimeUser(p), toDate SHOWIF showDateTimeUser(p), 
                   toTime SHOWIF showDateTimeUser(p), nameCompany SHOWIF showCompanyUser(p), 
-                  exclude, ADDOBJ, deleted = DELETESESSION
+                  exclude, NEW, deleted = DELETE
     PROPERTIES(d, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
     PROPERTIES(p) TODRAW d FORCE PANEL TOOLBAR fillDocument, addDetailInputBarcodeUserPriceListDetail
     ORDER BY index(d)
@@ -833,7 +833,7 @@ DESIGN userPriceList {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PriceListDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserPriceListDetail d) = ACTION NEWSESSION {
-    FORM userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKED;
+    SHOW userPriceList OBJECTS p = userPriceList(d), d = d MANAGESESSION DOCKED;
 }
 edit(UserPriceListDetail d) += ACTION edit(d);   
 edit(PriceListDetail d) += ACTION edit(d);
@@ -850,7 +850,7 @@ FORM typeMarkUpSkuUserPriceList 'Метод изменения цены'
     OBJECTS m = TypeMarkUpSkuUserPriceList
     PROPERTIES(m) READONLY staticCaption
 
-    DIALOG TypeMarkUpSkuUserPriceList OBJECT m
+    LIST TypeMarkUpSkuUserPriceList OBJECT m
 ;
 
 DESIGN typeMarkUpSkuUserPriceList {
@@ -905,7 +905,7 @@ DESIGN chooseMarkUpSkuUserPriceList {
 // ----------------------- Для отмеченных строк ------------------------ //
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = ACTION {
-    FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
+    SHOW chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
     IF formResult() == FormResult.ok THEN {
         IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
                       BY userPriceList(priceListDetail)](userPriceList) THEN
@@ -976,7 +976,7 @@ DESIGN userPriceList{
 
 // ---------------------- Для всех строк ----------------------- //
 changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = ACTION {
-    FORM chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
+    SHOW chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
     IF formResult() == FormResult.ok THEN {
         LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
         IF chosenObject('pt') != chosenObject('nt') AND in[UserPriceList,DataPriceListType](userPriceList, chosenObject('pt')) THEN {
@@ -1070,7 +1070,7 @@ copySession 'Копировать'(PriceList priceList) = ACTION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
 }
 
@@ -1078,7 +1078,7 @@ copy 'Копировать'(PriceList priceList) = ACTION NEWSESSION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
 }
 
@@ -1086,7 +1086,7 @@ updateSession 'Обновить'(PriceList priceList) = ACTION {
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u DOCKED;
+        SHOW userPriceList OBJECTS p = u DOCKED;
         IF formResult() == FormResult.ok THEN {
             ASSIGN toDate[UserPriceList](priceList) <- fromDate(u);
             ASSIGN toTime[UserPriceList](priceList) <- fromTime(u);
@@ -1100,7 +1100,7 @@ update 'Обновить'(PriceList priceList) = ACTION NEWSESSION{
 
     FOR ADDOBJ u = UserPriceList DO {
         EXEC copyData(priceList, u);
-        FORM userPriceList OBJECTS p = u DOCKED;
+        SHOW userPriceList OBJECTS p = u DOCKED;
         IF formResult() == FormResult.ok THEN {
             ASSIGN toDate[UserPriceList](priceList) <- fromDate(u);
             ASSIGN toTime[UserPriceList](priceList) <- fromTime(u);
@@ -1133,9 +1133,9 @@ FORM priceLists 'Прайсы'
            nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
            note
 
-    PROPERTIES (p)  ADDFORM[UserPriceList]
+    PROPERTIES (p)  NEWSESSION NEW[UserPriceList]
     PROPERTIES (p) edit, copy FORCE PANEL TOOLBAR, print FORCE PANEL TOOLBAR
-    PROPERTIES (p) DELETE FORCE PANEL TOOLBAR SHOWIF is[UserPriceList](p)
+    PROPERTIES (p) NEWSESSION DELETE FORCE PANEL TOOLBAR SHOWIF is[UserPriceList](p)
     PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
                                         
@@ -1171,7 +1171,7 @@ FORM priceLists 'Прайсы'
             filterDateTo(p),
             filterCompany(p)                    
 
-    DIALOG PriceList OBJECT p
+    LIST PriceList OBJECT p
 ;
 
 DESIGN priceLists {
@@ -1244,7 +1244,7 @@ NAVIGATOR {
 // Заполнение на основании
 
 addUnderPriceList 'Заполнить на основании'(UserPriceList p) = ACTION {
-    FORM priceLists ;
+    SHOW priceLists ;
     IF formResult() == FormResult.ok THEN {
         FOR priceList(PriceListDetail detail) == chosenObject('p') ADDOBJ d = UserPriceListDetail DO {
             userPriceList(d) <- p;
@@ -1292,7 +1292,7 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity) = ACTION NESTEDSESS
     FOR ADDOBJ u = UserPriceList DO {
         company(u) <- legalEntity;
         overAdd(u); 
-        FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -1304,7 +1304,7 @@ EXTEND FORM legalEntity
                            nameCurrency, priceListTypes,
                            stocks, note
     PROPERTIES addUserPriceList(l) TODRAW p FORCE PANEL, updateSession(p) TODRAW p FORCE PANEL TOOLBAR
-    PROPERTIES(p) EDITSESSIONFORM, DELETESESSION FORCE PANEL TOOLBAR
+    PROPERTIES(p) EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS company(p) == l
     
     FILTERGROUP inactivePriceList

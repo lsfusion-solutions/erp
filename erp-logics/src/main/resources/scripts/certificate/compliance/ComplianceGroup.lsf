@@ -23,7 +23,7 @@ FORM complianceGroup 'Группа сертификации'
 add 'Добавить'(ComplianceGroup complianceGroup) = ACTION NEWSESSION {
     FOR ADDOBJ cg = ComplianceGroup DO {
         parent(cg) <- complianceGroup;
-        FORM complianceGroup OBJECTS cg=cg MANAGESESSION DOCKED;
+        SHOW complianceGroup OBJECTS cg=cg MANAGESESSION DOCKED;
     }
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
@@ -31,12 +31,12 @@ FORM complianceGroups 'Группы сертификации'
 
     TREE treeGroups a=STRING[3], gcg=ComplianceGroup PARENT parent
     PROPERTIES READONLY OBJVALUE(a), name(gcg)
-    PROPERTIES(gcg) add, EDITFORM
+    PROPERTIES(gcg) NEWSESSION add, EDIT
     ORDER BY name(gcg)
 
     OBJECTS cg = ComplianceGroup
     PROPERTIES(cg) READONLY id SHOWIF showIDs(), name, canonicalName
-    PROPERTIES(cg) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(cg) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     ORDER BY name(gcg)
 
     FILTERS stringEqualsAll(a)
@@ -46,7 +46,7 @@ FORM complianceGroups 'Группы сертификации'
         FILTER 'Всех потомков' isParent(cg, gcg) OR (cg IS ComplianceGroup AND NOT gcg) 'F9' DEFAULT
         FILTER 'Только непосредственных потомков' parent(cg) == gcg OR (cg IS ComplianceGroup AND NOT parent(cg) AND NOT gcg) 'F8'
 
-    DIALOG ComplianceGroup OBJECT cg
+    LIST ComplianceGroup OBJECT cg
 ;
 
 DESIGN complianceGroups {

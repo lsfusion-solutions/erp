@@ -137,10 +137,10 @@ FORM acquisitionTarget 'Цель приобретение'
 
 FORM acquisitionTargets 'Цели приобретение'
     OBJECTS t=AcquisitionTarget
-    PROPERTIES(t) name READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
+    PROPERTIES(t) NEWSESSION name READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER BY name(t)
-    DIALOG AcquisitionTarget OBJECT t
+    LIST AcquisitionTarget OBJECT t
 ;
 DESIGN acquisitionTargets { main{ preferredSize = (600, 400); } }
 
@@ -427,7 +427,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                        VATSum BACKGROUND backgroundSku(d), invoiceSum BACKGROUND backgroundSku(d),
                        name###stockProp##Stock BACKGROUND backgroundSku(d), 
                        shipmentDate BACKGROUND backgroundSku(d), shipmentTime BACKGROUND backgroundSku(d), 
-                       closeDate BACKGROUND backgroundSku(d), ADDOBJ, deleteod = DELETESESSION
+                       closeDate BACKGROUND backgroundSku(d), NEW, deleteod = DELETE
         ORDER BY index(d)
 
         PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserOrderDetail,
@@ -604,7 +604,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                 }
             }
 
-            FORM userOrder OBJECTS o = o MANAGESESSION DOCKED;
+            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
         }
     } TOOLBAR;
     
@@ -687,11 +687,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserOrder], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (o) addUserOrder = ADDFORM[UserOrder]
+        PROPERTIES (o) NEWSESSION addUserOrder = NEW[UserOrder]
         PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedOrder(o), 
                        copy
         PROPERTIES (o) close[UserOrder] SHOWIF isOpened[UserOrder](o), open SHOWIF isClosed[UserOrder](o)
-        PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
+        PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
 
         OBJECTS d=OrderDetail
         PROPERTIES (d) READONLY index, idBarcodeSku, idSku, nameSku, shortNameUOMSku
@@ -711,7 +711,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                 filterCustomUser(o),
                 filterComputer(o)                            
         
-        DIALOG Order OBJECT o
+        LIST Order OBJECT o
     ;
 
     DESIGN orders 'Заказы'###sign {
@@ -787,7 +787,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     @defineDocumentLogForm(orders, o);
     edit 'Редактировать' = ACTION ABSTRACT LIST  (OrderDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
     edit(UserOrderDetail d) = ACTION NEWSESSION {
-        FORM userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKED;
+        SHOW userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKED;
     }
     edit(UserOrderDetail d) += ACTION edit(d);    
 END
@@ -831,7 +831,7 @@ END
 
 META defineOrderBatchDialog(dumb)
     changeBatch(UserOrderDetail userOrderDetail) = ACTION {
-        FORM dialogBatch OBJECTS sk = sku(userOrderDetail) DIALOG SHOWDROP;
+        SHOW dialogBatch OBJECTS sk = sku(userOrderDetail) DIALOG SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
             batch(userOrderDetail) <- chosenObject('bt');
@@ -849,12 +849,12 @@ END
 META defineOrderBatchDialogStock(stockProp, dialog)
     changeBatch(UserOrderDetail d) = ACTION {
         IF batch(d) THEN {
-            FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
+            SHOW dialogBatchStock##dialog OBJECTS st = stockProp(d),
                                      t = dateTime(d),
                                      sk = sku(d),
                                      bt = batch(d) DIALOG SHOWDROP;        
         } ELSE {
-            FORM dialogBatchStock##dialog OBJECTS st = stockProp(d),
+            SHOW dialogBatchStock##dialog OBJECTS st = stockProp(d),
                                      t = dateTime(d),
                                      sk = sku(d) DIALOG SHOWDROP;        
         }

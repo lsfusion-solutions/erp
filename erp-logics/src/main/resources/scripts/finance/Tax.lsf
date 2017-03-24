@@ -11,7 +11,7 @@ CLASS Tax 'Налоги' {
 FORM taxDialog
     OBJECTS t = Tax
     PROPERTIES(t) staticCaption
-    DIALOG Tax OBJECT t
+    LIST Tax OBJECT t
 ;
 
 // ---------------------------------- Шкала налога --------------------------------------- //
@@ -44,7 +44,7 @@ CLASS RangeType 'Для каких подразделений действует
 FORM rangeTypes 'Тип шкалы'
     OBJECTS t = RangeType
     PROPERTIES(t) READONLY staticCaption
-    DIALOG RangeType OBJECT t
+    LIST RangeType OBJECT t
 ;
 
 //extraRange 'Дополнительная' = DATA BOOLEAN (Range);
@@ -134,14 +134,14 @@ FORM tax 'Налог'
     PROPERTIES(c) SELECTOR    name
 
     OBJECTS           ra = Range
-    PROPERTIES(ra)    number, nameRangeType, extra READONLYIF isCommonssType(ra), note, DELETESESSION
+    PROPERTIES(ra)    number, nameRangeType, extra READONLYIF isCommonssType(ra), note, DELETE
     PROPERTIES(ra)    READONLY valueCurrentRate, dateFromCurrentRate    
     PROPERTIES(t, c)  addNewRange TODRAW ra
     FILTERS           tax(ra) == t
     FILTERS           country(ra) == c
 
     OBJECTS           rt=Rate
-    PROPERTIES(rt)    value, dateFrom, createdTime, createdNameUser, ADDOBJ, DELETESESSION
+    PROPERTIES(rt)    value, dateFrom, createdTime, createdNameUser, NEW, DELETE
     FILTERS           range(rt) == ra
     ORDER BY dateFrom(rt)
 
@@ -196,7 +196,7 @@ DESIGN tax {
 FORM taxes 'Налоги'
     OBJECTS           t=Tax
     PROPERTIES(t)     READONLY staticCaption
-    PROPERTIES(t)     EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t)     NEWSESSION EDIT, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS           c=Country
     PROPERTIES(c)     name
@@ -236,15 +236,15 @@ DESIGN taxes {
 FORM range 'Шкала'
     OBJECTS r=Range
     PROPERTIES(r) READONLY number, nameTax, nameCountry, nameRangeType, valueCurrentRate, dateFromCurrentRate
-    PROPERTIES(r) ADDFORM, EDITFORM FORCE PANEL TOOLBAR
-    DIALOG Range OBJECT r
+    PROPERTIES(r) NEWSESSION NEW, EDIT FORCE PANEL TOOLBAR
+    LIST Range OBJECT r
 ;
 
 FORM rangeDialog 'Шкала'
     OBJECTS c = Country FIXED PANEL
     OBJECTS r=Range
     PROPERTIES(r) READONLY number, nameTax, nameCountry, nameRangeType, valueCurrentRate, dateFromCurrentRate
-    PROPERTIES(r) ADDFORM, EDITFORM FORCE PANEL TOOLBAR
+    PROPERTIES(r) NEWSESSION NEW, EDIT FORCE PANEL TOOLBAR
     FILTERS country(r) == c
 ;
 

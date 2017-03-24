@@ -484,7 +484,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                        valueVAT ON CHANGE changeValueVAT(d) BACKGROUND backgroundVAT(d),
                        invoicePrice ON CHANGE changeInvoicePrice(d),
                        VATSum, invoiceSum, sumNetWeight BACKGROUND backgroundSku(d), 
-                       sumGrossWeight BACKGROUND backgroundSku(d), ADDOBJ, deleteid=DELETESESSION
+                       sumGrossWeight BACKGROUND backgroundSku(d), NEW, deleteid=DELETE
         ORDER BY index(d)
 
         PROPERTIES(i) TODRAW d fillDocument, addDetailDialogSkuStockUserInvoiceDetail,
@@ -666,7 +666,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                 }
             }
 
-            FORM userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+            SHOW userInvoice OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
         }
     } TOOLBAR;
     
@@ -757,11 +757,11 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
         PROPERTIES (i) READONLY FORCE PANEL createdNameUser[UserInvoice], createdTime[UserInvoice], createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer 
 
-        PROPERTIES (i) ADDFORM[UserInvoice]
+        PROPERTIES (i) NEWSESSION NEW[UserInvoice]
         PROPERTIES (i) edit SHOWIF overShowEdit(i),//isOpenedInvoice(i), 
                        copy
         PROPERTIES (i) close[UserInvoice] SHOWIF showClose(i), open SHOWIF showOpen(i)
-        PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF overShowDelete(i)//isUserOpenedInvoice(i)
+        PROPERTIES (i) NEWSESSION deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF overShowDelete(i)//isUserOpenedInvoice(i)
 
         OBJECTS d = InvoiceDetail
         PROPERTIES (d) READONLY index
@@ -780,7 +780,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                 filterCustomUser(i),
                 filterComputer(i)
                 
-        DIALOG Invoice OBJECT i
+        LIST Invoice OBJECT i
     ;
 
     DESIGN invoices 'Накладные'###sign {
@@ -869,7 +869,7 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
                                numberVAT, valueVAT, VATSum, invoiceSum,
                                name###stockProp##Stock
 
-        DIALOG InvoiceDetail OBJECT d
+        LIST InvoiceDetail OBJECT d
     ;
     
     backgroundVAT(UserInvoiceDetail d) += WHEN isItem(sku(d)) AND NOT 
@@ -879,13 +879,13 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
             
     edit 'Редактировать' = ACTION ABSTRACT LIST (InvoiceDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
     edit(UserInvoiceDetail d) = ACTION NEWSESSION {
-        FORM userInvoice OBJECTS i = userInvoice(d), d = d MANAGESESSION DOCKED;
+        SHOW userInvoice OBJECTS i = userInvoice(d), d = d MANAGESESSION DOCKED;
     }
     edit(UserInvoiceDetail d) += ACTION edit(d);  
     
     show 'Просмотреть' = ACTION ABSTRACT LIST (InvoiceDetail) TOOLBAR;
     show(UserInvoiceDetail d) = ACTION NEWSESSION {
-        FORM userInvoice OBJECTS i = userInvoice(d), d = d DOCKED READONLY;
+        SHOW userInvoice OBJECTS i = userInvoice(d), d = d DOCKED READONLY;
     }
     show(UserInvoiceDetail d) += ACTION show(d);             
 END
@@ -1276,7 +1276,7 @@ META defineInvoicePayment(dumb)
 
     editInvoice 'Редактировать'(Payment payment, InContractLedger invoice) = ACTION {
         currentInContractLedger() <- invoice;
-        FORM payment OBJECTS p=payment ;
+        SHOW payment OBJECTS p=payment ;
     }
 
     EXTEND FORM userInvoice
@@ -1286,7 +1286,7 @@ META defineInvoicePayment(dumb)
         ORDER BY dateTime(pm)
         PROPERTIES(pm, i) cost
         PROPERTIES TODRAW pm FORCE PANEL TOOLBAR addPaymentInvoice(i), editInvoice(pm, i)
-        PROPERTIES(pm) DELETESESSION
+        PROPERTIES(pm) DELETE
 
         FILTERGROUP filters
             FILTER 'Платежи по накладной' cost(pm, i) 'F10' DEFAULT

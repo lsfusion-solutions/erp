@@ -53,7 +53,7 @@ idBatch 'Код партии' (RevaluationDetail d) = id(batch(d)) MINCHARWIDTH 
 idBatch 'Код партии' (UserRevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 changeBatch(UserRevaluationDetail userRevaluationDetail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
+    SHOW dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
                              t = dateTime(userRevaluationDetail),
                              sk = sku(userRevaluationDetail) DIALOG SHOWDROP;
 
@@ -167,7 +167,7 @@ FORM userRevaluation 'Переоценка'
     PROPERTIES (d) index, idBarcodeSku, nameSku,
                    shortNameUOMSku, nameBatch ON CHANGE changeBatch(d), quantity,
                    curPrice, curSum,
-                   price, sum, ADDOBJ, deleted=DELETESESSION
+                   price, sum, NEW, deleted=DELETE
 
     PROPERTIES(d) READONLYIF batch(d) SHOWIF showIDs()
                   idBatch ON CHANGE changeBatch(d) BEFORE nameBatch(d)
@@ -250,7 +250,7 @@ DESIGN userRevaluation {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RevaluationDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserRevaluationDetail d) = ACTION NEWSESSION {
-    FORM userRevaluation OBJECTS p = userRevaluation(d), d = d MANAGESESSION DOCKED;
+    SHOW userRevaluation OBJECTS p = userRevaluation(d), d = d MANAGESESSION DOCKED;
 }
 
 edit(UserRevaluationDetail d) += ACTION edit(d);    
@@ -258,7 +258,7 @@ edit[SkuLedger](RevaluationDetail ledger) += ACTION edit(ledger);
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (RevaluationDetail) TOOLBAR;
 show(UserRevaluationDetail d) = ACTION NEWSESSION {
-    FORM userRevaluation OBJECTS p = userRevaluation(d), d = d DOCKED READONLY;
+    SHOW userRevaluation OBJECTS p = userRevaluation(d), d = d DOCKED READONLY;
 }
 
 show(UserRevaluationDetail d) += ACTION show(d);    
@@ -300,11 +300,11 @@ FORM revaluations 'Переоценки'
     PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p)  ADDFORM[UserRevaluation]
+    PROPERTIES (p)  NEWSESSION NEW[UserRevaluation]
     PROPERTIES (p) edit SHOWIF isOpened(p)
     PROPERTIES (p) close[UserRevaluation] SHOWIF isOpened[UserRevaluation](p), open SHOWIF isClosed[UserRevaluation](p)
 
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)      
+    PROPERTIES (p) NEWSESSION deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)      
     PROPERTIES (p) print FORCE PANEL
 
 

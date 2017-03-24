@@ -184,7 +184,7 @@ includeDataCompany 'Включить'(DATETIME dateTime, PriceListType dataPrice
                 activePriceA(dataPriceListType, sku(d), company, dateTime)
                 WHERE userPriceList(d) == u;
             operation(u) <- operation;     
-            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -202,7 +202,7 @@ modifyDataCompany 'Изменить'(DATETIME dateTime, PriceListType dataPriceL
                 dataIn(u, stock) <- TRUE;
             }
             operation(u) <- operation;  
-            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -217,7 +217,7 @@ excludeDataCompany 'Исключить'(DATETIME dateTime, PriceListType dataPri
                 dataIn(u, stock) <- TRUE;
             }
             operation(u) <- operation;  
-            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -362,7 +362,7 @@ createCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListType dat
     NEWSESSION NESTED (in[Sku]) {
         FOR ADDOBJ u = UserPriceList DO {
             fillCompanyPriceList(u, company, dateTime, dataPriceListType, stock);
-            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -375,7 +375,7 @@ createWPricesCompanyPriceList(LegalEntity company, DATETIME dateTime, PriceListT
             price[UserPriceListDetail,DataPriceListType](UserPriceListDetail d, dataPriceListType) <-
                 priceA[LedgerPriceListType,Sku,Stock,DATETIME](dataPriceListType, sku(d), stock, dateTime)
                 WHERE userPriceList(d) == u;
-            FORM userPriceList OBJECTS p = u MANAGESESSION DOCKED;
+            SHOW userPriceList OBJECTS p = u MANAGESESSION DOCKED;
             in(Sku s) <- NULL;
         }
     }
@@ -422,7 +422,7 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type,
         in[UserPriceList,DataPriceListType](p, type) <- TRUE;
         show[PriceList,PriceListType](p, type) <- TRUE;
         EXEC overAdd(p); 
-        FORM userPriceList OBJECTS p=p MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p=p MANAGESESSION DOCKED;
         IF formResult() == FormResult.ok THEN
             EXEC apply();
     }
@@ -436,7 +436,7 @@ EXTEND FORM priceListDashboard
                            fromDate, fromTime, toDate, toTime,
                            nameCurrency, nameCompany, priceListTypes, stocks,
                            note
-    PROPERTIES(p) EDITFORM, DELETE FORCE PANEL TOOLBAR, update FORCE PANEL TOOLBAR
+    PROPERTIES(p) NEWSESSION EDIT, DELETE FORCE PANEL TOOLBAR, update FORCE PANEL TOOLBAR
     ORDER BY fromDate(p), fromTime(p)
     FILTERS in(p, pt),
             company(p) == c
@@ -474,7 +474,7 @@ importUserPriceList 'Импортировать'(LegalEntity c, ImportUserPriceL
         }
         
         importAction(p);
-        FORM userPriceList OBJECTS p = p MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 

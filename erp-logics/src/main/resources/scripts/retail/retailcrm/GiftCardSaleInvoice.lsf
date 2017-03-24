@@ -129,7 +129,7 @@ DESIGN dialogGiftCard {
 
 fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = ACTION {
     in(GiftCard g) <- NULL;
-    FORM dialogGiftCard OBJECTS o = invoice ;
+    SHOW dialogGiftCard OBJECTS o = invoice ;
     IF formResult() == FormResult.ok THEN {
         FOR in(GiftCard g) ADDOBJ gd = InvoiceGiftCardSaleDetail DO {
             invoice(gd) <- invoice;
@@ -149,7 +149,7 @@ CONSTRAINT isGiftCard(Sale.Invoice o) AND isPosted(o) AND (quantityInvoiceGiftCa
 
 EXTEND FORM Sale.userInvoice
     OBJECTS gd = InvoiceGiftCardSaleDetail FIXED GRID 
-    PROPERTIES (gd) SHOWIF isGiftCard(i) READONLY seriesNumber, sum, DELETESESSION EDITABLE
+    PROPERTIES (gd) SHOWIF isGiftCard(i) READONLY seriesNumber, sum, DELETE EDITABLE
     FILTERS invoice(gd) == i
     
     PROPERTIES (i) SHOWIF isGiftCard(i) fillDetailDialogSkuGiftCard TODRAW gd 
@@ -163,12 +163,12 @@ DESIGN Sale.userInvoice {
 
 
 edit(InvoiceGiftCardSaleDetail d) = ACTION NEWSESSION {
-    FORM Sale.userInvoice OBJECTS i = invoice(d), gd = d MANAGESESSION DOCKED;
+    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d MANAGESESSION DOCKED;
 }
 edit(InvoiceGiftCardSaleDetail d) += ACTION edit(d);  
 
 show(InvoiceGiftCardSaleDetail d) = ACTION NEWSESSION {
-    FORM Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED READONLY;
+    SHOW Sale.userInvoice OBJECTS i = invoice(d), gd = d DOCKED READONLY;
 }
 show(InvoiceGiftCardSaleDetail d) += ACTION show(d);  
 
@@ -214,7 +214,7 @@ changeAccount (LegalEntity l) = ACTION {
 }
 
 changeBank (LegalEntity l) = ACTION {
-    REQUEST OBJECT b FORM dialogBanks ;
+    REQUEST OBJECT b SHOW dialogBanks ;
     IF NOT account(l) THEN {
         FOR ADDOBJ a = Bank.Account DO {
             bank(a) <- requestedObject();
@@ -282,13 +282,13 @@ addCustomer 'Добавить'() = ACTION NEWSESSION {
             isDataDefault(uc) <- TRUE ;
         }
         
-        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
     }
     
 } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
 editCustomer 'Редактировать' (LegalEntity l) = ACTION NEWSESSION {
-        FORM giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
+        SHOW giftCardSaleCustomer OBJECTS l = l MANAGESESSION  NOCANCEL;
 } IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 FORM giftCardLegalEntitys 'Покупатели'
@@ -306,7 +306,7 @@ customer = DATA LOCAL LegalEntity ();
 nameCustomer 'Покупатель'= name(customer());
 
 changeCustomer() = ACTION {
-    REQUEST OBJECT l FORM giftCardLegalEntitys DIALOG;       
+    REQUEST OBJECT l SHOW giftCardLegalEntitys DIALOG;       
     customer() <- requestedObject();
 }
 
@@ -314,7 +314,7 @@ supplierStock = DATA LOCAL Stock ();
 nameSupplierStock 'Склад'= name(supplierStock());
 
 changeSupplierStock() = ACTION {
-    REQUEST OBJECT s FORM stocksCompany DIALOG;       
+    REQUEST OBJECT s SHOW stocksCompany DIALOG;       
     supplierStock() <- requestedObject();
 }
 
@@ -344,7 +344,7 @@ addGiftCardInvoice 'Продажа сертификатов'() = ACTION NEWSESSI
     quantity(Item i) <- NULL;
     supplierStock() <- stock(currentUser());
        
-    FORM skuGift ;
+    SHOW skuGift ;
     IF formResult() == FormResult.ok THEN {
         FOR ADDOBJ o = Sale.UserInvoice DO {
             operation(o) <- [=GROUP MIN Sale.Operation o IF isGiftCard(o)]();
@@ -372,7 +372,7 @@ addGiftCardInvoice 'Продажа сертификатов'() = ACTION NEWSESSI
                 invoicePrice(d) <- round2(prevList(priceListType(d), d) );
     
             }  
-            FORM Sale.userInvoice OBJECTS i=o MANAGESESSION DOCKED NOCANCEL; 
+            SHOW Sale.userInvoice OBJECTS i=o MANAGESESSION DOCKED NOCANCEL; 
         }
     }    
 } TOOLBAR IMAGE 'add.png';
@@ -406,7 +406,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     PROPERTIES (i) READONLY note
 
     PROPERTIES ()  addGiftCardInvoice TODRAW i
-    PROPERTIES (i) edit SHOWIF overShowEdit(i), copy, shiped SHOWIF toShip(i), DELETE TODRAW i FORCE PANEL TOOLBAR 
+    PROPERTIES (i) NEWSESSION edit SHOWIF overShowEdit(i), copy, shiped SHOWIF toShip(i), DELETE TODRAW i FORCE PANEL TOOLBAR 
 
     PROPERTIES (i) print FORCE PANEL 
 

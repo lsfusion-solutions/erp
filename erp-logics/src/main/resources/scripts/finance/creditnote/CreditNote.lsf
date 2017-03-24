@@ -121,7 +121,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
                        quantity, price, sum,
                        numberVAT, valueVAT, VATSum, invoiceSum,
-                       name###stockProp##Stock, ADDOBJ, deletecd=DELETESESSION
+                       name###stockProp##Stock, NEW, deletecd=DELETE
 
         PROPERTIES(c) TODRAW d addDetailDialogSkuStockUserCreditNoteDetail,
                                addDetailInputBarcodeUserCreditNoteDetail, deleteUserCreditNoteDetail
@@ -229,10 +229,10 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
         PROPERTIES (c) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer                        
 
-        PROPERTIES (c) ADDFORM[UserCreditNote]
+        PROPERTIES (c) NEWSESSION NEW[UserCreditNote]
         PROPERTIES (c) edit SHOWIF isOpened(c)
         PROPERTIES (c) close[UserCreditNote] SHOWIF isOpened[UserCreditNote](c), open SHOWIF isClosed[UserCreditNote](c)
-        PROPERTIES (c) deletec=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(c)
+        PROPERTIES (c) NEWSESSION deletec=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(c)
 
         OBJECTS d = CreditNoteDetail
         PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku,
@@ -240,7 +240,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
                                  VATSum, invoiceSum, name###stockProp##Stock
         FILTERS creditNote(d) == c
 
-        DIALOG CreditNote OBJECT c
+        LIST CreditNote OBJECT c
     ;
 
     DESIGN creditNotes 'Акты расхождений'###sign {
@@ -292,7 +292,7 @@ META defineCreditNote(sign, legalEntityProp, stockProp, supplierFilter, customer
     @defineFilterIsOpened (creditNote, creditNotes, c); 
     edit 'Редактировать' = ACTION ABSTRACT LIST  (CreditNoteDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
     edit(UserCreditNoteDetail d) = ACTION NEWSESSION {
-        FORM userCreditNote OBJECTS c = userCreditNote(d), d = d MANAGESESSION DOCKED;
+        SHOW userCreditNote OBJECTS c = userCreditNote(d), d = d MANAGESESSION DOCKED;
     }
     
     edit(UserCreditNoteDetail d) += ACTION edit(d);  

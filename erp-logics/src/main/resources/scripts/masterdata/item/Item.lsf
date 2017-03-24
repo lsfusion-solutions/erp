@@ -56,7 +56,7 @@ FORM itemGroups 'Товарные группы'
     TREE treeGroups g=ItemGroup PARENT parent
     PROPERTIES in(g), moveItemGroup(g) TODRAW g FORCE PANEL TOOLBAR
     PROPERTIES READONLYIF isReadonly() order(g), id(g) SHOWIF showIDs(), name(g), canonicalName (g)
-    PROPERTIES(g) ADDFORM, EDITFORM, deleteg=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) NEWSESSION NEW, EDIT, deleteg=DELETE FORCE PANEL TOOLBAR
     FILTERS inFilterName(g) OR NOT filterNameItemGroup()
     ORDER BY order(g), canonicalName(g)
 ;
@@ -73,8 +73,8 @@ FORM dialogItemGroups 'Товарные группы'
     ORDER BY order(tg), name(tg)
 
     OBJECTS g=ItemGroup
-    PROPERTIES(g) order READONLY, id SHOWIF showIDs() READONLY, name READONLY, canonicalName READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(g) ADDFORM, EDITFORM
+    PROPERTIES(g) NEWSESSION order READONLY, id SHOWIF showIDs() READONLY, name READONLY, canonicalName READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) NEWSESSION NEW, EDIT
     ORDER BY order(g), canonicalName(g)
 
     FILTERS isParent(g, tg)
@@ -84,7 +84,7 @@ FORM dialogItemGroups 'Товарные группы'
         FILTER 'Всех потомков' isParent(g, tg) 'F9'
         FILTER 'Только непосредственных потомков' parent(g) == tg 'F8'
 
-    DIALOG ItemGroup OBJECT g
+    LIST ItemGroup OBJECT g
 ;
 
 DESIGN dialogItemGroups {
@@ -215,7 +215,7 @@ FORM item 'Товар'
     PROPERTIES(b)       id, date, caption, shortNameUOM,
                         amount, active, primary ON CHANGE changePrimary(b,i)
     PROPERTIES(i)       generateBarcode TODRAW b FORCE PANEL
-    PROPERTIES(b)       ADDOBJ, deleteb=DELETESESSION
+    PROPERTIES(b)       NEW, deleteb=DELETE
     FILTERS sku(b) == i
 
     OBJECTS cgt = CustomGroupType
@@ -345,11 +345,11 @@ FORM items 'Товары'
     
     OBJECTS i=Item  
     PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND background(i), image FORCE PANEL SHOWIF hasImage(i), id SHOWIF showIDs() BACKGROUND background(i)
-    PROPERTIES(i) ADDFORM, EDITFORM SHOWIF enableEditing(i), deletei=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(i) NEWSESSION NEW, EDIT SHOWIF enableEditing(i), deletei=DELETE FORCE PANEL TOOLBAR
     PROPERTIES seekBarcode()
     ON CHANGE seekSkuBarcode() 
     
-    DIALOG Item OBJECT i  
+    LIST Item OBJECT i  
 ;
 
 seekSkuGroupType() = ACTION SEEK items.gt = SystemGroupType.skuGroupType;
@@ -602,7 +602,7 @@ META defineUniteAttributeItem(object, nameProp, caption1, caption2, object2)
         OBJECTS object = ###object
         PROPERTIES in(object)
         PROPERTIES READONLY nameProp(object)
-        PROPERTIES(object) ADDFORM, EDITFORM, delete###object =DELETE FORCE PANEL TOOLBAR        
+        PROPERTIES(object) NEWSESSION NEW, EDIT, delete###object =DELETE FORCE PANEL TOOLBAR        
         ORDER BY nameProp(object)
         PROPERTIES replace(object) TODRAW object FORCE PANEL TOOLBAR
         
@@ -665,7 +665,7 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
     }
     
     replace 'Объединить'(###object object) = ACTION {
-        FORM confirmReplace###object OBJECTS o=object ;
+        SHOW confirmReplace###object OBJECTS o=object ;
         IF formResult() == FormResult.ok THEN {
             allowReplace###object() <- TRUE;
             FOR in(###object o) AND allowReplace###object() DO{
@@ -996,7 +996,7 @@ META defineItemFilterValue(object, captionProp, o)
     } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
     
     EXTEND FORM object##s###session
-        PROPERTIES add###object(gg) FORCE PANEL TOOLBAR TODRAW t, EDITFORM(t), deletet = DELETE(t) FORCE PANEL TOOLBAR
+        PROPERTIES NEWSESSION add###object(gg) FORCE PANEL TOOLBAR TODRAW t, EDIT(t), deletet = DELETE(t) FORCE PANEL TOOLBAR
     ; 
     
     change###object(Item i) = ACTION {
@@ -1201,7 +1201,7 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
 extractStringCaption 'Заменить в названии'(Item i) = ACTION {
     IF i IS Item THEN {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
-        FORM extractStringAttributeItem ;
+        SHOW extractStringAttributeItem ;
         IF formResult() == FormResult.ok THEN {
             LOCAL selected = BOOLEAN (Item);
             selected(Item item) <- isSubstring(caption(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
@@ -1266,10 +1266,10 @@ FORM brand 'Бренд'
 
 FORM brands 'Бренды'
     OBJECTS t=Brand
-    PROPERTIES(t) name READONLY, site READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
+    PROPERTIES(t) NEWSESSION name READONLY, site READONLY, id READONLY SHOWIF showIDs(), deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER BY name(t)
-    DIALOG Brand OBJECT t
+    LIST Brand OBJECT t
 ;
 DESIGN brands { main{ preferredSize = (600, 400); } }
 
@@ -1342,11 +1342,11 @@ DESIGN manufacturer {
 
 FORM manufacturerDialog 'Производители товара'
     OBJECTS m=Manufacturer
-    PROPERTIES(m) name READONLY, id READONLY SHOWIF showIDs(), 
+    PROPERTIES(m) NEWSESSION name READONLY, id READONLY SHOWIF showIDs(), 
                   originalName, originalAddress, nameCountry, deleteManufacturer =DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(m) ADDFORM, EDITFORM
+    PROPERTIES(m) NEWSESSION NEW, EDIT
     ORDER BY name(m)
-    DIALOG Manufacturer OBJECT m
+    LIST Manufacturer OBJECT m
 ;
 DESIGN manufacturerDialog { main{ preferredSize = (600, 400); } }
 
@@ -1686,7 +1686,7 @@ copy 'Копировать' (Item item)= ACTION  {
         NEWSESSION NESTED (addedSku[]) {
             FOR ADDOBJ i = Item DO {
                 copyDataItem(item, i);
-                FORM item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
+                SHOW item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
                 IF formResult() == FormResult.ok THEN {
                     addedSku() <- i;
                 }
@@ -1723,7 +1723,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
                 dataDate(bc) <- date;
                 sku(bc) <- i;
             }
-            FORM item OBJECTS i = i MANAGESESSION DOCKED;
+            SHOW item OBJECTS i = i MANAGESESSION DOCKED;
         }
     } ELSE {
         FOR ADDOBJ bc = Barcode DO {
@@ -1732,7 +1732,7 @@ createItemBarcode (VARSTRING[15] barcode, DATE date)= ACTION NEWSESSION {
 
             FOR ADDOBJ s = Item DO {
                 sku(bc) <- s;
-                FORM item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
+                SHOW item OBJECTS i = s, b = bc MANAGESESSION DOCKED;
             }
         }
     }
@@ -1776,7 +1776,7 @@ DESIGN confirmReplaceItem {
 
 replace 'Объединить' (Item item)= ACTION {
     IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
-    FORM confirmReplaceItem OBJECTS i=item ;
+    SHOW confirmReplaceItem OBJECTS i=item ;
     IF formResult() == FormResult.ok THEN {
         allowReplaceItem() <- TRUE;
         checkReplace(item);
@@ -1798,7 +1798,7 @@ replace 'Объединить' (Item item)= ACTION {
 } CONFIRM;
 
 changeGroupItem 'Изменить группу' () = ACTION {
-    FORM dialogItemGroups ;
+    SHOW dialogItemGroups ;
 
     IF formResult() == FormResult.ok THEN {
         FOR in(Item i) DO{

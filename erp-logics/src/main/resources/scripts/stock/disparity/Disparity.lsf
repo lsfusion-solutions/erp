@@ -43,7 +43,7 @@ CLASS DisparityDetail 'Строка изменения сортности';
 @showDocumentDetailBatch(disparity);
 @defineDocumentDetailBatchCustomPrefix(disparityDetail, batch, );
 changeBatch(DisparityDetail d) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = stock(d),
+    SHOW dialogBatchStockOut OBJECTS st = stock(d),
                              t = dateTime(d),
                              sk = sku(d) DIALOG SHOWDROP;
 
@@ -197,7 +197,7 @@ FORM disparity 'Изменение сортности'
                     quantity, price, sum,
                     inputIdBarcodeSku, inputNameSku, inputShortNameUOMSku,
                     inputQuantity, inputPrice, inputSum
-    PROPERTIES(d)   ADDOBJ, deletedd=DELETESESSION
+    PROPERTIES(d)   NEW, deletedd=DELETE
 
     PROPERTIES(dis) TODRAW d addDetailDialogSkuStockDisparityDetail,
                              addDetailInputBarcodeDisparityDetail, deleteDisparityDetail
@@ -281,14 +281,14 @@ DESIGN disparity {
 }
 
 edit 'Редактировать' (DisparityDetail d) = ACTION NEWSESSION {
-    FORM disparity OBJECTS dis = disparity(d), d = d MANAGESESSION DOCKED;
+    SHOW disparity OBJECTS dis = disparity(d), d = d MANAGESESSION DOCKED;
 }
 edit[SkuLedger](InputDisparityDetail batch) += ACTION edit(disparityDetail(batch)); 
 edit(DisparityDetail d) += ACTION edit(d); 
 edit[PriceListLedger](InputDisparityDetail d) += ACTION edit(disparityDetail(d));                       
 
 show 'Просмотреть' (DisparityDetail d) = ACTION NEWSESSION {
-    FORM disparity OBJECTS dis = disparity(d), d = d DOCKED READONLY;
+    SHOW disparity OBJECTS dis = disparity(d), d = d DOCKED READONLY;
 }
 show[SkuLedger](InputDisparityDetail batch) += ACTION show(disparityDetail(batch)); 
 show(DisparityDetail d) += ACTION show(d); 
@@ -337,10 +337,10 @@ FORM disparities 'Изменения сортности'
     PROPERTIES(dis)  READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                           postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (dis) ADDFORM, EDITFORM SHOWIF showEdit(dis)
+    PROPERTIES (dis) NEWSESSION NEW, EDIT SHOWIF showEdit(dis)
     PROPERTIES(dis)  close SHOWIF isOpened(dis), open SHOWIF isClosed(dis)     
     
-    PROPERTIES (dis) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF showDelete(dis)
+    PROPERTIES (dis) NEWSESSION deleted=DELETE FORCE PANEL TOOLBAR SHOWIF showDelete(dis)
 
     OBJECTS d=DisparityDetail
     PROPERTIES(d)   READONLY index,
@@ -434,7 +434,7 @@ copyDisparity 'Создать уцененный товар'(Item item) = ACTION
         NEWSESSION NESTED (addedSku[]) {
             FOR ADDOBJ i = Item DO {
                 copyDisparityData(item, i);
-                FORM item OBJECTS i = i MANAGESESSION DOCKED;
+                SHOW item OBJECTS i = i MANAGESESSION DOCKED;
                 IF formResult() == FormResult.ok THEN {
                     addedSku() <- i;
                 }

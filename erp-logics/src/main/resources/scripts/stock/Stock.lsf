@@ -25,7 +25,7 @@ FORM stockGroups 'Группы складов'
     ORDER BY name(g)
     FILTERS isParent(g, sg) OR (g IS StockGroup AND NOT sg)
 
-    DIALOG StockGroup OBJECT g
+    LIST StockGroup OBJECT g
 ;
 
 DESIGN stockGroups {
@@ -167,7 +167,7 @@ DESIGN confirmReplaceStock {
 replace = ACTION ABSTRACT LIST (Stock, Stock);
 
 replace 'Объединить'(Stock stock) = ACTION {   
-    FORM confirmReplaceStock OBJECTS s=stock ;
+    SHOW confirmReplaceStock OBJECTS s=stock ;
     IF formResult() == FormResult.ok THEN {    
         FOR in(Stock s) AND stock IS Stock AND NOT isCompany(s) AND NOT isCompany(stock) DO {
             IF s != stock THEN {
@@ -295,8 +295,8 @@ FORM region 'Регион'
 FORM regions 'Регионы'
     OBJECTS r=Region
     PROPERTIES(r) READONLY name
-    PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    DIALOG Region OBJECT r
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    LIST Region OBJECT r
 ;
 DESIGN regions { main{ preferredSize = (600, 400); } }
 
@@ -320,7 +320,7 @@ FORM stocks 'Склады'
 
     FILTERGROUP inactiveStock FILTER 'Активный' active(s) 'ctrl F10' DEFAULT    
 
-    DIALOG Stock OBJECT s
+    LIST Stock OBJECT s
 ;
 
 DESIGN stocks {
@@ -902,7 +902,7 @@ DESIGN chooseStocks {
 
 chooseStocks 'Выбрать склады'(LegalEntity legalEntity) = ACTION {
 
-    FORM chooseStocks OBJECTS l = legalEntity ;
+    SHOW chooseStocks OBJECTS l = legalEntity ;
 }
 
 EXTEND FORM legalEntity
@@ -914,7 +914,7 @@ EXTEND FORM legalEntity
     OBJECTS st=Stock
     PROPERTIES(st) in
     PROPERTIES(st) READONLY name, id SHOWIF showIDs(), nameLegalEntity, nameCountry, address
-    PROPERTIES(st) FORCE PANEL TOOLBAR SHOWIF isDefault(l,st) editSession, DELETESESSION, replace SHOWIF notCompany(st) 
+    PROPERTIES(st) FORCE PANEL TOOLBAR SHOWIF isDefault(l,st) editSession, DELETE, replace SHOWIF notCompany(st) 
     PROPERTIES chooseStocks(l) TODRAW st FORCE PANEL TOOLBAR
     FILTERS isParent(sg, st) OR (st IS Stock AND NOT sg)
     FILTERS in(l, st)

@@ -428,7 +428,7 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
             receipt(p) <- receipt;
             paymentType(p) <- minCardPaymentType();
         }
-        FORM postReceiptPayment OBJECTS r = receipt  CHECK;
+        SHOW postReceiptPayment OBJECTS r = receipt  CHECK;
         IF formResult() == FormResult.ok THEN {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
@@ -494,7 +494,7 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
             paymentType(p) <- minCashPaymentType();
             sum(p) <- sumReceiptDetail(receipt);
         }
-        FORM postReceiptPayment OBJECTS r = receipt  CHECK;
+        SHOW postReceiptPayment OBJECTS r = receipt  CHECK;
         IF formResult() == FormResult.ok THEN {
             postPrint(receipt);
         } ELSE {
@@ -565,7 +565,7 @@ overPostBonus = ACTION ABSTRACT (Receipt);
 
 postBonus 'Бонусами'(Receipt receipt) = ACTION {
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
-        FORM bonusPayment OBJECTS d=discountCard(receipt), r = receipt ;
+        SHOW bonusPayment OBJECTS d=discountCard(receipt), r = receipt ;
         IF formResult() == FormResult.ok THEN {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
             bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;        
@@ -608,7 +608,7 @@ overChangeBatch = ACTION ABSTRACT LIST (ReceiptDetail);
 
 changeBatch 'Изменить партию строки чека'(ReceiptDetail detail) = ACTION {
     IF explicitBatchLedger(receipt(detail)) THEN {
-        FORM chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail DIALOG;
+        SHOW chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail DIALOG;
         IF formResult() == FormResult.ok THEN {
             batch(detail) <- chosenObject('bt');
             price[ReceiptSaleDetail](detail) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt(detail));
@@ -657,7 +657,7 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
                 batch(d) <- defaultBatch(sku(d), departmentStore(receipt(d)), receipt);
                 price(d) <- currentPOSPrice(batch(d), receipt[ReceiptDetail](d));
             } ELSE IF explicitBatchLedger(receipt(d)) THEN {
-                FORM chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d DIALOG;
+                SHOW chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d DIALOG;
                 IF formResult() == FormResult.ok THEN {
                     batch(d) <- chosenObject('bt');
                     price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
@@ -756,7 +756,7 @@ DESIGN searchSkuSaleReceipt {
 }
 
 searchSkuSale 'Поиск'(Receipt receipt) = ACTION {
-    FORM searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
+    SHOW searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
         createSaleDetail[Receipt,Sku,STRING[15]](receipt, chosenObject('s'), idBarcode[Sku](chosenObject('s')));
     }
@@ -811,7 +811,7 @@ DESIGN searchBatchSaleReceipt {
 }
 
 searchBatchSale 'Поиск'(Receipt receipt) = ACTION {
-    FORM searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
+    SHOW searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
     IF formResult() == FormResult.ok THEN {
         createSaleDetail[Receipt,Batch,STRING[15]](receipt, chosenObject('b'), idBarcodeSku[Batch](chosenObject('b')));
     }
@@ -909,13 +909,13 @@ DESIGN options {
 }   
 
 scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
-    FORM barcodeInput ;
+    SHOW barcodeInput ;
     IF formResult() == FormResult.ok THEN {
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcode(barcodeInput(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
-            FORM scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku() ;
+            SHOW scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku() ;
             IF formResult() == FormResult.ok AND chosenObject('r') THEN {
                 createReturn(receipt, chosenObject('r'), barcodeInput());
             } ELSE {
@@ -929,7 +929,7 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
                         VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
                         focusQuantity(d);
                         IF explicitBatchLedger(receipt) THEN {
-                            FORM chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d ;
+                            SHOW chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d ;
                             IF formResult() == FormResult.ok THEN {
                                 batch(d) <- chosenObject('bt');
                                 price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
@@ -983,7 +983,7 @@ createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d) = ACT
 }
 
 searchSkuReturn 'Поиск'(Receipt receipt) = ACTION {
-    FORM searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt) DIALOG;
+    SHOW searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt) DIALOG;
     IF formResult() == FormResult.ok THEN {
         createReturn(receipt, chosenObject('s'), chosenObject('r'));
     }
@@ -1017,7 +1017,7 @@ DESIGN inputDiscountCardNumberReceipt {
 }
 
 inputDiscountCardNumber 'Ввести номер'(Receipt receipt) = ACTION {
-    FORM inputDiscountCardNumberReceipt ;
+    SHOW inputDiscountCardNumberReceipt ;
     IF formResult() == FormResult.ok THEN {
         LOCAL discountCard = DiscountCard();
         discountCard() <- discountString(CONCAT '', chosenString('s'), chosenString('n'));         

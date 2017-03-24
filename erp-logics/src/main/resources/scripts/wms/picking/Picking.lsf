@@ -59,7 +59,7 @@ replace(Sku s, Batch b) += ACTION { sku(UserPickingDetail detail) <- s WHERE bat
 @defineMovementBatch(userPickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
 changeBatch(UserPickingDetail detail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = stock(detail),
+    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
                                   sk = sku(detail) DIALOG SHOWDROP;
 
@@ -90,7 +90,7 @@ FORM userPicking 'Комплектация'
     PROPERTIES (d) index
     PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE changeBatch(d)
-    PROPERTIES (d) quantity, ADDOBJ, DELETESESSION
+    PROPERTIES (d) quantity, NEW, DELETE
 
     PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingDetail,
                            addDetailInputBarcodeUserPickingDetail, deleteUserPickingDetail
@@ -175,7 +175,7 @@ copy 'Копировать'(Picking picking) = ACTION NEWSESSION {
             }
         }
 
-        FORM userPicking OBJECTS o = o MANAGESESSION DOCKED;
+        SHOW userPicking OBJECTS o = o MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -191,15 +191,15 @@ FORM pickings 'Комплектации'
 
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
 
-    PROPERTIES (o)  ADDFORM[UserPicking]
+    PROPERTIES (o)  NEWSESSION NEW[UserPicking]
     PROPERTIES (o) edit, copy
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF is[UserPicking](o)
+    PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF is[UserPicking](o)
 
     OBJECTS d=PickingDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
                    nameBatch, quantity
     FILTERS picking(d) == o
-    DIALOG Picking OBJECT o
+    LIST Picking OBJECT o
 ;
 
 DESIGN pickings {
@@ -301,7 +301,7 @@ moveUserPicking 'Комплектация'(PickingOrder pickingOrder) = ACTION N
             batch(d) <- batch(detail);
             overFillUserPicking(d, detail);
         }
-        FORM userPicking OBJECTS o=p MANAGESESSION DOCKED;
+        SHOW userPicking OBJECTS o=p MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -335,7 +335,7 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
             stock(o) == s
 ;
 fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking) = ACTION {
-    FORM pickingsOrderPickings OBJECTS s = stock(userPicking) ;
+    SHOW pickingsOrderPickings OBJECTS s = stock(userPicking) ;
     IF formResult() == FormResult.ok THEN {
         LOCAL order = PickingOrder();
         order() <- chosenObject('o');
@@ -454,7 +454,7 @@ DESIGN packQuantity {
 }
 
 fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    FORM packQuantity ;
+    SHOW packQuantity ;
     IF formResult() == FormResult.ok THEN {
         finishDate(pickingOrder) <- currentDate();
         finishTime(pickingOrder) <- currentTime();
@@ -476,7 +476,7 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = AC
 } TOOLBAR EDITKEY 'F10';
 
 partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = ACTION NEWSESSION{
-    FORM packQuantity ;
+    SHOW packQuantity ;
     IF formResult() == FormResult.ok THEN {
         finishDate(pickingOrder) <- currentDate();
         finishTime(pickingOrder) <- currentTime();
@@ -492,7 +492,7 @@ partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = 
                 batch(d) <- batch(detail);
                 overFillUserPicking(d, detail);
             }
-            FORM userPicking OBJECTS o=p MANAGESESSION DOCKED;
+            SHOW userPicking OBJECTS o=p MANAGESESSION DOCKED;
         }
     }
 } TOOLBAR EDITKEY 'F9';

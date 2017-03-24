@@ -105,12 +105,12 @@ numberDocument(ReceiptGiftCardSaleDetail detail) += VARSTRING[30](number(receipt
 departmentStore(ReceiptGiftCardSaleDetail detail) += departmentStore(receipt(detail));
 
 edit 'Редактировать' (ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
 }
 ZReport.edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);
 
 show(ReceiptGiftCardSaleDetail d) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
+    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
 }
 
 edit(ReceiptGiftCardSaleDetail d) += ACTION edit(d);  
@@ -163,7 +163,7 @@ DESIGN generationGiftCards {
 overGenerateGiftCards = ACTION ABSTRACT LIST (GiftCard);
 
 generateGiftCards 'Сгенерировать подарочные сертификаты'() = ACTION {
-    FORM generationGiftCards OBJECTS n=defaultNumeratorGiftCard(), l=legalEntityGiftCard()  CHECK;
+    SHOW generationGiftCards OBJECTS n=defaultNumeratorGiftCard(), l=legalEntityGiftCard()  CHECK;
     IF formResult() == FormResult.ok THEN {
         LOCAL num = INTEGER();
         ASSIGN num() <- 0;
@@ -213,7 +213,7 @@ FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
     PROPERTIES(g) READONLYIF isReadonly() number, series, date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
     PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
-    PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l = GiftCardLedger
     PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description, numberDocument, nameDepartmentStore
@@ -260,7 +260,7 @@ departmentStore(PaymentGiftCard payment) += departmentStore(receipt(payment)) IF
 
 edit(PaymentGiftCard d) = ACTION NEWSESSION {
     IF d IS PaymentGiftCard THEN {
-        FORM zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKED;
+        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d MANAGESESSION DOCKED;
     }
     
 }
@@ -268,7 +268,7 @@ GiftCard.edit[GiftCardLedger](PaymentGiftCard d) += ACTION GiftCard.edit[Payment
 
 show(PaymentGiftCard d) = ACTION NEWSESSION {
     IF d IS PaymentGiftCard THEN {
-        FORM zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKED READONLY;
+        SHOW zReport OBJECTS z = zReport(receipt(d)), b = receipt(d), p = d DOCKED READONLY;
     }
 }
 show(PaymentGiftCard d) += ACTION show(d);  

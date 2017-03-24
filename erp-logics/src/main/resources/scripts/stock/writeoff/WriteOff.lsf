@@ -48,7 +48,7 @@ FORM writeOffCommittee 'Комиссия для списания товаров'
 
     OBJECTS e=Employee
     PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
-    PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
+    PROPERTIES(e)      NEWEDIT, EDIT, DELETE
 
     PROPERTIES(c, e)   number,
                        in
@@ -85,9 +85,9 @@ FORM writeOffCommittees 'Комиссии для списания товаров
     OBJECTS w=WriteOffCommittee
     PROPERTIES(w)      READONLY name, nameChairman, namePositionChairman, 
                                 nameStocks, nameEmployee
-    PROPERTIES(w)      ADDFORM, EDITFORM, DELETE
+    PROPERTIES(w)      NEWSESSION NEW, EDIT, DELETE
 
-    DIALOG WriteOffCommittee OBJECT w
+    LIST WriteOffCommittee OBJECT w
 ;
 
 DESIGN writeOffCommittees {
@@ -148,10 +148,10 @@ FORM reason 'Причина списания'
 FORM reasons 'Причины списания'
     OBJECTS r=Reason
     PROPERTIES(r) READONLY name
-    PROPERTIES(r) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR    
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR    
     FILTERGROUP inactive FILTER 'Активные' active(r) 'F5' DEFAULT
         
-    DIALOG Reason OBJECT r       
+    LIST Reason OBJECT r       
 ;
 DESIGN reasons { main{ preferredSize = (600, 400); } }
 
@@ -194,7 +194,7 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
 changeBatch(UserWriteOffDetail detail) = ACTION {
 
-    FORM dialogBatchStockOut OBJECTS st = stock(detail),
+    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
 
@@ -263,7 +263,7 @@ FORM userWriteOff 'Списание'
     OBJECTS d=UserWriteOffDetail
     PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE changeBatch(d), quantity,
-                   price, sum, nameStock, ADDOBJ, deletewd=DELETESESSION
+                   price, sum, nameStock, NEW, deletewd=DELETE
 
     PROPERTIES(w) TODRAW d fillDocument, addDetailDialogSkuStockUserWriteOffDetail,
                            addDetailInputBarcodeUserWriteOffDetail, deleteUserWriteOffDetail
@@ -432,11 +432,11 @@ FORM writeOffs 'Списания'
 
     PROPERTIES (w) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
-    PROPERTIES (w)  ADDFORM[UserWriteOff]
+    PROPERTIES (w)  NEWSESSION NEW[UserWriteOff]
     PROPERTIES (w) edit SHOWIF showEdit(w)
     PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open[UserWriteOff] SHOWIF isClosed[UserWriteOff](w)
     
-    PROPERTIES (w) deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserWriteOff](w)
+    PROPERTIES (w) NEWSESSION deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserWriteOff](w)
 
     OBJECTS d=WriteOffDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch,
@@ -507,7 +507,7 @@ FORM writeOffDetails 'Списание'
                    shortNameUOMSku, 
                    quantity, price, sum, nameStock
 
-    DIALOG WriteOffDetail OBJECT d
+    LIST WriteOffDetail OBJECT d
 ;
 
 isStockWriteOffs 'Разрешить ввод списания без склада ' = DATA BOOLEAN ();
@@ -646,14 +646,14 @@ stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserWriteOffDetail d) = ACTION NEWSESSION {
-    FORM userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
+    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
 }
 edit(UserWriteOffDetail d) += ACTION edit(d);
 edit[SkuLedger](WriteOffDetail d) += ACTION edit(d);
 
 show 'Просмотреть' = ACTION ABSTRACT LIST (WriteOffDetail) TOOLBAR;
 show(UserWriteOffDetail d) = ACTION NEWSESSION {
-    FORM userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
+    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
 }
 show(UserWriteOffDetail d) += ACTION show(d);
 show[SkuLedger](WriteOffDetail d) += ACTION show(d);

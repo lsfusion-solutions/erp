@@ -239,7 +239,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             }
             setAddedUser(dialogBarcodeSku());
         } ELSE {
-            FORM emptyBarcodeSkus ;
+            SHOW emptyBarcodeSkus ;
             IF formResult() == FormResult.ok THEN {
                 FOR Object s == chosenObject('s') DO {
                     dialogBarcodeSku() <- s;
@@ -293,7 +293,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku BACKGROUND backgroundSku(d), 
                         nameSku BACKGROUND backgroundSku(d), shortNameUOMSku
         PROPERTIES (d) quantity, price, sum, manufactureDate, expiryDate,
-                       name###stockProp##Stock[ShipmentDetail], ADDOBJ, deletesd=DELETESESSION
+                       name###stockProp##Stock[ShipmentDetail], NEW, deletesd=DELETE
         ORDER BY index(d)
 
         PROPERTIES(s) TODRAW d fillDocument, addDetailDialogSkuStockUserShipmentDetail,
@@ -436,7 +436,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 }
             }
 
-            FORM userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
+            SHOW userShipment OBJECTS s = s MANAGESESSION DOCKED NOCANCEL;
         }
     } TOOLBAR;
     
@@ -516,12 +516,12 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
         PROPERTIES (s) READONLY FORCE PANEL createdNameUser[UserShipment], createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (s)  ADDFORM[UserShipment]
+        PROPERTIES (s)  NEWSESSION NEW[UserShipment]
         PROPERTIES (s) edit SHOWIF overShowEdit(s), //isOpenedShipment(s), 
                        copy
         PROPERTIES (s) close[UserShipment] SHOWIF isOpened[UserShipment](s), open SHOWIF isClosed[UserShipment](s)
 
-        PROPERTIES (s) deletes=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(s) //isUserOpenedShipment(s)
+        PROPERTIES (s) NEWSESSION deletes=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(s) //isUserOpenedShipment(s)
 
         OBJECTS d = ShipmentDetail
         PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
@@ -537,7 +537,7 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
                 filterCustomUser(s),
                 filterComputer(s)                
                 
-        DIALOG Shipment OBJECT s
+        LIST Shipment OBJECT s
     ;
 
     DESIGN shipments captions###sign {
@@ -606,14 +606,14 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
     @defineDocumentLogForm(shipments, s);
     edit 'Редактировать' = ACTION ABSTRACT LIST  (ShipmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
     edit(UserShipmentDetail d) = ACTION NEWSESSION {
-        FORM userShipment OBJECTS s = userShipment(d), d = d MANAGESESSION DOCKED;
+        SHOW userShipment OBJECTS s = userShipment(d), d = d MANAGESESSION DOCKED;
     }
     
     edit(UserShipmentDetail d) += ACTION edit(d);      
     
     show 'Просмотреть' = ACTION ABSTRACT LIST  (ShipmentDetail) TOOLBAR;
     show(UserShipmentDetail d) = ACTION NEWSESSION {
-        FORM userShipment OBJECTS s = userShipment(d), d = d DOCKED READONLY;
+        SHOW userShipment OBJECTS s = userShipment(d), d = d DOCKED READONLY;
     }
     
     show(UserShipmentDetail d) += ACTION show(d);          
@@ -646,7 +646,7 @@ END
 META defineShipmentBatchDialogStock(stockProp, dialog)
 
     changeBatch(UserShipmentDetail userShipmentDetail) = ACTION {
-        FORM dialogBatchStock##dialog OBJECTS st = stockProp(userShipmentDetail),
+        SHOW dialogBatchStock##dialog OBJECTS st = stockProp(userShipmentDetail),
                                  t = dateTime(userShipmentDetail),
                                  sk = sku(userShipmentDetail) DIALOG SHOWDROP;
 
@@ -664,7 +664,7 @@ END
 META defineShipmentBatchDialog(dumb)
 
     changeBatch(UserShipmentDetail userShipmentDetail) = ACTION {
-        FORM dialogBatch OBJECTS sk = sku(userShipmentDetail) DIALOG SHOWDROP;
+        SHOW dialogBatch OBJECTS sk = sku(userShipmentDetail) DIALOG SHOWDROP;
 
         IF formResult() == FormResult.ok THEN {
             batch(userShipmentDetail) <- chosenObject('bt');

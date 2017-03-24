@@ -221,9 +221,9 @@ changeDialogSku(ReceiptDetail detail)  = ACTION {
     setAttributes(detail); 
     REQUEST OBJECT s
         IF sku(detail) THEN {
-            FORM skus OBJECTS s = sku(detail) ;
+            SHOW skus OBJECTS s = sku(detail) ;
         } ELSE {
-            FORM skus ;
+            SHOW skus ;
         }
                                               
     IF formResult() == FormResult.ok THEN {
@@ -243,7 +243,7 @@ replace(Sku s, Batch b) += ACTION { sku(ReceiptSaleDetail detail) <- s WHERE bat
 replace(Sku s, Batch b) += ACTION { sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
 
 changeBatch(ReceiptDetail detail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
+    SHOW dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
 
@@ -488,7 +488,7 @@ CLASS PaymentMeans 'Форма оплаты'{
 FORM paymentMeans
     OBJECTS m = PaymentMeans
     PROPERTIES(m) staticCaption
-    DIALOG PaymentMeans OBJECT m
+    LIST PaymentMeans OBJECT m
 ;
 
 CLASS PaymentType 'Тип платежа';
@@ -512,9 +512,9 @@ FORM paymentType 'Тип платежа'
 FORM paymentTypes 'Тип платежа'
     OBJECTS pt = PaymentType
     PROPERTIES(pt) READONLY name, namePaymentMeans, sid
-    PROPERTIES(pt) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(pt) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
-    DIALOG PaymentType OBJECT pt
+    LIST PaymentType OBJECT pt
 ;
 
 receipt (payment) = DATA Receipt (Payment) NOT NULL DELETE INDEXED;
@@ -644,7 +644,7 @@ FORM zReport 'Z-отчет'
     PROPERTIES(b) number, date, time, nameEmployee,
                   sumReceiptDetail, discountSumReceiptDetail,
                   discountSum, sumVATReceiptDetail, countReceiptDetail, quantityReceiptDetail,
-                  sumCashPayment, sumCardPayment, ADDOBJ, DELETESESSION
+                  sumCashPayment, sumCardPayment, NEW, DELETE
     FILTERS zReport(b)==z
 
     PROPERTIES(b) TODRAW d addDetailDialogSkuStockReceiptSaleDetail, addDetailDialogSkuStockReceiptReturnDetail
@@ -656,12 +656,12 @@ FORM zReport 'Z-отчет'
                   descriptionSale FORCE GRID ON CHANGE changeDescriptionSale(d),
                   quantity, quantityReturned FORCE GRID, price,
                   sum, discountPercent FORCE GRID, discountSum FORCE GRID,
-                  numberVAT FORCE GRID, valueVAT FORCE GRID, ADDOBJ, DELETESESSION
+                  numberVAT FORCE GRID, valueVAT FORCE GRID, NEW, DELETE
 
     FILTERS receipt(d)==b
 
     OBJECTS p=Payment
-    PROPERTIES(p) namePaymentType, namePaymentMeans, sum, ADDOBJ, del = DELETESESSION
+    PROPERTIES(p) namePaymentType, namePaymentMeans, sum, NEW, del = DELETE
 
     FILTERS receipt(p)==b
 
@@ -711,7 +711,7 @@ overCopy = ACTION ABSTRACT LIST (ReceiptDetail, Receipt);
 edit 'Редактировать' = ACTION EDITFORM ZReport;
 
 show 'Просмотреть' (ZReport z) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = z DOCKED READONLY ;
+    SHOW zReport OBJECTS z = z DOCKED READONLY ;
 }
 
 copy 'Копировать'(Receipt receipt) = ACTION {
@@ -798,24 +798,24 @@ WHEN SESSION FORMS zReport CHANGED (sku(ReceiptDetail d))  AND NOT (CHANGED (idB
 edit 'Редактировать' = ACTION ABSTRACT LIST  (ReceiptDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 
 edit 'Редактировать' (ReceiptReturnDetail d) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
 }
 edit(ReceiptReturnDetail d) += ACTION edit(d);
 
 edit 'Редактировать' (ReceiptSaleDetail d) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
+    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d MANAGESESSION DOCKED;
 }
 edit(ReceiptSaleDetail d) += ACTION edit(d);
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (ReceiptDetail)  TOOLBAR;
 
 show 'Просмотреть' (ReceiptReturnDetail d) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY ;
+    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY ;
 }
 show(ReceiptReturnDetail d) += ACTION show(d);
 
 show 'Просмотреть' (ReceiptSaleDetail d) = ACTION NEWSESSION {
-    FORM zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
+    SHOW zReport OBJECTS z = zReport(d), b = receipt(d), d = d DOCKED READONLY;
 }
 show(ReceiptSaleDetail d) += ACTION show(d);
 
@@ -853,10 +853,10 @@ FORM zReports 'Z-отчеты'
                             sumNegativeCashPayment, sumNegativeCardPayment, sumVATReceiptDetail,
                             discountSum, firstDateTimeReceipt, lastDateTimeReceipt                                                                                 
                                                         
-    PROPERTIES (z) ADDFORM, EDITFORM SHOWIF isOpened(z) 
+    PROPERTIES (z) NEWSESSION NEW, EDIT SHOWIF isOpened(z) 
     PROPERTIES (z) close SHOWIF isOpened(z), open SHOWIF isClosed(z)
 
-    PROPERTIES (z) deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftOpened(z),
+    PROPERTIES (z) NEWSESSION deletez=DELETE FORCE PANEL TOOLBAR SHOWIF isDraftOpened(z),
                             post SHOWIF isDraftOpened(z), unpost SHOWIF isPostedOpened(z)
     
     FILTERS filterDateFromZreport(z),

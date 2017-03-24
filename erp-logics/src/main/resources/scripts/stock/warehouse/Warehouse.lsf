@@ -32,10 +32,10 @@ FORM warehouseGroups 'Группы складов'
 
     TREE warehouseGroupTree wg = WarehouseGroup PARENT parent
     PROPERTIES READONLY wgTreeName = name(wg)
-    PROPERTIES(wg) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(wg) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     ORDER BY wgTreeName
 
-    DIALOG WarehouseGroup OBJECT wg
+    LIST WarehouseGroup OBJECT wg
 ;
 
 // ----------------------------------------- Склады ------------------------------ //
@@ -107,7 +107,7 @@ FORM warehouse 'Склад'
 
     OBJECTS           e = Employee FIXED GRID
     PROPERTIES(e)     SHOWIF isCompany(w) READONLY firstName, lastName
-    PROPERTIES(e)     SHOWIF isCompany(w) ADDSESSIONFORM, EDITSESSIONFORM, deletee = DELETESESSION
+    PROPERTIES(e)     SHOWIF isCompany(w) NEWEDIT, EDIT, deletee = DELETE
     FILTERS           in(w, e)
 
     EDIT Warehouse OBJECT w
@@ -172,18 +172,18 @@ FORM warehouses 'Склады'
 
     TREE warehouseTree b=STRING[3], wg = WarehouseGroup PARENT parent
     PROPERTIES READONLY OBJVALUE(b), wgTreeName = name(wg)
-    PROPERTIES(wg) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(wg) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     ORDER BY wgTreeName
     FILTERS stringEqualsAll(b)
 
     OBJECTS w=Warehouse
     PROPERTIES(w) READONLYIF isReadonly() name, fullName, id SHOWIF showIDs(), nameWarehouseGroup, 
                   address, email, nameLegalEntity, nameRegion, latitude[POI], longitude[POI]
-    PROPERTIES(w) ADDFORM, EDITFORM, deletew=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(w) NEWSESSION NEW, EDIT, deletew=DELETE FORCE PANEL TOOLBAR
     ORDER BY name(w)
     FILTERS isParent(wg, w) OR (w IS Warehouse AND wg IS WarehouseGroup AND NOT warehouseGroup(w)) OR (w IS Warehouse AND NOT wg)
 
-    DIALOG Warehouse OBJECT w
+    LIST Warehouse OBJECT w
 ;
 
 DESIGN warehouses {
@@ -209,7 +209,7 @@ addWarehouse 'Добавить склад'(LegalEntity legalEntity) = ACTION NES
     FOR ADDOBJ wr = Warehouse DO {
         legalEntity(wr) <- legalEntity;
         overAddWarehouse(wr);
-        FORM warehouse OBJECTS w = wr MANAGESESSION DOCKED;
+        SHOW warehouse OBJECTS w = wr MANAGESESSION DOCKED;
     }
 }
 

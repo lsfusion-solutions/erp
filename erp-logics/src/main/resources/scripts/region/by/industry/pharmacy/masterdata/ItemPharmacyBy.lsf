@@ -104,7 +104,7 @@ FORM pharmacyMarkups 'Типы лекарственных средств'
 
     OBJECTS g=PharmacyPriceGroup
     PROPERTIES (g) name, id SHOWIF showIDs(), namePharmacyTypeGroup, inactive
-    PROPERTIES (g) ADDOBJ, DELETESESSION
+    PROPERTIES (g) NEW, DELETE
     ORDER BY id(g)
     FILTERGROUP active
         FILTER 'Активные' active(g) DEFAULT
@@ -112,7 +112,7 @@ FORM pharmacyMarkups 'Типы лекарственных средств'
     OBJECTS i=PharmacyPriceInterval
     PROPERTIES fromDatePharmacy(i), toDatePharmacy(i), pricePharmacy(i),
                wholesaleMarkup(i), retailMarkup(i)
-    PROPERTIES(i) ADDOBJ, DELETESESSION
+    PROPERTIES(i) NEW, DELETE
     FILTERS    pharmacyGroupPharmacy(i)==g
     FILTERGROUP isActive
         FILTER 'Действующие' isActive(i) DEFAULT
@@ -175,7 +175,7 @@ FORM pharmacyPriceGroups 'Типы лекарственных средств'
     FILTERGROUP isActive
         FILTER 'Действующие' isActive(i) DEFAULT
 
-    DIALOG PharmacyPriceGroup OBJECT g
+    LIST PharmacyPriceGroup OBJECT g
 ;
 
 DESIGN pharmacyPriceGroups {
@@ -195,14 +195,14 @@ EXTEND FORM attributesItem
     OBJECTS pharmacyPriceGroup=PharmacyPriceGroup
     PROPERTIES in(pharmacyPriceGroup)       
     PROPERTIES (pharmacyPriceGroup) name, id SHOWIF showIDs(), namePharmacyTypeGroup
-    PROPERTIES(pharmacyPriceGroup) ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR        
+    PROPERTIES(pharmacyPriceGroup) NEW, DELETE FORCE PANEL TOOLBAR        
     PROPERTIES replace(pharmacyPriceGroup) TODRAW pharmacyPriceGroup FORCE PANEL TOOLBAR        
     ORDER BY id(pharmacyPriceGroup)
 
     OBJECTS pharmacyPriceInterval=PharmacyPriceInterval
     PROPERTIES (pharmacyPriceInterval) fromDatePharmacy, toDatePharmacy, pricePharmacy,
                                        wholesaleMarkup, retailMarkup
-    PROPERTIES(pharmacyPriceInterval) ADDOBJ, DELETESESSION
+    PROPERTIES(pharmacyPriceInterval) NEW, DELETE
     FILTERS    pharmacyGroupPharmacy(pharmacyPriceInterval)==pharmacyPriceGroup
     ORDER BY pricePharmacy(pharmacyPriceInterval)
 
@@ -380,7 +380,7 @@ edit 'Редактировать' = ACTION EDITFORM WholesalePharmacyPriceListTy
 edit(WholesalePharmacyPriceListType priceListType) += ACTION edit(priceListType);
 
 EXTEND FORM priceListTypes
-    PROPERTIES(pt) addWholesalePharmacyPriceListType = ADDFORM[WholesalePharmacyPriceListType]
+    PROPERTIES(pt) NEWSESSION addWholesalePharmacyPriceListType = NEW[WholesalePharmacyPriceListType]
 ;
 
 DESIGN priceListTypes {
@@ -429,10 +429,10 @@ DESIGN pharmacyCompalsoryGroup {
 FORM pharmacyCompalsoryGroups 'Группы обязательного перечня'
     OBJECTS g = PharmacyCompalsoryGroup
     PROPERTIES(g) READONLY name, id
-    PROPERTIES (g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (g) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     PROPERTIES () isEditable
     ORDER BY name(g)
-    DIALOG PharmacyCompalsoryGroup OBJECT g
+    LIST PharmacyCompalsoryGroup OBJECT g
 ;
 
 @defineObjectItemAttribute(pharmacyCompalsoryGroup, PharmacyCompalsoryGroup, name, 'Группа обязательного перечня', itemPharmacy);
@@ -460,10 +460,10 @@ DESIGN pharmacyBaseGroup {
 FORM pharmacyBaseGroups 'Группы основного перечня'
     OBJECTS g = PharmacyBaseGroup
     PROPERTIES(g) READONLYIF isReadonly() name, id
-    PROPERTIES (g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (g) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     PROPERTIES () isEditable
     ORDER BY name(g)
-    DIALOG PharmacyBaseGroup OBJECT g
+    LIST PharmacyBaseGroup OBJECT g
 ;
 
 @defineObjectItemAttribute(pharmacyBaseGroup, PharmacyBaseGroup, name, 'Группа основного перечня', itemPharmacy);

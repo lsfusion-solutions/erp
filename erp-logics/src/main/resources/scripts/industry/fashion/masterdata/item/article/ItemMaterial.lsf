@@ -23,10 +23,10 @@ FORM material 'Материал'
 
 FORM materials 'Материалы'
     OBJECTS t=Material
-    PROPERTIES(t) name READONLY, shortName READONLY , id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
+    PROPERTIES(t) NEWSESSION name READONLY, shortName READONLY , id SHOWIF showIDs() READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER BY name(t)
-    DIALOG Material OBJECT t
+    LIST Material OBJECT t
 ;
 DESIGN materials { main{ preferredSize = (600, 400); } }
 
@@ -49,16 +49,16 @@ FORM itemMaterial 'Материалы'
     PROPERTIES(i) READONLY percentMaterials BACKGROUND  backgroundMaterials(i)
     
     OBJECTS t=Material
-    PROPERTIES(t) name READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION name READONLY, DELETE FORCE PANEL TOOLBAR
     PROPERTIES(t,i) percent
     
-    PROPERTIES(t) ADDFORM, EDITFORM
+    PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER BY name(t)
 ;
 DESIGN itemMaterial { main { preferredSize = (600, 400); } }     
 
 createComposition 'Выбрать состав'(Item item) = ACTION {          
-    FORM itemMaterial OBJECTS i = item ; 
+    SHOW itemMaterial OBJECTS i = item ; 
 } SHORTCUT composition[Item];  
 
 //добавление на форму атрибутов товара
@@ -94,7 +94,7 @@ DESIGN confirmReplaceMaterial {
 }
 
 replace 'Объединить'(Material material) = ACTION {
-    FORM confirmReplaceMaterial OBJECTS o=material ;
+    SHOW confirmReplaceMaterial OBJECTS o=material ;
     IF formResult() == FormResult.ok THEN {
         allowReplaceMaterial() <- TRUE;
         FOR in(Material o) AND allowReplaceMaterial() DO{
@@ -126,7 +126,7 @@ EXTEND FORM attributesItem
     PROPERTIES in(material)
     PROPERTIES(material) READONLY name
     PROPERTIES(material) READONLY shortName, id SHOWIF showIDs()
-    PROPERTIES(material) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR        
+    PROPERTIES(material) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR        
     ORDER BY name(material)
     PROPERTIES replace(material) TODRAW material FORCE PANEL TOOLBAR
 ;

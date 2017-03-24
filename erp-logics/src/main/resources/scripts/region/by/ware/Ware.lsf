@@ -77,7 +77,7 @@ DESIGN addPriceWare {
     PROPERTY(name(a)) { focusable = FALSE; }
 }
 
-addPrice 'Добавить' (Ware ware) = ACTION FORM addPriceWare OBJECTS a = ware  TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
+addPrice 'Добавить' (Ware ware) = ACTION SHOW addPriceWare OBJECTS a = ware  TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
 FORM dialogPriceWare 'Цена'
     OBJECTS a=Ware FIXED PANEL, d=DATE
@@ -88,7 +88,7 @@ DESIGN dialogPriceWare {
     PROPERTY(name(a)) { focusable = FALSE; }
 }
 
-dialogPrice 'Цена' (Ware ware) = ACTION FORM dialogPriceWare OBJECTS a = ware  SHORTCUT price[Ware] ASON CHANGE price[Ware];
+dialogPrice 'Цена' (Ware ware) = ACTION SHOW dialogPriceWare OBJECTS a = ware  SHORTCUT price[Ware] ASON CHANGE price[Ware];
     
 VAT 'НДС' = DATA Range (Ware, Country);
 numberVAT 'НДС, номер' (Ware w, Country c) = number(VAT(w, c));
@@ -111,7 +111,7 @@ valueVAT 'НДС, %' (Ware ware) = valueVAT(ware, currentDate());
 
 changeNumberVAT(Ware ware) = ACTION {
     REQUEST OBJECT r
-        FORM rangeDialog OBJECTS c = defaultCountry() DIALOG SHOWDROP;
+        SHOW rangeDialog OBJECTS c = defaultCountry() DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         VAT(ware, Country country) <- requestedObject() WHERE country == defaultCountry();
 
@@ -139,12 +139,12 @@ FORM wareGroups 'Группы посуды'
 
     OBJECTS g=WareGroup
     PROPERTIES(g) READONLY name, canonicalName
-    PROPERTIES(g) DELETE FORCE PANEL TOOLBAR, ADDFORM, EDITFORM
+    PROPERTIES(g) NEWSESSION DELETE FORCE PANEL TOOLBAR, NEW, EDIT
     ORDER BY canonicalName(g)
 
     FILTERS isParent(g, tg)
 
-    DIALOG WareGroup OBJECT g
+    LIST WareGroup OBJECT g
 ;
 
 DESIGN wareGroups {
@@ -186,10 +186,10 @@ FORM wares 'Посуда'
 
     OBJECTS w=Ware
     PROPERTIES(w) READONLY name, id SHOWIF showIDs(), canonicalNameWareGroup, price, numberVAT, valueVAT
-    PROPERTIES(w) ADDFORM, EDITFORM, deletew=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(w) NEWSESSION NEW, EDIT, deletew=DELETE FORCE PANEL TOOLBAR
     FILTERS isParent(tg, w)
 
-    DIALOG Ware OBJECT w
+    LIST Ware OBJECT w
 ;
 
 DESIGN wares {

@@ -74,7 +74,7 @@ curRepricingPrice (RepricingDetail detail) = OVERRIDE curPrice(detail), overCurR
 @defineDocumentInterfaceDetailBatch(repricing, batch);
 
 changeBatch(UserRepricingDetail detail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
+    SHOW dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
 
@@ -324,7 +324,7 @@ CLASS ChangePriceType 'Тип изменения цены' {
 FORM changePriceTypes 'Типы изменения цен'
     OBJECTS t = ChangePriceType
     PROPERTIES(t) READONLY staticCaption
-    DIALOG ChangePriceType OBJECT t
+    LIST ChangePriceType OBJECT t
 ;
 
 changePriceType = DATA ChangePriceType (UserRepricing);
@@ -381,7 +381,7 @@ overChangePriceUser = ACTION ABSTRACT LIST (RepricingDetail);
 
 changePrice 'Изменить цену' (UserRepricing repricing) = ACTION {
         roundCondition(repricing) <- repricingRoundCondition() IF currency(repricing) == currency(repricingRoundCondition());
-        FORM addPercentUserRepricing OBJECTS u = repricing ;
+        SHOW addPercentUserRepricing OBJECTS u = repricing ;
         IF formResult() == FormResult.ok AND changePriceType(repricing) AND percent(repricing) THEN {
             FOR userRepricing(UserRepricingDetail d) == repricing DO {
                 price(d) <- curPrice(d);
@@ -561,7 +561,7 @@ FORM userRepricing 'Акт переоценки'
                    price, sum,                    
                    markup ON CHANGE changeMarkup(d), markupSum,
                    numberVAT, valueVAT, VATSum,
-                   retailPrice ON CHANGE changeRetailPrice(d), retailSum, ADDOBJ, DELETESESSION
+                   retailPrice ON CHANGE changeRetailPrice(d), retailSum, NEW, DELETE
 
     PROPERTIES TODRAW d changePrice(p), recalculatePrice(p) SHOWIF allowRecalculatePrice(p)
 
@@ -671,7 +671,7 @@ DESIGN userRepricing{
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (RepricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserRepricingDetail d) = ACTION NEWSESSION {
-    FORM userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKED;
+    SHOW userRepricing OBJECTS p = userRepricing(d), d = d MANAGESESSION DOCKED;
 }
 
 edit(UserRepricingDetail d) += ACTION edit(d);    
@@ -679,7 +679,7 @@ edit[SkuLedger](RepricingDetail ledger) += ACTION edit(ledger);
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (RepricingDetail) TOOLBAR;
 show(UserRepricingDetail d) = ACTION NEWSESSION {
-    FORM userRepricing OBJECTS p = userRepricing(d), d = d DOCKED READONLY ;
+    SHOW userRepricing OBJECTS p = userRepricing(d), d = d DOCKED READONLY ;
 }
 
 show(UserRepricingDetail d) += ACTION show(d);    
@@ -781,7 +781,7 @@ copy 'Копировать'(Repricing repricing) = ACTION NEWSESSION {
                 overCopy(d, repricingDetail);
             }
         }
-        FORM userRepricing OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
+        SHOW userRepricing OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 
@@ -800,11 +800,11 @@ FORM repricings 'Акты переоценки'
     PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p)  ADDFORM[UserRepricing]
+    PROPERTIES (p)  NEWSESSION NEW[UserRepricing]
     PROPERTIES (p) edit SHOWIF showEditUser(p)
     PROPERTIES(p)  close[UserRepricing] SHOWIF isOpened[UserRepricing](p), open SHOWIF isClosed[UserRepricing](p)     
     PROPERTIES copy(p)
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF showDeleteUser(p)
+    PROPERTIES (p) NEWSESSION deletep=DELETE FORCE PANEL TOOLBAR SHOWIF showDeleteUser(p)
     PROPERTIES (p) FORCE PANEL print, printXls 
     PROPERTIES () toFillQuantityUserRepricingDetailAllUserRepricings FORCE PANEL TODRAW p
     OBJECTS d = RepricingDetail
@@ -826,7 +826,7 @@ FORM repricings 'Акты переоценки'
             filterDateTo(p),
             filterStore(p)
 
-    DIALOG Repricing OBJECT p
+    LIST Repricing OBJECT p
 ;
 @extendFormFilterAccessStock(Repricing, p, repricings, departmentStore, company);
 @extendFormFilterRoleAccess(repricing, p, repricings);

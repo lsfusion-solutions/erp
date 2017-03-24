@@ -63,12 +63,12 @@ childNumbers 'Строки' (detail) =
 changeStatisticGroup(StatisticReportTypeDetail d) = ACTION {
     REQUEST OBJECT s
     IF NOT  statisticGroupType(statisticReportType(d)) THEN {
-        FORM statisticGroupDialog DIALOG SHOWDROP;
+        SHOW statisticGroupDialog DIALOG SHOWDROP;
     }ELSE {
         IF statisticGroup(d) THEN {            
-            FORM statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)), s = statisticGroup(d) CONTEXTFILTER s = statisticGroup(d) DIALOG SHOWDROP;       
+            SHOW statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)), s = statisticGroup(d) CONTEXTFILTER s = statisticGroup(d) DIALOG SHOWDROP;       
         } ELSE {            
-            FORM statisticGroupDialog CONTEXTFILTER c = statisticGroupType(statisticReportType(d)) DIALOG SHOWDROP;       
+            SHOW statisticGroupDialog CONTEXTFILTER c = statisticGroupType(statisticReportType(d)) DIALOG SHOWDROP;       
         }    
     }
     IF formResult() == FormResult.ok THEN {
@@ -90,7 +90,7 @@ FORM statisticReportType 'Тип статистического отчета'
     PROPERTIES (d) index, name, number, nameStatisticGroup ON CHANGE changeStatisticGroup(d),
                    sidStatisticGroup ON CHANGE changeStatisticGroup(d), nameUOM, round    
     PROPERTIES READONLY childNumbers(d)                
-    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION              
+    PROPERTIES (d) NEW, deleteid=DELETE              
     ORDER BY index(d)
     PROPERTIES(r) TODRAW d deleteStatisticReportTypeDetail    
     FILTERS statisticReportType(d) == r
@@ -158,7 +158,7 @@ copy 'Копировать' (StatisticReportType type) = ACTION NEWSESSION {
             parent(d) <- detail;
         }
         in(StatisticReportTypeDetail d, StatisticReportTypeDetail parent) <- in(parent(d), parent(parent)) WHERE statisticReportType(d) == r AND statisticReportType(parent) == r;
-        FORM statisticReportType OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
+        SHOW statisticReportType OBJECTS r = r MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR ;
 
@@ -168,7 +168,7 @@ FORM statisticReportTypes 'Типы статистических отчетов'
     PROPERTIES (r) READONLY name, nameStatisticGroupType, note, isSumReport
                 
     PROPERTIES (r) READONLY countStatisticReportTypeDetail
-    PROPERTIES (r) ADDFORM, EDITFORM, deleter=DELETE FORCE PANEL TOOLBAR  
+    PROPERTIES (r) NEWSESSION NEW, EDIT, deleter=DELETE FORCE PANEL TOOLBAR  
     PROPERTIES (r) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer 
     PROPERTIES (r) copy 
       
@@ -179,7 +179,7 @@ FORM statisticReportTypes 'Типы статистических отчетов'
 
     FILTERS statisticReportType(d) == r
                 
-    DIALOG StatisticReportType OBJECT r
+    LIST StatisticReportType OBJECT r
 ;
 DESIGN statisticReportTypes {
     main {
@@ -309,7 +309,7 @@ FORM reportKinds 'Виды отчета'
     OBJECTS k = ReportKind
     PROPERTIES(k) READONLY staticCaption
     FILTERS k != ReportKind.consolidate
-    DIALOG ReportKind OBJECT k
+    LIST ReportKind OBJECT k
 ;
 
 DESIGN reportKinds {
@@ -566,7 +566,7 @@ statisticReportDetail = GROUP MAX StatisticReportDetail detail BY statisticRepor
 changeStatisticReportType =  ACTION ABSTRACT LIST (StatisticReportDetail, StatisticReportTypeDetail);
 
 changeStatisticReportType (StatisticReport r) = ACTION {
-    FORM statisticReportTypes DIALOG SHOWDROP;
+    SHOW statisticReportTypes DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN { 
         statisticReportType(r) <- chosenObject('r');
         name(r) <- name(statisticReportType(r));
@@ -611,7 +611,7 @@ FORM statisticReport 'Статистический отчет'
                    sidStatisticGroup, nameUOM, round, childNumbers READONLY SHOWIF showDD(r)
     PROPERTIES (d) SHOWIF isThing(r) sold, soldResident, balance, balanceResident  
     PROPERTIES (d) SHOWIF isSum(r) soldSum, soldSumResident, balanceSum                
-    PROPERTIES (d) ADDOBJ, deleteid=DELETESESSION
+    PROPERTIES (d) NEW, deleteid=DELETE
               
     PROPERTIES(r) fillData FORCE PANEL TOOLBAR TODRAW d SHOWIF isStockThing(r) ,
                 fillRegionData FORCE PANEL TOOLBAR TODRAW d SHOWIF isRegionThing(r),
@@ -768,7 +768,7 @@ createSumReport 'Создать суммарный отчет'()= ACTION NEWSESS
             balanceSum(d) <- IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.stock THEN [= GROUP SUM balanceSum(Stock s,StatisticGroup sg) BY sg](statisticGroup(d))
                 ELSE IF [=GROUP MAX reportKind(StatisticReport r) IF in(r) ]() == ReportKind.region THEN [= GROUP SUM balanceSum(Region s,StatisticGroup sg) BY sg](statisticGroup(d));
         }
-        FORM statisticReport OBJECTS r = s MANAGESESSION DOCKED NOCANCEL;
+        SHOW statisticReport OBJECTS r = s MANAGESESSION DOCKED NOCANCEL;
     }
     in(StatisticReport r) <- NULL;
 } 
@@ -790,7 +790,7 @@ FORM selectSatisticReport 'Выбор отчетов'
     FILTERGROUP selects
         FILTER 'Отмеченные' in (r, ri) 'F10'         
 ;
-changeReports (StatisticReport r) = ACTION FORM selectSatisticReport OBJECTS r = r ;
+changeReports (StatisticReport r) = ACTION SHOW selectSatisticReport OBJECTS r = r ;
 
 
 fillSumReport 'Заполнить данные'(StatisticReport s)= ACTION  {
@@ -857,7 +857,7 @@ FORM statisticReports 'Статистические отчеты'
     PROPERTIES createSumReport()
     
     PROPERTIES (r) close SHOWIF isOpened(r), open SHOWIF isClosed(r)
-    PROPERTIES (r) ADDFORM, EDITFORM SHOWIF isOpened(r), deleter=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(r)  
+    PROPERTIES (r) NEWSESSION NEW, EDIT SHOWIF isOpened(r), deleter=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(r)  
                                        
     OBJECTS d = StatisticReportDetail
     PROPERTIES (d) READONLY index, name, number, nameStatisticGroup,
@@ -867,7 +867,7 @@ FORM statisticReports 'Статистические отчеты'
     ORDER BY index(d)
     FILTERS statisticReport(d) == r
                 
-    DIALOG StatisticReport OBJECT r
+    LIST StatisticReport OBJECT r
 ;
 DESIGN statisticReports {
     main {

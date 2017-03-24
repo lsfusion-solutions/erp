@@ -112,7 +112,7 @@ FORM materials 'Материалы'
     FILTERS isParent(sg, m)
     ORDER BY name(m)
 
-    DIALOG Material OBJECT m
+    LIST Material OBJECT m
 ;
 
 DESIGN materials {
@@ -244,7 +244,7 @@ DESIGN yearFromTo {
 
 fillWastage 'Заполнить технологии на другой год'(Technology technology) = ACTION {
 
-    FORM yearFromTo ;
+    SHOW yearFromTo ;
     IF formResult() == FormResult.ok THEN {
 
         LOCAL newYear = INTEGER();
@@ -269,7 +269,7 @@ FORM technologies 'Технологии'
     OBJECTS t=Technology
     PROPERTIES(t)  READONLY name
 
-    PROPERTIES (t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (t) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     PROPERTIES (t) fillWastage
 
     OBJECTS m=Material
@@ -278,7 +278,7 @@ FORM technologies 'Технологии'
 
     FILTERS        wastage(t,m)
 
-    DIALOG Technology OBJECT t
+    LIST Technology OBJECT t
 ;
 
 DESIGN technologies {
@@ -424,7 +424,7 @@ FORM products 'Изделия'
     FILTERGROUP active
         FILTER 'Активные' NOT inactive(p) DEFAULT
 
-    DIALOG Product OBJECT p
+    LIST Product OBJECT p
 ;
 
 
@@ -532,7 +532,7 @@ wastage '% потерь' (Component component, DATE date) = [= (1.0-(X*(100.0-Y)
 @defineDocumentHeaderQuantityCustomPrefix (BOM, component, brutto, ' (брутто компонент)'); 
             
 selectTechnologies(Component component) = ACTION {
-    FORM componentTechnologies OBJECTS c = component ;
+    SHOW componentTechnologies OBJECTS c = component ;
 }  
        
 changeNettoQuantity(Component component) = ACTION {
@@ -579,7 +579,7 @@ FORM components 'Компоненты'
     PROPERTIES(c) READONLY description, id SHOWIF showIDs(), nameMaterial, shortNameUOM, nettoQuantity
 //    PROPERTIES (c) ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
 
-    DIALOG Component OBJECT c
+    LIST Component OBJECT c
 ;
 
 CONSTRAINT material(Component c) IS Sku AND NOT isComponentGroup(material(c)) CHECKED  BY material[Component]
@@ -690,7 +690,7 @@ FORM BOM 'Спецификация'
     
     PROPERTIES(p) quantity, overNettoNetWeight READONLY, pricePercent, calcPriceCoeff ON CHANGE changePriceCoeff(p)
 
-    PROPERTIES(p) ADDOBJ, deletep=DELETESESSION
+    PROPERTIES(p) NEW, deletep=DELETE
     PROPERTIES(b) TODRAW p deleteProduct
     FILTERS       BOM(p) == b
 
@@ -706,7 +706,7 @@ FORM BOM 'Спецификация'
                   overCurBruttoQuantity READONLY BACKGROUND backgroundBruttoQuantity(c),
                   overCurBruttoNetWeight READONLY BACKGROUND backgroundBruttoQuantity(c)
     ORDER BY index(c)
-    PROPERTIES(c) ADDOBJ, deletec=DELETESESSION
+    PROPERTIES(c) NEW, deletec=DELETE
     PROPERTIES(b) TODRAW c deleteComponent
     FILTERS       BOM(c) == b
     
@@ -818,7 +818,7 @@ copy 'Копировать'(BOM BOM) = ACTION NEWSESSION {
 
         EXEC overCopy(BOM, b);
         
-        FORM BOM OBJECTS b = b MANAGESESSION DOCKED;
+        SHOW BOM OBJECTS b = b MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -843,7 +843,7 @@ addBOM 'Добавить'(Sku sku) = ACTION NEWSESSION {
             BOM(p) <- b;
             sku(p) <- sku;
         } 
-        FORM BOM OBJECTS  b = b MANAGESESSION  DOCKED;
+        SHOW BOM OBJECTS  b = b MANAGESESSION  DOCKED;
     }
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 
@@ -853,7 +853,7 @@ FORM BOMs 'Спецификации'
 
     PROPERTIES(b)  READONLY BACKGROUND background(b) inactive, products, name, number, series,  date, time, fromDate, toDate, components,  
                    overNettoNetWeightProduct, overNettoNetWeightComponent, overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES (b) ADDFORM, EDITFORM, copy, deleteb=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES (b) NEWSESSION NEW, EDIT, copy, deleteb=DELETE FORCE PANEL TOOLBAR
     PROPERTIES (b) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
     FILTERGROUP inactiveBOM
         FILTER 'Текущие' isActive(b) 'F11'            
@@ -873,14 +873,14 @@ FORM BOMs 'Спецификации'
     
     OBJECTS p1 = Sku
     PROPERTIES(p1) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
-    PROPERTIES     TODRAW p1 addSkuP1 = addSku(), Stock.edit(p1), DELETE(p1) FORCE PANEL TOOLBAR 
+    PROPERTIES     TODRAW p1 NEWSESSION addSkuP1 = addSku(), Stock.edit(p1), DELETE(p1) FORCE PANEL TOOLBAR 
     FILTERS        isProductGroup(p1)
     ORDER BY name(p1)
     
     OBJECTS b1=BOM    
     PROPERTIES(b1) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
                    overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES(b1) EDITFORM
+    PROPERTIES(b1) NEWSESSION EDIT
     PROPERTIES     addBOM(p1) TODRAW b1
     FILTERS        relationProducts(p1,b1)
           
@@ -894,12 +894,12 @@ FORM BOMs 'Спецификации'
 
     OBJECTS c2 = Sku
     PROPERTIES(c2) READONLY idBarcode, Stock.id SHOWIF showIDs(), Stock.name, Stock.shortNameUOM
-    PROPERTIES     TODRAW c2 addSkuC2 = addSku(), Stock.edit(c2), DELETE(c2) FORCE PANEL TOOLBAR  
+    PROPERTIES     TODRAW c2 NEWSESSION addSkuC2 = addSku(), Stock.edit(c2), DELETE(c2) FORCE PANEL TOOLBAR  
     FILTERS        isComponentGroup(c2)                   
     OBJECTS b2=BOM    
     PROPERTIES(b2) READONLY inactive, products, name, date, number, series, components, overNettoNetWeightProduct, overNettoNetWeightComponent, 
                    overBruttoNetWeightyComponent, pricePercent, note, stocks
-    PROPERTIES(b2) EDITFORM                
+    PROPERTIES(b2) NEWSESSION EDIT                
     FILTERS        relationComponents(c2,b2)           
     ORDER BY name(c2)
     
@@ -1018,7 +1018,7 @@ FORM BOMsDialog 'Спецификации'
                   
     FILTERS       BOM(c) == b
       
-    DIALOG BOM OBJECT b
+    LIST BOM OBJECT b
 ;
 
 DESIGN BOMsDialog {
@@ -1092,7 +1092,7 @@ FORM manufacturingCommittee 'Комиссия производство'
 
     OBJECTS e=Employee
     PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
-    PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
+    PROPERTIES(e)      NEWEDIT, EDIT, DELETE
 
     PROPERTIES(c, e)   in
     FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
@@ -1126,9 +1126,9 @@ DESIGN manufacturingCommittee {
 FORM manufacturingCommitteeDialog 'Комиссии производство'
     OBJECTS a=ManufacturingCommittee
     PROPERTIES(a)      READONLY name, nameEmployee
-    PROPERTIES(a)      ADDFORM, EDITFORM
+    PROPERTIES(a)      NEWSESSION NEW, EDIT
 
-    DIALOG ManufacturingCommittee OBJECT a
+    LIST ManufacturingCommittee OBJECT a
 ;
 
 // ----------------- Акт контрольной проработки-------------------- //
@@ -1329,7 +1329,7 @@ NAVIGATOR {
 
 showBOM 'Показать спецификацию' (Component c) = ACTION
     FOR b == BOM(material(c)) AND p == material(c) DO
-        NEWSESSION FORM BOM OBJECTS b = b, p = p  
+        NEWSESSION SHOW BOM OBJECTS b = b, p = p  
 SHORTCUT nameMaterial[Component];
 
 

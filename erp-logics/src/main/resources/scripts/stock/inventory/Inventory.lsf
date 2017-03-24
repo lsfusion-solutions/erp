@@ -43,7 +43,7 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
 
     OBJECTS e=Employee
     PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
-    PROPERTIES(e)      ADDSESSIONFORM, EDITSESSIONFORM, DELETESESSION
+    PROPERTIES(e)      NEWEDIT, EDIT, DELETE
 
     PROPERTIES(c, e)   in
     FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
@@ -79,9 +79,9 @@ DESIGN inventoryCommittee {
 FORM inventoryCommittees 'Комиссии для инвентаризации'
     OBJECTS w=InventoryCommittee
     PROPERTIES(w)      READONLY name, nameStocks, nameEmployee, nameChairman
-    PROPERTIES(w)      ADDFORM, EDITFORM
+    PROPERTIES(w)      NEWSESSION NEW, EDIT
 
-    DIALOG InventoryCommittee OBJECT w
+    LIST InventoryCommittee OBJECT w
 ;
 
 // ------------------------------- Инвентаризация --------------------------------------------- //
@@ -94,7 +94,7 @@ CLASS TypeOfAddition 'Тип инвентаризации' {
 FORM typeOfAdditions 'Типы инвентаризаций'
     OBJECTS t = TypeOfAddition
     PROPERTIES(t) READONLY staticCaption
-    DIALOG TypeOfAddition OBJECT t
+    LIST TypeOfAddition OBJECT t
 ;
 
 CLASS Inventory 'Инвентаризация';
@@ -187,7 +187,7 @@ DESIGN selectSkuGroups {
 
 changeSkuGroups (Inventory in) = ACTION {
     IF typeOfAddition(in) == TypeOfAddition.remains THEN {
-        FORM selectSkuGroups OBJECTS in = in ; 
+        SHOW selectSkuGroups OBJECTS in = in ; 
     }
 }
 isRemains(Inventory in) = typeOfAddition(in) == TypeOfAddition.remains;
@@ -1089,7 +1089,7 @@ DESIGN collationSheetBatches {
 }
 
 showCost 'Расписывание по партиям' (CollationSheet cs, Sku s) = ACTION {
-    FORM collationSheetBatches OBJECTS cs = cs, s = s ;
+    SHOW collationSheetBatches OBJECTS cs = cs, s = s ;
 }
 
 //---------------------------- Изменение остатка инвентаризации batch----------------------------//
@@ -1217,7 +1217,7 @@ DESIGN dialogStockInventory {
 }
 
 dialogStock 'Выбрать склады для инвентаризации' (Inventory inventory) =
-    ACTION FORM dialogStockInventory OBJECTS in = inventory DOCKED;
+    ACTION SHOW dialogStockInventory OBJECTS in = inventory DOCKED;
 
 //------------------------------------ Выбор SKU для сличительной ведомости ------------------------------------------//
 
@@ -1254,13 +1254,13 @@ DESIGN dialogSkuCollationSheet {
 
 dialogSku 'Добавить товар'(ManyCollationSheet collationSheet) = ACTION {
     IF collationSheet IS ManyCollationSheet THEN
-        FORM dialogSkuCollationSheet OBJECTS cs = collationSheet ;
+        SHOW dialogSkuCollationSheet OBJECTS cs = collationSheet ;
 } TOOLBAR;
 
 //------------------------------------ Формы редактирования описей ------------------------------------------//
 
 createPage 'Создать страницу описи с остатками'  (ListInventory listInventory) = ACTION {
-    FORM dialogSkuGroup ;
+    SHOW dialogSkuGroup ;
     IF formResult() == FormResult.ok THEN {    
         FOR ADDOBJ p = PageInventory  DO {
             listInventory(p) <- listInventory;
@@ -1299,13 +1299,13 @@ FORM listInventory 'Опись'
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
         
     OBJECTS         pl=PageInventory FIXED GRID
-    PROPERTIES(pl)  name, note FORCE PANEL, countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, ADDOBJ, DELETESESSION
+    PROPERTIES(pl)  name, note FORCE PANEL, countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, NEW, DELETE
     FILTERS         listInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
     PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, nameBatch SHOWIF isBatch(li), 
                     quantityGrid = quantity, price,
-                    sum, ADDOBJ SHOWIF countPageInventory(li), DELETESESSION
+                    sum, NEW SHOWIF countPageInventory(li), DELETE
     FILTERS         listInventory(pageInventory(dp)) == li, isParentSkuGroup(g, dp)
     FILTERGROUP page
     FILTER 'На странице' pageInventory(dp) == pl DEFAULT 
@@ -1394,7 +1394,7 @@ addListInventory 'Добавить'(Stock stock, Inventory inventory) = ACTION N
     FOR ADDOBJ g = ListInventory DO {
         stock(g) <- stock;
         inventory(g) <- inventory;
-        FORM listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
+        SHOW listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR IMAGE 'add.png';
 
@@ -1490,7 +1490,7 @@ FORM inventory 'Инвентаризация'
 
     PROPERTIES(li)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, isPosted
 
-    PROPERTIES(li)   editLI = EDITFORM FORCE PANEL SHOWIF saved(in), deleteli=DELETE FORCE PANEL TOOLBAR SHOWIF saved(in),
+    PROPERTIES(li)   NEWSESSION editLI = EDIT FORCE PANEL SHOWIF saved(in), deleteli=DELETE FORCE PANEL TOOLBAR SHOWIF saved(in),
                      post FORCE PANEL SHOWIF saved(in), unpost FORCE PANEL SHOWIF isPosted(li)
 
     PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, dumb
@@ -1691,42 +1691,42 @@ DESIGN inventory {
 }
 
 edit 'Редактировать' (InInventoryBatchDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
 }
 edit(InInventoryBatchDetail d) += ACTION edit(d);
 
 edit 'Редактировать' (InInventorySkuDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
 }
 edit(InInventorySkuDetail d) += ACTION edit(d);
 
 edit 'Редактировать' (OutInventoryBatchDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  MANAGESESSION DOCKED;
 }
 edit(OutInventoryBatchDetail d) += ACTION edit(d);
 
 edit 'Редактировать' (OutInventorySkuDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  MANAGESESSION DOCKED;
 }
 edit(OutInventorySkuDetail d) += ACTION edit(d);
 
 show 'Просмотреть' (InInventoryBatchDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY ;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY ;
 }
 show(InInventoryBatchDetail d) += ACTION show(d);
 
 show 'Просмотреть' (InInventorySkuDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
 }
 show(InInventorySkuDetail d) += ACTION show(d);
 
 show 'Просмотреть' (OutInventoryBatchDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), b = batch(d)  DOCKED READONLY;
 }
 show(OutInventoryBatchDetail d) += ACTION show(d);
 
 show 'Просмотреть' (OutInventorySkuDetail d) = ACTION NEWSESSION {
-    FORM inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
+    SHOW inventory OBJECTS in = inventory(collationSheet(d)), cs = collationSheet(d), i = sku(d)  DOCKED READONLY;
 }
 show(OutInventorySkuDetail d) += ACTION show(d);
 
@@ -1761,7 +1761,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(in) FORCE PANEL READONLY createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
     
-    PROPERTIES(in)                      ADDFORM, edit SHOWIF overShowEdit(in),// SHOWIF isDraftInventory(in), 
+    PROPERTIES(in)                      NEWSESSION NEW, edit SHOWIF overShowEdit(in),// SHOWIF isDraftInventory(in), 
                                         deletein=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(in),
                                         post SHOWIF showPost(in), unpost SHOWIF showUnpost(in)
     FILTERGROUP open FILTER 'Открыт' isOpened(in) 'F6' DEFAULT

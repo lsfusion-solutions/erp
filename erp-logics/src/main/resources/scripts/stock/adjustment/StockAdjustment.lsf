@@ -92,7 +92,7 @@ supplierStock(Adjustment adjustment) += stock(adjustment);
 // --------------------------- Формы ---------------------------------- //
 
 batchDialog(UserAdjustmentDetail userAdjustmentDetail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = stock(userAdjustmentDetail), t = dateTime(userAdjustmentDetail),
+    SHOW dialogBatchStockOut OBJECTS st = stock(userAdjustmentDetail), t = dateTime(userAdjustmentDetail),
     sk = sku(userAdjustmentDetail) ;
 
     IF formResult() == FormResult.ok THEN {
@@ -113,7 +113,7 @@ FORM userAdjustment 'Изменение остатков'
     OBJECTS d = UserAdjustmentDetail
     PROPERTIES (d) index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE batchDialog(d), quantity, price, sum,
-                   nameStock, ADDOBJ, deleted = DELETESESSION
+                   nameStock, NEW, deleted = DELETE
 
     PROPERTIES(i) TODRAW d fillDocument, addDetailDialogSkuStockUserAdjustmentDetail,
                            addDetailInputBarcodeUserAdjustmentDetail, deleteUserAdjustmentDetail
@@ -267,11 +267,11 @@ FORM adjustments 'Изменения остатков'
     PROPERTIES (i) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (i)  ADDFORM[UserAdjustment]
+    PROPERTIES (i)  NEWSESSION NEW[UserAdjustment]
     PROPERTIES (i) edit SHOWIF showEdit(i)
     PROPERTIES(i)  close[UserAdjustment] SHOWIF isOpened[UserAdjustment](i), open SHOWIF isClosed[UserAdjustment](i)     
 
-    PROPERTIES (i) deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserAdjustment](i)
+    PROPERTIES (i) NEWSESSION deletei=DELETE FORCE PANEL TOOLBAR  SHOWIF showDelete[UserAdjustment](i)
 
     OBJECTS d = AdjustmentDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, idSku SHOWIF showIDs(), nameSku, shortNameUOMSku,
@@ -279,7 +279,7 @@ FORM adjustments 'Изменения остатков'
 
     FILTERS adjustment(d) == i
 
-    DIALOG Adjustment OBJECT i
+    LIST Adjustment OBJECT i
 ;
 @extendFormFilterAccessStock(Adjustment, i, adjustments, stock, company);
 
@@ -448,7 +448,7 @@ sum (InAdjustmentSkuDetail ledger) += sum(ledger) IF NOT skipSkuLedger(ledger);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (AdjustmentDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserAdjustmentDetail d) = ACTION NEWSESSION {
-    FORM userAdjustment OBJECTS i = userAdjustment(d), d = d MANAGESESSION DOCKED;
+    SHOW userAdjustment OBJECTS i = userAdjustment(d), d = d MANAGESESSION DOCKED;
 }
 
 edit(UserAdjustmentDetail d) += ACTION edit(d);    
@@ -457,7 +457,7 @@ edit(OutAdjustmentSkuDetail d) += ACTION edit(adjustmentDetail(d));
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (AdjustmentDetail) TOOLBAR;
 show(UserAdjustmentDetail d) = ACTION NEWSESSION {
-    FORM userAdjustment OBJECTS i = userAdjustment(d), d = d DOCKED READONLY;
+    SHOW userAdjustment OBJECTS i = userAdjustment(d), d = d DOCKED READONLY;
 }
 
 show(UserAdjustmentDetail d) += ACTION show(d);    
@@ -556,7 +556,7 @@ stock (OutAdjustment ledger) += stock(adjustment(ledger));
 description (OutAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
 sumContainer(OutAdjustment ledger) += -sumContainerAdjustmentDetail(adjustment(ledger));
 sumItem(OutAdjustment ledger) += -sumItemAdjustmentDetail(adjustment(ledger));
-edit(OutAdjustment ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKED;}
+edit(OutAdjustment ledger) += ACTION NEWSESSION {SHOW userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKED;}
 close(OutAdjustment ledger) += ACTION close(adjustment(ledger));
 type(OutAdjustment ledger) += 'Изменение остатков расход' IF ledger IS OutAdjustment;
 skip(OutAdjustment ledger) += ledger IS OutAdjustment AND NOT active(adjustment(ledger));
@@ -575,7 +575,7 @@ stock (InAdjustment ledger) += stock(adjustment(ledger));
 description (InAdjustment ledger) += description(adjustment(ledger));                                                                                                                                                                                                                                   
 sumContainer(InAdjustment ledger) += sumContainerAdjustmentDetail(adjustment(ledger));
 sumItem(InAdjustment ledger) += sumItemAdjustmentDetail(adjustment(ledger));
-edit(InAdjustment ledger) += ACTION NEWSESSION {FORM userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKED;}
+edit(InAdjustment ledger) += ACTION NEWSESSION {SHOW userAdjustment OBJECTS i = adjustment(ledger) MANAGESESSION DOCKED;}
 close(InAdjustment ledger) += ACTION close(adjustment(ledger));
 type(InAdjustment ledger) += 'Изменение остатков приход' IF ledger IS InAdjustment;
 skip(InAdjustment ledger) += ledger IS InAdjustment AND NOT active(adjustment(ledger));
@@ -720,9 +720,9 @@ DESIGN options {
 
 createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
     IF defaultOperationBatch() THEN
-        FORM selectParamsAdjustment OBJECTS o = defaultOperationBatch() 
+        SHOW selectParamsAdjustment OBJECTS o = defaultOperationBatch() 
     ELSE
-        FORM selectParamsAdjustment ;
+        SHOW selectParamsAdjustment ;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
         FOR ADDOBJ adjustment = UserAdjustment DO {  
@@ -734,7 +734,7 @@ createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTIO
             inAdjustment(Sku sku) <- inSession(skuGroup(sku));
             
             createBatchUserAdjustmentDetail(adjustment);
-            FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
+            SHOW userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
         }        
     }
 }
@@ -818,9 +818,9 @@ DESIGN options {
 
 createDialogSumUserAdjustment 'Корректировка суммы ТО'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
     IF defaultOperationSum() THEN
-        FORM selectParamsAdjustment OBJECTS o = defaultOperationSum() 
+        SHOW selectParamsAdjustment OBJECTS o = defaultOperationSum() 
     ELSE
-        FORM selectParamsAdjustment ;
+        SHOW selectParamsAdjustment ;
     IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
         
         FOR ADDOBJ adjustment = UserAdjustment DO {  
@@ -833,7 +833,7 @@ createDialogSumUserAdjustment 'Корректировка суммы ТО'() = A
             inAdjustment(Sku sku) <- inSession(skuGroup(sku));
             
             createSumUserAdjustment(adjustment);
-            FORM userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
+            SHOW userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
         }        
     }
 }

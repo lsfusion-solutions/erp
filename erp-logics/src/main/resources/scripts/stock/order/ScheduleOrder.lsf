@@ -17,7 +17,7 @@ CLASS GenType 'Тип генерации' {
 FORM genTypes 'Типы генерации графиков'
     OBJECTS t = GenType
     PROPERTIES(t) READONLY staticCaption
-    DIALOG GenType OBJECT t
+    LIST GenType OBJECT t
 ;
 
 CLASS ABSTRACT ScheduleOrder 'График';
@@ -440,7 +440,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             overCreate(o);
             overCreateDetail(o);
 
-            FORM userOrder OBJECTS o = o MANAGESESSION DOCKED;
+            SHOW userOrder OBJECTS o = o MANAGESESSION DOCKED;
         }
     } TOOLBAR;
     @defineDocumentDetailActions(scheduleOrder, ScheduleOrderDetail);
@@ -495,7 +495,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES(s, m) inScheduleOrder SHOWIF toShowMonths(s)
 
         OBJECTS d=ScheduleOrderTime FIXED GRID
-        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOW, shipmentNameDOW, shipmentTime, ADDOBJ, DELETESESSION
+        PROPERTIES(d) SHOWIF toShowGenDayMonth(s) orderNameDOW, shipmentNameDOW, shipmentTime, NEW, DELETE
         FILTERS scheduleOrder(d) == s
         
         TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
@@ -522,11 +522,11 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                         nameSupplier, nameSupplierStock,
                         nameCustomer, nameCustomerStock,
                         nameOperation
-        PROPERTIES (sd) createScheduleUser, deletesd=DELETESESSION
+        PROPERTIES (sd) createScheduleUser, deletesd=DELETE
         ORDER BY dateSupply(sd)
         PROPERTIES create(s) TODRAW sd
 
-        PROPERTIES(sd) ADDOBJ TOOLBAR
+        PROPERTIES(sd) NEW TOOLBAR
         PROPERTIES(s) TODRAW sd deleteScheduleOrderDetail
         FILTERS scheduleOrder(sd)==s
 
@@ -662,7 +662,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                    
             EXEC overCopy(scheduleOrder, o);
 
-            FORM scheduleOrder OBJECTS s = o MANAGESESSION DOCKED;
+            SHOW scheduleOrder OBJECTS s = o MANAGESESSION DOCKED;
         }
     } TOOLBAR;
                 
@@ -677,7 +677,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             supplier(s) <- supplier;
             customer(s) <- customer;
 
-            FORM scheduleOrder OBJECTS s = s MANAGESESSION DOCKED;
+            SHOW scheduleOrder OBJECTS s = s MANAGESESSION DOCKED;
         }
     } IMAGE 'add.png' EDITKEY 'INSERT' HIDE TOOLBAR;
 
@@ -734,9 +734,9 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
                                 countOrderDetail, quantityOrderDetail, sumOrderDetail,
                                 VATSumOrderDetail, invoiceSumOrderDetail, shipmentDate, shipmentTime, 
                                 closeDate, note            
-        PROPERTIES (o)  ADDFORM[UserOrder]
+        PROPERTIES (o)  NEWSESSION NEW[UserOrder]
         PROPERTIES (o) edit SHOWIF overShowEdit(o)
-        PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDelete(o)
+        PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF overShowDelete(o)
         PROPERTIES (o) close[UserOrder] FORCE PANEL TOOLBAR SHOWIF isOpened(o)
         PROPERTIES (o) open FORCE PANEL TOOLBAR SHOWIF isClosed(o)
             
@@ -798,7 +798,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
         PROPERTIES(s) READONLY nameSupplier, nameSupplierStock,
                       nameCustomer, nameType
 
-        PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+        PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
         OBJECTS sd=ScheduleOrderDetail
         PROPERTIES(sd) READONLY isClosed, dateOrder, dateSupply,
@@ -850,14 +850,14 @@ EXTEND FORM legalEntity
 
     OBJECTS ss=ScheduleOrder FIXED GRID
     PROPERTIES(ss) SHOWIF isCustomer(l) READONLY startDate, endDate, nameSupplierStock, stocks, nameType
-    PROPERTIES(ss) SHOWIF isCustomer(l) DELETE FORCE PANEL TOOLBAR, edit
+    PROPERTIES(ss) SHOWIF isCustomer(l) NEWSESSION DELETE FORCE PANEL TOOLBAR, edit
 
     FILTERS filterCompanySupplier(l, s)
     FILTERS supplier(ss) == s, customer(ss) == l
 
     OBJECTS sc=ScheduleOrder FIXED  GRID 
     PROPERTIES(sc) SHOWIF isSupplier(l) READONLY startDate, endDate, nameSupplierStock, stocks, nameType
-    PROPERTIES(sc) SHOWIF isSupplier(l) DELETE FORCE PANEL TOOLBAR, edit
+    PROPERTIES(sc) SHOWIF isSupplier(l) NEWSESSION DELETE FORCE PANEL TOOLBAR, edit
 
     FILTERS filterCompanyCustomer(l, c)
     FILTERS customer(sc) == c, supplier(sc) == l
@@ -904,7 +904,7 @@ META defineScheduleOrderDashboard(sign, stockFilter)
         PROPERTIES(s) READONLY startDate, endDate, nameSupplier, nameSupplierStock,
                       nameCustomer, stocks, nameType
         PROPERTIES(s,d) READONLY countRemaining
-        PROPERTIES(s) copy, EDITFORM FORCE PANEL TOOLBAR
+        PROPERTIES(s) NEWSESSION copy, EDIT FORCE PANEL TOOLBAR
         ORDER BY endDate(s)
 
         FILTERS supplier(s) == supplier() OR (s IS ScheduleOrder AND NOT supplier()),
@@ -918,7 +918,7 @@ META defineScheduleOrderDashboard(sign, stockFilter)
         OBJECTS ss=ScheduleOrder
         PROPERTIES(ss) BACKGROUND background(ss,d) READONLY startDate, endDate, nameSupplier, nameSupplierStock,
                       nameCustomer, stocks, nameType     
-        PROPERTIES(ss) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR              
+        PROPERTIES(ss) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR              
         ORDER BY startDate(ss)
               
         PROPERTIES (ss) READONLY FORCE PANEL createdTime, createdNameUser, createdHostnameComputer

@@ -30,7 +30,7 @@ FORM terminalModel 'Модель ТСД'
 FORM terminalModels 'Модели ТСД'
     OBJECTS m=TerminalModel
     PROPERTIES(m) READONLY name, maxProduct, handler, note
-    PROPERTIES(m) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(m) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 ;
 
 // Терминалы
@@ -85,8 +85,8 @@ FORM terminalHandbookType 'Вид справочника ТСД'
 FORM terminalHandbookTypes 'Виды справочников ТСД'
     OBJECTS t=TerminalHandbookType FIXED GRID
     PROPERTIES(t) READONLY name, id, canonicalNamePropertyID, canonicalNamePropertyName, skipPrefix, useForExport
-    PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    DIALOG TerminalHandbookType OBJECT t
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    LIST TerminalHandbookType OBJECT t
 ;
 
 // ------------------------ Группы типов документов ------------------------- //
@@ -139,7 +139,7 @@ FORM groupTerminalDocumentType 'Группа типов документов'
     PROPERTIES(tdt)   id, name, flag,
                       idTerminalHandbookType1, nameInHandbook1,
                       idTerminalHandbookType2, nameInHandbook2,
-                      ADDOBJ, DELETESESSION
+                      NEW, DELETE
 
     FILTERS groupTerminalDocumentType(tdt) == gtdt
 
@@ -149,7 +149,7 @@ FORM groupTerminalDocumentType 'Группа типов документов'
 FORM groupTerminalDocumentTypes 'Группы типов документов'
     OBJECTS gtdt=GroupTerminalDocumentType
     PROPERTIES(gtdt) name READONLY, skip
-    PROPERTIES(gtdt) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(gtdt) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
     OBJECTS tdt=TerminalDocumentType
     PROPERTIES(tdt) READONLY id, name, flag,
@@ -158,7 +158,7 @@ FORM groupTerminalDocumentTypes 'Группы типов документов'
 
     FILTERS groupTerminalDocumentType (tdt) == gtdt
     
-    DIALOG GroupTerminalDocumentType OBJECT gtdt
+    LIST GroupTerminalDocumentType OBJECT gtdt
 ;
 
 DESIGN groupTerminalDocumentTypes {
@@ -180,7 +180,7 @@ FORM groupTerminal 'Группа ТСД'
                     namePriceListType, directory, inactive
 
     OBJECTS t=Terminal
-    PROPERTIES(t)   nameGroupMachinery, npp, description, port, ADDOBJ, DELETESESSION
+    PROPERTIES(t)   nameGroupMachinery, npp, description, port, NEW, DELETE
 
     FILTERGROUP filters3
         FILTER 'Показывать только для данной группы' groupTerminal(t) == grt 'F10' DEFAULT
@@ -195,7 +195,7 @@ FORM groupsTerminal 'Группы ТСД'
                      filterSku, showFilterSku SHOWIF filterSku(grt),
                      namePriceListType, directory
 
-    PROPERTIES(grt)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(grt)  NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
     PROPERTIES(t) READONLY npp, description, port
     FILTERS groupTerminal(t) == grt
@@ -322,7 +322,7 @@ FORM terminalDocument 'Документ ТСД'
                     used READONLY, createdNameUser
 
     OBJECTS tdd=TerminalDocumentDetail
-    PROPERTIES(tdd) number, barcode, name, quantity, price, sum, comment, dateTimeScan, ADDOBJ, deletetdd=DELETESESSION
+    PROPERTIES(tdd) number, barcode, name, quantity, price, sum, comment, dateTimeScan, NEW, deletetdd=DELETE
 
     FILTERS terminalDocument(tdd) == td
 
@@ -380,7 +380,7 @@ FORM terminalDocuments 'Документы ТСД' AUTOREFRESH 60
                     nameTerminalDocumentType, idTerminalHandbookType1, idTerminalHandbookType2,
                     title, comment, quantity, countTerminalDocumentDetail, 
                     quantityTerminalDocumentDetail, createdNameUser FORCE PANEL, createdTime FORCE PANEL
-    PROPERTIES(td)  ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(td)  NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     PROPERTIES (td) close SHOWIF isOpened(td), open SHOWIF isClosed(td)
     FILTERS in(terminalDocumentType(td)) OR (td IS TerminalDocument AND NOT [=GROUP SUM 1 IF in(TerminalDocumentType t)]()),
             stock(td) == filterStock() OR (td IS TerminalDocument AND NOT filterStock())

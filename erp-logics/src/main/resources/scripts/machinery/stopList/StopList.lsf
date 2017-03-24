@@ -175,7 +175,7 @@ FORM stopList 'Запрет продаж по кассе'
     PROPERTIES(d)   index,
                     idBarcodeSku, nameSku, shortNameUOMSku
 
-    PROPERTIES(d)   ADDOBJ, deletedd=DELETESESSION
+    PROPERTIES(d)   NEW, deletedd=DELETE
 
     PROPERTIES(sl) TODRAW d deleteStopListDetail
 
@@ -278,10 +278,10 @@ FORM stopLists 'Запреты продаж по оборудованию'
     PROPERTIES(sl)  READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                           postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (sl) ADDFORM, EDITFORM SHOWIF isOpened(sl)
+    PROPERTIES (sl) NEWSESSION NEW, EDIT SHOWIF isOpened(sl)
     PROPERTIES(sl)  close SHOWIF isOpened(sl), open SHOWIF isClosed(sl)     
     
-    PROPERTIES (sl) deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(sl)
+    PROPERTIES (sl) NEWSESSION deleted=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(sl)
 
     OBJECTS d=StopListDetail
     PROPERTIES(d)   READONLY index,
@@ -374,7 +374,7 @@ createRequestStopList 'Включить в стоп-лист'()  = ACTION {
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
-                 FORM stopList OBJECTS sl = sl MANAGESESSION DOCKED;
+                 SHOW stopList OBJECTS sl = sl MANAGESESSION DOCKED;
             }
         }
         IF NOT notResetStopListSelectSku() THEN {
@@ -396,7 +396,7 @@ excludeRequestStopList 'Исключить из стоп-листа'()  = ACTION
                     stopList(d) <- sl;
                     sku(d) <- sku;            
                 } 
-                 FORM stopList OBJECTS sl = sl MANAGESESSION DOCKED;
+                 SHOW stopList OBJECTS sl = sl MANAGESESSION DOCKED;
             }
         }
         IF NOT notResetStopListSelectSku() THEN {
@@ -444,4 +444,4 @@ DESIGN historyStopList {
 }
 
 showHistoryStopList 'Показать историю запрета продаж товара на кассе' (Sku sku, Stock stock) = 
-    ACTION FORM historyStopList OBJECTS s = sku, st = stock  SHORTCUT statusStopList[Sku,Stock];
+    ACTION SHOW historyStopList OBJECTS s = sku, st = stock  SHORTCUT statusStopList[Sku,Stock];

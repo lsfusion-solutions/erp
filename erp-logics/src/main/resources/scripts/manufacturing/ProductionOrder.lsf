@@ -352,12 +352,12 @@ FORM dialogBatchStockOrder 'Партии'
 
 changeBatch(ComponentDetail d) = ACTION {
     IF batch(d) THEN {
-        FORM dialogBatchStockOrder OBJECTS st = componentsStock(d),
+        SHOW dialogBatchStockOrder OBJECTS st = componentsStock(d),
                                  t = dateTime(d),
                                  sk = sku(d),
                                  bt = batch(d) DIALOG SHOWDROP;    
     } ELSE {
-        FORM dialogBatchStockOrder OBJECTS st = componentsStock(d),
+        SHOW dialogBatchStockOrder OBJECTS st = componentsStock(d),
                                  t = dateTime(d),
                                  sk = sku(d) DIALOG SHOWDROP;    
     }
@@ -671,7 +671,7 @@ chooseSubstitute 'Выбрать замену'(Sku fromSku, Order order) =  ACTI
     BOMSubstitutesSku() <- NULL;
     stockSubstitutesSku() <- componentsStock(order) WHERE componentsStock(order);
 
-    FORM substitutesSku OBJECTS o= order, s=fromSku DIALOG SHOWDROP;
+    SHOW substitutesSku OBJECTS o= order, s=fromSku DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         substitute(fromSku, order) <- chosenObject('sk');
         multiplier(fromSku, order) <- multiplierSubstituteTo(fromSku,chosenObject('sk'));
@@ -949,7 +949,7 @@ chooseSubstitute 'Выбрать замену'(ComponentDetail detail) =  ACTION
     stockSubstitutesSku() <- componentsStock(detail) WHERE componentsStock(detail);
     BOMSubstitutesSku() <- BOM(detail) WHERE BOM(detail);
 
-    FORM substitutesSku OBJECTS o= order(detail), s = bruttoSku(detail) DIALOG SHOWDROP;
+    SHOW substitutesSku OBJECTS o= order(detail), s = bruttoSku(detail) DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         substituteSku(detail) <- chosenObject('sk'); 
         substituteQuantity(detail) <- NUMERIC[14,3](multiplierSubstituteTo(bruttoSku(detail), substituteSku(detail))* bruttoQuantity(detail));           
@@ -1009,7 +1009,7 @@ fillSubstitutePriceFromTo 'Использовать цену'(Order order, Sku s
         dataBruttoPrice(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*priceStock(skuSubstitute,order));
         cost(sku, order) <- NUMERIC[16,4](multiplierSubstituteTo(sku, skuSubstitute)*calcCost(skuSubstitute,priceStock(order)));
     } ELSE {
-        FORM multiplier ; 
+        SHOW multiplier ; 
         IF formResult() == FormResult.ok THEN {
             dataBruttoPrice(sku, order) <- NUMERIC[16,4](chosenNumeric('nu')*priceStock(skuSubstitute,order));
             cost(sku, order) <- NUMERIC[16,4](chosenNumeric('nu')*calcCost(skuSubstitute,priceStock(order)));
@@ -1129,7 +1129,7 @@ FORM order 'Производственный заказ'
                    calcPriceCoeff SHOWIF isPriceCoeff(o) ON CHANGE changePriceCoeff(pd),                   
                    price ON CHANGE changeProductsPrice(pd), sum
     PROPERTIES(pd) BACKGROUND backgroundVAT(o) SHOWIF VATProduct(o) valueVAT
-    PROPERTIES(pd) ADDOBJ, deletepd=DELETESESSION
+    PROPERTIES(pd) NEW, deletepd=DELETE
     PROPERTIES(o) TODRAW pd createProducts, fillPriceProducts, deleteProductDetail
 
     FILTERS order(pd)==o
@@ -1145,7 +1145,7 @@ FORM order 'Производственный заказ'
 
     PROPERTIES(o) TODRAW cd createComponents, createRecComponents, createForRecComponents
     PROPERTIES(cd) TODRAW cd expand SHOWIF product(cd)
-    PROPERTIES(cd) add=ADDOBJ, deletecd=DELETESESSION
+    PROPERTIES(cd) add=NEW, deletecd=DELETE
     PROPERTIES(o) TODRAW cd deleteComponents
 
     FILTERS order(cd)==o
@@ -1484,9 +1484,9 @@ FORM orders 'Производственные заказы'
     PROPERTIES(o) READONLY quantityProductDetail, sumProductDetail, quantityComponentDetail, sumComponentDetail
     PROPERTIES(o) READONLYIF isReadonly() nameCalcPriceListType, namePriceListType, note
 
-    PROPERTIES(o) addo=ADDFORM, EDITFORM SHOWIF overShowEdit(o)
+    PROPERTIES(o) NEWSESSION addo=NEW, EDIT SHOWIF overShowEdit(o)
     PROPERTIES(o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)      
-    PROPERTIES(o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(o)
+    PROPERTIES(o) NEWSESSION deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF overShowDelete(o)
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
@@ -1526,7 +1526,7 @@ FORM orders 'Производственные заказы'
             filterProductsStock(o),
             filterCustomUser(o),
             filterComputer(o)
-    DIALOG Order OBJECT o 
+    LIST Order OBJECT o 
 ;
 DESIGN orders {
     NEW documentContainer BEFORE functions.box {
@@ -1617,7 +1617,7 @@ FORM componentDetails 'Строка компонента'
     PROPERTIES(d) READONLY index, nameSku, shortNameUOM,
                            description, quantity
 
-    DIALOG ComponentDetail OBJECT d
+    LIST ComponentDetail OBJECT d
 ;
 
 FORM productDetails 'Строка изделия'
@@ -1626,7 +1626,7 @@ FORM productDetails 'Строка изделия'
                   expiryDate, manufactureDate, description,
                   quantity, price, sum
 
-    DIALOG ProductDetail OBJECT d
+    LIST ProductDetail OBJECT d
 ;
 
 // ---------- Требование на сырье -------- //
@@ -1774,7 +1774,7 @@ copy 'Копировать'(Order order) = ACTION NEWSESSION {
             multiplier(sku,o) <- multiplier(sku,order);
         }
         overCopy(o,order);
-        FORM order OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+        SHOW order OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 
@@ -1912,10 +1912,10 @@ DESIGN order{
 }
 
 edit 'Редактировать' (ProductDetail d) = ACTION NEWSESSION {
-    FORM order OBJECTS o = order(d), pd = d MANAGESESSION DOCKED;
+    SHOW order OBJECTS o = order(d), pd = d MANAGESESSION DOCKED;
 }
 show 'Просмотреть' (ProductDetail d) = ACTION NEWSESSION {
-    FORM order OBJECTS o = order(d), pd = d DOCKED READONLY ;
+    SHOW order OBJECTS o = order(d), pd = d DOCKED READONLY ;
 }
 //-------------------- Подбор компонентов -----------------//
 componentDetailBrutto (order,bruttoSku) =  GROUP MAX ComponentDetail componentDetail
@@ -2009,52 +2009,52 @@ EXTEND FORM order
 
 showMovementBruttoSkuStock 'Показать движение товара по складу' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) AND st == componentsStock(componentDetail) DO
-    NEWSESSION FORM movementSkuStock OBJECTS s = s, st = st 
+    NEWSESSION SHOW movementSkuStock OBJECTS s = s, st = st 
 SHORTCUT bruttoNameSku[ComponentDetail];
 
 showMovementBruttoSku 'Показать движение товара' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) DO 
-        NEWSESSION FORM movementSku OBJECTS s = s 
+        NEWSESSION SHOW movementSku OBJECTS s = s 
 SHORTCUT bruttoNameSku[ComponentDetail];
 
 showBalancesBruttoSkuStock 'Показать остатки товара' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) DO
-        NEWSESSION FORM balancesSkuStock OBJECTS s = s 
+        NEWSESSION SHOW balancesSkuStock OBJECTS s = s 
 SHORTCUT bruttoNameSku[ComponentDetail];
 
 showMovementPriceBruttoSkuStock 'Показать изменение цены товара по складу' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) AND st == componentsStock(componentDetail) DO 
-        NEWSESSION FORM movementPriceSkuStock OBJECTS s = s, st = st 
+        NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s, st = st 
 SHORTCUT bruttoNameSku[ComponentDetail];
 
 showMovementPriceBruttoSkuStocks 'Показать изменение цены товара' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) DO
-        NEWSESSION FORM movementPriceSkuStocks OBJECTS s = s 
+        NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s 
 SHORTCUT bruttoNameSku[ComponentDetail];
 
 showMovementSubstituteSkuStock 'Показать движение товара по складу' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) AND st == componentsStock(componentDetail) DO
-        NEWSESSION FORM movementSkuStock OBJECTS s = s, st = st 
+        NEWSESSION SHOW movementSkuStock OBJECTS s = s, st = st 
 SHORTCUT substituteNameSku[ComponentDetail];
 
 showMovementSubstituteSku 'Показать движение товара' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) DO
-        NEWSESSION FORM movementSku OBJECTS s = s 
+        NEWSESSION SHOW movementSku OBJECTS s = s 
 SHORTCUT substituteNameSku[ComponentDetail];
 
 showBalancesSubstituteSkuStock 'Показать остатки товара' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) DO
-        NEWSESSION FORM balancesSkuStock OBJECTS s = s 
+        NEWSESSION SHOW balancesSkuStock OBJECTS s = s 
 SHORTCUT substituteNameSku[ComponentDetail];
 
 showMovementPriceSubstituteSkuStock 'Показать изменение цены товара по складу' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) AND st == componentsStock(componentDetail) DO
-        NEWSESSION FORM movementPriceSkuStock OBJECTS s = s, st = st 
+        NEWSESSION SHOW movementPriceSkuStock OBJECTS s = s, st = st 
 SHORTCUT substituteNameSku[ComponentDetail];
 
 showMovementPriceSubstituteSkuStocks 'Показать изменение цены товара' (ComponentDetail componentDetail) = ACTION
     FOR s == sku(componentDetail) DO
-        NEWSESSION FORM movementPriceSkuStocks OBJECTS s = s 
+        NEWSESSION SHOW movementPriceSkuStocks OBJECTS s = s 
 SHORTCUT substituteNameSku[ComponentDetail];
 
 @defineBalancesBatch(componentDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -2062,17 +2062,17 @@ SHORTCUT substituteNameSku[ComponentDetail];
 
 showBOM 'Показать спецификацию' (ProductDetail d) = ACTION
     FOR b == BOM(d) AND p == product(d) DO
-        NEWSESSION FORM BOM OBJECTS b = b, p = p 
+        NEWSESSION SHOW BOM OBJECTS b = b, p = p 
 SHORTCUT nameProduct[ProductDetail];
 
 showBOM 'Показать спецификацию' (ComponentDetail d) = ACTION
     FOR  b == BOM(d) AND c == component(d) DO
-        NEWSESSION FORM BOM OBJECTS b = b, c = c 
+        NEWSESSION SHOW BOM OBJECTS b = b, c = c 
 SHORTCUT nameComponent[ComponentDetail];
 
 showBOMName'Показать спецификацию' (ComponentDetail d) = ACTION
     FOR b == BOM(d) DO
-        NEWSESSION FORM BOM OBJECTS b = b 
+        NEWSESSION SHOW BOM OBJECTS b = b 
 SHORTCUT fullNameBOM[ComponentDetail];
 
 @defineOperationChangesDocument(order, Order, preventChangesDocument, createdUser);

@@ -22,7 +22,7 @@ addPayment 'Оплатить'(Order order) = ACTION {
             beneficiary(p) <- supplier[Invoice](orderInvoice(order));
             sum(p) <- invoiceSumInvoiceDetail(orderInvoice(order));
             cost(p, InContractLedger invoice) <- sumContract(p) WHERE invoice == currentInContractLedger();
-            FORM payment OBJECTS p=p ;
+            SHOW payment OBJECTS p=p ;
             IF NOT formResult() == FormResult.ok THEN {
                 DELETE p;
             }
@@ -36,7 +36,7 @@ addPayment 'Оплатить'(Order order) = ACTION {
             payer(p) <- customer(order);
             beneficiary(p) <- supplier(order);
             sum(p) <- invoiceSumOrderDetail(order);
-            FORM payment OBJECTS p=p ;
+            SHOW payment OBJECTS p=p ;
             IF NOT formResult() == FormResult.ok THEN {
                 DELETE p;
             }
@@ -47,9 +47,9 @@ addPayment 'Оплатить'(Order order) = ACTION {
 edit 'Редактировать'(Payment payment, Order order) = ACTION {
     IF orderInvoice(order) THEN {
         currentInContractLedger() <- orderInvoice(order);
-        FORM payment OBJECTS p=payment ;    
+        SHOW payment OBJECTS p=payment ;    
     } ELSE {        
-        FORM payment OBJECTS p=payment ;    
+        SHOW payment OBJECTS p=payment ;    
     }
 } IMAGE 'edit.png';
     
@@ -63,7 +63,7 @@ EXTEND FORM userOrder
     ORDER BY dateTime(pm)
     PROPERTIES(pm, o) SHOWIF showPaymentInvoice(o)  cost
     PROPERTIES SHOWIF showPayment(o) TODRAW pm FORCE PANEL TOOLBAR addPayment(o), edit(pm, o) 
-    PROPERTIES(pm)  DELETESESSION SHOWIF showPayment(o)
+    PROPERTIES(pm)  DELETE SHOWIF showPayment(o)
     PROPERTIES SHOWIF showPaymentInvoice(o) filterPaymentInvoice(o)
     FILTERS (cost(pm, o) IF filterPaymentInvoice(o)) OR (pm IS Payment AND NOT filterPaymentInvoice(o)) 
 //    FILTERGROUP filters

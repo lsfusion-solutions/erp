@@ -180,7 +180,7 @@ DESIGN outputOrders {
 }
 
 fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput) =  ACTION {
-    FORM outputOrders OBJECTS s = stock(userOutput) ;
+    SHOW outputOrders OBJECTS s = stock(userOutput) ;
 
     IF formResult() == FormResult.ok THEN {
         LOCAL productionOrder = Order();
@@ -367,7 +367,7 @@ FORM userOutput 'Производство'
     OBJECTS d = UserOutputDetail
     PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
                    namePriceListType, expiryDate, quantity, price, sum,
-                   descriptionIndexProductDetail, ADDOBJ, deleted=DELETESESSION
+                   descriptionIndexProductDetail, NEW, deleted=DELETE
 
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserOutputDetail,
                            addDetailInputBarcodeUserOutputDetail, deleteUserOutputDetail
@@ -440,7 +440,7 @@ DESIGN userOutput {
 
 edit 'Редактировать' = ACTION ABSTRACT LIST  (OutputDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserOutputDetail d) = ACTION NEWSESSION {
-    FORM userOutput OBJECTS o = userOutput(d), d = d MANAGESESSION DOCKED;
+    SHOW userOutput OBJECTS o = userOutput(d), d = d MANAGESESSION DOCKED;
 }
 edit(UserOutputDetail d) += ACTION edit(d);
 edit[PriceListLedger](OutputDetail d) += ACTION edit(d);
@@ -452,7 +452,7 @@ edit(OrderOutputDetail d) += ACTION edit(productDetail(d));
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (OutputDetail) TOOLBAR;
 show(UserOutputDetail d) = ACTION NEWSESSION {
-    FORM userOutput OBJECTS o = userOutput(d), d = d DOCKED READONLY ;
+    SHOW userOutput OBJECTS o = userOutput(d), d = d DOCKED READONLY ;
 }
 show(UserOutputDetail d) += ACTION show(d);
 
@@ -479,7 +479,7 @@ copy 'Копировать'(UserOutput userOutput) = ACTION NEWSESSION {
                 ASSIGN productDetail(d) <- productDetail(userOutputDetail);
             }
         }
-        FORM userOutput OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+        SHOW userOutput OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 
@@ -494,10 +494,10 @@ FORM outputs 'Производство'
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) ADDFORM[UserOutput]
+    PROPERTIES (o) NEWSESSION NEW[UserOutput]
     PROPERTIES (o) edit SHOWIF isOpened(o), copy
     PROPERTIES(o)  close[UserOutput] SHOWIF isOpened[UserOutput](o), open SHOWIF isClosed[UserOutput](o)     
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpened(o)
+    PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpened(o)
 
     OBJECTS d=OutputDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku
@@ -505,7 +505,7 @@ FORM outputs 'Производство'
                    sum, descriptionIndexProductDetail
 
     FILTERS output(d) == o
-    DIALOG Output OBJECT o
+    LIST Output OBJECT o
 ;
 @extendFormFilterAccessStock(Output, o, outputs, stock, company);
 

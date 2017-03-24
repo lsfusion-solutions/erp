@@ -12,7 +12,7 @@ FORM dialogPromotions 'Акции'
     OBJECTS p = Promotion
     PROPERTIES(p) READONLY name
     
-    DIALOG Promotion OBJECT p
+    LIST Promotion OBJECT p
 ;
 
 FORM promotion 'Акция'
@@ -24,7 +24,7 @@ FORM promotion 'Акция'
 FORM promotions 'Акции'
     OBJECTS p = Promotion
     PROPERTIES(p) READONLY name
-    PROPERTIES (p) ADDFORM, EDITFORM, del = DELETE 
+    PROPERTIES (p) NEWSESSION NEW, EDIT, del = DELETE 
 ;
 
 NAVIGATOR {
@@ -140,9 +140,9 @@ notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
 changeCompanyFilterPromotionStock() = ACTION {
     REQUEST OBJECT s
     IF filterPromotionStock() THEN {            
-        FORM companysStock OBJECTS s = filterPromotionStock() DIALOG SHOWDROP;        
+        SHOW companysStock OBJECTS s = filterPromotionStock() DIALOG SHOWDROP;        
     } ELSE {
-        FORM companysStock DIALOG SHOWDROP;        
+        SHOW companysStock DIALOG SHOWDROP;        
     }
     IF formResult() == FormResult.ok THEN {
         filterPromotionStock() <- requestedObject();
@@ -244,7 +244,7 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type,
         in[UserPriceList,DataPriceListType](p, type) <- TRUE;
         show[PriceList,PriceListType](p, type) <- TRUE;
         EXEC overAdd(p); 
-        FORM userPriceList OBJECTS p=p MANAGESESSION DOCKED;
+        SHOW userPriceList OBJECTS p=p MANAGESESSION DOCKED;
         IF formResult() == FormResult.ok THEN
             EXEC apply();
     }
@@ -256,7 +256,7 @@ EXTEND FORM promotionDashboard
                            fromDate, fromTime, toDate, toTime,
                            nameCurrency, nameCompany, priceListTypes, stocks,
                            note
-    PROPERTIES(p) EDITFORM, DELETE FORCE PANEL TOOLBAR, update FORCE PANEL TOOLBAR
+    PROPERTIES(p) NEWSESSION EDIT, DELETE FORCE PANEL TOOLBAR, update FORCE PANEL TOOLBAR
     ORDER BY fromDate(p), fromTime(p)
     FILTERS in(p, pt),
             company(p) == c,

@@ -268,9 +268,9 @@ DESIGN options {
 changeCustomsGroup (UserInvoiceDetail d) = ACTION {
     REQUEST OBJECT cg
     IF customsGroup(d) THEN {            
-        FORM customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d), cg = customsGroup(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
+        SHOW customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d), cg = customsGroup(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
     } ELSE {
-        FORM customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
+        SHOW customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
     }
     IF formResult() == FormResult.ok THEN {
         customsGroup(d) <- requestedObject();
@@ -352,7 +352,7 @@ DESIGN declarationInvoices {
 }
 
 selectInvoices 'Выбрать накладные'(Declaration declaration) = ACTION {
-    FORM declarationInvoices OBJECTS d=declaration ;
+    SHOW declarationInvoices OBJECTS d=declaration ;
 } TOOLBAR;
 
 backgroundVATCustomsException 'Цвет' (UserInvoiceDetail invoiceDetail) = backgroundVATCustomsException() IF countVATCustomsException(customsGroup(invoiceDetail)) > 0;
@@ -578,7 +578,7 @@ EXTEND FORM declaration
     PROPERTIES(di) nameCustoms, shortNameUOM, nameCountry,                       
                    codeCustomsGroup, nameVATCustomsException,
                    quantity, price, 
-                   ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR 
+                   NEW, DELETE FORCE PANEL TOOLBAR 
     
     PROPERTIES(d) createDeclarationInvoiceDetail TODRAW di FORCE PANEL TOOLBAR
     FILTERS declaration(di) == d
@@ -1216,7 +1216,7 @@ EXTEND FORM declaration
                    quantity, price, sum, deliverySum, chargeSum, homeSum,
                    percentDuty, weightDuty, dutySum,
                    numberVAT, percentVAT, VATSum,
-                   ADDOBJ, deletedd = DELETESESSION FORCE PANEL TOOLBAR, copy FORCE PANEL
+                   NEW, deletedd = DELETE FORCE PANEL TOOLBAR, copy FORCE PANEL
     ORDER BY number(dd)
 
     PROPERTIES (d) createDeclarationDetail TODRAW dd FORCE PANEL TOOLBAR
@@ -1506,7 +1506,7 @@ payBackground 'Зеленого чая'  = RGB(204,255,204) IF TRUE;
 EXTEND FORM declaration
     OBJECTS cd = CustomsDocument
     PROPERTIES(cd) order, date, id, name, sum
-    PROPERTIES(cd) ADDOBJ, deleted = DELETESESSION FORCE PANEL TOOLBAR
+    PROPERTIES(cd) NEW, deleted = DELETE FORCE PANEL TOOLBAR
     FILTERS declaration(cd) == d
     
     OBJECTS cdu = UserInvoice
@@ -1519,7 +1519,7 @@ EXTEND FORM declaration
     PROPERTIES (a)  BACKGROUND editBackground() homeSum, dutySum, VATSum    
     PROPERTIES(a) READONLY BACKGROUND payBackground() homeSumToPay, dutySumToPay, VATSumToPay
        
-    PROPERTIES(a) ADDOBJ, DELETESESSION FORCE PANEL TOOLBAR 
+    PROPERTIES(a) NEW, DELETE FORCE PANEL TOOLBAR 
     FILTERS declaration(a) == d
     
     OBJECTS ddd=DeclarationDetail
@@ -1602,7 +1602,7 @@ EXTEND FORM declaration
     OBJECTS p = Payment
  
     PROPERTIES (p) index, name, nameCurrency, sum, rateExchange, rateSum READONLY, isCharge,
-                   ADDOBJ, deleteid=DELETESESSION FORCE PANEL TOOLBAR
+                   NEW, deleteid=DELETE FORCE PANEL TOOLBAR
     ORDER BY index(p)
 
     PROPERTIES(d) TODRAW p deletePayment

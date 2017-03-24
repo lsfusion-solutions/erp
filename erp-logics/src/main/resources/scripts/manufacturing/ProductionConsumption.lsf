@@ -42,7 +42,7 @@ CONSTRAINT stock(UserConsumption o) AND NOT  isCompany(stock(o))
 @defineDocumentInterfaceDetailBatch(consumption, batch);
 changeBatch(UserConsumptionDetail detail) = ACTION {
 
-    FORM dialogBatchStockOut OBJECTS st = stock(detail),
+    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
 
@@ -253,7 +253,7 @@ DESIGN consumptionOrders {
 }
 
 fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption) =  ACTION {
-    FORM consumptionOrders OBJECTS s = stock(userConsumption) ;
+    SHOW consumptionOrders OBJECTS s = stock(userConsumption) ;
 
     IF formResult() == FormResult.ok THEN {
         LOCAL productionOrder = Order();
@@ -388,7 +388,7 @@ FORM userConsumption 'Списание сырья'
     PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE changeBatch(d), namePriceListType, 
                    quantity, price, sum,
-                   descriptionIndexComponentDetail, ADDOBJ, deleted = DELETESESSION
+                   descriptionIndexComponentDetail, NEW, deleted = DELETE
 
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserConsumptionDetail,
                            addDetailInputBarcodeUserConsumptionDetail, deleteUserConsumptionDetail
@@ -470,28 +470,28 @@ WHEN SESSION FORMS userConsumption CHANGED(batch(UserConsumptionDetail detail)) 
                     
 edit 'Редактировать' = ACTION ABSTRACT LIST  (ConsumptionDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserConsumptionDetail d) = ACTION NEWSESSION {
-    FORM userConsumption OBJECTS o = userConsumption(d), d = d MANAGESESSION DOCKED;
+    SHOW userConsumption OBJECTS o = userConsumption(d), d = d MANAGESESSION DOCKED;
 }
 
 edit(UserConsumptionDetail d) += ACTION edit(d);
 edit[SkuLedger](ConsumptionDetail batch) += ACTION edit(batch);
                        
 edit(ComponentDetail d) = ACTION NEWSESSION {
-    FORM order OBJECTS o = order(d), cd = d MANAGESESSION DOCKED;
+    SHOW order OBJECTS o = order(d), cd = d MANAGESESSION DOCKED;
 }
 
 edit(OrderConsumptionDetail d) += ACTION edit(componentDetail(d));
 
 show 'Просмотреть' = ACTION ABSTRACT LIST  (ConsumptionDetail) TOOLBAR;
 show(UserConsumptionDetail d) = ACTION NEWSESSION {
-    FORM userConsumption OBJECTS o = userConsumption(d), d = d DOCKED READONLY ;
+    SHOW userConsumption OBJECTS o = userConsumption(d), d = d DOCKED READONLY ;
 }
 
 show(UserConsumptionDetail d) += ACTION show(d);
 show[SkuLedger](ConsumptionDetail batch) += ACTION show(batch);
                        
 show(ComponentDetail d) = ACTION NEWSESSION {
-    FORM order OBJECTS o = order(d), cd = d DOCKED READONLY;
+    SHOW order OBJECTS o = order(d), cd = d DOCKED READONLY;
 }
 
 show(OrderConsumptionDetail d) += ACTION show(componentDetail(d));
@@ -540,7 +540,7 @@ copy 'Копировать'(UserConsumption userConsumption) = ACTION NEWSESSION
                 ASSIGN componentDetail(d) <- componentDetail(userConsumptionDetail);
             }
         }
-        FORM userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+        SHOW userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 
@@ -570,10 +570,10 @@ FORM consumptions 'Списания сырья'
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) ADDFORM[UserConsumption]
+    PROPERTIES (o) NEWSESSION NEW[UserConsumption]
     PROPERTIES (o) edit SHOWIF isOpened(o), copy
     PROPERTIES (o) close[UserConsumption] SHOWIF isOpened[UserConsumption](o), open SHOWIF isClosed[UserConsumption](o)       
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpened(o)
+    PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF isUserOpened(o)
 
     OBJECTS d=ConsumptionDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, nameBatch
@@ -581,7 +581,7 @@ FORM consumptions 'Списания сырья'
                    descriptionIndexComponentDetail
 
     FILTERS consumption(d) == o
-    DIALOG Consumption OBJECT o
+    LIST Consumption OBJECT o
 ;
 @extendFormFilterAccessStock(Consumption, o, consumptions, stock, company);
 
@@ -679,7 +679,7 @@ addUserConsumptionProduction 'Списание сырья'(Order order) =  ACTIO
         }
         
 
-        FORM userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
+        SHOW userConsumption OBJECTS o = o MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 

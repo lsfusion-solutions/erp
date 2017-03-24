@@ -36,8 +36,8 @@ FORM UOMs 'Единицы измерений'
     PROPERTIES(u) READONLYIF isReadonly() name, id SHOWIF showIDs(), shortName, shortNameBase, genitiveName, factor,
                            split, netWeight, grossWeight
     ORDER BY name(u)                         
-    PROPERTIES(u) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    DIALOG UOM OBJECT u
+    PROPERTIES(u) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    LIST UOM OBJECT u
 ;
 @extendFormEditable(UOMs);
 
@@ -56,7 +56,7 @@ TABLE groupGroup(Group, Group);
 FORM groups 'Классификаторы SKU'
     OBJECTS g = Group
     PROPERTIES(g) READONLY name, id SHOWIF showIDs(), nameParent
-    DIALOG Group OBJECT g
+    LIST Group OBJECT g
 ;
 
 CLASS ABSTRACT GroupType 'Тип классификатора SKU';
@@ -65,7 +65,7 @@ name 'Наименование' = ABSTRACT VARISTRING[100](GroupType) MINCHARWID
 FORM groupTypes 'Типы классификатора SKU'
     OBJECTS g = GroupType
     PROPERTIES(g) READONLY name
-    DIALOG GroupType OBJECT g
+    LIST GroupType OBJECT g
 ;
 
 CLASS SystemGroupType 'Системный тип классификатор SKU' : GroupType;
@@ -146,7 +146,7 @@ FORM moveCustomGroup 'Дополнительные группы'
 
 move 'Перенести отмеченные группы'(CustomGroupType customGroupType) = ACTION {
 
-    FORM moveCustomGroup OBJECTS t = customGroupType ;
+    SHOW moveCustomGroup OBJECTS t = customGroupType ;
     IF formResult() == FormResult.ok THEN {
         ASSIGN parent(CustomGroup customGroup) <- chosenObject('g') WHERE in(customGroup);
         ASSIGN in(CustomGroup customGroup) <- NULL;
@@ -162,13 +162,13 @@ FORM customGroupType 'Тип дополнительного классифика
 FORM dialogCustomGroupType 'Тип дополнительной группы'
     OBJECTS t = CustomGroupType
     PROPERTIES(t) READONLY id, name
-    DIALOG CustomGroupType OBJECT t
+    LIST CustomGroupType OBJECT t
 ;
 
 FORM customGroupTypes 'Типы дополнительных групп'
     OBJECTS t = CustomGroupType
     PROPERTIES(t) READONLY id, name
-    PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 ;
 
 FORM customGroup 'Дополнительная группа'
@@ -184,11 +184,11 @@ FORM customGroups 'Дополнительные группы'
     TREE treeGroups g=CustomGroup PARENT parent
     PROPERTIES in(g), move(t) TODRAW g FORCE PANEL TOOLBAR
     PROPERTIES(g) READONLY id, name, canonicalName
-    PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS customGroupType(g) == t
     ORDER BY canonicalName(g)
 
-    DIALOG CustomGroup OBJECT g
+    LIST CustomGroup OBJECT g
 ;
 
 DESIGN customGroups {
@@ -244,7 +244,7 @@ CLASS SkuType 'Тип SKU' {
 FORM skuTypes 'Типы SKU'
     OBJECTS t = SkuType
     PROPERTIES(t) READONLY staticCaption
-    DIALOG SkuType OBJECT t
+    LIST SkuType OBJECT t
 ;
 
 DESIGN skuTypes {
@@ -374,7 +374,7 @@ FORM skus 'Sku'
     FILTERGROUP active
         FILTER 'Активные' active(s) 'F11' DEFAULT
 
-    DIALOG Sku OBJECT s
+    LIST Sku OBJECT s
 ;
 
 DESIGN skus {

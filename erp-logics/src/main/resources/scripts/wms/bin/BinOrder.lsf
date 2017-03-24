@@ -81,7 +81,7 @@ FORM userBinOrder 'Заказ на перемещение по ячейкам (�
     
     OBJECTS d = UserBinOrderDetail
     PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight
-    PROPERTIES (d) ADDOBJ, deleteod = DELETESESSION
+    PROPERTIES (d) NEW, deleteod = DELETE
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinOrderDetail,
                            addDetailInputBarcodeUserBinOrderDetail, deleteUserBinOrderDetail
     FILTERS binOrder(d)==o
@@ -198,7 +198,7 @@ copy 'Копировать'(BinOrder order) = ACTION NEWSESSION {
             }
         }
 
-        FORM userBinOrder OBJECTS o = o MANAGESESSION DOCKED;
+        SHOW userBinOrder OBJECTS o = o MANAGESESSION DOCKED;
     }
 } TOOLBAR;
     
@@ -251,15 +251,15 @@ FORM binOrders  'Заказы на перемещение по ячейкам'
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserBinOrder], createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) addUserBinOrder = ADDFORM[UserBinOrder]
+    PROPERTIES (o) NEWSESSION addUserBinOrder = NEW[UserBinOrder]
     PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedOrder(o), 
                    copy
     PROPERTIES (o) close[UserBinOrder] SHOWIF isOpened[UserBinOrder](o), open SHOWIF isClosed[UserBinOrder](o)
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
+    PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR SHOWIF overShowDelete(o) //isUserOpenedOrder(o)
             
     FILTERS binOrder(d)==o
     ORDER BY index(d)
-    DIALOG BinOrder OBJECT o
+    LIST BinOrder OBJECT o
 ;
 
 DESIGN binOrders 'Заказы на перемещение по ячейкам' {
@@ -349,7 +349,7 @@ inBin 'Ячейка (в)' = DATA Bin (Operation, Stock);
 nameInBin 'Ячейка (в)' (Operation operation, Stock stock) = name(inBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;
 
 setInBin (Operation operation, Stock stock) = ACTION {
-    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
+    REQUEST OBJECT b SHOW dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         inBin(operation, stock) <- requestedObject();
 
@@ -362,7 +362,7 @@ outBin 'Ячейка (из)' = DATA Bin (Operation, Stock);
 nameOutBin 'Ячейка (из)' (Operation operation, Stock stock) = name(outBin(operation, stock)) MINCHARWIDTH 10 PREFCHARWIDTH 20;;
 
 setOutBin (Operation operation, Stock stock) = ACTION {
-    REQUEST OBJECT b FORM dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
+    REQUEST OBJECT b SHOW dialogBinStock OBJECTS s=stock DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         outBin(operation, stock) <- requestedObject();
 

@@ -82,7 +82,7 @@ nameOrderPromotionType 'Поряок применения акции' = staticCa
 FORM orderPromotionTypies 'Порядок применения акции'
     OBJECTS d = OrderPromotionType
     PROPERTIES(d) READONLY staticCaption
-    DIALOG OrderPromotionType OBJECT d
+    LIST OrderPromotionType OBJECT d
 ;
 
 useAllQuantity 'В акции учавствует весь товар подходящий под условие' = DATA BOOLEAN (Promotion); 
@@ -217,7 +217,7 @@ FORM promotionConditions 'Условия Акций'
     FILTERGROUP filter1
         FILTER 'Текущие и будущие' dateTo(sg) >= currentDate() 'F5' DEFAULT                      
         FILTER 'Прошедшие' dateTo(sg) < currentDate() 'F6'                       
-    DIALOG PromotionCondition OBJECT sg                       
+    LIST PromotionCondition OBJECT sg                       
 ;
 
 FORM promotion 'Акция'
@@ -237,7 +237,7 @@ FORM promotion 'Акция'
 
     OBJECTS sg=PromotionCondition
     PROPERTIES(sg)     id SHOWIF showIDs(), name, minQuantity, minSum, quantityDiscount, percent,
-                       namePriceListType, resultPrice, sumDiscount, sumReceipt, ADDOBJ, DELETESESSION
+                       namePriceListType, resultPrice, sumDiscount, sumReceipt, NEW, DELETE
 
     FILTERS            promotion(sg)==sh
 
@@ -440,7 +440,7 @@ copy 'Копировать'(Promotion promotion) = ACTION NEWSESSION {
             copyProperties(pc, promotionCondition);
         }
 
-        FORM promotion OBJECTS sh = p MANAGESESSION DOCKED;
+        SHOW promotion OBJECTS sh = p MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -454,7 +454,7 @@ FORM promotions 'Акции'
                     timeOfFrom, timeOfTo, minSumBill, maxSumBill,
                     hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                     useCurrentReceipt, allDiscountCard
-    PROPERTIES(sh)  copy, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(sh)  NEWSESSION copy, NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     ORDER BY        order(sh)
 
     PROPERTIES (sh) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
@@ -478,7 +478,7 @@ FORM promotionGroup 'Группа акций'
                                 timeOfFrom, timeOfTo, minSumBill, maxSumBill,
                                 hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                                 useCurrentReceipt, allDiscountCard
-    PROPERTIES(sh)     copy, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(sh)     NEWSESSION copy, NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     ORDER BY userOrder(sh)
 
     FILTERS promotionGroup(sh)==st
@@ -489,7 +489,7 @@ FORM promotionGroup 'Группа акций'
 FORM promotionGroups 'Группы акций'
     OBJECTS st=PromotionGroup
     PROPERTIES(st)     READONLY order, name
-    PROPERTIES(st)     ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(st)     NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
     FILTERGROUP activeGroup
         FILTER 'Активные' active(st) DEFAULT
@@ -500,12 +500,12 @@ FORM promotionGroups 'Группы акций'
                                 timeOfFrom, timeOfTo, minSumBill, maxSumBill,
                                 hasDiscountCard, noDiscountCard, minCumulativeSum, maxCumulativeSum,
                                 useCurrentReceipt, allDiscountCard
-    PROPERTIES(sh)     ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(sh)     NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     ORDER BY order(sh)
 
     FILTERS promotionGroup(sh)==st
 
-    DIALOG PromotionGroup OBJECT st
+    LIST PromotionGroup OBJECT st
 ;
 
 EXTEND FORM discountCard

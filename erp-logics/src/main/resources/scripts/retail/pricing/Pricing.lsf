@@ -102,9 +102,9 @@ FORM pricingCommitteeDialog 'Комиссии для акта расценки'
     OBJECTS r=PricingCommittee
     PROPERTIES(r)      READONLY name, nameStocks, nameFormedMan, nameCheckedMan, nameLabeledMan,
                        nameAccountantMan, nameHeadMan
-    PROPERTIES(r)      ADDFORM, EDITFORM
+    PROPERTIES(r)      NEWSESSION NEW, EDIT
 
-    DIALOG PricingCommittee OBJECT r
+    LIST PricingCommittee OBJECT r
 ;
 
 // ----------------------------------- Макрос для задания комиссии для документов ------------------------------------------ //
@@ -623,7 +623,7 @@ isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
 @defineDocumentInterfaceDetailBatch(pricing, batch);
 
 changeBatch(UserPricingDetail detail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = departmentStore(detail),
+    SHOW dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
                              sk = sku(detail) DIALOG SHOWDROP;
 
@@ -699,7 +699,7 @@ FORM userPricing 'Акт расценки'
     PROPERTIES (d) BACKGROUND backgroundRetail(p)
                    retailMarkup ON CHANGE changeRetailMarkup(d), retailMarkupSum, numberRetailVAT, valueRetailVAT,
                    retailVATSum, retailPrice ON CHANGE changeRetailPrice(d), retailSum
-    PROPERTIES (d) nameDepartmentStore, ADDOBJ, deletepd=DELETESESSION
+    PROPERTIES (d) nameDepartmentStore, NEW, deletepd=DELETE
     ORDER BY index(d)
 
     PROPERTIES(p) TODRAW d addDetailDialogSkuStockUserPricingDetail,
@@ -801,7 +801,7 @@ isUserOpened(UserPricing p)=  isOpened[Pricing](p) AND is(p);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (PricingDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserPricingDetail d) = ACTION NEWSESSION {
-    FORM userPricing OBJECTS p = userPricing(d), d = d MANAGESESSION DOCKED;
+    SHOW userPricing OBJECTS p = userPricing(d), d = d MANAGESESSION DOCKED;
 }
 edit(UserPricingDetail d) += ACTION edit(d);  
 
@@ -816,11 +816,11 @@ FORM pricings 'Акты расценки'
     PROPERTIES (p) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (p) ADDFORM[UserPricing]
+    PROPERTIES (p) NEWSESSION NEW[UserPricing]
     PROPERTIES (p) edit SHOWIF isOpened(p)
     PROPERTIES(p)  close[UserPricing] SHOWIF isOpened[UserPricing](p), open SHOWIF isClosed[UserPricing](p)     
 
-    PROPERTIES (p) deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)
+    PROPERTIES (p) NEWSESSION deletep=DELETE FORCE PANEL TOOLBAR SHOWIF isUserOpened(p)
     PROPERTIES (p) print FORCE PANEL
 
     OBJECTS d = PricingDetail
@@ -833,7 +833,7 @@ FORM pricings 'Акты расценки'
 
     FILTERS pricing(d) == p
 
-    DIALOG Pricing OBJECT p
+    LIST Pricing OBJECT p
 ;
 @extendFormFilterAccessStock(Pricing, p, pricings, departmentStore, company);
 

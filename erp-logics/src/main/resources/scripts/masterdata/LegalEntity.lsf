@@ -25,9 +25,9 @@ FORM ownership 'Форма собственности'
 FORM ownerships 'Формы собственности'
     OBJECTS o = Ownership
     PROPERTIES(o) READONLY name, shortName, nameCountry
-    PROPERTIES(o)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(o)          NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 
-    DIALOG Ownership OBJECT o
+    LIST Ownership OBJECT o
 ;
 
 // ----------------------------------- Юридическое лицо --------------------------------- //
@@ -127,7 +127,7 @@ FORM legalEntityGroups 'Группы организаций'
     PROPERTIES READONLY lgTreeName = name(lg)
     ORDER BY lgTreeName
 
-    DIALOG LegalEntityGroup OBJECT lg
+    LIST LegalEntityGroup OBJECT lg
 ;
 
 // ----------------------------------- Лицензия ------------------------------------------ //
@@ -236,7 +236,7 @@ preReplace = ACTION ABSTRACT LIST (LegalEntity, LegalEntity);
 replace 'Объединить'(LegalEntity legalEntity) = ACTION {
     setNoEventsInTransaction();
     
-    FORM confirmReplaceLegalEntity OBJECTS l=legalEntity ;
+    SHOW confirmReplaceLegalEntity OBJECTS l=legalEntity ;
     IF formResult() == FormResult.ok THEN {
         FOR in(LegalEntity l) AND legalEntity IS LegalEntity AND NOT isCompany(l) AND NOT isCompany(legalEntity)DO {
             IF l != legalEntity THEN {
@@ -269,7 +269,7 @@ FORM legalEntity 'Организация'
     PROPERTIES(l)  differentStocksInDetails SHOWIF isCompany(l)
 
     OBJECTS li=License FIXED GRID
-    PROPERTIES(li) SHOWIF toShow(l) number, dateFrom, dateTo, ADDOBJ, DELETESESSION
+    PROPERTIES(li) SHOWIF toShow(l) number, dateFrom, dateTo, NEW, DELETE
     FILTERS legalEntity(li) == l
     
     EDIT LegalEntity OBJECT l
@@ -350,7 +350,7 @@ FORM dialogLegalEntities 'Организации'
             l IS LegalEntity AND NOT lg IS LegalEntityGroup OR
             l IS LegalEntity AND lg IS LegalEntityGroup AND NOT legalEntityGroup(l)
 
-    DIALOG LegalEntity OBJECT l
+    LIST LegalEntity OBJECT l
 ;
 
 DESIGN dialogLegalEntities {
@@ -405,7 +405,7 @@ copy 'Копировать' (LegalEntity l) = ACTION {
                 dateTo(newLs) <- dateTo(ls);                
             }
             
-            FORM legalEntity OBJECTS l = newL DOCKED MANAGESESSION;
+            SHOW legalEntity OBJECTS l = newL DOCKED MANAGESESSION;
         }
     }
 }
@@ -414,7 +414,7 @@ FORM legalEntities 'Организации'
 
     TREE legalEntityGroupTree lg = LegalEntityGroup PARENT parent
     PROPERTIES READONLY lgTreeName = name(lg)
-    PROPERTIES(lg) ADDFORM, EDITFORM, deletelg=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(lg) NEWSESSION NEW, EDIT, deletelg=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS l=LegalEntity
     PROPERTIES(l) in
@@ -422,7 +422,7 @@ FORM legalEntities 'Организации'
                                           nameLegalEntityGroup
     PROPERTIES(l) READONLYIF isReadonly() address, phone, email
     PROPERTIES(l) READONLYIF isReadonly() isSupplier, isCompany, isCustomer
-    PROPERTIES(l) ADDFORM, EDITFORM, deletel=DELETE FORCE PANEL TOOLBAR, replace FORCE PANEL TOOLBAR, copy FORCE PANEL TOOLBAR 
+    PROPERTIES(l) NEWSESSION NEW, EDIT, deletel=DELETE FORCE PANEL TOOLBAR, replace FORCE PANEL TOOLBAR, copy FORCE PANEL TOOLBAR 
     ORDER BY nameL
     FILTERGROUP inactiveLegalEntity FILTER 'Активная' active(l) 'shift F10' DEFAULT    
     FILTERS isParent(legalEntityGroup(l), lg) OR

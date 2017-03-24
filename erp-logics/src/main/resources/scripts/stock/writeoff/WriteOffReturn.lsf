@@ -40,7 +40,7 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
 changeBatch(UserWriteOffDetail userWriteOffDetail) = ACTION {
-    FORM dialogBatchStockIn OBJECTS st = stock(userWriteOffDetail),
+    SHOW dialogBatchStockIn OBJECTS st = stock(userWriteOffDetail),
                              t = dateTime(userWriteOffDetail),
                              sk = sku(userWriteOffDetail) DIALOG SHOWDROP;
 
@@ -105,7 +105,7 @@ FORM userWriteOff 'Списание-возврат'
     OBJECTS d=UserWriteOffDetail
     PROPERTIES (d) index, idBarcodeSku, nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE changeBatch(d), quantity,
-                   price, sum, nameStock, ADDOBJ, deletewd=DELETESESSION
+                   price, sum, nameStock, NEW, deletewd=DELETE
 
     PROPERTIES(w) TODRAW d fillDocument, addDetailDialogSkuStockUserWriteOffDetail,
                            addDetailInputBarcodeUserWriteOffDetail, deleteUserWriteOffDetail
@@ -234,11 +234,11 @@ FORM writeOffs 'Списания-возврат'
 
     PROPERTIES (w) READONLY FORCE PANEL createdTime, createdNameUser, createdHostnameComputer, 
                    postedNameUser, postedTime, postedHostnameComputer
-    PROPERTIES (w)  ADDFORM[UserWriteOff]
+    PROPERTIES (w)  NEWSESSION NEW[UserWriteOff]
     PROPERTIES (w) edit SHOWIF isOpened(w)
     PROPERTIES (w) close[UserWriteOff] SHOWIF isOpened[UserWriteOff](w), open SHOWIF isClosed[UserWriteOff](w)
     
-    PROPERTIES (w) deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpened(w)
+    PROPERTIES (w) NEWSESSION deletew=DELETE FORCE PANEL TOOLBAR  SHOWIF isUserOpened(w)
 
     OBJECTS d=WriteOffDetail
     PROPERTIES (d) READONLY index, idBarcodeSku, nameSku, shortNameUOMSku, 
@@ -395,14 +395,14 @@ stockDocumentLedger(WriteOffDetail ledger) += writeOff(ledger);
 
 edit 'Редактировать' = ACTION ABSTRACT LIST (WriteOffDetail) IMAGE 'edit.png' EDITKEY 'BACK_SPACE' HIDE TOOLBAR;
 edit(UserWriteOffDetail d) = ACTION NEWSESSION {
-    FORM userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
+    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d MANAGESESSION DOCKED;
 }
 edit(UserWriteOffDetail d) += ACTION edit(d);
 edit[SkuLedger](WriteOffDetail d) += ACTION edit(d);
 
 show 'Просмотреть' = ACTION ABSTRACT LIST (WriteOffDetail) TOOLBAR;
 show(UserWriteOffDetail d) = ACTION NEWSESSION {
-    FORM userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
+    SHOW userWriteOff OBJECTS w = userWriteOff(d), d = d DOCKED READONLY;
 }
 show(UserWriteOffDetail d) += ACTION show(d);
 show[SkuLedger](WriteOffDetail d) += ACTION show(d);

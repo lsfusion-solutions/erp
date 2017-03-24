@@ -27,13 +27,13 @@ FORM statisticGroupType 'Тип классификатора статистич�
 FORM dialogStatisticGroupType 'Тип статистической группы'
     OBJECTS t = StatisticGroupType
     PROPERTIES(t) READONLY name, id, nameCountry
-    DIALOG StatisticGroupType OBJECT t
+    LIST StatisticGroupType OBJECT t
 ;
 
 FORM statisticGroupTypes 'Типы статистических групп'
     OBJECTS t = StatisticGroupType
     PROPERTIES(t) READONLY name, id, nameCountry
-    PROPERTIES(t) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 ;
 
 defaultStatisticGroupType = DATA StatisticGroupType();
@@ -66,7 +66,7 @@ CLASS GroupStatic 'Ед. изм.' {
 FORM groupStaticsDialog 'Ед. изм. статистики'
     OBJECTS g = GroupStatic
     PROPERTIES(g) READONLY staticCaption
-    DIALOG GroupStatic OBJECT g
+    LIST GroupStatic OBJECT g
 ;
 
 TABLE groupStaticUOM (GroupStatic, UOM);
@@ -137,7 +137,7 @@ add 'Добавить'(StatisticGroup group, StatisticGroupType type) = ACTION N
     FOR ADDOBJ g = StatisticGroup DO {
         ASSIGN parent(g) <- group;
         ASSIGN groupType(g) <- type;
-        FORM statisticGroup OBJECTS g = g ;
+        SHOW statisticGroup OBJECTS g = g ;
         IF formResult() == FormResult.ok THEN
             EXEC apply();
     };
@@ -170,13 +170,13 @@ FORM statisticGroups 'Статистические группы'
     TREE treeGroups g=StatisticGroup PARENT parent
     PROPERTIES READONLY name(g), sid(g)
     PROPERTIES(g,c)       add SHOWIF countStatisticGroups(c)
-    PROPERTIES(g) EDITFORM, ADDFORM SHOWIF showAdd(c)
+    PROPERTIES(g) NEWSESSION EDIT, NEW SHOWIF showAdd(c)
     ORDER BY sid(g)
 
     OBJECTS cg=StatisticGroup
     PROPERTIES(cg)     READONLYIF isReadonly() canonicalNumberName, sid, nameUOM,
                        conversionFactor
-    PROPERTIES(cg)     DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(cg)     NEWSESSION DELETE FORCE PANEL TOOLBAR
 
     FILTERS groupType(g) == c,
             groupType(cg) == c
@@ -224,17 +224,17 @@ FORM statisticGroupDialog 'Статистические группы'
 
     TREE treeGroups g=StatisticGroup PARENT parent
     PROPERTIES(g) READONLY name, nameUOM, sid, canonicalNumber
-    PROPERTIES(g) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS groupType(g) == c
     ORDER BY canonicalNumber(g)
     
     OBJECTS s = StatisticGroup
     PROPERTIES(s) READONLY name, nameUOM, sid, canonicalNumber 
-    PROPERTIES(s) add = ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(s) NEWSESSION add = NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS isParent(s,g)
     ORDER BY canonicalNumber(s)
     
-    DIALOG StatisticGroup OBJECT s
+    LIST StatisticGroup OBJECT s
 ;
 DESIGN statisticGroupDialog {
     main {
@@ -882,7 +882,7 @@ copy 'Копировать' (StatisticGroupType type) = ACTION NEWSESSION NESTED
         statisticGroupTypeDefault() <- t;
     }
     apply();
-    FORM statisticGroups OBJECTS ss = country(statisticGroupTypeDefault()), c = statisticGroupTypeDefault();
+    SHOW statisticGroups OBJECTS ss = country(statisticGroupTypeDefault()), c = statisticGroupTypeDefault();
     statisticGroupTypeDefault() <- NULL;
 } TOOLBAR;
 

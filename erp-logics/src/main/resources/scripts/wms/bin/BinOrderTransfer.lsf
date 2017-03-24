@@ -185,7 +185,7 @@ createUserBinTransfer 'Создать перемещение'(BinOrder binOrder)
 
 createAndShowUserBinTransfer 'Создать перемещение' (BinOrder binOrder) = ACTION {
     createUserBinTransfer(binOrder);
-    FORM userBinTransfer OBJECTS o = userBinTransfer(binOrder) MANAGESESSION DOCKED NOCANCEL;
+    SHOW userBinTransfer OBJECTS o = userBinTransfer(binOrder) MANAGESESSION DOCKED NOCANCEL;
 }
 
 createUserBinTransferPosted 'Создать проведенное перемещение' (BinOrder binOrder) = ACTION {
@@ -198,7 +198,7 @@ createUserBinTransferPosted 'Создать проведенное переме�
 
 addUserBinTransfer 'Перемещение' (BinOrder binOrder) =  ACTION NEWSESSION {
     createUserBinTransfer(binOrder);
-    FORM userBinTransfer OBJECTS o = userBinTransfer(binOrder) MANAGESESSION DOCKED NOCANCEL;
+    SHOW userBinTransfer OBJECTS o = userBinTransfer(binOrder) MANAGESESSION DOCKED NOCANCEL;
 } TOOLBAR;
 
 backgroundTransfered 'Цвет' (BinOrder order) = RGB(255, 224, 255) IF order IS BinOrder;
@@ -278,7 +278,7 @@ fillBinOrder 'Заполнить на основе заказа'(UserBinTransfer
     stockBinTransferBinOrder() <- supplierStock(userBinTransfer) WHERE supplierStock(userBinTransfer);
     operationBinTransferBinOrder() <- operation(userBinTransfer) WHERE operation(userBinTransfer);
 
-    FORM binTransferBinOrders ;
+    SHOW binTransferBinOrders ;
     IF formResult() == FormResult.ok THEN {
         fill(userBinTransfer, chosenObject('o') AS BinOrder);
     }
@@ -298,10 +298,10 @@ FORM selectBinOrderDetail 'Выбрать строку заказа'
 changeBinOrder (UserBinTransferDetail d) = ACTION {
     IF binOrderDetail(d) THEN
         REQUEST OBJECT d
-            FORM selectBinOrderDetail OBJECTS i = d, d = binOrderDetail(d) DIALOG SHOWDROP
+            SHOW selectBinOrderDetail OBJECTS i = d, d = binOrderDetail(d) DIALOG SHOWDROP
     ELSE
         REQUEST OBJECT d
-            FORM selectBinOrderDetail OBJECTS i = d DIALOG SHOWDROP;
+            SHOW selectBinOrderDetail OBJECTS i = d DIALOG SHOWDROP;
 
     IF formResult() == FormResult.ok THEN {
         binOrderDetail(d) <- chosenObject('d');
@@ -363,7 +363,7 @@ notIncludeBinTransferDetailBinOrder 'Есть строки перемещени�
     IF relationBinTransferDetail(BinOrder binOrder, BinTransfer binTransfer) AND NOT include[BinOrder,UserBinTransfer](binOrder, binTransfer)  BY binTransfer;         
 
 dialogIncludeBinOrdersUser 'Включить заказы в перемещение' (BinTransfer userBinTransfer) = ACTION {
-    FORM includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer ;
+    SHOW includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer ;
     IF formResult() == FormResult.ok THEN {
         IF notRelationBinTransferDetailBinOrder(userBinTransfer) THEN {
             CONFIRM 'Создать по выбранным заказам строки перемещения?';
@@ -443,7 +443,7 @@ createMultiUserBinTransfer(BinOrder binOrder) = ACTION {
                 include[BinOrder,UserBinTransfer](o,i)<- TRUE;             
             }     
 
-            FORM userBinTransfer OBJECTS o = i DOCKED;
+            SHOW userBinTransfer OBJECTS o = i DOCKED;
             IF formResult() == FormResult.ok THEN {
                 apply();
             } ELSE {

@@ -75,7 +75,7 @@ CLASS UserPickingOrderDetail 'Строка заказа на комплекта�
 //    @defineDocumentDialogSupplierCustomerLegalEntity(userOrder, supplierFilter, customerFilter);
 
 changeBatch(UserPickingOrderDetail detail) = ACTION {
-    FORM dialogBatchStockOut OBJECTS st = stock(detail),
+    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
                                   sk = sku(detail) DIALOG SHOWDROP;
 
@@ -103,7 +103,7 @@ FORM userPickingOrder 'Заказ на комплектацию'
     PROPERTIES (d) index
     PROPERTIES (d) ON EDIT editSku(d) idBarcodeSku, nameSku, shortNameUOMSku,
                    nameBatch ON CHANGE changeBatch(d)
-    PROPERTIES (d) quantity, ADDOBJ, DELETESESSION
+    PROPERTIES (d) quantity, NEW, DELETE
 
     PROPERTIES(o) TODRAW d addDetailDialogSkuStockUserPickingOrderDetail,
                            addDetailInputBarcodeUserPickingOrderDetail, deleteUserPickingOrderDetail
@@ -178,7 +178,7 @@ copy 'Копировать'(PickingOrder order) = ACTION NEWSESSION {
             }
         }
 
-        FORM userPickingOrder OBJECTS o = o MANAGESESSION DOCKED;
+        SHOW userPickingOrder OBJECTS o = o MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -192,15 +192,15 @@ FORM pickingOrders 'Заказы на комплектацию'
 
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer
 
-    PROPERTIES (o)  ADDFORM[UserPickingOrder]
+    PROPERTIES (o)  NEWSESSION NEW[UserPickingOrder]
     PROPERTIES (o) edit, copy
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF is[UserPickingOrder](o)
+    PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR  SHOWIF is[UserPickingOrder](o)
 
     OBJECTS d=PickingOrderDetail
     PROPERTIES (d) READONLY index, nameSku, shortNameUOMSku,
                    nameBatch, quantity
     FILTERS pickingOrder(d) == o
-    DIALOG PickingOrder OBJECT o
+    LIST PickingOrder OBJECT o
 ;
 
 DESIGN pickingOrders {

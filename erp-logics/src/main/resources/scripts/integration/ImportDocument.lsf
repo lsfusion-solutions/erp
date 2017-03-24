@@ -168,7 +168,7 @@ idStock (StockMappingEntry stockMappingEntry) = id(stock(stockMappingEntry));
 FORM importTypeDetails
     OBJECTS itd = ImportTypeDetail
     PROPERTIES(itd) staticCaption READONLY, canonicalNameProp, captionKey
-    DIALOG ImportTypeDetail OBJECT itd
+    LIST ImportTypeDetail OBJECT itd
 ;
 
 FORM importTypeDetail 'Свойство импорта'
@@ -180,19 +180,19 @@ FORM importTypeDetail 'Свойство импорта'
 FORM fileExtensions 'Типы файлов'
     OBJECTS f=FileExtension
     PROPERTIES(f) READONLY staticCaption
-    DIALOG FileExtension OBJECT f
+    LIST FileExtension OBJECT f
 ;
 
 FORM keyTypes 'Ключи товара'
     OBJECTS k=KeyType
     PROPERTIES(k) READONLY staticCaption
-    DIALOG KeyType OBJECT k
+    LIST KeyType OBJECT k
 ;
 
 FORM customKeyTypes 'Ключи свойства'
     OBJECTS k=CustomKeyType
     PROPERTIES(k) READONLY staticCaption
-    DIALOG CustomKeyType OBJECT k
+    LIST CustomKeyType OBJECT k
 ;
 
 showSeparator (ImportType importType) = fileExtension(importType)==FileExtension.csv OR fileExtension(importType)==FileExtension.txt;
@@ -213,13 +213,13 @@ FORM importType 'Тип импорта'
                   nameAutoImportCustomerStock FORCE PANEL 
                                    
     OBJECTS  s=StockMappingEntry FIXED GRID              
-    PROPERTIES(s) SHOWIF useStockMapping(i) id, nameStock, ADDOBJ, DELETESESSION                
+    PROPERTIES(s) SHOWIF useStockMapping(i) id, nameStock, NEW, DELETE                
     FILTERS importType(s) == i
               
     OBJECTS d = ImportTypeDetail
     PROPERTIES(d) staticCaption READONLY, canonicalNameProp, captionKey
     PROPERTIES(i,d) index, replaceOnlyNull                   
-    PROPERTIES(d) FORCE PANEL ADDFORM, EDITFORM, DELETE TOOLBAR
+    PROPERTIES(d) FORCE PANEL NEWSESSION NEW, EDIT, DELETE TOOLBAR
     EDIT ImportType OBJECT i
 ;
 
@@ -264,7 +264,7 @@ FORM importTypes 'Типы импорта'
                    captionSecondaryKeyType, keyIsDigit, 
                    checkArticles, multipleDocuments, autoImport, autoImportDirectory SHOWIF autoImport(i)
     ORDER BY name(i)                   
-    DIALOG ImportType OBJECT i
+    LIST ImportType OBJECT i
 ;
 
 EXTEND FORM integrationData
@@ -273,7 +273,7 @@ EXTEND FORM integrationData
                    separator SHOWIF showSeparator(i), captionPrimaryKeyType, checkExistencePrimaryKey, 
                    captionSecondaryKeyType, keyIsDigit, 
                    checkArticles, multipleDocuments
-    PROPERTIES(i) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(i) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
 ;
 
 DESIGN integrationData {

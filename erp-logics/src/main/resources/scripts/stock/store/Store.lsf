@@ -45,10 +45,10 @@ FORM storeType 'Формат магазина'
 
 FORM storeTypes 'Форматы магазинов'
     OBJECTS t=StoreType
-    PROPERTIES(t) nameChainStores READONLY, name READONLY, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(t) ADDFORM, EDITFORM
+    PROPERTIES(t) NEWSESSION nameChainStores READONLY, name READONLY, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION NEW, EDIT
     ORDER BY name(t)
-    DIALOG StoreType OBJECT t
+    LIST StoreType OBJECT t
 ;
 DESIGN storeTypes { main{ preferredSize = (600, 400); } }
 
@@ -58,7 +58,7 @@ FORM chainStores 'Торговая сеть'
 
     OBJECTS s=StoreType
     PROPERTIES(s) name, inactive
-    PROPERTIES(s) ADDOBJ, DELETESESSION
+    PROPERTIES(s) NEW, DELETE
     FILTERS in(n, s)
     FILTERGROUP active
         FILTER 'Активные' active(s) DEFAULT
@@ -261,7 +261,7 @@ FORM departmentStore 'Отдел магазина'
 
     OBJECTS e = Employee FIXED GRID
     PROPERTIES(e) SHOWIF isCompany(d) READONLY firstName, lastName
-    PROPERTIES(e) SHOWIF isCompany(d) ADDSESSIONFORM, EDITSESSIONFORM, deletee = DELETESESSION
+    PROPERTIES(e) SHOWIF isCompany(d) NEWEDIT, EDIT, deletee = DELETE
     FILTERS in(d, e)
 
     EDIT DepartmentStore OBJECT d
@@ -320,7 +320,7 @@ FORM departmentStores 'Отделы магазинов'
     ORDER BY depName
     FILTERGROUP activeDS FILTER 'Активный' active(d) 'F10' DEFAULT
 
-    DIALOG DepartmentStore OBJECT d
+    LIST DepartmentStore OBJECT d
 ;
 
 DESIGN departmentStores {
@@ -367,7 +367,7 @@ FORM store 'Магазин'
 
     OBJECTS d=DepartmentStore
     PROPERTIES(d) READONLY name, id SHOWIF showIDs(), nameStockGroup, tradingSquare
-    PROPERTIES(d)          ADDNESTEDFORM, EDITNESTEDFORM, deleteD=DELETESESSION
+    PROPERTIES(d)          NESTEDSESSION NEW, EDIT, deleteD=DELETE
     FILTERS in(s, d)
 
     EDIT Store OBJECT s
@@ -431,11 +431,11 @@ FORM stores 'Магазины'
     FILTERGROUP active
         FILTER 'Активные' active(st) DEFAULT
 
-    PROPERTIES(t) addT=ADDFORM FORCE PANEL, editT=EDITFORM FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t) NEWSESSION addT=NEW FORCE PANEL, editT=EDIT FORCE PANEL, deletet=DELETE FORCE PANEL TOOLBAR
 
     OBJECTS s=Store
     PROPERTIES(s) READONLYIF isReadonly() name, id SHOWIF showIDs(), address, email, nameStoreType, nameLegalEntity, nameRegion
-    PROPERTIES(s) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(s) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS in(t, st, s)
     FILTERGROUP group1
         FILTER 'Активные' active(s) 'F10' DEFAULT
@@ -443,7 +443,7 @@ FORM stores 'Магазины'
     OBJECTS d=DepartmentStore
     PROPERTIES(d) READONLY name, id SHOWIF showIDs()
     FILTERS in(s, d)
-    DIALOG Store OBJECT s
+    LIST Store OBJECT s
 ;
 
 DESIGN stores {
@@ -504,7 +504,7 @@ END
 addStore 'Добавить магазин'(LegalEntity legalEntity) = ACTION NESTEDSESSION{
     FOR ADDOBJ st = Store DO {
         ASSIGN legalEntity(st) <- legalEntity;
-        FORM store OBJECTS s = st MANAGESESSION DOCKED;
+        SHOW store OBJECTS s = st MANAGESESSION DOCKED;
     }
 }
 

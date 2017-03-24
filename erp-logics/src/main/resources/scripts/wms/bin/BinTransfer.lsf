@@ -81,7 +81,7 @@ FORM userBinTransfer 'Перемещение по ячейкам (польз.)'
     
     OBJECTS d = UserBinTransferDetail
     PROPERTIES (d) index, idBarcodeSku, idSku, nameSku, nameOutBin ON CHANGE setOutBin(d), nameInBin ON CHANGE setInBin(d), quantity, sumGrossWeight
-    PROPERTIES (d) ADDOBJ, deleteod = DELETESESSION
+    PROPERTIES (d) NEW, deleteod = DELETE
     PROPERTIES(o) TODRAW d fillDocument, addDetailDialogSkuStockUserBinTransferDetail,
                            addDetailInputBarcodeUserBinTransferDetail, deleteUserBinTransferDetail
     FILTERS binTransfer(d)==o
@@ -198,7 +198,7 @@ copy 'Копировать'(BinTransfer transfer) = ACTION NEWSESSION {
             }
         }
 
-        FORM userBinTransfer OBJECTS o = o MANAGESESSION DOCKED;
+        SHOW userBinTransfer OBJECTS o = o MANAGESESSION DOCKED;
     }
 } TOOLBAR;
     
@@ -251,15 +251,15 @@ FORM binTransfers  'Перемещения по ячейкам'
     PROPERTIES (o) READONLY FORCE PANEL createdNameUser[UserBinTransfer], createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
 
-    PROPERTIES (o) addUserBinTransfer = ADDFORM[UserBinTransfer]
+    PROPERTIES (o) NEWSESSION addUserBinTransfer = NEW[UserBinTransfer]
     PROPERTIES (o) edit SHOWIF overShowEdit(o),//isOpenedTransfer(o), 
                    copy
     PROPERTIES (o) close[UserBinTransfer] SHOWIF isOpened[UserBinTransfer](o), open SHOWIF isClosed[UserBinTransfer](o)
-    PROPERTIES     deleteo=DELETE(o) FORCE PANEL TOOLBAR SHOWIF overShowDelete(o) //isUserOpenedTransfer(o)
+    PROPERTIES     NEWSESSION deleteo=DELETE(o) FORCE PANEL TOOLBAR SHOWIF overShowDelete(o) //isUserOpenedTransfer(o)
             
     FILTERS binTransfer(d)==o
     ORDER BY index(d)
-    DIALOG BinTransfer OBJECT o
+    LIST BinTransfer OBJECT o
 ;
 
 DESIGN binTransfers 'Перемещения по ячейкам' {

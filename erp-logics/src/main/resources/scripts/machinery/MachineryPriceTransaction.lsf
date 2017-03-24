@@ -355,7 +355,7 @@ FORM machineryPriceTransactions 'Загрузки прайса в оборудо
                            quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(t),
                            npps FORCE PANEL SHOWIF snapshot(t)
     PROPERTIES(t) READONLY createdNameUser, createdHostnameComputer
-    PROPERTIES(t)          addT = ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(t)          NEWSESSION addT = NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS stock(t) == s
 
     OBJECTS b = Barcode
@@ -415,7 +415,7 @@ CLASS RequestExchangeType 'Тип запроса' {
 FORM requestExchangeTypes 'Типы запросов'
     OBJECTS r = RequestExchangeType
     PROPERTIES(r) READONLY staticCaption
-    DIALOG RequestExchangeType OBJECT r
+    LIST RequestExchangeType OBJECT r
 ;
 
 CLASS RequestExchange 'Запрос обмена данными';
@@ -544,7 +544,7 @@ copy 'Копировать'(RequestExchange request) = ACTION NEWSESSION {
         
         overCopy(request, r);
         
-        FORM requestExchange OBJECTS r = r MANAGESESSION DOCKED;
+        SHOW requestExchange OBJECTS r = r MANAGESESSION DOCKED;
     }   
 } TOOLBAR;
 
@@ -559,7 +559,7 @@ FORM requestExchanges 'Запросы обмена данными'
                            captionRequestExchangeType, succeeded, dateTimeSucceeded, note, 
                            startDate SHOWIF showStartDate(r) FORCE PANEL, idDiscountCardFrom SHOWIF showStartDate(r) FORCE PANEL, 
                            idDiscountCardTo SHOWIF showStartDate(r) FORCE PANEL
-    PROPERTIES(r)          copy, ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(r)          NEWSESSION copy, NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     
     OBJECTS rl = RequestExchangeLog
     PROPERTIES(rl) READONLY nppMachinery, message, date
@@ -610,7 +610,7 @@ skipMachineryPriceTransaction 'Запретить загрузку в обору
 snapshotAttribute = ACTION ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
 
 snapshotGroupMachinery 'Ранее загруженные'(Stock stock) = ACTION NEWSESSION {
-    FORM groupMachineryInput OBJECTS s = stock ;
+    SHOW groupMachineryInput OBJECTS s = stock ;
     IF formResult() == FormResult.ok THEN {
         FOR selected(GroupMachinery groupMachinery) DO {
             createMachineryPriceTransaction(groupMachinery);
@@ -773,7 +773,7 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
 DESIGN selectGroupMachinery { main{ preferredSize = (1024, 768); } }
 
 createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = ACTION NEWSESSION {
-    FORM selectGroupMachinery OBJECTS st = stock ;
+    SHOW selectGroupMachinery OBJECTS st = stock ;
     IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
         exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
         
@@ -786,7 +786,7 @@ createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = ACT
 } IN snapshotMachineryPrice;
 
 createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION NEWSESSION {
-    FORM selectGroupMachinery OBJECTS st = stock ;
+    SHOW selectGroupMachinery OBJECTS st = stock ;
     IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
         exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
         
@@ -802,7 +802,7 @@ createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = ACTIO
 
 GROUP documentMachineryPrice 'Из документа' : public;
 createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) = ACTION NEWSESSION {
-    FORM documents DIALOG;
+    SHOW documents DIALOG;
     IF formResult() == FormResult.ok THEN {
         createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, chosenObject('d'));        
         createMachineryPriceTransactionDocument() <- chosenObject('d');
@@ -1078,7 +1078,7 @@ EXTEND FORM machineryPriceTransactions
                             quantityMachineryPriceTransactionError BACKGROUND quantityMachineryPriceTransactionError(tt),
                             npps FORCE PANEL SHOWIF snapshot(tt)
     PROPERTIES(tt) READONLY FORCE GRID createdNameUser, createdHostnameComputer
-    PROPERTIES(tt)          addTt = ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(tt)          NEWSESSION addTt = NEW, EDIT, DELETE FORCE PANEL TOOLBAR
     FILTERS NOT succeeded(tt) AND NOT canceled(tt) //OR (countSucceededMachineriesMachineryPriceTransaction(tt) != countMachineriesGroupMachinery(groupMachineryMachineryPriceTransaction(tt)))
     FILTERGROUP stockFilter
         FILTER 'По складу' stock(tt) == s 'F11'      

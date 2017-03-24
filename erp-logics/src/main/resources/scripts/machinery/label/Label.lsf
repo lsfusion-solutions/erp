@@ -20,8 +20,8 @@ FORM printOrientation 'Ориентация'
 FORM printOrientations 'Ориентации'
     OBJECTS o = PrintOrientation
     PROPERTIES(o) READONLY staticCaption, fileTemplate  
-    PROPERTIES(o) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    DIALOG PrintOrientation OBJECT o
+    PROPERTIES(o) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    LIST PrintOrientation OBJECT o
 ;
 
 onStarted() += ACTION {
@@ -221,8 +221,8 @@ DESIGN labelType {
 FORM labelTypes 'Типы ценников'
     OBJECTS l = LabelType
     PROPERTIES(l) READONLY id, name, width, height, nameOrientation, fileTemplate, namePriceListType, printNullPrice
-    PROPERTIES(l)          ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    DIALOG LabelType OBJECT l
+    PROPERTIES(l)          NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    LIST LabelType OBJECT l
 ;
 
 //---------------------------- Документы для печати ценников ----------------------------------------//
@@ -393,7 +393,7 @@ deleteNotSelectedDetail 'Удалить кроме отмеченных'(LabelTr
 changeBarcode(LabelTransactionDetail d)  = ACTION {
     IF [= GROUP SUM 1 IF id(Barcode b) BY sku(b)](sku(d)) > 1 THEN {
         REQUEST OBJECT b
-        FORM barcodeSku OBJECTS s = sku(d) ;
+        SHOW barcodeSku OBJECTS s = sku(d) ;
         IF formResult() == FormResult.ok THEN {
             dataBarcode(d) <- requestedObject();
     
@@ -413,7 +413,7 @@ DESIGN labelTypesDialog { main{ preferredSize = (800, 600); } }
 
 changeLabelType(LabelTransaction t)  = ACTION {
     REQUEST OBJECT l
-    FORM labelTypesDialog OBJECTS ds = departmentStore(t) ;
+    SHOW labelTypesDialog OBJECTS ds = departmentStore(t) ;
     IF formResult() == FormResult.ok THEN {
         labelType(t) <- requestedObject();
 
@@ -428,7 +428,7 @@ FORM customLabelTransaction 'Печать ценников'
     OBJECTS d = LabelTransactionDetail
     PROPERTIES(d) selected, idBarcode ON CHANGE changeBarcode(d), nameSku READONLY, nameBatch,
                   nameOperation, quantity, name, price, retailPrice,
-                  discountSum, discountPercent, DELETESESSION
+                  discountSum, discountPercent, DELETE
     FILTERS labelTransaction(d) == l
     
     PROPERTIES(l) TODRAW d deleteNotSelectedDetail                      
@@ -464,7 +464,7 @@ DESIGN customLabelTransaction {
 addLabelTransaction 'Добавить'(DepartmentStore dep) = ACTION NEWSESSION {
     FOR ADDOBJ l = LabelTransaction DO {
         ASSIGN departmentStore(l) <- dep;
-        FORM customLabelTransaction OBJECTS l=l DOCKED;
+        SHOW customLabelTransaction OBJECTS l=l DOCKED;
         IF formResult() == FormResult.ok THEN { 
                 print(l);
             apply();
@@ -511,7 +511,7 @@ FORM labelTransactions 'Печать ценников'
     PROPERTIES(l) READONLY nameLabelType, description, date, time
     PROPERTIES(l) READONLY createdNameUser, createdTime, createdHostnameComputer
     PROPERTIES(d) addLabelTransaction TODRAW l FORCE PANEL TOOLBAR 
-    PROPERTIES(l) EDITFORM , DELETE FORCE PANEL TOOLBAR 
+    PROPERTIES(l) NEWSESSION EDIT , DELETE FORCE PANEL TOOLBAR 
     PROPERTIES(l) printTo FORCE PANEL 
     FILTERS departmentStore(l) == d
     ORDER BY date(l), time(l)
@@ -696,7 +696,7 @@ EXTEND FORM labelTransactions PROPERTIES(dt) READONLY nameAddressPhoneLegalEntit
 //-------------------------------------- Подбор ------------------------//
 
 addDetailDialogSkuLabelTransactionDetail 'Подбор товаров'(LabelTransaction labelTransaction) = ACTION {
-    FORM dialogSku ;
+    SHOW dialogSku ;
     IF formResult() == FormResult.ok THEN {
         FOR dialogQuantity(Sku sku) INLINE ADDOBJ w = LabelTransactionDetail DO {
             labelTransaction(w) <- labelTransaction;
@@ -1047,7 +1047,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
         }
         overCreate(t);
         IF change(departmentStore) THEN {
-            FORM customLabelTransaction OBJECTS l = t ;
+            SHOW customLabelTransaction OBJECTS l = t ;
             IF formResult() == FormResult.ok THEN {    
                 print(t);
             } ELSE {
@@ -1109,7 +1109,7 @@ createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать цен�
         NEWSESSION NESTED (select[Sku,Stock]) {
 
             FOR [= GROUP SUM 1 IF select(Sku sku, Stock stock) BY stock](DepartmentStore stock) AND stock IS DepartmentStore DO {  
-                FORM selectLabelTypes OBJECTS ds =  stock ;
+                SHOW selectLabelTypes OBJECTS ds =  stock ;
                 IF formResult() == FormResult.ok THEN { 
                     select(Sku sku) <- NULL;  
                     select(Sku sku) <- TRUE WHERE  select(sku, stock);     
@@ -1151,7 +1151,7 @@ printSelectedSkuLabelTransaction 'Распечатать ценники'(Departm
 printSelectedSkuSnapshotLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore) = ACTION {
     IF [=GROUP SUM 1 IF select(Sku sku)]() THEN  { 
         NEWSESSION NESTED (select[Sku]) {
-            FORM selectLabelTypes OBJECTS ds =  departmentStore ;  
+            SHOW selectLabelTypes OBJECTS ds =  departmentStore ;  
             IF formResult() == FormResult.ok THEN {       
                 IF NOT countSelectType() THEN {
                     select(LabelType type) <- TRUE WHERE type == chosenObject('l');

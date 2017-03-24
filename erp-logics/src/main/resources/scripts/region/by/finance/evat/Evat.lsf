@@ -39,7 +39,7 @@ FORM EVATTypes 'Типы счет-фактур'
     OBJECTS t = EVATType FIXED GRID
     PROPERTIES(t) READONLY name
     
-    DIALOG EVATType OBJECT t
+    LIST EVATType OBJECT t
 ;
 
 type = ABSTRACT EVATType (EVATDocument);
@@ -59,7 +59,7 @@ CLASS EVATStatus 'Статус' {
 FORM evatStatuses
     OBJECTS e = EVATStatus
     PROPERTIES(e) READONLY staticCaption
-    DIALOG EVATStatus OBJECT e
+    LIST EVATStatus OBJECT e
 ;
 
 CLASS EVATServerStatus 'Статус на сервере' {
@@ -76,7 +76,7 @@ CLASS EVATServerStatus 'Статус на сервере' {
 FORM evatServerStatuses
     OBJECTS e = EVATServerStatus
     PROPERTIES(e) READONLY staticCaption
-    DIALOG EVATServerStatus OBJECT e
+    LIST EVATServerStatus OBJECT e
 ;
 
 
@@ -100,7 +100,7 @@ CLASS LegalEntityStatus 'Статус' {
 FORM legalEntityStatuses
     OBJECTS p = LegalEntityStatus
     PROPERTIES(p) READONLY staticCaption
-    DIALOG LegalEntityStatus OBJECT p
+    LIST LegalEntityStatus OBJECT p
 ;
 
 pathEVAT 'Путь к jar и xsd (EVAT)' = DATA VARSTRING[100] (Computer);
@@ -301,7 +301,7 @@ CLASS DescriptionType 'Описание' {
 FORM descriptionTypes
     OBJECTS d = DescriptionType
     PROPERTIES(d) READONLY staticCaption
-    DIALOG DescriptionType OBJECT d
+    LIST DescriptionType OBJECT d
 ;
 
 descriptionType = DATA DescriptionType(EVATDetail);
@@ -331,7 +331,7 @@ FORM evat 'Электронная счёт-фактура'
                   totalSum, totalExciseSum, totalVATSum, totalSumWithVAT
 
     OBJECTS d = EVATDetail
-    PROPERTIES(d) name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, ADDOBJ
+    PROPERTIES(d) name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType, NEW
     FILTERS evat(d) == e
     EDIT EVAT OBJECT e
 ;
@@ -449,8 +449,8 @@ FORM evats 'Электронные счета-фактуры'
                   totalExciseSum, totalVATSum, totalSumWithVAT
     PROPERTIES(e) TOOLBAR generateXMLAction, signAndSend SHOWIF showSendEvat()
     PROPERTIES() TOOLBAR TODRAW e getStatus SHOWIF showSendEvat()
-    PROPERTIES(e) ADDFORM, EDITFORM, DELETE FORCE PANEL TOOLBAR
-    PROPERTIES(e) DELETESESSION
+    PROPERTIES(e) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES(e) d=DELETE
     FILTERS date(e) >= dFrom, date(e) <= dTo,
             type(e) == filterType() OR NOT filterType()
     
@@ -458,7 +458,7 @@ FORM evats 'Электронные счета-фактуры'
     OBJECTS d = EVATDetail
     PROPERTIES(d) READONLYIF isReadonly() name, shortNameUOM, code, quantity, price, sum, exciseSum, vatRate, vatSum, sumWithVAT, captionDescriptionType
     FILTERS evat(d) == e
-    DIALOG EVAT OBJECT e
+    LIST EVAT OBJECT e
 
     OBJECTS l = LegalEntity FIXED PANEL
     PROPERTIES(l) name SELECTOR

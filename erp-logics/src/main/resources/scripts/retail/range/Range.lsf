@@ -20,14 +20,14 @@ FORM rangeLevel 'Уровень ассортимента'
 FORM rangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
     PROPERTIES(l) READONLY name
-    PROPERTIES(l) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
+    PROPERTIES(l) NEWSESSION NEW, EDIT, DELETE TOOLBAR FORCE PANEL
 ;
 
 FORM dialogRangeLevels 'Уровни ассортимента'
     OBJECTS l = RangeLevel
     PROPERTIES(l) READONLY name
     
-    DIALOG RangeLevel OBJECT l
+    LIST RangeLevel OBJECT l
 ;
 
 NAVIGATOR {
@@ -118,11 +118,11 @@ FORM ranges 'Ассортиментные матрицы'
     
     OBJECTS r = Range
     PROPERTIES(r) READONLY name
-    PROPERTIES(r) ADDFORM, EDITFORM, DELETE TOOLBAR FORCE PANEL
+    PROPERTIES(r) NEWSESSION NEW, EDIT, DELETE TOOLBAR FORCE PANEL
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
     ORDER BY name(r)
     
-    DIALOG Range OBJECT r
+    LIST Range OBJECT r
 ;
 
 DESIGN ranges {
@@ -261,7 +261,7 @@ FORM currentBalanceSku 'Текущие остатки'
     PROPERTIES  READONLY name(st), currentBalance(s,st), dateTimeLastMoved(s,st), dateTimeLastOrderBatch(s,st), lastAccountPrice(s,st)
     FILTERS currentBalance(s,st)
 ;
-reviewCurrentBalance (Sku sku) = ACTION FORM currentBalanceSku OBJECTS s=sku ;
+reviewCurrentBalance (Sku sku) = ACTION SHOW currentBalanceSku OBJECTS s=sku ;
 
 FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     OBJECTS s = Sku FIXED PANEL 
@@ -273,7 +273,7 @@ FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
     PROPERTIES  READONLY name(st), quantitySold(st,s,dFrom,dTo), sumSold(st,s,dFrom,dTo)
     FILTERS quantitySold(st,s,dFrom,dTo) OR sumSold(st,s,dFrom,dTo)
 ;
-reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = ACTION FORM soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo ;
+reviewSoldStoreDate (Sku sku, DATE dFrom, DATE dTo) = ACTION SHOW soldStoreSkuDateFromTo OBJECTS s=sku, dFrom=dFrom, dTo=dTo ;
 
 TABLE rangeRevRangeLevelSku (RangeRev, RangeLevel, Sku);
 quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, RangeLevel, Sku);
@@ -291,7 +291,7 @@ FORM rangeRevSelectSuppliers 'Выбор поставщика'
 ;
 
 changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = ACTION {
-    FORM rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d DIALOG SHOWDROP;
+    SHOW rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d DIALOG SHOWDROP;
     IF formResult() == FormResult.ok THEN {
         filterSupplier() <- chosenObject('l');
     } ELSE IF formResult() == FormResult.drop THEN {
@@ -401,7 +401,7 @@ copy 'Копировать'(RangeRev pr) = ACTION NESTEDSESSION {
     FOR ADDOBJ r = RangeRev DO {
         range(r) <- range(pr);
         level(r, Sku s) <- level(pr, s);
-        FORM rangeRev OBJECTS v = r MANAGESESSION DOCKED;
+        SHOW rangeRev OBJECTS v = r MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -412,7 +412,7 @@ EXTEND FORM range
     OBJECTS v = RangeRev
     PROPERTIES(v) READONLY dateTime, countSku
     PROPERTIES READONLY countSku(v, vl) COLUMNS (vl) HEADER name(vl) 
-    PROPERTIES(v) ADDNESTEDFORM, EDITNESTEDFORM, copy, DELETESESSION TOOLBAR FORCE PANEL
+    PROPERTIES(v) NESTEDSESSION NEW, EDIT, copy, DELETE TOOLBAR FORCE PANEL
     FILTERS range(v) == r
 ;
 
@@ -441,7 +441,7 @@ createRangeRev 'Создать версию'(Range range, DATE date) = ACTION NE
     FOR ADDOBJ v = RangeRev DO {
         range(v) <- range;
         level(v, Sku s) <- level(rev(), s);
-        FORM rangeRev OBJECTS v=v MANAGESESSION DOCKED;
+        SHOW rangeRev OBJECTS v=v MANAGESESSION DOCKED;
     }
 } TOOLBAR;
 
@@ -535,9 +535,9 @@ nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d));
 changeLevel (Range r, StoreType t, DATE d)= ACTION {
     REQUEST OBJECT l
         IF level(r, t, d) THEN {
-            FORM dialogRangeLevels OBJECTS l = level(r, t, d) CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
+            SHOW dialogRangeLevels OBJECTS l = level(r, t, d) CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
         } ELSE {
-            FORM dialogRangeLevels CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
+            SHOW dialogRangeLevels CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
         }        
     IF formResult() == FormResult.ok THEN {
         dataLevel (r, t, d) <- requestedObject();
@@ -581,9 +581,9 @@ date (r, st, d) = GROUP LAST DATE dateIn
 changeLevel (Range r, Store st, DATE d)= ACTION {
     REQUEST OBJECT l
         IF level(r, st, d) THEN {
-            FORM dialogRangeLevels OBJECTS l = level(r, st, d) CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
+            SHOW dialogRangeLevels OBJECTS l = level(r, st, d) CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
         } ELSE {
-            FORM dialogRangeLevels CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
+            SHOW dialogRangeLevels CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
         }        
     IF formResult() == FormResult.ok THEN {
         dataLevel (r, st, d) <- requestedObject();
@@ -691,7 +691,7 @@ FORM storeRange 'Ассортимент магазинов'
     
     OBJECTS rn = Range
     PROPERTIES READONLY name(rn), nameLevel(rn, sk, d), overDate(rn, st, d)
-    PROPERTIES (rn) EDITFORM
+    PROPERTIES (rn) NEWSESSION EDIT
     FILTERS countRange (rn, sk, ds, d)
 ;
 
@@ -930,7 +930,7 @@ FORM param 'Параметры заполнения ассортиментной
 ;
 
 fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = ACTION {
-    FORM param OBJECTS v = rangeRev ;
+    SHOW param OBJECTS v = rangeRev ;
     IF formResult() == FormResult.ok THEN { 
         IF countRangeLevels(range(rangeRev)) THEN {
             level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;

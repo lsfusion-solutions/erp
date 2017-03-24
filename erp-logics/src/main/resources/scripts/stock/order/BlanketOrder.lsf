@@ -193,7 +193,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                        VATSum, invoiceSum,
                        nameSupplierStock,
                        name###customerFilter##Stock ON CHANGE change###customerFilter##Stock###customerFilter(d),
-                       shipmentDate, shipmentTime, ADDOBJ, DELETESESSION
+                       shipmentDate, shipmentTime, NEW, DELETE
 
         OBJECTS c = Stock
         PROPERTIES     name(c) READONLY, in(o,c)
@@ -286,7 +286,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
     edit 'Редактировать' = ACTION EDITFORM BlanketOrder;
 
     edit(BlanketOrderDetail d) = ACTION NEWSESSION {
-        FORM blanketOrder OBJECTS o = blanketOrder(d), d = d MANAGESESSION DOCKED;
+        SHOW blanketOrder OBJECTS o = blanketOrder(d), d = d MANAGESESSION DOCKED;
     }
 
 //-- SKU
@@ -341,7 +341,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
                 }
             }
 
-            FORM blanketOrder OBJECTS o = o MANAGESESSION DOCKED;
+            SHOW blanketOrder OBJECTS o = o MANAGESESSION DOCKED;
         }
     } TOOLBAR;
 
@@ -357,9 +357,9 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
         PROPERTIES (o) READONLY FORCE PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                             postedNameUser, postedTime, postedHostnameComputer
 
-        PROPERTIES (o) ADDFORM, EDITFORM SHOWIF isOpened(o), copy
+        PROPERTIES (o) NEWSESSION NEW, EDIT SHOWIF isOpened(o), copy
         PROPERTIES (o) close SHOWIF isOpened(o), open SHOWIF isClosed(o)
-        PROPERTIES (o) deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(o)
+        PROPERTIES (o) NEWSESSION deleteo=DELETE FORCE PANEL TOOLBAR SHOWIF isOpened(o)
         
 
 
@@ -373,7 +373,7 @@ META defineBlanketOrder(sign, supplierFilter, customerFilter, NS)
 
 
         FILTERS blanketOrder(d) == o
-        DIALOG BlanketOrder OBJECT o
+        LIST BlanketOrder OBJECT o
     ;
 
     DESIGN blanketOrders 'Множественные заказы'###sign {
@@ -539,7 +539,7 @@ END
 
 META defineBlanketOrderBatchDialogStock(stockProp)
     changeBatch(BlanketOrderDetail blanketOrderDetail) = ACTION {
-        FORM dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
+        SHOW dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
                                       t = dateTime(blanketOrderDetail),
                                       sk = sku(blanketOrderDetail) DIALOG SHOWDROP;
 
