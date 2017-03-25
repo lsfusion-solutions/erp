@@ -36,34 +36,20 @@ changeCodeCustomsGroup(Country country, Item item) = ACTION {
                 article() <- id(item);
                 originalCustomsGroup() <- originalCustomsGroup(item);
                 composition() <- composition(item);
-                REQUEST OBJECT cg
-                    SHOW customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroup(requestedString()) ;
-                IF formResult() == FormResult.ok THEN {
-                    customsGroup(country, item) <- chosenObject('cg');
-                }
+                DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroup(requestedString()) NULL INPUT NULL DO
+                    customsGroup(country, item) <- cg;
             }
         } ELSE
             customsGroup(country, item) <- NULL;
     } ELSE {
-        REQUEST OBJECT cg
-            SHOW customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) CONTEXTFILTER cg = customsGroup(country, item) DIALOG SHOWDROP;
-        IF formResult() == FormResult.ok THEN {
-            customsGroup(country, item) <- requestedObject();
-        } ELSE IF formResult() == FormResult.drop THEN {
-            customsGroup(country, item) <- NULL;
-        }
+        DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) NULL INPUT NULL CONSTRAINTFILTER DO
+            customsGroup(country, item) <- cg;
     }
 }
 
 changeCustomsGroupDefaultCountry(Item item) = ACTION {
-    REQUEST OBJECT cg
-    SHOW customsGroups OBJECTS cz = customsZoneDefaultCountry() DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        customsGroup(Country country, item) <- requestedObject() WHERE country == defaultCountry();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        customsGroup(Country country, item) <- NULL WHERE country == defaultCountry();
-    }
+    DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = customsGroup(defaultCountry(), item) NULL INPUT NULL DO 
+        customsGroup(Country country, item) <- cg WHERE country == defaultCountry();
 }
 
 customsGroup(Country country, Item sku) += customsGroup(country, sku);
@@ -79,14 +65,8 @@ dataValueVATCustomsException 'Льгота НДС, %' (Country country, Item ite
 rangeVATCustomsException(Country country, Item item) = range(VATCustomsException(country, item));
 
 changeCustomsExceptionDefaultCountry(Item item) = ACTION {
-    REQUEST OBJECT vce
-    SHOW VATCustomsExceptions DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        VATCustomsException(Country country, item) <- requestedObject() WHERE country == defaultCountry();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        VATCustomsException(Country country, item) <- NULL WHERE country == defaultCountry();
-    }
+    DIALOG VATCustomsExceptions OBJECTS vce = VATCustomsException(defaultCountry(), item) NULL INPUT NULL DO
+        VATCustomsException(Country country, item) <- vce WHERE country == defaultCountry();
 }
 
 VATCustomsException(Country country, Item sku) += VATCustomsException(country, sku);
@@ -97,33 +77,26 @@ CONSTRAINT customsGroup(Country country, Item item) AND VATCustomsException(coun
 background 'Цвет' (Country country, Sku sku) = RGB(212, 255, 212) IF countVATCustomsException(customsGroup(country, sku)) > 0;
 
 changeCustomsGroup(Country country, Item item, DATE date) = ACTION {
-    REQUEST OBJECT cg
-        SHOW customsGroups DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        customsGroup(country, item) <- requestedObject();
+    DIALOG customsGroups OBJECTS cg = customsGroup(country, item) NULL INPUT NULL DO {
+        customsGroup(country, item) <- cg;
+        IF NOT customsGroup(VATCustomsException(country, item)) == cg THEN
+            VATCustomsException(country, item) <- NULL;
+            
         VAT(item, country) <- IF VATCustomsException(country, item) THEN
                                             rangeVATCustomsException(country, item)
                                          ELSE
                                             VAT(country, item, date);
-    } ELSE IF formResult() == FormResult.drop THEN {
-        customsGroup(country, item) <- NULL;
-        VATCustomsException(country, item) <- NULL;
-        VAT(item, country) <- NULL;
-    }
+    } 
 }
 
 changeVATCustomsException(Country country, Item item, DATE date) = ACTION {
     REQUEST OBJECT vce
-    SHOW VATCustomsExceptions OBJECTS cg = customsGroup(country, item) DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        VATCustomsException(country, item) <- requestedObject();
-        VAT(item, country) <- IF VATCustomsException(country, item) THEN
+    DIALOG VATCustomsExceptions OBJECTS cg = customsGroup(country, item), vce = VATCustomsException(country, item) NULL INPUT NULL DO {
+        VATCustomsException(country, item) <- vce;
+        VAT(item, country) <- IF vce IS VATCustomsException THEN
                                             rangeVATCustomsException(country, item)
                                          ELSE
                                             VAT(country, item, date);
-    } ELSE IF formResult() == FormResult.drop THEN {
-        VATCustomsException(country, item) <- NULL;
-        VAT(item, country) <- VAT(country, item, date);
     }
 }
 

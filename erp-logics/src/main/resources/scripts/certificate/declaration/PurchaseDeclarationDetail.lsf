@@ -266,20 +266,10 @@ DESIGN options {
 }
 
 changeCustomsGroup (UserInvoiceDetail d) = ACTION {
-    REQUEST OBJECT cg
-    IF customsGroup(d) THEN {            
-        SHOW customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d), cg = customsGroup(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
-    } ELSE {
-        SHOW customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d) CONTEXTFILTER cg = customsGroup(d) DIALOG SHOWDROP;        
+    DIALOG customsGroups OBJECTS cz = customsZone((country(d))), dt = date(d), cg = customsGroup(d) NULL INPUT NULL CONSTRAINTFILTER DO {
+        customsGroup(d) <- cg;
+        customsGroup(Country country, Sku sku) <- cg WHERE country == country(d) AND sku == sku(d) AND allowedChangeCustomsGroup();
     }
-    IF formResult() == FormResult.ok THEN {
-        customsGroup(d) <- requestedObject();
-        customsGroup(Country country, Sku sku) <- requestedObject() WHERE country == country(d) AND sku == sku(d) AND allowedChangeCustomsGroup();
-        
-    } ELSE IF formResult() == FormResult.drop THEN {
-        customsGroup(d) <- NULL;
-        customsGroup(Country country, Sku sku) <- NULL WHERE country == country(d) AND sku == sku(d) AND allowedChangeCustomsGroup();
-    }     
 }
 
 

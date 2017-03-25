@@ -59,15 +59,11 @@ replace(Sku s, Batch b) += ACTION { sku(UserPickingDetail detail) <- s WHERE bat
 @defineMovementBatch(userPickingDetail, stock); //-- показываем по нажатию правой клавиши движение по партии
 
 changeBatch(UserPickingDetail detail) = ACTION {
-    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
+    DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                                   t = dateTime(detail),
-                                  sk = sku(detail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        ASSIGN batch(detail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batch(detail) <- NULL;
-    }
+                                  sk = sku(detail),
+                                  bt = batch(detail) NULL INPUT NULL DO
+        batch(detail) <- bt;
 };
 
 packQuantity 'Кол-во собранных мест' = ABSTRACT NUMERIC[14,3] (Picking);
@@ -335,13 +331,10 @@ FORM pickingsOrderPickings 'Заказы на комплектацию'
             stock(o) == s
 ;
 fillUserPickingOrder 'Заполнить на основании заказа на комплектацию'(UserPicking userPicking) = ACTION {
-    SHOW pickingsOrderPickings OBJECTS s = stock(userPicking) ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL order = PickingOrder();
-        order() <- chosenObject('o');
-        pickingOrder(userPicking) <- order();
+    DIALOG pickingsOrderPickings OBJECTS s = stock(userPicking), o INPUT DO {
+        pickingOrder(userPicking) <- o;
 
-        FOR pickingOrder(PickingOrderDetail detail) == order() NEW d = UserPickingDetail DO {
+        FOR pickingOrder(PickingOrderDetail detail) == o NEW d = UserPickingDetail DO {
             userPicking(d) <- userPicking;
             sku(d) <- sku(detail);
             quantity(d) <- quantity(detail);
@@ -454,14 +447,13 @@ DESIGN packQuantity {
 }
 
 fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = ACTION NEWSESSION {
-    SHOW packQuantity ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG packQuantity OBJECTS n INPUT DO {
         finishDate(pickingOrder) <- currentDate();
         finishTime(pickingOrder) <- currentTime();
         FOR NEW p = UserPicking DO {
             pickingOrder(p) <- pickingOrder;
             stock(p) <- stock(pickingOrder);
-            packQuantity(p) <- chosenNumeric('n');
+            packQuantity(p) <- n;
             number(p) <- overNumber(p);
             FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
                 userPicking(d) <- p;
@@ -476,14 +468,13 @@ fullyAssembled 'Собран полностью'(PickingOrder pickingOrder) = AC
 } TOOLBAR EDITKEY 'F10';
 
 partiallyAssembled 'Собран частично'(PickingOrder pickingOrder) = ACTION NEWSESSION{
-    SHOW packQuantity ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG packQuantity OBJECTS n INPUT DO {
         finishDate(pickingOrder) <- currentDate();
         finishTime(pickingOrder) <- currentTime();
         FOR NEW p = UserPicking DO {
             pickingOrder(p) <- pickingOrder;
             stock(p) <- stock(pickingOrder);
-            packQuantity(p) <- chosenNumeric('n');
+            packQuantity(p) <- n;
             number(p) <- overNumber(p);
             FOR pickingOrder(PickingOrderDetail detail) == pickingOrder NEW d = UserPickingDetail DO {
                 userPicking(d) <- p;

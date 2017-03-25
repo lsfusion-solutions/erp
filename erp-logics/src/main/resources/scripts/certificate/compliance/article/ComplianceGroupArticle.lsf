@@ -10,13 +10,8 @@ nameComplianceGroup 'Группа сертификации' (Country country, Ar
 nameComplianceGroupDefaultCountry 'Группа сертификации' (Article article) = name(complianceGroup(defaultCountry(), article)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 changeComplianceGroupDefaultCountry(Article article) = ACTION {
-    REQUEST OBJECT cg
-    SHOW complianceGroups DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        complianceGroup(Country country, article) <- requestedObject() WHERE country == defaultCountry();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        complianceGroup(Country country, article) <- NULL WHERE country == defaultCountry();
+    DIALOG complianceGroups OBJECTS cg = complianceGroup(defaultCountry(), article) NULL INPUT NULL DO {
+        complianceGroup(Country country, article) <- cg WHERE country == defaultCountry();
     }
 }
 

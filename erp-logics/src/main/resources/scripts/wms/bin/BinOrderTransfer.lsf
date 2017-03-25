@@ -278,10 +278,8 @@ fillBinOrder 'Заполнить на основе заказа'(UserBinTransfer
     stockBinTransferBinOrder() <- supplierStock(userBinTransfer) WHERE supplierStock(userBinTransfer);
     operationBinTransferBinOrder() <- operation(userBinTransfer) WHERE operation(userBinTransfer);
 
-    SHOW binTransferBinOrders ;
-    IF formResult() == FormResult.ok THEN {
-        fill(userBinTransfer, chosenObject('o') AS BinOrder);
-    }
+    DIALOG binTransferBinOrders OBJECTS o INPUT DO
+        fill(userBinTransfer, o);
 } IN binOrder;
 
 FORM selectBinOrderDetail 'Выбрать строку заказа'
@@ -296,18 +294,8 @@ FORM selectBinOrderDetail 'Выбрать строку заказа'
             sku(d) == sku(i)
 ;
 changeBinOrder (UserBinTransferDetail d) = ACTION {
-    IF binOrderDetail(d) THEN
-        REQUEST OBJECT d
-            SHOW selectBinOrderDetail OBJECTS i = d, d = binOrderDetail(d) DIALOG SHOWDROP
-    ELSE
-        REQUEST OBJECT d
-            SHOW selectBinOrderDetail OBJECTS i = d DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        binOrderDetail(d) <- chosenObject('d');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        binOrderDetail(d) <- NULL;
-    }
+    DIALOG selectBinOrderDetail OBJECTS i = d, d = binOrderDetail(d) NULL INPUT od NULL DO
+        binOrderDetail(d) <- od;
 
 }
 EXTEND FORM userBinTransfer
@@ -363,8 +351,7 @@ notIncludeBinTransferDetailBinOrder 'Есть строки перемещени�
     IF relationBinTransferDetail(BinOrder binOrder, BinTransfer binTransfer) AND NOT include[BinOrder,UserBinTransfer](binOrder, binTransfer)  BY binTransfer;         
 
 dialogIncludeBinOrdersUser 'Включить заказы в перемещение' (BinTransfer userBinTransfer) = ACTION {
-    SHOW includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer DO{
         IF notRelationBinTransferDetailBinOrder(userBinTransfer) THEN {
             CONFIRM 'Создать по выбранным заказам строки перемещения?';
             IF (confirmed()) THEN {  
@@ -427,34 +414,34 @@ DESIGN userBinTransfer {
 }
 //-- 
 
-createMultiUserBinTransfer(BinOrder binOrder) = ACTION {
-    IF binOrder IS BinOrder THEN {
-        binTransferCreated(binOrder) <- NULL;
-        beforeCreateBinTransfer(binOrder);
-        IF binTransferCreated(binOrder) THEN RETURN;
-
-        FOR NEW i = UserBinTransfer DO {
-            IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранным заказам строки перемещения?';
-            fillHeader(i, binOrder);
-            FOR selected(BinOrder o) DO {
-                IF confirmed() OR NOT useConfimForCreateBinDetail() THEN {
-                    createDetail(i, o);   
-                }
-                include[BinOrder,UserBinTransfer](o,i)<- TRUE;             
-            }     
-
-            SHOW userBinTransfer OBJECTS o = i DOCKED;
-            IF formResult() == FormResult.ok THEN {
-                apply();
-            } ELSE {
-                FOR userBinTransfer(UserBinTransferDetail d)==i DO {
-                    DELETE d;   
-                }
-                DELETE i;
-            }
-        }
-    }
-}
+//createMultiUserBinTransfer(BinOrder binOrder) = ACTION {
+//    IF binOrder IS BinOrder THEN {
+//        binTransferCreated(binOrder) <- NULL;
+//        beforeCreateBinTransfer(binOrder);
+//        IF binTransferCreated(binOrder) THEN RETURN;
+//
+//        FOR NEW i = UserBinTransfer DO {
+//            IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранным заказам строки перемещения?';
+//            fillHeader(i, binOrder);
+//            FOR selected(BinOrder o) DO {
+//                IF confirmed() OR NOT useConfimForCreateBinDetail() THEN {
+//                    createDetail(i, o);   
+//                }
+//                include[BinOrder,UserBinTransfer](o,i)<- TRUE;             
+//            }     
+//
+//            SHOW userBinTransfer OBJECTS o = i DOCKED;
+//            IF formResult() == FormResult.ok THEN {
+//                apply();
+//            } ELSE {
+//                FOR userBinTransfer(UserBinTransferDetail d)==i DO {
+//                    DELETE d;   
+//                }
+//                DELETE i;
+//            }
+//        }
+//    }
+//}
 
 // автоматическое закрытие заказов
 autoCloseBinOrders 'Автоматически закрывать заказы' = DATA BOOLEAN ();

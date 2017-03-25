@@ -5,17 +5,16 @@ REQUIRE PurchaseShipment, PurchaseDeclaration;
 NAMESPACE Purchase;
 
 createUserShipmentDeclaration 'Создать поставку по декларации'() = ACTION NEWSESSION {
-    SHOW declarations ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG declarations OBJECTS d INPUT DO {
         FOR NEW s = UserShipment DO {
             isPosted(s) <- TRUE;
-            supplier(s) <- [=GROUP MAX supplier(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
-            supplierStock(s) <- [=GROUP MAX supplierStock(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
-            customer(s) <- [=GROUP MAX customer(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
-            customerStock(s) <- [=GROUP MAX customerStock(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
-            operation(s) <- [=GROUP MAX operation(UserInvoiceDetail d) BY declaration(d)](chosenObject('d'));
+            supplier(s) <- [=GROUP MAX supplier(UserInvoiceDetail d) BY declaration(d)](d);
+            supplierStock(s) <- [=GROUP MAX supplierStock(UserInvoiceDetail d) BY declaration(d)](d);
+            customer(s) <- [=GROUP MAX customer(UserInvoiceDetail d) BY declaration(d)](d);
+            customerStock(s) <- [=GROUP MAX customerStock(UserInvoiceDetail d) BY declaration(d)](d);
+            operation(s) <- [=GROUP MAX operation(UserInvoiceDetail d) BY declaration(d)](d);
         
-            FOR declaration(UserInvoiceDetail detail)== chosenObject('d') NEW sd = UserShipmentDetail DO {
+            FOR declaration(UserInvoiceDetail detail) == d NEW sd = UserShipmentDetail DO {
                 userShipment(sd) <- s;
                 invoiceDetail(sd) <- detail;
                 sku(sd) <- sku(detail);
