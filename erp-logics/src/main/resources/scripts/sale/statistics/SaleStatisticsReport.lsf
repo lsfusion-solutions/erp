@@ -61,22 +61,8 @@ childNumbers 'Строки' (detail) =
     ORDER number(child), child  MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 changeStatisticGroup(StatisticReportTypeDetail d) = ACTION {
-    REQUEST OBJECT s
-    IF NOT  statisticGroupType(statisticReportType(d)) THEN {
-        SHOW statisticGroupDialog DIALOG SHOWDROP;
-    }ELSE {
-        IF statisticGroup(d) THEN {            
-            SHOW statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)), s = statisticGroup(d) CONTEXTFILTER s = statisticGroup(d) DIALOG SHOWDROP;       
-        } ELSE {            
-            SHOW statisticGroupDialog CONTEXTFILTER c = statisticGroupType(statisticReportType(d)) DIALOG SHOWDROP;       
-        }    
-    }
-    IF formResult() == FormResult.ok THEN {
-        statisticGroup(d) <- requestedObject();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        statisticGroup(d) <- NULL;
-    }
+    DIALOG statisticGroupDialog OBJECTS c = statisticGroupType(statisticReportType(d)) NULL, s = statisticGroup(d) NULL INPUT NULL CONSTRAINTFILTER DO
+        statisticGroup(d) <- s;
 }
 
 FORM statisticReportType 'Тип статистического отчета'
@@ -566,9 +552,8 @@ statisticReportDetail = GROUP MAX StatisticReportDetail detail BY statisticRepor
 changeStatisticReportType =  ACTION ABSTRACT LIST (StatisticReportDetail, StatisticReportTypeDetail);
 
 changeStatisticReportType (StatisticReport r) = ACTION {
-    SHOW statisticReportTypes DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN { 
-        statisticReportType(r) <- chosenObject('r');
+    DIALOG statisticReportTypes OBJECTS r INPUT rt DO {
+        statisticReportType(r) <- rt;
         name(r) <- name(statisticReportType(r));
         statisticGroupType(r) <- statisticGroupType(statisticReportType(r));     
         DELETE StatisticReportDetail d WHERE statisticReport(d) ==r;

@@ -719,24 +719,19 @@ DESIGN options {
 }
 
 createDialogBatchUserAdjustment 'Пересорт по партиям'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
-    IF defaultOperationBatch() THEN
-        SHOW selectParamsAdjustment OBJECTS o = defaultOperationBatch() 
-    ELSE
-        SHOW selectParamsAdjustment ;
-    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
-        
-        FOR NEW adjustment = UserAdjustment DO {  
-            stock(adjustment) <- chosenObject('st');            
-            date(adjustment) <- DATE(chosenDateTime('dt'));
-            time(adjustment) <- TIME(chosenDateTime('dt'));          
-            operation(adjustment) <- chosenObject('o');          
-            inAdjustment(Sku sku) <- NULL;
-            inAdjustment(Sku sku) <- inSession(skuGroup(sku));
-            
-            createBatchUserAdjustmentDetail(adjustment);
-            SHOW userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
-        }        
-    }
+    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationBatch() NULL DO
+        IF countInSessionSkuGroups() THEN       
+            FOR NEW adjustment = UserAdjustment DO {  
+                stock(adjustment) <- chosenObject('st');            
+                date(adjustment) <- DATE(chosenDateTime('dt'));
+                time(adjustment) <- TIME(chosenDateTime('dt'));          
+                operation(adjustment) <- chosenObject('o');          
+                inAdjustment(Sku sku) <- NULL;
+                inAdjustment(Sku sku) <- inSession(skuGroup(sku));
+                
+                createBatchUserAdjustmentDetail(adjustment);
+                SHOW userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
+            }        
 }
 
 EXTEND FORM adjustments
@@ -817,25 +812,20 @@ DESIGN options {
 }
 
 createDialogSumUserAdjustment 'Корректировка суммы ТО'() = ACTION NEWSESSION {// NEWSESSION NESTED dataInSession[SkuGroup], chosenObject[STRING[100]], chosenDateTime[STRING[100]]
-    IF defaultOperationSum() THEN
-        SHOW selectParamsAdjustment OBJECTS o = defaultOperationSum() 
-    ELSE
-        SHOW selectParamsAdjustment ;
-    IF formResult() == FormResult.ok AND countInSessionSkuGroups() THEN {        
-        
-        FOR NEW adjustment = UserAdjustment DO {  
-            stock(adjustment) <- chosenObject('st');            
-            date(adjustment) <- DATE(chosenDateTime('dt'));
-            time(adjustment) <- TIME(chosenDateTime('dt'));          
-            operation(adjustment) <- chosenObject('o');          
-            
-            inAdjustment(Sku sku) <- NULL;
-            inAdjustment(Sku sku) <- inSession(skuGroup(sku));
-            
-            createSumUserAdjustment(adjustment);
-            SHOW userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
-        }        
-    }
+    DIALOG selectParamsAdjustment OBJECTS o = defaultOperationSum() NULL DO       
+        IF countInSessionSkuGroups() THEN 
+            FOR NEW adjustment = UserAdjustment DO {  
+                stock(adjustment) <- chosenObject('st');            
+                date(adjustment) <- DATE(chosenDateTime('dt'));
+                time(adjustment) <- TIME(chosenDateTime('dt'));          
+                operation(adjustment) <- chosenObject('o');          
+                
+                inAdjustment(Sku sku) <- NULL;
+                inAdjustment(Sku sku) <- inSession(skuGroup(sku));
+                
+                createSumUserAdjustment(adjustment);
+                SHOW userAdjustment OBJECTS i = adjustment MANAGESESSION DOCKED NOCANCEL;          
+            }        
 }
 
 EXTEND FORM adjustments

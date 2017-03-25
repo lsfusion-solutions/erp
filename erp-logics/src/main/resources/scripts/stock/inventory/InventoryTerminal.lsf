@@ -47,20 +47,15 @@ addInventoryDetails(TerminalDocument td,ListInventory li) = ACTION {
 }
 
 addDetailDialogTerminal 'Заполнить из документа ТСД' (ListInventory listInventory) = ACTION {
-    SHOW terminalDocuments ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL document = TerminalDocument ();
-        document() <- chosenObject('td');
-        used(TerminalDocument terminalDocument) <- TRUE WHERE terminalDocument == document();
-
-        addInventoryDetails(document(),listInventory);
+    DIALOG terminalDocuments OBJECTS td INPUT DO {
+        used(td) <- TRUE;
+        addInventoryDetails(td, listInventory);
     }
 } TOOLBAR;
  
 addListInventoryDialogTerminal 'Заполнить из документов ТСД' (Stock stock, Inventory inventory) = ACTION {
-    SHOW terminalDocuments ;
-    IF formResult() == FormResult.ok THEN {
-        FOR  include(TerminalDocument td) NEW  li = ListInventory DO {
+    DIALOG terminalDocuments DO {
+        FOR include(TerminalDocument td) NEW  li = ListInventory DO {
             used(td) <- TRUE;
             stock(li) <- stock;
             inventory(li) <- inventory;

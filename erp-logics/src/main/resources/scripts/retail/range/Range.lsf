@@ -291,12 +291,8 @@ FORM rangeRevSelectSuppliers 'Выбор поставщика'
 ;
 
 changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = ACTION {
-    SHOW rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        filterSupplier() <- chosenObject('l');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        filterSupplier() <- NULL;
-    }
+    DIALOG rangeRevSelectSuppliers OBJECTS v = v, p = p, d = d, l = filterSupplier() NULL INPUT NULL DO
+        filterSupplier() <- l;
 }
 
 backgroundRange = ABSTRACT CASE COLOR (Sku);
@@ -533,18 +529,9 @@ date (r, t, d) = GROUP LAST DATE dateIn
 nameLevel 'Уровень' (Range r, StoreType t, DATE d)= name(level(r, t, d)); 
 
 changeLevel (Range r, StoreType t, DATE d)= ACTION {
-    REQUEST OBJECT l
-        IF level(r, t, d) THEN {
-            SHOW dialogRangeLevels OBJECTS l = level(r, t, d) CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
-        } ELSE {
-            SHOW dialogRangeLevels CONTEXTFILTER l = dataLevel(r, t, d) DIALOG SHOWDROP;
-        }        
-    IF formResult() == FormResult.ok THEN {
-        dataLevel (r, t, d) <- requestedObject();
-        excludeLevel (r, t, d) <- NULL;
-    } ELSE IF formResult() == FormResult.drop THEN {
-        dataLevel (r, t, d) <- NULL;
-        excludeLevel (r, t, d) <- TRUE;
+    DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, t, d) NULL INPUT NULL CONSTRAINTFILTER DO {
+        dataLevel (r, t, d) <- l;
+        excludeLevel (r, t, d) <- NOT l;
     }
 }
 
@@ -579,18 +566,9 @@ date (r, st, d) = GROUP LAST DATE dateIn
                                               WHERE dataLevel(range, st, dateIn) AND dateIn <= (date AS DATE); 
 
 changeLevel (Range r, Store st, DATE d)= ACTION {
-    REQUEST OBJECT l
-        IF level(r, st, d) THEN {
-            SHOW dialogRangeLevels OBJECTS l = level(r, st, d) CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
-        } ELSE {
-            SHOW dialogRangeLevels CONTEXTFILTER l = dataLevel(r, st, d) DIALOG SHOWDROP;
-        }        
-    IF formResult() == FormResult.ok THEN {
-        dataLevel (r, st, d) <- requestedObject();
-        excludeLevel (r, st, d) <- NULL;
-    } ELSE IF formResult() == FormResult.drop THEN {
-        dataLevel (r, st, d) <- NULL;
-        excludeLevel (r, st, d) <- TRUE;
+    DIALOG dialogRangeLevels OBJECTS l = dataLevel(r, st, d) NULL INPUT NULL CONSTRAINTFILTER DO {
+        dataLevel (r, st, d) <- l;
+        excludeLevel (r, st, d) <- NOT l;
     }
 }              
 
@@ -930,8 +908,7 @@ FORM param 'Параметры заполнения ассортиментной
 ;
 
 fill 'Заполнить матрицу по остаткам и продажам'(RangeRev rangeRev, DATE dateFrom, LedgerPriceListType pt, Stock stock) = ACTION {
-    SHOW param OBJECTS v = rangeRev ;
-    IF formResult() == FormResult.ok THEN { 
+    DIALOG param OBJECTS v = rangeRev DO { 
         IF countRangeLevels(range(rangeRev)) THEN {
             level(rangeRev,Sku sku) <- level (sku, rangeRev, dateFrom, pt, stock) WHERE level (sku, rangeRev, dateFrom, pt, stock) ;
         } ELSE {

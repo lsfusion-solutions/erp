@@ -43,15 +43,11 @@ CLASS DisparityDetail 'Строка изменения сортности';
 @showDocumentDetailBatch(disparity);
 @defineDocumentDetailBatchCustomPrefix(disparityDetail, batch, );
 changeBatch(DisparityDetail d) = ACTION {
-    SHOW dialogBatchStockOut OBJECTS st = stock(d),
+    DIALOG dialogBatchStockOut OBJECTS st = stock(d),
                              t = dateTime(d),
-                             sk = sku(d) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        batch(d) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        batch(d) <- NULL;
-    }
+                             sk = sku(d),
+                             bt = batch(d) NULL INPUT NULL DO
+        batch(d) <- bt;
 }
 
 idBatch 'Код партии' (DisparityDetail detail) = id(batch(detail));
@@ -434,8 +430,7 @@ copyDisparity 'Создать уцененный товар'(Item item) = ACTION
         NEWSESSION NESTED (addedSku[]) {
             FOR NEW i = Item DO {
                 copyDisparityData(item, i);
-                SHOW item OBJECTS i = i MANAGESESSION DOCKED;
-                IF formResult() == FormResult.ok THEN {
+                DIALOG item OBJECTS i = i MANAGESESSION DOCKED DO {
                     addedSku() <- i;
                 }
             }

@@ -15,14 +15,12 @@ addDetailDialogTerminalUserInvoiceDetail 'Импорт из ТСД' (UserInvoice
     } ELSE {
         in(TerminalDocumentType t) <- in(t, invoice);
         filterStock() <- supplierStock(invoice);
-        SHOW terminalDocuments ;
-        IF formResult() == FormResult.ok THEN {
-            IF [=GROUP SUM 1 IF include(TerminalDocument td)]() THEN {
-                used(TerminalDocument td) <- TRUE WHERE include(td);        
-            } ELSE {
-                include(TerminalDocument td) <- TRUE WHERE td==chosenObject('td');
-                used(TerminalDocument td) <- TRUE WHERE td==chosenObject('td');
+        DIALOG terminalDocuments OBJECTS td INPUT DO {
+            IF NOT [=GROUP SUM 1 IF include(TerminalDocument td)]() THEN {
+                include(td) <- TRUE;
             }
+            used(TerminalDocument t) <- TRUE WHERE include(td);
+                    
             quantity(Sku sku) <- [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](sku);   
             FOR [=GROUP SUM quantity(TerminalDocumentDetail tdd) IF include(terminalDocument(tdd)) BY sku(tdd)](Sku sku) DO {
                 FOR explicitBatchLedger(supplierStock(invoice)) AND quantity(sku(Batch b)) AND sku(b) == sku AND 

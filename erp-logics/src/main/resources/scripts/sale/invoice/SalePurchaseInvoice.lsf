@@ -116,14 +116,10 @@ invoiceDetail(Purchase.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoice
 setPropertiesPurchaseSale = ACTION ABSTRACT LIST (Purchase.UserInvoiceDetail, InvoiceDetail);
 
 fillInvoice 'Заполнить на основе накладной'(Purchase.UserInvoice userInvoice) =  ACTION {
-    SHOW invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
+    DIALOG invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
                                    ss = supplierStock(userInvoice), cs = customerStock(userInvoice),
-                                   t = date(userInvoice) ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL saleInvoice = Invoice();
-        saleInvoice() <- chosenObject('o');
-
-        FOR invoice(InvoiceDetail invoiceDetail) == saleInvoice() NEW d = Purchase.UserInvoiceDetail DO {
+                                   t = date(userInvoice), o INPUT DO {
+        FOR invoice(InvoiceDetail invoiceDetail) == o NEW d = Purchase.UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             invoiceDetail(d) <- invoiceDetail;
             setPropertiesPurchaseSale(d, invoiceDetail); 

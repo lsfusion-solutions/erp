@@ -89,14 +89,10 @@ DESIGN creditNoteCreditNotes {
 
 
 fillCreditNote 'Заполнить на основе акта расхождения (закупка)'(Sale.UserCreditNote userCreditNote) =  ACTION {
-    SHOW creditNoteCreditNotes OBJECTS s = supplier(userCreditNote), c = customer(userCreditNote),
+    DIALOG creditNoteCreditNotes OBJECTS s = supplier(userCreditNote), c = customer(userCreditNote),
                                    ss = supplierStock(userCreditNote), cs = customerStock(userCreditNote),
-                                   t = date(userCreditNote) ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL purchaseCreditNote = CreditNote();
-        purchaseCreditNote() <- chosenObject('o');
-
-        FOR creditNote(CreditNoteDetail creditNoteDetail) == purchaseCreditNote() NEW d = Sale.UserCreditNoteDetail DO {
+                                   t = date(userCreditNote), o INPUT DO {
+        FOR creditNote(CreditNoteDetail creditNoteDetail) == o NEW d = Sale.UserCreditNoteDetail DO {
             userCreditNote(d) <- userCreditNote;
             sku(d) <- sku(creditNoteDetail);
             batch(d) <- batch(creditNoteDetail);

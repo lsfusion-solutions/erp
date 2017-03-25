@@ -610,8 +610,7 @@ skipMachineryPriceTransaction 'Запретить загрузку в обору
 snapshotAttribute = ACTION ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
 
 snapshotGroupMachinery 'Ранее загруженные'(Stock stock) = ACTION NEWSESSION {
-    SHOW groupMachineryInput OBJECTS s = stock ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG groupMachineryInput OBJECTS s = stock DO {
         FOR selected(GroupMachinery groupMachinery) DO {
             createMachineryPriceTransaction(groupMachinery);
             FOR Object t == addedObject() DO {
@@ -773,39 +772,38 @@ FORM selectGroupMachinery 'Выбор групп оборудования'
 DESIGN selectGroupMachinery { main{ preferredSize = (1024, 768); } }
 
 createBalanceSelectMachineryPriceTransaction 'Остатки'(Stock stock) = ACTION NEWSESSION {
-    SHOW selectGroupMachinery OBJECTS st = stock ;
-    IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
-        exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
-        
-        createMachineryPriceTransaction(Sku sku) <-  TRUE IF currentBalance(sku, stock);
-        createMachineryPriceTransactionComment() <- 'Выборочная загрузка остатков по группе оборудования';
-        createMachineryPriceTransactionAll() <- TRUE;
-        createMachineryPriceTransaction(stock);
-    }
-    apply();
+    DIALOG selectGroupMachinery OBJECTS st = stock DO
+        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
+            
+            createMachineryPriceTransaction(Sku sku) <-  TRUE IF currentBalance(sku, stock);
+            createMachineryPriceTransactionComment() <- 'Выборочная загрузка остатков по группе оборудования';
+            createMachineryPriceTransactionAll() <- TRUE;
+            createMachineryPriceTransaction(stock);
+            apply();
+        }
 } IN snapshotMachineryPrice;
 
 createSelectMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION NEWSESSION {
-    SHOW selectGroupMachinery OBJECTS st = stock ;
-    IF formResult() == FormResult.ok  AND [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
-        exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
-        
-        createMachineryPriceTransaction(Sku sku) <- TRUE;
-        createMachineryPriceTransactionComment() <- 'Выборочная загрузка товаров по группе оборудования';
-        createMachineryPriceTransactionAll() <- TRUE;
-        createMachineryPriceTransaction(stock);
-    }
-    apply();
+    DIALOG selectGroupMachinery OBJECTS st = stock DO
+        IF [= GROUP SUM 1 IF include(GroupMachinery gm) BY stock(gm)](stock) THEN {
+            exclude(GroupMachinery gm) <- TRUE WHERE stock(gm) == stock AND NOT include(gm);
+            
+            createMachineryPriceTransaction(Sku sku) <- TRUE;
+            createMachineryPriceTransactionComment() <- 'Выборочная загрузка товаров по группе оборудования';
+            createMachineryPriceTransactionAll() <- TRUE;
+            createMachineryPriceTransaction(stock);
+            apply();
+        }
 } IN snapshotMachineryPrice;
 
 
 
 GROUP documentMachineryPrice 'Из документа' : public;
 createDocumentMachineryPriceTransaction 'Из документа'(Stock stock) = ACTION NEWSESSION {
-    SHOW documents DIALOG;
-    IF formResult() == FormResult.ok THEN {
-        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, chosenObject('d'));        
-        createMachineryPriceTransactionDocument() <- chosenObject('d');
+    DIALOG documents OBJECTS d INPUT DO {
+        createMachineryPriceTransaction(Sku sku) <- TRUE WHERE countDocumentDetail(sku, d);        
+        createMachineryPriceTransactionDocument() <- d;
         createMachineryPriceTransactionSnapshot() <- TRUE ;
         createMachineryPriceTransaction(stock);
     }

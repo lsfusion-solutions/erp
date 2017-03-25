@@ -5,14 +5,9 @@ REQUIRE Label, Terminal;
 NAMESPACE Label;
 
 addDetailDialogTerminalLabelTransactionDetail 'Импорт из ТСД' (LabelTransaction labelTransaction) = ACTION {
-    SHOW terminalDocuments ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL document = TerminalDocument ();
-        
-        document() <- chosenObject('td');
-        used(TerminalDocument terminalDocument) <- TRUE WHERE terminalDocument == document()  ;
-
-        FOR terminalDocument(TerminalDocumentDetail tdd) == document()  DO {
+    DIALOG terminalDocuments OBJECTS td INPUT DO {
+        used(td) <- TRUE;
+        FOR terminalDocument(TerminalDocumentDetail tdd) == td DO {
             FOR NEW o = LabelTransactionDetail DO {
                 labelTransaction(o) <- labelTransaction;
                 sku(o) <- sku(tdd);
@@ -111,10 +106,13 @@ createSnapshotTerminalDocumentLabel 'Перепечатать ценники'(Te
                     createAttribute(dd, d);
             }
             IF change(stock(terminalDocument)) THEN {
-                SHOW customLabelTransaction OBJECTS l = t ;
-                IF formResult() == FormResult.ok THEN {    
+                LOCAL printed = BOOLEAN();
+                printed() <- NULL;
+                DIALOG customLabelTransaction OBJECTS l = t DO {    
                     print(t);
-                } ELSE {
+                    printed() <- TRUE;
+                }             
+                IF NOT printed() THEN {
                     cancel();
                 }             
             } ELSE {

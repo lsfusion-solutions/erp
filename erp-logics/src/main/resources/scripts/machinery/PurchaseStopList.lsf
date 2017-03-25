@@ -48,22 +48,21 @@ notPurchase (stock, dateFrom, dateTime)= GROUP SUM 1 IF NOT (quantityPurchase(Sk
         BY stock, dateFrom, dateTime; 
      
 createStopList 'Создать по товарам без прихода и остатка'()  = ACTION {
-    SHOW stockDays ; 
-    IF formResult() == FormResult.ok THEN{
+    DIALOG stockDays OBJECTS s INPUT, i INPUT DO {
         
-        IF notPurchase(chosenObject('s'), subtract(currentDate(), chosenInteger('i')), currentDateTime()) THEN {
+        IF notPurchase(s, subtract(currentDate(), i), currentDateTime()) THEN {
             FOR NEW sl = StopList DO {
             
-                in(Stock st, sl) <- TRUE WHERE st == chosenObject('s');  
+                in(s, sl) <- TRUE;  
                
                 
-                FOR Sku sku IS Sku IF NOT (quantityPurchase(sku, chosenObject('s'), subtract(currentDate(), chosenInteger('i'))) OR currentBalance(sku, chosenObject('s')) OR lastStopListDetail(sku, chosenObject('s'), currentDateTime()))   
+                FOR Sku sku IS Sku IF NOT (quantityPurchase(sku, s, subtract(currentDate(), i)) OR currentBalance(sku, s) OR lastStopListDetail(sku, s, currentDateTime()))   
                     NEW d = StopListDetail DO {
                     
                     stopList(d) <- sl;
                     sku(d) <- sku;
                 }   
-                SHOW stopList OBJECTS sl =sl MANAGESESSION DOCKED;
+                SHOW stopList OBJECTS sl = sl MANAGESESSION DOCKED NOCANCEL;
             }
         } ELSE {
             MESSAGE 'Для данного склада не требуется создание "Запрета продаж по кассе".';

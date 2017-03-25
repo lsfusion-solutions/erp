@@ -851,16 +851,11 @@ setDataSkuLedgerBatchCost 'Дорассчитать себестоимость'(
 } CONFIRM;
 
 resetDataSkuLedgerBatchCost 'Перерассчитать себестоимость'() = ACTION NEWSESSION {
-    SHOW dialogDate ;
-    IF formResult() == FormResult.ok THEN {
-
-        FOR DATE d == chosenDate('d') DO {
-            APPLY SINGLE { 
-                changedSession(DataSkuLedger ledger) <- date[SkuLedger](ledger) >= d AND isPosted[SkuLedger](ledger);
-                updateDataSkuLedgerBatchCost();
-            }
+    DIALOG dialogDate OBJECTS d INPUT DO
+        APPLY SINGLE { 
+            changedSession(DataSkuLedger ledger) <- date[SkuLedger](ledger) >= d AND isPosted[SkuLedger](ledger);
+            updateDataSkuLedgerBatchCost();
         }
-    }
 } CONFIRM;
 
 clearDataSkuLedgerBatchCost 'Сбросить всю себестоимость'() = ACTION NEWSESSION {

@@ -236,8 +236,7 @@ preReplace = ACTION ABSTRACT LIST (LegalEntity, LegalEntity);
 replace 'Объединить'(LegalEntity legalEntity) = ACTION {
     setNoEventsInTransaction();
     
-    SHOW confirmReplaceLegalEntity OBJECTS l=legalEntity ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG confirmReplaceLegalEntity OBJECTS l=legalEntity DO {
         FOR in(LegalEntity l) AND legalEntity IS LegalEntity AND NOT isCompany(l) AND NOT isCompany(legalEntity)DO {
             IF l != legalEntity THEN {
                 preReplace(l, legalEntity);            
@@ -249,9 +248,9 @@ replace 'Объединить'(LegalEntity legalEntity) = ACTION {
             }
         }
         apply();
-    } ELSE {
-        in(LegalEntity l) <- NULL WHERE in(l);           
     }
+    
+    in(LegalEntity l) <- NULL;           
     
     dropNoEventsInTransaction();
 } CONFIRM;

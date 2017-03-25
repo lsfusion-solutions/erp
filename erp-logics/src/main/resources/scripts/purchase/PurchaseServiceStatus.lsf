@@ -122,9 +122,7 @@ createServiceStatusDetail() = ACTION {
 changeServiceStatusDetail (LegalEntity l) = ACTION {
     NEWSESSION {
         IF NOT notCalcServiceStatus(l) THEN {
-            REQUEST OBJECT t
-            SHOW serviceStatus DIALOG SHOWDROP;
-            IF formResult() == FormResult.ok THEN {
+            DIALOG serviceStatus OBJECTS t INPUT DO {
                 isChange(l) <- NULL;
                 LOCAL prev = ServiceStatus(LegalEntity);
                 prev(l) <- serviceStatus(lastServiceStatusDetail(l));
@@ -133,7 +131,7 @@ changeServiceStatusDetail (LegalEntity l) = ACTION {
                     fromDate(d) <- currentDate();
                     toDate(d) <- currentDate();   
 //                    percService(d) <-  0.0;
-                    serviceStatus(d) <- requestedObject();
+                    serviceStatus(d) <- t;
                     isChange(d) <- TRUE;
                     isChange(l) <- TRUE WHERE (prev(l) OR serviceStatus(d)) AND NOT (prev(l) == serviceStatus(d));
                 }            

@@ -1201,10 +1201,9 @@ WHEN SESSION CHANGED(itemGroup(Item i)) AND NOT caption(i) DO
 extractStringCaption 'Заменить в названии'(Item i) = ACTION {
     IF i IS Item THEN {
         possibleStringAttributeValue(VARSTRING[100] s) <- NULL;
-        SHOW extractStringAttributeItem ;
-        IF formResult() == FormResult.ok THEN {
+        DIALOG extractStringAttributeItem OBJECTS from INPUT, to INPUT DO {
             LOCAL selected = BOOLEAN (Item);
-            selected(Item item) <- isSubstring(caption(item), chosenString('from')) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
+            selected(Item item) <- isSubstring(caption(item), from) == 1 AND [= FILTER items.i](item) AND NOT skipExtractAttribute(item);
             // вырезаем двойные пробелы, а также ненужные символы в начале и конце
             caption(Item item) <- rtrim(
                                     ltrim(
@@ -1212,7 +1211,7 @@ extractStringCaption 'Заменить в названии'(Item i) = ACTION {
                                             replace(
                                                 replace(
                                                     replace(
-                                                        replace(caption(item), chosenString('from'), chosenString('to')), 
+                                                        replace(caption(item), from, to), 
                                                         '  ', ' '),
                                                     '" "', ''),
                                                 '""', ''),
@@ -1686,8 +1685,7 @@ copy 'Копировать' (Item item)= ACTION  {
         NEWSESSION NESTED (addedSku[]) {
             FOR NEW i = Item DO {
                 copyDataItem(item, i);
-                SHOW item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL;
-                IF formResult() == FormResult.ok THEN {
+                DIALOG item OBJECTS i = i MANAGESESSION DOCKED NOCANCEL DO {
                     addedSku() <- i;
                 }
             }
@@ -1776,8 +1774,7 @@ DESIGN confirmReplaceItem {
 
 replace 'Объединить' (Item item)= ACTION {
     IF noEventsInTransactionItem() THEN setNoEventsInTransaction();
-    SHOW confirmReplaceItem OBJECTS i=item ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG confirmReplaceItem OBJECTS i=item DO {
         allowReplaceItem() <- TRUE;
         checkReplace(item);
         FOR in(Item i) AND allowReplaceItem() AND item IS Item DO {
@@ -1791,20 +1788,16 @@ replace 'Объединить' (Item item)= ACTION {
             }
         }
         apply();
-    } ELSE {
-        in(Item i) <- NULL WHERE in(i);           
     }
+    in(Item i) <- NULL;           
     IF noEventsInTransactionItem() THEN dropNoEventsInTransaction();   
 } CONFIRM;
 
 changeGroupItem 'Изменить группу' () = ACTION {
-    SHOW dialogItemGroups ;
-
-    IF formResult() == FormResult.ok THEN {
-        FOR in(Item i) DO{
-            itemGroup(i) <- chosenObject('g');
+    DIALOG dialogItemGroups OBJECTS g INPUT DO
+        FOR in(Item i) DO {
+            itemGroup(i) <- g;
         }
-    }
 }
 
 
