@@ -848,23 +848,12 @@ END
 
 META defineOrderBatchDialogStock(stockProp, dialog)
     changeBatch(UserOrderDetail d) = ACTION {
-        IF batch(d) THEN {
-            SHOW dialogBatchStock##dialog OBJECTS st = stockProp(d),
-                                     t = dateTime(d),
-                                     sk = sku(d),
-                                     bt = batch(d) DIALOG SHOWDROP;        
-        } ELSE {
-            SHOW dialogBatchStock##dialog OBJECTS st = stockProp(d),
-                                     t = dateTime(d),
-                                     sk = sku(d) DIALOG SHOWDROP;        
-        }
-        IF formResult() == FormResult.ok THEN {
-            batch(d) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            batch(d) <- NULL;
-        }
-
-    };
+        DIALOG dialogBatchStock##dialog OBJECTS st = stockProp(d),
+                                 t = dateTime(d),
+                                 sk = sku(d),
+                                 bt = batch(d) NULL INPUT NULL DO
+            batch(d) <- bt;
+    }
 
     EXTEND FORM userOrder
         PROPERTIES (d) SHOWIF showBatch(o) AFTER shortNameUOMSku(d) nameBatch ON CHANGE changeBatch(d), documentNameBatch ON CHANGE changeBatch(d)

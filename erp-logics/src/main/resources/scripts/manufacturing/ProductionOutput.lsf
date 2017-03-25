@@ -180,17 +180,12 @@ DESIGN outputOrders {
 }
 
 fillOrder 'Заполнить на основе производственного заказа'(UserOutput userOutput) =  ACTION {
-    SHOW outputOrders OBJECTS s = stock(userOutput) ;
-
-    IF formResult() == FormResult.ok THEN {
-        LOCAL productionOrder = Order();
-        ASSIGN productionOrder() <- chosenObject('o');
-
-        FOR order(ProductDetail productDetail) == productionOrder() NEW d = UserOutputDetail DO {
-            ASSIGN userOutput(d) <- userOutput;
-            ASSIGN productDetail(d) <- productDetail;
-            ASSIGN sku(d) <- sku(productDetail);
-            ASSIGN quantity (d) <- toOutput(productDetail);              // возможно надо quantityProductDetail   ?
+    DIALOG outputOrders OBJECTS s = stock(userOutput), o INPUT DO {
+        FOR order(ProductDetail productDetail) == o NEW d = UserOutputDetail DO {
+            userOutput(d) <- userOutput;
+            productDetail(d) <- productDetail;
+            sku(d) <- sku(productDetail);
+            quantity (d) <- toOutput(productDetail);              // возможно надо quantityProductDetail   ?
         }
     }
 } IN order;

@@ -4,7 +4,7 @@ REQUIRE ProductionConsumption, SalePurchaseShipment;
 
 NAMESPACE Production;
 
-createShipment 'Создать поставку для Сырья'(Consumption consumption) = ACTION  {
+createShipment 'Создать поставку для Сырья'(Consumption consumption) = ACTION NEWSESSION {
 
     FOR NEW sh = Sale.UserShipment DO {
         supplier(sh) <- legalEntityStock(consumption);
@@ -20,10 +20,7 @@ createShipment 'Создать поставку для Сырья'(Consumption c
             price(d) <- price(consumptionDetail);
         }
 
-    SHOW Sale.userShipment OBJECTS s=sh ;
-        IF formResult() == FormResult.ok THEN {
-            EXEC apply();
-        }
+        SHOW Sale.userShipment OBJECTS s = sh MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 

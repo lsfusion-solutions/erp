@@ -193,16 +193,11 @@ addressLegalEntity 'Адрес' (UserWriteOff userWriteOff) = address(legalEntit
 @showDocumentInterfaceDetailBatch(writeOff);
 @defineDocumentInterfaceDetailBatch(writeOff, batch);
 changeBatch(UserWriteOffDetail detail) = ACTION {
-
-    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
+    DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
-                             sk = sku(detail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        batch(detail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        batch(detail) <- NULL;
-    }
+                             sk = sku(detail),
+                             bt = batch(detail) NULL INPUT NULL DO
+        batch(detail) <- bt;
 }
 replace(Sku s, Batch b) += ACTION { sku(UserWriteOffDetail detail) <- s WHERE batch(detail) == b;}
 

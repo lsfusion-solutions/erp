@@ -539,17 +539,12 @@ END
 
 META defineBlanketOrderBatchDialogStock(stockProp)
     changeBatch(BlanketOrderDetail blanketOrderDetail) = ACTION {
-        SHOW dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
+        DIALOG dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),
                                       t = dateTime(blanketOrderDetail),
-                                      sk = sku(blanketOrderDetail) DIALOG SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN batch(blanketOrderDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batch(blanketOrderDetail) <- NULL;
-        }
-
-    };
+                                      sk = sku(blanketOrderDetail),
+                                      bt = batch(blanketOrderDetail) NULL INPUT NULL DO 
+            batch(blanketOrderDetail) <- bt;
+    }
 
     EXTEND FORM blanketOrder
         PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d)

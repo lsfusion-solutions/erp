@@ -243,15 +243,11 @@ replace(Sku s, Batch b) += ACTION { sku(ReceiptSaleDetail detail) <- s WHERE bat
 replace(Sku s, Batch b) += ACTION { sku(ReceiptReturnDetail detail) <- s WHERE batch(detail) == b;}
 
 changeBatch(ReceiptDetail detail) = ACTION {
-    SHOW dialogBatchStockOut OBJECTS st = departmentStore(detail),
+    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
-                             sk = sku(detail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        batch(detail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        batch(detail) <- NULL;
-    }
+                             sk = sku(detail),
+                             bt = batch(detail) NULL INPUT NULL DO 
+        batch(detail) <- bt;
 }
 
 nameSku 'Товар' (ReceiptDetail d) = IF batch(d) THEN documentNameSku(batch(d)) ELSE name(sku(d)) IN recognize;

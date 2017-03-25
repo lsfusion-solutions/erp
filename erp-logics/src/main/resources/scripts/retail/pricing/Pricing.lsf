@@ -623,17 +623,12 @@ isReturn 'Обратный' = ABSTRACT BOOLEAN (Pricing);
 @defineDocumentInterfaceDetailBatch(pricing, batch);
 
 changeBatch(UserPricingDetail detail) = ACTION {
-    SHOW dialogBatchStockOut OBJECTS st = departmentStore(detail),
+    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
-                             sk = sku(detail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        ASSIGN batch(detail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batch(detail) <- NULL;
-    }
-
-};
+                             sk = sku(detail),
+                             bt = batch(detail) NULL INPUT NULL DO
+        batch(detail) <- bt;
+}
 
 @defineBalancesBatch(pricingDetail); //-- показываем по нажатию правой клавиши остатки партии
 @defineBalancesBatch(userPricingDetail); //-- показываем по нажатию правой клавиши остатки партии

@@ -646,15 +646,11 @@ END
 META defineShipmentBatchDialogStock(stockProp, dialog)
 
     changeBatch(UserShipmentDetail userShipmentDetail) = ACTION {
-        SHOW dialogBatchStock##dialog OBJECTS st = stockProp(userShipmentDetail),
+        DIALOG dialogBatchStock##dialog OBJECTS st = stockProp(userShipmentDetail),
                                  t = dateTime(userShipmentDetail),
-                                 sk = sku(userShipmentDetail) DIALOG SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            batch(userShipmentDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            batch(userShipmentDetail) <- NULL;
-        }
+                                 sk = sku(userShipmentDetail),
+                                 bt = batch(userShipmentDetail) NULL INPUT NULL DO
+            batch(userShipmentDetail) <- bt;
     }
 
     EXTEND FORM userShipment PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d);

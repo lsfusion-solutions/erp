@@ -53,16 +53,11 @@ idBatch 'Код партии' (RevaluationDetail d) = id(batch(d)) MINCHARWIDTH 
 idBatch 'Код партии' (UserRevaluationDetail d) = id(batch(d)) MINCHARWIDTH 10 PREFCHARWIDTH 15;
 
 changeBatch(UserRevaluationDetail userRevaluationDetail) = ACTION {
-    SHOW dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
+    DIALOG dialogBatchStockOut OBJECTS st = stock(userRevaluationDetail),
                              t = dateTime(userRevaluationDetail),
-                             sk = sku(userRevaluationDetail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        ASSIGN batch(userRevaluationDetail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batch(userRevaluationDetail) <- NULL;
-    }
-
+                             sk = sku(userRevaluationDetail),
+                             bt = batch(userRevaluationDetail) NULL INPUT NULL DO
+        batch(userRevaluationDetail) <- bt;
 }
 
 replace(Sku s, Batch b) += ACTION { sku(UserRevaluationDetail detail) <- s WHERE batch(detail) == b;}

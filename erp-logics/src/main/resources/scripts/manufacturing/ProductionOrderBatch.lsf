@@ -33,21 +33,15 @@ useBatchSkuAll 'Партия с max остатком (для всех)'(Order o)
 maxBatch (s,o)=  GROUP MAX Batch bt IF quantityComponentDetail (bt,Sku s,Order o) BY s,o;
 
 changeBatch(Sku s,Order o) = ACTION {
-    IF maxBatch(s,o) THEN {
-        SHOW dialogBatchStockOrder OBJECTS st = componentsStock(o),
+    DIALOG dialogBatchStockOrder OBJECTS st = componentsStock(o),
                              t = dateTime(o),
                              sk = s ,
-                             bt = maxBatch(s,o) DIALOG SHOWDROP;
-    } ELSE {
-        SHOW dialogBatchStockOrder OBJECTS st = componentsStock(o),
-                             t = dateTime(o),
-                             sk = s DIALOG SHOWDROP;    
-    }
-    IF formResult() == FormResult.ok THEN {
-        use(chosenObject('bt'),s,o);
-    } ELSE IF formResult() == FormResult.drop THEN {
-        batch(ComponentDetail d) <- NULL WHERE sku(d) == s AND order(d) == o;
-    }
+                             bt = maxBatch(s,o) NULL INPUT NULL DO {
+        IF bt IS Batch THEN
+            use(bt, s, o)
+        ELSE
+            batch(ComponentDetail d) <- NULL WHERE sku(d) == s AND order(d) == o;
+    }                              
 }
 
 EXTEND FORM order 

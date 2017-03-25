@@ -41,16 +41,11 @@ CONSTRAINT stock(UserConsumption o) AND NOT  isCompany(stock(o))
 @showDocumentInterfaceDetailBatch(consumption);
 @defineDocumentInterfaceDetailBatch(consumption, batch);
 changeBatch(UserConsumptionDetail detail) = ACTION {
-
-    SHOW dialogBatchStockOut OBJECTS st = stock(detail),
+    DIALOG dialogBatchStockOut OBJECTS st = stock(detail),
                              t = dateTime(detail),
-                             sk = sku(detail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        batch(detail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        batch(detail) <- NULL;
-    }
+                             sk = sku(detail),
+                             bt = batch(detail) NULL INPUT NULL DO
+        batch(detail) <- bt;
 }
 replace(Sku s, Batch b) += ACTION { sku(UserConsumptionDetail detail) <- s WHERE batch(detail) == b;}
 
@@ -253,17 +248,12 @@ DESIGN consumptionOrders {
 }
 
 fillOrder 'Заполнить на основе производственного заказа'(UserConsumption userConsumption) =  ACTION {
-    SHOW consumptionOrders OBJECTS s = stock(userConsumption) ;
-
-    IF formResult() == FormResult.ok THEN {
-        LOCAL productionOrder = Order();
-        ASSIGN productionOrder() <- chosenObject('o');
-
-        FOR order(ComponentDetail componentDetail) == productionOrder() NEW d = UserConsumptionDetail DO {
-            ASSIGN userConsumption(d) <- userConsumption;
-            ASSIGN componentDetail(d) <- componentDetail;
-            ASSIGN sku(d) <- sku(componentDetail);
-            ASSIGN quantity (d) <- toConsume(componentDetail);              // возможно надо quantityComponentDetail   ?
+    DIALOG consumptionOrders OBJECTS s = stock(userConsumption), o INPUT DO {
+        FOR order(ComponentDetail componentDetail) == o NEW d = UserConsumptionDetail DO {
+            userConsumption(d) <- userConsumption;
+            componentDetail(d) <- componentDetail;
+            sku(d) <- sku(componentDetail);
+            quantity (d) <- toConsume(componentDetail);              // возможно надо quantityComponentDetail   ?
         }
     }
 } IN order;

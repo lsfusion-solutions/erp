@@ -4,7 +4,7 @@ REQUIRE ProductionOutput, SalePurchaseShipment;
 
 NAMESPACE Production;
 
-createShipment 'Создать поставку для ГП'(Output output) = ACTION  {
+createShipment 'Создать поставку для ГП'(Output output) = ACTION NEWSESSION {
 
     FOR NEW sh = Sale.UserShipment DO {
         supplier(sh) <- legalEntityStock(output);
@@ -13,17 +13,14 @@ createShipment 'Создать поставку для ГП'(Output output) = AC
         createPurchase(sh) <- TRUE;
         note(sh) <- VARSTRING[100](description(output));
 
-        FOR output(OutputDetail outputDetail)== output NEW d = Sale.UserShipmentDetail DO {
+        FOR output(OutputDetail outputDetail) == output NEW d = Sale.UserShipmentDetail DO {
             userShipment(d) <- sh;
             sku(d) <- sku(outputDetail);
             quantity(d) <- quantity(outputDetail);
             price(d) <- price(outputDetail);
         }
 
-    SHOW Sale.userShipment OBJECTS s=sh ;
-        IF formResult() == FormResult.ok THEN {
-            apply();
-        }
+        SHOW Sale.userShipment OBJECTS s = sh MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR;
 

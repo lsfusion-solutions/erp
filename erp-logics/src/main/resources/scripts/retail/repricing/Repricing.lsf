@@ -74,16 +74,12 @@ curRepricingPrice (RepricingDetail detail) = OVERRIDE curPrice(detail), overCurR
 @defineDocumentInterfaceDetailBatch(repricing, batch);
 
 changeBatch(UserRepricingDetail detail) = ACTION {
-    SHOW dialogBatchStockOut OBJECTS st = departmentStore(detail),
+    DIALOG dialogBatchStockOut OBJECTS st = departmentStore(detail),
                              t = dateTime(detail),
-                             sk = sku(detail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        ASSIGN batch(detail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batch(detail) <- NULL;
-    }
-};
+                             sk = sku(detail),
+                             bt = batch(detail) NULL INPUT NULL DO
+        batch(detail) <- bt;
+}
 
 replace(Sku s, Batch b) += ACTION { sku(UserRepricingDetail detail) <- s WHERE batch(detail) == b;}
 
