@@ -99,23 +99,22 @@ DESIGN inContractledgerPayment {
 }
 
 addPayment 'Погасить задолженность'(InContractLedger ledger) = ACTION {
-    SHOW inContractledgerPayment ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG inContractledgerPayment OBJECTS dt INPUT, n INPUT, pt INPUT DO {
         FOR NEW p = Payment.Payment DO{
             operation(p) <- defaultPaymentOperation();
-            date(p) <- chosenDate('dt');
+            date(p) <- dt;
             contract(p) <- contract(ledger);    
             payer(p) <- partyBContract(ledger);
             beneficiary(p) <- partyAContract(ledger);
-            sum(p) <- chosenNumeric('n');
+            sum(p) <- n;
             isPosted(p) <- TRUE;
             IF debt(ledger) >= sumContract(p) THEN {
                 cost(p, ledger) <- sumContract(p);    
             } ELSE IF debt(ledger) < sumContract(p) THEN{
                 cost(p, ledger) <- debt(ledger);     
             }             
-            dataFiscalType(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;  
-            type(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;            
+            dataFiscalType(p) <- IF sid[PaymentType](pt) == 'card' THEN 1 ELSE 0;  
+            type(p) <- IF sid[PaymentType](pt) == 'card' THEN 1 ELSE 0;            
             
             IF NOT sum(p) > maxSumPaymentReceipt() THEN { 
                 IF (fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister()))) AND currentCashRegister() THEN {          
@@ -145,20 +144,19 @@ addPayment 'Погасить задолженность'(InContractLedger ledger
 }
 
 addReturnPayment 'Вернуть предоплату'(InContractLedger ledger) = ACTION {
-    SHOW inContractledgerPayment ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG inContractledgerPayment OBJECTS dt INPUT, n INPUT, pt INPUT DO {
         FOR NEW p = Payment.Payment DO{
             operation(p) <- defaultPaymentOperation();        
-            date(p) <- chosenDate('dt');
+            date(p) <- dt;
             contract(p) <- contract(ledger);    
             payer(p) <- partyAContract(ledger);
             beneficiary(p) <- partyBContract(ledger);
-            sum(p) <- chosenNumeric('n');
+            sum(p) <- n;
             isReturn(p) <- TRUE;
             isPosted(p) <- TRUE;
             cost(p, ledger) <- -sumContract(p);                
-            dataFiscalType(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;
-            type(p) <- IF sid[PaymentType](chosenObject('pt')) == 'card' THEN 1 ELSE 0;
+            dataFiscalType(p) <- IF sid[PaymentType](pt) == 'card' THEN 1 ELSE 0;
+            type(p) <- IF sid[PaymentType](pt) == 'card' THEN 1 ELSE 0;
             
             IF NOT sum(p) > maxSumPaymentReceipt() THEN {
                 IF (fiscalSkip() OR NOT model(groupCashRegister(currentCashRegister()))) AND currentCashRegister() THEN {
@@ -245,28 +243,23 @@ addPrePayment 'Внести предоплату'(LegalEntity legalEntity) = ACT
     localPaymentCondition() <- paymentCondition('0');
     localSupplier() <- legalEntity(currentUser());
 
-    IF localSupplier() THEN {
-        SHOW legalEntityPayment OBJECTS l = localSupplier(), pc = localPaymentCondition() ;    
-    } ELSE {
-        SHOW legalEntityPayment OBJECTS pc = localPaymentCondition() ;    
-    }
-    IF formResult() == FormResult.ok THEN {
-        FOR NEW p = Payment.Payment DO{
+    DIALOG legalEntityPayment OBJECTS l = localSupplier() NULL, pc = localPaymentCondition() NULL INPUT, dt INPUT, l INPUT, n INPUT DO {
+        FOR NEW p = Payment.Payment DO {
             operation(p) <- defaultPaymentOperation();        
-            date(p) <- chosenDate('dt');
+            date(p) <- dt;
             payer(p) <- legalEntity;
-            beneficiary(p) <- chosenObject('l');
-            sum(p) <- chosenNumeric('n');
-            IF countContractSkuSupplierCustomer(defaultCurrency(), chosenObject('l'), legalEntity, chosenDate('dt')) >= 1 THEN {
-                contract(p) <- defaultContractSkCurrencyuSupplierCustomer(defaultCurrency(), chosenObject('l'), legalEntity, chosenDate('dt'));
+            beneficiary(p) <- l;
+            sum(p) <- n;
+            IF countContractSkuSupplierCustomer(defaultCurrency(), l, legalEntity, dt) >= 1 THEN {
+                contract(p) <- defaultContractSkCurrencyuSupplierCustomer(defaultCurrency(), l, legalEntity, dt);
             } ELSE {
                 FOR NEW c = UserContractSku DO {
-                    supplier(c) <- chosenObject('l');
+                    supplier(c) <- l;
                     customer(c) <- legalEntity;
-                    dateFrom(c) <- chosenDate('dt');
+                    dateFrom(c) <- dt;
                     currency(c) <- defaultCurrency();
                     type(c) <- ContractSkuType.sale;
-                    paymentCondition(c) <- chosenObject('pc');
+                    paymentCondition(c) <- pc;
                     contract(p) <- c;            
                 }
             }    

@@ -43,17 +43,13 @@ FORM issuanceEmpoyee 'Сотрудники'
 ;
 
 changeIssuanceAllowed(Consignment consignment) = ACTION {
-    SHOW issuanceEmpoyee OBJECTS c = consignment DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        issuanceAllowed(consignment) <- chosenObject('e');   
-    }
+    DIALOG issuanceEmpoyee OBJECTS c = consignment, e = issuanceAllowed(consignment) NULL INPUT NULL DO
+        issuanceAllowed(consignment) <- e;   
 }
 
 changeIssuanceExecuted(Consignment consignment) = ACTION {
-     SHOW issuanceEmpoyee OBJECTS c = consignment DIALOG SHOWDROP;
-     IF formResult() == FormResult.ok THEN {
-         issuanceExecuted(consignment) <- chosenObject('e');   
-     }
+     DIALOG issuanceEmpoyee OBJECTS c = consignment, e = issuanceExecuted(consignment) NULL INPUT NULL DO
+         issuanceExecuted(consignment) <- e;   
 }
 
 EXTEND FORM options
@@ -154,13 +150,13 @@ prePrintActionConsignmentsVertical(Consignment consignment) = ACTION {
 printDoubleSidedConsignmentsVertical 'Печать ТТН-1' (Consignment consignment) = ACTION {
     prePrintActionConsignmentsVertical(consignment);                                                  
     
-    SHOW numberCopies OBJECTS c = consignment ;
-    LOCAL countConsignment = INTEGER();        
-    LOCAL countAttach = INTEGER();  
-    countConsignment() <- 0;
-    countAttach() <- 0;   
-    
-    IF formResult() == FormResult.ok THEN {
+    DIALOG numberCopies OBJECTS c = consignment DO {
+
+        LOCAL countConsignment = INTEGER();        
+        LOCAL countAttach = INTEGER();  
+        countConsignment() <- 0;
+        countAttach() <- 0;
+           
         overSetDoubleSidedConsignmentsVertical(consignment);
         IF countConsignmentDetail(consignment) <= overCountRowsVerticalAB (consignment) THEN {
             WHILE countConsignment() < numberCopiesConsignment(consignment) DO {
@@ -189,21 +185,19 @@ printDoubleSidedConsignmentsVertical 'Печать ТТН-1' (Consignment consig
         printed(consignment) <- TRUE IF consignment IS Consignment;
         overPrintDoubleSidedConsignmentsVertical(consignment);
         apply();                 
-    } ELSE {
-        cancel();
-    }    
+    }
+    cancel();
 } IMAGE 'print.png';
 
 printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Consignment consignment) = ACTION {
     prePrintActionConsignmentsVertical(consignment);                                                  
 
-    SHOW numberCopies OBJECTS c = consignment ;
-    LOCAL countConsignment = INTEGER();        
-    LOCAL countAttach = INTEGER();  
-    countConsignment() <- 0;
-    countAttach() <- 0;   
+    DIALOG numberCopies OBJECTS c = consignment DO {
+        LOCAL countConsignment = INTEGER();        
+        LOCAL countAttach = INTEGER();  
+        countConsignment() <- 0;
+        countAttach() <- 0;   
                                     
-    IF formResult() == FormResult.ok THEN {       
         IF countConsignmentDetail(consignment) <= overCountRowsVerticalAB (consignment) THEN {
             CONFIRM 'Печать будет выполняться на ОДНОЙ стороне ТТН БЕЗ ПРИЛОЖЕНИЯ'; 
             IF (confirmed()) THEN {
@@ -252,9 +246,8 @@ printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Con
         
         printed(consignment) <- TRUE IF consignment IS Consignment;
         apply();                 
-    } ELSE {
-        cancel();
-    }    
+    }
+    cancel();
 } IMAGE 'print.png';
 
 EXTEND FORM consignmentDashboard
@@ -322,13 +315,12 @@ printDoubleSidedConsignmentsSimpleVertical 'Печать ТН-2' (Consignment co
     wayOfUnloading(consignment) <- wayOfUnloading(supplierStock(consignment)) WHERE NOT wayOfUnloading(consignment);    
     codeLoading(consignment) <- codeLoading(supplierStock(consignment)) WHERE NOT codeLoading(consignment);
     
-    SHOW numberCopiesSimple OBJECTS c = consignment ;
-    LOCAL countConsignment = INTEGER();        
-    LOCAL countAttach = INTEGER(); 
-    countConsignment() <- 1;
-    countAttach() <- 1;                                                          
+    DIALOG numberCopiesSimple OBJECTS c = consignment DO {
+        LOCAL countConsignment = INTEGER();        
+        LOCAL countAttach = INTEGER(); 
+        countConsignment() <- 1;
+        countAttach() <- 1;                                                          
                             
-    IF formResult() == FormResult.ok THEN {
         overSetDoubleSidedConsignmentsSimpleVertical(consignment);
         
         countConsignment() <- 0;            
@@ -354,9 +346,8 @@ printDoubleSidedConsignmentsSimpleVertical 'Печать ТН-2' (Consignment co
         printed(consignment) <- TRUE IF consignment IS Consignment;
         overPrintDoubleSidedConsignmentsSimpleVertical(consignment);
         apply();                 
-    } ELSE {
-        cancel();
-    }    
+    }
+    cancel();
 } IMAGE 'print.png';
 
 EXTEND FORM consignmentDashboard

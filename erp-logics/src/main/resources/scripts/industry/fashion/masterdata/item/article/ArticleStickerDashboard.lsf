@@ -36,23 +36,13 @@ defaultLabelType (article) = GROUP MAX LabelType type IF in(type, Item sku) BY a
 nameLabelType 'Тип ценника' (Article article)= name(defaultLabelType(article)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 changeDefaultLabelType(Article article) = ACTION {
-    REQUEST OBJECT l
-    SHOW labelTypes  DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        FOR article(Item sku) == article DO {
-            dataIn(LabelType type, sku) <- NULL WHERE type IS LabelType;
-            dataIn(LabelType t, sku) <- TRUE WHERE t == requestedObject();
-        }              
-    }
+    DIALOG labelTypes OBJECTS l INPUT NULL DO
+        dataIn(LabelType t, Item sku) <- t == l WHERE article(sku) == article;
 }
 
 changeDefaultLabelType(Sku sku) = ACTION {
-    REQUEST OBJECT l
-    SHOW labelTypes  DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        dataIn(LabelType type, sku) <- NULL WHERE type IS LabelType;
-        dataIn(LabelType t, sku) <- TRUE WHERE t == requestedObject();             
-    }
+    DIALOG labelTypes OBJECTS l INPUT NULL DO
+        dataIn(LabelType t, sku) <- t == l;
 }
 
 // Не заполнены атрибуты
@@ -390,8 +380,7 @@ createSnapshotPricing 'Пример ценника'(Article article, DepartmentS
                         documentQuantity(d) <- 1.0; 
                         createAttribute(d);
                 }
-                SHOW customLabelTransaction OBJECTS l = t ;
-                IF formResult() == FormResult.ok THEN {
+                DIALOG customLabelTransaction OBJECTS l = t DO {
                     print(t);
                 }
                 DELETE t;                
@@ -412,10 +401,8 @@ createSnapshotPricing 'Пример ценника'(Article article, DepartmentS
                     documentQuantity(d) <- 1.0; 
                     createAttribute(d);
             }
-            SHOW customLabelTransaction OBJECTS l = t ;
-            IF formResult() == FormResult.ok THEN {
+            DIALOG customLabelTransaction OBJECTS l = t DO
                 print(t);
-            }
             DELETE t;            
         }  
     }

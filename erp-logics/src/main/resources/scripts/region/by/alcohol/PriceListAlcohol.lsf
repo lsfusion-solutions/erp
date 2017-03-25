@@ -11,17 +11,8 @@ showAlcoholSupplierType 'Тип поставщика алкоголя' = DATA BO
 showAlcoholSupplierTypeUser = showAlcoholSupplierType(priceList(PriceListDetail detail));
 
 changeAlcoholSupplierType(PriceListDetail detail) = ACTION {
-    REQUEST OBJECT d
-        SHOW alcoholSupplierTypies DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN
-        FOR LegalEntity l == company(detail) AND Sku i == sku(detail) DO {
-            alcoholSupplierType(l, i) <- requestedObject();
-        }
-    ELSE
-        IF formResult() == FormResult.drop THEN
-            FOR LegalEntity l == company(detail) AND Sku i == sku(detail) DO {
-                alcoholSupplierType(l, i) <- NULL;   
-            }             
+    DIALOG alcoholSupplierTypies OBJECTS d = alcoholSupplierType(company(detail), sku(detail)) NULL INPUT NULL DO 
+        alcoholSupplierType(LegalEntity l, Sku i) <- d WHERE l == company(detail) AND i == sku(detail);
 }   
 
 changeWYSAlcoholSupplierType(PriceListDetail detail) = ACTION {

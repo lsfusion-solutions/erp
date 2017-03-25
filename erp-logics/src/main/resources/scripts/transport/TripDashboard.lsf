@@ -9,15 +9,8 @@ inCreatingTrip = GROUP SUM 1 IF inCreatingTrip(Order order) BY toStock(order);
 
 countInCreatingTripOrder = GROUP SUM 1 IF inCreatingTrip(Order order);
 
-editTrip 'Редактировать рейс'(Order order) = ACTION {
-    FOR Trip t == trip(order) DO {
-        SHOW trip OBJECTS t=t ;
-        IF formResult() == FormResult.ok THEN {
-            apply();
-        } ELSE {
-            cancel();
-        }
-    }
+editTrip 'Редактировать рейс'(Order order) = ACTION NEWSESSION {
+    SHOW trip OBJECTS t = trip(order) MANAGESESSION DOCKED;
 }
 
 FORM optionTrip 'Настройки рейса'
@@ -61,21 +54,18 @@ DESIGN optionTrip {
 overPrint = ACTION ABSTRACT LIST (Trip);
 overCreateOrder = ACTION ABSTRACT LIST (Trip);
 createTripOrder 'Взять в рейс'() = ACTION {
-    FOR NEW t = Trip DO {
-        date(t) <- currentDate();
-        time(t) <- currentTime();
-        overCreateOrder(t);
-        SHOW optionTrip OBJECTS t = t ;
-
-        IF formResult() == FormResult.ok THEN {
+    NEWSESSION NESTED (inCreatingTrip[Order]) {
+        FOR NEW t = Trip DO {
+            date(t) <- currentDate();
+            time(t) <- currentTime();
+            overCreateOrder(t);
             FOR inCreatingTrip(Order order) 
                     AND NOT trip(order) DO {
                 trip(order) <- t;
             }
-            overPrint(t);
-            apply();
-        } ELSE {
-            cancel();
+            DIALOG optionTrip OBJECTS t = t MANAGESESSION DOCKED NOCANCEL DO {
+                overPrint(t);
+            }
         }
     }
 } TOOLBAR EDITKEY 'ctrl ENTER';

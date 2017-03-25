@@ -286,15 +286,11 @@ FORM technologicalCardsProductBy 'Технологическая карта'
 
 ;
 
-printTechnologicalCard 'Технологическая карта'(BOM BOM)  = ACTION NEWSESSION {
-    SHOW dialogDate ;
-        IF formResult() == FormResult.ok THEN {
-            FOR BOM(Product product) == BOM DO {
-                ASSIGN select(DATE date,product) <- product IS Product WHERE date == chosenDate('d');
-            }
-            PRINT technologicalCardsProductBy  OBJECTS dt = chosenDate('d') ;
-        }
-    apply();
+printTechnologicalCard 'Технологическая карта'(BOM BOM)  = ACTION {
+    DIALOG dialogDate OBJECTS d INPUT DO {
+        select(d, Product product) <- BOM(product) == BOM;
+        PRINT technologicalCardsProductBy OBJECTS dt = d;
+    }
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs
@@ -377,14 +373,9 @@ FORM actStudyOfCulinaryBOM 'Акт контрольной проработки'
     FILTERS       inCommittee(b,e)
 
 ;
-printActStudyOfCulinary 'Акт контрольной проработки'(BOM BOM)  = ACTION NEWSESSION {
-
-    SHOW dialogDate ;
-        IF formResult() == FormResult.ok THEN {
-            PRINT actStudyOfCulinaryBOM  OBJECTS dt = chosenDate('d'), b = BOM ;
-        }
-
-    apply();
+printActStudyOfCulinary 'Акт контрольной проработки'(BOM BOM)  = ACTION {
+    DIALOG dialogDate OBJECTS d INPUT DO
+        PRINT actStudyOfCulinaryBOM  OBJECTS dt = d, b = BOM ;
 } IMAGE 'print.png' IN print;
 
 EXTEND FORM BOMs

@@ -110,14 +110,8 @@ valueVAT 'НДС, %' (Ware ware, DATE date) = valueRate(VAT(ware), date);
 valueVAT 'НДС, %' (Ware ware) = valueVAT(ware, currentDate());
 
 changeNumberVAT(Ware ware) = ACTION {
-    REQUEST OBJECT r
-        SHOW rangeDialog OBJECTS c = defaultCountry() DIALOG SHOWDROP;
-    IF formResult() == FormResult.ok THEN {
-        VAT(ware, Country country) <- requestedObject() WHERE country == defaultCountry();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        VAT(ware, Country country) <- NULL WHERE country == defaultCountry();
-    }
+    DIALOG rangeDialog OBJECTS c = defaultCountry(), r = VAT(ware, defaultCountry()) NULL INPUT NULL DO
+        VAT(ware, Country country) <- r WHERE country == defaultCountry();
 }
 changeValueVAT(Ware ware) = ACTION {
     REQUEST NUMERIC[10,5] INPUT;

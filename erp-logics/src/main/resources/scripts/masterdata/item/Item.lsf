@@ -638,7 +638,6 @@ END
 
 META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, caption2, object2)
     in 'Отм.' = DATA BOOLEAN (###object) MAXCHARWIDTH 5;
-    allowReplace###object = DATA LOCAL BOOLEAN ();
     
     FORM confirmReplace###object 'Объединяемые '##caption2
         OBJECTS object = ###object FIXED PANEL 
@@ -669,10 +668,8 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
     }
     
     replace 'Объединить'(###object object) = ACTION {
-        SHOW confirmReplace###object OBJECTS o=object ;
-        IF formResult() == FormResult.ok THEN {
-            allowReplace###object() <- TRUE;
-            FOR in(###object o) AND allowReplace###object() DO{
+        DIALOG confirmReplace###object OBJECTS o=object DO {
+            FOR in(###object o) DO {
                 IF o != object THEN {
                     object(###object2 object2) <- object WHERE object(object2) == o;
                     in(o) <- NULL;
@@ -682,10 +679,9 @@ META defineUniteAttributeItemWithoutExtendForm(object, nameProp, caption1, capti
                 }
             }
             apply();
-        } ELSE {
-            in(###object o) <- NULL WHERE in(o);           
-        }   
-    };
+        }
+        in(###object o) <- NULL;           
+    } CONFIRM;
 END
 
 NAVIGATOR {
