@@ -428,7 +428,7 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
             receipt(p) <- receipt;
             paymentType(p) <- minCardPaymentType();
         }
-        SHOW postReceiptPayment OBJECTS r = receipt  CHECK;
+        SHOW postReceiptPayment OBJECTS r = receipt CHECK;
         IF formResult() == FormResult.ok THEN {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
@@ -565,8 +565,7 @@ overPostBonus = ACTION ABSTRACT (Receipt);
 
 postBonus 'Бонусами'(Receipt receipt) = ACTION {
     IF sumReceiptDetail(receipt) AND countReceiptDetail(receipt) AND NOT countReceiptReturnDetail(receipt) THEN {
-        SHOW bonusPayment OBJECTS d=discountCard(receipt), r = receipt ;
-        IF formResult() == FormResult.ok THEN {
+        DIALOG bonusPayment OBJECTS d = discountCard(receipt), r = receipt DO {
             bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == receipt;
             bonusPaid(ReceiptSaleDetail detail) <- sumBonusFIFOReceiptSaleDetail(detail) WHERE receipt(detail) == receipt;        
             overPostBonus(receipt);        
@@ -608,10 +607,9 @@ overChangeBatch = ACTION ABSTRACT LIST (ReceiptDetail);
 
 changeBatch 'Изменить партию строки чека'(ReceiptDetail detail) = ACTION {
     IF explicitBatchLedger(receipt(detail)) THEN {
-        SHOW chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail DIALOG;
-        IF formResult() == FormResult.ok THEN {
-            batch(detail) <- chosenObject('bt');
-            price[ReceiptSaleDetail](detail) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt(detail));
+        DIALOG chooseBatchReceipt OBJECTS st = departmentStore(detail), d = detail, bt = batch(detail) NULL INPUT NULL DO{
+            batch(detail) <- bt;
+            price[ReceiptSaleDetail](detail) <- currentPOSPrice[Batch,Receipt](bt, receipt(detail));
         }
         overChangeBatch(detail);
     }
@@ -756,9 +754,8 @@ DESIGN searchSkuSaleReceipt {
 }
 
 searchSkuSale 'Поиск'(Receipt receipt) = ACTION {
-    SHOW searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
-    IF formResult() == FormResult.ok THEN {
-        createSaleDetail[Receipt,Sku,STRING[15]](receipt, chosenObject('s'), idBarcode[Sku](chosenObject('s')));
+    DIALOG searchSkuSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, s INPUT DO {
+        createSaleDetail[Receipt,Sku,STRING[15]](receipt, s, idBarcode[Sku](s));
     }
 } EDITKEY 'F3' IN receiptSaleAction;
 
@@ -811,9 +808,8 @@ DESIGN searchBatchSaleReceipt {
 }
 
 searchBatchSale 'Поиск'(Receipt receipt) = ACTION {
-    SHOW searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt DIALOG;
-    IF formResult() == FormResult.ok THEN {
-        createSaleDetail[Receipt,Batch,STRING[15]](receipt, chosenObject('b'), idBarcodeSku[Batch](chosenObject('b')));
+    DIALOG searchBatchSaleReceipt OBJECTS st = departmentStore(receipt), r = receipt, b INPUT DO {
+        createSaleDetail[Receipt,Batch,STRING[15]](receipt, b, idBarcodeSku[Batch](b));
     }
 } EDITKEY 'F3' IN receiptSaleAction;
 
@@ -909,8 +905,7 @@ DESIGN options {
 }   
 
 scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
-    SHOW barcodeInput ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG barcodeInput DO {
         LOCAL dialogBarcodeSku = Sku();
         dialogBarcodeSku() <- skuBarcode(barcodeInput(), currentDate());
 
@@ -983,10 +978,8 @@ createReturn (Receipt receipt, Receipt receiptReturn, ReceiptSaleDetail d) = ACT
 }
 
 searchSkuReturn 'Поиск'(Receipt receipt) = ACTION {
-    SHOW searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt) DIALOG;
-    IF formResult() == FormResult.ok THEN {
-        createReturn(receipt, chosenObject('s'), chosenObject('r'));
-    }
+    DIALOG searchSkuReturnReceipt OBJECTS st = departmentStore(receipt), c = cashRegister(receipt), s INPUT, r INPUT DO
+        createReturn(receipt, s, r);
 } EDITKEY 'F6' IN receiptReturnAction;
 
 // Дисконтные карты
@@ -1017,10 +1010,9 @@ DESIGN inputDiscountCardNumberReceipt {
 }
 
 inputDiscountCardNumber 'Ввести номер'(Receipt receipt) = ACTION {
-    SHOW inputDiscountCardNumberReceipt ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG inputDiscountCardNumberReceipt OBJECTS s INPUT, n INPUT DO {
         LOCAL discountCard = DiscountCard();
-        discountCard() <- discountString(CONCAT '', chosenString('s'), chosenString('n'));         
+        discountCard() <- discountString(CONCAT '', s, n);         
         IF discountCard() THEN {
             IF dateTo(discountCard()) < date(receipt) THEN
                 MESSAGE 'Закончился срок действия карты'

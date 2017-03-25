@@ -163,19 +163,19 @@ DESIGN generationGiftCards {
 overGenerateGiftCards = ACTION ABSTRACT LIST (GiftCard);
 
 generateGiftCards 'Сгенерировать подарочные сертификаты'() = ACTION {
-    SHOW generationGiftCards OBJECTS n=defaultNumeratorGiftCard(), l=legalEntityGiftCard()  CHECK;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG generationGiftCards OBJECTS n = defaultNumeratorGiftCard() NULL INPUT, l = legalEntityGiftCard() NULL INPUT,
+                                       quantityCards INPUT, priceCards INPUT, dt INPUT, d INPUT DO {
         LOCAL num = INTEGER();
-        ASSIGN num() <- 0;
-        WHILE num() < chosenInteger('quantityCards') DO {
+        num() <- 0;
+        WHILE num() < quantityCards DO {
             FOR NEW g = GiftCard DO {
-                numerator(g) <- chosenObject('n');
+                numerator(g) <- n;
                 number(g) <- curStringValue(numerator(g));
                 series(g) <- series(numerator(g));
-                price(g) <- chosenNumeric('priceCards');
-                date(g) <- chosenDate('dt');                
-                expiryDays(g) <- chosenInteger('d');
-                legalEntity(g) <- chosenObject('l');    
+                price(g) <- priceCards;
+                date(g) <- dt;                
+                expiryDays(g) <- d;
+                legalEntity(g) <- l;    
                 
                 overGenerateGiftCards(g);
                 

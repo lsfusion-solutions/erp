@@ -520,23 +520,6 @@ META defineBlanketOrderBatch(legalEntityProp, stockProp, stockExtra)
     @extendFormDocumentBatchStockExtraCustom(blanketOrder, blanketOrder, o, legalEntityProp, stockProp, stockExtra);
 END
 
-META defineBlanketOrderBatchDialog(dumb)
-    changeBatchBlanketOrderDetail = ACTION (detail) {
-        FORM dialogBatch OBJECTS sk = skuBlanketOrderDetail(detail) DIALOG SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN batchBlanketOrderDetail(detail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            ASSIGN batchBlanketOrderDetail(detail) <- NULL;
-        }
-    }
-
-    EXTEND FORM blanketOrder
-        PROPERTIES (d) nameBatchBlanketOrderDetail ON CHANGE changeBatchBlanketOrderDetail(d) AFTER shortNameUOMSkuBlanketOrderDetail(d)
-    ;
-    EXTEND FORM blanketOrders PROPERTIES (d) READONLY nameBatchBlanketOrderDetail AFTER shortNameUOMSkuBlanketOrderDetail(d);
-END
-
 META defineBlanketOrderBatchDialogStock(stockProp)
     changeBatch(BlanketOrderDetail blanketOrderDetail) = ACTION {
         DIALOG dialogBatchStockOut OBJECTS st = stockProp(blanketOrderDetail),

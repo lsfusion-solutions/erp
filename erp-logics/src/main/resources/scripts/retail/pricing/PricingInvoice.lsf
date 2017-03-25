@@ -466,25 +466,21 @@ META defineInvoicePricingRelation(sign, stockProp)
     }
 
     fillInvoice 'Заполнить на основе накладной'(UserPricing userPricing) =  ACTION {
-        SHOW pricingInvoices OBJECTS s = supplier(userPricing), c = departmentStore(userPricing) ;
-        IF formResult() == FormResult.ok THEN {
-            LOCAL saleInvoice = Invoice();
-            ASSIGN saleInvoice() <- chosenObject('i');
-
-            FOR invoice(InvoiceDetail invoiceDetail) == saleInvoice() AND
+        DIALOG pricingInvoices OBJECTS s = supplier(userPricing), c = departmentStore(userPricing), i INPUT DO {
+            FOR invoice(InvoiceDetail invoiceDetail) == i AND
                 stockProp(invoiceDetail) == departmentStore(userPricing) AND
                 toPricing(invoiceDetail) > 0
                 NEW d = UserPricingDetail DO {
-                ASSIGN userPricing(d) <- userPricing;
-                ASSIGN invoiceDetail(d) <- invoiceDetail;
+                userPricing(d) <- userPricing;
+                invoiceDetail(d) <- invoiceDetail;
 
-                ASSIGN sku(d) <- sku(invoiceDetail);
-                ASSIGN quantity (d) <- toPricing(invoiceDetail);
-                ASSIGN price (d) <- price(invoiceDetail);
+                sku(d) <- sku(invoiceDetail);
+                quantity (d) <- toPricing(invoiceDetail);
+                price (d) <- price(invoiceDetail);
 
-                ASSIGN retailVAT(d) <- VAT(invoiceDetail);
-                ASSIGN valueRetailVAT(d) <- valueVAT(invoiceDetail);
-                ASSIGN batch(d) <- batch(invoiceDetail);
+                retailVAT(d) <- VAT(invoiceDetail);
+                valueRetailVAT(d) <- valueVAT(invoiceDetail);
+                batch(d) <- batch(invoiceDetail);
             }
         }
     } IN invoice;

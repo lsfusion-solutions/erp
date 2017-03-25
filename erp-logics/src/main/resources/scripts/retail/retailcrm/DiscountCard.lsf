@@ -77,14 +77,13 @@ DESIGN generationDiscountCards {
 
 overGenerateDiscountCard = ACTION ABSTRACT LIST (DiscountCard);
 generateDiscountCards 'Сгенерировать дисконтные карты'() = ACTION {
-    SHOW generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard()  CHECK;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG generationDiscountCards OBJECTS n=defaultNumeratorDiscountCard(), n INPUT, quantityCards INPUT CHECK DO {
         LOCAL num = INTEGER();
         num() <- 0;
-        WHILE num() < chosenInteger('quantityCards') DO {
+        WHILE num() < quantityCards DO {
             FOR NEW d = DiscountCard DO {
                 // todo : делается влоб, поскольку numerator сейчас не умеет генерировать сразу несколько объектов
-                numerator(d) <- chosenObject('n');
+                numerator(d) <- n;
                 number(d) <- curStringValue(numerator(d));
                 series(d) <- series(numerator(d));
                 curValue(Numerator numerator) <- curValue(numerator) + 1 WHERE numerator == numerator(d);

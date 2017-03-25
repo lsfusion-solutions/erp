@@ -54,9 +54,8 @@ countEOrderDespatchAdvice = GROUP SUM 1 IF NOT invoice(EOrderDespatchAdvice a) B
 beforeCreateInvoice(Purchase.Order o) += ACTION {
 
     IF isEOrder(o) AND countEOrderDespatchAdvice(o) THEN {
-        REQUEST OBJECT a SHOW selectDespatchAdvice OBJECTS o = o DIALOG ;
-        IF requestedObject() THEN {
-            createUserInvoice(requestedObject() AS EOrderDespatchAdvice);
+        DIALOG selectDespatchAdvice OBJECTS o = o, a INPUT DO {
+            createUserInvoice(a);
             invoiceCreated(o) <- TRUE;
         }
     }

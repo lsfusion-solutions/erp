@@ -129,8 +129,7 @@ DESIGN dialogGiftCard {
 
 fillDetailDialogSkuGiftCard 'Подбор сертификатов'(Sale.Invoice invoice) = ACTION {
     in(GiftCard g) <- NULL;
-    SHOW dialogGiftCard OBJECTS o = invoice ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG dialogGiftCard OBJECTS o = invoice DO {
         FOR in(GiftCard g) NEW gd = InvoiceGiftCardSaleDetail DO {
             invoice(gd) <- invoice;
             giftCard(gd) <- g;
@@ -214,15 +213,16 @@ changeAccount (LegalEntity l) = ACTION {
 }
 
 changeBank (LegalEntity l) = ACTION {
-    REQUEST OBJECT b SHOW dialogBanks ;
-    IF NOT account(l) THEN {
-        FOR NEW a = Bank.Account DO {
-            bank(a) <- requestedObject();
-            legalEntity(a) <- l;
-            userAccount(l) <- a;
-        }
-    } ELSE 
-        bank(Bank.Account a) <- requestedObject() WHERE a == account(l);
+    DIALOG dialogBanks OBJECTS b INPUT DO {
+        IF NOT account(l) THEN {
+            FOR NEW a = Bank.Account DO {
+                bank(a) <- b;
+                legalEntity(a) <- l;
+                userAccount(l) <- a;
+            }
+        } ELSE 
+            bank(Bank.Account a) <- b WHERE a == account(l);
+    }
 }
 
 defaultContract(LegalEntity l) = defaultContractSkuSupplierCustomer(defaultCompany(), l, currentDate());
@@ -306,16 +306,16 @@ customer = DATA LOCAL LegalEntity ();
 nameCustomer 'Покупатель'= name(customer());
 
 changeCustomer() = ACTION {
-    REQUEST OBJECT l SHOW giftCardLegalEntitys DIALOG;       
-    customer() <- requestedObject();
+    DIALOG giftCardLegalEntitys OBJECTS l = customer() NULL INPUT NULL DO
+        customer() <- l;
 }
 
 supplierStock = DATA LOCAL Stock ();
 nameSupplierStock 'Склад'= name(supplierStock());
 
 changeSupplierStock() = ACTION {
-    REQUEST OBJECT s SHOW stocksCompany DIALOG;       
-    supplierStock() <- requestedObject();
+    DIALOG stocksCompany OBJECTS s = supplierStock() NULL INPUT NULL DO
+        supplierStock() <- s;
 }
 
 FORM skuGift 'Номиналы подарочных сертификатов'
@@ -344,8 +344,7 @@ addGiftCardInvoice 'Продажа сертификатов'() = ACTION NEWSESSI
     quantity(Item i) <- NULL;
     supplierStock() <- stock(currentUser());
        
-    SHOW skuGift ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG skuGift DO {
         FOR NEW o = Sale.UserInvoice DO {
             operation(o) <- [=GROUP MIN Sale.Operation o IF isGiftCard(o)]();
 //            supplier(o) <- defaultSupplier(operation(o)) WHERE countSupplier(operation(o)) == 1;

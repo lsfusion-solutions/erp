@@ -34,8 +34,7 @@ overSetManagementRetailPrice = ACTION ABSTRACT LIST (DepartmentStore, DATETIME);
 
 includeExtraDashboardRepricing = ACTION ABSTRACT (Stock, Operation, DATETIME);
 calculateDashboardRepricing 'По надбавкам и прайсам'(Stock d, Operation o, DATETIME dt) = ACTION {
-    SHOW dialogSkuGroup ;
-    IF formResult() == FormResult.ok THEN {              
+    DIALOG dialogSkuGroup DO {              
         IF onStockPriceListRepricing() THEN {
             managementRetailPrice (Sku sku) <- priceA((OVERRIDE retailCalcPriceListType(d), calcPriceListType(o)), sku, d, dt) 
                 IF NOT skipManagementPriceList((OVERRIDE retailPriceListType(d), priceListType(o)),sku, d, dt) AND inSession(skuGroup(sku));
@@ -116,9 +115,9 @@ createDashboardRepricingNotForm 'Создать переоценку'(Stock d, O
 
 createDashboardRepricing 'Создать переоценку'(Stock d, Operation o, DATETIME dt) = ACTION NEWSESSION NESTED LOCAL  {
     createDashboardRepricingNotForm(d, o, dt);
-    SHOW userRepricing OBJECTS p = repForm() MANAGESESSION DOCKED NOCANCEL;
-    IF formResult() == FormResult.ok THEN
+    DIALOG userRepricing OBJECTS p = repForm() MANAGESESSION DOCKED NOCANCEL DO {
         inDashboardRepricing(Sku sku) <- NULL;
+    }
     repForm() <- NULL;      
 }  
 

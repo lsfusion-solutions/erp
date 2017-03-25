@@ -167,8 +167,7 @@ DESIGN confirmReplaceStock {
 replace = ACTION ABSTRACT LIST (Stock, Stock);
 
 replace 'Объединить'(Stock stock) = ACTION {   
-    SHOW confirmReplaceStock OBJECTS s=stock ;
-    IF formResult() == FormResult.ok THEN {    
+    DIALOG confirmReplaceStock OBJECTS s = stock DO {    
         FOR in(Stock s) AND stock IS Stock AND NOT isCompany(s) AND NOT isCompany(stock) DO {
             IF s != stock THEN {
                 replace(s, stock);
@@ -178,10 +177,9 @@ replace 'Объединить'(Stock stock) = ACTION {
                 MESSAGE 'Выделенный склад не может совпадать с объединяемым и не должен являться складом собственной компанией';
             }
         }
-    } ELSE {
-        in(Stock s) <- NULL WHERE in(s);       
+        apply();
     }
-    apply();
+    in(Stock s) <- NULL;       
 } CONFIRM;
 
 dataStock = DATA Stock (LegalEntity);

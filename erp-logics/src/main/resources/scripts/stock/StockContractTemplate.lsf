@@ -4,47 +4,43 @@ REQUIRE StockContract, Word, LegalEntityBy, Bank;
 
 overCreateStockTemplate = ACTION ABSTRACT LIST (TemplateEntry, Contract);
 
-createStockTemplate 'Заполнить по шаблону'(Contract contract) = ACTION {
-    ASSIGN value(TemplateEntry detail) <- NULL;
+createStockTemplate 'Заполнить по шаблону' (Contract contract) = ACTION {
+    value(TemplateEntry detail) <- NULL;
 
-    SHOW dialogTemplates ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL template = Template();
-        ASSIGN template() <- chosenObject('t');
-        FOR template (TemplateEntry detail) == template() DO {
+    DIALOG dialogTemplates OBJECTS t INPUT DO {
+        FOR template (TemplateEntry detail) == t DO {
 
-            ASSIGN value(detail) <- TEXT(nameSupplier(contract)) WHERE key(detail) == 'supplier';
-            ASSIGN value(detail) <- TEXT(nameCustomer(contract)) WHERE key(detail) == 'customer';
-            ASSIGN value(detail) <- TEXT(shortNameOwnership(supplier(contract))) WHERE key(detail) == 'shortOwnershipSupplier';
-            ASSIGN value(detail) <- TEXT(shortNameOwnership(customer(contract))) WHERE key(detail) == 'shortOwnershipCustomer';
-            ASSIGN value(detail) <- TEXT(address(supplier(contract))) WHERE key(detail) == 'addressSupplier';
-            ASSIGN value(detail) <- TEXT(address(customer(contract))) WHERE key(detail) == 'addressCustomer';
-            ASSIGN value(detail) <- TEXT(nameCountry(supplier(contract))) WHERE key(detail) == 'countrySupplier';
-            ASSIGN value(detail) <- TEXT(nameCountry(customer(contract))) WHERE key(detail) == 'countryCustomer';
-            ASSIGN value(detail) <- TEXT(phone(supplier(contract))) WHERE key(detail) == 'phoneSupplier';
-            ASSIGN value(detail) <- TEXT(phone(customer(contract))) WHERE key(detail) == 'phoneCustomer';
-            ASSIGN value(detail) <- TEXT(email(supplier(contract))) WHERE key(detail) == 'emailSupplier';
-            ASSIGN value(detail) <- TEXT(email(customer(contract))) WHERE key(detail) == 'emailCustomer';
-            ASSIGN value(detail) <- TEXT(numberAccount(supplier(contract))) WHERE key(detail) == 'accountBankSupplier';
-            ASSIGN value(detail) <- TEXT(numberAccount(customer(contract))) WHERE key(detail) == 'accountBankCustomer';
-            ASSIGN value(detail) <- TEXT(nameBank(account(supplier(contract)))) WHERE key(detail) == 'bankSupplier';
-            ASSIGN value(detail) <- TEXT(nameBank(account(customer(contract)))) WHERE key(detail) == 'bankCustomer';
-            ASSIGN value(detail) <- TEXT(addressBank(account(supplier(contract)))) WHERE key(detail) == 'addressBankSupplier';
-            ASSIGN value(detail) <- TEXT(addressBank(account(customer(contract)))) WHERE key(detail) == 'addressBankCustomer';
-            ASSIGN value(detail) <- TEXT(MFOBank(account(supplier(contract)))) WHERE key(detail) == 'MFOBankSupplier';
-            ASSIGN value(detail) <- TEXT(MFOBank(account(customer(contract)))) WHERE key(detail) == 'MFOBankCustomer';
-            ASSIGN value(detail) <- TEXT(departmentBank(account(supplier(contract)))) WHERE key(detail) == 'departmentBankSupplier';
-            ASSIGN value(detail) <- TEXT(departmentBank(account(customer(contract)))) WHERE key(detail) == 'departmentBankCustomer';
-            ASSIGN value(detail) <- TEXT(CBUBank(account(supplier(contract)))) WHERE key(detail) == 'CBUBankSupplier';
-            ASSIGN value(detail) <- TEXT(CBUBank(account(customer(contract)))) WHERE key(detail) == 'CBUBankCustomer';
+            value(detail) <- TEXT(nameSupplier(contract)) WHERE key(detail) == 'supplier';
+            value(detail) <- TEXT(nameCustomer(contract)) WHERE key(detail) == 'customer';
+            value(detail) <- TEXT(shortNameOwnership(supplier(contract))) WHERE key(detail) == 'shortOwnershipSupplier';
+            value(detail) <- TEXT(shortNameOwnership(customer(contract))) WHERE key(detail) == 'shortOwnershipCustomer';
+            value(detail) <- TEXT(address(supplier(contract))) WHERE key(detail) == 'addressSupplier';
+            value(detail) <- TEXT(address(customer(contract))) WHERE key(detail) == 'addressCustomer';
+            value(detail) <- TEXT(nameCountry(supplier(contract))) WHERE key(detail) == 'countrySupplier';
+            value(detail) <- TEXT(nameCountry(customer(contract))) WHERE key(detail) == 'countryCustomer';
+            value(detail) <- TEXT(phone(supplier(contract))) WHERE key(detail) == 'phoneSupplier';
+            value(detail) <- TEXT(phone(customer(contract))) WHERE key(detail) == 'phoneCustomer';
+            value(detail) <- TEXT(email(supplier(contract))) WHERE key(detail) == 'emailSupplier';
+            value(detail) <- TEXT(email(customer(contract))) WHERE key(detail) == 'emailCustomer';
+            value(detail) <- TEXT(numberAccount(supplier(contract))) WHERE key(detail) == 'accountBankSupplier';
+            value(detail) <- TEXT(numberAccount(customer(contract))) WHERE key(detail) == 'accountBankCustomer';
+            value(detail) <- TEXT(nameBank(account(supplier(contract)))) WHERE key(detail) == 'bankSupplier';
+            value(detail) <- TEXT(nameBank(account(customer(contract)))) WHERE key(detail) == 'bankCustomer';
+            value(detail) <- TEXT(addressBank(account(supplier(contract)))) WHERE key(detail) == 'addressBankSupplier';
+            value(detail) <- TEXT(addressBank(account(customer(contract)))) WHERE key(detail) == 'addressBankCustomer';
+            value(detail) <- TEXT(MFOBank(account(supplier(contract)))) WHERE key(detail) == 'MFOBankSupplier';
+            value(detail) <- TEXT(MFOBank(account(customer(contract)))) WHERE key(detail) == 'MFOBankCustomer';
+            value(detail) <- TEXT(departmentBank(account(supplier(contract)))) WHERE key(detail) == 'departmentBankSupplier';
+            value(detail) <- TEXT(departmentBank(account(customer(contract)))) WHERE key(detail) == 'departmentBankCustomer';
+            value(detail) <- TEXT(CBUBank(account(supplier(contract)))) WHERE key(detail) == 'CBUBankSupplier';
+            value(detail) <- TEXT(CBUBank(account(customer(contract)))) WHERE key(detail) == 'CBUBankCustomer';
 
-            EXEC overCreateStockTemplate(detail, contract);
+            overCreateStockTemplate(detail, contract);
         }
-        SHOW template OBJECTS t = template() ;
-        IF formResult() == FormResult.ok THEN {
-            EXEC process(template());
-            ASSIGN word[UserContractSku](contract) <- resultTemplate();
-            EXEC openWord[UserContractSku](contract);
+        DIALOG template OBJECTS t = t DO {
+            process(t);
+            word[UserContractSku](contract) <- resultTemplate();
+            openWord[UserContractSku](contract);
         }
     }
 } IMAGE 'editReport.png';

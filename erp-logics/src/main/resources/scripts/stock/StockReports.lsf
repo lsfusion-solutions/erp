@@ -541,13 +541,8 @@ xlsBackSheet 'По группам (XLS)' (Stock stock, DATE dateFrom, DATE dateT
     ACTION PRINT printBackSheet OBJECTS st = stock, df = dateFrom, dt = dateTo XLS IMAGE 'print.png' IN print;
 
 fillDocumentReport 'Подбор документа'() = ACTION {
-    SHOW documents DIALOG;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL chosenDocument = Document();
-        chosenDocument() <- chosenObject('d');
-        FOR [ = GROUP SUM 1 BY document(DocumentDetail d), sku(d)](chosenDocument(), Sku sku) DO {
-            include(sku) <- TRUE;
-        }
+    DIALOG documents OBJECTS d INPUT DO {
+        include(Sku sku) <- TRUE WHERE [ = GROUP SUM 1 BY document(DocumentDetail d), sku(d)](d, sku);
     }
 } TOOLBAR;
 

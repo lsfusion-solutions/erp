@@ -148,19 +148,12 @@ META defineOrderReceipt(sign, stockProp, supplierProp, customerProp, prop)
     }
 
     fillOrder 'По заказу'(Receipt receipt) =  ACTION {
-        IF supplierProp(receipt) AND customerProp(receipt) THEN {
-            SHOW receiptOrders OBJECTS s = supplierProp(receipt), c = customerProp(receipt) DIALOG;
-        } ELSE {
-            IF NOT customerProp(receipt) THEN {
-                SHOW receiptSupplierOrders OBJECTS s = supplierProp(receipt) DIALOG;
-            }
-        }
-
-        IF formResult() == FormResult.ok THEN {
-            LOCAL prop##Order = Order();
-            prop##Order() <- chosenObject('i');
-            fillOrder(receipt, prop##Order());
-        }
+        IF customerProp(receipt) THEN
+            DIALOG receiptOrders OBJECTS s = supplierProp(receipt), c = customerProp(receipt), i INPUT DO
+                fillOrder(receipt, i)
+        ELSE
+            DIALOG receiptSupplierOrders OBJECTS s = supplierProp(receipt), i INPUT DO
+                fillOrder(receipt, i);
     } IN order;
 
     EXTEND FORM POS

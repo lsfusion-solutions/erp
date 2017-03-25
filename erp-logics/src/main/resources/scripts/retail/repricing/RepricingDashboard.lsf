@@ -65,11 +65,10 @@ createRepricingLabelTransaction 'Распечатать ценники'(Departme
 
 createSnapshotRepricingLabelTransactionDepartmentStore 'Перепечатать ценники'(Stock departmentStore, Operation operation, DATETIME dateTime) = ACTION  {
     IF countSelectSkus() THEN  NEWSESSION NESTED (select[Sku], inDashboardRepricing[Sku], managementRetailPrice[Sku], managementPriceListPrice[Sku]) {
-        SHOW selectLabelTypes OBJECTS ds =  departmentStore ;
-        IF formResult() == FormResult.ok THEN { 
+        DIALOG selectLabelTypes OBJECTS ds = departmentStore, l INPUT DO { 
 
             IF NOT countSelectType() THEN {
-                select(LabelType type) <- TRUE WHERE type == chosenObject('l');
+                select(l) <- TRUE;
             }            
             FOR select(LabelType type) DO {
                 FOR NEW t = LabelTransaction DO {

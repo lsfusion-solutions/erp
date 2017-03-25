@@ -180,25 +180,22 @@ DESIGN transferDiscountCards {
 
 overTransferDiscountCards = ACTION ABSTRACT LIST (DiscountCard, DiscountCard); 
 transferDiscountCards 'Замена карты' () = ACTION NEWSESSION {
-    SHOW numberDiscountCardInput ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG numberDiscountCardInput DO {
         FOR DiscountCard card == discountString(numberDiscountCardInput()) DO { 
             transferSum(card) <- prevTotalSum(card);
-            SHOW transferDiscountCards OBJECTS dc = card ;
-            IF formResult() == FormResult.ok THEN {
-                SHOW numberDiscountCardInputNew ;
-                IF formResult() == FormResult.ok THEN {
+            DIALOG transferDiscountCards OBJECTS dc = card DO {
+                DIALOG numberDiscountCardInputNew DO {
                     FOR DiscountCard newCard == discountString(numberDiscountCardInputNew()) DO {
                         discountCard(card) <- newCard;
                         dateTo(card) <- currentDate();
                         legalEntity(newCard) <- legalEntity(card) WHERE NOT legalEntity(newCard);
                         overTransferDiscountCards(newCard, card);
-                        SHOW transferDiscountCards OBJECTS dc = newCard ;
-                        IF formResult() == FormResult.ok THEN {
+                        
+                        DIALOG transferDiscountCards OBJECTS dc = newCard DO {
                             apply();
-                            MESSAGE 'Замена карты была успешно проведена';
-                        } ELSE {
-                            cancel();
+                            IF NOT canceled() THEN {
+                                MESSAGE 'Замена карты была успешно проведена';
+                            }
                         }
                     }    
                 }

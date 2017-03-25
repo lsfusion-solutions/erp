@@ -281,13 +281,11 @@ createPaymentInstallments 'Рассрочка'(Receipt receipt) = ACTION {
         noteInvoice() <- NULL;
         idEmployee() <- NULL;
         nameEmployee() <- NULL;        
-        SHOW paymentInstallments ;
-        IF formResult() == FormResult.ok THEN {
+        DIALOG paymentInstallments OBJECTS n INPUT, pt INPUT, pc INPUT DO {
             FOR passportNumber(LegalEntity l) == passportNumberLegalEntity() AND id(Employee e) == idEmployee() DO { 
-                createInvoice(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
+                createInvoice(receipt, l, e, n, pt, pc, noteInvoice());
             } ELSE {
-                NEW LegalEntity;
-                FOR Object l == addedObject() AND id(Employee e) == idEmployee() DO {
+                FOR id(Employee e) == idEmployee() NEW l = LegalEntity DO {
                     name[LegalEntity](l) <- nameLegalEntity();
                     passportNumber(l) <- passportNumberLegalEntity();
                     phone[Contact](l) <- phoneContact();
@@ -306,12 +304,11 @@ createPaymentInstallments 'Рассрочка'(Receipt receipt) = ACTION {
                             warehouseGroup(s) <- gr;
                         }
                     }
-                    createInvoice(receipt, l, e, chosenNumeric('n'), chosenObject('pt'), chosenObject('pc'), noteInvoice());
+                    createInvoice(receipt, l, e, n, pt, pc, noteInvoice());
                 }
             }    
-        } ELSE {
-            isReadonly() <- NULL;
-        }   
+        }
+        isReadonly() <- NULL;
     }         
 }
 
@@ -350,23 +347,22 @@ DESIGN prePayment {
 createInvoicePrePayment 'Предоплата'(Receipt receipt)  = ACTION {
     IF quantityReceiptDetail(receipt) THEN {
         noteInvoice() <- NULL;
-        SHOW prePayment OBJECTS r = receipt ;
-        IF formResult() == FormResult.ok THEN {
+        DIALOG prePayment OBJECTS r = receipt, c INPUT DO {
             FOR NEW i = UserInvoice DO {
                 operation(i) <- defaultOperationPaymentInstallments();
                 supplierStock(i) <- departmentStore(receipt);
                 supplier(i) <- legalEntity[Stock](departmentStore(receipt));
-                customer(i) <- partyB(chosenObject('c'));
-                customerStock(i) <- Stock.defaultStock[LegalEntity](partyB(chosenObject('c')));
+                customer(i) <- partyB(c);
+                customerStock(i) <- Stock.defaultStock[LegalEntity](partyB(c));
                 date(i) <- date(receipt);
                 time(i) <- time(receipt);
-                contractSku(i) <- chosenObject('c');
-                paymentCondition(i) <- paymentCondition[Contract](chosenObject('c'));
+                contractSku(i) <- c;
+                paymentCondition(i) <- paymentCondition[Contract](c);
                 priceListType(i) <- defaultPriceListType(operation(i));                
                 note(i) <- noteInvoice();
                 createShipment(i) <- TRUE;
                 isPosted(i) <- TRUE;
-                FOR Payment.Payment p == lastPayment(chosenObject('c')) DO {
+                FOR Payment.Payment p == lastPayment(c) DO {
                     IF isCosted(p) < sumReceiptDetail(receipt) THEN {
                         cost(p, i) <- isCosted(p);    
                     } ELSE {
