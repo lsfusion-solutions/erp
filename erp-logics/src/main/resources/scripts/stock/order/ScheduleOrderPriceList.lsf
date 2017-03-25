@@ -18,7 +18,7 @@ META addScheduleOrder(filter, cap, filterStock)
     filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (LegalEntity filter, Stock stock, DATE date) = countPriceLists  (filter, stock, date) IF NOT countScheduleOrders (filter, stock, date);
     filterLegalEntity 'Поставщики, у которых есть прайсы и нет графика заказов' (filter, date)= GROUP SUM 1 IF filterLegalEntity(LegalEntity filter, Stock stock, DATE date) BY filter, date;
     
-    addScheduleOrder###filter 'Добавить'(LegalEntity filter, Stock stock) = ACTION {
+    addScheduleOrder###filter 'Добавить'(LegalEntity filter, Stock stock) = ACTION NEWSESSION {
         FOR NEW o = ScheduleOrder DO {
             filter(o) <- filter;
             filter##Stock(o) <- defaultStock(filter(o)) WHERE countStocks(filter(o)) == 1;
@@ -26,11 +26,8 @@ META addScheduleOrder(filter, cap, filterStock)
             customer(o) <- legalEntity(stock);
             dataIn(o,stock) <- TRUE;                    
             
-            SHOW scheduleOrder OBJECTS s=o MANAGESESSION DOCKED;
-            IF NOT formResult() == FormResult.ok THEN {
-                DELETE o;
-            }
-        };
+            SHOW scheduleOrder OBJECTS s=o MANAGESESSION DOCKED NOCANCEL;
+        }
     } TOOLBAR IMAGE 'add.png';
     
     EXTEND FORM scheduleOrderDashboard

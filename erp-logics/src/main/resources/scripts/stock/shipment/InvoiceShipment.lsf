@@ -199,13 +199,10 @@ META defineInvoiceShipment(sign, stockProp, filter, NS)
     overFillInvoice = ACTION ABSTRACT LIST (UserShipmentDetail, InvoiceDetail);  // детайл
 
     fillInvoice 'Заполнить на основе накладной'(UserShipment userShipment) =  ACTION {
-        SHOW shipmentInvoices OBJECTS s = supplier(userShipment), c = customer(userShipment) ;
-        IF formResult() == FormResult.ok THEN {
-            LOCAL saleInvoice = Invoice();
-            saleInvoice() <- chosenObject('i');
-            overFillInvoice(userShipment, saleInvoice());
+        DIALOG shipmentInvoices OBJECTS s = supplier(userShipment), c = customer(userShipment), i INPUT DO {
+            overFillInvoice(userShipment, i);
 
-            FOR invoice(InvoiceDetail invoiceDetail) == saleInvoice() AND
+            FOR invoice(InvoiceDetail invoiceDetail) == i AND
                 toShip(invoiceDetail) > 0
                 NEW d = UserShipmentDetail DO {
                     userShipment(d) <- userShipment;

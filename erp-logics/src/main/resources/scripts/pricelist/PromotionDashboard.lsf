@@ -138,18 +138,8 @@ nameFilterPromotionStock 'Склад' = name[Stock](filterPromotionStock()) MINC
 notFilterPromotionStock = TRUE AND NOT filterPromotionStock();
 
 changeCompanyFilterPromotionStock() = ACTION {
-    REQUEST OBJECT s
-    IF filterPromotionStock() THEN {            
-        SHOW companysStock OBJECTS s = filterPromotionStock() DIALOG SHOWDROP;        
-    } ELSE {
-        SHOW companysStock DIALOG SHOWDROP;        
-    }
-    IF formResult() == FormResult.ok THEN {
-        filterPromotionStock() <- requestedObject();
-
-    } ELSE IF formResult() == FormResult.drop THEN {
-        filterPromotionStock() <- NULL;
-    }
+    DIALOG companysStock OBJECTS s = filterPromotionStock() NULL INPUT NULL DO 
+        filterPromotionStock() <- s;
 }
 
 //overPriceListDetailAPriceListTypeSkuDateTimeOperation  (type, sku, dateTime, operation) = IF filterPromotionStock() 
@@ -243,10 +233,8 @@ addUserPriceList 'Добавить'(LegalEntity legalEntity, PriceListType type,
         operation(p) <- operation;
         in[UserPriceList,DataPriceListType](p, type) <- TRUE;
         show[PriceList,PriceListType](p, type) <- TRUE;
-        EXEC overAdd(p); 
-        SHOW userPriceList OBJECTS p=p MANAGESESSION DOCKED;
-        IF formResult() == FormResult.ok THEN
-            EXEC apply();
+        overAdd(p); 
+        SHOW userPriceList OBJECTS p = p MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR IMAGE 'add.png' EDITKEY 'INSERT';
 

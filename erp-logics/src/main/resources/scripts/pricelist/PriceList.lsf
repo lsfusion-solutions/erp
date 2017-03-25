@@ -240,14 +240,9 @@ createdComputer (UserPriceListDetail d) += createdComputer(userPriceList(d));
 //@deriveDocumentDetailPricePriceListTypeVATBatch(userPriceList, stockProp, userPriceList);
 
 changePurchaseBatch(UserPriceListDetail userPriceListDetail) = ACTION {
-    SHOW dialogBatch OBJECTS sk = sku(userPriceListDetail) DIALOG SHOWDROP;
-
-    IF formResult() == FormResult.ok THEN {
-        ASSIGN batch(userPriceListDetail) <- chosenObject('bt');
-    } ELSE IF formResult() == FormResult.drop THEN {
-        ASSIGN batch(userPriceListDetail) <- NULL;
-    }
-};
+    DIALOG dialogBatch OBJECTS sk = sku(userPriceListDetail), bt = batch(userPriceListDetail) NULL INPUT NULL DO
+        batch(userPriceListDetail) <- bt;
+}
 
 replace(Sku s, Batch b) += ACTION { sku(UserPriceListDetail detail) <- s WHERE batch(detail) == b;}
 //@defineBalancesBatch(priceListDetail); //-- показываем по нажатию правой клавиши остатки партии
@@ -396,15 +391,11 @@ sku[DocumentDetail](PriceListDetail priceList) += sku(priceList);
 document(PriceListDetail detail) += priceList(detail);
 
 fillDocument 'Подбор документа'(UserPriceList userPriceList) = ACTION {
-    SHOW documents ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL chosenDocument = Document();
-        ASSIGN chosenDocument() <- chosenObject('d');
-        FOR document(DocumentDetail documentDetail) == chosenDocument() NEW i = UserPriceListDetail DO {
-            ASSIGN userPriceList(i) <- userPriceList;
-            ASSIGN sku(i) <- sku(documentDetail);
+    DIALOG documents OBJECTS d INPUT DO
+        FOR document(DocumentDetail documentDetail) == d NEW i = UserPriceListDetail DO {
+            userPriceList(i) <- userPriceList;
+            sku(i) <- sku(documentDetail);
         }
-    }
 } TOOLBAR;
 
 // ---------------------- Активность --------------------------- //
@@ -905,58 +896,57 @@ DESIGN chooseMarkUpSkuUserPriceList {
 // ----------------------- Для отмеченных строк ------------------------ //
 isSelected 'Отм' = DATA LOCAL BOOLEAN (UserPriceListDetail);
 changeMarkUpChosenSku 'Изменить цену для отмеченных строк'(UserPriceList userPriceList, Stock stock) = ACTION {
-    SHOW chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
         IF NOT [= GROUP SUM 1 IF isSelected(UserPriceListDetail priceListDetail)
                       BY userPriceList(priceListDetail)](userPriceList) THEN
             MESSAGE 'Выберите хотя бы одну позицию'
         ELSE {
             LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
-            IF chosenObject('pt') != chosenObject('nt') AND in[UserPriceList,DataPriceListType](userPriceList, chosenObject('pt')) THEN {
-                prev(UserPriceListDetail detail) <- price[UserPriceListDetail,DataPriceListType](detail, chosenObject('pt'))
+            IF pt != nt AND in[UserPriceList,DataPriceListType](userPriceList, pt) THEN {
+                prev(UserPriceListDetail detail) <- price[UserPriceListDetail,DataPriceListType](detail, pt)
                                      WHERE userPriceList(detail) == userPriceList;
             } ELSE {
-                prev(UserPriceListDetail detail) <- currentPrice(detail, chosenObject('pt'), stock)
+                prev(UserPriceListDetail detail) <- currentPrice(detail, pt, stock)
                                      WHERE userPriceList(detail) == userPriceList;
             }
-            IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](chosenObject('nt')) AND NOT includeVAT[PriceListType](chosenObject('pt')) THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * (chosenNumeric('n') + 100.0) / 100.0, roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](chosenObject('pt')) AND NOT includeVAT[PriceListType](chosenObject('nt')) THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * (chosenNumeric('n') + 100.0) / 100.0, roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent THEN{
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) * (chosenNumeric('n') + 100.0) / 100.0, roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
+            IF m == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * (n + 100.0) / 100.0, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](pt) AND NOT includeVAT[PriceListType](nt) THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * (n + 100.0) / 100.0, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.percent THEN{
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) * (n + 100.0) / 100.0, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
             }
-            IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](chosenObject('nt')) AND NOT includeVAT[PriceListType](chosenObject('pt')) THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * chosenNumeric('n'), roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](chosenObject('pt')) AND NOT includeVAT[PriceListType](chosenObject('nt')) THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * chosenNumeric('n'), roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) * chosenNumeric('n'), roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
+            IF m == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * n, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](pt) AND NOT includeVAT[PriceListType](nt) THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * n, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.multiplication THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) * n, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
             }
-            IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](chosenObject('nt')) AND NOT includeVAT[PriceListType](chosenObject('pt')) THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 / chosenNumeric('n'), roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](chosenObject('pt')) AND NOT includeVAT[PriceListType](chosenObject('nt')) THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 / chosenNumeric('n'), roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division THEN {
-                ASSIGN price(UserPriceListDetail detail, DataPriceListType t) <-
-                    round(prev(detail) / chosenNumeric('n'), roundCondition(t))
-                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList AND t == chosenObject('nt');
+            IF m == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 / n, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](pt) AND NOT includeVAT[PriceListType](nt) THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 / n, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.division THEN {
+                price(UserPriceListDetail detail, nt) <-
+                    round(prev(detail) / n, roundCondition(nt))
+                    WHERE isSelected(detail) AND userPriceList(detail) == userPriceList;
             }
         }
     }
@@ -976,56 +966,55 @@ DESIGN userPriceList{
 
 // ---------------------- Для всех строк ----------------------- //
 changeMarkUpSku 'Изменить цену для всех строк'(UserPriceList userPriceList, Stock stock) = ACTION {
-    SHOW chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList ;
-    IF formResult() == FormResult.ok THEN {
+    DIALOG chooseMarkUpSkuUserPriceList OBJECTS p = userPriceList, pt INPUT, nt INPUT, m INPUT, n INPUT DO {
         LOCAL prev = NUMERIC[16,4] (UserPriceListDetail);
-        IF chosenObject('pt') != chosenObject('nt') AND in[UserPriceList,DataPriceListType](userPriceList, chosenObject('pt')) THEN {
-            prev(UserPriceListDetail detail) <- price[UserPriceListDetail,DataPriceListType](detail, chosenObject('pt'))
+        IF pt != nt AND in[UserPriceList,DataPriceListType](userPriceList, pt) THEN {
+            prev(UserPriceListDetail detail) <- price[UserPriceListDetail,DataPriceListType](detail, pt)
                                  WHERE userPriceList(detail) == userPriceList;
         } ELSE {
-            prev(UserPriceListDetail detail) <- currentPrice(detail, chosenObject('pt'), stock)
+            prev(UserPriceListDetail detail) <- currentPrice(detail, pt, stock)
                                  WHERE userPriceList(detail) == userPriceList;
         }
 
         FOR [= FILTER userPriceList.d](UserPriceListDetail detail) DO {
-            IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](chosenObject('nt')) AND NOT includeVAT[PriceListType](chosenObject('pt')) THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * (chosenNumeric('n') + 100.0) / 100.0, roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](chosenObject('pt')) AND NOT includeVAT[PriceListType](chosenObject('nt')) THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * (chosenNumeric('n') + 100.0) / 100.0, roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.percent THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) * (chosenNumeric('n') + 100.0) / 100.0, roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
+            IF m == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
+                price(detail, nt) <-
+                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * (n + 100.0) / 100.0, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.percent AND includeVAT[PriceListType](pt) AND NOT includeVAT[PriceListType](nt) THEN {
+                price(detail, nt) <-
+                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * (n + 100.0) / 100.0, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.percent THEN {
+                price(detail, nt) <-
+                    round(prev(detail) * (n + 100.0) / 100.0, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
             }
-            IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](chosenObject('nt')) AND NOT includeVAT[PriceListType](chosenObject('pt')) THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * chosenNumeric('n'), roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](chosenObject('pt')) AND NOT includeVAT[PriceListType](chosenObject('nt')) THEN{
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * chosenNumeric('n'), roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.multiplication THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) * chosenNumeric('n'), roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
+            IF m == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
+                price(detail, nt) <-
+                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 * n, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.multiplication AND includeVAT[PriceListType](pt) AND NOT includeVAT[PriceListType](nt) THEN{
+                price(detail, nt) <-
+                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 * n, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.multiplication THEN {
+                price(detail, nt) <-
+                    round(prev(detail) * n, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
             }
-            IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](chosenObject('nt')) AND NOT includeVAT[PriceListType](chosenObject('pt')) THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 / chosenNumeric('n'), roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](chosenObject('pt')) AND NOT includeVAT[PriceListType](chosenObject('nt')) THEN{
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 / chosenNumeric('n'), roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
-            } ELSE IF chosenObject('m') == TypeMarkUpSkuUserPriceList.division THEN {
-                ASSIGN price(detail, DataPriceListType t) <-
-                    round(prev(detail) / chosenNumeric('n'), roundCondition(t))
-                    WHERE userPriceList(detail) == userPriceList AND t == chosenObject('nt');
+            IF m == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](nt) AND NOT includeVAT[PriceListType](pt) THEN {
+                price(detail, nt) <-
+                    round(prev(detail) * (valueVAT(detail) + 100.0) / 100.0 / n, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.division AND includeVAT[PriceListType](pt) AND NOT includeVAT[PriceListType](nt) THEN{
+                price(detail, nt) <-
+                    round(prev(detail) / (valueVAT(detail) + 100.0) * 100.0 / n, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
+            } ELSE IF m == TypeMarkUpSkuUserPriceList.division THEN {
+                price(detail, nt) <-
+                    round(prev(detail) / n, roundCondition(nt))
+                    WHERE userPriceList(detail) == userPriceList;
             }
         }
     }
@@ -1082,31 +1071,25 @@ copy 'Копировать'(PriceList priceList) = ACTION NEWSESSION {
     }
 }
 
-updateSession 'Обновить'(PriceList priceList) = ACTION {
+updateSession 'Обновить'(PriceList priceList) = ACTION NESTEDSESSION {
 
     FOR NEW u = UserPriceList DO {
-        EXEC copyData(priceList, u);
-        SHOW userPriceList OBJECTS p = u DOCKED;
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN toDate[UserPriceList](priceList) <- fromDate(u);
-            ASSIGN toTime[UserPriceList](priceList) <- fromTime(u);
-        } ELSE {
-            DELETE u;
+        copyData(priceList, u);
+        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
+            toDate[UserPriceList](priceList) <- fromDate(u);
+            toTime[UserPriceList](priceList) <- fromTime(u);
         }
     }
 
 }
-update 'Обновить'(PriceList priceList) = ACTION NEWSESSION{
+update 'Обновить'(PriceList priceList) = ACTION NEWSESSION {
 
     FOR NEW u = UserPriceList DO {
-        EXEC copyData(priceList, u);
-        SHOW userPriceList OBJECTS p = u DOCKED;
-        IF formResult() == FormResult.ok THEN {
-            ASSIGN toDate[UserPriceList](priceList) <- fromDate(u);
-            ASSIGN toTime[UserPriceList](priceList) <- fromTime(u);
+        copyData(priceList, u);
+        DIALOG userPriceList OBJECTS p = u MANAGESESSION DOCKED NOCANCEL DO {
+            toDate[UserPriceList](priceList) <- fromDate(u);
+            toTime[UserPriceList](priceList) <- fromTime(u);
             apply();
-        } ELSE {
-            DELETE u;
         }
     }
 }
@@ -1244,15 +1227,13 @@ NAVIGATOR {
 // Заполнение на основании
 
 addUnderPriceList 'Заполнить на основании'(UserPriceList p) = ACTION {
-    SHOW priceLists ;
-    IF formResult() == FormResult.ok THEN {
-        FOR priceList(PriceListDetail detail) == chosenObject('p') NEW d = UserPriceListDetail DO {
+    DIALOG priceLists OBJECTS p INPUT pt DO
+        FOR priceList(PriceListDetail detail) == pt NEW d = UserPriceListDetail DO {
             userPriceList(d) <- p;
             sku(d) <- sku(detail);
             price(d, DataPriceListType type) <- price(detail, type)
                                                                   WHERE in(p, type); 
         }
-    }
 }
 
 EXTEND FORM userPriceList

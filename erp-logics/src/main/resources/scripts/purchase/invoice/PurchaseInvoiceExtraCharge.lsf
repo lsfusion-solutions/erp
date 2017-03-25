@@ -280,48 +280,26 @@ EXTEND FORM extraChargeParams
     EVENTS ON CHANGE s changeDefaultCurrencyParams(s)
 ;
     
-createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = ACTION {   
-    SHOW extraChargeParams ;    
-    LOCAL o = Operation();
-    LOCAL s = LegalEntity(); 
-    LOCAL sk = Sku();
-    LOCAL nu = NUMERIC[18,4] ();
-    LOCAL c = Currency();
-        
-    o() <- NULL;
-    s() <- NULL;
-    sk() <- NULL;
-    nu() <- NULL;
-    c() <- NULL;
-     
-    o() <- chosenObject('o');
-    s() <- chosenObject('s');
-    sk() <- chosenObject('sk');       
-    nu() <- chosenNumeric('nu');
-    c() <- chosenObject('c');    
-    
-    IF formResult() == FormResult.ok THEN {
-        NEWSESSION NESTED (o[],s[],sk[],nu[],c[]) {
-            FOR NEW i = UserInvoice DO {
-                operation(i) <- o();
-                supplier(i) <- s();
-                customer(i) <- customer(invoice);
-                currency(i) <- c();
-                isHomeCurrency(i) <- TRUE WHERE (OVERRIDE currency(invoice), homeCurrency(invoice) IF isHomeCurrency(invoice)) != currency(i);
-                dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
-                rateExchange(i) <- rateOn(typeExchange(i),currency(i),dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);                                                                                   
-                
-                FOR NEW d = UserInvoiceDetail DO {
-                    userInvoice(d) <- i;   
-                    sku(d) <- sk();
-                    quantity(d) <- 1.0; 
-                    price(d) <- nu();                    
-                    
-                }
-                inExtraCharge[Invoice,UserInvoice](i,invoice) <- TRUE;
-                fillExtraChargePriceUser(i);
-                SHOW userInvoice OBJECTS i=i MANAGESESSION DOCKED NOCANCEL;
+createExtraChargeUser 'Накладная (закупка) доп. услуги' (Invoice invoice) = ACTION NEWSESSION {   
+    DIALOG extraChargeParams OBJECTS o INPUT, s INPUT, sk INPUT, nu INPUT, c INPUT DO {
+        FOR NEW i = UserInvoice DO {
+            operation(i) <- o;
+            supplier(i) <- s;
+            customer(i) <- customer(invoice);
+            currency(i) <- c;
+            isHomeCurrency(i) <- TRUE WHERE (OVERRIDE currency(invoice), homeCurrency(invoice) IF isHomeCurrency(invoice)) != currency(i);
+            dateRateExchange(i) <- currentDate() WHERE isHomeCurrency[Invoice](i);
+            rateExchange(i) <- rateOn(typeExchange(i),currency(i),dateRateExchange(i)) WHERE isHomeCurrency[Invoice](i);                                                                                   
+            
+            FOR NEW d = UserInvoiceDetail DO {
+                userInvoice(d) <- i;   
+                sku(d) <- sk;
+                quantity(d) <- 1.0; 
+                price(d) <- nu;                    
             }
+            inExtraCharge[Invoice,UserInvoice](i,invoice) <- TRUE;
+            fillExtraChargePriceUser(i);
+            SHOW userInvoice OBJECTS i=i MANAGESESSION DOCKED NOCANCEL;
         }
     }
 }

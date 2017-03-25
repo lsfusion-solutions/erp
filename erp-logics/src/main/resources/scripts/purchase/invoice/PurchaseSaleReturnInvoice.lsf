@@ -108,14 +108,10 @@ invoiceDetail(SaleReturn.UserInvoiceDetail invoiceDetail) += invoiceDetail(invoi
 setPropertiesPurchaseReturnSaleReturn = ACTION ABSTRACT LIST (SaleReturn.UserInvoiceDetail, InvoiceDetail);
 
 fillInvoice 'Заполнить на основе накладной (закупка-возврат)'(SaleReturn.UserInvoice userInvoice) =  ACTION {
-    SHOW invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
+    DIALOG invoiceInvoices OBJECTS s = supplier(userInvoice), c = customer(userInvoice),
                                    ss = supplierStock(userInvoice), cs = customerStock(userInvoice),
-                                   t = date(userInvoice) ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL saleReturnInvoice = Invoice();
-        saleReturnInvoice() <- chosenObject('o');
-
-        FOR invoice(InvoiceDetail invoiceDetail) == saleReturnInvoice() NEW d = SaleReturn.UserInvoiceDetail DO {
+                                   t = date(userInvoice), o INPUT DO {
+        FOR invoice(InvoiceDetail invoiceDetail) == o NEW d = SaleReturn.UserInvoiceDetail DO {
             userInvoice(d) <- userInvoice;
             invoiceDetail(d) <- invoiceDetail;
             setPropertiesPurchaseReturnSaleReturn(d, invoiceDetail);

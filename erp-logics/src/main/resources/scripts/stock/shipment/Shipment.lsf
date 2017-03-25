@@ -239,23 +239,22 @@ META defineShipment(captions, sign, stockProp, supplierFilter, customerFilter, f
             }
             setAddedUser(dialogBarcodeSku());
         } ELSE {
-            SHOW emptyBarcodeSkus ;
-            IF formResult() == FormResult.ok THEN {
-                FOR Object s == chosenObject('s') DO {
-                    dialogBarcodeSku() <- s;
-                    FOR NEW br = Barcode DO {
-                        id(br) <- barcode;
-                        dataDate(br) <- currentDate();
-                        sku(br) <- s;
-                        FOR NEW w = UserShipmentDetail DO {
-                            userShipment(w) <- shipment;
-                            sku(w) <- s;
-                            quantity(w) <- amount(br);
-                            seek(w);
-                        }
+            dialogBarcodeSku() <- NULL;
+            DIALOG emptyBarcodeSkus OBJECTS s INPUT DO {
+                dialogBarcodeSku() <- s;
+                FOR NEW br = Barcode DO {
+                    id(br) <- barcode;
+                    dataDate(br) <- currentDate();
+                    sku(br) <- s;
+                    FOR NEW w = UserShipmentDetail DO {
+                        userShipment(w) <- shipment;
+                        sku(w) <- s;
+                        quantity(w) <- amount(br);
+                        seek(w);
                     }
                 }
-            } ELSE {
+            }
+            IF NOT dialogBarcodeSku() THEN {
                 createSkuBarcode(barcode, date(shipment));
                 dialogBarcodeSku() <- skuBarcode(barcode, date(shipment));
             }
@@ -660,13 +659,8 @@ END
 META defineShipmentBatchDialog(dumb)
 
     changeBatch(UserShipmentDetail userShipmentDetail) = ACTION {
-        SHOW dialogBatch OBJECTS sk = sku(userShipmentDetail) DIALOG SHOWDROP;
-
-        IF formResult() == FormResult.ok THEN {
-            batch(userShipmentDetail) <- chosenObject('bt');
-        } ELSE IF formResult() == FormResult.drop THEN {
-            batch(userShipmentDetail) <- NULL;
-        }
+        DIALOG dialogBatch OBJECTS sk = sku(userShipmentDetail), bt = batch(userShipmentDetail) NULL INPUT NULL DO
+            batch(userShipmentDetail) <- bt;
     }
 
     EXTEND FORM userShipment PROPERTIES (d) nameBatch ON CHANGE changeBatch(d) AFTER shortNameUOMSku(d);

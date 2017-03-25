@@ -115,13 +115,9 @@ META defineOrderShipment(sign, stockProp)
     overFillOrder = ACTION ABSTRACT LIST (UserShipmentDetail, OrderDetail);
 
     fillOrder 'Заполнить на основе заказа'(UserShipment userShipment) =  ACTION {
-        SHOW shipmentOrders OBJECTS s = supplier(userShipment), ss = supplierStock(userShipment),
-                                    c = customer(userShipment), cs = customerStock(userShipment) ;
-        IF formResult() == FormResult.ok THEN {
-            LOCAL saleOrder = Order();
-            ASSIGN saleOrder() <- chosenObject('o');
-
-            FOR order(OrderDetail orderDetail) == saleOrder() AND
+        DIALOG shipmentOrders OBJECTS s = supplier(userShipment), ss = supplierStock(userShipment),
+                                    c = customer(userShipment), cs = customerStock(userShipment), o INPUT DO {
+            FOR order(OrderDetail orderDetail) == o AND
 //                stockProp###OrderDetail(orderDetail) == stockProp###UserShipment(userShipment) AND
                 toShip(orderDetail) > 0
                 AND in(orderDetail, userShipment)
@@ -131,7 +127,7 @@ META defineOrderShipment(sign, stockProp)
                     sku(d) <- sku(orderDetail);
                     quantity (d) <- toShip(orderDetail);
 
-                    EXEC overFillOrder(d, orderDetail);
+                    overFillOrder(d, orderDetail);
             }
         }
     } IN order;

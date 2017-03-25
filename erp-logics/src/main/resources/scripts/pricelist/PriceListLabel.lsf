@@ -18,16 +18,15 @@ FORM selectDepartmentStore 'Выбор отделов магазина для п
 ;
 
 createPriceListLabel 'Распечатать ценники'(PriceTransactionDocument priceList) = ACTION NEWSESSION {
-    SHOW selectDepartmentStore OBJECTS p = priceList DIALOG;
-    IF formResult() == FormResult.ok THEN {
-        select(Sku sku, LabelType labelType, DepartmentStore department) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, chosenObject('d')) AND department == chosenObject('d');   
+    DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
+        select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, d);   
     
-        createLabelTransaction[DepartmentStore](chosenObject('d'));  
+        createLabelTransaction[DepartmentStore](d);  
         FOR Object t == addedObject() DO { 
             priceTransactionDocument(t) <- priceList;
         }
+        apply();
     }
-    apply();
 } TOOLBAR;
 //createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION (priceList) {
 //    
@@ -63,19 +62,16 @@ FORM selectDepartmentStoreLabelType 'Выбор магазина и ценник
 ;
 
 createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(PriceTransactionDocument priceList) = ACTION {    
-    SHOW selectDepartmentStoreLabelType OBJECTS p = priceList ;
-    IF formResult() == FormResult.ok THEN {
-
+    DIALOG selectDepartmentStoreLabelType OBJECTS p = priceList, d INPUT DO {
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);   
-        FOR select(LabelType type, chosenObject('d')) DO {
-            createSnapshotLabelTransactionDepartmentStore(chosenObject('d'), type);   
+        FOR select(LabelType type, d) DO {
+            createSnapshotLabelTransactionDepartmentStore(d, type);   
             FOR Object t == addedObject() DO { 
                 priceTransactionDocument(t) <- priceList;
             }  
         } 
+        apply();
     }
-    apply();
-    
 } TOOLBAR;
 
 EXTEND FORM priceLists
@@ -94,11 +90,8 @@ DESIGN priceLists {
 
 overFillDocument = ACTION ABSTRACT (LabelTransactionDetail, DocumentDetail); 
 fillDocument 'Подбор документа'(LabelTransaction labelTransaction) = ACTION {
-    SHOW documents ;
-    IF formResult() == FormResult.ok THEN {
-        LOCAL chosenDocument = Document();
-        chosenDocument() <- chosenObject('d');
-        FOR document(DocumentDetail documentDetail) == chosenDocument() NEW i = LabelTransactionDetail DO {
+    DIALOG documents OBJECTS d INPUT DO {
+        FOR document(DocumentDetail documentDetail) == d NEW i = LabelTransactionDetail DO {
             labelTransaction(i) <- labelTransaction;
             sku(i) <- sku(documentDetail);
             name(i) <- name(sku(i));
