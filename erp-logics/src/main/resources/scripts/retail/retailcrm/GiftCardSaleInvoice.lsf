@@ -32,20 +32,22 @@ DESIGN giftCard {
 EXTEND FORM giftCards 
     PROPERTIES(g) READONLYIF isReadonly() BEFORE date(g) idBarcode, nameSku;
 
-EXTEND FORM generationGiftCards
-    OBJECTS s = Sku FIXED PANEL 
-    PROPERTIES (s) name SELECTOR
+FORM generationGiftCardsSku
+    OBJECTS s = Sku 
+    PROPERTIES (s) READONLY name
     FILTERS itemGroup(s) == giftCardItemGroup()
 ;
 
-DESIGN generationGiftCards {
-    topContainer{
-        MOVE PROPERTY(name(s)) {caption = 'SKU';};
-    }
-}
-
+inputComplete = DATA LOCAL BOOLEAN ();
+generateSku = DATA LOCAL Sku ();
 overGenerateGiftCards(GiftCard g) += ACTION {
-    sku(g) <- chosenObject('s');
+    IF NOT inputComplete() THEN {
+        DIALOG generationGiftCardsSku OBJECTS s INPUT DO {
+            generateSku() <- s;
+        }
+        inputComplete () <- TRUE;
+    }
+    sku(g) <- generateSku() ;
 }
 
 

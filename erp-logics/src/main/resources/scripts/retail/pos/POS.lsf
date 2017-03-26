@@ -428,15 +428,18 @@ post 'Смешанный платеж'(Receipt receipt) = ACTION {
             receipt(p) <- receipt;
             paymentType(p) <- minCardPaymentType();
         }
-        SHOW postReceiptPayment OBJECTS r = receipt CHECK;
-        IF formResult() == FormResult.ok THEN {
+        LOCAL printed = BOOLEAN();
+        printed() <- NULL;
+        DIALOG postReceiptPayment OBJECTS r = receipt CHECK DO {
             postPaymentTerminal(receipt);
             IF NOT postPaymentTerminalReceiptResult() THEN {
                 postPrint(receipt);
+                printed() <- TRUE;
             } ELSE {
                 MESSAGE postPaymentTerminalReceiptResult();
             }
-        } ELSE {
+        } 
+        IF NOT printed() THEN {
             DELETE Payment p WHERE receipt(p) == receipt;
         }
     } 
@@ -494,12 +497,14 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
             paymentType(p) <- minCashPaymentType();
             sum(p) <- sumReceiptDetail(receipt);
         }
-        SHOW postReceiptPayment OBJECTS r = receipt  CHECK;
-        IF formResult() == FormResult.ok THEN {
+        LOCAL printed = BOOLEAN();
+        printed() <- NULL;
+        DIALOG postReceiptPayment OBJECTS r = receipt CHECK DO {
             postPrint(receipt);
-        } ELSE {
-            DELETE Payment p WHERE receipt(p) == receipt;
+            printed() <- TRUE;
         }
+        IF NOT printed() THEN
+            DELETE Payment p WHERE receipt(p) == receipt;
     }  
 } EDITKEY 'F11' IN receiptAction;
 
@@ -655,12 +660,15 @@ createSaleDetail 'Добавить строку продажи'(Receipt receipt,
                 batch(d) <- defaultBatch(sku(d), departmentStore(receipt(d)), receipt);
                 price(d) <- currentPOSPrice(batch(d), receipt[ReceiptDetail](d));
             } ELSE IF explicitBatchLedger(receipt(d)) THEN {
-                SHOW chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d DIALOG;
-                IF formResult() == FormResult.ok THEN {
-                    batch(d) <- chosenObject('bt');
-                    price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
+                LOCAL created = BOOLEAN();
+                created() <- NULL;
+                DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO {
+                    batch(d) <- bt;
+                    price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
                     calculatePromotions(receipt);
-                } ELSE
+                    created() <- TRUE;
+                }
+                IF NOT created() THEN
                     DELETE d;
             }
         overChangeBatch(d);    
@@ -910,10 +918,13 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
         dialogBarcodeSku() <- skuBarcode(barcodeInput(), currentDate());
 
         IF dialogBarcodeSku() IS Sku THEN {
-            SHOW scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku() ;
-            IF formResult() == FormResult.ok AND chosenObject('r') THEN {
-                createReturn(receipt, chosenObject('r'), barcodeInput());
-            } ELSE {
+            LOCAL created = BOOLEAN();
+            created() <- NULL;
+            DIALOG scanBarcodeReturnReceipt OBJECTS d = departmentStore(receipt), s = dialogBarcodeSku(), r INPUT DO {
+                createReturn(receipt, r, barcodeInput());
+                created() <- TRUE;
+            }
+            IF NOT created() THEN {
                 IF NOT forbidNullSaleDetail() THEN {                        
                     FOR NEW d = ReceiptReturnDetail DO {
                         receipt(d) <- receipt;
@@ -924,11 +935,13 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
                         VAT(d) <- VAT(dialogBarcodeSku(), departmentStore(receipt));
                         focusQuantity(d);
                         IF explicitBatchLedger(receipt) THEN {
-                            SHOW chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d ;
-                            IF formResult() == FormResult.ok THEN {
-                                batch(d) <- chosenObject('bt');
-                                price(d) <- currentPOSPrice[Batch,Receipt](chosenObject('bt'), receipt[ReceiptDetail](d));
-                            } ELSE
+                            created() <- NULL;
+                            DIALOG chooseBatchReceipt OBJECTS st = departmentStore[ReceiptDetail](d), d = d, bt INPUT DO{
+                                batch(d) <- bt;
+                                price(d) <- currentPOSPrice[Batch,Receipt](bt, receipt[ReceiptDetail](d));
+                                created() <- TRUE;
+                            }
+                            IF NOT created() THEN
                                 DELETE d;
                         }
                     }
