@@ -1,6 +1,6 @@
 MODULE DeleteBarcode;
 
-REQUIRE System, CashRegister;
+REQUIRE System, CashRegister, StockTax;
 
 CLASS DeleteBarcode 'Запрос удаления штрихкода';
 TABLE deleteBarcode(DeleteBarcode);
@@ -21,6 +21,9 @@ idSku 'Код товара' = DATA VARSTRING[100] (DeleteBarcode) NOT NULL;
 nameSku 'Наименование товара' = DATA VARISTRING[255] (DeleteBarcode) NOT NULL;
 idUOMSku 'Код единицы измерения товара' = DATA VARSTRING[100] (DeleteBarcode);
 shortNameUOMSku 'Ед. изм. товара' = DATA VARSTRING[100] (DeleteBarcode);
+valueVATSku 'НДС, %' = DATA NUMERIC[10,5] (DeleteBarcode);
+idItemGroup 'Код группы товара' = DATA VARSTRING[100] (DeleteBarcode);
+nameItemGroup 'Наименование группы товара' = DATA VARSTRING[250] (DeleteBarcode);
 
 succeedDeleteBarcode(INTEGER nppGroupMachinery) = ACTION {
     succeeded(DeleteBarcode d) <- TRUE WHERE NOT succeeded(d) AND groupMachinery(d) == groupMachineryNpp(nppGroupMachinery);
@@ -42,7 +45,7 @@ FORM deleteBarcodes 'Запросы удаления штрихкодов'
     OBJECTS d = DeleteBarcode
     PROPERTIES (d) nameGroupMachinery, nameModelGroupMachinery
     PROPERTIES (d) READONLY succeeded, dateTimeSucceeded
-    PROPERTIES (d) barcode, idSku, nameSku, idUOMSku, shortNameUOMSku, NEW
+    PROPERTIES (d) barcode, idSku, nameSku, idUOMSku, shortNameUOMSku, valueVATSku, idItemGroup, nameItemGroup, NEW
     
     OBJECTS e = DeleteBarcodeError
     PROPERTIES(e) READONLY data, date, errorTrace
@@ -61,6 +64,9 @@ WHEN DROPPED (Barcode b IS Barcode) AND PREV(id(b)) AND NOT disableDeleteBarcode
         nameSku(d) <- PREV(nameSku(b));
         idUOMSku(d) <- PREV(idUOM(b));
         shortNameUOMSku(d) <- PREV(shortNameUOM(b));
+        valueVATSku(d) <- PREV(valueVAT(sku(b), country(sku(b)), currentDate()));
+        idItemGroup(d) <- PREV(id(skuGroup(sku(b))));
+        nameItemGroup(d) <- PREV(name(skuGroup(sku(b))));
         groupMachinery(d) <- gm;
     } 
 }

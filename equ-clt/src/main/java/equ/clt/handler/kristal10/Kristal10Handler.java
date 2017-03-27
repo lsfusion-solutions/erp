@@ -693,12 +693,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     setAttribute(department, "number", number);
                     priceEntry.addContent(department);
 
-                    addStringElement(good, "vat", "0");
+                    addStringElement(good, "vat", item.vat == null || item.vat.intValue() == 0 ? "20" : String.valueOf(item.vat.intValue()));
 
                     //parent: good
                     Element group = new Element("group");
-                    setAttribute(group, "id", "deleted");
-                    addStringElement(group, "name", "deleted");
+                    setAttribute(group, "id", item.idItemGroup == null ? "deleted" : item.idItemGroup);
+                    addStringElement(group, "name", item.nameItemGroup == null ? "deleted" : item.nameItemGroup);
                     good.addContent(group);
 
                     Element measureType = new Element("measure-type");
