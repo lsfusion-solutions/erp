@@ -638,7 +638,7 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
     public void sendDeleteBarcodeInfo(DeleteBarcodeInfo deleteBarcodeInfo) throws IOException {
 
         Kristal10Settings kristalSettings = springContext.containsBean("kristal10Settings") ? (Kristal10Settings) springContext.getBean("kristal10Settings") : null;
-        boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
+        //boolean useShopIndices = kristalSettings == null || kristalSettings.getUseShopIndices() != null && kristalSettings.getUseShopIndices();
         boolean idItemInMarkingOfTheGood = kristalSettings == null || kristalSettings.isIdItemInMarkingOfTheGood() != null && kristalSettings.isIdItemInMarkingOfTheGood();
         boolean skipWeightPrefix = kristalSettings != null && kristalSettings.getSkipWeightPrefix() != null && kristalSettings.getSkipWeightPrefix();
 
@@ -658,13 +658,13 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                     String idBarcode = transformBarcode(item.idBarcode, null, false, skipWeightPrefix);
                     setAttribute(good, "marking-of-the-good", idItemInMarkingOfTheGood ? item.idItem : idBarcode);
 
-                    Element pluginProperty = new Element("plugin-property");
-                    setAttribute(pluginProperty, "key", "plu-number");
-                    setAttribute(pluginProperty, "value", removeZeroes(idBarcode));
-                    good.addContent(pluginProperty);
+//                    Element pluginProperty = new Element("plugin-property");
+//                    setAttribute(pluginProperty, "key", "plu-number");
+//                    setAttribute(pluginProperty, "value", removeZeroes(idBarcode));
+//                    good.addContent(pluginProperty);
 
-                    if (useShopIndices)
-                        addStringElement(good, "shop-indices", item.idDepartmentStore);
+                    //if (useShopIndices)
+                    //    addStringElement(good, "shop-indices", item.idDepartmentStore);
 
                     addStringElement(good, "name", item.name);
 
