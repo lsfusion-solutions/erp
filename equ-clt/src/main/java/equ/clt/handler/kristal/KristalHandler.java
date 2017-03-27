@@ -264,9 +264,9 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                                     hierarchyItemGroup = hierarchyItemGroup == null ? new ArrayList<ItemGroup>() : Lists.reverse(hierarchyItemGroup);
                                     for (int i = hierarchyItemGroup.size() - 1; i >= 0; i--) {
                                         String idItemGroup = importGroupType.equals(1) ?
-                                                makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false)
+                                                makeIdItemGroup(hierarchyItemGroup.subList(0, hierarchyItemGroup.size() - i), false, true)
                                                 : importGroupType.equals(2) ? String.valueOf(item.itemGroupObject)
-                                                : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size() - i, 3)), true) : "";
+                                                : importGroupType.equals(3) ? makeIdItemGroup(hierarchyItemGroup.subList(1, Math.min(hierarchyItemGroup.size() - i, 3)), true, true) : "";
                                         if (!numberGroupItems.contains(idItemGroup)) {
                                             String record = String.format("+|%s|%s", hierarchyItemGroup.get(hierarchyItemGroup.size() - 1 - i).nameItemGroup, idItemGroup);
                                             writer.println(record);
@@ -1323,6 +1323,10 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     }
 
     private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3) {
+        return makeIdItemGroup(hierarchyItemGroup, type3, false);
+    }
+
+    private String makeIdItemGroup(List<ItemGroup> hierarchyItemGroup, boolean type3, boolean reverse) {
         String idItemGroup = "";
         int delta = 0;
         if (type3) {
@@ -1333,13 +1337,24 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
                 idItemGroup += splitted[(Math.min(splitted.length, 2) - 1)] + "|";
             }
         } else { //от самой общей группы до самой конкретной
-            for (int i = Math.min(hierarchyItemGroup.size(), 5) - 1; i >=0 ; i--) {
-                String id = hierarchyItemGroup.get(i).idItemGroup;
-                if (id == null) id = "0";
-                if(!id.equals("000000000"))
-                    idItemGroup += id + "|";
-                else
-                    delta++;
+            if(reverse) {
+                for (int i = 0; i < Math.min(hierarchyItemGroup.size(), 5); i++) {
+                    String id = hierarchyItemGroup.get(i).idItemGroup;
+                    if (id == null) id = "0";
+                    if(!id.equals("000000000"))
+                        idItemGroup += id + "|";
+                    else
+                        delta++;
+                }
+            } else {
+                for (int i = Math.min(hierarchyItemGroup.size(), 5) - 1; i >= 0; i--) {
+                    String id = hierarchyItemGroup.get(i).idItemGroup;
+                    if (id == null) id = "0";
+                    if (!id.equals("000000000"))
+                        idItemGroup += id + "|";
+                    else
+                        delta++;
+                }
             }
         }
         for (int i = (hierarchyItemGroup.size() - delta); i < 5; i++) {
