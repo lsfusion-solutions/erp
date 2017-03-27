@@ -259,23 +259,24 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
     }
 
     changeQuantity(###batchProp batchProp, ###object object) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValue(batch, object);
+        INPUTX n = NUMERIC[16,5] DO
+            changeQuantityValue(batch, object);
     }
 
     // Выбор всего остатка
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);
     changeAllQuantity(###batchProp batchProp, ###object object)= ACTION {
-        REQUEST BOOLEAN INPUT;
-        IF requestedLogical() THEN {
-            requestedNumeric() <- NULL;
-            allQuantity (batch,object) <- TRUE;
-            requestedNumeric() <- prevCurrentBalance(batch,object);
-            changeQuantityValue(batch, object);
-        } ELSE {
-            allQuantity (batch,object) <- NULL;
-            requestedNumeric() <- NULL;
-            changeQuantityValue(batch, object);
+        INPUTX b = BOOLEAN DO {
+            IF b AS BOOLEAN THEN {
+                requestedNumeric() <- NULL;
+                allQuantity (batch,object) <- TRUE;
+                requestedNumeric() <- prevCurrentBalance(batch,object);
+                changeQuantityValue(batch, object);
+            } ELSE {
+                allQuantity (batch,object) <- NULL;
+                requestedNumeric() <- NULL;
+                changeQuantityValue(batch, object);
+            }
         }
     }
 
@@ -425,22 +426,23 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
         }
     }
     changeQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValue(sku, object, stock);
+        INPUTX n = NUMERIC[16,5] INPUT DO
+            changeQuantityValue(sku, object, stock);
     }
 
     allQuantity###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
     changeAllQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
-        REQUEST BOOLEAN INPUT;
-        IF requestedLogical() THEN {
-            requestedNumeric() <- NULL;
-            allQuantity###object (sku,stock) <- TRUE;
-            requestedNumeric() <- prevCurrentBalance(sku,stock);
-            changeQuantityValue(sku, object, stock);
-        } ELSE {
-            allQuantity###object (sku,stock) <- NULL;
-            requestedNumeric() <- NULL;
-            changeQuantityValue(sku, object, stock);
+        INPUTX b = BOOLEAN DO {
+            IF b AS BOOLEAN THEN {
+                requestedNumeric() <- NULL;
+                allQuantity###object (sku,stock) <- TRUE;
+                requestedNumeric() <- prevCurrentBalance(sku,stock);
+                changeQuantityValue(sku, object, stock);
+            } ELSE {
+                allQuantity###object (sku,stock) <- NULL;
+                requestedNumeric() <- NULL;
+                changeQuantityValue(sku, object, stock);
+            }
         }
     }
 
@@ -607,16 +609,17 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
 
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);
     changeAllQuantity(###batchProp batchProp, ###object object, Stock stock) = ACTION {
-        REQUEST BOOLEAN INPUT;
-        IF requestedLogical() THEN {
-            requestedNumeric() <- NULL;
-            allQuantity (batch, object, stock) <- TRUE;
-            requestedNumeric() <- prevCurrentBalance(batch, stock);
-            changeQuantityValue(batch, object, stock);
-        } ELSE {
-            allQuantity (batch, object, stock) <- NULL;
-            requestedNumeric() <- NULL;
-            changeQuantityValue(batch, object, stock);
+        INPUTX b = BOOLEAN DO {
+            IF b AS BOOLEAN THEN {
+                requestedNumeric() <- NULL;
+                allQuantity (batch, object, stock) <- TRUE;
+                requestedNumeric() <- prevCurrentBalance(batch, stock);
+                changeQuantityValue(batch, object, stock);
+            } ELSE {
+                allQuantity (batch, object, stock) <- NULL;
+                requestedNumeric() <- NULL;
+                changeQuantityValue(batch, object, stock);
+            }
         }
     }
 END
