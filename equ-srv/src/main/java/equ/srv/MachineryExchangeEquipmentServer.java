@@ -1,6 +1,7 @@
 package equ.srv;
 
 import com.google.common.base.Throwables;
+import equ.api.MachineryInfo;
 import equ.api.RequestExchange;
 import equ.api.cashregister.CashierInfo;
 import equ.api.cashregister.DiscountCard;
@@ -40,6 +41,7 @@ public class MachineryExchangeEquipmentServer {
     static ScriptingLogicsModule purchaseInvoiceAgreementLM;
     static ScriptingLogicsModule purchaseOrderLM;
     static ScriptingLogicsModule terminalHandlerLM;
+    static ScriptingLogicsModule machineryLM;
 
     public static void init(BusinessLogics BL) {
         discountCardLM = BL.getModule("DiscountCard");
@@ -47,6 +49,7 @@ public class MachineryExchangeEquipmentServer {
         purchaseInvoiceAgreementLM = BL.getModule("PurchaseInvoiceAgreement");
         purchaseOrderLM = BL.getModule("PurchaseOrder");
         terminalHandlerLM = BL.getModule("TerminalHandler");
+        machineryLM = BL.getModule("Machinery");
     }
 
     public static List<DiscountCard> readDiscountCardList(DBManager dbManager, String numberDiscountCardFrom, String numberDiscountCardTo) throws RemoteException, SQLException {
@@ -278,6 +281,48 @@ public class MachineryExchangeEquipmentServer {
             }
         }
         return terminalOrderList;
+    }
+
+    public static List<MachineryInfo> readMachineryInfo(DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
+        List<MachineryInfo> machineryInfoList = new ArrayList<>();
+        if (machineryLM != null) {
+            try (DataSession session = dbManager.createSession()) {
+
+                KeyExpr groupMachineryExpr = new KeyExpr("groupMachinery");
+                KeyExpr machineryExpr = new KeyExpr("machinery");
+
+                ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "groupMachinery", groupMachineryExpr, "machinery", machineryExpr);
+                QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
+
+                String[] machineryNames = new String[]{"nppMachinery", "portMachinery", "overDirectoryMachinery"};
+                LCP[] machineryProperties = machineryLM.findProperties("npp[Machinery]", "port[Machinery]", "overDirectory[Machinery]");
+                for (int i = 0; i < machineryProperties.length; i++) {
+                    query.addProperty(machineryNames[i], machineryProperties[i].getExpr(machineryExpr));
+                }
+
+                String[] groupMachineryNames = new String[]{"nppGroupMachinery", "handlerModelGroupMachinery", "nameModelGroupMachinery"};
+                LCP[] groupMachineryProperties = machineryLM.findProperties("npp[GroupMachinery]", "handlerModel[GroupMachinery]", "nameModel[GroupMachinery]");
+                for (int i = 0; i < groupMachineryProperties.length; i++) {
+                    query.addProperty(groupMachineryNames[i], groupMachineryProperties[i].getExpr(groupMachineryExpr));
+                }
+
+                query.and(machineryLM.findProperty("handlerModel[GroupMachinery]").getExpr(groupMachineryExpr).getWhere());
+                query.and(machineryLM.findProperty("overDirectory[Machinery]").getExpr(machineryExpr).getWhere());
+                query.and(machineryLM.findProperty("groupMachinery[Machinery]").getExpr(machineryExpr).compare(groupMachineryExpr, Compare.EQUALS));
+                query.and(equLM.findProperty("sidEquipmentServer[GroupMachinery]").getExpr(groupMachineryExpr).compare(new DataObject(sidEquipmentServer), Compare.EQUALS));
+
+                ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
+
+                for (ImMap<Object, Object> row : result.values()) {
+                    machineryInfoList.add(new MachineryInfo(true, false, false, (Integer) row.get("nppGroupMachinery"), (Integer) row.get("nppMachinery"),
+                            (String) row.get("nameModelGroupMachinery"), (String) row.get("handlerModelGroupMachinery"), (String) row.get("portMachinery"),
+                            (String) row.get("overDirectoryMachinery")));
+                }
+            } catch (ScriptingErrorLog.SemanticErrorException | SQLHandledException e) {
+                throw Throwables.propagate(e);
+            }
+        }
+        return machineryInfoList;
     }
 
     private static Long parseLong(String value) {
