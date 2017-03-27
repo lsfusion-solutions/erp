@@ -353,8 +353,7 @@ notIncludeBinTransferDetailBinOrder 'Есть строки перемещени�
 dialogIncludeBinOrdersUser 'Включить заказы в перемещение' (BinTransfer userBinTransfer) = ACTION {
     DIALOG includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer DO{
         IF notRelationBinTransferDetailBinOrder(userBinTransfer) THEN {
-            CONFIRM 'Создать по выбранным заказам строки перемещения?';
-            IF (confirmed()) THEN {  
+            CONFIRMX 'Создать по выбранным заказам строки перемещения?' DO {  
                 FOR include[BinOrder,UserBinTransfer](BinOrder binOrder, userBinTransfer) AND NOT  relationBinTransferDetail(binOrder, userBinTransfer) DO {
 
                     createDetail(userBinTransfer, binOrder);
@@ -363,8 +362,7 @@ dialogIncludeBinOrdersUser 'Включить заказы в перемещен�
             }              
         }
         IF notIncludeBinTransferDetailBinOrder(userBinTransfer) THEN {
-            CONFIRM 'В перемещении присутствуют строки с ссылкой на заказ, который не включен в перемещение. Удалить эти строки?';
-            IF (confirmed()) THEN {  
+            CONFIRMX 'В перемещении присутствуют строки с ссылкой на заказ, который не включен в перемещение. Удалить эти строки?' DO {  
                 FOR relationBinTransferDetail(BinOrder binOrder, userBinTransfer) AND NOT include[BinOrder,UserBinTransfer](binOrder, userBinTransfer) DO {
 
                     DELETE UserBinTransferDetail d WHERE userBinTransfer(d) == userBinTransfer AND binOrder(binOrderDetail(d)) == binOrder;     

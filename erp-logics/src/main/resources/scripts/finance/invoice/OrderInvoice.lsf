@@ -514,8 +514,7 @@ META defineOrderInvoice(sign, stockProp)
     dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION {
         DIALOG includeOrdersUserInvoice OBJECTS i = userInvoice DO {
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
-                CONFIRM 'Создать по выбранным заказам строки накладной?';
-                IF (confirmed()) THEN {  
+                CONFIRMX 'Создать по выбранным заказам строки накладной?' DO {  
                     FOR include[Order,UserInvoice](Order order, userInvoice) AND NOT  relationInvoiceDetail(order, userInvoice) DO {
                         
                         createDetail(userInvoice, order);
@@ -526,8 +525,7 @@ META defineOrderInvoice(sign, stockProp)
                 }              
             }
             IF notIncludeInvoiceDetailOrder(userInvoice) THEN {
-                CONFIRM 'В накладной присутствуют строки с сылкой на заказ, который не включен в накладную. Удалить эти строки?';
-                IF (confirmed()) THEN {  
+                CONFIRMX 'В накладной присутствуют строки с сылкой на заказ, который не включен в накладную. Удалить эти строки?' DO {  
                     FOR relationInvoiceDetail(Order order, userInvoice) AND NOT include[Order,UserInvoice](order, userInvoice) DO {
                         
                         DELETE UserInvoiceDetail d WHERE userInvoice(d) == userInvoice AND order(orderDetail(d)) == order;     

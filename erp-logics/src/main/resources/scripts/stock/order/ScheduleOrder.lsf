@@ -412,7 +412,6 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
     isRecommended = DATA LOCAL BOOLEAN (UserOrder);
     createScheduleUser 'Создать заказ'(ScheduleOrderDetail scheduleOrderDetail) = ACTION NEWSESSION {
         isRecommended(o) <- NULL;
-        CONFIRM 'Заполнить рекомендуемым количеством?';
         
         FOR NEW o = UserOrder DO {
             scheduleOrderDetail(o) <- scheduleOrderDetail;
@@ -425,7 +424,7 @@ META defineScheduleOrder(sign, supplierFilter, customerFilter, stockFilter)
             customer(o) <- customer(scheduleOrderDetail);
             supplierStock(o) <- supplierStock(scheduleOrderDetail);
             customerStock(o) <- customerStock(scheduleOrderDetail);
-            IF confirmed() THEN {
+            CONFIRMX 'Заполнить рекомендуемым количеством?' DO {
                 isRecommended(o) <- TRUE;
             }
             IF operation(scheduleOrderDetail) THEN
