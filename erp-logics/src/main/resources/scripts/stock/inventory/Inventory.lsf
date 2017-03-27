@@ -274,7 +274,12 @@ nameSkuTypeSku 'Тип товара' (PageInventoryDetail d) = nameSkuType(sku(d
 // Для инвентаризации по партиям
 @defineDocumentDetailBatchCustom(pageInventoryDetail, batch);
 
+costBatch 'Себестоимость' (PageInventoryDetail pageInventoryDetail) = cost(batch(pageInventoryDetail));
+
 @defineDocumentDetailQuantity(pageInventory);
+
+costSumBatch 'Сумма(себестоимость)' (PageInventoryDetail pageInventoryDetail) = costBatch(pageInventoryDetail) * quantity(pageInventoryDetail);
+
 @defineDocumentDetailPrice(pageInventory);
 
 @defineDocumentDetailDataSum(pageInventory);
@@ -628,6 +633,14 @@ sumPageInventoryDetail 'Сумма по описям' (CollationSheet cs, Batch 
     THEN batchSumPageInventoryDetail(cs,batch)
     ELSE detailSumPageInventoryDetail(cs,batch);
     
+detailCostSumPageInventoryDetail 'Сумма по описям(себестоимость)' (collationSheet, batch) = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail) * cost(batch(pageInventoryDetail))
+    BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
+batchCostSumPageInventoryDetail (CollationSheet cs, Batch batch) =  NUMERIC[18,4](round2(quantityPageInventoryDetail(cs, batch) * cost(batch))); 
+   
+costSumPageInventoryDetail 'Сумма по описям(себестоимость)' (CollationSheet cs, Batch batch) = IF isSkuBatch(cs)
+    THEN batchCostSumPageInventoryDetail(cs,batch)
+    ELSE detailCostSumPageInventoryDetail(cs,batch);    
+    
 countPageInventoryDetail  (collationSheet, batch) = GROUP SUM 1 IF batch(PageInventoryDetail pageInventoryDetail)
     BY collationSheet(pageInventoryDetail), batch(pageInventoryDetail);
 
@@ -639,6 +652,8 @@ priceMinPageInventoryDetail 'Цена в описи' (listInventory, batch) = GR
     BY listInventory(pageInventoryDetail), batch(pageInventoryDetail);    
 sumPageInventoryDetail 'Сумма в описи' (listInventory, batch) = GROUP SUM sum(PageInventoryDetail pageInventoryDetail)
     BY listInventory(pageInventoryDetail), batch(pageInventoryDetail);
+costSumPageInventoryDetail 'Сумма в описи(себестоимость)' = GROUP SUM quantity(PageInventoryDetail pageInventoryDetail) * cost(batch(pageInventoryDetail))
+    BY listInventory(pageInventoryDetail), batch(pageInventoryDetail);  
 
 differentPrice(CollationSheet collationSheet, Batch batch) = priceMaxPageInventoryDetail(collationSheet, batch) != priceBalance(collationSheet, batch);
 
@@ -1304,7 +1319,7 @@ FORM listInventory 'Опись'
     OBJECTS         dp=PageInventoryDetail
     PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, nameBatch SHOWIF isBatch(li), 
                     quantityGrid = quantity, price,
-                    sum, NEW SHOWIF countPageInventory(li), DELETE
+                    sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li), NEW SHOWIF countPageInventory(li), DELETE
     FILTERS         listInventory(pageInventory(dp)) == li, isParentSkuGroup(g, dp)
     FILTERGROUP page
     FILTER 'На странице' pageInventory(dp) == pl DEFAULT 
@@ -1319,8 +1334,8 @@ FORM listInventory 'Опись'
 
     OBJECTS         bt=Batch FIXED GRID
     PROPERTIES (li,bt) SHOWIF isBatch(li) index
-    PROPERTIES (bt)    SHOWIF isBatch(li) idBarcodeSku, nameSku, name
-    PROPERTIES (li,bt) SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    PROPERTIES (bt)    SHOWIF isBatch(li) idBarcodeSku, nameSku, name, cost
+    PROPERTIES (li,bt) SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail, costSumPageInventoryDetail
     FILTERS            quantityPageInventoryDetail(li,bt), //> 0
                        isParent(g, bt)
 
@@ -1393,6 +1408,7 @@ addListInventory 'Добавить'(Stock stock, Inventory inventory) = ACTION N
     FOR NEW g = ListInventory DO {
         stock(g) <- stock;
         inventory(g) <- inventory;
+        inSession(SkuGroup group) <- include(inventory, group);
         SHOW listInventory OBJECTS li = g MANAGESESSION DOCKED NOCANCEL;
     }
 } TOOLBAR IMAGE 'add.png';
@@ -1496,7 +1512,7 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS          dp=PageInventoryDetail FIXED GRID
     PROPERTIES (dp)  READONLY index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, nameBatch  SHOWIF isBatch(li),
-                              quantity, price, sum
+                              quantity, price, sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li)
     FILTERS                   in(in, ds, li, pl, dp)
 
     OBJECTS         it=Sku FIXED GRID
@@ -1509,8 +1525,8 @@ FORM inventory 'Инвентаризация'
 
     OBJECTS         bt=Batch FIXED GRID
     PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) index
-    PROPERTIES (bt)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name
-    PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    PROPERTIES (bt)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name, cost
+    PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail, costSumPageInventoryDetail
     FILTERS            quantityPageInventoryDetail(li,bt)
 
     OBJECTS          cs=CollationSheet FIXED GRID
@@ -1549,12 +1565,12 @@ FORM inventory 'Инвентаризация'
     ORDER BY                                    iNameSku
 
     OBJECTS         b=Batch FIXED GRID
-    PROPERTIES(b) READONLY SHOWIF isBatch(cs) idBarcodeSku, nameSku, name
+    PROPERTIES(b) READONLY SHOWIF isBatch(cs) idBarcodeSku, nameSku, name, cost
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       quantityPageInventoryDetail, quantityBalance,
                                                             quantityShortage
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       pricePageInventoryDetail BACKGROUND differentPrice(cs, b),
                                                             priceBalance BACKGROUND differentPrice(cs, b)
-    PROPERTIES(cs,b) SHOWIF isBatch(cs)       sumPageInventoryDetail, sumBalance, sumShortage
+    PROPERTIES(cs,b) SHOWIF isBatch(cs)       sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail
     FILTERS                                                 include(cs, b),
                                                             isParent(g, b)
     FILTERGROUP notEqualsPriceBatchFilters
@@ -1794,8 +1810,8 @@ FORM inventories 'Инвентаризации'
 
     OBJECTS         b=Batch FIXED GRID
     PROPERTIES(li,b) READONLY SHOWIF isBatch(li) index
-    PROPERTIES(b)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name, shortNameUOM
-    PROPERTIES(li,b) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail
+    PROPERTIES(b)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name, shortNameUOM, cost
+    PROPERTIES(li,b) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail, costSumPageInventoryDetail
     FILTERS quantityPageInventoryDetail(li,b)    
 
     OBJECTS         cs=CollationSheet
@@ -1819,11 +1835,11 @@ FORM inventories 'Инвентаризации'
     ORDER BY                                                  nASku
 
     OBJECTS         bt=Batch FIXED GRID 
-    PROPERTIES(bt)    READONLY SHOWIF isBatch(cs) nameSku, idBarcodeSku, name
+    PROPERTIES(bt)    READONLY SHOWIF isBatch(cs) nameSku, idBarcodeSku, name, cost
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, bt),
                                                                 priceBalance BACKGROUND differentPrice(cs, bt)
-    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) sumPageInventoryDetail, sumBalance, sumShortage
+    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail
     
     FILTERS include(cs, bt), 
             quantityPageInventoryDetail(cs,bt) OR quantityBalance(cs,bt) OR sumBalance(cs, bt)            
