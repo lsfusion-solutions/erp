@@ -1578,6 +1578,40 @@ DESIGN orders {
 @extendFormEditable(orders);
 @defineFilterIsOpened (order, orders, o);
 @extendFormFilterAccessStock(Order, o, orders, productsStock, company);
+
+isProduction = ABSTRACT CASE BOOLEAN (Order, Document); 
+EXTEND FORM orders
+    OBJECTS dLog=DocumentLog FIXED GRID
+    PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
+                  hostnameComputer, userLogin, nameContact, dateTimeSession, nameTypeChange,
+                  note
+    PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
+    FILTERS isProduction(o, document(dLog))
+
+    OBJECTS ddLog = DocumentDetailLog FIXED GRID
+    PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity,
+                   price, nameUser, dateTime, note
+    FILTERS isProduction(o, document(ddLog))
+;
+
+DESIGN orders {
+    documentHistory { 
+        NEW historyTabs {
+             fill = 1;
+             type = TABBED;
+             NEW historyLog{
+                caption = 'По документу';
+                type = CONTAINERV;
+                MOVE dLog.box;
+             }
+             NEW detailLog{
+                 caption = 'По строкам';
+                 MOVE ddLog.box;
+             }
+        }
+    }    
+}   
+
 NAVIGATOR {
     manufacturingDocuments {
         ADD orders;
