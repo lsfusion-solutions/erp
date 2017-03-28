@@ -4,8 +4,8 @@ REQUIRE PricingPurchase, PriceList;
 
 NAMESPACE Purchase;
 
-fixedLimitPriceListType = DATA DataPriceListType();
-nameFixedLimitPriceListType 'Вид цены для ограничений по максимальным ценам' = name(fixedLimitPriceListType());
+maxLimitPriceListType = DATA DataPriceListType();
+nameFixedLimitPriceListType 'Вид цены для ограничений по максимальным ценам' = name(maxLimitPriceListType());
 
 minLimitPriceListType = DATA DataPriceListType();
 nameMinLimitPriceListType 'Вид цены для ограничений по минимальным ценам' = name(minLimitPriceListType());
@@ -21,18 +21,22 @@ DESIGN options {
     }
 }
 
-fixedLimitPrice(UserInvoiceDetail d) = prevPriceA(fixedLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
+maxLimitPrice 'Максимальная цена' (UserInvoiceDetail d) = prevPriceA(maxLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
 WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d))
-            AND fixedLimitPrice(d) < retailPrice(d) DO {
-    retailPrice(d) <- fixedLimitPrice(d);
+            AND maxLimitPrice(d) < retailPrice(d) DO {
+    retailPrice(d) <- maxLimitPrice(d);
     retailMarkup(d) <- calcRetailMarkup(d);
 }
 
-minLimitPrice(UserInvoiceDetail d) = prevPriceA(minLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
+minLimitPrice 'Минимальная цена' (UserInvoiceDetail d) = prevPriceA(minLimitPriceListType(), sku(d), customerStock(d), pricingDateTime(d));
 WHEN SESSION FORMS userInvoice GOAFTER retailPrice[UserInvoiceDetail] 
             SETCHANGED(retailPrice(UserInvoiceDetail d))
             AND minLimitPrice(d) > retailPrice(d) DO {
     retailPrice(d) <- minLimitPrice(d);
     retailMarkup(d) <- calcRetailMarkup(d);
 }
+
+EXTEND FORM userInvoice
+    PROPERTIES(pd) SHOWIF createPricing[Invoice](i) minLimitPrice, maxLimitPrice
+;

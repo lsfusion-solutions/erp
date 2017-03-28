@@ -4,7 +4,7 @@ REQUIRE PurchasePriceLimitFixed, RepricingPriceListPriceLimit;
 
 NAMESPACE Repricing;
 
-fixedLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(fixedLimitPriceListType(), 
+maxLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(maxLimitPriceListType(), 
     s, d, dt) IF d IS DepartmentStore;
 
 minLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(minLimitPriceListType(), 
@@ -12,7 +12,7 @@ minLimitPrice(DepartmentStore d, Sku s, DATETIME dt) = priceA(minLimitPriceListT
 
 overSetManagementRetailPrice(DepartmentStore d, DATETIME dt) += ACTION {
     LOCAL limitPrice = NUMERIC[16,4] (Sku);
-    limitPrice(Sku sku) <- fixedLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
+    limitPrice(Sku sku) <- maxLimitPrice(d, sku, dt) WHERE managementRetailPrice(sku);
     managementRetailPrice (Sku sku) <- limitPrice(sku) WHERE limitPrice(sku) < managementRetailPrice (sku) AND NOT skipRepricingPriceLimit(sku); 
 
     limitPrice(Sku sku) <- NULL;
