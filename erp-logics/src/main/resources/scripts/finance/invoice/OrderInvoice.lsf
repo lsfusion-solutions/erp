@@ -294,9 +294,8 @@ META defineOrderInvoice(sign, stockProp)
         
         userInvoice(order) <- NULL;
         FOR NEW i = UserInvoice DO {
-            IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранному заказу строки накладной?';
             fillHeader(i, order);
-            IF confirmed() OR NOT useConfimForCreateDetail() THEN {
+            ASK 'Создать по выбранному заказу строки накладной?' IF useConfimForCreateDetail() DO {
                 createDetail(i, order);   
                 fillPrice(i, order);
             }
@@ -514,7 +513,7 @@ META defineOrderInvoice(sign, stockProp)
     dialogIncludeOrdersUser 'Включить заказы в накладную' (Invoice userInvoice) = ACTION {
         DIALOG includeOrdersUserInvoice OBJECTS i = userInvoice DO {
             IF notRelationInvoiceDetailOrder(userInvoice) THEN {
-                CONFIRMX 'Создать по выбранным заказам строки накладной?' DO {  
+                ASK 'Создать по выбранным заказам строки накладной?' DO {  
                     FOR include[Order,UserInvoice](Order order, userInvoice) AND NOT  relationInvoiceDetail(order, userInvoice) DO {
                         
                         createDetail(userInvoice, order);
@@ -525,7 +524,7 @@ META defineOrderInvoice(sign, stockProp)
                 }              
             }
             IF notIncludeInvoiceDetailOrder(userInvoice) THEN {
-                CONFIRMX 'В накладной присутствуют строки с сылкой на заказ, который не включен в накладную. Удалить эти строки?' DO {  
+                ASK 'В накладной присутствуют строки с сылкой на заказ, который не включен в накладную. Удалить эти строки?' DO {  
                     FOR relationInvoiceDetail(Order order, userInvoice) AND NOT include[Order,UserInvoice](order, userInvoice) DO {
                         
                         DELETE UserInvoiceDetail d WHERE userInvoice(d) == userInvoice AND order(orderDetail(d)) == order;     
@@ -579,10 +578,18 @@ META defineOrderInvoice(sign, stockProp)
                 IF invoiceCreated(order) THEN RETURN;
                 
                 FOR NEW i = UserInvoice DO {
-                    IF useConfimForCreateDetail() THEN CONFIRM 'Создать по выбранным заказам строки накладной?';
                     fillHeader(i, order);
+                    
+                    LOCAL createDetail = BOOLEAN();
+                    createDetail() <- NULL;
+                    IF useConfimForCreateDetail() THEN
+                        ASK 'Создать по выбранным заказам строки накладной?' DO
+                            createDetail() <- TRUE
+                    ELSE
+                        createDetail() <- TRUE;
+                    
                     FOR selected(Order.Order o) DO {
-                        IF confirmed() OR NOT useConfimForCreateDetail() THEN {
+                        IF createDetail() THEN {
                             createDetail(i, o);   
                             fillPrice(i, o);
                         }

@@ -792,10 +792,7 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
     
     createLabelTransaction 'Распечатать ценники'(###document document) = ACTION NEWSESSION {        
         
-        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
-            CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
-        }
-        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
+        ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
             LOCAL in = BOOLEAN (Sku);
             in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
         
@@ -841,68 +838,65 @@ META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, s
 
     createSnapshotLabelTransaction 'Перепечатать ценники'(###document document) = ACTION NEWSESSION {
 
-        
-        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
-            CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
-        }
-        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
+        IF is(document) THEN 
+            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO{ 
+                
+                LOCAL in = BOOLEAN (Sku);    
+                in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+                
+                DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT DO {
+                    IF NOT countSelectType() THEN {  
+                        select(l) <- TRUE;
+                    }                                        
+                    FOR select(LabelType type) NEW t = LabelTransaction DO {              
+                        departmentStore(t) <- stockProp(document);
+                        priceTransactionDocument(t) <- document;
+                        labelType(t) <- type;
             
-            LOCAL in = BOOLEAN (Sku);    
-            in(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+                        FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd)
+                            AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
+                            NEW d = LabelTransactionDetail DO {
+                                labelTransaction(d) <- t;
+                                skuProp(d) <- sku;
+                                batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
             
-            DIALOG selectLabelTypes OBJECTS ds = stockProp(document), l INPUT DO {
-                IF NOT countSelectType() THEN {  
-                    select(l) <- TRUE;
-                }                                        
-                FOR select(LabelType type) NEW t = LabelTransaction DO {              
-                    departmentStore(t) <- stockProp(document);
-                    priceTransactionDocument(t) <- document;
-                    labelType(t) <- type;
-        
-                    FOR document(###detailProp##Detail dd) == document AND in(###skuProp sku) AND sku == skuProp(dd)
-                        AND PriceListType pt == overPriceListType(t) NOINLINE (pt)
-                        NEW d = LabelTransactionDetail DO {
-                            labelTransaction(d) <- t;
-                            skuProp(d) <- sku;
-                            batch(d) <- batchProp(dd) WHERE explicitBatchLedger(departmentStore(t));
-        
-                            name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
-                            documentQuantity(d) <- prefix###quantity(dd); 
-                            
-                            price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
-                            retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
-                                                                       
-                            quantity(d) <- IF NOT countLabel(departmentStore(d)) 
-                                                                     THEN (IF include(labelType(d), skuProp(d)) 
-                                                                        THEN INTEGER(documentQuantity(d))
-                                                                         ELSE count(labelType(d), skuProp(d)))
-                                                                     ELSE countLabel(departmentStore(d));                                              
-                                                                       
-                                                                       
-                            
-                            
-                            createAttribute(d);
-                            createAttribute(dd, d);
-                    }
-                    IF change(stockProp(document)) THEN {
-                        LOCAL printed = BOOLEAN();
-                        printed() <- NULL;
-                        DIALOG customLabelTransaction OBJECTS l = t DO {
-                            print(t);
-                            printed() <- TRUE;
+                                name(d) <- IF batch(d) THEN documentName###skuProp(batch(d)) ELSE name(skuProp(d));
+                                documentQuantity(d) <- prefix###quantity(dd); 
+                                
+                                price(d) <- OVERRIDE calcPrice(pt, d), documentPrice(d);
+                                retailPrice(d) <- overRetailPrice(d) WHERE overRetailPrice(d);                       
+                                                                           
+                                quantity(d) <- IF NOT countLabel(departmentStore(d)) 
+                                                                         THEN (IF include(labelType(d), skuProp(d)) 
+                                                                            THEN INTEGER(documentQuantity(d))
+                                                                             ELSE count(labelType(d), skuProp(d)))
+                                                                         ELSE countLabel(departmentStore(d));                                              
+                                                                           
+                                                                           
+                                
+                                
+                                createAttribute(d);
+                                createAttribute(dd, d);
                         }
-                        IF NOT printed() THEN {
-                            cancel();
-                        }             
-                    } ELSE {
-                        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
-                        DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
-                        print(t);
-                    }                        
-                }
-                apply(); 
-            }                                                                                                        
-        }            
+                        IF change(stockProp(document)) THEN {
+                            LOCAL printed = BOOLEAN();
+                            printed() <- NULL;
+                            DIALOG customLabelTransaction OBJECTS l = t DO {
+                                print(t);
+                                printed() <- TRUE;
+                            }
+                            IF NOT printed() THEN {
+                                cancel();
+                            }             
+                        } ELSE {
+                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT price(d) AND NOT printNullPrice(d);
+                            DELETE LabelTransactionDetail d WHERE labelTransaction(d) == t AND NOT retailPrice(d) AND notPrintRetailPrice(d);
+                            print(t);
+                        }                        
+                    }
+                    apply(); 
+                }                                                                                                        
+            }            
         
     } TOOLBAR;
     

@@ -57,10 +57,7 @@ select 'Отм.' = DATA LOCAL NESTED BOOLEAN (Purchase.InvoiceDetail);
 
 createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.Invoice invoice) = ACTION NEWSESSION {        
     
-    IF isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()) THEN {
-        CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
-    }
-    IF is(invoice) AND (confirmed() OR NOT (isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()))) THEN { 
+    ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(invoice) OR NOT (dateTime(invoice) <= currentDateTime()) DO { 
         LOCAL in = BOOLEAN (Sku);
         IF [=GROUP SUM 1 IF select(Purchase.InvoiceDetail detail) BY invoice(detail)](invoice) THEN {
             FOR select(Purchase.InvoiceDetail detail) AND invoice(detail) DO {
@@ -103,9 +100,8 @@ createInvoiceLabelTransaction 'Распечатать ценники'(Purchase.I
                 print(t);
         }
         printed(invoice) <- TRUE WHERE isPosted(invoice);
+        apply();
     }
-    
-    apply();
 } TOOLBAR CONFIRM;
 
 createSaleLabelTransactionMothercare 'Распечатать ценники' (Purchase.Invoice invoice) = ACTION {

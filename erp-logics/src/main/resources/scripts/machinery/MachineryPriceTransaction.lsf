@@ -892,37 +892,32 @@ DESIGN options {
 // Подключение свойств к документу
 META defineDocumentMachineryPriceTransaction (document, detailProp, skuProp, stockProp)
     createMachineryPriceTransaction 'Загрузить в оборудование'(###document document) = ACTION NEWSESSION {
-    
-        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
-            CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
-        }
-        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
-            IF snapshotDocumentMachineryPriceTransaction() THEN
-                createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
-            createMachineryPriceTransactionDocument() <- document;
-            createMachineryPriceTransaction(stockProp(document));
-            sent(document) <- TRUE WHERE isPosted(document);
-            isClosed(document) <- TRUE WHERE isPosted(document) AND closeDocumentMachineryPriceTransaction();
-        }
-        apply();
+        IF is(document) THEN
+            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
+                IF snapshotDocumentMachineryPriceTransaction() THEN
+                    createMachineryPriceTransactionSnapshot() <- TRUE;
+                createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+                createMachineryPriceTransactionDocument() <- document;
+                createMachineryPriceTransaction(stockProp(document));
+                sent(document) <- TRUE WHERE isPosted(document);
+                isClosed(document) <- TRUE WHERE isPosted(document) AND closeDocumentMachineryPriceTransaction();
+                apply();
+            }
     } TOOLBAR CONFIRM;
     
     createMachineryPriceTransaction(###document document) += ACTION createMachineryPriceTransaction(document);
     
     createSnapshotMachineryPriceTransaction 'Перегрузить все позиции'(###document document) = ACTION NEWSESSION {
-        IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) THEN {
-            CONFIRM 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?';
-        }
-        IF is(document) AND (confirmed() OR NOT (isDraft(document) OR NOT (dateTime(document) <= currentDateTime()))) THEN { 
-            createMachineryPriceTransactionSnapshot() <- TRUE;
-            createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
-            createMachineryPriceTransactionDocument() <- document;
-            createMachineryPriceTransaction(stockProp(document));
-            sent(document) <- TRUE WHERE isPosted(document);
-            isClosed(document) <- TRUE WHERE isPosted(document) AND closeDocumentMachineryPriceTransaction();
-        }
-        apply();
+        IF is(document) THEN
+            ASK 'Данный документ не проведен или дата документа не задана или больше текущей. Цены из него не будут учтены. Продолжить?' IF isDraft(document) OR NOT (dateTime(document) <= currentDateTime()) DO { 
+                createMachineryPriceTransactionSnapshot() <- TRUE;
+                createMachineryPriceTransaction(###skuProp sku) <- TRUE IF count###detailProp##Detail(sku, document);
+                createMachineryPriceTransactionDocument() <- document;
+                createMachineryPriceTransaction(stockProp(document));
+                sent(document) <- TRUE WHERE isPosted(document);
+                isClosed(document) <- TRUE WHERE isPosted(document) AND closeDocumentMachineryPriceTransaction();
+                apply();
+            }
     } CONFIRM;
     
     createSnapshotMachineryPriceTransaction(###document document) += ACTION createSnapshotMachineryPriceTransaction(document);

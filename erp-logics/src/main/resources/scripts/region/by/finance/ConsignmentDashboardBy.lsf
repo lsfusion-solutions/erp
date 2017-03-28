@@ -199,20 +199,16 @@ printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Con
         countAttach() <- 0;   
                                     
         IF countConsignmentDetail(consignment) <= overCountRowsVerticalAB (consignment) THEN {
-            CONFIRM 'Печать будет выполняться на ОДНОЙ стороне ТТН БЕЗ ПРИЛОЖЕНИЯ'; 
-            IF (confirmed()) THEN {
+            ASK 'Печать будет выполняться на ОДНОЙ стороне ТТН БЕЗ ПРИЛОЖЕНИЯ' DO {
                 WHILE countConsignment() < numberCopiesConsignment(consignment) DO {
                     printVerticalAB(consignment);
                     countConsignment() <- countConsignment() + 1;
                 }
+                printed(consignment) <- TRUE;
             }  
-             ELSE {
-                     cancel();
-                 }  
         } ELSE {
             IF  countConsignmentDetail(consignment) <= countRowsVerticalA () THEN {
-                CONFIRM 'Печать будет выполняться на ДВУХ сторонах ТТН';
-                IF (confirmed()) THEN {
+                ASK 'Печать будет выполняться на ДВУХ сторонах ТТН' DO {
                     WHILE countConsignment() < numberCopiesConsignment(consignment) DO {
                         printVerticalAAuto(consignment);
                         countConsignment() <- countConsignment() + 1;
@@ -222,13 +218,10 @@ printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Con
                         printVerticalBAuto(consignment);
                         countConsignment() <- countConsignment() + 1;
                     }
-                }  
-                ELSE {
-                    cancel();
+                    printed(consignment) <- TRUE;
                 }  
             } ELSE {
-                CONFIRM 'Печать будет выполняться на ОДНОЙ стороне ТТН C ПРИЛОЖЕНИЕМ';
-                IF (confirmed()) THEN {
+                ASK 'Печать будет выполняться на ОДНОЙ стороне ТТН C ПРИЛОЖЕНИЕМ' DO {
                     WHILE countConsignment() < numberCopiesConsignment(consignment) DO {
                         printVerticalABAuto(consignment);
                         countConsignment() <- countConsignment() + 1;
@@ -237,15 +230,12 @@ printStepsConsignmentsVertical 'Печать ТТН-1 (пошаговая)' (Con
                         printAttachAuto(consignment);
                         countAttach() <- countAttach() + 1;
                     } 
+                    printed(consignment) <- TRUE;
                 } 
-               ELSE {
-                    cancel();
-               }
             }                                    
         }
-        
-        printed(consignment) <- TRUE IF consignment IS Consignment;
-        apply();                 
+        IF printed(consignment) THEN
+            apply();
     }
     cancel();
 } IMAGE 'print.png';

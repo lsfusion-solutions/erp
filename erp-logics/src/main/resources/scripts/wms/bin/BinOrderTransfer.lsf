@@ -172,11 +172,9 @@ createUserBinTransfer 'Создать перемещение'(BinOrder binOrder)
     
     userBinTransfer(binOrder) <- NULL;
     FOR NEW i = UserBinTransfer DO {
-        IF useConfimForCreateBinDetail() THEN CONFIRM 'Создать по выбранному заказу строки накладной?';
         fillHeader(i, binOrder);
-        IF confirmed() OR NOT useConfimForCreateBinDetail() THEN {
+        ASK 'Создать по выбранному заказу строки накладной?' IF useConfimForCreateBinDetail() DO
             createDetail(i, binOrder);   
-        }
         userBinTransfer(binOrder) <- i;
         include(binOrder,i) <- TRUE;
         overCreate (binOrder, i);
@@ -353,7 +351,7 @@ notIncludeBinTransferDetailBinOrder 'Есть строки перемещени�
 dialogIncludeBinOrdersUser 'Включить заказы в перемещение' (BinTransfer userBinTransfer) = ACTION {
     DIALOG includeBinOrdersUserBinTransfer OBJECTS i = userBinTransfer DO{
         IF notRelationBinTransferDetailBinOrder(userBinTransfer) THEN {
-            CONFIRMX 'Создать по выбранным заказам строки перемещения?' DO {  
+            ASK 'Создать по выбранным заказам строки перемещения?' DO {  
                 FOR include[BinOrder,UserBinTransfer](BinOrder binOrder, userBinTransfer) AND NOT  relationBinTransferDetail(binOrder, userBinTransfer) DO {
 
                     createDetail(userBinTransfer, binOrder);
@@ -362,7 +360,7 @@ dialogIncludeBinOrdersUser 'Включить заказы в перемещен�
             }              
         }
         IF notIncludeBinTransferDetailBinOrder(userBinTransfer) THEN {
-            CONFIRMX 'В перемещении присутствуют строки с ссылкой на заказ, который не включен в перемещение. Удалить эти строки?' DO {  
+            ASK 'В перемещении присутствуют строки с ссылкой на заказ, который не включен в перемещение. Удалить эти строки?' DO {  
                 FOR relationBinTransferDetail(BinOrder binOrder, userBinTransfer) AND NOT include[BinOrder,UserBinTransfer](binOrder, userBinTransfer) DO {
 
                     DELETE UserBinTransferDetail d WHERE userBinTransfer(d) == userBinTransfer AND binOrder(binOrderDetail(d)) == binOrder;     
