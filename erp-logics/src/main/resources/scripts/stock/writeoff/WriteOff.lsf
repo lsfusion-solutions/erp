@@ -602,8 +602,6 @@ DESIGN operation {
         MOVE PROPERTY(skipStockDocumentLedger(o));
     }
 }
-    
-@deriveDocumentOperationProperty(UserWriteOff, skipStockDocumentLedger);
 
 skip 'Не проводить по товарному отчету'  = DATA BOOLEAN (Reason);
 EXTEND FORM reason
@@ -613,8 +611,8 @@ EXTEND FORM reasons
     PROPERTIES (r) READONLY skip
 ;
 
-skipStockDocumentLedger (UserWriteOff o) <- skip(reason(o))
-    WHEN CHANGED(reason(o));
+WHEN SESSION SETCHANGED (operation(UserWriteOff o)) OR CHANGED(reason(o)) DO
+    skipStockDocumentLedger (o) <- OVERRIDE skipStockDocumentLedger(operation(o)), skip(reason(o));
 
 // Товарный отчет
 @implementStockDocumentLedgerOut(WriteOff, stock);
