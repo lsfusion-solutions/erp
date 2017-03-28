@@ -156,6 +156,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
         DeleteBarcodeEquipmentServer.init(getBusinessLogics());
         MachineryExchangeEquipmentServer.init(getBusinessLogics());
         SendSalesEquipmentServer.init(getBusinessLogics());
+        TerminalDocumentEquipmentServer.init(getBusinessLogics());
     }
 
     @Override
@@ -1376,12 +1377,12 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     @Override
     public List<TerminalInfo> readTerminalInfo(String sidEquipmentServer) throws RemoteException, SQLException {
-        return TerminalDocumentEquipmentServer.readTerminalInfo(getBusinessLogics(), getDbManager(), sidEquipmentServer);
+        return TerminalDocumentEquipmentServer.readTerminalInfo(getDbManager(), sidEquipmentServer);
     }
 
     @Override
     public String sendTerminalInfo(List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException {
-        return TerminalDocumentEquipmentServer.sendTerminalInfo(getBusinessLogics(), getDbManager(), getStack(), terminalDocumentDetailList, sidEquipmentServer);
+        return TerminalDocumentEquipmentServer.sendTerminalInfo(getBusinessLogics(), getDbManager(), getStack(), terminalDocumentDetailList);
     }
 
     @Override

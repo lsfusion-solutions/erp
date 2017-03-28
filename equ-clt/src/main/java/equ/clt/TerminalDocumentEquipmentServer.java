@@ -39,6 +39,7 @@ public class TerminalDocumentEquipmentServer {
                         sendTerminalDocumentLogger.info("TerminalDocumentInfo is empty");
                     } else {
                         sendTerminalDocumentLogger.info("Sending TerminalDocumentInfo");
+                        //todo: убрать sidEquipmentServer
                         String result = remote.sendTerminalInfo(documentBatch.documentDetailList, sidEquipmentServer);
                         if (result != null) {
                             sendTerminalDocumentLogger.error("Equipment server error: " + result);

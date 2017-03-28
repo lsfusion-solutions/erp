@@ -396,6 +396,7 @@ public class EquipmentServer {
 
         List<CashRegisterInfo> cashRegisterInfoList = remote.readCashRegisterInfo(sidEquipmentServer);
 
+        //todo: убрать sidEquipmentServer
         List<RequestExchange> requestExchangeList = remote.readRequestExchange(sidEquipmentServer);
         
         Map<String, Set<String>> handlerModelDirectoryMap = new HashMap<>();

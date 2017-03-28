@@ -43,6 +43,7 @@ public class SendSalesEquipmentServer {
         CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
         if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
             sendSalesLogger.info("Sending CashDocuments");
+            //todo: убрать sidEquipmentServer
             String result = remote.sendCashDocumentInfo(cashDocumentBatch.cashDocumentList, sidEquipmentServer);
             if (result != null) {
                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);

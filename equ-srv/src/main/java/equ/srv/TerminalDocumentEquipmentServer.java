@@ -31,9 +31,14 @@ import java.util.List;
 public class TerminalDocumentEquipmentServer {
     private static final Logger logger = Logger.getLogger(TerminalDocumentEquipmentServer.class);
 
-    public static List<TerminalInfo> readTerminalInfo(BusinessLogics BL, DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
+    static ScriptingLogicsModule terminalLM;
+
+    public static void init(BusinessLogics BL) {
+        terminalLM = BL.getModule("EquipmentTerminal");
+    }
+
+    public static List<TerminalInfo> readTerminalInfo(DBManager dbManager, String sidEquipmentServer) throws RemoteException, SQLException {
         List<TerminalInfo> terminalInfoList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
         if (terminalLM != null) {
             try (DataSession session = dbManager.createSession()) {
 
@@ -79,8 +84,7 @@ public class TerminalDocumentEquipmentServer {
         return terminalInfoList;
     }
 
-    public static String sendTerminalInfo(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<TerminalDocumentDetail> terminalDocumentDetailList, String sidEquipmentServer) throws RemoteException, SQLException {
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+    public static String sendTerminalInfo(BusinessLogics BL, DBManager dbManager, ExecutionStack stack, List<TerminalDocumentDetail> terminalDocumentDetailList) throws RemoteException, SQLException {
         try {
 
             List<ImportProperty<?>> props = new ArrayList<>();
@@ -89,7 +93,7 @@ public class TerminalDocumentEquipmentServer {
 
             List<List<Object>> data = initData(terminalDocumentDetailList.size());
 
-            if (EquipmentServer.notNullNorEmpty(terminalDocumentDetailList)) {
+            if (terminalLM != null && EquipmentServer.notNullNorEmpty(terminalDocumentDetailList)) {
 
                 ImportField idTerminalDocumentField = new ImportField(terminalLM.findProperty("id[TerminalDocument]"));
                 ImportKey<?> terminalDocumentKey = new ImportKey((ConcreteCustomClass) terminalLM.findClass("TerminalDocument"),
