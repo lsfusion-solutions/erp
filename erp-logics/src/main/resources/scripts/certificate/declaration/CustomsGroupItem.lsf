@@ -36,19 +36,19 @@ changeCodeCustomsGroup(Country country, Item item) = ACTION {
                 article() <- id(item);
                 originalCustomsGroup() <- originalCustomsGroup(item);
                 composition() <- composition(item);
-                DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroup(requestedString()) NULL INPUT NULL DO
+                DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroup(requestedString()) INPUT NULL DO
                     customsGroup(country, item) <- cg;
             }
         } ELSE
             customsGroup(country, item) <- NULL;
     } ELSE {
-        DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) NULL INPUT NULL CONSTRAINTFILTER DO
+        DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) INPUT NULL CONSTRAINTFILTER DO
             customsGroup(country, item) <- cg;
     }
 }
 
 changeCustomsGroupDefaultCountry(Item item) = ACTION {
-    DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = customsGroup(defaultCountry(), item) NULL INPUT NULL DO 
+    DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = customsGroup(defaultCountry(), item) INPUT NULL DO 
         customsGroup(Country country, item) <- cg WHERE country == defaultCountry();
 }
 
@@ -65,7 +65,7 @@ dataValueVATCustomsException 'Льгота НДС, %' (Country country, Item ite
 rangeVATCustomsException(Country country, Item item) = range(VATCustomsException(country, item));
 
 changeCustomsExceptionDefaultCountry(Item item) = ACTION {
-    DIALOG VATCustomsExceptions OBJECTS vce = VATCustomsException(defaultCountry(), item) NULL INPUT NULL DO
+    DIALOG VATCustomsExceptions OBJECTS vce = VATCustomsException(defaultCountry(), item) INPUT NULL DO
         VATCustomsException(Country country, item) <- vce WHERE country == defaultCountry();
 }
 
@@ -77,7 +77,7 @@ CONSTRAINT customsGroup(Country country, Item item) AND VATCustomsException(coun
 background 'Цвет' (Country country, Sku sku) = RGB(212, 255, 212) IF countVATCustomsException(customsGroup(country, sku)) > 0;
 
 changeCustomsGroup(Country country, Item item, DATE date) = ACTION {
-    DIALOG customsGroups OBJECTS cg = customsGroup(country, item) NULL INPUT NULL DO {
+    DIALOG customsGroups OBJECTS cg = customsGroup(country, item) INPUT NULL DO {
         customsGroup(country, item) <- cg;
         IF NOT customsGroup(VATCustomsException(country, item)) == cg THEN
             VATCustomsException(country, item) <- NULL;
@@ -90,7 +90,7 @@ changeCustomsGroup(Country country, Item item, DATE date) = ACTION {
 }
 
 changeVATCustomsException(Country country, Item item, DATE date) = ACTION {
-    DIALOG VATCustomsExceptions OBJECTS cg = customsGroup(country, item), vce = VATCustomsException(country, item) NULL INPUT NULL DO {
+    DIALOG VATCustomsExceptions OBJECTS cg = customsGroup(country, item), vce = VATCustomsException(country, item) INPUT NULL DO {
         VATCustomsException(country, item) <- vce;
         VAT(item, country) <- IF vce IS VATCustomsException THEN
                                             rangeVATCustomsException(country, item)
