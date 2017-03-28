@@ -8,9 +8,13 @@ TABLE promotion(Promotion);
 name 'Наименование акции' = DATA VARISTRING[50](Promotion) IN recognize;
 promotionName = GROUP AGGR Promotion promotion BY name(promotion);
 
+inactive 'Неактивная' = DATA BOOLEAN (Promotion);
+active 'Активная' (Promotion p) = p IS Promotion AND NOT inactive(p);
+
 FORM dialogPromotions 'Акции' 
     OBJECTS p = Promotion
     PROPERTIES(p) READONLY name
+    FILTERGROUP inactivePromotion FILTER 'Активная' active(p) 'shift F10' DEFAULT    
     
     LIST Promotion OBJECT p
 ;
@@ -18,6 +22,7 @@ FORM dialogPromotions 'Акции'
 FORM promotion 'Акция'
     OBJECTS p=Promotion FIXED PANEL
     PROPERTIES(p) name
+    PROPERTIES inactive(p) AFTER name(p)   
     EDIT Promotion OBJECT p
 ;
 
@@ -25,6 +30,7 @@ FORM promotions 'Акции'
     OBJECTS p = Promotion
     PROPERTIES(p) READONLY name
     PROPERTIES (p) NEWSESSION NEW, EDIT, del = DELETE 
+    FILTERGROUP inactivePromotion FILTER 'Активная' active(p) 'shift F10' DEFAULT    
 ;
 
 NAVIGATOR {
