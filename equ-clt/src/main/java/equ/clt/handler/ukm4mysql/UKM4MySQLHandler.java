@@ -933,9 +933,9 @@ public class UKM4MySQLHandler extends DefaultCashRegisterHandler<UKM4MySQLSalesB
                         if (isGiftCard)
                             idBarcode = giftCardValue;
 
-                        Map<String, BigDecimal> sumGiftCardMap = new HashMap<>();
+                        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
                         for (Map.Entry<String, BigDecimal> entry : paymentEntry.sumGiftCardMap.entrySet()) {
-                            sumGiftCardMap.put(entry.getKey(), entry.getValue());
+                            sumGiftCardMap.put(entry.getKey(), new GiftCard(entry.getValue()));
                         }
 
                         totalQuantity = isSale ? totalQuantity : isReturn ? totalQuantity.negate() : null;

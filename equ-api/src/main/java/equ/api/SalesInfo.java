@@ -25,7 +25,7 @@ public class SalesInfo implements Serializable {
     public String lastNameContact;
     public BigDecimal sumCard;
     public BigDecimal sumCash;
-    public Map<String, BigDecimal> sumGiftCardMap;
+    public Map<String, GiftCard> sumGiftCardMap;
     public String barcodeItem;
     public String idItem;
     public Integer itemObject;
@@ -49,7 +49,7 @@ public class SalesInfo implements Serializable {
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                      String idSection) {
         this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, (Map<String, BigDecimal>) null/*sumGiftCardMap*/, barcodeItem, idItem, itemObject,
+                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, (Map<String, GiftCard>) null/*sumGiftCardMap*/, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
                 discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection);
         setSumGiftCardMap(sumGiftCard);
@@ -63,7 +63,7 @@ public class SalesInfo implements Serializable {
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
                      String idSection, CashRegisterInfo cashRegisterInfo) {
         this(isGiftCard, nppGroupMachinery, nppMachinery, numberZReport, dateZReport, timeZReport, numberReceipt, dateReceipt, timeReceipt,
-                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, (Map<String, BigDecimal>) null/*sumGiftCardMap*/, barcodeItem, idItem, itemObject,
+                idEmployee, firstNameContact, lastNameContact, sumCard, sumCash, (Map<String, GiftCard>) null/*sumGiftCardMap*/, barcodeItem, idItem, itemObject,
                 idSaleReceiptReceiptReturnDetail, quantityReceiptDetail, priceReceiptDetail, sumReceiptDetail, discountSumReceiptDetail,
                 discountSumReceipt, seriesNumberDiscountCard, numberReceiptDetail, filename, idSection, cashRegisterInfo);
         setSumGiftCardMap(sumGiftCard);
@@ -71,7 +71,7 @@ public class SalesInfo implements Serializable {
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, BigDecimal> sumGiftCardMap, String barcodeItem,
+                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
                      String idItem, Integer itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
@@ -84,7 +84,7 @@ public class SalesInfo implements Serializable {
 
     public SalesInfo(boolean isGiftCard, Integer nppGroupMachinery, Integer nppMachinery, String numberZReport, Date dateZReport,
                      Time timeZReport, Integer numberReceipt, Date dateReceipt, Time timeReceipt, String idEmployee, String firstNameContact,
-                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, BigDecimal> sumGiftCardMap, String barcodeItem,
+                     String lastNameContact, BigDecimal sumCard, BigDecimal sumCash, Map<String, GiftCard> sumGiftCardMap, String barcodeItem,
                      String idItem, Integer itemObject, String idSaleReceiptReceiptReturnDetail, BigDecimal quantityReceiptDetail,
                      BigDecimal priceReceiptDetail, BigDecimal sumReceiptDetail, BigDecimal discountSumReceiptDetail,
                      BigDecimal discountSumReceipt, String seriesNumberDiscountCard, Integer numberReceiptDetail, String filename,
@@ -121,8 +121,8 @@ public class SalesInfo implements Serializable {
     }
 
     private void setSumGiftCardMap(BigDecimal sumGiftCard) {
-        Map<String, BigDecimal> sumGiftCardMap = new HashMap<>();
-        sumGiftCardMap.put(null, sumGiftCard);
+        Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+        sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
         this.sumGiftCardMap = sumGiftCardMap;
     }
 

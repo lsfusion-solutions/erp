@@ -39,8 +39,7 @@ public class SendSalesEquipmentServer {
 
     static void sendCashDocument(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler, List<CashRegisterInfo> cashRegisterInfoList)
             throws IOException, SQLException, ClassNotFoundException {
-        //todo: sidEquipmentServer передавать не нужно
-        Set<String> cashDocumentSet = remote.readCashDocumentSet(sidEquipmentServer);
+        Set<String> cashDocumentSet = remote.readCashDocumentSet();
         CashDocumentBatch cashDocumentBatch = handler.readCashDocumentInfo(cashRegisterInfoList, cashDocumentSet);
         if (cashDocumentBatch != null && cashDocumentBatch.cashDocumentList != null && !cashDocumentBatch.cashDocumentList.isEmpty()) {
             sendSalesLogger.info("Sending CashDocuments");

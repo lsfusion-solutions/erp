@@ -1,5 +1,6 @@
 package equ.srv;
 
+import equ.api.GiftCard;
 import equ.api.SalesInfo;
 import lsfusion.server.classes.ConcreteCustomClass;
 import lsfusion.server.data.SQLHandledException;
@@ -63,32 +64,49 @@ public class EquipmentServerImport {
         if (giftCardLM != null) {
 
             List<ImportProperty<?>> paymentGiftCardProperties = new ArrayList<>();
+            List<ImportField> paymentGiftCardFields = new ArrayList<>();
+            List<ImportKey<?>> paymentGiftCardKeys = new ArrayList<>();
 
             ImportField idPaymentGiftCardField = new ImportField(giftCardLM.findProperty("id[Payment]"));
-            ImportField idReceiptGiftCardField = new ImportField(giftCardLM.findProperty("id[Receipt]"));
-            ImportField sidTypePaymentGiftCardField = new ImportField(giftCardLM.findProperty("sid[PaymentType]"));
-            ImportField sumPaymentGiftCardField = new ImportField(giftCardLM.findProperty("sum[Payment]"));
-            ImportField numberPaymentGiftCardField = new ImportField(giftCardLM.findProperty("number[Payment]"));
-            ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
-
             ImportKey<?> paymentGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentGiftCard"), giftCardLM.findProperty("payment[VARSTRING[100]]").getMapping(idPaymentGiftCardField));
-            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentGiftCardField));
-            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptGiftCardField));
-            ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
-
+            paymentGiftCardKeys.add(paymentGiftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idPaymentGiftCardField, giftCardLM.findProperty("id[Payment]").getMapping(paymentGiftCardKey)));
-            paymentGiftCardProperties.add(new ImportProperty(sumPaymentGiftCardField, giftCardLM.findProperty("sum[Payment]").getMapping(paymentGiftCardKey)));
-            paymentGiftCardProperties.add(new ImportProperty(numberPaymentGiftCardField, giftCardLM.findProperty("number[Payment]").getMapping(paymentGiftCardKey)));
-            paymentGiftCardProperties.add(new ImportProperty(sidTypePaymentGiftCardField, giftCardLM.findProperty("paymentType[Payment]").getMapping(paymentGiftCardKey),
-                    giftCardLM.object(giftCardLM.findClass("PaymentType")).getMapping(paymentGiftCardTypeKey)));
+            paymentGiftCardFields.add(idPaymentGiftCardField);
+
+            ImportField idReceiptGiftCardField = new ImportField(giftCardLM.findProperty("id[Receipt]"));
+            ImportKey<?> receiptGiftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("Receipt"), giftCardLM.findProperty("receipt[VARSTRING[100]]").getMapping(idReceiptGiftCardField));
+            paymentGiftCardKeys.add(receiptGiftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idReceiptGiftCardField, giftCardLM.findProperty("receipt[Payment]").getMapping(paymentGiftCardKey),
                     giftCardLM.object(giftCardLM.findClass("Receipt")).getMapping(receiptGiftCardKey)));
+            paymentGiftCardFields.add(idReceiptGiftCardField);
 
-            //потом убрать создание
+            ImportField sidTypePaymentGiftCardField = new ImportField(giftCardLM.findProperty("sid[PaymentType]"));
+            ImportKey<?> paymentGiftCardTypeKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("PaymentType"), giftCardLM.findProperty("typePaymentSID[STRING[10]]").getMapping(sidTypePaymentGiftCardField));
+            paymentGiftCardKeys.add(paymentGiftCardTypeKey);
+            paymentGiftCardProperties.add(new ImportProperty(sidTypePaymentGiftCardField, giftCardLM.findProperty("paymentType[Payment]").getMapping(paymentGiftCardKey),
+                    giftCardLM.object(giftCardLM.findClass("PaymentType")).getMapping(paymentGiftCardTypeKey)));
+            paymentGiftCardFields.add(sidTypePaymentGiftCardField);
+
+            ImportField sumPaymentGiftCardField = new ImportField(giftCardLM.findProperty("sum[Payment]"));
+            paymentGiftCardProperties.add(new ImportProperty(sumPaymentGiftCardField, giftCardLM.findProperty("sum[Payment]").getMapping(paymentGiftCardKey)));
+            paymentGiftCardFields.add(sumPaymentGiftCardField);
+
+            ImportField numberPaymentGiftCardField = new ImportField(giftCardLM.findProperty("number[Payment]"));
+            paymentGiftCardProperties.add(new ImportProperty(numberPaymentGiftCardField, giftCardLM.findProperty("number[Payment]").getMapping(paymentGiftCardKey)));
+            paymentGiftCardFields.add(numberPaymentGiftCardField);
+
+            ImportField idGiftCardField = new ImportField(giftCardLM.findProperty("id[GiftCard]"));
+            ImportKey<?> giftCardKey = new ImportKey((ConcreteCustomClass) giftCardLM.findClass("GiftCard"), giftCardLM.findProperty("giftCard[VARSTRING[100]]").getMapping(idGiftCardField));
+            paymentGiftCardKeys.add(giftCardKey);
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("id[GiftCard]").getMapping(giftCardKey)));
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("number[GiftCard]").getMapping(giftCardKey)));
             paymentGiftCardProperties.add(new ImportProperty(idGiftCardField, giftCardLM.findProperty("giftCard[PaymentGiftCard]").getMapping(paymentGiftCardKey),
                     giftCardLM.object(giftCardLM.findClass("GiftCard")).getMapping(giftCardKey)));
+            paymentGiftCardFields.add(idGiftCardField);
+
+            ImportField priceGiftCardField = new ImportField(giftCardLM.findProperty("price[GiftCard]"));
+            paymentGiftCardProperties.add(new ImportProperty(priceGiftCardField, giftCardLM.findProperty("price[GiftCard]").getMapping(giftCardKey)));
+            paymentGiftCardFields.add(priceGiftCardField);
 
             List<List<Object>> dataPaymentGiftCard = new ArrayList<>();
             Set<String> ids = new HashSet();
@@ -96,10 +114,13 @@ public class EquipmentServerImport {
                 String idReceipt = sale.getIdReceipt(startDate, timeId);
                 if (sale.sumGiftCardMap != null && !sale.sumGiftCardMap.isEmpty()) {
                     int i = 0;
-                    for (Map.Entry<String, BigDecimal> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
+                    for (Map.Entry<String, GiftCard> giftCardEntry : sale.sumGiftCardMap.entrySet()) {
                         String idPayment = idReceipt + String.valueOf(3 + i);
-                        if(!ids.contains(idPayment) && giftCardEntry.getValue() != null) {
-                            dataPaymentGiftCard.add(Arrays.<Object>asList(idPayment, idReceipt, "giftcard", giftCardEntry.getValue(), 3 + i, giftCardEntry.getKey()));
+                        String numberGiftCard = giftCardEntry.getKey();
+                        BigDecimal sumGiftCard = giftCardEntry.getValue().sum;
+                        BigDecimal priceGiftCard = giftCardEntry.getValue().price;
+                        if(!ids.contains(idPayment) && sumGiftCard != null) {
+                            dataPaymentGiftCard.add(Arrays.<Object>asList(idPayment, idReceipt, "giftcard", sumGiftCard, 3 + i, numberGiftCard, priceGiftCard));
                             ids.add(idPayment);
                             i++;
                         }
@@ -108,10 +129,8 @@ public class EquipmentServerImport {
             }
 
             if (!dataPaymentGiftCard.isEmpty())
-                new IntegrationService(session, new ImportTable(Arrays.asList(idPaymentGiftCardField, idReceiptGiftCardField, sidTypePaymentGiftCardField,
-                        sumPaymentGiftCardField, numberPaymentGiftCardField, idGiftCardField), dataPaymentGiftCard),
-                        Arrays.asList(paymentGiftCardKey, paymentGiftCardTypeKey, receiptGiftCardKey, giftCardKey),
-                        paymentGiftCardProperties).synchronize(true);
+                new IntegrationService(session, new ImportTable(paymentGiftCardFields, dataPaymentGiftCard),
+                        paymentGiftCardKeys, paymentGiftCardProperties).synchronize(true);
         }
     }
 }

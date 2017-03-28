@@ -1937,7 +1937,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     }
 
     @Override
-    public Set<String> readCashDocumentSet(String sidEquipmentServer) throws IOException, SQLException {
+    public Set<String> readCashDocumentSet() throws IOException, SQLException {
         return SendSalesEquipmentServer.readCashDocumentSet(getDbManager());
     }
 
@@ -2071,11 +2071,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                     Time timeFrom = (Time) equLM.findProperty("timeFrom[EquipmentServer]").read(session, equipmentServerObject);
                     Time timeTo = (Time) equLM.findProperty("timeTo[EquipmentServer]").read(session, equipmentServerObject);
                     Integer delay = (Integer) equLM.findProperty("delay[EquipmentServer]").read(session, equipmentServerObject);
-                    Integer numberAtATime = (Integer) equLM.findProperty("numberAtATime[EquipmentServer]").read(session, equipmentServerObject);
                     Integer sendSalesDelay = (Integer) equLM.findProperty("sendSalesDelay[EquipmentServer]").read(session, equipmentServerObject);
-                    boolean ignoreReceiptsAfterDocumentsClosedDate = equLM.findProperty("ignoreReceiptsAfterDocumentsClosedDate[EquipmentServer]").read(session, equipmentServerObject) != null;
-                    //todo: убрать отсюда чтение ignoreReceiptsAfterDocumentsClosedDate
-                    return new EquipmentServerSettings(timeFrom, timeTo, delay, numberAtATime, sendSalesDelay, ignoreReceiptsAfterDocumentsClosedDate);
+                    return new EquipmentServerSettings(timeFrom, timeTo, delay, sendSalesDelay);
                 } else return null;
             }
         } catch (Exception e) {

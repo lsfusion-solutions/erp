@@ -882,9 +882,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
 
                         Document document = builder.build(file);
                         Element rootNode = document.getRootElement();
-                        List purchasesList = rootNode.getChildren("purchase");
+                        List<Element> purchasesList = rootNode.getChildren("purchase");
 
-                        for (Object purchaseNode : purchasesList) {
+                        for (Element purchaseNode : purchasesList) {
 
                             String operationType = readStringXMLAttribute(purchaseNode, "operationType");
                             Boolean isSale = operationType == null || operationType.equals("true");
@@ -916,11 +916,12 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             BigDecimal sumCard = BigDecimal.ZERO;
                             BigDecimal sumCash = BigDecimal.ZERO;
                             BigDecimal sumGiftCard = BigDecimal.ZERO;
-                            List paymentsList = ((Element) purchaseNode).getChildren("payments");
-                            for (Object paymentNode : paymentsList) {
+                            Map<String, GiftCard> sumGiftCardMap = new HashMap<>();
+                            List<Element> paymentsList = purchaseNode.getChildren("payments");
+                            for (Element paymentNode : paymentsList) {
 
-                                List paymentEntryList = ((Element) paymentNode).getChildren("payment");
-                                for (Object paymentEntryNode : paymentEntryList) {
+                                List<Element> paymentEntryList = paymentNode.getChildren("payment");
+                                for (Element paymentEntryNode : paymentEntryList) {
                                     String paymentType = readStringXMLAttribute(paymentEntryNode, "typeClass");
                                     if (paymentType != null) {
                                         BigDecimal sum = readBigDecimalXMLAttribute(paymentEntryNode, "amount");
@@ -937,7 +938,26 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                                 sumCard = HandlerUtils.safeAdd(sumCard, sum);
                                                 break;
                                             case "GiftCardPaymentEntity":
-                                                sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
+                                                List<Element> pluginProperties = paymentEntryNode.getChildren("plugin-property");
+                                                boolean found = false;
+                                                String giftCardNumber = null;
+                                                BigDecimal giftCardPrice = null;
+                                                for(Element pluginProperty : pluginProperties) {
+                                                    String keyPluginProperty = pluginProperty.getAttributeValue("key");
+                                                    String valuePluginProperty = pluginProperty.getAttributeValue("value");
+                                                    if(notNullNorEmpty(keyPluginProperty) && notNullNorEmpty(valuePluginProperty)) {
+                                                        if (keyPluginProperty.equals("card.number")) {
+                                                            giftCardNumber = valuePluginProperty;
+                                                            found = true;
+                                                        } else if(keyPluginProperty.equals("card.amount")) {
+                                                            giftCardPrice = new BigDecimal(valuePluginProperty);
+                                                        }
+                                                    }
+                                                }
+                                                if(found) {
+                                                    sumGiftCardMap.put(giftCardNumber, new GiftCard(sum, giftCardPrice));
+                                                } else
+                                                    sumGiftCard = HandlerUtils.safeAdd(sumGiftCard, sum);
                                                 break;
                                         }
                                     }
@@ -1041,9 +1061,11 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                                             ids.add(id);
                                         }
 
+                                        if(sumGiftCard.compareTo(BigDecimal.ZERO) != 0)
+                                            sumGiftCardMap.put(null, new GiftCard(sumGiftCard));
                                         currentSalesInfoList.add(new SalesInfo(isGiftCard, nppGroupMachinery, numberCashRegister,
                                                 numberZReport, dateReceipt, timeReceipt, numberReceipt, dateReceipt, timeReceipt, idEmployee, firstNameEmployee, lastNameEmployee, sumCard, sumCash,
-                                                sumGiftCard, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
+                                                sumGiftCardMap, barcode, idItem, null, idSaleReceiptReceiptReturnDetail, quantity, price, sumReceiptDetail, discountSumReceiptDetail,
                                                 discountSumReceipt, discountCard, numberReceiptDetail, fileName, null));
                                     }
                                     count++;
@@ -1052,7 +1074,10 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                             }
 
                             //чит для случая, когда не указана сумма платежа. Недостающую сумму пишем в наличные.
-                            BigDecimal sum = HandlerUtils.safeAdd(HandlerUtils.safeAdd(sumCard, sumCash), sumGiftCard);
+                            BigDecimal sum = HandlerUtils.safeAdd(sumCard, sumCash);
+                            for(GiftCard giftCard : sumGiftCardMap.values()) {
+                                sum = HandlerUtils.safeAdd(sum, giftCard.sum);
+                            }
                             if (sum == null || sum.compareTo(currentPaymentSum) < 0)
                                 for (SalesInfo salesInfo : currentSalesInfoList) {
                                     salesInfo.sumCash = HandlerUtils.safeSubtract(HandlerUtils.safeSubtract(currentPaymentSum, sumCard), sumGiftCard);
@@ -1320,5 +1345,9 @@ public class Kristal10Handler extends DefaultCashRegisterHandler<Kristal10SalesB
                 }
         }
         return isLocked;
+    }
+
+    protected boolean notNullNorEmpty(String value) {
+        return value != null && !value.isEmpty();
     }
 }
