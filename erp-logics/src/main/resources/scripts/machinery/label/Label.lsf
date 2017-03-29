@@ -352,6 +352,7 @@ firstSort = ABSTRACT VALUE OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail
 secondSort = ABSTRACT VALUE OVERRIDE FIRST VARSTRING[100] (LabelTransactionDetail);
 
 skipPrint 'Пропустить' = DATA LOCAL BOOLEAN (LabelTransactionDetail);
+skip 'Не печатать на ценник' = ABSTRACT CASE BOOLEAN (LabelTransactionDetail);
 
 FORM printLabelTransaction 'Печать ценников'
     OBJECTS l = LabelTransaction FIXED PANEL
@@ -365,7 +366,8 @@ FORM printLabelTransaction 'Печать ценников'
                            retailPrice, discountSum, discountPercent, fullNameLegalEntity,
                            firstSort, secondSort
     FILTERS labelTransaction(d) == l,
-            NOT skipPrint(d)
+            NOT skipPrint(d),
+            NOT skip(d)
     ORDER BY firstSort(d), secondSort(d)
     REPORTFILES l fileTemplate(l), TOP topFileTemplate(l)
 ;
@@ -784,7 +786,6 @@ EXTEND FORM customLabelTransaction
                   
 ;
 
-skip 'Не печатать на ценник' = ABSTRACT BOOLEAN (LabelTransactionDetail);
 // ------------------------- Подключение печати ценников в документ --------------------- //
 META defineDocumentLabelTransaction (document, detailProp, skuProp, batchProp, stockProp, prefix)
 
