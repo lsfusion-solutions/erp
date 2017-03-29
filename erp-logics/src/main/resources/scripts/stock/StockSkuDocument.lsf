@@ -40,21 +40,21 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
 
     overChangeQuantityValue###skuProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###skuProp skuProp, ###object object) = ACTION {
+    changeQuantityValue(###skuProp skuProp, ###object object, NUMERIC[16,5] n) = ACTION {
         IF detail(sku, object) THEN {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+                quantity(###detail detail) <- n WHERE detail == detail(sku, object);
                 overChangeQuantityValue###skuProp(detail(sku, object));
             } ELSE {
                 FOR detail(sku, object) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 FOR NEW d = ###detail DO {
                     object(d) <- object;
                     skuProp(d) <- sku;
-                    quantity (d) <- requestedNumeric();
+                    quantity (d) <- n;
                     overChangeQuantityValue###skuProp(d);
                 }
             }
@@ -62,24 +62,17 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
     }
 
     changeQuantity(###skuProp skuProp, ###object object) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValue(sku, object);
+        INPUTX n = NUMERIC[16,5] DO
+            changeQuantityValue(sku, object, n);
     }
 
     // Выбор всего остатка
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);
     changeAllQuantity(###skuProp skuProp, ###object object) = ACTION {
-        INPUTX b = BOOLEAN DO 
-            IF b THEN {
-                requestedNumeric() <- NULL;
-                allQuantity (sku,object) <- TRUE;
-                requestedNumeric() <- prevCurrentBalance(sku,object);
-                changeQuantityValue(sku, object);
-            } ELSE {
-                allQuantity (sku,object) <- NULL;
-                requestedNumeric() <- NULL;
-                changeQuantityValue(sku, object);
-            }
+        INPUTX b = BOOLEAN DO {
+            allQuantity (sku,object) <- b;
+            changeQuantityValue(sku, object, prevCurrentBalance(sku,object) IF b);
+        } 
     }
 
 END
@@ -235,22 +228,22 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
 
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###batchProp batchProp, ###object object) = ACTION {
+    changeQuantityValue(###batchProp batchProp, ###object object, NUMERIC[16,5] n) = ACTION {
         IF detail(batch, object) THEN {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail(batch, object);
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+                quantity(###detail detail) <- n WHERE detail == detail(batch, object);
                 overChangeQuantityValue###batchProp(detail(batch, object));
             } ELSE {
                 FOR detail(batch, object) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 FOR NEW d = ###detail DO {
                     object(d) <- object;
                     skuProp(d) <- skuProp(batch);
                     batchProp(d) <- batch;
-                    quantity (d) <- requestedNumeric();
+                    quantity (d) <- n;
                     overChangeQuantityValue###batchProp(d);
                 }
             }
@@ -259,23 +252,15 @@ META defineDocumentBatch(object, detail, batchProp, skuProp, stockClass, stockPr
 
     changeQuantity(###batchProp batchProp, ###object object) = ACTION {
         INPUTX n = NUMERIC[16,5] DO
-            changeQuantityValue(batch, object);
+            changeQuantityValue(batch, object, n);
     }
 
     // Выбор всего остатка
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object);
     changeAllQuantity(###batchProp batchProp, ###object object)= ACTION {
         INPUTX b = BOOLEAN DO {
-            IF b AS BOOLEAN THEN {
-                requestedNumeric() <- NULL;
-                allQuantity (batch,object) <- TRUE;
-                requestedNumeric() <- prevCurrentBalance(batch,object);
-                changeQuantityValue(batch, object);
-            } ELSE {
-                allQuantity (batch,object) <- NULL;
-                requestedNumeric() <- NULL;
-                changeQuantityValue(batch, object);
-            }
+            allQuantity (batch,object) <- b;
+            changeQuantityValue(batch, object, prevCurrentBalance(batch,object) IF b);
         }
     }
 
@@ -401,10 +386,10 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
 
     overChangeQuantityValue###skuProp = ACTION ABSTRACT LIST (###detail);
 
-    changeQuantityValue(###skuProp skuProp, ###object object, Stock stock) = ACTION {
+    changeQuantityValue(###skuProp skuProp, ###object object, Stock stock, NUMERIC[14,3] n) = ACTION {
         IF detail###stockProp(sku, object, stock) THEN {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+                quantity(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
                 overChangeQuantityValue###skuProp(detail###stockProp(sku, object, stock));
             } ELSE {
                 FOR detail###stockProp(sku, object, stock) == ###detail d DO
@@ -412,13 +397,13 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
             }
 
         } ELSE {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 FOR NEW d = ###detail DO {
                    object(d) <- object;
 //                  Пока работаем с одним складом                   
 //                   stockProp###stock###detail (d) <- stock;
                    skuProp(d) <- sku;
-                   quantity (d) <- requestedNumeric();
+                   quantity (d) <- n;
                    overChangeQuantityValue###skuProp(d);
                 }
             }
@@ -426,22 +411,14 @@ META defineDocumentSkuStock(object, detail, skuProp, stockProp)
     }
     changeQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
         INPUTX n = NUMERIC[16,5] DO
-            changeQuantityValue(sku, object, stock);
+            changeQuantityValue(sku, object, stock, n);
     }
 
     allQuantity###object 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, Stock);
     changeAllQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
         INPUTX b = BOOLEAN DO {
-            IF b AS BOOLEAN THEN {
-                requestedNumeric() <- NULL;
-                allQuantity###object (sku,stock) <- TRUE;
-                requestedNumeric() <- prevCurrentBalance(sku,stock);
-                changeQuantityValue(sku, object, stock);
-            } ELSE {
-                allQuantity###object (sku,stock) <- NULL;
-                requestedNumeric() <- NULL;
-                changeQuantityValue(sku, object, stock);
-            }
+            allQuantity###object (sku, stock) <- b;
+            changeQuantityValue(sku, object, stock, prevCurrentBalance(sku,stock) IF b);
         }
     }
 
@@ -578,23 +555,23 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
     overChangeQuantityValue###batchProp = ACTION ABSTRACT LIST (###detail);
     backgroundName###object 'Цвет'  (d)= ABSTRACT CASE COLOR (Batch);
 
-    changeQuantityValue(###batchProp batchProp, ###object object, Stock stock) = ACTION {
+    changeQuantityValue(###batchProp batchProp, ###object object, Stock stock, NUMERIC[16,5] n) = ACTION {
         IF detail###stockProp(batch, object, stock) THEN {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(batch, object, stock);
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+                quantity(###detail detail) <- n WHERE detail == detail###stockProp(batch, object, stock);
                 overChangeQuantityValue###batchProp(detail###stockProp(batch, object, stock));
             } ELSE {
                 FOR detail###stockProp(batch, object, stock) == ###detail d DO
                     DELETE d;
             }
         } ELSE {
-            IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+            IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
                 FOR NEW d = ###detail DO {
                     object(d) <- object;
 //                    stockProp###stock###detail (d) <- stock;
                     skuProp(d) <- skuProp(batch);
                     batchProp(d) <- batch;
-                    quantity (d) <- requestedNumeric();
+                    quantity (d) <- n;
                     overChangeQuantityValue###batchProp(d);
                 }
             }
@@ -602,23 +579,15 @@ META defineDocumentBatchStock(object, detail, batchProp, skuProp, stockProp)
     }
 
     changeQuantity(###batchProp batchProp, ###object object, Stock stock) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValue(batch, object, stock);
+        INPUTX n = NUMERIC[16,5] DO
+            changeQuantityValue(batch, object, stock, n);
     }
 
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Batch, ###object, Stock);
     changeAllQuantity(###batchProp batchProp, ###object object, Stock stock) = ACTION {
         INPUTX b = BOOLEAN DO {
-            IF b AS BOOLEAN THEN {
-                requestedNumeric() <- NULL;
-                allQuantity (batch, object, stock) <- TRUE;
-                requestedNumeric() <- prevCurrentBalance(batch, stock);
-                changeQuantityValue(batch, object, stock);
-            } ELSE {
-                allQuantity (batch, object, stock) <- NULL;
-                requestedNumeric() <- NULL;
-                changeQuantityValue(batch, object, stock);
-            }
+            allQuantity (batch, object, stock) <- b;
+            changeQuantityValue(batch, object, stock, prevCurrentBalance(batch, stock) IF b);
         }
     }
 END
@@ -702,26 +671,26 @@ META defineDocumentSkuStockExtra(object, detail, skuProp, stockProp, stockExtra)
     backgroundQuantity 'Цвет' (sku, object, stock) = ABSTRACT CASE COLOR (Sku, ###object, Stock);  
     
     changeQuantityCustomer(###skuProp skuProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        IF detail##SupplierCustomer(sku, object, stockProp, stockExtra) THEN {
-            IF requestedNumeric() THEN {
-                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail##SupplierCustomer(sku, object, stockProp, stockExtra);
+        INPUTX n = NUMERIC[16,5] DO
+            IF detail##SupplierCustomer(sku, object, stockProp, stockExtra) THEN {
+                IF n THEN {
+                    quantity(###detail detail) <- n WHERE detail == detail##SupplierCustomer(sku, object, stockProp, stockExtra);
+                } ELSE {
+                    FOR detail##SupplierCustomer(sku, object, stockProp, stockExtra) == ###detail detail DO
+                        DELETE detail;
+                }
             } ELSE {
-                FOR detail##SupplierCustomer(sku, object, stockProp, stockExtra) == ###detail detail DO
-                    DELETE detail;
-            }
-        } ELSE {
-            IF requestedNumeric() THEN {
-                FOR NEW d = ###detail DO {
-                   object(d) <- object;
-                   skuProp(d) <- sku;
-                   stockExtra(d) <- stockExtra;
-                   quantity (d) <- requestedNumeric();
-                   shipmentDataDate (d) <- shipmentDate(object);
-                   shipmentDataTime (d) <- shipmentTime(object);
+                IF n THEN {
+                    FOR NEW d = ###detail DO {
+                       object(d) <- object;
+                       skuProp(d) <- sku;
+                       stockExtra(d) <- stockExtra;
+                       quantity (d) <- n;
+                       shipmentDataDate (d) <- shipmentDate(object);
+                       shipmentDataTime (d) <- shipmentTime(object);
+                    }
                 }
             }
-        }
     }
 END
 META defineDocumentSkuStockExtra(object, skuProp, stockProp, stockExtra)
@@ -847,22 +816,22 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
 
     backgroundQuantity 'Цвет' (batch, object, stock) = ABSTRACT CASE COLOR (Batch, ###object, Stock);          
 
-    changeQuantityValueCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION {
+    changeQuantityValueCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra, NUMERIC[16,5] n) = ACTION {
         IF detail##SupplierCustomer(batch, object, stockProp, stockExtra) THEN {
-            IF requestedNumeric() THEN {
-                quantity(###detail detail) <- requestedNumeric() WHERE detail == detail##SupplierCustomer(batch, object, stockProp, stockExtra);
+            IF n THEN {
+                quantity(###detail detail) <- n WHERE detail == detail##SupplierCustomer(batch, object, stockProp, stockExtra);
             } ELSE {
                 FOR detail##SupplierCustomer(batch, object, stockProp, stockExtra) == ###detail detail DO
                     DELETE detail;
             }
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF n THEN {
                 FOR NEW d = ###detail DO {
                    object(d) <- object;
                    skuProp(d) <- skuProp(batch);
                    batchProp(d) <- batch;
                    stockExtra(d) <- stockExtra;
-                   quantity (d) <- requestedNumeric();
+                   quantity (d) <- n;
                    shipmentDataDate (d) <- shipmentDate(object);
                    shipmentDataTime (d) <- shipmentTime(object);
                 }
@@ -870,8 +839,8 @@ META defineDocumentBatchStockExtra(object, detail, batchProp, skuProp, stockProp
         }
     }
     changeQuantityCustomer(###batchProp batchProp, ###object object, Stock stockProp, Stock stockExtra) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        changeQuantityValueCustomer(batch, object, stockProp, stockExtra);
+        INPUTX n = NUMERIC[16,5] DO
+            changeQuantityValueCustomer(batch, object, stockProp, stockExtra, n);
     }
 END
 META defineDocumentBatchStockExtra(object, batchProp, skuProp, stockProp, stockExtra)

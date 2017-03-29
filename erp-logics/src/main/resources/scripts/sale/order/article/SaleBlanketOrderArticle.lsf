@@ -48,39 +48,39 @@ nameSoldCustomerDateFromTo (Stock stock)= name(stock) + ' (р-ия за пери
        
 // Ввод количества по товару
 changeBatchQuantityCustomer (Sku sku, BlanketOrder blanketOrder, Stock supplierStock, Stock customerStock) = ACTION  {
-    REQUEST NUMERIC[16,5] INPUT;
-    
-    LOCAL left = NUMERIC[16,5] ();
-    left() <- requestedNumeric();
-    FOR sku(Batch batch) == sku ORDER dateTime(batch) DO {
-        
-        LOCAL taken = NUMERIC[16,5] ();
-        taken() <- min(left(), prevAvailableQuantity(batch, blanketOrder, supplierStock, customerStock)) IF prevAvailableQuantity(batch, blanketOrder, supplierStock, customerStock) > 0;
-        left() <- left() (-) taken();
-        
-        IF NOT quantitySupplierCustomer(batch, blanketOrder, supplierStock, customerStock) == taken() THEN {
-            IF blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock) THEN {
-                IF taken() THEN {
-                    quantity(BlanketOrderDetail blanketOrderDetail) <- taken() WHERE blanketOrderDetail == blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock);
+    INPUTX n = NUMERIC[16,5] DO {
+        LOCAL left = NUMERIC[16,5] ();
+        left() <- n;
+        FOR sku(Batch batch) == sku ORDER dateTime(batch) DO {
+            
+            LOCAL taken = NUMERIC[16,5] ();
+            taken() <- min(left(), prevAvailableQuantity(batch, blanketOrder, supplierStock, customerStock)) IF prevAvailableQuantity(batch, blanketOrder, supplierStock, customerStock) > 0;
+            left() <- left() (-) taken();
+            
+            IF NOT quantitySupplierCustomer(batch, blanketOrder, supplierStock, customerStock) == taken() THEN {
+                IF blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock) THEN {
+                    IF taken() THEN {
+                        quantity(BlanketOrderDetail blanketOrderDetail) <- taken() WHERE blanketOrderDetail == blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock);
+                    } ELSE {
+                        FOR blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock) == BlanketOrderDetail blanketOrderDetail DO
+                            DELETE blanketOrderDetail;
+                    }
                 } ELSE {
-                    FOR blanketOrderDetailSupplierCustomer(batch, blanketOrder, supplierStock, customerStock) == BlanketOrderDetail blanketOrderDetail DO
-                        DELETE blanketOrderDetail;
-                }
-            } ELSE {
-                IF taken() THEN {
-                    FOR NEW d = BlanketOrderDetail DO {
-                       blanketOrder(d) <- blanketOrder;
-                       sku(d) <- sku(batch);
-                       batch(d) <- batch;
-                       customerStock(d) <- customerStock;
-                       quantity (d) <- taken();
-                       shipmentDataDate (d) <- shipmentDate(blanketOrder);
-                       shipmentDataTime (d) <- shipmentTime(blanketOrder);
+                    IF taken() THEN {
+                        FOR NEW d = BlanketOrderDetail DO {
+                           blanketOrder(d) <- blanketOrder;
+                           sku(d) <- sku(batch);
+                           batch(d) <- batch;
+                           customerStock(d) <- customerStock;
+                           quantity (d) <- taken();
+                           shipmentDataDate (d) <- shipmentDate(blanketOrder);
+                           shipmentDataTime (d) <- shipmentTime(blanketOrder);
+                        }
                     }
                 }
-            }
-        } 
-    }    
+            } 
+        }
+    }
 }            
      
         

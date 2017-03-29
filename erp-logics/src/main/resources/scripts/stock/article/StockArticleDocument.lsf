@@ -35,29 +35,29 @@ META defineDocumentArticleStockCustom(object, detail, skuProp, stockProp)
     backgroundQuantity 'Цвет' (Article article, Color color, Size size, ###object object, Stock stock) = RGB(255,128,128) IF quantity###stockProp(article, color, size, object, stock) AND NOT
         (quantity###stockProp(article, color, size, object, stock) <= prevCurrentBalance(article, color, size, stock));
 
-    changeQuantityValue(Article article, Color color, Size size, ###object object, Stock stock) = ACTION {
+    changeQuantityValue(Article article, Color color, Size size, ###object object, Stock stock, NUMERIC[16,5] n) = ACTION {
 
         IF detail###stockProp(article, color, size, object, stock) THEN {
-            IF requestedNumeric() THEN {
-                quantity(###detail d) <- requestedNumeric() WHERE d == detail###stockProp(article, color, size, object, stock);
+            IF n THEN {
+                quantity(###detail d) <- n WHERE d == detail###stockProp(article, color, size, object, stock);
             } ELSE {
                 FOR detail###stockProp(article, color, size, object, stock) == ###detail d DO
                     DELETE d;
             }
 
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF n THEN {
                 FOR NEW d = ###detail DO {
                    object(d) <- object;
                    skuProp(d) <- max###skuProp(article, color, size);
-                   quantity (d) <- requestedNumeric();
+                   quantity (d) <- n;
                 }
             }
         }
     }
     changeQuantity(Article article, Color color, Size size, ###object object, Stock stock) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValue(article, color, size, object, stock);
+        INPUTX n = NUMERIC[16,5] DO
+            changeQuantityValue(article, color, size, object, stock, n);
     }
 
 END
@@ -136,11 +136,11 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
     backgroundQuantity 'Цвет' (Article article, Color color, Size size, ###object object) = RGB(255,128,128) IF quantity(article, color, size, object) AND NOT
         (quantity(article, color, size, object) <= prevCurrentBalance(article, color, size, stockProp(object)));
 
-    changeQuantityValue(Article article, Color color, Size size, ###object object) = ACTION {
+    changeQuantityValue(Article article, Color color, Size size, ###object object, NUMERIC[16,5] n) = ACTION {
 
         IF detail(article, color, size, object) THEN {
-            IF requestedNumeric() THEN {
-                quantity(###detail d) <- requestedNumeric() WHERE d == detail(article, color, size, object);
+            IF n THEN {
+                quantity(###detail d) <- n WHERE d == detail(article, color, size, object);
             } ELSE {
                 FOR detail(article, color, size, object) == ###detail d DO
                     DELETE d;
@@ -148,11 +148,11 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
 
         } ELSE {
             IF max###skuProp(article, color, size) THEN {               
-                IF requestedNumeric() THEN {
+                IF n THEN {
                     FOR NEW d = ###detail DO {
                        object(d) <- object;
                        skuProp(d) <- max###skuProp(article, color, size);
-                       quantity (d) <- requestedNumeric();
+                       quantity (d) <- n;
                     }
                 }
             } ELSE {
@@ -162,8 +162,8 @@ META defineDocumentArticleCustom(object, detail, skuProp, stockProp)
         }
     }
     changeQuantity(Article article, Color color, Size size, ###object object) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        EXEC changeQuantityValue(article, color, size, object);
+        INPUTX n = NUMERIC[16,5] DO
+            changeQuantityValue(article, color, size, object, n);
     }
 
 END

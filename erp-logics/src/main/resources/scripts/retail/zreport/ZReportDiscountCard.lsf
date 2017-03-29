@@ -84,9 +84,10 @@ EXTEND FORM discountCards
 
 numberDiscountCardInput 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
 changeNumberDiscountCardInput() = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    numberDiscountCardInput() <- processedBarcode(requestedString());
-    formOk();
+    INPUTX s = VARSTRING[15] DO {
+        numberDiscountCardInput() <- processedBarcode(s);
+        formOk();
+    }
 }
 
 FORM numberDiscountCardInput 'Ввод номера старой дисконтной карты'
@@ -105,9 +106,10 @@ DESIGN numberDiscountCardInput {
 
 numberDiscountCardInputNew 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
 changeNumberDiscountCardInputNew() = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    numberDiscountCardInputNew() <- processedBarcode(requestedString());
-    formOk();
+    INPUTX s = VARSTRING[15] DO {
+        numberDiscountCardInputNew() <- processedBarcode(s);
+        formOk();
+    }
 }
 
 FORM numberDiscountCardInputNew 'Ввод номера новой дисконтной карты'
@@ -128,14 +130,14 @@ showTransferSum() = numberDiscountCardInput() AND NOT numberDiscountCardInputNew
 notShowTransferSum() = NOT showTransferSum();
 
 changeTransferSum (DiscountCard dc) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF NOT requestedNumeric() > prevTotalSum(dc) AND NOT requestedNumeric() < 0.0 THEN
-        transferSum(dc) <- requestedNumeric()
-    ELSE 
-        IF requestedNumeric() < 0.0 THEN
-            MESSAGE 'Сумма перевода не может быть меньше ноля'
-    ELSE    
-        MESSAGE 'Нельзя переводить сумму больше суммы накопленний';           
+    INPUTX n = NUMERIC[18,4] DO
+        IF NOT n > prevTotalSum(dc) AND NOT n < 0.0 THEN
+            transferSum(dc) <- n
+        ELSE 
+            IF n < 0.0 THEN
+                MESSAGE 'Сумма перевода не может быть меньше ноля'
+        ELSE    
+            MESSAGE 'Нельзя переводить сумму больше суммы накопленний';           
 }
 
 FORM transferDiscountCards 'Перевод накоплений'

@@ -729,23 +729,23 @@ currentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = c
 prevCurrentBalance 'Остаток' (Sku sku, LabelTransaction labelTransaction) = prevCurrentBalance(sku, departmentStore(labelTransaction));
 backgroundQuantity 'Цвет' (sku, labelTransaction) = ABSTRACT CASE COLOR (Sku, LabelTransaction);  
 
-changeQuantityValue(Sku sku, LabelTransaction labelTransaction) = ACTION {
+changeQuantityValue(Sku sku, LabelTransaction labelTransaction, NUMERIC[14,3] n) = ACTION {
     IF labelTransactionDetail(sku, labelTransaction) THEN {
-        IF requestedNumeric() THEN {
-            quantity(LabelTransactionDetail labelTransactionDetail) <- INTEGER(requestedNumeric()) WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
-            documentQuantity(LabelTransactionDetail labelTransactionDetail) <- requestedNumeric() WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
+        IF n THEN {
+            quantity(LabelTransactionDetail labelTransactionDetail) <- INTEGER(n) WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
+            documentQuantity(LabelTransactionDetail labelTransactionDetail) <- n WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);
             name(LabelTransactionDetail labelTransactionDetail) <- name(sku(labelTransactionDetail)) WHERE labelTransactionDetail == labelTransactionDetail(sku, labelTransaction);         
         } ELSE {
             DELETE LabelTransactionDetail d WHERE d == labelTransactionDetail(sku, labelTransaction);
         }
     } ELSE {
-        IF requestedNumeric() THEN {
+        IF n THEN {
             FOR NEW d = LabelTransactionDetail DO {
                 labelTransaction(d) <- labelTransaction;
                 sku(d) <- sku;
                 name(d) <- name(sku);                
-                quantity (d) <- INTEGER(requestedNumeric());
-                documentQuantity(d) <- requestedNumeric();
+                quantity (d) <- INTEGER(n);
+                documentQuantity(d) <- n;
                 createAttribute(d);
             }
         }
@@ -753,24 +753,17 @@ changeQuantityValue(Sku sku, LabelTransaction labelTransaction) = ACTION {
 }
 
 changeQuantity(Sku sku, LabelTransaction labelTransaction) = ACTION {
-    REQUEST INTEGER INPUT;
-    changeQuantityValue(sku, labelTransaction);
+    INPUTX n = NUMERIC[14,3] DO
+        changeQuantityValue(sku, labelTransaction, n);
 }
 
 // Выбор всего остатка
 allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, LabelTransaction);
 changeAllQuantity(Sku sku, LabelTransaction labelTransaction) = ACTION {
-    INPUTX b = BOOLEAN DO
-        IF b THEN {
-            requestedNumeric() <- NULL;
-            allQuantity (sku,labelTransaction) <- TRUE;
-            requestedNumeric() <- prevCurrentBalance(sku,labelTransaction);
-            changeQuantityValue(sku, labelTransaction);
-        } ELSE {
-            allQuantity (sku,labelTransaction) <- NULL;
-            requestedNumeric() <- NULL;
-            changeQuantityValue(sku, labelTransaction);
-        }
+    INPUTX b = BOOLEAN DO {
+        allQuantity (sku,labelTransaction) <- b;
+        changeQuantityValue(sku, labelTransaction, prevCurrentBalance(sku,labelTransaction) IF b);
+    }
 }
 price 'Цена' (Sku sku, LabelTransaction labelTransaction) = prevPriceB(priceListType(labelType(labelTransaction)), sku, departmentStore(labelTransaction), dateTime(labelTransaction));
 

@@ -22,28 +22,28 @@ DESIGN options {
     }
 }
         
-changeQuantityValue (Batch batch, Receipt receipt) =  ACTION {
+changeQuantityValue (Batch batch, Receipt receipt, NUMERIC[16,5] n) =  ACTION {
     IF receiptDetail(batch, receipt) THEN {
-        IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
-            IF minDelta() AND delta(prevCurrentBalance(batch, receipt), requestedNumeric()) < minDelta() THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
+            IF minDelta() AND delta(prevCurrentBalance(batch, receipt), n) < minDelta() THEN {
                 quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
             } ELSE {
-                quantity(ReceiptSaleDetail receiptDetail) <- requestedNumeric() WHERE receiptDetail == receiptDetail(batch, receipt);
+                quantity(ReceiptSaleDetail receiptDetail) <- n WHERE receiptDetail == receiptDetail(batch, receipt);
             }
         } ELSE {
             FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
                 DELETE d;
         }
     } ELSE {
-        IF (requestedNumeric() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedNumeric() != 0) THEN {
+        IF (n AND NOT deleteNullDetail()) OR (deleteNullDetail() AND n != 0) THEN {
             FOR NEW d = ReceiptSaleDetail DO {
                 receipt(d) <- receipt;
                 sku(d) <- sku(batch);
                 batch(d) <- batch;
-                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), requestedNumeric()) < minDelta() THEN {
+                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), n) < minDelta() THEN {
                     quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);    
                 } ELSE {
-                    quantity(ReceiptSaleDetail receiptDetail) <- requestedNumeric() WHERE receiptDetail == receiptDetail(batch, receipt);
+                    quantity(ReceiptSaleDetail receiptDetail) <- n WHERE receiptDetail == receiptDetail(batch, receipt);
                 }
                 price(d) <- currentPOSPrice(batch, receipt);
             }
@@ -52,8 +52,8 @@ changeQuantityValue (Batch batch, Receipt receipt) =  ACTION {
 }     
         
 changeQuantity(Batch batch, Receipt receipt) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    changeQuantityValue(batch, receipt);
+    INPUTX n = NUMERIC[16,5] DO
+        changeQuantityValue(batch, receipt, n);
 }
 
 backgroundQuantity (Batch batch, Receipt receipt) = IF quantity(batch, receipt) > prevCurrentBalance(batch, receipt)
@@ -148,10 +148,11 @@ changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
 }
 
 changeAnalogueQuantity(Batch batch, Receipt receipt) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    changeQuantityValue(batch, receipt);
-    FOCUS POS.quantityReceiptGrid;
-    SEEK POS.bt = batch;
+    INPUTX n = NUMERIC[16,5] DO {
+        changeQuantityValue(batch, receipt, n);
+        FOCUS POS.quantityReceiptGrid;
+        SEEK POS.bt = batch;
+    }
 }
 
 EXTEND FORM POS

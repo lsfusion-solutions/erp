@@ -186,32 +186,26 @@ beforeApplyCustomer(LegalEntity l) = ACTION {
 }
 
 changeAddress (LegalEntity l) = ACTION {
-    REQUEST VARSTRING[150] INPUT ;
-    IF requestedString() THEN {
-        dataAddress(l, d) <- requestedString() WHERE d == 2001_01_01;
-    } ELSE 
-        dataAddress(l, d) <- NULL;
+    INPUTX s = VARSTRING[150] DO
+        dataAddress(l, DATE d) <- s WHERE d == 2001_01_01;
 }
 
 changePhone (LegalEntity l) = ACTION {
-    REQUEST VARSTRING[100] INPUT ;
-    IF requestedString() THEN {
-        dataPhone(l, d) <- requestedString() WHERE d == 2001_01_01;
-    } ELSE 
-        dataPhone(l, d) <- NULL;
+    INPUTX s = VARSTRING[100] DO
+        dataPhone(l, DATE d) <- s WHERE d == 2001_01_01;
 }
 
 
 changeAccount (LegalEntity l) = ACTION {
-    REQUEST VARSTRING[50] INPUT ;
-    IF NOT account(l) THEN {
-        FOR NEW a = Bank.Account DO {
-            number(a) <- requestedString();
-            legalEntity(a) <- l;
-            userAccount(l) <- a;
-        }
-    } ELSE 
-        number(Bank.Account a) <- requestedString() WHERE a == account(l);
+    INPUTX s = VARSTRING[50] DO
+        IF NOT account(l) THEN {
+            FOR NEW a = Bank.Account DO {
+                number(a) <- s;
+                legalEntity(a) <- l;
+                userAccount(l) <- a;
+            }
+        } ELSE 
+            number(Bank.Account a) <- s WHERE a == account(l);
 }
 
 changeBank (LegalEntity l) = ACTION {
@@ -231,18 +225,14 @@ defaultContract(LegalEntity l) = defaultContractSkuSupplierCustomer(defaultCompa
 
 dateFromContract 'Дата'(LegalEntity l) = dateFrom(defaultContract(l));
 changeDateFromContract (LegalEntity l) = ACTION {
-    REQUEST DATE INPUT ;
-    IF requestedDate() THEN {
-        dateFrom(UserContractSku c) <- requestedDate() WHERE c == defaultContract(l);
-    }
+    INPUTX d = DATE DO
+        dateFrom(UserContractSku c) <- d WHERE c == defaultContract(l);
 }
 
 numberContract 'Номер'(LegalEntity l) = number(defaultContract(l));
 changeNumberContract(LegalEntity l) = ACTION {
-    REQUEST VARISTRING[28] INPUT ;
-    IF requestedString() THEN {
-        number(UserContractSku c) <- requestedString() WHERE c == defaultContract(l);
-    }
+    INPUTX s = VARISTRING[28] DO
+        number(UserContractSku c) <- s WHERE c == defaultContract(l);
 }
 
 FORM giftCardSaleCustomer 'Покупатель'

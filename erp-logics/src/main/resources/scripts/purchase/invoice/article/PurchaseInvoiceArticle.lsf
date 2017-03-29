@@ -65,7 +65,7 @@ changeOriginalCaptionArticle(UserInvoiceArticleDetail detail) = ACTION {
 changeOriginalCompositionArticle(UserInvoiceArticleDetail detail) = ACTION {
     INPUTX s = VARSTRING[255] DO
         IF article(detail) THEN {
-            originalComposition(Article a) <- requestedString() WHERE  article(detail) == a;
+            originalComposition(Article a) <- s WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
@@ -74,7 +74,7 @@ changeOriginalCompositionArticle(UserInvoiceArticleDetail detail) = ACTION {
 changeOriginalCustomsGroupArticle(UserInvoiceArticleDetail detail) = ACTION {
     INPUTX s = STRING[10] DO
         IF article(detail) THEN {
-            originalCustomsGroup(Article a) <- requestedString() WHERE  article(detail) == a;
+            originalCustomsGroup(Article a) <- s WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
@@ -129,26 +129,26 @@ userInvoiceDetail (color, size, detail, stock) = GROUP MAX UserInvoiceDetail use
 
 userInvoiceDetail (Color color, Size size, UserInvoiceArticleDetail detail)= userInvoiceDetail(color, size, detail, customerStock(userInvoice(detail)));
                        
-changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDetail) = ACTION {
+changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDetail, NUMERIC[14,3] n) = ACTION {
     IF userInvoiceDetail(color, size, articleDetail) THEN {
-        IF requestedNumeric() THEN {
-            ASSIGN quantity(UserInvoiceDetail d) <- requestedNumeric() WHERE d == userInvoiceDetail(color, size, articleDetail);
+        IF n THEN {
+            quantity(UserInvoiceDetail d) <- n WHERE d == userInvoiceDetail(color, size, articleDetail);
         } ELSE {
             DELETE UserInvoiceDetail d WHERE d == userInvoiceDetail(color, size, articleDetail);
         }
 
     } ELSE {
         IF maxSku(article(articleDetail), color, size) THEN {               
-            IF requestedNumeric() THEN {
+            IF n THEN {
                 FOR NEW d = UserInvoiceDetail DO {
                    userInvoice(d) <- userInvoice(articleDetail);
                    userInvoiceArticleDetail(d) <- articleDetail;
                    sku(d) <- maxSku(article(articleDetail), color, size);
-                   quantity (d) <- requestedNumeric();
+                   quantity (d) <- n;
                 }
             }
         } ELSE {
-            IF requestedNumeric() THEN {
+            IF n THEN {
                 ASK 'Товар с заданными характеристиками не найден, хотите добавить?' DO {
                     FOR NEW i = Item DO { 
                         article(i) <- article(articleDetail);                      
@@ -159,7 +159,7 @@ changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDeta
                            userInvoice(d) <- userInvoice(articleDetail);
                            userInvoiceArticleDetail(d) <- articleDetail;
                            sku(d) <- i;
-                           quantity (d) <- requestedNumeric();
+                           quantity (d) <- n;
                         }                                               
                     }
                 }
@@ -169,8 +169,8 @@ changeQuantityValue(Color color, Size size, UserInvoiceArticleDetail articleDeta
     }
 }
 changeQuantity(Color color, Size size, UserInvoiceArticleDetail articleDetail) = ACTION {
-    REQUEST NUMERIC[14,3] INPUT;
-    EXEC changeQuantityValue(color, size, articleDetail);
+    INPUTX n = NUMERIC[14,3] DO
+        changeQuantityValue(color, size, articleDetail, n);
 }                                       
                                      
 order (UserInvoiceArticleDetail detail, Size size) = order(sizeGroup(article(detail)), size);                                         

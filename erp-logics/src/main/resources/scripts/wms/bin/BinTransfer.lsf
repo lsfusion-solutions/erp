@@ -394,18 +394,19 @@ changePackQuantity(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTI
 }
 
 changeAmountPack(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {
-    REQUEST NUMERIC[14,3] INPUT;
-    IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
-        IF requestedNumeric() THEN {
-            amountPack(UserBinTransferDetail userBinTransferDetail) <- requestedNumeric() WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
-            quantity(UserBinTransferDetail userBinTransferDetail) <- packQuantity(userBinTransferDetail)*(OVERRIDE 1.0, amountPack(userBinTransferDetail)) 
-                                    WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock) AND packQuantity(userBinTransferDetail) AND NOT skipChangeQuantity(userBinTransferDetail(sku, userBinTransfer, stock));
-        } ELSE {
-            amountPack(UserBinTransferDetail userBinTransferDetail) <- NULL WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+    INPUTX n = NUMERIC[14,3] DO {
+        IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
+            IF n THEN {
+                amountPack(UserBinTransferDetail userBinTransferDetail) <- n WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+                quantity(UserBinTransferDetail userBinTransferDetail) <- NUMERIC[16,5](packQuantity(userBinTransferDetail)*(OVERRIDE 1.0, amountPack(userBinTransferDetail))) 
+                                        WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock) AND packQuantity(userBinTransferDetail) AND NOT skipChangeQuantity(userBinTransferDetail(sku, userBinTransfer, stock));
+            } ELSE {
+                amountPack(UserBinTransferDetail userBinTransferDetail) <- NULL WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+            }
+    
         }
-
+        changeValuePack(sku, n);
     }
-    EXEC changeValuePack(sku);
 }
 
 @extendFormDocumentPackSkuStock(userBinTransfer, userBinTransfer, o, );

@@ -101,10 +101,9 @@ barcode(Sku sku) = OVERRIDE [= GROUP MIN Barcode barcode IF id(barcode) AND amou
 
 primary 'Основной' (Barcode barcode) = barcode(sku(barcode)) == barcode;
 changePrimary(Barcode barcode, Sku sku) = ACTION {
-    REQUEST BOOLEAN INPUT;
-    IF requestedLogical() THEN {
-        dataBarcode(sku) <- barcode;
-    }
+    INPUTX b = BOOLEAN DO
+        IF b THEN
+            dataBarcode(sku) <- barcode;
 }
 
 allBarcodes 'Все штрих-коды' = GROUP CONCAT id(Barcode b) IF id(b), ',' BY sku(b) ORDER id(b), b;
@@ -123,19 +122,19 @@ shortNameUOM 'Единица измерения' (Barcode barcode) = shortName(U
 idUOM 'Код единицы измерения' (Barcode barcode) = id(UOM(barcode));
 
 changeBarcode(Sku sku) = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    IF requestedString() THEN { 
-        IF barcode(sku) THEN {
-            id(Barcode b) <- requestedString() WHERE barcode(sku)== b;     
-        } ELSE {
-            FOR NEW b = Barcode DO {
-                sku(b) <- sku;
-                id(b) <- requestedString();                
-            }    
-        }          
-    } ELSE
-        IF barcode(sku) THEN
-            DELETE Barcode b WHERE barcode(sku)== b;
+    INPUTX s = VARSTRING[15] DO
+        IF s THEN { 
+            IF barcode(sku) THEN {
+                id(Barcode b) <- s WHERE barcode(sku)== b;     
+            } ELSE {
+                FOR NEW b = Barcode DO {
+                    sku(b) <- sku;
+                    id(b) <- s;                
+                }    
+            }          
+        } ELSE
+            IF barcode(sku) THEN
+                DELETE Barcode b WHERE barcode(sku)== b;
 }
 
 // Атрибуты вытянутые от sku
@@ -181,9 +180,10 @@ processedBarcode (VARSTRING[15] b) = OVERRIDE b AS VARSTRING[15], overPreprocess
 
 barcodeInput 'Штрихкод' = DATA LOCAL VARSTRING[15] () EVENTID 'SCANNER';
 changeBarcodeInput() = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    barcodeInput() <- processedBarcode(requestedString());
-    formOk();
+    INPUTX s = VARSTRING[15] DO {
+        barcodeInput() <- processedBarcode(s);
+        formOk();
+    }
 }
 FORM barcodeInput 'Ввод штрихкода'
     PROPERTIES() barcodeInput ON CHANGE changeBarcodeInput()
@@ -304,13 +304,14 @@ END
 
 seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
 seekSkuBarcode() = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    seekBarcode() <- NULL;
-    seekBarcode() <- requestedString();
-    seek(skuBarcode(seekBarcode(), currentDate()));
-    IF NOT skuBarcode(seekBarcode(), currentDate()) THEN
-        MESSAGE 'Штрихкод не найден';
-    seekBarcode() <- NULL;
+    INPUTX s = VARSTRING[15] DO {
+        seekBarcode() <- NULL;
+        seekBarcode() <- s;
+        seek(skuBarcode(seekBarcode(), currentDate()));
+        IF NOT skuBarcode(seekBarcode(), currentDate()) THEN
+            MESSAGE 'Штрихкод не найден';
+        seekBarcode() <- NULL;
+    }
 }
 
 EXTEND FORM skus

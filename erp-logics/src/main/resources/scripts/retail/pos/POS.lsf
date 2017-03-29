@@ -700,7 +700,7 @@ changeBarcodeSale(Receipt receipt) = ACTION {
                 }
                 
             } ELSE
-                MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
+                MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + s + ')';
         }
     }
 }
@@ -1106,7 +1106,7 @@ posNotExplicitBatchLedger(Receipt r) = notExplicitBatchLedger(r) AND currentZRep
 
 changeQuantity 'Изменить кол-во строки чека'(ReceiptDetail detail) = ACTION {
     INPUTX n = NUMERIC[16,5] DO
-        IF requestedNumeric() THEN
+        IF n THEN
             quantity(detail) <- n
         ELSE
             DELETE detail; 
@@ -1505,14 +1505,10 @@ DESIGN operationCashRegister{
 
 //-- 
 changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu)= ACTION {
-    INPUTX b = BOOLEAN DO   
-        IF b THEN {
-            setUserPromotion(d, pcu) <- TRUE;
-            quantity(d, pcu) <- quantity(d);
-        } ELSE {
-            setUserPromotion(d, pcu) <- NULL;
-            quantity(d, pcu) <- NULL;    
-        }
+    INPUTX b = BOOLEAN DO {
+        setUserPromotion(d, pcu) <- b;
+        quantity(d, pcu) <- quantity(d) IF b;
+    }
 }
 
 EXTEND FORM zReport

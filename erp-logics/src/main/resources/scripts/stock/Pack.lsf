@@ -31,17 +31,17 @@ META definePackSku (caption, NS)
     shortNameUOMPack 'Ед. изм. упаковки' (Sku sku)= shortNameUOM(packBarcode(sku));
     amountPack 'Кол-во в упаковке'(Sku sku) =amount(packBarcode(sku)) IN itemPack;
     
-    changeValuePack(Sku sku) = ACTION {
-        IF requestedNumeric() THEN {
+    changeValuePack(Sku sku, NUMERIC[14,3] n) = ACTION {
+        IF n THEN {
             IF NOT packBarcode(sku) THEN {
                 FOR NEW b = Barcode DO {
                    sku(b) <- sku;
-                   dataAmount (b) <- requestedNumeric();
+                   dataAmount (b) <- n;
     
                    packBarcode(sku) <- b;
                 }
             } ELSE {
-                dataAmount (Barcode bb) <- requestedNumeric() WHERE bb == packBarcode(sku) AND NOT primary(bb);
+                dataAmount (Barcode bb) <- n WHERE bb == packBarcode(sku) AND NOT primary(bb);
             }
     
         } ELSE {
@@ -52,8 +52,8 @@ META definePackSku (caption, NS)
     }
 
     changePack(Sku sku) = ACTION {
-        REQUEST NUMERIC[14,3] INPUT;
-        changeValuePack(sku);
+        INPUTX n = NUMERIC[14,3] DO
+            changeValuePack(sku, n);
     }
 END
 
@@ -79,14 +79,15 @@ META defineDocumentPack(object, detail, f)
         WHEN CHANGED(quantity(d)) OR CHANGED(amountPack(d));
 
     // Объявляем действия по изменению количества в упаковке и количества упаковок
-    overChangeAmountPackUser = ACTION ABSTRACT LIST (###detail); 
+    overChangeAmountPackUser = ACTION ABSTRACT LIST (###detail, NUMERIC[14,3]); 
     changeAmountPackUser(###detail detail) = ACTION {
-        REQUEST NUMERIC[14,3] INPUT;
-        amountPack[User###detail](detail) <- requestedNumeric();
-        IF NOT skipChangeQuantity(detail) THEN {
-            quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
-        }        
-        overChangeAmountPackUser(detail);
+        INPUTX n = NUMERIC[14,3] DO {
+            amountPack[User###detail](detail) <- n;
+            IF NOT skipChangeQuantity(detail) THEN {
+                quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
+            }        
+            overChangeAmountPackUser(detail, n);
+        }
     }
 
     changePackQuantity(User###detail detail) = ACTION {
@@ -129,45 +130,44 @@ META defineDocumentPackSkuStock(object, detail, skuProp, stockProp)
         BY skuProp(detail), object(detail), stockProp##Stock(detail);
 
     changePackQuantity(###skuProp skuProp, ###object object, Stock stock) = ACTION {
-        REQUEST NUMERIC[14,3] INPUT;
-        IF detail###stockProp(sku, object, stock) THEN {
-            IF requestedNumeric() THEN {
-                ASSIGN packQuantity(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
-                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
-                                        WHERE detail == detail###stockProp(sku, object, stock) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
+        INPUTX n = NUMERIC[14,3] DO
+            IF detail###stockProp(sku, object, stock) THEN {
+                IF n THEN {
+                    packQuantity(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
+                                            WHERE detail == detail###stockProp(sku, object, stock) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
+                } ELSE {
+                    FOR detail###stockProp(sku, object, stock) == ###detail d DO
+                        DELETE d;
+                }
             } ELSE {
-                FOR detail###stockProp(sku, object, stock) == ###detail d DO
-                    DELETE d;
-            }
-        } ELSE {
-            IF requestedNumeric() THEN  {
-                FOR NEW d = ###detail DO {
-                   object(d) <- object;
-//                 Пока отключим работу с несколькими складами
-//                 data###stockProp###stock###detail (d) <- stock;
-                   skuProp(d) <- sku;
-                   packQuantity (d) <- requestedNumeric();
-                   quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
-                   shipmentDataDate (d) <- shipmentDate(object);
-                   shipmentDataTime (d) <- shipmentTime(object);
+                IF n THEN  {
+                    FOR NEW d = ###detail DO {
+                       object(d) <- object;
+                       skuProp(d) <- sku;
+                       packQuantity (d) <- n;
+                       quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+                       shipmentDataDate (d) <- shipmentDate(object);
+                       shipmentDataTime (d) <- shipmentTime(object);
+                    }
                 }
             }
-        }
     }
 
     changeAmountPack(###skuProp skuProp, ###object object, Stock stock) = ACTION {
-        REQUEST NUMERIC[14,3] INPUT;
-        IF detail###stockProp(sku, object, stock) THEN {
-            IF requestedNumeric() THEN {
-                ASSIGN amountPack(###detail detail) <- requestedNumeric() WHERE detail == detail###stockProp(sku, object, stock);
-                ASSIGN quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
-                                        WHERE detail == detail###stockProp(sku, object, stock) AND packQuantity(detail) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
-            } ELSE {
-                ASSIGN amountPack(###detail detail) <- NULL WHERE detail == detail###stockProp(sku, object, stock);
+        INPUTX n = NUMERIC[14,3] DO { 
+            IF detail###stockProp(sku, object, stock) THEN {
+                IF n THEN {
+                    amountPack(###detail detail) <- n WHERE detail == detail###stockProp(sku, object, stock);
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) 
+                                            WHERE detail == detail###stockProp(sku, object, stock) AND packQuantity(detail) AND NOT skipChangeQuantity(detail###stockProp(sku, object, stock));
+                } ELSE {
+                    amountPack(###detail detail) <- NULL WHERE detail == detail###stockProp(sku, object, stock);
+                }
+    
             }
-
+            changeValuePack(sku, n);
         }
-        EXEC changeValuePack(sku);
     }
 
 END
@@ -197,38 +197,39 @@ META defineDocumentPackSku(object, detail, skuProp, stockProp)
         BY skuProp(detail), object(detail);
 
     changePackQuantity(###skuProp skuProp, ###object object) = ACTION {
-        REQUEST NUMERIC[14,3] INPUT;
-        IF detail(sku, object) THEN {
-            IF requestedNumeric() THEN {
-                packQuantity(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
-                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND NOT skipChangeQuantity(detail(sku, object));
-                                
-            } ELSE {
-                FOR detail(sku, object) == ###detail d DO 
-                    DELETE d;
-            }
-        } ELSE {
-            IF requestedNumeric() THEN
-                FOR NEW d = ###detail DO {
-                    object(d) <- object;
-                    skuProp(d) <- sku;
-                    packQuantity (d) <- requestedNumeric();
-                    quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+        INPUTX n = NUMERIC[14,3] DO
+            IF detail(sku, object) THEN {
+                IF n THEN {
+                    packQuantity(###detail detail) <- n WHERE detail == detail(sku, object);
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND NOT skipChangeQuantity(detail(sku, object));
+                                    
+                } ELSE {
+                    FOR detail(sku, object) == ###detail d DO 
+                        DELETE d;
                 }
-        }
+            } ELSE {
+                IF n THEN
+                    FOR NEW d = ###detail DO {
+                        object(d) <- object;
+                        skuProp(d) <- sku;
+                        packQuantity (d) <- n;
+                        quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+                    }
+            }
     }
     changeAmountPack(###skuProp skuProp, ###object object) = ACTION {
-        REQUEST NUMERIC[14,3] INPUT;
-        IF detail(sku, object) THEN {
-            IF requestedNumeric() THEN {
-                amountPack(###detail detail) <- requestedNumeric() WHERE detail == detail(sku, object);
-                quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND packQuantity(detail) AND NOT skipChangeQuantity(detail(sku, object));
-            } ELSE {
-                amountPack(###detail detail) <- NULL WHERE detail == detail(sku, object);
+        INPUTX n = NUMERIC[14,3] DO {
+            IF detail(sku, object) THEN {
+                IF n THEN {
+                    amountPack(###detail detail) <- n WHERE detail == detail(sku, object);
+                    quantity(###detail detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)) WHERE detail == detail(sku, object) AND packQuantity(detail) AND NOT skipChangeQuantity(detail(sku, object));
+                } ELSE {
+                    amountPack(###detail detail) <- NULL WHERE detail == detail(sku, object);
+                }
+    
             }
-
+            changeValuePack(sku, n);
         }
-        EXEC changeValuePack(sku);
     }
 
 END

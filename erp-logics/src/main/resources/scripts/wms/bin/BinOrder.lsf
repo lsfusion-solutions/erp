@@ -398,17 +398,10 @@ backgroundInBin (Sku sku, BinOrder order) = RGB(244, 255, 189) IF sku IS Sku AND
 
 allOutBinQuantityUserBinOrder 'Весь остаток (ячейка из)' = DATA LOCAL BOOLEAN (Sku, Stock);
 changeAllOutBinQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
-    INPUTX b = BOOLEAN DO
-        IF b THEN {
-            requestedNumeric() <- NULL;
-            allOutBinQuantityUserBinOrder (sku,stock) <- TRUE;
-            requestedNumeric() <- prevCurrentBalanceOutBin(sku,userBinOrder);
-            changeQuantityValue(sku, userBinOrder, stock);
-        } ELSE {
-            allOutBinQuantityUserBinOrder (sku,stock) <- NULL;
-            requestedNumeric() <- NULL;
-            changeQuantityValue(sku, userBinOrder, stock);
-        }
+    INPUTX b = BOOLEAN DO {
+        allOutBinQuantityUserBinOrder (sku,stock) <- b;
+        changeQuantityValue(sku, userBinOrder, stock, prevCurrentBalanceOutBin(sku,userBinOrder) IF b);
+    }
 }
 
 EXTEND FORM userBinOrder
@@ -461,18 +454,19 @@ changePackQuantity(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
 }
 
 changeAmountPack(Sku sku, UserBinOrder userBinOrder, Stock stock) = ACTION {
-    REQUEST NUMERIC[14,3] INPUT;
-    IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
-        IF requestedNumeric() THEN {
-            amountPack(UserBinOrderDetail userBinOrderDetail) <- requestedNumeric() WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
-            quantity(UserBinOrderDetail userBinOrderDetail) <- packQuantity(userBinOrderDetail)*(OVERRIDE 1.0, amountPack(userBinOrderDetail)) 
-                                    WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock) AND packQuantity(userBinOrderDetail) AND NOT skipChangeQuantity(userBinOrderDetail(sku, userBinOrder, stock));
-        } ELSE {
-            amountPack(UserBinOrderDetail userBinOrderDetail) <- NULL WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
+    INPUTX n = NUMERIC[14,3] DO {
+        IF userBinOrderDetail(sku, userBinOrder, stock) THEN {
+            IF n THEN {
+                amountPack(UserBinOrderDetail userBinOrderDetail) <- n WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
+                quantity(UserBinOrderDetail userBinOrderDetail) <- NUMERIC[16,5](packQuantity(userBinOrderDetail)*(OVERRIDE 1.0, amountPack(userBinOrderDetail))) 
+                                        WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock) AND packQuantity(userBinOrderDetail) AND NOT skipChangeQuantity(userBinOrderDetail(sku, userBinOrder, stock));
+            } ELSE {
+                amountPack(UserBinOrderDetail userBinOrderDetail) <- NULL WHERE userBinOrderDetail == userBinOrderDetail(sku, userBinOrder, stock);
+            }
+    
         }
-
+        changeValuePack(sku, n);
     }
-    changeValuePack(sku);
 }
 
 @extendFormDocumentPackSkuStock(userBinOrder, userBinOrder, o, );
