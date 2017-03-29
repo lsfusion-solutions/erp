@@ -68,7 +68,7 @@ isReceiptGiftCardSaleDetail (ReceiptGiftCardSaleDetail d) = TRUE IF d IS Receipt
 seriesNumberGiftCard 'Серия/Номер сертификата' (ReceiptGiftCardSaleDetail detail) = seriesNumber(giftCard(detail));
 
 EXTEND FORM zReport
-    PROPERTIES(d) seriesNumberGiftCard SHOWIF isReceiptGiftCardSaleDetail(d) TODRAW d FORCE GRID
+    PROPERTIES(d) seriesNumberGiftCard SHOWIF isReceiptGiftCardSaleDetail(d) TODRAW d GRID
 ;
 
 receipt = DATA Receipt (ReceiptGiftCardSaleDetail) NOT NULL DELETE;
@@ -212,8 +212,8 @@ DESIGN giftCard {
 FORM giftCards 'Подарочные сертификаты'
     OBJECTS g = GiftCard
     PROPERTIES(g) READONLYIF isReadonly() number, series, date, dateSold, nameLegalEntity, nameDepartmentStoreSold, numberReceiptSold, expiryDays, price
-    PROPERTIES generateGiftCards() TODRAW g FORCE PANEL
-    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE FORCE PANEL TOOLBAR
+    PROPERTIES generateGiftCards() TODRAW g PANEL
+    PROPERTIES(g) NEWSESSION NEW, EDIT, DELETE TOOLBAR
 
     OBJECTS l = GiftCardLedger
     PROPERTIES(l) READONLY dateTime, seriesNumber, sum, description, numberDocument, nameDepartmentStore
@@ -338,7 +338,7 @@ addGiftCardpayment 'Добавить ПС' (Receipt r) = ACTION FOR NEW p = Paym
 
 EXTEND FORM zReport
     PROPERTIES (b)  addGiftCardpayment TOOLBAR TODRAW p
-    PROPERTIES (p) seriesNumber[GiftCardLedger] FORCE GRID BEFORE del;
+    PROPERTIES (p) seriesNumber[GiftCardLedger] GRID BEFORE del;
 
 overCopy(ReceiptGiftCardSaleDetail detail,Receipt r) += ACTION {
     IF detail IS ReceiptGiftCardSaleDetail THEN {
