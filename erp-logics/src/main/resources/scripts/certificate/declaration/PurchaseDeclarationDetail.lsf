@@ -744,24 +744,22 @@ WHEN SESSION FORMS declaration SET (DeclarationDetail d IS DeclarationDetail) IF
 }
 
 changeNumber(DeclarationDetail d) = ACTION {
-    REQUEST INTEGER INPUT;
-    IF isExported(declaration(d)) THEN {
-        IF requestedInteger() > userNumber(d) THEN {
-            userNumber(DeclarationDetail e) <- userNumber(e) - 1 
-                WHERE userNumber(e) > userNumber(d) AND 
-                      userNumber(e) <= requestedInteger() AND
-                      declaration(e) == declaration(d);         
-        } ELSE {
-            userNumber(DeclarationDetail e) <- userNumber(e) + 1 
-                WHERE userNumber(e) < userNumber(d) AND 
-                      userNumber(e) >= requestedInteger() AND
-                      declaration(e) == declaration(d);         
+    INPUTX i = INTEGER DO {
+        userNumber(d) <- i;
+        IF isExported(declaration(d)) THEN {
+            IF i > userNumber(d) THEN {
+                userNumber(DeclarationDetail e) <- userNumber(e) - 1 
+                    WHERE userNumber(e) > userNumber(d) AND 
+                          userNumber(e) <= i AND
+                          declaration(e) == declaration(d);         
+            } ELSE {
+                userNumber(DeclarationDetail e) <- userNumber(e) + 1 
+                    WHERE userNumber(e) < userNumber(d) AND 
+                          userNumber(e) >= i AND
+                          declaration(e) == declaration(d);         
+            }
         }
-//        userNumberDeclarationDetail(e) <- NULL WHERE declarationDeclarationDetail(e) == declarationDeclarationDetail(d);
-//        userNumberDeclarationDetail(e) <- PARTITION SUM 1 BY declarationDeclarationDetail(e) ORDER userNumberDeclarationDetail(e), e WHERE declarationDeclarationDetail(e) == declarationDeclarationDetail(d);
-//        userNumberDeclarationDetail(e) <- userNumberDeclarationDetail(e) + 1 WHERE declarationDeclarationDetail(e) == declarationDeclarationDetail(d) AND userNumberDeclarationDetail(e) >= requestedInteger();
     }
-    userNumber(d) <- requestedInteger();
 }
 
     
@@ -788,16 +786,10 @@ dataDutySum 'Пошлина' (declaration) = DATA NUMERIC[18,4] (Declaration) MI
 dutySum 'Пошлина' (Declaration declaration)  =  OVERRIDE dutySumDeclarationDetail(declaration), dataDutySum(declaration);                                                                    
 backgroundDutySum = RGB(222,222,222) IF dataDutySum(Declaration declaration);
 changeDutySum(Declaration declaration) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF requestedNumeric() != dutySumDeclarationDetail(declaration) THEN {
-            dataDutySum(declaration) <- requestedNumeric();    
+    INPUTX n = NUMERIC[18,4] DO
+        IF NOT n == dutySumDeclarationDetail(declaration) THEN {
+            dataDutySum(declaration) <- n;    
         }
-    } ELSE {
-        IF dataDutySum(declaration) THEN {
-            dataDutySum(declaration) <- NULL; 
-        }  
-    }
 }
 
 VATSumDeclarationDetail 'НДС' (declaration) = GROUP SUM VATSum(DeclarationDetail declarationDetail)
@@ -806,16 +798,10 @@ dataVATSum 'НДС' (declaration) = DATA NUMERIC[18,4] (Declaration) MINCHARWIDT
 VATSum 'НДС' (Declaration declaration)  = OVERRIDE VATSumDeclarationDetail(declaration), dataVATSum(declaration);
 backgroundVATSum = RGB(222,222,222) IF dataVATSum(Declaration declaration);
 changeVATSum(Declaration declaration) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF requestedNumeric() != VATSumDeclarationDetail(declaration) THEN {
-            dataVATSum(declaration) <- requestedNumeric();    
+    INPUTX n = NUMERIC[18,4] DO
+        IF NOT n == VATSumDeclarationDetail(declaration) THEN {
+            dataVATSum(declaration) <- n;    
         }
-    } ELSE {
-        IF dataVATSum(declaration) THEN {
-            dataVATSum(declaration) <- NULL; 
-        }  
-    }
 }
 
 //------------------------------------ Корректировка таможенной стоимости ---------------------------------------------//
@@ -866,41 +852,38 @@ dutySumToPay 'Пошлина к доплате' = GROUP SUM dutySumToPay(Declara
 VATSumToPay 'НДС к доплате' = GROUP SUM VATSumToPay(DeclarationAdjustment a, DeclarationDetail dd) BY a;
 
 changeHomeSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == homeSumToPay(a,d) THEN {
-            homeSum(a,d)<- requestedNumeric() (+) homeSum(d);            
-        }
-    }ELSE {
-        homeSum(a,d)<- NULL;
-    }
+    INPUTX n = NUMERIC[18,4] DO 
+        IF n THEN {
+            IF NOT n == homeSumToPay(a,d) THEN {
+                homeSum(a, d) <- n (+) homeSum(d);            
+            }
+        } ELSE
+            homeSum(a,d)<- NULL;
 }
 changeDutySum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == dutySumToPay(a,d) THEN {
-            
-            IF NOT homeSum(a,d) THEN {
-                homeSum(a,d)<- homeSum(d);
-            }
-            dutySum(a,d)<- requestedNumeric() (+) dutySum(d);            
-        }       
-    }ELSE {
-        dutySum(a,d)<- NULL;
-    }
+    INPUTX n = NUMERIC[18,4] DO
+        IF n THEN {
+            IF NOT n == dutySumToPay(a,d) THEN {
+                
+                IF NOT homeSum(a,d) THEN {
+                    homeSum(a,d) <- homeSum(d);
+                }
+                dutySum(a,d) <- n (+) dutySum(d);            
+            }       
+        } ELSE
+            dutySum(a, d) <- NULL;
 }
 changeVATSum (DeclarationAdjustment a, DeclarationDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF NOT requestedNumeric() == VATSumToPay(a,d) THEN {            
-            IF NOT homeSum(a,d) THEN {
-                homeSum(a,d)<- homeSum(d);
-            } 
-            VATSum(a,d)<- requestedNumeric() (+) VATSum(d);
-        }
-    }ELSE {
-        VATSum(a,d)<- NULL;
-    }
+    INPUTX n = NUMERIC[18,4] DO
+        IF n THEN {
+            IF NOT n == VATSumToPay(a, d) THEN {            
+                IF NOT homeSum(a, d) THEN {
+                    homeSum(a, d) <- homeSum(d);
+                } 
+                VATSum(a, d) <- n (+) VATSum(d);
+            }
+        } ELSE
+            VATSum(a, d) <- NULL;
 }
 
 adjustHomeSum 'Стоимость (корр.)' (DeclarationDetail d) = OVERRIDE homeSum(d), homeSum(defaultHomeDeclarationAdjustment(d),d);

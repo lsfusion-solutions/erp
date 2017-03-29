@@ -13,26 +13,18 @@ percentHumidity 'Влажность, %' (Product p) = percentHumidity(sku(p)) IN
 @changeNutrition(product, sku, percentHumidity) ;
 percentDryness 'Массовая доля сухих веществ, %' (Product p) = percentDryness(sku(p)) IN itemHumidity;
 changePercentDryness(Product product)  = ACTION {
-    REQUEST  NUMERIC[8,2] INPUT ;
-    IF requestedNumeric() THEN {
-        percentHumidity(Item item) <- (100-requestedNumeric()) WHERE item == sku(product);
-    } ELSE {
-        percentHumidity(Item item) <- NULL WHERE item == sku(product);
-    }    
-};
+    INPUTX n = NUMERIC[8,2] DO
+        percentHumidity(Item item) <- (100-n) WHERE item == sku(product);
+}
 
 // Влажность компонент
 percentHumidity 'Влажность, %' (Component component) = percentHumidity[Item](overSku(component));
 @changeNutrition(component, overSku, percentHumidity);
 percentDryness 'Массовая доля сухих веществ, %' (Component component) = percentDryness[Item](overSku(component)) IN itemHumidity;     
 changePercentDryness(Component component)  = ACTION {
-    REQUEST  NUMERIC[8,2] INPUT ;
-    IF requestedNumeric() THEN {
-        percentHumidity(Item item) <- (100-requestedNumeric()) WHERE item == overSku(component);
-    } ELSE {
-        percentHumidity(Item item) <- NULL WHERE item == overSku(component);
-    }    
-};                                           
+    INPUTX n = NUMERIC[8,2] DO
+        percentHumidity(Item item) <- (100-n) WHERE item == overSku(component);
+}                                           
                                               
 //------------------------- Производственная рецептура --------------------------//
 

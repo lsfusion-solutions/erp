@@ -27,20 +27,18 @@ DESIGN options { customs { MOVE PROPERTY(requestInputChangeCustomsCode()); } }
 // Действие по изменению кода ТНВЭД через ручной ввод
 changeCodeCustomsGroup(Country country, Item item) = ACTION {
     IF requestInputChangeCustomsCode() THEN {
-        REQUEST STRING[10] INPUT;
-        IF requestedString() THEN {
-            IF customsGroup(rpad(requestedString(),10,'0')) THEN {
-                customsGroup(country, item) <- customsGroup(rpad(requestedString(),10,'0')); 
+        INPUTX s = STRING[10] DO {
+            IF customsGroup(rpad(s, 10, '0')) OR NOT s THEN {
+                customsGroup(country, item) <- customsGroup(rpad(s, 10, '0')); 
             } ELSE {
                 caption() <- caption(item);
                 article() <- id(item);
                 originalCustomsGroup() <- originalCustomsGroup(item);
                 composition() <- composition(item);
-                DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroup(requestedString()) INPUT NULL DO
+                DIALOG customsGroups OBJECTS cz = customsZoneDefaultCountry(), cg = nearestCustomsGroup(s) INPUT NULL DO
                     customsGroup(country, item) <- cg;
             }
-        } ELSE
-            customsGroup(country, item) <- NULL;
+        }
     } ELSE {
         DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, item) INPUT NULL CONSTRAINTFILTER DO
             customsGroup(country, item) <- cg;

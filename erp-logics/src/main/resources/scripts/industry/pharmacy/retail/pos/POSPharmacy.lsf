@@ -69,35 +69,35 @@ readOnlyBlisterQuantity (Batch batch, Receipt receipt) = receipt IS Receipt AND 
 backgroundBlisterQuantity 'Цвет' (Batch batch, Receipt receipt)  = RGB(250, 236, 199) IF receipt IS Receipt AND blisterAmount(batch);
 
 changeBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
-    REQUEST INTEGER INPUT;
-    IF receiptDetail(batch, receipt) THEN {
-        IF (requestedInteger() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedInteger() != 0) THEN {
-            IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5)) < minDelta() THEN {
-                quantity (ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
-            } ELSE {
-                quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
-            }
-//            sum(ReceiptSaleDetail receiptDetail) <-round2((price(receiptDetail)/blisterAmount(batch))*requestedInteger()) WHERE receiptDetail == receiptDetail(batch, receipt);
-        } ELSE {
-            FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
-                DELETE d;
-        }
-    } ELSE {
-        IF (requestedInteger() AND NOT deleteNullDetail()) OR (deleteNullDetail() AND requestedInteger() != 0) THEN {
-            FOR NEW d = ReceiptSaleDetail DO {
-                receipt(d) <- receipt;
-                sku(d) <- sku(batch);
-                batch(d) <- batch;
-                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5)) < minDelta() THEN {
-                    quantity (d) <- prevCurrentBalance(batch, receipt);
+    INPUTX i = INTEGER DO
+        IF receiptDetail(batch, receipt) THEN {
+            IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
+                IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](i)/blisterAmount(batch), 5)) < minDelta() THEN {
+                    quantity (ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
                 } ELSE {
-                    quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](requestedInteger())/blisterAmount(batch), 5));
+                    quantity(ReceiptSaleDetail receiptDetail) <- prevCurrentBalance(batch, receipt) WHERE receiptDetail == receiptDetail(batch, receipt);
                 }
-                price(d) <- currentPOSPrice(batch, receipt);
-//                sum(d) <-round((price(d)/blisterAmount(batch))*requestedInteger(), roundCondition(departmentStore(d)));
+    //            sum(ReceiptSaleDetail receiptDetail) <-round2((price(receiptDetail)/blisterAmount(batch))*requestedInteger()) WHERE receiptDetail == receiptDetail(batch, receipt);
+            } ELSE {
+                FOR receiptDetail(batch, receipt) == ReceiptDetail d DO
+                    DELETE d;
+            }
+        } ELSE {
+            IF (i AND NOT deleteNullDetail()) OR (deleteNullDetail() AND i != 0) THEN {
+                FOR NEW d = ReceiptSaleDetail DO {
+                    receipt(d) <- receipt;
+                    sku(d) <- sku(batch);
+                    batch(d) <- batch;
+                    IF minDelta() AND delta(prevCurrentBalance(batch, receipt), round(NUMERIC[16,5](i)/blisterAmount(batch), 5)) < minDelta() THEN {
+                        quantity (d) <- prevCurrentBalance(batch, receipt);
+                    } ELSE {
+                        quantity (d) <- NUMERIC[16,5](round(NUMERIC[16,5](i)/blisterAmount(batch), 5));
+                    }
+                    price(d) <- currentPOSPrice(batch, receipt);
+    //                sum(d) <-round((price(d)/blisterAmount(batch))*requestedInteger(), roundCondition(departmentStore(d)));
+                }
             }
         }
-    }
 }
 
 needPrescription 'Рецепт' (Batch batch) = needPrescription(sku(batch));    
@@ -142,7 +142,6 @@ EXTEND FORM POS
 ;
 
 changeAnalogueBlisterQuantity(Batch batch, Receipt receipt) = ACTION {
-    REQUEST INTEGER INPUT;
     changeBlisterQuantity(batch, receipt);
     FOCUS POS.quantityReceiptGrid;
     SEEK POS.bt = batch;

@@ -16,21 +16,19 @@ originalCustomsGroup 'Код ТНВЭД (ориг.)' = DATA STRING[10] (Article)
 // Действие по изменению кода ТНВЭД через ручной ввод
 changeCodeCustomsGroup(Country country, Article article) = ACTION {
     IF requestInputChangeCustomsCode() THEN {
-        REQUEST STRING[10] INPUT;
-        IF requestedString() THEN {
-            IF customsGroup(rpad(requestedString(),10,'0')) THEN {
-                customsGroup(country, article) <- customsGroup(rpad(requestedString(),10,'0')); 
+        INPUTX s = STRING[10] DO {
+            IF customsGroup(rpad(s,10,'0')) OR NOT s THEN {
+                customsGroup(country, article) <- customsGroup(rpad(s,10,'0')); 
             } ELSE {
                 caption() <- caption(article);
                 article() <- id(article);
                 originalCustomsGroup() <- originalCustomsGroup(article);
                 composition() <- composition(article);
                 gender() <- nameGender(article);
-                DIALOG customsGroups OBJECTS cz = customsZone(country), cg = nearestCustomsGroup(requestedString()) INPUT DO
+                DIALOG customsGroups OBJECTS cz = customsZone(country), cg = nearestCustomsGroup(s) INPUT DO
                     customsGroup(country, article) <- cg;
             }
-        } ELSE
-            customsGroup(country, article) <- NULL;
+        }
     } ELSE {
         DIALOG customsGroups OBJECTS cz = customsZone(country), cg = customsGroup(country, article) INPUT NULL CONSTRAINTFILTER DO 
             customsGroup(country, article) <- cg;
@@ -38,21 +36,18 @@ changeCodeCustomsGroup(Country country, Article article) = ACTION {
 }
 
 changeWYSCodeCustomsGroup(Country country, Article article) = ACTION {
-    REQUEST STRING[10] INPUT;
-    IF requestedString() THEN {
-        IF customsGroup(rpad(requestedString(),10,'0')) THEN {
-            customsGroup(country, article) <- customsGroup(rpad(requestedString(),10,'0')); 
+    INPUTX s = STRING[10] DO
+        IF customsGroup(rpad(s, 10, '0')) OR NOT s THEN {
+            customsGroup(country, article) <- customsGroup(rpad(s, 10, '0')); 
         } ELSE {
             caption() <- caption(article);
             article() <- id(article);
             originalCustomsGroup() <- originalCustomsGroup(article);
             composition() <- composition(article);
             gender() <- nameGender(article);
-            DIALOG customsGroups OBJECTS cz = customsZone(country), cg = nearestCustomsGroup(requestedString()) INPUT DO
+            DIALOG customsGroups OBJECTS cz = customsZone(country), cg = nearestCustomsGroup(s) INPUT DO
                 customsGroup(country, article) <- cg;
         }
-    } ELSE
-        customsGroup(country, article) <- NULL;
 }
 
 changeCustomsGroupDefaultCountry(Article article) = ACTION {

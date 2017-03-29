@@ -422,15 +422,8 @@ META defineInvoice(sign, stockProp, supplierFilter, customerFilter, priceListTyp
     @defineDocumentHeaderGrossWeightCustomPrefix (invoice, invoiceDetail, sum, ', кг');
     @defineDocumentHeaderGrossWeightCustomPrefix (userInvoice, userInvoiceDetail, sum, ', кг'); 
     changeGrossWeight(Invoice invoice)  = ACTION {
-        REQUEST NUMERIC[16,3] INPUT;
-        IF requestedNumeric() THEN {           
-            sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](sumNetWeight(d)/(sumNetWeightInvoiceDetail(invoice) IF sumNetWeightInvoiceDetail(invoice) != 0)* requestedNumeric())
-                WHERE d IS InvoiceDetail AND invoice(d) == invoice;
-    
-        } ELSE {
-           
-            sumGrossWeight(InvoiceDetail d) <- NULL WHERE d IS InvoiceDetail AND invoice(d) == invoice;    
-        }        
+        INPUTX n = NUMERIC[16,3] DO 
+            sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](sumNetWeight(d)/(sumNetWeightInvoiceDetail(invoice) IF sumNetWeightInvoiceDetail(invoice) != 0) * n) WHERE invoice(d) == invoice;
     } 
         
     countInvoiceDetail (stock, invoice) = GROUP SUM 1 BY stockProp##Stock(InvoiceDetail invoiceDetail), invoice(invoiceDetail);

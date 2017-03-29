@@ -74,24 +74,20 @@ calcWholesaleMarkup(UserInvoiceDetail detail)  = [= round2((X/Y-1)*100)](
     basePrice(detail) IF basePrice(detail)!= 0.0);
 
 changeWholesalePrice(UserInvoiceDetail detail) = ACTION {
-    REQUEST NUMERIC[16,4] INPUT;
-    IF requestedNumeric() THEN {
-        ASSIGN wholesalePrice(detail) <- requestedNumeric();
-        ASSIGN wholesaleMarkup(detail) <- calcWholesaleMarkup(detail);
-    } ELSE {
-        ASSIGN wholesalePrice(detail) <- NULL;
+    INPUTX n = NUMERIC[16,4] DO {
+        wholesalePrice(detail) <- n;
+        wholesaleMarkup(detail) <- calcWholesaleMarkup(detail);
     }
 }
 
 changeWholesaleMarkup (UserInvoiceDetail detail) = ACTION {
-    REQUEST NUMERIC[8,3] INPUT;
-    IF requestedNumeric() THEN {
-        wholesaleMarkup(detail) <- requestedNumeric();
-        wholesalePrice(detail) <- round((basePrice(detail) * (wholesaleMarkup(detail) + 100)/ 100),
-                                                                            roundCondition(wholesaleCalcPriceListType(detail))) (+) extraWholesalePrice(detail);
-    } ELSE {
-        wholesaleMarkup(detail) <- NULL;
-        wholesalePrice(detail) <- basePrice(detail) (+) extraWholesalePrice(detail);  
+    INPUTX n = NUMERIC[8,3] DO {
+        wholesaleMarkup(detail) <- n;
+        IF n THEN
+            wholesalePrice(detail) <- round((basePrice(detail) * (wholesaleMarkup(detail) + 100)/ 100),
+                                                                                roundCondition(wholesaleCalcPriceListType(detail))) (+) extraWholesalePrice(detail)
+        ELSE                                                                                
+            wholesalePrice(detail) <- basePrice(detail) (+) extraWholesalePrice(detail);  
     }
 } 
 

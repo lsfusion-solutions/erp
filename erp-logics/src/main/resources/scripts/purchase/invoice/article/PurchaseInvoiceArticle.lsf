@@ -39,14 +39,13 @@ replace(Article a, Article article) += ACTION {ASSIGN article(UserInvoiceArticle
 //        MESSAGE 'Артикул для строки накладной/артикул (польз.) (закупка) и артикл товара для строки накладной (польз.) (закупка) не соответствуют друг другу';
 
 changeIdArticle(UserInvoiceArticleDetail detail) = ACTION {
-    REQUEST VARSTRING[100] INPUT;
-    IF requestedString() THEN {
-        IF article(requestedString()) THEN {
-            article(detail) <- article(requestedString());    
+    INPUTX s = VARSTRING[100] DO
+        IF article(s) OR NOT s THEN {
+            article(detail) <- article(s);    
         } ELSE {
             ASK 'Артикула с таким кодом нет, хотите добавить?' DO {
                 FOR NEW a = Article DO {
-                    id(a) <- requestedString();  
+                    id(a) <- s;  
                     article(detail) <- a;  
                 }
             }    
@@ -55,36 +54,30 @@ changeIdArticle(UserInvoiceArticleDetail detail) = ACTION {
 }
 
 changeOriginalCaptionArticle(UserInvoiceArticleDetail detail) = ACTION {
-    REQUEST VARISTRING[100] INPUT;
-    IF requestedString() THEN {
+    INPUTX s = VARISTRING[100] DO
         IF article(detail) THEN {
-            originalCaption(Article a) <- requestedString() WHERE  article(detail) == a;
+            originalCaption(Article a) <- s WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
-    } 
 }
 
 changeOriginalCompositionArticle(UserInvoiceArticleDetail detail) = ACTION {
-    REQUEST VARSTRING[255] INPUT;
-    IF requestedString() THEN {
+    INPUTX s = VARSTRING[255] DO
         IF article(detail) THEN {
             originalComposition(Article a) <- requestedString() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
-    } 
 }
 
 changeOriginalCustomsGroupArticle(UserInvoiceArticleDetail detail) = ACTION {
-    REQUEST STRING[10] INPUT;
-    IF requestedString() THEN {
+    INPUTX s = STRING[10] DO
         IF article(detail) THEN {
             originalCustomsGroup(Article a) <- requestedString() WHERE  article(detail) == a;
         } ELSE {
             MESSAGE 'Задайте вначале код артикула';   
         }
-    } 
 }
 
 changeSizeGroupArticle(UserInvoiceArticleDetail detail) = ACTION {

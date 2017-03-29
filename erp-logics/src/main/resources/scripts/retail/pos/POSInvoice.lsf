@@ -172,22 +172,23 @@ DESIGN paymentInstallments {
 }
 
 setPassportLegalEntity () += ACTION {
-    REQUEST STRING[10] INPUT;
-    passportNumberLegalEntity() <- requestedString(); 
-    FOR NOT requestCanceled() AND passportNumber(LegalEntity l) == requestedString() AND NOT isReadonly() DO {
-        nameLegalEntity() <- name(l);
-        phoneContact() <- phone[Contact](l);
-        postAddressContact() <- postAddress[Contact](l);
-        isReadonly() <- TRUE;
+    INPUTX s = STRING[10] DO {
+        passportNumberLegalEntity() <- s; 
+        FOR passportNumber(LegalEntity l) == s AND NOT isReadonly() DO {
+            nameLegalEntity() <- name(l);
+            phoneContact() <- phone[Contact](l);
+            postAddressContact() <- postAddress[Contact](l);
+            isReadonly() <- TRUE;
+        }
     }
 }
 
 setNameEmployee () += ACTION {
-    REQUEST VARSTRING[100] INPUT;
-    FOR NOT requestCanceled() AND id(Employee e) == requestedString() DO {
-        idEmployee() <- requestedString();    
-        nameEmployee() <- shortName(e);
-    } 
+    INPUTX s = VARSTRING[100] DO
+        FOR id(Employee e) == s DO {
+            idEmployee() <- s;    
+            nameEmployee() <- shortName(e);
+        } 
 }
 
 printReceipt = ACTION ABSTRACT LIST (Sale.Invoice, Payment.Payment);

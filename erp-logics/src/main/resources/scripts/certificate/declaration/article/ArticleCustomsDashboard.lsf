@@ -14,16 +14,8 @@ notCompletedCustoms 'Не обработан' (article) = GROUP SUM 1 IF Item i 
 completedCustoms 'Обработан' = Article a IS Article AND NOT notCompletedCustoms(a);
 
 changeCompletedCustoms (Article article) = ACTION {
-    REQUEST BOOLEAN INPUT;
-    IF requestedLogical() THEN {
-        FOR article(Item item) == article DO {
-            completedCustoms(item) <- TRUE;
-        }
-    } ELSE {
-        FOR article(Item item) == article DO {
-            completedCustoms(item) <- NULL;
-        }                
-    }        
+    INPUTX b = BOOLEAN DO
+        completedCustoms(Item item) <- b WHERE article(item) == article; 
 }
 
 // Подсчет необработанных артикулов для групп
@@ -40,8 +32,8 @@ dateArticleCustomsDashboard 'Дата' () = dateArticleCustomsDashboard(currentU
 setDateArticleCustomsDashboard() = ACTION dateArticleCustomsDashboard(User u) <- currentDate() WHERE u == currentUser();
 
 changeDateArticleCustomsDashboard() = ACTION {
-    REQUEST DATE INPUT;
-    dateArticleCustomsDashboard(User u) <- requestedDate() WHERE u == currentUser();
+    INPUTX d = DATE DO
+        dateArticleCustomsDashboard(User u) <- d WHERE u == currentUser();
 }
 
 filterCustomsInvoice= DATA LOCAL Purchase.Invoice ();

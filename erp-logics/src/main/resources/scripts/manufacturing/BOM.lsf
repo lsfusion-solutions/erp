@@ -401,11 +401,8 @@ calcPricePercentNumeric '%' (Product product, NUMERIC[8,5] num) = (num AS NUMERI
     /(quantityProduct(BOM(product)) IF quantityProduct(BOM(product))!= 0); 
     
 changePriceCoeff(Product product) = ACTION {
-    REQUEST NUMERIC[8,5] INPUT;
-    IF requestedNumeric() THEN {        
-        pricePercent(product) <- NUMERIC[16,10](calcPricePercentNumeric(product, requestedNumeric()));
-
-    }
+    INPUTX n = NUMERIC[8,5] DO        
+        pricePercent(product) <- NUMERIC[16,10](calcPricePercentNumeric(product, n));
 }
 series 'Серия' = series(BOM(Product p)) FIXEDCHARWIDTH 3;
 number 'Номер' = number(BOM(Product p)) MINCHARWIDTH 7;
@@ -535,35 +532,24 @@ selectTechnologies(Component component) = ACTION {
 }  
        
 changeNettoQuantity(Component component) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF requestedNumeric() THEN {
-        nettoQuantity(component) <- requestedNumeric();
-        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
-    } ELSE {
-        nettoQuantity(component) <- NULL;
-    }                
+    INPUTX n = NUMERIC[16,5] DO {
+        nettoQuantity(component) <- n;
+        IF n THEN
+            bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
+    }
 }   
                                                                                                                                                                                                                                                                                                                                                       
 changeWastage(Component component) = ACTION {
-    REQUEST NUMERIC[8,3] INPUT;
-    IF requestedNumeric() THEN {
-        wastage(component) <- requestedNumeric();   
-        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
-    } ELSE {
-        wastage(component) <- NULL;
-        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,wastage(component)/100))); 
+    INPUTX n = NUMERIC[8,3] DO {
+        wastage(component) <- n;   
+        bruttoQuantity(component) <- NUMERIC[16,5](nettoQuantity(component)/(1 - (OVERRIDE 0 IF component IS Component,n/100))); 
     }
 }                                                                                                                                                                                                                                                                                                                                                      
                                                                                                                                                                                                                                                                                                                                                             
 changeBruttoQuantity(Component component) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF requestedNumeric() THEN {    
-        bruttoQuantity(component) <- requestedNumeric();
+    INPUTX n = NUMERIC[16,5] DO {    
+        bruttoQuantity(component) <- n;
         wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100); 
-               
-    } ELSE {
-        bruttoQuantity(component) <- NULL;
-        wastage(component) <- NUMERIC[8,3]((1-(nettoQuantity(component)/(bruttoQuantity(component) IF bruttoQuantity(component)!=0)))*100);          
     }                
 }
 backgroundBruttoQuantity 'Цвет' (Component component) = RGB(229,229,229) IF countTechnologies(component);
@@ -1235,24 +1221,24 @@ component (BOM,material) =  GROUP MAX Component component
     BY BOM(component), material(component);
    
 changeQuantity(BOM BOM,Material material) = ACTION {
-    REQUEST NUMERIC[14,3] INPUT;
-    IF component(BOM,material) THEN {
-        IF requestedNumeric() THEN {
-            nettoQuantity(Component detail) <- requestedNumeric() WHERE detail == component(BOM,material);
-            bruttoQuantity(Component detail) <- requestedNumeric() WHERE detail == component(BOM,material);
+    INPUTX n = NUMERIC[14,3] DO
+        IF component(BOM,material) THEN {
+            IF n THEN {
+                nettoQuantity(Component detail) <- n WHERE detail == component(BOM,material);
+                bruttoQuantity(Component detail) <- n WHERE detail == component(BOM,material);
+            } ELSE {
+                DELETE Component detail WHERE detail == component(BOM,material);
+            }
         } ELSE {
-            DELETE Component detail WHERE detail == component(BOM,material);
-        }
-    } ELSE {
-        IF requestedNumeric() THEN {
-            FOR NEW d = Component DO {
-                BOM(d) <- BOM;
-                material(d) <- material;
-                nettoQuantity (d) <- requestedNumeric();
-                bruttoQuantity (d) <- requestedNumeric();
+            IF n THEN {
+                FOR NEW d = Component DO {
+                    BOM(d) <- BOM;
+                    material(d) <- material;
+                    nettoQuantity (d) <- n;
+                    bruttoQuantity (d) <- n;
+                }
             }
         }
-    }
 }
 componentsStock = DATA LOCAL Stock(BOM);
 nameComponentsStock 'Склад' = name(componentsStock(BOM BOM));

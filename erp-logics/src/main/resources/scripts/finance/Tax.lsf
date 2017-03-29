@@ -458,10 +458,11 @@ END
 META defineDocumentDetailPriceVATOnChangeCustom (detail)
     overChangePrice = ACTION ABSTRACT (###detail);
     changePrice (###detail detail) = ACTION {
-        REQUEST NUMERIC[16,4] INPUT;
-        price (detail) <- requestedNumeric();
-        invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail)) / 100;
-        overChangePrice(detail);
+        INPUTX n = NUMERIC[16,4] DO {
+            price (detail) <- n;
+            invoicePrice (detail) <- price (detail) * (100 + calcValueVAT(detail)) / 100;
+            overChangePrice(detail);
+        }
     }
 END
 
@@ -486,8 +487,8 @@ END
 // Изменение ставки НДС
 META defineDocumentDetailValueVATOnChangeCustom (detail)
     changeValueVAT (###detail detail) = ACTION {
-        REQUEST INPUT NUMERIC[10,5] DO {
-            valueVAT (detail) <- requestedNumeric();
+        INPUTX n = NUMERIC[10,5] DO {
+            valueVAT (detail) <- n;
             VAT(detail) <- valueCurrentVAT(countrySupplierStock(detail), requestedNumeric());
             invoicePrice (detail) <- round2(price (detail) * (100 + requestedNumeric())/100);
         }
@@ -501,9 +502,10 @@ END
 // Изменение цены с НДС
 META defineDocumentDetailInvoicePriceVATOnChangeCustom (detail)
     changeInvoicePrice (###detail detail) = ACTION {
-        REQUEST NUMERIC[16,4] INPUT;
-        invoicePrice (detail) <- requestedNumeric();
-        price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail)));
+        INPUTX n = NUMERIC[16,4] DO {
+            invoicePrice (detail) <- n;
+            price (detail) <- round2(invoicePrice (detail) * 100/(100 + calcValueVAT(detail)));
+        }
     }
 END
 

@@ -12,31 +12,29 @@ consumedChangeBarcodePrint = DATA LOCAL NESTED BOOLEAN();
 overChangeBarcodePrint = ACTION ABSTRACT LIST (VARSTRING[15], DepartmentStore);
 
 changeBarcodePrint(DepartmentStore d) = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    LOCAL barcode = VARSTRING[15] ();
-    barcode() <- requestedString();
-    
-    LOCAL dialogBarcodeSku = Sku();
-    dialogBarcodeSku() <- skuBarcode(barcode(), currentDate());
-    
-    consumedChangeBarcodePrint() <- NULL;
-    overChangeBarcodePrint(barcode(), d);
-    IF NOT consumedChangeBarcodePrint() THEN {
-        IF dialogBarcodeSku() IS Sku THEN {
-            IF active(dialogBarcodeSku()) THEN {
-                select(Sku s) <- s == dialogBarcodeSku();
-                overQuantityPrint(Sku s) <- 1 IF s == dialogBarcodeSku();
-                labelPrintAuto() <- TRUE;
-                printSelectedSkuLabelTransaction(d);
-            } ELSE {
-                MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
-            }
-            
-        } ELSE
-            MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
+    INPUTX sb = VARSTRING[15] DO {
+        LOCAL dialogBarcodeSku = Sku();
+        dialogBarcodeSku() <- skuBarcode(sb, currentDate());
+        
+        consumedChangeBarcodePrint() <- NULL;
+        overChangeBarcodePrint(sb, d);
+        IF NOT consumedChangeBarcodePrint() THEN {
+            IF dialogBarcodeSku() IS Sku THEN {
+                IF active(dialogBarcodeSku()) THEN {
+                    select(Sku s) <- s == dialogBarcodeSku();
+                    overQuantityPrint(Sku s) <- 1 IF s == dialogBarcodeSku();
+                    labelPrintAuto() <- TRUE;
+                    printSelectedSkuLabelTransaction(d);
+                } ELSE {
+                    MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + sb + ')', ' запрещен к продаже';
+                }
+                
+            } ELSE
+                MESSAGE CONCAT ' ', 'Не найден штрихкод', sb;
+        }
+        
+        SEEK LAST labelBarcodePrint.dt;
     }
-    
-    SEEK LAST labelBarcodePrint.dt;
 }
 
 EXTEND FORM labelBarcodePrint 

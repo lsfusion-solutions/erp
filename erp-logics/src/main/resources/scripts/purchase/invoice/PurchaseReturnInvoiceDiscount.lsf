@@ -91,27 +91,27 @@ WHEN SESSION FORMS userInvoice
         DO EXEC recalculatedFullPrice(detail); 
 
 changePercReturnDiscountPrice (UserInvoiceDetail d) = ACTION {
-    REQUEST NUMERIC[8,3] INPUT;
-    IF requestedNumeric() THEN { 
-        percReturnDiscountPrice (d) <- requestedNumeric();        
-        price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
-        invoicePrice(d) <- prevListPVAT (priceListType(d), d);
-    } ELSE {
-        percReturnDiscountPrice(d) <- NULL;
-        price(d) <- fullPrice(d) WHERE fullPrice(d);     
-    }  
+    INPUTX n = NUMERIC[8,3] DO
+        IF n THEN { 
+            percReturnDiscountPrice (d) <- n;        
+            price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE fullPrice(d);
+            invoicePrice(d) <- prevListPVAT (priceListType(d), d);
+        } ELSE {
+            percReturnDiscountPrice(d) <- NULL;
+            price(d) <- fullPrice(d) WHERE fullPrice(d);     
+        }  
 }
 
 changeFullPrice (UserInvoiceDetail d) = ACTION {
-    REQUEST NUMERIC[16,4] INPUT;
-    IF requestedNumeric() THEN { 
-        fullPrice (d) <- requestedNumeric();        
-        price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE percReturnDiscountPrice(d); 
-        invoicePrice(d) <- prevListPVAT (priceListType(d), d);
-    } ELSE {
-        fullPrice(d) <- NULL;
-//        price(d) <- fullPrice(d) WHERE fullPrice(d);     
-    }  
+    INPUTX n = NUMERIC[16,4] DO
+        IF n THEN { 
+            fullPrice (d) <- n;        
+            price(d) <- round(NUMERIC[16,4](fullPrice(d) * percReturnDiscountPrice(d) / 100.0), defaultRoundCondition(currency(d))) WHERE percReturnDiscountPrice(d); 
+            invoicePrice(d) <- prevListPVAT (priceListType(d), d);
+        } ELSE {
+            fullPrice(d) <- NULL;
+    //        price(d) <- fullPrice(d) WHERE fullPrice(d);     
+        }  
 }
 
 WHEN SESSION FORMS userInvoice ((CHANGED(contractSku(UserInvoiceDetail d)) OR CHANGED (sku(d))) AND showPercReturnDiscount(userInvoice(d)))

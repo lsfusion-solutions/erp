@@ -513,19 +513,19 @@ postCash 'Наличными'(Receipt receipt) = ACTION {
 toPayBonuses 'Оплатить бонусами' = DATA LOCAL NUMERIC[18,4] (Receipt);
 
 changeToPayBonuses (Receipt r) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == r;
-        CASE WHEN requestedNumeric() < 0.0 THEN 
-                MESSAGE 'Сумма бонусов не может быть отрицательной'
-             WHEN sumReceiptDetail(r) (-) minBonusSum() * countReceiptDetail(r) < round(requestedNumeric(), roundCondition(departmentStore(r))) THEN
-                MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека'                 
-             WHEN NOT round(requestedNumeric(), roundCondition(departmentStore(r))) <= prevTotalBonuses(discountCard(r)) THEN
-                MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных'
-             ELSE toPayBonuses(r) <- round(requestedNumeric(), roundCondition(departmentStore(r)));
-    } ELSE {
-        toPayBonuses(r) <- NULL;
-    } 
+    INPUTX n = NUMERIC[18,4] DO
+        IF n THEN {
+            bonusPaid(ReceiptSaleDetail detail) <- NULL WHERE receipt(detail) == r;
+            CASE WHEN n < 0.0 THEN 
+                    MESSAGE 'Сумма бонусов не может быть отрицательной'
+                 WHEN sumReceiptDetail(r) (-) minBonusSum() * countReceiptDetail(r) < round(n, roundCondition(departmentStore(r))) THEN
+                    MESSAGE 'Сумма бонусов должна быть меньше или ровна сумме чека'                 
+                 WHEN NOT round(n, roundCondition(departmentStore(r))) <= prevTotalBonuses(discountCard(r)) THEN
+                    MESSAGE 'Сумма используемых бонусов не может превышать суммы накопленных'
+                 ELSE toPayBonuses(r) <- round(n, roundCondition(departmentStore(r)));
+        } ELSE {
+            toPayBonuses(r) <- NULL;
+        } 
 }
 
 sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
@@ -683,24 +683,25 @@ preProcessBarcode = ACTION ABSTRACT LIST (VARSTRING[30], Receipt);
 overChangeBarcodeSale = ACTION ABSTRACT LIST FIRST (VARSTRING[30], Receipt);
 
 changeBarcodeSale(Receipt receipt) = ACTION {
-    REQUEST VARSTRING[30] INPUT;
-    consumedChangeBarcodeSaleReceipt() <- NULL;
-    LOCAL barcode = VARSTRING[30] ();
-    barcode() <- processedBarcode(requestedString());
-    preProcessBarcode(barcode(), receipt);
-    overChangeBarcodeSale(barcode(), receipt);
-    IF NOT consumedChangeBarcodeSaleReceipt() THEN{
-        LOCAL dialogBarcodeSku = Sku();
-        dialogBarcodeSku() <- skuBarcode(barcode(), currentDate());
-        IF dialogBarcodeSku() IS Sku THEN {
-            IF active(dialogBarcodeSku()) THEN {
-                createSaleDetail(receipt, dialogBarcodeSku(), barcode());
-            } ELSE {
-                MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
-            }
-            
-        } ELSE
-            MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
+    INPUTX s = VARSTRING[30] DO {
+        consumedChangeBarcodeSaleReceipt() <- NULL;
+        LOCAL barcode = VARSTRING[30] ();
+        barcode() <- processedBarcode(s);
+        preProcessBarcode(barcode(), receipt);
+        overChangeBarcodeSale(barcode(), receipt);
+        IF NOT consumedChangeBarcodeSaleReceipt() THEN{
+            LOCAL dialogBarcodeSku = Sku();
+            dialogBarcodeSku() <- skuBarcode(barcode(), currentDate());
+            IF dialogBarcodeSku() IS Sku THEN {
+                IF active(dialogBarcodeSku()) THEN {
+                    createSaleDetail(receipt, dialogBarcodeSku(), barcode());
+                } ELSE {
+                    MESSAGE CONCAT ' ', name(dialogBarcodeSku()), '(' + barcode() + ')', ' запрещен к продаже';
+                }
+                
+            } ELSE
+                MESSAGE CONCAT ' ', 'Не найден штрихкод', barcode(), '(' + requestedString() + ')';
+        }
     }
 }
 
@@ -1104,12 +1105,11 @@ posExplicitBatchLedger(Receipt r) = explicitBatchLedger(r) AND currentZReport();
 posNotExplicitBatchLedger(Receipt r) = notExplicitBatchLedger(r) AND currentZReport();
 
 changeQuantity 'Изменить кол-во строки чека'(ReceiptDetail detail) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF requestedNumeric() THEN {
-        quantity(detail) <- requestedNumeric();
-    } ELSE {
-        DELETE detail; 
-    }
+    INPUTX n = NUMERIC[16,5] DO
+        IF requestedNumeric() THEN
+            quantity(detail) <- n
+        ELSE
+            DELETE detail; 
 }
 
 notBackgroundPOS 'Не подсвечивать форму POS' = DATA BOOLEAN ();
@@ -1136,18 +1136,18 @@ currentZReportUseBonus() = currentZReport() AND useBonus();
 bonusBackground (Receipt r) = RGB(255,128,128) IF totalBonuses(r) < 0.0 OR (bonusPaid(r) AND NOT bonusPaid(r) <= totalBonuses(r));
 
 changeBonusPaid (ReceiptDetail d) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        CASE WHEN requestedNumeric() < 0.0 THEN 
-                MESSAGE 'Сумма бонусов не может быть отрицательной'
-             WHEN sum(d) < round(requestedNumeric(), roundCondition(departmentStore(d))) THEN
-                MESSAGE 'Сумма бонусов должна быть меньше или равна сумме строки чека'         
-             WHEN sum(d) (-) minBonusSum() < round(requestedNumeric(), roundCondition(departmentStore(d))) THEN
-                MESSAGE 'Сумма платежа по строке чека должна быть больше минимальной'                                       
-             ELSE bonusPaid(d) <- round(requestedNumeric(), roundCondition(departmentStore(d)));        
-    } ELSE {
-        bonusPaid(d) <- NULL;
-    }  
+    INPUTX n = NUMERIC[18,4] DO 
+        IF n THEN {
+            CASE WHEN n < 0.0 THEN 
+                    MESSAGE 'Сумма бонусов не может быть отрицательной'
+                 WHEN sum(d) < round(n, roundCondition(departmentStore(d))) THEN
+                    MESSAGE 'Сумма бонусов должна быть меньше или равна сумме строки чека'         
+                 WHEN sum(d) (-) minBonusSum() < round(n, roundCondition(departmentStore(d))) THEN
+                    MESSAGE 'Сумма платежа по строке чека должна быть больше минимальной'                                       
+                 ELSE bonusPaid(d) <- round(n, roundCondition(departmentStore(d)));        
+        } ELSE {
+            bonusPaid(d) <- NULL;
+        }  
 }
 
 //задание акций кассиром для всего чека
@@ -1505,14 +1505,14 @@ DESIGN operationCashRegister{
 
 //-- 
 changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu)= ACTION {
-    REQUEST BOOLEAN INPUT;   
-    IF requestedLogical() THEN {
-        setUserPromotion(d, pcu) <- TRUE;
-        quantity(d, pcu) <- quantity(d);
-    } ELSE {
-        setUserPromotion(d, pcu) <- NULL;
-        quantity(d, pcu) <- NULL;    
-    }
+    INPUTX b = BOOLEAN DO   
+        IF b THEN {
+            setUserPromotion(d, pcu) <- TRUE;
+            quantity(d, pcu) <- quantity(d);
+        } ELSE {
+            setUserPromotion(d, pcu) <- NULL;
+            quantity(d, pcu) <- NULL;    
+        }
 }
 
 EXTEND FORM zReport

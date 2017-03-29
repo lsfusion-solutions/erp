@@ -36,15 +36,15 @@ activeLedgerPriceA (type, sku, stock, dateTime) =
 currentActiveLedgerPriceA (LedgerPriceListType type, Sku sku, Stock stock) = activeLedgerPriceA(type, sku, stock, currentDateTime());     
 
 changePrice(LedgerPriceListType type, Sku sku, Stock stock) = ACTION {   //-- todo: что делать если нет детейла?
-    REQUEST NUMERIC[16,4] INPUT;
-    IF requestedNumeric() THEN {
-        IF currentActiveLedgerPriceA(type, sku, stock) THEN {
-            price(PriceListLedger ledger, type) <- requestedNumeric() WHERE ledger == currentActiveLedgerPriceA(type, sku, stock);
-        }    
-    } ELSE {
-        DELETE PriceListLedger ledger WHERE ledger == currentActiveLedgerPriceA(type, sku, stock);
-    }
-};                
+    INPUTX n = NUMERIC[16,4] DO
+        IF n THEN {
+            IF currentActiveLedgerPriceA(type, sku, stock) THEN {
+                price(PriceListLedger ledger, type) <- n WHERE ledger == currentActiveLedgerPriceA(type, sku, stock);
+            }    
+        } ELSE {
+            DELETE PriceListLedger ledger WHERE ledger == currentActiveLedgerPriceA(type, sku, stock);
+        }
+}                
 notePriceLIst 'Примечание' = note(priceList(PriceListDetail d)) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 EXTEND FORM item

@@ -544,9 +544,9 @@ WHEN SESSION (CHANGED(quantityComponentDetail(Sku sku, Order order)) OR CHANGED(
 substitute = DATA Sku (Sku, Order) TABLE substituteSkuOrder;
 nameSubstitute 'Замена' (Sku sku, Order order) = name(substitute(sku, order));
 
-substituteQuantity 'Кол-во замены' = DATA NUMERIC[14,3] (Sku, Order) TABLE substituteSkuOrder;
+substituteQuantity 'Кол-во замены' = DATA NUMERIC[16,5] (Sku, Order) TABLE substituteSkuOrder;
 overSubstituteQuantity 'Кол-во' = OVERRIDE bruttoQuantity(Sku sku, Order order), substituteQuantity(sku, order);
-multiplier 'Коэффициент замены' = DATA NUMERIC[8,3] (Sku, Order) TABLE substituteSkuOrder;
+multiplier 'Коэффициент замены' = DATA NUMERIC[10,5] (Sku, Order) TABLE substituteSkuOrder;
 
 //--
 stockSubstitutesSku = DATA LOCAL Stock ();
@@ -564,22 +564,22 @@ showPriceSubstitutes (Order order) = stockSubstitutesSku() AND priceListType(ord
 
 multiplierSubstituteTo 'Коэффициент' (Sku fromSku ,Sku toSku) =  multiplier(uniqueSubstituteFromTo(fromSku ,toSku));
 changeMultiplierSubstituteFromTo(Sku fromSku, Sku toSku) = ACTION {
-    REQUEST NUMERIC[8,3] INPUT;
-    IF requestedNumeric() THEN {         
-        IF uniqueSubstituteFromTo(fromSku, toSku) THEN {
-            multiplier(Substitute substitut) <- requestedNumeric() WHERE uniqueSubstituteFromTo(fromSku, toSku) == substitut;
+    INPUTX n = NUMERIC[8,3] DO
+        IF n THEN {         
+            IF uniqueSubstituteFromTo(fromSku, toSku) THEN {
+                multiplier(Substitute substitut) <- n WHERE uniqueSubstituteFromTo(fromSku, toSku) == substitut;
+            } ELSE {
+                FOR  NEW sub = Substitute DO{
+                    fromSku(sub) <- fromSku;
+                    toSku(sub) <- toSku;
+                    multiplier(sub) <- n;
+                }        
+            }
         } ELSE {
-            FOR  NEW sub = Substitute DO{
-                fromSku(sub) <- fromSku;
-                toSku(sub) <- toSku;
-                multiplier(sub) <- requestedNumeric();
-            }        
-        }
-    } ELSE {
-        IF uniqueSubstituteFromTo(fromSku, toSku) THEN {
-            DELETE Substitute substitut  WHERE uniqueSubstituteFromTo(fromSku, toSku) == substitut;
-        }    
-    }        
+            IF uniqueSubstituteFromTo(fromSku, toSku) THEN {
+                DELETE Substitute substitut  WHERE uniqueSubstituteFromTo(fromSku, toSku) == substitut;
+            }    
+        }        
 }
 backgroundSubstitutes 'Цвет' (Order order) = RGB(255,224,255) IF order IS Order;
 
@@ -672,15 +672,14 @@ substitutesPrice 'Цена' (Substitute substitute, Order order)= prevPriceB(pri
 // Действие по заполнении замены через галочку
 is 'Использовать замену' (Substitute substitute, Sku sku, Order order) = substitute(sku, order) == toSku(substitute);
 change(Substitute substitute, Sku sku, Order order) = ACTION {
-    REQUEST BOOLEAN INPUT;
-    IF requestedLogical() THEN {
-        substitute(sku, order) <- toSku(substitute);
-        multiplier(sku, order) <- multiplier(substitute);
-
-    } ELSE {
-        substitute(sku, order) <- NULL;
-        multiplier(sku, order) <- NULL;
-    }
+    INPUTX b = BOOLEAN DO
+        IF b THEN {
+            substitute(sku, order) <- toSku(substitute);
+            multiplier(sku, order) <- multiplier(substitute);
+        } ELSE {
+            substitute(sku, order) <- NULL;
+            multiplier(sku, order) <- NULL;
+        }
 }
 
 // коэффициенты цен
@@ -760,33 +759,30 @@ changeValueMarkup (ProductDetail detail) = ACTION {
 }
 
 changeComponentsPrice (ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[16,4] INPUT;
-    IF requestedNumeric() THEN {
-        componentsPrice (detail) <- requestedNumeric();
-        changeValueMarkup(detail);
-    } ELSE
-        componentsPrice (detail) <- NULL;
+    INPUTX n = NUMERIC[16,4] DO {
+        componentsPrice (detail) <- n;
+        IF n THEN
+            changeValueMarkup(detail);
+    }
 }
 
 // Изменение коэффициентов и цен
 overChangePriceCoeff = ACTION ABSTRACT LIST (ProductDetail);
 changePriceCoeff(ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[8,5] INPUT;
-    IF requestedNumeric() THEN {        
-        pricePercent(detail) <- NUMERIC[16,5](calcPricePercentNumeric(detail, requestedNumeric()));
-        componentsPrice(detail) <- calcComponentsPrice(detail);
-        costPrice(detail) <- calcCost(detail);
+    INPUTX n = NUMERIC[8,5] DO {        
+        pricePercent(detail) <- NUMERIC[16,5](calcPricePercentNumeric(detail, n));
+        componentsPrice(detail) <- NUMERIC[16,4](calcComponentsPrice(detail));
+        costPrice(detail) <- NUMERIC[16,4](calcCost(detail));
         changeValueMarkup(detail);
         overChangePriceCoeff(detail);
     }
 }
 overChangePricePercent = ACTION ABSTRACT LIST (ProductDetail);
 changePricePercent(ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF requestedNumeric() THEN {
-        pricePercent(detail) <- requestedNumeric(); 
-        componentsPrice(detail) <- calcComponentsPrice(detail);
-        costPrice(detail) <- calcCost(detail);
+    INPUTX n = NUMERIC[16,5] DO {
+        pricePercent(detail) <- n; 
+        componentsPrice(detail) <- NUMERIC[16,4](calcComponentsPrice(detail));
+        costPrice(detail) <- NUMERIC[16,4](calcCost(detail));
         changeValueMarkup(detail);
         overChangePricePercent(detail);
     }
@@ -794,12 +790,11 @@ changePricePercent(ProductDetail detail) = ACTION {
 
 
 changeMarkup (ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[10,4] INPUT;
-    IF requestedNumeric() THEN {
-        markup (detail) <- requestedNumeric();
-        changeValueMarkup(detail);
-    } ELSE
-        markup(detail) <- NULL;
+    INPUTX n = NUMERIC[10,4] DO {
+        markup (detail) <- n;
+        IF n THEN
+            changeValueMarkup(detail);
+    }
 }
 
 calcMarkupIsVAT(ProductDetail d)  = [= round2(((X/Z*100/(100+Y))-1)*100)](
@@ -832,13 +827,12 @@ changeValueProductsPrice (ProductDetail detail) = ACTION {
                                                                                              
 overChangeProductsPrice = ACTION ABSTRACT LIST (ProductDetail);
 changeProductsPrice (ProductDetail detail) = ACTION {
-    REQUEST NUMERIC[16,4] INPUT;
-    IF requestedNumeric() THEN {
-        price (detail) <- requestedNumeric();
+    INPUTX n = NUMERIC[16,4] DO {
+        price (detail) <- n;
         IF notRecalculateMarkupOrder(detail) THEN {
-            pricePercent(detail) <- calcPricePercent(detail);
-            componentsPrice(detail) <- calcComponentsPrice(detail);
-            costPrice(detail) <- calcCost(detail); 
+            pricePercent(detail) <- NUMERIC[16,10](calcPricePercent(detail));
+            componentsPrice(detail) <- NUMERIC[16,4](calcComponentsPrice(detail));
+            costPrice(detail) <- NUMERIC[16,4](calcCost(detail)); 
             overChangeProductsPrice(detail);               
         } ELSE {
             changeValueProductsPrice(detail);    
@@ -1858,22 +1852,22 @@ quantity 'Кол-во изделий в документе' (order,product) =  G
     BY order(productDetail), product(productDetail);    
     
 changeQuantity(Product product, Order order) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF productDetail(order,product) THEN {
-        IF requestedNumeric() THEN {
-            quantity(ProductDetail detail) <- requestedNumeric() WHERE detail == productDetail(order,product);
+    INPUTX n = NUMERIC[16,5] DO
+        IF productDetail(order,product) THEN {
+            IF n THEN {
+                quantity(ProductDetail detail) <- n WHERE detail == productDetail(order,product);
+            } ELSE {
+                DELETE ProductDetail detail WHERE detail == productDetail(order,product);
+            }
         } ELSE {
-            DELETE ProductDetail detail WHERE detail == productDetail(order,product);
-        }
-    } ELSE {
-        IF requestedNumeric() THEN {
-            FOR NEW d = ProductDetail DO {
-                order(d) <- order;
-                product(d) <- product;
-                quantity (d) <- requestedNumeric();
+            IF n THEN {
+                FOR NEW d = ProductDetail DO {
+                    order(d) <- order;
+                    product(d) <- product;
+                    quantity (d) <- n;
+                }
             }
         }
-    }
 }
 
 background = ABSTRACT CASE COLOR (Order, Product);  
@@ -1933,22 +1927,22 @@ bruttoQuantityBrutto 'Кол-во брутто компонентов в док�
     BY order(componentDetail), bruttoSku(componentDetail);    
     
 changeBruttoQuantityBrutto(Sku bruttoSku, Order order) = ACTION {
-    REQUEST NUMERIC[16,5] INPUT;
-    IF componentDetailBrutto(order,bruttoSku) THEN {
-        IF requestedNumeric() THEN {
-            bruttoQuantity(ComponentDetail detail) <- requestedNumeric() WHERE detail == componentDetailBrutto(order,bruttoSku);
+    INPUTX n = NUMERIC[16,5] DO
+        IF componentDetailBrutto(order,bruttoSku) THEN {
+            IF n THEN {
+                bruttoQuantity(ComponentDetail detail) <- n WHERE detail == componentDetailBrutto(order,bruttoSku);
+            } ELSE {
+                DELETE ComponentDetail detail WHERE detail == componentDetailBrutto(order,bruttoSku);
+            }
         } ELSE {
-            DELETE ComponentDetail detail WHERE detail == componentDetailBrutto(order,bruttoSku);
-        }
-    } ELSE {
-        IF requestedNumeric() THEN {
-            FOR NEW d = ComponentDetail DO {
-                order(d) <- order;
-                bruttoSku(d) <- bruttoSku;
-                bruttoQuantity (d) <- requestedNumeric();
+            IF n THEN {
+                FOR NEW d = ComponentDetail DO {
+                    order(d) <- order;
+                    bruttoSku(d) <- bruttoSku;
+                    bruttoQuantity (d) <- n;
+                }
             }
         }
-    }
 }
 
 prevCurrentBalance 'Остаток' (Sku sku, Order o) = prevCurrentBalance(sku, componentsStock(o));

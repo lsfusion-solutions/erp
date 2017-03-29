@@ -228,22 +228,17 @@ defaultWarehouse= GROUP MAX Warehouse stock IF in(LegalEntity legalEntity, stock
 addressDefaultWarehouse 'Адрес основного склада' (LegalEntity legalEntity) = address(defaultWarehouse(legalEntity)) IN law;
 
 changeWarehouse(LegalEntity legalEntity) = ACTION {
-    REQUEST VARSTRING[100] INPUT;
-    IF requestedString() THEN {
+    INPUTX s = VARSTRING[100] DO {
         IF defaultWarehouse(legalEntity) THEN {
-            address(Warehouse w) <- requestedString() WHERE w == defaultWarehouse(legalEntity);        
+            address(Warehouse w) <- s WHERE w == defaultWarehouse(legalEntity);        
         } ELSE {
             FOR NEW w = Warehouse DO {
                 legalEntity(w) <- legalEntity;
                 warehouseGroup(w) <- allWarehouseGroup();                
-                address(w) <- requestedString();    
+                address(w) <- s;    
                 name(w) <- VARISTRING[150]('Склад '+(name(legalEntity(w))));    
             }
         }
-    } ELSE {
-        IF defaultWarehouse(legalEntity) THEN {
-            address(Warehouse w) <- NULL WHERE w == defaultWarehouse(legalEntity);        
-        }   
     }
 }
 

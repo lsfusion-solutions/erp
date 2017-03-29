@@ -308,13 +308,11 @@ DESIGN item {
 
 seekBarcode 'Штрихкод' = DATA LOCAL VARSTRING[15] ();
 seekSkuBarcode() = ACTION {
-    REQUEST VARSTRING[15] INPUT;
-    ASSIGN seekBarcode() <- NULL;
-    ASSIGN seekBarcode() <- requestedString();
-    EXEC seek(skuBarcode(seekBarcode(), currentDate()));
-    IF NOT skuBarcode(seekBarcode(), currentDate()) THEN
-        MESSAGE 'Штрихкод не найден';
-    ASSIGN seekBarcode() <- NULL;
+    INPUTX s = VARSTRING[15] DO {
+        seek(skuBarcode(s, currentDate()));
+        IF NOT skuBarcode(s, currentDate()) THEN
+            MESSAGE 'Штрихкод не найден';
+    }
 }
 
 disallowEditing 'Запретить редактирование' = ABSTRACT BOOLEAN (Item);
@@ -346,8 +344,7 @@ FORM items 'Товары'
     OBJECTS i=Item  
     PROPERTIES(i) READONLYIF isReadonly() idBarcode ON CHANGE changeBarcode(i) BACKGROUND background(i), image PANEL SHOWIF hasImage(i), id SHOWIF showIDs() BACKGROUND background(i)
     PROPERTIES(i) NEWSESSION NEW, EDIT SHOWIF enableEditing(i), deletei=DELETE TOOLBAR
-    PROPERTIES seekBarcode()
-    ON CHANGE seekSkuBarcode() 
+    PROPERTIES seekBarcode() ON CHANGE seekSkuBarcode() 
     
     LIST Item OBJECT i  
 ;
