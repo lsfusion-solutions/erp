@@ -10,16 +10,10 @@ coeffNetWeightTrip 'Удельный вес' (InvoiceDetail d) =
     NUMERIC[22,8](sumNetWeight(d)) / netWeightInvoiced(trip(invoice(d)));
 
 signGrossWeightInvoices 'Расписать вес брутто'(Trip trip) = ACTION {
-    REQUEST NUMERIC[16,3] INPUT;
-    IF requestedNumeric() THEN {
-        grossWeight(trip) <- requestedNumeric();
-        sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](coeffNetWeightTrip(d)* grossWeight(trip))
-            WHERE d IS InvoiceDetail AND trip(invoice(d)) == trip;
-
-    } ELSE {
-        grossWeight(trip) <- NULL;
-        sumGrossWeight(InvoiceDetail d) <- NULL WHERE d IS InvoiceDetail AND trip(invoice(d)) == trip;    
-    }        
+    INPUTX n = NUMERIC[16,3] DO {
+        grossWeight(trip) <- n;
+        sumGrossWeight(InvoiceDetail d) <- NUMERIC[9,3](coeffNetWeightTrip(d) * n) WHERE trip(invoice(d)) == trip;
+    }
 }
 
 EXTEND FORM trip

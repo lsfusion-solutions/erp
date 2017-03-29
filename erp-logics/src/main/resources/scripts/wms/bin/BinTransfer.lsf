@@ -371,26 +371,26 @@ packQuantity 'Кол-во упаковок в документе' (sku, userBinT
     BY sku(userBinTransferDetail), userBinTransfer(userBinTransferDetail), stock(userBinTransferDetail);
 
 changePackQuantity(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {
-    REQUEST NUMERIC[14,3] INPUT;
-    IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
-        IF requestedNumeric() THEN {
-            packQuantity(UserBinTransferDetail userBinTransferDetail) <- requestedNumeric() WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
-            quantity(UserBinTransferDetail userBinTransferDetail) <- packQuantity(userBinTransferDetail)*(OVERRIDE 1.0, amountPack(userBinTransferDetail)) 
-                                    WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock) AND NOT skipChangeQuantity(userBinTransferDetail(sku, userBinTransfer, stock));
+    INPUTX n = NUMERIC[16,5] DO
+        IF userBinTransferDetail(sku, userBinTransfer, stock) THEN {
+            IF n THEN {
+                packQuantity(UserBinTransferDetail userBinTransferDetail) <- n WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock);
+                quantity(UserBinTransferDetail userBinTransferDetail) <- NUMERIC[16,5](packQuantity(userBinTransferDetail)*(OVERRIDE 1.0, amountPack(userBinTransferDetail))) 
+                                        WHERE userBinTransferDetail == userBinTransferDetail(sku, userBinTransfer, stock) AND NOT skipChangeQuantity(userBinTransferDetail(sku, userBinTransfer, stock));
+            } ELSE {
+                FOR userBinTransferDetail(sku, userBinTransfer, stock) == UserBinTransferDetail d DO
+                    DELETE d;
+            }
         } ELSE {
-            FOR userBinTransferDetail(sku, userBinTransfer, stock) == UserBinTransferDetail d DO
-                DELETE d;
-        }
-    } ELSE {
-        IF requestedNumeric() THEN  {
-            FOR NEW d = UserBinTransferDetail DO {
-               userBinTransfer(d) <- userBinTransfer;
-               sku(d) <- sku;
-               packQuantity (d) <- requestedNumeric();
-               quantity(d) <- packQuantity(d) * (OVERRIDE 1.0, amountPack(d));
+            IF n THEN  {
+                FOR NEW d = UserBinTransferDetail DO {
+                   userBinTransfer(d) <- userBinTransfer;
+                   sku(d) <- sku;
+                   packQuantity (d) <- n;
+                   quantity(d) <- NUMERIC[16,5](packQuantity(d) * (OVERRIDE 1.0, amountPack(d)));
+                }
             }
         }
-    }
 }
 
 changeAmountPack(Sku sku, UserBinTransfer userBinTransfer, Stock stock) = ACTION {

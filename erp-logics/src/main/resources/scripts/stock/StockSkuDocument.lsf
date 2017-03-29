@@ -69,17 +69,17 @@ META defineDocumentSku(object, detail, skuProp, stockClass, stockProp)
     // Выбор всего остатка
     allQuantity 'Весь остаток' = DATA LOCAL BOOLEAN (Sku, ###object);
     changeAllQuantity(###skuProp skuProp, ###object object) = ACTION {
-        REQUEST BOOLEAN INPUT;
-        IF requestedLogical() THEN {
-            requestedNumeric() <- NULL;
-            allQuantity (sku,object) <- TRUE;
-            requestedNumeric() <- prevCurrentBalance(sku,object);
-            changeQuantityValue(sku, object);
-        } ELSE {
-            allQuantity (sku,object) <- NULL;
-            requestedNumeric() <- NULL;
-            changeQuantityValue(sku, object);
-        }
+        INPUTX b = BOOLEAN DO 
+            IF b THEN {
+                requestedNumeric() <- NULL;
+                allQuantity (sku,object) <- TRUE;
+                requestedNumeric() <- prevCurrentBalance(sku,object);
+                changeQuantityValue(sku, object);
+            } ELSE {
+                allQuantity (sku,object) <- NULL;
+                requestedNumeric() <- NULL;
+                changeQuantityValue(sku, object);
+            }
     }
 
 END
@@ -129,9 +129,8 @@ META extendFormDocumentSku(object, detail, form, concrete, skuProp, stockProp)
     }
     
     seekOver###skuProp(###object object) = ACTION {
-        REQUEST VARSTRING[15] INPUT;
-        IF requestedString() THEN {
-            seek###skuProp##Barcode(object, requestedString());
+        INPUTX s = VARSTRING[15] DO {
+            seek###skuProp##Barcode(object, s);
         }        
     };
     seek###skuProp 'Поиск по штрихкоду:' (###object object) = DATA LOCAL VARSTRING[15] (###object) TOOLBAR EDITKEY 'F4' EVENTID 'SCANNER'

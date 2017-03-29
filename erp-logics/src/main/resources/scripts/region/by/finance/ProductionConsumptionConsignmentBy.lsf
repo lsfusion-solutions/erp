@@ -10,24 +10,16 @@ NAMESPACE Production;
 invoiceNumber 'Номер ТТН' = DATA VARSTRING[28] (Consumption) IN numbered MINCHARWIDTH 7;
 invoiceSeries 'Серия ТТН' = DATA STRING[2] (Consumption) IN numbered FIXEDCHARWIDTH 3;
 changeInvoiceNumber (Consumption c) = ACTION NEWSESSION {
-    REQUEST VARSTRING[28] INPUT;
-    
-    IF requestedString() THEN {
-        invoiceNumber(c) <- requestedString();        
-    }ELSE {
-        invoiceNumber(c) <- NULL;
+    INPUTX s = invoiceNumber(c) DO {
+        invoiceNumber(c) <- s;        
+        apply();
     }
-    apply();
 }
 changeSeriesNumber (Consumption c) = ACTION NEWSESSION {
-    REQUEST VARSTRING[28] INPUT;
-    
-    IF requestedString() THEN {
-        invoiceSeries(c) <- requestedString();        
-    }ELSE {
-        invoiceSeries(c) <- NULL;
+    INPUTX s = invoiceSeries(c) DO {
+        invoiceSeries(c) <- s;        
+        apply();
     }
-    apply();
 }
 invoiceSeriesNumber 'Серия/Номер ТТН' (Consumption o) = 
     CONCAT '', invoiceSeries(o), invoiceNumber(o) 

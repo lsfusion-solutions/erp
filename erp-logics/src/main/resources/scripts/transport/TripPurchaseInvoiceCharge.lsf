@@ -12,22 +12,12 @@ calcGrossSum 'Сумма услуг' (Purchase.Invoice invoice, Trip trip)= NUME
                                                         (sumGrossWeightPurchaseInvoiced(trip) IF sumGrossWeightPurchaseInvoiced(trip)!=0.0));
 
 signChargeInvoices 'Расписать сумму услуг'(Trip trip) = ACTION {
-    REQUEST NUMERIC[18,4] INPUT;
-    IF requestedNumeric() THEN {
-        sumCharge(trip) <- requestedNumeric();
-        FOR trip(UserInvoice invoice)==trip AND invoice IS Purchase.UserInvoice DO {
+    INPUTX n = NUMERIC[18,4] DO {
+        sumCharge(trip) <- n;
+        FOR trip(UserInvoice invoice) == trip DO {
             setChargePercent(invoice, calcGrossSum (invoice, trip) * 100.000000 / (incomeSum(invoice) IF incomeSum(invoice) != 0));
-            FOR userInvoice(UserInvoiceDetail d) == invoice DO{
-                chargePrice(d) <- chargePercent(d) * incomePrice(d) / 100.000000;
-            }
+            chargePrice(UserInvoiceDetail d) <- NUMERIC[16,4](chargePercent(d) * incomePrice(d) / 100.000000) WHERE userInvoice(d) == invoice;
         }
-    } ELSE {
-        sumCharge(trip) <- NULL;
-        FOR trip(UserInvoice invoice)==trip AND invoice IS Purchase.UserInvoice DO {
-            chargePercent(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == invoice;
-            chargePrice(UserInvoiceDetail d) <- NULL WHERE userInvoice(d) == invoice;
-
-        }        
     }   
 }
 

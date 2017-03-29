@@ -85,19 +85,20 @@ META defineDocumentPack(object, detail, f)
     overChangeAmountPackUser = ACTION ABSTRACT LIST (###detail); 
     changeAmountPackUser(###detail detail) = ACTION {
         REQUEST NUMERIC[14,3] INPUT;
-        ASSIGN amountPack[User###detail](detail) <- requestedNumeric();
+        amountPack[User###detail](detail) <- requestedNumeric();
         IF NOT skipChangeQuantity(detail) THEN {
-            ASSIGN quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
+            quantity[User###detail](detail) <- packQuantity[User###detail](detail)*(OVERRIDE 1.0, amountPack[User###detail](detail));
         }        
-        EXEC overChangeAmountPackUser(detail);
+        overChangeAmountPackUser(detail);
     }
 
     changePackQuantity(User###detail detail) = ACTION {
-        REQUEST NUMERIC[16,5] INPUT;
-        packQuantity(detail) <- requestedNumeric();
-        IF NOT skipChangeQuantity(detail) THEN {
-            quantity(detail) <- packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail));
-        }        
+        INPUTX n = NUMERIC[16,5] DO {
+            packQuantity(detail) <- n;
+            IF NOT skipChangeQuantity(detail) THEN {
+                quantity(detail) <- NUMERIC[16,5](packQuantity(detail)*(OVERRIDE 1.0, amountPack(detail)));
+            }
+        }
     }
 
     // Расширяем формы

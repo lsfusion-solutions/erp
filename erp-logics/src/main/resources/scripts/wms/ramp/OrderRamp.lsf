@@ -61,17 +61,6 @@ backgroundOrders 'Цвет (свой заказ)' (r,i,o) = ABSTRACT CASE COLOR(
 
 backgroundOrders(Ramp r,Interval i,Order o) +=  WHEN in(o,r,i) THEN  RGB(204,255,204);
 
-change(Order o,Ramp r,Interval i) = ACTION {
-    REQUEST BOOLEAN INPUT;
-    IF requestedLogical() THEN {
-//        IF o IS Order AND NOT orderRampIntervalDate(r,i,shipmentDateOrder(o)) THEN {
-        in(o,r,i) <- TRUE;
-//        }
-    } ELSE {
-        in(o,r,i) <- NULL;
-    }        
-}
-
 in (ramp, order) = GROUP SUM 1 IF (in(Ramp ramp, sku(OrderDetail detail)) OR (ramp IS Ramp AND NOT countSkuGroups(ramp) AND sku(detail)))BY ramp, order(detail);
 
 FORM orderRamp 'Рампы'
@@ -91,7 +80,7 @@ FORM orderRamp 'Рампы'
        
     PROPERTIES(r,i,o) BACKGROUND backgroundOrders(r,i,o) READONLY descriptionOrders,
                       nameSupplierOrders, nameCustomerOrders 
-    PROPERTIES    BACKGROUND backgroundOrders(r,i,o) in(o,r,i) ON CHANGE change(o,r,i)           
+    PROPERTIES    BACKGROUND backgroundOrders(r,i,o) in(o,r,i)           
                                                         
     FILTERGROUP filter
         FILTER 'Только свободное время' o IS Order AND NOT order(r,i,shipmentDate(o)) 'F10'   
