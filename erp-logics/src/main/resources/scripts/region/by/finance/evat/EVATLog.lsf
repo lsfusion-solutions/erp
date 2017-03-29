@@ -1,0 +1,229 @@
+MODULE EVATLog;
+
+REQUIRE EVAT;
+
+NAMESPACE EVAT;
+
+CLASS EVATLog 'Запись лога ЭСЧФ';
+TABLE evatLog(EVATLog);
+
+document = DATA EVAT (EVATLog);// INDEXED;
+
+status 'Статус' = DATA EVATStatus (EVATLog);
+captionStatus 'Статус'(EVATLog el) = staticCaption(status(el));  
+serverStatus 'Статус на сервере' = DATA EVATServerStatus (EVATLog);
+captionServerStatus 'Статус на сервере'(EVATLog el) = staticCaption(serverStatus(el));  
+
+numberDocument 'Номер ЭСЧФ' = DATA VARSTRING[28] (EVATLog) IN recognize;
+dateDocument 'Дата ЭСЧФ' = DATA DATE(EVATLog) IN recognize;
+numberDocDocument 'Номер документа' = DATA VARSTRING[28] (EVATLog) IN recognize;
+seriesDocDocument 'Серия документа' = DATA STRING[2] (EVATLog) IN recognize;
+
+session = DATA Session (EVATLog); 
+hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (EVATLog); 
+userLogin 'Логин пользователя' = DATA STRING[30] (EVATLog); 
+nameContact 'Имя пользователя' =  DATA VARSTRING[100] (EVATLog) IN recognize;
+dateTimeSession 'Время' = DATA DATETIME (EVATLog) IN recognize;
+dateSession 'Дата' (EVATLog el) = DATE(dateTimeSession(el));
+
+supplier 'Поставщик' = DATA LegalEntity(EVATLog);
+nameSupplier 'Поставщик' (EVATLog evat) = OVERRIDE name(supplier(evat)), fullName(supplier(evat));
+customer 'Получатель' = DATA LegalEntity(EVATLog);
+nameCustomer 'Получатель' (EVATLog evat) = OVERRIDE name(customer(evat)), fullName(customer(evat));
+
+CLASS TypeEVATChange 'Тип изменения' {
+    add 'Добавление',
+    delete 'Удаление',
+    export 'Выставление на портал',
+    changeNumber 'Изменение номера ЭСЧФ',
+    changeCustomer 'Изменение получателя',
+    changeStatus 'Изменение статуса',
+    changeServerStatus 'Изменение статуса на сервере'
+}
+
+typeChange= DATA TypeEVATChange (EVATLog);
+nameTypeChange 'Тип изменения' (EVATLog l) = staticCaption(typeChange(l)) IN recognize;
+note 'Примечание' = DATA VARSTRING[255] (EVATLog) MINCHARWIDTH 20 PREFCHARWIDTH 30;
+
+WHEN SET (EVAT e IS EVAT) DO {
+    FOR NEW el = EVATLog DO {        
+        document(el) <- e;
+        status(el) <- status(e);
+        serverStatus(el) <- statusServerStatus(e);
+        numberDocument(el) <- number(e);  
+        numberDocDocument(el) <- numberDoc(e);  
+        seriesDocDocument(el) <- seriesDoc(e); 
+        dateDocument(el) <- date(e);   
+        typeChange(el) <- TypeEVATChange.add;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());             
+        note(el) <- VARSTRING[255]('Добавлен документ');              
+        supplier(el) <- supplier(e);
+        customer(el) <- customer(e);
+    }
+}
+
+WHEN DROPPED (EVAT e IS EVAT) DO {
+    FOR NEW el = EVATLog DO {       
+        status(el) <- PREV(status(e));
+        serverStatus(el) <- PREV(statusServerStatus(e));
+        numberDocument(el) <- PREV(number(e));  
+        numberDocDocument(el) <- PREV(numberDoc(e));  
+        seriesDocDocument(el) <- PREV(seriesDoc(e)); 
+        dateDocument(el) <- PREV(date(e));   
+        typeChange(el) <- TypeEVATChange.delete;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());        
+        note(el) <- VARSTRING[255]('Удален документ');         
+        supplier(el) <- PREV (supplier(e));
+        customer(el) <- PREV (customer(e));
+    }
+}
+
+WHEN DROPSET (exported(EVAT e)) DO {
+    FOR NEW el = EVATLog DO {
+        document(el) <- e;
+        status(el) <- status(e);
+        serverStatus(el) <- statusServerStatus(e);
+        numberDocument(el) <- number(e);  
+        numberDocDocument(el) <- numberDoc(e);  
+        seriesDocDocument(el) <- seriesDoc(e); 
+        dateDocument(el) <- date(e);   
+        typeChange(el) <- TypeEVATChange.export;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());             
+        note(el) <- VARSTRING[255](IF exported(e) THEN 'Выгружен' ELSE 'Не выгружен');              
+        supplier(el) <- supplier(e);
+        customer(el) <- customer(e);
+    }
+}
+
+WHEN CHANGED(status(EVAT e)) DO {
+    FOR NEW el = EVATLog DO {
+        document(el) <- e;
+        status(el) <- status(e);
+        serverStatus(el) <- statusServerStatus(e);
+        numberDocument(el) <- number(e);  
+        numberDocDocument(el) <- numberDoc(e);  
+        seriesDocDocument(el) <- seriesDoc(e); 
+        dateDocument(el) <- date(e);   
+        typeChange(el) <- TypeEVATChange.changeStatus;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());             
+        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(status(e)) THEN PREV(captionStatus(e)) ELSE '');      
+        supplier(el) <- supplier(e);
+        customer(el) <- customer(e);
+    }
+}    
+
+WHEN CHANGED(statusServerStatus(EVAT e)) DO {
+    FOR NEW el = EVATLog DO {
+        document(el) <- e;
+        status(el) <- status(e);
+        serverStatus(el) <- statusServerStatus(e);
+        numberDocument(el) <- number(e);  
+        numberDocDocument(el) <- numberDoc(e);  
+        seriesDocDocument(el) <- seriesDoc(e); 
+        dateDocument(el) <- date(e);   
+        typeChange(el) <- TypeEVATChange.changeServerStatus;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());             
+        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', IF PREV(statusServerStatus(e)) THEN PREV(captionServerStatus(e)) ELSE '');      
+        supplier(el) <- supplier(e);
+        customer(el) <- customer(e);
+    }
+}    
+
+WHEN SETCHANGED(number(EVAT e)) AND PREV(number(e))  DO {
+    FOR NEW el = EVATLog DO {
+        document(el) <- e;
+        status(el) <- status(e);
+        serverStatus(el) <- statusServerStatus(e);
+        numberDocument(el) <- number(e);  
+        numberDocDocument(el) <- numberDoc(e);  
+        seriesDocDocument(el) <- seriesDoc(e); 
+        dateDocument(el) <- date(e);   
+        typeChange(el) <- TypeEVATChange.changeNumber;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());             
+        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', PREV(number(e)));      
+        supplier(el) <- supplier(e);
+        customer(el) <- customer(e);
+    }
+}
+
+WHEN SETCHANGED(customer(EVAT e)) AND PREV(customer(e))  DO {
+    FOR NEW el = EVATLog DO {
+        document(el) <- e;
+        status(el) <- status(e);
+        serverStatus(el) <- statusServerStatus(e);
+        numberDocument(el) <- number(e);  
+        numberDocDocument(el) <- numberDoc(e);  
+        seriesDocDocument(el) <- seriesDoc(e); 
+        dateDocument(el) <- date(e);   
+        typeChange(el) <- TypeEVATChange.changeCustomer;
+        session(el) <- currentSession();
+        hostnameComputer(el) <- hostnameComputerConnection(currentSession());
+        userLogin(el) <- userLoginConnection(currentSession()); 
+        nameContact(el) <- VARSTRING[100](nameContact(currentSession()));
+        dateTimeSession(el) <- dateTime(currentSession());             
+        note(el) <- VARSTRING[255](CONCAT '','Предыдущее значение: ', PREV(nameCustomer(e)));      
+        supplier(el) <- supplier(e);
+        customer(el) <- customer(e);
+    }
+}
+
+
+FORM EVATLogs 'Журнал изменения ЭСЧФ'
+    OBJECTS d = EVATLog
+    PROPERTIES(d) READONLY captionStatus, captionServerStatus, numberDocument, dateDocument, numberDocDocument, seriesDocDocument, nameCustomer,
+                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+;
+
+DESIGN EVATLogs {
+    main {
+        MOVE d.box;
+        MOVE functions.box;        
+    }
+}
+
+NAVIGATOR {
+    systemEvents {
+        ADD EVATLogs;
+    }
+}
+
+EXTEND FORM evats
+    OBJECTS el = EVATLog
+    PROPERTIES(el) READONLY captionStatus, captionServerStatus, numberDocument, dateDocument, numberDocDocument, seriesDocDocument, nameCustomer,
+                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange, note
+    FILTERS document(el) == e
+;
+
+DESIGN evats {
+    pane{
+        NEW documentHistory {
+            caption = 'История';
+            type = CONTAINERV;
+            MOVE el.box;
+        }        
+    }
+}
