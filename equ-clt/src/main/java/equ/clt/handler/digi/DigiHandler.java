@@ -443,12 +443,16 @@ public class DigiHandler extends ScalesHandler {
                                 processTransactionLogger.info(String.format("Digi: IP %s, Transaction #%s, sending item #%s (barcode %s) of %s", scales.port, transaction.id, count, item.idBarcode, transaction.itemsList.size()));
                                 int barcode = Integer.parseInt(item.idBarcode.substring(0, 5));
                                 int pluNumber = item.pluNumber == null ? barcode : item.pluNumber;
-                                byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
-                                processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", pluNumber, scales.port));
-                                int reply = sendRecord(socket, cmdWrite, filePLU, record);
-                                if (reply != 0) {
-                                    logError(localErrors, String.format("Digi: Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, reply));
-                                    globalError++;
+                                if(item.idBarcode.length() <= 5) {
+                                    byte[] record = makeRecord(item, getWeightCode(scales), getPieceCode(scales), maxLineLength);
+                                    processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s", pluNumber, scales.port));
+                                    int reply = sendRecord(socket, cmdWrite, filePLU, record);
+                                    if (reply != 0) {
+                                        logError(localErrors, String.format("Digi: Send item %s to scales %s failed. Error: %s", pluNumber, scales.port, reply));
+                                        globalError++;
+                                    }
+                                } else {
+                                    processTransactionLogger.info(String.format("Digi: Sending item %s to scales %s failed: incorrect barcode %s", pluNumber, scales.port, item.idBarcode));
                                 }
                             } else break;
                         }
