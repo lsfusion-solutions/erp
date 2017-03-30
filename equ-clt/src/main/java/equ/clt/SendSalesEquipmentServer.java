@@ -2,6 +2,7 @@ package equ.clt;
 
 import equ.api.EquipmentServerInterface;
 import equ.api.RequestExchange;
+import equ.api.SalesBatch;
 import equ.api.cashregister.CashDocumentBatch;
 import equ.api.cashregister.CashRegisterHandler;
 import equ.api.cashregister.CashRegisterInfo;
@@ -49,6 +50,26 @@ public class SendSalesEquipmentServer {
                 EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
             } else {
                 handler.finishReadingCashDocumentInfo(cashDocumentBatch);
+            }
+        }
+    }
+
+    static void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, CashRegisterHandler handler) throws RemoteException, SQLException {
+        if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0)
+            sendSalesLogger.info("SalesInfo is empty");
+        else {
+            sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
+            try {
+                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer);
+                if (result != null) {
+                    EquipmentServer.reportEquipmentServerError(remote, sidEquipmentServer, result);
+                } else {
+                    sendSalesLogger.info("Finish Reading starts");
+                    handler.finishReadingSalesInfo(salesBatch);
+                }
+            } catch (Exception e) {
+                sendSalesLogger.error("Sending SalesInfo", e);
+                remote.errorEquipmentServerReport(sidEquipmentServer, e);
             }
         }
     }

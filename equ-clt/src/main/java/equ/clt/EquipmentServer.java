@@ -64,8 +64,8 @@ public class EquipmentServer {
     private Consumer sendTerminalDocumentConsumer;
     private Thread sendTerminalDocumentThread;
 
-    Consumer machineryExchangeConsumer;
-    Thread machineryExchangeThread;
+    private Consumer machineryExchangeConsumer;
+    private Thread machineryExchangeThread;
 
     ExecutorService singleTransactionExecutor;
     List<Future> futures;
@@ -445,26 +445,6 @@ public class EquipmentServer {
         }
     }
 
-    private void requestSalesInfo(EquipmentServerInterface remote, List<RequestExchange> requestExchangeList, CashRegisterHandler handler, Set<String> directorySet)
-            throws IOException, ParseException, SQLException {
-        if (!requestExchangeList.isEmpty()) {
-            sendSalesLogger.info("Requesting SalesInfo");
-            Set<Integer> succeededRequests = new HashSet<>();
-            Map<Integer, String> failedRequests = new HashMap<>();
-            Map<Integer, String> ignoredRequests = new HashMap<>();
-
-            handler.requestSalesInfo(requestExchangeList, directorySet, succeededRequests, failedRequests, ignoredRequests);
-            if (!succeededRequests.isEmpty())
-                remote.finishRequestExchange(succeededRequests);
-            if (!failedRequests.isEmpty())
-                remote.errorRequestExchange(failedRequests);
-            if (!ignoredRequests.isEmpty()) {
-                remote.finishRequestExchange(new HashSet<>(ignoredRequests.keySet()));
-                remote.errorRequestExchange(ignoredRequests);
-            }
-        }
-    }
-
     private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler,
                                Set<String> directorySet, List<CashRegisterInfo> cashRegisterInfoList)
             throws ParseException, IOException, ClassNotFoundException, SQLException {
@@ -487,39 +467,19 @@ public class EquipmentServer {
                         remote.errorEquipmentServerReport(sidEquipmentServer, e);
                     }
                 }
-                sendSalesInfo(remote, mergedSalesBatch, sidEquipmentServer, handler);
+                SendSalesEquipmentServer.sendSalesInfo(remote, mergedSalesBatch, sidEquipmentServer, handler);
 
             } else {
 
                 for (String directory : directorySet) {
                     try {
                         SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                        sendSalesInfo(remote, salesBatch, sidEquipmentServer, handler);
+                        SendSalesEquipmentServer.sendSalesInfo(remote, salesBatch, sidEquipmentServer, handler);
                     } catch (Exception e) {
                         sendSalesLogger.error("Reading SalesInfo", e);
                         remote.errorEquipmentServerReport(sidEquipmentServer, e);
                     }
                 }
-            }
-        }
-    }
-
-    private void sendSalesInfo(EquipmentServerInterface remote, SalesBatch salesBatch, String sidEquipmentServer, CashRegisterHandler handler) throws RemoteException, SQLException {
-        if (salesBatch == null || salesBatch.salesInfoList == null || salesBatch.salesInfoList.size() == 0)
-            sendSalesLogger.info("SalesInfo is empty");
-        else {
-            sendSalesLogger.info("Sending SalesInfo : " + salesBatch.salesInfoList.size() + " records");
-            try {
-                String result = remote.sendSalesInfo(salesBatch.salesInfoList, sidEquipmentServer);
-                if (result != null) {
-                    reportEquipmentServerError(remote, sidEquipmentServer, result);
-                } else {
-                    sendSalesLogger.info("Finish Reading starts");
-                    handler.finishReadingSalesInfo(salesBatch);
-                }
-            } catch (Exception e) {
-                sendSalesLogger.error("Sending SalesInfo", e);
-                remote.errorEquipmentServerReport(sidEquipmentServer, e);
             }
         }
     }
