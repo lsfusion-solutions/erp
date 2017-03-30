@@ -35,7 +35,7 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
 
     OBJECTS ts=Stock
     PROPERTIES    READONLY tsTreeName = name(ts)
-    PROPERTIES(c, ts) in GRID
+    PROPERTIES(c, ts) in 
     FILTERGROUP inactiveStock FILTER 'Активный' active(ts) 'ctrl F10' DEFAULT
     FILTERS isParent(sg, ts)
     ORDER BY tsTreeName
@@ -43,7 +43,7 @@ FORM inventoryCommittee 'Комиссия для инвентаризации'
 
     OBJECTS e=Employee
     PROPERTIES(e)      READONLY name[Contact], firstName, lastName, namePosition
-    PROPERTIES(e)      NEWEDIT, EDIT, DELETE
+    PROPERTIES(e)      NEWEDIT, EDIT, DELETE GRID
 
     PROPERTIES(c, e)   in
     FILTERS            (countStock (e, c) AND NOT allowStockEmployee()) OR (e IS Employee AND allowStockEmployee())
@@ -1313,13 +1313,13 @@ FORM listInventory 'Опись'
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
         
     OBJECTS         pl=PageInventory FIXED GRID
-    PROPERTIES(pl)  name, note PANEL, countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, NEW, DELETE
+    PROPERTIES(pl)  name, note PANEL, countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, NEW, DELETE GRID
     FILTERS         listInventory(pl) == li
 
     OBJECTS         dp=PageInventoryDetail
     PROPERTIES (dp) index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, nameBatch SHOWIF isBatch(li), 
                     quantityGrid = quantity, price,
-                    sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li), NEW SHOWIF countPageInventory(li), DELETE
+                    sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li), NEW SHOWIF countPageInventory(li), DELETE GRID
     FILTERS         listInventory(pageInventory(dp)) == li, isParentSkuGroup(g, dp)
     FILTERGROUP page
     FILTER 'На странице' pageInventory(dp) == pl DEFAULT 
@@ -1505,8 +1505,8 @@ FORM inventory 'Инвентаризация'
 
     PROPERTIES(li)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, isPosted
 
-    PROPERTIES(li)   NEWSESSION editLI = EDIT PANEL SHOWIF saved(in), deleteli=DELETE TOOLBAR SHOWIF saved(in),
-                     post PANEL SHOWIF saved(in), unpost PANEL SHOWIF isPosted(li)
+    PROPERTIES(li)   NEWSESSION PANEL editLI = EDIT SHOWIF saved(in), deleteli=DELETE TOOLBAR SHOWIF saved(in),
+                     post SHOWIF saved(in), unpost SHOWIF isPosted(li)
 
     PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, dumb
 
@@ -1539,7 +1539,7 @@ FORM inventory 'Инвентаризация'
                                  sumContainerPageInventoryDetailCollationSheetGrid = sumContainerPageInventoryDetail, 
                                  sumContainerShortageCollationSheetGrid = sumContainerShortage,
                                  countListInventory, countPageInventory
-    PROPERTIES (cs)              dialogSku, prevDate, recalculatePrice //, deletecs=DELETE TOOLBAR
+    PROPERTIES (cs)              dialogSku, prevDate, recalculatePrice //, deletecs=DELETE TOOLBAR GRID
     PROPERTIES (cs)  PANEL sumItemPageInventoryDetail, sumContainerPageInventoryDetail,
                                  sumItemBalance, sumContainerBalance,
                                  sumItemShortage, sumContainerShortage
@@ -1771,13 +1771,13 @@ sumShortage 'Сумма недостачи / излишка' (Inventory in) = GR
 
 FORM inventories 'Инвентаризации'
     OBJECTS in=Inventory LAST
-    PROPERTIES(in) READONLY             isClosed GRID, isPosted GRID, isBatch,  number, series, date, time,
+    PROPERTIES(in) READONLY             isClosed , isPosted , isBatch,  number, series, date, time,
                                         nameStock, name, note, quantityShortage, sumShortage, skipStockDocumentLedger, skipSkuLedger, isShortageStockDocument
     PROPERTIES(in) PANEL READONLY createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer
     
-    PROPERTIES(in)                      NEWSESSION NEW, edit SHOWIF overShowEdit(in),// SHOWIF isDraftInventory(in), 
-                                        deletein=DELETE TOOLBAR SHOWIF overShowDelete(in),
+    PROPERTIES(in)                      NEWSESSION NEW, edit SHOWIF overShowEdit(in) GRID,// SHOWIF isDraftInventory(in), 
+                                        deletein=DELETE SHOWIF overShowDelete(in),
                                         post SHOWIF showPost(in), unpost SHOWIF showUnpost(in)
     FILTERGROUP open FILTER 'Открыт' isOpened(in) 'F6' DEFAULT
     

@@ -511,8 +511,8 @@ FORM userPriceList 'Прайс'
                   showOriginalNameSku, showNotCompanyStocksUser
 
     OBJECTS t = PriceListType
-    PROPERTIES(t) READONLY name, includeVAT[LedgerPriceListType] GRID
-    PROPERTIES(p, t) in[UserPriceList,DataPriceListType] GRID, show[PriceList,PriceListType]
+    PROPERTIES(t) READONLY name, includeVAT[LedgerPriceListType] 
+    PROPERTIES(p, t) in[UserPriceList,DataPriceListType] , show[PriceList,PriceListType]
     FILTERS (currency(p) == currency(t)) OR 
             NOT currency(t) OR NOT currency(p) 
 
@@ -540,9 +540,9 @@ FORM userPriceList 'Прайс'
                   valueVAT, fromDate SHOWIF showDateTimeUser(p), 
                   fromTime SHOWIF showDateTimeUser(p), toDate SHOWIF showDateTimeUser(p), 
                   toTime SHOWIF showDateTimeUser(p), nameCompany SHOWIF showCompanyUser(p), 
-                  exclude, NEW, deleted = DELETE
+                  exclude, NEW, deleted = DELETE GRID
     PROPERTIES(d, tc) price COLUMNS (tc) HEADER headerNameData(tc) BACKGROUND background(tc)
-    PROPERTIES(p) TODRAW d TOOLBAR fillDocument, addDetailInputBarcodeUserPriceListDetail
+    PROPERTIES(p) TODRAW d  fillDocument, addDetailInputBarcodeUserPriceListDetail
     ORDER BY index(d)
     FILTERS userPriceList(d) == p,
             isParent(sk, sku[PriceListDetail](d)) OR NOT group(groupType(sk), sku[PriceListDetail](d)),
@@ -552,7 +552,7 @@ FORM userPriceList 'Прайс'
 
     TREE stockTree a=STRING[3], sg = StockGroup PARENT parent
     PROPERTIES READONLY OBJVALUE(a), sgTreeName = name(sg)
-    PROPERTIES(p) allStocks[PriceList] TODRAW a GRID BACKGROUND backgroundAllStocks(p)
+    PROPERTIES(p) allStocks[PriceList] TODRAW a BACKGROUND backgroundAllStocks(p)
     PROPERTIES(p, sg) in BACKGROUND backgroundIn(p,sg)
     ORDER BY sgTreeName
     FILTERS stringEqualsAll(a)
@@ -571,10 +571,10 @@ FORM userPriceList 'Прайс'
         
     OBJECTS tt = Stock FIXED PANEL
     PROPERTIES SELECTOR stockName = name(tt) PANEL
-    PROPERTIES(d, to) READONLY viewPrice COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) TODRAW d GRID
+    PROPERTIES(d, to) READONLY viewPrice COLUMNS 'type' (to) HEADER headerNameCurrentData(to) BACKGROUND backgroundCurrent(to) TODRAW d 
 //    PROPERTIES(d, to, tt) READONLY currentPriceUserPriceListDetailPriceListTypeStock COLUMNS 'type' (to) HEADER headerNameCurrentDataPriceListType(to) BACKGROUND backgroundCurrentDataPriceListType(to) TODRAW d GRID
-    PROPERTIES(to, tt, d) SHOWIF toShow(p, to) READONLY nameCompanyB COLUMNS 'type' (to) HEADER headerNameCompanyData(to) BACKGROUND backgroundCurrent(to) TODRAW d GRID    
-    PROPERTIES(d, th) READONLY changePrice COLUMNS (th) HEADER headerNameChangeData(th) BACKGROUND backgroundChange(th) TODRAW d GRID
+    PROPERTIES(to, tt, d) SHOWIF toShow(p, to) READONLY nameCompanyB COLUMNS 'type' (to) HEADER headerNameCompanyData(to) BACKGROUND backgroundCurrent(to) TODRAW d     
+    PROPERTIES(d, th) READONLY changePrice COLUMNS (th) HEADER headerNameChangeData(th) BACKGROUND backgroundChange(th) TODRAW d 
 
 //    PROPERTIES(d)        nameCompanyUserPriceListDetail
     FILTERS isCompany(tt),
@@ -589,7 +589,7 @@ FORM userPriceList 'Прайс'
     PROPERTIES(ts2) SELECTOR name
     FILTERS isCompany(ts2),
             isCompany(ts2)
-    PROPERTIES(p) PANEL nameFilterPriceListType
+    PROPERTIES(p)  nameFilterPriceListType
 
     OBJECTS s2=Sku
     PROPERTIES in(s2, p) ON CHANGE changeIn(s2, p)
@@ -1107,14 +1107,14 @@ FORM priceLists 'Прайсы'
 
     OBJECTS p = PriceList
     PROPERTIES(p) READONLY BACKGROUND background(p)
-           isPosted GRID, number, series, date, time,
+           isPosted , number, series, date, time,
            fromDate, fromTime, toDate, toTime, countPriceListDetail,
            nameCurrency, nameCompany, nameCompanyStock, priceListTypes, stocks,
            note
 
     PROPERTIES (p)  NEWSESSION NEW[UserPriceList]
-    PROPERTIES (p) edit, copy TOOLBAR, print TOOLBAR
-    PROPERTIES (p) NEWSESSION DELETE TOOLBAR SHOWIF is[UserPriceList](p)
+    PROPERTIES (p) TOOLBAR edit, copy , print 
+    PROPERTIES (p) NEWSESSION DELETE SHOWIF is[UserPriceList](p)
     PROPERTIES (p) READONLY PANEL createdNameUser, createdTime, createdHostnameComputer, 
                                         postedNameUser, postedTime, postedHostnameComputer 
                                         
@@ -1253,7 +1253,7 @@ FORM printPriceList 'Прайс'
     OBJECTS d = UserPriceListDetail
     PROPERTIES(d) READONLY index[PriceListDetail], idBarcodeSku[PriceListDetail], nameSku[PriceListDetail],
                            shortNameUOMSku[PriceListDetail], nameCompany[PriceListDetail]
-    PROPERTIES(d, t) price[PriceListDetail,DataPriceListType] COLUMNS (t) HEADER headerNameData(t) BACKGROUND background(t) TODRAW d GRID
+    PROPERTIES(d, t) price[PriceListDetail,DataPriceListType] COLUMNS (t) HEADER headerNameData(t) BACKGROUND background(t) TODRAW d 
 
     FILTERS priceList(d) == p
 ;
@@ -1281,7 +1281,7 @@ EXTEND FORM legalEntity
                            nameCurrency, priceListTypes,
                            stocks, note
     PROPERTIES addUserPriceList(l) TODRAW p PANEL, updateSession(p) TODRAW p TOOLBAR
-    PROPERTIES(p) EDIT, DELETE TOOLBAR
+    PROPERTIES(p) EDIT, DELETE 
     FILTERS company(p) == l
     
     FILTERGROUP inactivePriceList

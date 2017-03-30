@@ -545,7 +545,7 @@ FORM bonusPayment 'Оплата бонусами'
     PROPERTIES(r) toPayBonuses ON CHANGE changeToPayBonuses(r)
         
     OBJECTS d = DiscountCard FIXED PANEL 
-    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) prevTotalBonuses TODRAW r PANEL
+    PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) prevTotalBonuses TODRAW r 
 ;
 
 DESIGN bonusPayment {
@@ -884,7 +884,7 @@ FORM scanBarcodeReturnReceipt 'Выбор строки возврата'
     PROPERTIES(r) READONLY numberReceipt, dateTime, nameBatch SHOWIF explicitBatchLedger(d),
                            numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, sumCashPayment, sumCardPayment,
                            index, quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
-                           sum[ReceiptDetail], discountPercent GRID, discountSum[ReceiptDetail]
+                           sum[ReceiptDetail], discountPercent , discountSum[ReceiptDetail]
     FILTERS departmentStore(r) == d,
             sku(r) == s
             
@@ -1177,11 +1177,11 @@ FORM POS
     PROPERTIES(r) READONLY SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
 
     OBJECTS d = ReceiptDetail FIXED GRID
-    PROPERTIES(d) SHOWIF currentZReport() READONLY GRID BACKGROUND background(r, d)  
+    PROPERTIES(d) SHOWIF currentZReport() READONLY BACKGROUND background(r, d)  
                         index, type, idBarcodeGrid = idBarcode, nameSkuGrid = nameSku,
                         prevCurrentBalanceSku SHOWIF posNotExplicitBatchLedger(r),
                         prevCurrentBalanceBatch SHOWIF posExplicitBatchLedger(r)
-    PROPERTIES(d) SHOWIF currentZReport() GRID BACKGROUND background(r, d) 
+    PROPERTIES(d) SHOWIF currentZReport() BACKGROUND background(r, d) 
                         quantityGrid = quantity ON CHANGE changeQuantity(d), priceGrid = price, sumGrid = sum, discountPercent,
                         discountSum, valueVAT, calcSumVAT//, numberVATReceiptDetail, , deleted=DELETESESSION
     PROPERTIES(d) SHOWIF currentZReport() READONLY PANEL BACKGROUND background(r, d) 
@@ -1191,7 +1191,7 @@ FORM POS
                         shortNameUOMSkuPanel = shortNameUOMSku,
                         pricePanel = price,
                         sumPanel = sum
-    PROPERTIES(d) SHOWIF currentZReportUseBonus() GRID BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d) READONLYIF is[ReceiptReturnDetail](d), bonusSum READONLY                        
+    PROPERTIES(d) SHOWIF currentZReportUseBonus() BACKGROUND background(r, d) bonusPaid ON CHANGE changeBonusPaid(d) READONLYIF is[ReceiptReturnDetail](d), bonusSum READONLY                        
     PROPERTIES(d) SHOWIF currentZReport() PANEL BACKGROUND background(r, d) 
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
@@ -1201,12 +1201,12 @@ FORM POS
 
     OBJECTS pc = PromotionCondition FIXED GRID
     PROPERTIES(pc) SHOWIF currentZReport() READONLY namePromotion, name, dateFrom, dateTo, percent
-    PROPERTIES(d, pc) SHOWIF currentZReport()       quantity, promotionSum
+    PROPERTIES(d, pc) SHOWIF currentZReport() PANEL       quantity, promotionSum
     FILTERS quantity(d, pc) AND NOT userSet(pc)
 
     OBJECTS pcu = PromotionCondition FIXED GRID
     PROPERTIES(pcu) SHOWIF currentZReport() READONLY namePromotion, name, dateFrom, dateTo, percent
-    PROPERTIES(d, pcu) SHOWIF currentZReport() quantity, promotionSum, setUserPromotion ON SHORTCUT setUserPromotionReceipt(r, pcu) ON SHORTCUT dropUserPromotionReceipt(r, pcu) 
+    PROPERTIES(d, pcu) SHOWIF currentZReport() PANEL quantity, promotionSum, setUserPromotion ON SHORTCUT setUserPromotionReceipt(r, pcu) ON SHORTCUT dropUserPromotionReceipt(r, pcu) 
     FILTERS userSet(pcu) AND inReceiptSale(d, pcu)
 
     PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkip(r), fiscalAdvancePaper READONLYIF fiscalSkip(r), 
@@ -1514,9 +1514,9 @@ changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu)= ACTION {
 EXTEND FORM zReport
 
     OBJECTS pcu = PromotionCondition FIXED GRID
-    PROPERTIES(pcu) READONLY GRID namePromotion, name, dateFrom, 
+    PROPERTIES(pcu) READONLY  namePromotion, name, dateFrom, 
                     dateTo, percent
-    PROPERTIES(d, pcu) GRID quantity,
+    PROPERTIES(d, pcu)  quantity,
                     promotionSum, 
                     setUserPromotion ON CHANGE changeUserPromotion(d, pcu)
     FILTERS userSet(pcu) AND inReceiptSale(d, pcu)
@@ -1539,8 +1539,8 @@ DESIGN zReport {
 EXTEND FORM zReports
 
     OBJECTS pcu = PromotionCondition FIXED GRID
-    PROPERTIES(pcu) READONLY GRID namePromotion, name, dateFrom, dateTo, percent
-    PROPERTIES(d, pcu) READONLY GRID quantity, promotionSum, setUserPromotion
+    PROPERTIES(pcu) READONLY  namePromotion, name, dateFrom, dateTo, percent
+    PROPERTIES(d, pcu) READONLY  quantity, promotionSum, setUserPromotion
     FILTERS quantity(d, pcu)
 ;
 
