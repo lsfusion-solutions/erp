@@ -1320,8 +1320,9 @@ session = DATA Session (DocumentLog);
 hostnameComputer 'Имя компьютера' = DATA VARISTRING[100] (DocumentLog); 
 userLogin 'Логин пользователя' = DATA STRING[30] (DocumentLog); 
 nameContact 'Имя пользователя' =  DATA VARSTRING[100] (DocumentLog) IN recognize;
-dateTimeSession 'Время' = DATA DATETIME (DocumentLog) IN recognize;
-dateSession 'Дата' (DocumentLog d) = DATE(dateTimeSession(d));
+dateTimeSession 'Время изменения' = DATA DATETIME (DocumentLog) IN recognize;
+dateSession'Дата изменения' (DocumentLog d) = DATE(dateTimeSession(d));
+timeSession 'Время изменения' (DocumentLog d) = TIME(dateTimeSession(d));
 
 supplierStock = DATA Stock(DocumentLog);
 nameSupplierStock 'Склад поставщика'(DocumentLog d) = name(supplierStock(d));
@@ -1549,12 +1550,15 @@ price 'Цена' = DATA NUMERIC[16,4] (DocumentDetailLog);
 
 nameUser 'Имя пользователя'  = DATA VARSTRING[100] (DocumentDetailLog);
 
-dateTime 'Дата/время изменения' = DATA DATETIME (DocumentDetailLog);
-date 'Дата' (DocumentDetailLog d) = DATE(dateTime(d));
+dateTime 'Время изменения' = DATA DATETIME (DocumentDetailLog);
+time 'Время изменения' (DocumentDetailLog d) = TIME(dateTime(d));
+date 'Дата изменения' (DocumentDetailLog d) = DATE(dateTime(d));
 
 note 'Примечание' = DATA VARSTRING[20] (DocumentDetailLog);
 
 @defineLog (DocumentDetailLog, 'строк документов', log, date);
+
+overSet = ACTION ABSTRACT LIST(DocumentDetailLog, DocumentDetail);
 
 WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     FOR NEW l = DocumentDetailLog DO{
@@ -1570,9 +1574,12 @@ WHEN  SET(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         nameUser(l) <- name(currentUser());
         dateTime(l) <- currentDateTime();
         note(l) <- 'Добавление';
+        overSet(l,d);
     }
 
-WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d))) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
+skipChange = ABSTRACT CASE BOOLEAN (DocumentDetail);
+
+WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)) OR skipChange(d)) AND NOT DROPPED(d IS DocumentDetail) AND NOT SET(d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     FOR NEW l = DocumentDetailLog DO{
         document(l) <- document(d);
         index(l) <- index(d);
@@ -1586,8 +1593,11 @@ WHEN (CHANGED(price(DocumentDetail d)) OR CHANGED(quantity(d)) OR CHANGED(sku(d)
         nameUser(l) <- name(currentUser());
         dateTime(l) <- currentDateTime();
         note(l) <- 'Изменение';
+        overSet(l,d);
     }
     
+overDropped = ACTION ABSTRACT LIST(DocumentDetailLog, DocumentDetail); 
+   
 WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO  
     FOR NEW l = DocumentDetailLog DO{
         document(l) <- PREV(document(d));
@@ -1602,7 +1612,8 @@ WHEN DROPPED(DocumentDetail d IS DocumentDetail) AND NOT disableDocumentLog() DO
         nameUser(l) <- name(currentUser());
         dateTime(l) <- currentDateTime();
         note(l) <- 'Удаление';
-}    
+        overDropped(l,d);
+    }    
 
 META defineDocumentLogForm(form, concrete)
     @defineDocumentLogForm(form, concrete, documentHistory);
@@ -1612,14 +1623,14 @@ META defineDocumentLogForm(form, concrete, container)
     EXTEND FORM form
         OBJECTS dLog=DocumentLog FIXED GRID
         PROPERTIES(dLog) SHOWIF enableDocumentLog() READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
-                      hostnameComputer, userLogin, nameContact, dateTimeSession, nameTypeChange,
+                      hostnameComputer, userLogin, nameContact, dateSession, timeSession, nameTypeChange,
                       note
         PROPERTIES (dLog) openFile SHOWIF showFile(dLog)
         FILTERS document(dLog) == concrete
 
         OBJECTS ddLog = DocumentDetailLog FIXED GRID
         PROPERTIES (ddLog) SHOWIF enableDocumentLog() READONLY index, idSku, nameSku, quantity,
-                       price, nameUser, dateTime, note
+                       price, nameUser, date, time, note
         FILTERS document(ddLog) == concrete
     ;
     
@@ -1645,13 +1656,13 @@ END
 FORM documentLogs 'Журнал изменения документов'
     OBJECTS d=DocumentLog
     PROPERTIES(d) READONLY numberDocument, seriesDocument, dateDocument, nameSupplierStock, nameCustomerStock, typeDocument,
-                  hostnameComputer, userLogin, dateTimeSession, nameTypeChange,
+                  hostnameComputer, userLogin, dateSession, timeSession, nameTypeChange,
                   note
                   
     OBJECTS l = DocumentDetailLog
     PROPERTIES (l) READONLY seriesDocument, numberDocument, dateDocument,typeDocument, 
                    index, idSku, nameSku, quantity, price, 
-                   nameUser, dateTime, note
+                   nameUser, date, time, note
     FILTERGROUP documents
         FILTER 'Фильтр по документу' document(d) == document(l) 'F10' DEFAULT
         FILTER 'Фильтр по номеру документа' numberDocument(d) == numberDocument(l) 'F11'
