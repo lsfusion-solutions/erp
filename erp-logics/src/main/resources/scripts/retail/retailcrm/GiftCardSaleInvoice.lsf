@@ -386,6 +386,9 @@ statusShipment 'Статус выписки' = CASE
     
 backgroundShipment 'Цвет' (Sale.Invoice o)= RGB(212,255,212) IF isPosted(o) AND createShipment(o);  
 
+overFilterGiftCard = ABSTRACT BOOLEAN (Sale.Invoice);
+filterGiftCard (Sale.Invoice i) = isGiftCard(i) OR overFilterGiftCard(i);
+
 FORM saleGiftCardDashboard 'Выписка подарочных сертификатов' 
     OBJECTS i = Sale.Invoice LAST
     PROPERTIES (i) READONLY isClosed 
@@ -409,7 +412,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     ORDER BY index(d)
 
     FILTERS invoice(d) == i
-    FILTERS isGiftCard(i)
+    FILTERS filterGiftCard(i)
     
     OBJECTS l=LegalEntity
     PROPERTIES(l) READONLY name, address, UNP, phone, numberAccount, nameBank, dateFromContract, numberContract
