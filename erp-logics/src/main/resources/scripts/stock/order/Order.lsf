@@ -227,9 +227,6 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     shipmentTime(OrderDetail d) += shipmentTime(d);
     shipmentDate(OrderDetail d) += shipmentDate(d);
     
-    shipmentDate(UserOrder order) <- sum(date(order), 1) WHEN CHANGED(date(order));
-    shipmentTime(UserOrder order) <- time(order) WHEN CHANGED(time(order));
-
     overCloseDate  = ABSTRACT DATE (Order);
     closeDate 'Дата автоматического закрытия' = ABSTRACT DATE (Order) IN documentPrm;
     closeDate 'Дата автоматического закрытия' = DATA DATE (UserOrder) IN documentPrm;
@@ -790,6 +787,11 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
         SHOW userOrder OBJECTS o = userOrder(d), d = d MANAGESESSION DOCKED;
     }
     edit(UserOrderDetail d) += ACTION edit(d);    
+END
+
+META deriveShipmentDate(dumb) 
+    shipmentDate(UserOrder order) <- sum(date(order), (OVERRIDE 0, daysBeforeShipmentDate(operation(order)))) WHEN CHANGED(date(order));
+    shipmentTime(UserOrder order) <- time(order) WHEN CHANGED(time(order));
 END
 
 META implementOrderDestination(fromProp, toProp)
