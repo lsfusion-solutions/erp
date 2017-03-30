@@ -584,15 +584,15 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
     copy 'Копировать'(Order order) = ACTION NEWSESSION {
         FOR NEW o = UserOrder DO {
             supplier(o) <- supplier(order);
-            supplierStock(o) <- supplierStock(order);
+            supplierStock(o) <- supplierStock(order) IF active(supplierStock(order));
             customer(o) <- customer(order);
-            customerStock(o) <- customerStock(order);
+            customerStock(o) <- customerStock(order) IF active(customerStock(order));
             currency(o) <- currency(order);
             agreement(o) <- agreement(order);
             priceListType(o) <- priceListType(order);
             note(o) <- note(order);
 
-            EXEC overCopy(order, o);
+            overCopy(order, o);
 
             FOR order(OrderDetail orderDetail) == order DO {
                 FOR NEW d=UserOrderDetail DO {
@@ -600,7 +600,7 @@ META defineOrder(sign, legalEntityProp, stockProp, supplierFilter, customerFilte
                     sku(d) <- sku(orderDetail);
                     quantity(d) <- quantity(orderDetail);
                     
-                    EXEC overCopy(d, orderDetail);
+                    overCopy(d, orderDetail);
                 }
             }
 
