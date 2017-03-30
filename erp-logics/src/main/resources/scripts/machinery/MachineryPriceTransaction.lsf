@@ -609,12 +609,15 @@ skipMachineryPriceTransaction 'Запретить загрузку в обору
 // Перезагрузка целиком
 snapshotAttribute = ACTION ABSTRACT LIST (MachineryPriceTransaction, GroupMachinery);
 
+addedTransaction = DATA LOCAL MachineryPriceTransaction();
+
 snapshotGroupMachinery 'Ранее загруженные'(Stock stock) = ACTION NEWSESSION {
     DIALOG groupMachineryInput OBJECTS s = stock DO {
         FOR selected(GroupMachinery groupMachinery) DO {
+            addedTransaction() <- NULL;
             createMachineryPriceTransaction(groupMachinery);
-            FOR Object t == addedObject() DO {
-                groupMachinery[MachineryPriceTransaction](t) <- groupMachinery;
+            FOR MachineryPriceTransaction t == addedTransaction() DO {
+                groupMachinery(t) <- groupMachinery;
                 comment(t) <- 'Перезагрузка прайса целиком';
                 IF NOT skipSnapshot(t) THEN {
                     snapshot(t) <- TRUE;
@@ -704,16 +707,17 @@ createMachineryPriceTransaction 'Создать транзакцию'(Stock stoc
         countSku() <- [ = GROUP SUM 1 IF [= GROUP SUM 1 IF in(Barcode barcode) BY sku(barcode)](Sku sku)]();        
         
         IF countBarcode() THEN {
+            addedTransaction() <- NULL;
             createMachineryPriceTransaction(groupMachinery);
-            FOR Object t == addedObject() DO {
+            FOR MachineryPriceTransaction t == addedTransaction() DO {
                 in(t, Machinery machinery) <- selected(machinery) WHERE groupMachinery(machinery) == groupMachinery;
-                groupMachinery[MachineryPriceTransaction](t) <- groupMachinery;
-                priceTransactionDocument[MachineryPriceTransaction](t) <- createMachineryPriceTransactionDocument();
+                groupMachinery(t) <- groupMachinery;
+                priceTransactionDocument(t) <- createMachineryPriceTransactionDocument();
                 comment(t) <- createMachineryPriceTransactionComment();
                 in(t, Barcode barcode) <- in(barcode);
                 createAttribute(t);
                 createAttribute(t, stock);
-                createAttribute(t, groupMachinery[MachineryPriceTransaction](t));
+                createAttribute(t, groupMachinery(t));
                 price(t, Barcode barcode) <- price(barcode, groupMachinery) WHERE in(t, barcode);
                 
                 IF createMachineryPriceTransactionAll() AND NOT skipSnapshot(t) THEN {

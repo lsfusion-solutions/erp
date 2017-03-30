@@ -963,12 +963,15 @@ select = DATA LOCAL BOOLEAN (Sku, LabelType, DepartmentStore);
 overCreate = ACTION ABSTRACT LIST (LabelTransaction);
 overQuantityPrint = DATA LOCAL NESTED INTEGER (Sku);
 
+addedTransaction = DATA LOCAL LabelTransaction();
+
 createLabelTransaction 'Распечатать ценники'(DepartmentStore departmentStore) = ACTION {
     // бежим по всем типам ценников из управленческих параметров
     // для каждого создаем по операции печати ценников
     FOR [= GROUP SUM 1 IF select(Sku s,LabelType l,DepartmentStore d) BY l, d](LabelType labelType, departmentStore) NEW t = LabelTransaction DO { 
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
+        addedTransaction() <- t;
         
         FOR select(Sku sku, labelType, departmentStore) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
             
@@ -1002,6 +1005,7 @@ createSnapshotLabelTransactionDepartmentStore 'Перепечатать ценн
     FOR NEW t = LabelTransaction DO {
         departmentStore(t) <- departmentStore;
         labelType(t) <- labelType;
+        addedTransaction() <- t;
         
         FOR select(Sku sku) AND PriceListType pt == overPriceListType(t) NOINLINE (pt) NEW d = LabelTransactionDetail DO {
             labelTransaction(d) <- t;

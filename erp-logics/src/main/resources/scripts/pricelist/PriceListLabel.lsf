@@ -21,27 +21,13 @@ createPriceListLabel 'Распечатать ценники'(PriceTransactionDoc
     DIALOG selectDepartmentStore OBJECTS p = priceList, d INPUT DO {
         select(Sku sku, LabelType labelType, d) <- countPriceListDetail(sku,priceList) AND in(labelType, sku, d);   
     
-        createLabelTransaction[DepartmentStore](d);  
-        FOR Object t == addedObject() DO { 
-            priceTransactionDocument(t) <- priceList;
-        }
+        createLabelTransaction(d);  
+        priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
+        
         apply();
     }
 } TOOLBAR;
-//createSelectedSkuStockSnapshotLabelTransaction 'Перепечатать ценники' = ACTION (priceList) {
-//    
-//    FORM selectDepartmentStore OBJECTS p = priceList DIALOG;
-//    IF formResult() == FormResult.ok THEN {
-//        selectSku(sku) <- TRUE IF countPriceListDetailSkuPriceList(sku,priceList);   
-//    
-//        createSnapshotLabelTransactionDepartmentStore(chosenObject('d'));   
-//        FOR t == addedObject() DO { 
-//            priceTransactionDocumentLabelTransaction(t) <- priceList;
-//        }                
-//    }
-//    apply();
-//    
-//} TOOLBAR;
+
 select 'Вкл.' = DATA LOCAL BOOLEAN (LabelType, DepartmentStore);
 FORM selectDepartmentStoreLabelType 'Выбор магазина и ценника для печати'
     OBJECTS p = PriceList FIXED PANEL 
@@ -66,9 +52,7 @@ createSelectedSkuStockSnapshotLabel 'Перепечатать ценники'(Pr
         select(Sku sku) <- TRUE IF countPriceListDetail(sku,priceList);   
         FOR select(LabelType type, d) DO {
             createSnapshotLabelTransactionDepartmentStore(d, type);   
-            FOR Object t == addedObject() DO { 
-                priceTransactionDocument(t) <- priceList;
-            }  
+            priceTransactionDocument(LabelTransaction t) <- priceList WHERE t == addedTransaction();
         } 
         apply();
     }
