@@ -214,8 +214,9 @@ public class MachineryExchangeEquipmentServer {
         return terminalOrderList;
     }
 
-    public static List<TerminalOrder> readTerminalOrderList(DataSession session, ObjectValue customerStockObject) throws RemoteException, SQLException {
+    public static List<TerminalOrder> readTerminalOrderList(DataSession session, BusinessLogics BL, ObjectValue customerStockObject) throws RemoteException, SQLException {
         List<TerminalOrder> terminalOrderList = new ArrayList<>();
+        init(BL);
         if (purchaseOrderLM != null) {
             try {
                 KeyExpr orderExpr = new KeyExpr("order");

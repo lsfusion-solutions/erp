@@ -1019,7 +1019,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     public static List<TerminalHandbookType> readTerminalHandbookTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalHandbookType> terminalHandbookTypeList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalHandbookType", terminalHandbookTypeExpr);
@@ -1042,7 +1042,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     
     public static List<TerminalDocumentType> readTerminalDocumentTypeList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalDocumentType> terminalDocumentTypeList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if(terminalLM != null) {
             KeyExpr terminalDocumentTypeExpr = new KeyExpr("terminalDocumentType");
             ImRevMap<Object, KeyExpr> keys = MapFact.singletonRev((Object) "terminalDocumentType", terminalDocumentTypeExpr);
@@ -1099,7 +1099,7 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
 
     public static List<TerminalLegalEntity> readCustomANAList(DataSession session, BusinessLogics BL) throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalLegalEntity> customANAList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
+        ScriptingLogicsModule terminalLM = BL.getModule("Terminal");
         if (terminalLM != null) {
 
             KeyExpr terminalHandbookTypeExpr = new KeyExpr("terminalHandbookType");
@@ -1144,8 +1144,8 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
     public static List<TerminalAssortment> readTerminalAssortmentList(DataSession session, BusinessLogics BL, ObjectValue priceListTypeObject, ObjectValue stockGroupMachineryObject)
             throws ScriptingErrorLog.SemanticErrorException, SQLException, SQLHandledException {
         List<TerminalAssortment> terminalAssortmentList = new ArrayList<>();
-        ScriptingLogicsModule terminalLM = BL.getModule("EquipmentTerminal");
-        if (terminalLM != null) {
+        ScriptingLogicsModule machineryPriceTransactionLM = BL.getModule("MachineryPriceTransaction");
+        if (machineryPriceTransactionLM != null) {
             
             DataObject currentDateTimeObject = new DataObject(new Timestamp(Calendar.getInstance().getTime().getTime()), DateTimeClass.instance);
             
@@ -1153,13 +1153,13 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
             KeyExpr legalEntityExpr = new KeyExpr("legalEntity");
             ImRevMap<Object, KeyExpr> keys = MapFact.toRevMap((Object) "Sku", skuExpr, "LegalEntity", legalEntityExpr);
             QueryBuilder<Object, Object> query = new QueryBuilder<>(keys);
-            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", terminalLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+            query.addProperty("priceALedgerPriceListTypeSkuStockCompanyDateTime", machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()));
-            query.addProperty("idBarcodeSku", terminalLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
-            query.addProperty("idLegalEntity", terminalLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr));
-            query.and(terminalLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
-            query.and(terminalLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
-            query.and(terminalLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
+            query.addProperty("idBarcodeSku", machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr));
+            query.addProperty("idLegalEntity", machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr));
+            query.and(machineryPriceTransactionLM.findProperty("id[LegalEntity]").getExpr(legalEntityExpr).getWhere());
+            query.and(machineryPriceTransactionLM.findProperty("idBarcode[Sku]").getExpr(skuExpr).getWhere());
+            query.and(machineryPriceTransactionLM.findProperty("priceA[LedgerPriceListType,Sku,Stock,LegalEntity,DATETIME]").getExpr(priceListTypeObject.getExpr(),
                     skuExpr, stockGroupMachineryObject.getExpr(), legalEntityExpr, currentDateTimeObject.getExpr()).getWhere());
             ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> result = query.execute(session);
             for (ImMap<Object, Object> entry : result.values()) {
