@@ -347,6 +347,7 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
         String destinationGLN = rootNode.getChildText("destinationGLN");
         String supplierGLN = rootNode.getChildText("supplierGLN");
         String orderNumber = rootNode.getChildText("orderNumber");
+        Timestamp deliveryDateTimeFirst = parseTimestamp(rootNode.getChildText("deliveryDateTimeFirst"));
         Timestamp deliveryDateTimeSecond = parseTimestamp(rootNode.getChildText("deliveryDateTimeSecond"));
         String note = rootNode.getChildText("comment");
 
@@ -376,10 +377,12 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
 
             if (barcode != null)
                 firstData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeSecond, id, barcode, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
+                        deliveryDateTimeFirst, deliveryDateTimeSecond, id, barcode, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
+                        sumNoNDS, sumNDS));
             else
                 secondData.add(Arrays.<Object>asList(documentNumber, dateTime, responseTypeObject, note, supplierGLN, buyerGLN, destinationGLN, orderNumber,
-                        deliveryDateTimeSecond, id, GTIN, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price, sumNoNDS, sumNDS));
+                        deliveryDateTimeFirst, deliveryDateTimeSecond, id, GTIN, dataGTIN, actionObject, quantityOrdered, quantityAccepted, price,
+                        sumNoNDS, sumNDS));
         }
         return new DocumentData(documentNumber, firstData, secondData);
     }
@@ -469,6 +472,10 @@ public class ReceiveMessagesActionProperty extends EDIActionProperty {
             ImportField deliveryDateTimeEOrderResponseField = new ImportField(findProperty("deliveryDateTime[EOrderResponse]"));
             props.add(new ImportProperty(deliveryDateTimeEOrderResponseField, findProperty("deliveryDateTime[EOrderResponse]").getMapping(eOrderResponseKey)));
             fields.add(deliveryDateTimeEOrderResponseField);
+
+            ImportField deliveryDateTimeSecondEOrderResponseField = new ImportField(findProperty("deliveryDateTimeSecond[EOrderResponse]"));
+            props.add(new ImportProperty(deliveryDateTimeSecondEOrderResponseField, findProperty("deliveryDateTimeSecond[EOrderResponse]").getMapping(eOrderResponseKey)));
+            fields.add(deliveryDateTimeSecondEOrderResponseField);
 
             ImportField idEOrderResponseDetailField = new ImportField(findProperty("id[EOrderResponseDetail]"));
             ImportKey<?> eOrderResponseDetailKey = new ImportKey((CustomClass) findClass("EOrderResponseDetail"),
