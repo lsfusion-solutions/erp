@@ -398,6 +398,8 @@ quantityBalance 'Кол-во по остаткам' (collationSheet, batch) = DA
 priceBalance 'Цена по остаткам' (collationSheet, batch) = DATA NUMERIC[16,4] (CollationSheet, Batch);
 
 sumBalance 'Сумма по остаткам'  = DATA NUMERIC[18,4] (CollationSheet, Batch); 
+
+costSumBalance 'Сумма по остаткам(себестоимость)' (CollationSheet cs, Batch bt) = quantityBalance(cs, bt) * cost(bt); 
 // ------------------------------------- Действия по заполнению сличительной ведомости --------------------------------------- //
 
 GROUP inventoryAction 'Действия' : public;
@@ -769,6 +771,9 @@ quantityShortage 'Кол-во недостачи / излишка' (CollationShe
     quantityBalance(collationSheet, batch) (-) quantityPageInventoryDetail(collationSheet, batch) PERSISTENT;
 sumShortage 'Сумма недостачи / излишка' (CollationSheet collationSheet, Batch batch) =
     sumBalance(collationSheet, batch) (-) sumPageInventoryDetail(collationSheet, batch) PERSISTENT;
+    
+costSumShortage 'Сумма недостачи / излишка(себестоимость)' (CollationSheet collationSheet, Batch batch) =
+    quantityShortage(collationSheet, batch) * cost(batch); 
 
 quantityBatchShortage 'Кол-во недостачи / излишка' (collationSheet) =
     GROUP SUM quantityShortage(CollationSheet collationSheet, Batch batch) IF include(collationSheet, batch) BY collationSheet PERSISTENT;
@@ -1162,6 +1167,7 @@ idBarcode 'Штрихкод' (InventoryBatchDetail inventoryBatchDetail) =  idBa
 
 quantity 'Кол-во недостачи / излишка' (InventoryBatchDetail inventoryBatchDetail) = quantityShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
 sum 'Сумма недостачи / излишка' (InventoryBatchDetail inventoryBatchDetail) = sumShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
+costSum 'Сумма недостачи / излишка(себестоимость)' (InventoryBatchDetail inventoryBatchDetail) = costSumShortage(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
 
 includeBatch(InventoryBatchDetail inventoryBatchDetail) = include(collationSheet(inventoryBatchDetail), batch(inventoryBatchDetail)) PERSISTENT;
 
@@ -1570,7 +1576,7 @@ FORM inventory 'Инвентаризация'
                                                             quantityShortage
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       pricePageInventoryDetail BACKGROUND differentPrice(cs, b),
                                                             priceBalance BACKGROUND differentPrice(cs, b)
-    PROPERTIES(cs,b) SHOWIF isBatch(cs)       sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail
+    PROPERTIES(cs,b) SHOWIF isBatch(cs)       sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail, costSumBalance, costSumShortage
     FILTERS                                                 include(cs, b),
                                                             isParent(g, b)
     FILTERGROUP notEqualsPriceBatchFilters
@@ -1790,7 +1796,7 @@ FORM inventories 'Инвентаризации'
 
     OBJECTS ib=InventoryBatchDetail  FIXED GRID
     PROPERTIES(ib) READONLY SHOWIF isBatch(in) nameStock, idBarcode, nameSku,
-                                                        nameBatch, quantity, sum
+                                                        nameBatch, quantity, sum, costSum
     FILTERS                                             inventory(ib) == in
 
     OBJECTS li=ListInventory
@@ -1839,7 +1845,7 @@ FORM inventories 'Инвентаризации'
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, bt),
                                                                 priceBalance BACKGROUND differentPrice(cs, bt)
-    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail
+    PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) sumPageInventoryDetail, sumBalance, sumShortage, costSumPageInventoryDetail, costSumBalance, costSumShortage
     
     FILTERS include(cs, bt), 
             quantityPageInventoryDetail(cs,bt) OR quantityBalance(cs,bt) OR sumBalance(cs, bt)            
