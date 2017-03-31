@@ -174,7 +174,7 @@ public class GenerateZReport extends DefaultIntegrationActionProperty {
                                 usedItems.add(currentItemIndex);
                             }
 
-                            String seriesNumberDiscountCard = discountSum != null ? discountCardList.get(r.nextInt(discountCardList.size())) : null;
+                            String seriesNumberDiscountCard = discountSum != null && !discountCardList.isEmpty() ? discountCardList.get(r.nextInt(discountCardList.size())) : null;
                             for (SalesInfo s : receiptSalesInfoList) {
                                 s.sumCash = sumCash;
                                 s.seriesNumberDiscountCard = seriesNumberDiscountCard;
