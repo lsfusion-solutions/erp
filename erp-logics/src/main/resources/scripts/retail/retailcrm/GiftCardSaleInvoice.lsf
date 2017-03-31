@@ -389,6 +389,9 @@ backgroundShipment 'Цвет' (Sale.Invoice o)= RGB(212,255,212) IF isPosted(o) 
 overFilterGiftCard = ABSTRACT BOOLEAN (Sale.Invoice);
 filterGiftCard (Sale.Invoice i) = isGiftCard(i) OR overFilterGiftCard(i);
 
+hideShiped = ABSTRACT BOOLEAN (Sale.Invoice);
+showShiped (Sale.Invoice i) = toShip(i) AND NOT hideShiped(i);
+
 FORM saleGiftCardDashboard 'Выписка подарочных сертификатов' 
     OBJECTS i = Sale.Invoice LAST
     PROPERTIES (i) READONLY isClosed 
@@ -400,7 +403,7 @@ FORM saleGiftCardDashboard 'Выписка подарочных сертифик
     PROPERTIES (i) READONLY note
 
     PROPERTIES ()  addGiftCardInvoice TODRAW i
-    PROPERTIES (i) NEWSESSION edit SHOWIF overShowEdit(i), copy, shiped SHOWIF toShip(i), DELETE  
+    PROPERTIES (i) NEWSESSION edit SHOWIF overShowEdit(i), copy, shiped SHOWIF showShiped(i), DELETE  
 
     PROPERTIES (i) print  
 
