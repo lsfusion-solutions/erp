@@ -105,7 +105,7 @@ public class EquipmentServerImport {
             paymentGiftCardFields.add(idGiftCardField);
 
             ImportField priceGiftCardField = new ImportField(giftCardLM.findProperty("price[GiftCard]"));
-            paymentGiftCardProperties.add(new ImportProperty(priceGiftCardField, giftCardLM.findProperty("price[GiftCard]").getMapping(giftCardKey)));
+            paymentGiftCardProperties.add(new ImportProperty(priceGiftCardField, giftCardLM.findProperty("price[GiftCard]").getMapping(giftCardKey), true));
             paymentGiftCardFields.add(priceGiftCardField);
 
             List<List<Object>> dataPaymentGiftCard = new ArrayList<>();
