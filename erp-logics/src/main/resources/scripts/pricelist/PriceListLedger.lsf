@@ -498,6 +498,13 @@ priceA 'Цена' (type, sku, stock, company, companyStock, dateTime) =
           ORDER fromDateTime(ledger, type, stock), ledger
           WHERE active(ledger, type, stock) AND
                 fromDateTime(ledger, type, stock) <= dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
+                
+priceListLedgerB 'Цена' (type, sku, stock, companyStock, dateTime) =
+    GROUP LAST PriceListLedger ledger
+          BY LedgerPriceListType type, sku(ledger, type, Stock stock), stock, companyStock(ledger), DATETIME dateTimeIn
+          ORDER fromDateTime(ledger, type, stock), ledger
+          WHERE active(ledger, type, stock) AND
+                fromDateTime(ledger, type, stock) < dateTimeIn AND NOT toDateTime(ledger, type, stock) < dateTimeIn COMPLEX;
 
 priceListLedgerA 'Цена' (type, sku, stock, companyStock, dateTime) =
     GROUP LAST PriceListLedger ledger
