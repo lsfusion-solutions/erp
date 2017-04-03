@@ -430,7 +430,7 @@ public class EquipmentServer {
 
                         SendSalesEquipmentServer.sendCashDocument(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
-                        readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList);
+                        SendSalesEquipmentServer.readSalesInfo(remote, sidEquipmentServer, handler, directorySet, cashRegisterInfoList, mergeBatches);
 
                         SendSalesEquipmentServer.extraCheckZReportSum(remote, sidEquipmentServer, handler, cashRegisterInfoList);
 
@@ -442,45 +442,6 @@ public class EquipmentServer {
         } catch (Throwable e) {
             sendSalesLogger.error("Equipment server error: ", e);
             remote.errorEquipmentServerReport(sidEquipmentServer, e);
-        }
-    }
-
-    private void readSalesInfo(EquipmentServerInterface remote, String sidEquipmentServer, CashRegisterHandler handler,
-                               Set<String> directorySet, List<CashRegisterInfo> cashRegisterInfoList)
-            throws ParseException, IOException, ClassNotFoundException, SQLException {
-        if(directorySet != null) {
-
-            if (mergeBatches) {
-
-                SalesBatch mergedSalesBatch = null;
-                for (String directory : directorySet) {
-                    try {
-                        SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                        if (salesBatch != null) {
-                            if (mergedSalesBatch == null)
-                                mergedSalesBatch = salesBatch;
-                            else
-                                mergedSalesBatch.merge(salesBatch);
-                        }
-                    } catch (Exception e) {
-                        sendSalesLogger.error("Reading SalesInfo", e);
-                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
-                    }
-                }
-                SendSalesEquipmentServer.sendSalesInfo(remote, mergedSalesBatch, sidEquipmentServer, handler);
-
-            } else {
-
-                for (String directory : directorySet) {
-                    try {
-                        SalesBatch salesBatch = handler.readSalesInfo(directory, cashRegisterInfoList);
-                        SendSalesEquipmentServer.sendSalesInfo(remote, salesBatch, sidEquipmentServer, handler);
-                    } catch (Exception e) {
-                        sendSalesLogger.error("Reading SalesInfo", e);
-                        remote.errorEquipmentServerReport(sidEquipmentServer, e);
-                    }
-                }
-            }
         }
     }
 
