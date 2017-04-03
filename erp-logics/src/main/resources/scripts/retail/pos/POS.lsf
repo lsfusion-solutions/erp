@@ -353,10 +353,10 @@ postPaymentTerminal 'Оплата через платёжный терминал
 postPaymentTerminalReceiptResult = DATA LOCAL VARSTRING[100] (); 
 
 FORM postReceiptPayment 'Оплата по чеку'
-    OBJECTS r = Receipt FIXED PANEL
+    OBJECTS r = Receipt PANEL
     PROPERTIES(r) READONLY sumReceiptDetail, changePayment
 
-    OBJECTS p = Payment FIXED GRID
+    OBJECTS p = Payment GRID
     PROPERTIES(p) sum, namePaymentType READONLY
     FILTERS receipt(p) == r
 ;
@@ -541,10 +541,10 @@ sumBonusFIFOReceiptSaleDetail (ReceiptSaleDetail detail) =
 bonusBackground (DiscountCard d) = RGB(255,128,128) IF NOT totalBonuses(d) >= 0.0;
 
 FORM bonusPayment 'Оплата бонусами'
-    OBJECTS r = Receipt FIXED PANEL 
+    OBJECTS r = Receipt PANEL 
     PROPERTIES(r) toPayBonuses ON CHANGE changeToPayBonuses(r)
         
-    OBJECTS d = DiscountCard FIXED PANEL 
+    OBJECTS d = DiscountCard PANEL 
     PROPERTIES(d) READONLY BACKGROUND bonusBackground(d) prevTotalBonuses TODRAW r 
 ;
 
@@ -593,8 +593,8 @@ cancel 'Обнулить чек'(Receipt receipt) = ACTION {
 
 // Продажи
 FORM chooseBatchReceipt 'Выбор партии'
-    OBJECTS st = DepartmentStore FIXED PANEL
-    OBJECTS d = ReceiptDetail FIXED PANEL
+    OBJECTS st = DepartmentStore PANEL
+    OBJECTS d = ReceiptDetail PANEL
 
     OBJECTS bt = Batch
     PROPERTIES(bt) READONLY dateTime, documentNameSku, name
@@ -713,15 +713,15 @@ filterSearchSale = prevCurrentBalance(Sku s, Stock st)
             
 // Поиск подбором SKU
 FORM searchSkuSaleReceipt 'Поиск SKU'
-    OBJECTS st = DepartmentStore FIXED PANEL
-    OBJECTS r = Receipt FIXED PANEL
+    OBJECTS st = DepartmentStore PANEL
+    OBJECTS r = Receipt PANEL
 
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY skuTreeName = name(sk, st)
     ORDER BY skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
-    OBJECTS           s = Sku FIXED GRID
+    OBJECTS           s = Sku GRID
     PROPERTIES        READONLY name(s)
     PROPERTIES(s, st) READONLY prevCurrentBalance
     PROPERTIES(s, r)  READONLY currentPOSPrice    
@@ -770,15 +770,15 @@ searchSkuSale 'Поиск'(Receipt receipt) = ACTION {
 
 // Поиск подбором Batch
 FORM searchBatchSaleReceipt 'Поиск партии'
-    OBJECTS st = DepartmentStore FIXED PANEL
-    OBJECTS r = Receipt FIXED PANEL
+    OBJECTS st = DepartmentStore PANEL
+    OBJECTS r = Receipt PANEL
 
     TREE skuTree sk = SkuGroup PARENT parent
     PROPERTIES READONLY skuTreeName = name(sk, st)
     ORDER BY skuTreeName
     FILTERGROUP inactive FILTER 'Активные' active(sk) 'F5' DEFAULT
 
-    OBJECTS           b = Batch FIXED GRID
+    OBJECTS           b = Batch GRID
     PROPERTIES        READONLY documentNameSku(b)
     
     PROPERTIES(b, st) READONLY prevCurrentBalance
@@ -875,12 +875,12 @@ GROUP receiptReturnAction 'Возврат' : public;
 
 // По штрихкоду
 FORM scanBarcodeReturnReceipt 'Выбор строки возврата'
-    OBJECTS d = DepartmentStore FIXED PANEL
+    OBJECTS d = DepartmentStore PANEL
 
-    OBJECTS s = Sku FIXED PANEL
+    OBJECTS s = Sku PANEL
     PROPERTIES idBarcode(s) READONLY, name(s)
 
-    OBJECTS r = ReceiptSaleDetail FIXED GRID
+    OBJECTS r = ReceiptSaleDetail GRID
     PROPERTIES(r) READONLY numberReceipt, dateTime, nameBatch SHOWIF explicitBatchLedger(d),
                            numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, sumCashPayment, sumCardPayment,
                            index, quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
@@ -958,17 +958,17 @@ scanBarcodeReturn 'Ввести штрихкод'(Receipt receipt) = ACTION {
 // Поиск
 
 FORM searchSkuReturnReceipt 'Поиск строки возврата'
-    OBJECTS st = DepartmentStore FIXED PANEL
-    OBJECTS c = CashRegister FIXED PANEL
+    OBJECTS st = DepartmentStore PANEL
+    OBJECTS c = CashRegister PANEL
 
-    OBJECTS s = Receipt FIXED GRID LAST 
+    OBJECTS s = Receipt GRID LAST 
     PROPERTIES(s) READONLY  number, date, time, nameEmployee,
                             numberDiscountCard, nameLegalEntityDiscountCard, sumReceiptDetail, discountSumReceiptDetail,
                             countReceiptDetail, quantityReceiptDetail
     FILTERS departmentStore(s) == st,
             countReceiptSaleDetail(s) 
 
-    OBJECTS r = ReceiptSaleDetail FIXED GRID
+    OBJECTS r = ReceiptSaleDetail GRID
     PROPERTIES(r) READONLY  idBarcode, nameSku[ReceiptDetail], nameBatch SHOWIF explicitBatchLedger(st),
                             quantity[ReceiptDetail], quantityReturned, price[ReceiptDetail],
                             sum[ReceiptDetail], discountPercent, discountSum[ReceiptDetail]
@@ -1011,7 +1011,7 @@ overChangeBarcodeDiscountCard(VARSTRING[30] string, Receipt receipt) = ACTION {
 overChangeBarcodeSale(VARSTRING[30] string, Receipt receipt) += ACTION overChangeBarcodeDiscountCard(string, receipt);
 
 FORM inputDiscountCardNumberReceipt 'Ввод номера дисконтной карты'
-    OBJECTS (n = VARSTRING[28], s = STRING[2]) FIXED PANEL
+    OBJECTS (n = VARSTRING[28], s = STRING[2]) PANEL
     PROPERTIES number = OBJVALUE(n), series = OBJVALUE(s)
 ;
 
@@ -1165,7 +1165,7 @@ FORM POS
 
     PROPERTIES() READONLY SHOWIF closedCurrentZReport() closedCurrentZReportMessage
 
-    OBJECTS r = Receipt FIXED PANEL
+    OBJECTS r = Receipt PANEL
     PROPERTIES(r) SHOWIF currentZReport() discountSumReceiptDetail, sumReceiptDetail,
                                           searchSkuSale SHOWIF posNotExplicitBatchLedger(r),
                                           searchBatchSale SHOWIF posExplicitBatchLedger(r),
@@ -1176,7 +1176,7 @@ FORM POS
     PROPERTIES(r) READONLY SHOWIF currentZReport() numberDiscountCard, nameLegalEntityDiscountCard, prevTotalSum, bonusPaid BACKGROUND bonusBackground(r) SHOWIF useBonus()
     PROPERTIES(r) READONLY SHOWIF currentZReportUseBonus() BACKGROUND bonusBackground(r) totalBonuses AFTER prevTotalSum(r)                                       
 
-    OBJECTS d = ReceiptDetail FIXED GRID
+    OBJECTS d = ReceiptDetail GRID
     PROPERTIES(d) SHOWIF currentZReport() READONLY BACKGROUND background(r, d)  
                         index, type, idBarcodeGrid = idBarcode, nameSkuGrid = nameSku,
                         prevCurrentBalanceSku SHOWIF posNotExplicitBatchLedger(r),
@@ -1196,15 +1196,15 @@ FORM POS
                         nameBatchPanel = nameBatch ON CHANGE changeBatch(d) SHOWIF posExplicitBatchLedger(r)
     FILTERS receipt(d) == r
 
-    OBJECTS bs = VARSTRING[30] FIXED PANEL
+    OBJECTS bs = VARSTRING[30] PANEL
     PROPERTIES(bs) SHOWIF currentZReport() barcodeSale = OBJVALUE ON CHANGE changeBarcodeSale(r) EVENTID 'SCANNER'
 
-    OBJECTS pc = PromotionCondition FIXED GRID
+    OBJECTS pc = PromotionCondition GRID
     PROPERTIES(pc) SHOWIF currentZReport() READONLY namePromotion, name, dateFrom, dateTo, percent
     PROPERTIES(d, pc) SHOWIF currentZReport() quantity, promotionSum
     FILTERS quantity(d, pc) AND NOT userSet(pc)
 
-    OBJECTS pcu = PromotionCondition FIXED GRID
+    OBJECTS pcu = PromotionCondition GRID
     PROPERTIES(pcu) SHOWIF currentZReport() READONLY namePromotion, name, dateFrom, dateTo, percent
     PROPERTIES(d, pcu) SHOWIF currentZReport() quantity, promotionSum, setUserPromotion ON SHORTCUT setUserPromotionReceipt(r, pcu) ON SHORTCUT dropUserPromotionReceipt(r, pcu) 
     FILTERS userSet(pcu) AND inReceiptSale(d, pcu)
@@ -1212,7 +1212,7 @@ FORM POS
     PROPERTIES() fiscalPrintCopyReceipt READONLYIF fiscalSkip(r), fiscalAdvancePaper READONLYIF fiscalSkip(r), 
     fiscalCutReceipt READONLYIF fiscalSkip(r), fiscalCashSum READONLYIF fiscalSkip(r)
     
-    OBJECTS s = DepartmentStore FIXED GRID
+    OBJECTS s = DepartmentStore GRID
     PROPERTIES(s) READONLY SHOWIF currentZReport() nameStore
     PROPERTIES READONLY SHOWIF currentZReport() prevCurrentBalanceSku(d, s)
 
@@ -1513,7 +1513,7 @@ changeUserPromotion(ReceiptSaleDetail d, PromotionCondition pcu)= ACTION {
 
 EXTEND FORM zReport
 
-    OBJECTS pcu = PromotionCondition FIXED GRID
+    OBJECTS pcu = PromotionCondition GRID
     PROPERTIES(pcu) READONLY  namePromotion, name, dateFrom, 
                     dateTo, percent
     PROPERTIES(d, pcu)  quantity,
@@ -1538,7 +1538,7 @@ DESIGN zReport {
 
 EXTEND FORM zReports
 
-    OBJECTS pcu = PromotionCondition FIXED GRID
+    OBJECTS pcu = PromotionCondition GRID
     PROPERTIES(pcu) READONLY  namePromotion, name, dateFrom, dateTo, percent
     PROPERTIES(d, pcu) READONLY  quantity, promotionSum, setUserPromotion
     FILTERS quantity(d, pcu)

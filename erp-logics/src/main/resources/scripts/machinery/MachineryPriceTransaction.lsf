@@ -290,7 +290,7 @@ GROUP snapshotMachineryPrice 'Перезагрузка прайса целико
 
 FORM groupMachineryInput 'Выбор оборудования для перезагрузки прайса'
 
-    OBJECTS s = Stock FIXED PANEL
+    OBJECTS s = Stock PANEL
     PROPERTIES(s) READONLY sname = name
 
     OBJECTS g = GroupMachinery
@@ -321,7 +321,7 @@ DESIGN groupMachineryInput {
 // ---------------------------------------- Формы загрузки прайса --------------------------------------- //
 
 FORM machineryPriceTransaction 'Загрузка прайса в оборудование'
-    OBJECTS t = MachineryPriceTransaction FIXED PANEL
+    OBJECTS t = MachineryPriceTransaction PANEL
     PROPERTIES(t) nppGroupMachinery, nameGroupMachinery, date, time,
                   snapshot, dateTimeProcessing SHOWIF notSucceeded(t), succeeded, 
                   dateTimeSucceeded SHOWIF succeeded(t), canceled
@@ -344,7 +344,7 @@ DESIGN machineryPriceTransaction {
 }
 
 FORM machineryPriceTransactions 'Загрузки прайса в оборудование'
-    OBJECTS s = Stock FIXED PANEL
+    OBJECTS s = Stock PANEL
     PROPERTIES name(s) SELECTOR
     FILTERS isCompany(s)
 
@@ -469,12 +469,12 @@ requestExchange = DATA RequestExchange (RequestExchangeError);
 note 'Примечание' = DATA VARSTRING[100] (RequestExchange) MINCHARWIDTH 30 PREFCHARWIDTH 50;
 
 FORM requestExchange 'Запрос обмена данными'
-    OBJECTS r = RequestExchange FIXED PANEL
+    OBJECTS r = RequestExchange PANEL
     PROPERTIES(r) nameStock, dateFrom, dateTo, captionRequestExchangeType, succeeded, note, 
                   startDate SHOWIF showStartDate(r), idDiscountCardFrom SHOWIF showStartDate(r), 
                   idDiscountCardTo SHOWIF showStartDate(r)
  
-    OBJECTS s = Stock FIXED GRID
+    OBJECTS s = Stock GRID
     PROPERTIES(s, r) SHOWIF showExtraStocks(r) in
     PROPERTIES(s) READONLY SHOWIF showExtraStocks(r) id, name, nameLegalEntity
     ORDER BY nameLegalEntity(s)
@@ -755,7 +755,7 @@ createPriceMachineryPriceTransaction 'Все товары'(Stock stock) = ACTION
 include 'Вкл.' = DATA LOCAL BOOLEAN (GroupMachinery);
 
 FORM selectGroupMachinery 'Выбор групп оборудования'
-    OBJECTS st = Stock FIXED PANEL 
+    OBJECTS st = Stock PANEL 
     PROPERTIES(st) READONLY name    
     
     OBJECTS gm = GroupMachinery 
@@ -1038,7 +1038,7 @@ filter (Machinery machinery, MachineryPriceTransaction transaction)= IF npps(tra
                                                                         THEN in(transaction, machinery) AND groupMachinery(machinery) == groupMachinery(transaction)
                                                                         ELSE groupMachinery(machinery) == groupMachinery(transaction); 
 EXTEND FORM machineryPriceTransaction
-    OBJECTS m = Machinery FIXED GRID
+    OBJECTS m = Machinery GRID
     PROPERTIES(m) READONLY npp, shortDescription, description, objectClassName//, dataDirectoryCashRegister
     PROPERTIES(t, m) in
     FILTERS groupMachinery(m) == groupMachinery(t) 
@@ -1056,7 +1056,7 @@ DESIGN machineryPriceTransaction {
 //filterInMachineryPriceTransactionBarcodeStock (bb,s)= GROUP SUM 1 IF inMachineryPriceTransactionBarcode(mt, bb) BY bb, stockMachineryPriceTransaction(mt);
 EXTEND FORM machineryPriceTransactions
 
-    OBJECTS m = Machinery FIXED GRID
+    OBJECTS m = Machinery GRID
     PROPERTIES(m) READONLY  npp, shortDescription, description, port, objectClassName//dataDirectoryCashRegister
     PROPERTIES(t, m) READONLY in
     FILTERS filter(m, t) 
@@ -1093,7 +1093,7 @@ EXTEND FORM machineryPriceTransactions
     PROPERTIES(et)  PANEL  errorTrace
     FILTERS machineryPriceTransaction(et) == tt    
       
-    OBJECTS mtt = Machinery FIXED GRID
+    OBJECTS mtt = Machinery GRID
     PROPERTIES(mtt) READONLY npp, shortDescription, description, port, objectClassName//, dataDirectoryCashRegister
     PROPERTIES(tt, mtt) in
     FILTERS groupMachinery(mtt) == groupMachinery(tt) 

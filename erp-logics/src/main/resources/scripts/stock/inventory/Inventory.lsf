@@ -27,7 +27,7 @@ nameEmployee 'Члены комиссии' (Inventory inventory) = nameEmployee(
 in 'Является членом комиссии' (Inventory inventory, Employee employee) = in(committee(inventory), employee);
 
 FORM inventoryCommittee 'Комиссия для инвентаризации'
-    OBJECTS c=InventoryCommittee FIXED PANEL
+    OBJECTS c=InventoryCommittee PANEL
     PROPERTIES(c)      name, nameChairman
 
     TREE stockTree sg = StockGroup PARENT parent
@@ -170,7 +170,7 @@ resetIncludeSkuGroups  'Сбросить отмеченные'(Inventory in) = A
 
 FORM selectSkuGroups 'Выбор групп'
 
-    OBJECTS in = Inventory FIXED PANEL 
+    OBJECTS in = Inventory PANEL 
 
     TREE skuTree2 sk2 = SkuGroup PARENT parent
     PROPERTIES READONLY order(sk2), name(sk2)
@@ -1086,10 +1086,10 @@ stockDocumentLedger(InInventorySkuDetail ledger) += collationSheet(ledger);
 currentBalance 'Текущий остаток' (CollationSheet cs, Batch b) = currentBalance(b, stock(cs));
 
 FORM collationSheetBatches 'Партии'
-    OBJECTS cs = CollationSheet FIXED PANEL 
-    OBJECTS s = Sku FIXED PANEL
+    OBJECTS cs = CollationSheet PANEL 
+    OBJECTS s = Sku PANEL
     
-    OBJECTS d = InventorySkuDetail FIXED GRID
+    OBJECTS d = InventorySkuDetail GRID
     PROPERTIES(d) READONLY dateTime, description, quantity, costed
     FILTERS sku(d) == s, collationSheet(d) == cs
     
@@ -1196,7 +1196,7 @@ stockDocumentLedger(InInventoryBatchDetail ledger) += collationSheet(ledger);
 //------------------------------------ Выбор складов для инвентаризации------------------------------------------//
 
 FORM dialogStockInventory 'Выбор складов для инвентаризации'
-    OBJECTS in=Inventory FIXED PANEL
+    OBJECTS in=Inventory PANEL
     PROPERTIES (in) READONLY series, number, name, date
 
     TREE stockTree a = STRING[3], sg = StockGroup PARENT parent
@@ -1243,7 +1243,7 @@ dialogStock 'Выбрать склады для инвентаризации' (I
 //------------------------------------ Выбор SKU для сличительной ведомости ------------------------------------------//
 
 FORM dialogSkuCollationSheet 'Выбор SKU для сличительной ведомости'
-    OBJECTS cs=ManyCollationSheet FIXED PANEL
+    OBJECTS cs=ManyCollationSheet PANEL
     PROPERTIES (cs) READONLY name, nameTypeOfAddition
 
     TREE treeGroup g=SkuGroup PARENT parent
@@ -1307,7 +1307,7 @@ createPage 'Создать страницу описи с остатками'  (
 isParentSkuGroup = (isParent(SkuGroup g, sku(PageInventoryDetail detail))) OR (g IS SkuGroup AND NOT sku(detail));
 
 FORM listInventory 'Опись'
-    OBJECTS         li=ListInventory FIXED PANEL
+    OBJECTS         li=ListInventory PANEL
     PROPERTIES (li) nameStock, nameInventory, name, note,
                     nameCommittee, nameChairmanCommittee, nameEmployee,
                     countPageInventory, countPageInventoryDetail, quantityPageInventoryDetail,
@@ -1318,7 +1318,7 @@ FORM listInventory 'Опись'
     ORDER BY order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
         
-    OBJECTS         pl=PageInventory FIXED GRID
+    OBJECTS         pl=PageInventory GRID
     PROPERTIES(pl)  name, note PANEL, countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, NEW, DELETE GRID
     FILTERS         listInventory(pl) == li
 
@@ -1330,7 +1330,7 @@ FORM listInventory 'Опись'
     FILTERGROUP page
     FILTER 'На странице' pageInventory(dp) == pl DEFAULT 
 
-    OBJECTS         i=Sku FIXED GRID
+    OBJECTS         i=Sku GRID
     PROPERTIES (li,i)  index
     PROPERTIES (i)     id SHOWIF showIDs(), idBarcode, name
     PROPERTIES (li,i)  quantityPageInventoryDetail, pricePageInventoryDetail SHOWIF isSku(li),
@@ -1338,7 +1338,7 @@ FORM listInventory 'Опись'
     FILTERS            quantityPageInventoryDetail(li,i), //> 0
                        isParent(g, i)
 
-    OBJECTS         bt=Batch FIXED GRID
+    OBJECTS         bt=Batch GRID
     PROPERTIES (li,bt) SHOWIF isBatch(li) index
     PROPERTIES (bt)    SHOWIF isBatch(li) idBarcodeSku, nameSku, name, cost
     PROPERTIES (li,bt) SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail, costSumPageInventoryDetail
@@ -1491,7 +1491,7 @@ saved 'Сохранена' (Inventory i) = PREV(i IS Inventory);
 backgroundQuantity = ABSTRACT CASE COLOR (CollationSheet, Sku);
 
 FORM inventory 'Инвентаризация'
-    OBJECTS          in=Inventory FIXED PANEL
+    OBJECTS          in=Inventory PANEL
     PROPERTIES (in)  isBatch, isPrice, isShortageStockDocument, nameNumerator, number, series,
                      name, nameTypeOfAddition, nameIncludeSkuGroups SHOWIF isPartly(in) ON CHANGE changeSkuGroups(in), date, time,
                      note, nameStock ON CHANGE dialogStock(in), isPartly SHOWIF isRemains(in),
@@ -1516,12 +1516,12 @@ FORM inventory 'Инвентаризация'
 
     PROPERTIES(pl)   READONLY countPageInventoryDetail, quantityPageInventoryDetail, sumPageInventoryDetail, dumb
 
-    OBJECTS          dp=PageInventoryDetail FIXED GRID
+    OBJECTS          dp=PageInventoryDetail GRID
     PROPERTIES (dp)  READONLY index, nameSkuTypeSku, idSku SHOWIF showIDs(), idBarcodeSku, nameSku, nameBatch  SHOWIF isBatch(li),
                               quantity, price, sum, costBatch SHOWIF isBatch(li), costSumBatch SHOWIF isBatch(li)
     FILTERS                   in(in, ds, li, pl, dp)
 
-    OBJECTS         it=Sku FIXED GRID
+    OBJECTS         it=Sku GRID
     PROPERTIES (li,it) READONLY index
     PROPERTIES (it)    READONLY id SHOWIF showIDs(), idBarcode, itNameSku = name
     PROPERTIES (li,it) READONLY quantityPageInventoryDetail, pricePageInventoryDetail SHOWIF isSku(li),
@@ -1529,13 +1529,13 @@ FORM inventory 'Инвентаризация'
     FILTERS            quantityPageInventoryDetail(li,it)
     ORDER BY           itNameSku
 
-    OBJECTS         bt=Batch FIXED GRID
+    OBJECTS         bt=Batch GRID
     PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) index
     PROPERTIES (bt)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name, cost
     PROPERTIES (li,bt) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail, costSumPageInventoryDetail
     FILTERS            quantityPageInventoryDetail(li,bt)
 
-    OBJECTS          cs=CollationSheet FIXED GRID
+    OBJECTS          cs=CollationSheet GRID
     PROPERTIES (cs)              name, nameTypeOfAddition, nameStock, numberDisposal,
                                  quantityPageInventoryDetail, quantityBalance, quantityShortage,
                                  sumPageInventoryDetail, sumBalance, sumItemAccountB SHOWIF showAccountSums(cs) ON SHORTCUT recalculateSumAccountB(cs), 
@@ -1557,7 +1557,7 @@ FORM inventory 'Инвентаризация'
     ORDER BY order(g), name(g)
     FILTERGROUP inactive FILTER 'Активные' active(g) 'F5' DEFAULT
 
-    OBJECTS          i=Sku FIXED GRID
+    OBJECTS          i=Sku GRID
     PROPERTIES(i) READONLY                      idBarcode, iNameSku = name, id
     PROPERTIES(cs, i)                           quantityPageInventoryDetail ON CHANGE overChangeQuantityPageInventoryDetail(cs,i) BACKGROUND backgroundQuantity(cs,i), quantityBalance, quantityShortage ON SHORTCUT showCost(cs, i)
     PROPERTIES(cs, i) SHOWIF isSku(in) pricePageInventoryDetail BACKGROUND differentPrice(cs, i),
@@ -1570,7 +1570,7 @@ FORM inventory 'Инвентаризация'
             FILTER 'Товар с разными ценами' differentPrice(cs, i) 'F10'
     ORDER BY                                    iNameSku
 
-    OBJECTS         b=Batch FIXED GRID
+    OBJECTS         b=Batch GRID
     PROPERTIES(b) READONLY SHOWIF isBatch(cs) idBarcodeSku, nameSku, name, cost
     PROPERTIES(cs,b) SHOWIF isBatch(cs)       quantityPageInventoryDetail, quantityBalance,
                                                             quantityShortage
@@ -1789,12 +1789,12 @@ FORM inventories 'Инвентаризации'
     
     PROPERTIES (in) close SHOWIF showClose(in), open SHOWIF showOpen(in)
 
-    OBJECTS il=InventorySkuDetail FIXED GRID
+    OBJECTS il=InventorySkuDetail GRID
     PROPERTIES(il) READONLY SHOWIF isSku(in) nameStock, idBarcode, nameSku, quantity, sum
     FILTERS                                           inventory(il) == in
     ORDER BY                                          nameStock(il), nameSku(il)
 
-    OBJECTS ib=InventoryBatchDetail  FIXED GRID
+    OBJECTS ib=InventoryBatchDetail  GRID
     PROPERTIES(ib) READONLY SHOWIF isBatch(in) nameStock, idBarcode, nameSku,
                                                         nameBatch, quantity, sum, costSum
     FILTERS                                             inventory(ib) == in
@@ -1805,7 +1805,7 @@ FORM inventories 'Инвентаризации'
     FILTERS                 inventory(li) == in
     ORDER BY                nameStock(li)
 
-    OBJECTS         i=Sku FIXED GRID
+    OBJECTS         i=Sku GRID
     PROPERTIES(li,i) READONLY index
     PROPERTIES(i)    READONLY idBarcode, name, shortNameUOM
     PROPERTIES(li,i) READONLY quantityPageInventoryDetail,
@@ -1814,7 +1814,7 @@ FORM inventories 'Инвентаризации'
     FILTERS                   quantityPageInventoryDetail(li,i)
     ORDER BY                  index(li,i)
 
-    OBJECTS         b=Batch FIXED GRID
+    OBJECTS         b=Batch GRID
     PROPERTIES(li,b) READONLY SHOWIF isBatch(li) index
     PROPERTIES(b)    READONLY SHOWIF isBatch(li) idBarcodeSku, nameSku, name, shortNameUOM, cost
     PROPERTIES(li,b) READONLY SHOWIF isBatch(li) quantityPageInventoryDetail, pricePageInventoryDetail, sumPageInventoryDetail, costSumPageInventoryDetail
@@ -1831,7 +1831,7 @@ FORM inventories 'Инвентаризации'
     FILTERS                              inventory(cs) == in
     ORDER BY                             nameStock(cs)
 
-    OBJECTS          it=Sku FIXED GRID
+    OBJECTS          it=Sku GRID
     PROPERTIES(it) READONLY                                   nASku=name, idBarcode
     PROPERTIES(cs,it) READONLY                                quantityPageInventoryDetail, quantityBalance, quantityShortage
     PROPERTIES(cs,it) READONLY SHOWIF isSku(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, it),
@@ -1840,7 +1840,7 @@ FORM inventories 'Инвентаризации'
     FILTERS                                                   include(cs, it) OR overInclude(cs,it)
     ORDER BY                                                  nASku
 
-    OBJECTS         bt=Batch FIXED GRID 
+    OBJECTS         bt=Batch GRID 
     PROPERTIES(bt)    READONLY SHOWIF isBatch(cs) nameSku, idBarcodeSku, name, cost
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) quantityPageInventoryDetail, quantityBalance, quantityShortage
     PROPERTIES(cs,bt) READONLY SHOWIF isBatch(cs) pricePageInventoryDetail BACKGROUND differentPrice(cs, bt),

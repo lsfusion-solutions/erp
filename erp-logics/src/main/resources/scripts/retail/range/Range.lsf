@@ -11,7 +11,7 @@ rangeLevel (name) = GROUP AGGR (RangeLevel level) BY name (level);
 
 
 FORM rangeLevel 'Уровень ассортимента'
-    OBJECTS l = RangeLevel FIXED PANEL
+    OBJECTS l = RangeLevel PANEL
     PROPERTIES(l) name
 
     EDIT RangeLevel OBJECT l
@@ -67,7 +67,7 @@ TABLE rangeRangeLevel(Range, RangeLevel);
 in 'Вкл' = DATA BOOLEAN (Range, RangeLevel);
 
 FORM range 'Ассортиментная матрица'
-    OBJECTS r = Range FIXED PANEL
+    OBJECTS r = Range PANEL
     PROPERTIES(r) name
 
     OBJECTS l = RangeLevel
@@ -108,7 +108,7 @@ DESIGN range {
 @extendFormFilterSkuGroupAccess(range, sg);
 
 FORM ranges 'Ассортиментные матрицы'
-    OBJECTS d = DATE FIXED PANEL
+    OBJECTS d = DATE PANEL
     PROPERTIES(d) OBJVALUE
 
     TREE skuTree sg = SkuGroup PARENT parent
@@ -254,7 +254,7 @@ dateLastOrderBatch 'Дата последнего прихода'= toDate(dateTi
 nameSupplierLastBatch 'Последний поставщик' (Sku sku,Store store) = nameSupplier(lastOrderBatch(sku,store)) MINCHARWIDTH 15 PREFCHARWIDTH 20;
 
 FORM currentBalanceSku 'Текущие остатки'
-    OBJECTS s = Sku FIXED PANEL 
+    OBJECTS s = Sku PANEL 
     PROPERTIES name(s) READONLY 
         
     OBJECTS st = Store
@@ -264,9 +264,9 @@ FORM currentBalanceSku 'Текущие остатки'
 reviewCurrentBalance (Sku sku) = ACTION SHOW currentBalanceSku OBJECTS s=sku ;
 
 FORM soldStoreSkuDateFromTo 'Продажи по магазинам'
-    OBJECTS s = Sku FIXED PANEL 
+    OBJECTS s = Sku PANEL 
     PROPERTIES name(s) READONLY 
-    OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
+    OBJECTS dates = (dFrom = DATE , dTo = DATE) PANEL
     PROPERTIES READONLY valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
         
     OBJECTS st = Store
@@ -281,9 +281,9 @@ quantityShelf 'Количество на полке' = DATA INTEGER (RangeRev, R
 nameQuantity (RangeLevel rl) = CONCAT ' / ', '('+name(rl)+')', 'к-во на полке'; 
 
 FORM rangeRevSelectSuppliers 'Выбор поставщика'
-    OBJECTS v = RangeRev FIXED PANEL
-    OBJECTS p = PriceListType FIXED PANEL
-    OBJECTS d = DepartmentStore FIXED PANEL
+    OBJECTS v = RangeRev PANEL
+    OBJECTS p = PriceListType PANEL
+    OBJECTS d = DepartmentStore PANEL
     
     OBJECTS l = LegalEntity
     PROPERTIES(l) READONLY name
@@ -298,18 +298,18 @@ changeNameFilterSupplier(RangeRev v, PriceListType p, DepartmentStore d) = ACTIO
 backgroundRange = ABSTRACT CASE COLOR (Sku);
 
 FORM rangeRev 'Версия ассортиментной матрицы'
-    OBJECTS v = RangeRev FIXED PANEL
+    OBJECTS v = RangeRev PANEL
     PROPERTIES(v) dateTime
 
-    OBJECTS pt = DataPriceListType FIXED PANEL
+    OBJECTS pt = DataPriceListType PANEL
     PROPERTIES(pt) SELECTOR name[PriceListType]
 
-    OBJECTS d = DepartmentStore FIXED PANEL
+    OBJECTS d = DepartmentStore PANEL
     PROPERTIES(d) SELECTOR name
 
     PROPERTIES() nameFilterSupplier ON CHANGE changeNameFilterSupplier(v, pt, d) 
 
-    OBJECTS dates = (dFrom = DATE , dTo = DATE) FIXED PANEL
+    OBJECTS dates = (dFrom = DATE , dTo = DATE) PANEL
     PROPERTIES valFrom = OBJVALUE(dFrom), valTo = OBJVALUE(dTo)
     
     OBJECTS rl = RangeLevel    
@@ -358,7 +358,7 @@ FORM rangeRev 'Версия ассортиментной матрицы'
     PROPERTIES READONLY name(l), countSkus(v,l)  
     FILTERS in(v, l)  
    
-    OBJECTS l2 = RangeLevel FIXED GRID
+    OBJECTS l2 = RangeLevel GRID
     FILTERS in(v, l2)  
 
     OBJECTS su = LegalEntity
@@ -404,7 +404,7 @@ copy 'Копировать'(RangeRev pr) = ACTION NESTEDSESSION {
 saved 'Сохранена' (Range r) = PREV(r IS Range);
 
 EXTEND FORM range
-    OBJECTS vl = RangeLevel FIXED GRID
+    OBJECTS vl = RangeLevel GRID
     FILTERS in(r, vl)
     
     OBJECTS v = RangeRev
@@ -444,15 +444,15 @@ createRangeRev 'Создать версию'(Range range, DATE date) = ACTION NE
 } TOOLBAR;
 
 EXTEND FORM ranges
-    OBJECTS vl = RangeLevel FIXED GRID BEFORE r
+    OBJECTS vl = RangeLevel GRID BEFORE r
 
     PROPERTIES READONLY countSku(r, d)
     PROPERTIES READONLY countSku(r, vl, d) TODRAW r COLUMNS (vl) HEADER name(vl) 
 
-    OBJECTS pt = DataPriceListType FIXED PANEL
+    OBJECTS pt = DataPriceListType PANEL
     PROPERTIES(pt) SELECTOR name[PriceListType]
 
-    OBJECTS ds = DepartmentStore FIXED PANEL
+    OBJECTS ds = DepartmentStore PANEL
     PROPERTIES(ds) SELECTOR name
     FILTERS isCompany(ds)
     
@@ -609,7 +609,7 @@ statusRange 'Вид ассортимента' (Store st, Sku s, DATE d) = CASE W
     WHEN countTypeRange(st, s, d) THEN 'Формат';
 
 FORM storeRange 'Ассортимент магазинов'
-    OBJECTS dc = (d = DATE, c = ChainStores) FIXED PANEL
+    OBJECTS dc = (d = DATE, c = ChainStores) PANEL
     PROPERTIES(d) OBJVALUE
     PROPERTIES(c) SELECTOR name
      
@@ -619,7 +619,7 @@ FORM storeRange 'Ассортимент магазинов'
     ORDER BY order(sg), skuGroupName
 
     // По форматам
-    OBJECTS t = StoreType FIXED GRID
+    OBJECTS t = StoreType GRID
     FILTERS chainStores(t) == c, active(t)
     
     OBJECTS r = Range
@@ -629,13 +629,13 @@ FORM storeRange 'Ассортимент магазинов'
     FILTERS inParent(r, sg) OR NOT countSkuGroup(r)
     ORDER BY name(r)
 
-    OBJECTS s = Sku FIXED GRID 
+    OBJECTS s = Sku GRID 
     PROPERTIES(s) READONLY BACKGROUND backgroundRange(s) idBarcode, name, nameUOM
     PROPERTIES(s, t, d) READONLY countRange COLUMNS (t) HEADER name(t)
     FILTERS level(r, s, d)
      
     // По магазинам
-    OBJECTS st = Store FIXED GRID 
+    OBJECTS st = Store GRID 
     PROPERTIES READONLY name(st), nameStoreType(st)
     ORDER BY nameStoreType(st), name(st)
     FILTERS active(st)
@@ -647,7 +647,7 @@ FORM storeRange 'Ассортимент магазинов'
     ORDER BY name(sr)
     FILTERS inParent(sr, sg) OR NOT countSkuGroup(sr)
     
-    OBJECTS ss = Sku FIXED GRID 
+    OBJECTS ss = Sku GRID 
     PROPERTIES(ss) READONLY BACKGROUND backgroundRange(s) idBarcode, name, nameUOM
     PROPERTIES READONLY nameLevel(sr, ss, d)
     PROPERTIES(ss, st, d) READONLY countRange COLUMNS (st) HEADER name(st)
@@ -655,7 +655,7 @@ FORM storeRange 'Ассортимент магазинов'
     FILTERS level(sr, ss, d)
 
     // -------------- Ассортимент магазина ------------------ //
-    OBJECTS ds = Store FIXED PANEL
+    OBJECTS ds = Store PANEL
     PROPERTIES (ds) name SELECTOR
     
     TREE treeGroup g=SkuGroup PARENT parent
@@ -792,13 +792,13 @@ countSku 'Кол-во наименований' (RangeRev v,StoreType t) = count
 EXTEND FORM rangeRev
     PROPERTIES READONLY countFilter(v, s, dFrom)
     
-    OBJECTS t = StoreType FIXED GRID
+    OBJECTS t = StoreType GRID
     PROPERTIES READONLY name(t)
     PROPERTIES(v, t) nameLevel, countSku
     FILTERGROUP activeStoreType
         FILTER 'Активные' active(t) DEFAULT 
     
-    OBJECTS st = Store FIXED GRID
+    OBJECTS st = Store GRID
     PROPERTIES READONLY name(st), countFilter(v, st, dFrom), currentBalance(v, st)
     FILTERS active(st)
     
@@ -900,7 +900,7 @@ DESIGN rangeRev {
 
 
 FORM param 'Параметры заполнения ассортиментной матрицы'
-    OBJECTS v = RangeRev FIXED PANEL 
+    OBJECTS v = RangeRev PANEL 
 
     OBJECTS l = RangeLevel
     PROPERTIES(l) name READONLY, count 
