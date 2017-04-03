@@ -81,7 +81,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
         public void run() {
 
             ServerSocket serverSocket = null;
-            ExecutorService executorService = ExecutorFactory.createMonitorThreadService(10, BoardDaemon.this);
+            ExecutorService executorService = ExecutorFactory.createMonitorThreadService(100, BoardDaemon.this);
             try {
                 serverSocket = new ServerSocket(port == null ? 2004 : port, 1000,
                         host == null ? Inet4Address.getByName(Inet4Address.getLocalHost().getHostAddress()) : Inet4Address.getByName(host));
@@ -93,6 +93,7 @@ public abstract class BoardDaemon extends MonitorServer implements InitializingB
                 while (true) {
                     try {
                         Socket socket = serverSocket.accept();
+                        socket.setSoTimeout(30000);
                         executorService.submit(getCallable(socket));
                     } catch (IOException e) {
                         terminalLogger.error("BoardDaemon Error: ", e);
