@@ -586,13 +586,22 @@ public class KristalHandler extends DefaultCashRegisterHandler<KristalSalesBatch
     private List<CashierTime> readCashierTime(Connection conn, Map<String, Integer> directoryGroupCashRegisterMap, RequestExchange requestExchange, String dir, int start, int limit) throws SQLException {
         List<CashierTime> result = new ArrayList<>();
         try (Statement statement = conn.createStatement()) {
-            String queryString = "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
-                    "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
-                    "FROM CashierWorkTime) AS MyDerivedTable WHERE (MyDerivedTable.RowNum BETWEEN " + start + " AND " + (start + limit - 1) + ")";
+
+            String where1 = "";
+            if (requestExchange.dateFrom != null)
+                where1 = (where1.isEmpty() ? "WHERE " : "") + "LogOn >= '" + requestExchange.dateFrom + "'";
+            if (requestExchange.dateTo != null)
+                where1 += (where1.isEmpty() ? "WHERE " : " AND ") + " LogOn <= '" + requestExchange.dateTo + "'";
+            String where2 = "";
             if(requestExchange.dateFrom != null)
-                queryString += " AND LogOn >= '" + requestExchange.dateFrom + "'";
+                where2 += " AND LogOn >= '" + requestExchange.dateFrom + "'";
             if(requestExchange.dateTo != null)
-                queryString += " AND LogOn <= '" + requestExchange.dateTo + "'";
+                where2 += " AND LogOn <= '" + requestExchange.dateTo + "'";
+
+            String queryString = String.format("SELECT CashierTabNumber, CashNumber,  LogOn, LogOff FROM (" +
+                    "SELECT CashierTabNumber, CashNumber,  LogOn, LogOff, ROW_NUMBER() OVER (ORDER BY ID) AS RowNum " +
+                    "FROM CashierWorkTime %s) AS MyDerivedTable WHERE (MyDerivedTable.RowNum BETWEEN %s AND %s)%s",
+                    where1, start, start + limit - 1, where2);
             machineryExchangeLogger.info("Kristal CashierTime: Executing query " + queryString);
             ResultSet rs = statement.executeQuery(queryString);
             while (rs.next()) {
