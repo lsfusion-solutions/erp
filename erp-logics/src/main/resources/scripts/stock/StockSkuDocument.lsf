@@ -429,6 +429,8 @@ END
 
 META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockProp)
     not###stockProp##Stock (###form o) = NOT stockProp###stock(o);
+    sortOrder###object 'Порядок сортировки' = ABSTRACT  VARSTRING[100] (Sku, ###object, Stock); 
+    
     EXTEND FORM form
 
         TREE stockTree a = STRING[3], sg = StockGroup PARENT parent, ts = Stock
@@ -446,7 +448,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
         OBJECTS           sts=(st=Stock, ks=Sku) FIXED GRID
         PROPERTIES        READONLY BACKGROUND background(ks, concrete, st) name(ks) ON SHORTCUT showMovementSku(ks, st) ON SHORTCUT showMovementPriceSku(ks, st), idBarcode(ks), id(ks) SHOWIF showIDs(), shortNameUOM(ks)
         PROPERTIES        READONLY stockName = name(st) SHOWIF not###stockProp##Stock(concrete)
-        PROPERTIES        addSku() TODRAW sts, edit(ks), copy(ks)
+        PROPERTIES        addSku() TODRAW sts, edit(ks), copy(ks), sortOrder###object(ks, concrete, st)
 
         FILTERS           isParent(sk, ks),
                           // пока отключаем работу по многим складам, а то люди путаются
@@ -457,7 +459,7 @@ META extendFormDocumentSkuStock(object, form, concrete, legalEntityProp, stockPr
                           st == stockProp###stock(concrete)
 
         FILTERS           name(ks)
-        ORDER BY          name(ks)
+        ORDER BY          sortOrder###object(ks, concrete, st), name(ks)
 
         PROPERTIES        quantity###stockProp(ks, concrete, st) ON CHANGE changeQuantity(ks, concrete, st) 
                                 BACKGROUND backgroundQuantity(ks, concrete, st)
