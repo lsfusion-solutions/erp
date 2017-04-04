@@ -56,14 +56,16 @@ importArticleXLS 'Импорт (xlsx)' (PromotionCondition c) = ACTION {
 
     LOCAL importFile = CUSTOMFILE ();
     LOCAL article = VARSTRING[100] (INTEGER);
+    LOCAL price = NUMERIC[16,4] (INTEGER);
     
     importFile() <- NULL;
     LOADFILE importFile();
     IF NOT importFile() THEN RETURN ;
     
-    IMPORT XLSX TO article FROM importFile();
+    IMPORT XLSX TO article = A, price = B FROM importFile();
     FOR imported(INTEGER r) DO {
         in(c, Article a) <- TRUE WHERE id(a) == article(r);
+        resultPrice(c, Sku s) <- price(r) WHERE id(article(s)) == article(r);
     }
     
     MESSAGE 'Импортированы ' + (OVERRIDE 0, [= GROUP SUM 1 IF article(article(INTEGER r))]()) + ' записей';
