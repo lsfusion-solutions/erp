@@ -501,21 +501,34 @@ public class EquipmentServer extends RmiServer implements EquipmentServerInterfa
                                 scalesLM.findProperty("succeeded[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
                     scalesQuery.addProperty("clearedMachineryMachineryPriceTransaction",
                             scalesLM.findProperty("cleared[Machinery,MachineryPriceTransaction]").getExpr(scalesExpr, transactionExpr));
+                    scalesQuery.addProperty("activeScales", scalesLM.findProperty("active[Scales]").getExpr(scalesExpr));
                     scalesQuery.and(scalesLM.findProperty("groupScales[Scales]").getExpr(scalesExpr).compare(groupMachineryObject, Compare.EQUALS));
-                    scalesQuery.and(scalesLM.findProperty("active[Scales]").getExpr(scalesExpr).getWhere());
+                    //scalesQuery.and(scalesLM.findProperty("active[Scales]").getExpr(scalesExpr).getWhere());
 
                     ImOrderMap<ImMap<Object, Object>, ImMap<Object, Object>> scalesResult = scalesQuery.execute(session);
 
+                    int enabledCount = 0;
+                    int enabledInactiveCount = 0;
                     for (ImMap<Object, Object> values : scalesResult.valueIt()) {
                         String portMachinery = (String) values.get("portMachinery");
                         Integer nppMachinery = (Integer) values.get("nppMachinery");
                         boolean enabled = values.get("inMachineryPriceTransactionMachinery") != null;
                         boolean succeeded = values.get("succeededMachineryMachineryPriceTransaction") != null;
                         boolean cleared = values.get("clearedMachineryMachineryPriceTransaction") != null;
-                        scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
+                        boolean active = values.get("activeScales") != null;
+                        if(enabled) {
+                            enabledCount++;
+                            if(!active)
+                                enabledInactiveCount++;
+                        }
+                        if(active)
+                            scalesInfoList.add(new ScalesInfo(enabled, cleared, succeeded, nppGroupMachinery, nppMachinery,
                                 nameModelGroupMachinery, handlerModelGroupMachinery, portMachinery, directory,
                                 pieceCodeGroupScales, weightCodeGroupScales));
                     }
+                    //если все отмеченные - неактивные, то не посылаем весы вообще
+                    if(enabledCount > 0 && enabledCount==enabledInactiveCount)
+                        scalesInfoList = new ArrayList<>();
 
                     List<ScalesItemInfo> scalesItemInfoList = new ArrayList<>();
                     
